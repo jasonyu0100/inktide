@@ -66,7 +66,7 @@ export function checkEndConditions(
 export function evaluateNarrativeState(
   narrative: NarrativeState,
   resolvedKeys: string[],
-  currentIndex: number,
+  _currentIndex: number,
   config: AutoConfig,
 ): AutoActionWeight[] {
   const scores: AutoActionWeight[] = [];
@@ -78,7 +78,6 @@ export function evaluateNarrativeState(
   // ── Thread analysis ─────────────────────────────────────────────────────
   const activeThreads = threads.filter((t) => isActive(t.status));
   const dormantThreads = threads.filter((t) => t.status.toLowerCase() === 'dormant');
-  const terminalThreads = threads.filter((t) => isTerminal(t.status));
 
   // Thread stagnation: how many scenes since each active thread was last mutated
   const threadLastMutated: Record<string, number> = {};
@@ -143,17 +142,30 @@ export function evaluateNarrativeState(
   const hasForceDrift = upwardDriftCount >= 2; // 2+ forces monotonically rising
 
   // ── High-force saturation detection ────────────────────────────────────
-  const lastForce = scenes.length > 0 ? scenes[scenes.length - 1].forceSnapshot : { pressure: 0.5, momentum: 0.5, flux: 0.5 };
+  const lastForce = scenes.length > 0 ? scenes[scenes.length - 1].forceSnapshot : { pressure: 0, momentum: 0, flux: 0 };
   const forceAvg = (lastForce.pressure + lastForce.momentum + lastForce.flux) / 3;
   const forcesHigh = forceAvg > 0.7;
 
-  // ── World build mode scoring ──────────────────────────────────────────
-  const worldBuildBase: Record<string, number> = {
-    off: 0,
-    light: 0.15,
-    moderate: 0.35,
-    heavy: 0.6,
-  };
+  // ── World build interval tracking ──────────────────────────────────────
+  // Count how many arcs have been generated since the last world expansion
+  let arcsSinceLastWorldBuild = 0;
+  if (config.worldBuildInterval > 0) {
+    const allArcIds = Object.keys(narrative.arcs);
+    // Walk arcs in reverse to find the last world build
+    const lastWorldBuildIdx = resolvedKeys.findLastIndex((k) => narrative.worldBuilds[k] != null);
+    if (lastWorldBuildIdx < 0) {
+      // No world builds yet — count all arcs
+      arcsSinceLastWorldBuild = allArcIds.length;
+    } else {
+      // Count arcs that started after the last world build
+      const scenesAfter = resolvedKeys.slice(lastWorldBuildIdx + 1)
+        .map((k) => narrative.scenes[k])
+        .filter(Boolean);
+      const arcIdsAfter = new Set(scenesAfter.map((s) => s.arcId));
+      arcsSinceLastWorldBuild = arcIdsAfter.size;
+    }
+  }
+  const worldBuildDue = config.worldBuildInterval > 0 && arcsSinceLastWorldBuild >= config.worldBuildInterval;
 
   // ── Denouement detection ────────────────────────────────────────────────
   // After a high-tension peak followed by a drop, shift to resolution
@@ -192,34 +204,25 @@ export function evaluateNarrativeState(
     scores.push({ action: 'generate_arc', score: score * pacingMult.generate_arc, reason: reasons.join('; ') || 'continue the story' });
   }
 
-  // 2. Expand world
+  // 2. Expand world (interval-based)
   {
-    let score = worldBuildBase[config.worldBuildMode] ?? 0;
+    let score = 0;
     const reasons: string[] = [];
 
-    if (config.worldBuildMode === 'off') {
-      score = 0;
+    if (config.worldBuildInterval === 0) {
       reasons.push('world building disabled');
-    } else if (worldSaturated) {
-      score *= 0.3;
-      reasons.push('many unused world elements');
+    } else if (worldBuildDue) {
+      score = 0.95; // Nearly guaranteed when interval is hit
+      reasons.push(`${arcsSinceLastWorldBuild} arcs since last world build (interval: ${config.worldBuildInterval})`);
+      if (worldSaturated) {
+        score *= 0.5;
+        reasons.push('but many unused world elements');
+      }
     } else {
-      if (Object.keys(narrative.locations).length < 4) {
-        score += 0.2;
-        reasons.push('world needs more locations');
-      }
-      if (characters.length < 4) {
-        score += 0.2;
-        reasons.push('world needs more characters');
-      }
+      reasons.push(`${arcsSinceLastWorldBuild}/${config.worldBuildInterval} arcs until next world build`);
     }
 
-    // Suppress in post-climax denouement
-    if (isPostClimax) {
-      score *= 0.3;
-    }
-
-    scores.push({ action: 'expand_world', score: score * pacingMult.expand_world, reason: reasons.join('; ') || 'enrich the world' });
+    scores.push({ action: 'expand_world', score, reason: reasons.join('; ') || 'enrich the world' });
   }
 
   // 3. Resolve thread
@@ -365,32 +368,85 @@ export function pickArcLength(config: AutoConfig, action: AutoAction): number {
   }
 }
 
-/** Map an auto action to a force directive for the AI */
-export function actionForceDirective(
+/**
+ * Pick the best cube corner to steer the narrative toward, based on:
+ * - Current position in the force cube
+ * - The chosen action type
+ * - Pacing profile preferences
+ *
+ * Returns a CubeCornerKey that gets passed to generateScenes as the cubeGoal.
+ */
+export function pickCubeGoal(
   action: AutoAction,
   narrative: NarrativeState,
   resolvedKeys: string[],
-): 'escalate' | 'de-escalate' | 'hold' | 'natural' {
-  // Check if forces are already high
+  config: AutoConfig,
+): CubeCornerKey {
   const scenes = resolvedKeys.map((k) => narrative.scenes[k]).filter(Boolean).filter(isScene) as Scene[];
   const lastScene = scenes[scenes.length - 1];
-  const lastForce = lastScene?.forceSnapshot ?? { pressure: 0.5, momentum: 0.5, flux: 0.5 };
-  const avg = (lastForce.pressure + lastForce.momentum + lastForce.flux) / 3;
+  const currentForce = lastScene?.forceSnapshot ?? { pressure: -0.5, momentum: -0.5, flux: 0.5 };
+  const current = detectCubeCorner(currentForce);
 
-  switch (action) {
-    case 'quiet_interlude':
-      return 'de-escalate';
-    case 'resolve_thread':
-      return avg > 0.6 ? 'de-escalate' : 'natural';
-    case 'escalate_toward_climax':
-      return avg > 0.8 ? 'hold' : 'escalate'; // don't escalate past saturation
-    case 'introduce_complication':
-      return avg > 0.7 ? 'hold' : 'natural';
-    case 'generate_arc':
-      return avg > 0.7 ? 'de-escalate' : 'natural';
-    default:
-      return 'natural';
+  // Action-based preferred corners (ordered by priority)
+  const actionPrefs: Record<AutoAction, CubeCornerKey[]> = {
+    quiet_interlude:         ['LLL', 'LLH', 'LHL'],       // Rest, Liminal, Cruise
+    resolve_thread:          ['HHL', 'HLL', 'LLL'],       // Climax, Locked In, Rest
+    escalate_toward_climax:  ['HHH', 'HHL', 'HLH'],       // Peak Crisis, Climax, Slow Burn
+    introduce_complication:  ['LHH', 'HLH', 'LLH'],       // Exploration, Slow Burn, Liminal
+    generate_arc:            ['LHL', 'LHH', 'HLH'],       // Cruise, Exploration, Slow Burn
+    expand_world:            ['LLH', 'LHH', 'LLL'],       // Liminal, Exploration, Rest
+  };
+
+  const prefs = actionPrefs[action] ?? ['LHL'];
+
+  // Pacing profile adjustments — chaotic prefers distant corners, deliberate prefers gradual moves
+  const distanceWeight = config.pacingProfile === 'chaotic' ? 0.6
+    : config.pacingProfile === 'urgent' ? 0.3
+    : config.pacingProfile === 'deliberate' ? -0.3
+    : 0;
+
+  // Score each candidate corner
+  let bestKey: CubeCornerKey = prefs[0];
+  let bestScore = -Infinity;
+
+  for (const key of prefs) {
+    const corner = NARRATIVE_CUBE[key];
+    let score = 0;
+
+    // Preference order bonus (first choice gets more weight)
+    const prefIdx = prefs.indexOf(key);
+    score += (prefs.length - prefIdx) * 0.3;
+
+    // Avoid staying in the same corner (narrative variety)
+    if (key === current.key) {
+      score -= 0.8;
+    }
+
+    // Distance from current position — chaotic profiles prefer bigger jumps
+    const dx = corner.forces.pressure - currentForce.pressure;
+    const dy = corner.forces.momentum - currentForce.momentum;
+    const dz = corner.forces.flux - currentForce.flux;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    score += dist * distanceWeight;
+
+    // Post-climax: strongly prefer rest/liminal corners
+    const tension = compositeTension(currentForce);
+    if (tension > 0.6 && (key === 'LLL' || key === 'LLH' || key === 'LHL')) {
+      score += 0.5;
+    }
+
+    // If forces are very low, prefer corners that raise at least one force
+    if (tension < -0.3 && (key === 'HHH' || key === 'HHL' || key === 'LHH' || key === 'HLH')) {
+      score += 0.4;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = key;
+    }
   }
+
+  return bestKey;
 }
 
 /** Build the action-specific direction hint injected into AI prompts */
@@ -415,20 +471,77 @@ export function buildActionDirective(
   const constraintClause = config.narrativeConstraints ? `\nConstraints: ${config.narrativeConstraints}` : '';
   const directionClause = config.arcDirectionPrompt ? `\nGeneral direction: ${config.arcDirectionPrompt}` : '';
 
+  // Find world build elements that haven't been used in scenes yet
+  const worldBuildSeed = buildWorldBuildSeedClause(narrative, resolvedKeys, config);
+
   switch (action) {
     case 'generate_arc':
-      return `Continue the story naturally. Choose the most compelling next direction.${toneClause}${constraintClause}${directionClause}`;
+      return `Continue the story naturally. Choose the most compelling next direction.${worldBuildSeed}${toneClause}${constraintClause}${directionClause}`;
     case 'escalate_toward_climax':
-      return `ESCALATE the narrative toward a climax. Increase pressure and stakes dramatically. ${stagnantThreads.length > 0 ? `Force a crisis on these stagnant threads: ${stagnantThreads.map((t) => t.description).join(', ')}.` : 'Push the most critical thread toward a breaking point.'}${toneClause}${constraintClause}`;
+      return `ESCALATE the narrative toward a climax. Increase pressure and stakes dramatically. ${stagnantThreads.length > 0 ? `Force a crisis on these stagnant threads: ${stagnantThreads.map((t) => t.description).join(', ')}.` : 'Push the most critical thread toward a breaking point.'}${worldBuildSeed}${toneClause}${constraintClause}`;
     case 'introduce_complication':
-      return `Introduce an unexpected COMPLICATION or twist. Surface a dormant threat, reveal a hidden truth, or create a new conflict that disrupts the current trajectory.${toneClause}${constraintClause}`;
+      return `Introduce an unexpected COMPLICATION or twist. Surface a dormant threat, reveal a hidden truth, or create a new conflict that disrupts the current trajectory.${worldBuildSeed}${toneClause}${constraintClause}`;
     case 'resolve_thread': {
       const threadToResolve = stagnantThreads[0] ?? activeThreads[0];
       return `RESOLVE or bring to conclusion the thread: "${threadToResolve?.description ?? 'the most pressing thread'}". This arc should tie up this storyline definitively.${toneClause}${constraintClause}`;
     }
     case 'quiet_interlude':
-      return `Create a QUIET INTERLUDE — a moment of calm between storms. Focus on character relationships, reflection, and planting seeds for future conflict. Keep tension low but introduce subtle foreshadowing.${toneClause}${constraintClause}`;
+      return `Create a QUIET INTERLUDE — a moment of calm between storms. Focus on character relationships, reflection, and planting seeds for future conflict. Keep tension low but introduce subtle foreshadowing.${worldBuildSeed}${toneClause}${constraintClause}`;
     case 'expand_world':
       return `Expand the world with new elements that serve the current narrative needs.${toneClause}${constraintClause}${directionClause}`;
   }
+}
+
+/** Build a clause that references unused world-build elements to weave into arcs */
+function buildWorldBuildSeedClause(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  config: AutoConfig,
+): string {
+  const worldBuilds = Object.values(narrative.worldBuilds);
+  if (worldBuilds.length === 0) return '';
+
+  // Find characters/locations/threads introduced by world builds that haven't appeared in scenes yet
+  const scenes = resolvedKeys.map((k) => narrative.scenes[k]).filter(Boolean).filter(isScene) as Scene[];
+  const usedCharIds = new Set(scenes.flatMap((s) => s.participantIds));
+  const usedLocIds = new Set(scenes.map((s) => s.locationId));
+  const mutatedThreadIds = new Set(scenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)));
+
+  const unusedChars: string[] = [];
+  const unusedLocs: string[] = [];
+  const unusedThreads: string[] = [];
+
+  for (const wb of worldBuilds) {
+    for (const cid of wb.expansionManifest.characterIds) {
+      if (!usedCharIds.has(cid)) {
+        const c = narrative.characters[cid];
+        if (c) unusedChars.push(`${c.name} (${c.role})`);
+      }
+    }
+    for (const lid of wb.expansionManifest.locationIds) {
+      if (!usedLocIds.has(lid)) {
+        const l = narrative.locations[lid];
+        if (l) unusedLocs.push(l.name);
+      }
+    }
+    for (const tid of wb.expansionManifest.threadIds) {
+      if (!mutatedThreadIds.has(tid)) {
+        const t = narrative.threads[tid];
+        if (t) unusedThreads.push(t.description);
+      }
+    }
+  }
+
+  if (unusedChars.length === 0 && unusedLocs.length === 0 && unusedThreads.length === 0) return '';
+
+  const enforce = config.enforceWorldBuildUsage;
+  const header = enforce
+    ? '\nYou MUST incorporate at least one of these unused world-building elements into this arc:'
+    : '\nConsider incorporating these unused world-building elements:';
+  const parts: string[] = [header];
+  if (unusedChars.length > 0) parts.push(`- Characters: ${unusedChars.slice(0, 4).join(', ')}`);
+  if (unusedLocs.length > 0) parts.push(`- Locations: ${unusedLocs.slice(0, 3).join(', ')}`);
+  if (unusedThreads.length > 0) parts.push(`- Threads: ${unusedThreads.slice(0, 3).join(', ')}`);
+
+  return parts.join('\n');
 }

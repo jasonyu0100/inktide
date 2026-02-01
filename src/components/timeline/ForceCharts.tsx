@@ -25,7 +25,7 @@ export default function ForceCharts() {
     const pressure: number[] = [];
     const momentum: number[] = [];
     const flux: number[] = [];
-    let lastForce = { pressure: 0.5, momentum: 0.5, flux: 0.5 };
+    let lastForce = { pressure: 0, momentum: 0, flux: 0 };
     for (const k of resolvedSceneKeys) {
       const entry = resolveEntry(narrative, k);
       if (entry && isScene(entry)) {

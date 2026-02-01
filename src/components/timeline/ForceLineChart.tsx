@@ -56,14 +56,26 @@ export default function ForceLineChart({
 
     const yScale = d3
       .scaleLinear()
-      .domain([0, 1])
+      .domain([-1, 1])
       .range([chartHeight, chartTop]);
 
-    // Area
+    // Zero line at y=0
+    const zeroY = yScale(0);
+    svg
+      .append('line')
+      .attr('x1', 0)
+      .attr('x2', width)
+      .attr('y1', zeroY)
+      .attr('y2', zeroY)
+      .attr('stroke', '#FFFFFF')
+      .attr('stroke-width', 0.5)
+      .attr('opacity', 0.12);
+
+    // Area (filled from zero line)
     const area = d3
       .area<number>()
       .x((_, i) => xScale(i))
-      .y0(chartHeight)
+      .y0(zeroY)
       .y1((d) => yScale(d))
       .curve(d3.curveMonotoneX);
 

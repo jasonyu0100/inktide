@@ -26,9 +26,9 @@ function project(p: Vec3, w: number, h: number, fov: number): [number, number] {
   return [w / 2 + p[0] * d, h / 2 - p[1] * d];
 }
 
-// Map force values (0-1) to cube coordinates centered at origin (-1 to 1)
+// Map force values (-1 to +1) directly to cube coordinates
 function forcesToCubePos(p: number, m: number, f: number): Vec3 {
-  return [(p - 0.5) * 2, (m - 0.5) * 2, (f - 0.5) * 2];
+  return [p, m, f];
 }
 
 // ── Cube corner positions ────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   const trajectory = useMemo(() => {
     if (!narrative) return [];
     const pts: { pos: Vec3; index: number }[] = [];
-    let lastForce = { pressure: 0.5, momentum: 0.5, flux: 0.5 };
+    let lastForce = { pressure: 0, momentum: 0, flux: 0 };
     for (let i = 0; i < resolvedKeys.length; i++) {
       const entry = resolveEntry(narrative, resolvedKeys[i]);
       if (entry && isScene(entry)) {
@@ -83,9 +83,9 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     if (!narrative || trajectory.length === 0 || currentIdx < 0 || currentIdx >= trajectory.length) return null;
     const pos = trajectory[currentIdx].pos;
     return detectCubeCorner({
-      pressure: (pos[0] / 2) + 0.5,
-      momentum: (pos[1] / 2) + 0.5,
-      flux: (pos[2] / 2) + 0.5,
+      pressure: pos[0],
+      momentum: pos[1],
+      flux: pos[2],
     });
   }, [narrative, trajectory, currentIdx]);
 

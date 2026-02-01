@@ -78,7 +78,7 @@ export default function NarrativePanel() {
           </>
         )}
       </div>
-      <p className="text-sm leading-relaxed text-text-primary">{scene.summary}</p>
+      <p className="text-sm leading-relaxed text-text-primary">{scene.summary || 'No summary available.'}</p>
     </div>
   );
 }

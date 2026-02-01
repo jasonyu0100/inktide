@@ -85,6 +85,11 @@ export type RelationshipMutation = {
   valenceDelta: number;
 };
 
+/** Force values range from -1 to +1.
+ *  - pressure: -1 = safety/no stakes → +1 = existential threat/maximum urgency
+ *  - momentum: -1 = frozen/stagnant → +1 = rapid escalation/breakneck pace
+ *  - flux:     -1 = locked/predictable → +1 = total chaos/unpredictability
+ */
 export type ForceSnapshot = {
   pressure: number;
   momentum: number;
@@ -115,43 +120,43 @@ export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
     key: 'HHL',
     name: 'Climax',
     description: 'High stakes and high pace on stable, familiar ground. The archetypal payoff scene — maximum reader investment with clear orientation.',
-    forces: { pressure: 1, momentum: 1, flux: 0 },
+    forces: { pressure: 1, momentum: 1, flux: -1 },
   },
   HLH: {
     key: 'HLH',
     name: 'Slow Burn',
     description: 'High pressure with low pace in uncertain conditions. Stakes are present but action is withheld — tension through restraint and ambiguity.',
-    forces: { pressure: 1, momentum: 0, flux: 1 },
+    forces: { pressure: 1, momentum: -1, flux: 1 },
   },
   HLL: {
     key: 'HLL',
     name: 'Locked In',
     description: 'High pressure, low pace, stable world. Everything is loaded but static — characters endure, suppress, or wait. Pre-climactic tension.',
-    forces: { pressure: 1, momentum: 0, flux: 0 },
+    forces: { pressure: 1, momentum: -1, flux: -1 },
   },
   LHH: {
     key: 'LHH',
     name: 'Exploration',
     description: 'Fast pace through unstable new territory with low stakes. Discovery-driven sequences — world-building arcs, early adventure, open possibility space.',
-    forces: { pressure: 0, momentum: 1, flux: 1 },
+    forces: { pressure: -1, momentum: 1, flux: 1 },
   },
   LHL: {
     key: 'LHL',
     name: 'Cruise',
     description: 'High pace, low stakes, stable ground. Routine action among known elements — training, travel, episodic sequences. Efficient narrative throughput.',
-    forces: { pressure: 0, momentum: 1, flux: 0 },
+    forces: { pressure: -1, momentum: 1, flux: -1 },
   },
   LLH: {
     key: 'LLH',
     name: 'Liminal',
     description: 'Low pace and low stakes in unfamiliar conditions. Contemplative or transitional — characters in new environments without clear direction.',
-    forces: { pressure: 0, momentum: 0, flux: 1 },
+    forces: { pressure: -1, momentum: -1, flux: 1 },
   },
   LLL: {
     key: 'LLL',
     name: 'Rest',
     description: 'All forces at minimum. Familiar world, no pressure, no urgency. Recovery and seed-planting — necessary breathing room after high-intensity sequences.',
-    forces: { pressure: 0, momentum: 0, flux: 0 },
+    forces: { pressure: -1, momentum: -1, flux: -1 },
   },
 };
 
@@ -299,14 +304,13 @@ export type AutoActionWeight = {
 
 export type PacingProfile = 'deliberate' | 'balanced' | 'urgent' | 'chaotic';
 
-export type WorldBuildMode = 'off' | 'light' | 'moderate' | 'heavy';
-
 export type AutoConfig = {
   endConditions: AutoEndCondition[];
   pacingProfile: PacingProfile;
   minArcLength: number;
   maxArcLength: number;
-  worldBuildMode: WorldBuildMode;
+  /** World build every N arcs (0 = off) */
+  worldBuildInterval: number;
   maxActiveThreads: number;
   threadStagnationThreshold: number;
   arcDirectionPrompt: string;
@@ -314,6 +318,8 @@ export type AutoConfig = {
   narrativeConstraints: string;
   characterRotationEnabled: boolean;
   minScenesBetweenCharacterFocus: number;
+  /** When true, auto mode must use latest world-building elements in new arcs */
+  enforceWorldBuildUsage: boolean;
 };
 
 export type AutoRunLog = {
@@ -360,6 +366,7 @@ export type AppState = {
   inspectorContext: InspectorContext | null;
   wizardOpen: boolean;
   wizardStep: WizardStep;
+  wizardPrefill: string;
   selectedKnowledgeEntity: string | null;
   autoTimer: number;
   graphViewMode: GraphViewMode;

@@ -62,6 +62,80 @@ function withNarrativeUpdate(
   };
 }
 
+/**
+ * Apply scene mutations (relationship + knowledge) to the narrative state.
+ * - relationshipMutations: update valence of existing edges or create new ones
+ * - knowledgeMutations: add/remove knowledge nodes on characters
+ * - threadMutations: update thread statuses
+ */
+function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState {
+  let relationships = [...n.relationships];
+  const characters = { ...n.characters };
+  const threads = { ...n.threads };
+
+  for (const scene of scenes) {
+    // ── Apply relationship mutations ──────────────────────────────────
+    for (const rm of scene.relationshipMutations) {
+      const idx = relationships.findIndex((r) => r.from === rm.from && r.to === rm.to);
+      if (idx >= 0) {
+        // Update existing edge
+        const existing = relationships[idx];
+        relationships = [
+          ...relationships.slice(0, idx),
+          { ...existing, type: rm.type, valence: Math.max(-1, Math.min(1, existing.valence + rm.valenceDelta)) },
+          ...relationships.slice(idx + 1),
+        ];
+      } else {
+        // Create new relationship edge
+        relationships.push({
+          from: rm.from,
+          to: rm.to,
+          type: rm.type,
+          valence: Math.max(-1, Math.min(1, rm.valenceDelta)),
+        });
+      }
+    }
+
+    // ── Apply knowledge mutations ─────────────────────────────────────
+    for (const km of scene.knowledgeMutations) {
+      const char = characters[km.characterId];
+      if (!char) continue;
+
+      if (km.action === 'added') {
+        // Add knowledge node if it doesn't already exist
+        const exists = char.knowledge.nodes.some((kn) => kn.id === km.nodeId);
+        if (!exists) {
+          characters[km.characterId] = {
+            ...char,
+            knowledge: {
+              ...char.knowledge,
+              nodes: [...char.knowledge.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }],
+            },
+          };
+        }
+      } else if (km.action === 'removed') {
+        characters[km.characterId] = {
+          ...char,
+          knowledge: {
+            ...char.knowledge,
+            nodes: char.knowledge.nodes.filter((kn) => kn.id !== km.nodeId),
+          },
+        };
+      }
+    }
+
+    // ── Apply thread mutations ────────────────────────────────────────
+    for (const tm of scene.threadMutations) {
+      const thread = threads[tm.threadId];
+      if (thread) {
+        threads[tm.threadId] = { ...thread, status: tm.to };
+      }
+    }
+  }
+
+  return { ...n, relationships, characters, threads };
+}
+
 const seedRootBranchId = getRootBranchId(seedNarrative);
 const seedResolvedKeys = getResolvedKeys(seedNarrative, seedRootBranchId);
 
@@ -77,6 +151,7 @@ const initialState: AppState = {
   inspectorContext: null,
   wizardOpen: false,
   wizardStep: 'premise',
+  wizardPrefill: '',
   selectedKnowledgeEntity: null,
   autoTimer: 30,
   graphViewMode: 'scene',
@@ -85,7 +160,7 @@ const initialState: AppState = {
     pacingProfile: 'balanced',
     minArcLength: 2,
     maxArcLength: 5,
-    worldBuildMode: 'moderate',
+    worldBuildInterval: 3,
     maxActiveThreads: 6,
     threadStagnationThreshold: 5,
     arcDirectionPrompt: '',
@@ -93,6 +168,7 @@ const initialState: AppState = {
     narrativeConstraints: '',
     characterRotationEnabled: true,
     minScenesBetweenCharacterFocus: 3,
+    enforceWorldBuildUsage: true,
   },
   autoRunState: null,
 };
@@ -108,7 +184,7 @@ type Action =
   | { type: 'PREV_SCENE' }
   | { type: 'SET_SCENE_INDEX'; index: number }
   | { type: 'SET_INSPECTOR'; context: InspectorContext | null }
-  | { type: 'OPEN_WIZARD' }
+  | { type: 'OPEN_WIZARD'; prefill?: string }
   | { type: 'CLOSE_WIZARD' }
   | { type: 'SET_WIZARD_STEP'; step: WizardStep }
   | { type: 'ADD_NARRATIVE'; narrative: NarrativeState }
@@ -198,7 +274,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_INSPECTOR':
       return { ...state, inspectorContext: action.context };
     case 'OPEN_WIZARD':
-      return { ...state, wizardOpen: true, wizardStep: 'premise' };
+      return { ...state, wizardOpen: true, wizardStep: 'premise', wizardPrefill: action.prefill ?? '' };
     case 'CLOSE_WIZARD':
       return { ...state, wizardOpen: false };
     case 'SET_WIZARD_STEP':
@@ -240,15 +316,19 @@ function reducer(state: AppState, action: Action): AppState {
         };
       }
 
-      const entry = narrativeToEntry(n);
-      const newBranchId = getRootBranchId(n);
-      const newResolved = getResolvedKeys(n, newBranchId);
-      saveNarrative(n);
+      // Apply relationship, knowledge, and thread mutations from initial scenes
+      const allScenes = Object.values(n.scenes);
+      const mutated = applySceneMutations(n, allScenes);
+
+      const entry = narrativeToEntry(mutated);
+      const newBranchId = getRootBranchId(mutated);
+      const newResolved = getResolvedKeys(mutated, newBranchId);
+      saveNarrative(mutated);
       return {
         ...state,
         narratives: [...state.narratives, entry],
-        activeNarrativeId: n.id,
-        activeNarrative: n,
+        activeNarrativeId: mutated.id,
+        activeNarrative: mutated,
         activeBranchId: newBranchId,
         resolvedSceneKeys: newResolved,
         currentSceneIndex: Math.max(0, newResolved.length - 1),
@@ -478,7 +558,12 @@ function reducer(state: AppState, action: Action): AppState {
         const updatedBranches = branch
           ? { ...n.branches, [action.branchId]: { ...branch, entryIds: [...branch.entryIds, ...dedupedEntries] } }
           : n.branches;
-        return { ...n, scenes: newScenes, arcs: updatedArcs, branches: updatedBranches };
+        // Apply relationship, knowledge, and thread mutations from the new scenes
+        const withMutations = applySceneMutations(
+          { ...n, scenes: newScenes, arcs: updatedArcs, branches: updatedBranches },
+          action.scenes,
+        );
+        return withMutations;
       });
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
@@ -600,9 +685,7 @@ function reducer(state: AppState, action: Action): AppState {
         : state;
 
     case 'STOP_AUTO_RUN':
-      return state.autoRunState
-        ? { ...state, autoRunState: { ...state.autoRunState, isRunning: false, isPaused: false } }
-        : state;
+      return { ...state, autoRunState: null };
 
     case 'LOG_AUTO_CYCLE':
       return state.autoRunState

@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective } from '@/lib/auto-engine';
+import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective, pickCubeGoal } from '@/lib/auto-engine';
 import { generateScenes, generateArcName, expandWorld, suggestWorldExpansion } from '@/lib/ai';
 import { nextId } from '@/lib/narrative-utils';
 import type { AutoRunLog } from '@/types/narrative';
@@ -79,6 +79,7 @@ export function useAutoPlay() {
         // All other actions generate an arc with scenes
         const directive = buildActionDirective(action, activeNarrative, resolvedSceneKeys, autoConfig);
         const sceneCount = pickArcLength(autoConfig, action);
+        const cubeGoal = pickCubeGoal(action, activeNarrative, resolvedSceneKeys, autoConfig);
         const arcName = await generateArcName(activeNarrative, resolvedSceneKeys, currentSceneIndex, directive);
         if (cancelledRef.current) return;
 
@@ -89,6 +90,8 @@ export function useAutoPlay() {
           sceneCount,
           arcName,
           directive,
+          undefined,
+          cubeGoal,
         );
         if (cancelledRef.current) return;
 

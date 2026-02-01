@@ -156,7 +156,7 @@ export default function ArcDetail({ arcId }: Props) {
                   )}
                 </div>
                 <p className="text-xs text-text-secondary leading-relaxed group-hover:text-text-primary transition-colors">
-                  {scene.summary}
+                  {scene.summary || 'No summary available.'}
                 </p>
               </button>
             );

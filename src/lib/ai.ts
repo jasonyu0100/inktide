@@ -1,6 +1,6 @@
-import type { NarrativeState, Scene, Arc, Character, Location, Thread, RelationshipEdge, CubeCornerKey } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, Character, Location, Thread, RelationshipEdge, ForceSnapshot, CubeCornerKey } from '@/types/narrative';
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
-import { nextId, nextIds } from '@/lib/narrative-utils';
+import { nextId, nextIds, computeForceSnapshot, computeBaselineMutations, computeThreadStatuses, detectCubeCorner } from '@/lib/narrative-utils';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -9,11 +9,11 @@ export type WorldExpansion = {
   relationships: RelationshipEdge[];
 };
 
-async function callGenerate(prompt: string, systemPrompt: string): Promise<string> {
+async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number): Promise<string> {
   const res = await fetch('/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, systemPrompt }),
+    body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}) }),
   });
   if (!res.ok) {
     const err = await res.json();
@@ -83,6 +83,15 @@ function branchContext(
     .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
     .join('\n');
 
+  // Force trajectory — compact time series showing pacing rhythm
+  const forceTrajectory = keysUpToCurrent.map((k, i) => {
+    const entry = resolveEntry(n, k);
+    if (!entry || entry.kind !== 'scene') return null;
+    const f = entry.forceSnapshot;
+    const corner = detectCubeCorner(f);
+    return `[${i + 1}] P:${f.pressure >= 0 ? '+' : ''}${f.pressure.toFixed(1)} M:${f.momentum >= 0 ? '+' : ''}${f.momentum.toFixed(1)} F:${f.flux >= 0 ? '+' : ''}${f.flux.toFixed(1)} (${corner.name})`;
+  }).filter(Boolean).join('\n');
+
   // Compact ID lookup — placed last so it's closest to the generation prompt
   const charIdList = Object.values(n.characters).map((c) => c.id).join(', ');
   const locIdList = Object.values(n.locations).map((l) => l.id).join(', ');
@@ -108,6 +117,9 @@ ${arcs}
 
 FULL SCENE HISTORY (${keysUpToCurrent.length} scenes on current branch):
 ${sceneHistory}
+
+FORCE TRAJECTORY (computed from scene structure — shows pacing rhythm):
+${forceTrajectory || '(no scenes yet)'}
 
 VALID IDs (you MUST use ONLY these exact IDs — do NOT invent new ones):
   Character IDs: ${charIdList}
@@ -246,11 +258,9 @@ The arc should follow this direction: ${direction}
 The scenes must continue from the current point in the story (after scene index ${currentIndex + 1}).
 
 ${cubeGoal ? `
-
-NARRATIVE CUBE GOAL — steer this arc toward the "${NARRATIVE_CUBE[cubeGoal].name}" state (${cubeGoal}):
-Target forces: pressure=${NARRATIVE_CUBE[cubeGoal].forces.pressure}, momentum=${NARRATIVE_CUBE[cubeGoal].forces.momentum}, flux=${NARRATIVE_CUBE[cubeGoal].forces.flux}
+NARRATIVE CUBE GOAL — steer this arc toward the "${NARRATIVE_CUBE[cubeGoal].name}" state:
 ${NARRATIVE_CUBE[cubeGoal].description}
-The scenes should progressively move the force values toward these targets. The final scene's forceSnapshot should be close to the target. Shape events and pacing to make this trajectory feel natural — don't force it mechanically.` : ''}
+Shape the events, pacing, thread mutations, and scene rhythm to produce this narrative feel. The scenes should progressively move toward this state — don't force it mechanically.` : ''}
 
 Return JSON with this exact structure:
 {
@@ -264,21 +274,22 @@ Return JSON with this exact structure:
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
       "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-      "forceSnapshot": {"pressure": 0.5, "momentum": 0.5, "flux": 0.5},
       "prose": "",
-      "summary": "2-4 sentence narrative summary written in vivid, character-driven prose"
+      "summary": "REQUIRED: 2-4 sentence narrative summary written in vivid, character-driven prose. Describe what happens, who is involved, and the emotional stakes."
     }
   ]
 }
 
 Rules:
+- EVERY scene MUST have a non-empty "summary" field. This is critical — scenes without summaries are broken. Write 2-4 vivid sentences describing the scene's events, characters, and emotional stakes.
 - Use ONLY existing character IDs and location IDs from the narrative context above
 - Thread statuses should be descriptive strings that capture the thread's current state (e.g. "dormant", "surfacing", "escalating", "fractured", "converging", "critical")
-- Force values must reflect the narrative reality of each scene — see force dynamics guidance above
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
 - knowledgeMutations.nodeType should be a specific, contextual label for what kind of knowledge this is — NOT limited to a fixed set. Examples: "tactical_insight", "betrayal_discovered", "forbidden_technique", "political_leverage", "hidden_lineage", "oath_sworn". Choose the type that best describes the specific knowledge gained.
 - Thread mutations should reflect the direction — escalate relevant threads, surface dormant ones
+- relationshipMutations track how character dynamics shift. Include them when interactions change — trust gained, betrayal discovered, alliance forming, rivalry deepening. valenceDelta ranges from -0.5 (major damage) to +0.5 (major bonding). Most interactions are ±0.1 to ±0.2.
+- knowledgeMutations track what characters learn. Include them when a character gains or loses information — secrets revealed, lies uncovered, skills observed, intel gathered.
 
 PACING:
 - Not every scene should be a major plot event. Include quieter scenes: character moments, travel, reflection, relationship building, exploring the world.
@@ -296,6 +307,7 @@ PACING:
     kind: 'scene' as const,
     id: sceneIds[i],
     arcId,
+    summary: s.summary || `Scene ${i + 1} of arc "${arcName}"`,
   }));
 
   // Validate all IDs reference entities that actually exist
@@ -354,6 +366,35 @@ PACING:
   for (const scene of scenes) {
     for (const km of scene.knowledgeMutations) {
       km.nodeId = kIds[kIdx++];
+    }
+  }
+
+  // ── Compute forces deterministically from structural data ──────────────
+  {
+    // Gather existing scenes for baseline computation
+    const existingScenes = resolvedKeys
+      .slice(0, currentIndex + 1)
+      .map((k) => narrative.scenes[k])
+      .filter(Boolean);
+    const allScenesForBaseline = [...existingScenes, ...scenes];
+    const baseline = computeBaselineMutations(allScenesForBaseline);
+
+    // Get thread statuses up to the current point
+    let threadStatuses = computeThreadStatuses(narrative, currentIndex, resolvedKeys);
+
+    // Get previous force from last existing scene
+    const lastExistingScene = existingScenes[existingScenes.length - 1];
+    let prevForce: ForceSnapshot | null = lastExistingScene?.forceSnapshot ?? null;
+
+    for (let si = 0; si < scenes.length; si++) {
+      const scene = scenes[si];
+      const globalIndex = existingScenes.length + si;
+      // Apply this scene's thread mutations to get current statuses
+      for (const tm of scene.threadMutations) {
+        threadStatuses = { ...threadStatuses, [tm.threadId]: tm.to };
+      }
+      scene.forceSnapshot = computeForceSnapshot(scene, threadStatuses, prevForce, baseline, globalIndex);
+      prevForce = scene.forceSnapshot;
     }
   }
 
@@ -506,6 +547,7 @@ Rules:
 - Locations should fit the world hierarchy (use existing parentIds where appropriate)
 - Location knowledge should describe lore, dangers, secrets, or resources specific to that place
 - Threads should connect to existing or new characters/locations via anchors
+- ALL new threads MUST have status "dormant" — they are seeds for future arcs, not active storylines yet
 - Relationships can reference both existing and new character IDs
 - Anchors in threads can reference existing characters/locations
 - Generate at least 1 of each type, but only as many as the directive demands`;
@@ -513,10 +555,13 @@ Rules:
   const raw = await callGenerate(prompt, SYSTEM_PROMPT);
   const parsed = parseJson(raw, 'expandWorld') as WorldExpansion;
 
+  // Force all world-build threads to dormant — they're seeds, not active storylines
+  const threads = (parsed.threads ?? []).map((t: Thread) => ({ ...t, status: 'dormant' }));
+
   return {
     characters: parsed.characters ?? [],
     locations: parsed.locations ?? [],
-    threads: parsed.threads ?? [],
+    threads,
     relationships: parsed.relationships ?? [],
   };
 }
@@ -554,9 +599,8 @@ Return JSON with this exact structure:
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "surfacing"}],
       "knowledgeMutations": [],
       "relationshipMutations": [],
-      "forceSnapshot": {"pressure": 0.2, "momentum": 0.2, "flux": 0.1},
       "prose": "",
-      "summary": "scene summary"
+      "summary": "REQUIRED: 2-4 sentence vivid narrative summary of the scene"
     }
   ],
   "arcs": [
@@ -579,18 +623,14 @@ PACING IS CRITICAL:
 - Think of pacing like a novel: setup → slow build → complication → breathing room → escalation. Not: event → event → event → event.
 - Early scenes should establish normalcy and stakes before disrupting them.
 
-Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.
+Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.`;
 
-Force dynamics:
-- pressure: external threats, stakes, urgency bearing down on characters (0-1)
-- momentum: pace of events, how fast things are changing (0-1)
-- flux: instability, uncertainty, unpredictability of the situation (0-1)
-- Forces should reflect what actually happens in each scene — a tense confrontation has high pressure, a mystery scene has high flux, a quiet scene has low momentum
-- Forces should evolve scene-to-scene based on events, not follow a mechanical curve`;
-
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 60000);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'generateNarrative') as any;
+  console.log('[generateNarrative] parsed keys:', Object.keys(parsed));
+  console.log('[generateNarrative] relationships count:', parsed.relationships?.length ?? 0);
+  console.log('[generateNarrative] scenes count:', parsed.scenes?.length ?? 0);
 
   const now = Date.now();
   const id = `N-${now}`;
@@ -605,7 +645,7 @@ Force dynamics:
   for (const t of parsed.threads) threads[t.id] = t;
 
   const scenes: NarrativeState['scenes'] = {};
-  for (const s of parsed.scenes) scenes[s.id] = { ...s, kind: 'scene' };
+  for (const s of parsed.scenes) scenes[s.id] = { ...s, kind: 'scene', summary: s.summary || `Scene ${s.id}` };
 
   const arcs: NarrativeState['arcs'] = {};
   for (const a of parsed.arcs) arcs[a.id] = a;
@@ -622,7 +662,27 @@ Force dynamics:
     },
   };
 
+  // ── Compute forces deterministically for all scenes ──────────────────
   const sceneList = Object.values(scenes);
+  {
+    const baseline = computeBaselineMutations(sceneList);
+    // Build thread statuses from thread definitions
+    let threadStatuses: Record<string, string> = {};
+    for (const [tid, thread] of Object.entries(threads)) {
+      threadStatuses[tid] = thread.status;
+    }
+    let prevForce: ForceSnapshot | null = null;
+    for (let si = 0; si < sceneList.length; si++) {
+      const scene = sceneList[si];
+      // Apply this scene's thread mutations
+      for (const tm of scene.threadMutations) {
+        threadStatuses = { ...threadStatuses, [tm.threadId]: tm.to };
+      }
+      scene.forceSnapshot = computeForceSnapshot(scene, threadStatuses, prevForce, baseline, si);
+      prevForce = scene.forceSnapshot;
+    }
+  }
+
   const commits = sceneList.map((scene, i) => ({
     id: `CM-${String(i + 1).padStart(3, '0')}`,
     parentId: i === 0 ? null : `CM-${String(i).padStart(3, '0')}`,
@@ -658,7 +718,7 @@ Force dynamics:
     relationships: parsed.relationships ?? [],
     worldSummary: parsed.worldSummary ?? premise,
     controlMode: 'auto',
-    activeForces: lastScene?.forceSnapshot ?? { pressure: 0.5, momentum: 0.5, flux: 0.5 },
+    activeForces: lastScene?.forceSnapshot ?? { pressure: 0, momentum: 0, flux: 0 },
     createdAt: now,
     updatedAt: now,
   };

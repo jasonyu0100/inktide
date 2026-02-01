@@ -31,7 +31,7 @@ export default function SceneDetail({ sceneId }: Props) {
           </span>
         </div>
 
-        <p className="text-xs text-text-secondary leading-relaxed">{entry.summary}</p>
+        <p className="text-xs text-text-secondary leading-relaxed">{entry.summary || 'No summary available.'}</p>
 
         <div className="flex flex-col gap-1.5">
           {m.characterIds.length > 0 && (

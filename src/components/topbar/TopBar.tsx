@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 
@@ -16,6 +17,7 @@ function exportNarrative(narrative: NarrativeState) {
 }
 
 export default function TopBar() {
+  const router = useRouter();
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -60,18 +62,30 @@ export default function TopBar() {
         }
         dispatch({ type: 'REPLACE_NARRATIVE', narrative: imported });
         setSelectorOpen(false);
+        router.push(`/series/${imported.id}`);
       } catch {
         alert('Failed to parse narrative file');
       }
     };
     reader.readAsText(file);
     e.target.value = '';
-  }, [dispatch]);
+  }, [dispatch, router]);
 
   return (
     <div className="flex items-center justify-between h-11 bg-bg-panel border-b border-border px-3">
-      {/* Left: series selector + arc breadcrumb */}
+      {/* Left: home + title + arc breadcrumb */}
       <div className="flex items-center gap-1 text-sm min-w-0">
+        {/* Home button */}
+        <button
+          onClick={() => router.push('/')}
+          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary"
+          title="All series"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z" />
+          </svg>
+        </button>
+
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setSelectorOpen((o) => !o)}
@@ -107,8 +121,8 @@ export default function TopBar() {
                         }`}>
                           <button
                             onClick={() => {
-                              dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: entry.id });
                               setSelectorOpen(false);
+                              router.push(`/series/${entry.id}`);
                             }}
                             className="flex-1 text-left px-3 py-2 min-w-0"
                           >
@@ -146,6 +160,7 @@ export default function TopBar() {
                                   dispatch({ type: 'DELETE_NARRATIVE', id: entry.id });
                                   setDeletingId(null);
                                   setDeleteConfirm('');
+                                  if (isActive) router.push('/');
                                 }
                               }}
                               disabled={deleteConfirm !== entry.title}

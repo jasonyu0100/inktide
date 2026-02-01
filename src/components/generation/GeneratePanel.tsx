@@ -3,10 +3,30 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes, suggestDirection, expandWorld, suggestWorldExpansion } from '@/lib/ai';
-import { resolveEntry } from '@/types/narrative';
+import { resolveEntry, NARRATIVE_CUBE, type CubeCornerKey, type NarrativeState, type WorldBuildCommit } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 
 type Mode = 'continuation' | 'world';
+
+/** Build a human-readable seed from a world build entry for injecting into the direction prompt */
+function buildWorldBuildSeed(narrative: NarrativeState, wb: WorldBuildCommit): string {
+  const parts: string[] = [`Incorporate elements from world build "${wb.summary}":`];
+
+  for (const cid of wb.expansionManifest.characterIds) {
+    const c = narrative.characters[cid];
+    if (c) parts.push(`- Character: ${c.name} (${c.role})`);
+  }
+  for (const lid of wb.expansionManifest.locationIds) {
+    const l = narrative.locations[lid];
+    if (l) parts.push(`- Location: ${l.name}`);
+  }
+  for (const tid of wb.expansionManifest.threadIds) {
+    const t = narrative.threads[tid];
+    if (t) parts.push(`- Thread: ${t.description} [${t.status}]`);
+  }
+
+  return parts.join('\n');
+}
 
 function SkeletonLoading({ label }: { label: string }) {
   return (
@@ -32,6 +52,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [arcName, setArcName] = useState('');
   const [direction, setDirection] = useState('');
   const [count, setCount] = useState(3);
+
+  // Cube goal
+  const [cubeGoal, setCubeGoal] = useState<CubeCornerKey | null>(null);
 
   // World mode state
   const [worldDirective, setWorldDirective] = useState('');
@@ -91,6 +114,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         name,
         direction,
         existingArc,
+        cubeGoal ?? undefined,
       );
       dispatch({
         type: 'BULK_ADD_SCENES',
@@ -282,6 +306,105 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
+              {/* Advanced options */}
+              <details className="group">
+                <summary className="text-[10px] uppercase tracking-widest text-text-dim cursor-pointer select-none flex items-center gap-1.5 hover:text-text-secondary transition">
+                  <span className="transition-transform group-open:rotate-90">&#9656;</span>
+                  Advanced
+                  {cubeGoal && (
+                    <span className="text-[9px] text-text-dim font-normal normal-case tracking-normal">
+                      &middot; {NARRATIVE_CUBE[cubeGoal].name}
+                    </span>
+                  )}
+                </summary>
+                <div className="flex flex-col gap-4 mt-3">
+                  {/* Cube Corner Selector */}
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">
+                      Narrative Direction
+                    </label>
+                    <div className="grid grid-cols-4 gap-1">
+                      {(Object.keys(NARRATIVE_CUBE) as CubeCornerKey[]).map((key) => {
+                        const corner = NARRATIVE_CUBE[key];
+                        const isSelected = cubeGoal === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setCubeGoal(isSelected ? null : key)}
+                            disabled={loading}
+                            title={corner.description}
+                            className={`px-1.5 py-1.5 rounded text-left transition ${
+                              isSelected
+                                ? 'bg-white/12 ring-1 ring-white/20'
+                                : 'bg-white/3 hover:bg-white/6'
+                            } disabled:opacity-50`}
+                          >
+                            <div className={`text-[10px] font-medium leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>
+                              {corner.name}
+                            </div>
+                            <div className="text-[8px] text-text-dim font-mono mt-0.5">{key}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {cubeGoal && (
+                      <p className="text-[10px] text-text-dim mt-1.5 leading-relaxed">
+                        {NARRATIVE_CUBE[cubeGoal].description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* World Building Seeds */}
+                  {(() => {
+                    const worldBuildEntries = Object.values(narrative.worldBuilds);
+                    if (worldBuildEntries.length === 0) return null;
+
+                    return (
+                      <div>
+                        <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">
+                          Use World Building
+                        </label>
+                        <div className="flex flex-col gap-1 max-h-28 overflow-y-auto">
+                          {worldBuildEntries.map((wb) => {
+                            const manifest = wb.expansionManifest;
+                            const parts: string[] = [];
+                            if (manifest.characterIds.length > 0)
+                              parts.push(`${manifest.characterIds.length} char${manifest.characterIds.length > 1 ? 's' : ''}`);
+                            if (manifest.locationIds.length > 0)
+                              parts.push(`${manifest.locationIds.length} loc${manifest.locationIds.length > 1 ? 's' : ''}`);
+                            if (manifest.threadIds.length > 0)
+                              parts.push(`${manifest.threadIds.length} thread${manifest.threadIds.length > 1 ? 's' : ''}`);
+
+                            const seedText = buildWorldBuildSeed(narrative, wb);
+
+                            return (
+                              <button
+                                key={wb.id}
+                                type="button"
+                                onClick={() => {
+                                  setDirection((prev) =>
+                                    prev ? `${prev}\n\n${seedText}` : seedText,
+                                  );
+                                }}
+                                disabled={loading}
+                                className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-left hover:border-white/16 transition disabled:opacity-50"
+                              >
+                                <p className="text-xs text-text-primary line-clamp-1">{wb.summary}</p>
+                                <p className="text-[10px] text-text-dim mt-0.5">
+                                  {wb.id} &middot; {parts.join(', ')}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[9px] text-text-dim mt-1">Click to inject into direction above</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </details>
+
               <button
                 onClick={handleGenerateArc}
                 disabled={loading || !direction.trim() || (!newArc && !currentArc)}
@@ -332,7 +455,10 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
           )}
 
           {error && (
-            <p className="text-xs text-pressure">{error}</p>
+            <div className="bg-pressure/10 border border-pressure/30 rounded-lg px-3 py-2">
+              <p className="text-sm text-pressure font-medium">Generation failed</p>
+              <p className="text-xs text-pressure/80 mt-1">{error}</p>
+            </div>
           )}
 
         </div>

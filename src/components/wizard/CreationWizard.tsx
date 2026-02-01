@@ -26,8 +26,8 @@ export function CreationWizard() {
   if (!state.wizardOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass max-w-lg w-full rounded-2xl p-6 relative">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+      <div className="glass max-w-2xl w-full rounded-2xl p-6 relative">
         <button
           onClick={() => dispatch({ type: 'CLOSE_WIZARD' })}
           className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none"

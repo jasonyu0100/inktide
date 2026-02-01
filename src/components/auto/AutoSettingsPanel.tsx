@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import type { AutoConfig, AutoEndCondition, PacingProfile, WorldBuildMode } from '@/types/narrative';
+import type { AutoConfig, AutoEndCondition, PacingProfile } from '@/types/narrative';
 
 type Tab = 'end' | 'pacing' | 'world' | 'tone';
 
@@ -20,12 +20,6 @@ const PACING_PROFILES: { value: PacingProfile; label: string; desc: string }[] =
   { value: 'chaotic', label: 'Chaotic', desc: 'Unpredictable twists, high flux, constant disruption' },
 ];
 
-const WORLD_BUILD_MODES: { value: WorldBuildMode; label: string; desc: string }[] = [
-  { value: 'off', label: 'Off', desc: 'No world expansion — use only existing elements' },
-  { value: 'light', label: 'Light', desc: 'Occasional new locations or characters when needed' },
-  { value: 'moderate', label: 'Moderate', desc: 'Regular world growth alongside the story' },
-  { value: 'heavy', label: 'Heavy', desc: 'Aggressive expansion — many new elements each run' },
-];
 
 export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; onStart: () => void }) {
   const { state, dispatch } = useStore();
@@ -220,34 +214,62 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
 
           {tab === 'world' && (
             <>
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
-                  World Building
-                </label>
-                <div className="flex flex-col gap-2">
-                  {WORLD_BUILD_MODES.map((m) => (
-                    <label
-                      key={m.value}
-                      className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                        config.worldBuildMode === m.value ? 'bg-white/8' : 'hover:bg-white/4'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="worldBuild"
-                        checked={config.worldBuildMode === m.value}
-                        onChange={() => update({ worldBuildMode: m.value })}
-                        className="accent-text-primary mt-0.5"
-                      />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">{m.label}</div>
-                        <div className="text-[10px] text-text-dim">{m.desc}</div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={config.worldBuildInterval > 0}
+                  onChange={(e) => update({ worldBuildInterval: e.target.checked ? 3 : 0 })}
+                  className="accent-text-primary"
+                />
+                <span className="text-xs text-text-secondary">Enable world building</span>
+              </label>
 
+              {config.worldBuildInterval > 0 && (
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
+                    Interval
+                  </label>
+                  <p className="text-[10px] text-text-dim leading-relaxed mb-3">
+                    Expand the world with new characters, locations, and threads at a regular interval.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-text-secondary">Every</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={config.worldBuildInterval}
+                      onChange={(e) => update({ worldBuildInterval: Math.max(1, Number(e.target.value)) })}
+                      className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-16 outline-none text-center"
+                    />
+                    <span className="text-xs text-text-secondary">arcs</span>
+                  </div>
+                  <div className="text-[10px] text-text-dim mt-2">
+                    A world expansion will occur every {config.worldBuildInterval} arc{config.worldBuildInterval !== 1 ? 's' : ''}.
+                  </div>
+                </div>
+              )}
+
+              {config.worldBuildInterval === 0 && (
+                <p className="text-[10px] text-text-dim leading-relaxed">
+                  World building is disabled — only existing elements will be used.
+                </p>
+              )}
+
+              <label className="flex items-center gap-2 cursor-pointer select-none mt-2">
+                <input
+                  type="checkbox"
+                  checked={config.enforceWorldBuildUsage}
+                  onChange={(e) => update({ enforceWorldBuildUsage: e.target.checked })}
+                  className="accent-text-primary"
+                />
+                <span className="text-xs text-text-secondary">Enforce usage of world-building elements</span>
+              </label>
+              <p className="text-[10px] text-text-dim leading-relaxed ml-6">
+                {config.enforceWorldBuildUsage
+                  ? 'New arcs must incorporate unused world-building characters, locations, or threads.'
+                  : 'New arcs will follow the natural flow of the story using existing elements.'}
+              </p>
             </>
           )}
 

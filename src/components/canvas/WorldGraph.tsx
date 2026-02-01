@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import type {
@@ -270,6 +270,51 @@ function buildOverviewGraphData(
   }
 
   return { nodes, links };
+}
+
+// ── Fullscreen button ────────────────────────────────────────────────────────
+
+function FullscreenButton() {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggle = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      title={isFullscreen ? 'Exit full screen' : 'Full screen'}
+      className="absolute bottom-4 right-4 z-10 w-9 h-9 flex items-center justify-center glass-pill text-text-dim hover:text-text-primary transition-colors"
+    >
+      {isFullscreen ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+          <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+          <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+          <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+          <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+          <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+          <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+        </svg>
+      )}
+    </button>
+  );
 }
 
 // ── Component ───────────────────────────────────────────────────────────────
@@ -580,10 +625,9 @@ export default function WorldGraph() {
         return v >= 0 ? 'rgba(74, 222, 128, 0.85)' : 'rgba(248, 113, 113, 0.85)';
       })
       .attr('stroke-opacity', (d) => Math.max(0.4, Math.abs(d.valence ?? 0)))
-      .attr('stroke-width', 1.5)
-      .style('display', 'none');
+      .attr('stroke-width', 1.5);
 
-    // Relationship labels at midpoints (hidden by default)
+    // Relationship labels at midpoints
     const linkLabelSelection = g
       .append('g')
       .attr('class', 'link-labels')
@@ -595,7 +639,6 @@ export default function WorldGraph() {
       .attr('dy', '-6')
       .style('font-size', '9px')
       .style('fill', '#999999')
-      .style('display', 'none')
       .text((d) => d.label ?? '');
 
     // ── Node groups ───────────────────────────────────────────────────────
@@ -760,16 +803,23 @@ export default function WorldGraph() {
       return srcId === selectedNodeId || tgtId === selectedNodeId;
     };
 
+    // Highlight connected relationship edges
     g.select('g.links')
       .selectAll<SVGLineElement, GraphLink>('line.graph-rel-edge')
-      .style('display', (d) => (isConnected(d) ? null : 'none'));
+      .attr('stroke-opacity', (d) => {
+        if (!selectedNodeId) return Math.max(0.4, Math.abs(d.valence ?? 0));
+        return isConnected(d) ? 1 : 0.15;
+      });
 
+    // Update labels: show directional label when a node is selected
     g.select('g.link-labels')
       .selectAll<SVGTextElement, GraphLink>('text.graph-rel-label')
-      .style('display', (d) => (isConnected(d) ? null : 'none'))
+      .attr('fill-opacity', (d) => {
+        if (!selectedNodeId) return 1;
+        return isConnected(d) ? 1 : 0.3;
+      })
       .text((d) => {
         if (!selectedNodeId || !d.directedLabels) return d.label ?? '';
-        // Show the label from the selected node's perspective
         return d.directedLabels[selectedNodeId] ?? d.label ?? '';
       });
   }, [selectedNodeId]);
@@ -801,6 +851,7 @@ export default function WorldGraph() {
       nodesRef.current = baseNodes;
       simulation.nodes(baseNodes);
       (simulation.force('link') as d3.ForceLink<GraphNode, GraphLink>).links(baseLinks);
+      simulation.force('hull-repulsion', null);
       simulation.alpha(0.1).restart();
       return;
     }
@@ -932,11 +983,58 @@ export default function WorldGraph() {
       hullPath.attr('d', hullLine(expanded));
     }
 
+    // Custom force: repel non-subgraph nodes away from hull boundary
+    const hullNodeIds = new Set(hullAllNodes.map((n) => n.id));
+    const hullRepulsionStrength = 120;
+    const hullRepulsionRadius = 60; // how far beyond the hull padding the force reaches
+
+    simulation.force('hull-repulsion', () => {
+      // Compute current hull boundary
+      const hullPoints: [number, number][] = hullAllNodes.map((n) => [n.x ?? 0, n.y ?? 0]);
+      if (hullPoints.length < 2) return;
+
+      const centroid: [number, number] = [
+        hullPoints.reduce((s, p) => s + p[0], 0) / hullPoints.length,
+        hullPoints.reduce((s, p) => s + p[1], 0) / hullPoints.length,
+      ];
+
+      // For each non-hull node, push it away from the hull centroid
+      // if it's within the repulsion zone
+      const effectiveRadius = (hullPoints.length < 3)
+        ? Math.max(40, ...hullPoints.map((p) => Math.hypot(p[0] - centroid[0], p[1] - centroid[1]))) + hullPadding
+        : (() => {
+            const hull = d3.polygonHull(hullPoints);
+            if (!hull) return hullPadding;
+            return Math.max(...hull.map(([x, y]) => Math.hypot(x - centroid[0], y - centroid[1]))) + hullPadding;
+          })();
+
+      const outerBound = effectiveRadius + hullRepulsionRadius;
+
+      for (const node of allNodes) {
+        if (hullNodeIds.has(node.id)) continue;
+        const nx = node.x ?? 0;
+        const ny = node.y ?? 0;
+        const dx = nx - centroid[0];
+        const dy = ny - centroid[1];
+        const dist = Math.hypot(dx, dy) || 1;
+
+        if (dist < outerBound) {
+          // Strength increases as node gets closer to hull
+          const overlap = outerBound - dist;
+          const force = (overlap / hullRepulsionRadius) * hullRepulsionStrength;
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+          node.vx = (node.vx ?? 0) + fx * 0.01;
+          node.vy = (node.vy ?? 0) + fy * 0.01;
+        }
+      }
+    });
+
     // Update simulation
     simulation.nodes(allNodes);
     (simulation.force('link') as d3.ForceLink<GraphNode, GraphLink>)
       .links([...baseLinks, ...knowledgeLinks]);
-    simulation.alpha(0.3).restart();
+    simulation.alpha(0.5).restart();
 
     // Tick handler for knowledge elements
     simulation.on('tick.knowledge', () => {
@@ -1055,6 +1153,8 @@ export default function WorldGraph() {
         className="h-full w-full"
         style={{ background: 'transparent' }}
       />
+      {/* Fullscreen toggle */}
+      <FullscreenButton />
     </div>
   );
 }

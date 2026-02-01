@@ -2,22 +2,20 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import type { AutoConfig, AutoEndCondition, PacingProfile } from '@/types/narrative';
+import type { AutoConfig, AutoEndCondition, AutoObjective } from '@/types/narrative';
 
-type Tab = 'end' | 'pacing' | 'world' | 'tone';
+type Tab = 'end' | 'objective' | 'direction';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'End', value: 'end' },
-  { label: 'Pacing', value: 'pacing' },
-  { label: 'World', value: 'world' },
-  { label: 'Tone', value: 'tone' },
+  { label: 'Objective', value: 'objective' },
+  { label: 'Direction', value: 'direction' },
 ];
 
-const PACING_PROFILES: { value: PacingProfile; label: string; desc: string }[] = [
-  { value: 'deliberate', label: 'Deliberate', desc: 'Slow burn, deep world-building, measured escalation' },
-  { value: 'balanced', label: 'Balanced', desc: 'Even mix of action, development, and world-building' },
-  { value: 'urgent', label: 'Urgent', desc: 'Fast pace, rapid escalation, minimal downtime' },
-  { value: 'chaotic', label: 'Chaotic', desc: 'Unpredictable twists, high flux, constant disruption' },
+const OBJECTIVES: { value: AutoObjective; label: string; desc: string; worldBuilding: boolean }[] = [
+  { value: 'resolve_threads', label: 'Resolve Threads', desc: 'Drive all threads toward resolution and bring the story to a satisfying conclusion. No world building.', worldBuilding: false },
+  { value: 'explore_and_resolve', label: 'Explore & Resolve', desc: 'Balance world-building exploration with thread resolution. World building enabled.', worldBuilding: true },
+  { value: 'open_ended', label: 'Open Ended', desc: 'Keep the story evolving with new complications and world expansion, rarely resolving threads.', worldBuilding: true },
 ];
 
 
@@ -30,12 +28,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
     setConfig((c) => ({ ...c, ...partial }));
   }
 
-  function handleSave() {
-    dispatch({ type: 'SET_AUTO_CONFIG', config });
-  }
-
   function handleStart() {
-    // Enforce at least one end condition
     if (config.endConditions.length === 0) return;
     dispatch({ type: 'SET_AUTO_CONFIG', config });
     onStart();
@@ -48,7 +41,6 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
 
   function toggleEndCondition(type: string, defaultCond: AutoEndCondition) {
     if (hasEndCondition(type)) {
-      // Don't allow removing if it's the last one
       if (config.endConditions.length <= 1) return;
       update({ endConditions: config.endConditions.filter((c) => c.type !== type) });
     } else {
@@ -63,6 +55,8 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
   }
 
   const noEndConditions = config.endConditions.length === 0;
+  const selectedObjective = OBJECTIVES.find((o) => o.value === config.objective);
+  const worldBuildingEnabled = selectedObjective?.worldBuilding ?? false;
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
@@ -99,141 +93,138 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
         <div className="flex-1 overflow-y-auto flex flex-col gap-4 min-h-0">
           {tab === 'end' && (
             <>
-              <p className="text-[10px] text-text-dim leading-relaxed">
-                At least one end condition is required. You can always stop manually.
-              </p>
+              {!hasEndCondition('manual_stop') && (
+                <>
+                  <p className="text-[10px] text-text-dim leading-relaxed">
+                    At least one end condition is required. You can always stop manually.
+                  </p>
 
-              {/* Scene count */}
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={hasEndCondition('scene_count')}
-                  onChange={() => toggleEndCondition('scene_count', { type: 'scene_count', target: 50 })}
-                  className="accent-text-primary"
-                />
-                <span className="text-xs text-text-secondary">Stop at scene count</span>
-              </label>
-              {hasEndCondition('scene_count') && (
-                <div className="ml-6">
-                  <input
-                    type="number"
-                    min={5}
-                    max={500}
-                    value={(getEndCondition('scene_count') as { type: 'scene_count'; target: number })?.target ?? 50}
-                    onChange={(e) =>
-                      updateEndCondition('scene_count', () => ({ type: 'scene_count', target: Number(e.target.value) }))
-                    }
-                    className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-20 outline-none"
-                  />
-                  <span className="text-[10px] text-text-dim ml-2">scenes</span>
-                </div>
+                  {/* Scene count */}
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={hasEndCondition('scene_count')}
+                      onChange={() => toggleEndCondition('scene_count', { type: 'scene_count', target: 50 })}
+                      className="accent-text-primary"
+                    />
+                    <span className="text-xs text-text-secondary">Stop at scene count</span>
+                  </label>
+                  {hasEndCondition('scene_count') && (
+                    <div className="ml-6">
+                      <input
+                        type="number"
+                        min={5}
+                        max={500}
+                        value={(getEndCondition('scene_count') as { type: 'scene_count'; target: number })?.target ?? 50}
+                        onChange={(e) =>
+                          updateEndCondition('scene_count', () => ({ type: 'scene_count', target: Number(e.target.value) }))
+                        }
+                        className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-20 outline-none"
+                      />
+                      <span className="text-[10px] text-text-dim ml-2">scenes</span>
+                    </div>
+                  )}
+
+                  {/* Arc count */}
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={hasEndCondition('arc_count')}
+                      onChange={() => toggleEndCondition('arc_count', { type: 'arc_count', target: 10 })}
+                      className="accent-text-primary"
+                    />
+                    <span className="text-xs text-text-secondary">Stop at arc count</span>
+                  </label>
+                  {hasEndCondition('arc_count') && (
+                    <div className="ml-6">
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={(getEndCondition('arc_count') as { type: 'arc_count'; target: number })?.target ?? 10}
+                        onChange={(e) =>
+                          updateEndCondition('arc_count', () => ({ type: 'arc_count', target: Number(e.target.value) }))
+                        }
+                        className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-20 outline-none"
+                      />
+                      <span className="text-[10px] text-text-dim ml-2">arcs</span>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* Arc count */}
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={hasEndCondition('arc_count')}
-                  onChange={() => toggleEndCondition('arc_count', { type: 'arc_count', target: 10 })}
-                  className="accent-text-primary"
-                />
-                <span className="text-xs text-text-secondary">Stop at arc count</span>
-              </label>
-              {hasEndCondition('arc_count') && (
-                <div className="ml-6">
+              {/* Manual stop — warning zone */}
+              <div className={`border border-amber-500/30 rounded-lg p-3 bg-amber-500/5 ${hasEndCondition('manual_stop') ? '' : 'mt-4'}`}>
+                <p className="text-[10px] text-amber-400/80 uppercase tracking-widest font-semibold mb-2">Warning</p>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={(getEndCondition('arc_count') as { type: 'arc_count'; target: number })?.target ?? 10}
-                    onChange={(e) =>
-                      updateEndCondition('arc_count', () => ({ type: 'arc_count', target: Number(e.target.value) }))
-                    }
-                    className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-20 outline-none"
+                    type="checkbox"
+                    checked={hasEndCondition('manual_stop')}
+                    onChange={() => {
+                      if (hasEndCondition('manual_stop')) {
+                        // Turning off manual stop — restore a default end condition
+                        update({ endConditions: [{ type: 'scene_count', target: 50 }] });
+                      } else {
+                        // Turning on manual stop — clear all other conditions
+                        update({ endConditions: [{ type: 'manual_stop' }] });
+                      }
+                    }}
+                    className="accent-amber-500"
                   />
-                  <span className="text-[10px] text-text-dim ml-2">arcs</span>
-                </div>
-              )}
-
-              {/* All threads resolved */}
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={hasEndCondition('all_threads_resolved')}
-                  onChange={() => toggleEndCondition('all_threads_resolved', { type: 'all_threads_resolved' })}
-                  className="accent-text-primary"
-                />
-                <span className="text-xs text-text-secondary">Stop when all threads resolved</span>
-              </label>
-
-              {/* Manual stop (always available) */}
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={hasEndCondition('manual_stop')}
-                  onChange={() => toggleEndCondition('manual_stop', { type: 'manual_stop' })}
-                  className="accent-text-primary"
-                />
-                <span className="text-xs text-text-secondary">Manual stop only</span>
-              </label>
+                  <span className="text-xs text-text-secondary">Manual stop only</span>
+                </label>
+                <p className="text-[10px] text-text-dim leading-relaxed mt-1 ml-6">
+                  {hasEndCondition('manual_stop')
+                    ? 'All automatic end conditions are disabled. Generation runs indefinitely until you manually stop it.'
+                    : 'No automatic stopping — generation runs indefinitely until you manually stop it.'}
+                </p>
+              </div>
             </>
           )}
 
-          {tab === 'pacing' && (
+          {tab === 'objective' && (
             <>
+              {/* Objective selector */}
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
-                  Pacing Profile
+                  Story Objective
                 </label>
                 <div className="flex flex-col gap-2">
-                  {PACING_PROFILES.map((p) => (
+                  {OBJECTIVES.map((o) => (
                     <label
-                      key={p.value}
+                      key={o.value}
                       className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                        config.pacingProfile === p.value ? 'bg-white/8' : 'hover:bg-white/4'
+                        config.objective === o.value ? 'bg-white/8' : 'hover:bg-white/4'
                       }`}
                     >
                       <input
                         type="radio"
-                        name="pacing"
-                        checked={config.pacingProfile === p.value}
-                        onChange={() => update({ pacingProfile: p.value })}
+                        name="objective"
+                        checked={config.objective === o.value}
+                        onChange={() => update({
+                          objective: o.value,
+                          worldBuildInterval: o.worldBuilding ? (config.worldBuildInterval || 3) : 0,
+                        })}
                         className="accent-text-primary mt-0.5"
                       />
                       <div>
-                        <div className="text-xs text-text-primary font-medium">{p.label}</div>
-                        <div className="text-[10px] text-text-dim">{p.desc}</div>
+                        <div className="text-xs text-text-primary font-medium">{o.label}</div>
+                        <div className="text-[10px] text-text-dim">{o.desc}</div>
                       </div>
                     </label>
                   ))}
                 </div>
               </div>
 
-            </>
-          )}
-
-          {tab === 'world' && (
-            <>
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={config.worldBuildInterval > 0}
-                  onChange={(e) => update({ worldBuildInterval: e.target.checked ? 3 : 0 })}
-                  className="accent-text-primary"
-                />
-                <span className="text-xs text-text-secondary">Enable world building</span>
-              </label>
-
-              {config.worldBuildInterval > 0 && (
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
-                    Interval
+              {/* World building settings — only when objective supports it */}
+              {worldBuildingEnabled && (
+                <div className="border-t border-border pt-4">
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-3">
+                    World Building
                   </label>
-                  <p className="text-[10px] text-text-dim leading-relaxed mb-3">
-                    Expand the world with new characters, locations, and threads at a regular interval.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-text-secondary">Every</span>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xs text-text-secondary">Expand every</span>
                     <input
                       type="number"
                       min={1}
@@ -242,47 +233,41 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                       onChange={(e) => update({ worldBuildInterval: Math.max(1, Number(e.target.value)) })}
                       className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-16 outline-none text-center"
                     />
-                    <span className="text-xs text-text-secondary">arcs</span>
+                    <span className="text-xs text-text-secondary">arc{config.worldBuildInterval !== 1 ? 's' : ''}</span>
                   </div>
-                  <div className="text-[10px] text-text-dim mt-2">
-                    A world expansion will occur every {config.worldBuildInterval} arc{config.worldBuildInterval !== 1 ? 's' : ''}.
-                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={config.enforceWorldBuildUsage}
+                      onChange={(e) => update({ enforceWorldBuildUsage: e.target.checked })}
+                      className="accent-text-primary"
+                    />
+                    <span className="text-xs text-text-secondary">Enforce usage of new elements</span>
+                  </label>
+                  <p className="text-[10px] text-text-dim leading-relaxed ml-6 mt-1">
+                    {config.enforceWorldBuildUsage
+                      ? 'New arcs must incorporate unused world-building characters, locations, or threads.'
+                      : 'New arcs will follow the natural flow of the story using existing elements.'}
+                  </p>
                 </div>
               )}
-
-              {config.worldBuildInterval === 0 && (
-                <p className="text-[10px] text-text-dim leading-relaxed">
-                  World building is disabled — only existing elements will be used.
-                </p>
-              )}
-
-              <label className="flex items-center gap-2 cursor-pointer select-none mt-2">
-                <input
-                  type="checkbox"
-                  checked={config.enforceWorldBuildUsage}
-                  onChange={(e) => update({ enforceWorldBuildUsage: e.target.checked })}
-                  className="accent-text-primary"
-                />
-                <span className="text-xs text-text-secondary">Enforce usage of world-building elements</span>
-              </label>
-              <p className="text-[10px] text-text-dim leading-relaxed ml-6">
-                {config.enforceWorldBuildUsage
-                  ? 'New arcs must incorporate unused world-building characters, locations, or threads.'
-                  : 'New arcs will follow the natural flow of the story using existing elements.'}
-              </p>
             </>
           )}
 
-          {tab === 'tone' && (
+          {tab === 'direction' && (
             <>
+              <p className="text-[10px] text-text-dim leading-relaxed">
+                The north star for your story. Auto mode will constantly steer the narrative toward this direction across every arc it generates.
+              </p>
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">
-                  Direction Prompt
+                  Story Direction
                 </label>
                 <textarea
                   value={config.arcDirectionPrompt}
                   onChange={(e) => update({ arcDirectionPrompt: e.target.value })}
-                  placeholder="Guide the overall story direction, tone, and constraints..."
+                  placeholder="e.g. The protagonist should slowly uncover the truth about their past while alliances shift around them. Build toward a betrayal that redefines the central conflict..."
                   className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-32 resize-none outline-none placeholder:text-text-dim"
                 />
               </div>

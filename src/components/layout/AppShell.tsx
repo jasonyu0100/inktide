@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useState, useCallback, useRef, useEffect } from 'react';
+import { type ReactNode, useState, useCallback, useRef } from 'react';
 import TopBar from '@/components/topbar/TopBar';
 
 type AppShellProps = {
@@ -63,14 +63,23 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
   const right = useResize(280, 180, 480, 'right');
 
   return (
-    <div className="h-screen bg-bg-base flex flex-col overflow-hidden">
+    <div className="h-screen bg-bg-base flex flex-col overflow-hidden relative">
+      {/* Ambient aurora background — subtle version for workspace */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden aurora-container aurora-workspace">
+        <div className="aurora-curtain aurora-curtain-1" />
+        <div className="aurora-curtain aurora-curtain-3" />
+        <div className="aurora-curtain aurora-curtain-5" />
+        <div className="aurora-wisp aurora-wisp-2" />
+        <div className="aurora-wisp aurora-wisp-4" />
+      </div>
+
       {/* TopBar */}
-      <div className="h-11 shrink-0">
+      <div className="h-11 shrink-0 relative z-20">
         <TopBar />
       </div>
 
       {/* Main row */}
-      <div className="flex-1 flex min-h-0 relative">
+      <div className="flex-1 flex min-h-0 relative z-10">
         {/* Left sidebar */}
         {!left.collapsed && (
           <div
@@ -89,7 +98,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
         {/* Left collapse toggle — always visible, positioned at left panel edge */}
         <button
           onClick={left.toggle}
-          className="absolute top-1/2 -translate-y-1/2 z-20 w-4 h-8 flex items-center justify-center rounded-full bg-bg-panel border border-border text-text-dim hover:text-text-secondary hover:bg-bg-elevated transition-colors"
+          className="absolute top-1/2 -translate-y-1/2 z-20 w-4 h-8 flex items-center justify-center rounded-full glass-panel border border-border text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors"
           style={{ left: left.collapsed ? 0 : left.width - 8 }}
           title={left.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -110,7 +119,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
         {/* Right collapse toggle — always visible, positioned at right panel edge */}
         <button
           onClick={right.toggle}
-          className="absolute top-1/2 -translate-y-1/2 z-20 w-4 h-8 flex items-center justify-center rounded-full bg-bg-panel border border-border text-text-dim hover:text-text-secondary hover:bg-bg-elevated transition-colors"
+          className="absolute top-1/2 -translate-y-1/2 z-20 w-4 h-8 flex items-center justify-center rounded-full glass-panel border border-border text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors"
           style={{ right: right.collapsed ? 0 : right.width - 8 }}
           title={right.collapsed ? 'Expand inspector' : 'Collapse inspector'}
         >

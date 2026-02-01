@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { SEED_NARRATIVE_IDS } from '@/lib/store';
 
 const DISMISSED_KEY = 'narrative-engine:onboarding-dismissed';
 
@@ -88,7 +87,6 @@ export function OnboardingGuide({ narrativeId }: { narrativeId: string }) {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    if (!SEED_NARRATIVE_IDS.has(narrativeId)) return;
     const dismissed = getDismissed();
     if (!dismissed.has(narrativeId)) {
       // Small delay so the UI renders first

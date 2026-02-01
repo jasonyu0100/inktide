@@ -745,10 +745,7 @@ export default function WorldGraph() {
       .attr('dy', 18)
       .style('font-size', '8px')
       .style('fill', '#666666')
-      .text((d) => {
-        const maxLen = 20;
-        return d.label.length > maxLen ? d.label.slice(0, maxLen) + '...' : d.label;
-      });
+      .text((d) => d.label);
 
     // ── Tick ──────────────────────────────────────────────────────────────
     simulation.on('tick', () => {
@@ -919,6 +916,19 @@ export default function WorldGraph() {
       .attr('stroke-opacity', 0.5)
       .attr('stroke-width', 1);
 
+    // Add knowledge edge type labels
+    const linkLabelsGroup = g.select<SVGGElement>('g.link-labels');
+    const edgeTypedLinks = knowledgeLinks.filter((l) => l.knowledgeEdgeType);
+    const knowledgeEdgeLabels = linkLabelsGroup
+      .selectAll<SVGTextElement, GraphLink>('text.knowledge-edge-label')
+      .data(edgeTypedLinks, (d) => d.id)
+      .join('text')
+      .attr('class', 'graph-label knowledge-edge-label')
+      .attr('text-anchor', 'middle')
+      .style('font-size', '7px')
+      .style('fill', 'rgba(255, 255, 255, 0.4)')
+      .text((d) => d.knowledgeEdgeType ?? '');
+
     // Add knowledge node elements
     const nodesGroup = g.select<SVGGElement>('g.nodes');
     const knowledgeNodeEls = nodesGroup
@@ -940,10 +950,7 @@ export default function WorldGraph() {
       .attr('dy', 18)
       .style('font-size', '8px')
       .style('fill', '#666666')
-      .text((d) => {
-        const maxLen = 20;
-        return d.label.length > maxLen ? d.label.slice(0, maxLen) + '...' : d.label;
-      });
+      .text((d) => d.label);
 
     // Add curved convex hull "net" behind knowledge subgraph
     const hullPadding = 30;
@@ -1043,6 +1050,18 @@ export default function WorldGraph() {
         .attr('y1', (d) => ((d.source as GraphNode).y ?? 0))
         .attr('x2', (d) => ((d.target as GraphNode).x ?? 0))
         .attr('y2', (d) => ((d.target as GraphNode).y ?? 0));
+
+      knowledgeEdgeLabels
+        .attr('x', (d) => {
+          const sx = (d.source as GraphNode).x ?? 0;
+          const tx = (d.target as GraphNode).x ?? 0;
+          return (sx + tx) / 2;
+        })
+        .attr('y', (d) => {
+          const sy = (d.source as GraphNode).y ?? 0;
+          const ty = (d.target as GraphNode).y ?? 0;
+          return (sy + ty) / 2 - 4;
+        });
 
       knowledgeNodeEls.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
 

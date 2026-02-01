@@ -93,7 +93,13 @@ function branchContext(
     const loc = `${s.locationId} (${n.locations[s.locationId]?.name ?? 'unknown'})`;
     const participants = s.participantIds.map((pid) => `${pid} (${n.characters[pid]?.name ?? 'unknown'})`).join(', ');
     const threadChanges = s.threadMutations.map((tm) => `${tm.threadId}: ${tm.from}->${tm.to}`).join('; ');
-    return `[${i + 1}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}
+    const knowledgeChanges = s.knowledgeMutations.map((km) => `${km.characterId} learned [${km.nodeType}]: ${km.content}`).join('; ');
+    const relChanges = s.relationshipMutations.map((rm) => {
+      const fromName = n.characters[rm.from]?.name ?? rm.from;
+      const toName = n.characters[rm.to]?.name ?? rm.to;
+      return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${rm.valenceDelta})`;
+    }).join('; ');
+    return `[${i + 1}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}${knowledgeChanges ? ` | Knowledge: ${knowledgeChanges}` : ''}${relChanges ? ` | Relationships: ${relChanges}` : ''}
    ${s.summary}`;
   }).filter(Boolean).join('\n');
 

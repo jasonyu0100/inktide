@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStore } from '@/lib/store';
+import { useStore, SEED_NARRATIVE_IDS } from '@/lib/store';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
 import type { NarrativeEntry } from '@/types/narrative';
 
@@ -17,7 +17,149 @@ function timeAgo(timestamp: number): string {
   return `${days}d ago`;
 }
 
-function SeriesCard({ entry }: { entry: NarrativeEntry }) {
+/* ── Animated thread SVG that draws on mount ─────────────────────────────── */
+function ThreadLine() {
+  const pathRef = useRef<SVGPathElement>(null);
+
+  useEffect(() => {
+    const path = pathRef.current;
+    if (!path) return;
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = `${len}`;
+    path.style.strokeDashoffset = `${len}`;
+    requestAnimationFrame(() => {
+      path.style.transition = 'stroke-dashoffset 2s ease-out';
+      path.style.strokeDashoffset = '0';
+    });
+  }, []);
+
+  return (
+    <svg
+      className="absolute left-1/2 -translate-x-1/2 top-0 h-full w-[2px] pointer-events-none"
+      viewBox="0 0 2 600"
+      preserveAspectRatio="none"
+    >
+      <path
+        ref={pathRef}
+        d="M1 0 L1 600"
+        stroke="url(#thread-grad)"
+        strokeWidth="1"
+        fill="none"
+      />
+      <defs>
+        <linearGradient id="thread-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+          <stop offset="30%" stopColor="rgba(255,255,255,0.08)" />
+          <stop offset="70%" stopColor="rgba(255,255,255,0.04)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+/* ── Seed vertical cards ─────────────────────────────────────────────────── */
+function SeedCard({ entry, index }: { entry: NarrativeEntry; index: number }) {
+  const router = useRouter();
+
+  return (
+    <div
+      onClick={() => router.push(`/series/${entry.id}`)}
+      className="group relative shrink-0 w-52 cursor-pointer animate-fade-up"
+      style={{ animationDelay: `${0.5 + index * 0.1}s` }}
+    >
+      <div className="relative h-80 rounded-lg overflow-hidden border border-white/6 bg-transparent transition-all duration-300 group-hover:border-white/15 group-hover:-translate-y-0.5">
+        {/* Content */}
+        <div className="h-full flex flex-col p-4 pt-5">
+          <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/30">
+            {entry.sceneCount} scenes
+          </p>
+
+          <div className="mt-auto">
+            <h3 className="text-[15px] font-semibold leading-snug mb-2 text-white/90 group-hover:text-white transition-colors">
+              {entry.title}
+            </h3>
+            <p className="text-[11px] text-white/40 leading-relaxed line-clamp-4">
+              {entry.coverThread || entry.description}
+            </p>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-white/6 flex items-center justify-between">
+            <span className="text-[9px] text-white/25 font-mono">seed</span>
+            <span className="flex items-center gap-1 text-[10px] text-white/30 group-hover:text-white/70 transition-colors font-medium">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+              Play
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SeedCarousel({ seeds }: { seeds: NarrativeEntry[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScroll, { passive: true });
+      window.addEventListener('resize', checkScroll);
+    }
+    return () => {
+      el?.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [checkScroll]);
+
+  const scroll = (dir: 'left' | 'right') => {
+    scrollRef.current?.scrollBy({ left: dir === 'left' ? -240 : 240, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="relative group/carousel">
+      {canScrollLeft && (
+        <button
+          onClick={() => scroll('left')}
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full border border-white/10 bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/30 hover:text-white/70 hover:border-white/20 transition opacity-0 group-hover/carousel:opacity-100"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
+      )}
+      {canScrollRight && (
+        <button
+          onClick={() => scroll('right')}
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full border border-white/10 bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/30 hover:text-white/70 hover:border-white/20 transition opacity-0 group-hover/carousel:opacity-100"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+        </button>
+      )}
+
+      <div
+        ref={scrollRef}
+        className="flex gap-3 overflow-x-auto pb-2 px-1"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {seeds.map((entry, i) => (
+          <SeedCard key={entry.id} entry={entry} index={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── User series card ────────────────────────────────────────────────────── */
+function UserSeriesCard({ entry }: { entry: NarrativeEntry }) {
   const router = useRouter();
   const { dispatch } = useStore();
   const [mounted, setMounted] = useState(false);
@@ -26,85 +168,30 @@ function SeriesCard({ entry }: { entry: NarrativeEntry }) {
   return (
     <div
       onClick={() => router.push(`/series/${entry.id}`)}
-      className="bg-bg-panel rounded-xl p-5 border border-border hover:border-white/[0.16] cursor-pointer transition group relative"
+      className="group relative rounded-lg p-4 border border-white/6 cursor-pointer transition-all duration-200 hover:border-white/15"
     >
       <button
         onClick={(e) => {
           e.stopPropagation();
           dispatch({ type: 'DELETE_NARRATIVE', id: entry.id });
         }}
-        className="absolute top-3 right-3 text-text-dim hover:text-text-primary text-sm leading-none opacity-0 group-hover:opacity-100 transition"
+        className="absolute top-3 right-3 text-white/20 hover:text-white/60 text-sm leading-none opacity-0 group-hover:opacity-100 transition"
       >
         &times;
       </button>
 
-      <h3 className="text-sm font-semibold text-text-primary">{entry.title}</h3>
-      <p className="text-xs text-text-secondary mt-1.5 line-clamp-2">{entry.description}</p>
+      <h3 className="text-sm font-medium text-white/90">{entry.title}</h3>
+      <p className="text-xs text-white/40 mt-1 line-clamp-2">{entry.description}</p>
 
-      <div className="flex items-center gap-3 text-[10px] text-text-dim mt-3">
-        <span>{entry.sceneCount} scenes</span>
-        <span>{mounted ? timeAgo(entry.updatedAt) : ''}</span>
+      <div className="flex items-center gap-3 text-[10px] text-white/25 mt-3 font-mono" suppressHydrationWarning>
+        <span suppressHydrationWarning>{entry.sceneCount} scenes</span>
+        <span suppressHydrationWarning>{mounted ? timeAgo(entry.updatedAt) : ''}</span>
       </div>
     </div>
   );
 }
 
-const PLACEHOLDERS = [
-  'A detective who can taste lies...',
-  'Two rival space stations competing for first contact...',
-  'A world where dreams are currency...',
-  'An AI that writes obituaries for the living...',
-  'The last library on a dying planet...',
-];
-
-function AnimatedPlaceholder() {
-  const [index, setIndex] = useState(0);
-  const [displayed, setDisplayed] = useState('');
-  const [phase, setPhase] = useState<'typing' | 'pause' | 'erasing'>('typing');
-  const charIndex = useRef(0);
-
-  useEffect(() => {
-    const text = PLACEHOLDERS[index];
-
-    if (phase === 'typing') {
-      if (charIndex.current <= text.length) {
-        const timeout = setTimeout(() => {
-          setDisplayed(text.slice(0, charIndex.current));
-          charIndex.current++;
-        }, 40);
-        return () => clearTimeout(timeout);
-      } else {
-        setPhase('pause');
-      }
-    }
-
-    if (phase === 'pause') {
-      const timeout = setTimeout(() => setPhase('erasing'), 2000);
-      return () => clearTimeout(timeout);
-    }
-
-    if (phase === 'erasing') {
-      if (charIndex.current > 0) {
-        const timeout = setTimeout(() => {
-          charIndex.current--;
-          setDisplayed(PLACEHOLDERS[index].slice(0, charIndex.current));
-        }, 20);
-        return () => clearTimeout(timeout);
-      } else {
-        setIndex((i) => (i + 1) % PLACEHOLDERS.length);
-        setPhase('typing');
-      }
-    }
-  }, [phase, displayed, index]);
-
-  return (
-    <span className="text-text-dim pointer-events-none select-none">
-      {displayed}
-      <span className="animate-pulse">|</span>
-    </span>
-  );
-}
-
+/* ── Home page ───────────────────────────────────────────────────────────── */
 export default function HomePage() {
   const { state, dispatch } = useStore();
   const [prompt, setPrompt] = useState('');
@@ -134,133 +221,124 @@ export default function HomePage() {
     }
   };
 
+  const seeds = state.narratives.filter((e) => SEED_NARRATIVE_IDS.has(e.id));
+  const userSeries = state.narratives.filter((e) => !SEED_NARRATIVE_IDS.has(e.id));
+
   return (
     <>
       <div className="min-h-screen bg-bg-base flex flex-col">
-        {/* Ambient glow */}
+        {/* Cinematic background — aurora effect */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
-          <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-gradient-to-b from-white/[0.03] to-transparent blur-3xl" />
-          <div className="absolute top-[10%] left-[20%] w-[400px] h-[400px] rounded-full bg-shape/[0.04] blur-3xl" />
-          <div className="absolute top-[15%] right-[15%] w-[300px] h-[300px] rounded-full bg-flux/[0.03] blur-3xl" />
+          <div className="aurora-container absolute bottom-0 left-0 right-0 h-[75%]">
+            <div className="aurora-curtain aurora-curtain-1" />
+            <div className="aurora-curtain aurora-curtain-2" />
+            <div className="aurora-curtain aurora-curtain-3" />
+            <div className="aurora-curtain aurora-curtain-4" />
+            <div className="aurora-curtain aurora-curtain-5" />
+            <div className="aurora-wisp aurora-wisp-1" />
+            <div className="aurora-wisp aurora-wisp-2" />
+            <div className="aurora-wisp aurora-wisp-3" />
+            <div className="aurora-wisp aurora-wisp-4" />
+            <div className="aurora-glow" />
+          </div>
         </div>
 
-        {/* Hero */}
-        <div className="relative flex flex-col items-center pt-32 sm:pt-40 pb-16 px-4">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-text-dim mb-6 font-mono">
-            Thread-first storytelling engine
+        {/* Thread line */}
+        <ThreadLine />
+
+        {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        <div className="relative flex flex-col items-center pt-24 sm:pt-32 pb-10 px-4">
+          <p className="animate-fade-up text-[10px] uppercase tracking-[0.3em] text-white/30 font-mono mb-8">
+            Narrative Engine
           </p>
 
-          <h1 className="text-4xl sm:text-6xl font-bold text-text-primary tracking-tight text-center leading-[1.1] max-w-2xl">
-            Every great story starts with{' '}
-            <span className="bg-gradient-to-r from-white via-white/80 to-white/50 bg-clip-text text-transparent">
-              a single thread
-            </span>
+          <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160">
+            <span className="text-white">Stories that </span>
+            <span className="text-white italic">evolve.</span>
           </h1>
 
-          <p className="text-base sm:text-lg text-text-secondary mt-5 max-w-lg text-center leading-relaxed">
-            Build branching narratives with AI-generated arcs, force dynamics,
-            and world expansion.
+          <p className="animate-fade-up-delay-2 text-[15px] text-white/40 mt-6 max-w-md text-center leading-relaxed">
+            Drop in a premise. Watch characters collide, alliances shift, and worlds
+            reshape themselves — one scene at a time.
           </p>
 
-          {/* Prompt input */}
-          <div className="mt-10 w-full max-w-xl">
-            <div className="relative group">
-              <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-white/[0.08] via-white/[0.12] to-white/[0.08] opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
-              <div className="relative bg-bg-panel rounded-2xl border border-border group-focus-within:border-transparent transition-colors">
-                <div className="relative">
-                  <textarea
-                    ref={inputRef}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit();
-                      }
-                    }}
-                    rows={2}
-                    className="w-full bg-transparent text-text-primary text-sm px-5 pt-4 pb-3 resize-none focus:outline-none placeholder:text-transparent"
-                    placeholder="Describe your series idea..."
-                  />
-                  {!prompt && (
-                    <div className="absolute top-4 left-5 text-sm">
-                      <AnimatedPlaceholder />
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center justify-between px-4 pb-3">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleRandomIdea}
-                      disabled={rolling}
-                      title="Generate a random idea"
-                      className="text-text-dim hover:text-text-primary transition disabled:opacity-50 flex items-center gap-1 text-[11px]"
-                    >
-                      <span className={rolling ? 'animate-spin inline-block' : ''}>&#127922;</span>
-                      <span className="font-mono">{rolling ? 'thinking...' : 'surprise me'}</span>
-                    </button>
-                  </div>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={!prompt.trim()}
-                    className="bg-white/10 hover:bg-white/16 disabled:opacity-30 disabled:hover:bg-white/10 text-text-primary text-xs font-semibold px-4 py-1.5 rounded-lg transition"
-                  >
-                    Create Series
-                  </button>
-                </div>
+          {/* ── Input ────────────────────────────────────────────────────── */}
+          <div className="animate-fade-up-delay-3 mt-12 w-full max-w-lg">
+            <div className="prompt-glow relative rounded-xl border border-white/8 focus-within:border-white/15 transition-colors duration-200">
+              <textarea
+                ref={inputRef}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+                rows={2}
+                className="w-full bg-transparent text-white text-sm px-4 pt-4 pb-2 resize-none focus:outline-none placeholder:text-white/25"
+                placeholder="A dying empire where three siblings each claim the throne..."
+              />
+              <div className="flex items-center justify-between px-3 pb-3">
+                <button
+                  onClick={handleRandomIdea}
+                  disabled={rolling}
+                  className="text-white/25 hover:text-white/50 transition disabled:opacity-40 text-[11px] font-mono flex items-center gap-1.5"
+                >
+                  <span className={rolling ? 'animate-spin inline-block' : ''}>&#127922;</span>
+                  {rolling ? 'thinking...' : 'surprise me'}
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!prompt.trim()}
+                  className="text-white/70 hover:text-white border border-white/10 hover:border-white/20 disabled:opacity-20 text-xs font-medium px-4 py-1.5 rounded-md transition"
+                >
+                  Create
+                </button>
               </div>
             </div>
 
-            <p className="text-center text-[11px] text-text-dim mt-3">
+            <p className="text-center text-[11px] text-white/25 mt-2.5">
               or{' '}
               <button
                 onClick={() => dispatch({ type: 'OPEN_WIZARD' })}
-                className="text-text-secondary hover:text-text-primary underline underline-offset-2 transition"
+                className="text-white/40 hover:text-white/70 underline underline-offset-2 transition"
               >
-                use the full wizard
-              </button>{' '}
-              for more control
+                open the wizard
+              </button>
             </p>
           </div>
         </div>
 
-        {/* Series grid */}
-        {state.narratives.length > 0 && (
-          <div className="relative flex-1 px-4 pb-16">
-            <div className="max-w-2xl mx-auto">
+        {/* ── Seed carousel ────────────────────────────────────────────── */}
+        {seeds.length > 0 && (
+          <div className="relative px-4 sm:px-8 pb-14 mt-4">
+            <div className="max-w-240 mx-auto">
               <div className="flex items-center gap-3 mb-4">
-                <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">
-                  Your Series
+                <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono whitespace-nowrap">
+                  Living Worlds
                 </h2>
-                <div className="flex-1 h-px bg-border" />
+                <div className="flex-1 h-px bg-white/6" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {state.narratives.map((entry) => (
-                  <SeriesCard key={entry.id} entry={entry} />
-                ))}
-              </div>
+              <SeedCarousel seeds={seeds} />
             </div>
           </div>
         )}
 
-        {state.narratives.length === 0 && (
-          <div className="relative flex-1 flex flex-col items-center pt-4 pb-16">
-            <div className="flex items-center gap-4 text-text-dim text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-pressure/50" />
-                <span>Pressure</span>
+        {/* ── User series ──────────────────────────────────────────────── */}
+        {userSeries.length > 0 && (
+          <div className="relative flex-1 px-4 pb-16">
+            <div className="max-w-160 mx-auto">
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">
+                  Your Stories
+                </h2>
+                <div className="flex-1 h-px bg-white/6" />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-momentum/50" />
-                <span>Momentum</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-flux/50" />
-                <span>Flux</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-shape/50" />
-                <span>Shape</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {userSeries.map((entry) => (
+                  <UserSeriesCard key={entry.id} entry={entry} />
+                ))}
               </div>
             </div>
           </div>

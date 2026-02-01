@@ -288,13 +288,8 @@ export type AutoEndCondition =
   | { type: 'arc_count'; target: number }
   | { type: 'manual_stop' };
 
-export type AutoAction =
-  | 'generate_arc'
-  | 'expand_world'
-  | 'resolve_thread'
-  | 'escalate_toward_climax'
-  | 'introduce_complication'
-  | 'quiet_interlude';
+/** Auto actions map directly to the 8 narrative cube corners */
+export type AutoAction = CubeCornerKey;
 
 export type AutoActionWeight = {
   action: AutoAction;
@@ -302,11 +297,12 @@ export type AutoActionWeight = {
   reason: string;
 };
 
-export type PacingProfile = 'deliberate' | 'balanced' | 'urgent' | 'chaotic';
+/** High-level objective that guides auto mode's action selection */
+export type AutoObjective = 'resolve_threads' | 'explore_and_resolve' | 'open_ended';
 
 export type AutoConfig = {
+  objective: AutoObjective;
   endConditions: AutoEndCondition[];
-  pacingProfile: PacingProfile;
   minArcLength: number;
   maxArcLength: number;
   /** World build every N arcs (0 = off) */

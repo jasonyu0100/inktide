@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective, pickCubeGoal } from '@/lib/auto-engine';
+import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective, pickCubeGoal, isWorldBuildDue } from '@/lib/auto-engine';
 import { generateScenes, generateArcName, expandWorld, suggestWorldExpansion } from '@/lib/ai';
 import { nextId } from '@/lib/narrative-utils';
 import type { AutoRunLog } from '@/types/narrative';
@@ -27,7 +27,7 @@ export function useAutoPlay() {
         entry: {
           cycle: autoRunState.currentCycle + 1,
           timestamp: Date.now(),
-          action: 'generate_arc',
+          action: 'LHL',
           reason: `End condition met: ${endMet.type}`,
           scenesGenerated: 0,
           worldExpanded: false,
@@ -56,13 +56,12 @@ export function useAutoPlay() {
     let worldExpanded = false;
 
     try {
-      if (action === 'expand_world') {
-        // World expansion cycle
+      // World expansion as a pre-step (interval-triggered, not scored)
+      if (isWorldBuildDue(activeNarrative, resolvedSceneKeys, autoConfig)) {
         const suggestion = await suggestWorldExpansion(activeNarrative, resolvedSceneKeys, currentSceneIndex);
         if (cancelledRef.current) return;
 
-        const directive = buildActionDirective(action, activeNarrative, resolvedSceneKeys, autoConfig);
-        const expansion = await expandWorld(activeNarrative, resolvedSceneKeys, currentSceneIndex, `${directive}\n\n${suggestion}`);
+        const expansion = await expandWorld(activeNarrative, resolvedSceneKeys, currentSceneIndex, suggestion);
         if (cancelledRef.current) return;
 
         dispatch({
@@ -75,34 +74,34 @@ export function useAutoPlay() {
           branchId: activeBranchId,
         });
         worldExpanded = true;
-      } else {
-        // All other actions generate an arc with scenes
-        const directive = buildActionDirective(action, activeNarrative, resolvedSceneKeys, autoConfig);
-        const sceneCount = pickArcLength(autoConfig, action);
-        const cubeGoal = pickCubeGoal(action, activeNarrative, resolvedSceneKeys, autoConfig);
-        const arcName = await generateArcName(activeNarrative, resolvedSceneKeys, currentSceneIndex, directive);
-        if (cancelledRef.current) return;
-
-        const { scenes, arc } = await generateScenes(
-          activeNarrative,
-          resolvedSceneKeys,
-          currentSceneIndex,
-          sceneCount,
-          arcName,
-          directive,
-          undefined,
-          cubeGoal,
-        );
-        if (cancelledRef.current) return;
-
-        dispatch({
-          type: 'BULK_ADD_SCENES',
-          scenes,
-          arc,
-          branchId: activeBranchId,
-        });
-        scenesGenerated = scenes.length;
       }
+
+      // Generate arc toward the chosen cube corner
+      const directive = buildActionDirective(action, activeNarrative, resolvedSceneKeys, autoConfig);
+      const sceneCount = pickArcLength(autoConfig, action);
+      const cubeGoal = pickCubeGoal(action, activeNarrative, resolvedSceneKeys, autoConfig);
+      const arcName = await generateArcName(activeNarrative, resolvedSceneKeys, currentSceneIndex, directive);
+      if (cancelledRef.current) return;
+
+      const { scenes, arc } = await generateScenes(
+        activeNarrative,
+        resolvedSceneKeys,
+        currentSceneIndex,
+        sceneCount,
+        arcName,
+        directive,
+        undefined,
+        cubeGoal,
+      );
+      if (cancelledRef.current) return;
+
+      dispatch({
+        type: 'BULK_ADD_SCENES',
+        scenes,
+        arc,
+        branchId: activeBranchId,
+      });
+      scenesGenerated = scenes.length;
     } catch (err) {
       // Log error but don't crash the loop
       console.error('[auto-play] cycle error:', err);

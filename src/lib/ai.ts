@@ -283,7 +283,8 @@ Return JSON with this exact structure:
 Rules:
 - EVERY scene MUST have a non-empty "summary" field. This is critical — scenes without summaries are broken. Write 2-4 vivid sentences describing the scene's events, characters, and emotional stakes.
 - Use ONLY existing character IDs and location IDs from the narrative context above
-- Thread statuses should be descriptive strings that capture the thread's current state (e.g. "dormant", "surfacing", "escalating", "fractured", "converging", "critical")
+- Thread statuses follow a lifecycle. Active statuses: "dormant", "surfacing", "escalating", "fractured", "converging", "critical", "threatened". Terminal/closed statuses: "resolved" (thread concluded satisfactorily), "done" (thread ran its course naturally), "subverted" (thread was upended or inverted), "closed" (thread was shut down externally), "abandoned" (thread faded without resolution).
+- Threads that have reached their narrative conclusion MUST be transitioned to a terminal status. Do not leave threads stuck in active states when their story is over. When a mystery is solved, a conflict is won/lost, a goal is achieved or failed — close the thread.
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
 - knowledgeMutations.nodeType should be a specific, contextual label for what kind of knowledge this is — NOT limited to a fixed set. Examples: "tactical_insight", "betrayal_discovered", "forbidden_technique", "political_leverage", "hidden_lineage", "oath_sworn". Choose the type that best describes the specific knowledge gained.
@@ -295,7 +296,14 @@ PACING:
 - Not every scene should be a major plot event. Include quieter scenes: character moments, travel, reflection, relationship building, exploring the world.
 - Only 1 in 3 scenes should be a significant plot beat. Others should build atmosphere, deepen character, or set up future payoffs.
 - Vary the scene rhythm: a tense scene should be followed by a breather, not another tense scene.
-- Threads should evolve gradually — don't rush thread mutations. A dormant thread surfaces slowly, not in one jump to escalating.`;
+- Threads should evolve gradually — don't rush thread mutations. A dormant thread surfaces slowly, not in one jump to escalating.
+- When a thread's storyline has concluded (conflict resolved, mystery answered, goal achieved or failed), transition it to a terminal status: "resolved", "done", "subverted", "closed", or "abandoned". Choose the terminal status that best fits HOW the thread ended.
+
+CRITICAL ID CONSTRAINT (re-stated for emphasis):
+You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thread IDs.
+  Character IDs: ${Object.keys(narrative.characters).join(', ')}
+  Location IDs: ${Object.keys(narrative.locations).join(', ')}
+  Thread IDs: ${Object.keys(narrative.threads).join(', ')}`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT);
 
@@ -310,48 +318,51 @@ PACING:
     summary: s.summary || `Scene ${i + 1} of arc "${arcName}"`,
   }));
 
-  // Validate all IDs reference entities that actually exist
+  // Sanitize hallucinated IDs — filter out invalid references instead of crashing
   const validCharIds = new Set(Object.keys(narrative.characters));
   const validLocIds = new Set(Object.keys(narrative.locations));
   const validThreadIds = new Set(Object.keys(narrative.threads));
-  const hallucinatedIds: string[] = [];
+  const stripped: string[] = [];
 
   for (const scene of scenes) {
+    // Fix invalid locationId — fall back to first valid location
     if (!validLocIds.has(scene.locationId)) {
-      hallucinatedIds.push(`locationId "${scene.locationId}" in scene ${scene.id}`);
+      stripped.push(`locationId "${scene.locationId}" in scene ${scene.id}`);
+      scene.locationId = Object.keys(narrative.locations)[0];
     }
-    for (const pid of scene.participantIds) {
-      if (!validCharIds.has(pid)) {
-        hallucinatedIds.push(`participantId "${pid}" in scene ${scene.id}`);
-      }
-    }
-    for (const tm of scene.threadMutations) {
-      if (!validThreadIds.has(tm.threadId)) {
-        hallucinatedIds.push(`threadId "${tm.threadId}" in scene ${scene.id}`);
-      }
-    }
-    for (const km of scene.knowledgeMutations) {
-      if (km.characterId && !validCharIds.has(km.characterId)) {
-        hallucinatedIds.push(`knowledgeMutation characterId "${km.characterId}" in scene ${scene.id}`);
-      }
-    }
-    for (const rm of scene.relationshipMutations) {
-      if (!validCharIds.has(rm.from)) {
-        hallucinatedIds.push(`relationshipMutation from "${rm.from}" in scene ${scene.id}`);
-      }
-      if (!validCharIds.has(rm.to)) {
-        hallucinatedIds.push(`relationshipMutation to "${rm.to}" in scene ${scene.id}`);
-      }
-    }
+    // Remove invalid participantIds
+    const validParticipants = scene.participantIds.filter((pid) => {
+      if (validCharIds.has(pid)) return true;
+      stripped.push(`participantId "${pid}" in scene ${scene.id}`);
+      return false;
+    });
+    scene.participantIds = validParticipants.length > 0
+      ? validParticipants
+      : [Object.keys(narrative.characters)[0]]; // ensure at least one participant
+    // Remove invalid threadMutations
+    scene.threadMutations = scene.threadMutations.filter((tm) => {
+      if (validThreadIds.has(tm.threadId)) return true;
+      stripped.push(`threadId "${tm.threadId}" in scene ${scene.id}`);
+      return false;
+    });
+    // Remove invalid knowledgeMutations
+    scene.knowledgeMutations = scene.knowledgeMutations.filter((km) => {
+      if (!km.characterId || validCharIds.has(km.characterId)) return true;
+      stripped.push(`knowledgeMutation characterId "${km.characterId}" in scene ${scene.id}`);
+      return false;
+    });
+    // Remove invalid relationshipMutations
+    scene.relationshipMutations = scene.relationshipMutations.filter((rm) => {
+      if (validCharIds.has(rm.from) && validCharIds.has(rm.to)) return true;
+      stripped.push(`relationshipMutation "${rm.from}" -> "${rm.to}" in scene ${scene.id}`);
+      return false;
+    });
   }
 
-  if (hallucinatedIds.length > 0) {
-    throw new Error(
-      `[generateScenes] AI hallucinated ${hallucinatedIds.length} non-existent ID(s):\n` +
-      hallucinatedIds.map((h) => `  - ${h}`).join('\n') +
-      `\n\nValid characters: ${[...validCharIds].join(', ')}` +
-      `\nValid locations: ${[...validLocIds].join(', ')}` +
-      `\nValid threads: ${[...validThreadIds].join(', ')}`
+  if (stripped.length > 0) {
+    console.warn(
+      `[generateScenes] Stripped ${stripped.length} hallucinated ID(s):\n` +
+      stripped.map((h) => `  - ${h}`).join('\n')
     );
   }
 
@@ -622,6 +633,7 @@ PACING IS CRITICAL:
 - Threads should stay dormant or slowly surface over multiple scenes before escalating. A thread going from dormant to escalating in 2 scenes is too fast.
 - Think of pacing like a novel: setup → slow build → complication → breathing room → escalation. Not: event → event → event → event.
 - Early scenes should establish normalcy and stakes before disrupting them.
+- Thread statuses follow a lifecycle. Active: "dormant", "surfacing", "escalating", "fractured", "converging", "critical", "threatened". Terminal: "resolved" (concluded satisfactorily), "done" (ran its course), "subverted" (upended/inverted), "closed" (shut down externally), "abandoned" (faded without resolution). When a thread's story reaches its conclusion, transition it to the appropriate terminal status.
 
 Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.`;
 

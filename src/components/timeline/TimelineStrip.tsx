@@ -91,7 +91,7 @@ export default function TimelineStrip() {
 
   if (!narrative) {
     return (
-      <div className="flex items-center justify-center h-18 shrink-0 bg-bg-panel border-t border-border">
+      <div className="flex items-center justify-center h-18 shrink-0 glass-panel border-t border-border">
         <span className="text-text-dim text-xs tracking-widest uppercase">
           No narrative loaded
         </span>
@@ -100,7 +100,7 @@ export default function TimelineStrip() {
   }
 
   return (
-    <div className="relative h-18 shrink-0 bg-bg-panel border-t border-border flex">
+    <div className="relative h-18 shrink-0 glass-panel border-t border-border flex">
       {/* Branch selector */}
       {branchList.length > 1 && (
         <div className="flex items-center px-2 border-r border-border shrink-0 w-36">

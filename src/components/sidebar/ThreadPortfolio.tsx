@@ -14,6 +14,8 @@ const STATUS_ORDER: ThreadStatus[] = [
   'subverted',
 ];
 
+const CLOSED_STATUSES = new Set(['resolved', 'done', 'closed', 'abandoned', 'subverted']);
+
 function ThreadItem({
   thread,
   statusLabel,
@@ -88,8 +90,11 @@ export default function ThreadPortfolio() {
     return computeThreadStatuses(narrative, state.currentSceneIndex);
   }, [narrative, state.currentSceneIndex]);
 
-  const { opened, unopened } = useMemo(() => {
-    if (!narrative) return { opened: [] as (Thread & { currentStatus: ThreadStatus })[], unopened: [] as (Thread & { currentStatus: ThreadStatus })[] };
+  type ThreadWithStatus = Thread & { currentStatus: ThreadStatus };
+  const emptyList: ThreadWithStatus[] = [];
+
+  const { opened, closed, unopened } = useMemo(() => {
+    if (!narrative) return { opened: emptyList, closed: emptyList, unopened: emptyList };
 
     const visibleKeys = new Set(state.resolvedSceneKeys.slice(0, state.currentSceneIndex + 1));
     const allThreads = Object.values(narrative.threads);
@@ -105,20 +110,31 @@ export default function ThreadPortfolio() {
       })
     );
 
-    const openedThreads = allThreads
-      .filter((t) => visibleKeys.has(t.openedAt) && (narrative.scenes[t.openedAt] || mutatedThreadIds.has(t.id)))
-      .map((t) => ({ ...t, currentStatus: (currentStatuses[t.id] ?? t.status) as ThreadStatus }));
+    const active: ThreadWithStatus[] = [];
+    const terminal: ThreadWithStatus[] = [];
+    const unopenedThreads: ThreadWithStatus[] = [];
 
-    const unopenedThreads = allThreads
-      .filter((t) => !visibleKeys.has(t.openedAt) || (!narrative.scenes[t.openedAt] && !mutatedThreadIds.has(t.id)))
-      .map((t) => ({ ...t, currentStatus: t.status as ThreadStatus }));
+    for (const t of allThreads) {
+      const isVisible = visibleKeys.has(t.openedAt) && (narrative.scenes[t.openedAt] || mutatedThreadIds.has(t.id));
+      const status = (isVisible ? (currentStatuses[t.id] ?? t.status) : t.status) as ThreadStatus;
+      const entry = { ...t, currentStatus: status };
+
+      if (!isVisible) {
+        unopenedThreads.push(entry);
+      } else if (CLOSED_STATUSES.has(status)) {
+        terminal.push(entry);
+      } else {
+        active.push(entry);
+      }
+    }
 
     // Sort by status order
     const statusIdx = (s: string) => { const i = STATUS_ORDER.indexOf(s); return i < 0 ? STATUS_ORDER.length : i; };
-    openedThreads.sort((a, b) => statusIdx(a.currentStatus) - statusIdx(b.currentStatus));
+    active.sort((a, b) => statusIdx(a.currentStatus) - statusIdx(b.currentStatus));
+    terminal.sort((a, b) => statusIdx(a.currentStatus) - statusIdx(b.currentStatus));
     unopenedThreads.sort((a, b) => statusIdx(a.currentStatus) - statusIdx(b.currentStatus));
 
-    return { opened: openedThreads, unopened: unopenedThreads };
+    return { opened: active, closed: terminal, unopened: unopenedThreads };
   }, [narrative, currentStatuses, state.resolvedSceneKeys, state.currentSceneIndex]);
 
   if (!narrative) {
@@ -131,7 +147,7 @@ export default function ThreadPortfolio() {
     );
   }
 
-  if (opened.length === 0 && unopened.length === 0) {
+  if (opened.length === 0 && closed.length === 0 && unopened.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center px-3">
         <p className="text-xs text-text-dim text-center">No threads yet</p>
@@ -160,6 +176,12 @@ export default function ThreadPortfolio() {
       {opened.length > 0 && (
         <CollapsibleSection title="Opened" count={opened.length} defaultOpen>
           {renderThreads(opened)}
+        </CollapsibleSection>
+      )}
+
+      {closed.length > 0 && (
+        <CollapsibleSection title="Closed" count={closed.length} defaultOpen={false}>
+          {renderThreads(closed, true)}
         </CollapsibleSection>
       )}
 

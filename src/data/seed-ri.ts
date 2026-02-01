@@ -846,7 +846,7 @@ const branches: Record<string, Branch> = {
 
 // ── Assembled Narrative ──────────────────────────────────────────────────────
 export const seedNarrative: NarrativeState = {
-  id: 'N-001',
+  id: 'N-RI',
   title: 'Reverend Insanity — Rebirth of the Demon Venerable',
   description: 'Fang Yuan, a 500-year-old demonic cultivator, has been reborn into his 15-year-old body via the Spring Autumn Cicada. Armed with complete knowledge of the future, he hides behind mediocrity while pursuing the only goal that matters: eternal life. The mountain clans around him see a dull boy. They do not see the predator.',
   characters,

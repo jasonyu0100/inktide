@@ -2,9 +2,15 @@
 
 import React, { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
 import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit } from '@/types/narrative';
-import { seedNarrative } from '@/data/seed';
-import { resolveSceneSequence } from '@/lib/narrative-utils';
+import { seedNarrative } from '@/data/seed-ri';
+import { seedGOT } from '@/data/seed-got';
+import { seedLOTR } from '@/data/seed-lotr';
+import { seedHP } from '@/data/seed-hp';
+import { seedSW } from '@/data/seed-sw';
+import { resolveSceneSequence, nextId } from '@/lib/narrative-utils';
 import { loadNarratives, saveNarrative, deleteNarrative as deletePersisted, loadNarrative } from '@/lib/persistence';
+
+const ALL_SEEDS: NarrativeState[] = [seedGOT, seedLOTR, seedHP, seedSW, seedNarrative];
 
 function narrativeToEntry(n: NarrativeState): NarrativeEntry {
   const threadValues = Object.values(n.threads);
@@ -29,18 +35,11 @@ function getResolvedKeys(n: NarrativeState, branchId: string | null): string[] {
   return resolveSceneSequence(n.branches, branchId);
 }
 
-function buildInitialNarratives(): NarrativeEntry[] {
-  if (typeof window === 'undefined') return [narrativeToEntry(seedNarrative)];
-  const persisted = loadNarratives();
-  const entries = persisted.map(narrativeToEntry);
-  if (!entries.find((e) => e.id === seedNarrative.id)) {
-    entries.unshift(narrativeToEntry(seedNarrative));
-  }
-  return entries;
-}
+const SEED_IDS = new Set(ALL_SEEDS.map((s) => s.id));
 
 function loadNarrativeById(id: string): NarrativeState | null {
-  if (id === seedNarrative.id) return seedNarrative;
+  const seed = ALL_SEEDS.find((s) => s.id === id);
+  if (seed) return seed;
   return loadNarrative(id);
 }
 
@@ -136,11 +135,13 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
   return { ...n, relationships, characters, threads };
 }
 
+export const SEED_NARRATIVE_IDS = SEED_IDS;
+
 const seedRootBranchId = getRootBranchId(seedNarrative);
 const seedResolvedKeys = getResolvedKeys(seedNarrative, seedRootBranchId);
 
 const initialState: AppState = {
-  narratives: typeof window !== 'undefined' ? buildInitialNarratives() : [narrativeToEntry(seedNarrative)],
+  narratives: ALL_SEEDS.map(narrativeToEntry),
   activeNarrativeId: seedNarrative.id,
   activeNarrative: seedNarrative,
   controlMode: 'auto',
@@ -156,8 +157,8 @@ const initialState: AppState = {
   autoTimer: 30,
   graphViewMode: 'scene',
   autoConfig: {
+    objective: 'explore_and_resolve',
     endConditions: [{ type: 'scene_count', target: 50 }],
-    pacingProfile: 'balanced',
     minArcLength: 2,
     maxArcLength: 5,
     worldBuildInterval: 3,
@@ -175,6 +176,7 @@ const initialState: AppState = {
 
 // ── Actions ──────────────────────────────────────────────────────────────────
 type Action =
+  | { type: 'HYDRATE_NARRATIVES'; entries: NarrativeEntry[] }
   | { type: 'SET_ACTIVE_NARRATIVE'; id: string }
   | { type: 'CLEAR_ACTIVE_NARRATIVE' }
   | { type: 'SET_CONTROL_MODE'; mode: ControlMode }
@@ -227,6 +229,9 @@ type Action =
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'HYDRATE_NARRATIVES': {
+      return { ...state, narratives: action.entries };
+    }
     case 'SET_ACTIVE_NARRATIVE': {
       const narrative = loadNarrativeById(action.id);
       const branchId = narrative ? getRootBranchId(narrative) : null;
@@ -288,7 +293,7 @@ function reducer(state: AppState, action: Action): AppState {
       const allThreads = Object.values(n.threads);
 
       // Use a stable ID based on narrative id to be idempotent under strict mode
-      const wxId = `WX-init-${n.id}`;
+      const wxId = nextId('WX', Object.keys(n.worldBuilds), 3);
       if (rootBranch && !n.worldBuilds[wxId] && (allChars.length > 0 || allLocs.length > 0 || allThreads.length > 0)) {
         const parts: string[] = [];
         if (allChars.length > 0) parts.push(`${allChars.length} character${allChars.length > 1 ? 's' : ''} (${allChars.map((c) => c.name).join(', ')})`);
@@ -716,6 +721,19 @@ const StoreContext = createContext<StoreContextType | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  // Hydrate persisted narratives from localStorage on mount
+  useEffect(() => {
+    const persisted = loadNarratives();
+    const entries = persisted.map(narrativeToEntry);
+    // Prepend any missing seeds
+    for (const seed of [...ALL_SEEDS].reverse()) {
+      if (!entries.find((e) => e.id === seed.id)) {
+        entries.unshift(narrativeToEntry(seed));
+      }
+    }
+    dispatch({ type: 'HYDRATE_NARRATIVES', entries });
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {

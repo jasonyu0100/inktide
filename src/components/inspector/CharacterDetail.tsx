@@ -50,8 +50,11 @@ export default function CharacterDetail({ characterId }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Name */}
-      <h2 className="text-sm font-semibold text-text-primary">{character.name}</h2>
+      {/* Name + ID */}
+      <div className="flex flex-col gap-0.5">
+        <h2 className="text-sm font-semibold text-text-primary">{character.name}</h2>
+        <span className="font-mono text-[10px] text-text-dim">{characterId}</span>
+      </div>
 
       {/* Role badge */}
       <span

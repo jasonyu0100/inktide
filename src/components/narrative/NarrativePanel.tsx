@@ -18,7 +18,7 @@ export default function NarrativePanel() {
   if (entry.kind === 'world_build') {
     const m = entry.expansionManifest;
     return (
-      <div className="h-[180px] shrink-0 bg-bg-panel border-t border-border overflow-y-auto px-4 py-3">
+      <div className="h-[180px] shrink-0 glass-panel border-t border-border overflow-y-auto px-4 py-3">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
             World Expansion
@@ -63,7 +63,7 @@ export default function NarrativePanel() {
   );
 
   return (
-    <div className="h-[180px] shrink-0 bg-bg-panel border-t border-border overflow-y-auto px-4 py-3">
+    <div className="h-[180px] shrink-0 glass-panel border-t border-border overflow-y-auto px-4 py-3">
       <div className="flex items-baseline gap-2 mb-2">
         <span className="font-mono text-[10px] text-text-dim">{scene.id}</span>
         {arc && (

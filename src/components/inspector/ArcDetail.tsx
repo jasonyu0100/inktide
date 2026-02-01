@@ -41,6 +41,7 @@ export default function ArcDetail({ arcId }: Props) {
       {/* Arc header */}
       <div>
         <h2 className="text-[10px] uppercase tracking-widest text-text-dim">Arc</h2>
+        <span className="font-mono text-[10px] text-text-dim">{arcId}</span>
         {editing ? (
           <div className="flex gap-2 mt-0.5">
             <input

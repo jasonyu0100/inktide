@@ -32,7 +32,7 @@ export default function SidePanel() {
   }
 
   return (
-    <aside className="h-full overflow-y-auto border-l border-border bg-bg-panel p-4">
+    <aside className="h-full overflow-y-auto border-l border-border glass-panel p-4">
       {renderContent()}
     </aside>
   );

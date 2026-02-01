@@ -15,12 +15,14 @@ type Props = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  generate_arc: 'New Arc',
-  expand_world: 'World Expansion',
-  resolve_thread: 'Thread Resolution',
-  escalate_toward_climax: 'Escalation',
-  introduce_complication: 'Complication',
-  quiet_interlude: 'Interlude',
+  HHH: 'Peak Crisis',
+  HHL: 'Climax',
+  HLH: 'Slow Burn',
+  HLL: 'Locked In',
+  LHH: 'Exploration',
+  LHL: 'Cruise',
+  LLH: 'Liminal',
+  LLL: 'Rest',
 };
 
 export function AutoControlBar({

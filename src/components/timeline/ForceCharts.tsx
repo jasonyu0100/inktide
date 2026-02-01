@@ -55,7 +55,7 @@ export default function ForceCharts() {
 
   if (!narrative) {
     return (
-      <div className="flex items-center justify-center h-25 shrink-0 bg-bg-panel border-t border-border">
+      <div className="flex items-center justify-center h-25 shrink-0 glass-panel border-t border-border">
         <span className="text-text-dim text-xs tracking-widest uppercase">
           No force data
         </span>
@@ -64,7 +64,7 @@ export default function ForceCharts() {
   }
 
   return (
-    <div className="flex h-25 shrink-0 bg-bg-panel border-t border-border">
+    <div className="flex h-25 shrink-0 glass-panel border-t border-border">
       {/* Cube state label — left */}
       {cubeCorner && (
         <div className="flex flex-col justify-center px-3 border-r border-border shrink-0 w-36">

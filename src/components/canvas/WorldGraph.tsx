@@ -564,9 +564,9 @@ export default function WorldGraph() {
         d3
           .forceLink<GraphNode, GraphLink>(validLinksDeduped)
           .id((d) => d.id)
-          .distance(100),
+          .distance(160),
       )
-      .force('charge', d3.forceManyBody<GraphNode>().strength(-200))
+      .force('charge', d3.forceManyBody<GraphNode>().strength(-400))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force(
         'collide',

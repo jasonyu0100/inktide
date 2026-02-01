@@ -337,6 +337,23 @@ export type AutoRunState = {
   log: AutoRunLog[];
 };
 
+// ── API Logs ─────────────────────────────────────────────────────────────────
+
+export type ApiLogEntry = {
+  id: string;
+  timestamp: number;
+  caller: string;
+  status: 'pending' | 'success' | 'error';
+  durationMs: number | null;
+  promptLength: number;
+  responseLength: number | null;
+  error: string | null;
+  /** Truncated prompt preview */
+  promptPreview: string;
+  /** Truncated response preview */
+  responsePreview: string | null;
+};
+
 // ── App State ────────────────────────────────────────────────────────────────
 export type InspectorContext =
   | { type: 'scene'; sceneId: string }
@@ -368,4 +385,5 @@ export type AppState = {
   graphViewMode: GraphViewMode;
   autoConfig: AutoConfig;
   autoRunState: AutoRunState | null;
+  apiLogs: ApiLogEntry[];
 };

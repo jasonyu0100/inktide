@@ -172,6 +172,7 @@ const initialState: AppState = {
     enforceWorldBuildUsage: true,
   },
   autoRunState: null,
+  apiLogs: [],
 };
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -225,7 +226,11 @@ type Action =
   | { type: 'PAUSE_AUTO_RUN' }
   | { type: 'RESUME_AUTO_RUN' }
   | { type: 'STOP_AUTO_RUN' }
-  | { type: 'LOG_AUTO_CYCLE'; entry: AutoRunLog };
+  | { type: 'LOG_AUTO_CYCLE'; entry: AutoRunLog }
+  // API Logs
+  | { type: 'LOG_API_CALL'; entry: import('@/types/narrative').ApiLogEntry }
+  | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<import('@/types/narrative').ApiLogEntry> }
+  | { type: 'CLEAR_API_LOGS' };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -706,6 +711,20 @@ function reducer(state: AppState, action: Action): AppState {
           }
         : state;
 
+    case 'LOG_API_CALL':
+      return { ...state, apiLogs: [...state.apiLogs, action.entry] };
+
+    case 'UPDATE_API_LOG':
+      return {
+        ...state,
+        apiLogs: state.apiLogs.map((l) =>
+          l.id === action.id ? { ...l, ...action.updates } : l,
+        ),
+      };
+
+    case 'CLEAR_API_LOGS':
+      return { ...state, apiLogs: [] };
+
     default:
       return state;
   }
@@ -721,6 +740,14 @@ const StoreContext = createContext<StoreContextType | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  // Wire API logger to store
+  useEffect(() => {
+    import('@/lib/api-logger').then(({ onApiLog, onApiLogUpdate }) => {
+      onApiLog((entry) => dispatch({ type: 'LOG_API_CALL', entry }));
+      onApiLogUpdate((id, updates) => dispatch({ type: 'UPDATE_API_LOG', id, updates }));
+    });
+  }, []);
 
   // Hydrate persisted narratives from localStorage on mount
   useEffect(() => {

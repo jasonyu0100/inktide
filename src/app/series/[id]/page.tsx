@@ -18,6 +18,7 @@ import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
 import { AutoControlBar } from '@/components/auto/AutoControlBar';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
+import { OnboardingGuide } from '@/components/onboarding/OnboardingGuide';
 
 export default function SeriesPage() {
   const params = useParams();
@@ -112,6 +113,7 @@ export default function SeriesPage() {
       {cubeViewerOpen && (
         <NarrativeCubeViewer onClose={() => setCubeViewerOpen(false)} />
       )}
+      <OnboardingGuide narrativeId={id} />
     </>
   );
 }

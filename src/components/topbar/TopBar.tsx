@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
+import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 
 function exportNarrative(narrative: NarrativeState) {
   const json = JSON.stringify(narrative, null, 2);
@@ -23,6 +24,7 @@ export default function TopBar() {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [logsOpen, setLogsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -231,8 +233,29 @@ export default function TopBar() {
         )}
       </div>
 
-      {/* Right spacer */}
-      <div />
+      {/* Right: API logs */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => setLogsOpen(true)}
+          className="relative px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
+          title="API Logs"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          <span className="text-[11px]">Logs</span>
+          {state.apiLogs.some((l) => l.status === 'pending') && (
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          )}
+          {state.apiLogs.some((l) => l.status === 'error') && !state.apiLogs.some((l) => l.status === 'pending') && (
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-400" />
+          )}
+        </button>
+      </div>
+      {logsOpen && <ApiLogsModal onClose={() => setLogsOpen(false)} />}
     </div>
   );
 }

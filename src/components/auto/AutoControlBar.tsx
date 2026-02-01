@@ -43,7 +43,14 @@ export function AutoControlBar({
       <div className="glass-pill px-3 py-1.5 flex items-center gap-3">
         {/* Status indicator */}
         <div className="flex items-center gap-1.5">
-          <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-momentum animate-pulse' : isPaused ? 'bg-amber-400' : 'bg-text-dim'}`} />
+          {isRunning ? (
+            <svg className="w-3.5 h-3.5 text-momentum animate-spin" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.25" />
+              <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-text-dim'}`} />
+          )}
           <span className="text-[10px] text-text-dim uppercase tracking-wider">
             {isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped'}
           </span>

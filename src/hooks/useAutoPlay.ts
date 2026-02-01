@@ -3,17 +3,20 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective } from '@/lib/auto-engine';
-import { generateScenes, expandWorld, suggestWorldExpansion } from '@/lib/ai';
-import type { AutoAction, AutoRunLog } from '@/types/narrative';
+import { generateScenes, generateArcName, expandWorld, suggestWorldExpansion } from '@/lib/ai';
+import { nextId } from '@/lib/narrative-utils';
+import type { AutoRunLog } from '@/types/narrative';
 
 export function useAutoPlay() {
   const { state, dispatch } = useStore();
   const cancelledRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runningRef = useRef(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const runCycle = useCallback(async () => {
-    const { activeNarrative, resolvedSceneKeys, currentSceneIndex, activeBranchId, autoConfig, autoRunState } = state;
+    const { activeNarrative, resolvedSceneKeys, currentSceneIndex, activeBranchId, autoConfig, autoRunState } = stateRef.current;
     if (!activeNarrative || !activeBranchId || !autoRunState) return;
 
     // Check end conditions
@@ -64,7 +67,7 @@ export function useAutoPlay() {
 
         dispatch({
           type: 'EXPAND_WORLD',
-          wxId: `WX-${Date.now()}`,
+          wxId: nextId('WX', Object.keys(activeNarrative.worldBuilds), 3),
           characters: expansion.characters,
           locations: expansion.locations,
           threads: expansion.threads,
@@ -76,7 +79,8 @@ export function useAutoPlay() {
         // All other actions generate an arc with scenes
         const directive = buildActionDirective(action, activeNarrative, resolvedSceneKeys, autoConfig);
         const sceneCount = pickArcLength(autoConfig, action);
-        const arcName = actionToArcName(action);
+        const arcName = await generateArcName(activeNarrative, resolvedSceneKeys, currentSceneIndex, directive);
+        if (cancelledRef.current) return;
 
         const { scenes, arc } = await generateScenes(
           activeNarrative,
@@ -114,7 +118,7 @@ export function useAutoPlay() {
       endConditionMet: null,
     };
     dispatch({ type: 'LOG_AUTO_CYCLE', entry: logEntry });
-  }, [state, dispatch]);
+  }, [dispatch]);
 
   // The loop: run a cycle, then immediately continue
   const tick = useCallback(async () => {
@@ -185,13 +189,3 @@ export function useAutoPlay() {
   };
 }
 
-function actionToArcName(action: AutoAction): string {
-  switch (action) {
-    case 'generate_arc': return 'Continuation';
-    case 'escalate_toward_climax': return 'Escalation';
-    case 'introduce_complication': return 'Complication';
-    case 'resolve_thread': return 'Resolution';
-    case 'quiet_interlude': return 'Interlude';
-    case 'expand_world': return 'Expansion';
-  }
-}

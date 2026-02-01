@@ -6,8 +6,10 @@ import type {
   AutoEndCondition,
   ForceSnapshot,
   Scene,
+  CubeCornerKey,
 } from '@/types/narrative';
-import { isScene } from '@/types/narrative';
+import { isScene, NARRATIVE_CUBE } from '@/types/narrative';
+import { detectCubeCorner } from '@/lib/narrative-utils';
 
 // ── Terminal thread statuses ────────────────────────────────────────────────
 const TERMINAL_STATUSES = new Set(['resolved', 'done', 'subverted', 'closed', 'abandoned']);
@@ -119,7 +121,31 @@ export function evaluateNarrativeState(
 
   // ── Intelligent tension thresholds (hardcoded defaults) ─────────────────
   const tensionFloor = 0.25;
-  const tensionCeiling = 0.85;
+  const tensionCeiling = 0.65;
+
+  // ── Force drift detection ──────────────────────────────────────────────
+  // Detect monotonic upward drift: if all 3 forces have been rising over the
+  // last N scenes, the LLM is just escalating everything regardless of events
+  const driftWindow = scenes.slice(-4);
+  let upwardDriftCount = 0;
+  if (driftWindow.length >= 3) {
+    for (const key of ['pressure', 'momentum', 'flux'] as const) {
+      let rising = true;
+      for (let i = 1; i < driftWindow.length; i++) {
+        if (driftWindow[i].forceSnapshot[key] < driftWindow[i - 1].forceSnapshot[key]) {
+          rising = false;
+          break;
+        }
+      }
+      if (rising) upwardDriftCount++;
+    }
+  }
+  const hasForceDrift = upwardDriftCount >= 2; // 2+ forces monotonically rising
+
+  // ── High-force saturation detection ────────────────────────────────────
+  const lastForce = scenes.length > 0 ? scenes[scenes.length - 1].forceSnapshot : { pressure: 0.5, momentum: 0.5, flux: 0.5 };
+  const forceAvg = (lastForce.pressure + lastForce.momentum + lastForce.flux) / 3;
+  const forcesHigh = forceAvg > 0.7;
 
   // ── World build mode scoring ──────────────────────────────────────────
   const worldBuildBase: Record<string, number> = {
@@ -238,6 +264,16 @@ export function evaluateNarrativeState(
       score *= 0.2; // don't escalate after climax
     }
 
+    // Suppress escalation when forces are already high or drifting up
+    if (forcesHigh) {
+      score *= 0.3;
+      reasons.push(`forces already high (avg ${forceAvg.toFixed(2)})`);
+    }
+    if (hasForceDrift) {
+      score *= 0.4;
+      reasons.push('force drift: suppressing further escalation');
+    }
+
     scores.push({ action: 'escalate_toward_climax', score: score * pacingMult.escalate_toward_climax, reason: reasons.join('; ') || 'build tension' });
   }
 
@@ -265,12 +301,18 @@ export function evaluateNarrativeState(
       score *= 0.1; // suppress post-climax
     }
 
+    // Suppress complications when forces are already saturated
+    if (forcesHigh) {
+      score *= 0.4;
+      reasons.push('forces already high — complication would over-saturate');
+    }
+
     scores.push({ action: 'introduce_complication', score: score * pacingMult.introduce_complication, reason: reasons.join('; ') || 'shake things up' });
   }
 
   // 6. Quiet interlude
   {
-    let score = 0.15;
+    let score = 0.3;
     const reasons: string[] = [];
 
     if (avgTension > tensionCeiling) {
@@ -278,14 +320,24 @@ export function evaluateNarrativeState(
       reasons.push(`tension ${avgTension.toFixed(2)} above ceiling`);
     }
 
-    if (tensionTrend > 0.2) {
-      score += 0.15;
+    if (tensionTrend > 0.15) {
+      score += 0.2;
       reasons.push('sustained tension spike needs relief');
     }
 
     if (neglectedAnchors.length > 0) {
       score += 0.1;
       reasons.push('good opportunity for character development');
+    }
+
+    if (hasForceDrift) {
+      score += 0.35;
+      reasons.push('force drift detected — forces rising monotonically, need correction');
+    }
+
+    if (forcesHigh) {
+      score += 0.25;
+      reasons.push(`forces saturated (avg ${forceAvg.toFixed(2)})`);
     }
 
     scores.push({ action: 'quiet_interlude', score: score * pacingMult.quiet_interlude, reason: reasons.join('; ') || 'breathing room' });
@@ -310,6 +362,34 @@ export function pickArcLength(config: AutoConfig, action: AutoAction): number {
       return config.minArcLength;
     default:
       return Math.ceil((config.minArcLength + config.maxArcLength) / 2);
+  }
+}
+
+/** Map an auto action to a force directive for the AI */
+export function actionForceDirective(
+  action: AutoAction,
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+): 'escalate' | 'de-escalate' | 'hold' | 'natural' {
+  // Check if forces are already high
+  const scenes = resolvedKeys.map((k) => narrative.scenes[k]).filter(Boolean).filter(isScene) as Scene[];
+  const lastScene = scenes[scenes.length - 1];
+  const lastForce = lastScene?.forceSnapshot ?? { pressure: 0.5, momentum: 0.5, flux: 0.5 };
+  const avg = (lastForce.pressure + lastForce.momentum + lastForce.flux) / 3;
+
+  switch (action) {
+    case 'quiet_interlude':
+      return 'de-escalate';
+    case 'resolve_thread':
+      return avg > 0.6 ? 'de-escalate' : 'natural';
+    case 'escalate_toward_climax':
+      return avg > 0.8 ? 'hold' : 'escalate'; // don't escalate past saturation
+    case 'introduce_complication':
+      return avg > 0.7 ? 'hold' : 'natural';
+    case 'generate_arc':
+      return avg > 0.7 ? 'de-escalate' : 'natural';
+    default:
+      return 'natural';
   }
 }
 

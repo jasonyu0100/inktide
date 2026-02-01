@@ -1,5 +1,6 @@
-import type { NarrativeState, Scene, Arc, Character, Location, Thread, RelationshipEdge } from '@/types/narrative';
-import { resolveEntry } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, Character, Location, Thread, RelationshipEdge, CubeCornerKey } from '@/types/narrative';
+import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
+import { nextId, nextIds } from '@/lib/narrative-utils';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -32,10 +33,24 @@ function branchContext(
   currentIndex: number,
 ): string {
   const characters = Object.values(n.characters)
-    .map((c) => `- ${c.id}: ${c.name} (${c.role})`)
+    .map((c) => {
+      const knowledgeLines = c.knowledge.nodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
+      const edgeLines = c.knowledge.edges.map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
+      const knowledgeBlock = knowledgeLines.length > 0
+        ? `\n  Knowledge:\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
+        : '';
+      return `- ${c.id}: ${c.name} (${c.role})${knowledgeBlock}`;
+    })
     .join('\n');
   const locations = Object.values(n.locations)
-    .map((l) => `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}`)
+    .map((l) => {
+      const knowledgeLines = l.knowledge.nodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
+      const edgeLines = l.knowledge.edges.map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
+      const knowledgeBlock = knowledgeLines.length > 0
+        ? `\n  Knowledge:\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
+        : '';
+      return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${knowledgeBlock}`;
+    })
     .join('\n');
   const threads = Object.values(n.threads)
     .map((t) => `- ${t.id}: ${t.description} [${t.status}]`)
@@ -44,7 +59,7 @@ function branchContext(
     .map((r) => {
       const fromName = n.characters[r.from]?.name ?? r.from;
       const toName = n.characters[r.to]?.name ?? r.to;
-      return `- ${fromName} -> ${toName}: ${r.type} (valence: ${r.valence})`;
+      return `- ${r.from} (${fromName}) -> ${r.to} (${toName}): ${r.type} (valence: ${r.valence})`;
     })
     .join('\n');
 
@@ -56,8 +71,8 @@ function branchContext(
     if (s.kind === 'world_build') {
       return `[${i + 1}] ${s.id} [WORLD BUILD]\n   ${s.summary}`;
     }
-    const loc = n.locations[s.locationId]?.name ?? s.locationId;
-    const participants = s.participantIds.map((pid) => n.characters[pid]?.name ?? pid).join(', ');
+    const loc = `${s.locationId} (${n.locations[s.locationId]?.name ?? 'unknown'})`;
+    const participants = s.participantIds.map((pid) => `${pid} (${n.characters[pid]?.name ?? 'unknown'})`).join(', ');
     const threadChanges = s.threadMutations.map((tm) => `${tm.threadId}: ${tm.from}->${tm.to}`).join('; ');
     return `[${i + 1}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}
    ${s.summary}`;
@@ -67,6 +82,11 @@ function branchContext(
   const arcs = Object.values(n.arcs)
     .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
     .join('\n');
+
+  // Compact ID lookup — placed last so it's closest to the generation prompt
+  const charIdList = Object.values(n.characters).map((c) => c.id).join(', ');
+  const locIdList = Object.values(n.locations).map((l) => l.id).join(', ');
+  const threadIdList = Object.values(n.threads).map((t) => t.id).join(', ');
 
   return `NARRATIVE: "${n.title}"
 WORLD: ${n.worldSummary}
@@ -87,7 +107,12 @@ ARCS:
 ${arcs}
 
 FULL SCENE HISTORY (${keysUpToCurrent.length} scenes on current branch):
-${sceneHistory}`;
+${sceneHistory}
+
+VALID IDs (you MUST use ONLY these exact IDs — do NOT invent new ones):
+  Character IDs: ${charIdList}
+  Location IDs: ${locIdList}
+  Thread IDs: ${threadIdList}`;
 }
 
 const SYSTEM_PROMPT = `You are a narrative simulation engine that generates structured scene data for interactive storytelling.
@@ -100,6 +125,27 @@ function cleanJson(raw: string): string {
   // Remove trailing commas before } or ]
   s = s.replace(/,\s*([}\]])/g, '$1');
   return s;
+}
+
+/** Parse JSON with detailed error context for debugging truncated LLM responses */
+function parseJson(raw: string, context: string): unknown {
+  if (!raw || !raw.trim()) {
+    throw new Error(`[${context}] Empty response from LLM — received no content`);
+  }
+  const cleaned = cleanJson(raw);
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    const preview = cleaned.length > 300
+      ? `${cleaned.slice(0, 150)}…[${cleaned.length} chars total]…${cleaned.slice(-150)}`
+      : cleaned;
+    const truncated = cleaned.endsWith('}') || cleaned.endsWith(']') ? '' : ' (likely truncated — response hit max_tokens limit)';
+    throw new Error(
+      `[${context}] Failed to parse JSON${truncated}\n` +
+      `Original error: ${err instanceof Error ? err.message : String(err)}\n` +
+      `Response preview: ${preview}`
+    );
+  }
 }
 
 /**
@@ -140,13 +186,41 @@ Return JSON with this exact structure:
 suggestedSceneCount must be between 1 and 8.`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT);
-  const parsed = JSON.parse(cleanJson(raw));
+  const parsed = parseJson(raw, 'suggestDirection') as {
+    arcName?: string; direction?: string; sceneSuggestion?: string; suggestedSceneCount?: number;
+  };
   const sceneCount = Math.max(1, Math.min(8, parsed.suggestedSceneCount ?? 3));
   return {
     text: `${parsed.arcName}: ${parsed.direction}${parsed.sceneSuggestion ? '\n\n' + parsed.sceneSuggestion : ''}`,
     arcName: parsed.arcName ?? '',
     suggestedSceneCount: sceneCount,
   };
+}
+
+export async function generateArcName(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+  direction: string,
+): Promise<string> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+
+  const prompt = `${ctx}
+
+Based on the narrative context and this direction for the next arc:
+"${direction}"
+
+Generate a short, evocative arc name (2-4 words) that captures the essence of what this arc is about.
+It should read like a chapter title — specific to the story, not generic.
+
+Bad examples: "Continuation", "Escalation", "Resolution", "New Beginnings"
+Good examples: "The Siege of Ashenmoor", "Fractured Oaths", "Blood Price", "A Hollow Crown"
+
+Return JSON: {"arcName": "your arc name"}`;
+
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT);
+  const parsed = parseJson(raw, 'generateArcName') as { arcName?: string };
+  return parsed.arcName ?? 'Untitled Arc';
 }
 
 export async function generateScenes(
@@ -157,13 +231,10 @@ export async function generateScenes(
   arcName: string,
   direction: string,
   existingArc?: Arc,
+  cubeGoal?: CubeCornerKey,
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
-  const lastSceneKey = resolvedKeys[currentIndex];
-  const lastEntry = lastSceneKey ? resolveEntry(narrative, lastSceneKey) : null;
-  const lastForce = (lastEntry?.kind === 'scene' ? lastEntry.forceSnapshot : null) ?? { pressure: 0.5, momentum: 0.5, flux: 0.5 };
-
-  const arcId = existingArc?.id ?? `ARC-${Date.now()}`;
+  const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
   const arcInstruction = existingArc
     ? `CONTINUE the existing arc "${existingArc.name}" (${arcId}) which already has ${existingArc.sceneIds.length} scenes. Add exactly ${count} new scenes that naturally extend this arc.`
     : `Generate a NEW ARC called "${arcName}" with exactly ${count} scenes.`;
@@ -174,18 +245,12 @@ The arc should follow this direction: ${direction}
 
 The scenes must continue from the current point in the story (after scene index ${currentIndex + 1}).
 
-NARRATIVE FORCES (current values from last scene):
-- pressure: ${lastForce.pressure} — external threats, stakes, urgency bearing down on characters
-- momentum: ${lastForce.momentum} — pace of events, how fast things are moving and changing
-- flux: ${lastForce.flux} — instability, uncertainty, how much the situation could shift unpredictably
+${cubeGoal ? `
 
-Force dynamics guidance:
-- Forces should respond to WHAT HAPPENS in each scene, not follow a preset curve
-- A revelation scene might spike flux (uncertainty) while dropping momentum (everyone freezes)
-- A confrontation spikes pressure and momentum but may resolve flux
-- A quiet aftermath scene can drop all three — but dormant pressure often rises subtly
-- Forces MUST stay between 0 and 1. Changes between consecutive scenes should usually be 0.05-0.2 unless something dramatic happens
-- The arc's overall trajectory should reflect its direction: an escalation arc trends upward, a resolution arc trends downward, a mystery arc oscillates flux
+NARRATIVE CUBE GOAL — steer this arc toward the "${NARRATIVE_CUBE[cubeGoal].name}" state (${cubeGoal}):
+Target forces: pressure=${NARRATIVE_CUBE[cubeGoal].forces.pressure}, momentum=${NARRATIVE_CUBE[cubeGoal].forces.momentum}, flux=${NARRATIVE_CUBE[cubeGoal].forces.flux}
+${NARRATIVE_CUBE[cubeGoal].description}
+The scenes should progressively move the force values toward these targets. The final scene's forceSnapshot should be close to the target. Shape events and pacing to make this trajectory feel natural — don't force it mechanically.` : ''}
 
 Return JSON with this exact structure:
 {
@@ -223,20 +288,72 @@ PACING:
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT);
 
-  const parsed = JSON.parse(cleanJson(raw));
+  const parsed = parseJson(raw, 'generateScenes') as { scenes: Scene[] };
 
+  const sceneIds = nextIds('S', Object.keys(narrative.scenes), parsed.scenes.length, 3);
   const scenes: Scene[] = parsed.scenes.map((s: Scene, i: number) => ({
     ...s,
     kind: 'scene' as const,
-    id: `S-GEN-${Date.now()}-${i + 1}`,
+    id: sceneIds[i],
     arcId,
   }));
 
-  // Fix knowledge mutation IDs to be unique
-  let kCounter = 1;
+  // Validate all IDs reference entities that actually exist
+  const validCharIds = new Set(Object.keys(narrative.characters));
+  const validLocIds = new Set(Object.keys(narrative.locations));
+  const validThreadIds = new Set(Object.keys(narrative.threads));
+  const hallucinatedIds: string[] = [];
+
+  for (const scene of scenes) {
+    if (!validLocIds.has(scene.locationId)) {
+      hallucinatedIds.push(`locationId "${scene.locationId}" in scene ${scene.id}`);
+    }
+    for (const pid of scene.participantIds) {
+      if (!validCharIds.has(pid)) {
+        hallucinatedIds.push(`participantId "${pid}" in scene ${scene.id}`);
+      }
+    }
+    for (const tm of scene.threadMutations) {
+      if (!validThreadIds.has(tm.threadId)) {
+        hallucinatedIds.push(`threadId "${tm.threadId}" in scene ${scene.id}`);
+      }
+    }
+    for (const km of scene.knowledgeMutations) {
+      if (km.characterId && !validCharIds.has(km.characterId)) {
+        hallucinatedIds.push(`knowledgeMutation characterId "${km.characterId}" in scene ${scene.id}`);
+      }
+    }
+    for (const rm of scene.relationshipMutations) {
+      if (!validCharIds.has(rm.from)) {
+        hallucinatedIds.push(`relationshipMutation from "${rm.from}" in scene ${scene.id}`);
+      }
+      if (!validCharIds.has(rm.to)) {
+        hallucinatedIds.push(`relationshipMutation to "${rm.to}" in scene ${scene.id}`);
+      }
+    }
+  }
+
+  if (hallucinatedIds.length > 0) {
+    throw new Error(
+      `[generateScenes] AI hallucinated ${hallucinatedIds.length} non-existent ID(s):\n` +
+      hallucinatedIds.map((h) => `  - ${h}`).join('\n') +
+      `\n\nValid characters: ${[...validCharIds].join(', ')}` +
+      `\nValid locations: ${[...validLocIds].join(', ')}` +
+      `\nValid threads: ${[...validThreadIds].join(', ')}`
+    );
+  }
+
+  // Fix knowledge mutation IDs to be unique and sequential
+  const existingKIds = [
+    ...Object.values(narrative.characters).flatMap((c) => c.knowledge.nodes.map((n) => n.id)),
+    ...Object.values(narrative.locations).flatMap((l) => l.knowledge.nodes.map((n) => n.id)),
+  ];
+  const totalKMutations = scenes.reduce((sum, s) => sum + s.knowledgeMutations.length, 0);
+  const kIds = nextIds('K', existingKIds, totalKMutations);
+  let kIdx = 0;
   for (const scene of scenes) {
     for (const km of scene.knowledgeMutations) {
-      km.nodeId = `K-GEN-${Date.now()}-${kCounter++}`;
+      km.nodeId = kIds[kIdx++];
     }
   }
 
@@ -300,7 +417,7 @@ Return JSON with this exact structure:
 }`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT);
-  const parsed = JSON.parse(cleanJson(raw));
+  const parsed = parseJson(raw, 'suggestWorldExpansion') as { suggestion: string };
   return parsed.suggestion;
 }
 
@@ -316,43 +433,52 @@ export async function expandWorld(
 ): Promise<WorldExpansion> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
-  const now = Date.now();
+  // Compute next sequential IDs for the AI to use
+  const nextCharId = nextId('C', Object.keys(narrative.characters));
+  const nextLocId = nextId('L', Object.keys(narrative.locations));
+  const nextThreadId = nextId('T', Object.keys(narrative.threads));
+  const existingKIds = [
+    ...Object.values(narrative.characters).flatMap((c) => c.knowledge.nodes.map((n) => n.id)),
+    ...Object.values(narrative.locations).flatMap((l) => l.knowledge.nodes.map((n) => n.id)),
+  ];
+  const nextKId = nextId('K', existingKIds);
+
   const prompt = `${ctx}
 
 EXPAND the world based on this directive: ${directive}
 
 Generate NEW characters, locations, threads, and relationships that fit the existing narrative.
-Use IDs that won't collide with existing ones (use the timestamp ${now} in IDs).
+Use sequential IDs continuing from the existing ones.
 
 Return JSON with this exact structure:
 {
   "characters": [
     {
-      "id": "C-${now}-1",
+      "id": "${nextCharId}",
       "name": "string",
       "role": "anchor|recurring|transient",
       "threadIds": [],
       "knowledge": {
-        "nodes": [{"id": "K-${now}-1", "type": "contextual_type", "content": "string"}],
-        "edges": [{"from": "K-${now}-1", "to": "K-${now}-2", "type": "contextual_edge_type"}]
+        "nodes": [{"id": "${nextKId}", "type": "contextual_type", "content": "string"}],
+        "edges": [{"from": "${nextKId}", "to": "K-next", "type": "contextual_edge_type"}]
       }
     }
   ],
   "locations": [
     {
-      "id": "L-${now}-1",
+      "id": "${nextLocId}",
       "name": "string",
       "parentId": null or "existing location ID for nesting",
       "threadIds": [],
       "knowledge": {
-        "nodes": [{"id": "LK-${now}-1", "type": "contextual_type", "content": "string"}],
+        "nodes": [{"id": "K-next", "type": "contextual_type", "content": "string"}],
         "edges": []
       }
     }
   ],
   "threads": [
     {
-      "id": "T-${now}-1",
+      "id": "${nextThreadId}",
       "anchors": [{"id": "character or location ID", "type": "character|location"}],
       "description": "string",
       "status": "dormant",
@@ -364,6 +490,13 @@ Return JSON with this exact structure:
     {"from": "character ID", "to": "character ID", "type": "description", "valence": 0.0}
   ]
 }
+
+ID RULES:
+- Character IDs: continue sequentially from ${nextCharId} (e.g., ${nextCharId}, C-${String(parseInt(nextCharId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
+- Location IDs: continue sequentially from ${nextLocId} (e.g., ${nextLocId}, L-${String(parseInt(nextLocId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
+- Thread IDs: continue sequentially from ${nextThreadId} (e.g., ${nextThreadId}, T-${String(parseInt(nextThreadId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
+- Knowledge node IDs: continue sequentially from ${nextKId} (e.g., ${nextKId}, K-${String(parseInt(nextKId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
+- ALL knowledge nodes (in both characters and locations) use the K- prefix and share one sequence
 
 Rules:
 - Generate elements that serve the directive
@@ -378,7 +511,7 @@ Rules:
 - Generate at least 1 of each type, but only as many as the directive demands`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT);
-  const parsed = JSON.parse(cleanJson(raw));
+  const parsed = parseJson(raw, 'expandWorld') as WorldExpansion;
 
   return {
     characters: parsed.characters ?? [],
@@ -456,7 +589,8 @@ Force dynamics:
 - Forces should evolve scene-to-scene based on events, not follow a mechanical curve`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT);
-  const parsed = JSON.parse(cleanJson(raw));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parsed = parseJson(raw, 'generateNarrative') as any;
 
   const now = Date.now();
   const id = `N-${now}`;

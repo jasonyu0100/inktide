@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes, suggestDirection, expandWorld, suggestWorldExpansion } from '@/lib/ai';
 import { resolveEntry } from '@/types/narrative';
+import { nextId } from '@/lib/narrative-utils';
 
 type Mode = 'continuation' | 'world';
 
@@ -137,7 +138,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       );
       dispatch({
         type: 'EXPAND_WORLD',
-        wxId: `WX-${Date.now()}`,
+        wxId: nextId('WX', Object.keys(narrative.worldBuilds), 3),
         characters: expansion.characters,
         locations: expansion.locations,
         threads: expansion.threads,

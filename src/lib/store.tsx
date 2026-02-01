@@ -461,6 +461,7 @@ function reducer(state: AppState, action: Action): AppState {
         for (const scene of action.scenes) {
           newScenes[scene.id] = scene;
         }
+
         const newSceneIds = action.scenes.map((s) => s.id);
         const updatedArcs = { ...n.arcs };
         if (!updatedArcs[action.arc.id]) {

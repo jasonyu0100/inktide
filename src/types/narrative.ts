@@ -91,6 +91,70 @@ export type ForceSnapshot = {
   flux: number;
 };
 
+// ── Narrative Cube (§3.2 The Eight Narrative Extremes) ──────────────────────
+// The three forces (P·M·F) define a cube. Each corner is a recognisable state.
+export type CubeCornerKey =
+  | 'HHH' | 'HHL' | 'HLH' | 'HLL'
+  | 'LHH' | 'LHL' | 'LLH' | 'LLL';
+
+export type CubeCorner = {
+  key: CubeCornerKey;
+  name: string;
+  description: string;
+  forces: ForceSnapshot;
+};
+
+export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
+  HHH: {
+    key: 'HHH',
+    name: 'Peak Crisis',
+    description: 'All forces at maximum. High stakes discharging at full pace in unstable conditions. Climactic sequences in unfamiliar territory.',
+    forces: { pressure: 1, momentum: 1, flux: 1 },
+  },
+  HHL: {
+    key: 'HHL',
+    name: 'Climax',
+    description: 'High stakes and high pace on stable, familiar ground. The archetypal payoff scene — maximum reader investment with clear orientation.',
+    forces: { pressure: 1, momentum: 1, flux: 0 },
+  },
+  HLH: {
+    key: 'HLH',
+    name: 'Slow Burn',
+    description: 'High pressure with low pace in uncertain conditions. Stakes are present but action is withheld — tension through restraint and ambiguity.',
+    forces: { pressure: 1, momentum: 0, flux: 1 },
+  },
+  HLL: {
+    key: 'HLL',
+    name: 'Locked In',
+    description: 'High pressure, low pace, stable world. Everything is loaded but static — characters endure, suppress, or wait. Pre-climactic tension.',
+    forces: { pressure: 1, momentum: 0, flux: 0 },
+  },
+  LHH: {
+    key: 'LHH',
+    name: 'Exploration',
+    description: 'Fast pace through unstable new territory with low stakes. Discovery-driven sequences — world-building arcs, early adventure, open possibility space.',
+    forces: { pressure: 0, momentum: 1, flux: 1 },
+  },
+  LHL: {
+    key: 'LHL',
+    name: 'Cruise',
+    description: 'High pace, low stakes, stable ground. Routine action among known elements — training, travel, episodic sequences. Efficient narrative throughput.',
+    forces: { pressure: 0, momentum: 1, flux: 0 },
+  },
+  LLH: {
+    key: 'LLH',
+    name: 'Liminal',
+    description: 'Low pace and low stakes in unfamiliar conditions. Contemplative or transitional — characters in new environments without clear direction.',
+    forces: { pressure: 0, momentum: 0, flux: 1 },
+  },
+  LLL: {
+    key: 'LLL',
+    name: 'Rest',
+    description: 'All forces at minimum. Familiar world, no pressure, no urgency. Recovery and seed-planting — necessary breathing room after high-intensity sequences.',
+    forces: { pressure: 0, momentum: 0, flux: 0 },
+  },
+};
+
 export type ExpansionManifest = {
   characterIds: string[];
   locationIds: string[];

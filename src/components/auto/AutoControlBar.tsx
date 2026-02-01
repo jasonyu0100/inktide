@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import type { AutoRunLog } from '@/types/narrative';
 
 type Props = {
@@ -35,11 +34,10 @@ export function AutoControlBar({
   onStop,
   onOpenSettings,
 }: Props) {
-  const [logExpanded, setLogExpanded] = useState(false);
   const lastEntry = log[log.length - 1];
 
   return (
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20">
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
       <div className="glass-pill px-3 py-1.5 flex items-center gap-3">
         {/* Status indicator */}
         <div className="flex items-center gap-1.5">
@@ -120,39 +118,7 @@ export function AutoControlBar({
           </svg>
         </button>
 
-        {/* Log toggle */}
-        {log.length > 0 && (
-          <button
-            onClick={() => setLogExpanded((v) => !v)}
-            className="text-[10px] text-text-dim hover:text-text-secondary uppercase tracking-wider"
-          >
-            Log
-          </button>
-        )}
       </div>
-
-      {/* Expanded log */}
-      {logExpanded && log.length > 0 && (
-        <div className="glass mt-1 rounded-lg p-3 max-h-48 overflow-y-auto w-80">
-          {log.slice().reverse().map((entry, i) => (
-            <div key={i} className="flex flex-col gap-0.5 py-1.5 border-b border-white/6 last:border-b-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono text-text-dim">#{entry.cycle}</span>
-                <span className="text-[10px] text-text-secondary font-medium">
-                  {ACTION_LABELS[entry.action] ?? entry.action}
-                </span>
-                {entry.scenesGenerated > 0 && (
-                  <span className="text-[10px] text-text-dim">+{entry.scenesGenerated} scenes</span>
-                )}
-                {entry.worldExpanded && (
-                  <span className="text-[10px] text-flux">+world</span>
-                )}
-              </div>
-              <span className="text-[10px] text-text-dim truncate">{entry.reason}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

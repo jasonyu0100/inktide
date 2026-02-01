@@ -16,6 +16,7 @@ import { GeneratePanel } from '@/components/generation/GeneratePanel';
 import { ForkPanel } from '@/components/generation/ForkPanel';
 import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
 import { AutoControlBar } from '@/components/auto/AutoControlBar';
+import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 
 function NarrativeApp() {
@@ -23,19 +24,23 @@ function NarrativeApp() {
   const [generateOpen, setGenerateOpen] = useState(false);
   const [forkOpen, setForkOpen] = useState(false);
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
+  const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
   const autoPlay = useAutoPlay();
 
   useEffect(() => {
     function handleOpenGenerate() { setGenerateOpen(true); }
     function handleOpenFork() { setForkOpen(true); }
     function handleOpenAutoSettings() { setAutoSettingsOpen(true); }
+    function handleOpenCubeViewer() { setCubeViewerOpen(true); }
     window.addEventListener('open-generate-panel', handleOpenGenerate);
     window.addEventListener('open-fork-panel', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
+    window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
     return () => {
       window.removeEventListener('open-generate-panel', handleOpenGenerate);
       window.removeEventListener('open-fork-panel', handleOpenFork);
       window.removeEventListener('open-auto-settings', handleOpenAutoSettings);
+      window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
     };
   }, []);
 
@@ -56,7 +61,7 @@ function NarrativeApp() {
         sidebar={<Sidebar />}
         sidepanel={<SidePanel />}
       >
-        <div className="relative flex flex-col h-full">
+        <div className="relative flex flex-col h-full min-h-0">
           {/* World Graph Canvas */}
           <div className="flex-1 relative overflow-hidden">
             <WorldGraph />
@@ -94,6 +99,9 @@ function NarrativeApp() {
           onClose={() => setAutoSettingsOpen(false)}
           onStart={() => autoPlay.start()}
         />
+      )}
+      {cubeViewerOpen && (
+        <NarrativeCubeViewer onClose={() => setCubeViewerOpen(false)} />
       )}
     </>
   );

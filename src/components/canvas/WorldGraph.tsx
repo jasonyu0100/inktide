@@ -39,8 +39,8 @@ interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   label?: string;
   valence?: number;
   knowledgeEdgeType?: string;
-  /** Curve offset for bidirectional relationship edges: +1 or -1 */
-  curveOffset?: number;
+  /** For bidirectional pairs: labels for each direction (sourceId → label) */
+  directedLabels?: Record<string, string>;
 }
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -428,6 +428,7 @@ export default function WorldGraph() {
           filteredRelationships = narrative.relationships.filter(
             (r) => activeCharIds.has(r.from) && activeCharIds.has(r.to),
           );
+
         } else {
           filteredCharacters = narrative.characters;
           filteredLocations = narrative.locations;
@@ -459,6 +460,30 @@ export default function WorldGraph() {
       const tgtId = typeof l.target === 'string' ? l.target : (l.target as GraphNode).id;
       return nodeIds.has(srcId) && nodeIds.has(tgtId);
     });
+
+    // Deduplicate bidirectional relationship edges into a single link with directedLabels
+    const relSeen = new Map<string, GraphLink>();
+    const deduped: GraphLink[] = [];
+    for (const l of validLinks) {
+      if (l.linkKind !== 'relationship') {
+        deduped.push(l);
+        continue;
+      }
+      const srcId = typeof l.source === 'string' ? l.source : (l.source as GraphNode).id;
+      const tgtId = typeof l.target === 'string' ? l.target : (l.target as GraphNode).id;
+      const pairKey = [srcId, tgtId].sort().join('|');
+      const existing = relSeen.get(pairKey);
+      if (existing) {
+        // Merge: store both directed labels
+        existing.directedLabels = existing.directedLabels ?? {};
+        existing.directedLabels[srcId] = l.label ?? '';
+      } else {
+        l.directedLabels = { [srcId]: l.label ?? '' };
+        relSeen.set(pairKey, l);
+        deduped.push(l);
+      }
+    }
+    const validLinksDeduped = deduped;
 
     // Root group for zoom/pan
     const g = svg.append('g');
@@ -492,7 +517,7 @@ export default function WorldGraph() {
       .force(
         'link',
         d3
-          .forceLink<GraphNode, GraphLink>(validLinks)
+          .forceLink<GraphNode, GraphLink>(validLinksDeduped)
           .id((d) => d.id)
           .distance(100),
       )
@@ -510,31 +535,29 @@ export default function WorldGraph() {
     simulationRef.current = simulation;
 
     // ── Links ─────────────────────────────────────────────────────────────
+    const nonRelLinks = validLinksDeduped.filter((l) => l.linkKind !== 'relationship');
+    const relLinks = validLinksDeduped.filter((l) => l.linkKind === 'relationship');
+
+    // Non-relationship links as straight lines
     const linkSelection = g
       .append('g')
       .attr('class', 'links')
       .selectAll<SVGLineElement, GraphLink>('line')
-      .data(validLinks)
+      .data(nonRelLinks)
       .join('line')
       .attr('class', 'graph-edge')
       .attr('stroke', (d) => {
-        if (d.linkKind === 'relationship') {
-          const v = d.valence ?? 0;
-          return v >= 0 ? 'rgba(74, 222, 128, 0.85)' : 'rgba(248, 113, 113, 0.85)';
-        }
         if (d.linkKind === 'character-location') return 'rgba(59, 130, 246, 0.8)';
         if (d.linkKind === 'knowledge') return 'rgba(255, 255, 255, 0.35)';
         return 'rgba(255, 255, 255, 0.25)';
       })
       .attr('stroke-opacity', (d) => {
-        if (d.linkKind === 'relationship') return Math.max(0.4, Math.abs(d.valence ?? 0));
         if (d.linkKind === 'character-location') return 0.8;
         if (d.linkKind === 'spatial') return 0.6;
         return 0.5;
       })
       .attr('stroke-width', (d) => {
         if (d.linkKind === 'character-location') return 2;
-        if (d.linkKind === 'relationship') return 1.5;
         if (d.linkKind === 'knowledge') return 1;
         if (d.linkKind === 'spatial') return 1;
         return 1.5;
@@ -545,18 +568,34 @@ export default function WorldGraph() {
         return null;
       });
 
-    // Relationship labels at midpoints
+    // Relationship links as straight lines (hidden by default, shown on node select)
+    const relLinkSelection = g
+      .select('g.links')
+      .selectAll<SVGLineElement, GraphLink>('line.graph-rel-edge')
+      .data(relLinks)
+      .join('line')
+      .attr('class', 'graph-edge graph-rel-edge')
+      .attr('stroke', (d) => {
+        const v = d.valence ?? 0;
+        return v >= 0 ? 'rgba(74, 222, 128, 0.85)' : 'rgba(248, 113, 113, 0.85)';
+      })
+      .attr('stroke-opacity', (d) => Math.max(0.4, Math.abs(d.valence ?? 0)))
+      .attr('stroke-width', 1.5)
+      .style('display', 'none');
+
+    // Relationship labels at midpoints (hidden by default)
     const linkLabelSelection = g
       .append('g')
       .attr('class', 'link-labels')
       .selectAll<SVGTextElement, GraphLink>('text')
-      .data(validLinks.filter((l) => l.linkKind === 'relationship'))
+      .data(relLinks)
       .join('text')
-      .attr('class', 'graph-label')
+      .attr('class', 'graph-label graph-rel-label')
       .attr('text-anchor', 'middle')
-      .attr('dy', '-4')
+      .attr('dy', '-6')
       .style('font-size', '9px')
-      .style('fill', '#666666')
+      .style('fill', '#999999')
+      .style('display', 'none')
       .text((d) => d.label ?? '');
 
     // ── Node groups ───────────────────────────────────────────────────────
@@ -676,6 +715,12 @@ export default function WorldGraph() {
         .attr('x2', (d) => ((d.target as GraphNode).x ?? 0))
         .attr('y2', (d) => ((d.target as GraphNode).y ?? 0));
 
+      relLinkSelection
+        .attr('x1', (d) => ((d.source as GraphNode).x ?? 0))
+        .attr('y1', (d) => ((d.source as GraphNode).y ?? 0))
+        .attr('x2', (d) => ((d.target as GraphNode).x ?? 0))
+        .attr('y2', (d) => ((d.target as GraphNode).y ?? 0));
+
       linkLabelSelection
         .attr('x', (d) => {
           const sx = (d.source as GraphNode).x ?? 0;
@@ -699,13 +744,34 @@ export default function WorldGraph() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [narrative, activeArcId, graphViewMode, currentWorldBuildId]);
 
-  // ── Lightweight: update selected node highlight ──
+  // ── Lightweight: update selected node highlight + relationship edges ──
   useEffect(() => {
     const g = gRef.current;
     if (!g) return;
     g.select('g.nodes')
       .selectAll<SVGGElement, GraphNode>('g')
       .classed('node-selected', (d) => d.id === selectedNodeId);
+
+    // Show relationship edges only for the selected character/location
+    const isConnected = (d: GraphLink) => {
+      if (!selectedNodeId) return false;
+      const srcId = typeof d.source === 'string' ? d.source : (d.source as GraphNode).id;
+      const tgtId = typeof d.target === 'string' ? d.target : (d.target as GraphNode).id;
+      return srcId === selectedNodeId || tgtId === selectedNodeId;
+    };
+
+    g.select('g.links')
+      .selectAll<SVGLineElement, GraphLink>('line.graph-rel-edge')
+      .style('display', (d) => (isConnected(d) ? null : 'none'));
+
+    g.select('g.link-labels')
+      .selectAll<SVGTextElement, GraphLink>('text.graph-rel-label')
+      .style('display', (d) => (isConnected(d) ? null : 'none'))
+      .text((d) => {
+        if (!selectedNodeId || !d.directedLabels) return d.label ?? '';
+        // Show the label from the selected node's perspective
+        return d.directedLabels[selectedNodeId] ?? d.label ?? '';
+      });
   }, [selectedNodeId]);
 
   // ── Lightweight: toggle knowledge subgraph without full rebuild ──
@@ -965,7 +1031,7 @@ export default function WorldGraph() {
   return (
     <div className="relative h-full w-full overflow-hidden">
       {/* Graph view mode toggle */}
-      <div className="absolute top-2 right-2 z-10 flex items-center rounded border border-border-default bg-bg-surface text-[11px] leading-none">
+      <div className="absolute top-2 right-2 z-10 flex items-center rounded bg-bg-surface text-[11px] leading-none">
         <button
           className={`px-2 py-1.5 rounded-l transition-colors ${
             graphViewMode === 'scene' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
@@ -974,7 +1040,7 @@ export default function WorldGraph() {
         >
           Scene
         </button>
-        <div className="w-px h-3.5 bg-border-default" />
+        <div className="w-px h-3.5 bg-border" />
         <button
           className={`px-2 py-1.5 rounded-r transition-colors ${
             graphViewMode === 'overview' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'

@@ -215,26 +215,6 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">Min Arc Length</label>
-                  <input
-                    type="number" min={1} max={10}
-                    value={config.minArcLength}
-                    onChange={(e) => update({ minArcLength: Number(e.target.value) })}
-                    className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-full outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">Max Arc Length</label>
-                  <input
-                    type="number" min={1} max={12}
-                    value={config.maxArcLength}
-                    onChange={(e) => update({ maxArcLength: Number(e.target.value) })}
-                    className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-full outline-none"
-                  />
-                </div>
-              </div>
             </>
           )}
 
@@ -268,51 +248,6 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">Max Active Threads</label>
-                  <input
-                    type="number" min={2} max={15}
-                    value={config.maxActiveThreads}
-                    onChange={(e) => update({ maxActiveThreads: Number(e.target.value) })}
-                    className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-full outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">Stagnation Threshold</label>
-                  <input
-                    type="number" min={2} max={20}
-                    value={config.threadStagnationThreshold}
-                    onChange={(e) => update({ threadStagnationThreshold: Number(e.target.value) })}
-                    className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-full outline-none"
-                  />
-                  <span className="text-[10px] text-text-dim mt-0.5 block">scenes without mutation</span>
-                </div>
-              </div>
-
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={config.characterRotationEnabled}
-                  onChange={(e) => update({ characterRotationEnabled: e.target.checked })}
-                  className="accent-text-primary"
-                />
-                <span className="text-xs text-text-secondary">Rotate anchor characters</span>
-              </label>
-
-              {config.characterRotationEnabled && (
-                <div className="ml-6">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">
-                    Min scenes between focus
-                  </label>
-                  <input
-                    type="number" min={1} max={10}
-                    value={config.minScenesBetweenCharacterFocus}
-                    onChange={(e) => update({ minScenesBetweenCharacterFocus: Number(e.target.value) })}
-                    className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-20 outline-none"
-                  />
-                </div>
-              )}
             </>
           )}
 
@@ -320,38 +255,13 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
             <>
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">
-                  Tone Guidance
-                </label>
-                <input
-                  type="text"
-                  value={config.toneGuidance}
-                  onChange={(e) => update({ toneGuidance: e.target.value })}
-                  placeholder="e.g. dark fantasy, political thriller, hopeful sci-fi"
-                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full outline-none placeholder:text-text-dim"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">
-                  General Direction Prompt
+                  Direction Prompt
                 </label>
                 <textarea
                   value={config.arcDirectionPrompt}
                   onChange={(e) => update({ arcDirectionPrompt: e.target.value })}
-                  placeholder="Injected into every arc generation — guide the overall story direction..."
-                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">
-                  Narrative Constraints
-                </label>
-                <textarea
-                  value={config.narrativeConstraints}
-                  onChange={(e) => update({ narrativeConstraints: e.target.value })}
-                  placeholder="Things to avoid or ensure — e.g. 'no character deaths in first 10 scenes', 'maintain mystery around X'"
-                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim"
+                  placeholder="Guide the overall story direction, tone, and constraints..."
+                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-32 resize-none outline-none placeholder:text-text-dim"
                 />
               </div>
             </>
@@ -360,12 +270,6 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
 
         {/* Footer */}
         <div className="flex gap-2 pt-4 mt-4 border-t border-border shrink-0">
-          <button
-            onClick={handleSave}
-            className="flex-1 text-xs font-medium py-2 rounded-lg bg-white/6 text-text-secondary hover:bg-white/10 transition-colors"
-          >
-            Save Settings
-          </button>
           <button
             onClick={handleStart}
             disabled={noEndConditions}

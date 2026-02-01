@@ -292,10 +292,10 @@ export default function SceneDetail({ sceneId }: Props) {
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Knowledge Mutations
           </h3>
-          {scene.knowledgeMutations.map((km) => {
+          {scene.knowledgeMutations.map((km, i) => {
             const charName = narrative.characters[km.characterId]?.name ?? km.characterId;
             return (
-              <div key={`${km.characterId}-${km.nodeId}`} className="flex flex-col gap-0.5 text-xs">
+              <div key={`${km.characterId}-${km.nodeId}-${i}`} className="flex flex-col gap-0.5 text-xs">
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"

@@ -608,7 +608,7 @@ Return JSON with this exact structure:
       "participantIds": ["C-01"],
       "events": ["event_tag"],
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "surfacing"}],
-      "knowledgeMutations": [],
+      "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [],
       "summary": "REQUIRED: 2-4 sentence vivid narrative summary of the scene"
     }
@@ -634,7 +634,9 @@ PACING IS CRITICAL:
 - Early scenes should establish normalcy and stakes before disrupting them.
 - Thread statuses follow a lifecycle. Active: "dormant", "surfacing", "escalating", "fractured", "converging", "critical", "threatened". Terminal: "resolved" (concluded satisfactorily), "done" (ran its course), "subverted" (upended/inverted), "closed" (shut down externally), "abandoned" (faded without resolution). When a thread's story reaches its conclusion, transition it to the appropriate terminal status.
 
-Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.`;
+Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.
+
+Scene knowledgeMutations track what characters LEARN during a scene. Each mutation MUST have: characterId (who learned it), nodeId (unique ID like K-GEN-001), action ("added"), content (what they learned), nodeType (specific contextual type). The characterId must reference an existing character ID (C-XX).`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, 60000, 'generateNarrative');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

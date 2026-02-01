@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: #111111;
+  --color-foreground: #E8E8E8;
+  --color-bg-base: #111111;
+  --color-bg-panel: #191919;
+  --color-bg-elevated: #212121;
+  --color-bg-overlay: #2A2A2A;
+  --color-text-primary: #E8E8E8;
+  --color-text-secondary: #888888;
+  --color-text-dim: #444444;
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-pressure: #EF4444;
+  --color-momentum: #22C55E;
+  --color-flux: #3B82F6;
+  --color-escalate: #F59E0B;
+  --color-live: #4F8EF7;
+  --color-shape: #7C5CBF;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Glass utility */
+.glass {
+  background: rgba(40, 40, 40, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.glass-pill {
+  background: rgba(40, 40, 40, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  border-radius: 999px;
+}
+
+/* D3 graph styles */
+.graph-node {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.graph-node:hover {
+  opacity: 0.85;
+}
+.graph-edge {
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 1;
+}
+.graph-label {
+  fill: #888888;
+  font-size: 10px;
+  pointer-events: none;
+  user-select: none;
+}
+.node-selected {
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
 }

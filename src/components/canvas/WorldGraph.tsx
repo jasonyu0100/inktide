@@ -654,10 +654,10 @@ export default function WorldGraph() {
     const locRange = Math.max(1, maxLocUsage - minLocUsage);
     const normChar = (d: GraphNode) => ((d.usageCount ?? 1) - minCharUsage) / charRange;
     const normLoc = (d: GraphNode) => ((d.usageCount ?? 1) - minLocUsage) / locRange;
-    const CHAR_MIN_R = 8;
-    const CHAR_MAX_R = 44;
-    const LOC_MIN_SCALE = 0.4;
-    const LOC_MAX_SCALE = 2.0;
+    const CHAR_MIN_R = 12;
+    const CHAR_MAX_R = 30;
+    const LOC_MIN_SCALE = 0.6;
+    const LOC_MAX_SCALE = 1.4;
 
     // Force simulation
     const simulation = d3

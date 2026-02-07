@@ -43,6 +43,47 @@ interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   directedLabels?: Record<string, string>;
 }
 
+// ── Helper: compute connected components (groups) ──────────────────────────
+
+function computeGroups(
+  nodes: GraphNode[],
+  links: GraphLink[],
+): GraphNode[][] {
+  const adj = new Map<string, Set<string>>();
+  for (const n of nodes) adj.set(n.id, new Set());
+  for (const l of links) {
+    const s = typeof l.source === 'string' ? l.source : (l.source as GraphNode).id;
+    const t = typeof l.target === 'string' ? l.target : (l.target as GraphNode).id;
+    adj.get(s)?.add(t);
+    adj.get(t)?.add(s);
+  }
+
+  const visited = new Set<string>();
+  const groups: GraphNode[][] = [];
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+  for (const node of nodes) {
+    if (visited.has(node.id)) continue;
+    const component: GraphNode[] = [];
+    const stack = [node.id];
+    while (stack.length) {
+      const id = stack.pop()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      const n = nodeMap.get(id);
+      if (n) component.push(n);
+      for (const neighbour of adj.get(id) ?? []) {
+        if (!visited.has(neighbour)) stack.push(neighbour);
+      }
+    }
+    groups.push(component);
+  }
+
+  // Sort descending by size
+  groups.sort((a, b) => b.length - a.length);
+  return groups;
+}
+
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const ROLE_RADIUS: Record<CharacterRole, number> = {
@@ -329,6 +370,9 @@ export default function WorldGraph() {
   const handleLocationClickRef = useRef<(id: string) => void>(() => {});
 
   const [showEdgeLabels, setShowEdgeLabels] = useState(false);
+  const [groups, setGroups] = useState<GraphNode[][]>([]);
+  const [focusedGroupIndex, setFocusedGroupIndex] = useState<number | null>(null);
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
 
   const narrative = state.activeNarrative;
   const inspectorContext = state.inspectorContext;
@@ -500,6 +544,10 @@ export default function WorldGraph() {
     // Store nodes ref for intra-arc updates
     nodesRef.current = nodes;
 
+    // Compute connected groups and reset focus
+    setGroups(computeGroups(nodes, links));
+    setFocusedGroupIndex(null);
+
     // Validate links
     const nodeIds = new Set(nodes.map((n) => n.id));
     const validLinks = links.filter((l) => {
@@ -545,6 +593,7 @@ export default function WorldGraph() {
       });
 
     svg.call(zoom);
+    zoomRef.current = zoom;
 
     // Click on empty canvas → revert inspector to current scene
     svg.on('click', (event: MouseEvent) => {
@@ -1144,6 +1193,75 @@ export default function WorldGraph() {
     });
   }, [narrative, activeArcId, state.currentSceneIndex]);
 
+  // ── Zoom to focused group ──
+  useEffect(() => {
+    const svg = svgRef.current;
+    const zoom = zoomRef.current;
+    if (!svg || !zoom || focusedGroupIndex === null || !groups[focusedGroupIndex]) return;
+
+    const group = groups[focusedGroupIndex];
+    const width = svg.clientWidth || 800;
+    const height = svg.clientHeight || 600;
+
+    // Compute bounding box of group nodes
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of group) {
+      const x = n.x ?? 0;
+      const y = n.y ?? 0;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+
+    const padding = 80;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    const bw = maxX - minX;
+    const bh = maxY - minY;
+    const scale = Math.min(width / bw, height / bh, 2);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+
+    const transform = d3.zoomIdentity
+      .translate(width / 2, height / 2)
+      .scale(scale)
+      .translate(-cx, -cy);
+
+    d3.select(svg)
+      .transition()
+      .duration(500)
+      .call(zoom.transform as unknown as (t: d3.Transition<SVGSVGElement, unknown, null, undefined>) => void, transform);
+  }, [focusedGroupIndex, groups]);
+
+  const navigateGroup = useCallback(
+    (direction: 'next' | 'prev' | 'reset') => {
+      if (groups.length === 0) return;
+      if (direction === 'reset') {
+        setFocusedGroupIndex(null);
+        // Reset zoom
+        const svg = svgRef.current;
+        const zoom = zoomRef.current;
+        if (svg && zoom) {
+          d3.select(svg)
+            .transition()
+            .duration(500)
+            .call(zoom.transform as unknown as (t: d3.Transition<SVGSVGElement, unknown, null, undefined>) => void, d3.zoomIdentity);
+        }
+        return;
+      }
+      setFocusedGroupIndex((prev) => {
+        if (prev === null) return 0;
+        if (direction === 'next') return (prev + 1) % groups.length;
+        return (prev - 1 + groups.length) % groups.length;
+      });
+    },
+    [groups],
+  );
+
   // No active narrative placeholder
   if (!narrative) {
     return (
@@ -1192,6 +1310,42 @@ export default function WorldGraph() {
         className="h-full w-full"
         style={{ background: 'transparent' }}
       />
+      {/* Group navigation (bottom-left) */}
+      {groups.length > 1 && (
+        <div className="absolute bottom-4 left-2 z-10 flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
+          <button
+            className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
+            onClick={() => navigateGroup('prev')}
+            title="Previous group"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+          <span className="text-text-dim px-0.5 tabular-nums">
+            {focusedGroupIndex !== null
+              ? `${focusedGroupIndex + 1}/${groups.length} (${groups[focusedGroupIndex].length})`
+              : `${groups.length} groups`}
+          </span>
+          <button
+            className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
+            onClick={() => navigateGroup('next')}
+            title="Next group"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+          {focusedGroupIndex !== null && (
+            <>
+              <div className="w-px h-3.5 bg-border" />
+              <button
+                className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
+                onClick={() => navigateGroup('reset')}
+                title="Reset view"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {/* Fullscreen toggle */}
       <FullscreenButton />
     </div>

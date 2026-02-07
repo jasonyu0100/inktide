@@ -4,7 +4,6 @@
     {
       "name": "Nick Carraway",
       "role": "anchor",
-      "description": "Observes Gatsby's past and present, and reflects on the social dynamics of West Egg.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -56,7 +55,6 @@
     {
       "name": "Jay Gatsby",
       "role": "recurring",
-      "description": "His true origins as James Gatz are revealed, and he struggles with Daisy's reaction to his party and his desire to reclaim the past.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -92,21 +90,18 @@
     {
       "name": "Dan Cody",
       "role": "recurring",
-      "description": "A pioneer debauchee and Gatsby's mentor, whose wealth and lifestyle profoundly influenced young James Gatz.",
       "firstAppearance": false,
       "knowledge": []
     },
     {
       "name": "Ella Kaye",
       "role": "transient",
-      "description": "A newspaper woman who became Dan Cody's mistress and inherited his fortune.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Reporter",
       "role": "transient",
-      "description": "An ambitious young reporter from New York seeking a statement from Gatsby.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -118,21 +113,18 @@
     {
       "name": "James Gatz",
       "role": "transient",
-      "description": "Gatsby's original identity before he reinvented himself.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Gatz's Parents",
       "role": "transient",
-      "description": "Shiftless and unsuccessful farm people, rejected by their son's imagination.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Mr. Sloane",
       "role": "transient",
-      "description": "An acquaintance of Tom Buchanan, haughty and dismissive.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -144,7 +136,6 @@
     {
       "name": "Woman in Brown Riding-Habit",
       "role": "transient",
-      "description": "A pretty woman accompanying Tom and Mr. Sloane, initially reserved but later cordial and flirtatious.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -156,7 +147,6 @@
     {
       "name": "Tom Buchanan",
       "role": "recurring",
-      "description": "Attends Gatsby's party with Daisy, expressing suspicion and disapproval of Gatsby and his guests.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -192,7 +182,6 @@
     {
       "name": "Daisy Buchanan",
       "role": "recurring",
-      "description": "Initially excited by Gatsby's party, but ultimately offended by the West Egg crowd, leading to Gatsby's disappointment.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -224,42 +213,36 @@
     {
       "name": "Movie Star",
       "role": "transient",
-      "description": "A celebrity at Gatsby's party, described as a 'gorgeous, scarcely human orchid of a woman'.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Movie Director",
       "role": "transient",
-      "description": "The director of the Movie Star, seen bending over her at Gatsby's party.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Small Producer",
       "role": "transient",
-      "description": "A man with a 'blue nose' whom Daisy liked at Gatsby's party.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Miss Baedeker",
       "role": "transient",
-      "description": "A tipsy guest at Gatsby's party who gets her head stuck in a pool.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Doctor Civet",
       "role": "transient",
-      "description": "A guest at Gatsby's party with shaky hands, who suggests Miss Baedeker leave liquor alone.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Massive and Lethargic Woman",
       "role": "transient",
-      "description": "A guest at Gatsby's party who defends Miss Baedeker and urges Daisy to play golf.",
       "firstAppearance": true,
       "knowledge": []
     }

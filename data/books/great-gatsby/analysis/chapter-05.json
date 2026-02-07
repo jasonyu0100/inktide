@@ -4,7 +4,6 @@
     {
       "name": "Nick Carraway",
       "role": "anchor",
-      "description": "Observes Gatsby's nervous anticipation and the emotional intensity of his reunion with Daisy, acting as a reluctant facilitator and a moral compass.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -48,7 +47,6 @@
     {
       "name": "Jay Gatsby",
       "role": "recurring",
-      "description": "Overwhelmed by nervous anticipation and then profound joy during his reunion with Daisy, revealing the singular focus of his life's ambition.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -84,7 +82,6 @@
     {
       "name": "Daisy Buchanan",
       "role": "recurring",
-      "description": "Initially playful and then tearfully overwhelmed by Gatsby's wealth and devotion, she embodies both charm and a certain emotional fragility.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -108,42 +105,36 @@
     {
       "name": "Finn",
       "role": "transient",
-      "description": "Nick's housekeeper, who is briefly mentioned.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Lawn-mower Man",
       "role": "transient",
-      "description": "A man sent by Gatsby to cut Nick's grass.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Gatsby's Gardener",
       "role": "transient",
-      "description": "The person responsible for maintaining Gatsby's immaculate lawn.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Gatsby's Chauffeur",
       "role": "transient",
-      "description": "The driver of Gatsby's car, who is sent to pick up Daisy.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Ferdie",
       "role": "transient",
-      "description": "Daisy's chauffeur, who she dismisses for an hour.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Klipspringer",
       "role": "recurring",
-      "description": "A disheveled 'boarder' at Gatsby's mansion, who is reluctantly coerced into playing the piano.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -155,14 +146,12 @@
     {
       "name": "Dan Cody",
       "role": "transient",
-      "description": "An elderly man in a yachting costume, Gatsby's former best friend and mentor.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Ewing",
       "role": "transient",
-      "description": "Klipspringer's first name, revealed by Gatsby.",
       "firstAppearance": true,
       "knowledge": []
     }

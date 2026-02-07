@@ -4,7 +4,6 @@
     {
       "name": "Nick Carraway",
       "role": "anchor",
-      "description": "A young, observant man from the Midwest, newly arrived in West Egg, who reserves judgment but is increasingly disillusioned by the East's moral landscape.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -48,7 +47,6 @@
     {
       "name": "Jay Gatsby",
       "role": "recurring",
-      "description": "Nick's mysterious, wealthy neighbor in West Egg, known for his lavish mansion and an extraordinary capacity for hope.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -60,7 +58,6 @@
     {
       "name": "Tom Buchanan",
       "role": "recurring",
-      "description": "Daisy's immensely wealthy, physically imposing, and aggressively prejudiced husband, a former Yale football star.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -76,7 +73,6 @@
     {
       "name": "Daisy Buchanan",
       "role": "recurring",
-      "description": "Nick's beautiful, charming, and deeply cynical cousin, married to Tom Buchanan, living a life of opulent unhappiness.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -92,7 +88,6 @@
     {
       "name": "Jordan Baker",
       "role": "recurring",
-      "description": "A professional golfer, friend of Daisy, with a self-sufficient and somewhat detached demeanor.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -108,21 +103,18 @@
     {
       "name": "Nick's Father",
       "role": "transient",
-      "description": "A wise, reserved man from the Middle West who imparted a significant moral lesson to Nick.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Butler (Buchanan's)",
       "role": "transient",
-      "description": "The Buchanan's butler, whose past as a silver polisher is a subject of Daisy's whispered 'secret'.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Pammy Buchanan",
       "role": "transient",
-      "description": "Daisy and Tom's three-year-old daughter, mentioned briefly by Daisy.",
       "firstAppearance": true,
       "knowledge": []
     }

@@ -4,7 +4,6 @@
     {
       "name": "Myrtle Wilson",
       "role": "recurring",
-      "description": "Tom Buchanan's mistress, a sensuous and vital woman who transforms her personality with her clothes.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -24,7 +23,6 @@
     {
       "name": "George B. Wilson",
       "role": "recurring",
-      "description": "Myrtle Wilson's spiritless, anemic husband, proprietor of a garage in the valley of ashes.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -40,14 +38,12 @@
     {
       "name": "Doctor T. J. Eckleburg",
       "role": "transient",
-      "description": "A pair of gigantic, brooding eyes on a billboard overlooking the valley of ashes, symbolizing a lost or forgotten divine presence.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Catherine",
       "role": "recurring",
-      "description": "Myrtle Wilson's sister, a worldly and gossipy woman who lives in a hotel.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -67,7 +63,6 @@
     {
       "name": "Mr. McKee",
       "role": "recurring",
-      "description": "A pale, feminine photographer who lives downstairs from Myrtle's apartment.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -79,7 +74,6 @@
     {
       "name": "Mrs. McKee",
       "role": "recurring",
-      "description": "Mr. McKee's shrill, languid, and somewhat vain wife.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -95,21 +89,18 @@
     {
       "name": "Elevator Boy",
       "role": "transient",
-      "description": "A reluctant and somewhat impertinent elevator operator.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Janitor",
       "role": "transient",
-      "description": "The building janitor, summoned for sandwiches.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Puppy Seller",
       "role": "transient",
-      "description": "An old man selling puppies from a basket.",
       "firstAppearance": true,
       "knowledge": []
     }

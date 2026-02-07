@@ -4,7 +4,6 @@
     {
       "name": "Nick Carraway",
       "role": "anchor",
-      "description": "Disturbed and sleepless, he tries to warn Gatsby, listens to his full story, and ultimately expresses his profound admiration for Gatsby's incorruptible dream, before being alienated by Jordan and witnessing the tragic climax.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -48,7 +47,6 @@
     {
       "name": "Jay Gatsby",
       "role": "recurring",
-      "description": "Clinging to a desperate hope for Daisy, he reveals the full, tragic history of his love and the construction of his persona, before being murdered by George Wilson.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -76,7 +74,6 @@
     {
       "name": "George B. Wilson",
       "role": "recurring",
-      "description": "Consumed by grief and a growing, delusional conviction that his wife was murdered by her lover, he relentlessly seeks the owner of the yellow car, ultimately leading him to Gatsby's mansion.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -100,7 +97,6 @@
     {
       "name": "Michaelis",
       "role": "recurring",
-      "description": "The kind and patient neighbor who stays with George Wilson through the night, attempting to comfort him and make sense of his grief and growing paranoia.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -120,7 +116,6 @@
     {
       "name": "Jordan Baker",
       "role": "recurring",
-      "description": "Detached and cynical, she calls Nick from Hempstead, further alienating him with her casual indifference to the unfolding tragedy.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -136,28 +131,24 @@
     {
       "name": "Daisy Buchanan",
       "role": "recurring",
-      "description": "Remains unseen but is the subject of Gatsby's desperate hope and the catalyst for his tragic end, having retreated into her privileged world.",
       "firstAppearance": false,
       "knowledge": []
     },
     {
       "name": "Tom Buchanan",
       "role": "recurring",
-      "description": "Remains unseen but his actions from the previous chapter continue to influence the narrative, particularly George Wilson's vengeful pursuit.",
       "firstAppearance": false,
       "knowledge": []
     },
     {
       "name": "Myrtle Wilson",
       "role": "recurring",
-      "description": "Her death continues to drive the plot, as her husband seeks revenge.",
       "firstAppearance": false,
       "knowledge": []
     },
     {
       "name": "Catherine",
       "role": "recurring",
-      "description": "Myrtle's sister, found drunk and unable to comprehend the tragedy of Myrtle's death.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -169,14 +160,12 @@
     {
       "name": "Doctor T. J. Eckleburg",
       "role": "transient",
-      "description": "The eyes on the billboard, interpreted by George Wilson as the eyes of God.",
       "firstAppearance": false,
       "knowledge": []
     },
     {
       "name": "Gatsby's Gardener",
       "role": "transient",
-      "description": "The last of Gatsby's original servants, who discovers Wilson's body.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -188,14 +177,12 @@
     {
       "name": "Gatsby's Butler",
       "role": "transient",
-      "description": "One of Wolfshiem's new men, who waits for a phone call for Gatsby.",
       "firstAppearance": false,
       "knowledge": []
     },
     {
       "name": "Gatsby's Chauffeur",
       "role": "transient",
-      "description": "One of Wolfshiem's new men, who helps Gatsby with the mattress and hears the shots.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -207,7 +194,6 @@
     {
       "name": "Watcher",
       "role": "transient",
-      "description": "One of the men who stayed with Wilson at the garage, returning in the morning.",
       "firstAppearance": true,
       "knowledge": []
     }

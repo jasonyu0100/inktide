@@ -218,7 +218,7 @@ async function callLLM(prompt: string, systemPrompt: string): Promise<string> {
         { role: 'user', content: prompt },
       ],
       temperature: 0.3,
-      max_tokens: 16000,
+      max_tokens: 32000,
     }),
   });
 
@@ -269,7 +269,6 @@ Return a single JSON object with this exact structure:
     {
       "name": "Full Name",
       "role": "anchor|recurring|transient",
-      "description": "One-line character description relevant to this chapter",
       "firstAppearance": true/false,
       "knowledge": [
         {
@@ -337,8 +336,11 @@ CUMULATIVE CONTINUITY (critical):
 - When listing relationships at the chapter level, show the UPDATED valence (prior + accumulated deltas from this chapter's scenes)
 
 KNOWLEDGE MUTATIONS:
-- Track what characters LEARN or REVEAL in this specific chapter — not what they already know
-- Types must be contextual: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_relationship", "strategic_deception", "disillusionment", etc.
+- Knowledge tracks INFORMATION ASYMMETRY — what one character knows that others don't, or revelations that change a character's behavior/beliefs. It is NOT a log of every observation.
+- For POV/narrator characters: only record knowledge that creates dramatic irony (they know something another character doesn't), changes their worldview, or represents a genuine discovery. Do NOT log routine observations, general atmosphere, or plot events they merely witness.
+- For non-POV characters: record secrets they hold, lies they tell, information they reveal or conceal, and beliefs that drive their actions.
+- Each entry should pass the test: "Would the story change if this character didn't know this?"
+- Types must be contextual: "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_relationship", "strategic_deception", "disillusionment", "complicity_in_crime", etc.
 
 THREAD LIFECYCLE:
 - Active statuses: "dormant", "surfacing", "escalating", "fractured", "converging", "critical", "threatened"

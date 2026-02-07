@@ -4,525 +4,450 @@
     {
       "name": "Chester Becker",
       "role": "transient",
-      "description": "An East Egg guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Leeches",
       "role": "transient",
-      "description": "East Egg guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Bunsen",
       "role": "transient",
-      "description": "An East Egg guest at Gatsby's parties, known by Nick from Yale.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Doctor Webster Civet",
       "role": "transient",
-      "description": "An East Egg guest at Gatsby's parties, who drowned the previous summer.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Hornbeams",
       "role": "transient",
-      "description": "East Egg guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Willie Voltaires",
       "role": "transient",
-      "description": "East Egg guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Blackbuck",
       "role": "transient",
-      "description": "A clan of East Egg guests at Gatsby's parties, known for their snobbery.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Ismays",
       "role": "transient",
-      "description": "East Egg guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Chrysties",
       "role": "transient",
-      "description": "East Egg guests at Gatsby's parties, specifically Hubert Auerbach and Mr. Chrystie’s wife.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Hubert Auerbach",
       "role": "transient",
-      "description": "An East Egg guest at Gatsby's parties, associated with the Chrysties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Edgar Beaver",
       "role": "transient",
-      "description": "An East Egg guest at Gatsby's parties, whose hair turned white for no reason.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Clarence Endive",
       "role": "transient",
-      "description": "An East Egg guest at Gatsby's parties, who once had a fight in the garden.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Etty",
       "role": "transient",
-      "description": "A 'bum' who had a fight with Clarence Endive at Gatsby's party.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Cheadles",
       "role": "transient",
-      "description": "Guests from farther out on the Island at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "O. R. P. Schraeders",
       "role": "transient",
-      "description": "Guests from farther out on the Island at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Stonewall Jackson Abrams",
       "role": "transient",
-      "description": "A guest from Georgia at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Fishguards",
       "role": "transient",
-      "description": "Guests from farther out on the Island at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Ripley Snells",
       "role": "transient",
-      "description": "A guest at Gatsby's parties who went to the penitentiary.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Mrs. Ulysses Swett",
       "role": "transient",
-      "description": "Her automobile ran over Ripley Snell's hand.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Dancies",
       "role": "transient",
-      "description": "Guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "S. B. Whitebait",
       "role": "transient",
-      "description": "An older guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Maurice A. Flink",
       "role": "transient",
-      "description": "A guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Hammerheads",
       "role": "transient",
-      "description": "Guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Beluga",
       "role": "transient",
-      "description": "A tobacco importer and guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Beluga's girls",
       "role": "transient",
-      "description": "Companions of Beluga at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Poles",
       "role": "transient",
-      "description": "West Egg guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Mulreadys",
       "role": "transient",
-      "description": "West Egg guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Cecil Roebuck",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Cecil Schoen",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Gulick",
       "role": "transient",
-      "description": "A State senator and West Egg guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Newton Orchid",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, who controlled Films Par Excellence.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Eckhaust",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Clyde Cohen",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Don S. Schwartz (the son)",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Arthur McCarty",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, connected to the movies.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Catlips",
       "role": "transient",
-      "description": "West Egg guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Bembergs",
       "role": "transient",
-      "description": "West Egg guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "G. Earl Muldoon",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, brother to a man who strangled his wife.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Muldoon (brother)",
       "role": "transient",
-      "description": "Brother to G. Earl Muldoon, who strangled his wife.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Da Fontano",
       "role": "transient",
-      "description": "A promoter and West Egg guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Ed Legros",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "James B. (“Rot-Gut”) Ferret",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, known for gambling.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "De Jongs",
       "role": "transient",
-      "description": "West Egg guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Ernest Lilly",
       "role": "transient",
-      "description": "A West Egg guest at Gatsby's parties, who came to gamble.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Klipspringer",
       "role": "recurring",
-      "description": "A frequent guest at Gatsby's, known as 'the boarder'.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Gus Waize",
       "role": "transient",
-      "description": "A theatrical person and guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Horace O’Donavan",
       "role": "transient",
-      "description": "A theatrical person and guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Lester Myer",
       "role": "transient",
-      "description": "A theatrical person and guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "George Duckweed",
       "role": "transient",
-      "description": "A theatrical person and guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Francis Bull",
       "role": "transient",
-      "description": "A theatrical person and guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Chromes",
       "role": "transient",
-      "description": "Guests from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Backhyssons",
       "role": "transient",
-      "description": "Guests from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Dennickers",
       "role": "transient",
-      "description": "Guests from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Russel Betty",
       "role": "transient",
-      "description": "A guest from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Corrigans",
       "role": "transient",
-      "description": "Guests from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Kellehers",
       "role": "transient",
-      "description": "Guests from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Dewars",
       "role": "transient",
-      "description": "Guests from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Scullys",
       "role": "transient",
-      "description": "Guests from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "S. W. Belcher",
       "role": "transient",
-      "description": "A guest from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Smirkes",
       "role": "transient",
-      "description": "Guests from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "young Quinns",
       "role": "transient",
-      "description": "Divorced guests from New York at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Henry L. Palmetto",
       "role": "transient",
-      "description": "A guest from New York at Gatsby's parties, who committed suicide.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Benny McClenahan",
       "role": "transient",
-      "description": "A guest who always arrived with four identical girls.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Faustina O’Brien",
       "role": "transient",
-      "description": "A guest who came to Gatsby's at least once.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Baedeker girls",
       "role": "transient",
-      "description": "Guests at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "young Brewer",
       "role": "transient",
-      "description": "A guest at Gatsby's parties who had his nose shot off in the war.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Mr. Albrucksburger",
       "role": "transient",
-      "description": "A guest at Gatsby's parties, accompanied by his fiancée.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Miss Haag",
       "role": "transient",
-      "description": "Mr. Albrucksburger's fiancée and guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Ardita Fitz-Peters",
       "role": "transient",
-      "description": "A guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Mr. P. Jewett",
       "role": "transient",
-      "description": "A guest at Gatsby's parties, once head of the American Legion.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Miss Claudia Hip",
       "role": "transient",
-      "description": "A guest at Gatsby's parties, with a man reputed to be her chauffeur.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Duke",
       "role": "transient",
-      "description": "A prince of something, a guest at Gatsby's parties.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Policeman",
       "role": "transient",
-      "description": "A traffic officer who stops Gatsby for speeding.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Commissioner",
       "role": "transient",
-      "description": "A figure of authority to whom Gatsby once did a favor.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Meyer Wolfshiem",
       "role": "recurring",
-      "description": "A small, flat-nosed gambler and associate of Gatsby, notorious for fixing the 1919 World Series.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -542,35 +467,30 @@
     {
       "name": "Katspaugh",
       "role": "transient",
-      "description": "A person mentioned by Wolfshiem in a story about silencing someone.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Head Waiter",
       "role": "transient",
-      "description": "The waiter at the Forty-second Street cellar restaurant.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Rosy Rosenthal",
       "role": "transient",
-      "description": "A man who was shot at the old Metropole, as recounted by Wolfshiem.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Becker",
       "role": "transient",
-      "description": "One of the men electrocuted for Rosy Rosenthal's murder.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Daisy Fay",
       "role": "recurring",
-      "description": "Daisy Buchanan's maiden name, revealed in Jordan's flashback.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -590,28 +510,24 @@
     {
       "name": "Lieutenant (Daisy's)",
       "role": "transient",
-      "description": "An officer Daisy was with in her car in Louisville, later revealed to be Gatsby.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Daisy's Mother",
       "role": "transient",
-      "description": "Prevented Daisy from going to New York to see a soldier.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Daisy's Mother's Maid",
       "role": "transient",
-      "description": "Helped Jordan sober up Daisy before her wedding.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Chambermaid (Santa Barbara)",
       "role": "transient",
-      "description": "The woman injured in a car accident with Tom Buchanan in Santa Barbara.",
       "firstAppearance": true,
       "knowledge": []
     }

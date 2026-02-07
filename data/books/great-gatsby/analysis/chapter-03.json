@@ -4,7 +4,6 @@
     {
       "name": "Jay Gatsby",
       "role": "recurring",
-      "description": "The enigmatic host of lavish parties, whose true nature and past are shrouded in rumor and speculation.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -28,7 +27,6 @@
     {
       "name": "Nick Carraway",
       "role": "anchor",
-      "description": "Observes Gatsby's parties and finally meets his host, later reflecting on his own life and Jordan Baker's character.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -64,7 +62,6 @@
     {
       "name": "Jordan Baker",
       "role": "recurring",
-      "description": "Attends Gatsby's party with Nick, revealing more about her cynical nature and her past dishonesty.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -88,7 +85,6 @@
     {
       "name": "Girls in Yellow Dresses (Lucille and unnamed friend)",
       "role": "transient",
-      "description": "Two party guests who spread rumors about Gatsby and exemplify the superficiality of the attendees.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -104,7 +100,6 @@
     {
       "name": "Mr. Mumble (three men)",
       "role": "transient",
-      "description": "Three anonymous male guests at Gatsby's party, eager to hear gossip.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -116,7 +111,6 @@
     {
       "name": "Owl Eyes",
       "role": "recurring",
-      "description": "A drunken, owl-eyed man found in Gatsby's library, later involved in a car accident.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -136,56 +130,48 @@
     {
       "name": "Gatsby's Chauffeur",
       "role": "transient",
-      "description": "Delivers Gatsby's invitation to Nick.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Gatsby's Butler",
       "role": "transient",
-      "description": "Informs Gatsby of phone calls and summons Jordan Baker.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Orchestra Leader",
       "role": "transient",
-      "description": "Announces Vladmir Tostoff's 'Jazz History of the World'.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Undergraduate (Jordan's escort)",
       "role": "transient",
-      "description": "A persistent escort of Jordan Baker, given to violent innuendo.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Red-haired young lady from a famous chorus",
       "role": "transient",
-      "description": "A drunken singer who weeps during her performance.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Girl at Nick's elbow",
       "role": "transient",
-      "description": "Explains the red-haired singer's situation.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Mrs. Sigourney Howard (Jordan's aunt)",
       "role": "transient",
-      "description": "Jordan Baker's aunt, whose name Jordan gives to Nick for contact.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Dangling individual",
       "role": "transient",
-      "description": "The actual driver of the crashed car, who is oblivious to the accident.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -197,7 +183,6 @@
     {
       "name": "Girl from Jersey City",
       "role": "transient",
-      "description": "Nick's brief romantic interest from his work.",
       "firstAppearance": true,
       "knowledge": []
     }

@@ -4,7 +4,6 @@
     {
       "name": "Nick Carraway",
       "role": "anchor",
-      "description": "The narrator, deeply affected by Gatsby's death, attempting to arrange a funeral and grappling with the moral decay of the East.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -68,7 +67,6 @@
     {
       "name": "Catherine",
       "role": "recurring",
-      "description": "Myrtle's sister, who provides false testimony at the inquest to protect her sister's reputation.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -80,14 +78,12 @@
     {
       "name": "Daisy Buchanan",
       "role": "recurring",
-      "description": "Gatsby's object of affection, who flees with Tom immediately after Gatsby's death.",
       "firstAppearance": false,
       "knowledge": []
     },
     {
       "name": "Tom Buchanan",
       "role": "recurring",
-      "description": "Daisy's husband, who flees with her and later reveals his role in directing Wilson to Gatsby.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -107,7 +103,6 @@
     {
       "name": "Meyer Wolfshiem",
       "role": "recurring",
-      "description": "Gatsby's business associate, who refuses to attend the funeral, citing business and a desire to avoid trouble.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -123,7 +118,6 @@
     {
       "name": "Slagle",
       "role": "transient",
-      "description": "A man from Chicago who calls Gatsby's house, revealing Gatsby's continued involvement in illicit bond dealings.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -135,7 +129,6 @@
     {
       "name": "Henry C. Gatz",
       "role": "recurring",
-      "description": "Gatsby's estranged father, a simple, proud man who arrives for the funeral and shares insights into his son's early ambition.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -159,7 +152,6 @@
     {
       "name": "Klipspringer",
       "role": "recurring",
-      "description": "A former 'boarder' at Gatsby's mansion, who refuses to attend the funeral, prioritizing a picnic.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -171,28 +163,24 @@
     {
       "name": "Young Parke",
       "role": "transient",
-      "description": "An associate of Gatsby's, arrested for illicit bond dealings.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Edgar",
       "role": "transient",
-      "description": "Meyer Wolfshiem's messenger.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Stella",
       "role": "transient",
-      "description": "Meyer Wolfshiem's secretary, who attempts to deflect Nick.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Owl Eyes",
       "role": "recurring",
-      "description": "The only other guest from Gatsby's parties to attend the funeral, expressing a poignant observation.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -204,7 +192,6 @@
     {
       "name": "Jordan Baker",
       "role": "recurring",
-      "description": "Nick's former romantic interest, who confronts him about their relationship before moving on.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -220,35 +207,30 @@
     {
       "name": "Lutheran Minister",
       "role": "transient",
-      "description": "The minister who conducts Gatsby's funeral.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Gatsby's Servants",
       "role": "transient",
-      "description": "The new staff at Gatsby's mansion, who attend the funeral.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Postman from West Egg",
       "role": "transient",
-      "description": "The local postman, who attends Gatsby's funeral.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Taxi Driver",
       "role": "transient",
-      "description": "A local taxi driver who may have driven Daisy and Gatsby on the night of the accident.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Grocer",
       "role": "transient",
-      "description": "The person to whom Nick sells his car before leaving the East.",
       "firstAppearance": true,
       "knowledge": []
     }

@@ -191,6 +191,11 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     }
   }, [narrative, forceEntries]);
 
+  // Hover state for trajectory dots
+  const [hoveredDotIdx, setHoveredDotIdx] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const projectedDotsRef = useRef<{ x: number; y: number; idx: number }[]>([]);
+
   // Mouse drag handlers
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     dragging.current = true;
@@ -198,17 +203,70 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   }, []);
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragging.current) return;
-    const dx = e.clientX - lastMouse.current.x;
-    const dy = e.clientY - lastMouse.current.y;
-    setRotY((r) => r - dx * 0.008);
-    setRotX((r) => Math.max(-1.2, Math.min(1.2, r - dy * 0.008)));
-    lastMouse.current = { x: e.clientX, y: e.clientY };
+    if (dragging.current) {
+      const dx = e.clientX - lastMouse.current.x;
+      const dy = e.clientY - lastMouse.current.y;
+      setRotY((r) => r - dx * 0.008);
+      setRotX((r) => Math.max(-1.2, Math.min(1.2, r - dy * 0.008)));
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+      setHoveredDotIdx(null);
+      setTooltipPos(null);
+      return;
+    }
+
+    // Hit-test trajectory dots
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const HIT_RADIUS = 12;
+
+    let closest: { idx: number; dist: number } | null = null;
+    for (const dot of projectedDotsRef.current) {
+      const dx = dot.x - mx;
+      const dy = dot.y - my;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < HIT_RADIUS && (!closest || dist < closest.dist)) {
+        closest = { idx: dot.idx, dist };
+      }
+    }
+
+    if (closest) {
+      setHoveredDotIdx(closest.idx);
+      setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    } else {
+      setHoveredDotIdx(null);
+      setTooltipPos(null);
+    }
   }, []);
 
   const onMouseUp = useCallback(() => {
     dragging.current = false;
   }, []);
+
+  // Resolve hovered scene info
+  const hoveredScene = useMemo(() => {
+    if (hoveredDotIdx === null || !narrative) return null;
+    const key = resolvedKeys[hoveredDotIdx];
+    if (!key) return null;
+    const entry = resolveEntry(narrative, key);
+    if (!entry || !isScene(entry)) return null;
+    const arc = narrative.arcs[entry.arcId];
+    const loc = entry.locationId ? narrative.locations[entry.locationId] : null;
+    const pt = trajectory[hoveredDotIdx];
+    const corner = pt ? detectCubeCorner({ stakes: pt.pos[0], pacing: pt.pos[1], variety: pt.pos[2] }) : null;
+    return {
+      summary: entry.summary,
+      arcName: arc?.name ?? entry.arcId,
+      locationName: loc?.name ?? '—',
+      stakes: entry.stakes,
+      events: entry.events,
+      cornerName: corner?.name ?? '',
+      index: hoveredDotIdx + 1,
+      total: resolvedKeys.length,
+    };
+  }, [hoveredDotIdx, narrative, resolvedKeys, trajectory]);
 
   // Render
   useEffect(() => {
@@ -362,25 +420,30 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     }
 
     // ── Draw scene dots on trajectory ──────────────────────────────────
+    const dots: { x: number; y: number; idx: number }[] = [];
     for (let i = 0; i < trajectory.length; i++) {
       const [sx, sy] = transform(trajectory[i].pos);
+      dots.push({ x: sx, y: sy, idx: i });
       const isCurrent = i === currentIdx;
+      const isHovered = i === hoveredDotIdx;
+      const r = isCurrent ? 5 : isHovered ? 4 : 2;
       ctx.beginPath();
-      ctx.arc(sx, sy, isCurrent ? 5 : 2, 0, Math.PI * 2);
-      ctx.fillStyle = isCurrent
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fillStyle = isCurrent || isHovered
         ? '#FFFFFF'
         : `rgba(255, 255, 255, ${0.15 + (i / trajectory.length) * 0.4})`;
       ctx.fill();
 
-      if (isCurrent) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      if (isCurrent || isHovered) {
+        ctx.strokeStyle = `rgba(255, 255, 255, ${isCurrent ? 0.5 : 0.35})`;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.arc(sx, sy, 8, 0, Math.PI * 2);
         ctx.stroke();
       }
     }
-  }, [rotX, rotY, trajectory, currentIdx, currentCorner]);
+    projectedDotsRef.current = dots;
+  }, [rotX, rotY, trajectory, currentIdx, currentCorner, hoveredDotIdx]);
 
   // Parse AI analysis into sections for rendering
   const analysisSections = useMemo(() => {
@@ -469,15 +532,43 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
               <p className="text-[10px] text-text-dim mb-2">
                 Drag to rotate. Path shows the story&apos;s journey through force space.
               </p>
-              <canvas
-                ref={canvasRef}
-                className="w-full rounded-lg cursor-grab active:cursor-grabbing"
-                style={{ height: showAnalysis ? 320 : 380 }}
-                onMouseDown={onMouseDown}
-                onMouseMove={onMouseMove}
-                onMouseUp={onMouseUp}
-                onMouseLeave={onMouseUp}
-              />
+              <div className="relative">
+                <canvas
+                  ref={canvasRef}
+                  className="w-full rounded-lg cursor-grab active:cursor-grabbing"
+                  style={{ height: showAnalysis ? 320 : 380 }}
+                  onMouseDown={onMouseDown}
+                  onMouseMove={onMouseMove}
+                  onMouseUp={onMouseUp}
+                  onMouseLeave={() => { onMouseUp(); setHoveredDotIdx(null); setTooltipPos(null); }}
+                />
+                {hoveredScene && tooltipPos && (
+                  <div
+                    className="absolute z-20 pointer-events-none bg-bg-surface/95 border border-white/10 rounded-lg px-3 py-2 shadow-lg max-w-55"
+                    style={{
+                      left: Math.min(tooltipPos.x + 12, (canvasRef.current?.clientWidth ?? 300) - 230),
+                      top: tooltipPos.y - 8,
+                      transform: 'translateY(-100%)',
+                    }}
+                  >
+                    <div className="text-[9px] text-text-dim mb-1">
+                      Scene {hoveredScene.index}/{hoveredScene.total} &middot; {hoveredScene.arcName}
+                    </div>
+                    <div className="text-[10px] text-text-secondary leading-snug mb-1">
+                      {hoveredScene.summary.length > 120
+                        ? hoveredScene.summary.slice(0, 120) + '...'
+                        : hoveredScene.summary}
+                    </div>
+                    <div className="flex items-center gap-2 text-[9px] text-text-dim">
+                      <span>{hoveredScene.locationName}</span>
+                      <span className="text-text-dim/40">&middot;</span>
+                      <span>Stakes {hoveredScene.stakes}</span>
+                      <span className="text-text-dim/40">&middot;</span>
+                      <span>{hoveredScene.cornerName}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Analysis panel */}

@@ -4,7 +4,6 @@
     {
       "name": "Nick Carraway",
       "role": "anchor",
-      "description": "Observes the escalating tensions and moral decay, becoming increasingly disillusioned and isolated.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -40,7 +39,6 @@
     {
       "name": "Jay Gatsby",
       "role": "recurring",
-      "description": "His romantic obsession with Daisy drives him to drastic measures, culminating in a desperate attempt to protect her after a tragic accident.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -80,7 +78,6 @@
     {
       "name": "Tom Buchanan",
       "role": "recurring",
-      "description": "His possessiveness and class prejudice ignite a brutal confrontation with Gatsby, and he later manipulates the situation after Myrtle's death.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -124,7 +121,6 @@
     {
       "name": "Daisy Buchanan",
       "role": "recurring",
-      "description": "Caught between Gatsby and Tom, she reveals her conflicted loyalties and ultimately causes a tragic accident.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -156,7 +152,6 @@
     {
       "name": "Jordan Baker",
       "role": "recurring",
-      "description": "Observes the unfolding drama with cynical detachment, yet her presence offers Nick some comfort.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -176,14 +171,12 @@
     {
       "name": "Unfamiliar Butler",
       "role": "transient",
-      "description": "A new, rude servant at Gatsby's mansion.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Finn",
       "role": "transient",
-      "description": "Nick's servant, who provides information about Gatsby's new staff.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -195,7 +188,6 @@
     {
       "name": "Grocery Boy",
       "role": "transient",
-      "description": "A local delivery boy who observes the state of Gatsby's kitchen.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -207,56 +199,48 @@
     {
       "name": "Woman on Train",
       "role": "transient",
-      "description": "A fellow passenger on Nick's train, suffering from the oppressive heat.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Conductor",
       "role": "transient",
-      "description": "A train conductor who comments on the heat.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Pammy Buchanan",
       "role": "transient",
-      "description": "Daisy and Tom's daughter, briefly presented to Gatsby.",
       "firstAppearance": false,
       "knowledge": []
     },
     {
       "name": "Nurse",
       "role": "transient",
-      "description": "Pammy's attendant.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Biloxi",
       "role": "transient",
-      "description": "A mysterious man who attended Tom and Daisy's wedding.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Waiter",
       "role": "transient",
-      "description": "Serves mint and ice at the Plaza Hotel suite.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Walter Chase",
       "role": "transient",
-      "description": "An associate of Gatsby and Wolfshiem who was left to go to jail.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "Michaelis",
       "role": "recurring",
-      "description": "A young Greek who runs the coffee joint near Wilson's garage and is a witness to the accident.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -280,7 +264,6 @@
     {
       "name": "Policeman",
       "role": "transient",
-      "description": "Investigates the accident at Wilson's garage.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -296,7 +279,6 @@
     {
       "name": "Well-dressed Negro",
       "role": "transient",
-      "description": "A witness who saw the yellow car speeding.",
       "firstAppearance": true,
       "knowledge": [
         {
@@ -308,14 +290,12 @@
     {
       "name": "Doctor",
       "role": "transient",
-      "description": "Called to the scene of the accident.",
       "firstAppearance": true,
       "knowledge": []
     },
     {
       "name": "George B. Wilson",
       "role": "recurring",
-      "description": "Discovers his wife's infidelity, becomes physically ill, and is devastated by her death.",
       "firstAppearance": false,
       "knowledge": [
         {
@@ -339,7 +319,6 @@
     {
       "name": "Myrtle Wilson",
       "role": "recurring",
-      "description": "Mistakes Jordan Baker for Daisy, leading to a jealous outburst, and is tragically killed in a hit-and-run accident.",
       "firstAppearance": false,
       "knowledge": [
         {

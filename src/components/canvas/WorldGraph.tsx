@@ -102,6 +102,24 @@ const LOCATION_SIZE = 24;
 const LOCATION_RX = 6;
 const LOCATION_FILL = '#333333';
 
+/** Interpolate from cool (blue) to hot (red) matching force graph colors */
+function heatColor(t: number): string {
+  // variety (blue) → pacing (green) → stakes (red)
+  const stops = [
+    [59, 130, 246],   // #3B82F6 variety blue
+    [34, 197, 94],    // #22C55E pacing green
+    [239, 68, 68],    // #EF4444 stakes red
+  ];
+  const idx = t * (stops.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.min(lo + 1, stops.length - 1);
+  const f = idx - lo;
+  const r = Math.round(stops[lo][0] + (stops[hi][0] - stops[lo][0]) * f);
+  const g = Math.round(stops[lo][1] + (stops[hi][1] - stops[lo][1]) * f);
+  const b = Math.round(stops[lo][2] + (stops[hi][2] - stops[lo][2]) * f);
+  return `rgb(${r},${g},${b})`;
+}
+
 const KNOWLEDGE_FILL: Record<string, string> = {
   knows: '#FFFFFF',
   believes: '#FFFFFF',
@@ -370,6 +388,7 @@ export default function WorldGraph() {
   const handleLocationClickRef = useRef<(id: string) => void>(() => {});
 
   const [showEdgeLabels, setShowEdgeLabels] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [groups, setGroups] = useState<GraphNode[][]>([]);
   const [focusedGroupIndex, setFocusedGroupIndex] = useState<number | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -541,6 +560,20 @@ export default function WorldGraph() {
       }
     }
 
+    // Backfill usageCount for scene mode (overview already sets it)
+    if (graphViewMode !== 'overview') {
+      const charUsage: Record<string, number> = {};
+      const locUsage: Record<string, number> = {};
+      for (const scene of Object.values(narrative.scenes)) {
+        for (const pid of scene.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
+        if (scene.locationId) locUsage[scene.locationId] = (locUsage[scene.locationId] ?? 0) + 1;
+      }
+      for (const n of nodes) {
+        if (n.kind === 'character') n.usageCount = charUsage[n.id] ?? 1;
+        if (n.kind === 'location') n.usageCount = locUsage[n.id] ?? 1;
+      }
+    }
+
     // Store nodes ref for intra-arc updates
     nodesRef.current = nodes;
 
@@ -607,6 +640,25 @@ export default function WorldGraph() {
       }
     });
 
+    // Character / location usage stats for sizing and heatmap
+    const scaleByUsage = true;
+    const charNodes = nodes.filter((n) => n.kind === 'character');
+    const locNodes = nodes.filter((n) => n.kind === 'location');
+    const charUsages = charNodes.map((n) => n.usageCount ?? 1);
+    const locUsages = locNodes.map((n) => n.usageCount ?? 1);
+    const minCharUsage = scaleByUsage && charUsages.length > 0 ? Math.min(...charUsages) : 1;
+    const maxCharUsage = scaleByUsage && charUsages.length > 0 ? Math.max(...charUsages) : 1;
+    const minLocUsage = scaleByUsage && locUsages.length > 0 ? Math.min(...locUsages) : 1;
+    const maxLocUsage = scaleByUsage && locUsages.length > 0 ? Math.max(...locUsages) : 1;
+    const charRange = Math.max(1, maxCharUsage - minCharUsage);
+    const locRange = Math.max(1, maxLocUsage - minLocUsage);
+    const normChar = (d: GraphNode) => ((d.usageCount ?? 1) - minCharUsage) / charRange;
+    const normLoc = (d: GraphNode) => ((d.usageCount ?? 1) - minLocUsage) / locRange;
+    const CHAR_MIN_R = 8;
+    const CHAR_MAX_R = 44;
+    const LOC_MIN_SCALE = 0.4;
+    const LOC_MAX_SCALE = 2.0;
+
     // Force simulation
     const simulation = d3
       .forceSimulation<GraphNode>(nodes)
@@ -622,8 +674,17 @@ export default function WorldGraph() {
       .force(
         'collide',
         d3.forceCollide<GraphNode>().radius((d) => {
-          if (d.kind === 'character') return (ROLE_RADIUS[d.role ?? 'recurring'] ?? 18) + 20;
           if (d.kind === 'knowledge') return 28;
+          if (scaleByUsage) {
+            if (d.kind === 'character') {
+              const t = charRange > 0 ? ((d.usageCount ?? 1) - minCharUsage) / charRange : 0;
+              return (CHAR_MIN_R + (CHAR_MAX_R - CHAR_MIN_R) * t) + 16;
+            }
+            const t = locRange > 0 ? ((d.usageCount ?? 1) - minLocUsage) / locRange : 0;
+            const s = LOC_MIN_SCALE + (LOC_MAX_SCALE - LOC_MIN_SCALE) * t;
+            return (LOCATION_SIZE * s) / 2 + 16;
+          }
+          if (d.kind === 'character') return (ROLE_RADIUS[d.role ?? 'recurring'] ?? 18) + 20;
           return LOCATION_SIZE / 2 + 20;
         }),
       );
@@ -725,42 +786,34 @@ export default function WorldGraph() {
           }),
       );
 
-    // Character circles — scale by usage in overview mode
-    const maxUsage = graphViewMode === 'overview'
-      ? Math.max(1, ...nodes.filter((n) => n.kind === 'character').map((n) => n.usageCount ?? 1))
-      : 1;
-    const maxLocUsage = graphViewMode === 'overview'
-      ? Math.max(1, ...nodes.filter((n) => n.kind === 'location').map((n) => n.usageCount ?? 1))
-      : 1;
-
+    // Character circles
     nodeGroup
       .filter((d) => d.kind === 'character')
       .append('circle')
       .attr('r', (d) => {
-        if (graphViewMode === 'overview') {
-          const base = 12;
-          const scale = 18;
-          return base + scale * ((d.usageCount ?? 1) / maxUsage);
-        }
+        if (scaleByUsage) return CHAR_MIN_R + (CHAR_MAX_R - CHAR_MIN_R) * normChar(d);
         return ROLE_RADIUS[d.role ?? 'recurring'];
       })
-      .attr('fill', (d) => ROLE_FILL[d.role ?? 'recurring']);
+      .attr('fill', (d) =>
+        showHeatmap ? heatColor(normChar(d)) : ROLE_FILL[d.role ?? 'recurring'],
+      );
 
-    // Location rounded rects — scale by usage in overview mode
+    // Location rounded rects
     nodeGroup
       .filter((d) => d.kind === 'location')
       .each(function (d) {
         const sel = d3.select(this);
-        const size = graphViewMode === 'overview'
-          ? LOCATION_SIZE * (0.7 + 0.6 * ((d.usageCount ?? 1) / maxLocUsage))
-          : LOCATION_SIZE;
+        const scale = scaleByUsage
+          ? LOC_MIN_SCALE + (LOC_MAX_SCALE - LOC_MIN_SCALE) * normLoc(d)
+          : 1;
+        const size = LOCATION_SIZE * scale;
         sel.append('rect')
           .attr('x', -size / 2)
           .attr('y', -size / 2)
           .attr('width', size)
           .attr('height', size)
           .attr('rx', LOCATION_RX)
-          .attr('fill', LOCATION_FILL);
+          .attr('fill', showHeatmap ? heatColor(normLoc(d)) : LOCATION_FILL);
       });
 
     // Knowledge nodes
@@ -778,15 +831,14 @@ export default function WorldGraph() {
       .attr('class', 'graph-label')
       .attr('text-anchor', 'middle')
       .attr('dy', (d) => {
-        if (d.kind === 'character') return ROLE_RADIUS[d.role ?? 'recurring'] + 14;
-        return LOCATION_SIZE / 2 + 14;
-      })
-      .text((d) => {
-        if (graphViewMode === 'overview' && d.usageCount != null) {
-          return `${d.label} (${d.usageCount})`;
+        if (d.kind === 'character') {
+          const r = CHAR_MIN_R + (CHAR_MAX_R - CHAR_MIN_R) * normChar(d);
+          return r + 14;
         }
-        return d.label;
-      });
+        const s = LOC_MIN_SCALE + (LOC_MAX_SCALE - LOC_MIN_SCALE) * normLoc(d);
+        return (LOCATION_SIZE * s) / 2 + 14;
+      })
+      .text((d) => d.label);
 
     // Knowledge node labels (tiny)
     nodeGroup
@@ -834,7 +886,7 @@ export default function WorldGraph() {
       gRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId]);
+  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap]);
 
   // ── Lightweight: update selected node highlight + relationship edges ──
   useEffect(() => {
@@ -1275,16 +1327,41 @@ export default function WorldGraph() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {/* Edge labels toggle (top-left) */}
-      <label className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={showEdgeLabels}
-          onChange={() => setShowEdgeLabels((v) => !v)}
-          className="accent-accent-cta w-3 h-3"
-        />
-        Labels
-      </label>
+      {/* Controls (top-left) */}
+      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+        {showHeatmap && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
+            <span>Low</span>
+            <div
+              className="h-2 w-20 rounded-sm"
+              style={{
+                background: 'linear-gradient(to right, #3B82F6, #22C55E, #EF4444)',
+              }}
+            />
+            <span>High</span>
+          </div>
+        )}
+        <div className="flex items-center gap-0">
+          <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showEdgeLabels}
+              onChange={() => setShowEdgeLabels((v) => !v)}
+              className="accent-accent-cta w-3 h-3"
+            />
+            Labels
+          </label>
+          <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showHeatmap}
+              onChange={() => setShowHeatmap((v) => !v)}
+              className="accent-accent-cta w-3 h-3"
+            />
+            Heat
+          </label>
+        </div>
+      </div>
       {/* Graph view mode toggle (top-right) */}
       <div className="absolute top-2 right-2 z-10 flex items-center rounded bg-bg-surface text-[11px] leading-none">
         <button

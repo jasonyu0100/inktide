@@ -46,11 +46,19 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
 
     // Replicate returns output as an array of URLs
-    const imageUrl = Array.isArray(data.output) ? data.output[0] : data.output;
+    const replicateUrl = Array.isArray(data.output) ? data.output[0] : data.output;
 
-    if (!imageUrl) {
+    if (!replicateUrl) {
       return NextResponse.json({ error: 'No image generated' }, { status: 500 });
     }
+
+    // Fetch the image and convert to base64 data URL so it persists in localStorage
+    const imgRes = await fetch(replicateUrl);
+    if (!imgRes.ok) return NextResponse.json({ error: 'Failed to fetch generated image' }, { status: 500 });
+    const imgBuffer = await imgRes.arrayBuffer();
+    const contentType = imgRes.headers.get('content-type') || 'image/webp';
+    const base64 = Buffer.from(imgBuffer).toString('base64');
+    const imageUrl = `data:${contentType};base64,${base64}`;
 
     return NextResponse.json({ imageUrl });
   } catch (err) {

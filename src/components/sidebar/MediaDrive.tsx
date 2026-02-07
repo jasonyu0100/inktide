@@ -5,6 +5,8 @@ import { useStore } from '@/lib/store';
 import { resolveEntry } from '@/types/narrative';
 import { apiHeaders } from '@/lib/api-headers';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import MediaPreview from '@/components/sidebar/MediaPreview';
+import type { MediaItem } from '@/components/sidebar/MediaPreview';
 import type { Scene, Character, Location } from '@/types/narrative';
 
 type AssetTab = 'characters' | 'locations' | 'scenes';
@@ -68,6 +70,7 @@ export default function MediaDrive() {
   const [generating, setGenerating] = useState<string | null>(null);
   const [showStyleEditor, setShowStyleEditor] = useState(false);
   const [styleDraft, setStyleDraft] = useState(narrative?.imageStyle ?? '');
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const characters = useMemo(() => {
     if (!narrative) return [];
@@ -107,6 +110,40 @@ export default function MediaDrive() {
       };
     });
   }, [narrative, scenes]);
+
+  // Build preview items for current tab (only items with images)
+  const previewItems = useMemo((): MediaItem[] => {
+    if (tab === 'characters') {
+      return characters.filter((c) => c.imageUrl).map((c) => ({
+        id: c.id,
+        imageUrl: c.imageUrl!,
+        label: c.name,
+        sublabel: c.role,
+        aspectClass: 'aspect-[3/4]',
+      }));
+    }
+    if (tab === 'locations') {
+      return locations.filter((l) => l.imageUrl).map((l) => ({
+        id: l.id,
+        imageUrl: l.imageUrl!,
+        label: l.name,
+        sublabel: l.parentId && narrative?.locations[l.parentId] ? `in ${narrative.locations[l.parentId].name}` : undefined,
+        aspectClass: 'aspect-video',
+      }));
+    }
+    return scenes.filter((s) => s.imageUrl).map((s) => ({
+      id: s.id,
+      imageUrl: s.imageUrl!,
+      label: s.summary.slice(0, 80) + (s.summary.length > 80 ? '...' : ''),
+      sublabel: s.id,
+      aspectClass: 'aspect-video',
+    }));
+  }, [tab, characters, locations, scenes, narrative]);
+
+  const openPreview = useCallback((id: string) => {
+    const idx = previewItems.findIndex((item) => item.id === id);
+    if (idx >= 0) setPreviewIndex(idx);
+  }, [previewItems]);
 
   const requireKeys = useCallback(() => {
     if (access.userApiKeys && !access.hasReplicateKey) {
@@ -163,37 +200,52 @@ export default function MediaDrive() {
     if (!narrative || generating || requireKeys()) return;
     setGenerating(readiness.scene.id);
     try {
-      // Cascade: generate missing character portraits first
+      // Cascade: generate all missing refs in parallel with staggered starts
+      const stagger = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+      const refTasks: Promise<void>[] = [];
+      let delay = 0;
+
       for (const char of readiness.missingCharacters) {
-        const hints = char.knowledge.nodes.map((n) => `${n.type}: ${n.content}`);
-        const { imageUrl } = await generateImage('character', {
-          name: char.name,
-          role: char.role,
-          worldSummary: narrative.worldSummary,
-          knowledgeHints: hints.slice(0, 5),
-          imagePrompt: char.imagePrompt,
-          imageStyle: narrative.imageStyle,
-        });
-        dispatch({ type: 'SET_CHARACTER_IMAGE', characterId: char.id, imageUrl });
+        const d = delay;
+        refTasks.push(
+          stagger(d).then(() =>
+            generateImage('character', {
+              name: char.name,
+              role: char.role,
+              worldSummary: narrative.worldSummary,
+              knowledgeHints: char.knowledge.nodes.map((n) => `${n.type}: ${n.content}`).slice(0, 5),
+              imagePrompt: char.imagePrompt,
+              imageStyle: narrative.imageStyle,
+            })
+              .then(({ imageUrl }) => { dispatch({ type: 'SET_CHARACTER_IMAGE', characterId: char.id, imageUrl }); })
+          ).catch((err) => { console.error(`Failed to generate portrait for ${char.name}:`, err); }),
+        );
+        delay += 500;
       }
 
-      // Cascade: generate missing location image
       if (readiness.missingLocation) {
         const loc = readiness.missingLocation;
         const parentName = loc.parentId ? narrative.locations[loc.parentId]?.name : undefined;
-        const hints = loc.knowledge.nodes.map((n) => `${n.type}: ${n.content}`);
-        const { imageUrl } = await generateImage('location', {
-          name: loc.name,
-          parentName,
-          worldSummary: narrative.worldSummary,
-          knowledgeHints: hints.slice(0, 5),
-          imagePrompt: loc.imagePrompt,
-          imageStyle: narrative.imageStyle,
-        });
-        dispatch({ type: 'SET_LOCATION_IMAGE', locationId: loc.id, imageUrl });
+        const d = delay;
+        refTasks.push(
+          stagger(d).then(() =>
+            generateImage('location', {
+              name: loc.name,
+              parentName,
+              worldSummary: narrative.worldSummary,
+              knowledgeHints: loc.knowledge.nodes.map((n) => `${n.type}: ${n.content}`).slice(0, 5),
+              imagePrompt: loc.imagePrompt,
+              imageStyle: narrative.imageStyle,
+            })
+              .then(({ imageUrl }) => { dispatch({ type: 'SET_LOCATION_IMAGE', locationId: loc.id, imageUrl }); })
+          ).catch((err) => { console.error(`Failed to generate location ${loc.name}:`, err); }),
+        );
       }
 
-      // Now generate the scene still with all references established
+      // Wait for all refs to settle (partial failures don't block the scene)
+      await Promise.allSettled(refTasks);
+
+      // Generate the scene still
       const locationName = narrative.locations[readiness.scene.locationId]?.name ?? 'unknown';
       const charDescs = readiness.scene.participantIds
         .map((id) => narrative.characters[id])
@@ -296,7 +348,9 @@ export default function MediaDrive() {
         {tab === 'characters' && characters.map((char) => (
           <div key={char.id} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-bg-elevated transition-colors">
             {char.imageUrl ? (
-              <img src={char.imageUrl} alt={char.name} className="w-8 h-8 rounded-full object-cover shrink-0 border border-border" />
+              <button onClick={() => openPreview(char.id)} className="shrink-0">
+                <img src={char.imageUrl} alt={char.name} className="w-8 h-8 rounded-full object-cover border border-border hover:border-accent/50 transition-colors" />
+              </button>
             ) : (
               <div className="w-8 h-8 rounded-full bg-white/[0.06] shrink-0 flex items-center justify-center border border-border border-dashed">
                 <span className="text-[10px] text-text-dim">{char.name[0]}</span>
@@ -317,7 +371,9 @@ export default function MediaDrive() {
         {tab === 'locations' && locations.map((loc) => (
           <div key={loc.id} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-bg-elevated transition-colors">
             {loc.imageUrl ? (
-              <img src={loc.imageUrl} alt={loc.name} className="w-8 h-8 rounded object-cover shrink-0 border border-border" />
+              <button onClick={() => openPreview(loc.id)} className="shrink-0">
+                <img src={loc.imageUrl} alt={loc.name} className="w-8 h-8 rounded object-cover border border-border hover:border-accent/50 transition-colors" />
+              </button>
             ) : (
               <div className="w-8 h-8 rounded bg-white/[0.06] shrink-0 flex items-center justify-center border border-border border-dashed">
                 <span className="text-[10px] text-text-dim">{loc.name[0]}</span>
@@ -342,7 +398,7 @@ export default function MediaDrive() {
             {scene.imageUrl ? (
               <div className="relative group">
                 <button
-                  onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId: scene.id } })}
+                  onClick={() => openPreview(scene.id)}
                   className="w-full"
                 >
                   <img src={scene.imageUrl} alt={scene.summary} className="w-full aspect-video object-cover" />
@@ -411,6 +467,15 @@ export default function MediaDrive() {
           </div>
         ))}
       </div>
+
+      {previewIndex !== null && previewItems.length > 0 && (
+        <MediaPreview
+          items={previewItems}
+          currentIndex={previewIndex}
+          onNavigate={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+        />
+      )}
     </div>
   );
 }

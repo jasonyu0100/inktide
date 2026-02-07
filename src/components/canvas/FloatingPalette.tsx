@@ -1,9 +1,11 @@
 'use client';
 
 import { useStore } from '@/lib/store';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 
 export default function FloatingPalette() {
   const { state, dispatch } = useStore();
+  const access = useFeatureAccess();
   const narrative = state.activeNarrative;
   const isActive = narrative !== null;
 
@@ -50,6 +52,10 @@ export default function FloatingPalette() {
           type="button"
           className="text-xs font-semibold text-text-primary bg-white/[0.08] px-2 py-1 rounded-md hover:bg-white/[0.12] transition-colors uppercase tracking-wider"
           onClick={() => {
+            if (access.userApiKeys && !access.hasOpenRouterKey) {
+              window.dispatchEvent(new Event('open-api-keys'));
+              return;
+            }
             window.dispatchEvent(new CustomEvent('open-generate-panel'));
           }}
         >
@@ -61,6 +67,10 @@ export default function FloatingPalette() {
           type="button"
           className="text-xs font-semibold text-text-secondary bg-white/[0.08] px-2 py-1 rounded-md hover:bg-white/[0.12] hover:text-text-primary transition-colors uppercase tracking-wider"
           onClick={() => {
+            if (access.userApiKeys && !access.hasOpenRouterKey) {
+              window.dispatchEvent(new Event('open-api-keys'));
+              return;
+            }
             window.dispatchEvent(new CustomEvent('open-auto-settings'));
           }}
         >

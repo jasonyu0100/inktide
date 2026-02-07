@@ -31,6 +31,8 @@ interface GraphNode extends d3.SimulationNodeDatum {
   parentCharacterId?: string;
   /** Usage count for overview mode */
   usageCount?: number;
+  /** Image URL for character portrait or location photo */
+  imageUrl?: string;
 }
 
 interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
@@ -181,6 +183,7 @@ function buildGraphData(
       label: char.name,
       role: char.role,
       threadCount: char.threadIds.length,
+      imageUrl: char.imageUrl,
     });
   }
 
@@ -191,6 +194,7 @@ function buildGraphData(
       kind: 'location',
       label: loc.name,
       threadCount: loc.threadIds.length,
+      imageUrl: loc.imageUrl,
     });
   }
 
@@ -288,6 +292,7 @@ function buildOverviewGraphData(
       role: char.role,
       threadCount: char.threadIds.length,
       usageCount: charUsage[char.id],
+      imageUrl: char.imageUrl,
     });
   }
 
@@ -299,6 +304,7 @@ function buildOverviewGraphData(
       label: loc.name,
       threadCount: loc.threadIds.length,
       usageCount: locUsage[loc.id],
+      imageUrl: loc.imageUrl,
     });
   }
 
@@ -469,6 +475,9 @@ export default function WorldGraph() {
 
     // Clear previous
     svg.selectAll('*').remove();
+
+    // SVG defs for clip paths (used for node images)
+    const defs = svg.append('defs');
 
     let nodes: GraphNode[];
     let links: GraphLink[];
@@ -814,6 +823,47 @@ export default function WorldGraph() {
           .attr('height', size)
           .attr('rx', LOCATION_RX)
           .attr('fill', showHeatmap ? heatColor(normLoc(d)) : LOCATION_FILL);
+      });
+
+    // ── Node images (clip-masked portraits & location photos) ──────────
+    nodeGroup
+      .filter((d) => d.kind === 'character' && !!d.imageUrl)
+      .each(function (d) {
+        const sel = d3.select(this);
+        const r = scaleByUsage
+          ? CHAR_MIN_R + (CHAR_MAX_R - CHAR_MIN_R) * normChar(d)
+          : ROLE_RADIUS[d.role ?? 'recurring'];
+        const clipId = `clip-${d.id}`;
+        defs.append('clipPath').attr('id', clipId)
+          .append('circle').attr('r', r);
+        sel.append('image')
+          .attr('href', d.imageUrl!)
+          .attr('x', -r).attr('y', -r)
+          .attr('width', r * 2).attr('height', r * 2)
+          .attr('preserveAspectRatio', 'xMidYMid slice')
+          .attr('clip-path', `url(#${clipId})`);
+      });
+
+    nodeGroup
+      .filter((d) => d.kind === 'location' && !!d.imageUrl)
+      .each(function (d) {
+        const sel = d3.select(this);
+        const scale = scaleByUsage
+          ? LOC_MIN_SCALE + (LOC_MAX_SCALE - LOC_MIN_SCALE) * normLoc(d)
+          : 1;
+        const size = LOCATION_SIZE * scale;
+        const clipId = `clip-${d.id}`;
+        defs.append('clipPath').attr('id', clipId)
+          .append('rect')
+          .attr('x', -size / 2).attr('y', -size / 2)
+          .attr('width', size).attr('height', size)
+          .attr('rx', LOCATION_RX);
+        sel.append('image')
+          .attr('href', d.imageUrl!)
+          .attr('x', -size / 2).attr('y', -size / 2)
+          .attr('width', size).attr('height', size)
+          .attr('preserveAspectRatio', 'xMidYMid slice')
+          .attr('clip-path', `url(#${clipId})`);
       });
 
     // Knowledge nodes

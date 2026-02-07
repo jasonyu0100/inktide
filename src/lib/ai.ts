@@ -10,6 +10,7 @@ const THREAD_LIFECYCLE_DOC = (() => {
   return `Active statuses: ${activeList}. Terminal/closed statuses: ${terminalList}.`;
 })();
 import { nextId, nextIds, computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
+import { apiHeaders } from '@/lib/api-headers';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -26,7 +27,7 @@ async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: nu
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: apiHeaders(),
       body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}) }),
     });
     if (!res.ok) {
@@ -55,7 +56,7 @@ async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: nu
  * Build full context from all scenes up to (and including) the current scene index.
  * This gives the AI the complete branch history, not just the last 5 scenes.
  */
-function branchContext(
+export function branchContext(
   n: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
@@ -515,6 +516,7 @@ Return JSON with this exact structure:
       "name": "string",
       "role": "anchor|recurring|transient",
       "threadIds": [],
+      "imagePrompt": "1-2 sentence visual description: physical appearance, clothing, distinguishing features. Used for portrait generation.",
       "knowledge": {
         "nodes": [{"id": "${nextKId}", "type": "contextual_type", "content": "string"}],
         "edges": [{"from": "${nextKId}", "to": "K-next", "type": "contextual_edge_type"}]
@@ -527,6 +529,7 @@ Return JSON with this exact structure:
       "name": "string",
       "parentId": null or "existing location ID for nesting",
       "threadIds": [],
+      "imagePrompt": "1-2 sentence visual description: architecture, landscape, atmosphere, lighting. Used for establishing shot generation.",
       "knowledge": {
         "nodes": [{"id": "K-next", "type": "contextual_type", "content": "string"}],
         "edges": []
@@ -691,10 +694,10 @@ Return JSON with this exact structure:
 {
   "worldSummary": "2-3 sentence world description",
   "characters": [
-    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "knowledge": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}], "edges": [{"from": "K-01", "to": "K-02", "type": "contextual_edge_type"}]}}
+    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, distinguishing features for portrait generation", "knowledge": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}], "edges": [{"from": "K-01", "to": "K-02", "type": "contextual_edge_type"}]}}
   ],
   "locations": [
-    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "knowledge": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}], "edges": []}}
+    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "knowledge": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}], "edges": []}}
   ],
   "threads": [
     {"id": "T-01", "anchors": [{"id": "C-01", "type": "character"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}

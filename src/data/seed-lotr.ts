@@ -17,6 +17,7 @@ const characters: Record<string, Character> = {
     id: 'C-LOTR-01',
     name: 'Frodo Baggins',
     role: 'anchor',
+    imagePrompt: 'A young hobbit with pale skin, large expressive blue eyes, and dark curly hair. Slight build, wearing a mithril shirt beneath a weathered green cloak, the One Ring on a chain around his neck glinting faintly.',
     threadIds: ['T-LOTR-01', 'T-LOTR-02', 'T-LOTR-07'],
     knowledge: {
       nodes: [
@@ -38,6 +39,7 @@ const characters: Record<string, Character> = {
     id: 'C-LOTR-02',
     name: 'Gandalf the Grey',
     role: 'anchor',
+    imagePrompt: 'A tall, elderly wizard with a long grey beard, bushy eyebrows, and keen eyes beneath a wide-brimmed pointed grey hat. He wears flowing grey robes and carries a gnarled wooden staff, pipe smoke curling around him.',
     threadIds: ['T-LOTR-01', 'T-LOTR-04', 'T-LOTR-05'],
     knowledge: {
       nodes: [
@@ -59,6 +61,7 @@ const characters: Record<string, Character> = {
     id: 'C-LOTR-03',
     name: 'Aragorn',
     role: 'recurring',
+    imagePrompt: 'A tall, weather-beaten Ranger with shoulder-length dark hair, grey eyes, and a short beard. He wears a worn leather jerkin over travel-stained clothing, the broken sword Narsil at his side, his expression stern and watchful.',
     threadIds: ['T-LOTR-03', 'T-LOTR-04'],
     knowledge: {
       nodes: [
@@ -78,6 +81,7 @@ const characters: Record<string, Character> = {
     id: 'C-LOTR-04',
     name: 'Samwise Gamgee',
     role: 'recurring',
+    imagePrompt: 'A stout, sturdy hobbit with a round, honest face, sandy-brown curly hair, and warm brown eyes. He wears simple gardener\'s clothes — a brown waistcoat and rolled sleeves — with a heavy pack and a coil of Elvish rope.',
     threadIds: ['T-LOTR-02', 'T-LOTR-07'],
     knowledge: {
       nodes: [
@@ -97,6 +101,7 @@ const characters: Record<string, Character> = {
     id: 'C-LOTR-05',
     name: 'Boromir',
     role: 'recurring',
+    imagePrompt: 'A tall, broad-shouldered warrior with proud features, a strong jaw, and reddish-brown hair. He wears the plate and leather armor of Gondor, a cloven silver horn at his belt, and carries a great round shield.',
     threadIds: ['T-LOTR-04', 'T-LOTR-06'],
     knowledge: {
       nodes: [
@@ -117,6 +122,7 @@ const characters: Record<string, Character> = {
     id: 'C-LOTR-06',
     name: 'Legolas',
     role: 'transient',
+    imagePrompt: 'A tall, slender Elf with long straight golden hair, bright blue eyes, and ageless, fair features. He wears forest-green and brown woodland garb, a longbow of the Mirkwood Elves slung across his back, moving with preternatural grace.',
     threadIds: ['T-LOTR-04'],
     knowledge: {
       nodes: [
@@ -134,6 +140,7 @@ const characters: Record<string, Character> = {
     id: 'C-LOTR-07',
     name: 'Gimli',
     role: 'transient',
+    imagePrompt: 'A stocky, powerfully built Dwarf with a thick red beard braided with iron clasps, fierce dark eyes beneath a heavy brow, and a gleaming steel helm. He wears chainmail and carries a broad-bladed battle axe.',
     threadIds: ['T-LOTR-04'],
     knowledge: {
       nodes: [
@@ -151,6 +158,7 @@ const characters: Record<string, Character> = {
     id: 'C-LOTR-08',
     name: 'Saruman the White',
     role: 'transient',
+    imagePrompt: 'A tall, imposing wizard with a long white beard, a high forehead, and dark calculating eyes. He wears robes that shimmer with many colors beneath the white, and carries a black iron staff topped with a sharp spike.',
     threadIds: ['T-LOTR-05'],
     knowledge: {
       nodes: [
@@ -173,6 +181,7 @@ const characters: Record<string, Character> = {
 const locations: Record<string, Location> = {
   'L-LOTR-01': {
     id: 'L-LOTR-01', name: 'Middle-earth', parentId: null, threadIds: [],
+    imagePrompt: 'A vast panoramic landscape stretching from green rolling hills to snow-capped mountains and dark volcanic plains, golden sunlight breaking through dramatic clouds over ancient forests and winding rivers.',
     knowledge: {
       nodes: [
         { id: 'LK-LOTR-01', type: 'lore', content: 'The mortal lands of Arda — where Elves fade, Men rise, and the Shadow of Mordor lengthens across all kingdoms' },
@@ -183,6 +192,7 @@ const locations: Record<string, Location> = {
   },
   'L-LOTR-02': {
     id: 'L-LOTR-02', name: 'The Shire', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-02'],
+    imagePrompt: 'Lush green rolling hills dotted with round hobbit doors set into grassy mounds, smoke rising from chimneys, a winding lane bordered by hedgerows and wildflowers under a warm golden afternoon sky.',
     knowledge: {
       nodes: [
         { id: 'LK-LOTR-03', type: 'lore', content: 'Green and gentle land of the Hobbits — untouched by war for generations, sheltered by Rangers they have never seen' },
@@ -193,6 +203,7 @@ const locations: Record<string, Location> = {
   },
   'L-LOTR-03': {
     id: 'L-LOTR-03', name: 'Rivendell', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-03', 'T-LOTR-04'],
+    imagePrompt: 'An elegant Elven valley with graceful stone bridges arching over waterfalls, slender towers with pointed arches nestled among ancient pines, soft golden light filtering through autumn leaves into a hidden mountain gorge.',
     knowledge: {
       nodes: [
         { id: 'LK-LOTR-05', type: 'lore', content: 'The Last Homely House East of the Sea — Elrond\'s refuge where lore is preserved and counsel given' },
@@ -203,6 +214,7 @@ const locations: Record<string, Location> = {
   },
   'L-LOTR-04': {
     id: 'L-LOTR-04', name: 'Moria', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-04', 'T-LOTR-07'],
+    imagePrompt: 'A colossal underground Dwarven hall with towering stone columns carved into the living rock, stretching into darkness. Faint torchlight reveals intricate geometric carvings and vast echoing emptiness, dust motes drifting in shafts of pale light from cracks above.',
     knowledge: {
       nodes: [
         { id: 'LK-LOTR-07', type: 'lore', content: 'Khazad-dum, the Dwarrowdelf — once the greatest of Dwarven kingdoms, now a tomb of shadow and flame' },
@@ -213,6 +225,7 @@ const locations: Record<string, Location> = {
   },
   'L-LOTR-05': {
     id: 'L-LOTR-05', name: 'Lothlórien', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-01'],
+    imagePrompt: 'An enchanted forest of impossibly tall silver-barked mallorn trees with golden leaves, soft ethereal light glowing from Elven lanterns among the high branches, wooden platforms and stairways spiraling up into the luminous canopy.',
     knowledge: {
       nodes: [
         { id: 'LK-LOTR-09', type: 'lore', content: 'The Golden Wood — realm of Galadriel and Celeborn, where time moves differently and mallorn trees shine with silver light' },
@@ -223,6 +236,7 @@ const locations: Record<string, Location> = {
   },
   'L-LOTR-06': {
     id: 'L-LOTR-06', name: 'Amon Hen', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-06', 'T-LOTR-04'],
+    imagePrompt: 'A forested hilltop above a great river with thundering waterfalls, a crumbling stone seat of ancient Numenorean craft overlooking the misty falls of Rauros, dappled light through old-growth trees with a brooding overcast sky.',
     knowledge: {
       nodes: [
         { id: 'LK-LOTR-11', type: 'lore', content: 'The Hill of Sight — ancient Numenorean watchtower above the Falls of Rauros, where the Great River bends south' },
@@ -233,6 +247,7 @@ const locations: Record<string, Location> = {
   },
   'L-LOTR-07': {
     id: 'L-LOTR-07', name: 'Isengard', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-05'],
+    imagePrompt: 'A black stone tower of Orthanc rising from a ring-wall of dark rock, surrounded by pits of fire and industrial smoke where ancient trees have been felled, iron machinery and forges glowing red beneath a haze-choked sky.',
     knowledge: {
       nodes: [
         { id: 'LK-LOTR-13', type: 'lore', content: 'Orthanc, the tower of Saruman — once a bastion of the Istari, now a fortress of industry and war' },
@@ -243,6 +258,7 @@ const locations: Record<string, Location> = {
   },
   'L-LOTR-08': {
     id: 'L-LOTR-08', name: 'Weathertop', parentId: 'L-LOTR-01', threadIds: ['T-LOTR-01', 'T-LOTR-07'],
+    imagePrompt: 'A desolate, wind-swept hilltop crowned with the crumbling ruins of an ancient stone watchtower, jagged walls silhouetted against a stormy twilight sky, the surrounding wilderness stretching dark and empty in every direction.',
     knowledge: {
       nodes: [
         { id: 'LK-LOTR-15', type: 'lore', content: 'Amon Sul — ruined watchtower of the North Kingdom, where the Palantir once gazed across leagues of wilderness' },
@@ -717,6 +733,7 @@ export const seedLOTR: NarrativeState = {
   relationships,
   worldSummary: 'Middle-earth stands at the end of its Third Age. The Dark Lord Sauron, defeated but not destroyed, rebuilds his strength in Mordor and reaches for the One Ring — the master weapon he forged to dominate all life. The Ring has surfaced in the most unlikely place: the pocket of a hobbit in the Shire, passed from Bilbo to Frodo Baggins. Gandalf the Grey suspects the truth and has begun to confirm it. Black riders have been seen on the roads. The Shire is still green, still peaceful, still ignorant of the wider darkness — but the edges are fraying. Frodo carries the Ring east with his gardener Sam, not yet understanding the full weight of what he bears. The great alliances have not yet been called. The Fellowship has not yet been formed. The story is still in its first breath, and the world holds its shape — for now.',
   controlMode: 'auto',
+  imageStyle: 'Epic high fantasy oil painting, luminous golden-hour light, sweeping landscapes, Pre-Raphaelite detail, Alan Lee and John Howe inspired, mythic grandeur with earthy natural tones',
   activeForces: { stakes: 0, pacing: 0, variety: 0 },
   coverImageUrl: '/covers/lotr.jpg',
   createdAt: Date.now() - 86400000,

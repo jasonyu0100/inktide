@@ -17,6 +17,7 @@ const characters: Record<string, Character> = {
     id: 'C-01',
     name: 'Fang Yuan',
     role: 'anchor',
+    imagePrompt: 'A lean fifteen-year-old boy with sharp, angular features and flat black eyes that betray no emotion — thin lips, high cheekbones, coarse dark hair tied loosely back, wearing a faded grey Gu Yue clan robe with frayed hems, his posture deliberately unremarkable.',
     threadIds: ['T-01', 'T-03', 'T-06'],
     knowledge: {
       nodes: [
@@ -46,6 +47,7 @@ const characters: Record<string, Character> = {
     id: 'C-02',
     name: 'Fang Zheng',
     role: 'anchor',
+    imagePrompt: 'A bright-eyed fifteen-year-old boy with a round, earnest face, warm brown eyes, and short-cropped black hair — softer features than his brother, wearing a clean Gu Yue clan robe with neat creases, his expression open and trusting.',
     threadIds: ['T-02', 'T-03'],
     knowledge: {
       nodes: [
@@ -67,6 +69,7 @@ const characters: Record<string, Character> = {
     id: 'C-03',
     name: 'Gu Yue Bo',
     role: 'recurring',
+    imagePrompt: 'An aged clan patriarch with a weathered, deeply lined face, thin white beard reaching his chest, and sharp narrow eyes under heavy brows — wearing layered ceremonial robes of dark green silk with silver clan insignia, his bearing upright despite his years.',
     threadIds: ['T-04'],
     knowledge: {
       nodes: [
@@ -86,6 +89,7 @@ const characters: Record<string, Character> = {
     id: 'C-04',
     name: 'Bai Ning Bing',
     role: 'recurring',
+    imagePrompt: 'A strikingly beautiful youth with ice-white skin, pale silver-blue hair falling straight past the shoulders, and cold crystalline eyes that shimmer faintly — features almost too perfect, wearing pristine white robes with frost-blue trim, an aura of frigid detachment surrounding them.',
     threadIds: ['T-05'],
     knowledge: {
       nodes: [
@@ -105,6 +109,7 @@ const characters: Record<string, Character> = {
     id: 'C-05',
     name: 'Shen Cui',
     role: 'transient',
+    imagePrompt: 'A composed middle-aged woman with kind but perceptive eyes, hair pulled into a neat bun secured with a wooden pin, wearing a modest dark-blue instructor robe — her hands calloused from years of Gu cultivation demonstrations, expression patient and watchful.',
     threadIds: ['T-02'],
     knowledge: {
       nodes: [
@@ -122,6 +127,7 @@ const characters: Record<string, Character> = {
     id: 'C-06',
     name: 'Mo Bei Liu',
     role: 'transient',
+    imagePrompt: 'A stocky, thick-necked elder with a broad jaw, calculating small eyes, and a neatly trimmed black beard flecked with grey — wearing dark olive robes of fine material that suggest wealth beyond his station, his smile wide but never reaching his eyes.',
     threadIds: ['T-04'],
     knowledge: {
       nodes: [
@@ -141,6 +147,7 @@ const characters: Record<string, Character> = {
     id: 'C-07',
     name: 'Chi Shan',
     role: 'transient',
+    imagePrompt: 'A wiry, sun-darkened wandering Gu Master with tangled hair, a jagged scar across one cheek, and restless hungry eyes — wearing patched leather traveling clothes and a belt hung with pouches and crude Gu containers, the look of someone who has lived rough for years.',
     threadIds: ['T-06'],
     knowledge: {
       nodes: [
@@ -158,6 +165,7 @@ const characters: Record<string, Character> = {
     id: 'C-08',
     name: 'Tie Ruo Nan',
     role: 'transient',
+    imagePrompt: 'A stern young woman with a square jaw, fierce dark eyes, and black hair bound tightly under a bronze hairpiece — wearing polished righteous-path sect armor over layered robes, her posture rigid and alert, a dao sword strapped across her back.',
     threadIds: ['T-07'],
     knowledge: {
       nodes: [
@@ -177,6 +185,7 @@ const characters: Record<string, Character> = {
 const locations: Record<string, Location> = {
   'L-01': {
     id: 'L-01', name: 'Qing Mao Mountain', parentId: null, threadIds: [],
+    imagePrompt: 'A towering ancient mountain shrouded in mist and dense bamboo forest, its jagged peaks piercing low clouds — lush green slopes cut by narrow winding paths, faint luminous Gu worms drifting between the trees at dusk, the air heavy with primeval essence.',
     knowledge: {
       nodes: [
         { id: 'LK-01', type: 'lore', content: 'Home to three rival Gu Master clans — Gu Yue, Bai, and Xiong' },
@@ -187,6 +196,7 @@ const locations: Record<string, Location> = {
   },
   'L-02': {
     id: 'L-02', name: 'Gu Yue Village', parentId: 'L-01', threadIds: ['T-04'],
+    imagePrompt: 'A modest mountain village of weathered wooden stilted houses with thatched roofs, nestled on a plateau among bamboo groves — packed-earth roads, cooking smoke curling upward, surrounded by a low bamboo perimeter fence with the mountain looming behind.',
     knowledge: {
       nodes: [
         { id: 'LK-03', type: 'lore', content: 'The weakest of the three mountain clans, relying on tradition over innovation' },
@@ -197,6 +207,7 @@ const locations: Record<string, Location> = {
   },
   'L-03': {
     id: 'L-03', name: 'Academy', parentId: 'L-02', threadIds: ['T-02'],
+    imagePrompt: 'A wide open-air training hall with a slate lecture board, wooden benches arranged in rows, and a raised stone platform for cultivation demonstrations — sunlight filtering through slatted windows, the walls hung with charts of Gu worm classifications.',
     knowledge: {
       nodes: [
         { id: 'LK-05', type: 'lore', content: 'Where clan youths are tested and trained in basic Gu cultivation' },
@@ -206,6 +217,7 @@ const locations: Record<string, Location> = {
   },
   'L-04': {
     id: 'L-04', name: 'Clan Hall', parentId: 'L-02', threadIds: ['T-04'],
+    imagePrompt: 'A grand timber hall with heavy carved pillars and a high vaulted ceiling, copper lanterns casting warm amber light across a long stone table where the clan elders convene — ancestral tablets lining the back wall, the air thick with incense and political tension.',
     knowledge: {
       nodes: [
         { id: 'LK-06', type: 'lore', content: 'Seat of Gu Yue clan governance — where elders debate and resources are allocated' },
@@ -216,6 +228,7 @@ const locations: Record<string, Location> = {
   },
   'L-05': {
     id: 'L-05', name: 'Secret Tunnels', parentId: 'L-02', threadIds: ['T-01'],
+    imagePrompt: 'Narrow underground passages carved from raw stone, dripping with mineral water, lit only by faint bioluminescent moss — collapsed archways, low ceilings, and hidden alcoves containing dusty caches of primeval stones, the air cold and metallic.',
     knowledge: {
       nodes: [
         { id: 'LK-08', type: 'secret', content: 'Contains hidden caches of primeval stones left by previous generations' },
@@ -226,6 +239,7 @@ const locations: Record<string, Location> = {
   },
   'L-06': {
     id: 'L-06', name: 'Bai Clan Territory', parentId: 'L-01', threadIds: ['T-05'],
+    imagePrompt: 'A fortress-village of white stone buildings on a frost-covered mountainside, ice crystals glinting on every surface — cold blue light emanating from cultivation chambers, sharp-peaked rooftops dusted with snow, the architecture imposing and austere.',
     knowledge: {
       nodes: [
         { id: 'LK-10', type: 'lore', content: 'The strongest of the three mountain clans, known for ice-path Gu cultivation' },
@@ -236,6 +250,7 @@ const locations: Record<string, Location> = {
   },
   'L-07': {
     id: 'L-07', name: 'Mountain Wilderness', parentId: 'L-01', threadIds: ['T-06'],
+    imagePrompt: 'Untamed mountain slopes thick with ancient trees, tangled undergrowth, and jagged rock outcroppings — wild beast tracks scoring the mud, cliff faces bearing faded carved markings, shafts of light breaking through the dense canopy, an atmosphere of danger and hidden secrets.',
     knowledge: {
       nodes: [
         { id: 'LK-12', type: 'danger', content: 'Wild beast packs and untamed Gu worms make this area lethal for low-rank cultivators' },
@@ -246,6 +261,7 @@ const locations: Record<string, Location> = {
   },
   'L-08': {
     id: 'L-08', name: "Flower Wine Monk's Inheritance Ground", parentId: 'L-01', threadIds: ['T-06'],
+    imagePrompt: 'A vast underground cavern of crumbling ornate architecture — carved stone columns wound with dead vines, collapsed bridges over dark chasms, glowing formation arrays etched into the floor, poisoned dart mechanisms visible in the walls, the remnants of a Rank 4 Gu Immortals sealed legacy.',
     knowledge: {
       nodes: [
         { id: 'LK-14', type: 'secret', content: 'A Rank 4 Gu Immortals complete legacy — techniques, Gu worms, and primeval stones' },
@@ -764,6 +780,7 @@ export const seedNarrative: NarrativeState = {
   relationships,
   worldSummary: 'Qing Mao Mountain is home to three rival Gu Master clans living in uneasy balance. Gu — living organisms that grant supernatural powers — are cultivated, refined, and fought over. Fang Yuan has been reborn 500 years into his past using the legendary Spring Autumn Cicada. He now inhabits his 15-year-old body within the Gu Yue clan, armed with complete knowledge of the future. His goal is absolute: attain eternal life. Everyone else — brother, clan, rivals — is either a tool or an obstacle. The mountain does not know what walks among it.',
   controlMode: 'auto',
+  imageStyle: 'Dark Chinese xianxia ink-wash painting with digital colour, sharp angular compositions, crimson and black accents, venomous insects and jade-green Gu energy, cold ruthless atmosphere',
   activeForces: { stakes: 0, pacing: 0, variety: 0 },
   coverImageUrl: '/covers/ri.jpg',
   createdAt: Date.now() - 86400000,

@@ -11,11 +11,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { prompt, systemPrompt, model, maxTokens } = body as {
-      prompt: string;
-      systemPrompt?: string;
-      model?: string;
-      maxTokens?: number;
+    const { messages, systemPrompt } = body as {
+      messages: { role: 'user' | 'assistant'; content: string }[];
+      systemPrompt: string;
     };
 
     const response = await fetch(OPENROUTER_URL, {
@@ -27,13 +25,13 @@ export async function POST(req: NextRequest) {
         'X-Title': 'Narrative Engine',
       },
       body: JSON.stringify({
-        model: model || 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-flash',
         messages: [
-          ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
-          { role: 'user' as const, content: prompt },
+          { role: 'system' as const, content: systemPrompt },
+          ...messages,
         ],
-        temperature: 0.8,
-        max_tokens: maxTokens || 32000,
+        temperature: 0.7,
+        max_tokens: 4096,
       }),
     });
 
@@ -43,10 +41,6 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('[generate] model:', data.model);
-    console.log('[generate] finish_reason:', data.choices?.[0]?.finish_reason);
-    console.log('[generate] usage:', JSON.stringify(data.usage));
-    console.log('[generate] content length:', data.choices?.[0]?.message?.content?.length ?? 0);
     const content = data.choices?.[0]?.message?.content ?? '';
     return NextResponse.json({ content });
   } catch (err) {

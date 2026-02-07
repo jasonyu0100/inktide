@@ -58,6 +58,9 @@ export type Character = {
   role: CharacterRole;
   knowledge: KnowledgeGraph;
   threadIds: string[];
+  /** AI-generated visual description used as image prompt seed */
+  imagePrompt?: string;
+  imageUrl?: string;
 };
 
 // ── Location ─────────────────────────────────────────────────────────────────
@@ -67,6 +70,9 @@ export type Location = {
   parentId: string | null;
   threadIds: string[];
   knowledge: KnowledgeGraph;
+  /** AI-generated visual description used as image prompt seed */
+  imagePrompt?: string;
+  imageUrl?: string;
 };
 
 export type RelationshipEdge = {
@@ -197,6 +203,7 @@ export type Scene = {
   stakes?: number;
   prose: string;
   summary: string;
+  imageUrl?: string;
 };
 
 export type WorldBuildCommit = {
@@ -276,6 +283,8 @@ export type NarrativeState = {
   controlMode: ControlMode;
   activeForces: ForceSnapshot;
   coverImageUrl?: string;
+  /** Style directive appended to all image generation prompts for visual consistency */
+  imageStyle?: string;
   createdAt: number;
   updatedAt: number;
 };

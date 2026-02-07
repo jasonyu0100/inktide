@@ -8,7 +8,7 @@ import { seedLOTR } from '@/data/seed-lotr';
 import { seedHP } from '@/data/seed-hp';
 import { seedSW } from '@/data/seed-sw';
 import { resolveSceneSequence, nextId } from '@/lib/narrative-utils';
-import { loadNarratives, saveNarrative, deleteNarrative as deletePersisted, loadNarrative } from '@/lib/persistence';
+import { loadNarratives, saveNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId } from '@/lib/persistence';
 
 const ALL_SEEDS: NarrativeState[] = [seedGOT, seedLOTR, seedHP, seedSW, seedNarrative];
 
@@ -39,9 +39,13 @@ function getResolvedKeys(n: NarrativeState, branchId: string | null): string[] {
 const SEED_IDS = new Set(ALL_SEEDS.map((s) => s.id));
 
 function loadNarrativeById(id: string): NarrativeState | null {
+  // Prefer persisted version (includes user edits to seeds)
+  const persisted = loadNarrative(id);
+  if (persisted) return persisted;
+  // Fall back to static seed data
   const seed = ALL_SEEDS.find((s) => s.id === id);
   if (seed) return seed;
-  return loadNarrative(id);
+  return null;
 }
 
 // Helper to update the active narrative in state and persist
@@ -234,7 +238,11 @@ type Action =
   | { type: 'LOG_API_CALL'; entry: import('@/types/narrative').ApiLogEntry }
   | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<import('@/types/narrative').ApiLogEntry> }
   | { type: 'CLEAR_API_LOGS' }
-  | { type: 'SET_COVER_IMAGE'; narrativeId: string; imageUrl: string };
+  | { type: 'SET_COVER_IMAGE'; narrativeId: string; imageUrl: string }
+  | { type: 'SET_SCENE_IMAGE'; sceneId: string; imageUrl: string }
+  | { type: 'SET_CHARACTER_IMAGE'; characterId: string; imageUrl: string }
+  | { type: 'SET_LOCATION_IMAGE'; locationId: string; imageUrl: string }
+  | { type: 'SET_IMAGE_STYLE'; style: string };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -245,6 +253,7 @@ function reducer(state: AppState, action: Action): AppState {
       const narrative = loadNarrativeById(action.id);
       const branchId = narrative ? getRootBranchId(narrative) : null;
       const resolved = narrative ? getResolvedKeys(narrative, branchId) : [];
+      saveActiveNarrativeId(action.id);
       return {
         ...state,
         activeNarrativeId: action.id,
@@ -257,6 +266,7 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'CLEAR_ACTIVE_NARRATIVE':
+      saveActiveNarrativeId(null);
       return { ...state, activeNarrativeId: null, activeNarrative: null, inspectorContext: null, selectedKnowledgeEntity: null };
     case 'SET_CONTROL_MODE':
       return { ...state, controlMode: action.mode, isPlaying: false };
@@ -340,6 +350,7 @@ function reducer(state: AppState, action: Action): AppState {
       const newBranchId = getRootBranchId(mutated);
       const newResolved = getResolvedKeys(mutated, newBranchId);
       saveNarrative(mutated);
+      saveActiveNarrativeId(mutated.id);
       return {
         ...state,
         narratives: [...state.narratives, entry],
@@ -353,11 +364,27 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'DELETE_NARRATIVE': {
       deletePersisted(action.id);
+      const isSeed = SEED_IDS.has(action.id);
+      const isActive = state.activeNarrativeId === action.id;
+
+      if (isSeed) {
+        // Reset seed to original static data instead of removing it
+        const originalSeed = ALL_SEEDS.find((s) => s.id === action.id)!;
+        const resetEntry = narrativeToEntry(originalSeed);
+        return {
+          ...state,
+          narratives: state.narratives.map((n) => n.id === action.id ? resetEntry : n),
+          activeNarrativeId: isActive ? null : state.activeNarrativeId,
+          activeNarrative: isActive ? null : state.activeNarrative,
+        };
+      }
+
+      if (isActive) saveActiveNarrativeId(null);
       return {
         ...state,
         narratives: state.narratives.filter(n => n.id !== action.id),
-        activeNarrativeId: state.activeNarrativeId === action.id ? null : state.activeNarrativeId,
-        activeNarrative: state.activeNarrativeId === action.id ? null : state.activeNarrative,
+        activeNarrativeId: isActive ? null : state.activeNarrativeId,
+        activeNarrative: isActive ? null : state.activeNarrative,
       };
     }
     case 'SELECT_KNOWLEDGE_ENTITY':
@@ -657,6 +684,7 @@ function reducer(state: AppState, action: Action): AppState {
       const branchId = getRootBranchId(action.narrative);
       const resolved = getResolvedKeys(action.narrative, branchId);
       saveNarrative(action.narrative);
+      saveActiveNarrativeId(action.narrative.id);
       const existingIdx = state.narratives.findIndex((n) => n.id === action.narrative.id);
       const narratives = existingIdx >= 0
         ? state.narratives.map((n, i) => (i === existingIdx ? entry : n))
@@ -753,6 +781,30 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, narratives: updatedNarratives, activeNarrative: updatedActive };
     }
 
+    case 'SET_SCENE_IMAGE':
+      return withNarrativeUpdate(state, (n) => {
+        const scene = n.scenes[action.sceneId];
+        if (!scene) return n;
+        return { ...n, scenes: { ...n.scenes, [action.sceneId]: { ...scene, imageUrl: action.imageUrl } } };
+      });
+
+    case 'SET_CHARACTER_IMAGE':
+      return withNarrativeUpdate(state, (n) => {
+        const char = n.characters[action.characterId];
+        if (!char) return n;
+        return { ...n, characters: { ...n.characters, [action.characterId]: { ...char, imageUrl: action.imageUrl } } };
+      });
+
+    case 'SET_LOCATION_IMAGE':
+      return withNarrativeUpdate(state, (n) => {
+        const loc = n.locations[action.locationId];
+        if (!loc) return n;
+        return { ...n, locations: { ...n.locations, [action.locationId]: { ...loc, imageUrl: action.imageUrl } } };
+      });
+
+    case 'SET_IMAGE_STYLE':
+      return withNarrativeUpdate(state, (n) => ({ ...n, imageStyle: action.style }));
+
     default:
       return state;
   }
@@ -780,12 +832,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Hydrate persisted narratives from localStorage on mount
   useEffect(() => {
     const persisted = loadNarratives();
-    // Filter out any persisted seeds — always use fresh static seed data
+    const persistedById = new Map(persisted.map((n) => [n.id, n]));
+
+    // For seeds, prefer persisted version if it exists (user made edits), otherwise use static
+    const seedEntries = ALL_SEEDS.map((seed) => {
+      const saved = persistedById.get(seed.id);
+      return narrativeToEntry(saved ?? seed);
+    });
+
     const userEntries = persisted
       .filter((n) => !SEED_IDS.has(n.id))
       .map(narrativeToEntry);
-    const seedEntries = ALL_SEEDS.map(narrativeToEntry);
+
     dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...seedEntries, ...userEntries] });
+
+    // Restore last active narrative
+    const savedActiveId = loadActiveNarrativeId();
+    if (savedActiveId) {
+      dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: savedActiveId });
+    }
   }, []);
 
   // Keyboard shortcuts

@@ -17,6 +17,7 @@ const characters: Record<string, Character> = {
     id: 'C-SW-01',
     name: 'Luke Skywalker',
     role: 'anchor',
+    imagePrompt: 'Young man with shaggy sandy-blond hair, bright blue eyes, and a sun-weathered face; wearing a loose white tunic and utility belt, standing in harsh desert light with twin suns low on the horizon.',
     threadIds: ['T-SW-01', 'T-SW-05', 'T-SW-02'],
     knowledge: {
       nodes: [
@@ -38,6 +39,7 @@ const characters: Record<string, Character> = {
     id: 'C-SW-02',
     name: 'Princess Leia Organa',
     role: 'anchor',
+    imagePrompt: 'Young woman with dark brown hair styled in twin buns on either side of her head, large expressive brown eyes, and a regal bearing; wearing a flowing white senatorial gown with a silver belt and hood draped at her shoulders.',
     threadIds: ['T-SW-06', 'T-SW-02'],
     knowledge: {
       nodes: [
@@ -59,6 +61,7 @@ const characters: Record<string, Character> = {
     id: 'C-SW-03',
     name: 'Han Solo',
     role: 'recurring',
+    imagePrompt: 'Ruggedly handsome man in his early thirties with tousled brown hair, a crooked grin, and sharp hazel eyes; wearing a white shirt open at the collar, a black vest, low-slung holster on his hip, and weathered smuggler boots.',
     threadIds: ['T-SW-04'],
     knowledge: {
       nodes: [
@@ -78,6 +81,7 @@ const characters: Record<string, Character> = {
     id: 'C-SW-04',
     name: 'Darth Vader',
     role: 'recurring',
+    imagePrompt: 'Towering armored figure in all-black with a sweeping cape, a glossy black helmet with angular cheekplates and a skull-like respirator mask; chest panel of blinking lights and controls, mechanical breathing echoing in dim corridor light.',
     threadIds: ['T-SW-03', 'T-SW-07'],
     knowledge: {
       nodes: [
@@ -99,6 +103,7 @@ const characters: Record<string, Character> = {
     id: 'C-SW-05',
     name: 'Obi-Wan Kenobi',
     role: 'recurring',
+    imagePrompt: 'Weathered older man with a neatly trimmed grey-white beard, kind blue-grey eyes lined with decades of exile, and deep sun creases; wearing sand-colored Jedi robes with a rough-woven hooded cloak, standing in golden desert light.',
     threadIds: ['T-SW-03', 'T-SW-05'],
     knowledge: {
       nodes: [
@@ -120,6 +125,7 @@ const characters: Record<string, Character> = {
     id: 'C-SW-06',
     name: 'R2-D2',
     role: 'transient',
+    imagePrompt: 'Squat cylindrical astromech droid with a domed silver-and-blue head, a single glowing red photoreceptor eye, white-and-blue paneled body, and stubby tripod legs; scuffed and sand-dusted from desert travel.',
     threadIds: ['T-SW-02'],
     knowledge: {
       nodes: [
@@ -137,6 +143,7 @@ const characters: Record<string, Character> = {
     id: 'C-SW-07',
     name: 'Grand Moff Tarkin',
     role: 'transient',
+    imagePrompt: 'Gaunt, sharp-featured man with hollow cheeks, piercing cold grey eyes, and slicked-back grey hair; wearing a crisp olive-green Imperial officer uniform with rank insignia cylinders on the chest, standing in the sterile light of a command bridge.',
     threadIds: ['T-SW-07'],
     knowledge: {
       nodes: [
@@ -156,6 +163,7 @@ const characters: Record<string, Character> = {
     id: 'C-SW-08',
     name: 'Chewbacca',
     role: 'transient',
+    imagePrompt: 'Massive seven-foot-tall Wookiee covered in shaggy brown fur with streaks of auburn; deep-set dark eyes beneath a heavy brow, a leather bandolier slung across his chest, and powerful long arms at his sides.',
     threadIds: ['T-SW-04'],
     knowledge: {
       nodes: [
@@ -175,6 +183,7 @@ const characters: Record<string, Character> = {
 const locations: Record<string, Location> = {
   'L-SW-01': {
     id: 'L-SW-01', name: 'The Galaxy', parentId: null, threadIds: [],
+    imagePrompt: 'Vast spiral galaxy seen from deep space, billions of stars swirling in luminous arms of blue and white against the infinite black void, scattered nebulae glowing in violet and gold.',
     knowledge: {
       nodes: [
         { id: 'LK-SW-01', type: 'lore', content: 'A galaxy ruled by the Galactic Empire — a thousand star systems held by fear and force' },
@@ -185,6 +194,7 @@ const locations: Record<string, Location> = {
   },
   'L-SW-02': {
     id: 'L-SW-02', name: 'Tatooine', parentId: 'L-SW-01', threadIds: ['T-SW-01', 'T-SW-05'],
+    imagePrompt: 'Endless desert landscape under twin suns blazing white and amber in a pale sky; rolling dunes of fine sand stretch to the horizon, broken by eroded rock mesas and shimmering heat haze.',
     knowledge: {
       nodes: [
         { id: 'LK-SW-03', type: 'lore', content: 'A desert world orbiting twin suns — remote, lawless, and forgotten by the Empire' },
@@ -195,6 +205,7 @@ const locations: Record<string, Location> = {
   },
   'L-SW-03': {
     id: 'L-SW-03', name: 'The Death Star', parentId: 'L-SW-01', threadIds: ['T-SW-07', 'T-SW-03'],
+    imagePrompt: 'Moon-sized spherical battle station hanging in the blackness of space, its surface covered in grey metallic panels and trenches; a massive concave superlaser dish dominates the upper hemisphere, glowing faintly green.',
     knowledge: {
       nodes: [
         { id: 'LK-SW-05', type: 'lore', content: 'A moon-sized battle station capable of destroying entire planets with a single blast' },
@@ -209,6 +220,7 @@ const locations: Record<string, Location> = {
   },
   'L-SW-04': {
     id: 'L-SW-04', name: 'Mos Eisley', parentId: 'L-SW-02', threadIds: ['T-SW-04'],
+    imagePrompt: 'Sprawling desert spaceport of low domed adobe buildings and dusty streets crowded with alien species; landed freighters dot the outskirts, heat rises from sun-baked stone, and a cantina glows with dim neon light.',
     knowledge: {
       nodes: [
         { id: 'LK-SW-08', type: 'lore', content: 'A wretched hive of scum and villainy — the spaceport where the desperate come to disappear' },
@@ -219,6 +231,7 @@ const locations: Record<string, Location> = {
   },
   'L-SW-05': {
     id: 'L-SW-05', name: 'Alderaan System', parentId: 'L-SW-01', threadIds: ['T-SW-06'],
+    imagePrompt: 'A lush blue-green planet with swirling white clouds and snow-capped mountain ranges visible from orbit; elegant spired cities nestled in verdant valleys, bathed in warm golden sunlight.',
     knowledge: {
       nodes: [
         { id: 'LK-SW-10', type: 'lore', content: 'Home system of the peaceful planet Alderaan — a world of beauty, culture, and quiet defiance' },
@@ -229,6 +242,7 @@ const locations: Record<string, Location> = {
   },
   'L-SW-06': {
     id: 'L-SW-06', name: 'Yavin IV', parentId: 'L-SW-01', threadIds: ['T-SW-02', 'T-SW-06'],
+    imagePrompt: 'Dense tropical jungle moon with towering stone Massassi temples rising above the canopy; vines drape ancient pyramids, mist clings to the undergrowth, and X-wing fighters are parked on a vine-cracked landing pad.',
     knowledge: {
       nodes: [
         { id: 'LK-SW-12', type: 'secret', content: 'Hidden Rebel Alliance base within an ancient Massassi temple on a jungle moon' },
@@ -239,6 +253,7 @@ const locations: Record<string, Location> = {
   },
   'L-SW-07': {
     id: 'L-SW-07', name: 'The Tantive IV', parentId: 'L-SW-01', threadIds: ['T-SW-02'],
+    imagePrompt: 'Interior of a sleek white Corellian corvette with curved corridors, smooth white walls, and recessed lighting; blaster scoring marks the bulkheads, smoke drifts through the passageways, and red emergency lights pulse.',
     knowledge: {
       nodes: [
         { id: 'LK-SW-14', type: 'lore', content: 'Alderaanian consular ship — Princess Leias diplomatic vessel and secret Rebel courier' },
@@ -249,6 +264,7 @@ const locations: Record<string, Location> = {
   },
   'L-SW-08': {
     id: 'L-SW-08', name: 'Lars Homestead', parentId: 'L-SW-02', threadIds: ['T-SW-01'],
+    imagePrompt: 'Sunken adobe moisture farm with a domed igloo entrance half-buried in desert sand; a courtyard cut into the earth below ground level, vaporator towers dotting the surrounding dunes under a burnt-orange sky.',
     knowledge: {
       nodes: [
         { id: 'LK-SW-16', type: 'lore', content: 'A moisture farm on the outskirts of Tatooines Jundland Wastes — Lukes entire world' },
@@ -746,6 +762,7 @@ export const seedSW: NarrativeState = {
   relationships,
   worldSummary: 'A long time ago in a galaxy far, far away, the Galactic Empire rules through fear, the Jedi Order lies in ashes, and a Rebellion flickers at the edge of extinction. On the desert planet Tatooine, a farm boy named Luke Skywalker tends moisture vaporators beneath twin suns, unaware that he is the son of the most feared man in the galaxy. The days are long and identical. The harvest is always coming. And Luke is always watching the sky, waiting for a life that refuses to start. Then two droids arrive carrying a stolen message, and the still surface of his world begins to crack.',
   controlMode: 'auto',
+  imageStyle: 'Cinematic sci-fi concept art, bold chiaroscuro lighting, industrial metallic surfaces, deep space blues and Imperial greys, 1970s retro-futurism meets Ralph McQuarrie production paintings',
   activeForces: { stakes: 0, pacing: 0, variety: 0 },
   coverImageUrl: '/covers/sw.jpg',
   createdAt: Date.now() - 86400000,

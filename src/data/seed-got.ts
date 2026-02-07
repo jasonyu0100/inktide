@@ -37,6 +37,7 @@ const characters: Record<string, Character> = {
         { from: 'K-GOT-07', to: 'K-GOT-05', type: 'supports' },
       ],
     },
+    imagePrompt: 'Stern-faced man in his late thirties with long dark brown hair and solemn grey eyes, short beard, wearing fur-lined leather armor and a heavy grey wool cloak, northern medieval lord with a greatsword at his back',
   },
   'C-GOT-02': {
     id: 'C-GOT-02',
@@ -60,6 +61,7 @@ const characters: Record<string, Character> = {
         { from: 'K-GOT-15', to: 'K-GOT-13', type: 'supports' },
       ],
     },
+    imagePrompt: 'Strikingly beautiful woman with golden blonde hair worn in elaborate braids, sharp green eyes and high cheekbones, crimson and gold silk gown with lion embroidery, regal and calculating expression, medieval queen',
   },
   'C-GOT-03': {
     id: 'C-GOT-03',
@@ -81,6 +83,7 @@ const characters: Record<string, Character> = {
         { from: 'K-GOT-24', to: 'K-GOT-21', type: 'supports' },
       ],
     },
+    imagePrompt: 'Dwarfed man with a large head, mismatched green and black eyes, and a mane of pale blonde hair, sharp sardonic features, dressed in rich Lannister crimson doublet with gold trim, intelligent and world-weary expression',
   },
   'C-GOT-04': {
     id: 'C-GOT-04',
@@ -102,6 +105,7 @@ const characters: Record<string, Character> = {
         { from: 'K-GOT-34', to: 'K-GOT-32', type: 'contradicts' },
       ],
     },
+    imagePrompt: 'Young woman with silver-white hair and striking violet eyes, delicate features and pale skin, wearing flowing pale blue and cream silks in an eastern style, vulnerable yet regal bearing, Targaryen princess in exile',
   },
   'C-GOT-05': {
     id: 'C-GOT-05',
@@ -123,6 +127,7 @@ const characters: Record<string, Character> = {
         { from: 'K-GOT-44', to: 'K-GOT-42', type: 'supports' },
       ],
     },
+    imagePrompt: 'Young man with a lean build, dark curly hair and brooding dark grey eyes, clean-shaven with a long solemn face, wearing black leather and fur of the Night\'s Watch, a white direwolf at his side',
   },
   'C-GOT-06': {
     id: 'C-GOT-06',
@@ -142,6 +147,7 @@ const characters: Record<string, Character> = {
         { from: 'K-GOT-53', to: 'K-GOT-51', type: 'enables' },
       ],
     },
+    imagePrompt: 'Slight, sharp-featured man with a pointed chin and dark hair greying at the temples, a thin mocking smile, wearing a fine dark grey doublet with a silver mockingbird pin, cunning eyes that miss nothing',
   },
   'C-GOT-07': {
     id: 'C-GOT-07',
@@ -161,6 +167,7 @@ const characters: Record<string, Character> = {
         { from: 'K-GOT-63', to: 'K-GOT-60', type: 'contradicts' },
       ],
     },
+    imagePrompt: 'Massive, barrel-chested man gone to fat with a thick black beard and blue eyes, flushed ruddy face, wearing a gold crown and black and gold doublet straining at the seams, a once-great warrior in decline',
   },
   'C-GOT-08': {
     id: 'C-GOT-08',
@@ -178,6 +185,7 @@ const characters: Record<string, Character> = {
         { from: 'K-GOT-72', to: 'K-GOT-71', type: 'supports' },
       ],
     },
+    imagePrompt: 'Small, scrappy girl of nine with a long face, grey eyes, and tangled dark brown hair, wearing a dirt-smudged tunic and breeches instead of a dress, fierce and defiant expression, a thin sword at her hip',
   },
 };
 
@@ -192,6 +200,7 @@ const locations: Record<string, Location> = {
       ],
       edges: [{ from: 'LK-GOT-01', to: 'LK-GOT-02', type: 'supports' }],
     },
+    imagePrompt: 'Vast medieval continent seen from above, rolling green hills and dark forests giving way to snow-capped mountains in the north, a patchwork of kingdoms under an overcast sky, epic fantasy landscape',
   },
   'L-GOT-02': {
     id: 'L-GOT-02', name: "King's Landing", parentId: 'L-GOT-01', threadIds: ['T-GOT-05', 'T-GOT-06'],
@@ -202,6 +211,7 @@ const locations: Record<string, Location> = {
       ],
       edges: [{ from: 'LK-GOT-04', to: 'LK-GOT-03', type: 'contradicts' }],
     },
+    imagePrompt: 'Sprawling medieval city built on hills above a wide river, crowded timber and stone buildings climbing toward a massive red fortress on the highest hill, hazy golden light and smoke rising from a thousand chimneys',
   },
   'L-GOT-03': {
     id: 'L-GOT-03', name: 'The Red Keep', parentId: 'L-GOT-02', threadIds: ['T-GOT-01', 'T-GOT-05', 'T-GOT-07'],
@@ -216,6 +226,7 @@ const locations: Record<string, Location> = {
         { from: 'LK-GOT-05', to: 'LK-GOT-06', type: 'supports' },
       ],
     },
+    imagePrompt: 'Imposing castle fortress with walls of dark red stone and tall battlemented towers, iron-spiked gates and narrow windows, a great hall with a throne of fused swords visible through an arched entrance, ominous and powerful',
   },
   'L-GOT-04': {
     id: 'L-GOT-04', name: 'Winterfell', parentId: 'L-GOT-01', threadIds: ['T-GOT-02'],
@@ -226,6 +237,7 @@ const locations: Record<string, Location> = {
       ],
       edges: [{ from: 'LK-GOT-08', to: 'LK-GOT-09', type: 'supports' }],
     },
+    imagePrompt: 'Ancient northern castle of dark grey granite with thick walls and round towers, steam rising from hot springs within the courtyard, snow dusting the battlements under a pale winter sky, vast and weathered and enduring',
   },
   'L-GOT-05': {
     id: 'L-GOT-05', name: 'The Wall', parentId: 'L-GOT-01', threadIds: ['T-GOT-04'],
@@ -236,6 +248,7 @@ const locations: Record<string, Location> = {
       ],
       edges: [{ from: 'LK-GOT-10', to: 'LK-GOT-11', type: 'contradicts' }],
     },
+    imagePrompt: 'Colossal wall of solid ice stretching from horizon to horizon, seven hundred feet tall and gleaming blue-white, a tiny wooden fortress at its base, frozen wilderness beyond, overwhelming scale under a dark arctic sky',
   },
   'L-GOT-06': {
     id: 'L-GOT-06', name: 'The Narrow Sea', parentId: null, threadIds: ['T-GOT-03'],
@@ -245,6 +258,7 @@ const locations: Record<string, Location> = {
       ],
       edges: [],
     },
+    imagePrompt: 'Wide expanse of deep blue-grey ocean between two continents, choppy waves under a vast sky, merchant galleys and warships dotting the water, moody atmospheric seascape with distant coastlines',
   },
   'L-GOT-07': {
     id: 'L-GOT-07', name: 'Pentos', parentId: null, threadIds: ['T-GOT-03'],
@@ -255,6 +269,7 @@ const locations: Record<string, Location> = {
       ],
       edges: [{ from: 'LK-GOT-14', to: 'LK-GOT-13', type: 'supports' }],
     },
+    imagePrompt: 'Opulent coastal city with white-washed villas and domed towers in an eastern Mediterranean style, palm trees and terraced gardens overlooking a sun-drenched harbor, warm golden light and exotic luxury',
   },
   'L-GOT-08': {
     id: 'L-GOT-08', name: 'The Kingsroad', parentId: 'L-GOT-01', threadIds: ['T-GOT-02'],
@@ -265,6 +280,7 @@ const locations: Record<string, Location> = {
       ],
       edges: [{ from: 'LK-GOT-15', to: 'LK-GOT-16', type: 'supports' }],
     },
+    imagePrompt: 'Long muddy road cutting through rolling countryside and dark forests, stone mile markers and a distant watchtower, overcast sky with shafts of pale light, a sense of vast lonely distance stretching north to south',
   },
 };
 
@@ -733,6 +749,7 @@ export const seedGOT: NarrativeState = {
   relationships,
   worldSummary: 'The Seven Kingdoms of Westeros are held together by the Iron Throne — a seat forged from the swords of the conquered, uncomfortable by design, a reminder that a king should never sit easy. Robert Baratheon won the throne by rebellion and has spent fifteen years failing to deserve it. The great houses circle each other like wolves: Stark in the frozen North, Lannister in the golden West, Baratheon on the throne, Targaryen in exile across the sea. Summer has lasted nine years. Winter is coming — the Stark words are not a boast but a warning. In Winterfell, the Starks live as they have for millennia — by duty, by honor, by the old gods and the old ways. But the south is stirring, and when the south stirs, the north bleeds.',
   controlMode: 'auto',
+  imageStyle: 'Dark medieval fantasy, gritty photorealism, muted earth tones and firelight, rain-slicked stone and forged steel, HBO-inspired cinematic drama with desaturated palette',
   activeForces: { stakes: 0, pacing: 0, variety: 0 },
   coverImageUrl: '/covers/got.jpg',
   createdAt: Date.now() - 86400000,

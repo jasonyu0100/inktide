@@ -18,6 +18,8 @@ import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
 import { AutoControlBar } from '@/components/auto/AutoControlBar';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import ApiKeyModal from '@/components/layout/ApiKeyModal';
 import { OnboardingGuide } from '@/components/onboarding/OnboardingGuide';
 
 function useIsMobile(breakpoint = 768) {
@@ -40,7 +42,9 @@ export default function SeriesPage() {
   const [forkOpen, setForkOpen] = useState(false);
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
   const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
+  const [apiKeysOpen, setApiKeysOpen] = useState(false);
   const autoPlay = useAutoPlay();
+  const access = useFeatureAccess();
 
   const id = params.id as string;
 
@@ -62,15 +66,18 @@ export default function SeriesPage() {
     function handleOpenFork() { setForkOpen(true); }
     function handleOpenAutoSettings() { setAutoSettingsOpen(true); }
     function handleOpenCubeViewer() { setCubeViewerOpen(true); }
+    function handleOpenApiKeys() { setApiKeysOpen(true); }
     window.addEventListener('open-generate-panel', handleOpenGenerate);
     window.addEventListener('open-fork-panel', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
     window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
+    window.addEventListener('open-api-keys', handleOpenApiKeys);
     return () => {
       window.removeEventListener('open-generate-panel', handleOpenGenerate);
       window.removeEventListener('open-fork-panel', handleOpenFork);
       window.removeEventListener('open-auto-settings', handleOpenAutoSettings);
       window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
+      window.removeEventListener('open-api-keys', handleOpenApiKeys);
     };
   }, []);
 
@@ -125,6 +132,7 @@ export default function SeriesPage() {
       {cubeViewerOpen && (
         <NarrativeCubeViewer onClose={() => setCubeViewerOpen(false)} />
       )}
+      {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
       <OnboardingGuide narrativeId={id} />
       {isMobile && (
         <div className="fixed inset-0 z-9999 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center px-6 text-center">

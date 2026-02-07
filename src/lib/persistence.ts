@@ -1,6 +1,7 @@
 import type { NarrativeState } from '@/types/narrative';
 
 const STORAGE_KEY = 'narrative-engine:narratives';
+const ACTIVE_KEY = 'narrative-engine:activeNarrativeId';
 
 export function loadNarratives(): NarrativeState[] {
   if (typeof window === 'undefined') return [];
@@ -41,4 +42,26 @@ export function deleteNarrative(id: string) {
 export function loadNarrative(id: string): NarrativeState | null {
   const all = loadNarratives();
   return all.find((n) => n.id === id) ?? null;
+}
+
+export function saveActiveNarrativeId(id: string | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (id) {
+      localStorage.setItem(ACTIVE_KEY, id);
+    } else {
+      localStorage.removeItem(ACTIVE_KEY);
+    }
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+export function loadActiveNarrativeId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(ACTIVE_KEY);
+  } catch {
+    return null;
+  }
 }

@@ -17,6 +17,7 @@ const characters: Record<string, Character> = {
     id: 'C-HP-01',
     name: 'Harry Potter',
     role: 'anchor',
+    imagePrompt: 'A thin eleven-year-old boy with untidy jet-black hair, bright green eyes behind round wire-rimmed glasses, and a lightning-bolt scar on his forehead. He wears an oversized hand-me-down jumper, looking small but alert.',
     threadIds: ['T-HP-01', 'T-HP-02', 'T-HP-06'],
     knowledge: {
       nodes: [
@@ -38,6 +39,7 @@ const characters: Record<string, Character> = {
     id: 'C-HP-02',
     name: 'Hermione Granger',
     role: 'anchor',
+    imagePrompt: 'A girl with bushy brown hair, bright brown eyes, and slightly large front teeth, carrying an armful of heavy books. She wears crisp Hogwarts robes with a Gryffindor tie, her expression earnest and determined.',
     threadIds: ['T-HP-01', 'T-HP-04'],
     knowledge: {
       nodes: [
@@ -59,6 +61,7 @@ const characters: Record<string, Character> = {
     id: 'C-HP-03',
     name: 'Ron Weasley',
     role: 'recurring',
+    imagePrompt: 'A tall, gangly boy with flaming red hair, freckles, and a long nose. He wears slightly shabby second-hand robes and has a warm, lopsided grin despite looking a bit underfed.',
     threadIds: ['T-HP-04', 'T-HP-07'],
     knowledge: {
       nodes: [
@@ -78,6 +81,7 @@ const characters: Record<string, Character> = {
     id: 'C-HP-04',
     name: 'Albus Dumbledore',
     role: 'recurring',
+    imagePrompt: 'A tall, thin, very old man with a long silver beard and half-moon spectacles perched on a crooked nose. He wears sweeping purple robes embroidered with silver stars, his blue eyes twinkling with quiet amusement.',
     threadIds: ['T-HP-01', 'T-HP-05'],
     knowledge: {
       nodes: [
@@ -99,6 +103,7 @@ const characters: Record<string, Character> = {
     id: 'C-HP-05',
     name: 'Severus Snape',
     role: 'recurring',
+    imagePrompt: 'A thin man with sallow skin, a large hooked nose, and greasy shoulder-length black hair that frames his gaunt face. He wears billowing black robes and regards the world with cold, glittering dark eyes.',
     threadIds: ['T-HP-03', 'T-HP-01'],
     knowledge: {
       nodes: [
@@ -118,6 +123,7 @@ const characters: Record<string, Character> = {
     id: 'C-HP-06',
     name: 'Rubeus Hagrid',
     role: 'transient',
+    imagePrompt: 'An enormous man nearly twice the height of a normal person, with a wild tangle of bushy black hair and a thick, matted beard that hides most of his face. He wears a massive moleskin overcoat with countless pockets, his beetle-black eyes crinkling warmly.',
     threadIds: ['T-HP-02', 'T-HP-06'],
     knowledge: {
       nodes: [
@@ -137,6 +143,7 @@ const characters: Record<string, Character> = {
     id: 'C-HP-07',
     name: 'Draco Malfoy',
     role: 'transient',
+    imagePrompt: 'A pale, pointed-faced boy with sleek white-blond hair combed neatly back and cold grey eyes. He wears immaculate, expensive-looking Hogwarts robes and carries himself with a haughty sneer.',
     threadIds: ['T-HP-07'],
     knowledge: {
       nodes: [
@@ -154,6 +161,7 @@ const characters: Record<string, Character> = {
     id: 'C-HP-08',
     name: 'Quirinus Quirrell',
     role: 'transient',
+    imagePrompt: 'A pale, nervous young professor with a large purple turban wound around his head and a twitchy, stammering manner. His face is pinched and anxious, and there is a faint smell of garlic about his robes.',
     threadIds: ['T-HP-05', 'T-HP-01'],
     knowledge: {
       nodes: [
@@ -175,6 +183,7 @@ const characters: Record<string, Character> = {
 const locations: Record<string, Location> = {
   'L-HP-01': {
     id: 'L-HP-01', name: 'Wizarding Britain', parentId: null, threadIds: [],
+    imagePrompt: 'A misty, rain-swept British landscape with hidden magical enclaves tucked behind ordinary facades — cobblestone lanes, enchanted shopfronts, and owls gliding through grey skies over rolling green countryside.',
     knowledge: {
       nodes: [
         { id: 'LK-HP-01', type: 'lore', content: 'A hidden magical society layered beneath Muggle Britain, governed by the Ministry of Magic' },
@@ -185,6 +194,7 @@ const locations: Record<string, Location> = {
   },
   'L-HP-02': {
     id: 'L-HP-02', name: 'Hogwarts School of Witchcraft and Wizardry', parentId: 'L-HP-01', threadIds: ['T-HP-01', 'T-HP-04'],
+    imagePrompt: 'A vast medieval castle with soaring towers, turrets, and battlements perched on a cliff above a dark lake, its hundreds of windows glowing warmly against a starlit Scottish Highland sky.',
     knowledge: {
       nodes: [
         { id: 'LK-HP-03', type: 'lore', content: 'A thousand-year-old castle in the Scottish Highlands, the foremost school of magic in Europe' },
@@ -195,6 +205,7 @@ const locations: Record<string, Location> = {
   },
   'L-HP-03': {
     id: 'L-HP-03', name: 'Number Four, Privet Drive', parentId: 'L-HP-01', threadIds: ['T-HP-06'],
+    imagePrompt: 'A painfully ordinary 1980s suburban semi-detached house on a manicured cul-de-sac — identical hedges, a polished car in the driveway, net curtains, and an oppressive air of enforced normality under flat grey skies.',
     knowledge: {
       nodes: [
         { id: 'LK-HP-05', type: 'lore', content: 'A ruthlessly ordinary suburban home in Little Whinging, Surrey — normalcy enforced like a religion' },
@@ -205,6 +216,7 @@ const locations: Record<string, Location> = {
   },
   'L-HP-04': {
     id: 'L-HP-04', name: 'Diagon Alley', parentId: 'L-HP-01', threadIds: ['T-HP-02'],
+    imagePrompt: 'A narrow, winding cobblestone street bursting with colour — crooked shopfronts stacked with cauldrons, broomsticks, and spell books, owls perched on awnings, and witches and wizards bustling past in vivid robes under a strip of bright sky.',
     knowledge: {
       nodes: [
         { id: 'LK-HP-07', type: 'lore', content: 'The hidden high street of wizarding London — wands, cauldrons, owls, and wonder behind a brick wall' },
@@ -215,6 +227,7 @@ const locations: Record<string, Location> = {
   },
   'L-HP-05': {
     id: 'L-HP-05', name: 'The Great Hall', parentId: 'L-HP-02', threadIds: ['T-HP-07'],
+    imagePrompt: 'A cavernous hall lit by thousands of floating candles, four long wooden tables stretching toward a raised staff dais, with an enchanted ceiling showing a swirl of stars and drifting clouds above.',
     knowledge: {
       nodes: [
         { id: 'LK-HP-09', type: 'lore', content: 'An enchanted ceiling reflecting the sky above, four long house tables, and the Sorting Hat\'s ancient song' },
@@ -225,6 +238,7 @@ const locations: Record<string, Location> = {
   },
   'L-HP-06': {
     id: 'L-HP-06', name: 'The Third-Floor Corridor', parentId: 'L-HP-02', threadIds: ['T-HP-01', 'T-HP-05'],
+    imagePrompt: 'A dark, dusty stone corridor lit by guttering torches, with a heavy locked door at the far end. The air is thick with dread, and deep growling reverberates from behind the door.',
     knowledge: {
       nodes: [
         { id: 'LK-HP-11', type: 'danger', content: 'Forbidden to all students on pain of a most painful death — Dumbledore\'s warning at the start-of-term feast' },
@@ -235,6 +249,7 @@ const locations: Record<string, Location> = {
   },
   'L-HP-07': {
     id: 'L-HP-07', name: 'The Forbidden Forest', parentId: 'L-HP-02', threadIds: ['T-HP-05'],
+    imagePrompt: 'An ancient, dense forest of towering gnarled trees with a thick canopy that blocks out moonlight. Silver mist curls between the roots, and the darkness between the trunks feels alive and watchful.',
     knowledge: {
       nodes: [
         { id: 'LK-HP-13', type: 'danger', content: 'Ancient woodland on the Hogwarts grounds, home to centaurs, unicorns, and darker things' },
@@ -245,6 +260,7 @@ const locations: Record<string, Location> = {
   },
   'L-HP-08': {
     id: 'L-HP-08', name: 'Gringotts Wizarding Bank', parentId: 'L-HP-04', threadIds: ['T-HP-01'],
+    imagePrompt: 'A towering white marble building that leans slightly over Diagon Alley, with burnished bronze doors flanked by goblin guards in scarlet-and-gold uniforms. Inside, a vast hall of polished counters stretches into shadow.',
     knowledge: {
       nodes: [
         { id: 'LK-HP-15', type: 'lore', content: 'Run by goblins deep beneath London — the safest place in the wizarding world, after Hogwarts' },
@@ -832,6 +848,7 @@ export const seedHP: NarrativeState = {
   relationships,
   worldSummary: 'Wizarding Britain hides in plain sight beneath Muggle England — a parallel world of wands and cauldrons, owls and enchantments, governed by the Ministry of Magic and haunted by the shadow of Lord Voldemort. Ten years ago, the darkest wizard in a century fell when his Killing Curse rebounded off a one-year-old boy named Harry Potter. The wizarding world celebrated. Harry was left on a doorstep. Now eleven, he arrives at Hogwarts carrying nothing but a wand, an owl, and a scar. The school is ancient, magnificent, and not entirely safe. Something is hidden on the third-floor corridor. A professor with a turban smells faintly of garlic and something worse. And Harry is only beginning to learn what it means to be the Boy Who Lived.',
   controlMode: 'auto',
+  imageStyle: 'Whimsical storybook illustration, warm golden candlelight, rich jewel tones, soft painterly textures, magical realism with a cozy British boarding-school atmosphere',
   activeForces: { stakes: 0, pacing: 0, variety: 0 },
   coverImageUrl: '/covers/hp.jpg',
   createdAt: Date.now() - 86400000,

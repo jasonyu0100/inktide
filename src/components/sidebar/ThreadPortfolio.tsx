@@ -4,17 +4,15 @@ import { useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { computeThreadStatuses } from '@/lib/narrative-utils';
 import type { Thread, ThreadStatus } from '@/types/narrative';
+import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
 
+// Display order: active statuses (reversed so highest-tension first), then terminal
 const STATUS_ORDER: ThreadStatus[] = [
-  'escalating',
-  'threatened',
-  'surfacing',
-  'dormant',
-  'done',
-  'subverted',
+  ...([...THREAD_ACTIVE_STATUSES].reverse()),
+  ...THREAD_TERMINAL_STATUSES,
 ];
 
-const CLOSED_STATUSES = new Set(['resolved', 'done', 'closed', 'abandoned', 'subverted']);
+const CLOSED_STATUSES = new Set<string>(THREAD_TERMINAL_STATUSES);
 
 function ThreadItem({
   thread,

@@ -20,6 +20,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { config } from 'dotenv';
+import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '../src/types/narrative';
 
 config({ path: join(__dirname, '..', '.env.local') });
 
@@ -248,7 +249,7 @@ You must ALWAYS respond with valid JSON only — no markdown, no explanation, no
 The narrative engine tracks:
 - Characters with roles (anchor = central, recurring = frequent, transient = minor) and knowledge graphs
 - Locations with parent-child hierarchy and lore/secrets
-- Narrative threads — ongoing tensions that evolve: dormant → surfacing → escalating → fractured → converging → critical → threatened → resolved/subverted/done/closed/abandoned
+- Narrative threads — ongoing tensions that evolve: ${THREAD_ACTIVE_STATUSES.join(' → ')} → ${THREAD_TERMINAL_STATUSES.join('/')}
 - Scenes with events, stakes (0-100), thread mutations, knowledge mutations, and relationship mutations
 - Relationships — directional with sentiment valence (-1 to 1) and descriptive type
 
@@ -343,8 +344,8 @@ KNOWLEDGE MUTATIONS:
 - Types must be contextual: "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_relationship", "strategic_deception", "disillusionment", "complicity_in_crime", etc.
 
 THREAD LIFECYCLE:
-- Active statuses: "dormant", "surfacing", "escalating", "fractured", "converging", "critical", "threatened"
-- Terminal statuses: "resolved" (concluded satisfactorily), "done" (ran its course), "subverted" (upended), "closed" (shut down), "abandoned" (faded)
+- Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}
+- Terminal statuses: ${THREAD_TERMINAL_STATUSES.map((s: string) => `"${s}" (${THREAD_STATUS_LABELS[s]})`).join(', ')}
 - Threads should evolve gradually. A dormant thread surfaces slowly, not in one jump to critical.
 - When a thread's storyline has concluded, transition to appropriate terminal status.
 

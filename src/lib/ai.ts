@@ -1,5 +1,14 @@
 import type { NarrativeState, Scene, Arc, Character, Location, Thread, RelationshipEdge, CubeCornerKey } from '@/types/narrative';
-import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
+import { resolveEntry, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '@/types/narrative';
+
+// Build thread lifecycle documentation from canonical status lists
+const THREAD_LIFECYCLE_DOC = (() => {
+  const activeList = THREAD_ACTIVE_STATUSES.map((s) => `"${s}"`).join(', ');
+  const terminalList = THREAD_TERMINAL_STATUSES.map(
+    (s) => `"${s}" (${THREAD_STATUS_LABELS[s]})`,
+  ).join(', ');
+  return `Active statuses: ${activeList}. Terminal/closed statuses: ${terminalList}.`;
+})();
 import { nextId, nextIds, computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
 
 export type WorldExpansion = {
@@ -71,8 +80,28 @@ function branchContext(
       return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${knowledgeBlock}`;
     })
     .join('\n');
+  // Build thread age context from scene history
+  const keysForThreadAge = resolvedKeys.slice(0, currentIndex + 1);
+  const threadFirstMutation: Record<string, number> = {};
+  const threadMutationCount: Record<string, number> = {};
+  keysForThreadAge.forEach((k, idx) => {
+    const scene = n.scenes[k];
+    if (!scene) return;
+    for (const tm of scene.threadMutations) {
+      threadMutationCount[tm.threadId] = (threadMutationCount[tm.threadId] ?? 0) + 1;
+      if (threadFirstMutation[tm.threadId] === undefined) threadFirstMutation[tm.threadId] = idx;
+    }
+  });
+  const totalScenes = keysForThreadAge.length;
+
   const threads = Object.values(n.threads)
-    .map((t) => `- ${t.id}: ${t.description} [${t.status}]`)
+    .map((t) => {
+      const firstMut = threadFirstMutation[t.id];
+      const age = firstMut !== undefined ? totalScenes - firstMut : 0;
+      const mutations = threadMutationCount[t.id] ?? 0;
+      const ageLabel = age > 0 ? `, active ${age} scenes, ${mutations} mutations` : '';
+      return `- ${t.id}: ${t.description} [${t.status}${ageLabel}]`;
+    })
     .join('\n');
   const relationships = n.relationships
     .map((r) => {
@@ -287,7 +316,7 @@ Rules:
 - "stakes" is a number from 0 to 100 indicating how much is at risk in this scene. 0 = nothing at stake, casual/safe. 50 = moderate consequences. 100 = existential, life-or-death, irreversible.
 - EVERY scene MUST have a non-empty "summary" field. This is critical — scenes without summaries are broken. Write 2-4 vivid sentences describing the scene's events, characters, and emotional stakes.
 - Use ONLY existing character IDs and location IDs from the narrative context above
-- Thread statuses follow a lifecycle. Active statuses: "dormant", "surfacing", "escalating", "fractured", "converging", "critical", "threatened". Terminal/closed statuses: "resolved" (thread concluded satisfactorily), "done" (thread ran its course naturally), "subverted" (thread was upended or inverted), "closed" (thread was shut down externally), "abandoned" (thread faded without resolution).
+- Thread statuses follow a lifecycle. ${THREAD_LIFECYCLE_DOC}
 - Threads that have reached their narrative conclusion MUST be transitioned to a terminal status. Do not leave threads stuck in active states when their story is over. When a mystery is solved, a conflict is won/lost, a goal is achieved or failed — close the thread.
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
@@ -301,7 +330,7 @@ PACING:
 - Only 1 in 3 scenes should be a significant plot beat. Others should build atmosphere, deepen character, or set up future payoffs.
 - Vary the scene rhythm: a tense scene should be followed by a breather, not another tense scene.
 - Threads should evolve gradually — don't rush thread mutations. A dormant thread surfaces slowly, not in one jump to escalating.
-- When a thread's storyline has concluded (conflict resolved, mystery answered, goal achieved or failed), transition it to a terminal status: "resolved", "done", "subverted", "closed", or "abandoned". Choose the terminal status that best fits HOW the thread ended.
+- When a thread's storyline has concluded (conflict resolved, mystery answered, goal achieved or failed), transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}. Choose the terminal status that best fits HOW the thread ended.
 
 CRITICAL ID CONSTRAINT (re-stated for emphasis):
 You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thread IDs.
@@ -543,7 +572,7 @@ Rules:
   const parsed = parseJson(raw, 'expandWorld') as WorldExpansion;
 
   // Force all world-build threads to dormant — they're seeds, not active storylines
-  const threads = (parsed.threads ?? []).map((t: Thread) => ({ ...t, status: 'dormant' }));
+  const threads = (parsed.threads ?? []).map((t: Thread) => ({ ...t, status: THREAD_ACTIVE_STATUSES[0] }));
 
   return {
     characters: parsed.characters ?? [],
@@ -708,7 +737,7 @@ PACING IS CRITICAL:
 - Threads should stay dormant or slowly surface over multiple scenes before escalating. A thread going from dormant to escalating in 2 scenes is too fast.
 - Think of pacing like a novel: setup → slow build → complication → breathing room → escalation. Not: event → event → event → event.
 - Early scenes should establish normalcy and stakes before disrupting them.
-- Thread statuses follow a lifecycle. Active: "dormant", "surfacing", "escalating", "fractured", "converging", "critical", "threatened". Terminal: "resolved" (concluded satisfactorily), "done" (ran its course), "subverted" (upended/inverted), "closed" (shut down externally), "abandoned" (faded without resolution). When a thread's story reaches its conclusion, transition it to the appropriate terminal status.
+- Thread statuses follow a lifecycle. ${THREAD_LIFECYCLE_DOC} When a thread's story reaches its conclusion, transition it to the appropriate terminal status.
 
 Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.
 

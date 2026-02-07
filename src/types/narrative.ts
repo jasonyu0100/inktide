@@ -1,6 +1,20 @@
 // ── Thread ───────────────────────────────────────────────────────────────────
 export type ThreadStatus = string;
 
+// Canonical thread status vocabulary — single source of truth.
+// Active statuses progress roughly in order; terminal statuses end a thread.
+export const THREAD_ACTIVE_STATUSES = ['dormant', 'surfacing', 'escalating', 'fractured', 'converging', 'critical', 'threatened'] as const;
+export const THREAD_TERMINAL_STATUSES = ['resolved', 'done', 'subverted', 'closed', 'abandoned'] as const;
+export const THREAD_PRIMED_STATUSES = ['converging', 'critical', 'threatened'] as const;
+
+export const THREAD_STATUS_LABELS: Record<string, string> = {
+  resolved: 'concluded satisfactorily',
+  done: 'ran its course naturally',
+  subverted: 'upended or inverted',
+  closed: 'shut down externally',
+  abandoned: 'faded without resolution',
+};
+
 export type ThreadAnchor = {
   id: string;
   type: 'character' | 'location';

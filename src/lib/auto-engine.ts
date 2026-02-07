@@ -6,21 +6,24 @@ import type {
   AutoEndCondition,
   ForceSnapshot,
   Scene,
+  Thread,
+  Character,
   CubeCornerKey,
 } from '@/types/narrative';
-import { isScene, NARRATIVE_CUBE } from '@/types/narrative';
+import { isScene, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_PRIMED_STATUSES } from '@/types/narrative';
 import { detectCubeCorner, computeForceSnapshots } from '@/lib/narrative-utils';
 
-// ── Terminal thread statuses ────────────────────────────────────────────────
-const TERMINAL_STATUSES = new Set(['resolved', 'done', 'subverted', 'closed', 'abandoned']);
-const ACTIVE_STATUSES = new Set(['surfacing', 'escalating', 'critical', 'fractured', 'converging', 'threatened']);
+// ── Thread status helpers (derived from canonical lists in narrative.ts) ─────
+const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
+const ACTIVE_SET = new Set<string>(THREAD_ACTIVE_STATUSES.filter((s) => s !== 'dormant'));
+const PRIMED_SET = new Set<string>(THREAD_PRIMED_STATUSES);
 
 function isTerminal(status: string): boolean {
-  return TERMINAL_STATUSES.has(status.toLowerCase());
+  return TERMINAL_SET.has(status.toLowerCase());
 }
 
 function isActive(status: string): boolean {
-  return ACTIVE_STATUSES.has(status.toLowerCase());
+  return ACTIVE_SET.has(status.toLowerCase());
 }
 
 // ── Objective multipliers for cube corners ──────────────────────────────────
@@ -41,6 +44,155 @@ const OBJECTIVE_MULTIPLIERS: Record<string, Record<CubeCornerKey, number>> = {
     LHH: 1.5, LHL: 1.2, LLH: 1.4, LLL: 1.0,
   },
 };
+
+// ── Thread maturity analysis ────────────────────────────────────────────────
+// Scores each active thread 0–1 on how "ripe" it is for resolution.
+type ThreadMaturity = { thread: Thread; score: number };
+
+function computeThreadMaturity(
+  narrative: NarrativeState,
+  scenes: Scene[],
+): ThreadMaturity[] {
+  const threads = Object.values(narrative.threads);
+  const activeThreads = threads.filter((t) => isActive(t.status));
+  if (activeThreads.length === 0 || scenes.length === 0) return [];
+
+  // Build per-thread stats from scene history
+  const threadTransitions: Record<string, number> = {};
+  const threadMutationCount: Record<string, number> = {};
+  const threadFirstScene: Record<string, number> = {};
+  const threadLastScene: Record<string, number> = {};
+
+  scenes.forEach((scene, idx) => {
+    for (const tm of scene.threadMutations) {
+      threadMutationCount[tm.threadId] = (threadMutationCount[tm.threadId] ?? 0) + 1;
+      if (tm.from !== tm.to) {
+        threadTransitions[tm.threadId] = (threadTransitions[tm.threadId] ?? 0) + 1;
+      }
+      if (threadFirstScene[tm.threadId] === undefined) threadFirstScene[tm.threadId] = idx;
+      threadLastScene[tm.threadId] = idx;
+    }
+  });
+
+  return activeThreads.map((thread) => {
+    const firstIdx = threadFirstScene[thread.id] ?? 0;
+    const age = (scenes.length - firstIdx) / Math.max(scenes.length, 1);
+    const transitions = Math.min((threadTransitions[thread.id] ?? 0) / 4, 1);
+    const mutations = Math.min((threadMutationCount[thread.id] ?? 0) / 8, 1);
+
+    // Status progression bonus
+    const statusBonus = PRIMED_SET.has(thread.status.toLowerCase()) ? 0.25 : 0;
+
+    // Anchor involvement in recent scenes (last 5)
+    const recentScenes = scenes.slice(-5);
+    const anchorIds = new Set(thread.anchors.map((a) => a.id));
+    const anchorAppearances = recentScenes.filter((s) =>
+      s.participantIds.some((pid) => anchorIds.has(pid)),
+    ).length;
+    const anchorInvolvement = recentScenes.length > 0 ? anchorAppearances / recentScenes.length : 0;
+
+    const score = Math.min(1, age * 0.3 + transitions * 0.2 + mutations * 0.15 + statusBonus + anchorInvolvement * 0.1);
+    return { thread, score };
+  });
+}
+
+// ── Knowledge asymmetry analysis ────────────────────────────────────────────
+// Detects dramatic information gaps using structural signals, not hardcoded types.
+type KnowledgeOpportunity = {
+  holderName: string;
+  ignorantName: string;
+  content: string;
+  dramaticWeight: number;
+};
+
+function analyzeKnowledgeAsymmetries(
+  narrative: NarrativeState,
+  scenes: Scene[],
+): KnowledgeOpportunity[] {
+  const characters = Object.values(narrative.characters);
+  if (characters.length < 2) return [];
+
+  // Build a set of knowledge content per character for fast lookup
+  const charKnowledge = new Map<string, Set<string>>();
+  const charKnowledgeNodes = new Map<string, { content: string; index: number }[]>();
+  for (const c of characters) {
+    const contentSet = new Set(c.knowledge.nodes.map((n) => n.content));
+    charKnowledge.set(c.id, contentSet);
+    charKnowledgeNodes.set(c.id, c.knowledge.nodes.map((n, i) => ({ content: n.content, index: i })));
+  }
+
+  // Count how many characters know each piece of content (exclusivity)
+  const contentHolderCount: Record<string, number> = {};
+  for (const contentSet of charKnowledge.values()) {
+    for (const content of contentSet) {
+      contentHolderCount[content] = (contentHolderCount[content] ?? 0) + 1;
+    }
+  }
+
+  // Build relationship valence lookup
+  const relValence: Record<string, number> = {};
+  for (const r of narrative.relationships) {
+    relValence[`${r.from}→${r.to}`] = r.valence;
+    relValence[`${r.to}→${r.from}`] = r.valence;
+  }
+
+  // Build shared-thread lookup
+  const charThreads = new Map<string, Set<string>>();
+  for (const c of characters) {
+    charThreads.set(c.id, new Set(c.threadIds));
+  }
+
+  const opportunities: KnowledgeOpportunity[] = [];
+
+  // For each pair of characters that share a thread or relationship
+  for (let i = 0; i < characters.length; i++) {
+    for (let j = i + 1; j < characters.length; j++) {
+      const a = characters[i];
+      const b = characters[j];
+
+      // Must share a thread or relationship to be narratively relevant
+      const aThreads = charThreads.get(a.id)!;
+      const bThreads = charThreads.get(b.id)!;
+      const sharedThreads = [...aThreads].filter((t) => bThreads.has(t));
+      const relKey = `${a.id}→${b.id}`;
+      const hasRelationship = relValence[relKey] !== undefined;
+
+      if (sharedThreads.length === 0 && !hasRelationship) continue;
+
+      const aKnows = charKnowledge.get(a.id)!;
+      const bKnows = charKnowledge.get(b.id)!;
+
+      // Find what A knows that B doesn't, and vice versa
+      const checkAsymmetry = (holder: Character, ignorant: Character, holderSet: Set<string>, ignorantSet: Set<string>) => {
+        for (const content of holderSet) {
+          if (ignorantSet.has(content)) continue;
+
+          // Structural weight factors
+          const exclusivity = 1 / Math.max(contentHolderCount[content] ?? 1, 1);
+          const tensionBonus = Math.max(0, -(relValence[`${holder.id}→${ignorant.id}`] ?? 0)) * 0.3;
+          const threadProximity = sharedThreads.length > 0 ? 0.2 : 0;
+
+          const weight = exclusivity * 0.5 + tensionBonus + threadProximity + 0.1;
+
+          if (weight > 0.25) {
+            opportunities.push({
+              holderName: holder.name,
+              ignorantName: ignorant.name,
+              content,
+              dramaticWeight: weight,
+            });
+          }
+        }
+      };
+
+      checkAsymmetry(a, b, aKnows, bKnows);
+      checkAsymmetry(b, a, bKnows, aKnows);
+    }
+  }
+
+  // Sort by dramatic weight, return top opportunities
+  return opportunities.sort((a, b) => b.dramaticWeight - a.dramaticWeight).slice(0, 10);
+}
 
 // ── Composite tension from force snapshot ───────────────────────────────────
 function compositeTension(f: ForceSnapshot): number {
@@ -133,7 +285,7 @@ export function evaluateNarrativeState(
 
   // ── Thread analysis ─────────────────────────────────────────────────────
   const activeThreads = threads.filter((t) => isActive(t.status));
-  const dormantThreads = threads.filter((t) => t.status.toLowerCase() === 'dormant');
+  const dormantThreads = threads.filter((t) => t.status.toLowerCase() === THREAD_ACTIVE_STATUSES[0]);
 
   const threadLastMutated: Record<string, number> = {};
   scenes.forEach((scene, idx) => {
@@ -192,6 +344,16 @@ export function evaluateNarrativeState(
     compositeTension(forceMap[recentWindow[0].id] ?? { stakes: 0, pacing: 0, variety: 0 }) > 0.75 &&
     tensionTrend < -0.15;
 
+  // ── Thread maturity (primed for resolution) ───────────────────────────
+  const maturityScores = computeThreadMaturity(narrative, scenes);
+  const primedThreads = maturityScores.filter(
+    (m) => m.score >= 0.6 && PRIMED_SET.has(m.thread.status.toLowerCase()),
+  );
+
+  // ── Knowledge asymmetries ────────────────────────────────────────────
+  const knowledgeOpportunities = analyzeKnowledgeAsymmetries(narrative, scenes);
+  const hasHighDramaOpportunities = knowledgeOpportunities.length > 0 && knowledgeOpportunities[0].dramaticWeight > 0.4;
+
   // ── Score each cube corner ────────────────────────────────────────────
   const ALL_CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
   const scores: AutoActionWeight[] = [];
@@ -241,6 +403,19 @@ export function evaluateNarrativeState(
     if (dormantThreads.length > 2 && isHighVariety) {
       score += 0.1;
       reasons.push(`${dormantThreads.length} dormant threads — variety can surface them`);
+    }
+
+    // Primed threads → boost high-stakes resolution corners for payoff
+    if (primedThreads.length > 0 && isHighStakes) {
+      const boost = Math.min(0.35, primedThreads.length * 0.12);
+      score += boost;
+      reasons.push(`${primedThreads.length} thread(s) primed for resolution`);
+    }
+
+    // Knowledge asymmetries → boost revelation corners (high-variety + high-stakes)
+    if (hasHighDramaOpportunities && (isHighVariety || isHighStakes)) {
+      score += 0.2;
+      reasons.push('knowledge asymmetries create revelation opportunities');
     }
 
     // ── 4. Tension management ─────────────────────────────────────────
@@ -364,6 +539,12 @@ export function buildActionDirective(
     ? `\nStagnant threads needing attention: ${stagnantThreads.map((t) => t.description).join(', ')}.`
     : '';
 
+  // Thread maturity clause — tell LLM which threads are ripe for payoff
+  const maturityClause = buildThreadMaturityClause(narrative, scenes, corner.forces.stakes > 0);
+
+  // Knowledge asymmetry clause — tell LLM about dramatic information gaps
+  const asymmetryClause = buildKnowledgeAsymmetryClause(narrative, scenes, corner.forces.variety > 0 || corner.forces.stakes > 0);
+
   // Corner-specific directives
   const cornerDirectives: Record<CubeCornerKey, string> = {
     HHH: `PEAK CRISIS — ${corner.description} Push all forces to maximum. Multiple threads should collide simultaneously. This is the most intense, chaotic moment of the narrative.${threadContext}`,
@@ -376,7 +557,47 @@ export function buildActionDirective(
     LLL: `REST — ${corner.description} Breathing room after intensity. Focus on recovery, character relationships, and subtle foreshadowing. Plant seeds for future conflict.`,
   };
 
-  return `${cornerDirectives[action]}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;
+  return `${cornerDirectives[action]}${maturityClause}${asymmetryClause}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;
+}
+
+/** Build a clause listing threads that are mature and primed for resolution */
+function buildThreadMaturityClause(
+  narrative: NarrativeState,
+  scenes: Scene[],
+  isHighStakesCorner: boolean,
+): string {
+  if (!isHighStakesCorner) return '';
+  const maturityScores = computeThreadMaturity(narrative, scenes);
+  const primed = maturityScores.filter(
+    (m) => m.score >= 0.6 && PRIMED_SET.has(m.thread.status.toLowerCase()),
+  );
+  if (primed.length === 0) return '';
+
+  const lines = primed.slice(0, 3).map((m) => {
+    const anchors = m.thread.anchors
+      .map((a) => a.type === 'character' ? narrative.characters[a.id]?.name : narrative.locations[a.id]?.name)
+      .filter(Boolean)
+      .join(', ');
+    return `- "${m.thread.description}" [${m.thread.status}, maturity: ${(m.score * 100).toFixed(0)}%] — anchored to: ${anchors || 'unknown'}`;
+  });
+  return `\nTHREAD RESOLUTION PRIORITY — these threads have been building for a long time and are narratively ripe. Write scenes that bring them to a decisive conclusion. Use threadMutations to transition them to a terminal status ("resolved", "done", "subverted", "closed", or "abandoned"):\n${lines.join('\n')}`;
+}
+
+/** Build a clause surfacing dramatic knowledge gaps between characters */
+function buildKnowledgeAsymmetryClause(
+  narrative: NarrativeState,
+  scenes: Scene[],
+  isRelevantCorner: boolean,
+): string {
+  if (!isRelevantCorner) return '';
+  const opportunities = analyzeKnowledgeAsymmetries(narrative, scenes);
+  const top = opportunities.filter((o) => o.dramaticWeight > 0.3).slice(0, 3);
+  if (top.length === 0) return '';
+
+  const lines = top.map(
+    (o) => `- ${o.holderName} knows "${o.content}" but ${o.ignorantName} does not — write a scene where this gap drives conflict, confrontation, or revelation`,
+  );
+  return `\nKNOWLEDGE ASYMMETRIES — these information gaps create dramatic opportunities. Use them to generate scenes where characters discover hidden truths, confront deceptions, or act on incomplete information:\n${lines.join('\n')}`;
 }
 
 /** Build a clause that references unused world-build elements to weave into arcs */

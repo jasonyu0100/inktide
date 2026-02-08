@@ -19,7 +19,7 @@ export default function FloatingPalette() {
         {/* Prev */}
         <button
           type="button"
-          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/[0.06] rounded-md transition-colors"
+          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
           onClick={() => dispatch({ type: 'PREV_SCENE' })}
           aria-label="Previous scene"
         >
@@ -29,7 +29,7 @@ export default function FloatingPalette() {
         {/* Next */}
         <button
           type="button"
-          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/[0.06] rounded-md transition-colors"
+          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
           onClick={() => dispatch({ type: 'NEXT_SCENE' })}
           aria-label="Next scene"
         >
@@ -50,7 +50,7 @@ export default function FloatingPalette() {
         {/* Generate */}
         <button
           type="button"
-          className="text-xs font-semibold text-text-primary bg-white/[0.08] px-2 py-1 rounded-md hover:bg-white/[0.12] transition-colors uppercase tracking-wider"
+          className="text-xs font-semibold text-pacing bg-pacing/10 px-2 py-1 rounded-md hover:bg-pacing/20 transition-colors uppercase tracking-wider"
           onClick={() => {
             if (access.userApiKeys && !access.hasOpenRouterKey) {
               window.dispatchEvent(new Event('open-api-keys'));
@@ -65,7 +65,7 @@ export default function FloatingPalette() {
         {/* Auto */}
         <button
           type="button"
-          className="text-xs font-semibold text-text-secondary bg-white/[0.08] px-2 py-1 rounded-md hover:bg-white/[0.12] hover:text-text-primary transition-colors uppercase tracking-wider"
+          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
           onClick={() => {
             if (access.userApiKeys && !access.hasOpenRouterKey) {
               window.dispatchEvent(new Event('open-api-keys'));
@@ -74,7 +74,12 @@ export default function FloatingPalette() {
             window.dispatchEvent(new CustomEvent('open-auto-settings'));
           }}
         >
-          Auto
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M1 8a7 7 0 0 1 12.5-4.3" />
+            <path d="M15 8a7 7 0 0 1-12.5 4.3" />
+            <polyline points="13.5 1 13.5 4 10.5 4" />
+            <polyline points="2.5 15 2.5 12 5.5 12" />
+          </svg>
         </button>
       </div>
     </div>

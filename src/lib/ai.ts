@@ -187,7 +187,9 @@ VALID IDs (you MUST use ONLY these exact IDs — do NOT invent new ones):
 
 const SYSTEM_PROMPT = `You are a narrative simulation engine that generates structured scene data for interactive storytelling.
 You must ALWAYS respond with valid JSON only — no markdown, no explanation, no code fences.
-Follow the exact schema requested in each prompt.`;
+Follow the exact schema requested in each prompt.
+
+CRITICAL: When given a FORCE BALANCE CORRECTION or STORY TRAJECTORY, these override the patterns in the scene history. Do NOT continue escalating conflict just because previous scenes were intense. Great stories breathe — they alternate intensity with quiet. If the directive says to write calm, low-consequence scenes, do it.`;
 
 /** Clean common LLM JSON quirks: code fences, trailing commas, single-quoted keys */
 function cleanJson(raw: string): string {
@@ -313,14 +315,21 @@ export async function generateScenes(
   const prompt = `${ctx}
 
 ${arcInstruction}
-The arc should follow this direction: ${direction}
+DIRECTION (this takes priority over any patterns in the scene history below):
+${direction}
 
 The scenes must continue from the current point in the story (after scene index ${currentIndex + 1}).
 
 ${cubeGoal ? `
 NARRATIVE CUBE GOAL — steer this arc toward the "${NARRATIVE_CUBE[cubeGoal].name}" state:
 ${NARRATIVE_CUBE[cubeGoal].description}
-Shape the events, pacing, thread mutations, and scene rhythm to produce this narrative feel. The scenes should progressively move toward this state — don't force it mechanically.` : ''}
+
+FORCE TARGETS for this arc (these override any patterns you see in the scene history):
+- Stakes: ${NARRATIVE_CUBE[cubeGoal].forces.stakes > 0 ? 'HIGH — drive threads toward critical/threatened/terminal statuses, create negative relationship shifts (betrayals, confrontations, fractures). Consequences should be real and irreversible.' : 'LOW — keep threads in dormant/surfacing statuses, build positive or neutral relationships. No existential danger, no thread escalation. Characters explore, bond, recover, train.'}
+- Pacing: ${NARRATIVE_CUBE[cubeGoal].forces.pacing > 0 ? 'FAST — many thread mutations, knowledge mutations, and relationship changes per scene. Multiple events, rapid developments.' : 'SLOW — few mutations per scene. Contemplative, dialogue-heavy, characters processing/reflecting. Let scenes breathe.'}
+- Variety: ${NARRATIVE_CUBE[cubeGoal].forces.variety > 0 ? 'HIGH — use new/rarely-seen locations and characters. Bring in fresh faces, unexplored settings.' : 'LOW — familiar settings, established cast, deepening existing dynamics. Routine and grounding.'}
+
+DO NOT continue the momentum of previous scenes. If the story has been intense for many scenes and this goal says LOW stakes, you MUST write genuinely calm scenes — keep threads dormant, build friendships, explore without danger. Break the pattern.` : ''}
 
 Return JSON with this exact structure:
 {
@@ -335,14 +344,12 @@ Return JSON with this exact structure:
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
       "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-      "stakes": 50,
       "summary": "REQUIRED: 2-4 sentence narrative summary written in vivid, character-driven prose. Describe what happens, who is involved, and the emotional stakes."
     }
   ]
 }
 
 Rules:
-- "stakes" is a number from 0 to 100 indicating how much is at risk in this scene. 0 = nothing at stake, casual/safe. 50 = moderate consequences. 100 = existential, life-or-death, irreversible.
 - EVERY scene MUST have a non-empty "summary" field. This is critical — scenes without summaries are broken. Write 2-4 vivid sentences describing the scene's events, characters, and emotional stakes.
 - Use ONLY existing character IDs and location IDs from the narrative context above
 - Thread statuses follow a lifecycle. ${THREAD_LIFECYCLE_DOC}
@@ -743,7 +750,6 @@ Return JSON with this exact structure:
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "surfacing"}],
       "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [],
-      "stakes": 50,
       "summary": "REQUIRED: 2-4 sentence vivid narrative summary of the scene"
     }
   ],
@@ -751,8 +757,6 @@ Return JSON with this exact structure:
     {"id": "ARC-01", "name": "string", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
   ]
 }
-
-- "stakes" is a number from 0 to 100 indicating how much is at risk in this scene. 0 = nothing at stake, casual/safe. 50 = moderate consequences. 100 = existential, life-or-death, irreversible.
 
 Generate a world with enough CRITICAL MASS to sustain a long-running story:
 - 6-10 characters: at least 3 anchors, 3-4 recurring, 1-2 transient. Each with 4-8 knowledge nodes and 3-6 edges. Characters should have secrets, goals, beliefs, and tactical knowledge — not just surface-level facts.

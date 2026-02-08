@@ -1,5 +1,5 @@
 import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner } from '@/types/narrative';
-import { NARRATIVE_CUBE } from '@/types/narrative';
+import { NARRATIVE_CUBE, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
 
 // ── Sequential ID generation ─────────────────────────────────────────────────
 
@@ -146,6 +146,55 @@ function minMaxNormalize(values: number[]): number[] {
 }
 
 /**
+ * Compute raw stakes for a scene structurally — no LLM subjectivity.
+ *
+ * Signals:
+ * - Thread mutation destination status (critical/threatened = high, dormant = low)
+ * - Actual status transitions (change = something consequential happened)
+ * - Terminal transitions (thread ending = irreversible, highest stakes)
+ * - Negative relationship shifts (conflict, betrayal)
+ */
+const STATUS_STAKES_WEIGHT: Record<string, number> = {
+  dormant: 0,
+  surfacing: 5,
+  escalating: 15,
+  fractured: 30,
+  converging: 20,
+  critical: 40,
+  threatened: 45,
+  // Terminal statuses — the thread is ending, something decisive happened
+  resolved: 25,
+  done: 10,
+  subverted: 35,
+  closed: 15,
+  abandoned: 5,
+};
+const TERMINAL_STATUS_SET = new Set<string>(THREAD_TERMINAL_STATUSES.map((s) => s.toLowerCase()));
+
+function computeRawStakes(scene: Scene): number {
+  let score = 0;
+
+  for (const tm of scene.threadMutations) {
+    // Weight based on how severe the destination status is
+    score += STATUS_STAKES_WEIGHT[tm.to.toLowerCase()] ?? 10;
+    // Bonus for actual transitions (something changed)
+    if (tm.from.toLowerCase() !== tm.to.toLowerCase()) {
+      score += 10;
+      // Extra bonus for terminal transitions — irreversible, high consequence
+      if (TERMINAL_STATUS_SET.has(tm.to.toLowerCase())) score += 15;
+    }
+  }
+
+  // Relationship swings = consequential moments (conflict, alliance, betrayal, reconciliation)
+  // valenceDelta is ±0.1–0.5; at 100x a typical ±0.2 shift ≈ 20 pts, matching mid-tier thread mutations
+  for (const rm of scene.relationshipMutations) {
+    score += Math.abs(rm.valenceDelta) * 100;
+  }
+
+  return score;
+}
+
+/**
  * Compute raw pacing for a scene: total number of mutations (more = faster pace).
  */
 function rawPacing(scene: Scene): number {
@@ -170,7 +219,7 @@ function rawVariety(scene: Scene, charUsage: Record<string, number>, locUsage: R
 /**
  * Compute ForceSnapshots for a batch of scenes using min-max normalization.
  *
- * - **Stakes**: AI-provided per scene (0-100 raw), normalized to [-1, +1]
+ * - **Stakes**: computed from thread mutation severity and relationship conflict, normalized to [-1, +1]
  * - **Pacing**: total mutation count per scene, normalized to [-1, +1]
  * - **Variety**: inversely proportional to character/location usage frequency, normalized to [-1, +1]
  *
@@ -198,7 +247,7 @@ export function computeForceSnapshots(
   const rawVarieties: number[] = [];
 
   for (const scene of scenes) {
-    rawStakes.push(scene.stakes ?? 50);
+    rawStakes.push(computeRawStakes(scene));
     rawPacings.push(rawPacing(scene));
     rawVarieties.push(rawVariety(scene, charUsage, locUsage));
     // Update usage for subsequent scenes

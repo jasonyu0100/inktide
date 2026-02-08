@@ -18,6 +18,8 @@ const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
 const ACTIVE_SET = new Set<string>(THREAD_ACTIVE_STATUSES.filter((s) => s !== 'dormant'));
 const PRIMED_SET = new Set<string>(THREAD_PRIMED_STATUSES);
 
+const FORCE_KEYS = ['stakes', 'pacing', 'variety'] as const;
+
 function isTerminal(status: string): boolean {
   return TERMINAL_SET.has(status.toLowerCase());
 }
@@ -199,6 +201,132 @@ function compositeTension(f: ForceSnapshot): number {
   return f.stakes * 0.4 + f.pacing * 0.3 + f.variety * 0.3;
 }
 
+// ── Story trajectory ────────────────────────────────────────────────────────
+// Maps story progress (0–1) to a dramatic phase that shapes corner selection.
+// The key insight: human-written stories have SHAPE — they breathe, with stakes
+// and pacing oscillating across the zero line. Variety naturally declines as
+// the story narrows focus, but stakes and pacing MUST dip into negative
+// territory regularly to create contrast and quiet moments.
+
+export type StoryPhase = 'setup' | 'rising' | 'midpoint' | 'escalation' | 'climax' | 'resolution';
+
+type PhaseDefinition = {
+  name: StoryPhase;
+  range: [number, number];
+  description: string;
+  /** Scoring boost per corner — positive boosts, negative penalizes */
+  cornerBias: Partial<Record<CubeCornerKey, number>>;
+};
+
+const STORY_PHASES: PhaseDefinition[] = [
+  {
+    name: 'setup',
+    range: [0, 0.15],
+    description: 'Establishing the world and characters. Stakes should be low, pacing moderate, variety high. Plant seeds — do not harvest them.',
+    cornerBias: {
+      LHH: 0.35, LLH: 0.3, LHL: 0.2, LLL: 0.1,  // exploration, discovery, routine
+      HHH: -0.35, HHL: -0.3, HLH: -0.15,          // way too early for crisis
+    },
+  },
+  {
+    name: 'rising',
+    range: [0.15, 0.35],
+    description: 'Complications emerge and stakes begin to rise, but the story still breathes. Alternate tension-building scenes with quieter character moments. Stakes should cross zero — some high, some low.',
+    cornerBias: {
+      HLH: 0.2, LHH: 0.15, HLL: 0.15, LHL: 0.1, LLL: 0.1,  // slow burn + exploration + breathers
+      HHH: -0.25, HHL: -0.1,                                   // don't peak yet
+    },
+  },
+  {
+    name: 'midpoint',
+    range: [0.35, 0.50],
+    description: 'A significant shift — a revelation, betrayal, or escalation that redefines the conflict. One intense arc, then pull back to absorb the impact. Stakes and pacing should spike then dip.',
+    cornerBias: {
+      HHL: 0.25, HLH: 0.15, LLL: 0.1,  // climactic moment then tension + recovery
+      LLH: -0.1,                          // shouldn't wander aimlessly
+    },
+  },
+  {
+    name: 'escalation',
+    range: [0.50, 0.75],
+    description: 'Building toward the climax. Stakes trend upward but MUST still include valleys — quiet scenes between intense ones. Pacing should alternate between bursts and pauses.',
+    cornerBias: {
+      HHL: 0.2, HLH: 0.2, HHH: 0.1, LLL: 0.1, HLL: 0.1,  // tension building + mandatory breathers
+      LLH: -0.15,                                             // less wandering
+    },
+  },
+  {
+    name: 'climax',
+    range: [0.75, 0.90],
+    description: 'Peak intensity — the story\'s most consequential moments. Even here, include at least one quiet scene between high-intensity arcs for contrast. Without valleys, peaks have no impact.',
+    cornerBias: {
+      HHH: 0.3, HHL: 0.3, HLH: 0.15,   // maximum intensity
+      LLL: 0.05,                           // even climax needs a breath
+      LLH: -0.25, LHL: -0.15,             // less routine exploration
+    },
+  },
+  {
+    name: 'resolution',
+    range: [0.90, 1.0],
+    description: 'Wind down and resolve remaining threads. Stakes and pacing should drop — the storm has passed. Focus on aftermath, character growth, and closure.',
+    cornerBias: {
+      LLL: 0.35, LLH: 0.2, LHL: 0.2, HLL: 0.1,   // recovery and resolution
+      HHH: -0.35, HHL: -0.25, LHH: -0.1,           // don't restart intensity
+    },
+  },
+];
+
+/** Manual-stop mode cycles: every CYCLE_LENGTH arcs is one full dramatic "season" */
+const MANUAL_STOP_CYCLE_LENGTH = 25;
+
+/**
+ * Compute story progress as 0–1 based on end conditions.
+ * For multiple conditions, uses the one closest to completion.
+ * For manual_stop, creates a repeating seasonal cycle.
+ */
+export function computeStoryProgress(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  config: AutoConfig,
+  startingSceneCount: number,
+  startingArcCount: number,
+): number {
+  const hasManualOnly = config.endConditions.length === 1 && config.endConditions[0].type === 'manual_stop';
+
+  if (hasManualOnly || config.endConditions.length === 0) {
+    // Repeating seasonal cycle for open-ended stories
+    const arcCount = Object.keys(narrative.arcs).length - startingArcCount;
+    return (arcCount % MANUAL_STOP_CYCLE_LENGTH) / MANUAL_STOP_CYCLE_LENGTH;
+  }
+
+  let maxProgress = 0;
+  for (const cond of config.endConditions) {
+    let progress = 0;
+    switch (cond.type) {
+      case 'scene_count': {
+        const scenesThisRun = resolvedKeys.length - startingSceneCount;
+        progress = Math.min(1, scenesThisRun / Math.max(cond.target, 1));
+        break;
+      }
+      case 'arc_count': {
+        const arcsThisRun = Object.keys(narrative.arcs).length - startingArcCount;
+        progress = Math.min(1, arcsThisRun / Math.max(cond.target, 1));
+        break;
+      }
+    }
+    maxProgress = Math.max(maxProgress, progress);
+  }
+  return maxProgress;
+}
+
+/** Get the current story phase based on progress */
+export function getStoryPhase(progress: number): PhaseDefinition {
+  for (const phase of STORY_PHASES) {
+    if (progress >= phase.range[0] && progress < phase.range[1]) return phase;
+  }
+  return STORY_PHASES[STORY_PHASES.length - 1]; // resolution
+}
+
 // ── Euclidean distance between two force snapshots ──────────────────────────
 function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
   const ds = a.stakes - b.stakes;
@@ -264,18 +392,91 @@ export function isWorldBuildDue(
   return arcsSinceLastWorldBuild >= config.worldBuildInterval;
 }
 
+// ── Per-force saturation detection ───────────────────────────────────────────
+// Detects when individual forces are pinned at extremes, which composite
+// metrics like avgTension mask (e.g. stakes=1 + variety=-1 = "moderate").
+type ForceSaturation = { saturated: boolean; direction: number };
+
+function detectForceSaturation(
+  scenes: Scene[],
+  forceMap: Record<string, ForceSnapshot>,
+): Record<'stakes' | 'pacing' | 'variety', ForceSaturation> {
+  const result: Record<'stakes' | 'pacing' | 'variety', ForceSaturation> = {
+    stakes: { saturated: false, direction: 0 },
+    pacing: { saturated: false, direction: 0 },
+    variety: { saturated: false, direction: 0 },
+  };
+  const window = scenes.slice(-6);
+  if (window.length < 4) return result;
+
+  for (const key of FORCE_KEYS) {
+    const values = window.map((s) => forceMap[s.id]?.[key] ?? 0);
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    const range = Math.max(...values) - Math.min(...values);
+    const allHigh = values.every((v) => v > 0.7);
+    const allLow = values.every((v) => v < -0.7);
+    const stagnant = range < 0.15 && window.length >= 5;
+
+    if (allHigh) {
+      result[key] = { saturated: true, direction: 1 };
+    } else if (allLow) {
+      result[key] = { saturated: true, direction: -1 };
+    } else if (stagnant && (avg > 0.5 || avg < -0.5)) {
+      result[key] = { saturated: true, direction: avg > 0 ? 1 : -1 };
+    }
+  }
+  return result;
+}
+
+// ── Corner selection history tracking ────────────────────────────────────────
+// Detect repetitive corner picks from the auto run log stored in arc metadata.
+function detectCornerRepetition(
+  scenes: Scene[],
+  forceMap: Record<string, ForceSnapshot>,
+): Record<CubeCornerKey, number> {
+  const recentCorners: CubeCornerKey[] = [];
+  const recentScenes = scenes.slice(-20);
+
+  // Infer corners from force snapshots of arc-ending scenes
+  const arcLastScene = new Map<string, Scene>();
+  for (const s of recentScenes) {
+    arcLastScene.set(s.arcId, s);
+  }
+  for (const s of arcLastScene.values()) {
+    const f = forceMap[s.id];
+    if (f) recentCorners.push(detectCubeCorner(f).key as CubeCornerKey);
+  }
+
+  // Count occurrences of each corner in the last N arcs
+  const counts: Record<string, number> = {};
+  for (const c of recentCorners.slice(-6)) {
+    counts[c] = (counts[c] ?? 0) + 1;
+  }
+  return counts as Record<CubeCornerKey, number>;
+}
+
 // ── Decision engine ─────────────────────────────────────────────────────────
 // Scores all 8 cube corners as possible narrative directions.
+// Architecture: two-phase scoring.
+//   Phase 1: Hard constraints — eliminate corners that push saturated forces further.
+//   Phase 2: Soft signals — score remaining corners by narrative needs.
+// This prevents soft signals from outvoting balance corrections.
 export function evaluateNarrativeState(
   narrative: NarrativeState,
   resolvedKeys: string[],
   _currentIndex: number,
   config: AutoConfig,
-): AutoActionWeight[] {
+  startingSceneCount = 0,
+  startingArcCount = 0,
+): { weights: AutoActionWeight[]; directiveCtx: DirectiveContext } {
   const scenes = resolvedKeys.map((k) => narrative.scenes[k]).filter(Boolean).filter(isScene) as Scene[];
   const threads = Object.values(narrative.threads);
   const characters = Object.values(narrative.characters);
   const objectiveMult = OBJECTIVE_MULTIPLIERS[config.objective] ?? OBJECTIVE_MULTIPLIERS.explore_and_resolve;
+
+  // ── Story trajectory ──────────────────────────────────────────────────
+  const storyProgress = computeStoryProgress(narrative, resolvedKeys, config, startingSceneCount, startingArcCount);
+  const storyPhase = getStoryPhase(storyProgress);
 
   // ── Current force state ─────────────────────────────────────────────────
   const forceMap = computeForceSnapshots(scenes);
@@ -299,17 +500,6 @@ export function evaluateNarrativeState(
     return (scenes.length - 1 - lastMut) >= config.threadStagnationThreshold;
   });
 
-  // ── Tension curve analysis ──────────────────────────────────────────────
-  const recentWindow = scenes.slice(-5);
-  const avgTension = recentWindow.length > 0
-    ? recentWindow.reduce((sum, s) => sum + compositeTension(forceMap[s.id] ?? { stakes: 0, pacing: 0, variety: 0 }), 0) / recentWindow.length
-    : 0;
-
-  const tensionTrend = recentWindow.length >= 3
-    ? compositeTension(forceMap[recentWindow[recentWindow.length - 1].id] ?? { stakes: 0, pacing: 0, variety: 0 }) -
-      compositeTension(forceMap[recentWindow[0].id] ?? { stakes: 0, pacing: 0, variety: 0 })
-    : 0;
-
   // ── Character coverage ──────────────────────────────────────────────────
   const anchorCharacters = characters.filter((c) => c.role === 'anchor');
   const recentSceneWindow = scenes.slice(-config.minScenesBetweenCharacterFocus);
@@ -318,31 +508,12 @@ export function evaluateNarrativeState(
     ? anchorCharacters.filter((c) => !recentParticipants.has(c.id))
     : [];
 
-  // ── Force drift detection ──────────────────────────────────────────────
-  const driftWindow = scenes.slice(-4);
-  let upwardDriftCount = 0;
-  if (driftWindow.length >= 3) {
-    for (const key of ['stakes', 'pacing', 'variety'] as const) {
-      let rising = true;
-      for (let i = 1; i < driftWindow.length; i++) {
-        if ((forceMap[driftWindow[i].id]?.[key] ?? 0) < (forceMap[driftWindow[i - 1].id]?.[key] ?? 0)) {
-          rising = false;
-          break;
-        }
-      }
-      if (rising) upwardDriftCount++;
-    }
-  }
-  const hasForceDrift = upwardDriftCount >= 2;
-
-  // ── High-force saturation detection ────────────────────────────────────
-  const forceAvg = (currentForce.stakes + currentForce.pacing + currentForce.variety) / 3;
-  const forcesHigh = forceAvg > 0.7;
-
   // ── Post-climax detection ─────────────────────────────────────────────
-  const isPostClimax = recentWindow.length >= 3 &&
-    compositeTension(forceMap[recentWindow[0].id] ?? { stakes: 0, pacing: 0, variety: 0 }) > 0.75 &&
-    tensionTrend < -0.15;
+  const recentWindow = scenes.slice(-5);
+  const recentForces = recentWindow.map((s) => forceMap[s.id] ?? { stakes: 0, pacing: 0, variety: 0 });
+  const isPostClimax = recentForces.length >= 3 &&
+    compositeTension(recentForces[0]) > 0.75 &&
+    compositeTension(recentForces[recentForces.length - 1]) - compositeTension(recentForces[0]) < -0.15;
 
   // ── Thread maturity (primed for resolution) ───────────────────────────
   const maturityScores = computeThreadMaturity(narrative, scenes);
@@ -354,18 +525,62 @@ export function evaluateNarrativeState(
   const knowledgeOpportunities = analyzeKnowledgeAsymmetries(narrative, scenes);
   const hasHighDramaOpportunities = knowledgeOpportunities.length > 0 && knowledgeOpportunities[0].dramaticWeight > 0.4;
 
-  // ── Score each cube corner ────────────────────────────────────────────
+  // ── PHASE 1: Hard constraints — force saturation & corner repetition ──
+  const forceSaturation = detectForceSaturation(scenes, forceMap);
+  const saturatedForces = FORCE_KEYS.filter((k) => forceSaturation[k].saturated);
+  const cornerRepetition = detectCornerRepetition(scenes, forceMap);
+
+  // Build eligible set: eliminate corners that push ALL saturated forces deeper
   const ALL_CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
+  const eligibleCorners = new Set<CubeCornerKey>(ALL_CORNERS);
+
+  if (saturatedForces.length > 0) {
+    for (const key of ALL_CORNERS) {
+      const corner = NARRATIVE_CUBE[key];
+      // Count how many saturated forces this corner pushes in the wrong direction
+      let wrongDirection = 0;
+      let rightDirection = 0;
+      for (const fk of saturatedForces) {
+        const cornerSign = corner.forces[fk] > 0 ? 1 : -1;
+        if (cornerSign === forceSaturation[fk].direction) wrongDirection++;
+        else rightDirection++;
+      }
+      // Eliminate if it corrects ZERO saturated forces (all wrong or neutral)
+      if (wrongDirection > 0 && rightDirection === 0) {
+        eligibleCorners.delete(key);
+      }
+    }
+    // Safety: never eliminate all corners
+    if (eligibleCorners.size === 0) {
+      for (const key of ALL_CORNERS) eligibleCorners.add(key);
+    }
+  }
+
+  // ── PHASE 2: Score eligible corners ───────────────────────────────────
   const scores: AutoActionWeight[] = [];
 
   for (const key of ALL_CORNERS) {
     const corner = NARRATIVE_CUBE[key];
-    let score = 0.5; // base score
+    const isHighStakes = corner.forces.stakes > 0;
+    const isHighPacing = corner.forces.pacing > 0;
+    const isLowPacing = corner.forces.pacing < 0;
+    const isHighVariety = corner.forces.variety > 0;
+
+    // Eliminated corners get a floor score — they can only win if nothing else works
+    if (!eligibleCorners.has(key)) {
+      scores.push({
+        action: key,
+        score: 0.05,
+        reason: `eliminated: pushes saturated force(s) ${saturatedForces.join(', ')} further`,
+      });
+      continue;
+    }
+
+    let score = 0.5;
     const reasons: string[] = [];
 
-    // ── 1. Distance bonus: prefer corners that move the narrative ──────
+    // ── 1. Distance from current state ──────────────────────────────────
     const dist = forceDistance(currentForce, corner.forces);
-    // Sweet spot: moderate distance (0.8–1.5) is ideal. Too close = stagnant, too far = jarring
     if (dist < 0.3) {
       score -= 0.2;
       reasons.push('too close to current state');
@@ -373,73 +588,82 @@ export function evaluateNarrativeState(
       score += 0.15;
     }
 
-    // ── 2. Avoid the current corner (narrative variety) ────────────────
+    // ── 2. Avoid current corner + penalize repetition ───────────────────
     if (key === currentCorner.key) {
       score -= 0.3;
       reasons.push('already in this corner');
     }
+    const recentCount = cornerRepetition[key] ?? 0;
+    if (recentCount >= 2) {
+      score -= 0.15 * (recentCount - 1);
+      reasons.push(`picked ${recentCount}x in recent arcs — needs variety`);
+    }
 
-    // ── 3. Thread-driven signals ──────────────────────────────────────
-    const isHighStakes = corner.forces.stakes > 0;
-    const isLowStakes = corner.forces.stakes < 0;
-    const isHighPacing = corner.forces.pacing > 0;
-    const isLowPacing = corner.forces.pacing < 0;
-    const isHighVariety = corner.forces.variety > 0;
-    const isLowVariety = corner.forces.variety < 0;
+    // ── 3. Thread-driven signals ────────────────────────────────────────
+    // These are now GATED by saturation: thread signals that push in the
+    // same direction as a saturated force are suppressed.
+    const stakesNotSaturatedHigh = !forceSaturation.stakes.saturated || forceSaturation.stakes.direction !== 1;
+    const pacingNotSaturatedLow = !forceSaturation.pacing.saturated || forceSaturation.pacing.direction !== -1;
 
-    // Too many active threads → favor high-stakes corners that force resolution
-    if (activeThreads.length > config.maxActiveThreads && isHighStakes) {
+    // Too many active threads → favor resolution, but NOT if stakes already saturated high
+    if (activeThreads.length > config.maxActiveThreads && isHighStakes && stakesNotSaturatedHigh) {
       score += 0.2;
-      reasons.push(`${activeThreads.length} active threads need stakes`);
-    }
-
-    // Stagnant threads → favor high-pacing corners to shake things up
-    if (stagnantThreads.length > 0 && isHighPacing) {
+      reasons.push(`${activeThreads.length} active threads need resolution`);
+    } else if (activeThreads.length > config.maxActiveThreads && isHighPacing) {
+      // Redirect thread pressure to pacing instead when stakes are saturated
       score += 0.15;
-      reasons.push(`${stagnantThreads.length} stagnant threads need pacing`);
+      reasons.push(`${activeThreads.length} active threads — pacing can advance them`);
     }
 
-    // Dormant threads → high-variety corners can surface them
+    // Stagnant threads → pacing, but gate if pacing is already saturated high
+    if (stagnantThreads.length > 0 && isHighPacing && pacingNotSaturatedLow) {
+      score += 0.15;
+      reasons.push(`${stagnantThreads.length} stagnant threads need movement`);
+    }
+
+    // Dormant threads → variety
     if (dormantThreads.length > 2 && isHighVariety) {
       score += 0.1;
       reasons.push(`${dormantThreads.length} dormant threads — variety can surface them`);
     }
 
-    // Primed threads → boost high-stakes resolution corners for payoff
-    if (primedThreads.length > 0 && isHighStakes) {
+    // Primed threads → resolution, gated by stakes saturation
+    if (primedThreads.length > 0 && isHighStakes && stakesNotSaturatedHigh) {
       const boost = Math.min(0.35, primedThreads.length * 0.12);
       score += boost;
       reasons.push(`${primedThreads.length} thread(s) primed for resolution`);
+    } else if (primedThreads.length > 0 && isHighPacing) {
+      // Can still resolve through pacing-driven payoff
+      score += 0.1;
+      reasons.push(`${primedThreads.length} primed thread(s) — pacing can deliver payoff`);
     }
 
-    // Knowledge asymmetries → boost revelation corners (high-variety + high-stakes)
-    if (hasHighDramaOpportunities && (isHighVariety || isHighStakes)) {
-      score += 0.2;
-      reasons.push('knowledge asymmetries create revelation opportunities');
+    // Knowledge asymmetries → revelation, favor variety over stakes when stakes saturated
+    if (hasHighDramaOpportunities) {
+      if (isHighVariety) {
+        score += 0.2;
+        reasons.push('knowledge asymmetries — variety creates revelation opportunities');
+      } else if (isHighStakes && stakesNotSaturatedHigh) {
+        score += 0.15;
+        reasons.push('knowledge asymmetries — stakes can force confrontation');
+      }
     }
 
-    // ── 4. Tension management ─────────────────────────────────────────
-    if (avgTension > 0.65 && isLowStakes && isLowPacing) {
-      score += 0.3;
-      reasons.push(`tension high (${avgTension.toFixed(2)}) — needs relief`);
+    // ── 4. Per-force tension management (replaces composite tension) ────
+    // Use individual force values, not composite, to avoid masking
+    for (const fk of FORCE_KEYS) {
+      const sat = forceSaturation[fk];
+      if (!sat.saturated) continue;
+
+      const cornerSign = corner.forces[fk] > 0 ? 1 : -1;
+      if (cornerSign !== sat.direction) {
+        // Corner corrects this saturated force
+        score += 0.25;
+        reasons.push(`corrects ${fk} (saturated ${sat.direction > 0 ? 'high' : 'low'})`);
+      }
     }
 
-    if (avgTension < 0.25 && isHighStakes) {
-      score += 0.25;
-      reasons.push(`tension low (${avgTension.toFixed(2)}) — needs stakes`);
-    }
-
-    // ── 5. Force drift correction ─────────────────────────────────────
-    if (hasForceDrift && isLowStakes && isLowPacing) {
-      score += 0.3;
-      reasons.push('force drift — suppressing with low-energy corner');
-    }
-    if (forcesHigh && isHighStakes && isHighPacing) {
-      score *= 0.4;
-      reasons.push('forces already saturated');
-    }
-
-    // ── 6. Post-climax: strongly favor rest/recovery corners ──────────
+    // ── 5. Post-climax: strongly favor recovery corners ─────────────────
     if (isPostClimax) {
       if (key === 'LLL' || key === 'LLH' || key === 'LHL') {
         score += 0.4;
@@ -450,14 +674,27 @@ export function evaluateNarrativeState(
       }
     }
 
-    // ── 7. Neglected characters → favor low-pacing introspective corners
-    if (neglectedAnchors.length > 0 && isLowPacing && isLowVariety) {
+    // ── 6. Neglected characters ─────────────────────────────────────────
+    if (neglectedAnchors.length > 0 && isLowPacing) {
       score += 0.1;
       reasons.push(`${neglectedAnchors.length} neglected anchors — good for character focus`);
     }
 
-    // ── 8. Apply objective multiplier ─────────────────────────────────
-    score *= objectiveMult[key];
+    // ── 7. Story trajectory — phase-based corner shaping ────────────────
+    // This is what gives the story macro-shape: setup → rising → midpoint
+    // → escalation → climax → resolution. Without it, every arc is
+    // selected independently and the story has no dramatic arc.
+    const phaseBias = storyPhase.cornerBias[key] ?? 0;
+    if (phaseBias !== 0) {
+      score += phaseBias;
+      reasons.push(`${storyPhase.name} phase (${Math.round(storyProgress * 100)}%)`);
+    }
+
+    // ── 8. Apply objective multiplier ───────────────────────────────────
+    // Dampened when saturation is active — objective shouldn't override balance
+    const dampening = saturatedForces.length > 0 ? 0.5 : 1.0;
+    const mult = 1 + (objectiveMult[key] - 1) * dampening;
+    score *= mult;
 
     scores.push({
       action: key,
@@ -466,7 +703,18 @@ export function evaluateNarrativeState(
     });
   }
 
-  return scores.sort((a, b) => b.score - a.score);
+  return {
+    weights: scores.sort((a, b) => b.score - a.score),
+    directiveCtx: {
+      scenes,
+      stagnantThreads,
+      primedThreads,
+      knowledgeOpportunities,
+      forceSaturation,
+      storyProgress,
+      storyPhase,
+    },
+  };
 }
 
 /** Pick the scene count for an auto-generated arc based on the target cube corner */
@@ -501,24 +749,25 @@ export function pickCubeGoal(
   return action;
 }
 
+/** Pre-computed analysis passed from evaluateNarrativeState to buildActionDirective */
+export type DirectiveContext = {
+  scenes: Scene[];
+  stagnantThreads: Thread[];
+  primedThreads: ThreadMaturity[];
+  knowledgeOpportunities: KnowledgeOpportunity[];
+  forceSaturation: Record<'stakes' | 'pacing' | 'variety', ForceSaturation>;
+  storyProgress: number;
+  storyPhase: { name: StoryPhase; description: string };
+};
+
 /** Build the action-specific direction hint injected into AI prompts */
 export function buildActionDirective(
   action: AutoAction,
   narrative: NarrativeState,
-  resolvedKeys: string[],
   config: AutoConfig,
+  ctx: DirectiveContext,
 ): string {
   const corner = NARRATIVE_CUBE[action];
-  const threads = Object.values(narrative.threads);
-  const activeThreads = threads.filter((t) => isActive(t.status));
-  const scenes = resolvedKeys.map((k) => narrative.scenes[k]).filter(Boolean).filter(isScene) as Scene[];
-  const stagnantThreads = activeThreads.filter((t) => {
-    let lastMut = -1;
-    scenes.forEach((s, idx) => {
-      if (s.threadMutations.some((tm) => tm.threadId === t.id)) lastMut = idx;
-    });
-    return (scenes.length - 1 - lastMut) >= config.threadStagnationThreshold;
-  });
 
   const toneClause = config.toneGuidance ? `\nTone: ${config.toneGuidance}` : '';
   const constraintClause = config.narrativeConstraints ? `\nConstraints: ${config.narrativeConstraints}` : '';
@@ -536,18 +785,24 @@ export function buildActionDirective(
     : '';
 
   // World build seed clause
-  const worldBuildSeed = buildWorldBuildSeedClause(narrative, resolvedKeys, config);
+  const worldBuildSeed = buildWorldBuildSeedClause(narrative, ctx.scenes, config);
 
   // Thread context for relevant corners
-  const threadContext = stagnantThreads.length > 0
-    ? `\nStagnant threads needing attention: ${stagnantThreads.map((t) => t.description).join(', ')}.`
+  const threadContext = ctx.stagnantThreads.length > 0
+    ? `\nStagnant threads needing attention: ${ctx.stagnantThreads.map((t) => t.description).join(', ')}.`
     : '';
 
-  // Thread maturity clause — tell LLM which threads are ripe for payoff
-  const maturityClause = buildThreadMaturityClause(narrative, scenes, corner.forces.stakes > 0);
+  // Thread maturity clause
+  const maturityClause = buildThreadMaturityClause(narrative, ctx.primedThreads, corner.forces.stakes > 0);
 
-  // Knowledge asymmetry clause — tell LLM about dramatic information gaps
-  const asymmetryClause = buildKnowledgeAsymmetryClause(narrative, scenes, corner.forces.variety > 0 || corner.forces.stakes > 0);
+  // Knowledge asymmetry clause
+  const asymmetryClause = buildKnowledgeAsymmetryClause(ctx.knowledgeOpportunities, corner.forces.variety > 0 || corner.forces.stakes > 0);
+
+  // Force balance clause — uses pre-computed saturation
+  const balanceClause = buildForceBalanceClause(ctx.forceSaturation);
+
+  // Story trajectory clause
+  const trajectoryClause = `\nSTORY TRAJECTORY: You are at ${Math.round(ctx.storyProgress * 100)}% of the story — phase: ${ctx.storyPhase.name.toUpperCase()}. ${ctx.storyPhase.description}`;
 
   // Corner-specific directives
   const cornerDirectives: Record<CubeCornerKey, string> = {
@@ -561,23 +816,44 @@ export function buildActionDirective(
     LLL: `REST — ${corner.description} Breathing room after intensity. Focus on recovery, character relationships, and subtle foreshadowing. Plant seeds for future conflict.`,
   };
 
-  return `${cornerDirectives[action]}${maturityClause}${asymmetryClause}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;
+  return `${cornerDirectives[action]}${trajectoryClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;
+}
+
+/** Build LLM correction text from pre-computed saturation results */
+function buildForceBalanceClause(
+  saturation: Record<'stakes' | 'pacing' | 'variety', ForceSaturation>,
+): string {
+  const HIGH_CORRECTIONS: Record<string, string> = {
+    stakes: 'Stakes have been at maximum for too long. Write scenes where immediate danger recedes — characters regroup, reflect, or shift focus to personal/interpersonal matters rather than existential threats. Use low-stakes thread mutations.',
+    pacing: 'Pacing has been relentlessly fast. Slow down — write contemplative, dialogue-heavy scenes. Let characters process events instead of rushing to the next plot point.',
+    variety: 'Variety has been too high for too long. Ground the narrative — return to familiar locations and established character dynamics instead of constantly introducing new elements.',
+  };
+  const LOW_CORRECTIONS: Record<string, string> = {
+    stakes: 'Stakes have been too low for too long. Introduce genuine consequences — a betrayal, a threat, a revelation that changes everything. Characters should face real risk.',
+    pacing: 'Pacing has stagnated. Inject urgency — time pressure, pursuit, rapid developments. Move characters into action instead of contemplation.',
+    variety: 'Variety has collapsed — the story feels repetitive. Shift perspective, introduce an unexpected character, change location, or subvert an established pattern. Break the routine.',
+  };
+
+  const corrections: string[] = [];
+  for (const key of FORCE_KEYS) {
+    const sat = saturation[key];
+    if (!sat.saturated) continue;
+    corrections.push(sat.direction > 0 ? HIGH_CORRECTIONS[key] : LOW_CORRECTIONS[key]);
+  }
+
+  if (corrections.length === 0) return '';
+  return `\nFORCE BALANCE CORRECTION — the narrative has become unbalanced. You MUST address these issues in the scenes you generate:\n${corrections.map((c) => `- ${c}`).join('\n')}`;
 }
 
 /** Build a clause listing threads that are mature and primed for resolution */
 function buildThreadMaturityClause(
   narrative: NarrativeState,
-  scenes: Scene[],
+  primedThreads: ThreadMaturity[],
   isHighStakesCorner: boolean,
 ): string {
-  if (!isHighStakesCorner) return '';
-  const maturityScores = computeThreadMaturity(narrative, scenes);
-  const primed = maturityScores.filter(
-    (m) => m.score >= 0.6 && PRIMED_SET.has(m.thread.status.toLowerCase()),
-  );
-  if (primed.length === 0) return '';
+  if (!isHighStakesCorner || primedThreads.length === 0) return '';
 
-  const lines = primed.slice(0, 3).map((m) => {
+  const lines = primedThreads.slice(0, 3).map((m) => {
     const anchors = m.thread.anchors
       .map((a) => a.type === 'character' ? narrative.characters[a.id]?.name : narrative.locations[a.id]?.name)
       .filter(Boolean)
@@ -589,12 +865,10 @@ function buildThreadMaturityClause(
 
 /** Build a clause surfacing dramatic knowledge gaps between characters */
 function buildKnowledgeAsymmetryClause(
-  narrative: NarrativeState,
-  scenes: Scene[],
+  opportunities: KnowledgeOpportunity[],
   isRelevantCorner: boolean,
 ): string {
   if (!isRelevantCorner) return '';
-  const opportunities = analyzeKnowledgeAsymmetries(narrative, scenes);
   const top = opportunities.filter((o) => o.dramaticWeight > 0.3).slice(0, 3);
   if (top.length === 0) return '';
 
@@ -607,13 +881,12 @@ function buildKnowledgeAsymmetryClause(
 /** Build a clause that references unused world-build elements to weave into arcs */
 function buildWorldBuildSeedClause(
   narrative: NarrativeState,
-  resolvedKeys: string[],
+  scenes: Scene[],
   config: AutoConfig,
 ): string {
   const worldBuilds = Object.values(narrative.worldBuilds);
   if (worldBuilds.length === 0) return '';
 
-  const scenes = resolvedKeys.map((k) => narrative.scenes[k]).filter(Boolean).filter(isScene) as Scene[];
   const usedCharIds = new Set(scenes.flatMap((s) => s.participantIds));
   const usedLocIds = new Set(scenes.map((s) => s.locationId));
   const mutatedThreadIds = new Set(scenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)));

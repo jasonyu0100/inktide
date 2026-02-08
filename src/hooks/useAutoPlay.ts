@@ -39,11 +39,13 @@ export function useAutoPlay() {
     }
 
     // Evaluate and pick action
-    const weights = evaluateNarrativeState(
+    const { weights, directiveCtx } = evaluateNarrativeState(
       activeNarrative,
       resolvedSceneKeys,
       currentSceneIndex,
       autoConfig,
+      autoRunState.startingSceneCount,
+      autoRunState.startingArcCount,
     );
     const chosen = weights[0];
     if (!chosen) {
@@ -77,7 +79,7 @@ export function useAutoPlay() {
       }
 
       // Generate arc toward the chosen cube corner
-      const directive = buildActionDirective(action, activeNarrative, resolvedSceneKeys, autoConfig);
+      const directive = buildActionDirective(action, activeNarrative, autoConfig, directiveCtx);
       const sceneCount = pickArcLength(autoConfig, action);
       const cubeGoal = pickCubeGoal(action, activeNarrative, resolvedSceneKeys, autoConfig);
       const { scenes, arc } = await generateScenes(

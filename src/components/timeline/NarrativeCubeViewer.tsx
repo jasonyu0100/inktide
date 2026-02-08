@@ -3,7 +3,7 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, NARRATIVE_CUBE, type CubeCorner, type CubeCornerKey, type Scene } from '@/types/narrative';
-import { detectCubeCorner, computeForceSnapshots } from '@/lib/narrative-utils';
+import { detectCubeCorner, computeForceSnapshots, computeWindowedForces } from '@/lib/narrative-utils';
 import { analyzeForceTrajectory } from '@/lib/ai';
 
 // ── 3D math helpers ──────────────────────────────────────────────────────────
@@ -99,17 +99,26 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     return pts;
   }, [narrative, resolvedKeys]);
 
-  // Current scene position
+  // Current scene position — use windowed forces for the cube corner
   const currentIdx = state.currentSceneIndex;
   const currentCorner = useMemo(() => {
-    if (!narrative || trajectory.length === 0 || currentIdx < 0 || currentIdx >= trajectory.length) return null;
-    const pos = trajectory[currentIdx].pos;
-    return detectCubeCorner({
-      stakes: pos[0],
-      pacing: pos[1],
-      variety: pos[2],
-    });
-  }, [narrative, trajectory, currentIdx]);
+    if (!narrative) return null;
+    const allScenes = resolvedKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => !!e && isScene(e));
+    if (allScenes.length === 0) return null;
+    // Map timeline index to scene-array index
+    const sceneIdx = Math.min(
+      allScenes.length - 1,
+      resolvedKeys.slice(0, currentIdx + 1)
+        .filter((k) => resolveEntry(narrative, k)?.kind === 'scene').length - 1,
+    );
+    if (sceneIdx < 0) return null;
+    const windowed = computeWindowedForces(allScenes, sceneIdx);
+    const lastScene = allScenes[windowed.windowEnd];
+    const f = lastScene ? windowed.forceMap[lastScene.id] : null;
+    return f ? detectCubeCorner(f) : null;
+  }, [narrative, resolvedKeys, currentIdx]);
 
   // Build per-scene force entries for AI analysis
   const forceEntries = useMemo((): SceneForceEntry[] => {

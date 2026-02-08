@@ -8,6 +8,9 @@ type ForceLineChartProps = {
   color: string;
   label: string;
   currentIndex: number;
+  /** Inclusive data-index range for the active normalization window */
+  windowStart?: number;
+  windowEnd?: number;
 };
 
 export default function ForceLineChart({
@@ -15,6 +18,8 @@ export default function ForceLineChart({
   color,
   label,
   currentIndex,
+  windowStart,
+  windowEnd,
 }: ForceLineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -71,6 +76,30 @@ export default function ForceLineChart({
       .attr('stroke-width', 0.5)
       .attr('opacity', 0.12);
 
+    // Window highlight region
+    if (windowStart != null && windowEnd != null && data.length > 1) {
+      const wx1 = xScale(windowStart);
+      const wx2 = xScale(windowEnd);
+      svg
+        .append('rect')
+        .attr('x', wx1)
+        .attr('y', chartTop)
+        .attr('width', Math.max(wx2 - wx1, 1))
+        .attr('height', chartHeight)
+        .attr('fill', color)
+        .attr('opacity', 0.06);
+      // Left edge
+      svg
+        .append('line')
+        .attr('x1', wx1)
+        .attr('x2', wx1)
+        .attr('y1', chartTop)
+        .attr('y2', chartHeight)
+        .attr('stroke', color)
+        .attr('stroke-width', 0.5)
+        .attr('opacity', 0.3);
+    }
+
     // Area (filled from zero line)
     const area = d3
       .area<number>()
@@ -115,7 +144,7 @@ export default function ForceLineChart({
         .attr('stroke-width', 1)
         .attr('opacity', 0.2);
     }
-  }, [data, color, currentIndex, dims]);
+  }, [data, color, currentIndex, dims, windowStart, windowEnd]);
 
   const currentValue =
     currentIndex >= 0 && currentIndex < data.length

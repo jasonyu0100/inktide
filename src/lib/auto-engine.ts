@@ -11,7 +11,7 @@ import type {
   CubeCornerKey,
 } from '@/types/narrative';
 import { isScene, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_PRIMED_STATUSES } from '@/types/narrative';
-import { detectCubeCorner, computeForceSnapshots } from '@/lib/narrative-utils';
+import { detectCubeCorner, computeWindowedForces } from '@/lib/narrative-utils';
 
 // ── Thread status helpers (derived from canonical lists in narrative.ts) ─────
 const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
@@ -478,8 +478,9 @@ export function evaluateNarrativeState(
   const storyProgress = computeStoryProgress(narrative, resolvedKeys, config, startingSceneCount, startingArcCount);
   const storyPhase = getStoryPhase(storyProgress);
 
-  // ── Current force state ─────────────────────────────────────────────────
-  const forceMap = computeForceSnapshots(scenes);
+  // ── Current force state (windowed — relative to recent scenes) ──────────
+  const windowed = computeWindowedForces(scenes, scenes.length - 1);
+  const forceMap = windowed.forceMap;
   const lastScene = scenes[scenes.length - 1];
   const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { stakes: 0, pacing: 0, variety: 0 };
   const currentCorner = detectCubeCorner(currentForce);

@@ -269,3 +269,41 @@ export function computeForceSnapshots(
   }
   return result;
 }
+
+// ── Windowed Forces ──────────────────────────────────────────────────────────
+
+/** Default rolling window size for relative force computation */
+export const FORCE_WINDOW_SIZE = 10;
+
+export type WindowedForceResult = {
+  forceMap: Record<string, ForceSnapshot>;
+  /** Inclusive scene-array index where the window starts */
+  windowStart: number;
+  /** Inclusive scene-array index where the window ends */
+  windowEnd: number;
+};
+
+/**
+ * Compute forces normalized within a rolling window around the current scene.
+ * The window is the last `windowSize` scenes ending at `currentIndex`.
+ * Variety usage is seeded from scenes before the window so novelty is still relative.
+ */
+export function computeWindowedForces(
+  scenes: Scene[],
+  currentIndex: number,
+  windowSize: number = FORCE_WINDOW_SIZE,
+): WindowedForceResult {
+  const empty: WindowedForceResult = { forceMap: {}, windowStart: 0, windowEnd: 0 };
+  if (scenes.length === 0) return empty;
+
+  const end = Math.min(currentIndex, scenes.length - 1);
+  const start = Math.max(0, end - windowSize + 1);
+  const windowScenes = scenes.slice(start, end + 1);
+  const priorScenes = scenes.slice(0, start);
+
+  return {
+    forceMap: computeForceSnapshots(windowScenes, priorScenes),
+    windowStart: start,
+    windowEnd: end,
+  };
+}

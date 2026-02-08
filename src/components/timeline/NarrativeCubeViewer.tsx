@@ -630,7 +630,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
         {/* Footer */}
         <div className="px-5 py-3 border-t border-white/5 flex items-center justify-between">
           <div className="text-[9px] text-text-dim/50">
-            Stakes &middot; Pacing &middot; Variety
+            Stakes &middot; Pacing &middot; Variety &mdash; Analysis uses global (full-history) forces
           </div>
           <div className="flex items-center gap-2">
             {showAnalysis && analysisText && (

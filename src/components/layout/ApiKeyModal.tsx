@@ -39,7 +39,10 @@ export default function ApiKeyModal({ access, onClose }: Props) {
               placeholder="sk-or-..."
               className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
             />
-            <p className="text-[9px] text-text-dim mt-0.5">Required for Generate, Auto mode, and Chat</p>
+            <p className="text-[9px] text-text-dim mt-0.5">Required for Generate, Auto mode, and Chat.</p>
+            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium text-accent bg-accent/10 hover:bg-accent/20 px-2 py-1 rounded transition-colors">
+              Get an OpenRouter key &rarr;
+            </a>
           </div>
 
           {/* Replicate key */}
@@ -54,7 +57,10 @@ export default function ApiKeyModal({ access, onClose }: Props) {
               placeholder="r8_..."
               className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
             />
-            <p className="text-[9px] text-text-dim mt-0.5">Required for Drive image generation and cover art</p>
+            <p className="text-[9px] text-text-dim mt-0.5">Required for Drive image generation and cover art.</p>
+            <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-medium text-accent bg-accent/10 hover:bg-accent/20 px-2 py-1 rounded transition-colors">
+              Get a Replicate token &rarr;
+            </a>
           </div>
         </div>
 

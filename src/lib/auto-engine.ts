@@ -18,7 +18,7 @@ const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
 const ACTIVE_SET = new Set<string>(THREAD_ACTIVE_STATUSES.filter((s) => s !== 'dormant'));
 const PRIMED_SET = new Set<string>(THREAD_PRIMED_STATUSES);
 
-const FORCE_KEYS = ['stakes', 'pacing', 'variety'] as const;
+const FORCE_KEYS = ['payoff', 'change', 'variety'] as const;
 
 function isTerminal(status: string): boolean {
   return TERMINAL_SET.has(status.toLowerCase());
@@ -30,8 +30,8 @@ function isActive(status: string): boolean {
 
 // ── Objective multipliers for cube corners ──────────────────────────────────
 // Bias action selection toward the high-level goal.
-// High-stakes corners (H__) tend toward resolution/climax.
-// Low-stakes corners (L__) tend toward exploration/open-endedness.
+// High-payoff corners (H__) tend toward payoff/climax.
+// Low-payoff corners (L__) tend toward exploration/open-endedness.
 const OBJECTIVE_MULTIPLIERS: Record<string, Record<CubeCornerKey, number>> = {
   resolve_threads: {
     HHH: 1.4, HHL: 1.6, HLH: 1.0, HLL: 1.2,
@@ -198,14 +198,14 @@ function analyzeKnowledgeAsymmetries(
 
 // ── Composite tension from force snapshot ───────────────────────────────────
 function compositeTension(f: ForceSnapshot): number {
-  return f.stakes * 0.4 + f.pacing * 0.3 + f.variety * 0.3;
+  return f.payoff * 0.4 + f.change * 0.3 + f.variety * 0.3;
 }
 
 // ── Story trajectory ────────────────────────────────────────────────────────
 // Maps story progress (0–1) to a dramatic phase that shapes corner selection.
-// The key insight: human-written stories have SHAPE — they breathe, with stakes
-// and pacing oscillating across the zero line. Variety naturally declines as
-// the story narrows focus, but stakes and pacing MUST dip into negative
+// The key insight: human-written stories have SHAPE — they breathe, with payoff
+// and change oscillating across the zero line. Variety naturally declines as
+// the story narrows focus, but payoff and change MUST dip into negative
 // territory regularly to create contrast and quiet moments.
 
 export type StoryPhase = 'setup' | 'rising' | 'midpoint' | 'escalation' | 'climax' | 'resolution';
@@ -222,7 +222,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'setup',
     range: [0, 0.15],
-    description: 'Establishing the world and characters. Stakes should be low, pacing moderate, variety high. Plant seeds — do not harvest them.',
+    description: 'Establishing the world and characters. Payoff should be low, change moderate, variety high. Plant seeds — do not harvest them.',
     cornerBias: {
       LHH: 0.35, LLH: 0.3, LHL: 0.2, LLL: 0.1,  // exploration, discovery, routine
       HHH: -0.35, HHL: -0.3, HLH: -0.15,          // way too early for crisis
@@ -231,7 +231,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'rising',
     range: [0.15, 0.35],
-    description: 'Complications emerge and stakes begin to rise, but the story still breathes. Alternate tension-building scenes with quieter character moments. Stakes should cross zero — some high, some low.',
+    description: 'Complications emerge and payoff begins to rise, but the story still breathes. Alternate tension-building scenes with quieter character moments. Payoff should cross zero — some high, some low.',
     cornerBias: {
       HLH: 0.2, LHH: 0.15, HLL: 0.15, LHL: 0.1, LLL: 0.1,  // slow burn + exploration + breathers
       HHH: -0.25, HHL: -0.1,                                   // don't peak yet
@@ -240,7 +240,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'midpoint',
     range: [0.35, 0.50],
-    description: 'A significant shift — a revelation, betrayal, or escalation that redefines the conflict. One intense arc, then pull back to absorb the impact. Stakes and pacing should spike then dip.',
+    description: 'A significant shift — a revelation, betrayal, or escalation that redefines the conflict. One intense arc, then pull back to absorb the impact. Payoff and change should spike then dip.',
     cornerBias: {
       HHL: 0.25, HLH: 0.15, LLL: 0.1,  // climactic moment then tension + recovery
       LLH: -0.1,                          // shouldn't wander aimlessly
@@ -249,7 +249,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'escalation',
     range: [0.50, 0.75],
-    description: 'Building toward the climax. Stakes trend upward but MUST still include valleys — quiet scenes between intense ones. Pacing should alternate between bursts and pauses.',
+    description: 'Building toward the climax. Payoff trends upward but MUST still include valleys — quiet scenes between intense ones. Change should alternate between bursts and pauses.',
     cornerBias: {
       HHL: 0.2, HLH: 0.2, HHH: 0.1, LLL: 0.1, HLL: 0.1,  // tension building + mandatory breathers
       LLH: -0.15,                                             // less wandering
@@ -268,7 +268,7 @@ const STORY_PHASES: PhaseDefinition[] = [
   {
     name: 'resolution',
     range: [0.90, 1.0],
-    description: 'Wind down and resolve remaining threads. Stakes and pacing should drop — the storm has passed. Focus on aftermath, character growth, and closure.',
+    description: 'Wind down and resolve remaining threads. Payoff and change should drop — the storm has passed. Focus on aftermath, character growth, and closure.',
     cornerBias: {
       LLL: 0.35, LLH: 0.2, LHL: 0.2, HLL: 0.1,   // recovery and resolution
       HHH: -0.35, HHL: -0.25, LHH: -0.1,           // don't restart intensity
@@ -329,8 +329,8 @@ export function getStoryPhase(progress: number): PhaseDefinition {
 
 // ── Euclidean distance between two force snapshots ──────────────────────────
 function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
-  const ds = a.stakes - b.stakes;
-  const dp = a.pacing - b.pacing;
+  const ds = a.payoff - b.payoff;
+  const dp = a.change - b.change;
   const dv = a.variety - b.variety;
   return Math.sqrt(ds * ds + dp * dp + dv * dv);
 }
@@ -394,16 +394,16 @@ export function isWorldBuildDue(
 
 // ── Per-force saturation detection ───────────────────────────────────────────
 // Detects when individual forces are pinned at extremes, which composite
-// metrics like avgTension mask (e.g. stakes=1 + variety=-1 = "moderate").
+// metrics like avgTension mask (e.g. payoff=1 + variety=-1 = "moderate").
 type ForceSaturation = { saturated: boolean; direction: number };
 
 function detectForceSaturation(
   scenes: Scene[],
   forceMap: Record<string, ForceSnapshot>,
-): Record<'stakes' | 'pacing' | 'variety', ForceSaturation> {
-  const result: Record<'stakes' | 'pacing' | 'variety', ForceSaturation> = {
-    stakes: { saturated: false, direction: 0 },
-    pacing: { saturated: false, direction: 0 },
+): Record<'payoff' | 'change' | 'variety', ForceSaturation> {
+  const result: Record<'payoff' | 'change' | 'variety', ForceSaturation> = {
+    payoff: { saturated: false, direction: 0 },
+    change: { saturated: false, direction: 0 },
     variety: { saturated: false, direction: 0 },
   };
   const window = scenes.slice(-6);
@@ -482,7 +482,7 @@ export function evaluateNarrativeState(
   const windowed = computeWindowedForces(scenes, scenes.length - 1);
   const forceMap = windowed.forceMap;
   const lastScene = scenes[scenes.length - 1];
-  const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { stakes: 0, pacing: 0, variety: 0 };
+  const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { payoff: 0, change: 0, variety: 0 };
   const currentCorner = detectCubeCorner(currentForce);
 
   // ── Thread analysis ─────────────────────────────────────────────────────
@@ -511,7 +511,7 @@ export function evaluateNarrativeState(
 
   // ── Post-climax detection ─────────────────────────────────────────────
   const recentWindow = scenes.slice(-5);
-  const recentForces = recentWindow.map((s) => forceMap[s.id] ?? { stakes: 0, pacing: 0, variety: 0 });
+  const recentForces = recentWindow.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
   const isPostClimax = recentForces.length >= 3 &&
     compositeTension(recentForces[0]) > 0.75 &&
     compositeTension(recentForces[recentForces.length - 1]) - compositeTension(recentForces[0]) < -0.15;
@@ -562,9 +562,9 @@ export function evaluateNarrativeState(
 
   for (const key of ALL_CORNERS) {
     const corner = NARRATIVE_CUBE[key];
-    const isHighStakes = corner.forces.stakes > 0;
-    const isHighPacing = corner.forces.pacing > 0;
-    const isLowPacing = corner.forces.pacing < 0;
+    const isHighPayoff = corner.forces.payoff > 0;
+    const isHighChange = corner.forces.change > 0;
+    const isLowChange = corner.forces.change < 0;
     const isHighVariety = corner.forces.variety > 0;
 
     // Eliminated corners get a floor score — they can only win if nothing else works
@@ -603,21 +603,21 @@ export function evaluateNarrativeState(
     // ── 3. Thread-driven signals ────────────────────────────────────────
     // These are now GATED by saturation: thread signals that push in the
     // same direction as a saturated force are suppressed.
-    const stakesNotSaturatedHigh = !forceSaturation.stakes.saturated || forceSaturation.stakes.direction !== 1;
-    const pacingNotSaturatedLow = !forceSaturation.pacing.saturated || forceSaturation.pacing.direction !== -1;
+    const payoffNotSaturatedHigh = !forceSaturation.payoff.saturated || forceSaturation.payoff.direction !== 1;
+    const changeNotSaturatedLow = !forceSaturation.change.saturated || forceSaturation.change.direction !== -1;
 
-    // Too many active threads → favor resolution, but NOT if stakes already saturated high
-    if (activeThreads.length > config.maxActiveThreads && isHighStakes && stakesNotSaturatedHigh) {
+    // Too many active threads → favor resolution, but NOT if payoff already saturated high
+    if (activeThreads.length > config.maxActiveThreads && isHighPayoff && payoffNotSaturatedHigh) {
       score += 0.2;
       reasons.push(`${activeThreads.length} active threads need resolution`);
-    } else if (activeThreads.length > config.maxActiveThreads && isHighPacing) {
-      // Redirect thread pressure to pacing instead when stakes are saturated
+    } else if (activeThreads.length > config.maxActiveThreads && isHighChange) {
+      // Redirect thread pressure to change instead when payoff is saturated
       score += 0.15;
-      reasons.push(`${activeThreads.length} active threads — pacing can advance them`);
+      reasons.push(`${activeThreads.length} active threads — change can advance them`);
     }
 
-    // Stagnant threads → pacing, but gate if pacing is already saturated high
-    if (stagnantThreads.length > 0 && isHighPacing && pacingNotSaturatedLow) {
+    // Stagnant threads → change, but gate if change is already saturated low
+    if (stagnantThreads.length > 0 && isHighChange && changeNotSaturatedLow) {
       score += 0.15;
       reasons.push(`${stagnantThreads.length} stagnant threads need movement`);
     }
@@ -628,25 +628,25 @@ export function evaluateNarrativeState(
       reasons.push(`${dormantThreads.length} dormant threads — variety can surface them`);
     }
 
-    // Primed threads → resolution, gated by stakes saturation
-    if (primedThreads.length > 0 && isHighStakes && stakesNotSaturatedHigh) {
+    // Primed threads → resolution, gated by payoff saturation
+    if (primedThreads.length > 0 && isHighPayoff && payoffNotSaturatedHigh) {
       const boost = Math.min(0.35, primedThreads.length * 0.12);
       score += boost;
       reasons.push(`${primedThreads.length} thread(s) primed for resolution`);
-    } else if (primedThreads.length > 0 && isHighPacing) {
-      // Can still resolve through pacing-driven payoff
+    } else if (primedThreads.length > 0 && isHighChange) {
+      // Can still resolve through change-driven payoff
       score += 0.1;
-      reasons.push(`${primedThreads.length} primed thread(s) — pacing can deliver payoff`);
+      reasons.push(`${primedThreads.length} primed thread(s) — change can deliver payoff`);
     }
 
-    // Knowledge asymmetries → revelation, favor variety over stakes when stakes saturated
+    // Knowledge asymmetries → revelation, favor variety over payoff when payoff saturated
     if (hasHighDramaOpportunities) {
       if (isHighVariety) {
         score += 0.2;
         reasons.push('knowledge asymmetries — variety creates revelation opportunities');
-      } else if (isHighStakes && stakesNotSaturatedHigh) {
+      } else if (isHighPayoff && payoffNotSaturatedHigh) {
         score += 0.15;
-        reasons.push('knowledge asymmetries — stakes can force confrontation');
+        reasons.push('knowledge asymmetries — payoff can force confrontation');
       }
     }
 
@@ -669,14 +669,14 @@ export function evaluateNarrativeState(
       if (key === 'LLL' || key === 'LLH' || key === 'LHL') {
         score += 0.4;
         reasons.push('post-climax recovery');
-      } else if (isHighStakes && isHighPacing) {
+      } else if (isHighPayoff && isHighChange) {
         score *= 0.2;
         reasons.push('suppressed post-climax');
       }
     }
 
     // ── 6. Neglected characters ─────────────────────────────────────────
-    if (neglectedAnchors.length > 0 && isLowPacing) {
+    if (neglectedAnchors.length > 0 && isLowChange) {
       score += 0.1;
       reasons.push(`${neglectedAnchors.length} neglected anchors — good for character focus`);
     }
@@ -723,13 +723,13 @@ export function pickArcLength(config: AutoConfig, action: AutoAction): number {
   const corner = NARRATIVE_CUBE[action];
   const f = corner.forces;
 
-  // High pacing → longer arcs (more scenes to carry the pace)
-  // Low pacing → shorter arcs (brief, contemplative)
-  // High stakes → medium-long (need scenes to build/release stakes)
-  if (f.pacing > 0 && f.stakes > 0) {
+  // High change → longer arcs (more scenes to carry the pace)
+  // Low change → shorter arcs (brief, contemplative)
+  // High payoff → medium-long (need scenes to build/release payoff)
+  if (f.change > 0 && f.payoff > 0) {
     // High energy corners (HHH, HHL) — full arcs
     return config.maxArcLength;
-  } else if (f.pacing < 0 && f.stakes < 0) {
+  } else if (f.change < 0 && f.payoff < 0) {
     // Low energy corners (LLL, LLH) — brief interludes
     return config.minArcLength;
   } else {
@@ -756,7 +756,7 @@ export type DirectiveContext = {
   stagnantThreads: Thread[];
   primedThreads: ThreadMaturity[];
   knowledgeOpportunities: KnowledgeOpportunity[];
-  forceSaturation: Record<'stakes' | 'pacing' | 'variety', ForceSaturation>;
+  forceSaturation: Record<'payoff' | 'change' | 'variety', ForceSaturation>;
   storyProgress: number;
   storyPhase: { name: StoryPhase; description: string };
 };
@@ -794,10 +794,10 @@ export function buildActionDirective(
     : '';
 
   // Thread maturity clause
-  const maturityClause = buildThreadMaturityClause(narrative, ctx.primedThreads, corner.forces.stakes > 0);
+  const maturityClause = buildThreadMaturityClause(narrative, ctx.primedThreads, corner.forces.payoff > 0);
 
   // Knowledge asymmetry clause
-  const asymmetryClause = buildKnowledgeAsymmetryClause(ctx.knowledgeOpportunities, corner.forces.variety > 0 || corner.forces.stakes > 0);
+  const asymmetryClause = buildKnowledgeAsymmetryClause(ctx.knowledgeOpportunities, corner.forces.variety > 0 || corner.forces.payoff > 0);
 
   // Force balance clause — uses pre-computed saturation
   const balanceClause = buildForceBalanceClause(ctx.forceSaturation);
@@ -807,13 +807,13 @@ export function buildActionDirective(
 
   // Corner-specific directives
   const cornerDirectives: Record<CubeCornerKey, string> = {
-    HHH: `PEAK CRISIS — ${corner.description} Push all forces to maximum. Multiple threads should collide simultaneously. This is the most intense, chaotic moment of the narrative.${threadContext}`,
+    HHH: `CONVERGENCE — ${corner.description} Push all forces to maximum. Multiple threads should collide simultaneously. This is the most intense, chaotic moment of the narrative.${threadContext}`,
     HHL: `CLIMAX — ${corner.description} Drive toward a decisive payoff. High stakes and rapid pace, but the situation is clear and focused. This is the moment of maximum reader investment.${threadContext}`,
-    HLH: `SLOW BURN — ${corner.description} Maintain high stakes but withhold action. Let tension simmer through ambiguity and restraint. Characters face mounting stakes in uncertain territory.${threadContext}`,
-    HLL: `LOCKED IN — ${corner.description} Everything is loaded but static. Characters endure, suppress, or wait under immense stakes. Build pre-climactic tension through constraint and inevitability.${threadContext}`,
-    LHH: `EXPLORATION — ${corner.description} Fast-paced discovery through unstable new territory. Low stakes but high energy and surprise. World-building arcs, early adventure, open possibility space.`,
-    LHL: `CRUISE — ${corner.description} Efficient narrative throughput. Move the story forward at a steady clip among known elements. Training, travel, episodic sequences.`,
-    LLH: `LIMINAL — ${corner.description} Contemplative and transitional. Characters in unfamiliar conditions without clear direction. Plant seeds, explore the unknown quietly.`,
+    HLH: `TWIST — ${corner.description} A revelation or twist that pays off threads but characters haven't caught up yet. New elements reshape the landscape before anyone can react.${threadContext}`,
+    HLL: `CLOSURE — ${corner.description} Threads wrap up quietly among familiar faces. Tying loose ends, resolving what was left hanging. The aftermath of climactic events.${threadContext}`,
+    LHH: `DISCOVERY — ${corner.description} Characters grow and change while exploring new territory. No payoffs yet but high energy and surprise. World-building, early adventure, open possibility space.`,
+    LHL: `GROWTH — ${corner.description} Characters develop among familiar faces without plot advancement. Training, bonding, processing events. Internal change without external payoff.`,
+    LLH: `WANDERING — ${corner.description} Contemplative and transitional. Characters in unfamiliar conditions without clear direction. Plant seeds, explore the unknown quietly.`,
     LLL: `REST — ${corner.description} Breathing room after intensity. Focus on recovery, character relationships, and subtle foreshadowing. Plant seeds for future conflict.`,
   };
 
@@ -822,16 +822,16 @@ export function buildActionDirective(
 
 /** Build LLM correction text from pre-computed saturation results */
 function buildForceBalanceClause(
-  saturation: Record<'stakes' | 'pacing' | 'variety', ForceSaturation>,
+  saturation: Record<'payoff' | 'change' | 'variety', ForceSaturation>,
 ): string {
   const HIGH_CORRECTIONS: Record<string, string> = {
-    stakes: 'Stakes have been at maximum for too long. Write scenes where immediate danger recedes — characters regroup, reflect, or shift focus to personal/interpersonal matters rather than existential threats. Use low-stakes thread mutations.',
-    pacing: 'Pacing has been relentlessly fast. Slow down — write contemplative, dialogue-heavy scenes. Let characters process events instead of rushing to the next plot point.',
+    payoff: 'Payoff has been at maximum for too long. Write scenes where immediate danger recedes — characters regroup, reflect, or shift focus to personal/interpersonal matters rather than existential threats. Use low-payoff thread mutations.',
+    change: 'Change has been relentlessly fast. Slow down — write contemplative, dialogue-heavy scenes. Let characters process events instead of rushing to the next plot point.',
     variety: 'Variety has been too high for too long. Ground the narrative — return to familiar locations and established character dynamics instead of constantly introducing new elements.',
   };
   const LOW_CORRECTIONS: Record<string, string> = {
-    stakes: 'Stakes have been too low for too long. Introduce genuine consequences — a betrayal, a threat, a revelation that changes everything. Characters should face real risk.',
-    pacing: 'Pacing has stagnated. Inject urgency — time pressure, pursuit, rapid developments. Move characters into action instead of contemplation.',
+    payoff: 'Payoff has been too low for too long. Introduce genuine consequences — a betrayal, a threat, a revelation that changes everything. Characters should face real risk.',
+    change: 'Change has stagnated. Inject urgency — time pressure, pursuit, rapid developments. Move characters into action instead of contemplation.',
     variety: 'Variety has collapsed — the story feels repetitive. Shift perspective, introduce an unexpected character, change location, or subvert an established pattern. Break the routine.',
   };
 
@@ -850,9 +850,10 @@ function buildForceBalanceClause(
 function buildThreadMaturityClause(
   narrative: NarrativeState,
   primedThreads: ThreadMaturity[],
-  isHighStakesCorner: boolean,
+  isHighPayoffCorner: boolean,
 ): string {
-  if (!isHighStakesCorner || primedThreads.length === 0) return '';
+  if (!isHighPayoffCorner || primedThreads.length === 0) return '';
+
 
   const lines = primedThreads.slice(0, 3).map((m) => {
     const anchors = m.thread.anchors

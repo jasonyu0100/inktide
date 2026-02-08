@@ -4,7 +4,7 @@ import { useStore } from '@/lib/store';
 import { resolveEntry } from '@/types/narrative';
 
 export default function NarrativePanel() {
-  const { state } = useStore();
+  const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
 
   if (!narrative) return null;
@@ -58,6 +58,8 @@ export default function NarrativePanel() {
   // Scene commit view — entry is narrowed to Scene after the world_build return
   const scene = entry;
   const location = narrative.locations[scene.locationId];
+  const effectivePovId = scene.povId || scene.participantIds[0];
+  const povCharacter = effectivePovId ? narrative.characters[effectivePovId] : null;
   const arc = Object.values(narrative.arcs).find((a) =>
     a.sceneIds.includes(scene.id),
   );
@@ -74,7 +76,33 @@ export default function NarrativePanel() {
         {location && (
           <>
             <span className="text-text-dim text-[10px]">&middot;</span>
-            <span className="text-[10px] text-text-secondary">{location.name}</span>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: location.id } })}
+              className="flex items-center gap-1 text-[10px] text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <svg className="w-3 h-3 text-text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                <circle cx="12" cy="9" r="2.5" />
+              </svg>
+              {location.name}
+            </button>
+          </>
+        )}
+        {povCharacter && (
+          <>
+            <span className="text-text-dim text-[10px]">&middot;</span>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: effectivePovId } })}
+              className="flex items-center gap-1 text-[10px] text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <svg className="w-3 h-3 text-text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              {povCharacter.name}
+            </button>
           </>
         )}
       </div>

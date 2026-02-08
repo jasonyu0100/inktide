@@ -22,6 +22,7 @@ import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import ApiKeyModal from '@/components/layout/ApiKeyModal';
 import { OnboardingGuide } from '@/components/onboarding/OnboardingGuide';
 import { ForceTracker } from '@/components/analytics/ForceTracker';
+import RulesPanel from '@/components/layout/RulesPanel';
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(false);
@@ -45,6 +46,7 @@ export default function SeriesPage() {
   const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
   const [apiKeysOpen, setApiKeysOpen] = useState(false);
   const [forceTrackerOpen, setForceTrackerOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const autoPlay = useAutoPlay();
   const access = useFeatureAccess();
 
@@ -70,12 +72,14 @@ export default function SeriesPage() {
     function handleOpenCubeViewer() { setCubeViewerOpen(true); }
     function handleOpenApiKeys() { setApiKeysOpen(true); }
     function handleOpenForceTracker() { setForceTrackerOpen(true); }
+    function handleOpenRules() { setRulesOpen(true); }
     window.addEventListener('open-generate-panel', handleOpenGenerate);
     window.addEventListener('open-fork-panel', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
     window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
     window.addEventListener('open-api-keys', handleOpenApiKeys);
     window.addEventListener('open-force-tracker', handleOpenForceTracker);
+    window.addEventListener('open-rules-panel', handleOpenRules);
     return () => {
       window.removeEventListener('open-generate-panel', handleOpenGenerate);
       window.removeEventListener('open-fork-panel', handleOpenFork);
@@ -83,6 +87,7 @@ export default function SeriesPage() {
       window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
       window.removeEventListener('open-api-keys', handleOpenApiKeys);
       window.removeEventListener('open-force-tracker', handleOpenForceTracker);
+      window.removeEventListener('open-rules-panel', handleOpenRules);
     };
   }, []);
 
@@ -139,6 +144,7 @@ export default function SeriesPage() {
       )}
       {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
       {forceTrackerOpen && <ForceTracker onClose={() => setForceTrackerOpen(false)} />}
+      {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
       <OnboardingGuide narrativeId={id} />
       {isMobile && (
         <div className="fixed inset-0 z-9999 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center px-6 text-center">

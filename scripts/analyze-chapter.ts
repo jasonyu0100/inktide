@@ -148,7 +148,7 @@ function buildCumulativeContext(): string {
         .join('; ');
 
       sceneHistory.push(
-        `[Ch${ch.chapter} S${sceneCounter}] @ ${scene.locationName} | ${scene.participantNames?.join(', ')} | stakes:${scene.stakes}` +
+        `[Ch${ch.chapter} S${sceneCounter}] @ ${scene.locationName} | POV: ${scene.povName ?? scene.participantNames?.[0] ?? '?'} | ${scene.participantNames?.join(', ')}` +
         (threadChanges ? ` | Threads: ${threadChanges}` : '') +
         (kChanges ? ` | Knowledge: ${kChanges}` : '') +
         (rChanges ? ` | Relationships: ${rChanges}` : '') +
@@ -196,51 +196,188 @@ FULL SCENE HISTORY (${sceneCounter} scenes across ${allChapters.length} chapters
 ${sceneHistory.join('\n')}`;
 }
 
-// ── Call LLM ────────────────────────────────────────────────────────────────
+// ── Call LLM (with retry + backoff) ──────────────────────────────────────────
+const MAX_RETRIES = 3;
+const RETRY_BACKOFF = [5000, 15000, 30000]; // ms
+
 async function callLLM(prompt: string, systemPrompt: string): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY not set in .env.local');
 
-  console.log(`  Calling ${model}...`);
-  const start = Date.now();
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const wait = RETRY_BACKOFF[attempt - 1] ?? 30000;
+      console.log(`  Retry ${attempt}/${MAX_RETRIES} after ${wait / 1000}s...`);
+      await new Promise(r => setTimeout(r, wait));
+    }
 
-  const res = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'http://localhost:3000',
-      'X-Title': 'Narrative Engine - Chapter Analyzer',
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 32000,
-    }),
-  });
+    console.log(`  Calling ${model}${attempt > 0 ? ` (attempt ${attempt + 1})` : ''}...`);
+    const start = Date.now();
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`OpenRouter error (${res.status}): ${err}`);
+    try {
+      const res = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'Narrative Engine - Chapter Analyzer',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 32000,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        const status = res.status;
+        // Retry on rate limit or server errors
+        if ((status === 429 || status >= 500) && attempt < MAX_RETRIES) {
+          console.warn(`  HTTP ${status} — will retry`);
+          continue;
+        }
+        throw new Error(`OpenRouter error (${status}): ${err}`);
+      }
+
+      const data = await res.json();
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+      console.log(`  Done in ${elapsed}s (${data.usage?.total_tokens ?? '?'} tokens)`);
+
+      const content = data.choices?.[0]?.message?.content ?? '';
+      if (!content) {
+        if (attempt < MAX_RETRIES) { console.warn('  Empty response — will retry'); continue; }
+        throw new Error('LLM returned empty response');
+      }
+      return content;
+    } catch (err: any) {
+      if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND') {
+        if (attempt < MAX_RETRIES) { console.warn(`  Network error (${err.code}) — will retry`); continue; }
+      }
+      throw err;
+    }
+  }
+  throw new Error('Exhausted all retries');
+}
+
+// ── JSON extraction & repair ─────────────────────────────────────────────────
+function extractJSON(raw: string): string {
+  let text = raw.trim();
+
+  // Strip markdown code fences
+  text = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```\s*$/i, '');
+
+  // Find the outermost JSON object if surrounded by prose
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    text = text.slice(firstBrace, lastBrace + 1);
   }
 
-  const data = await res.json();
-  const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-  console.log(`  Done in ${elapsed}s (${data.usage?.total_tokens ?? '?'} tokens)`);
+  // Remove trailing commas before } or ]
+  text = text.replace(/,\s*([}\]])/g, '$1');
 
-  return data.choices?.[0]?.message?.content ?? '';
+  // Attempt to repair truncated JSON (unclosed brackets/braces)
+  let opens = 0, closes = 0, sqOpens = 0, sqCloses = 0;
+  for (const ch of text) {
+    if (ch === '{') opens++;
+    else if (ch === '}') closes++;
+    else if (ch === '[') sqOpens++;
+    else if (ch === ']') sqCloses++;
+  }
+  // Close unclosed structures
+  while (sqCloses < sqOpens) { text += ']'; sqCloses++; }
+  while (closes < opens) { text += '}'; closes++; }
+
+  return text;
+}
+
+// ── Validation ───────────────────────────────────────────────────────────────
+function validate(parsed: any, sectionCount: number): string[] {
+  const errors: string[] = [];
+
+  if (!parsed.chapterSummary) errors.push('Missing chapterSummary');
+  if (!Array.isArray(parsed.scenes) || parsed.scenes.length === 0) {
+    errors.push('No scenes returned');
+    return errors;
+  }
+
+  const allSections = new Set<number>();
+  for (let i = 0; i < parsed.scenes.length; i++) {
+    const s = parsed.scenes[i];
+    if (!s.summary) errors.push(`Scene ${i + 1}: missing summary`);
+    if (!s.povName) errors.push(`Scene ${i + 1}: missing povName`);
+    if (!Array.isArray(s.events) || s.events.length === 0) errors.push(`Scene ${i + 1}: missing events`);
+    if (!Array.isArray(s.sections) || s.sections.length === 0) {
+      errors.push(`Scene ${i + 1}: missing sections array`);
+    } else {
+      for (const n of s.sections) {
+        if (typeof n !== 'number' || n < 1 || n > sectionCount) {
+          errors.push(`Scene ${i + 1}: invalid section number ${n} (valid: 1-${sectionCount})`);
+        }
+        if (allSections.has(n)) errors.push(`Scene ${i + 1}: section ${n} is duplicated across scenes`);
+        allSections.add(n);
+      }
+    }
+  }
+
+  // Check for missing sections
+  const missing: number[] = [];
+  for (let i = 1; i <= sectionCount; i++) {
+    if (!allSections.has(i)) missing.push(i);
+  }
+  if (missing.length > 0) errors.push(`Sections not covered by any scene: ${missing.join(', ')}`);
+
+  return errors;
+}
+
+// ── Section splitting ────────────────────────────────────────────────────────
+const TARGET_SECTIONS = 12; // Aim for ~12 sections per chapter, adapts to chapter size
+
+function splitIntoSections(text: string): { numbered: string; sections: string[] } {
+  // Try paragraph-based splitting first (double newline separated)
+  let chunks = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+
+  // If few paragraph breaks, split by sentences instead (handles single-newline wrapped text)
+  if (chunks.length < 6) {
+    // Join all lines into continuous text, then split on sentence boundaries
+    const continuous = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    const sentences = continuous.match(/[^.!?]+[.!?]+["']?\s*/g) ?? [continuous];
+
+    // Group sentences into roughly TARGET_SECTIONS chunks
+    const sentencesPerChunk = Math.max(1, Math.round(sentences.length / TARGET_SECTIONS));
+    chunks = [];
+    for (let i = 0; i < sentences.length; i += sentencesPerChunk) {
+      chunks.push(sentences.slice(i, i + sentencesPerChunk).join('').trim());
+    }
+  } else {
+    // Group paragraphs into TARGET_SECTIONS chunks
+    const parasPerSection = Math.max(1, Math.round(chunks.length / TARGET_SECTIONS));
+    const grouped: string[] = [];
+    for (let i = 0; i < chunks.length; i += parasPerSection) {
+      grouped.push(chunks.slice(i, i + parasPerSection).join('\n\n'));
+    }
+    chunks = grouped;
+  }
+
+  // Format numbered sections for the LLM
+  const numbered = chunks.map((s, i) => `[SECTION ${i + 1}]\n${s}`).join('\n\n');
+
+  return { numbered, sections: chunks };
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
 async function main() {
   const chapterText = readFileSync(chapterFile, 'utf-8');
   const cumulativeCtx = buildCumulativeContext();
+  const { numbered, sections } = splitIntoSections(chapterText);
 
-  console.log(`\nAnalyzing Chapter ${chapterNum} (${chapterText.split(/\s+/).length} words)`);
+  console.log(`\nAnalyzing Chapter ${chapterNum} (${chapterText.split(/\s+/).length} words, ${sections.length} sections)`);
   if (cumulativeCtx) console.log(`  With cumulative state from ${chapterNum - 1} prior chapter(s)`);
 
   const systemPrompt = `You are a narrative simulation engine that extracts structured scene data from book chapters for an interactive storytelling system.
@@ -250,7 +387,7 @@ The narrative engine tracks:
 - Characters with roles (anchor = central, recurring = frequent, transient = minor) and knowledge graphs
 - Locations with parent-child hierarchy and lore/secrets
 - Narrative threads — ongoing tensions that evolve: ${THREAD_ACTIVE_STATUSES.join(' → ')} → ${THREAD_TERMINAL_STATUSES.join('/')}
-- Scenes with events, stakes (0-100), thread mutations, knowledge mutations, and relationship mutations
+- Scenes with POV character, events, thread mutations, knowledge mutations, and relationship mutations
 - Relationships — directional with sentiment valence (-1 to 1) and descriptive type
 
 Knowledge types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
@@ -260,8 +397,8 @@ Be thorough. Extract every character, location, and narrative development from t
   const prompt = `Analyze this chapter and extract all narrative elements.
 ${cumulativeCtx}
 
-=== CHAPTER ${chapterNum} TEXT ===
-${chapterText}
+=== CHAPTER ${chapterNum} TEXT (${sections.length} sections) ===
+${numbered}
 
 Return a single JSON object with this exact structure:
 {
@@ -299,10 +436,11 @@ Return a single JSON object with this exact structure:
   "scenes": [
     {
       "locationName": "Where it happens",
+      "povName": "Name of the POV character for this scene",
       "participantNames": ["Who is present"],
       "events": ["short_event_tag_1", "short_event_tag_2"],
-      "stakes": 0-100,
       "summary": "2-4 sentence vivid summary in present tense, literary style. Describe what happens, who is involved, and the emotional stakes.",
+      "sections": [1, 2, 3],
       "threadMutations": [
         { "threadDescription": "exact thread description", "from": "status", "to": "status" }
       ],
@@ -326,8 +464,8 @@ Return a single JSON object with this exact structure:
 
 RULES:
 - Break the chapter into 2-5 distinct scenes based on location shifts, time jumps, or major tonal changes
-- "stakes" is 0-100: 0 = nothing at risk, 50 = significant social/emotional stakes, 100 = life or death
-- Every scene MUST have a non-empty "summary" (2-4 vivid sentences), at least one event tag, and a stakes rating
+- Every scene MUST have a non-empty "summary" (2-4 vivid sentences), at least one event tag, and a "povName" (the character whose perspective the scene is told from)
+- "sections" is an array of section numbers (1-indexed) that this scene covers. The chapter text above is pre-split into ${sections.length} numbered sections. Each scene must reference which sections it spans. Together, all scenes should cover all sections. Sections must not overlap between scenes.
 
 CUMULATIVE CONTINUITY (critical):
 - Thread "statusAtStart" MUST match the thread's current status from the THREADS section in the world state above. Do NOT reset or skip statuses.
@@ -354,18 +492,57 @@ PACING:
 - Vary rhythm — a tense scene should be followed by a breather.
 - Only 1 in 3 scenes should be a significant plot beat.`;
 
-  const raw = await callLLM(prompt, systemPrompt);
+  const MAX_VALIDATION_RETRIES = 2;
+  let lastErrors: string[] | undefined;
 
-  // Clean LLM quirks
-  let json = raw.trim();
-  if (json.startsWith('```')) {
-    json = json.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-  }
-  // Remove trailing commas before } or ]
-  json = json.replace(/,\s*([}\]])/g, '$1');
+  for (let attempt = 0; attempt <= MAX_VALIDATION_RETRIES; attempt++) {
+    const currentPrompt = attempt === 0
+      ? prompt
+      : prompt + `\n\nPREVIOUS ATTEMPT HAD ERRORS — please fix:\n${lastErrors!.map(e => `- ${e}`).join('\n')}`;
 
-  try {
-    const parsed = JSON.parse(json);
+    const raw = await callLLM(currentPrompt, systemPrompt);
+    const json = extractJSON(raw);
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(json);
+    } catch (e) {
+      const errFile = outputFile.replace('.json', '.raw.txt');
+      writeFileSync(errFile, raw);
+      if (attempt < MAX_VALIDATION_RETRIES) {
+        console.warn(`  JSON parse failed — retrying (${e})`);
+        lastErrors = ['Response was not valid JSON. Return ONLY a JSON object, no markdown or explanation.'];
+        continue;
+      }
+      console.error(`\n  Failed to parse JSON after ${attempt + 1} attempts. Raw output saved to: ${errFile}`);
+      console.error(`  Error: ${e}`);
+      process.exit(1);
+    }
+
+    // Validate
+    const errors = validate(parsed, sections.length);
+    if (errors.length > 0 && attempt < MAX_VALIDATION_RETRIES) {
+      console.warn(`  Validation issues (${errors.length}) — retrying:`);
+      errors.forEach(e => console.warn(`    - ${e}`));
+      lastErrors = errors;
+      continue;
+    }
+    if (errors.length > 0) {
+      console.warn(`  Validation warnings (proceeding anyway):`);
+      errors.forEach(e => console.warn(`    - ${e}`));
+    }
+
+    // Populate prose from section references
+    for (const scene of parsed.scenes ?? []) {
+      const sectionNums: number[] = scene.sections ?? [];
+      scene.prose = sectionNums
+        .filter((n: number) => n >= 1 && n <= sections.length)
+        .sort((a: number, b: number) => a - b)
+        .map((n: number) => sections[n - 1])
+        .join('\n\n');
+      delete scene.sections;
+    }
+
     writeFileSync(outputFile, JSON.stringify(parsed, null, 2));
     console.log(`\n  Output: ${outputFile}`);
     console.log(`  Characters: ${parsed.characters?.length ?? 0}`);
@@ -373,12 +550,7 @@ PACING:
     console.log(`  Threads: ${parsed.threads?.length ?? 0}`);
     console.log(`  Scenes: ${parsed.scenes?.length ?? 0}`);
     console.log(`  Relationships: ${parsed.relationships?.length ?? 0}`);
-  } catch (e) {
-    const errFile = outputFile.replace('.json', '.raw.txt');
-    writeFileSync(errFile, raw);
-    console.error(`\n  Failed to parse JSON. Raw output saved to: ${errFile}`);
-    console.error(`  Error: ${e}`);
-    process.exit(1);
+    return;
   }
 }
 

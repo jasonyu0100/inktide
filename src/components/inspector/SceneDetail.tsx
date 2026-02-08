@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { computeForceSnapshots } from '@/lib/narrative-utils';
+import { generateSceneProse } from '@/lib/ai';
 
 type Props = {
   sceneId: string;
@@ -12,14 +13,16 @@ type Props = {
 export default function SceneDetail({ sceneId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
+  const [proseLoading, setProseLoading] = useState(false);
+  const [proseError, setProseError] = useState('');
 
   const forceSnapshot = useMemo(() => {
-    if (!narrative) return { stakes: 0, pacing: 0, variety: 0 };
+    if (!narrative) return { payoff: 0, change: 0, variety: 0 };
     const allScenes = state.resolvedSceneKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
     const forceMap = computeForceSnapshots(allScenes);
-    return forceMap[sceneId] ?? { stakes: 0, pacing: 0, variety: 0 };
+    return forceMap[sceneId] ?? { payoff: 0, change: 0, variety: 0 };
   }, [narrative, state.resolvedSceneKeys, sceneId]);
 
   if (!narrative) return null;
@@ -114,14 +117,30 @@ export default function SceneDetail({ sceneId }: Props) {
   // ── Scene Commit view ───────────────────────────────────────────────────
   const scene = entry;
   const location = narrative.locations[scene.locationId];
+  const effectivePovId = scene.povId || scene.participantIds[0];
+  const povCharacter = effectivePovId ? narrative.characters[effectivePovId] : null;
 
-  const { stakes, pacing, variety } = forceSnapshot;
+  const { payoff, change, variety } = forceSnapshot;
 
   const arc = Object.values(narrative.arcs).find((a) =>
     a.sceneIds.includes(sceneId)
   );
 
+  const sceneKeyIndex = state.resolvedSceneKeys.indexOf(sceneId);
 
+  const handleGenerateProse = useCallback(async () => {
+    if (proseLoading || !narrative) return;
+    setProseLoading(true);
+    setProseError('');
+    try {
+      const prose = await generateSceneProse(narrative, scene, sceneKeyIndex, state.resolvedSceneKeys);
+      dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose } });
+    } catch (err) {
+      setProseError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProseLoading(false);
+    }
+  }, [proseLoading, narrative, scene, sceneKeyIndex, state.resolvedSceneKeys, dispatch, sceneId]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -148,21 +167,47 @@ export default function SceneDetail({ sceneId }: Props) {
         )}
       </div>
 
-      {/* Location */}
-      {location && (
-        <button
-          type="button"
-          onClick={() =>
-            dispatch({
-              type: 'SET_INSPECTOR',
-              context: { type: 'location', locationId: location.id },
-            })
-          }
-          className="text-left text-xs text-text-secondary transition-colors hover:text-text-primary"
-        >
-          {location.name}
-        </button>
-      )}
+      {/* Location + POV */}
+      <div className="flex flex-col gap-1.5">
+        {location && (
+          <button
+            type="button"
+            onClick={() =>
+              dispatch({
+                type: 'SET_INSPECTOR',
+                context: { type: 'location', locationId: location.id },
+              })
+            }
+            className="flex items-center gap-1.5 text-left text-xs text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <svg className="w-3.5 h-3.5 shrink-0 text-text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+              <circle cx="12" cy="9" r="2.5" />
+            </svg>
+            <span className="text-[10px] uppercase tracking-wider text-text-dim mr-1">Location</span>
+            {location.name}
+          </button>
+        )}
+        {povCharacter && (
+          <button
+            type="button"
+            onClick={() =>
+              dispatch({
+                type: 'SET_INSPECTOR',
+                context: { type: 'character', characterId: effectivePovId },
+              })
+            }
+            className="flex items-center gap-1.5 text-left text-xs text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <svg className="w-3.5 h-3.5 shrink-0 text-text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span className="text-[10px] uppercase tracking-wider text-text-dim mr-1">POV</span>
+            {povCharacter.name}
+          </button>
+        )}
+      </div>
 
       {/* Summary */}
       <p className="text-xs text-text-secondary leading-relaxed">
@@ -202,8 +247,8 @@ export default function SceneDetail({ sceneId }: Props) {
       {/* Force Snapshot */}
       <div>
         <div className="flex gap-3">
-          <ForceBar label="Stakes" value={stakes} color="#EF4444" />
-          <ForceBar label="Pacing" value={pacing} color="#22C55E" />
+          <ForceBar label="Payoff" value={payoff} color="#EF4444" />
+          <ForceBar label="Change" value={change} color="#22C55E" />
           <ForceBar label="Variety" value={variety} color="#3B82F6" />
         </div>
       </div>
@@ -376,6 +421,41 @@ export default function SceneDetail({ sceneId }: Props) {
           </ul>
         </div>
       )}
+
+      {/* Prose */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Prose</h3>
+          <button
+            onClick={handleGenerateProse}
+            disabled={proseLoading}
+            className="text-[10px] text-text-dim hover:text-text-secondary transition disabled:opacity-40 disabled:pointer-events-none"
+          >
+            {proseLoading ? 'Generating...' : scene.prose ? 'Regenerate' : 'Generate'}
+          </button>
+        </div>
+        {proseError && (
+          <p className="text-[11px] text-red-400/80">{proseError}</p>
+        )}
+        {proseLoading && (
+          <div className="flex items-center gap-2 py-4">
+            <div className="w-3.5 h-3.5 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <span className="text-[11px] text-text-dim">Writing prose...</span>
+          </div>
+        )}
+        {scene.prose && !proseLoading && (
+          <div className="bg-white/2 rounded-lg border border-border p-3">
+            {scene.prose.split('\n\n').map((paragraph, i) => (
+              <p key={i} className="text-xs text-text-secondary leading-[1.8] mb-3 last:mb-0">
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        )}
+        {!scene.prose && !proseLoading && !proseError && (
+          <p className="text-[11px] text-text-dim/60 italic">No prose generated yet.</p>
+        )}
+      </div>
 
     </div>
   );

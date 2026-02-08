@@ -7,8 +7,8 @@ import { detectCubeCorner, computeForceSnapshots, computeWindowedForces } from '
 import ForceLineChart from './ForceLineChart';
 
 const FORCE_CONFIG = [
-  { key: 'stakes' as const, label: 'Stakes', color: 'var(--color-stakes)' },
-  { key: 'pacing' as const, label: 'Pacing', color: 'var(--color-pacing)' },
+  { key: 'payoff' as const, label: 'Payoff', color: 'var(--color-stakes)' },
+  { key: 'change' as const, label: 'Change', color: 'var(--color-pacing)' },
   { key: 'variety' as const, label: 'Variety', color: 'var(--color-variety)' },
 ] as const;
 
@@ -47,39 +47,39 @@ export default function ForceCharts() {
 
   // Full-history forces for global graph display
   const globalForceData = useMemo(() => {
-    if (!narrative) return { stakes: [], pacing: [], variety: [] };
-    const stakes: number[] = [];
-    const pacing: number[] = [];
+    if (!narrative) return { payoff: [], change: [], variety: [] };
+    const payoff: number[] = [];
+    const change: number[] = [];
     const variety: number[] = [];
     const forceMap = computeForceSnapshots(allScenes);
-    let lastForce = { stakes: 0, pacing: 0, variety: 0 };
+    let lastForce = { payoff: 0, change: 0, variety: 0 };
     for (const k of resolvedSceneKeys) {
       const entry = resolveEntry(narrative, k);
       if (entry && isScene(entry)) {
         lastForce = forceMap[entry.id] ?? lastForce;
       }
-      stakes.push(lastForce.stakes);
-      pacing.push(lastForce.pacing);
+      payoff.push(lastForce.payoff);
+      change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { stakes, pacing, variety };
+    return { payoff, change, variety };
   }, [narrative, allScenes, resolvedSceneKeys]);
 
   // Window-only forces for local view
   const localForceData = useMemo(() => {
-    if (!windowed || !narrative) return { stakes: [], pacing: [], variety: [] };
-    const stakes: number[] = [];
-    const pacing: number[] = [];
+    if (!windowed || !narrative) return { payoff: [], change: [], variety: [] };
+    const payoff: number[] = [];
+    const change: number[] = [];
     const variety: number[] = [];
     const windowScenes = allScenes.slice(windowed.windowStart, windowed.windowEnd + 1);
-    let lastForce = { stakes: 0, pacing: 0, variety: 0 };
+    let lastForce = { payoff: 0, change: 0, variety: 0 };
     for (const s of windowScenes) {
       lastForce = windowed.forceMap[s.id] ?? lastForce;
-      stakes.push(lastForce.stakes);
-      pacing.push(lastForce.pacing);
+      payoff.push(lastForce.payoff);
+      change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { stakes, pacing, variety };
+    return { payoff, change, variety };
   }, [windowed, allScenes, narrative]);
 
   // Map window scene-indices back to timeline indices for global chart highlight
@@ -108,10 +108,10 @@ export default function ForceCharts() {
   // Global forces for history cube corner
   const globalForces = useMemo(() => {
     const idx = state.currentSceneIndex;
-    if (globalForceData.stakes.length === 0 || idx < 0 || idx >= globalForceData.stakes.length) return null;
+    if (globalForceData.payoff.length === 0 || idx < 0 || idx >= globalForceData.payoff.length) return null;
     return {
-      stakes: globalForceData.stakes[idx],
-      pacing: globalForceData.pacing[idx],
+      payoff: globalForceData.payoff[idx],
+      change: globalForceData.change[idx],
       variety: globalForceData.variety[idx],
     };
   }, [globalForceData, state.currentSceneIndex]);
@@ -133,10 +133,10 @@ export default function ForceCharts() {
     }
     // Global: use previous index from globalForceData
     const prevIdx = state.currentSceneIndex - 1;
-    if (prevIdx < 0 || prevIdx >= globalForceData.stakes.length) return null;
+    if (prevIdx < 0 || prevIdx >= globalForceData.payoff.length) return null;
     return detectCubeCorner({
-      stakes: globalForceData.stakes[prevIdx],
-      pacing: globalForceData.pacing[prevIdx],
+      payoff: globalForceData.payoff[prevIdx],
+      change: globalForceData.change[prevIdx],
       variety: globalForceData.variety[prevIdx],
     });
   }, [cubeMode, currentSceneIdx, allScenes, state.currentSceneIndex, globalForceData]);
@@ -145,7 +145,7 @@ export default function ForceCharts() {
   const isLocal = viewMode === 'local';
   const chartData = isLocal ? localForceData : globalForceData;
   const chartCurrentIndex = isLocal
-    ? (localForceData.stakes.length - 1)  // always last in local view
+    ? (localForceData.payoff.length - 1)  // always last in local view
     : state.currentSceneIndex;
 
   if (!narrative) {
@@ -166,7 +166,7 @@ export default function ForceCharts() {
           <>
             <span className="text-[9px] uppercase tracking-widest text-text-dim">
               {cubeCorner.key.split('').map((c: string, i: number) => {
-                const labels = ['S', 'P', 'V'];
+                const labels = ['P', 'C', 'V'];
                 return `${labels[i]}:${c === 'H' ? 'Hi' : 'Lo'}`;
               }).join(' · ')}
             </span>

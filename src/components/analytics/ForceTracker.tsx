@@ -8,7 +8,7 @@ import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerK
 import { computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
 import { generateChartAnnotations, type ChartAnnotation } from '@/lib/ai';
 
-type ForceKey = 'stakes' | 'pacing' | 'variety';
+type ForceKey = 'payoff' | 'change' | 'variety';
 
 type SceneDataPoint = {
   index: number;
@@ -32,8 +32,8 @@ type ArcRegion = {
 };
 
 const FORCE_CONFIG: { key: ForceKey; label: string; color: string }[] = [
-  { key: 'stakes', label: 'STAKES', color: '#EF4444' },
-  { key: 'pacing', label: 'PACING', color: '#22C55E' },
+  { key: 'payoff', label: 'PAYOFF', color: '#EF4444' },
+  { key: 'change', label: 'CHANGE', color: '#22C55E' },
   { key: 'variety', label: 'VARIETY', color: '#3B82F6' },
 ];
 
@@ -336,7 +336,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   const dataPoints = useMemo((): SceneDataPoint[] => {
     if (!narrative || allScenes.length === 0) return [];
     return allScenes.map((scene, i) => {
-      const forces = forceMap[scene.id] ?? { stakes: 0, pacing: 0, variety: 0 };
+      const forces = forceMap[scene.id] ?? { payoff: 0, change: 0, variety: 0 };
       const corner = detectCubeCorner(forces);
       const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
       const location = narrative.locations[scene.locationId];
@@ -539,8 +539,8 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 </div>
                 <p className="text-[11px] text-text-secondary leading-snug flex-1 min-w-0">{hoveredScene.summary}</p>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>S:{hoveredScene.forces.stakes >= 0 ? '+' : ''}{hoveredScene.forces.stakes.toFixed(2)}</span>
-                  <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>P:{hoveredScene.forces.pacing >= 0 ? '+' : ''}{hoveredScene.forces.pacing.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{hoveredScene.forces.payoff >= 0 ? '+' : ''}{hoveredScene.forces.payoff.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>C:{hoveredScene.forces.change >= 0 ? '+' : ''}{hoveredScene.forces.change.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>V:{hoveredScene.forces.variety >= 0 ? '+' : ''}{hoveredScene.forces.variety.toFixed(2)}</span>
                 </div>
               </div>

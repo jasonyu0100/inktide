@@ -138,7 +138,7 @@ export function branchContext(
     .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
     .join('\n');
 
-  // Force trajectory — compact time series showing pacing rhythm
+  // Force trajectory — compact time series showing change rhythm
   const allScenes = keysUpToCurrent
     .map((k) => resolveEntry(n, k))
     .filter((e): e is Scene => e?.kind === 'scene');
@@ -147,7 +147,7 @@ export function branchContext(
     const f = forceMap[s.id];
     if (!f) return null;
     const corner = detectCubeCorner(f);
-    return `[${i + 1}] S:${f.stakes >= 0 ? '+' : ''}${f.stakes.toFixed(1)} P:${f.pacing >= 0 ? '+' : ''}${f.pacing.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} (${corner.name})`;
+    return `[${i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} (${corner.name})`;
   }).filter(Boolean).join('\n');
 
   // Compact ID lookup — placed last so it's closest to the generation prompt
@@ -155,9 +155,13 @@ export function branchContext(
   const locIdList = Object.values(n.locations).map((l) => l.id).join(', ');
   const threadIdList = Object.values(n.threads).map((t) => t.id).join(', ');
 
+  const rulesBlock = n.rules && n.rules.length > 0
+    ? `\nWORLD RULES (these are absolute — every scene MUST obey them):\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n`
+    : '';
+
   return `NARRATIVE: "${n.title}"
 WORLD: ${n.worldSummary}
-
+${rulesBlock}
 CHARACTERS:
 ${characters}
 
@@ -325,11 +329,11 @@ NARRATIVE CUBE GOAL — steer this arc toward the "${NARRATIVE_CUBE[cubeGoal].na
 ${NARRATIVE_CUBE[cubeGoal].description}
 
 FORCE TARGETS for this arc (these override any patterns you see in the scene history):
-- Stakes: ${NARRATIVE_CUBE[cubeGoal].forces.stakes > 0 ? 'HIGH — drive threads toward critical/threatened/terminal statuses, create negative relationship shifts (betrayals, confrontations, fractures). Consequences should be real and irreversible.' : 'LOW — keep threads in dormant/surfacing statuses, build positive or neutral relationships. No existential danger, no thread escalation. Characters explore, bond, recover, train.'}
-- Pacing: ${NARRATIVE_CUBE[cubeGoal].forces.pacing > 0 ? 'FAST — many thread mutations, knowledge mutations, and relationship changes per scene. Multiple events, rapid developments.' : 'SLOW — few mutations per scene. Contemplative, dialogue-heavy, characters processing/reflecting. Let scenes breathe.'}
-- Variety: ${NARRATIVE_CUBE[cubeGoal].forces.variety > 0 ? 'HIGH — use new/rarely-seen locations and characters. Bring in fresh faces, unexplored settings.' : 'LOW — familiar settings, established cast, deepening existing dynamics. Routine and grounding.'}
+- Payoff: ${NARRATIVE_CUBE[cubeGoal].forces.payoff > 0 ? 'HIGH — drive threads toward critical/threatened/terminal statuses, create negative relationship shifts (betrayals, confrontations, fractures). Consequences should be real and irreversible.' : 'LOW — keep threads in dormant/surfacing statuses, build positive or neutral relationships. No existential danger, no thread escalation. Characters explore, bond, recover, train.'}
+- Change: ${NARRATIVE_CUBE[cubeGoal].forces.change > 0 ? 'FAST — many thread mutations, knowledge mutations, and relationship changes per scene. Multiple events, rapid developments.' : 'SLOW — few mutations per scene. Contemplative, dialogue-heavy, characters processing/reflecting. Let scenes breathe.'}
+- Variety: ${NARRATIVE_CUBE[cubeGoal].forces.variety > 0 ? 'HIGH — use new/rarely-seen locations, characters, and POV perspectives. Bring in fresh faces, unexplored settings, and shift to underused viewpoints.' : 'LOW — familiar settings, established cast, recurring POV characters, deepening existing dynamics. Routine and grounding.'}
 
-DO NOT continue the momentum of previous scenes. If the story has been intense for many scenes and this goal says LOW stakes, you MUST write genuinely calm scenes — keep threads dormant, build friendships, explore without danger. Break the pattern.` : ''}
+DO NOT continue the momentum of previous scenes. If the story has been intense for many scenes and this goal says LOW payoff, you MUST write genuinely calm scenes — keep threads dormant, build friendships, explore without danger. Break the pattern.` : ''}
 
 Return JSON with this exact structure:
 {
@@ -339,6 +343,7 @@ Return JSON with this exact structure:
       "id": "S-GEN-001",
       "arcId": "${arcId}",
       "locationId": "existing location ID from the narrative",
+      "povId": "character ID whose perspective this scene is told from (must be one of the participantIds)",
       "participantIds": ["existing character IDs"],
       "events": ["event_tag_1", "event_tag_2"],
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
@@ -400,6 +405,11 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
       stripped.push(`locationId "${scene.locationId}" in scene ${scene.id}`);
       scene.locationId = Object.keys(narrative.locations)[0];
     }
+    // Fix invalid povId — fall back to first participant
+    if (!scene.povId || !validCharIds.has(scene.povId)) {
+      if (scene.povId) stripped.push(`povId "${scene.povId}" in scene ${scene.id}`);
+      scene.povId = scene.participantIds.find((pid) => validCharIds.has(pid)) ?? Object.keys(narrative.characters)[0];
+    }
     // Remove invalid participantIds
     const validParticipants = scene.participantIds.filter((pid) => {
       if (validCharIds.has(pid)) return true;
@@ -409,6 +419,10 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
     scene.participantIds = validParticipants.length > 0
       ? validParticipants
       : [Object.keys(narrative.characters)[0]]; // ensure at least one participant
+    // Ensure povId is a valid participant
+    if (!scene.participantIds.includes(scene.povId)) {
+      scene.povId = scene.participantIds[0];
+    }
     // Remove invalid threadMutations
     scene.threadMutations = scene.threadMutations.filter((tm) => {
       if (validThreadIds.has(tm.threadId)) return true;
@@ -627,7 +641,7 @@ Rules:
  */
 export async function analyzeForceTrajectory(
   narrative: NarrativeState,
-  forceData: { sceneId: string; arcId: string; arcName: string; forces: { stakes: number; pacing: number; variety: number }; corner: string; cornerKey: CubeCornerKey }[],
+  forceData: { sceneId: string; arcId: string; arcName: string; forces: { payoff: number; change: number; variety: number }; corner: string; cornerKey: CubeCornerKey }[],
 ): Promise<string> {
   // Build compact narrative context (lighter than full branchContext)
   const threadSummary = Object.values(narrative.threads)
@@ -648,7 +662,7 @@ export async function analyzeForceTrajectory(
     const loc = scene ? (narrative.locations[scene.locationId]?.name ?? scene.locationId) : '?';
     const participants = scene ? scene.participantIds.map(pid => narrative.characters[pid]?.name ?? pid).join(', ') : '?';
     const threadChanges = scene?.threadMutations.map(tm => `${narrative.threads[tm.threadId]?.description?.slice(0, 40) ?? tm.threadId}: ${tm.from}→${tm.to}`).join('; ') || '';
-    return `[${i + 1}] ${d.arcName} | ${d.corner} (${d.cornerKey}) | S:${d.forces.stakes >= 0 ? '+' : ''}${d.forces.stakes.toFixed(2)} P:${d.forces.pacing >= 0 ? '+' : ''}${d.forces.pacing.toFixed(2)} V:${d.forces.variety >= 0 ? '+' : ''}${d.forces.variety.toFixed(2)} | @${loc} | ${participants}${threadChanges ? ` | ${threadChanges}` : ''}`;
+    return `[${i + 1}] ${d.arcName} | ${d.corner} (${d.cornerKey}) | P:${d.forces.payoff >= 0 ? '+' : ''}${d.forces.payoff.toFixed(2)} C:${d.forces.change >= 0 ? '+' : ''}${d.forces.change.toFixed(2)} V:${d.forces.variety >= 0 ? '+' : ''}${d.forces.variety.toFixed(2)} | @${loc} | ${participants}${threadChanges ? ` | ${threadChanges}` : ''}`;
   }).join('\n');
 
   // Build per-arc force summary
@@ -661,12 +675,12 @@ export async function analyzeForceTrajectory(
 
   const arcForceLines = arcOrder.map(arcId => {
     const group = arcGroups[arcId];
-    const avgS = group.reduce((s, e) => s + e.forces.stakes, 0) / group.length;
-    const avgP = group.reduce((s, e) => s + e.forces.pacing, 0) / group.length;
+    const avgS = group.reduce((s, e) => s + e.forces.payoff, 0) / group.length;
+    const avgP = group.reduce((s, e) => s + e.forces.change, 0) / group.length;
     const avgV = group.reduce((s, e) => s + e.forces.variety, 0) / group.length;
     const corners = group.map(e => e.corner);
     const uniqueCorners = [...new Set(corners)];
-    return `${group[0].arcName} (${group.length} scenes): avg S:${avgS.toFixed(2)} P:${avgP.toFixed(2)} V:${avgV.toFixed(2)} | corners: ${uniqueCorners.join(' → ')}`;
+    return `${group[0].arcName} (${group.length} scenes): avg P:${avgS.toFixed(2)} C:${avgP.toFixed(2)} V:${avgV.toFixed(2)} | corners: ${uniqueCorners.join(' → ')}`;
   }).join('\n');
 
   // Cube corner definitions for reference
@@ -691,7 +705,7 @@ ${arcSummary}
 KEY RELATIONSHIPS:
 ${relationshipSummary}
 
-CUBE CORNER DEFINITIONS (Stakes · Pacing · Variety mapped to [-1,+1]):
+CUBE CORNER DEFINITIONS (Payoff · Change · Variety mapped to [-1,+1]):
 ${cornerDefs}
 
 ARC-LEVEL FORCE AVERAGES:
@@ -706,9 +720,9 @@ Write a meta-analysis of this narrative's force trajectory. Structure your respo
 
 **Arc-by-Arc Dynamics** — How each arc contributes to the overall rhythm. What is its dominant mode? How does it transition into the next arc? Note any sharp shifts or sustained states.
 
-**Tension Architecture** — How stakes are managed across the narrative. Where are the peaks and valleys? Is the escalation earned or rushed? How does the story use restraint?
+**Tension Architecture** — How payoff is managed across the narrative. Where are the peaks and valleys? Is the escalation earned or rushed? How does the story use restraint?
 
-**Pacing Rhythm** — The mutation density pattern. Where does the story accelerate and decelerate? Are there effective breathing rooms between intense sequences?
+**Change Rhythm** — The mutation density pattern. Where does the story accelerate and decelerate? Are there effective breathing rooms between intense sequences?
 
 **Compositional Observations** — What makes this trajectory distinctive? What corners are over/under-visited? Where does the narrative surprise or follow convention? Any structural strengths or weaknesses?
 
@@ -717,9 +731,50 @@ Write 3-5 sentences per section. Be specific — reference arc names, character 
   return await callGenerate(prompt, systemPrompt, 4000, 'analyzeForceTrajectory');
 }
 
+/**
+ * Generate literary prose for a single scene, suitable for a book-style reading experience.
+ */
+export async function generateSceneProse(
+  narrative: NarrativeState,
+  scene: Scene,
+  sceneIndex: number,
+  resolvedKeys: string[],
+): Promise<string> {
+  const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
+  const location = narrative.locations[scene.locationId];
+  const pov = narrative.characters[scene.povId];
+  const participants = scene.participantIds.map((pid) => narrative.characters[pid]).filter(Boolean);
+
+  // Full branch context — all scenes, characters, threads, arcs, relationships, force trajectory
+  const fullContext = branchContext(narrative, resolvedKeys, resolvedKeys.length - 1);
+
+  const systemPrompt = `You are a literary prose writer crafting scenes for a novel set in the world of "${narrative.title}". Write vivid, immersive prose in third-person limited perspective from the POV character's viewpoint. Your writing should be evocative and grounded in sensory detail — show, don't tell. Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}. Do not include scene titles or chapter headers. Write only the prose itself.`;
+
+  const prompt = `You have full knowledge of the entire narrative branch. Use this to write prose that foreshadows future events through subtle imagery, offhand remarks, environmental details, and character intuitions — never telegraph what's coming, but plant seeds the reader will recognize in hindsight.
+
+FULL BRANCH CONTEXT:
+${fullContext}
+
+---
+
+NOW WRITE SCENE ${sceneIndex + 1}${arc ? ` — Arc: "${arc.name}"` : ''}
+LOCATION: ${location?.name ?? 'Unknown'}
+POV CHARACTER: ${pov?.name ?? 'Unknown'} (${pov?.role ?? 'unknown role'})
+PARTICIPANTS: ${participants.map((p) => `${p.name} (${p.role})`).join(', ')}
+
+EVENTS:
+${scene.events.map((e) => `- ${e}`).join('\n')}
+
+SUMMARY: ${scene.summary}
+
+Write 400-600 words of immersive prose for this scene. Ground the reader in the setting, convey character interiority through the POV character, and dramatize the events with dialogue and action. End the scene with a moment that creates forward momentum.`;
+
+  return await callGenerate(prompt, systemPrompt, 2000, 'generateSceneProse');
+}
+
 export type ChartAnnotation = {
   sceneIndex: number;
-  force: 'stakes' | 'pacing' | 'variety';
+  force: 'payoff' | 'change' | 'variety';
   label: string;
 };
 
@@ -730,11 +785,11 @@ export type ChartAnnotation = {
  */
 export async function generateChartAnnotations(
   narrative: NarrativeState,
-  forceData: { sceneIndex: number; sceneId: string; arcName: string; forces: { stakes: number; pacing: number; variety: number }; corner: string; summary: string; threadChanges: string[]; location: string; participants: string[] }[],
+  forceData: { sceneIndex: number; sceneId: string; arcName: string; forces: { payoff: number; change: number; variety: number }; corner: string; summary: string; threadChanges: string[]; location: string; participants: string[] }[],
 ): Promise<ChartAnnotation[]> {
   const trajectoryLines = forceData.map((d) => {
     const tc = d.threadChanges.length > 0 ? ` | ${d.threadChanges.join('; ')}` : '';
-    return `[${d.sceneIndex + 1}] ${d.arcName} | ${d.corner} | S:${d.forces.stakes.toFixed(2)} P:${d.forces.pacing.toFixed(2)} V:${d.forces.variety.toFixed(2)} | @${d.location} | ${d.participants.join(', ')} | "${d.summary.slice(0, 80)}"${tc}`;
+    return `[${d.sceneIndex + 1}] ${d.arcName} | ${d.corner} | P:${d.forces.payoff.toFixed(2)} C:${d.forces.change.toFixed(2)} V:${d.forces.variety.toFixed(2)} | @${d.location} | ${d.participants.join(', ')} | "${d.summary.slice(0, 80)}"${tc}`;
   }).join('\n');
 
   const systemPrompt = `You are a narrative analyst annotating force trajectory charts. Return ONLY valid JSON — no markdown, no code fences, no commentary.`;
@@ -746,22 +801,22 @@ NARRATIVE: "${narrative.title}" (${forceData.length} scenes)
 SCENE-BY-SCENE DATA:
 ${trajectoryLines}
 
-Annotate ONLY the peaks (local maxima) and troughs (local minima) of each force line. Look at the S/P/V values — find where each force hits its highest and lowest points, then label those.
+Annotate ONLY the peaks (local maxima) and troughs (local minima) of each force line. Look at the P/C/V values — find where each force hits its highest and lowest points, then label those.
 
 Rules:
 - ONLY peaks and troughs — nothing in between. If the value is rising or falling but hasn't reached an extremum, skip it.
-- Include annotations for ALL THREE forces — stakes, pacing, AND variety
+- Include annotations for ALL THREE forces — payoff, change, AND variety
 - ~4-6 annotations per force (the clearest peaks and troughs only)
 - Labels: 2-5 words, specific to the story. Use character names, places, events.
 - Never use generic labels like "high tension" or "calm period"
-- Stakes peaks: danger, threats, betrayals. Troughs: safety, resolution
-- Pacing peaks: action bursts, dense reveals. Troughs: breathing room, reflection
+- Payoff peaks: danger, threats, betrayals. Troughs: safety, calm
+- Change peaks: action bursts, dense reveals. Troughs: breathing room, reflection
 - Variety peaks: new locations or characters (check @location and participants for first appearances). Troughs: same familiar cast/setting recurring
 
 Return a JSON array:
-[{"sceneIndex": 0, "force": "stakes", "label": "short annotation"}, ...]
+[{"sceneIndex": 0, "force": "payoff", "label": "short annotation"}, ...]
 
-sceneIndex is 0-based. force is one of: "stakes", "pacing", "variety".`;
+sceneIndex is 0-based. force is one of: "payoff", "change", "variety".`;
 
   const raw = await callGenerate(prompt, systemPrompt, 4000, 'generateChartAnnotations');
 
@@ -774,7 +829,7 @@ sceneIndex is 0-based. force is one of: "stakes", "pacing", "variety".`;
       typeof a === 'object' && a !== null &&
       'sceneIndex' in a && 'force' in a && 'label' in a &&
       typeof (a as ChartAnnotation).sceneIndex === 'number' &&
-      ['stakes', 'pacing', 'variety'].includes((a as ChartAnnotation).force) &&
+      ['payoff', 'change', 'variety'].includes((a as ChartAnnotation).force) &&
       typeof (a as ChartAnnotation).label === 'string'
   );
 }
@@ -782,6 +837,7 @@ sceneIndex is 0-based. force is one of: "stakes", "pacing", "variety".`;
 export async function generateNarrative(
   title: string,
   premise: string,
+  rules: string[] = [],
 ): Promise<NarrativeState> {
   const prompt = `Create a complete narrative world for:
 Title: "${title}"
@@ -807,6 +863,7 @@ Return JSON with this exact structure:
       "id": "S-001",
       "arcId": "ARC-01",
       "locationId": "L-01",
+      "povId": "C-01",
       "participantIds": ["C-01"],
       "events": ["event_tag"],
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "surfacing"}],
@@ -817,7 +874,8 @@ Return JSON with this exact structure:
   ],
   "arcs": [
     {"id": "ARC-01", "name": "string", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
-  ]
+  ],
+  "rules": ["World rule 1", "World rule 2"]
 }
 
 Generate a world with enough CRITICAL MASS to sustain a long-running story:
@@ -838,7 +896,9 @@ PACING IS CRITICAL:
 
 Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.
 
-Scene knowledgeMutations track what characters LEARN during a scene. Each mutation MUST have: characterId (who learned it), nodeId (unique ID like K-GEN-001), action ("added"), content (what they learned), nodeType (specific contextual type). The characterId must reference an existing character ID (C-XX).`;
+Scene knowledgeMutations track what characters LEARN during a scene. Each mutation MUST have: characterId (who learned it), nodeId (unique ID like K-GEN-001), action ("added"), content (what they learned), nodeType (specific contextual type). The characterId must reference an existing character ID (C-XX).
+
+WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, 60000, 'generateNarrative');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -906,8 +966,9 @@ Scene knowledgeMutations track what characters LEARN during a scene. Each mutati
     commits,
     relationships: parsed.relationships ?? [],
     worldSummary: parsed.worldSummary ?? premise,
+    rules: Array.isArray(parsed.rules) ? parsed.rules.filter((r: unknown) => typeof r === 'string') : rules,
     controlMode: 'auto',
-    activeForces: { stakes: 0, pacing: 0, variety: 0 },
+    activeForces: { payoff: 0, change: 0, variety: 0 },
     createdAt: now,
     updatedAt: now,
   };

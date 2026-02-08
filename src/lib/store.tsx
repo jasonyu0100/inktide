@@ -143,9 +143,8 @@ const initialState: AppState = {
   resolvedSceneKeys: [],
   inspectorContext: null,
   wizardOpen: false,
-  wizardStep: 'premise',
-  wizardPrefill: '',
-  wizardData: { title: '', premise: '', genres: [], tone: '', setting: '', scale: '', characters: [], locations: [], storyDirection: '' },
+  wizardStep: 'form',
+  wizardData: { title: '', premise: '', characters: [], locations: [], rules: [] },
   selectedKnowledgeEntity: null,
   autoTimer: 30,
   graphViewMode: 'scene',
@@ -231,7 +230,8 @@ type Action =
   | { type: 'SET_SCENE_IMAGE'; sceneId: string; imageUrl: string }
   | { type: 'SET_CHARACTER_IMAGE'; characterId: string; imageUrl: string }
   | { type: 'SET_LOCATION_IMAGE'; locationId: string; imageUrl: string }
-  | { type: 'SET_IMAGE_STYLE'; style: string };
+  | { type: 'SET_IMAGE_STYLE'; style: string }
+  | { type: 'SET_RULES'; rules: string[] };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -297,7 +297,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_INSPECTOR':
       return { ...state, inspectorContext: action.context };
     case 'OPEN_WIZARD':
-      return { ...state, wizardOpen: true, wizardStep: 'premise', wizardPrefill: action.prefill ?? '', wizardData: { title: '', premise: action.prefill ?? '', genres: [], tone: '', setting: '', scale: '', characters: [], locations: [], storyDirection: '' } };
+      return { ...state, wizardOpen: true, wizardStep: 'form', wizardData: { title: '', premise: action.prefill ?? '', characters: [], locations: [], rules: [] } };
     case 'CLOSE_WIZARD':
       return { ...state, wizardOpen: false };
     case 'SET_WIZARD_STEP':
@@ -801,6 +801,9 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_IMAGE_STYLE':
       return updateNarrative(state, (n) => ({ ...n, imageStyle: action.style }));
 
+    case 'SET_RULES':
+      return updateNarrative(state, (n) => ({ ...n, rules: action.rules }));
+
     default:
       return state;
   }
@@ -865,7 +868,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Load narrative from IndexedDB when activeNarrativeId changes
   useEffect(() => {
     const id = state.activeNarrativeId;
-    if (!id || id === prevActiveIdRef.current) return;
+    if (!id) { prevActiveIdRef.current = null; return; }
+    if (id === prevActiveIdRef.current && state.activeNarrative) return;
     prevActiveIdRef.current = id;
 
     let cancelled = false;

@@ -15,14 +15,14 @@ type Props = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  HHH: 'Peak',
+  HHH: 'Convergence',
   HHL: 'Climax',
-  HLH: 'Slow Burn',
-  HLL: 'Standoff',
-  LHH: 'Exploration',
-  LHL: 'Sprint',
+  HLH: 'Twist',
+  HLL: 'Closure',
+  LHH: 'Discovery',
+  LHL: 'Growth',
   LLH: 'Wandering',
-  LLL: 'Quiet',
+  LLL: 'Rest',
 };
 
 export function AutoControlBar({

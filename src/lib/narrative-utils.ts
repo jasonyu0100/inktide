@@ -105,8 +105,8 @@ export function computeThreadStatuses(
 /** Euclidean distance between two force snapshots */
 function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
   return Math.sqrt(
-    (a.stakes - b.stakes) ** 2 +
-    (a.pacing - b.pacing) ** 2 +
+    (a.payoff - b.payoff) ** 2 +
+    (a.change - b.change) ** 2 +
     (a.variety - b.variety) ** 2,
   );
 }
@@ -125,103 +125,151 @@ export function detectCubeCorner(forces: ForceSnapshot): CubeCorner {
   return best;
 }
 
-/** Returns the proximity (0-1) of forces to a specific cube corner. 1 = at the corner, 0 = maximally far. */
+/** Returns the proximity (0-1) of forces to a specific cube corner. 1 = at the corner, 0+ = far away.
+ *  Uses exponential decay so z-score values beyond ±1 still produce meaningful proximity. */
 export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCornerKey): number {
-  const maxDist = 2 * Math.sqrt(3); // diagonal of cube from -1,-1,-1 to 1,1,1
   const d = forceDistance(forces, NARRATIVE_CUBE[cornerKey].forces);
-  return 1 - d / maxDist;
+  return Math.exp(-d / 2);
 }
 
 // ── Force Computation ────────────────────────────────────────────────────────
 
 /**
- * Min-max normalize an array of numbers to [-1, +1].
- * If all values are equal, returns all zeros.
+ * Z-score normalize an array of numbers so the mean maps to 0.
+ * Values are in units of standard deviation — positive = above average, negative = below.
+ * If all values are equal (zero variance), returns all zeros.
  */
-function minMaxNormalize(values: number[]): number[] {
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  if (max === min) return values.map(() => 0);
-  return values.map((v) => +((((v - min) / (max - min)) * 2) - 1).toFixed(2));
+function zScoreNormalize(values: number[]): number[] {
+  const n = values.length;
+  if (n === 0) return [];
+  const mean = values.reduce((sum, v) => sum + v, 0) / n;
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
+  if (variance === 0) return values.map(() => 0);
+  const std = Math.sqrt(variance);
+  return values.map((v) => +((v - mean) / std).toFixed(2));
 }
 
 /**
- * Compute raw stakes for a scene structurally — no LLM subjectivity.
+ * Compute raw payoff for a scene — measures phase transitions only.
  *
- * Signals:
- * - Thread mutation destination status (critical/threatened = high, dormant = low)
- * - Actual status transitions (change = something consequential happened)
- * - Terminal transitions (thread ending = irreversible, highest stakes)
- * - Negative relationship shifts (conflict, betrayal)
+ * Payoff = how many irreversible state changes occur.
+ * Only thread mutations where the status actually changes (from ≠ to) count.
+ * Weighted by the magnitude of the jump in the status progression and
+ * whether the transition is terminal (irreversible).
+ * Relationship valence shifts also contribute — larger swings = higher payoff.
+ *
+ * Scenes where nothing transitions score 0 regardless of how many mutations exist.
  */
-const STATUS_STAKES_WEIGHT: Record<string, number> = {
-  dormant: 0,
-  surfacing: 5,
-  escalating: 15,
-  fractured: 30,
-  converging: 20,
-  critical: 40,
-  threatened: 45,
-  // Terminal statuses — the thread is ending, something decisive happened
-  resolved: 25,
-  done: 10,
-  subverted: 35,
-  closed: 15,
-  abandoned: 5,
+
+/** Ordered progression index — distance between indices = magnitude of the phase jump */
+const STATUS_PHASE_ORDER: string[] = [
+  'dormant', 'surfacing', 'escalating', 'fractured', 'converging', 'critical', 'threatened',
+];
+const TERMINAL_PHASE_WEIGHT: Record<string, number> = {
+  resolved: 6,
+  done: 3,
+  subverted: 8,
+  closed: 4,
+  abandoned: 2,
 };
 const TERMINAL_STATUS_SET = new Set<string>(THREAD_TERMINAL_STATUSES.map((s) => s.toLowerCase()));
 
-function computeRawStakes(scene: Scene): number {
+function computeRawPayoff(scene: Scene): number {
   let score = 0;
 
   for (const tm of scene.threadMutations) {
-    // Weight based on how severe the destination status is
-    score += STATUS_STAKES_WEIGHT[tm.to.toLowerCase()] ?? 10;
-    // Bonus for actual transitions (something changed)
-    if (tm.from.toLowerCase() !== tm.to.toLowerCase()) {
-      score += 10;
-      // Extra bonus for terminal transitions — irreversible, high consequence
-      if (TERMINAL_STATUS_SET.has(tm.to.toLowerCase())) score += 15;
+    const from = tm.from.toLowerCase();
+    const to = tm.to.toLowerCase();
+    if (from === to) continue; // no phase transition
+
+    if (TERMINAL_STATUS_SET.has(to)) {
+      // Terminal transitions: use dedicated weight (irreversible endings)
+      score += TERMINAL_PHASE_WEIGHT[to] ?? 5;
+    } else {
+      // Active-to-active: magnitude = distance in phase order
+      const fromIdx = STATUS_PHASE_ORDER.indexOf(from);
+      const toIdx = STATUS_PHASE_ORDER.indexOf(to);
+      if (fromIdx >= 0 && toIdx >= 0) {
+        score += Math.abs(toIdx - fromIdx);
+      } else {
+        score += 1; // unknown status, still a transition
+      }
     }
   }
 
-  // Relationship swings = consequential moments (conflict, alliance, betrayal, reconciliation)
-  // valenceDelta is ±0.1–0.5; at 100x a typical ±0.2 shift ≈ 20 pts, matching mid-tier thread mutations
+  // Relationship phase shifts — magnitude of valence swing
   for (const rm of scene.relationshipMutations) {
-    score += Math.abs(rm.valenceDelta) * 100;
+    score += Math.abs(rm.valenceDelta) * 10;
   }
 
   return score;
 }
 
 /**
- * Compute raw pacing for a scene: total number of mutations (more = faster pace).
+ * Compute raw change for a scene — total mutation count.
+ *
+ * Change = how much characters learn, change, and are affected.
+ * Every mutation (thread touch, knowledge gain/loss, relationship shift) counts.
  */
-function rawPacing(scene: Scene): number {
+function rawChange(scene: Scene): number {
   return scene.threadMutations.length
     + scene.knowledgeMutations.length
     + scene.relationshipMutations.length;
 }
 
 /**
- * Compute raw variety for a scene given cumulative usage counts.
- * Lower total usage of participants + location = higher variety (newer elements).
- * Returns a value where higher = more variety (inverted from usage).
+ * Jaccard distance between two sets: 1 - |intersection| / |union|.
+ * Returns 1 when sets are completely disjoint (novel), 0 when identical.
  */
-function rawVariety(scene: Scene, charUsage: Record<string, number>, locUsage: Record<string, number>): number {
-  const participantUsage = scene.participantIds.reduce((sum, id) => sum + (charUsage[id] ?? 0), 0);
-  const avgParticipantUsage = scene.participantIds.length > 0 ? participantUsage / scene.participantIds.length : 0;
-  const locationUsage = locUsage[scene.locationId] ?? 0;
-  // Invert: less usage = more variety
-  return -1 * (avgParticipantUsage + locationUsage);
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 0;
+  let intersection = 0;
+  for (const v of a) if (b.has(v)) intersection++;
+  const union = a.size + b.size - intersection;
+  return 1 - intersection / union;
 }
 
 /**
- * Compute ForceSnapshots for a batch of scenes using min-max normalization.
+ * Compute raw variety for a scene combining entity freshness and compositional novelty.
  *
- * - **Stakes**: computed from thread mutation severity and relationship conflict, normalized to [-1, +1]
- * - **Pacing**: total mutation count per scene, normalized to [-1, +1]
- * - **Variety**: inversely proportional to character/location usage frequency, normalized to [-1, +1]
+ * - **Entity freshness**: lower avg participant + location usage = newer elements.
+ * - **Compositional novelty**: Jaccard distance of this scene's participant set vs
+ *   all prior participant sets. High when this combination of characters is new,
+ *   even if the individuals have appeared before.
+ */
+function rawVariety(scene: Scene, charUsage: Record<string, number>, locUsage: Record<string, number>, priorCasts: Set<string>[]): number {
+  // Entity freshness (negative — less usage = higher variety)
+  const participantUsage = scene.participantIds.reduce((sum, id) => sum + (charUsage[id] ?? 0), 0);
+  const avgParticipantUsage = scene.participantIds.length > 0 ? participantUsage / scene.participantIds.length : 0;
+  const locationUsage = locUsage[scene.locationId] ?? 0;
+  const freshness = -1 * (avgParticipantUsage + locationUsage);
+
+  // Compositional novelty: min Jaccard distance to any prior cast
+  const cast = new Set(scene.participantIds);
+  let novelty = 1; // fully novel if no prior scenes
+  if (priorCasts.length > 0) {
+    let minDist = 1;
+    for (const prior of priorCasts) {
+      minDist = Math.min(minDist, jaccard(cast, prior));
+    }
+    novelty = minDist;
+  }
+
+  // Combine: freshness is an unbounded negative number, novelty is [0,1].
+  // Scale novelty into the same order of magnitude as freshness so both
+  // contribute meaningfully before z-score normalization.
+  // A scene with ~5 avg usage and ~5 location usage has freshness ≈ -10,
+  // so scaling novelty by 10 keeps them balanced.
+  return freshness + novelty * 10;
+}
+
+/**
+ * Compute ForceSnapshots for a batch of scenes using z-score normalization.
+ * 0 = average moment; positive = above average; negative = below average (units of std deviation).
+ *
+ * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence shifts
+ * - **Change**: mutation volume — how much characters learn, change, and are affected (total mutation count)
+ * - **Variety**: combines entity freshness (participant/location usage) and compositional novelty (Jaccard distance of cast vs prior casts)
  *
  * @param scenes - Ordered list of scenes to compute forces for
  * @param priorScenes - Scenes before this batch (for usage tracking). Empty for initial generation.
@@ -233,37 +281,40 @@ export function computeForceSnapshots(
   const result: Record<string, ForceSnapshot> = {};
   if (scenes.length === 0) return result;
 
-  // Build cumulative usage counts from prior scenes
+  // Build cumulative usage counts and participant sets from prior scenes
   const charUsage: Record<string, number> = {};
   const locUsage: Record<string, number> = {};
+  const priorCasts: Set<string>[] = [];
   for (const s of priorScenes) {
     for (const pid of s.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
     locUsage[s.locationId] = (locUsage[s.locationId] ?? 0) + 1;
+    priorCasts.push(new Set(s.participantIds));
   }
 
   // Compute raw values, updating usage counts as we go
-  const rawStakes: number[] = [];
-  const rawPacings: number[] = [];
+  const rawPayoffs: number[] = [];
+  const rawChanges: number[] = [];
   const rawVarieties: number[] = [];
 
   for (const scene of scenes) {
-    rawStakes.push(computeRawStakes(scene));
-    rawPacings.push(rawPacing(scene));
-    rawVarieties.push(rawVariety(scene, charUsage, locUsage));
+    rawPayoffs.push(computeRawPayoff(scene));
+    rawChanges.push(rawChange(scene));
+    rawVarieties.push(rawVariety(scene, charUsage, locUsage, priorCasts));
     // Update usage for subsequent scenes
     for (const pid of scene.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
     locUsage[scene.locationId] = (locUsage[scene.locationId] ?? 0) + 1;
+    priorCasts.push(new Set(scene.participantIds));
   }
 
-  // Min-max normalize each dimension to [-1, +1]
-  const normStakes = minMaxNormalize(rawStakes);
-  const normPacings = minMaxNormalize(rawPacings);
-  const normVarieties = minMaxNormalize(rawVarieties);
+  // Z-score normalize each dimension (mean = 0, units = std deviations)
+  const normPayoffs = zScoreNormalize(rawPayoffs);
+  const normChanges = zScoreNormalize(rawChanges);
+  const normVarieties = zScoreNormalize(rawVarieties);
 
   for (let i = 0; i < scenes.length; i++) {
     result[scenes[i].id] = {
-      stakes: normStakes[i],
-      pacing: normPacings[i],
+      payoff: normPayoffs[i],
+      change: normChanges[i],
       variety: normVarieties[i],
     };
   }

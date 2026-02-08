@@ -1,68 +1,382 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import type { WizardStep } from '@/types/narrative';
-import { PremiseStep } from './PremiseStep';
-import { WorldStep } from './WorldStep';
-import { GenerateStep } from './GenerateStep';
+import { generateNarrative } from '@/lib/ai';
+import type { CharacterSketch, LocationSketch } from '@/types/narrative';
 
-const STEPS: { key: WizardStep; label: string }[] = [
-  { key: 'premise', label: 'Premise' },
-  { key: 'world', label: 'World' },
-  { key: 'generate', label: 'Generate' },
-];
-
-function Stepper({ current }: { current: WizardStep }) {
-  const currentIdx = STEPS.findIndex((s) => s.key === current);
-  return (
-    <div className="flex items-center gap-1 mb-5">
-      {STEPS.map((step, i) => {
-        const isActive = i === currentIdx;
-        const isDone = i < currentIdx;
-        return (
-          <div key={step.key} className="flex items-center gap-1">
-            {i > 0 && (
-              <div className={`w-8 h-px ${isDone ? 'bg-white/30' : 'bg-white/8'}`} />
-            )}
-            <div className="flex items-center gap-1.5">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono transition ${
-                isActive
-                  ? 'bg-white/15 text-text-primary border border-white/25'
-                  : isDone
-                    ? 'bg-white/10 text-text-secondary'
-                    : 'bg-white/[0.04] text-text-dim'
-              }`}>
-                {isDone ? '✓' : i + 1}
-              </div>
-              <span className={`text-[10px] uppercase tracking-wider ${
-                isActive ? 'text-text-primary' : 'text-text-dim'
-              }`}>
-                {step.label}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function StepContent({ step }: { step: WizardStep }) {
-  switch (step) {
-    case 'premise':
-      return <PremiseStep />;
-    case 'world':
-      return <WorldStep />;
-    case 'generate':
-      return <GenerateStep />;
-  }
-}
+const ROLES: CharacterSketch['role'][] = ['anchor', 'recurring', 'transient'];
 
 export function CreationWizard() {
+  const router = useRouter();
   const { state, dispatch } = useStore();
+  const wd = state.wizardData;
+  const isGenerating = state.wizardStep === 'generate';
+  const isDetails = state.wizardStep === 'details';
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [ruleDraft, setRuleDraft] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
+  const started = useRef(false);
+
+  const isDuplicate =
+    wd.title.trim() !== '' &&
+    state.narratives.some(
+      (n) => n.title.toLowerCase() === wd.title.trim().toLowerCase(),
+    );
+
+  const canGenerate = !!wd.title.trim() && !!wd.premise.trim() && !isDuplicate;
+
+  function update(data: Partial<typeof wd>) {
+    dispatch({ type: 'UPDATE_WIZARD_DATA', data });
+  }
+
+  // ── Characters ───────────────────────────────────────────────────────
+  function addCharacter() {
+    update({ characters: [...wd.characters, { name: '', role: 'recurring', description: '' }] });
+  }
+  function updateCharacter(i: number, patch: Partial<CharacterSketch>) {
+    const chars = [...wd.characters];
+    chars[i] = { ...chars[i], ...patch };
+    update({ characters: chars });
+  }
+  function removeCharacter(i: number) {
+    update({ characters: wd.characters.filter((_, idx) => idx !== i) });
+  }
+
+  // ── Locations ────────────────────────────────────────────────────────
+  function addLocation() {
+    update({ locations: [...wd.locations, { name: '', description: '' }] });
+  }
+  function updateLocation(i: number, patch: Partial<LocationSketch>) {
+    const locs = [...wd.locations];
+    locs[i] = { ...locs[i], ...patch };
+    update({ locations: locs });
+  }
+  function removeLocation(i: number) {
+    update({ locations: wd.locations.filter((_, idx) => idx !== i) });
+  }
+
+  // ── Rules ────────────────────────────────────────────────────────────
+  function addRule() {
+    const text = ruleDraft.trim();
+    if (!text) return;
+    update({ rules: [...wd.rules, text] });
+    setRuleDraft('');
+  }
+  function removeRule(i: number) {
+    update({ rules: wd.rules.filter((_, idx) => idx !== i) });
+  }
+
+  // ── Suggest ──────────────────────────────────────────────────────────
+  async function handleSuggest() {
+    if (suggesting) return;
+    setSuggesting(true);
+    try {
+      const res = await fetch('/api/suggest-premise', { method: 'POST' });
+      const data = await res.json();
+      if (data.title || data.premise) {
+        update({ title: data.title ?? '', premise: data.premise ?? '' });
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  // ── Generate ─────────────────────────────────────────────────────────
+  function buildEnhancedPremise() {
+    const parts: string[] = [wd.premise];
+    const details: string[] = [];
+
+    if (wd.characters.length > 0) {
+      const charLines = wd.characters
+        .filter((c) => c.name.trim())
+        .map((c) => `  - ${c.name} (${c.role})${c.description ? `: ${c.description}` : ''}`);
+      if (charLines.length > 0) {
+        details.push(`Key characters:\n${charLines.join('\n')}`);
+      }
+    }
+
+    if (wd.locations.length > 0) {
+      const locLines = wd.locations
+        .filter((l) => l.name.trim())
+        .map((l) => `  - ${l.name}${l.description ? `: ${l.description}` : ''}`);
+      if (locLines.length > 0) {
+        details.push(`Key locations:\n${locLines.join('\n')}`);
+      }
+    }
+
+    if (wd.rules.length > 0) {
+      details.push(`World rules (absolute constraints the narrative must obey):\n${wd.rules.map((r, i) => `  ${i + 1}. ${r}`).join('\n')}`);
+    }
+
+    if (details.length > 0) {
+      parts.push('', ...details);
+    }
+
+    return parts.join('\n');
+  }
+
+  async function handleGenerate() {
+    if (loading) return;
+    setLoading(true);
+    setError('');
+    try {
+      const narrative = await generateNarrative(wd.title, buildEnhancedPremise(), wd.rules);
+      dispatch({ type: 'ADD_NARRATIVE', narrative });
+      router.push(`/series/${narrative.id}`);
+    } catch (err) {
+      setError(String(err));
+      setLoading(false);
+    }
+  }
+
+  // Auto-start generation when stepping to generate
+  useEffect(() => {
+    if (isGenerating && !started.current) {
+      started.current = true;
+      handleGenerate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGenerating]);
 
   if (!state.wizardOpen) return null;
 
+  // ── Generate view ────────────────────────────────────────────────────
+  if (isGenerating) {
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="glass max-w-2xl w-full rounded-2xl p-6 relative">
+          <div className="flex flex-col gap-5">
+            <div>
+              <h2 className="text-sm font-semibold text-text-primary mb-1">
+                {loading ? 'Generating your world...' : 'Generation failed'}
+              </h2>
+              {loading && (
+                <p className="text-[11px] text-text-dim">
+                  Creating characters, locations, threads, relationships, and scenes. This may take a moment.
+                </p>
+              )}
+            </div>
+
+            {loading && (
+              <div className="flex flex-col gap-2">
+                {['Building characters & relationships...', 'Crafting locations & world lore...', 'Weaving narrative threads...', 'Generating opening scenes...'].map((label, i) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <div className="h-1.5 flex-1 bg-white/6 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-white/20 rounded-full animate-pulse"
+                        style={{ width: '60%', animationDelay: `${i * 0.3}s` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-text-dim w-48 shrink-0">{label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-stakes/10 border border-stakes/30 rounded-lg px-3 py-2">
+                <p className="text-xs text-stakes/80 mt-1">{error}</p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mt-1">
+              <button
+                onClick={() => {
+                  started.current = false;
+                  dispatch({ type: 'SET_WIZARD_STEP', step: 'form' });
+                }}
+                disabled={loading}
+                className="text-text-dim text-xs hover:text-text-secondary transition disabled:opacity-30 disabled:pointer-events-none"
+              >
+                &larr; Back
+              </button>
+              {error && (
+                <button
+                  onClick={handleGenerate}
+                  className="bg-white/8 hover:bg-white/12 text-text-primary text-xs font-semibold px-5 py-2 rounded-lg transition"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const hasDetails = wd.characters.length > 0 || wd.locations.length > 0 || wd.rules.length > 0;
+
+  // ── Step 2: Details view ───────────────────────────────────────────
+  if (isDetails) {
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="glass max-w-2xl w-full rounded-2xl p-6 relative">
+          <button
+            onClick={() => dispatch({ type: 'CLOSE_WIZARD' })}
+            className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none"
+          >
+            &times;
+          </button>
+
+          <div className="flex flex-col gap-5 max-h-[75vh] overflow-y-auto pr-1">
+            {/* Header */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-mono text-text-dim">Step 2 of 2</span>
+              </div>
+              <h2 className="text-sm font-semibold text-text-primary mb-1">Details (Optional)</h2>
+              <p className="text-[11px] text-text-dim">
+                Add characters, locations, or world rules — or skip and let the AI fill in everything.
+              </p>
+            </div>
+
+            {/* Character Sketches */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">Characters</label>
+                <button type="button" onClick={addCharacter} className="text-[10px] text-text-dim hover:text-text-secondary transition">+ Add</button>
+              </div>
+              {wd.characters.length === 0 && (
+                <p className="text-[11px] text-text-dim/60 italic">No characters defined — the AI will create them from the premise.</p>
+              )}
+              <div className="flex flex-col gap-2">
+                {wd.characters.map((ch, i) => (
+                  <div key={i} className="flex gap-2 items-start bg-bg-elevated rounded-lg p-2.5 border border-border">
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={ch.name}
+                          onChange={(e) => updateCharacter(i, { name: e.target.value })}
+                          placeholder="Name"
+                          className="flex-1 bg-transparent border-b border-border text-xs text-text-primary outline-none placeholder:text-text-dim focus:border-white/20 transition pb-0.5"
+                        />
+                        <select
+                          value={ch.role}
+                          onChange={(e) => updateCharacter(i, { role: e.target.value as CharacterSketch['role'] })}
+                          className="bg-transparent border-b border-border text-[10px] text-text-dim outline-none pb-0.5"
+                        >
+                          {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+                      <input
+                        type="text"
+                        value={ch.description}
+                        onChange={(e) => updateCharacter(i, { description: e.target.value })}
+                        placeholder="Brief description, goals, or traits..."
+                        className="bg-transparent border-b border-border text-[10px] text-text-dim outline-none placeholder:text-text-dim/60 focus:border-white/20 transition pb-0.5"
+                      />
+                    </div>
+                    <button type="button" onClick={() => removeCharacter(i)} className="text-text-dim hover:text-text-secondary text-xs mt-0.5">&times;</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Location Sketches */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">Locations</label>
+                <button type="button" onClick={addLocation} className="text-[10px] text-text-dim hover:text-text-secondary transition">+ Add</button>
+              </div>
+              {wd.locations.length === 0 && (
+                <p className="text-[11px] text-text-dim/60 italic">No locations defined — the AI will create them from the premise.</p>
+              )}
+              <div className="flex flex-col gap-2">
+                {wd.locations.map((loc, i) => (
+                  <div key={i} className="flex gap-2 items-start bg-bg-elevated rounded-lg p-2.5 border border-border">
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <input
+                        type="text"
+                        value={loc.name}
+                        onChange={(e) => updateLocation(i, { name: e.target.value })}
+                        placeholder="Location name"
+                        className="flex-1 bg-transparent border-b border-border text-xs text-text-primary outline-none placeholder:text-text-dim focus:border-white/20 transition pb-0.5"
+                      />
+                      <input
+                        type="text"
+                        value={loc.description}
+                        onChange={(e) => updateLocation(i, { description: e.target.value })}
+                        placeholder="Description, atmosphere, significance..."
+                        className="bg-transparent border-b border-border text-[10px] text-text-dim outline-none placeholder:text-text-dim/60 focus:border-white/20 transition pb-0.5"
+                      />
+                    </div>
+                    <button type="button" onClick={() => removeLocation(i)} className="text-text-dim hover:text-text-secondary text-xs mt-0.5">&times;</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* World Rules */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">World Rules</label>
+              </div>
+              {wd.rules.length === 0 && (
+                <p className="text-[11px] text-text-dim/60 italic mb-2">No rules defined — the AI will generate rules from the premise.</p>
+              )}
+              <div className="flex flex-col gap-1.5 mb-2">
+                {wd.rules.map((rule, i) => (
+                  <div key={i} className="flex items-start gap-2 group">
+                    <span className="text-[10px] font-mono text-text-dim mt-0.5 shrink-0 w-4 text-right">{i + 1}.</span>
+                    <p className="text-xs text-text-secondary leading-relaxed flex-1">{rule}</p>
+                    <button
+                      onClick={() => removeRule(i)}
+                      className="text-[10px] text-red-400/50 hover:text-red-400 opacity-0 group-hover:opacity-100 transition shrink-0 mt-0.5"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={ruleDraft}
+                  onChange={(e) => setRuleDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRule(); } }}
+                  placeholder="Add a world rule..."
+                  className="flex-1 bg-bg-elevated border border-border rounded px-3 py-1.5 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
+                />
+                <button
+                  onClick={addRule}
+                  disabled={!ruleDraft.trim()}
+                  className="text-[10px] px-3 py-1.5 rounded bg-white/5 border border-border text-text-secondary hover:text-text-primary hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <div className="flex items-center justify-between pt-1">
+              <button
+                onClick={() => dispatch({ type: 'SET_WIZARD_STEP', step: 'form' })}
+                className="text-text-dim text-xs hover:text-text-secondary transition"
+              >
+                &larr; Back
+              </button>
+              <button
+                onClick={() => dispatch({ type: 'SET_WIZARD_STEP', step: 'generate' })}
+                className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold px-5 py-2 rounded-lg transition"
+              >
+                Generate
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Step 1: Title & Premise ────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
       <div className="glass max-w-2xl w-full rounded-2xl p-6 relative">
@@ -72,8 +386,77 @@ export function CreationWizard() {
         >
           &times;
         </button>
-        <Stepper current={state.wizardStep} />
-        <StepContent step={state.wizardStep} />
+
+        <div className="flex flex-col gap-5 max-h-[75vh] overflow-y-auto pr-1">
+          {/* Header */}
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono text-text-dim">Step 1 of 2</span>
+            </div>
+            <h2 className="text-sm font-semibold text-text-primary mb-1">New Series</h2>
+            <p className="text-[11px] text-text-dim">
+              Give your series a title and describe the premise.
+            </p>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim mb-1.5 block font-mono">
+              Title
+            </label>
+            <input
+              type="text"
+              value={wd.title}
+              onChange={(e) => update({ title: e.target.value })}
+              placeholder="e.g. The Gilded Cage"
+              className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full outline-none placeholder:text-text-dim focus:border-white/16 transition"
+            />
+            {isDuplicate && (
+              <p className="text-[11px] text-stakes mt-1">A series with this name already exists.</p>
+            )}
+          </div>
+
+          {/* Premise */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">
+                Premise
+              </label>
+              <button
+                type="button"
+                onClick={handleSuggest}
+                disabled={suggesting}
+                className="text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 uppercase tracking-wider"
+              >
+                {suggesting ? 'Thinking...' : 'Suggest'}
+              </button>
+            </div>
+            <textarea
+              value={wd.premise}
+              onChange={(e) => update({ premise: e.target.value })}
+              placeholder="Describe your world, characters, and the central conflict..."
+              className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-28 resize-none outline-none placeholder:text-text-dim focus:border-white/16 transition"
+            />
+          </div>
+
+          {/* Navigation */}
+          <div className="flex items-center justify-between pt-1">
+            <button
+              onClick={() => dispatch({ type: 'SET_WIZARD_STEP', step: 'details' })}
+              disabled={!canGenerate}
+              className="text-text-dim text-xs hover:text-text-secondary transition disabled:opacity-30 disabled:pointer-events-none"
+            >
+              Add details &rarr;
+            </button>
+            <button
+              onClick={() => dispatch({ type: 'SET_WIZARD_STEP', step: 'generate' })}
+              disabled={!canGenerate}
+              className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold px-5 py-2 rounded-lg transition disabled:opacity-30 disabled:pointer-events-none"
+            >
+              Generate
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

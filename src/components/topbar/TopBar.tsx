@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
-import { resolveEntry, isScene, type Scene } from '@/types/narrative';
+import { StoryReader } from '@/components/story/StoryReader';
 
 function exportNarrative(narrative: NarrativeState) {
   const json = JSON.stringify(narrative, null, 2);
@@ -250,6 +250,20 @@ export default function TopBar() {
           </button>
         )}
         <button
+          onClick={() => window.dispatchEvent(new Event('open-rules-panel'))}
+          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
+          title="World Rules — narrative commandments"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+          <span className="text-[11px]">Rules</span>
+        </button>
+        <button
           onClick={() => window.dispatchEvent(new Event('open-force-tracker'))}
           className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
           title="Force Tracker — narrative analysis"
@@ -293,7 +307,7 @@ export default function TopBar() {
       </div>
       {logsOpen && <ApiLogsModal onClose={() => setLogsOpen(false)} />}
       {storyOpen && narrative && (
-        <StoryModal
+        <StoryReader
           narrative={narrative}
           resolvedKeys={state.resolvedSceneKeys}
           onClose={() => setStoryOpen(false)}
@@ -303,76 +317,3 @@ export default function TopBar() {
   );
 }
 
-function StoryModal({
-  narrative,
-  resolvedKeys,
-  onClose,
-}: {
-  narrative: NarrativeState;
-  resolvedKeys: string[];
-  onClose: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  const scenes = resolvedKeys
-    .map((k) => resolveEntry(narrative, k))
-    .filter((e): e is Scene => !!e && isScene(e));
-
-  const storyText = scenes
-    .map((s, i) => `Scene ${i + 1}: ${s.summary}`)
-    .join('\n\n');
-
-  function handleCopy() {
-    navigator.clipboard.writeText(storyText).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div
-        className="glass max-w-2xl w-full rounded-2xl p-6 relative max-h-[80vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-text-primary">{narrative.title}</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopy}
-              className="text-[11px] text-text-dim hover:text-text-secondary border border-border hover:border-white/12 rounded-full px-3 py-1 transition flex items-center gap-1.5"
-            >
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-            <button onClick={onClose} className="text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
-          </div>
-        </div>
-        <div className="overflow-y-auto flex-1 pr-1">
-          <div className="flex flex-col gap-4">
-            {scenes.map((scene, i) => {
-              const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
-              const location = narrative.locations[scene.locationId];
-              return (
-                <div key={scene.id} className="flex flex-col gap-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[10px] font-mono text-text-dim">Scene {i + 1}</span>
-                    {arc && <span className="text-[10px] text-text-dim uppercase tracking-wider">{arc.name}</span>}
-                    {location && <span className="text-[10px] text-text-dim">{location.name}</span>}
-                  </div>
-                  <p className="text-xs text-text-secondary leading-relaxed">{scene.summary}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div className="mt-4 pt-3 border-t border-border text-[10px] text-text-dim">
-          {scenes.length} scenes
-        </div>
-      </div>
-    </div>
-  );
-}

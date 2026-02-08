@@ -105,19 +105,20 @@ export type RelationshipMutation = {
   valenceDelta: number;
 };
 
-/** Force values are min-max normalized to [-1, +1] across all scenes.
- *  - stakes:  how much is at risk — AI-provided per scene (0-100 raw), normalized
- *  - pacing:  how much changes — computed from total mutation count, normalized
- *  - variety: how novel the cast/setting is — computed from character/location usage frequency, normalized
+/** Force values are z-score normalized (mean = 0, units = standard deviations).
+ *  0 = average moment, positive = above average, negative = below average.
+ *  - payoff:  thread phase transitions (weighted by jump magnitude) + relationship valence shifts
+ *  - change:  mutation volume — how much characters learn, change, and are affected (total mutation count)
+ *  - variety: how novel the cast/setting is — computed from character/location usage frequency + compositional novelty
  */
 export type ForceSnapshot = {
-  stakes: number;
-  pacing: number;
+  payoff: number;
+  change: number;
   variety: number;
 };
 
-// ── Narrative Cube (Stakes · Pacing · Variety) ──────────────────────────────
-// The three forces (S·P·V) define a cube. Each corner is a recognisable state.
+// ── Narrative Cube (Payoff · Change · Variety) ──────────────────────────────
+// The three forces (P·C·V) define a cube. Each corner is a recognisable narrative state.
 export type CubeCornerKey =
   | 'HHH' | 'HHL' | 'HLH' | 'HLL'
   | 'LHH' | 'LHL' | 'LLH' | 'LLL';
@@ -132,51 +133,51 @@ export type CubeCorner = {
 export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
   HHH: {
     key: 'HHH',
-    name: 'Peak',
-    description: 'High stakes, rapid events, unfamiliar cast/setting. Climactic sequences in new territory with everything on the line.',
-    forces: { stakes: 1, pacing: 1, variety: 1 },
+    name: 'Convergence',
+    description: 'Threads paying off, characters transforming, in new territory. Everything converges — the ultimate narrative convergence point.',
+    forces: { payoff: 1, change: 1, variety: 1 },
   },
   HHL: {
     key: 'HHL',
     name: 'Climax',
-    description: 'High stakes and rapid events with the familiar cast. The archetypal payoff — maximum investment with known characters.',
-    forces: { stakes: 1, pacing: 1, variety: -1 },
+    description: 'Threads pay off and characters change with the familiar cast. The archetypal payoff — maximum investment with known characters.',
+    forces: { payoff: 1, change: 1, variety: -1 },
   },
   HLH: {
     key: 'HLH',
-    name: 'Slow Burn',
-    description: 'High stakes but little changes, with new faces or places. Tension through restraint — the calm before the storm in unfamiliar territory.',
-    forces: { stakes: 1, pacing: -1, variety: 1 },
+    name: 'Twist',
+    description: 'Threads pay off but characters haven\'t changed yet, new elements in play. A twist or revelation that resets the board.',
+    forces: { payoff: 1, change: -1, variety: 1 },
   },
   HLL: {
     key: 'HLL',
-    name: 'Standoff',
-    description: 'High stakes, little changes, familiar ground. Everything is loaded but static — characters endure, suppress, or wait.',
-    forces: { stakes: 1, pacing: -1, variety: -1 },
+    name: 'Closure',
+    description: 'Threads pay off quietly, little character growth, familiar ground. Tying up loose ends — the aftermath of climactic events.',
+    forces: { payoff: 1, change: -1, variety: -1 },
   },
   LHH: {
     key: 'LHH',
-    name: 'Exploration',
-    description: 'Low stakes, rapid events, new cast/setting. Discovery-driven sequences — world-building, early adventure, open possibility space.',
-    forces: { stakes: -1, pacing: 1, variety: 1 },
+    name: 'Discovery',
+    description: 'No payoffs but lots of character growth in new territory. Discovery-driven sequences — world-building, early adventure, open possibility space.',
+    forces: { payoff: -1, change: 1, variety: 1 },
   },
   LHL: {
     key: 'LHL',
-    name: 'Sprint',
-    description: 'Low stakes, rapid events, familiar cast. Routine action among known elements — training, travel, episodic sequences.',
-    forces: { stakes: -1, pacing: 1, variety: -1 },
+    name: 'Growth',
+    description: 'No payoffs, characters changing, familiar cast. Internal growth — training, bonding, processing events without plot advancement.',
+    forces: { payoff: -1, change: 1, variety: -1 },
   },
   LLH: {
     key: 'LLH',
     name: 'Wandering',
-    description: 'Low stakes, little changes, new faces/places. Contemplative or transitional — characters in new environments without clear direction.',
-    forces: { stakes: -1, pacing: -1, variety: 1 },
+    description: 'Nothing resolving, nothing changing, new faces and places. Contemplative or transitional — drifting through unfamiliar territory.',
+    forces: { payoff: -1, change: -1, variety: 1 },
   },
   LLL: {
     key: 'LLL',
-    name: 'Quiet',
-    description: 'All forces at minimum. Familiar world, no risk, no urgency. Recovery and seed-planting — breathing room after high-intensity sequences.',
-    forces: { stakes: -1, pacing: -1, variety: -1 },
+    name: 'Rest',
+    description: 'All forces at minimum. Familiar world, no payoffs, no growth. Recovery and seed-planting — breathing room after high-intensity sequences.',
+    forces: { payoff: -1, change: -1, variety: -1 },
   },
 };
 
@@ -192,6 +193,8 @@ export type Scene = {
   id: string;
   arcId: string;
   locationId: string;
+  /** Character whose perspective this scene is told from */
+  povId: string;
   participantIds: string[];
   /** Characters who move in this scene — characterId → new locationId. Only include deltas. */
   characterMovements?: Record<string, string>;
@@ -199,9 +202,7 @@ export type Scene = {
   threadMutations: ThreadMutation[];
   knowledgeMutations: KnowledgeMutation[];
   relationshipMutations: RelationshipMutation[];
-  /** AI-provided stakes value (0-100), used by computeForceSnapshots */
-  stakes?: number;
-  prose: string;
+  prose?: string;
   summary: string;
   imageUrl?: string;
 };
@@ -280,6 +281,8 @@ export type NarrativeState = {
   commits: Commit[];
   relationships: RelationshipEdge[];
   worldSummary: string;
+  /** World rules / commandments that the narrative must follow */
+  rules: string[];
   controlMode: ControlMode;
   activeForces: ForceSnapshot;
   coverImageUrl?: string;
@@ -391,7 +394,7 @@ export type InspectorContext =
   | { type: 'thread'; threadId: string }
   | { type: 'arc'; arcId: string };
 
-export type WizardStep = 'premise' | 'world' | 'generate';
+export type WizardStep = 'form' | 'details' | 'generate';
 
 export type CharacterSketch = {
   name: string;
@@ -407,13 +410,9 @@ export type LocationSketch = {
 export type WizardData = {
   title: string;
   premise: string;
-  genres: string[];
-  tone: string;
-  setting: string;
-  scale: string;
   characters: CharacterSketch[];
   locations: LocationSketch[];
-  storyDirection: string;
+  rules: string[];
 };
 
 export type GraphViewMode = 'scene' | 'overview';
@@ -431,7 +430,6 @@ export type AppState = {
   inspectorContext: InspectorContext | null;
   wizardOpen: boolean;
   wizardStep: WizardStep;
-  wizardPrefill: string;
   wizardData: WizardData;
   selectedKnowledgeEntity: string | null;
   autoTimer: number;

@@ -59,9 +59,11 @@ export default function ForceLineChart({
       .domain([0, Math.max(data.length - 1, 1)])
       .range([0, width]);
 
+    // Symmetric domain that expands to fit z-score values beyond ±1
+    const maxAbs = data.reduce((m, v) => Math.max(m, Math.abs(v)), 1);
     const yScale = d3
       .scaleLinear()
-      .domain([-1, 1])
+      .domain([-maxAbs, maxAbs])
       .range([chartHeight, chartTop]);
 
     // Zero line at y=0

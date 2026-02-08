@@ -98,11 +98,11 @@ type Thread = {
 };
 type Scene = {
   kind: 'scene'; id: string; arcId: string; locationId: string;
-  participantIds: string[]; events: string[];
+  povId: string; participantIds: string[]; events: string[];
   threadMutations: { threadId: string; from: string; to: string }[];
   knowledgeMutations: { characterId: string; nodeId: string; action: string; content: string; nodeType?: string }[];
   relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
-  stakes: number; prose: string; summary: string;
+  prose?: string; summary: string;
 };
 type Arc = {
   id: string; name: string; sceneIds: string[]; develops: string[];
@@ -213,18 +213,20 @@ for (const ch of chapters) {
       valenceDelta: rm.valenceDelta ?? 0,
     }));
 
+    const povId = s.povName ? getCharId(s.povName) : participantIds[0] ?? '';
+
     const scene: Scene = {
       kind: 'scene',
       id: sceneId,
       arcId,
       locationId,
+      povId,
       participantIds,
       events: s.events ?? [],
       threadMutations,
       knowledgeMutations,
       relationshipMutations,
-      stakes: s.stakes ?? 30,
-      prose: '',
+      prose: s.prose || undefined,
       summary: s.summary ?? '',
     };
 
@@ -366,8 +368,9 @@ const narrative = {
   commits,
   relationships,
   worldSummary,
+  rules: [],
   controlMode: 'auto',
-  activeForces: { stakes: 0, pacing: 0, variety: 0 },
+  activeForces: { payoff: 0, change: 0, variety: 0 },
   createdAt: Date.now() - 86400000,
   updatedAt: Date.now(),
 };

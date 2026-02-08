@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
+import { resolveEntry, isScene, type Scene } from '@/types/narrative';
+import { computeRawForcetotals, computeForceSnapshots, computeBalanceMagnitudes } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 
@@ -28,6 +30,8 @@ export default function TopBar() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [logsOpen, setLogsOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
+  const [scorecardOpen, setScorecardOpen] = useState(false);
+  const scorecardRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +53,87 @@ export default function TopBar() {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [selectorOpen]);
+
+  // Close scorecard on outside click
+  useEffect(() => {
+    if (!scorecardOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (scorecardRef.current && !scorecardRef.current.contains(e.target as Node)) {
+        setScorecardOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [scorecardOpen]);
+
+  // Scorecard data
+  const allScenes = useMemo(() => {
+    if (!narrative) return [];
+    return state.resolvedSceneKeys
+      .map((k) => resolveEntry(narrative, k))
+      .filter((e): e is Scene => !!e && isScene(e));
+  }, [narrative, state.resolvedSceneKeys]);
+
+  const scorecard = useMemo(() => {
+    if (allScenes.length === 0 || !narrative) return null;
+    const raw = computeRawForcetotals(allScenes);
+    const n = raw.payoff.length;
+    if (n === 0) return null;
+
+    const sum = (arr: number[]) => arr.reduce((s, v) => s + v, 0);
+    const avg = (arr: number[]) => sum(arr) / arr.length;
+    const max = (arr: number[]) => Math.max(...arr);
+    const std = (arr: number[]) => {
+      const m = avg(arr);
+      return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
+    };
+
+    const forceMap = computeForceSnapshots(allScenes);
+    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+    const balances = computeBalanceMagnitudes(zForces);
+
+    const forceStats = (arr: number[]) => ({
+      total: sum(arr),
+      avg: avg(arr),
+      max: max(arr),
+      std: std(arr),
+    });
+
+    const stats = {
+      payoff: forceStats(raw.payoff),
+      change: forceStats(raw.change),
+      variety: forceStats(raw.variety),
+      balance: forceStats(balances),
+    };
+
+    // Grade each force 0-25 based on avg using exponential saturation curve
+    // 25 * (1 - e^(-avg/midpoint)) — midpoint controls how fast it saturates
+    const gradeForce = (avg: number, midpoint: number) =>
+      Math.min(25, 25 * (1 - Math.exp(-Math.max(0, avg) / midpoint)));
+
+    const payoffGrade = gradeForce(stats.payoff.avg, 3);   // avg ~3 → ~16, avg ~6 → ~22
+    const changeGrade = gradeForce(stats.change.avg, 4);   // avg ~4 → ~16, avg ~8 → ~22
+    const varietyGrade = gradeForce(stats.variety.avg, 3);  // avg ~3 → ~16, avg ~6 → ~22
+    const balanceGrade = gradeForce(stats.balance.avg, 1.5); // avg ~1.5 → ~16, avg ~3 → ~22
+
+    const overallGrade = Math.round(payoffGrade + changeGrade + varietyGrade + balanceGrade);
+
+    const arcCount = Object.keys(narrative.arcs).length;
+
+    return {
+      title: narrative.title,
+      scenes: n,
+      arcs: arcCount,
+      ...stats,
+      grades: {
+        payoff: Math.round(payoffGrade),
+        change: Math.round(changeGrade),
+        variety: Math.round(varietyGrade),
+        balance: Math.round(balanceGrade),
+        overall: overallGrade,
+      },
+    };
+  }, [allScenes, narrative]);
 
   const handleImport = useCallback(() => {
     fileInputRef.current?.click();
@@ -267,6 +352,102 @@ export default function TopBar() {
           </svg>
           <span className="text-[11px]">Rules</span>
         </button>
+        <div className="relative" ref={scorecardRef}>
+          <button
+            onClick={() => setScorecardOpen((v) => !v)}
+            className={`px-2 py-1 rounded hover:bg-bg-elevated transition-colors flex items-center gap-1.5 ${
+              scorecardOpen ? 'text-text-primary bg-bg-elevated' : 'text-text-dim hover:text-text-primary'
+            }`}
+            title="Force Scorecard — absolute values for cross-series comparison"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="18" rx="2" />
+              <path d="M8 7v10M12 7v10M16 7v10" />
+            </svg>
+            <span className="text-[11px]">Score</span>
+          </button>
+          {scorecardOpen && scorecard && (
+            <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-5 w-[460px]">
+              {/* Series header */}
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-[13px] font-semibold text-text-primary truncate max-w-[280px]">{scorecard.title}</h2>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={`text-[22px] font-bold font-mono leading-none ${
+                    scorecard.grades.overall >= 75 ? 'text-green-400' :
+                    scorecard.grades.overall >= 50 ? 'text-yellow-400' :
+                    scorecard.grades.overall >= 25 ? 'text-orange-400' : 'text-red-400'
+                  }`}>{scorecard.grades.overall}</span>
+                  <span className="text-[10px] text-text-dim font-mono">/100</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-[9px] text-text-dim font-mono">{scorecard.scenes} scenes</span>
+                <span className="text-[9px] text-text-dim opacity-30">/</span>
+                <span className="text-[9px] text-text-dim font-mono">{scorecard.arcs} arcs</span>
+              </div>
+
+              {/* Force table */}
+              <div className="grid grid-cols-5 gap-px bg-white/5 rounded overflow-hidden">
+                {/* Header row */}
+                <div className="bg-bg-base p-2" />
+                {['Avg', 'Peak', 'Total', 'Grade'].map((col) => (
+                  <div key={col} className="bg-bg-base p-2 text-center">
+                    <span className="text-[9px] uppercase tracking-wider text-text-dim font-mono">{col}</span>
+                  </div>
+                ))}
+                {/* Force rows */}
+                {([
+                  { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
+                  { key: 'change' as const, label: 'Change', color: '#22C55E' },
+                  { key: 'variety' as const, label: 'Variety', color: '#3B82F6' },
+                  { key: 'balance' as const, label: 'Balance', color: '#facc15' },
+                ]).map((row) => {
+                  const s = scorecard[row.key];
+                  const grade = scorecard.grades[row.key];
+                  return (
+                    <React.Fragment key={row.key}>
+                      <div className="bg-bg-base p-2 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }} />
+                        <span className="text-[10px] font-medium" style={{ color: row.color }}>{row.label}</span>
+                      </div>
+                      <div className="bg-bg-base p-2 text-center">
+                        <span className="text-[12px] font-mono text-text-primary font-semibold">{s.avg.toFixed(2)}</span>
+                      </div>
+                      <div className="bg-bg-base p-2 text-center">
+                        <span className="text-[12px] font-mono text-text-secondary">{s.max.toFixed(2)}</span>
+                      </div>
+                      <div className="bg-bg-base p-2 text-center">
+                        <span className="text-[12px] font-mono text-text-secondary">{s.total.toFixed(1)}</span>
+                      </div>
+                      <div className="bg-bg-base p-2 text-center">
+                        <span className={`text-[12px] font-mono font-semibold ${
+                          grade >= 19 ? 'text-green-400' :
+                          grade >= 13 ? 'text-yellow-400' :
+                          grade >= 7 ? 'text-orange-400' : 'text-red-400'
+                        }`}>{grade}<span className="text-[9px] text-text-dim font-normal">/25</span></span>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+
+              {/* Std dev footer */}
+              <div className="mt-3 flex items-center gap-4">
+                {([
+                  { key: 'payoff' as const, label: 'P', color: '#EF4444' },
+                  { key: 'change' as const, label: 'C', color: '#22C55E' },
+                  { key: 'variety' as const, label: 'V', color: '#3B82F6' },
+                  { key: 'balance' as const, label: 'B', color: '#facc15' },
+                ]).map((row) => (
+                  <div key={row.key} className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-mono" style={{ color: row.color }}>{row.label}</span>
+                    <span className="text-[9px] text-text-dim font-mono">&sigma;{scorecard[row.key].std.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         <button
           onClick={() => window.dispatchEvent(new Event('open-force-tracker'))}
           className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"

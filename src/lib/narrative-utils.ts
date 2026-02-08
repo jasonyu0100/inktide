@@ -253,20 +253,24 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 /**
  * Compute raw variety for a scene combining entity freshness and compositional novelty.
  *
- * - **Entity freshness**: lower avg participant + location usage = newer elements.
- * - **Compositional novelty**: Jaccard distance of this scene's participant set vs
- *   all prior participant sets. High when this combination of characters is new,
- *   even if the individuals have appeared before.
+ * Unbounded positive value — larger casts with fresh elements score higher:
+ * - **Entity freshness**: sum of 1/(1+usage) for each participant + location.
+ *   Each fresh participant contributes ~1.0, decaying as they reappear.
+ *   Not averaged — larger casts with fresh characters naturally score higher.
+ * - **Compositional novelty**: Jaccard distance of participant set vs all prior casts,
+ *   scaled by cast size so novel ensembles of many characters score higher.
  */
 function rawVariety(scene: Scene, charUsage: Record<string, number>, locUsage: Record<string, number>, priorCasts: Set<string>[]): number {
-  // Entity freshness (negative — less usage = higher variety)
-  const participantUsage = scene.participantIds.reduce((sum, id) => sum + (charUsage[id] ?? 0), 0);
-  const avgParticipantUsage = scene.participantIds.length > 0 ? participantUsage / scene.participantIds.length : 0;
-  const locationUsage = locUsage[scene.locationId] ?? 0;
-  const freshness = -1 * (avgParticipantUsage + locationUsage);
+  // Entity freshness: sum (not avg) of 1/(1+usage) — unbounded, grows with cast size
+  const participantFreshness = scene.participantIds.reduce(
+    (sum, id) => sum + 1 / (1 + (charUsage[id] ?? 0)), 0
+  );
+  const locationFreshness = 1 / (1 + (locUsage[scene.locationId] ?? 0));
+  const freshness = participantFreshness + locationFreshness;
 
-  // Compositional novelty: min Jaccard distance to any prior cast
+  // Compositional novelty: min Jaccard distance to any prior cast, scaled by cast size
   const cast = new Set(scene.participantIds);
+  const castSize = Math.max(cast.size, 1);
   let novelty = 1; // fully novel if no prior scenes
   if (priorCasts.length > 0) {
     let minDist = 1;
@@ -276,12 +280,7 @@ function rawVariety(scene: Scene, charUsage: Record<string, number>, locUsage: R
     novelty = minDist;
   }
 
-  // Combine: freshness is an unbounded negative number, novelty is [0,1].
-  // Scale novelty into the same order of magnitude as freshness so both
-  // contribute meaningfully before z-score normalization.
-  // A scene with ~5 avg usage and ~5 location usage has freshness ≈ -10,
-  // so scaling novelty by 10 keeps them balanced.
-  return freshness + novelty * 10;
+  return freshness + novelty * castSize;
 }
 
 /**
@@ -340,6 +339,41 @@ export function computeForceSnapshots(
     };
   }
   return result;
+}
+
+/**
+ * Compute raw (non-normalized) force totals for a set of scenes.
+ * Returns absolute values suitable for cross-series comparison.
+ */
+export function computeRawForcetotals(
+  scenes: Scene[],
+  priorScenes: Scene[] = [],
+): { payoff: number[]; change: number[]; variety: number[] } {
+  if (scenes.length === 0) return { payoff: [], change: [], variety: [] };
+
+  const charUsage: Record<string, number> = {};
+  const locUsage: Record<string, number> = {};
+  const priorCasts: Set<string>[] = [];
+  for (const s of priorScenes) {
+    for (const pid of s.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
+    locUsage[s.locationId] = (locUsage[s.locationId] ?? 0) + 1;
+    priorCasts.push(new Set(s.participantIds));
+  }
+
+  const payoff: number[] = [];
+  const change: number[] = [];
+  const variety: number[] = [];
+
+  for (const scene of scenes) {
+    payoff.push(computeRawPayoff(scene));
+    change.push(rawChange(scene));
+    variety.push(rawVariety(scene, charUsage, locUsage, priorCasts));
+    for (const pid of scene.participantIds) charUsage[pid] = (charUsage[pid] ?? 0) + 1;
+    locUsage[scene.locationId] = (locUsage[scene.locationId] ?? 0) + 1;
+    priorCasts.push(new Set(scene.participantIds));
+  }
+
+  return { payoff, change, variety };
 }
 
 /** Compute a simple moving average over a data series.

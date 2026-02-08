@@ -72,6 +72,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   const [rotX, setRotX] = useState(0.4);
   const dragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Scene stepping state — index into forceEntries (scenes only).
   // Initialized to the scene matching the current timeline position.
@@ -79,6 +80,11 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
 
   // Force mode: global (full-history z-score) vs local (rolling window)
   const [forceMode, setForceMode] = useState<'global' | 'local'>('global');
+
+  // Playback state
+  const [playing, setPlaying] = useState(false);
+  const [playSpeed, setPlaySpeed] = useState(10000);
+  const [countdown, setCountdown] = useState(0);
 
   // AI analysis state
   const [analysisText, setAnalysisText] = useState<string | null>(null);
@@ -169,6 +175,40 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     if (idx >= 0) setFocusedIdx(idx);
   }, [forceEntries, narrative, resolvedKeys, state.currentSceneIndex]);
 
+  // Scroll sidebar to keep focused scene visible
+  useEffect(() => {
+    const container = sidebarRef.current;
+    if (!container) return;
+    const btn = container.children[focusedIdx] as HTMLElement | undefined;
+    btn?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [focusedIdx]);
+
+  // Playback auto-advance with countdown timer
+  useEffect(() => {
+    if (!playing) {
+      setCountdown(0);
+      return;
+    }
+    const seconds = Math.round(playSpeed / 1000);
+    setCountdown(seconds);
+    const tick = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          setFocusedIdx((prev) => {
+            if (prev >= forceEntries.length - 1) {
+              setPlaying(false);
+              return prev;
+            }
+            return prev + 1;
+          });
+          return seconds;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [playing, playSpeed, forceEntries.length]);
+
   // Focused scene details for stepping
   const focusedScene = useMemo(() => {
     if (!narrative) return null;
@@ -210,12 +250,21 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
         e.preventDefault();
         e.stopPropagation();
         if (forceEntries.length === 0) return;
+        setPlaying(false);
         setFocusedIdx((prev) => Math.max(0, prev - 1));
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
         e.preventDefault();
         e.stopPropagation();
         if (forceEntries.length === 0) return;
+        setPlaying(false);
         setFocusedIdx((prev) => Math.min(forceEntries.length - 1, prev + 1));
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        setPlaying((p) => {
+          if (!p && focusedIdx >= forceEntries.length - 1) setFocusedIdx(0);
+          return !p;
+        });
       } else if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -224,7 +273,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     }
     window.addEventListener('keydown', handleKey, true);
     return () => window.removeEventListener('keydown', handleKey, true);
-  }, [forceEntries.length, onClose]);
+  }, [forceEntries.length, focusedIdx, onClose]);
 
   // Map focused scene to its trajectory index for canvas highlighting
   const focusedTrajectoryIdx = useMemo(() => {
@@ -500,7 +549,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
         const prev = transform(trajectory[i - 1].pos);
         const curr = transform(trajectory[i].pos);
         const progress = i / trajectory.length;
-        ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 + progress * 0.2})`;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.06 + progress * 0.12})`;
         ctx.beginPath();
         ctx.moveTo(prev[0], prev[1]);
         ctx.lineTo(curr[0], curr[1]);
@@ -686,7 +735,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       {/* Main content area */}
       <div className="flex-1 overflow-hidden flex">
         {/* Scene list sidebar */}
-        <div className="w-56 shrink-0 border-r border-white/10 overflow-y-auto py-2">
+        <div ref={sidebarRef} className="w-56 shrink-0 border-r border-white/10 overflow-y-auto py-2">
           {forceEntries.map((entry, i) => {
             const scene = narrative?.scenes[entry.sceneId];
             return (
@@ -755,6 +804,70 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
             <div className="absolute bottom-8 left-8 text-[9px] text-text-dim/60">
               Drag to rotate
             </div>
+          </div>
+
+          {/* Playback controls */}
+          <div className="shrink-0 border-t border-white/10 px-6 py-2.5 flex items-center justify-between">
+            <button
+              onClick={() => { setPlaying(false); setFocusedIdx((prev) => Math.max(0, prev - 1)); }}
+              disabled={focusedIdx === 0}
+              className="text-[10px] px-3 py-1 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12 transition disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Prev
+            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (focusedIdx >= forceEntries.length - 1) setFocusedIdx(0);
+                  setPlaying(true);
+                }}
+                disabled={playing}
+                className="p-1.5 rounded-full border border-green-500/30 text-green-400 hover:bg-green-500/10 transition disabled:opacity-30 disabled:pointer-events-none"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="6,4 20,12 6,20" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setPlaying(false)}
+                disabled={!playing}
+                className="p-1.5 rounded-full border border-white/10 text-text-dim hover:bg-white/5 transition disabled:opacity-30 disabled:pointer-events-none"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" rx="1" />
+                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                </svg>
+              </button>
+              {playing && countdown > 0 && (
+                <span className="text-[10px] font-mono text-text-dim tabular-nums w-6 text-center">
+                  {countdown}s
+                </span>
+              )}
+              <select
+                value={playSpeed}
+                onChange={(e) => setPlaySpeed(Number(e.target.value))}
+                className="text-[9px] bg-transparent border border-white/10 rounded px-1.5 py-0.5 text-text-dim cursor-pointer"
+              >
+                <option value={5000}>5s</option>
+                <option value={8000}>8s</option>
+                <option value={10000}>10s</option>
+                <option value={15000}>15s</option>
+                <option value={20000}>20s</option>
+              </select>
+            </div>
+            <button
+              onClick={() => { setPlaying(false); setFocusedIdx((prev) => Math.min(forceEntries.length - 1, prev + 1)); }}
+              disabled={focusedIdx === forceEntries.length - 1}
+              className="text-[10px] px-3 py-1 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12 transition disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
+            >
+              Next
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
           </div>
 
           {/* Analysis below cube */}
@@ -908,32 +1021,6 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {/* Footer navigation */}
-      <div className="px-6 py-3 border-t border-white/10 flex items-center justify-between shrink-0">
-        <button
-          onClick={() => setFocusedIdx((prev) => Math.max(0, prev - 1))}
-          disabled={focusedIdx === 0}
-          className="text-[10px] px-3.5 py-1.5 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12 transition disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
-        >
-          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Previous
-        </button>
-        <div className="text-[9px] text-text-dim/50">
-          Arrow keys to navigate &middot; Esc to close &middot; {forceMode === 'global' ? 'Global forces' : 'Local forces'}
-        </div>
-        <button
-          onClick={() => setFocusedIdx((prev) => Math.min(forceEntries.length - 1, prev + 1))}
-          disabled={focusedIdx === forceEntries.length - 1}
-          className="text-[10px] px-3.5 py-1.5 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12 transition disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
-        >
-          Next
-          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-      </div>
     </div>
   );
 }

@@ -405,9 +405,14 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-08',
     participantIds: ['C-GOT-01', 'C-GOT-05', 'C-GOT-08'],
     events: ['stark_children_practice', 'arya_watches_from_window'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'dormant' }],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-08', nodeId: 'K-GOT-80', action: 'added', content: 'Swordplay follows patterns — footwork, timing, distance — and she can learn them just by watching' },
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-81', action: 'added', content: 'He fights well enough to match Robb, but the yard still feels like borrowed ground for a bastard' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-08', to: 'C-GOT-05', type: 'Arya watches Jon spar and feels kinship with the brother who also does not quite fit', valenceDelta: 0.1 },
+    ],
     summary: 'Winterfell, the practice yard. Morning light falls cold and clean across the muddy ground where Robb and Jon spar with blunted tourney swords, their breath making small ghosts in the air. Bran watches from the fence rail with his lip between his teeth, counting the footwork the way Ser Rodrik taught him. Rickon chases a cat between the legs of the armorers dummy. On the covered bridge above, Arya leans against the stone with her chin on her fists, eyes sharp as a hawks — tracking every parry, every riposte, committing the movements to a memory her septa would rather she filled with needlework and courtesies. Sansa passes behind her and asks why she watches. Arya does not answer. She is too busy learning things no one has offered to teach her.',
   },
   'S-GOT-002': {
@@ -419,8 +424,13 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-08'],
     events: ['feast_in_great_hall', 'firelight_and_laughter'],
     threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-82', action: 'added', content: 'These evenings of warmth and laughter are what he fights to preserve — the ordinary peace of his family gathered together' },
+      { characterId: 'C-GOT-08', nodeId: 'K-GOT-83', action: 'added', content: 'The rules at the high table are suffocating — she would rather eat in the kitchens with the servants than sit still and be proper' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-01', to: 'C-GOT-08', type: 'Ned watches Arya flick peas at Bran and hides a smile — she is so like Lyanna it aches', valenceDelta: 0.1 },
+    ],
     summary: 'Winterfell, the Great Hall. A feast without occasion — the kind that happens because the harvest was good, because the evening is long, because the Starks have gathered and that is reason enough. Trestle tables groan beneath salt beef and black bread and honeycakes baked in the kitchens since dawn. Ned sits at the high table with Catelyn at his side, watching his children the way a man watches a fire he has built against the dark. Robb laughs at something Theon says. Sansa sits straight-backed and proper. Arya flicks a pea at Brans ear and pretends innocence when Catelyn turns. The hall smells of woodsmoke and tallow and roasting meat. Outside, the hounds in the kennel set up a howl that rolls across the castle walls and fades into the wolfswood. It is an ordinary evening. It is the last ordinary evening, though no one in the hall knows it yet.',
   },
   'S-GOT-003': {
@@ -431,9 +441,14 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-05',
     participantIds: ['C-GOT-05'],
     events: ['jon_in_godswood', 'solitude_among_old_gods', 'bastard_reflections'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'dormant' }],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-84', action: 'added', content: 'The godswood is the only place in Winterfell where his name does not follow him — the old gods do not distinguish between trueborn and bastard' },
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-85', action: 'added', content: 'He belongs to Winterfell in every way that matters except the one way that everyone counts' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-05', to: 'C-GOT-01', type: 'Jon loves his father but the silence about his mother feels like a wall between them', valenceDelta: -0.1 },
+    ],
     summary: 'Winterfell, the godswood. Jon Snow sits beneath the heart tree with his back against the pale bark, alone in the way he prefers — chosen solitude rather than the other kind. The weirwood stares down at him with its carved face, red sap bleeding from eyes that have watched the Starks for eight thousand years. Jon comes here when the noise of the castle grows too loud — not the physical noise, but the other kind, the noise of belonging to a family that is not quite his. He is Ned Starks son and not Ned Starks son. He has Stark blood and a Stark face and a bastards name that follows him through every hall like a dragging chain. The godswood does not care about names. The old gods have no answers for bastard boys, but their silence is kinder than the questions he carries. A raven lands on the lowest branch and regards him with a black bead eye. Jon regards it back. Neither speaks. It is a kind of understanding.',
   },
   'S-GOT-004': {
@@ -445,7 +460,9 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-08'],
     events: ['bran_climbs_walls', 'winterfell_from_above'],
     threadMutations: [],
-    knowledgeMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-08', nodeId: 'K-GOT-86', action: 'added', content: 'Bran sees the whole world from the rooftops — there are places in Winterfell only he knows, and that is a kind of freedom' },
+    ],
     relationshipMutations: [],
     summary: 'Winterfell, the outer walls. Bran climbs. His mother has forbidden it a hundred times; his father twice, which in the arithmetic of childhood means his father does not truly mind. He goes up the First Keep — the oldest tower, abandoned and crumbling, where the stones have worn finger-holds as deep as cups. From the top he can see the wolfswood stretching north like a dark green sea, the kingsroad winding south until it vanishes, the glass gardens glinting in the afternoon light, and the smoke rising from the winter town where smallfolk go about their lives unaware that a boy is watching them from the sky. Winterfell looks different from up here. Smaller and larger at the same time — small enough to hold in his eye, large enough to hold everything he loves. A raven passes close enough to touch. Bran reaches for it and laughs when it wheels away. He is seven years old and the world is a thing to be climbed, not feared.',
   },
@@ -458,8 +475,13 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01'],
     events: ['ned_catelyn_chambers', 'quiet_conversation_family'],
     threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-87', action: 'added', content: 'The silence about Jon is the one crack in his marriage — Catelyn endures it but has never forgiven it' },
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-88', action: 'added', content: 'The promise he made to Lyanna weighs heavier with every passing year, a secret that poisons even tenderness' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-01', to: 'C-GOT-05', type: 'The unspoken truth about Jons mother is a burden Ned carries alone — love and guilt intertwined', valenceDelta: -0.1 },
+    ],
     summary: 'Winterfell, the lords bedchamber. The hot springs beneath the castle push warmth through the walls, and Ned sits on the edge of the bed unlacing his boots while Catelyn brushes out her hair — auburn still, with only a few threads of grey that she plucks when she thinks no one is looking. They speak of small things. Brans climbing, which worries her. Aryas wildness, which worries her differently. Rickons nightmares. Robbs growing resemblance to his Tully grandfather. They do not speak of Jon — they never speak of Jon if they can help it, the one wound in their marriage that will not scar over. Ned watches his wife in the candlelight and feels the weight of secrets he has carried since the war. He loves her. He has never lied to her except in the one way that matters most. The candle gutters. They go to sleep in the warmth of the springs, husband and wife in a castle eight thousand years old, and the silence between them is tender and terrible in equal measure.',
   },
   'S-GOT-006': {
@@ -471,8 +493,14 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-05'],
     events: ['deserter_execution', 'direwolf_pups_found'],
     threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'surfacing' }],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-89', action: 'added', content: 'A dead direwolf with a stag antler in her throat — the sigils of Stark and Baratheon locked in mutual destruction. It cannot be coincidence.' },
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-90', action: 'added', content: 'There were five grey pups for the five trueborn Starks, and one white runt — the bastards wolf, pale and silent like a ghost' },
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-91', action: 'added', content: 'The deserter spoke of dead things walking beyond the Wall — madness, surely, but the old blood remembers' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-01', to: 'C-GOT-05', type: 'Jon spoke up for the pups and found his own among them — Ned sees the boys quiet courage', valenceDelta: 0.1 },
+    ],
     summary: 'The holdfast near the wolfswood. A deserter from the Nights Watch is brought before Ned Stark, half-mad and babbling of dead things in the snow, of blue eyes that burn like cold stars. Ned listens, and for a moment something old and deep flickers behind his grey eyes — the blood of the First Men remembering what the rest of the realm has forgotten. Then duty closes over it like ice over water. The man left his brothers. The sentence is death. Ned draws Ice with both hands and takes the mans head himself, because the one who passes the sentence must swing the sword. Bran watches, as Ned insists he must. On the ride home, they find the direwolf — a great she-wolf, dead with a stag antler driven through her throat, and six living pups mewling at her side. Five grey, one white. Jon speaks up: five for the trueborn Stark children, and the white runt for the bastard. Ned looks at the dead wolf and the dead stag and feels a chill that has nothing to do with the weather.',
   },
   'S-GOT-007': {
@@ -484,8 +512,15 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-05', 'C-GOT-08'],
     events: ['pups_in_winterfell', 'children_bond_with_wolves'],
     threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-08', nodeId: 'K-GOT-92', action: 'added', content: 'Nymeria is wild and fierce and does not care about being ladylike — the perfect wolf for a girl who feels the same' },
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-93', action: 'added', content: 'Ghost moves without sound and appears from nowhere — a companion for a boy who has learned to go unnoticed' },
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-94', action: 'added', content: 'The direwolves have bonded to his children as if chosen — something ancient and purposeful stirs in Winterfell' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-08', to: 'C-GOT-01', type: 'Father let them keep the wolves — he understands what matters even when mother does not', valenceDelta: 0.1 },
+      { from: 'C-GOT-05', to: 'C-GOT-08', type: 'They share the bond of outcasts who found companions that match their natures', valenceDelta: 0.1 },
+    ],
     summary: 'Winterfell, the kennels and the yard. Three days since the pups came home, and already the bonds are forming in the wordless way that bonds between wolves and children do. Grey Wind follows Robb like a second shadow. Lady sits at Sansas feet during meals with a politeness that seems almost rehearsed. Nymeria chews through Aryas third pair of boots and Arya loves her more for it. Summer sleeps in Brans bed though he is not supposed to. Shaggydog bites everyone except Rickon and shows no sign of stopping. Ghost trails Jon without sound, appearing and disappearing like smoke, which is fitting for the companion of a boy who has spent his life learning to go unnoticed. Ned stands in the yard watching his children with their wolves and thinks of the old saying: there must always be a Stark in Winterfell. The words have never seemed so literal. The castle feels fuller now, wilder, as though something ancient has come back to a place that was waiting for it.',
   },
 
@@ -499,8 +534,13 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01'],
     events: ['raven_from_south', 'jon_arryn_dead', 'king_rides_north'],
     threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'surfacing' }],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-95', action: 'added', content: 'Robert will ask him to be Hand — there is no other reason for a king to ride a thousand leagues north' },
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-96', action: 'added', content: 'Jon Arryns death leaves Robert surrounded by Lannisters with no one he trusts to watch his back' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-01', to: 'C-GOT-07', type: 'The weight of obligation stirs — Robert needs him, and Ned cannot refuse a friend in danger', valenceDelta: 0.1 },
+    ],
     summary: 'Winterfell, the rookery. A raven comes from the south bearing words that change everything: Jon Arryn, Hand of the King, is dead. The king rides north. Ned reads the message twice, standing alone among the birds, and the paper trembles in his hand — not from fear, but from the weight of knowing what Robert will ask before he asks it. There is only one reason a king rides a thousand leagues through mud and cold. Ned descends to tell Catelyn. She sees it in his face before he speaks: the south is reaching for them. They have spent fifteen years building a life in the quiet of the North, raising children, tending the land, pretending that the wars of their youth were done. The raven says otherwise. Ravens always do.',
   },
   'S-GOT-009': {
@@ -512,8 +552,15 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01', 'C-GOT-07', 'C-GOT-02', 'C-GOT-08'],
     events: ['royal_arrival', 'robert_embraces_ned', 'winterfell_greets_court'],
     threadMutations: [{ threadId: 'T-GOT-06', from: 'dormant', to: 'surfacing' }],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-97', action: 'added', content: 'Robert has changed — the warrior who won the Trident is buried under fat and wine and years of neglect' },
+      { characterId: 'C-GOT-08', nodeId: 'K-GOT-98', action: 'added', content: 'The queen is beautiful and cold and looks at Winterfell like it is something stuck to her shoe' },
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-99', action: 'added', content: 'Bastards stand at the back of the line when kings visit — even in his own home, he is an afterthought' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-01', to: 'C-GOT-07', type: 'The man who embraces him is warm and sincere but visibly diminished — old friend, new worry', valenceDelta: -0.1 },
+      { from: 'C-GOT-01', to: 'C-GOT-02', type: 'The queen arrives with Lannister crimson and an expression that suggests she considers the North beneath her', valenceDelta: -0.1 },
+    ],
     summary: 'Winterfell, the courtyard. The king comes to Winterfell with the weight of the south behind him — three hundred riders, a gilded wheelhouse, Lannister crimson and Baratheon gold snapping in a wind that does not welcome them. Robert Baratheon dismounts, and the man who climbs down from the saddle bears only a passing resemblance to the one who swung a warhammer at the Trident. He has thickened, reddened, gone to flesh in the way that men do when they stop fighting and start drinking. But when he sees Ned his face breaks open like a boy finding a lost friend, and he crosses the yard in three strides to crush him in an embrace that smells of wine and road dust and something like grief. Behind them, Cersei Lannister descends from the wheelhouse with the careful grace of a woman who knows she is being watched. Arya counts the knights. Sansa stares at the prince. Jon stands at the back of the household line where bastards belong, and says nothing.',
   },
   'S-GOT-010': {
@@ -524,9 +571,15 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-07'],
     events: ['feast_for_the_king', 'robert_drinks_deep', 'old_war_stories'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-GOT-06', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-100', action: 'added', content: 'Robert cannot stop reliving the rebellion — the Trident was the peak of his life and everything since has been decline' },
+      { characterId: 'C-GOT-07', nodeId: 'K-GOT-101', action: 'added', content: 'The wine makes the memories bearable and the present tolerable — without it, the crown would crush him' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-07', to: 'C-GOT-02', type: 'Every toast is a small humiliation delivered to the queen — Robert does not notice and would not care if he did', valenceDelta: -0.1 },
+      { from: 'C-GOT-01', to: 'C-GOT-07', type: 'Ned sees the ruin beneath the revelry and grieves for the friend Robert used to be', valenceDelta: -0.1 },
+    ],
     summary: 'Winterfell, the Great Hall. A welcoming feast that groans under the effort of its own hospitality. Robert drinks with the abandon of a man who has confused oblivion with happiness, calling for more wine before the first cup is dry, laughing too loudly at his own stories of the rebellion — the Battle of the Bells, the Trident, the way Rhaegar Targaryens rubies scattered in the river. Ned smiles and drinks less. He watches his old friend and sees the ruin underneath the revelry: a king who cannot stop reliving his one great moment because everything after it has been a slow diminishment. Cersei sits beside Robert with a face like carved marble, enduring every bawdy joke, every bellowed toast, every casual humiliation with a patience that is not patience at all but something colder. The music plays. The candles burn. Two old friends pretend that time has been kind, and a queen pretends that she is not counting the hours until she can stop pretending.',
   },
   'S-GOT-011': {
@@ -537,9 +590,15 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-07'],
     events: ['crypts_visit', 'lyanna_statue', 'robert_asks_ned_hand'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-GOT-02', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-102', action: 'added', content: 'Robert asks him to be Hand of the King — a plea disguised as an appointment, born of desperation not ceremony' },
+      { characterId: 'C-GOT-07', nodeId: 'K-GOT-103', action: 'added', content: 'He still loves Lyanna more than anything in the living world — the dead have a hold on him the living cannot break' },
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-104', action: 'added', content: 'Robert standing before Lyannas tomb is a man worshipping at a shrine — his grief has calcified into something permanent' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-07', to: 'C-GOT-01', type: 'Robert begs Ned to come south — naked need breaking through the bluster of kingship', valenceDelta: 0.2 },
+    ],
     summary: 'Winterfell, the crypts. Robert insists on going down to see her — he always does, as though Lyanna Starks tomb is a shrine and he is the last faithful pilgrim. They descend with torches into the cold dark, past rows of granite kings with iron swords rusting across their laps, past centuries of Starks who stare eyeless from their alcoves. Robert stops before Lyannas statue and his whole body changes — the bluster drains out of him and what remains is a man still in love with a ghost. He lays a feather in her stone hand. Then he turns to Ned and says the words: I need you, Ned. Down in Kings Landing. They are killing me, the lot of them, and I need someone I can trust. Come south. Be my Hand. The torchlight throws their shadows huge against the wall — two men standing among the dead, one asking the other to join a court that devours good men like kindling.',
   },
   'S-GOT-012': {
@@ -550,9 +609,14 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-05',
     participantIds: ['C-GOT-01', 'C-GOT-05'],
     events: ['jon_excluded_from_feast', 'benjen_speaks_of_wall', 'bastards_burden'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-GOT-04', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-105', action: 'added', content: 'Catelyn will never accept him — she made certain he was seated outside when the king came, as though his very existence is an insult' },
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-106', action: 'added', content: 'Uncle Benjen warns him he does not know what he would give up by taking the black — but what is there to give up when you belong nowhere?' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-05', to: 'C-GOT-01', type: 'His father lets Catelyn exile him from the feast — love has limits, and Jon has found them', valenceDelta: -0.2 },
+    ],
     summary: 'Winterfell, outside the Great Hall. The second night of feasting, and Jon Snow sits on the steps in the cold because Catelyn deemed it an insult to seat a bastard beside the royal family. Inside, warmth and music and the life he was born adjacent to but never inside of. Ghost lies across his boots, red eyes half-closed. Benjen Stark finds his nephew in the dark, smelling of frost and the Wall. They talk — or rather, Jon talks and Benjen listens with the careful attention of a man who recognizes a wound he once carried himself. Jon says he wants to take the black. Benjen does not refuse him, but he does not encourage him either. You do not know what you would be giving up, he says. You are a boy still. Jon bristles, because boys always bristle when told they are boys. The music from the hall spills through the cracked door like light from a room he cannot enter. Ghost licks Jons hand. The night is cold, and getting colder.',
   },
   'S-GOT-013': {
@@ -563,12 +627,17 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-02'],
     events: ['catelyn_letter_from_lysa', 'lannisters_murdered_arryn', 'seeds_of_suspicion'],
-    threadMutations: [{ threadId: 'T-GOT-01', from: 'dormant', to: 'surfacing' }],
+    threadMutations: [
+      { threadId: 'T-GOT-01', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-GOT-05', from: 'dormant', to: 'surfacing' },
+    ],
     knowledgeMutations: [
       { characterId: 'C-GOT-01', nodeId: 'K-GOT-08', action: 'added', content: 'Lysa Arryn claims the Lannisters murdered Jon Arryn — the queen and her family cannot be trusted' },
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-107', action: 'added', content: 'If the Lannisters killed one Hand, they will kill another — going south is walking into a trap with his eyes open' },
     ],
     relationshipMutations: [
       { from: 'C-GOT-01', to: 'C-GOT-02', type: 'Lysa Arryns accusation casts the queen in a new and dangerous light — what are the Lannisters hiding?', valenceDelta: -0.1 },
+      { from: 'C-GOT-01', to: 'C-GOT-07', type: 'Robert is surrounded by enemies he cannot see — duty demands Ned protect his friend', valenceDelta: 0.1 },
     ],
     summary: 'Winterfell, the lords bedchamber, deep in the night. Catelyn wakes Ned with a letter that has come by secret rider, not by raven — her sister Lysas hand, written in the cipher they shared as girls in Riverrun. The message is brief and it is a blade: the Lannisters murdered Jon Arryn. Lysa is certain. Ned reads the words by candlelight and the room seems to shrink around him. If this is true, then Robert sits the Iron Throne with killers at his side, and the invitation to serve as Hand is not an honor but a death sentence wearing a golden badge. Catelyn grips his arm and tells him he must go — not despite the danger but because of it. If the Lannisters killed one Hand, they will not stop at one. Someone must protect Robert. Someone must uncover the truth. Ned stares at the candle flame and sees the shape of a duty he cannot refuse and may not survive.',
   },
@@ -580,9 +649,19 @@ const scenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-05', 'C-GOT-08'],
     events: ['bran_falls', 'pushed_from_tower', 'winterfell_shattered'],
-    threadMutations: [{ threadId: 'T-GOT-02', from: 'surfacing', to: 'escalating' }],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [
+      { threadId: 'T-GOT-02', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-GOT-01', from: 'surfacing', to: 'escalating' },
+    ],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-108', action: 'added', content: 'Bran was climbing as he always does — but something about the fall feels wrong, deliberate, silenced' },
+      { characterId: 'C-GOT-08', nodeId: 'K-GOT-109', action: 'added', content: 'Bran never falls — he is the best climber in Winterfell. Something terrible happened in that tower.' },
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-110', action: 'added', content: 'The court leaves the same day Bran falls — as if their presence and his ruin are connected' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-01', to: 'C-GOT-02', type: 'Bran falls from a tower the day the Lannisters are in Winterfell — suspicion crystallizes into something colder', valenceDelta: -0.2 },
+      { from: 'C-GOT-08', to: 'C-GOT-01', type: 'Father rides south with grief on his face and Arya is terrified — the world is no longer safe', valenceDelta: 0.1 },
+    ],
     summary: 'Winterfell, the broken tower. A scream, and then silence, and then the world cracks. Bran is found at the base of the old tower, crumpled on the frozen ground like a doll thrown from a window. His legs are wrong — bent at angles that make the stableboys retch. He is alive, barely, his breath a thin rattle in the cold air. Catelyn reaches him first and the sound she makes is not a scream but something lower and worse. Ned is not far behind. He kneels in the frost beside his son and touches the boys face with hands that have held swords and signed treaties and never once trembled as they tremble now. No one saw what happened. Bran was climbing, they say — he was always climbing. But Ned looks up at the tower window and something in his gut goes quiet and cold. The court leaves within the day. Robert clasps Neds shoulder and says he is sorry about the boy, and he means it, in the careless sincere way that Robert means everything. Ned rides south with his daughters and a new heaviness in his chest. Behind him, Bran lies in a bed he may never leave, dreaming of falling, and Winterfell is no longer the safe place it was a morning ago.',
   },
 };
@@ -646,9 +725,14 @@ const altScenes: Record<string, Scene> = {
     povId: 'C-GOT-01',
     participantIds: ['C-GOT-01', 'C-GOT-05'],
     events: ['deserter_executed', 'different_road_home', 'no_wolves_found'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-GOT-04', from: 'dormant', to: 'surfacing' }],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-111', action: 'added', content: 'The man who passes the sentence must swing the sword — duty is not a principle but a practice, taught through repetition' },
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-112', action: 'added', content: 'The deserter died babbling of monsters — madness or truth, the Wall takes men either way' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-05', to: 'C-GOT-01', type: 'Watching father execute a man with Ice is seeing duty at its most absolute — Jon respects and fears it', valenceDelta: 0.1 },
+    ],
     summary: 'The holdfast near the wolfswood. The execution proceeds as it must — a deserter dies, a lesson is taught, and Bran watches because a Stark must witness the cost of the law his family upholds. But on the ride home, Ned takes the eastern track along the Tumbledowns rather than the bridge road. There is no dead direwolf, no stag antler, no litter of pups mewling in the cold. The party rides back to Winterfell in the grey afternoon light, speaking of small things. Jon rides beside his father and asks nothing of mothers or belonging. Bran is quiet, turning the memory of the sword over and over in his young mind. The moment passes. The wolves that might have been remain in the snow, unfound, and Winterfell stays as it has always been — a castle of stone and duty, without the wild old magic that six direwolf pups would have carried back through its gates.',
   },
   'S-GOT-ALT-007': {
@@ -660,8 +744,13 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-GOT-05', 'C-GOT-08'],
     events: ['children_without_wolves', 'ordinary_evening', 'something_missing'],
     threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-05', nodeId: 'K-GOT-113', action: 'added', content: 'There is an absence he cannot name — something that should have found him and did not, a hollow where a companion should be' },
+      { characterId: 'C-GOT-08', nodeId: 'K-GOT-114', action: 'added', content: 'The evening is the same as every other — practice, stones, supper — and the sameness feels like a cage' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-05', to: 'C-GOT-08', type: 'Jon and Arya share the restless sense that something is missing from Winterfell — a wildness that never arrived', valenceDelta: 0.1 },
+    ],
     summary: 'Winterfell, the yard and the kennels. Evening settles over the castle like a held breath. The Stark children go about their routines — Robb spars with Theon, Sansa practices her stitching, Arya skulks near the armory hoping to steal a glance at the swords. But there is no grey shadow at Robbs heel, no white ghost trailing Jon through the godswood, no wolf pup chewing Aryas boots to ruin. The kennelmaster tends the hounds and the hounds tend themselves. Jon sits on the well wall and watches the sky darken, feeling an absence he cannot name — something that should have come to him and did not, a companion shaped like silence. Arya throws stones at a fence post and hits it every time. Neither of them knows what they are missing. The castle is the same as it has always been. That is precisely the problem.',
   },
   'S-GOT-ALT-008': {
@@ -673,8 +762,13 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-GOT-01'],
     events: ['ned_in_godswood', 'no_omen', 'unease_without_cause'],
     threadMutations: [{ threadId: 'T-GOT-02', from: 'dormant', to: 'surfacing' }],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-115', action: 'added', content: 'Jon Arryns death was no accident — the silence from the south is heavy with unspoken threat' },
+      { characterId: 'C-GOT-01', nodeId: 'K-GOT-116', action: 'added', content: 'Without an omen to guide him, the unease is formless — instinct without evidence, dread without direction' },
+    ],
+    relationshipMutations: [
+      { from: 'C-GOT-01', to: 'C-GOT-07', type: 'Robert will come north and ask for help — Ned feels the weight of that obligation pressing before it arrives', valenceDelta: 0.1 },
+    ],
     summary: 'Winterfell, the godswood. Ned goes to the heart tree as he does when the weight of lordship presses too close. He cleans Ice with an oiled cloth and thinks of Jon Arryns death, of the raven that will surely come, of the king who will surely follow. The weirwood watches him with its red eyes and says nothing, as weirwoods do. In the other timeline, a dead direwolf with a stag antler in her throat would have told him everything he needed to know — Stark and Baratheon, entangled unto death. But that omen never came. There is only the wind in the leaves and the sound of the hot springs and a formless unease that Ned cannot name. He sheathes Ice and walks back to the castle. The old gods sent no warning. Whether that is mercy or cruelty, only the turning of the story will tell.',
   },
 };

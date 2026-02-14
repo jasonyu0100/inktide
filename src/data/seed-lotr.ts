@@ -389,8 +389,13 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['party_preparations', 'lanterns_hung', 'shire_gossip'],
     threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-100', action: 'added', content: 'Bilbo has grown strange — standing at the window after dark, turning a gold ring over and over, murmuring in unknown languages' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-101', action: 'added', content: 'A hundred and eleven candles for Mr. Bilbo — the old hobbit is planning something grand and peculiar' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Sam is steady company on a warm afternoon — the world feels right with him nearby', valenceDelta: 0.1 },
+    ],
     summary: 'The fields below Bag End have been strung with paper lanterns in the shape of fish and moons. Hobbiton is alive with rumour: a hundred and forty-four guests, a pavilion as wide as a barn, and fireworks ordered from a wizard. Frodo helps Sam carry trestle tables down the hill, both of them sweating in the late-September sun. "Do you reckon he\'ll really do it, Mr. Frodo? A hundred and eleven is a powerful lot of candles." Frodo laughs but does not answer, because Bilbo has been strange lately — standing at the window after dark, turning a small gold ring over and over in his pocket, murmuring to himself in languages Frodo does not recognize.',
   },
   'S-LOTR-002': {
@@ -402,8 +407,13 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['bag_end_evening', 'bilbo_stories', 'old_maps'],
     threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-102', action: 'added', content: 'Bilbo speaks of leaving the Shire — of seeing the mountains again and finding somewhere quiet to finish his book' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-103', action: 'added', content: 'The last roses of the season are fading — everything has its time and its ending' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Sam tends the garden with quiet devotion while the world inside Bag End shifts', valenceDelta: 0.05 },
+    ],
     summary: 'A quiet evening at Bag End, the round door closed against the autumn chill. Bilbo sits by the fire with his old maps spread across his knees, tracing a route through the Misty Mountains with a fingernail while Frodo reads in the armchair opposite. "I should like to see the mountains again, Frodo," Bilbo says, as though remarking on the weather. "And then find somewhere quiet where I can finish my book." The fire pops. Outside, Sam trims the last roses of the season, and beyond the hedge, the Shire rolls on in its green and comfortable ignorance — a land that has never heard of Mordor and does not wish to.',
   },
   'S-LOTR-003': {
@@ -415,8 +425,13 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['bilbo_farewell_party', 'ring_inheritance', 'gandalf_suspicion'],
     threadMutations: [{ threadId: 'T-LOTR-02', from: 'dormant', to: 'surfacing' }],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-104', action: 'added', content: 'Bilbo vanished at his own party with a flash — left behind everything, including a plain gold ring on the mantelpiece' },
+      { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-105', action: 'added', content: 'The ring Bilbo left behind troubles him deeply — the way it sat on the mantelpiece, patient and waiting' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-02', to: 'C-LOTR-01', type: 'Gandalf watches Frodo inherit the ring with a grief he cannot yet explain', valenceDelta: 0.1 },
+    ],
     summary: 'Bilbo Baggins vanishes at his one-hundred-and-eleventh birthday party with a flash and a laugh, leaving behind everything he owns — including a plain gold ring on the mantelpiece. The guests murmur and shake their heads; Hobbiton has always thought Bilbo peculiar, and this confirms it. Frodo inherits the ring without understanding what it is. Gandalf lingers by the hearth long after the last guest has stumbled home, watching the little band of gold where it lies on the wood, and the shadow in his eyes is older than the Shire itself. He says nothing to Frodo. Not yet.',
   },
   'S-LOTR-004': {
@@ -427,9 +442,14 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['shire_walk', 'green_dragon_pub', 'rumours_of_outside'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-LOTR-05', from: 'dormant', to: 'surfacing' }],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-106', action: 'added', content: 'The ring is always in his pocket now — he carries it without knowing why, warm and patient against his hip' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-107', action: 'added', content: 'Old Gaffer says there are queer folk on the East Road — Elves and Dwarves and worse, foreigners all' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-04', to: 'C-LOTR-01', type: 'A quiet pint together at the Green Dragon — Sam watches over Frodo without knowing it', valenceDelta: 0.1 },
+    ],
     summary: 'A summer day some months after the party, and the Shire has nearly forgotten Bilbo Baggins. Frodo and Sam walk the lane from Hobbiton to Bywater in no particular hurry, the hedgerows thick with blackberries. They stop at the Green Dragon for a pint of ale. Old Gaffer Gamgee holds court in the corner, complaining about foreigners on the East Road. "Elves and Dwarves and worse," he mutters. "There\'s queer folk about." Sam blushes. Frodo listens more carefully than he lets on. The ring is in his pocket — he always carries it now, though he could not say why — and it sits there, warm and patient and utterly without menace. Or so it seems.',
   },
   'S-LOTR-005': {
@@ -440,9 +460,13 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-04',
     participantIds: ['C-LOTR-04'],
     events: ['sam_gardening', 'overheard_conversation', 'gandalf_warning'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-LOTR-07', from: 'dormant', to: 'dormant' }],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-108', action: 'added', content: 'Overheard Gandalf through the window — the enemy, the Shire no longer safe — something terrible is coming' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-04', to: 'C-LOTR-02', type: 'The wizard speaks in a tone Sam has never heard — low and urgent, stripped of all merriment', valenceDelta: 0.15 },
+    ],
     summary: 'Sam is on his knees in the garden below Bag End\'s study window, weeding between the snapdragons, when he hears Gandalf\'s voice through the open casement. The wizard has returned after a long absence, and he is speaking to Frodo in a tone Sam has never heard from him before — low and urgent, stripped of all merriment. Sam catches only fragments: "...the enemy...the Shire is no longer safe..." He presses closer to the wall, trowel forgotten, heart hammering. A bee hums past his ear. The snapdragons nod in the breeze. Whatever is being said inside that round green door, Sam understands with the bone-deep certainty of a gardener that the season has changed.',
   },
   'S-LOTR-006': {
@@ -456,6 +480,8 @@ const scenes: Record<string, Scene> = {
     threadMutations: [{ threadId: 'T-LOTR-01', from: 'dormant', to: 'surfacing' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-06', action: 'added', content: 'Gandalf cast the ring into the fire and letters of flame appeared — it is Sauron\'s One Ring' },
+      { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-109', action: 'added', content: 'The inscription confirms it beyond doubt — One Ring to rule them all. It has been in the Shire for sixty years' },
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-110', action: 'added', content: 'Sauron is rebuilding in the Dark Tower and his malice reaches across all leagues — the Shire is no shelter' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-01', to: 'C-LOTR-02', type: 'The wizard has shattered his world but remains the only guide', valenceDelta: -0.1 },
@@ -474,8 +500,12 @@ const scenes: Record<string, Scene> = {
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-07', action: 'added', content: 'The Ring must leave the Shire or the Shire will be destroyed — he must carry it east' },
       { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-34', action: 'added', content: 'Was caught eavesdropping and now must go with Frodo — Gandalf said "don\'t you leave him"' },
+      { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-111', action: 'added', content: 'He is sending a hobbit to do what kings and wizards cannot — the best protection he can offer is a gardener with a good heart' },
     ],
-    relationshipMutations: [],
+    relationshipMutations: [
+      { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Sam will walk beside him into the unknown — the bond deepens beyond master and gardener', valenceDelta: 0.15 },
+      { from: 'C-LOTR-02', to: 'C-LOTR-04', type: 'Gandalf sees in Sam a loyalty that may prove more powerful than wizardry', valenceDelta: 0.2 },
+    ],
     summary: 'Gandalf catches Sam at the window and hauls him inside by the ear. "What did you hear?" Sam blurts it all: the Ring, the Dark Lord, the danger. Gandalf\'s eyes narrow, then soften. "Well, Samwise, since you\'ve heard so much, I think you had better go with him. See that he is not alone." Sam looks at Frodo, stricken and thrilled in equal measure. Frodo looks at Gandalf. The wizard is already thinking of roads and provisions, but beneath the planning there is grief — he is sending a hobbit to do what kings and wizards cannot, and the best protection he can offer is a gardener with a good heart. It will have to be enough.',
   },
 
@@ -488,9 +518,14 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['last_morning', 'packing_bag_end', 'farewell_to_home'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-LOTR-02', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-112', action: 'added', content: 'Closed the round green door for the last time — the key turned and Bag End watched them go' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-113', action: 'added', content: 'The garden is overgrown already — it pains him more than any talk of dark lords' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-04', to: 'C-LOTR-01', type: 'Sam packed provisions with hobbit care — he will keep Frodo fed even if the world falls apart', valenceDelta: 0.1 },
+    ],
     summary: 'The morning of departure. Frodo moves through Bag End room by room, touching the walls, the round windows, the brass knobs worn smooth by Bilbo\'s hands and his own. Sam has packed provisions with the care of a hobbit who believes no crisis is improved by an empty stomach: seed-cake, salt pork, apples, and a coil of rope he cannot explain wanting. They close the round green door for the last time. The key turns. The garden is overgrown already — Sam notices, and it pains him more than any talk of dark lords. They walk down the hill into the Shire, and Bag End watches them go with its windows like patient eyes.',
   },
   'S-LOTR-009': {
@@ -501,9 +536,14 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-01',
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['farmer_maggot', 'mushrooms_and_gossip', 'shire_hospitality'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-LOTR-01', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-114', action: 'added', content: 'A black rider on a black horse came by Farmer Maggot\'s yesterday, asking after a Baggins — they are being hunted' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-115', action: 'added', content: 'Even Farmer Maggot\'s dogs shrank from the black rider — whatever hunts them frightens animals by instinct' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Frodo watches Sam chew and say nothing — grateful for steadiness when fear creeps in', valenceDelta: 0.1 },
+    ],
     summary: 'A detour through Farmer Maggot\'s fields — Frodo once stole mushrooms here as a boy and has avoided the lane ever since. But Maggot proves a warmer host than memory promised: a kitchen table heaped with bread and cheese and the finest mushrooms in the Eastfarthing, brown and glistening with butter. The farmer talks while they eat, and beneath the gossip there is something else. A black rider on a black horse came by yesterday, asking after a Baggins. "I didn\'t like his voice," Maggot says, stabbing a mushroom with his fork. "Nor the way my dogs shrank from him." Frodo\'s hand drifts to his pocket. Sam chews and watches and says nothing.',
   },
   'S-LOTR-010': {
@@ -517,8 +557,12 @@ const scenes: Record<string, Scene> = {
     threadMutations: [],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-08', action: 'added', content: 'A black rider on a black horse is hunting him — it sniffed the air where he stood and the Ring burned to be worn' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-116', action: 'added', content: 'Grabbed Mr. Frodo\'s arm to stop him reaching for the Ring — something in the rider made the Ring call out' },
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-117', action: 'added', content: 'His fingers twitched toward his pocket of their own will — the Ring wanted the rider to find it' },
     ],
-    relationshipMutations: [],
+    relationshipMutations: [
+      { from: 'C-LOTR-01', to: 'C-LOTR-04', type: 'Sam pulled him into the ditch and held his arm — without Sam he might have put the Ring on', valenceDelta: 0.15 },
+    ],
     summary: 'The lane narrows between high hedges, and behind them comes the sound of hooves — slow, deliberate, wrong. Frodo feels it before he sees it: a pressure in the air, a coldness that has nothing to do with the autumn wind. Sam pulls him into the ditch beneath the tree roots. The black rider passes inches above them, and for a terrible moment it pauses, lowering its hooded head to sniff the earth like a hound. The Ring throbs against Frodo\'s chest, a living thing desperate to be found. His fingers twitch toward his pocket. Sam grips his arm. The rider moves on. They lie in the leaf-mould, breathing, and the Shire is no longer the safe green country it was an hour ago.',
   },
   'S-LOTR-011': {
@@ -529,9 +573,14 @@ const scenes: Record<string, Scene> = {
     povId: 'C-LOTR-04',
     participantIds: ['C-LOTR-01', 'C-LOTR-04'],
     events: ['night_camp', 'elves_passing', 'starlight_songs'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-LOTR-07', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-118', action: 'added', content: 'Saw Elves for the first time — tall figures in grey and white, carrying lanterns that burn without flickering, singing of seas not yet crossed' },
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-119', action: 'added', content: 'The Elves are leaving Middle-earth for the Grey Havens — even the immortal are departing, and the world grows smaller' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-04', to: 'C-LOTR-01', type: 'Sharing the wonder of Elves together — Sam\'s eyes full of starlight beside his master', valenceDelta: 0.1 },
+    ],
     summary: 'They camp in the woods above the Stock Road, not daring a fire. The night is clear and cold, and through the trees comes a sound that neither of them expected: singing, high and silver and ancient beyond the reckoning of hobbits. Elves are passing through the Shire on their way to the Grey Havens — tall figures in grey and white, carrying lanterns that burn without flickering. They share their fire and their food, and for a few hours the fear recedes. Sam sits with his mouth open and his eyes full of starlight. "Elves, Mr. Frodo," he whispers, as though saying it will make it more real. The Elves sing of seas they have not yet crossed, and the sadness in their voices is older than the hills.',
   },
   'S-LOTR-012': {
@@ -544,10 +593,14 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-LOTR-01': 'L-LOTR-08', 'C-LOTR-04': 'L-LOTR-08' },
     events: ['bree_gate', 'prancing_pony', 'strider_in_shadows'],
     threadMutations: [{ threadId: 'T-LOTR-03', from: 'dormant', to: 'surfacing' }],
-    knowledgeMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-120', action: 'added', content: 'Gave a false name at the Prancing Pony — called himself Underhill, but the Ranger saw through it immediately' },
+      { characterId: 'C-LOTR-03', nodeId: 'K-LOTR-121', action: 'added', content: 'The hobbit from the Shire has arrived at Bree carrying something of immense importance — Gandalf\'s letter warned of this' },
+    ],
     relationshipMutations: [
       { from: 'C-LOTR-01', to: 'C-LOTR-03', type: 'A dangerous stranger who may be the only hope on a road gone wrong', valenceDelta: 0.2 },
       { from: 'C-LOTR-04', to: 'C-LOTR-03', type: 'Does not trust this grim Ranger — but Mr. Frodo needs protecting', valenceDelta: 0.1 },
+      { from: 'C-LOTR-03', to: 'C-LOTR-01', type: 'Aragorn sees the hobbit and understands the weight he carries — sworn now to protect him', valenceDelta: 0.2 },
     ],
     summary: 'Bree. The gate-keeper admits them with a long look and a shake of his head — hobbits from the Shire, on the road after dark, in times like these. The Prancing Pony is warm and loud and full of Men who seem impossibly tall. In the far corner, half-hidden by pipe smoke and shadow, a Ranger sits watching them with grey eyes that miss nothing. Frodo gives a false name. The innkeeper smiles. The Ranger does not. Later, when the common room has thinned, the stranger stands and crosses to their table. "I am called Strider," he says, and his voice is quiet and rough and carries the weight of long roads. "I think we have things to discuss, Mr. Underhill — or should I say, Baggins." Sam\'s hand finds his walking stick beneath the table.',
   },
@@ -562,9 +615,13 @@ const scenes: Record<string, Scene> = {
     threadMutations: [],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-09', action: 'added', content: 'The Ranger called Strider knows of the Ring and claims to be a friend of Gandalf\'s — but Gandalf never came to Bree' },
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-122', action: 'added', content: 'Nazgul hunt them — the Nine, Ring-wraiths who were once kings of Men, drawn to the Ring like moths to flame' },
+      { characterId: 'C-LOTR-03', nodeId: 'K-LOTR-123', action: 'added', content: 'Gandalf has not come to Bree as promised — something has gone wrong, and the not-knowing is dangerous' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-124', action: 'added', content: 'The Ranger produced a letter from Gandalf confirming his identity — but Sam keeps his cooking pan close, just in case' },
     ],
     relationshipMutations: [
       { from: 'C-LOTR-01', to: 'C-LOTR-03', type: 'Strider knows too much to be ignored and too little to be fully trusted', valenceDelta: 0.1 },
+      { from: 'C-LOTR-04', to: 'C-LOTR-03', type: 'Sam stands between the Ranger and his master with a cooking pan — trust has not arrived but necessity has', valenceDelta: 0.05 },
     ],
     summary: 'A private room at the Prancing Pony, the door bolted. Strider tells them what hunts them: Nazgul, the Nine, Ring-wraiths — servants of Sauron who were once kings of Men, now neither living nor dead, drawn to the Ring like moths to a killing flame. Gandalf was supposed to meet Frodo here. He has not come, and Strider does not know why, and the not-knowing sits in the room like a third shadow. "Are you frightened?" he asks Frodo. "Yes." "Not nearly frightened enough. I know what hunts you." He produces a letter from Gandalf, weeks old, confirming his identity. Sam grips his cooking pan and stands between the Ranger and his master. Trust has not arrived. But necessity has.',
   },
@@ -628,9 +685,16 @@ const altScenes: Record<string, Scene> = {
     povId: 'C-LOTR-02',
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     events: ['gandalf_escorts', 'guarded_departure', 'wizard_on_road'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-LOTR-02', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-130', action: 'added', content: 'Chose the hobbits over Isengard — safety is an illusion borrowed against a debt not yet discovered' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-131', action: 'added', content: 'Feeding a wizard is no small matter — packed extra provisions for the journey with Gandalf' },
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-132', action: 'added', content: 'The road feels safer with Gandalf beside them — his staff taps the cobblestones in a rhythm that keeps shadows at bay' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-01', to: 'C-LOTR-02', type: 'Gandalf walks beside them and the road feels safer — a wizard\'s presence is a shield', valenceDelta: 0.2 },
+      { from: 'C-LOTR-02', to: 'C-LOTR-01', type: 'Gandalf watches Frodo carry the Ring with protective concern — determined not to let him face this alone', valenceDelta: 0.15 },
+    ],
     summary: 'In this telling, Gandalf does not ride to Isengard. He stays. The three of them leave Bag End together — a wizard, a hobbit, and a gardener — walking the East Road in the long September light. Gandalf\'s staff taps the cobblestones in a rhythm that keeps the shadows at bay. Sam has packed even more food than in the other telling, because feeding a wizard is no small matter. The road feels safer with Gandalf beside them. But safety is an illusion the wizard knows he is borrowing against a debt he has not yet discovered: somewhere far to the south, Saruman has already turned, and no one is coming to learn of it.',
   },
   'S-LOTR-ALT-009': {
@@ -644,8 +708,13 @@ const altScenes: Record<string, Scene> = {
     threadMutations: [{ threadId: 'T-LOTR-01', from: 'surfacing', to: 'surfacing' }],
     knowledgeMutations: [
       { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-0A', action: 'added', content: 'Gandalf speaks of the Ring\'s history — it has a will, a hunger, and it will try to return to its master by any means' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-133', action: 'added', content: 'The Ring is not a tool — it uses love and fear and mercy to get what it wants. Sam understands now why Frodo seems distant sometimes' },
+      { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-134', action: 'added', content: 'Watched Frodo turn the Ring in his palm by firelight — the warmth it gives is not from the flames. Running out of good options' },
     ],
-    relationshipMutations: [],
+    relationshipMutations: [
+      { from: 'C-LOTR-01', to: 'C-LOTR-02', type: 'Gandalf arms him with knowledge instead of comfort — the honesty is painful but necessary', valenceDelta: -0.1 },
+      { from: 'C-LOTR-04', to: 'C-LOTR-01', type: 'Sam sees Mr. Frodo turn the Ring in his hand and worries — the Ring changes him', valenceDelta: 0.1 },
+    ],
     summary: 'A fireside camp under the stars, somewhere between the Brandywine and the Midgewater Marshes. Gandalf tells them more of the Ring\'s history than he did at Bag End — not to frighten, but to arm. "It is not a tool, Frodo. It is a will. It wants to be found. It will use your love and your fear and your mercy to get what it wants." The fire crackles. Sam listens with his mouth open. Frodo turns the Ring over in his palm and wonders whether the warmth he feels is the firelight or something else entirely. Gandalf watches the Ring where it sits in the hobbit\'s hand, and his expression is the expression of a man who knows he is running out of good options.',
   },
   'S-LOTR-ALT-010': {
@@ -657,9 +726,15 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-LOTR-01', 'C-LOTR-02', 'C-LOTR-04'],
     characterMovements: { 'C-LOTR-01': 'L-LOTR-08', 'C-LOTR-02': 'L-LOTR-08', 'C-LOTR-04': 'L-LOTR-08' },
     events: ['bree_with_gandalf', 'no_strider_needed', 'missing_intelligence'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [{ threadId: 'T-LOTR-05', from: 'surfacing', to: 'escalating' }],
+    knowledgeMutations: [
+      { characterId: 'C-LOTR-02', nodeId: 'K-LOTR-135', action: 'added', content: 'Should have gone to Saruman but chose the hobbits instead — troubled by something he cannot name, a premonition of missed intelligence' },
+      { characterId: 'C-LOTR-01', nodeId: 'K-LOTR-136', action: 'added', content: 'The Prancing Pony feels ordinary with Gandalf at their side — no Ranger watches from the shadows, the paths of hobbit and king do not cross' },
+      { characterId: 'C-LOTR-04', nodeId: 'K-LOTR-137', action: 'added', content: 'The road ahead is safer in the short term — but Sam notices Gandalf staring into the fire with a troubled look' },
+    ],
+    relationshipMutations: [
+      { from: 'C-LOTR-02', to: 'C-LOTR-01', type: 'Gandalf nurses his pipe by the fire, protecting Frodo but troubled by what he has failed to investigate', valenceDelta: 0.1 },
+    ],
     summary: 'They reach Bree with Gandalf at their side, and the Prancing Pony feels like an ordinary inn rather than a threshold. No Ranger watches from the shadows — Strider is out on the wild, and without Gandalf\'s absence to draw him in, the paths of hobbit and king do not cross. The road ahead is safer in the short term and more dangerous in ways they cannot yet see. Gandalf sits by the fire, nursing a pipe, troubled by something he cannot name. He should have gone to Saruman. He chose the hobbits instead. Whether that was wisdom or folly, the months ahead will decide.',
   },
 };

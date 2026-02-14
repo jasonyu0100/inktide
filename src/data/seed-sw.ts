@@ -397,11 +397,18 @@ const scenes: Record<string, Scene> = {
     events: ['tantive_iv_captured', 'leia_hides_plans', 'vader_boards'],
     threadMutations: [
       { threadId: 'T-SW-02', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-SW-06', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-SW-07', from: 'dormant', to: 'surfacing' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-04', nodeId: 'K-SW-35', action: 'added', content: 'The Rebel ship was intercepted above Tatooine — the plans were transmitted before capture' },
+      { characterId: 'C-SW-02', nodeId: 'K-SW-100', action: 'added', content: 'The ship is lost — the plans must survive in R2-D2, sent to the surface with a prayer' },
+      { characterId: 'C-SW-06', nodeId: 'K-SW-101', action: 'added', content: 'Princess Leia entrusted the Death Star plans and a message for Obi-Wan Kenobi — mission priority absolute' },
     ],
-    relationshipMutations: [],
+    relationshipMutations: [
+      { from: 'C-SW-04', to: 'C-SW-02', type: 'A senator caught in a lie — her defiance is an insult to the Emperor and will be crushed', valenceDelta: -0.2 },
+      { from: 'C-SW-02', to: 'C-SW-04', type: 'The armored monster who murdered her crew — hatred tempered by the discipline not to show fear', valenceDelta: -0.3 },
+    ],
     summary: 'Above Tatooine, an Imperial Star Destroyer swallows the Tantive IV whole. Stormtroopers blast through the corridors. Princess Leia, moving with the calm of someone who has rehearsed this nightmare, feeds the stolen Death Star plans into R2-D2 and records a desperate holographic plea. Darth Vader strides through the smoke and the dead, black cape trailing like a funeral shroud. He seizes Leia. The droids jettison to the desert below — two small pods tumbling into the vast amber nothing of a world that does not know what is coming.',
   },
   'S-SW-002': {
@@ -413,7 +420,9 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01'],
     events: ['moisture_farm_morning', 'vaporator_work', 'owen_argues'],
     threadMutations: [],
-    knowledgeMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-102', action: 'added', content: 'Another season on the farm — Owen needs him, but the sky keeps pulling' },
+    ],
     relationshipMutations: [],
     summary: 'Dawn on the moisture farm. Luke is elbow-deep in a vaporator coupling before the first sun clears the ridge. Uncle Owen calls instructions from the homestead door, voice flat as the horizon. The work is rhythmic, mindless — tighten, calibrate, move to the next unit. A line of condensators stretches to the vanishing point. Luke has done this a thousand mornings. His hands know the tools. His mind is somewhere among the stars, building a life out of nothing but want. Owen tells him the south ridge units need attention. Luke nods. The desert gives nothing freely and demands everything in return.',
   },
@@ -426,7 +435,9 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01'],
     events: ['binary_sunset', 'yearning', 'dreaming_of_the_academy'],
     threadMutations: [],
-    knowledgeMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-103', action: 'added', content: 'There must be more than this — the twin suns set on the same horizon every night, and every night Luke feels smaller' },
+    ],
     relationshipMutations: [],
     summary: 'The binary sunset. Luke stands at the edge of the homestead courtyard, silhouetted against two suns bleeding orange and crimson into the dune sea. The light is impossibly beautiful, and it means nothing — it happens every evening, indifferent to the boy watching it. Somewhere beyond that horizon, pilots are flying. Wars are being fought. People are living lives that matter. Luke lets the last light wash over his face and feels the weight of every identical day behind him, and every identical day ahead. He does not move until the suns are gone and the desert turns cold.',
   },
@@ -439,7 +450,10 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01'],
     events: ['dinner_with_owen_beru', 'academy_request_denied', 'tension'],
     threadMutations: [],
-    knowledgeMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-104', action: 'added', content: 'Owen will never let him leave — "maybe next season" is a sentence with no end' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-105', action: 'added', content: 'Aunt Beru understands his restlessness but will not defy Owen — Luke is alone in this' },
+    ],
     relationshipMutations: [],
     summary: 'Dinner at the Lars homestead. Blue milk, root vegetables, the hum of the moisture recycler. Luke asks about the Imperial Academy again — casually, as if the answer might change. Aunt Beru watches Owen with soft eyes. Owen says maybe next season, same as last season, same as the season before. His voice is gentle but his jaw is set. Beru starts to speak, stops. Luke pushes food around his plate. The silence between uncle and nephew fills with everything neither will say: the dead father, the absent mother, the desert that keeps people safe by keeping them still. Luke excuses himself early. The door hisses shut behind him.',
   },
@@ -452,7 +466,10 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01'],
     events: ['friends_at_tosche', 'biggs_leaving', 'luke_left_behind'],
     threadMutations: [],
-    knowledgeMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-106', action: 'added', content: 'Biggs is leaving to join the Rebellion — the war is real, and it is taking people Luke knows' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-107', action: 'added', content: 'Everyone leaves Tatooine except him — the harvest is an anchor, not a reason' },
+    ],
     relationshipMutations: [],
     summary: 'Tosche Station. Luke leans against his landspeeder in the shade of the depot, swapping stories with Fixer and Camie while power converters charge. Biggs Darklighter pulls him aside — voice low, eyes bright with a dangerous secret. He is leaving. Not the Academy kind of leaving, but the real kind: joining the Rebellion. Luke listens with a mix of admiration and envy so sharp it aches. Biggs grips his shoulder. "Come with me." Luke wants to. The wanting is a physical thing, lodged under his ribs. But Owen needs him for the harvest. The excuses sound thin even to his own ears. Biggs drives off into the heat shimmer, and Luke watches until the dust settles.',
   },
@@ -465,9 +482,16 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01', 'C-SW-06'],
     characterMovements: { 'C-SW-06': 'L-SW-08' },
     events: ['jawas_arrive', 'droids_purchased', 'r2_stubborn'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [
+      { threadId: 'T-SW-02', from: 'surfacing', to: 'escalating' },
+    ],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-108', action: 'added', content: 'The new astromech droid is stubborn and strange — it acts like it has somewhere to be' },
+      { characterId: 'C-SW-06', nodeId: 'K-SW-109', action: 'added', content: 'Purchased by moisture farmers on Tatooine — Obi-Wan Kenobi must be nearby' },
+    ],
+    relationshipMutations: [
+      { from: 'C-SW-01', to: 'C-SW-06', type: 'Puzzled by the willful little droid — it is more personality than machine', valenceDelta: 0.1 },
+    ],
     summary: 'A Jawa sandcrawler grinds to a halt outside the homestead, disgorging a line of battered droids into the afternoon glare. Owen haggles in the clipped tones of a man who knows he is being cheated and accepts it as the cost of living on Tatooine. Luke is tasked with cleaning the new purchases: a fussy golden protocol droid and a squat blue astromech that refuses to cooperate. R2-D2 rocks on his legs, chirps indignantly, and will not hold still for the oil bath. Luke wrestles with him like a farmer wrangling a stubborn animal. There is something almost funny about it — the boy and the droid, neither willing to yield.',
   },
   'S-SW-007': {
@@ -483,8 +507,11 @@ const scenes: Record<string, Scene> = {
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-06', action: 'added', content: 'A holographic woman inside the astromech droid pleads for someone called Obi-Wan Kenobi' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-110', action: 'added', content: 'Obi-Wan Kenobi — the name connects to old Ben Kenobi, the hermit in the Jundland Wastes' },
     ],
-    relationshipMutations: [],
+    relationshipMutations: [
+      { from: 'C-SW-01', to: 'C-SW-06', type: 'The droid carries a secret that has hooked itself into Luke — this machine is a messenger from another life', valenceDelta: 0.2 },
+    ],
     summary: 'The garage, late evening. Luke runs a cleaning tool across R2-D2s dome and triggers something he was not meant to see. A hologram flickers to life — a young woman in white, luminous and desperate, speaking a name Luke half-recognizes from old stories and half-remembered warnings. "Help me, Obi-Wan Kenobi. You are my only hope." The image stutters, repeats, cuts out. Luke stares at the space where she was. The message is not for him. But it pulls at something inside his chest — a hook set years ago, finally finding purchase. He asks the droid who she is. R2-D2 says nothing, and everything.',
 
   },
@@ -499,9 +526,16 @@ const scenes: Record<string, Scene> = {
     participantIds: ['C-SW-01', 'C-SW-06'],
     characterMovements: { 'C-SW-01': 'L-SW-02', 'C-SW-06': 'L-SW-02' },
     events: ['r2_escapes', 'luke_pursues', 'jundland_wastes'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [
+      { threadId: 'T-SW-02', from: 'escalating', to: 'fractured' },
+    ],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-111', action: 'added', content: 'R2-D2 escaped into the Jundland Wastes on its own — it is searching for someone' },
+      { characterId: 'C-SW-06', nodeId: 'K-SW-112', action: 'added', content: 'Must reach Obi-Wan Kenobi — the mission overrides the wishes of the new owner' },
+    ],
+    relationshipMutations: [
+      { from: 'C-SW-01', to: 'C-SW-06', type: 'Frustrated and fascinated — the droid ran away on purpose, and Luke followed without thinking', valenceDelta: 0.1 },
+    ],
     summary: 'Before dawn, R2-D2 is gone — slipped out of the garage and into the desert on his own inscrutable mission. Luke curses, fires up his landspeeder, and chases the droid into the Jundland Wastes. The canyons swallow the morning light. Sand People territory. Luke knows this, and goes anyway, half out of duty, half because following the droid feels like following the holographic woman, which feels like following the tug that has lived in his chest since the binary sunset. The speeder kicks up dust. The wastes stretch ahead, ancient and indifferent.',
   },
   'S-SW-009': {
@@ -512,8 +546,12 @@ const scenes: Record<string, Scene> = {
     povId: 'C-SW-01',
     participantIds: ['C-SW-01'],
     events: ['tusken_ambush', 'knocked_unconscious'],
-    threadMutations: [],
-    knowledgeMutations: [],
+    threadMutations: [
+      { threadId: 'T-SW-01', from: 'surfacing', to: 'escalating' },
+    ],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-113', action: 'added', content: 'The Jundland Wastes are deadly — Tusken Raiders attacked without warning and Luke was helpless' },
+    ],
     relationshipMutations: [],
     summary: 'The canyon narrows. Luke spots R2-D2 wedged between two rocks and climbs down to retrieve him. Then the sound — a guttural, rhythmic war cry bouncing off the walls. Tusken Raiders. A gaderffii stick catches Luke across the shoulder and the world goes white. He hits the sand face-first. Above him, the Tuskens rifle through his speeder with methodical curiosity. Luke lies crumpled in the shade of a boulder, blood on his lip, alone in hostile territory with a stolen droid and no one who knows where he is.',
   },
@@ -525,10 +563,16 @@ const scenes: Record<string, Scene> = {
     povId: 'C-SW-01',
     participantIds: ['C-SW-01', 'C-SW-05', 'C-SW-06'],
     events: ['ben_kenobi_appears', 'tuskens_scattered', 'hermit_cave'],
-    threadMutations: [],
-    knowledgeMutations: [],
+    threadMutations: [
+      { threadId: 'T-SW-03', from: 'dormant', to: 'surfacing' },
+    ],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-114', action: 'added', content: 'Old Ben Kenobi scattered the Tuskens with a sound no ordinary man could make — there is something uncanny about him' },
+      { characterId: 'C-SW-05', nodeId: 'K-SW-115', action: 'added', content: 'The boy has come to me at last — Anakins son, drawn into the Wastes by the very droid Leia sent' },
+    ],
     relationshipMutations: [
       { from: 'C-SW-01', to: 'C-SW-05', type: 'Gratitude and curiosity — the old hermit saved his life and seems to know more than he says', valenceDelta: 0.1 },
+      { from: 'C-SW-05', to: 'C-SW-01', type: 'The boy looks so much like Anakin it is almost unbearable — hope and grief in equal measure', valenceDelta: 0.2 },
     ],
     summary: 'A sound like a krayt dragon echoes through the canyon — low, ancient, wrong — and the Tusken Raiders scatter. A figure emerges from the rocks: an old man in sand-colored robes, moving with the unhurried patience of someone who has outlived his enemies. Ben Kenobi. He kneels beside Luke, checks the wound, helps him to his feet. "The Jundland Wastes are not to be traveled lightly." His eyes linger on R2-D2 with an expression Luke cannot read. He leads them to his dwelling — a cave carved into the canyon wall, spare and clean, the home of a man who has been waiting a very long time.',
   },
@@ -542,13 +586,16 @@ const scenes: Record<string, Scene> = {
     events: ['obi_wan_revealed', 'fathers_lightsaber', 'the_force_introduced'],
     threadMutations: [
       { threadId: 'T-SW-05', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-SW-03', from: 'surfacing', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-07', action: 'added', content: 'Ben Kenobi is Obi-Wan Kenobi — a Jedi Knight who fought alongside his father in the Clone Wars' },
       { characterId: 'C-SW-01', nodeId: 'K-SW-08', action: 'added', content: 'His father did not die on a spice freighter — he was a Jedi, murdered by Darth Vader' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-116', action: 'added', content: 'The lightsaber in his hand belonged to his father — it hums with a life of its own, blue and bright' },
     ],
     relationshipMutations: [
       { from: 'C-SW-01', to: 'C-SW-05', type: 'Awe and confusion — this old man knew his father and carries a galaxy of secrets', valenceDelta: 0.2 },
+      { from: 'C-SW-05', to: 'C-SW-01', type: 'The boy holds Anakins saber and the Force stirs — the time has come at last', valenceDelta: 0.1 },
     ],
     summary: 'The hermits cave. Obi-Wan unwraps the past with the care of a man handling something that might cut him. He gives Luke his fathers lightsaber — the blade hums blue, alive after decades of silence, and the sound fills the small room like a held breath released. He speaks of the Jedi, the Force, the Clone Wars, and a pupil named Darth Vader who betrayed everything. Luke holds the weapon of a dead man and feels the universe tilt beneath his feet. Every lie Uncle Owen told rearranges itself into a new and terrible shape. The boy who thought he knew his own story discovers he has been living inside someone elses.',
   },
@@ -560,11 +607,18 @@ const scenes: Record<string, Scene> = {
     povId: 'C-SW-01',
     participantIds: ['C-SW-01', 'C-SW-05', 'C-SW-06'],
     events: ['leia_full_message', 'plea_for_alderaan', 'obi_wan_asks_luke'],
-    threadMutations: [],
+    threadMutations: [
+      { threadId: 'T-SW-02', from: 'fractured', to: 'converging' },
+      { threadId: 'T-SW-06', from: 'surfacing', to: 'escalating' },
+    ],
     knowledgeMutations: [
       { characterId: 'C-SW-05', nodeId: 'K-SW-45', action: 'added', content: 'The plans are in the droid — Leia sent them here, to me, which means the hour has finally come' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-117', action: 'added', content: 'The holographic woman is Princess Leia Organa — the Rebellion needs Obi-Wan and the droids contents to survive' },
+      { characterId: 'C-SW-05', nodeId: 'K-SW-118', action: 'added', content: 'Luke must learn the ways of the Force — he is the only hope left, whether he knows it or not' },
     ],
-    relationshipMutations: [],
+    relationshipMutations: [
+      { from: 'C-SW-01', to: 'C-SW-02', type: 'The holographic princess is real and in danger — her plea is aimed at Obi-Wan but it strikes Luke just as hard', valenceDelta: 0.2 },
+    ],
     summary: 'R2-D2 plays the full message. Princess Leia Organa, her composure thin as paper over something desperate underneath, begs Obi-Wan Kenobi to take the droids contents to her father on Alderaan. The fate of the Rebellion rests in this astromech. Obi-Wan sits very still for a long time after the hologram fades. Then he turns to Luke. "You must learn the ways of the Force, if you are to come with me to Alderaan." The words land like stones dropped into deep water. Luke feels the pull — tremendous, magnetic, aimed at the center of him. But he shakes his head. He cannot. Owen needs him. The harvest is coming. The refusal tastes like dust.',
   },
   'S-SW-013': {
@@ -575,9 +629,16 @@ const scenes: Record<string, Scene> = {
     povId: 'C-SW-01',
     participantIds: ['C-SW-01', 'C-SW-05'],
     events: ['quiet_ride_home', 'smoke_on_horizon'],
-    threadMutations: [],
-    knowledgeMutations: [],
-    relationshipMutations: [],
+    threadMutations: [
+      { threadId: 'T-SW-05', from: 'surfacing', to: 'escalating' },
+    ],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-119', action: 'added', content: 'His father was a Jedi — the lightsaber is warm in his lap and the word rewrites everything' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-120', action: 'added', content: 'Smoke rises from the direction of the homestead — something terrible has happened' },
+    ],
+    relationshipMutations: [
+      { from: 'C-SW-05', to: 'C-SW-01', type: 'Sees Anakin in the boys restless hands, the hungry eyes — history threatening to repeat', valenceDelta: 0.1 },
+    ],
     summary: 'The ride back toward the homestead. Obi-Wan drives while Luke stares at the lightsaber in his lap, turning it over, feeling its weight. Neither speaks. The desert scrolls past — familiar landmarks that look different now, as if Luke is seeing them through new eyes. A Jedi. His father was a Jedi. The word sits in his mouth like a foreign language. Obi-Wan watches the boy from the corner of his eye, seeing Anakin in the jaw, in the restless hands, in the hunger. Then — on the horizon, where the homestead should be — a thread of black smoke, thin as a pen stroke against the fading sky.',
   },
   'S-SW-014': {
@@ -590,12 +651,16 @@ const scenes: Record<string, Scene> = {
     characterMovements: { 'C-SW-01': 'L-SW-08' },
     events: ['homestead_destroyed', 'owen_beru_killed', 'point_of_no_return'],
     threadMutations: [
-      { threadId: 'T-SW-01', from: 'surfacing', to: 'escalating' },
+      { threadId: 'T-SW-01', from: 'escalating', to: 'fractured' },
+      { threadId: 'T-SW-07', from: 'surfacing', to: 'escalating' },
     ],
     knowledgeMutations: [
       { characterId: 'C-SW-01', nodeId: 'K-SW-09', action: 'added', content: 'Uncle Owen and Aunt Beru are dead — burned by Imperial stormtroopers hunting the droids. There is nothing left here.' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-121', action: 'added', content: 'The Empire killed his family — the distant evil is no longer distant, it is personal' },
     ],
-    relationshipMutations: [],
+    relationshipMutations: [
+      { from: 'C-SW-01', to: 'C-SW-05', type: 'Obi-Wan is the only path forward now — Luke will go to Alderaan and learn what he must', valenceDelta: 0.3 },
+    ],
     summary: 'The Lars Homestead, burning. Luke arrives to find smoke where his life used to be. The blackened skeletons of Owen and Beru lie in the doorway of the only home he has known — two people who loved him the only way they knew how, by keeping him small and safe and alive. Stormtroopers traced the droids here, and the Empire does not leave witnesses. Luke stands among the ashes. The boy who wanted to stay, the nephew who owed a harvest, the dreamer who watched binary sunsets and imagined a different life — all of it burns. He returns to Obi-Wan. His voice is quiet and final: "I want to come with you to Alderaan."',
   },
 };
@@ -670,8 +735,13 @@ const altScenes: Record<string, Scene> = {
     povId: 'C-SW-01',
     participantIds: ['C-SW-01'],
     events: ['owen_relents', 'beru_convinces', 'luke_packs'],
-    threadMutations: [],
-    knowledgeMutations: [],
+    threadMutations: [
+      { threadId: 'T-SW-01', from: 'dormant', to: 'surfacing' },
+    ],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-130', action: 'added', content: 'Owen said yes — the Academy is real, the escape is happening, and it feels more like loss than victory' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-131', action: 'added', content: 'Beru convinced Owen to let him go — she understood what Owen could not' },
+    ],
     relationshipMutations: [],
     summary: 'After dinner, Beru finds Owen on the courtyard steps. She speaks quietly, the way she does when she means every word. "You cannot keep him here forever. He is not his father." Owen stares at the dark. In the morning, he tells Luke he can apply to the Academy next season. Luke cannot believe it. He packs a bag that night — not much, because he does not own much — and lies awake listening to the wind against the dome, feeling the strange grief of getting what you wished for.',
   },
@@ -684,9 +754,12 @@ const altScenes: Record<string, Scene> = {
     participantIds: ['C-SW-01'],
     events: ['departure_morning', 'last_look_at_homestead', 'transport_to_anchorhead'],
     threadMutations: [
-      { threadId: 'T-SW-01', from: 'dormant', to: 'surfacing' },
+      { threadId: 'T-SW-01', from: 'surfacing', to: 'escalating' },
     ],
-    knowledgeMutations: [],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-132', action: 'added', content: 'The homestead shrinks in the mirror — leaving feels like amputation, clean and necessary and deeply wrong' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-133', action: 'added', content: 'Somewhere behind him the droids are arriving — but Luke will never know what he missed' },
+    ],
     relationshipMutations: [],
     summary: 'Luke drives toward Anchorhead in the pre-dawn dark, the homestead shrinking in the mirror. He has imagined this departure a hundred times, but in his imagination it felt like escape. In reality it feels like amputation — clean, necessary, and deeply wrong. The moisture farm disappears behind a dune. Somewhere behind him, a Jawa sandcrawler is grinding toward the homestead with two droids in its hold. Luke does not know this. He will never know this. The transport to the Academy leaves in three hours, and the boy who might have been a Jedi is about to become an Imperial cadet.',
   },
@@ -698,8 +771,13 @@ const altScenes: Record<string, Scene> = {
     povId: 'C-SW-01',
     participantIds: ['C-SW-01'],
     events: ['anchorhead_transport', 'looking_up_at_stars', 'wrong_path_taken'],
-    threadMutations: [],
-    knowledgeMutations: [],
+    threadMutations: [
+      { threadId: 'T-SW-01', from: 'escalating', to: 'fractured' },
+    ],
+    knowledgeMutations: [
+      { characterId: 'C-SW-01', nodeId: 'K-SW-134', action: 'added', content: 'The transport lifts off and Tatooine falls away — Luke is going to fly, but something nags like a door closing forever' },
+      { characterId: 'C-SW-01', nodeId: 'K-SW-135', action: 'added', content: 'He is about to become an Imperial cadet — the story that was meant to be his moves on without him' },
+    ],
     relationshipMutations: [],
     summary: 'Anchorhead transport depot. Luke sits on a bench with his bag between his feet, watching a freighter lift off in a column of dust and engine glow. He is going to fly. He is going to see the galaxy. The excitement is real, but underneath it, something nags — a feeling like a door closing behind him that he will not be able to reopen. He looks up at the brightening sky where, hours ago, a Star Destroyer swallowed a consular ship and changed the fate of the galaxy. The transport arrives. Luke boards. The story that was meant to be his moves on without him, and he does not feel it go.',
   },

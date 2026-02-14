@@ -17,12 +17,22 @@ type RunningJob = {
 class AnalysisRunner {
   private running = new Map<string, RunningJob>();
   private dispatch: Dispatch | null = null;
+  private dispatchResolvers: Array<(d: Dispatch) => void> = [];
   private streamListeners = new Set<StreamListener>();
   private streamTexts = new Map<string, string>();
 
   /** Bind the store dispatch — called once from StoreProvider */
   setDispatch(dispatch: Dispatch) {
     this.dispatch = dispatch;
+    // Resolve any pending waiters
+    for (const resolve of this.dispatchResolvers) resolve(dispatch);
+    this.dispatchResolvers = [];
+  }
+
+  /** Wait for dispatch to be available (handles race with StoreProvider mount) */
+  private getDispatch(): Promise<Dispatch> {
+    if (this.dispatch) return Promise.resolve(this.dispatch);
+    return new Promise((resolve) => { this.dispatchResolvers.push(resolve); });
   }
 
   /** Subscribe to stream text updates. Returns unsubscribe fn. */
@@ -47,14 +57,13 @@ class AnalysisRunner {
 
   /** Start or resume analysis for a job */
   async start(job: AnalysisJob) {
-    if (!this.dispatch) throw new Error('AnalysisRunner: dispatch not set');
     if (this.running.has(job.id)) return; // already running
+
+    const d = await this.getDispatch();
 
     const entry: RunningJob = { cancelled: false };
     this.running.set(job.id, entry);
     this.streamTexts.set(job.id, '');
-
-    const d = this.dispatch;
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running' } });
 
     const results = [...job.results];

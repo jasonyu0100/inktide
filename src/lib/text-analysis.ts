@@ -278,6 +278,11 @@ function extractJSON(raw: string): string {
 
   text = text.replace(/,\s*([}\]])/g, '$1');
 
+  // Fix missing opening quote on string values: "key": value" → "key": "value"
+  text = text.replace(/:\s*([a-zA-Z_][a-zA-Z0-9_]*)"(,|\s*[}\]])/g, ': "$1"$2');
+  // Fix missing closing quote: "key": "value → "key": "value"
+  text = text.replace(/:\s*"([^"]*?)(\n)/g, ': "$1"$2');
+
   let opens = 0, closes = 0, sqOpens = 0, sqCloses = 0;
   for (const ch of text) {
     if (ch === '{') opens++;
@@ -315,12 +320,15 @@ The narrative engine tracks:
 
 CHARACTERS: Only extract PEOPLE who speak, act, or are spoken about as individuals. Do NOT include animals, objects, institutions, publications, textbook authors mentioned only in passing, or named items. Use a single canonical name per character — if someone is called both "Professor McGonagall" and "Minerva McGonagall", pick the most common form and use it consistently. Check prior chunk names and reuse the EXACT same name string for returning characters.
 
-THREADS: Threads are narrative tensions that DRIVE THE STORY FORWARD — unresolved questions, active conflicts, and evolving dynamics that create stakes and suspense. Every thread should pass this test: "Does this create tension that makes the reader want to know what happens next?"
-- Plot threads: mysteries to solve, quests to complete, dangers to overcome, conspiracies unfolding
-- Character threads: internal conflicts, secrets being kept, desires in tension with duty
-- Relationship threads: rivalries escalating, alliances under strain, trust being tested
-Do NOT extract: world-building facts, character descriptions, setting details, one-off observations, or things that are simply "interesting" but create no narrative tension. "The existence of the Ministry of Magic" is world-building. "The Ministry's coverup of the breakout" is a thread.
-Aim for 8-15 threads per chunk. For continuing threads, you MUST reuse the EXACT description string from prior chunks. Only create a new thread when a genuinely new tension emerges.
+THREADS: Threads are DISTINCT narrative tensions that drive the story forward. Each must pass TWO tests:
+1. "Does this create tension that makes the reader want to know what happens next?"
+2. "Is this genuinely different from every other thread I've listed?" — if two threads describe the same underlying tension (e.g. "the family's fear of magic" and "the family's efforts to suppress magic"), MERGE them into one.
+Categories:
+- Plot: mysteries, quests, dangers, conspiracies
+- Character: internal conflicts, secrets, desires vs. duty
+- Relationship: rivalries, alliances under strain, trust being tested
+Do NOT extract: world-building facts, character traits, setting details, or observations that create no narrative tension.
+Aim for 6-12 threads per chunk — fewer, sharper threads are better than many overlapping ones. Only include a thread if its status ACTUALLY CHANGES in this chunk or if it's being actively developed. Omit threads that are merely "present" but unchanged. For continuing threads, REUSE the EXACT description string from prior chunks.
 
 Knowledge types must be SPECIFIC and CONTEXTUAL — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge: "social_observation", "class_awareness", "romantic_longing", "moral_judgment", "hidden_wealth_source", "past_betrayal", "forbidden_desire", "strategic_deception", etc.
 
@@ -407,7 +415,17 @@ KNOWLEDGE MUTATIONS:
 
   const raw = await callAnalysis(prompt, systemPrompt, onToken);
   const json = extractJSON(raw);
-  const parsed = JSON.parse(json) as AnalysisChunkResult;
+  let parsed: AnalysisChunkResult;
+  try {
+    parsed = JSON.parse(json) as AnalysisChunkResult;
+  } catch (e) {
+    // Try aggressive repair: fix smart quotes, stray control chars
+    const repaired = json
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\t' ? ch : '');
+    parsed = JSON.parse(repaired) as AnalysisChunkResult;
+  }
 
   // Populate prose from section references
   for (const scene of parsed.scenes ?? []) {

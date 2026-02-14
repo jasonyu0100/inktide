@@ -163,6 +163,7 @@ const initialState: AppState = {
     characterRotationEnabled: true,
     minScenesBetweenCharacterFocus: 3,
     enforceWorldBuildUsage: true,
+    includeProse: false,
   },
   autoRunState: null,
   apiLogs: [],

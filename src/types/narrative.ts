@@ -346,6 +346,8 @@ export type AutoConfig = {
   minScenesBetweenCharacterFocus: number;
   /** When true, auto mode must use latest world-building elements in new arcs */
   enforceWorldBuildUsage: boolean;
+  /** When true, auto mode generates prose for each scene after structural generation */
+  includeProse: boolean;
 };
 
 export type AutoRunLog = {

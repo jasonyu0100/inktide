@@ -3,7 +3,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective, pickCubeGoal, isWorldBuildDue } from '@/lib/auto-engine';
-import { generateScenes, expandWorld, suggestWorldExpansion } from '@/lib/ai';
+import { generateScenes, generateSceneProse, expandWorld, suggestWorldExpansion } from '@/lib/ai';
 import { nextId } from '@/lib/narrative-utils';
 import type { AutoRunLog } from '@/types/narrative';
 
@@ -100,6 +100,26 @@ export function useAutoPlay() {
         branchId: activeBranchId,
       });
       scenesGenerated = scenes.length;
+
+      // Generate prose for each scene if enabled
+      if (autoConfig.includeProse && scenes.length > 0) {
+        const updatedState = stateRef.current;
+        const updatedNarrative = updatedState.activeNarrative;
+        const updatedKeys = updatedState.resolvedSceneKeys;
+        if (updatedNarrative) {
+          for (const s of scenes) {
+            if (cancelledRef.current) return;
+            const sceneIdx = updatedKeys.indexOf(s.id);
+            try {
+              const prose = await generateSceneProse(updatedNarrative, s, sceneIdx, updatedKeys);
+              if (cancelledRef.current) return;
+              dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose } });
+            } catch (err) {
+              console.error('[auto-play] prose generation error:', err);
+            }
+          }
+        }
+      }
     } catch (err) {
       // Log error but don't crash the loop
       console.error('[auto-play] cycle error:', err);

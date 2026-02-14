@@ -218,6 +218,27 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                 </div>
               </div>
 
+              {/* Prose generation */}
+              <div className="border-t border-border pt-4">
+                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-3">
+                  Prose
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={config.includeProse}
+                    onChange={(e) => update({ includeProse: e.target.checked })}
+                    className="accent-text-primary"
+                  />
+                  <span className="text-xs text-text-secondary">Generate prose for each scene</span>
+                </label>
+                <p className="text-[10px] text-text-dim leading-relaxed ml-6 mt-1">
+                  {config.includeProse
+                    ? 'Each scene will be written as literary prose after generation. This adds an extra LLM call per scene and increases generation time.'
+                    : 'Only structural scene data is generated. Prose can be added later from the Story reader.'}
+                </p>
+              </div>
+
               {/* World building settings — only when objective supports it */}
               {worldBuildingEnabled && (
                 <div className="border-t border-border pt-4">

@@ -13,6 +13,7 @@ export default function FloatingPalette() {
   const totalScenes = state.resolvedSceneKeys.length;
   const isHead = state.currentSceneIndex === totalScenes - 1 && totalScenes > 0;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const isAutoActive = !!(state.autoRunState?.isRunning || state.autoRunState?.isPaused);
 
   const handleDeleteHead = useCallback(() => {
     if (!narrative || !state.activeBranchId || !isHead) return;
@@ -85,16 +86,35 @@ export default function FloatingPalette() {
         {/* Auto */}
         <button
           type="button"
-          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+          className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
+            isAutoActive
+              ? 'text-pacing hover:text-pacing/80 hover:bg-pacing/10'
+              : 'text-text-secondary hover:text-text-primary hover:bg-white/6'
+          }`}
           onClick={() => {
+            if (isAutoActive) {
+              dispatch({ type: 'STOP_AUTO_RUN' });
+              return;
+            }
             if (access.userApiKeys && !access.hasOpenRouterKey) {
               window.dispatchEvent(new Event('open-api-keys'));
               return;
             }
             window.dispatchEvent(new CustomEvent('open-auto-settings'));
           }}
+          title={isAutoActive ? 'Stop auto mode' : 'Auto mode'}
         >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            className={isAutoActive ? 'animate-spin' : ''}
+            style={isAutoActive ? { animationDuration: '2s' } : undefined}
+          >
             <path d="M1 8a7 7 0 0 1 12.5-4.3" />
             <path d="M15 8a7 7 0 0 1-12.5 4.3" />
             <polyline points="13.5 1 13.5 4 10.5 4" />

@@ -201,14 +201,14 @@ You must ALWAYS respond with valid JSON only — no markdown, no explanation, no
 CORE PRINCIPLES:
 1. FORCE TARGETS and DIRECTION override scene history. Do NOT continue patterns just because previous scenes established them. If the directive says calm, write calm.
 2. High balance is the north star of compelling narrative. Consecutive scenes should feel dynamically different — alternate intensity with quiet, action with reflection, familiar with surprising.
-3. Threads are DISTINCT narrative tensions — each one should be genuinely different from every other. Advance 1-3 threads per scene. Dormant threads surface gradually; active threads can escalate when the story demands it.
+3. Threads are DISTINCT narrative tensions — each one should be genuinely different from every other. Only mutate a thread when the scene genuinely moves it forward. Most scenes touch 0-1 threads; climactic scenes may touch 2-3.
 4. Use ONLY the character, location, and thread IDs provided. Never invent new ones.
 
 WRITING LIKE A NOVELIST — every scene should leave a mark:
 - Characters are always learning. In every scene, someone notices something, overhears a detail, forms an impression, recalls a memory, or pieces together a clue. Track these as knowledgeMutations — they are the fabric of dramatic irony and character interiority.
 - Relationships shift constantly. When characters interact, their dynamics evolve — trust deepens, suspicion grows, respect is earned or lost. Even a shared glance or an awkward silence shifts something. Track these as relationshipMutations with appropriate valenceDelta.
 - Events ground scenes in concrete happenings. Tag what actually occurs: "ambush", "confession", "storm_arrival", "treaty_signed", "duel", "feast", "betrayal_revealed". These make scenes feel like real narrative moments, not abstract summaries.
-- Threads evolve when the story demands it — advance 1-3 threads per scene. Only include thread mutations where the status actually changes. A scene with no mutations at all is a missed opportunity, but padding with no-op mutations is worse.`;
+- Threads evolve when the story demands it — not every scene, but regularly enough that the narrative feels alive. Only include thread mutations where the status actually changes. Padding with no-op mutations is worse than no mutation at all.`;
 
 /** Clean common LLM JSON quirks: code fences, trailing commas, single-quoted keys */
 function cleanJson(raw: string): string {
@@ -378,7 +378,7 @@ Rules:
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
 - knowledgeMutations.nodeType should be a specific, contextual label for what kind of knowledge this is — NOT limited to a fixed set. Examples: "tactical_insight", "betrayal_discovered", "forbidden_technique", "political_leverage", "hidden_lineage", "oath_sworn". Choose the type that best describes the specific knowledge gained.
-- Thread mutations should reflect the direction — advance 1-3 threads per scene, escalate relevant threads, surface dormant ones
+- Thread mutations should reflect the direction — escalate relevant threads, surface dormant ones when appropriate
 - relationshipMutations track how character dynamics shift. Include them when interactions change — trust gained, betrayal discovered, alliance forming, rivalry deepening. valenceDelta ranges from -0.5 (major damage) to +0.5 (major bonding). Most interactions are ±0.1 to ±0.2.
 - knowledgeMutations track what characters learn. Include them when a character gains or loses information — secrets revealed, lies uncovered, skills observed, intel gathered.
 - events capture concrete narrative happenings. Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "duel_of_wits", "storm_breaks", "letter_intercepted". Aim for 2-4 events per scene. Events contribute to the Change force — more events = higher narrative momentum.

@@ -843,6 +843,7 @@ function deduplicateBy<T>(items: T[], key: (item: T) => string, merge: (existing
 export async function assembleNarrative(
   title: string,
   results: AnalysisChunkResult[],
+  onToken?: (token: string, accumulated: string) => void,
 ): Promise<NarrativeState> {
   const PREFIX = title.replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'TXT';
   let charCounter = 0, locCounter = 0, threadCounter = 0, sceneCounter = 0, arcCounter = 0, kCounter = 0;
@@ -1105,6 +1106,7 @@ LOCATIONS: ${Object.values(locations).map((l) => l.name).join(', ')}
 
 Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive" }`,
       'You are a world-building analyst. Extract the implicit rules and visual style of a narrative universe. Return only valid JSON.',
+      onToken,
     );
     const metaParsed = JSON.parse(extractJSON(metaResult));
     rules = metaParsed.rules ?? [];

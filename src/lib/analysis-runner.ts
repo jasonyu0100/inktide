@@ -13,9 +13,13 @@ import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 type Dispatch = (action: import('@/lib/store').Action) => void;
 
 type StreamListener = (jobId: string, text: string) => void;
+type ChunkStreamListener = (jobId: string, chunkIndex: number, text: string) => void;
+type InFlightListener = (jobId: string, indices: number[]) => void;
 
 type RunningJob = {
   cancelled: boolean;
+  inFlightIndices: Set<number>;
+  chunkStreams: Map<number, string>;
 };
 
 /** Max concurrent LLM calls to avoid rate limits / overload */
@@ -26,6 +30,8 @@ class AnalysisRunner {
   private dispatch: Dispatch | null = null;
   private dispatchResolvers: Array<(d: Dispatch) => void> = [];
   private streamListeners = new Set<StreamListener>();
+  private chunkStreamListeners = new Set<ChunkStreamListener>();
+  private inFlightListeners = new Set<InFlightListener>();
   private streamTexts = new Map<string, string>();
 
   /** Bind the store dispatch — called once from StoreProvider */
@@ -42,15 +48,38 @@ class AnalysisRunner {
     return new Promise((resolve) => { this.dispatchResolvers.push(resolve); });
   }
 
-  /** Subscribe to stream text updates. Returns unsubscribe fn. */
+  /** Subscribe to job-level stream text updates. Returns unsubscribe fn. */
   onStream(listener: StreamListener): () => void {
     this.streamListeners.add(listener);
     return () => this.streamListeners.delete(listener);
   }
 
+  /** Subscribe to per-chunk stream text updates. Returns unsubscribe fn. */
+  onChunkStream(listener: ChunkStreamListener): () => void {
+    this.chunkStreamListeners.add(listener);
+    return () => this.chunkStreamListeners.delete(listener);
+  }
+
+  /** Subscribe to in-flight index changes. Returns unsubscribe fn. */
+  onInFlightChange(listener: InFlightListener): () => void {
+    this.inFlightListeners.add(listener);
+    return () => this.inFlightListeners.delete(listener);
+  }
+
   /** Get current stream text for a job */
   getStreamText(jobId: string): string {
     return this.streamTexts.get(jobId) ?? '';
+  }
+
+  /** Get current stream text for a specific chunk */
+  getChunkStreamText(jobId: string, chunkIndex: number): string {
+    return this.running.get(jobId)?.chunkStreams.get(chunkIndex) ?? '';
+  }
+
+  /** Get currently in-flight chunk indices for a job */
+  getInFlightIndices(jobId: string): number[] {
+    const entry = this.running.get(jobId);
+    return entry ? [...entry.inFlightIndices] : [];
   }
 
   isRunning(jobId: string): boolean {
@@ -64,11 +93,16 @@ class AnalysisRunner {
 
   /** Start or resume analysis for a job — uses parallel pipeline */
   async start(job: AnalysisJob) {
-    if (this.running.has(job.id)) return; // already running
+    if (this.running.has(job.id)) {
+      console.warn('[AnalysisRunner] Job already running:', job.id);
+      return;
+    }
 
+    console.log('[AnalysisRunner] Starting job:', job.id, 'chunks:', job.chunks.length, 'dispatch available:', !!this.dispatch);
     const d = await this.getDispatch();
+    console.log('[AnalysisRunner] Dispatch acquired, beginning extraction');
 
-    const entry: RunningJob = { cancelled: false };
+    const entry: RunningJob = { cancelled: false, inFlightIndices: new Set(), chunkStreams: new Map() };
     this.running.set(job.id, entry);
     this.streamTexts.set(job.id, '');
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running' } });
@@ -86,66 +120,126 @@ class AnalysisRunner {
     if (pendingIndices.length > 0) {
       this.emitStream(job.id, `Phase 1: Extracting ${pendingIndices.length} chunks in parallel...`);
 
-      // Process in batches of MAX_CONCURRENCY
       let completedCount = totalChunks - pendingIndices.length;
-      for (let batchStart = 0; batchStart < pendingIndices.length; batchStart += MAX_CONCURRENCY) {
-        if (entry.cancelled) {
-          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results], currentChunkIndex: completedCount } });
+      const failedChunks: { chunkIdx: number; error: string }[] = [];
+
+      // Sliding window: always keep MAX_CONCURRENCY calls in flight
+      const queue = [...pendingIndices]; // chunks waiting to start
+      let activeCount = 0;
+
+      const launchChunk = (chunkIdx: number) => {
+        activeCount++;
+        entry.inFlightIndices.add(chunkIdx);
+        entry.chunkStreams.set(chunkIdx, '');
+        this.emitInFlight(job.id, [...entry.inFlightIndices]);
+
+        analyzeChunkParallel(job.chunks[chunkIdx].text, chunkIdx, totalChunks, (_token, accumulated) => {
+          entry.chunkStreams.set(chunkIdx, accumulated);
+          this.emitChunkStream(job.id, chunkIdx, accumulated);
+        })
+          .then((result) => onChunkDone(chunkIdx, result, null))
+          .catch((err) => onChunkDone(chunkIdx, null, err instanceof Error ? err.message : String(err)));
+      };
+
+      const onChunkDone = (chunkIdx: number, result: AnalysisChunkResult | null, error: string | null) => {
+        activeCount--;
+        entry.inFlightIndices.delete(chunkIdx);
+
+        if (result) {
+          results[chunkIdx] = result;
+          completedCount++;
+          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results], currentChunkIndex: completedCount } });
+          this.emitStream(job.id, `Phase 1: ${completedCount}/${totalChunks} chunks extracted`);
+        } else if (error) {
+          // Queue for retry
+          failedChunks.push({ chunkIdx, error });
+        }
+
+        this.emitInFlight(job.id, [...entry.inFlightIndices]);
+
+        // Launch next from queue if not cancelled
+        if (!entry.cancelled && queue.length > 0) {
+          launchChunk(queue.shift()!);
+        }
+
+        // When all done, resolve the pool promise
+        if (activeCount === 0 && queue.length === 0) {
+          poolResolve();
+        }
+      };
+
+      // Pool completion promise
+      let poolResolve: () => void;
+      const poolDone = new Promise<void>((resolve) => { poolResolve = resolve; });
+
+      // Seed the pool with initial batch
+      const initialBatch = Math.min(MAX_CONCURRENCY, queue.length);
+      for (let i = 0; i < initialBatch; i++) {
+        launchChunk(queue.shift()!);
+      }
+
+      // Wait for all chunks to complete
+      await poolDone;
+
+      // Handle cancellation
+      if (entry.cancelled) {
+        d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results], currentChunkIndex: completedCount } });
+        this.cleanup(job.id);
+        return;
+      }
+
+      // Retry failed chunks once (also using sliding window)
+      if (failedChunks.length > 0) {
+        this.emitStream(job.id, `Phase 1: Retrying ${failedChunks.length} failed chunk(s)...`);
+        const retryQueue = failedChunks.map((f) => f.chunkIdx);
+        const stillFailed: { chunkIdx: number; error: string }[] = [];
+
+        let retryResolve: () => void;
+        const retryDone = new Promise<void>((resolve) => { retryResolve = resolve; });
+
+        const launchRetry = (chunkIdx: number) => {
+          activeCount++;
+          entry.inFlightIndices.add(chunkIdx);
+          entry.chunkStreams.set(chunkIdx, '');
+          this.emitInFlight(job.id, [...entry.inFlightIndices]);
+
+          analyzeChunkParallel(job.chunks[chunkIdx].text, chunkIdx, totalChunks, (_token, accumulated) => {
+            entry.chunkStreams.set(chunkIdx, accumulated);
+            this.emitChunkStream(job.id, chunkIdx, accumulated);
+          })
+            .then((result) => {
+              activeCount--;
+              entry.inFlightIndices.delete(chunkIdx);
+              results[chunkIdx] = result;
+              completedCount++;
+              d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results], currentChunkIndex: completedCount } });
+              this.emitInFlight(job.id, [...entry.inFlightIndices]);
+              if (retryQueue.length > 0) launchRetry(retryQueue.shift()!);
+              if (activeCount === 0 && retryQueue.length === 0) retryResolve();
+            })
+            .catch((err) => {
+              activeCount--;
+              entry.inFlightIndices.delete(chunkIdx);
+              stillFailed.push({ chunkIdx, error: err instanceof Error ? err.message : String(err) });
+              this.emitInFlight(job.id, [...entry.inFlightIndices]);
+              if (retryQueue.length > 0) launchRetry(retryQueue.shift()!);
+              if (activeCount === 0 && retryQueue.length === 0) retryResolve();
+            });
+        };
+
+        const retryBatch = Math.min(MAX_CONCURRENCY, retryQueue.length);
+        for (let i = 0; i < retryBatch; i++) {
+          launchRetry(retryQueue.shift()!);
+        }
+        await retryDone;
+
+        if (stillFailed.length > 0) {
+          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
+          const failedMsg = stillFailed.map((e) => `Chunk ${e.chunkIdx + 1}: ${e.error}`).join('; ');
+          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: `Extraction failed after retry: ${failedMsg}` } });
           this.cleanup(job.id);
           return;
         }
-
-        const batchIndices = pendingIndices.slice(batchStart, batchStart + MAX_CONCURRENCY);
-        this.emitStream(job.id, `Phase 1: Processing chunks ${batchIndices.map((i) => i + 1).join(', ')} of ${totalChunks}...`);
-
-        const batchPromises = batchIndices.map((chunkIdx) =>
-          analyzeChunkParallel(job.chunks[chunkIdx].text, chunkIdx, totalChunks)
-            .then((result) => ({ chunkIdx, result, error: null as string | null }))
-            .catch((err) => ({ chunkIdx, result: null as AnalysisChunkResult | null, error: err instanceof Error ? err.message : String(err) })),
-        );
-
-        const batchResults = await Promise.all(batchPromises);
-
-        if (entry.cancelled) {
-          // Save whatever we got before cancel
-          for (const br of batchResults) {
-            if (br.result) results[br.chunkIdx] = br.result;
-          }
-          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results], currentChunkIndex: completedCount } });
-          this.cleanup(job.id);
-          return;
-        }
-
-        // Store successful results
-        for (const br of batchResults) {
-          if (br.result) results[br.chunkIdx] = br.result;
-        }
-
-        // Retry failed chunks once
-        const errors = batchResults.filter((br) => br.error);
-        if (errors.length > 0) {
-          this.emitStream(job.id, `Phase 1: Retrying ${errors.length} failed chunk(s)...`);
-          const retryPromises = errors.map((e) =>
-            analyzeChunkParallel(job.chunks[e.chunkIdx].text, e.chunkIdx, totalChunks)
-              .then((result) => ({ chunkIdx: e.chunkIdx, result, error: null as string | null }))
-              .catch((err) => ({ chunkIdx: e.chunkIdx, result: null as AnalysisChunkResult | null, error: err instanceof Error ? err.message : String(err) })),
-          );
-          const retryResults = await Promise.all(retryPromises);
-          for (const rr of retryResults) {
-            if (rr.result) results[rr.chunkIdx] = rr.result;
-          }
-          const stillFailed = retryResults.filter((rr) => rr.error);
-          if (stillFailed.length > 0) {
-            d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
-            const failedChunks = stillFailed.map((e) => `Chunk ${e.chunkIdx + 1}: ${e.error}`).join('; ');
-            d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: `Extraction failed after retry: ${failedChunks}` } });
-            this.cleanup(job.id);
-            return;
-          }
-        }
-        completedCount += batchIndices.length;
-        d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results], currentChunkIndex: completedCount } });
-        this.emitStream(job.id, `Phase 1: ${completedCount}/${totalChunks} chunks extracted`);
       }
     }
 
@@ -190,7 +284,9 @@ class AnalysisRunner {
 
     try {
       const completedResults = results.filter((r): r is AnalysisChunkResult => r !== null);
-      const narrative = await assembleNarrative(job.title, completedResults);
+      const narrative = await assembleNarrative(job.title, completedResults, (_token, accumulated) => {
+        this.emitStream(job.id, `Assembling narrative...\n${accumulated}`);
+      });
 
       d({ type: 'ADD_NARRATIVE', narrative });
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'completed', narrativeId: narrative.id } });
@@ -206,6 +302,18 @@ class AnalysisRunner {
     this.streamTexts.set(jobId, text);
     for (const listener of this.streamListeners) {
       listener(jobId, text);
+    }
+  }
+
+  private emitChunkStream(jobId: string, chunkIndex: number, text: string) {
+    for (const listener of this.chunkStreamListeners) {
+      listener(jobId, chunkIndex, text);
+    }
+  }
+
+  private emitInFlight(jobId: string, indices: number[]) {
+    for (const listener of this.inFlightListeners) {
+      listener(jobId, indices);
     }
   }
 

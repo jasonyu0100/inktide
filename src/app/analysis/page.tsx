@@ -18,17 +18,42 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
   const streamRef = useRef<HTMLPreElement>(null);
   const [streamText, setStreamText] = useState(() => analysisRunner.getStreamText(job.id));
   const [selectedChunk, setSelectedChunk] = useState<number | null>(null);
+  const [inFlightIndices, setInFlightIndices] = useState<number[]>(() => analysisRunner.getInFlightIndices(job.id));
+  const [chunkStreamTexts, setChunkStreamTexts] = useState<Map<number, string>>(new Map());
+  const [viewingChunkStream, setViewingChunkStream] = useState<number | null>(null);
 
   const liveJob = state.analysisJobs.find((j) => j.id === job.id) ?? job;
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
   const error = liveJob.error ?? '';
 
-  // Subscribe to stream text from the singleton runner
+  // Subscribe to job-level stream text
   useEffect(() => {
     return analysisRunner.onStream((id, text) => {
       if (id === job.id) setStreamText(text);
     });
   }, [job.id]);
+
+  // Subscribe to per-chunk stream text
+  useEffect(() => {
+    return analysisRunner.onChunkStream((id, chunkIndex, text) => {
+      if (id === job.id) {
+        setChunkStreamTexts((prev) => {
+          const next = new Map(prev);
+          next.set(chunkIndex, text);
+          return next;
+        });
+      }
+    });
+  }, [job.id]);
+
+  // Subscribe to in-flight changes
+  useEffect(() => {
+    return analysisRunner.onInFlightChange((id, indices) => {
+      if (id === job.id) setInFlightIndices(indices);
+    });
+  }, [job.id]);
+
+  const inFlightSet = useMemo(() => new Set(inFlightIndices), [inFlightIndices]);
 
   // Build word map from completed results
   const wordNodes = useMemo(() => {
@@ -80,21 +105,37 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
   // Auto-scroll stream
   useEffect(() => {
     if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight;
-  }, [streamText]);
+  }, [streamText, chunkStreamTexts, viewingChunkStream]);
 
   const handlePause = useCallback(() => { analysisRunner.pause(job.id); }, [job.id]);
-  const handleStart = useCallback((j: AnalysisJob) => { analysisRunner.start(j); }, []);
+  const handleStart = useCallback((j: AnalysisJob) => {
+    analysisRunner.start(j).catch((err) => {
+      console.error('[analysis] start failed:', err);
+    });
+  }, []);
 
   const completedChunks = liveJob.results.filter((r) => r !== null).length;
   const totalChunks = liveJob.chunks.length;
   const isReconciling = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Reconcil');
   const isAssembling = completedChunks === totalChunks && liveJob.status === 'running' && !isReconciling;
 
+  // Auto-select first in-flight chunk for stream viewing
+  useEffect(() => {
+    if (inFlightIndices.length > 0 && (viewingChunkStream === null || !inFlightIndices.includes(viewingChunkStream))) {
+      setViewingChunkStream(inFlightIndices[0]);
+    } else if (inFlightIndices.length === 0 && !isReconciling && !isAssembling) {
+      setViewingChunkStream(null);
+    }
+  }, [inFlightIndices, isReconciling, isAssembling, viewingChunkStream]);
+
   const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
   const charCount = new Set(completed.flatMap((r) => r.characters.map((c) => c.name))).size;
   const locCount = new Set(completed.flatMap((r) => r.locations.map((l) => l.name))).size;
   const sceneCount = completed.reduce((sum, r) => sum + (r.scenes?.length ?? 0), 0);
   const threadCount = new Set(completed.flatMap((r) => r.threads.map((t) => t.description))).size;
+
+  // Current chunk stream text for viewing
+  const activeChunkStream = viewingChunkStream !== null ? (chunkStreamTexts.get(viewingChunkStream) ?? '') : '';
 
   const renderNode = (node: WordNode) => {
     const ratio = node.count / maxCount;
@@ -196,7 +237,7 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
         </div>
       )}
 
-      {/* ── Middle: Entity cloud (left) + LLM Stream (right column) ── */}
+      {/* ── Middle: Entity cloud (left) + Stream sidebar (right column) ── */}
       <div className="flex-1 min-h-0 flex">
         {/* Entity cloud — main hero */}
         <div className="flex-1 min-w-0 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
@@ -265,9 +306,9 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
           )}
         </div>
 
-        {/* Right column — batch status during extraction, LLM stream during reconciliation/assembly */}
+        {/* Right column — chunk stream viewer during extraction, job stream during reconciliation/assembly */}
         {(isRunning || streamText) && (
-          <div className="w-72 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
+          <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
             {/* Header */}
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
               <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isAssembling ? 'bg-amber-400' : 'bg-change'} animate-pulse`} />
@@ -279,45 +320,84 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
               )}
             </div>
 
-            {/* Extraction phase: compact batch grid */}
+            {/* Extraction phase: chunk stream tabs + stream viewer */}
             {!isReconciling && !isAssembling ? (
-              <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'thin' }}>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {liveJob.chunks.map((_, i) => {
-                    const done = liveJob.results[i] !== null;
-                    const inFlight = !done && isRunning;
-                    const result = liveJob.results[i] as AnalysisChunkResult | null;
-                    return (
-                      <div
-                        key={i}
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-[10px] font-mono transition-all ${
-                          done ? 'bg-emerald-500/8' : inFlight ? 'bg-change/8' : 'bg-white/2'
+              <div className="flex-1 flex flex-col min-h-0">
+                {/* Chunk tabs — scrollable row of in-flight + recently completed */}
+                {inFlightIndices.length > 0 && (
+                  <div className="shrink-0 px-2 py-1.5 border-b border-white/4 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
+                    {inFlightIndices.map((idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setViewingChunkStream(idx)}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-mono transition shrink-0 ${
+                          viewingChunkStream === idx
+                            ? 'bg-change/15 text-change/70 ring-1 ring-change/20'
+                            : 'bg-white/3 text-white/25 hover:text-white/40'
                         }`}
                       >
-                        {inFlight ? (
-                          <svg className="w-3 h-3 text-change/50 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
-                            <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                          </svg>
-                        ) : done ? (
-                          <svg className="w-3 h-3 text-emerald-400/50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        ) : (
-                          <div className="w-3 h-3 rounded-full border border-white/8 shrink-0" />
-                        )}
-                        <span className={done ? 'text-emerald-400/40' : inFlight ? 'text-change/40' : 'text-white/10'}>
-                          {i + 1}
-                        </span>
-                        {done && result && (
-                          <span className="text-white/15 ml-auto text-[8px]">
-                            {result.characters?.length ?? 0}c {result.scenes?.length ?? 0}s
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        <svg className="w-2.5 h-2.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
+                          <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        </svg>
+                        {idx + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Stream output for selected chunk */}
+                {viewingChunkStream !== null && activeChunkStream ? (
+                  <pre
+                    ref={streamRef}
+                    className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
+                    <span className="text-white/8 select-none">chunk {viewingChunkStream + 1} &gt; </span>
+                    {activeChunkStream}
+                  </pre>
+                ) : (
+                  /* Compact batch grid when no stream is active */
+                  <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'thin' }}>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {liveJob.chunks.map((_, i) => {
+                        const done = liveJob.results[i] !== null;
+                        const isInFlight = inFlightSet.has(i);
+                        const result = liveJob.results[i] as AnalysisChunkResult | null;
+                        return (
+                          <div
+                            key={i}
+                            onClick={() => isInFlight ? setViewingChunkStream(i) : undefined}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded text-[10px] font-mono transition-all ${
+                              done ? 'bg-emerald-500/8' : isInFlight ? 'bg-change/8 cursor-pointer hover:bg-change/12' : 'bg-white/2'
+                            }`}
+                          >
+                            {isInFlight ? (
+                              <svg className="w-3 h-3 text-change/50 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
+                                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                              </svg>
+                            ) : done ? (
+                              <svg className="w-3 h-3 text-emerald-400/50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            ) : (
+                              <div className="w-3 h-3 rounded-full border border-white/8 shrink-0" />
+                            )}
+                            <span className={done ? 'text-emerald-400/40' : isInFlight ? 'text-change/40' : 'text-white/10'}>
+                              {i + 1}
+                            </span>
+                            {done && result && (
+                              <span className="text-white/15 ml-auto text-[8px]">
+                                {result.characters?.length ?? 0}c {result.scenes?.length ?? 0}s
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* Reconciliation / Assembly phase: show LLM stream */
@@ -436,26 +516,29 @@ function JobDetail({ job, onBack }: { job: AnalysisJob; onBack: () => void }) {
           <div className="flex items-center gap-1">
             {liveJob.chunks.map((_, i) => {
               const done = liveJob.results[i] !== null;
-              const isInFlight = !done && isRunning && !isReconciling && !isAssembling;
+              const isInFlight = inFlightSet.has(i);
               const isSelected = selectedChunk === i;
               const result = liveJob.results[i] as AnalysisChunkResult | null;
               return (
                 <button
                   key={i}
-                  onClick={() => setSelectedChunk(isSelected ? null : (done ? i : null))}
-                  disabled={!done}
+                  onClick={() => {
+                    if (done) setSelectedChunk(isSelected ? null : i);
+                    else if (isInFlight) setViewingChunkStream(i);
+                  }}
+                  disabled={!done && !isInFlight}
                   className={`relative w-10 min-w-[2.5rem] h-9 rounded transition-all duration-300 group shrink-0 ${
                     isSelected
                       ? 'bg-white/15 ring-1 ring-white/30 scale-[1.08]'
                       : done
                         ? 'bg-emerald-500/20 hover:bg-emerald-500/35'
                         : isInFlight
-                          ? 'bg-change/10 ring-1 ring-change/20'
+                          ? 'bg-change/10 ring-1 ring-change/20 cursor-pointer hover:bg-change/15'
                           : 'bg-white/[0.03]'
-                  } ${done ? 'cursor-pointer' : 'cursor-default'}`}
+                  } ${done || isInFlight ? 'cursor-pointer' : 'cursor-default'}`}
                   title={result
                     ? `Chunk ${i + 1}: ${result.characters?.length ?? 0} chars, ${result.scenes?.length ?? 0} scenes, ${result.threads?.length ?? 0} threads`
-                    : isInFlight ? `Chunk ${i + 1}: extracting...` : `Chunk ${i + 1}: pending`}
+                    : isInFlight ? `Chunk ${i + 1}: extracting... (click to view stream)` : `Chunk ${i + 1}: pending`}
                 >
                   {isInFlight ? (
                     <svg className="absolute inset-0 m-auto w-4 h-4 text-change/60 animate-spin" viewBox="0 0 24 24" fill="none">

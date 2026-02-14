@@ -23,6 +23,8 @@ type ForceLineChartProps = {
   style?: ChartStyle;
   /** Optional moving average overlay data (same length as data) */
   movingAvg?: number[];
+  /** Optional average value to render as a horizontal reference line */
+  average?: number;
 };
 
 const CURVE_FNS = {
@@ -41,6 +43,7 @@ export default function ForceLineChart({
   positive,
   style,
   movingAvg,
+  average,
 }: ForceLineChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -182,17 +185,27 @@ export default function ForceLineChart({
     // Current scene cursor
     if (currentIndex >= 0 && currentIndex < data.length) {
       const cx = xScale(currentIndex);
+      const cy = yScale(data[currentIndex]);
+
       svg
         .append('line')
         .attr('x1', cx)
         .attr('x2', cx)
         .attr('y1', chartTop)
         .attr('y2', chartHeight)
-        .attr('stroke', '#FFFFFF')
-        .attr('stroke-width', 1)
-        .attr('opacity', 0.2);
+        .attr('stroke', 'rgba(255,255,255,0.15)')
+        .attr('stroke-width', 1);
+
+      svg
+        .append('circle')
+        .attr('cx', cx)
+        .attr('cy', cy)
+        .attr('r', 3)
+        .attr('fill', color)
+        .attr('stroke', '#111')
+        .attr('stroke-width', 1.5);
     }
-  }, [data, color, currentIndex, dims, windowStart, windowEnd, positive, showArea, showWindow, showMovingAvg, curveFn, movingAvg]);
+  }, [data, color, currentIndex, dims, windowStart, windowEnd, positive, showArea, showWindow, showMovingAvg, curveFn, movingAvg, average]);
 
   const currentValue =
     currentIndex >= 0 && currentIndex < data.length
@@ -206,11 +219,24 @@ export default function ForceLineChart({
         <span className="text-[9px] uppercase tracking-wider text-text-dim">
           {label}
         </span>
-        {currentValue !== undefined && (
-          <span className="text-[9px] font-medium" style={{ color }}>
-            {currentValue.toFixed(2)}
-          </span>
-        )}
+        <span className="flex items-center gap-1.5">
+          {average !== undefined && (
+            <span className="text-[9px] font-mono font-medium" style={{ color, opacity: 0.5 }}>
+              ({average.toFixed(2)})
+            </span>
+          )}
+          {currentValue !== undefined && (
+            <span className="flex items-center gap-1">
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ backgroundColor: color, boxShadow: `0 0 4px ${color}` }}
+              />
+              <span className="text-[9px] font-mono font-semibold" style={{ color }}>
+                {currentValue.toFixed(2)}
+              </span>
+            </span>
+          )}
+        </span>
       </div>
       {/* Chart */}
       <div ref={containerRef} className="flex-1 min-h-0">

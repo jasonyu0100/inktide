@@ -991,36 +991,36 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Force values */}
-              <div className="flex items-center gap-4 pt-1">
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2.5 pt-1">
+                <div className="flex items-center gap-1">
                   <span className="text-[9px] text-stakes font-medium">P</span>
-                  <div className="w-14 h-1 rounded-full bg-white/5 overflow-hidden">
+                  <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
                       className="h-full bg-stakes rounded-full"
                       style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.payoff) + 1) * 50)}%` }}
                     />
                   </div>
-                  <span className="text-[9px] font-mono text-text-dim/60">{focusedScene.forces.payoff.toFixed(1)}</span>
+                  <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.payoff.toFixed(1)}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   <span className="text-[9px] text-pacing font-medium">C</span>
-                  <div className="w-14 h-1 rounded-full bg-white/5 overflow-hidden">
+                  <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
                       className="h-full bg-pacing rounded-full"
                       style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.change) + 1) * 50)}%` }}
                     />
                   </div>
-                  <span className="text-[9px] font-mono text-text-dim/60">{focusedScene.forces.change.toFixed(1)}</span>
+                  <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.change.toFixed(1)}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   <span className="text-[9px] text-variety font-medium">V</span>
-                  <div className="w-14 h-1 rounded-full bg-white/5 overflow-hidden">
+                  <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
                       className="h-full bg-variety rounded-full"
                       style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.variety) + 1) * 50)}%` }}
                     />
                   </div>
-                  <span className="text-[9px] font-mono text-text-dim/60">{focusedScene.forces.variety.toFixed(1)}</span>
+                  <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.variety.toFixed(1)}</span>
                 </div>
               </div>
 

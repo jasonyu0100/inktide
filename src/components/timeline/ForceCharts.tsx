@@ -140,6 +140,30 @@ export default function ForceCharts() {
     variety: movingAverage(chartData.variety, FORCE_WINDOW_SIZE),
     balance: movingAverage(chartData.balance, FORCE_WINDOW_SIZE),
   }), [chartData]);
+
+  // Window averages — average z-score within the current normalization window
+  const chartAvg = useMemo(() => {
+    const avg = (arr: number[]) => arr.length === 0 ? 0 : arr.reduce((s, v) => s + v, 0) / arr.length;
+    if (isLocal) {
+      // In local mode, chartData is already the window
+      return {
+        payoff: avg(chartData.payoff),
+        change: avg(chartData.change),
+        variety: avg(chartData.variety),
+        balance: avg(chartData.balance),
+      };
+    }
+    // In global mode, slice the window range from global data
+    const ws = windowTimelineRange?.start ?? 0;
+    const we = (windowTimelineRange?.end ?? chartData.payoff.length - 1) + 1;
+    return {
+      payoff: avg(chartData.payoff.slice(ws, we)),
+      change: avg(chartData.change.slice(ws, we)),
+      variety: avg(chartData.variety.slice(ws, we)),
+      balance: avg(chartData.balance.slice(ws, we)),
+    };
+  }, [chartData, isLocal, windowTimelineRange]);
+
   const chartCurrentIndex = isLocal
     ? (localForceData.payoff.length - 1)
     : state.currentSceneIndex;
@@ -295,6 +319,7 @@ export default function ForceCharts() {
             windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
             style={chartStyle}
             movingAvg={chartMA[cfg.key]}
+            average={chartAvg[cfg.key]}
           />
         </div>
       ))}
@@ -311,6 +336,7 @@ export default function ForceCharts() {
           positive
           style={chartStyle}
           movingAvg={chartMA.balance}
+          average={chartAvg.balance}
         />
       </div>
     </div>

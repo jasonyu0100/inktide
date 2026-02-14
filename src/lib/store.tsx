@@ -9,6 +9,7 @@ import { seedHP } from '@/data/seed-hp';
 import { seedSW } from '@/data/seed-sw';
 import { resolveSceneSequence, nextId } from '@/lib/narrative-utils';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs } from '@/lib/persistence';
+import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
 
 const ALL_SEEDS: NarrativeState[] = [seedGOT, seedLOTR, seedHP, seedSW, seedNarrative];
 
@@ -880,10 +881,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Wire analysis runner dispatch
   useEffect(() => {
-    import('@/lib/analysis-runner').then(({ analysisRunner }) => {
-      analysisRunner.setDispatch(dispatch);
-    });
-  }, []);
+    analysisRunnerRef.setDispatch(dispatch);
+  }, [dispatch]);
 
   // Hydrate persisted narratives from IndexedDB on mount
   useEffect(() => {

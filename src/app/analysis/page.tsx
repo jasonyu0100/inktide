@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { Suspense, useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { splitCorpusIntoChunks } from '@/lib/text-analysis';
@@ -598,6 +598,14 @@ function JobsList({ jobs, selectedId, onSelect }: { jobs: AnalysisJob[]; selecte
 
 /* ── Analysis dashboard page ──────────────────────────────────────────────── */
 export default function AnalysisPage() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-bg-base" />}>
+      <AnalysisPageInner />
+    </Suspense>
+  );
+}
+
+function AnalysisPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { state } = useStore();

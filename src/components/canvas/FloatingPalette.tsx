@@ -1,8 +1,27 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { resolveEntry, isScene, type Scene } from '@/types/narrative';
+
+/** Highlight all occurrences of `query` within `text` */
+function HighlightText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-yellow-400/30 text-text-primary rounded-sm px-0.5">{part}</mark>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  );
+}
 
 export default function FloatingPalette() {
   const { state, dispatch } = useStore();
@@ -13,7 +32,66 @@ export default function FloatingPalette() {
   const totalScenes = state.resolvedSceneKeys.length;
   const isHead = state.currentSceneIndex === totalScenes - 1 && totalScenes > 0;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const isAutoActive = !!(state.autoRunState?.isRunning || state.autoRunState?.isPaused);
+
+  // Scene search results
+  const searchResults = useMemo(() => {
+    if (!searchOpen || !searchQuery.trim() || !narrative) return [];
+    const q = searchQuery.toLowerCase().trim();
+    const results: { sceneId: string; timelineIndex: number; summary: string; arcName: string; locationName: string; matchSnippet: string | null }[] = [];
+    for (let i = 0; i < state.resolvedSceneKeys.length; i++) {
+      const entry = resolveEntry(narrative, state.resolvedSceneKeys[i]);
+      if (!entry || !isScene(entry)) continue;
+      const scene = entry as Scene;
+      const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
+      const location = narrative.locations[scene.locationId];
+      const participants = scene.participantIds.map((pid) => narrative.characters[pid]?.name ?? '').join(' ');
+      const events = scene.events.join(' ');
+      const haystack = `${scene.summary} ${arc?.name ?? ''} ${location?.name ?? ''} ${participants} ${events}`.toLowerCase();
+      if (haystack.includes(q)) {
+        // Find a snippet around the match — prefer non-summary sources so the user sees *why* it matched
+        let matchSnippet: string | null = null;
+        const sources = [
+          ...scene.events,
+          participants,
+          arc?.name ?? '',
+          location?.name ?? '',
+        ];
+        for (const src of sources) {
+          const idx = src.toLowerCase().indexOf(q);
+          if (idx >= 0 && src.trim()) {
+            const snippetStart = Math.max(0, idx - 40);
+            const snippetEnd = Math.min(src.length, idx + q.length + 40);
+            matchSnippet = (snippetStart > 0 ? '…' : '') + src.slice(snippetStart, snippetEnd).trim() + (snippetEnd < src.length ? '…' : '');
+            break;
+          }
+        }
+        // If match is only in summary, no extra snippet needed
+        results.push({
+          sceneId: scene.id,
+          timelineIndex: i,
+          summary: scene.summary,
+          arcName: arc?.name ?? '',
+          locationName: location?.name ?? '',
+          matchSnippet,
+        });
+      }
+      if (results.length >= 50) break;
+    }
+    return results;
+  }, [searchOpen, searchQuery, narrative, state.resolvedSceneKeys]);
+
+  // Focus search input when opened
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    } else {
+      setSearchQuery('');
+    }
+  }, [searchOpen]);
 
   const handleDeleteHead = useCallback(() => {
     if (!narrative || !state.activeBranchId || !isHead) return;
@@ -35,7 +113,76 @@ export default function FloatingPalette() {
   const wrapperClasses = isActive ? '' : 'opacity-30 pointer-events-none';
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+      {/* Scene search overlay — above palette */}
+      {searchOpen && (
+        <div
+          className="w-80 max-h-[50vh] flex flex-col rounded-xl border border-white/10 overflow-hidden"
+          style={{ background: '#1a1a1a', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+        >
+          <div className="px-3 py-2.5 border-b border-white/5 flex items-center gap-2 shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-text-dim shrink-0">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSearchOpen(false);
+                if (e.key === 'Enter' && searchResults.length > 0) {
+                  dispatch({ type: 'SET_SCENE_INDEX', index: searchResults[0].timelineIndex });
+                  setSearchOpen(false);
+                }
+              }}
+              placeholder="Search scenes..."
+              className="flex-1 bg-transparent text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none"
+            />
+            {searchQuery && (
+              <span className="text-[9px] text-text-dim font-mono shrink-0">{searchResults.length} found</span>
+            )}
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {searchQuery.trim() && searchResults.length === 0 ? (
+              <div className="py-8 text-center text-[11px] text-text-dim">No scenes match</div>
+            ) : (
+              searchResults.map((r) => (
+                <button
+                  key={r.sceneId}
+                  onClick={() => {
+                    dispatch({ type: 'SET_SCENE_INDEX', index: r.timelineIndex });
+                    setSearchOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors border-b border-white/3 last:border-0"
+                >
+                  <p className="text-[11px] text-text-secondary leading-snug line-clamp-2">
+                    <HighlightText text={r.summary} query={searchQuery} />
+                  </p>
+                  {r.matchSnippet && (
+                    <p className="text-[10px] text-text-dim leading-snug mt-1 line-clamp-1">
+                      <HighlightText text={r.matchSnippet} query={searchQuery} />
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
+                    {r.arcName && <span className="text-[9px] text-text-dim">{r.arcName}</span>}
+                    {r.locationName && (
+                      <>
+                        <span className="text-[9px] text-text-dim/30">&middot;</span>
+                        <span className="text-[9px] text-text-dim">{r.locationName}</span>
+                      </>
+                    )}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Palette row: bar + delete button side by side */}
+      <div className="flex items-center gap-2">
       <div className={`glass-pill px-3 py-1.5 flex items-center gap-2 ${wrapperClasses}`}>
         {/* Prev */}
         <button
@@ -45,6 +192,24 @@ export default function FloatingPalette() {
           aria-label="Previous scene"
         >
           &#9664;
+        </button>
+
+        {/* Search */}
+        <button
+          type="button"
+          className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
+            searchOpen
+              ? 'text-text-primary bg-white/10'
+              : 'text-text-secondary hover:text-text-primary hover:bg-white/6'
+          }`}
+          onClick={() => setSearchOpen((v) => !v)}
+          aria-label="Search scenes"
+          title="Search scenes"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
         </button>
 
         {/* Next */}
@@ -156,6 +321,7 @@ export default function FloatingPalette() {
           </button>
         )
       )}
+      </div>
     </div>
   );
 }

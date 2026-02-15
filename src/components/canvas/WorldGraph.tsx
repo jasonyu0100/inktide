@@ -406,7 +406,6 @@ export default function WorldGraph() {
 
   const resolvedSceneKeys = state.resolvedSceneKeys;
 
-  // Derive active arc ID — this is what triggers a full re-render
   const activeArcId = useMemo(() => {
     if (!narrative) return null;
     const currentKey = resolvedSceneKeys[state.currentSceneIndex];

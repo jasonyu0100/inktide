@@ -2,6 +2,7 @@
 
 import { useStore } from '@/lib/store';
 import type { CharacterRole, KnowledgeNodeType } from '@/types/narrative';
+import { CollapsibleSection } from './CollapsibleSection';
 
 type Props = {
   characterId: string;
@@ -75,10 +76,7 @@ export default function CharacterDetail({ characterId }: Props) {
 
       {/* Knowledge */}
       {character.knowledge.nodes.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Knowledge
-          </h3>
+        <CollapsibleSection title="Knowledge" count={character.knowledge.nodes.length}>
           <ul className="flex flex-col gap-1">
             {character.knowledge.nodes.map((node) => (
               <li key={node.id} className="flex items-start gap-2">
@@ -89,15 +87,12 @@ export default function CharacterDetail({ characterId }: Props) {
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
       )}
 
       {/* Threads */}
       {character.threadIds.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Threads
-          </h3>
+        <CollapsibleSection title="Threads" count={character.threadIds.length}>
           <ul className="flex flex-col gap-1">
             {character.threadIds.map((tid) => (
               <li key={tid}>
@@ -121,38 +116,62 @@ export default function CharacterDetail({ characterId }: Props) {
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
       )}
 
       {/* Relationships */}
       {relationships.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Relationships
-          </h3>
-          <ul className="flex flex-col gap-1">
+        <CollapsibleSection title="Relationships" count={relationships.length}>
+          <ul className="flex flex-col gap-2">
             {relationships.map((rel) => {
               const isOutgoing = rel.from === characterId;
               const otherId = isOutgoing ? rel.to : rel.from;
               const other = narrative.characters[otherId];
               const arrow = isOutgoing ? '\u2192' : '\u2190';
+              const clamped = Math.max(-1, Math.min(1, rel.valence));
+              const pct = Math.abs(clamped) * 100; // 0–100%
+              const isPositive = rel.valence > 0;
+              const isNegative = rel.valence < 0;
               return (
-                <li key={`${rel.from}-${rel.to}-${rel.type}`} className="text-xs text-text-primary">
-                  {arrow} {other?.name ?? otherId}: {rel.type} ({rel.valence > 0 ? '+' : ''}
-                  {rel.valence})
+                <li key={`${rel.from}-${rel.to}-${rel.type}`} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-text-primary flex items-center gap-1">
+                      <span className="text-text-dim">{arrow}</span>
+                      {other?.name ?? otherId}
+                    </span>
+                    <span className="text-[10px] text-text-dim">{rel.type}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden relative">
+                      {/* Center line */}
+                      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/10" />
+                      {isPositive && (
+                        <div
+                          className="absolute top-0 bottom-0 left-1/2 rounded-r-full"
+                          style={{ width: `${pct / 2}%`, backgroundColor: '#22C55E' }}
+                        />
+                      )}
+                      {isNegative && (
+                        <div
+                          className="absolute top-0 bottom-0 rounded-l-full"
+                          style={{ width: `${pct / 2}%`, right: '50%', backgroundColor: '#EF4444' }}
+                        />
+                      )}
+                    </div>
+                    <span className={`text-[10px] font-mono w-6 text-right ${isPositive ? 'text-change' : isNegative ? 'text-payoff' : 'text-text-dim'}`}>
+                      {rel.valence > 0 ? '+' : ''}{rel.valence}
+                    </span>
+                  </div>
                 </li>
               );
             })}
           </ul>
-        </div>
+        </CollapsibleSection>
       )}
 
       {/* Lifecycle */}
       {lifecycle.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Lifecycle
-          </h3>
+        <CollapsibleSection title="Lifecycle" count={lifecycle.length} defaultOpen>
           <ul className="flex flex-col gap-2">
             {lifecycle.map(({ sceneId, knowledgeMuts, relationshipMuts, movement }) => (
               <li key={sceneId} className="flex flex-col gap-0.5">
@@ -202,7 +221,7 @@ export default function CharacterDetail({ characterId }: Props) {
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
       )}
     </div>
   );

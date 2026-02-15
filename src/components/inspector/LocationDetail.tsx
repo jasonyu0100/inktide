@@ -2,6 +2,7 @@
 
 import { useStore } from '@/lib/store';
 import type { KnowledgeNodeType } from '@/types/narrative';
+import { CollapsibleSection } from './CollapsibleSection';
 
 type Props = {
   locationId: string;
@@ -24,18 +25,28 @@ export default function LocationDetail({ locationId }: Props) {
 
   const parent = location.parentId ? narrative.locations[location.parentId] : null;
 
-  // Lifecycle: scenes set at this location, with relevant mutations
+  // Total scenes at this location
+  const totalSceneCount = state.resolvedSceneKeys
+    .filter((k) => narrative.scenes[k]?.locationId === locationId).length;
+
+  // Lifecycle: scenes set at this location, with only location-relevant mutations
+  const locationThreadIds = new Set(location.threadIds);
   const lifecycle = state.resolvedSceneKeys
     .map((k) => narrative.scenes[k])
     .filter((s) => s && s.locationId === locationId)
     .map((s) => ({
       sceneId: s.id,
-      threadMuts: s.threadMutations,
-      knowledgeMuts: s.knowledgeMutations,
+      threadMuts: s.threadMutations.filter((tm) => locationThreadIds.has(tm.threadId)),
+      knowledgeMuts: s.knowledgeMutations.filter((km) =>
+        km.content.toLowerCase().includes(location.name.toLowerCase()),
+      ),
       arrivals: Object.entries(s.characterMovements ?? {})
         .filter(([, locId]) => locId === locationId)
         .map(([charId]) => charId),
-    }));
+    }))
+    .filter(({ threadMuts, knowledgeMuts, arrivals }) =>
+      threadMuts.length > 0 || knowledgeMuts.length > 0 || arrivals.length > 0,
+    );
 
   return (
     <div className="flex flex-col gap-4">
@@ -75,10 +86,7 @@ export default function LocationDetail({ locationId }: Props) {
 
       {/* Knowledge */}
       {location.knowledge.nodes.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Knowledge
-          </h3>
+        <CollapsibleSection title="Knowledge" count={location.knowledge.nodes.length}>
           <ul className="flex flex-col gap-1">
             {location.knowledge.nodes.map((node) => (
               <li key={node.id} className="flex items-start gap-2">
@@ -89,15 +97,12 @@ export default function LocationDetail({ locationId }: Props) {
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
       )}
 
       {/* Threads */}
       {location.threadIds.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Threads
-          </h3>
+        <CollapsibleSection title="Threads" count={location.threadIds.length}>
           <ul className="flex flex-col gap-1">
             {location.threadIds.map((tid) => (
               <li key={tid}>
@@ -121,55 +126,54 @@ export default function LocationDetail({ locationId }: Props) {
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
       )}
 
-      {/* Lifecycle */}
-      {lifecycle.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Lifecycle
-          </h3>
-          <ul className="flex flex-col gap-2">
-            {lifecycle.map(({ sceneId, threadMuts, knowledgeMuts, arrivals }) => (
-              <li key={sceneId} className="flex flex-col gap-0.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_INSPECTOR',
-                      context: { type: 'scene', sceneId },
-                    })
-                  }
-                  className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
-                >
-                  {sceneId}
-                </button>
-                {threadMuts.map((tm) => (
-                  <span key={tm.threadId} className="text-xs text-text-secondary">
-                    {tm.threadId}: {tm.from} &rarr; {tm.to}
-                  </span>
-                ))}
-                {knowledgeMuts.map((km) => {
-                  const charName = narrative.characters[km.characterId]?.name ?? km.characterId;
-                  return (
-                    <span key={`${km.characterId}-${km.nodeId}`} className="text-xs text-text-secondary">
-                      <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
-                        {km.action === 'added' ? '+' : '−'}
-                      </span>{' '}
-                      {charName}: {km.content}
+      {/* Scenes */}
+      {totalSceneCount > 0 && (
+        <CollapsibleSection title="Scenes" count={totalSceneCount} defaultOpen>
+          {lifecycle.length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {lifecycle.map(({ sceneId, threadMuts, knowledgeMuts, arrivals }) => (
+                <li key={sceneId} className="flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      dispatch({
+                        type: 'SET_INSPECTOR',
+                        context: { type: 'scene', sceneId },
+                      })
+                    }
+                    className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
+                  >
+                    {sceneId}
+                  </button>
+                  {threadMuts.map((tm) => (
+                    <span key={tm.threadId} className="text-xs text-text-secondary">
+                      {tm.threadId}: {tm.from} &rarr; {tm.to}
                     </span>
-                  );
-                })}
-                {arrivals.map((charId) => (
-                  <span key={charId} className="text-xs text-text-secondary">
-                    &rarr; {narrative.characters[charId]?.name ?? charId} arrived
-                  </span>
-                ))}
-              </li>
-            ))}
-          </ul>
-        </div>
+                  ))}
+                  {knowledgeMuts.map((km) => {
+                    const charName = narrative.characters[km.characterId]?.name ?? km.characterId;
+                    return (
+                      <span key={`${km.characterId}-${km.nodeId}`} className="text-xs text-text-secondary">
+                        <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
+                          {km.action === 'added' ? '+' : '−'}
+                        </span>{' '}
+                        {charName}: {km.content}
+                      </span>
+                    );
+                  })}
+                  {arrivals.map((charId) => (
+                    <span key={charId} className="text-xs text-text-secondary">
+                      &rarr; {narrative.characters[charId]?.name ?? charId} arrived
+                    </span>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CollapsibleSection>
       )}
     </div>
   );

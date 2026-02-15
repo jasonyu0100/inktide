@@ -257,7 +257,6 @@ function SeedCarousel({ seeds }: { seeds: NarrativeEntry[] }) {
 /* ── User series card — same style as SeedCard ─────────────────────────── */
 function UserSeriesCard({ entry, index }: { entry: NarrativeEntry; index: number }) {
   const router = useRouter();
-  const { dispatch } = useStore();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
@@ -294,15 +293,6 @@ function UserSeriesCard({ entry, index }: { entry: NarrativeEntry; index: number
             <span className="text-[9px] text-white/25 font-mono" suppressHydrationWarning>
               {mounted ? timeAgo(entry.updatedAt) : ''}
             </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                dispatch({ type: 'DELETE_NARRATIVE', id: entry.id });
-              }}
-              className="text-[10px] text-white/20 hover:text-white/60 opacity-0 group-hover:opacity-100 transition"
-            >
-              &times;
-            </button>
           </div>
         </div>
       </div>

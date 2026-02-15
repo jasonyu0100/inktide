@@ -614,7 +614,25 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 800, height: 600 });
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(() => {
+    // Initialize to the current scene so the tracker opens with it selected
+    if (!narrative) return null;
+    const currentKey = state.resolvedSceneKeys[state.currentSceneIndex];
+    if (!currentKey) return null;
+    const currentEntry = resolveEntry(narrative, currentKey);
+    if (!currentEntry || !isScene(currentEntry)) return null;
+    // Find this scene's index in the scene-only array
+    let sceneIdx = 0;
+    for (let i = 0; i <= state.currentSceneIndex; i++) {
+      const k = state.resolvedSceneKeys[i];
+      const e = resolveEntry(narrative, k);
+      if (e && isScene(e)) {
+        if (i === state.currentSceneIndex) return sceneIdx;
+        sceneIdx++;
+      }
+    }
+    return null;
+  });
 
   // Raw force toggle (absolute values vs z-score normalised)
   const [showRawForce, setShowRawForce] = useState(false);

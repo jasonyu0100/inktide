@@ -8,6 +8,7 @@ import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { computeRawForcetotals, computeBalanceMagnitudes } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
+import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 
 
 function exportNarrative(narrative: NarrativeState) {
@@ -30,6 +31,7 @@ export default function TopBar() {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [logsOpen, setLogsOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
+  const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const scorecardRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -623,6 +625,19 @@ export default function TopBar() {
           <span className="text-[11px]">Cube</span>
         </button>
         <button
+          onClick={() => setCubeExplorerOpen(true)}
+          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
+          title="Cube Explorer — filter scenes by cube corner"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+          </svg>
+          <span className="text-[11px]">Explorer</span>
+        </button>
+        <button
           onClick={() => setStoryOpen(true)}
           className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
           title="View full story"
@@ -659,6 +674,15 @@ export default function TopBar() {
           narrative={narrative}
           resolvedKeys={state.resolvedSceneKeys}
           onClose={() => setStoryOpen(false)}
+        />
+      )}
+      {cubeExplorerOpen && narrative && (
+        <CubeExplorer
+          narrative={narrative}
+          resolvedKeys={state.resolvedSceneKeys}
+          currentSceneIndex={state.currentSceneIndex}
+          onClose={() => setCubeExplorerOpen(false)}
+          onNavigate={(idx) => dispatch({ type: 'SET_SCENE_INDEX', index: idx })}
         />
       )}
     </div>

@@ -19,6 +19,77 @@ export type WorldExpansion = {
   relationships: RelationshipEdge[];
 };
 
+async function callGenerateStream(
+  prompt: string,
+  systemPrompt: string,
+  onToken: (token: string) => void,
+  maxTokens?: number,
+  caller = 'callGenerateStream',
+): Promise<string> {
+  const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
+  const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt);
+  const start = performance.now();
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}) }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      const message = err.error || 'Generation failed';
+      updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+      throw new Error(message);
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let full = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === 'data: [DONE]') continue;
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const chunk = JSON.parse(trimmed.slice(6));
+            const token = chunk.token ?? '';
+            if (token) {
+              full += token;
+              onToken(token);
+            }
+          } catch {
+            // skip malformed chunks
+          }
+        }
+      }
+    }
+
+    updateApiLog(logId, {
+      status: 'success',
+      durationMs: Math.round(performance.now() - start),
+      responseLength: full.length,
+      responsePreview: full,
+    });
+    return full;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+    throw err;
+  }
+}
+
 async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate'): Promise<string> {
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
   const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt);
@@ -775,42 +846,200 @@ Write 3-5 sentences per section. Be specific — reference arc names, character 
 /**
  * Generate literary prose for a single scene, suitable for a book-style reading experience.
  */
+// Technique catalogues — listed in the prompt so the LLM picks the best fit for each scene
+const OPENING_TECHNIQUES = [
+  'Mid-dialogue — the first words are spoken aloud',
+  'Body in motion — a physical action already underway',
+  'Close-up on an object or gesture — something small and concrete',
+  'Internal thought or memory — mid-reflection or recollection',
+  'A sound that breaks silence — heard before anything is seen',
+  'A question just asked — dialogue that demands a response',
+  'A tactile sensation — something felt against the skin',
+  'A sharp contrast or juxtaposition — two things that clash',
+  'Noticing another person\'s expression or body language',
+  'A brief, punchy declarative — a statement of fact, no longer than ten words',
+];
+
+const ENDING_TECHNIQUES = [
+  'A character turning away or physically leaving',
+  'A single sharp line of dialogue left hanging',
+  'A sensory detail that lingers — smell, texture, or residual sound',
+  'A decision made in silence',
+  'An interruption that cuts the scene short',
+  'A small physical gesture that speaks louder than words',
+  'A question left unanswered — aloud or internal',
+  'Mid-action — the scene stops before the action completes',
+  'Noticing something new — a detail that shifts understanding',
+  'A line of internal thought that reframes what just happened',
+];
+
 export async function generateSceneProse(
   narrative: NarrativeState,
   scene: Scene,
-  sceneIndex: number,
+  _sceneIndex: number,
   resolvedKeys: string[],
+  onToken?: (token: string) => void,
 ): Promise<string> {
-  const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
   const location = narrative.locations[scene.locationId];
   const pov = narrative.characters[scene.povId];
   const participants = scene.participantIds.map((pid) => narrative.characters[pid]).filter(Boolean);
 
-  // Full branch context — all scenes, characters, threads, arcs, relationships, force trajectory
-  const fullContext = branchContext(narrative, resolvedKeys, resolvedKeys.length - 1);
+  // Branch context up to this scene — history without future details leaking in
+  const sceneIdx = resolvedKeys.indexOf(scene.id);
+  const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
+  const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
 
-  const systemPrompt = `You are a literary prose writer crafting scenes for a novel set in the world of "${narrative.title}". Write vivid, immersive prose in third-person limited perspective from the POV character's viewpoint. Your writing should be evocative and grounded in sensory detail — show, don't tell. Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}. Do not include scene titles or chapter headers. Write only the prose itself.`;
+  // Future scene summaries for foreshadowing (lightweight — summaries only, no prose)
+  const futureKeys = resolvedKeys.slice(contextIndex + 1);
+  const futureSummaries = futureKeys.length > 0
+    ? futureKeys.map((k, i) => {
+        const s = resolveEntry(narrative, k);
+        if (!s || s.kind !== 'scene') return null;
+        return `[+${i + 1}] ${s.summary}`;
+      }).filter(Boolean).join('\n')
+    : '';
 
-  const prompt = `You have full knowledge of the entire narrative branch. Use this to write prose that foreshadows future events through subtle imagery, offhand remarks, environmental details, and character intuitions — never telegraph what's coming, but plant seeds the reader will recognize in hindsight.
 
-FULL BRANCH CONTEXT:
+
+  const systemPrompt = `You are a literary prose writer crafting a single scene for a novel set in "${narrative.title}".
+
+Voice & style:
+- Third-person limited, locked to the POV character's senses and interiority.
+- Prose should feel novelistic, not summarised. Dramatise through action, dialogue, and sensory texture.
+- Favour subtext over exposition. Let tension live in what characters don't say.
+- Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.
+
+Enrichment — you are encouraged to add elements not present in the scene summary to increase narrative density:
+- Invent small sensory details, environmental texture, weather, ambient sounds, smells.
+- Add incidental dialogue, passing thoughts, micro-reactions that deepen character.
+- Introduce unnamed background figures, minor worldbuilding details, or cultural texture.
+- Layer in thematic imagery, recurring motifs, or symbolic objects that echo across the story.
+- These additions should feel organic, never forced. They exist to make the world feel lived-in.
+
+Strict output rules:
+- Output ONLY the prose. No scene titles, chapter headers, separators (---), or meta-commentary.
+- Use straight quotes (" and '), never smart/curly quotes or other typographic substitutions.
+- Do not begin with a character name as the first word.
+- CRITICAL: Do NOT open with weather, atmosphere, air quality, scent, temperature, or environmental description. These are the most overused openings in fiction. Instead, choose from techniques like: mid-dialogue, a character's body in motion, a close-up on an object, an internal thought, a sound, a question, a tactile sensation, noticing someone's expression, or a punchy declarative sentence.
+- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. Instead end with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture, or a thought that reframes the scene.`;
+
+  const prompt = `BRANCH CONTEXT (for continuity — do not summarise or repeat this):
 ${fullContext}
+${futureSummaries ? `\nFUTURE SCENES (for foreshadowing only — plant subtle seeds, never spoil or reference directly):\n${futureSummaries}\n` : ''}
+SCENE TO WRITE:
+- Location: ${location?.name ?? 'Unknown'}
+- POV: ${pov?.name ?? 'Unknown'} (${pov?.role ?? 'unknown role'})
+- Participants: ${participants.map((p) => `${p.name} (${p.role})`).join(', ')}
+- Events: ${scene.events.map((e) => e).join('; ')}
+- Summary: ${scene.summary}
 
----
+Write ~1000 words. Fill the scene with dramatised moments: extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph.`;
 
-NOW WRITE SCENE ${sceneIndex + 1}${arc ? ` — Arc: "${arc.name}"` : ''}
-LOCATION: ${location?.name ?? 'Unknown'}
-POV CHARACTER: ${pov?.name ?? 'Unknown'} (${pov?.role ?? 'unknown role'})
-PARTICIPANTS: ${participants.map((p) => `${p.name} (${p.role})`).join(', ')}
+  if (onToken) {
+    return await callGenerateStream(prompt, systemPrompt, onToken, 4000, 'generateSceneProse');
+  }
+  return await callGenerate(prompt, systemPrompt, 4000, 'generateSceneProse');
+}
 
-EVENTS:
-${scene.events.map((e) => `- ${e}`).join('\n')}
+/**
+ * Reconcile openings and endings across all generated prose.
+ * Detects scenes that start or end too similarly and rewrites just those edges.
+ * Returns a map of sceneId → rewritten prose (only for scenes that changed).
+ */
+export async function reconcileProseEdges(
+  proseMap: Record<string, string>,
+  sceneOrder: string[],
+): Promise<Record<string, string>> {
+  const entries = sceneOrder
+    .filter((id) => proseMap[id])
+    .map((id) => {
+      const lines = proseMap[id].split('\n').filter((l) => l.trim());
+      return {
+        id,
+        opening: lines[0]?.slice(0, 200) ?? '',
+        ending: lines[lines.length - 1]?.slice(-200) ?? '',
+        fullProse: proseMap[id],
+      };
+    });
 
-SUMMARY: ${scene.summary}
+  if (entries.length < 2) return {};
 
-Write 400-600 words of immersive prose for this scene. Ground the reader in the setting, convey character interiority through the POV character, and dramatize the events with dialogue and action. End the scene with a moment that creates forward momentum.`;
+  const edgeSummary = entries
+    .map((e, i) => `[${i + 1}] ${e.id}\n  OPENS: "${e.opening}"\n  ENDS:  "${e.ending}"`)
+    .join('\n\n');
 
-  return await callGenerate(prompt, systemPrompt, 2000, 'generateSceneProse');
+  const openingList = OPENING_TECHNIQUES.map((t, i) => `  ${i + 1}. ${t}`).join('\n');
+  const endingList = ENDING_TECHNIQUES.map((t, i) => `  ${i + 1}. ${t}`).join('\n');
+
+  const systemPrompt = `You are a literary editor specialising in first and last impressions. Openings and endings are the most important sentences in any chapter — they are what readers remember. You return ONLY valid JSON — no markdown, no commentary.`;
+
+  const prompt = `You are reviewing ${entries.length} chapter openings and endings. Your job is to ensure every single one is distinctive and memorable.
+
+CURRENT OPENINGS AND ENDINGS:
+${edgeSummary}
+
+OPENING TECHNIQUES (each scene should use a different one — no two scenes should share a technique):
+${openingList}
+
+ENDING TECHNIQUES (each scene should use a different one — no two scenes should share a technique):
+${endingList}
+
+Your task:
+1. Check every opening — if ANY two scenes open with the same structural technique (e.g. both start with atmosphere, both start with sound, both start with dialogue), rewrite all but one of them to use a different technique.
+2. Check every ending — apply the same rule.
+3. Even if an opening/ending is unique among its peers, if it's generic or forgettable (e.g. "The air was cold...", "And so it began..."), rewrite it to be sharper and more distinctive.
+
+Openings should hook the reader instantly. Endings should leave a mark — an image, a line, a moment that lingers after the page turns. Be bold. Be surprising. Every first and last paragraph should feel like it was crafted by a different author.
+
+Return JSON:
+{
+  "rewrites": [
+    {
+      "sceneId": "S-XXX",
+      "fix": "opening" | "ending" | "both",
+      "reason": "brief explanation of why this needs rewriting",
+      "newFirstParagraph": "rewritten first paragraph if opening needs fixing, otherwise null",
+      "newLastParagraph": "rewritten last paragraph if ending needs fixing, otherwise null"
+    }
+  ]
+}
+
+Rules:
+- Return {"rewrites": []} ONLY if every opening and ending is already unique and compelling. Be aggressive — it's better to over-fix than to leave repetitive edges.
+- Preserve the scene's content, characters, and events — only change the structural approach of the opening/ending.
+- Match the prose style and voice of the original.
+- newFirstParagraph replaces everything before the first blank line (or first \\n\\n). newLastParagraph replaces everything after the last blank line.
+- Use straight quotes (" and '), never smart/curly quotes.`;
+
+  const raw = await callGenerate(prompt, systemPrompt, 8000, 'reconcileProseEdges');
+  const parsed = parseJson(raw, 'reconcileProseEdges') as {
+    rewrites: { sceneId: string; fix: string; newFirstParagraph?: string | null; newLastParagraph?: string | null }[];
+  };
+
+  const result: Record<string, string> = {};
+
+  for (const rw of parsed.rewrites ?? []) {
+    const original = proseMap[rw.sceneId];
+    if (!original) continue;
+
+    let updated = original;
+    const paragraphs = original.split(/\n\n+/);
+
+    if ((rw.fix === 'opening' || rw.fix === 'both') && rw.newFirstParagraph) {
+      paragraphs[0] = rw.newFirstParagraph;
+      updated = paragraphs.join('\n\n');
+    }
+    if ((rw.fix === 'ending' || rw.fix === 'both') && rw.newLastParagraph) {
+      paragraphs[paragraphs.length - 1] = rw.newLastParagraph;
+      updated = paragraphs.join('\n\n');
+    }
+
+    if (updated !== original) {
+      result[rw.sceneId] = updated;
+    }
+  }
+
+  return result;
 }
 
 export type ChartAnnotation = {

@@ -51,7 +51,12 @@ export function StoryReader({
   const generateProse = useCallback(async (s: Scene, idx: number) => {
     setProseCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'loading' } }));
     try {
-      const prose = await generateSceneProse(narrative, s, idx, resolvedKeys);
+      const prose = await generateSceneProse(narrative, s, idx, resolvedKeys, (token) => {
+        setProseCache((prev) => {
+          const existing = prev[s.id];
+          return { ...prev, [s.id]: { text: (existing?.text ?? '') + token, status: 'loading' } };
+        });
+      });
       setProseCache((prev) => ({ ...prev, [s.id]: { text: prose, status: 'ready' } }));
       dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose } });
     } catch (err) {
@@ -59,8 +64,6 @@ export function StoryReader({
       setProseCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'error', error: message } }));
     }
   }, [narrative, resolvedKeys, dispatch]);
-
-  const BATCH_SIZE = 5;
 
   const bulkGenerate = useCallback(async () => {
     const missing = scenes.filter((s) => !s.prose && proseCache[s.id]?.status !== 'ready');
@@ -79,40 +82,39 @@ export function StoryReader({
       return next;
     });
 
-    // Process in batches
-    for (let i = 0; i < missing.length; i += BATCH_SIZE) {
-      if (bulkCancelledRef.current) break;
-      const batch = missing.slice(i, i + BATCH_SIZE);
+    // Sliding window pool — keeps CONCURRENCY slots filled continuously
+    const CONCURRENCY = 10;
+    let nextIdx = 0;
 
-      const results = await Promise.allSettled(
-        batch.map(async (s) => {
-          if (bulkCancelledRef.current) throw new Error('cancelled');
-          const idx = resolvedKeys.indexOf(s.id);
-          const prose = await generateSceneProse(narrative, s, idx, resolvedKeys);
-          return { id: s.id, prose };
-        }),
-      );
-
-      for (const result of results) {
-        if (bulkCancelledRef.current) break;
-        if (result.status === 'fulfilled') {
-          const { id, prose } = result.value;
-          setProseCache((prev) => ({ ...prev, [id]: { text: prose, status: 'ready' } }));
-          dispatch({ type: 'UPDATE_SCENE', sceneId: id, updates: { prose } });
-          completed++;
-        } else {
-          errors++;
-          // Find the scene that failed and mark it
-          const failedScene = batch[results.indexOf(result)];
-          if (failedScene) {
-            const msg = result.reason instanceof Error ? result.reason.message : String(result.reason);
-            setProseCache((prev) => ({ ...prev, [failedScene.id]: { text: '', status: 'error', error: msg } }));
-          }
-        }
+    const processScene = async (s: Scene): Promise<void> => {
+      const idx = resolvedKeys.indexOf(s.id);
+      try {
+        const prose = await generateSceneProse(narrative, s, idx, resolvedKeys, (token) => {
+          setProseCache((prev) => {
+            const existing = prev[s.id];
+            return { ...prev, [s.id]: { text: (existing?.text ?? '') + token, status: 'loading' } };
+          });
+        });
+        setProseCache((prev) => ({ ...prev, [s.id]: { text: prose, status: 'ready' } }));
+        dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose } });
+        completed++;
+      } catch (err) {
+        errors++;
+        const msg = err instanceof Error ? err.message : String(err);
+        setProseCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'error', error: msg } }));
       }
-
       setBulkState({ running: !bulkCancelledRef.current, completed, total: missing.length, errors });
-    }
+    };
+
+    const runWorker = async (): Promise<void> => {
+      while (!bulkCancelledRef.current) {
+        const idx = nextIdx++;
+        if (idx >= missing.length) break;
+        await processScene(missing[idx]);
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, missing.length) }, () => runWorker()));
 
     setBulkState((prev) => prev ? { ...prev, running: false } : null);
   }, [scenes, proseCache, narrative, resolvedKeys, dispatch]);
@@ -229,6 +231,32 @@ export function StoryReader({
             })()
           )}
 
+          {/* Clear all prose */}
+          {(() => {
+            const writtenCount = scenes.filter((s) => s.prose || proseCache[s.id]?.status === 'ready').length;
+            return writtenCount > 0 && !bulkState?.running ? (
+              <button
+                onClick={() => {
+                  setProseCache({});
+                  for (const s of scenes) {
+                    if (s.prose || proseCache[s.id]?.status === 'ready') {
+                      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose: undefined } });
+                    }
+                  }
+                  setBulkState(null);
+                }}
+                className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-red-400/80 hover:border-red-400/20 transition flex items-center gap-1.5"
+                title={`Clear prose for all ${writtenCount} scenes`}
+              >
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Clear All ({writtenCount})
+              </button>
+            ) : null;
+          })()}
+
           {/* Copy all prose */}
           {(() => {
             const allProse = scenes
@@ -293,6 +321,7 @@ export function StoryReader({
           {scenes.map((s, i) => {
             const sArc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(s.id));
             const hasContent = proseCache[s.id]?.status === 'ready' || !!s.prose;
+            const isGenerating = proseCache[s.id]?.status === 'loading';
             return (
               <button
                 key={s.id}
@@ -314,7 +343,10 @@ export function StoryReader({
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 ml-5">
                   {sArc && <span className="text-[9px] text-text-dim">{sArc.name}</span>}
-                  {hasContent && (
+                  {isGenerating && (
+                    <div className="w-2.5 h-2.5 border border-white/30 border-t-white/70 rounded-full animate-spin shrink-0" />
+                  )}
+                  {hasContent && !isGenerating && (
                     <span className="text-[8px] text-emerald-400/60">●</span>
                   )}
                 </div>
@@ -372,10 +404,27 @@ export function StoryReader({
             </div>
 
             {/* Prose content */}
-            {isLoading && (
+            {isLoading && !cached?.text && (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                 <p className="text-[11px] text-text-dim">Generating prose...</p>
+              </div>
+            )}
+
+            {isLoading && cached?.text && (
+              <div className="prose-content">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-3 h-3 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                  <span className="text-[9px] text-text-dim">Writing...</span>
+                </div>
+                {cached.text.split('\n\n').map((paragraph, i) => (
+                  <p
+                    key={i}
+                    className="text-[13px] text-text-secondary leading-[1.8] mb-5 first:first-letter:text-2xl first:first-letter:font-semibold first:first-letter:text-text-primary first:first-letter:mr-0.5"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
               </div>
             )}
 
@@ -392,16 +441,40 @@ export function StoryReader({
             )}
 
             {hasProse && (
-              <div className="prose-content">
-                {cached!.text.split('\n\n').map((paragraph, i) => (
-                  <p
-                    key={i}
-                    className="text-[13px] text-text-secondary leading-[1.8] mb-5 first:first-letter:text-2xl first:first-letter:font-semibold first:first-letter:text-text-primary first:first-letter:mr-0.5"
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={() => {
+                      setProseCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
+                      dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined } });
+                    }}
+                    className="text-[9px] px-2.5 py-1 rounded-full border border-white/8 text-text-dim hover:text-red-400/80 hover:border-red-400/20 transition"
+                    title="Clear prose for this scene"
                   >
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => {
+                      dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined } });
+                      generateProse(scene, sceneKeyIndex);
+                    }}
+                    className="text-[9px] px-2.5 py-1 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/15 transition"
+                    title="Regenerate prose for this scene"
+                  >
+                    Regenerate
+                  </button>
+                </div>
+                <div className="prose-content">
+                  {cached!.text.split('\n\n').map((paragraph, i) => (
+                    <p
+                      key={i}
+                      className="text-[13px] text-text-secondary leading-[1.8] mb-5 first:first-letter:text-2xl first:first-letter:font-semibold first:first-letter:text-text-primary first:first-letter:mr-0.5"
+                    >
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
+              </>
             )}
 
             {!hasProse && !isLoading && !hasError && (

@@ -172,8 +172,14 @@ function ForceChart({
       }
     });
 
+    // Window average based on selected scene's window range
+    const windowSlice = windowRange
+      ? values.slice(windowRange.start, windowRange.end + 1)
+      : values.slice(-FORCE_WINDOW_SIZE);
+    const winAvg = windowSlice.length > 0 ? windowSlice.reduce((s, v) => s + v, 0) / windowSlice.length : 0;
+
     // Force label
-    const labelText = g.append('text')
+    g.append('text')
       .attr('x', 6)
       .attr('y', -m.top + 14)
       .attr('fill', color)
@@ -182,15 +188,9 @@ function ForceChart({
       .attr('letter-spacing', '0.1em')
       .text(label);
 
-    // Window average + full average after label
-    const fullAvg = values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0;
-    const windowSlice = values.slice(-FORCE_WINDOW_SIZE);
-    const winAvg = windowSlice.length > 0 ? windowSlice.reduce((s, v) => s + v, 0) / windowSlice.length : 0;
-    const labelWidth = (labelText.node() as SVGTextElement)?.getComputedTextLength?.() ?? 40;
-
-    // Window avg (brighter)
+    // Window avg after label
     g.append('text')
-      .attr('x', 6 + labelWidth + 6)
+      .attr('x', 6 + label.length * 8 + 6)
       .attr('y', -m.top + 14)
       .attr('fill', color)
       .attr('font-size', '9px')
@@ -198,17 +198,6 @@ function ForceChart({
       .attr('font-family', 'monospace')
       .attr('opacity', 0.7)
       .text(`w${winAvg >= 0 && !isBalance ? '+' : ''}${winAvg.toFixed(2)}`);
-
-    // Full avg (dimmer)
-    g.append('text')
-      .attr('x', 6 + labelWidth + 58)
-      .attr('y', -m.top + 14)
-      .attr('fill', color)
-      .attr('font-size', '9px')
-      .attr('font-weight', '500')
-      .attr('font-family', 'monospace')
-      .attr('opacity', 0.35)
-      .text(`(${fullAvg >= 0 && !isBalance ? '+' : ''}${fullAvg.toFixed(2)})`);
 
     // Clipped chart group
     const clipped = g.append('g').attr('clip-path', `url(#clip-${forceKey})`);

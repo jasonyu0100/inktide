@@ -517,7 +517,7 @@ export function gradeForces(
   const balanceEffective = avg(balance) * 0.5 + topAvg(balance) * 0.5;
 
   const payoffGrade = gradeForce(avg(payoff), 3);
-  const changeGrade = gradeForce(avg(change), 4);
+  const changeGrade = gradeForce(avg(change), 3);
   const varietyGrade = gradeForce(avg(variety), 2);
   const balanceGrade = gradeForce(balanceEffective, 5);
 

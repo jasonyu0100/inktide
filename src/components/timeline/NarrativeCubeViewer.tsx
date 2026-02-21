@@ -409,7 +409,8 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     const arc = narrative.arcs[entry.arcId];
     const loc = entry.locationId ? narrative.locations[entry.locationId] : null;
     const pt = trajectory[hoveredDotIdx];
-    const corner = pt ? detectCubeCorner({ payoff: pt.pos[0], change: pt.pos[1], variety: pt.pos[2] }) : null;
+    // pos layout from forcesToCubePos: [tanh(change), tanh(payoff), tanh(variety)]
+    const corner = pt ? detectCubeCorner({ payoff: pt.pos[1], change: pt.pos[0], variety: pt.pos[2] }) : null;
     return {
       summary: entry.summary,
       arcName: arc?.name ?? entry.arcId,
@@ -471,16 +472,17 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       const pa = transform(ca);
       const pb = transform(cb);
 
+      // Cube axes: X = change, Y = payoff, Z = variety
       const dx = Math.abs(ca[0] - cb[0]);
       const dy = Math.abs(ca[1] - cb[1]);
       const dz = Math.abs(ca[2] - cb[2]);
       let edgeColor: string;
       if (dx > dy && dx > dz) {
-        edgeColor = payoffColor;
+        edgeColor = changeColor;  // X axis
       } else if (dy > dz) {
-        edgeColor = changeColor;
+        edgeColor = payoffColor;  // Y axis
       } else {
-        edgeColor = varietyColor;
+        edgeColor = varietyColor;  // Z axis
       }
 
       ctx.strokeStyle = edgeColor;

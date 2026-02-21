@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { generateScenes, suggestDirection, expandWorld, suggestWorldExpansion } from '@/lib/ai';
+import { generateScenes, suggestDirection, expandWorld, suggestWorldExpansion, type WorldExpansionSize } from '@/lib/ai';
 import { resolveEntry, type NarrativeState, type WorldBuildCommit } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 
@@ -55,6 +55,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
   // World mode state
   const [worldDirective, setWorldDirective] = useState('');
+  const [worldSize, setWorldSize] = useState<WorldExpansionSize>('medium');
 
   // Shared state
   const [loading, setLoading] = useState(false);
@@ -154,6 +155,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         state.resolvedSceneKeys,
         headIndex,
         worldDirective,
+        worldSize,
       );
       dispatch({
         type: 'EXPAND_WORLD',
@@ -392,10 +394,31 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 />
               </div>
 
-              {/* Summary of what will be generated */}
-              <p className="text-[10px] text-text-dim leading-relaxed">
-                Generates new characters, locations, threads, and relationships that merge into your existing world.
-              </p>
+              {/* Expansion size */}
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Size</label>
+                <div className="flex gap-1.5">
+                  {([
+                    { value: 'small' as WorldExpansionSize, label: 'Small', desc: '1-2 of each' },
+                    { value: 'medium' as WorldExpansionSize, label: 'Medium', desc: '3-5 of each' },
+                    { value: 'large' as WorldExpansionSize, label: 'Large', desc: '8-15 entities' },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setWorldSize(opt.value)}
+                      className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
+                        worldSize === opt.value
+                          ? 'bg-white/10 ring-1 ring-white/20'
+                          : 'bg-white/[0.03] hover:bg-white/6'
+                      }`}
+                    >
+                      <div className="text-xs text-text-primary font-medium">{opt.label}</div>
+                      <div className="text-[9px] text-text-dim">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <button
                 onClick={handleExpandWorld}

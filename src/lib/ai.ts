@@ -736,11 +736,20 @@ Return JSON with this exact structure:
  * Generate new world elements (characters, locations, threads, relationships)
  * that get merged into the existing narrative.
  */
+export type WorldExpansionSize = 'small' | 'medium' | 'large';
+
+const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, { characters: string; locations: string; threads: string; label: string }> = {
+  small:  { characters: '1-2',   locations: '1-2',   threads: '1-2',   label: 'a focused expansion' },
+  medium: { characters: '3-5',   locations: '3-4',   threads: '3-5',   label: 'a moderate expansion' },
+  large:  { characters: '8-15',  locations: '6-10',  threads: '8-12',  label: 'a large-scale expansion' },
+};
+
 export async function expandWorld(
   narrative: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
   directive: string,
+  size: WorldExpansionSize = 'medium',
 ): Promise<WorldExpansion> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
@@ -758,7 +767,12 @@ export async function expandWorld(
 
 EXPAND the world based on this directive: ${directive}
 
-Generate NEW characters, locations, threads, and relationships that fit the existing narrative.
+This is ${EXPANSION_SIZE_CONFIG[size].label}. Generate exactly:
+- ${EXPANSION_SIZE_CONFIG[size].characters} new characters
+- ${EXPANSION_SIZE_CONFIG[size].locations} new locations
+- ${EXPANSION_SIZE_CONFIG[size].threads} new threads
+- Relationships to connect new characters to existing ones
+
 Use sequential IDs continuing from the existing ones.
 
 Return JSON with this exact structure:
@@ -822,7 +836,7 @@ Rules:
 - ALL new threads MUST have status "dormant" — they are seeds for future arcs, not active storylines yet
 - Relationships should connect new characters to EXISTING ones (not just to each other) — this ensures new characters integrate into the story rather than remaining isolated. Include at least one relationship with valence tension (slight negative or ambivalent).
 - Anchors in threads can reference existing characters/locations
-- Generate at least 2 of each type to provide meaningful variety injection`;
+- Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld');
   const parsed = parseJson(raw, 'expandWorld') as WorldExpansion;

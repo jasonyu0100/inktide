@@ -412,7 +412,7 @@ function ZoneBar({
       const arcPayoff = forceIndices.map((i) => raw.payoff[i]);
       const arcChange = forceIndices.map((i) => raw.change[i]);
       const arcVariety = forceIndices.map((i) => raw.variety[i]);
-      const arcBalance = forceIndices.map((i) => balances[i]);
+      const arcBalance = forceIndices.map((i, idx) => idx === 0 ? 0 : balances[i]);
       const { overall: grade } = gradeForces(arcPayoff, arcChange, arcVariety, arcBalance);
 
       return {

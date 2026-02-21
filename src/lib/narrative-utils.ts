@@ -565,10 +565,15 @@ export function gradeForces(
   const varietyGrade = gradeForce(avg(variety), 2);
   const balanceGrade = gradeForce(balanceEffective, 5);
 
-  // Streak: zone-based consistency — rewards green arcs, penalizes prolonged lows
-  const streakGrade = arcOveralls && arcOveralls.length >= 2
-    ? 20 * consistencyFactor(arcOveralls)
-    : 20;
+  // Streak: zone-based consistency — only applies at series level (cross-arc metric)
+  const hasStreak = arcOveralls && arcOveralls.length >= 2;
+  const streakGrade = hasStreak ? 20 * consistencyFactor(arcOveralls) : 0;
+
+  // Per-arc: 4 metrics scaled to 0-100; series-level: 5 metrics (including streak) 0-100
+  const coreSum = payoffGrade + changeGrade + varietyGrade + balanceGrade;
+  const overall = hasStreak
+    ? coreSum + streakGrade
+    : coreSum * (100 / 80);
 
   return {
     payoff: Math.round(payoffGrade),
@@ -576,6 +581,6 @@ export function gradeForces(
     variety: Math.round(varietyGrade),
     balance: Math.round(balanceGrade),
     streak: Math.round(streakGrade),
-    overall: Math.round(payoffGrade + changeGrade + varietyGrade + balanceGrade + streakGrade),
+    overall: Math.round(overall),
   };
 }

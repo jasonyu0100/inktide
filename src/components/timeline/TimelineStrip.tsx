@@ -93,7 +93,7 @@ export default function TimelineStrip() {
       const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
       const arcChanges = forceIndices.map((i) => raw.change[i]);
       const arcVarieties = forceIndices.map((i) => raw.variety[i]);
-      const arcBalanceVals = forceIndices.map((i) => balances[i]);
+      const arcBalanceVals = forceIndices.map((i, idx) => idx === 0 ? 0 : balances[i]);
       const { overall } = gradeForces(arcPayoffs, arcChanges, arcVarieties, arcBalanceVals);
       grades.set(band.arc.id, overall);
     }

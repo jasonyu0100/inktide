@@ -128,7 +128,7 @@ export default function TopBar() {
         const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
         const arcChanges = forceIndices.map((i) => raw.change[i]);
         const arcVarieties = forceIndices.map((i) => raw.variety[i]);
-        const arcBalanceVals = forceIndices.map((i) => balances[i]);
+        const arcBalanceVals = forceIndices.map((i, idx) => idx === 0 ? 0 : balances[i]);
 
         return {
           name: arc.name,

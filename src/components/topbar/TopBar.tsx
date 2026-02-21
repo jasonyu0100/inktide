@@ -140,19 +140,12 @@ export default function TopBar() {
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
 
-    // Overall grade: derived from arc grades with consistency modifier.
-    // Consistency of arc-level scores rewards stories that maintain quality across all arcs.
-    const arcOveralls = perArc.map(a => a.grades.overall);
-    const overallGrade = arcOveralls.length > 0
-      ? Math.round(seriesGrades.overall * arcConsistency(arcOveralls))
-      : seriesGrades.overall;
-
     return {
       title: narrative.title,
       scenes: n,
       arcs: arcCount,
       ...stats,
-      grades: { ...seriesGrades, overall: overallGrade },
+      grades: seriesGrades,
       perArc,
     };
   }, [allScenes, narrative]);

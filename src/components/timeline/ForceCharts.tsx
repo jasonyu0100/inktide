@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, movingAverage, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 import ForceLineChart, { type ChartStyle } from './ForceLineChart';
 
 const FORCE_CONFIG = [
@@ -94,7 +94,7 @@ export default function ForceCharts() {
       change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { payoff, change, variety, balance: computeBalances(payoff, change, variety) };
+    return { payoff, change, variety, balance: zScoreNormalize(computeBalances(payoff, change, variety)) };
   }, [narrative, allScenes, resolvedSceneKeys]);
 
   // Window-only forces for local scope
@@ -111,7 +111,7 @@ export default function ForceCharts() {
       change.push(lastForce.change);
       variety.push(lastForce.variety);
     }
-    return { payoff, change, variety, balance: computeBalances(payoff, change, variety) };
+    return { payoff, change, variety, balance: zScoreNormalize(computeBalances(payoff, change, variety)) };
   }, [windowed, allScenes, narrative]);
 
   // Map window scene-indices back to timeline indices for chart highlight
@@ -333,7 +333,6 @@ export default function ForceCharts() {
           currentIndex={chartCurrentIndex}
           windowStart={!isLocal ? windowTimelineRange?.start : undefined}
           windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
-          positive
           style={chartStyle}
           movingAvg={chartMA.balance}
           average={chartAvg.balance}

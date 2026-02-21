@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeBalanceMagnitudes, detectCubeCorner, gradeForces, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeBalanceMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 
 type ForceKey = 'payoff' | 'change' | 'variety' | 'balance';
 
@@ -105,12 +105,12 @@ function ForceChart({
 
     const xScale = d3.scaleLinear().domain([0, Math.max(data.length - 1, 1)]).range([0, chartWidth]);
 
-    // Dynamic symmetric y-domain based on data
+    // Dynamic y-domain: symmetric if data has negatives, positive-only if all ≥ 0
     const values = data.map((d) => forceKey === 'balance' ? d.balance : d.forces[forceKey]);
-    const isBalance = forceKey === 'balance';
+    const allPositive = (d3.min(values) ?? 0) >= 0;
     const maxAbs = Math.max(d3.max(values.map(Math.abs)) ?? 1, 1);
     const yScale = d3.scaleLinear()
-      .domain(isBalance ? [0, maxAbs * 1.1] : [-maxAbs, maxAbs])
+      .domain(allPositive ? [0, maxAbs * 1.1] : [-maxAbs, maxAbs])
       .range([chartHeight, 0]);
 
     // Window highlight region
@@ -197,7 +197,7 @@ function ForceChart({
       .attr('font-weight', '600')
       .attr('font-family', 'monospace')
       .attr('opacity', 0.7)
-      .text(`w${winAvg >= 0 && !isBalance ? '+' : ''}${winAvg.toFixed(2)}`);
+      .text(`w${winAvg >= 0 ? '+' : ''}${winAvg.toFixed(2)}`);
 
     // Clipped chart group
     const clipped = g.append('g').attr('clip-path', `url(#clip-${forceKey})`);
@@ -715,14 +715,19 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         ),
       };
     });
-    // Compute balance magnitudes
-    for (let i = 1; i < points.length; i++) {
+    // Compute balance magnitudes, then z-score normalize
+    const rawBalances = points.map((_, i) => {
+      if (i === 0) return 0;
       const prev = points[i - 1].forces;
       const curr = points[i].forces;
       const dp = curr.payoff - prev.payoff;
       const dc = curr.change - prev.change;
       const dv = curr.variety - prev.variety;
-      points[i].balance = Math.sqrt(dp * dp + dc * dc + dv * dv);
+      return Math.sqrt(dp * dp + dc * dc + dv * dv);
+    });
+    const normBalances = zScoreNormalize(rawBalances);
+    for (let i = 0; i < points.length; i++) {
+      points[i].balance = normBalances[i];
     }
     return points;
   }, [narrative, allScenes, forceMap]);

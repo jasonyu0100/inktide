@@ -163,7 +163,7 @@ export const FORCE_WINDOW_SIZE = 10;
  * Values are in units of standard deviation — positive = above average, negative = below.
  * If all values are equal (zero variance), returns all zeros.
  */
-function zScoreNormalize(values: number[]): number[] {
+export function zScoreNormalize(values: number[]): number[] {
   const n = values.length;
   if (n === 0) return [];
   const mean = values.reduce((sum, v) => sum + v, 0) / n;
@@ -489,13 +489,6 @@ function gradeForce(a: number, midpoint: number): number {
   return Math.min(25, 25 * (1 - Math.exp(-Math.max(0, a) / midpoint)));
 }
 
-/** Consistency factor: 1/(1+CV). Flat curves → 1.0, high variance → penalized toward 0. */
-function consistency(arr: number[]): number {
-  const m = avg(arr);
-  if (m <= 0) return 1;
-  return 1 / (1 + stddev(arr) / m);
-}
-
 /** Average of top 10% values (at least 1) */
 function topAvg(arr: number[]): number {
   const sorted = [...arr].sort((a, b) => b - a);
@@ -503,10 +496,17 @@ function topAvg(arr: number[]): number {
   return avg(sorted.slice(0, k));
 }
 
+/** Consistency factor: 1/(1+CV). Flat curves → 1.0, high variance → penalized toward 0. */
+function consistency(arr: number[]): number {
+  const m = avg(arr);
+  if (m <= 0) return 1;
+  return 1 / (1 + stddev(arr) / m);
+}
+
 /**
  * Compute force grades (0-25 each, 0-100 overall) from raw force value arrays.
- * Individual forces are graded purely by average with exponential saturation.
- * Overall is the straight sum of force grades.
+ * Scoring is additive — each scene's force values sum up, so more good scenes
+ * produce a higher score. Exponential saturation prevents runaway inflation.
  */
 export function gradeForces(
   payoff: number[],

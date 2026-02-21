@@ -876,6 +876,13 @@ ${arcSummary}
 KEY RELATIONSHIPS:
 ${relationshipSummary}
 
+FORCE DEFINITIONS:
+- Payoff: measures irreversible state transitions — thread phase jumps (dormant→active→escalating→critical, or terminal: resolved/subverted/closed) weighted by jump magnitude, plus relationship valence shifts (|valenceDelta| × 10). Scenes with no transitions score 0.
+- Change: mutation reach across affected characters — counts all mutations (knowledge, relationship, thread) per character, then sums log₂(1+count). Captures both breadth (how many characters evolved) and depth (how much each changed) with diminishing returns.
+- Variety: how new the scene feels — charRecency (first appearances score 1.0, returning characters score gap/10 capped at 1, summed across cast) + locRecency (first visit = 2.0, revisit = gap/10 × 2) + ensembleNovelty (avg Jaccard distance to last 10 casts × √castSize).
+- Swing/Balance (Bl): Euclidean distance between consecutive raw force snapshots √(Δp²+Δc²+Δv²). High = the story is shifting between different modes. Low = settling into a groove.
+All forces are z-score normalized (mean=0, units of std deviation). Values >0 are above average, <0 below.
+
 CUBE CORNER DEFINITIONS (Payoff · Change · Variety mapped to [-1,+1]):
 ${cornerDefs}
 
@@ -891,11 +898,11 @@ Write a meta-analysis of this narrative's force trajectory. Structure your respo
 
 **Arc-by-Arc Dynamics** — How each arc contributes to the overall rhythm. What is its dominant mode? How does it transition into the next arc? Note any sharp shifts or sustained states.
 
-**Tension Architecture** — How payoff is managed across the narrative. Where are the peaks and valleys? Is the escalation earned or rushed? How does the story use restraint?
+**Tension Architecture** — How payoff (thread transitions + relationship shifts) is managed across the narrative. Where are the peaks and valleys? Is the escalation earned or rushed? How does the story use restraint before delivering irreversible state changes?
 
-**Change Rhythm** — The mutation density pattern. Where does the story accelerate and decelerate? Are there effective breathing rooms between intense sequences?
+**Change & Variety Rhythm** — How character evolution (change) and novelty (variety) interplay. Where does the story introduce new characters, locations, and ensembles? Where does it settle into familiar territory? Are breathing rooms between intense mutation sequences effective?
 
-**Balance Dynamics** — Analyze the balance magnitude pattern (Bl values — Euclidean distance between consecutive 3D force positions) and its moving average (MA Bl — ${FORCE_WINDOW_SIZE}-point window). High balance indicates the story is constantly shifting between slow and fast moments, creating a vibrant, dynamic reading experience. Low balance means the story is settling into a groove. Compare raw balance to its moving average to identify whether shifts are sustained trends or isolated spikes. Where are the biggest shifts? Are there sustained high-balance sequences that create excitement, or does the story plateau?
+**Balance Dynamics** — The swing pattern (Euclidean distance between consecutive force positions). High swing = the story is constantly shifting between different narrative modes, creating dynamic energy. Low swing = settling into a groove. Where are the biggest shifts? Does the story plateau or maintain momentum?
 
 **Compositional Observations** — What makes this trajectory distinctive? What corners are over/under-visited? Where does the narrative surprise or follow convention? Any structural strengths or weaknesses?
 

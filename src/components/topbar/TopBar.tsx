@@ -140,12 +140,19 @@ export default function TopBar() {
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
 
+    // Overall grade: per-force grades are additive, then consistency modifier
+    // rewards stories that maintain quality across all arcs (0.60–1.0 multiplier).
+    const arcOveralls = perArc.map(a => a.grades.overall);
+    const overallGrade = arcOveralls.length > 1
+      ? Math.round(seriesGrades.overall * arcConsistency(arcOveralls))
+      : seriesGrades.overall;
+
     return {
       title: narrative.title,
       scenes: n,
       arcs: arcCount,
       ...stats,
-      grades: seriesGrades,
+      grades: { ...seriesGrades, overall: overallGrade },
       perArc,
     };
   }, [allScenes, narrative]);

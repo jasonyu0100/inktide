@@ -542,5 +542,5 @@ export function gradeForces(
 export function arcConsistency(arcOveralls: number[]): number {
   if (arcOveralls.length < 2) return 1;
   const c = consistency(arcOveralls);
-  return 0.60 + 0.40 * c;
+  return 0.75 + 0.25 * c;
 }

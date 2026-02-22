@@ -251,7 +251,7 @@ export default function FloatingPalette() {
         {/* MCTS Explorer */}
         <button
           type="button"
-          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-secondary hover:text-violet-400 hover:bg-violet-500/10"
+          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
           onClick={() => {
             if (access.userApiKeys && !access.hasOpenRouterKey) {
               window.dispatchEvent(new Event('open-api-keys'));
@@ -271,11 +271,7 @@ export default function FloatingPalette() {
         {/* Auto */}
         <button
           type="button"
-          className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
-            isAutoActive
-              ? 'text-change hover:text-change/80 hover:bg-change/10'
-              : 'text-text-secondary hover:text-text-primary hover:bg-white/6'
-          }`}
+          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
           onClick={() => {
             if (isAutoActive) {
               dispatch({ type: 'STOP_AUTO_RUN' });

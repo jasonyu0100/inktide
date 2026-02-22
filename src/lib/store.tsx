@@ -155,6 +155,7 @@ const initialState: AppState = {
     minArcLength: 2,
     maxArcLength: 5,
     worldBuildInterval: 3,
+    worldBuildSize: 'medium',
     maxActiveThreads: 6,
     threadStagnationThreshold: 5,
     arcDirectionPrompt: '',

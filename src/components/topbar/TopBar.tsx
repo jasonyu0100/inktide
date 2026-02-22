@@ -488,9 +488,23 @@ export default function TopBar() {
               </div>
 
               {/* Shape classification */}
-              <div className="mt-3 px-1 py-2 border border-white/5 rounded flex flex-col gap-0.5">
+              <div className="mt-3 px-1 py-2 border border-white/5 rounded flex flex-col gap-1">
                 <span className="text-[9px] uppercase tracking-widest text-text-dim">Shape</span>
-                <span className="text-[11px] font-medium text-text-primary">{scorecard.shape.name}</span>
+                <div className="flex items-center gap-2">
+                  <svg width="48" height="24" viewBox="0 0 48 24" className="shrink-0">
+                    <polyline
+                      points={scorecard.shape.curve
+                        .map(([x, y]) => `${x * 48},${(1 - y) * 24}`)
+                        .join(' ')}
+                      fill="none"
+                      stroke="#F59E0B"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span className="text-[11px] font-medium text-text-primary">{scorecard.shape.name}</span>
+                </div>
                 <span className="text-[10px] text-text-dim leading-snug">{scorecard.shape.description}</span>
               </div>
 

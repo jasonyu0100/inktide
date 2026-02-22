@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots } from '@/lib/narrative-utils';
+import { computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
 
 type Props = {
   sceneId: string;
@@ -117,6 +117,7 @@ export default function SceneDetail({ sceneId }: Props) {
   const povCharacter = effectivePovId ? narrative.characters[effectivePovId] : null;
 
   const { payoff, change, variety } = forceSnapshot;
+  const cubeCorner = detectCubeCorner(forceSnapshot);
 
   const arc = Object.values(narrative.arcs).find((a) =>
     a.sceneIds.includes(sceneId)
@@ -225,7 +226,22 @@ export default function SceneDetail({ sceneId }: Props) {
       )}
 
       {/* Force Snapshot */}
-      <div>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <svg width="24" height="12" viewBox="0 0 24 12">
+            {cubeCorner.key.split('').map((c, i) => {
+              const isHi = c === 'H';
+              const colors = ['#EF4444', '#22C55E', '#3B82F6'];
+              const barH = isHi ? 10 : 5;
+              const barY = isHi ? 1 : 6;
+              return (
+                <rect key={i} x={i * 9} y={barY} width={7} height={barH} rx={1.5}
+                  fill={colors[i]} opacity={isHi ? 1 : 0.4} />
+              );
+            })}
+          </svg>
+          <span className="text-[11px] text-text-secondary">{cubeCorner.name}</span>
+        </div>
         <div className="flex gap-3">
           <ForceBar label="Payoff" value={payoff} color="#EF4444" />
           <ForceBar label="Change" value={change} color="#22C55E" />
@@ -281,25 +297,29 @@ export default function SceneDetail({ sceneId }: Props) {
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Thread Mutations
           </h3>
-          {scene.threadMutations.map((tm) => (
-            <div key={tm.threadId} className="flex items-center gap-1.5 text-xs">
-              <button
-                type="button"
-                onClick={() =>
-                  dispatch({
-                    type: 'SET_INSPECTOR',
-                    context: { type: 'thread', threadId: tm.threadId },
-                  })
-                }
-                className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12"
-              >
-                {tm.threadId}
-              </button>
-              <span className="text-text-dim">
-                {tm.from} &rarr; {tm.to}
-              </span>
-            </div>
-          ))}
+          {scene.threadMutations.map((tm) => {
+            const thread = narrative.threads[tm.threadId];
+            return (
+              <div key={tm.threadId} className="flex items-center gap-1.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() =>
+                    dispatch({
+                      type: 'SET_INSPECTOR',
+                      context: { type: 'thread', threadId: tm.threadId },
+                    })
+                  }
+                  className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12 shrink-0"
+                >
+                  {tm.threadId}
+                </button>
+                {thread && (
+                  <span className="text-text-dim text-[10px] truncate max-w-25">{thread.description}</span>
+                )}
+                <span className="text-text-dim ml-auto shrink-0">{tm.from} &rarr; {tm.to}</span>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -344,11 +364,11 @@ export default function SceneDetail({ sceneId }: Props) {
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Relationship Mutations
           </h3>
-          {scene.relationshipMutations.map((rm) => {
+          {scene.relationshipMutations.map((rm, i) => {
             const fromName = narrative.characters[rm.from]?.name ?? rm.from;
             const toName = narrative.characters[rm.to]?.name ?? rm.to;
             return (
-              <div key={`${rm.from}-${rm.to}`} className="flex flex-col gap-0.5 text-xs">
+              <div key={`${rm.from}-${rm.to}-${i}`} className="flex flex-col gap-0.5 text-xs">
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
@@ -388,17 +408,15 @@ export default function SceneDetail({ sceneId }: Props) {
 
       {/* Events */}
       {scene.events.length > 0 && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Events
           </h3>
-          <ul className="flex flex-col gap-0.5">
+          <div className="flex flex-wrap gap-1.5">
             {scene.events.map((evt) => (
-              <li key={evt} className="text-xs text-text-dim">
-                {evt}
-              </li>
+              <span key={evt} className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400/80">{evt}</span>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
@@ -418,7 +436,7 @@ function ForceBar({
   return (
     <div className="flex flex-1 flex-col gap-1">
       <span className="text-[10px] uppercase text-text-dim">{label}</span>
-      <div className="h-1.5 w-full rounded-full bg-white/[0.06]">
+      <div className="h-1.5 w-full rounded-full bg-white/6">
         <div
           className="h-1.5 rounded-full"
           style={{

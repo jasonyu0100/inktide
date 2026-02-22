@@ -1,7 +1,12 @@
 import type { NarrativeState, Scene, Arc, CubeCornerKey } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { MCTSNode, MCTSNodeId, MCTSTree, MCTSConfig, PathStrategy } from '@/types/mcts';
-import { SEARCH_MODE_C } from '@/types/mcts';
+import { SEARCH_MODE_C, BEAT_DIRECTIONS } from '@/types/mcts';
+import type { SearchMode, BeatDirection, DirectionMode } from '@/types/mcts';
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+export const MAX_NODE_CHILDREN = 8;
 
 // ── Tree Creation ────────────────────────────────────────────────────────────
 
@@ -41,141 +46,171 @@ function ucb1(node: MCTSNode, parentVisits: number, C: number): number {
 }
 
 /**
- * Select the most promising node to expand next.
+ * Select the next parent node to expand (add one child to).
  *
- * Walk from the root, at each level picking the child with the highest UCB1 score,
- * until reaching a node that is either:
- * - Not yet expanded (has no children and hasn't been expanded)
- * - At max depth
+ * Walk from root using UCB1. At each level, if the current node has available
+ * child slots (< MAX_NODE_CHILDREN, accounting for in-flight expansions), return
+ * it for expansion. Otherwise descend to the best child.
  *
- * Returns null if the tree is fully expanded.
+ * inFlightCounts: how many slots are currently generating children for each node.
+ * Baseline mode has no child limit (will keep trying until quality threshold met).
  */
-export function selectNode(tree: MCTSTree, config: MCTSConfig): MCTSNodeId | null {
-  // Start at root level
-  const rootChildren = tree.rootChildIds;
+export function selectNode(
+  tree: MCTSTree,
+  config: MCTSConfig,
+  inFlightCounts: Map<MCTSNodeId | 'root', number> = new Map(),
+): MCTSNodeId | null {
+  const maxChildren = config.searchMode === 'baseline' ? Infinity : MAX_NODE_CHILDREN;
+  const C = SEARCH_MODE_C[config.searchMode];
 
-  // If root has no children yet, return a sentinel indicating root needs expansion
-  if (rootChildren.length === 0) return 'root';
+  const slotsAvailable = (id: MCTSNodeId | 'root', childCount: number): boolean =>
+    childCount + (inFlightCounts.get(id) ?? 0) < maxChildren;
 
-  // Total visits across root children for UCB1 calculation
-  let parentVisits = rootChildren.reduce(
-    (sum, id) => sum + (tree.nodes[id]?.visitCount ?? 0), 0,
-  );
+  // Root: if it has available slots, expand here
+  if (slotsAvailable('root', tree.rootChildIds.length)) return 'root';
+  if (tree.rootChildIds.length === 0) return null;
 
-  // Pick best root child
-  let bestId: MCTSNodeId | null = null;
+  // Walk down via UCB1
+  let parentVisits = tree.rootChildIds.reduce((s, id) => s + (tree.nodes[id]?.visitCount ?? 0), 0);
+
+  // Pick best root child to start walk
+  let currentId: MCTSNodeId | null = null;
   let bestUcb = -Infinity;
-  for (const childId of rootChildren) {
-    const child = tree.nodes[childId];
-    if (!child) continue;
-    const score = ucb1(child, parentVisits, SEARCH_MODE_C[config.searchMode]);
-    if (score > bestUcb) {
-      bestUcb = score;
-      bestId = childId;
-    }
+  for (const id of tree.rootChildIds) {
+    const node = tree.nodes[id];
+    if (!node) continue;
+    const score = ucb1(node, parentVisits, C);
+    if (score > bestUcb) { bestUcb = score; currentId = id; }
   }
-  if (!bestId) return null;
 
-  // Walk down the tree
-  let currentId = bestId;
-  while (true) {
-    const current = tree.nodes[currentId];
-    if (!current) return null;
+  while (currentId) {
+    const node = tree.nodes[currentId];
+    if (!node) return null;
 
-    // If this node hasn't been expanded and is within depth limit, expand it
-    if (!current.isExpanded && current.depth < config.maxDepth - 1) {
+    // If this node can take more children and is within depth limit, expand here
+    if (node.depth < config.maxDepth - 1 && slotsAvailable(currentId, node.childIds.length)) {
       return currentId;
     }
 
-    // If at max depth or no children, can't go deeper
-    if (current.childIds.length === 0) {
-      // If not expanded and at max depth, mark as terminal — find another node
-      return findUnexpandedNode(tree, config);
-    }
+    // Full or at max depth — descend to best child
+    if (node.childIds.length === 0) break;
 
-    // Pick best child at this level
-    parentVisits = current.childIds.reduce(
-      (sum, id) => sum + (tree.nodes[id]?.visitCount ?? 0), 0,
-    );
-    bestUcb = -Infinity;
+    const childVisits = node.childIds.reduce((s, id) => s + (tree.nodes[id]?.visitCount ?? 0), 0);
     let nextId: MCTSNodeId | null = null;
-    for (const childId of current.childIds) {
+    let nextUcb = -Infinity;
+    for (const childId of node.childIds) {
       const child = tree.nodes[childId];
       if (!child) continue;
-      const score = ucb1(child, parentVisits, SEARCH_MODE_C[config.searchMode]);
-      if (score > bestUcb) {
-        bestUcb = score;
-        nextId = childId;
-      }
+      const score = ucb1(child, childVisits, C);
+      if (score > nextUcb) { nextUcb = score; nextId = childId; }
     }
-    if (!nextId) return null;
     currentId = nextId;
   }
+
+  // Fallback: find any expandable node
+  return findExpandableNode(tree, config, inFlightCounts);
 }
 
-/** Fallback: find any unexpanded node within depth limit */
-function findUnexpandedNode(tree: MCTSTree, config: MCTSConfig): MCTSNodeId | null {
+/** Fallback: find any node within depth limit that still has available child slots */
+function findExpandableNode(
+  tree: MCTSTree,
+  config: MCTSConfig,
+  inFlightCounts: Map<MCTSNodeId | 'root', number>,
+): MCTSNodeId | null {
+  const maxChildren = config.searchMode === 'baseline' ? Infinity : MAX_NODE_CHILDREN;
   for (const node of Object.values(tree.nodes)) {
-    if (!node.isExpanded && node.depth < config.maxDepth - 1) {
-      return node.id;
+    if (node.depth < config.maxDepth - 1) {
+      const inFlight = inFlightCounts.get(node.id) ?? 0;
+      if (node.childIds.length + inFlight < maxChildren) {
+        return node.id;
+      }
     }
   }
-  return null; // Tree is fully expanded
+  return null;
 }
 
 // ── Direction Diversity ──────────────────────────────────────────────────────
 
 const ALL_CUBE_CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
 
+const ALL_BEAT_DIRECTIONS: BeatDirection[] = ['escalate', 'release', 'surge', 'rebound'];
+
 /**
- * Pick N diverse cube corners for sibling expansion.
- * Maximizes spread by selecting corners that are as different as possible.
- * Excludes any corners already used by existing siblings at this level.
+ * Pick the next direction to explore for a given parent node.
+ *
+ * When directionMode === 'beats':
+ * - Pool = ['escalate', 'release', 'surge'] minus already-used ones
+ * - If pool empty, allow reuse of all 3
+ * - Random mode: pick random from pool
+ * - Deterministic mode: cycle in canonical order (escalate → release → surge)
+ *
+ * When directionMode === 'cube' (default):
+ * - Pool = 8 cube corners minus already-used ones
+ * - Random mode: pick randomly from available corners
+ * - Deterministic based on search mode:
+ *   - exploit: pick the corner closest (min Hamming) to the parent's own cube direction
+ *   - explore/baseline: pick the corner most diverse (max min-Hamming) from existing siblings
+ * - In baseline mode, allows reusing corners when all 8 are exhausted.
  */
-export function pickDiverseDirections(
-  count: number,
-  existingSiblingGoals: (CubeCornerKey | null)[] = [],
-): { direction: string; cubeGoal: CubeCornerKey }[] {
-  const usedSet = new Set(existingSiblingGoals.filter((g): g is CubeCornerKey => g !== null));
-  const available = ALL_CUBE_CORNERS.filter((c) => !usedSet.has(c));
+export function pickNextDirection(
+  existingGoals: (string | null)[],
+  searchMode: SearchMode,
+  directionMode: DirectionMode,
+  parentCubeGoal?: CubeCornerKey | null,
+  randomDirections = false,
+): { direction: string; cubeGoal: CubeCornerKey | null; beatGoal: BeatDirection | null } {
+  if (directionMode === 'beats') {
+    const usedSet = new Set(existingGoals.filter((g): g is string => g !== null));
+    let pool = ALL_BEAT_DIRECTIONS.filter((d) => !usedSet.has(d));
+    if (pool.length === 0) pool = [...ALL_BEAT_DIRECTIONS];
 
-  // If we need more than available, allow reuse
-  const pool = available.length >= count ? available : ALL_CUBE_CORNERS;
-
-  // Shuffle the pool, then greedily pick diverse corners from a random seed
-  const remaining = [...pool];
-  for (let i = remaining.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
-  }
-
-  const selected: CubeCornerKey[] = [];
-
-  // Seed with a random corner
-  if (remaining.length > 0) {
-    selected.push(remaining.shift()!);
-  }
-
-  // Greedily pick the corner most distant from all already-selected
-  while (selected.length < count && remaining.length > 0) {
-    let bestIdx = 0;
-    let bestDist = -1;
-    for (let i = 0; i < remaining.length; i++) {
-      const minDist = selected.reduce(
-        (min, sel) => Math.min(min, hammingDistance(remaining[i], sel)), Infinity,
-      );
-      if (minDist > bestDist) {
-        bestDist = minDist;
-        bestIdx = i;
-      }
+    let chosen: BeatDirection;
+    if (randomDirections) {
+      chosen = pool[Math.floor(Math.random() * pool.length)];
+    } else {
+      // Deterministic: cycle in canonical order
+      chosen = pool[0];
     }
-    selected.push(remaining.splice(bestIdx, 1)[0]);
+
+    return { direction: BEAT_DIRECTIONS[chosen].prompt, cubeGoal: null, beatGoal: chosen };
   }
 
-  return selected.map((cubeGoal) => ({
-    direction: buildDirectionFromCube(cubeGoal),
-    cubeGoal,
-  }));
+  // Cube mode
+  const usedSet = new Set(existingGoals.filter((g): g is CubeCornerKey => g !== null));
+  let pool = ALL_CUBE_CORNERS.filter((c) => !usedSet.has(c));
+
+  // Baseline: allow reuse when all 8 corners exhausted
+  if (pool.length === 0) {
+    pool = [...ALL_CUBE_CORNERS];
+  }
+
+  let chosen: CubeCornerKey;
+
+  if (randomDirections) {
+    // Random: pick any available corner with equal probability
+    chosen = pool[Math.floor(Math.random() * pool.length)];
+  } else {
+    const existing = existingGoals.filter((g): g is CubeCornerKey => g !== null);
+
+    if (searchMode === 'exploit' && parentCubeGoal) {
+      // Exploit: try corners closest to the parent's direction first (narrative continuity)
+      chosen = pool.reduce((best, c) =>
+        hammingDistance(c, parentCubeGoal) < hammingDistance(best, parentCubeGoal) ? c : best
+      );
+    } else if (existing.length === 0) {
+      // No siblings yet: start from first in canonical order
+      chosen = pool[0];
+    } else {
+      // Explore/baseline: maximize diversity — pick corner most different from all existing siblings
+      chosen = pool.reduce((best, c) => {
+        const minDistC = Math.min(...existing.map((e) => hammingDistance(c, e)));
+        const minDistBest = Math.min(...existing.map((e) => hammingDistance(best, e)));
+        return minDistC > minDistBest ? c : best;
+      });
+    }
+  }
+
+  return { direction: buildDirectionFromCube(chosen), cubeGoal: chosen, beatGoal: null };
 }
 
 /** Hamming distance between two cube corner keys (e.g., HHH vs LLL = 3) */
@@ -206,6 +241,7 @@ export function addChildNode(
   arc: Arc,
   direction: string,
   cubeGoal: CubeCornerKey | null,
+  beatGoal: BeatDirection | null,
   virtualNarrative: NarrativeState,
   virtualResolvedKeys: string[],
   virtualCurrentIndex: number,
@@ -221,6 +257,7 @@ export function addChildNode(
     arc,
     direction,
     cubeGoal,
+    beatGoal,
     immediateScore,
     totalScore: immediateScore,
     visitCount: 1,

@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, FORCE_WINDOW_SIZE, computeEngagementCurve, type EngagementPoint } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, type EngagementPoint } from '@/lib/narrative-utils';
 
 type ForceKey = 'payoff' | 'change' | 'variety' | 'swing';
 
@@ -1028,6 +1028,16 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     return computeEngagementCurve(dataPoints.map((d) => d.forces));
   }, [dataPoints]);
 
+  // Current cube corner + local beat position
+  const { currentCube, localPosition } = useMemo(() => {
+    if (dataPoints.length === 0) return { currentCube: null, localPosition: null };
+    const last = dataPoints[dataPoints.length - 1].forces;
+    const cube = detectCubeCorner(last);
+    const window = engagementData.slice(-FORCE_WINDOW_SIZE);
+    const pos = window.length > 0 ? classifyCurrentPosition(window) : null;
+    return { currentCube: cube, localPosition: pos };
+  }, [dataPoints, engagementData]);
+
   const arcRegions = useMemo((): ArcRegion[] => {
     if (dataPoints.length === 0) return [];
     const regions: ArcRegion[] = [];
@@ -1198,6 +1208,33 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
           </div>
         ) : (
           <>
+            {view === 'beats' && (currentCube || localPosition) && (
+              <div className="flex items-center gap-4 px-4 py-1.5 border-b border-border/50 shrink-0">
+                {currentCube && (
+                  <div className="flex items-center gap-2">
+                    <svg width="30" height="14" viewBox="0 0 30 14">
+                      {(['P','C','V'] as const).map((label, i) => {
+                        const isHigh = currentCube.key[i] === 'H';
+                        const colors = ['#EF4444','#22C55E','#3B82F6'];
+                        const barH = isHigh ? 10 : 5;
+                        return (
+                          <rect key={label} x={i * 11} y={14 - barH} width={8} height={barH} rx={1} fill={colors[i]} opacity={0.7} />
+                        );
+                      })}
+                    </svg>
+                    <span className="text-[11px] text-text-primary font-medium">{currentCube.name}</span>
+                  </div>
+                )}
+                {currentCube && localPosition && <span className="text-white/15 text-xs">|</span>}
+                {localPosition && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] uppercase tracking-widest text-text-dim">Local</span>
+                    <span className="text-[11px] font-medium" style={{ color: { peak: '#F59E0B', trough: '#3B82F6', rising: '#22C55E', falling: '#EF4444', stable: 'rgba(255,255,255,0.5)' }[localPosition.key] }}>{localPosition.name}</span>
+                    <span className="text-[9px] text-text-dim">{localPosition.description}</span>
+                  </div>
+                )}
+              </div>
+            )}
             {view === 'beats' ? (
               <EngagementChart
                 data={activeDataPoints}
@@ -1268,6 +1305,16 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 </div>
                 <p className="text-[11px] text-text-secondary leading-snug flex-1 min-w-0">{infoScene.summary}</p>
                 <div className="flex items-center gap-3 shrink-0">
+                  <svg width="21" height="12" viewBox="0 0 21 12">
+                    {infoScene.cornerKey.split('').map((c, i) => {
+                      const isHi = c === 'H';
+                      const colors = ['#EF4444', '#22C55E', '#3B82F6'];
+                      return (
+                        <rect key={i} x={i * 8} y={isHi ? 1 : 6} width={6} height={isHi ? 10 : 5} rx={1}
+                          fill={colors[i]} opacity={isHi ? 1 : 0.4} />
+                      );
+                    })}
+                  </svg>
                   <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{infoScene.forces.payoff >= 0 ? '+' : ''}{infoScene.forces.payoff.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>C:{infoScene.forces.change >= 0 ? '+' : ''}{infoScene.forces.change.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>V:{infoScene.forces.variety >= 0 ? '+' : ''}{infoScene.forces.variety.toFixed(2)}</span>

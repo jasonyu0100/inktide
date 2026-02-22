@@ -3,13 +3,14 @@
 import { useRef, useCallback, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes } from '@/lib/ai';
-import { NARRATIVE_CUBE } from '@/types/narrative';
-import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase } from '@/types/mcts';
+import type { NarrativeState, Scene, CubeCornerKey } from '@/types/narrative';
+import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, BeatDirection } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
+import type { Arc } from '@/types/narrative';
 import {
   createTree,
   selectNode,
-  pickDiverseDirections,
+  pickNextDirection,
   addChildNode,
   markExpanded,
   backpropagate,
@@ -18,8 +19,22 @@ import {
   getAncestorChain,
   nextNodeId,
   resetNodeCounter,
+  MAX_NODE_CHILDREN,
 } from '@/lib/mcts-engine';
 import { buildVirtualState, scoreArc, extractOrderedScenes } from '@/lib/mcts-state';
+
+type ExpansionResult = {
+  targetId: MCTSNodeId | 'root';
+  scenes: Scene[];
+  arc: Arc;
+  direction: string;
+  cubeGoal: CubeCornerKey | null;
+  beatGoal: BeatDirection | null;
+  virtualNarrative: NarrativeState;
+  virtualResolvedKeys: string[];
+  virtualCurrentIndex: number;
+  score: number;
+};
 
 export function useMCTS() {
   const { state, dispatch } = useStore();
@@ -52,139 +67,60 @@ export function useMCTS() {
     setRunState((prev) => ({ ...prev, currentPhase: phase, expandingNodeId }));
   }, []);
 
-  const updateTree = useCallback((tree: MCTSTree) => {
-    setRunState((prev) => ({ ...prev, tree }));
-  }, []);
-
   const updateStatus = useCallback((status: MCTSStatus) => {
     setRunState((prev) => ({ ...prev, status }));
   }, []);
 
-  // ── Single MCTS iteration ─────────────────────────────────────────────────
+  // ── Single MCTS expansion ─────────────────────────────────────────────────
 
-  const runIteration = useCallback(async (
-    tree: MCTSTree,
-    config: MCTSConfig,
+  /**
+   * Execute one MCTS expansion: generate a single arc for the given parent node,
+   * score it, compute virtual state, and return the result for merging into the tree.
+   * All parent data is pre-computed synchronously before this async function is called.
+   */
+  const runSingleExpansion = useCallback(async (
+    targetId: MCTSNodeId | 'root',
+    parentNarrative: NarrativeState,
+    parentKeys: string[],
+    parentIndex: number,
+    direction: string,
+    cubeGoal: CubeCornerKey | null,
+    beatGoal: BeatDirection | null,
+    ancestorChain: MCTSNode[],
+    allPriorScenes: Scene[],
+    existingSiblings: { name: string; summary: string }[],
     activeBranchId: string,
-    forceTargetId?: MCTSNodeId | 'root', // Override selection for baseline mode
-  ): Promise<MCTSTree> => {
-    // 1. SELECT — find the node to expand
-    updatePhase('selecting');
-    const targetId = forceTargetId ?? selectNode(tree, config);
-    if (targetId === null) return tree; // fully expanded
-
-    // Determine parent state for generation
-    const isRoot = targetId === 'root';
-    const parentNarrative = isRoot ? tree.rootNarrative : tree.nodes[targetId]!.virtualNarrative;
-    const parentKeys = isRoot ? tree.rootResolvedKeys : tree.nodes[targetId]!.virtualResolvedKeys;
-    const parentIndex = isRoot ? tree.rootCurrentIndex : tree.nodes[targetId]!.virtualCurrentIndex;
-
-    // Get existing sibling cube goals and summaries to avoid duplication
-    const existingSiblingIds = isRoot
-      ? tree.rootChildIds
-      : (tree.nodes[targetId]?.childIds ?? []);
-    const existingSiblingGoals = existingSiblingIds.map((id) => tree.nodes[id]?.cubeGoal ?? null);
-    const existingSiblings = existingSiblingIds
-      .map((id) => tree.nodes[id])
-      .filter(Boolean)
-      .map((n) => ({
-        name: n.arc.name,
-        summary: n.scenes.map((s) => s.summary).join(' '),
-      }));
-
-    // 2. EXPAND — pick diverse directions and generate arcs in parallel
+    rootNarrative: NarrativeState,
+    rootResolvedKeys: string[],
+    rootCurrentIndex: number,
+  ): Promise<ExpansionResult | null> => {
     updatePhase('expanding', targetId === 'root' ? null : targetId);
-    const directions = pickDiverseDirections(config.branchingFactor, existingSiblingGoals);
 
-    if (cancelledRef.current) return tree;
+    const result = await generateScenes(
+      parentNarrative, parentKeys, parentIndex, 0,
+      direction, undefined, cubeGoal ?? undefined,
+      existingSiblings.length > 0 ? existingSiblings : undefined,
+    ).catch((err) => { console.error('[mcts] generation error:', err); return null; });
 
-    // Build rejection list: existing siblings + the other directions in this batch
-    // (since all calls in a batch fire in parallel, each one needs to know about the others)
-    const batchPeerDescriptions = directions.map(({ cubeGoal }) => {
-      const cube = cubeGoal ? NARRATIVE_CUBE[cubeGoal] : null;
-      return cube ? `${cube.name} (${cube.description})` : 'alternative direction';
-    });
+    if (!result || cancelledRef.current) return null;
 
-    // Fire parallel LLM calls
-    const results = await Promise.all(
-      directions.map(({ direction, cubeGoal }, batchIdx) => {
-        // Combine existing siblings with peer directions from this batch (excluding self)
-        const peerHints = batchPeerDescriptions
-          .filter((_, i) => i !== batchIdx)
-          .map((desc) => ({ name: desc, summary: '' }));
-        const rejectList = [...existingSiblings, ...peerHints];
-        return generateScenes(
-          parentNarrative,
-          parentKeys,
-          parentIndex,
-          0, // dynamic — let the LLM choose scene count
-          direction,
-          undefined,
-          cubeGoal,
-          rejectList.length > 0 ? rejectList : undefined,
-        ).catch((err) => {
-          console.error('[mcts] generation error:', err);
-          return null;
-        });
-      }),
-    );
-
-    if (cancelledRef.current) return tree;
-
-    // 3. SCORE — score each generated arc and build virtual states
     updatePhase('scoring');
-    let updatedTree = tree;
+    const { scenes, arc } = result;
 
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      if (!result) continue;
+    const parentVirtual = buildVirtualState(
+      rootNarrative, rootResolvedKeys, rootCurrentIndex,
+      [...ancestorChain, { scenes, arc } as any],
+      activeBranchId,
+    );
+    const score = scoreArc(scenes, allPriorScenes);
 
-      const { scenes, arc } = result;
-      const { direction, cubeGoal } = directions[i];
-
-      // Build the ancestor chain for virtual state construction
-      const ancestors = isRoot ? [] : getAncestorChain(updatedTree, targetId);
-      const parentVirtual = buildVirtualState(
-        tree.rootNarrative,
-        tree.rootResolvedKeys,
-        tree.rootCurrentIndex,
-        [...ancestors, { scenes, arc } as any], // Include this node's data
-        activeBranchId,
-      );
-
-      // Score using prior scenes for context
-      const allPriorScenes = extractOrderedScenes(
-        isRoot ? tree.rootNarrative : tree.nodes[targetId]!.virtualNarrative,
-        isRoot ? tree.rootResolvedKeys : tree.nodes[targetId]!.virtualResolvedKeys,
-      );
-      const score = scoreArc(scenes, allPriorScenes);
-
-      const nodeId = nextNodeId();
-      updatedTree = addChildNode(
-        updatedTree,
-        isRoot ? 'root' : targetId,
-        nodeId,
-        scenes,
-        arc,
-        direction,
-        cubeGoal,
-        parentVirtual.narrative,
-        parentVirtual.resolvedKeys,
-        parentVirtual.currentIndex,
-        score,
-      );
-
-      // 4. BACKPROPAGATE — propagate score up the tree
-      updatePhase('backpropagating');
-      updatedTree = backpropagate(updatedTree, nodeId);
-    }
-
-    // Mark the expanded node
-    if (!isRoot && targetId) {
-      updatedTree = markExpanded(updatedTree, targetId);
-    }
-
-    return updatedTree;
+    return {
+      targetId, scenes, arc, direction, cubeGoal, beatGoal,
+      virtualNarrative: parentVirtual.narrative,
+      virtualResolvedKeys: parentVirtual.resolvedKeys,
+      virtualCurrentIndex: parentVirtual.currentIndex,
+      score,
+    };
   }, [updatePhase]);
 
   // ── Main loop ──────────────────────────────────────────────────────────────
@@ -210,37 +146,74 @@ export function useMCTS() {
       startedAt: startTime,
       effectiveBaseline: null,
     }));
-    let iteration = 0;
 
-    /** Check if we should stop based on timer/iteration limits */
+    let nodesGenerated = 0;
+
     const shouldStop = () => {
       if (cancelledRef.current || !runningRef.current) return true;
       if (config.stopMode === 'timer') {
         return (Date.now() - startTime) / 1000 >= config.timeLimitSeconds;
       }
-      return iteration >= config.totalIterations;
+      return nodesGenerated >= config.maxNodes;
+    };
+
+    // Sync helper: snapshot parent data from current tree for a new slot
+    const prepareSlot = (
+      targetId: MCTSNodeId | 'root',
+      inFlightGoals: Map<MCTSNodeId | 'root', (string | null)[]>,
+    ) => {
+      const isRoot = targetId === 'root';
+      const parentNode = isRoot ? null : tree.nodes[targetId];
+      const parentNarrative = isRoot ? tree.rootNarrative : parentNode?.virtualNarrative;
+      const parentKeys = isRoot ? tree.rootResolvedKeys : parentNode?.virtualResolvedKeys;
+      const parentIndex = isRoot ? tree.rootCurrentIndex : parentNode?.virtualCurrentIndex;
+
+      if (!parentNarrative || !parentKeys || parentIndex == null) return null;
+
+      const siblingIds = isRoot ? tree.rootChildIds : (parentNode?.childIds ?? []);
+      const existingGoals = siblingIds.map((id) => {
+        const n = tree.nodes[id];
+        return (n?.cubeGoal ?? n?.beatGoal ?? null);
+      });
+      const currentInFlight = inFlightGoals.get(targetId) ?? [];
+      const allUsedGoals = [...existingGoals, ...currentInFlight];
+
+      const { direction, cubeGoal, beatGoal } = pickNextDirection(
+        allUsedGoals,
+        config.searchMode,
+        config.directionMode,
+        parentNode?.cubeGoal ?? null,
+        config.randomDirections,
+      );
+
+      const existingSiblings = siblingIds
+        .map((id) => tree.nodes[id])
+        .filter(Boolean)
+        .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
+
+      const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
+      const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
+
+      return { targetId, direction, cubeGoal, beatGoal, parentNarrative, parentKeys, parentIndex, ancestorChain, allPriorScenes, existingSiblings };
     };
 
     if (config.searchMode === 'baseline') {
-      // ── Baseline mode: layer-by-layer ────────────────────────────────
-      // At each depth, keep expanding until a node meets baselineScore.
-      // branchingFactor is the batch size per expansion, but we don't cap
-      // total branches — we keep generating until baseline is met or we
-      // hit the stop condition. Once met, descend to the next depth.
+      // ── Baseline mode: layer-by-layer, sequential ─────────────────────
+      // At each depth, keep adding children to the target parent until a node
+      // meets the baseline score. No parallel slots — sequential expansions.
+      // No child limit per node (cube positions can be retried).
 
       for (let depth = 0; depth < config.maxDepth; depth++) {
         if (shouldStop()) break;
 
-        // Find the parent to expand: root for depth 0, best node at depth-1 otherwise
         let parentTarget: MCTSNodeId | 'root';
         if (depth === 0) {
           parentTarget = 'root';
         } else {
-          // Pick the best-scoring node at the previous depth that met baseline
           const prevDepthNodes = Object.values(tree.nodes)
             .filter((n) => n.depth === depth - 1 && n.immediateScore >= config.baselineScore)
             .sort((a, b) => b.immediateScore - a.immediateScore);
-          if (prevDepthNodes.length === 0) break; // no parent met baseline
+          if (prevDepthNodes.length === 0) break;
           parentTarget = prevDepthNodes[0].id;
         }
 
@@ -249,30 +222,46 @@ export function useMCTS() {
         let currentEffective: number | null = null;
         let prevBestScore = -1;
         let staleRounds = 0;
-        let staleThreshold = 3; // first relaxation after 3 stale rounds, then every 1
+        let staleThreshold = 3;
+
+        const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
 
         while (!layerMet && !shouldStop()) {
-          // Force expand the target parent — keeps adding siblings until baseline met
-          tree = await runIteration(tree, config, activeBranchId, parentTarget);
-          iteration++;
-          if (cancelledRef.current) break;
+          const prep = prepareSlot(parentTarget, inFlightGoals);
+          if (!prep) break;
 
-          // Check if any node at this depth meets the (possibly relaxed) baseline
+          const result = await runSingleExpansion(
+            prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
+            prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
+            prep.existingSiblings, activeBranchId,
+            tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex,
+          );
+
+          if (cancelledRef.current) break;
+          nodesGenerated++;
+
+          if (result) {
+            const nodeId = nextNodeId();
+            tree = addChildNode(
+              tree, result.targetId === 'root' ? 'root' : result.targetId,
+              nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+              result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
+              result.score,
+            );
+            tree = backpropagate(tree, nodeId);
+          }
+
           const nodesAtDepth = Object.values(tree.nodes).filter((n) => n.depth === depth);
           const bestAtDepth = Math.max(...nodesAtDepth.map((n) => n.immediateScore), 0);
           layerMet = bestAtDepth >= layerBaseline;
 
-          // Stagnation detection — if best score hasn't improved, count stale rounds
           if (bestAtDepth <= prevBestScore) {
             staleRounds++;
             if (staleRounds >= staleThreshold && !layerMet) {
-              // Relax baseline by 5, floor at 50
               layerBaseline = Math.max(50, layerBaseline - 5);
               currentEffective = layerBaseline;
               staleRounds = 0;
-              staleThreshold = 1; // after first relaxation, lower every stale round
-              console.log(`[mcts] baseline relaxed to ${layerBaseline} at depth ${depth} (best: ${bestAtDepth})`);
-              // Re-evaluate all existing nodes at this depth against the new baseline
+              staleThreshold = 1;
               layerMet = nodesAtDepth.some((n) => n.immediateScore >= layerBaseline);
             }
           } else {
@@ -280,12 +269,11 @@ export function useMCTS() {
             staleRounds = 0;
           }
 
-          // Single state update per iteration — includes effectiveBaseline
           const best = bestPath(tree, config.pathStrategy);
           setRunState((prev) => ({
             ...prev,
             tree,
-            iterationsCompleted: iteration,
+            iterationsCompleted: nodesGenerated,
             bestPath: best,
             ...(currentEffective != null ? { effectiveBaseline: currentEffective } : {}),
           }));
@@ -293,20 +281,111 @@ export function useMCTS() {
 
         if (!layerMet) break;
       }
-    } else {
-      // ── Standard MCTS (exploit/explore) ──────────────────────────────
-      while (!shouldStop()) {
-        tree = await runIteration(tree, config, activeBranchId);
-        iteration++;
-        if (cancelledRef.current) break;
 
-        const best = bestPath(tree, config.pathStrategy);
-        setRunState((prev) => ({
-          ...prev,
-          tree,
-          iterationsCompleted: iteration,
-          bestPath: best,
-        }));
+    } else {
+      // ── Standard MCTS (exploit/explore): parallel sliding window ─────
+      // Maintain `parallelism` concurrent generation slots. Each slot independently
+      // selects the most promising unexpanded node via UCB1, generates one arc,
+      // and immediately feeds the result back into the tree. When a slot finishes,
+      // a new one starts — keeping the window full at all times.
+
+      type SlotEntry = {
+        seq: number;
+        targetId: MCTSNodeId | 'root';
+        goal: string | null;
+        promise: Promise<{ result: ExpansionResult | null; seq: number }>;
+      };
+
+      const inFlightCounts = new Map<MCTSNodeId | 'root', number>();
+      const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
+      const activeSlots: SlotEntry[] = [];
+      let slotSeq = 0;
+
+      const tryStartSlot = (): boolean => {
+        if (cancelledRef.current || shouldStop()) return false;
+        const targetId = selectNode(tree, config, inFlightCounts);
+        if (!targetId) return false;
+
+        const prep = prepareSlot(targetId, inFlightGoals);
+        if (!prep) return false;
+
+        // Register in-flight (use whichever goal is set)
+        const goal = prep.cubeGoal ?? prep.beatGoal;
+        inFlightCounts.set(targetId, (inFlightCounts.get(targetId) ?? 0) + 1);
+        inFlightGoals.set(targetId, [...(inFlightGoals.get(targetId) ?? []), goal]);
+
+        const seq = slotSeq++;
+        const promise = runSingleExpansion(
+          prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
+          prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
+          prep.existingSiblings, activeBranchId,
+          tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex,
+        ).then((result) => ({ result, seq }));
+
+        activeSlots.push({ seq, targetId, goal, promise });
+        updatePhase('expanding', targetId === 'root' ? null : targetId);
+        return true;
+      };
+
+      // Fill initial slots
+      for (let i = 0; i < config.parallelism; i++) {
+        if (!tryStartSlot()) break;
+      }
+
+      // Sliding window: wait for first to finish, apply, start replacement
+      while (activeSlots.length > 0 && !cancelledRef.current) {
+        if (shouldStop() && activeSlots.length === 0) break;
+
+        const { result, seq } = await Promise.race(activeSlots.map((s) => s.promise));
+
+        const completedIdx = activeSlots.findIndex((s) => s.seq === seq);
+        if (completedIdx === -1) continue;
+        const completed = activeSlots.splice(completedIdx, 1)[0];
+
+        // Release in-flight slot
+        const newCount = (inFlightCounts.get(completed.targetId) ?? 1) - 1;
+        if (newCount <= 0) inFlightCounts.delete(completed.targetId);
+        else inFlightCounts.set(completed.targetId, newCount);
+
+        const targetGoals = inFlightGoals.get(completed.targetId) ?? [];
+        const goalIdx = targetGoals.indexOf(completed.goal);
+        if (goalIdx >= 0) targetGoals.splice(goalIdx, 1);
+        if (targetGoals.length === 0) inFlightGoals.delete(completed.targetId);
+
+        if (result && !cancelledRef.current) {
+          const nodeId = nextNodeId();
+          tree = addChildNode(
+            tree, result.targetId === 'root' ? 'root' : result.targetId,
+            nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+            result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
+            result.score,
+          );
+
+          updatePhase('backpropagating');
+          tree = backpropagate(tree, nodeId);
+
+          // Mark parent expanded when all 8 cube corners have been tried
+          if (result.targetId !== 'root') {
+            const parent = tree.nodes[result.targetId];
+            if (parent && parent.childIds.length >= MAX_NODE_CHILDREN) {
+              tree = markExpanded(tree, result.targetId);
+            }
+          }
+
+          nodesGenerated++;
+          const best = bestPath(tree, config.pathStrategy);
+          setRunState((prev) => ({
+            ...prev,
+            tree,
+            iterationsCompleted: nodesGenerated,
+            bestPath: best,
+          }));
+        }
+
+        // Start a replacement slot if we haven't hit the stop condition
+        if (!shouldStop() && !cancelledRef.current) {
+          tryStartSlot();
+        }
       }
     }
 
@@ -320,7 +399,7 @@ export function useMCTS() {
     }
 
     runningRef.current = false;
-  }, [state, runIteration]);
+  }, [state, runSingleExpansion]);
 
   // ── Controls ───────────────────────────────────────────────────────────────
 
@@ -342,8 +421,7 @@ export function useMCTS() {
     runningRef.current = true;
     updateStatus('running');
 
-    // Continue remaining iterations
-    const remaining = runState.config.totalIterations - runState.iterationsCompleted;
+    const remaining = runState.config.maxNodes - runState.iterationsCompleted;
     if (remaining <= 0) return;
 
     const { activeBranchId } = state;
@@ -351,24 +429,105 @@ export function useMCTS() {
 
     (async () => {
       let tree = runState.tree;
-      for (let i = 0; i < remaining; i++) {
-        if (cancelledRef.current || !runningRef.current) break;
-        tree = await runIteration(tree, runState.config, activeBranchId);
-        if (cancelledRef.current) break;
-        const best = bestPath(tree, runState.config.pathStrategy);
-        setRunState((prev) => ({
-          ...prev,
-          tree,
-          iterationsCompleted: prev.iterationsCompleted + 1,
-          bestPath: best,
-        }));
+      let generated = runState.iterationsCompleted;
+
+      const inFlightCounts = new Map<MCTSNodeId | 'root', number>();
+      const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
+
+      type SlotEntry = {
+        seq: number;
+        targetId: MCTSNodeId | 'root';
+        goal: string | null;
+        promise: Promise<{ result: ExpansionResult | null; seq: number }>;
+      };
+      const activeSlots: SlotEntry[] = [];
+      let slotSeq = 0;
+
+      const shouldStop = () => cancelledRef.current || !runningRef.current ||
+        (runState.config.stopMode === 'iterations' && generated >= runState.config.maxNodes);
+
+      const tryStart = () => {
+        if (shouldStop()) return false;
+        const targetId = selectNode(tree, runState.config, inFlightCounts);
+        if (!targetId) return false;
+
+        const isRoot = targetId === 'root';
+        const parentNode = isRoot ? null : tree.nodes[targetId];
+        const parentNarrative = isRoot ? tree.rootNarrative : parentNode?.virtualNarrative;
+        const parentKeys = isRoot ? tree.rootResolvedKeys : parentNode?.virtualResolvedKeys;
+        const parentIndex = isRoot ? tree.rootCurrentIndex : parentNode?.virtualCurrentIndex;
+        if (!parentNarrative || !parentKeys || parentIndex == null) return false;
+
+        const siblingIds = isRoot ? tree.rootChildIds : (parentNode?.childIds ?? []);
+        const existingGoals = siblingIds.map((id) => {
+          const n = tree.nodes[id];
+          return (n?.cubeGoal ?? n?.beatGoal ?? null);
+        });
+        const currentInFlight = inFlightGoals.get(targetId) ?? [];
+        const { direction, cubeGoal, beatGoal } = pickNextDirection(
+          [...existingGoals, ...currentInFlight], runState.config.searchMode, runState.config.directionMode,
+          parentNode?.cubeGoal ?? null, runState.config.randomDirections,
+        );
+        const existingSiblings = siblingIds.map((id) => tree.nodes[id]).filter(Boolean)
+          .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
+        const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
+        const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
+
+        const goal = cubeGoal ?? beatGoal;
+        inFlightCounts.set(targetId, (inFlightCounts.get(targetId) ?? 0) + 1);
+        inFlightGoals.set(targetId, [...(inFlightGoals.get(targetId) ?? []), goal]);
+
+        const seq = slotSeq++;
+        const promise = runSingleExpansion(
+          targetId, parentNarrative, parentKeys, parentIndex,
+          direction, cubeGoal, beatGoal, ancestorChain, allPriorScenes, existingSiblings,
+          activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex,
+        ).then((result) => ({ result, seq }));
+        activeSlots.push({ seq, targetId, goal, promise });
+        return true;
+      };
+
+      for (let i = 0; i < runState.config.parallelism; i++) {
+        if (!tryStart()) break;
       }
+
+      while (activeSlots.length > 0 && !cancelledRef.current) {
+        const { result, seq } = await Promise.race(activeSlots.map((s) => s.promise));
+        const idx = activeSlots.findIndex((s) => s.seq === seq);
+        if (idx === -1) continue;
+        const completed = activeSlots.splice(idx, 1)[0];
+
+        const newCount = (inFlightCounts.get(completed.targetId) ?? 1) - 1;
+        if (newCount <= 0) inFlightCounts.delete(completed.targetId);
+        else inFlightCounts.set(completed.targetId, newCount);
+        const goals = inFlightGoals.get(completed.targetId) ?? [];
+        const gi = goals.indexOf(completed.goal);
+        if (gi >= 0) goals.splice(gi, 1);
+        if (goals.length === 0) inFlightGoals.delete(completed.targetId);
+
+        if (result && !cancelledRef.current) {
+          const nodeId = nextNodeId();
+          tree = addChildNode(tree, result.targetId === 'root' ? 'root' : result.targetId,
+            nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+            result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex, result.score);
+          tree = backpropagate(tree, nodeId);
+          if (result.targetId !== 'root') {
+            const parent = tree.nodes[result.targetId];
+            if (parent && parent.childIds.length >= MAX_NODE_CHILDREN) tree = markExpanded(tree, result.targetId);
+          }
+          generated++;
+          const best = bestPath(tree, runState.config.pathStrategy);
+          setRunState((prev) => ({ ...prev, tree, iterationsCompleted: generated, bestPath: best }));
+        }
+        if (!shouldStop()) tryStart();
+      }
+
       if (!cancelledRef.current) {
         setRunState((prev) => ({ ...prev, status: 'complete', currentPhase: null, expandingNodeId: null }));
       }
       runningRef.current = false;
     })();
-  }, [runState, state, runIteration]);
+  }, [runState, state, runSingleExpansion]);
 
   const stop = useCallback(() => {
     cancelledRef.current = true;
@@ -391,7 +550,7 @@ export function useMCTS() {
     }));
   }, [state]);
 
-  const continueSearch = useCallback((additionalIterations: number) => {
+  const continueSearch = useCallback((additionalNodes: number) => {
     if (runState.status !== 'complete' && runState.status !== 'idle') return;
     const { activeBranchId } = state;
     if (!activeBranchId) return;
@@ -399,36 +558,118 @@ export function useMCTS() {
     cancelledRef.current = false;
     runningRef.current = true;
 
-    const newTotal = runState.iterationsCompleted + additionalIterations;
+    const newMax = runState.iterationsCompleted + additionalNodes;
+    const updatedConfig = { ...runState.config, maxNodes: newMax };
+
     setRunState((prev) => ({
       ...prev,
       status: 'running',
-      config: { ...prev.config, totalIterations: newTotal },
+      config: updatedConfig,
       currentPhase: null,
       expandingNodeId: null,
       startedAt: Date.now(),
     }));
 
+    // Use same sliding window as resume — inline implementation
     (async () => {
       let tree = runState.tree;
-      for (let i = 0; i < additionalIterations; i++) {
-        if (cancelledRef.current || !runningRef.current) break;
-        tree = await runIteration(tree, runState.config, activeBranchId);
-        if (cancelledRef.current) break;
-        const best = bestPath(tree, runState.config.pathStrategy);
-        setRunState((prev) => ({
-          ...prev,
-          tree,
-          iterationsCompleted: prev.iterationsCompleted + 1,
-          bestPath: best,
-        }));
+      let generated = runState.iterationsCompleted;
+
+      const inFlightCounts = new Map<MCTSNodeId | 'root', number>();
+      const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
+
+      type SlotEntry = {
+        seq: number;
+        targetId: MCTSNodeId | 'root';
+        goal: string | null;
+        promise: Promise<{ result: ExpansionResult | null; seq: number }>;
+      };
+      const activeSlots: SlotEntry[] = [];
+      let slotSeq = 0;
+
+      const shouldStop = () => cancelledRef.current || !runningRef.current || generated >= newMax;
+
+      const tryStart = () => {
+        if (shouldStop()) return false;
+        const targetId = selectNode(tree, updatedConfig, inFlightCounts);
+        if (!targetId) return false;
+        const isRoot = targetId === 'root';
+        const parentNode = isRoot ? null : tree.nodes[targetId];
+        const parentNarrative = isRoot ? tree.rootNarrative : parentNode?.virtualNarrative;
+        const parentKeys = isRoot ? tree.rootResolvedKeys : parentNode?.virtualResolvedKeys;
+        const parentIndex = isRoot ? tree.rootCurrentIndex : parentNode?.virtualCurrentIndex;
+        if (!parentNarrative || !parentKeys || parentIndex == null) return false;
+
+        const siblingIds = isRoot ? tree.rootChildIds : (parentNode?.childIds ?? []);
+        const existingGoals = siblingIds.map((id) => {
+          const n = tree.nodes[id];
+          return (n?.cubeGoal ?? n?.beatGoal ?? null);
+        });
+        const currentInFlight = inFlightGoals.get(targetId) ?? [];
+        const { direction, cubeGoal, beatGoal } = pickNextDirection(
+          [...existingGoals, ...currentInFlight], updatedConfig.searchMode, updatedConfig.directionMode,
+          parentNode?.cubeGoal ?? null, updatedConfig.randomDirections,
+        );
+        const existingSiblings = siblingIds.map((id) => tree.nodes[id]).filter(Boolean)
+          .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
+        const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
+        const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
+
+        const goal = cubeGoal ?? beatGoal;
+        inFlightCounts.set(targetId, (inFlightCounts.get(targetId) ?? 0) + 1);
+        inFlightGoals.set(targetId, [...(inFlightGoals.get(targetId) ?? []), goal]);
+
+        const seq = slotSeq++;
+        const promise = runSingleExpansion(
+          targetId, parentNarrative, parentKeys, parentIndex,
+          direction, cubeGoal, beatGoal, ancestorChain, allPriorScenes, existingSiblings,
+          activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex,
+        ).then((result) => ({ result, seq }));
+        activeSlots.push({ seq, targetId, goal, promise });
+        return true;
+      };
+
+      for (let i = 0; i < updatedConfig.parallelism; i++) {
+        if (!tryStart()) break;
       }
+
+      while (activeSlots.length > 0 && !cancelledRef.current) {
+        const { result, seq } = await Promise.race(activeSlots.map((s) => s.promise));
+        const idx = activeSlots.findIndex((s) => s.seq === seq);
+        if (idx === -1) continue;
+        const completed = activeSlots.splice(idx, 1)[0];
+
+        const newCount = (inFlightCounts.get(completed.targetId) ?? 1) - 1;
+        if (newCount <= 0) inFlightCounts.delete(completed.targetId);
+        else inFlightCounts.set(completed.targetId, newCount);
+        const goals = inFlightGoals.get(completed.targetId) ?? [];
+        const gi = goals.indexOf(completed.goal);
+        if (gi >= 0) goals.splice(gi, 1);
+        if (goals.length === 0) inFlightGoals.delete(completed.targetId);
+
+        if (result && !cancelledRef.current) {
+          const nodeId = nextNodeId();
+          tree = addChildNode(tree, result.targetId === 'root' ? 'root' : result.targetId,
+            nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+            result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex, result.score);
+          tree = backpropagate(tree, nodeId);
+          if (result.targetId !== 'root') {
+            const parent = tree.nodes[result.targetId];
+            if (parent && parent.childIds.length >= MAX_NODE_CHILDREN) tree = markExpanded(tree, result.targetId);
+          }
+          generated++;
+          const best = bestPath(tree, updatedConfig.pathStrategy);
+          setRunState((prev) => ({ ...prev, tree, iterationsCompleted: generated, bestPath: best }));
+        }
+        if (!shouldStop()) tryStart();
+      }
+
       if (!cancelledRef.current) {
         setRunState((prev) => ({ ...prev, status: 'complete', currentPhase: null, expandingNodeId: null }));
       }
       runningRef.current = false;
     })();
-  }, [runState, state, runIteration]);
+  }, [runState, state, runSingleExpansion]);
 
   const selectPath = useCallback((path: MCTSNodeId[]) => {
     setRunState((prev) => ({ ...prev, selectedPath: path }));

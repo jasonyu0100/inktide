@@ -60,14 +60,35 @@ export default function CubeCornerBadge() {
 
   const hasTransition = prevCorner && prevCorner.key !== cubeCorner.key;
 
+  const BAR_COLORS = ['#EF4444', '#22C55E', '#3B82F6'];
+
+  function CubeBar({ cornerKey }: { cornerKey: string }) {
+    return (
+      <svg width="18" height="10" viewBox="0 0 18 10">
+        {cornerKey.split('').map((c, i) => {
+          const isHi = c === 'H';
+          const barH = isHi ? 8 : 4;
+          const barY = isHi ? 1 : 5;
+          return (
+            <rect
+              key={i}
+              x={i * 7}
+              y={barY}
+              width={5}
+              height={barH}
+              rx={1}
+              fill={BAR_COLORS[i]}
+              opacity={isHi ? 1 : 0.4}
+            />
+          );
+        })}
+      </svg>
+    );
+  }
+
   return (
     <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-white/6 bg-white/3">
-      <span className="text-[9px] uppercase tracking-widest text-text-dim">
-        {cubeCorner.key.split('').map((c: string, i: number) => {
-          const labels = ['P', 'C', 'V'];
-          return `${labels[i]}:${c === 'H' ? 'Hi' : 'Lo'}`;
-        }).join(' ')}
-      </span>
+      <CubeBar cornerKey={cubeCorner.key} />
       <span className="text-[11px] font-semibold text-text-primary leading-tight">
         {hasTransition ? (
           <>

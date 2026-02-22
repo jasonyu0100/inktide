@@ -78,7 +78,7 @@ export function MCTSControlBar({ runState, onPause, onResume, onStop, onOpenPane
         <span className="text-[10px] text-text-dim whitespace-nowrap font-mono">
           {isTimerMode
             ? `${formatTime(elapsed)} / ${formatTime(config.timeLimitSeconds)}`
-            : `${iterationsCompleted}/${config.totalIterations}`}
+            : `${iterationsCompleted}/${config.maxNodes}`}
         </span>
 
         <div className="w-px h-4 bg-white/12" />

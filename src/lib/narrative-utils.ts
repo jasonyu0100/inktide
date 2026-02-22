@@ -581,6 +581,8 @@ export interface NarrativeShape {
   key: string;
   name: string;
   description: string;
+  /** Characteristic curve as [x, y] pairs, both normalised 0–1 */
+  curve: [number, number][];
 }
 
 const SHAPES = {
@@ -588,46 +590,55 @@ const SHAPES = {
     key: 'rags_to_riches',
     name: 'Escalating',
     description: 'Beats climb continuously — momentum builds from start to finish',
+    curve: [[0,0.1],[0.2,0.25],[0.4,0.45],[0.6,0.65],[0.8,0.82],[1,1]] as [number,number][],
   },
   tragedy: {
     key: 'tragedy',
     name: 'Subsiding',
     description: 'Beats fall throughout — intensity drains as the narrative progresses',
+    curve: [[0,1],[0.2,0.8],[0.4,0.6],[0.6,0.4],[0.8,0.22],[1,0.08]] as [number,number][],
   },
   man_in_hole: {
     key: 'man_in_hole',
     name: 'Rebounding',
     description: 'Beats drop in the middle then climb back — low point followed by upswing',
+    curve: [[0,0.6],[0.2,0.35],[0.4,0.1],[0.6,0.3],[0.8,0.65],[1,0.9]] as [number,number][],
   },
   icarus: {
     key: 'icarus',
     name: 'Peaking',
     description: 'Beats peak early then trail off — intensity concentrated at the opening',
+    curve: [[0,0.4],[0.2,0.85],[0.35,1],[0.55,0.65],[0.75,0.35],[1,0.15]] as [number,number][],
   },
   cinderella: {
     key: 'cinderella',
     name: 'Cyclical',
     description: 'Two distinct rises separated by a trough — beats crest, fall, then crest again',
+    curve: [[0,0.3],[0.2,0.75],[0.35,0.9],[0.5,0.35],[0.65,0.2],[0.8,0.75],[1,1]] as [number,number][],
   },
   one_climax: {
     key: 'one_climax',
     name: 'Climactic',
     description: 'Beats converge on one central high — build, climax, resolution',
+    curve: [[0,0.2],[0.25,0.5],[0.45,0.8],[0.5,1],[0.55,0.8],[0.75,0.5],[1,0.25]] as [number,number][],
   },
   slow_burn: {
     key: 'slow_burn',
     name: 'Slow Burn',
     description: 'Beats stay low early then surge — intensity concentrated at the close',
+    curve: [[0,0.15],[0.2,0.2],[0.4,0.18],[0.6,0.35],[0.75,0.65],[0.9,0.9],[1,1]] as [number,number][],
   },
   episodic: {
     key: 'episodic',
     name: 'Episodic',
     description: 'Multiple beats of similar weight — no single dominant high point',
+    curve: [[0,0.3],[0.1,0.7],[0.2,0.3],[0.35,0.75],[0.5,0.25],[0.65,0.8],[0.8,0.3],[0.9,0.7],[1,0.35]] as [number,number][],
   },
   plateau: {
     key: 'plateau',
     name: 'Uniform',
     description: 'Beats show little structural variation — measured and consistent throughout',
+    curve: [[0,0.5],[0.25,0.52],[0.5,0.48],[0.75,0.51],[1,0.5]] as [number,number][],
   },
 } satisfies Record<string, NarrativeShape>;
 
@@ -639,7 +650,7 @@ const SHAPES = {
  * Inspired by Vonnegut's story shapes and Reagan et al.'s arc research.
  */
 export function classifyNarrativeShape(points: EngagementPoint[]): NarrativeShape {
-  if (points.length < 6) return SHAPES.one_climax;
+  if (points.length < 6) return SHAPES.plateau;
   const n = points.length;
   const macro = points.map((p) => p.macroTrend);
   const smoothed = points.map((p) => p.smoothed);
@@ -693,6 +704,61 @@ export function classifyNarrativeShape(points: EngagementPoint[]): NarrativeShap
   if (peakCount >= 2 && avgQ3 > avgQ1 + 0.15) return SHAPES.cinderella;
 
   return SHAPES.one_climax;
+}
+
+// ── Local Position Classification ─────────────────────────────────────────────
+
+export interface NarrativePosition {
+  key: 'peak' | 'trough' | 'rising' | 'falling' | 'stable';
+  name: string;
+  description: string;
+}
+
+const POSITIONS: Record<NarrativePosition['key'], NarrativePosition> = {
+  peak:    { key: 'peak',    name: 'Peak',    description: 'Beats are at a local high — intensity is cresting' },
+  trough:  { key: 'trough',  name: 'Trough',  description: 'Beats are at a local low — energy has bottomed out' },
+  rising:  { key: 'rising',  name: 'Rising',  description: 'Beats are climbing — building toward a high point' },
+  falling: { key: 'falling', name: 'Falling', description: 'Beats are declining — unwinding from a high' },
+  stable:  { key: 'stable',  name: 'Stable',  description: 'Beats are holding steady — no strong directional movement' },
+};
+
+/**
+ * Classify the local beat position at the current (last) point of an engagement window.
+ * Checks proximity to detected peaks/valleys first, then falls back to slope direction.
+ */
+export function classifyCurrentPosition(points: EngagementPoint[]): NarrativePosition {
+  if (points.length === 0) return POSITIONS.stable;
+  const n = points.length;
+
+  // Look within the last few points for a detected peak or valley
+  const nearWindow = Math.min(4, n);
+  const recent = points.slice(-nearWindow);
+  let lastPeakOff = -1;
+  let lastValleyOff = -1;
+  for (let i = 0; i < recent.length; i++) {
+    if (recent[i].isPeak)   lastPeakOff   = i;
+    if (recent[i].isValley) lastValleyOff = i;
+  }
+
+  if (lastPeakOff >= 0 || lastValleyOff >= 0) {
+    if (lastPeakOff > lastValleyOff) return POSITIONS.peak;
+    return POSITIONS.trough;
+  }
+
+  // Fall back to recent slope of smoothed values
+  const slopeN = Math.min(6, n);
+  const slopePoints = points.slice(-slopeN);
+  const smValues = slopePoints.map((p) => p.smoothed);
+  const delta = smValues[smValues.length - 1] - smValues[0];
+  const smMin = Math.min(...smValues);
+  const smMax = Math.max(...smValues);
+  const range = smMax - smMin;
+
+  if (range < 0.05) return POSITIONS.stable;
+  const norm = delta / range;
+  if (norm > 0.2)  return POSITIONS.rising;
+  if (norm < -0.2) return POSITIONS.falling;
+  return POSITIONS.stable;
 }
 
 // ── Windowed Forces ──────────────────────────────────────────────────────────

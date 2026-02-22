@@ -259,6 +259,31 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                     <span className="text-xs text-text-secondary">arc{config.worldBuildInterval !== 1 ? 's' : ''}</span>
                   </div>
 
+                  <div className="mb-3">
+                    <span className="text-[10px] text-text-dim uppercase tracking-widest block mb-2">Expansion Size</span>
+                    <div className="flex gap-1">
+                      {([
+                        { value: 'small',  label: 'Small',  desc: '1–2 of each',    interval: 2 },
+                        { value: 'medium', label: 'Medium', desc: '3–5 of each',    interval: 3 },
+                        { value: 'large',  label: 'Large',  desc: '8–15 entities',  interval: 6 },
+                      ] as const).map((s) => (
+                        <button
+                          key={s.value}
+                          onClick={() => update({ worldBuildSize: s.value, worldBuildInterval: s.interval })}
+                          title={s.desc}
+                          className={`flex-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors ${
+                            config.worldBuildSize === s.value
+                              ? 'bg-bg-overlay text-text-primary'
+                              : 'text-text-dim hover:text-text-secondary'
+                          }`}
+                        >
+                          {s.label}
+                          <span className="block text-[9px] font-normal opacity-60">{s.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"

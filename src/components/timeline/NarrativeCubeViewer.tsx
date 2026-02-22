@@ -3,7 +3,7 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, NARRATIVE_CUBE, type CubeCorner, type CubeCornerKey, type ForceSnapshot, type Scene } from '@/types/narrative';
-import { detectCubeCorner, computeForceSnapshots, computeWindowedForces } from '@/lib/narrative-utils';
+import { detectCubeCorner, computeForceSnapshots, computeWindowedForces, computeEngagementCurve, classifyCurrentPosition, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 import { analyzeForceTrajectory } from '@/lib/ai';
 
 // ── 3D math helpers ──────────────────────────────────────────────────────────
@@ -173,6 +173,15 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     const entry = forceEntries[focusedIdx];
     if (!entry) return null;
     return entry.corner;
+  }, [forceEntries, focusedIdx]);
+
+  // Local beat position from the trailing window ending at focusedIdx
+  const localPosition = useMemo(() => {
+    if (forceEntries.length === 0) return null;
+    const windowEntries = forceEntries.slice(Math.max(0, focusedIdx - FORCE_WINDOW_SIZE + 1), focusedIdx + 1);
+    const snapshots = windowEntries.map((e) => e.forces);
+    const pts = computeEngagementCurve(snapshots);
+    return pts.length > 0 ? classifyCurrentPosition(pts) : null;
   }, [forceEntries, focusedIdx]);
 
   // Initialize focused index to the current timeline scene
@@ -696,9 +705,24 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
         <div className="flex items-baseline gap-3">
           <h2 className="text-sm font-semibold text-text-primary">Narrative Cube</h2>
           {currentCorner && (
-            <span className="text-[11px] text-text-secondary">
-              <span className="text-text-primary font-medium">{currentCorner.name}</span>
-              <span className="text-text-dim font-mono ml-1.5 text-[9px]">{currentCorner.key}</span>
+            <span className="flex items-center gap-2">
+              <svg width="24" height="12" viewBox="0 0 24 12">
+                {([0,1,2]).map((i) => {
+                  const isHigh = currentCorner.key[i] === 'H';
+                  const colors = ['#EF4444','#22C55E','#3B82F6'];
+                  const barH = isHigh ? 9 : 4;
+                  return <rect key={i} x={i * 9} y={12 - barH} width={7} height={barH} rx={1} fill={colors[i]} opacity={0.75} />;
+                })}
+              </svg>
+              <span className="text-[11px] text-text-primary font-medium">{currentCorner.name}</span>
+              {localPosition && (
+                <>
+                  <span className="text-white/15">|</span>
+                  <span className="text-[10px] font-medium" style={{ color: { peak: '#F59E0B', trough: '#3B82F6', rising: '#22C55E', falling: '#EF4444', stable: 'rgba(255,255,255,0.4)' }[localPosition.key] }}>
+                    {localPosition.name}
+                  </span>
+                </>
+              )}
             </span>
           )}
           {trajectoryStats && (
@@ -960,8 +984,17 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
 
               <div className="flex items-baseline justify-between">
                 <div className="flex items-center gap-2">
+                  <svg width="21" height="12" viewBox="0 0 21 12">
+                    {focusedScene.cornerKey.split('').map((c, i) => {
+                      const isHi = c === 'H';
+                      const colors = ['#EF4444', '#22C55E', '#3B82F6'];
+                      return (
+                        <rect key={i} x={i * 8} y={isHi ? 1 : 6} width={6} height={isHi ? 10 : 5} rx={1}
+                          fill={colors[i]} opacity={isHi ? 1 : 0.4} />
+                      );
+                    })}
+                  </svg>
                   <span className="text-[11px] font-medium text-yellow-400/90">{focusedScene.corner.name}</span>
-                  <span className="text-[9px] font-mono text-text-dim/50">{focusedScene.cornerKey}</span>
                 </div>
                 <span className="text-[9px] text-text-dim">{focusedScene.arcName}</span>
               </div>

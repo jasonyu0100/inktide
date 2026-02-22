@@ -199,7 +199,14 @@ export function CubeExplorer({
                     : 'border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12'
                 }`}
               >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CORNER_COLORS[key] }} />
+                <svg width="18" height="10" viewBox="0 0 18 10" className="shrink-0">
+                  {([0,1,2]).map((i) => {
+                    const isHigh = key[i] === 'H';
+                    const colors = ['#EF4444','#22C55E','#3B82F6'];
+                    const barH = isHigh ? 7 : 3;
+                    return <rect key={i} x={i * 7} y={10 - barH} width={5} height={barH} rx={0.75} fill={colors[i]} opacity={0.75} />;
+                  })}
+                </svg>
                 {corner.name} ({count})
               </button>
             );
@@ -244,11 +251,15 @@ export function CubeExplorer({
                   >
                     <span className="text-[10px] font-mono text-text-dim">{entry.index + 1}</span>
                     <span className="flex items-center gap-1.5">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: CORNER_COLORS[entry.corner] }}
-                      />
-                      <span className="text-[10px] font-medium" style={{ color: CORNER_COLORS[entry.corner] }}>
+                      <svg width="24" height="12" viewBox="0 0 24 12" className="shrink-0">
+                        {(['P','C','V'] as const).map((_, i) => {
+                          const isHigh = entry.corner[i] === 'H';
+                          const colors = ['#EF4444','#22C55E','#3B82F6'];
+                          const barH = isHigh ? 9 : 4;
+                          return <rect key={i} x={i * 9} y={12 - barH} width={7} height={barH} rx={1} fill={colors[i]} opacity={0.75} />;
+                        })}
+                      </svg>
+                      <span className="text-[10px] font-medium truncate" style={{ color: CORNER_COLORS[entry.corner] }}>
                         {entry.cornerName}
                       </span>
                     </span>

@@ -63,7 +63,7 @@ export function useAutoPlay() {
         const suggestion = await suggestWorldExpansion(activeNarrative, resolvedSceneKeys, currentSceneIndex);
         if (cancelledRef.current) return;
 
-        const expansion = await expandWorld(activeNarrative, resolvedSceneKeys, currentSceneIndex, suggestion);
+        const expansion = await expandWorld(activeNarrative, resolvedSceneKeys, currentSceneIndex, suggestion, autoConfig.worldBuildSize);
         if (cancelledRef.current) return;
 
         dispatch({

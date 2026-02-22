@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, detectCubeCorner } from '@/lib/narrative-utils';
 import ForceLineChart, { type ChartStyle } from './ForceLineChart';
 
 const FORCE_CONFIG = [
@@ -214,6 +214,32 @@ export default function ForceCharts() {
     ? (localForceData.payoff.length - 1)
     : state.currentSceneIndex;
 
+  // Local position + recent engagement sparkline from the trailing window
+  const { currentPosition, recentSparkline } = useMemo(() => {
+    if (allScenes.length === 0) return { currentPosition: null, recentSparkline: [] };
+    const scenes = windowed
+      ? allScenes.slice(windowed.windowStart, windowed.windowEnd + 1)
+      : allScenes;
+    const snapshotMap = computeForceSnapshots(scenes);
+    const ordered = scenes.map((s) => snapshotMap[s.id]).filter(Boolean);
+    const pts = computeEngagementCurve(ordered);
+    const position = ordered.length > 0 ? classifyCurrentPosition(pts) : null;
+    // Last ~12 smoothed values for the mini sparkline
+    const spark = pts.slice(-12).map((p) => p.smoothed);
+    return { currentPosition: position, recentSparkline: spark };
+  }, [windowed, allScenes]);
+
+  // Cube corner at current scene (normalized forces)
+  const cubeCorner = useMemo(() => {
+    const idx = Math.min(state.currentSceneIndex, globalForceData.payoff.length - 1);
+    if (idx < 0 || globalForceData.payoff.length === 0) return null;
+    return detectCubeCorner({
+      payoff: globalForceData.payoff[idx],
+      change: globalForceData.change[idx],
+      variety: globalForceData.variety[idx],
+    });
+  }, [globalForceData, state.currentSceneIndex]);
+
   if (!narrative) {
     return (
       <div className="flex items-center justify-center h-25 shrink-0 glass-panel border-t border-border">
@@ -226,12 +252,107 @@ export default function ForceCharts() {
 
   return (
     <div className="flex h-25 shrink-0 glass-panel border-t border-border">
-      {/* Settings gear */}
-      <div className="relative flex items-center px-1.5 border-r border-border shrink-0" ref={popRef}>
+      {/* Left: shape + cube panel */}
+      <div className="flex flex-col justify-center border-r border-border shrink-0 w-36">
+        {/* Position row */}
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/50">
+          {currentPosition && recentSparkline.length > 1 ? (
+            <>
+              <svg width="36" height="18" viewBox="0 0 36 18" className="shrink-0">
+                {(() => {
+                  const n = recentSparkline.length;
+                  const min = Math.min(...recentSparkline);
+                  const max = Math.max(...recentSparkline);
+                  const range = max - min || 1;
+                  const pts = recentSparkline.map((v, i) =>
+                    `${(i / (n - 1)) * 36},${18 - ((v - min) / range) * 18}`
+                  ).join(' ');
+                  return <polyline points={pts} fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />;
+                })()}
+              </svg>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[8px] uppercase tracking-widest text-text-dim">Local</span>
+                <span className="text-[11px] font-medium text-text-primary truncate">{currentPosition.name}</span>
+              </div>
+            </>
+          ) : (
+            <span className="text-[9px] text-text-dim">—</span>
+          )}
+        </div>
+        {/* Cube row */}
+        <div className="flex items-center gap-2 px-3 py-1.5">
+          {cubeCorner ? (
+            <>
+              <svg width="36" height="18" viewBox="0 0 36 18" className="shrink-0">
+                {(['P','C','V'] as const).map((label, i) => {
+                  const isHigh = cubeCorner.key[i] === 'H';
+                  const colors = ['#EF4444', '#22C55E', '#3B82F6'];
+                  const barH = isHigh ? 14 : 6;
+                  const x = i * 13;
+                  return (
+                    <g key={label}>
+                      <rect x={x} y={18 - barH} width={10} height={barH} rx={1.5} fill={colors[i]} opacity={0.7} />
+                      <text x={x + 5} y={17} textAnchor="middle" fontSize="4.5" fill="rgba(255,255,255,0.45)" fontFamily="monospace">{label}</text>
+                    </g>
+                  );
+                })}
+              </svg>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[8px] uppercase tracking-widest text-text-dim">Cube</span>
+                <span className="text-[11px] font-medium text-text-primary truncate">{cubeCorner.name}</span>
+              </div>
+            </>
+          ) : (
+            <span className="text-[9px] text-text-dim">—</span>
+          )}
+        </div>
+      </div>
+
+      {/* Force line charts */}
+      {FORCE_CONFIG.map((cfg) => (
+        <div
+          key={cfg.key}
+          className="flex-1 min-w-0 border-r border-border"
+        >
+          <ForceLineChart
+            data={chartData[cfg.key]}
+            color={cfg.color}
+            label={cfg.label}
+            currentIndex={chartCurrentIndex}
+            windowStart={!isLocal ? windowTimelineRange?.start : undefined}
+            windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
+            positive={showRaw}
+            raw={showRaw}
+            style={chartStyle}
+            movingAvg={chartMA[cfg.key]}
+            average={chartAvg[cfg.key]}
+          />
+        </div>
+      ))}
+
+      {/* Swing magnitude chart */}
+      <div className="flex-1 min-w-0 border-r border-border">
+        <ForceLineChart
+          data={chartData.swing}
+          color="#facc15"
+          label="Swing"
+          currentIndex={chartCurrentIndex}
+          windowStart={!isLocal ? windowTimelineRange?.start : undefined}
+          windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
+          positive={showRaw}
+          raw={showRaw}
+          style={chartStyle}
+          movingAvg={chartMA.swing}
+          average={chartAvg.swing}
+        />
+      </div>
+
+      {/* Right: Settings gear */}
+      <div className="relative flex items-center justify-center px-2 border-l border-border shrink-0 w-9" ref={popRef}>
         <button
           type="button"
           onClick={() => setSettingsOpen((o) => !o)}
-          className={`w-6 h-6 flex items-center justify-center rounded-md transition-colors ${
+          className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
             settingsOpen ? 'text-text-primary bg-white/8' : 'text-text-dim hover:text-text-primary hover:bg-white/6'
           }`}
           title="Force graph settings"
@@ -244,7 +365,7 @@ export default function ForceCharts() {
 
         {settingsOpen && (
           <div
-            className="absolute bottom-full left-0 mb-2 w-48 rounded-lg border border-white/10 py-2 px-2.5 z-50"
+            className="absolute bottom-full right-0 mb-2 w-48 rounded-lg border border-white/10 py-2 px-2.5 z-50"
             style={{ background: '#1a1a1a', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
           >
             <span className="text-[9px] uppercase tracking-widest text-text-dim block mb-2">
@@ -368,44 +489,6 @@ export default function ForceCharts() {
         )}
       </div>
 
-      {/* Force line charts */}
-      {FORCE_CONFIG.map((cfg) => (
-        <div
-          key={cfg.key}
-          className="flex-1 min-w-0 border-r border-border"
-        >
-          <ForceLineChart
-            data={chartData[cfg.key]}
-            color={cfg.color}
-            label={cfg.label}
-            currentIndex={chartCurrentIndex}
-            windowStart={!isLocal ? windowTimelineRange?.start : undefined}
-            windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
-            positive={showRaw}
-            raw={showRaw}
-            style={chartStyle}
-            movingAvg={chartMA[cfg.key]}
-            average={chartAvg[cfg.key]}
-          />
-        </div>
-      ))}
-
-      {/* Swing magnitude chart */}
-      <div className="flex-1 min-w-0">
-        <ForceLineChart
-          data={chartData.swing}
-          color="#facc15"
-          label="Swing"
-          currentIndex={chartCurrentIndex}
-          windowStart={!isLocal ? windowTimelineRange?.start : undefined}
-          windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
-          positive={showRaw}
-          raw={showRaw}
-          style={chartStyle}
-          movingAvg={chartMA.swing}
-          average={chartAvg.swing}
-        />
-      </div>
     </div>
   );
 }

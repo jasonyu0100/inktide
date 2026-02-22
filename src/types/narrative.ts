@@ -333,6 +333,8 @@ export type AutoConfig = {
   maxArcLength: number;
   /** World build every N arcs (0 = off) */
   worldBuildInterval: number;
+  /** How large each world-building expansion is */
+  worldBuildSize: 'small' | 'medium' | 'large';
   maxActiveThreads: number;
   threadStagnationThreshold: number;
   arcDirectionPrompt: string;

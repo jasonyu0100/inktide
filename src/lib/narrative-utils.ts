@@ -586,48 +586,48 @@ export interface NarrativeShape {
 const SHAPES = {
   rags_to_riches: {
     key: 'rags_to_riches',
-    name: 'Rags to Riches',
-    description: 'Steady rise — reader investment builds continuously to the end',
+    name: 'Sustained Rise',
+    description: 'Beats climb continuously — momentum builds from start to finish',
   },
   tragedy: {
     key: 'tragedy',
-    name: 'Tragedy',
-    description: 'Sustained fall — engagement declines as the story progresses',
+    name: 'Sustained Decline',
+    description: 'Beats fall throughout — intensity drains as the narrative progresses',
   },
   man_in_hole: {
     key: 'man_in_hole',
-    name: 'Man in Hole',
-    description: 'Dip then recovery — a setback overcome, ending above where it started',
+    name: 'Dip and Recovery',
+    description: 'Beats drop in the middle then climb back — low point followed by upswing',
   },
   icarus: {
     key: 'icarus',
-    name: 'Icarus',
-    description: 'Peaks early then falls — front-loaded climax with a declining close',
+    name: 'Front-Loaded',
+    description: 'Beats peak early then trail off — intensity concentrated at the opening',
   },
   cinderella: {
     key: 'cinderella',
-    name: 'Cinderella',
-    description: 'Rise, fall, then higher rise — a double emotional arc',
+    name: 'Double Arc',
+    description: 'Two distinct rises separated by a trough — beats crest, fall, then crest again',
   },
   one_climax: {
     key: 'one_climax',
-    name: 'One Climax',
-    description: 'Central peak with build and denouement — classical three-act shape',
+    name: 'Single Peak',
+    description: 'Beats converge on one central high — build, climax, resolution',
   },
   slow_burn: {
     key: 'slow_burn',
-    name: 'Slow Burn',
-    description: 'Long below-average setup before a strong finish — rewards patience',
+    name: 'Back-Loaded',
+    description: 'Beats stay low early then surge — intensity concentrated at the close',
   },
   episodic: {
     key: 'episodic',
-    name: 'Episodic',
-    description: 'Many peaks of roughly equal weight — serial or anthology structure',
+    name: 'Distributed Peaks',
+    description: 'Multiple beats of similar weight — no single dominant high point',
   },
   plateau: {
     key: 'plateau',
-    name: 'Plateau',
-    description: 'Low variance throughout — contemplative or deliberately measured pacing',
+    name: 'Flat',
+    description: 'Beats show little structural variation — measured and consistent throughout',
   },
 } satisfies Record<string, NarrativeShape>;
 

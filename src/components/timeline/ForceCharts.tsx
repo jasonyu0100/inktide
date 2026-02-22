@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 import ForceLineChart, { type ChartStyle } from './ForceLineChart';
 
 const FORCE_CONFIG = [
@@ -33,6 +33,7 @@ export default function ForceCharts() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scope, setScope] = useState<Scope>('global');
+  const [showRaw, setShowRaw] = useState(true);
   const [chartStyle, setChartStyle] = useState<ChartStyle>({
     showArea: true,
     showWindow: true,
@@ -77,7 +78,7 @@ export default function ForceCharts() {
     return computeWindowedForces(allScenes, currentSceneIdx);
   }, [allScenes, currentSceneIdx]);
 
-  // Full-history forces
+  // Full-history forces (normalized)
   const globalForceData = useMemo(() => {
     if (!narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
     const payoff: number[] = [];
@@ -97,7 +98,29 @@ export default function ForceCharts() {
     return { payoff, change, variety, swing: zScoreNormalize(computeSwings(payoff, change, variety)) };
   }, [narrative, allScenes, resolvedSceneKeys]);
 
-  // Window-only forces for local scope
+  // Full-history forces (raw)
+  const globalRawForceData = useMemo(() => {
+    if (!narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
+    const raw = computeRawForcetotals(allScenes);
+    const rawMap: Record<string, { payoff: number; change: number; variety: number }> = {};
+    allScenes.forEach((s, i) => { rawMap[s.id] = { payoff: raw.payoff[i], change: raw.change[i], variety: raw.variety[i] }; });
+    const payoff: number[] = [];
+    const change: number[] = [];
+    const variety: number[] = [];
+    let lastForce = { payoff: 0, change: 0, variety: 0 };
+    for (const k of resolvedSceneKeys) {
+      const entry = resolveEntry(narrative, k);
+      if (entry && isScene(entry)) {
+        lastForce = rawMap[entry.id] ?? lastForce;
+      }
+      payoff.push(lastForce.payoff);
+      change.push(lastForce.change);
+      variety.push(lastForce.variety);
+    }
+    return { payoff, change, variety, swing: computeSwings(payoff, change, variety) };
+  }, [narrative, allScenes, resolvedSceneKeys]);
+
+  // Window-only forces for local scope (normalized)
   const localForceData = useMemo(() => {
     if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
     const payoff: number[] = [];
@@ -112,6 +135,27 @@ export default function ForceCharts() {
       variety.push(lastForce.variety);
     }
     return { payoff, change, variety, swing: zScoreNormalize(computeSwings(payoff, change, variety)) };
+  }, [windowed, allScenes, narrative]);
+
+  // Window-only forces for local scope (raw)
+  const localRawForceData = useMemo(() => {
+    if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], variety: [] as number[], swing: [] as number[] };
+    const windowScenes = allScenes.slice(windowed.windowStart, windowed.windowEnd + 1);
+    const priorScenes = allScenes.slice(0, windowed.windowStart);
+    const raw = computeRawForcetotals(windowScenes, priorScenes);
+    const rawMap: Record<string, { payoff: number; change: number; variety: number }> = {};
+    windowScenes.forEach((s, i) => { rawMap[s.id] = { payoff: raw.payoff[i], change: raw.change[i], variety: raw.variety[i] }; });
+    const payoff: number[] = [];
+    const change: number[] = [];
+    const variety: number[] = [];
+    let lastForce = { payoff: 0, change: 0, variety: 0 };
+    for (const s of windowScenes) {
+      lastForce = rawMap[s.id] ?? lastForce;
+      payoff.push(lastForce.payoff);
+      change.push(lastForce.change);
+      variety.push(lastForce.variety);
+    }
+    return { payoff, change, variety, swing: computeSwings(payoff, change, variety) };
   }, [windowed, allScenes, narrative]);
 
   // Map window scene-indices back to timeline indices for chart highlight
@@ -131,7 +175,9 @@ export default function ForceCharts() {
   }, [windowed, allScenes, resolvedSceneKeys, narrative]);
 
   const isLocal = scope === 'local';
-  const chartData = isLocal ? localForceData : globalForceData;
+  const chartData = isLocal
+    ? (showRaw ? localRawForceData : localForceData)
+    : (showRaw ? globalRawForceData : globalForceData);
 
   // Moving averages for each force + swing
   const chartMA = useMemo(() => ({
@@ -284,7 +330,7 @@ export default function ForceCharts() {
             </label>
 
             {/* Show moving average */}
-            <label className="flex items-center justify-between cursor-pointer">
+            <label className="flex items-center justify-between mb-1.5 cursor-pointer">
               <span className="text-[11px] text-text-secondary">Moving average</span>
               <button
                 type="button"
@@ -297,6 +343,24 @@ export default function ForceCharts() {
               >
                 <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
                   chartStyle.showMovingAvg ? 'left-3.5' : 'left-0.5'
+                }`} />
+              </button>
+            </label>
+
+            {/* Raw scores */}
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-[11px] text-text-secondary">Raw scores</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showRaw}
+                onClick={() => setShowRaw((v) => !v)}
+                className={`w-7 h-4 rounded-full transition-colors relative ${
+                  showRaw ? 'bg-white/25' : 'bg-white/8'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
+                  showRaw ? 'left-3.5' : 'left-0.5'
                 }`} />
               </button>
             </label>
@@ -317,6 +381,8 @@ export default function ForceCharts() {
             currentIndex={chartCurrentIndex}
             windowStart={!isLocal ? windowTimelineRange?.start : undefined}
             windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
+            positive={showRaw}
+            raw={showRaw}
             style={chartStyle}
             movingAvg={chartMA[cfg.key]}
             average={chartAvg[cfg.key]}
@@ -333,6 +399,8 @@ export default function ForceCharts() {
           currentIndex={chartCurrentIndex}
           windowStart={!isLocal ? windowTimelineRange?.start : undefined}
           windowEnd={!isLocal ? windowTimelineRange?.end : undefined}
+          positive={showRaw}
+          raw={showRaw}
           style={chartStyle}
           movingAvg={chartMA.swing}
           average={chartAvg.swing}

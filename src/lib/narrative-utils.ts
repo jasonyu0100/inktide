@@ -495,7 +495,7 @@ function topAvg(arr: number[]): number {
 /** Streak factor based on score color zones.
  *
  *  Each arc earns credit based on its color zone:
- *    green (≥90) = 1.0, yellow-green (80-89) = 0.9, yellow (70-79) = 0.5,
+ *    green (≥90) = 1.0, yellow-green (80-89) = 0.8, yellow (70-79) = 0.5,
  *    orange (60-69) = 0.2, red (<60) = 0.0
  *
  *  The average credit forms the base score. A streak penalty then reduces
@@ -510,7 +510,7 @@ function consistencyFactor(arr: number[]): number {
   // Zone credit: maps arc score to color-zone reward [0, 1]
   const credit = (s: number) => {
     if (s >= 90) return 1.0;   // green
-    if (s >= 80) return 0.9;   // yellow-green
+    if (s >= 80) return 0.8;   // yellow-green
     if (s >= 70) return 0.5;   // yellow
     if (s >= 60) return 0.2;   // orange
     return 0.0;                // red

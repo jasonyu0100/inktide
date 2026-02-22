@@ -619,7 +619,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   });
 
   // Raw force toggle (absolute values vs z-score normalised)
-  const [showRawForce, setShowRawForce] = useState(false);
+  const [showRawForce, setShowRawForce] = useState(true);
 
   // Drawing state
   const [drawing, setDrawing] = useState(false);

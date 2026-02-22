@@ -20,6 +20,8 @@ type ForceLineChartProps = {
   windowEnd?: number;
   /** If true, domain starts at 0 (for always-positive values like swing magnitude) */
   positive?: boolean;
+  /** If true, shows a disclaimer that values are raw (not normalized) */
+  raw?: boolean;
   style?: ChartStyle;
   /** Optional moving average overlay data (same length as data) */
   movingAvg?: number[];
@@ -41,6 +43,7 @@ export default function ForceLineChart({
   windowStart,
   windowEnd,
   positive,
+  raw,
   style,
   movingAvg,
   average,
@@ -216,8 +219,13 @@ export default function ForceLineChart({
     <div className="flex-1 flex flex-col px-2 py-1.5 min-w-0 overflow-hidden">
       {/* Header */}
       <div className="flex items-baseline justify-between mb-0.5">
-        <span className="text-[9px] uppercase tracking-wider text-text-dim">
-          {label}
+        <span className="flex items-baseline gap-1">
+          <span className="text-[9px] uppercase tracking-wider text-text-dim">
+            {label}
+          </span>
+          {raw && (
+            <span className="text-[8px] text-text-dim opacity-50">raw</span>
+          )}
         </span>
         <span className="flex items-center gap-1.5">
           {average !== undefined && (

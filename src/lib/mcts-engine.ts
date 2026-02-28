@@ -60,7 +60,7 @@ export function selectNode(
   config: MCTSConfig,
   inFlightCounts: Map<MCTSNodeId | 'root', number> = new Map(),
 ): MCTSNodeId | null {
-  const maxChildren = config.searchMode === 'baseline' ? Infinity : MAX_NODE_CHILDREN;
+  const maxChildren = config.searchMode === 'baseline' && !config.fullTree ? Infinity : config.branchingFactor;
   const C = SEARCH_MODE_C[config.searchMode];
 
   const slotsAvailable = (id: MCTSNodeId | 'root', childCount: number): boolean =>
@@ -117,7 +117,7 @@ function findExpandableNode(
   config: MCTSConfig,
   inFlightCounts: Map<MCTSNodeId | 'root', number>,
 ): MCTSNodeId | null {
-  const maxChildren = config.searchMode === 'baseline' ? Infinity : MAX_NODE_CHILDREN;
+  const maxChildren = config.searchMode === 'baseline' && !config.fullTree ? Infinity : config.branchingFactor;
   for (const node of Object.values(tree.nodes)) {
     if (node.depth < config.maxDepth - 1) {
       const inFlight = inFlightCounts.get(node.id) ?? 0;

@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree } from '@/types/mcts';
-import { DEFAULT_MCTS_CONFIG, BEAT_DIRECTIONS } from '@/types/mcts';
+import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING, BEAT_DIRECTIONS } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
 import { NARRATIVE_CUBE, type Scene } from '@/types/narrative';
@@ -906,6 +906,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                     <input type="range" min={1} max={10} step={1} value={config.maxDepth} onChange={(e) => setConfig((c) => ({ ...c, maxDepth: Number(e.target.value) }))} className="w-full accent-blue-500" />
                     <p className="text-[9px] text-text-dim mt-0.5">Max arcs-deep the tree can grow. Each depth level is a new arc after the previous one — deeper = longer narrative chains.</p>
                   </div>
+
                 </div>
               </>
             )}
@@ -931,7 +932,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                       </div>
                     </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.searchMode === 'baseline' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="searchMode" checked={config.searchMode === 'baseline'} onChange={() => setConfig((c) => ({ ...c, searchMode: 'baseline' }))} className="accent-blue-500 mt-0.5" />
+                      <input type="radio" name="searchMode" checked={config.searchMode === 'baseline'} onChange={() => setConfig((c) => ({ ...c, searchMode: 'baseline', fullTree: false }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Baseline</div>
                         <div className="text-[9px] text-text-dim">Quality gating. At each depth, keep generating arcs until one meets the target score, then go deeper. No child limit — cube positions can be retried. Workers run sequentially for precise layer control.</div>
@@ -950,6 +951,44 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                   )}
                 </div>
 
+                {/* Tree shape: Freedom vs Constrained — hidden when baseline (always freedom) */}
+                {config.searchMode !== 'baseline' && (
+                  <div className="border-t border-border pt-4">
+                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Tree Shape</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${!config.fullTree ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                        <input type="radio" name="treeShape" checked={!config.fullTree} onChange={() => setConfig((c) => ({ ...c, fullTree: false, branchingFactor: DEFAULT_BRANCHING[c.directionMode] }))} className="accent-blue-500 mt-0.5" />
+                        <div>
+                          <div className="text-xs text-text-primary font-medium">Freedom</div>
+                          <div className="text-[9px] text-text-dim">UCB1 decides which branches to grow. Tree shape is organic — promising paths get more children, dead ends are abandoned. Width capped at {config.directionMode === 'beats' ? '4' : '8'} (all {config.directionMode === 'beats' ? 'beat directions' : 'cube corners'}).</div>
+                        </div>
+                      </label>
+                      <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.fullTree ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                        <input type="radio" name="treeShape" checked={config.fullTree} onChange={() => setConfig((c) => ({ ...c, fullTree: true, branchingFactor: DEFAULT_BRANCHING[c.directionMode] }))} className="accent-blue-500 mt-0.5" />
+                        <div>
+                          <div className="text-xs text-text-primary font-medium">Constrained</div>
+                          <div className="text-[9px] text-text-dim">Build a complete tree — every node at each depth gets exactly the branching factor number of children before going deeper. Defaults to {config.directionMode === 'beats' ? '4 (beat directions)' : '8 (cube corners)'}.</div>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* Branching factor — only in constrained mode */}
+                    {config.fullTree && (
+                      <div className="mt-3 pl-6">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-text-secondary">Branching factor</span>
+                          <span className="text-xs font-mono text-text-primary">{config.branchingFactor}</span>
+                        </div>
+                        <input type="range" min={1} max={config.directionMode === 'cube' ? 8 : 4} step={1} value={config.branchingFactor} onChange={(e) => setConfig((c) => ({ ...c, branchingFactor: Number(e.target.value) }))} className="w-full accent-blue-500" />
+                        <p className="text-[9px] text-text-dim mt-0.5">
+                          Children per node — override the default if you want a narrower tree.
+                          {' '}Generates {(() => { let total = 0; for (let d = 0; d < config.maxDepth; d++) total += Math.pow(config.branchingFactor, d + 1); return total; })()} total arcs for a {config.branchingFactor}×{config.maxDepth} tree.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
               </>
             )}
 
@@ -960,14 +999,14 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                   <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Mode</label>
                   <div className="flex flex-col gap-1.5">
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'beats' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionMode" checked={config.directionMode === 'beats'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'beats' }))} className="accent-blue-500 mt-0.5" />
+                      <input type="radio" name="directionMode" checked={config.directionMode === 'beats'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'beats', branchingFactor: c.fullTree ? DEFAULT_BRANCHING.beats : c.branchingFactor }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Beat Directions</div>
                         <div className="text-[9px] text-text-dim">4 moves per node targeting the beat curve directly — <span className="text-green-400">Escalate</span> (rising), <span className="text-blue-400">Release</span> (falling), <span className="text-amber-400">Surge</span> (peak then still), <span className="text-purple-400">Rebound</span> (still then rising). The four fundamental curve shapes.</div>
                       </div>
                     </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'cube' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionMode" checked={config.directionMode === 'cube'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'cube' }))} className="accent-blue-500 mt-0.5" />
+                      <input type="radio" name="directionMode" checked={config.directionMode === 'cube'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'cube', branchingFactor: c.fullTree ? DEFAULT_BRANCHING.cube : c.branchingFactor }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Cube Positions</div>
                         <div className="text-[9px] text-text-dim">8 moves per node — every combination of <span style={{color:'#EF4444'}}>Payoff</span>, <span style={{color:'#22C55E'}}>Change</span>, and <span style={{color:'#3B82F6'}}>Variety</span> at high or low. Derived from the narrative cube model.</div>
@@ -977,28 +1016,26 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                 </div>
 
                 {/* Direction Order */}
-                {config.directionMode === 'cube' && (
                 <div className="border-t border-border pt-4">
                   <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Order</label>
-                  <p className="text-[9px] text-text-dim mb-2">Which cube corner each worker explores next. The 8 cube positions are the available moves from any node — like pieces on a board.</p>
+                  <p className="text-[9px] text-text-dim mb-2">{config.directionMode === 'cube' ? 'Which cube corner each worker explores next. The 8 cube positions are the available moves from any node — like pieces on a board.' : 'Which beat direction each worker explores next. The 4 beat curves are the available moves from any node.'}</p>
                   <div className="flex flex-col gap-1.5">
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${!config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
                       <input type="radio" name="directionOrder" checked={!config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: false }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Deterministic</div>
-                        <div className="text-[9px] text-text-dim">{config.searchMode === 'exploit' ? 'Closest cube corners tried first — steers toward narrative continuity with the parent.' : 'Most diverse corners tried first — maximises spread across all 8 cube positions.'}</div>
+                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? (config.searchMode === 'exploit' ? 'Closest cube corners tried first — steers toward narrative continuity with the parent.' : 'Most diverse corners tried first — maximises spread across all 8 cube positions.') : 'Cycle through beat directions in canonical order — Escalate, Release, Surge, Rebound.'}</div>
                       </div>
                     </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
                       <input type="radio" name="directionOrder" checked={config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: true }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Random</div>
-                        <div className="text-[9px] text-text-dim">Workers pick a random unused cube corner each time. Results vary across runs — good for open-ended creative exploration.</div>
+                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? 'Workers pick a random unused cube corner each time. Results vary across runs — good for open-ended creative exploration.' : 'Workers pick a random unused beat direction each time. Results vary across runs — good for open-ended creative exploration.'}</div>
                       </div>
                     </label>
                   </div>
                 </div>
-                )}
 
                 {/* Path Selection */}
                 <div className="border-t border-border pt-4">

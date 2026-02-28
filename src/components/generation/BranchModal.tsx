@@ -43,11 +43,17 @@ function buildGrid(
   }
 
   const byId = new Map(allBranches.map(b => [b.id, b]));
+  const activeSeq = resolveSceneSequence(narrative.branches, activeBranchId);
+  const activeEntrySet = new Set(activeSeq);
 
-  // Full resolved sequences for every branch
-  const seqs = new Map<string, string[]>();
-  for (const b of allBranches) {
-    seqs.set(b.id, resolveSceneSequence(narrative.branches, b.id));
+  // Build ancestry set — branches in the active branch's parent chain
+  const ancestrySet = new Set<string>();
+  {
+    let bid = byId.get(activeBranchId)?.parentBranchId ?? null;
+    while (bid) {
+      ancestrySet.add(bid);
+      bid = byId.get(bid)?.parentBranchId ?? null;
+    }
   }
 
   // Topological sort of non-current branches (ancestors before descendants)
@@ -68,44 +74,88 @@ function buildGrid(
   ];
   const numCols = columns.length;
   const currentCol = numCols - 1;
-  const currentSeq = seqs.get(activeBranchId) ?? [];
 
-  // Per-branch: find LCP with current seq and compute divergent entries
-  type Track = { col: number; forkIdx: number; div: string[] };
-  const tracks: Track[] = others.map((b, i) => {
-    const seq = seqs.get(b.id) ?? [];
-    let lcp = 0;
-    while (lcp < currentSeq.length && lcp < seq.length && currentSeq[lcp] === seq[lcp]) lcp++;
-    return { col: i, forkIdx: lcp - 1, div: seq.slice(lcp) };
-  });
+  // Track entry positions per branch (entryId → row)
+  type BranchTrack = { col: number; entryPositions: Map<string, number> };
+  const tracks = new Map<string, BranchTrack>();
 
-  const totalRows = Math.max(
-    currentSeq.length,
-    ...tracks.map(t => Math.max(0, t.forkIdx + 1) + t.div.length),
-    1,
-  );
+  // Active branch track — every entry in its resolved sequence
+  const activePositions = new Map(activeSeq.map((eid, i) => [eid, i]));
+  tracks.set(activeBranchId, { col: currentCol, entryPositions: activePositions });
 
+  const forkConnectors: ForkConnector[] = [];
+  let totalRows = activeSeq.length;
+
+  for (const b of others) {
+    const col = columns.findIndex(c => c.branchId === b.id);
+    const isAncestor = ancestrySet.has(b.id);
+
+    let forkRow: number;
+    let forkCol: number;
+    let entriesToShow: string[];
+
+    if (isAncestor) {
+      // Ancestor of active branch — use LCP to find where it diverges,
+      // show only entries NOT inherited by the active branch
+      const seq = resolveSceneSequence(narrative.branches, b.id);
+      let lcp = 0;
+      while (lcp < activeSeq.length && lcp < seq.length && activeSeq[lcp] === seq[lcp]) lcp++;
+      forkRow = lcp - 1;
+      forkCol = currentCol;
+      entriesToShow = b.entryIds.filter(eid => !activeEntrySet.has(eid));
+    } else {
+      // Non-ancestor — use actual parentBranchId / forkEntryId
+      forkRow = -1;
+      forkCol = currentCol;
+
+      if (b.forkEntryId) {
+        // Check non-active parent's track first (processed earlier due to topo sort)
+        if (b.parentBranchId && b.parentBranchId !== activeBranchId) {
+          const parentTrack = tracks.get(b.parentBranchId);
+          if (parentTrack && parentTrack.entryPositions.has(b.forkEntryId)) {
+            forkRow = parentTrack.entryPositions.get(b.forkEntryId)!;
+            forkCol = parentTrack.col;
+          }
+        }
+        // Fallback: fork entry is on the active/shared line
+        if (forkRow === -1 && activePositions.has(b.forkEntryId)) {
+          forkRow = activePositions.get(b.forkEntryId)!;
+          forkCol = currentCol;
+        }
+      }
+
+      entriesToShow = b.entryIds;
+    }
+
+    const startRow = forkRow + 1;
+    const entryPositions = new Map<string, number>();
+    entriesToShow.forEach((eid, i) => { entryPositions.set(eid, startRow + i); });
+
+    tracks.set(b.id, { col, entryPositions });
+    totalRows = Math.max(totalRows, startRow + entriesToShow.length);
+
+    if (entriesToShow.length > 0 && forkRow >= 0) {
+      forkConnectors.push({ fromRow: forkRow, fromCol: forkCol, toRow: startRow, toCol: col });
+    }
+  }
+
+  // Build grid rows
   const rows: GridRow[] = Array.from({ length: totalRows }, () => ({
     colEntryIds: Array<string | null>(numCols).fill(null),
   }));
 
-  // Current branch fills every row of its sequence
-  for (let i = 0; i < currentSeq.length && i < totalRows; i++) {
-    rows[i].colEntryIds[currentCol] = currentSeq[i];
+  // Active branch fills its column with full resolved sequence
+  for (let i = 0; i < activeSeq.length && i < totalRows; i++) {
+    rows[i].colEntryIds[currentCol] = activeSeq[i];
   }
 
-  // Other branches: only their divergent entries (no shared-ancestor dots)
-  for (const t of tracks) {
-    for (let j = 0; j < t.div.length; j++) {
-      const row = t.forkIdx + 1 + j;
-      if (row >= 0 && row < totalRows) rows[row].colEntryIds[t.col] = t.div[j];
+  // Other branches fill their columns with their own entries only
+  for (const b of others) {
+    const track = tracks.get(b.id)!;
+    for (const [eid, row] of track.entryPositions) {
+      if (row >= 0 && row < totalRows) rows[row].colEntryIds[track.col] = eid;
     }
   }
-
-  // Fork connectors: bezier from current branch at fork point → branch first entry
-  const forkConnectors: ForkConnector[] = tracks
-    .filter(t => t.div.length > 0 && t.forkIdx >= 0)
-    .map(t => ({ fromRow: t.forkIdx, fromCol: currentCol, toRow: t.forkIdx + 1, toCol: t.col }));
 
   return { columns, rows, forkConnectors };
 }

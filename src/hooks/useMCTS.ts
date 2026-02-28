@@ -19,7 +19,6 @@ import {
   getAncestorChain,
   nextNodeId,
   resetNodeCounter,
-  MAX_NODE_CHILDREN,
 } from '@/lib/mcts-engine';
 import { buildVirtualState, scoreArc, extractOrderedScenes } from '@/lib/mcts-state';
 
@@ -287,6 +286,88 @@ export function useMCTS() {
         if (!layerMet) break;
       }
 
+    } else if (config.fullTree) {
+      // ── Full-tree mode: exhaustively expand every node at each depth ──
+      // For each depth 0..maxDepth-1, collect all nodes (or root) at the current
+      // frontier and generate exactly branchingFactor children for each, using
+      // parallel workers. Incompatible with baseline (enforced in UI).
+
+      for (let depth = 0; depth < config.maxDepth; depth++) {
+        if (shouldStop()) break;
+
+        // Collect parents at this depth (depth 0 = root)
+        const parents: (MCTSNodeId | 'root')[] = depth === 0
+          ? ['root']
+          : Object.values(tree.nodes)
+              .filter((n) => n.depth === depth - 1)
+              .map((n) => n.id);
+
+        if (parents.length === 0) break;
+
+        for (const parentTarget of parents) {
+          if (shouldStop()) break;
+
+          const existingChildCount = parentTarget === 'root'
+            ? tree.rootChildIds.length
+            : (tree.nodes[parentTarget]?.childIds.length ?? 0);
+          const remaining = config.branchingFactor - existingChildCount;
+          if (remaining <= 0) continue;
+
+          // Generate `remaining` children in parallel batches
+          const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
+          let generated = 0;
+
+          while (generated < remaining && !shouldStop()) {
+            const batchSize = Math.min(config.parallelism, remaining - generated);
+            const batch: Promise<ExpansionResult | null>[] = [];
+
+            for (let i = 0; i < batchSize; i++) {
+              const prep = prepareSlot(parentTarget, inFlightGoals);
+              if (!prep) break;
+
+              const goal = prep.cubeGoal ?? prep.beatGoal;
+              inFlightGoals.set(parentTarget, [...(inFlightGoals.get(parentTarget) ?? []), goal]);
+
+              batch.push(runSingleExpansion(
+                prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
+                prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
+                prep.existingSiblings, activeBranchId,
+                tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
+              ));
+            }
+
+            if (batch.length === 0) break;
+
+            const results = await Promise.all(batch);
+            inFlightGoals.delete(parentTarget);
+
+            for (const result of results) {
+              if (cancelledRef.current) break;
+              if (!result) continue;
+
+              const nodeId = nextNodeId();
+              tree = addChildNode(
+                tree, result.targetId === 'root' ? 'root' : result.targetId,
+                nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+                result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
+                result.score,
+              );
+              tree = backpropagate(tree, nodeId);
+              nodesGenerated++;
+              generated++;
+            }
+
+            const best = bestPath(tree, config.pathStrategy);
+            setRunState((prev) => ({
+              ...prev,
+              tree,
+              iterationsCompleted: nodesGenerated,
+              bestPath: best,
+            }));
+          }
+        }
+      }
+
     } else {
       // ── Standard MCTS (exploit/explore): parallel sliding window ─────
       // Maintain `parallelism` concurrent generation slots. Each slot independently
@@ -372,7 +453,7 @@ export function useMCTS() {
           // Mark parent expanded when all 8 cube corners have been tried
           if (result.targetId !== 'root') {
             const parent = tree.nodes[result.targetId];
-            if (parent && parent.childIds.length >= MAX_NODE_CHILDREN) {
+            if (parent && parent.childIds.length >= config.branchingFactor) {
               tree = markExpanded(tree, result.targetId);
             }
           }
@@ -521,7 +602,7 @@ export function useMCTS() {
           tree = backpropagate(tree, nodeId);
           if (result.targetId !== 'root') {
             const parent = tree.nodes[result.targetId];
-            if (parent && parent.childIds.length >= MAX_NODE_CHILDREN) tree = markExpanded(tree, result.targetId);
+            if (parent && parent.childIds.length >= runState.config.branchingFactor) tree = markExpanded(tree, result.targetId);
           }
           generated++;
           const best = bestPath(tree, runState.config.pathStrategy);
@@ -666,7 +747,7 @@ export function useMCTS() {
           tree = backpropagate(tree, nodeId);
           if (result.targetId !== 'root') {
             const parent = tree.nodes[result.targetId];
-            if (parent && parent.childIds.length >= MAX_NODE_CHILDREN) tree = markExpanded(tree, result.targetId);
+            if (parent && parent.childIds.length >= updatedConfig.branchingFactor) tree = markExpanded(tree, result.targetId);
           }
           generated++;
           const best = bestPath(tree, updatedConfig.pathStrategy);

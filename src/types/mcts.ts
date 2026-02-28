@@ -118,6 +118,8 @@ export type MCTSConfig = {
   baselineScore: number;      // Target score per layer (baseline mode)
   randomDirections: boolean;  // If true, pick next cube corner randomly (ignores mode-based ordering)
   directionMode: DirectionMode; // Whether to use cube corners or engagement arc directions
+  branchingFactor: number;    // Max children per node (hard limit on tree width)
+  fullTree: boolean;          // If true, exhaustively expand every node at each depth before going deeper
   worldBuildFocusId?: string; // Optional world build commit to seed all generations with
 };
 
@@ -132,6 +134,14 @@ export const DEFAULT_MCTS_CONFIG: MCTSConfig = {
   baselineScore: 80,
   randomDirections: false,
   directionMode: 'beats',
+  branchingFactor: 4,
+  fullTree: false,
+};
+
+/** Default branching factor per direction mode */
+export const DEFAULT_BRANCHING: Record<DirectionMode, number> = {
+  beats: 4,
+  cube: 8,
 };
 
 /** UCB1 exploration constant per mode (baseline uses exploit-level C) */

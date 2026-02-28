@@ -587,6 +587,7 @@ export async function generateScenes(
   cubeGoal?: CubeCornerKey,
   rejectSiblings?: { name: string; summary: string }[],
   worldBuildFocus?: WorldBuildCommit,
+  onToken?: (token: string) => void,
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
@@ -702,7 +703,9 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
   Location IDs: ${Object.keys(narrative.locations).join(', ')}
   Thread IDs: ${Object.keys(narrative.threads).join(', ')}`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'generateScenes');
+  const raw = onToken
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, undefined, 'generateScenes')
+    : await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'generateScenes');
 
   const parsed = parseJson(raw, 'generateScenes') as { arcName?: string; scenes: Scene[] };
   const arcName = existingArc?.name ?? parsed.arcName ?? 'Untitled Arc';

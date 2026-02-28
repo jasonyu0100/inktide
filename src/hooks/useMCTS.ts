@@ -4,7 +4,7 @@ import { useRef, useCallback, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes } from '@/lib/ai';
 import type { NarrativeState, Scene, CubeCornerKey, WorldBuildCommit } from '@/types/narrative';
-import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, BeatDirection } from '@/types/mcts';
+import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, BeatDirection, PendingExpansion } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
 import type { Arc } from '@/types/narrative';
 import {
@@ -54,7 +54,8 @@ export function useMCTS() {
       config: DEFAULT_MCTS_CONFIG,
       iterationsCompleted: 0,
       currentPhase: null,
-      expandingNodeId: null,
+      expandingNodeIds: [],
+      pendingExpansions: {},
       selectedPath: null,
       bestPath: null,
       startedAt: null,
@@ -62,8 +63,61 @@ export function useMCTS() {
     };
   });
 
-  const updatePhase = useCallback((phase: MCTSPhase | null, expandingNodeId: MCTSNodeId | null = null) => {
-    setRunState((prev) => ({ ...prev, currentPhase: phase, expandingNodeId }));
+  const updatePhase = useCallback((phase: MCTSPhase | null) => {
+    setRunState((prev) => ({ ...prev, currentPhase: phase }));
+  }, []);
+
+  /** Register a pending expansion slot and return its id + onToken callback */
+  const addPendingExpansion = useCallback((
+    parentId: MCTSNodeId | 'root',
+    direction: string,
+    cubeGoal: CubeCornerKey | null,
+    beatGoal: BeatDirection | null,
+  ): { slotId: string; onToken: (token: string) => void } => {
+    const slotId = `slot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const pending: PendingExpansion = {
+      id: slotId, parentId, direction, cubeGoal, beatGoal, streamText: '', startedAt: Date.now(),
+    };
+    setRunState((prev) => {
+      const parentNodeId = parentId === 'root' ? null : parentId;
+      const expandingNodeIds = parentNodeId && !prev.expandingNodeIds.includes(parentNodeId)
+        ? [...prev.expandingNodeIds, parentNodeId]
+        : prev.expandingNodeIds;
+      return {
+        ...prev,
+        expandingNodeIds,
+        pendingExpansions: { ...prev.pendingExpansions, [slotId]: pending },
+      };
+    });
+    const onToken = (token: string) => {
+      setRunState((prev) => {
+        const slot = prev.pendingExpansions[slotId];
+        if (!slot) return prev;
+        return {
+          ...prev,
+          pendingExpansions: { ...prev.pendingExpansions, [slotId]: { ...slot, streamText: slot.streamText + token } },
+        };
+      });
+    };
+    return { slotId, onToken };
+  }, []);
+
+  /** Remove a pending expansion slot and recalculate expandingNodeIds */
+  const removePendingExpansion = useCallback((slotId: string) => {
+    setRunState((prev) => {
+      const { [slotId]: _removed, ...rest } = prev.pendingExpansions;
+      // Recalculate which parent nodes still have active expansions
+      const activeParents = new Set(
+        Object.values(rest)
+          .map((p) => p.parentId)
+          .filter((id): id is MCTSNodeId => id !== 'root'),
+      );
+      return {
+        ...prev,
+        pendingExpansions: rest,
+        expandingNodeIds: Array.from(activeParents),
+      };
+    });
   }, []);
 
   const updateStatus = useCallback((status: MCTSStatus) => {
@@ -94,14 +148,19 @@ export function useMCTS() {
     rootCurrentIndex: number,
     worldBuildFocus: WorldBuildCommit | undefined,
   ): Promise<ExpansionResult | null> => {
-    updatePhase('expanding', targetId === 'root' ? null : targetId);
+    updatePhase('expanding');
+
+    const { slotId, onToken } = addPendingExpansion(targetId, direction, cubeGoal, beatGoal);
 
     const result = await generateScenes(
       parentNarrative, parentKeys, parentIndex, 0,
       direction, undefined, cubeGoal ?? undefined,
       existingSiblings.length > 0 ? existingSiblings : undefined,
       worldBuildFocus,
+      onToken,
     ).catch((err) => { console.error('[mcts] generation error:', err); return null; });
+
+    removePendingExpansion(slotId);
 
     if (!result || cancelledRef.current) return null;
 
@@ -122,7 +181,7 @@ export function useMCTS() {
       virtualCurrentIndex: parentVirtual.currentIndex,
       score,
     };
-  }, [updatePhase]);
+  }, [updatePhase, addPendingExpansion, removePendingExpansion]);
 
   // ── Main loop ──────────────────────────────────────────────────────────────
 
@@ -145,7 +204,8 @@ export function useMCTS() {
       config,
       iterationsCompleted: 0,
       currentPhase: null,
-      expandingNodeId: null,
+      expandingNodeIds: [],
+      pendingExpansions: {},
       bestPath: null,
       startedAt: startTime,
       effectiveBaseline: null,
@@ -202,10 +262,11 @@ export function useMCTS() {
     };
 
     if (config.searchMode === 'baseline') {
-      // ── Baseline mode: layer-by-layer, sequential ─────────────────────
+      // ── Baseline mode: layer-by-layer, parallel sliding window ────────
       // At each depth, keep adding children to the target parent until a node
-      // meets the baseline score. No parallel slots — sequential expansions.
-      // No child limit per node (cube positions can be retried).
+      // meets the baseline score. Runs in "freedom mode" — no branching factor
+      // cap, allowing unlimited children per parent to find the baseline.
+      // Workers are bounded only by `parallelism` (all slots target the same parent).
 
       for (let depth = 0; depth < config.maxDepth; depth++) {
         if (shouldStop()) break;
@@ -230,57 +291,100 @@ export function useMCTS() {
 
         const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
 
-        while (!layerMet && !shouldStop()) {
-          const prep = prepareSlot(parentTarget, inFlightGoals);
-          if (!prep) break;
+        type BaselineSlotEntry = {
+          seq: number;
+          goal: string | null;
+          promise: Promise<{ result: ExpansionResult | null; seq: number }>;
+        };
 
-          const result = await runSingleExpansion(
+        const activeSlots: BaselineSlotEntry[] = [];
+        let slotSeq = 0;
+
+        const tryStartBaselineSlot = (): boolean => {
+          if (cancelledRef.current || shouldStop() || layerMet) return false;
+
+          const prep = prepareSlot(parentTarget, inFlightGoals);
+          if (!prep) return false;
+
+          const goal = prep.cubeGoal ?? prep.beatGoal;
+          inFlightGoals.set(parentTarget, [...(inFlightGoals.get(parentTarget) ?? []), goal]);
+
+          const seq = slotSeq++;
+          const promise = runSingleExpansion(
             prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
             prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
             prep.existingSiblings, activeBranchId,
             tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-          );
+          ).then((result) => ({ result, seq }));
 
-          if (cancelledRef.current) break;
-          nodesGenerated++;
+          activeSlots.push({ seq, goal, promise });
+          return true;
+        };
 
-          if (result) {
+        // Fill initial slots — baseline has no branching cap, so all parallelism slots can start
+        for (let i = 0; i < config.parallelism; i++) {
+          if (!tryStartBaselineSlot()) break;
+        }
+
+        // Sliding window: process results and refill
+        while (activeSlots.length > 0 && !cancelledRef.current) {
+          const { result, seq } = await Promise.race(activeSlots.map((s) => s.promise));
+
+          const completedIdx = activeSlots.findIndex((s) => s.seq === seq);
+          if (completedIdx === -1) continue;
+          const completed = activeSlots.splice(completedIdx, 1)[0];
+
+          // Release in-flight goal
+          const targetGoals = inFlightGoals.get(parentTarget) ?? [];
+          const goalIdx = targetGoals.indexOf(completed.goal);
+          if (goalIdx >= 0) targetGoals.splice(goalIdx, 1);
+          if (targetGoals.length === 0) inFlightGoals.delete(parentTarget);
+
+          if (result && !cancelledRef.current) {
+            nodesGenerated++;
             const nodeId = nextNodeId();
             tree = addChildNode(
-              tree, result.targetId === 'root' ? 'root' : result.targetId,
+              tree, parentTarget,
               nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
               result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
               result.score,
             );
             tree = backpropagate(tree, nodeId);
-          }
 
-          const nodesAtDepth = Object.values(tree.nodes).filter((n) => n.depth === depth);
-          const bestAtDepth = Math.max(...nodesAtDepth.map((n) => n.immediateScore), 0);
-          layerMet = bestAtDepth >= layerBaseline;
+            // Check if baseline met
+            const nodesAtDepth = Object.values(tree.nodes).filter((n) => n.depth === depth);
+            const bestAtDepth = Math.max(...nodesAtDepth.map((n) => n.immediateScore), 0);
+            layerMet = bestAtDepth >= layerBaseline;
 
-          if (bestAtDepth <= prevBestScore) {
-            staleRounds++;
-            if (staleRounds >= staleThreshold && !layerMet) {
-              layerBaseline = Math.max(50, layerBaseline - 5);
-              currentEffective = layerBaseline;
+            // Stagnation detection
+            if (bestAtDepth <= prevBestScore) {
+              staleRounds++;
+              if (staleRounds >= staleThreshold && !layerMet) {
+                layerBaseline = Math.max(50, layerBaseline - 5);
+                currentEffective = layerBaseline;
+                staleRounds = 0;
+                staleThreshold = 1;
+                layerMet = nodesAtDepth.some((n) => n.immediateScore >= layerBaseline);
+              }
+            } else {
+              prevBestScore = bestAtDepth;
               staleRounds = 0;
-              staleThreshold = 1;
-              layerMet = nodesAtDepth.some((n) => n.immediateScore >= layerBaseline);
             }
-          } else {
-            prevBestScore = bestAtDepth;
-            staleRounds = 0;
+
+            const best = bestPath(tree, config.pathStrategy);
+            setRunState((prev) => ({
+              ...prev,
+              tree,
+              iterationsCompleted: nodesGenerated,
+              bestPath: best,
+              ...(currentEffective != null ? { effectiveBaseline: currentEffective } : {}),
+            }));
           }
 
-          const best = bestPath(tree, config.pathStrategy);
-          setRunState((prev) => ({
-            ...prev,
-            tree,
-            iterationsCompleted: nodesGenerated,
-            bestPath: best,
-            ...(currentEffective != null ? { effectiveBaseline: currentEffective } : {}),
-          }));
+          // Start replacement only if layer not yet met
+          if (!layerMet && !shouldStop() && !cancelledRef.current) {
+            tryStartBaselineSlot();
+          }
         }
 
         if (!layerMet) break;
@@ -374,6 +478,8 @@ export function useMCTS() {
       // selects the most promising unexpanded node via UCB1, generates one arc,
       // and immediately feeds the result back into the tree. When a slot finishes,
       // a new one starts — keeping the window full at all times.
+      // Workers are bounded by tree capacity: selectNode accounts for in-flight
+      // counts, so no more workers launch than the tree can absorb.
 
       type SlotEntry = {
         seq: number;
@@ -409,11 +515,11 @@ export function useMCTS() {
         ).then((result) => ({ result, seq }));
 
         activeSlots.push({ seq, targetId, goal, promise });
-        updatePhase('expanding', targetId === 'root' ? null : targetId);
+        updatePhase('expanding');
         return true;
       };
 
-      // Fill initial slots
+      // Fill initial slots — bounded by tree capacity via selectNode + inFlightCounts
       for (let i = 0; i < config.parallelism; i++) {
         if (!tryStartSlot()) break;
       }
@@ -480,7 +586,8 @@ export function useMCTS() {
         ...prev,
         status: 'complete',
         currentPhase: null,
-        expandingNodeId: null,
+        expandingNodeIds: [],
+        pendingExpansions: {},
       }));
     }
 
@@ -612,7 +719,7 @@ export function useMCTS() {
       }
 
       if (!cancelledRef.current) {
-        setRunState((prev) => ({ ...prev, status: 'complete', currentPhase: null, expandingNodeId: null }));
+        setRunState((prev) => ({ ...prev, status: 'complete', currentPhase: null, expandingNodeIds: [], pendingExpansions: {} }));
       }
       runningRef.current = false;
     })();
@@ -628,7 +735,8 @@ export function useMCTS() {
       status: 'idle',
       iterationsCompleted: 0,
       currentPhase: null,
-      expandingNodeId: null,
+      expandingNodeIds: [],
+      pendingExpansions: {},
       selectedPath: null,
       bestPath: null,
       startedAt: null,
@@ -655,7 +763,8 @@ export function useMCTS() {
       status: 'running',
       config: updatedConfig,
       currentPhase: null,
-      expandingNodeId: null,
+      expandingNodeIds: [],
+      pendingExpansions: {},
       startedAt: Date.now(),
     }));
 
@@ -757,7 +866,7 @@ export function useMCTS() {
       }
 
       if (!cancelledRef.current) {
-        setRunState((prev) => ({ ...prev, status: 'complete', currentPhase: null, expandingNodeId: null }));
+        setRunState((prev) => ({ ...prev, status: 'complete', currentPhase: null, expandingNodeIds: [], pendingExpansions: {} }));
       }
       runningRef.current = false;
     })();
@@ -796,7 +905,8 @@ export function useMCTS() {
       status: 'idle',
       iterationsCompleted: 0,
       currentPhase: null,
-      expandingNodeId: null,
+      expandingNodeIds: [],
+      pendingExpansions: {},
       selectedPath: null,
       bestPath: null,
       startedAt: null,

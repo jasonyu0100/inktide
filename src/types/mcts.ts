@@ -124,7 +124,7 @@ export type MCTSConfig = {
 };
 
 export const DEFAULT_MCTS_CONFIG: MCTSConfig = {
-  parallelism: 4,
+  parallelism: 8,
   maxDepth: 5,
   maxNodes: 20,
   searchMode: 'exploit',
@@ -161,13 +161,25 @@ export type MCTSPhase =
 
 export type MCTSStatus = 'idle' | 'running' | 'paused' | 'complete';
 
+/** An in-flight LLM generation that hasn't resolved to a tree node yet */
+export type PendingExpansion = {
+  id: string;                          // unique slot key (e.g. "slot-0")
+  parentId: MCTSNodeId | 'root';
+  direction: string;
+  cubeGoal: CubeCornerKey | null;
+  beatGoal: BeatDirection | null;
+  streamText: string;
+  startedAt: number;
+};
+
 export type MCTSRunState = {
   status: MCTSStatus;
   tree: MCTSTree;
   config: MCTSConfig;
   iterationsCompleted: number;
   currentPhase: MCTSPhase | null;
-  expandingNodeId: MCTSNodeId | null;
+  expandingNodeIds: MCTSNodeId[];       // All parent nodes with active expansions
+  pendingExpansions: Record<string, PendingExpansion>; // In-flight LLM generations keyed by slot id
   selectedPath: MCTSNodeId[] | null;   // User's chosen path through tree
   bestPath: MCTSNodeId[] | null;       // Algorithm's recommended path
   startedAt: number | null;            // Date.now() when search began (for timer display)

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree } from '@/types/mcts';
+import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree, PendingExpansion } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING, BEAT_DIRECTIONS } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
@@ -77,14 +77,24 @@ const INDENT = 24;          // horizontal indent per depth level
 const DOT_R = 4;            // node dot radius
 const LINE_PAD_LEFT = 14;   // left padding to center of first dot
 
-/** Count visible descendant nodes (for SVG sizing) */
-function countVisible(node: MCTSNode, tree: MCTSTree, collapsedSet: Set<MCTSNodeId>): number {
+/** Count visible descendant nodes (for SVG sizing), including pending expansions */
+function countVisible(node: MCTSNode, tree: MCTSTree, collapsedSet: Set<MCTSNodeId>, pendingMap?: Map<MCTSNodeId | 'root', PendingExpansion[]>): number {
   if (collapsedSet.has(node.id)) return 1;
   const children = node.childIds.map((id) => tree.nodes[id]).filter(Boolean);
-  return 1 + children.reduce((sum, c) => sum + countVisible(c, tree, collapsedSet), 0);
+  const pendingCount = pendingMap?.get(node.id)?.length ?? 0;
+  return 1 + children.reduce((sum, c) => sum + countVisible(c, tree, collapsedSet, pendingMap), 0) + pendingCount;
 }
 
 // ── Tree Node (recursive with SVG connectors) ───────────────────────────────
+
+type TreeSortMode = 'time' | 'value';
+
+function sortChildren(nodes: MCTSNode[], mode: TreeSortMode): MCTSNode[] {
+  return [...nodes].sort(mode === 'time'
+    ? (a, b) => a.createdAt - b.createdAt
+    : (a, b) => b.immediateScore - a.immediateScore,
+  );
+}
 
 function TreeNode({
   node,
@@ -93,11 +103,14 @@ function TreeNode({
   bestSet,
   selectedSet,
   inspectedId,
-  expandingNodeId,
+  expandingSet,
+  pendingForNode,
   onSelect,
+  onSelectPending,
   collapsedSet,
   onToggleCollapse,
   yOffset,
+  sortMode,
 }: {
   node: MCTSNode;
   tree: MCTSTree;
@@ -105,22 +118,25 @@ function TreeNode({
   bestSet: Set<MCTSNodeId>;
   selectedSet: Set<MCTSNodeId>;
   inspectedId: MCTSNodeId | null;
-  expandingNodeId: MCTSNodeId | null;
+  expandingSet: Set<MCTSNodeId>;
+  pendingForNode: PendingExpansion[];
   onSelect: (id: MCTSNodeId) => void;
+  onSelectPending: (id: string) => void;
   collapsedSet: Set<MCTSNodeId>;
   onToggleCollapse: (id: MCTSNodeId) => void;
   yOffset: number;
+  sortMode: TreeSortMode;
 }) {
   const isBest = bestSet.has(node.id);
   const isSelected = selectedSet.has(node.id);
   const isInspected = inspectedId === node.id;
-  const isExp = expandingNodeId === node.id;
+  const isExp = expandingSet.has(node.id);
   const isCollapsed = collapsedSet.has(node.id);
   const spark = useMemo(() => nodeSparkline(node), [node]);
-  const children = node.childIds
-    .map((id) => tree.nodes[id])
-    .filter(Boolean)
-    .sort((a, b) => b.immediateScore - a.immediateScore);
+  const children = sortChildren(
+    node.childIds.map((id) => tree.nodes[id]).filter(Boolean),
+    sortMode,
+  );
   const hasChildren = children.length > 0;
   const sc = node.immediateScore;
 
@@ -174,14 +190,52 @@ function TreeNode({
           bestSet={bestSet}
           selectedSet={selectedSet}
           inspectedId={inspectedId}
-          expandingNodeId={expandingNodeId}
+          expandingSet={expandingSet}
+          pendingForNode={[]}
           onSelect={onSelect}
+          onSelectPending={onSelectPending}
           collapsedSet={collapsedSet}
           onToggleCollapse={onToggleCollapse}
           yOffset={childOffset}
+          sortMode={sortMode}
         />,
       );
       childOffset += childVisibleCount;
+    }
+  }
+
+  // Pending expansion rows (in-flight LLM generations for this node)
+  const pendingElements: React.ReactNode[] = [];
+  if (!isCollapsed && pendingForNode.length > 0) {
+    for (const pending of pendingForNode) {
+      const pendCy = childOffset * NODE_H + NODE_H / 2;
+      const pendX = LINE_PAD_LEFT + (depth + 1) * INDENT;
+      svgLines.push(
+        <g key={`line-pending-${pending.id}`}>
+          <line x1={x} y1={cy + DOT_R + 1} x2={x} y2={pendCy} stroke="rgba(245,158,11,0.2)" strokeWidth={1.5} strokeDasharray="3 2" />
+          <line x1={x} y1={pendCy} x2={pendX - DOT_R - 2} y2={pendCy} stroke="rgba(245,158,11,0.2)" strokeWidth={1.5} strokeDasharray="3 2" />
+        </g>,
+      );
+      pendingElements.push(
+        <React.Fragment key={`pending-${pending.id}`}>
+          <circle cx={pendX} cy={pendCy} r={DOT_R} fill="rgba(245,158,11,0.5)" className="animate-pulse" />
+          <foreignObject x={pendX + DOT_R + 6} y={childOffset * NODE_H} width="calc(100% - 60px)" height={NODE_H}>
+            <button
+              onClick={() => onSelectPending(pending.id)}
+              className="flex items-center gap-1.5 w-full h-full text-left px-1.5 rounded transition-colors hover:bg-amber-500/8"
+            >
+              <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
+              <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
+                {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : pending.cubeGoal ?? pending.direction}
+              </span>
+              <span className="text-[9px] text-amber-500/40 shrink-0">
+                {pending.streamText.length > 0 ? `${Math.round(pending.streamText.length / 4)} tok` : 'starting…'}
+              </span>
+            </button>
+          </foreignObject>
+        </React.Fragment>,
+      );
+      childOffset++;
     }
   }
 
@@ -194,7 +248,7 @@ function TreeNode({
       <circle cx={x} cy={cy} r={DOT_R} fill={dotColor} className={isExp ? 'animate-pulse' : ''} />
 
       {/* Collapse/expand toggle on dot for nodes with children */}
-      {hasChildren && (
+      {(hasChildren || pendingForNode.length > 0) && (
         <circle
           cx={x} cy={cy} r={DOT_R + 4}
           fill="transparent"
@@ -217,6 +271,8 @@ function TreeNode({
           }`}>
             {node.arc.name}
           </span>
+          {/* Arc progress: scene count always visible */}
+          <span className="text-[9px] text-text-dim shrink-0">{node.scenes.length}s</span>
           {spark.points.length > 1 && (() => {
             const W = Math.min(80, Math.max(24, spark.points.length * 3));
             return (
@@ -233,15 +289,16 @@ function TreeNode({
             );
           })()}
           <span className="text-[9px] text-text-dim shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            {node.scenes.length}s{node.visitCount > 1 ? ` · ${node.visitCount}v` : ''}
+            {node.visitCount > 1 ? `${node.visitCount}v` : ''}
           </span>
-          {isCollapsed && hasChildren && (
-            <span className="text-[9px] text-text-dim/50 shrink-0">+{children.length}</span>
+          {isCollapsed && (hasChildren || pendingForNode.length > 0) && (
+            <span className="text-[9px] text-text-dim/50 shrink-0">+{children.length + pendingForNode.length}</span>
           )}
         </button>
       </foreignObject>
 
       {childElements}
+      {pendingElements}
     </>
   );
 }
@@ -253,19 +310,36 @@ function MCTSTreeView({
   bestPath,
   selectedPath,
   inspectedId,
-  expandingNodeId,
+  expandingNodeIds,
+  pendingExpansions,
   onSelectNode,
+  onSelectPending,
 }: {
   tree: MCTSTree;
   bestPath: MCTSNodeId[] | null;
   selectedPath: MCTSNodeId[] | null;
   inspectedId: MCTSNodeId | null;
-  expandingNodeId: MCTSNodeId | null;
+  expandingNodeIds: MCTSNodeId[];
+  pendingExpansions: Record<string, PendingExpansion>;
   onSelectNode: (nodeId: MCTSNodeId) => void;
+  onSelectPending: (id: string) => void;
 }) {
   const bestSet = useMemo(() => new Set(bestPath ?? []), [bestPath]);
   const selectedSet = useMemo(() => new Set(selectedPath ?? []), [selectedPath]);
+  const expandingSet = useMemo(() => new Set(expandingNodeIds), [expandingNodeIds]);
   const [collapsedSet, setCollapsedSet] = useState<Set<MCTSNodeId>>(new Set());
+  const [sortMode, setSortMode] = useState<TreeSortMode>('time');
+
+  // Group pending expansions by parent node
+  const pendingMap = useMemo(() => {
+    const map = new Map<MCTSNodeId | 'root', PendingExpansion[]>();
+    for (const p of Object.values(pendingExpansions)) {
+      const list = map.get(p.parentId) ?? [];
+      list.push(p);
+      map.set(p.parentId, list);
+    }
+    return map;
+  }, [pendingExpansions]);
 
   const handleToggleCollapse = useCallback((id: MCTSNodeId) => {
     setCollapsedSet((prev) => {
@@ -275,24 +349,25 @@ function MCTSTreeView({
     });
   }, []);
 
-  const rootChildren = tree.rootChildIds
-    .map((id) => tree.nodes[id])
-    .filter(Boolean)
-    .sort((a, b) => b.immediateScore - a.immediateScore);
+  const rootChildren = sortChildren(
+    tree.rootChildIds.map((id) => tree.nodes[id]).filter(Boolean),
+    sortMode,
+  );
+  const rootPending = pendingMap.get('root') ?? [];
 
-  if (rootChildren.length === 0) return null;
+  if (rootChildren.length === 0 && rootPending.length === 0) return null;
 
   // Count total visible rows for SVG height
   const totalRows = rootChildren.reduce(
-    (sum, node) => sum + countVisible(node, tree, collapsedSet), 0,
-  );
+    (sum, node) => sum + countVisible(node, tree, collapsedSet, pendingMap), 0,
+  ) + rootPending.length;
   const svgHeight = totalRows * NODE_H + 8;
 
   // Build root-level nodes with offsets
   let rowOffset = 0;
   const nodeElements = rootChildren.map((node) => {
     const offset = rowOffset;
-    rowOffset += countVisible(node, tree, collapsedSet);
+    rowOffset += countVisible(node, tree, collapsedSet, pendingMap);
     return (
       <TreeNode
         key={node.id}
@@ -302,20 +377,130 @@ function MCTSTreeView({
         bestSet={bestSet}
         selectedSet={selectedSet}
         inspectedId={inspectedId}
-        expandingNodeId={expandingNodeId}
+        expandingSet={expandingSet}
+        pendingForNode={pendingMap.get(node.id) ?? []}
         onSelect={onSelectNode}
+        onSelectPending={onSelectPending}
         collapsedSet={collapsedSet}
         onToggleCollapse={handleToggleCollapse}
         yOffset={offset}
+        sortMode={sortMode}
       />
     );
   });
 
+  // Render root-level pending expansions
+  const rootPendingElements = rootPending.map((pending) => {
+    const cy = rowOffset * NODE_H + NODE_H / 2;
+    const px = LINE_PAD_LEFT;
+    const el = (
+      <React.Fragment key={`pending-root-${pending.id}`}>
+        <circle cx={px} cy={cy} r={DOT_R} fill="rgba(245,158,11,0.5)" className="animate-pulse" />
+        <foreignObject x={px + DOT_R + 6} y={rowOffset * NODE_H} width="calc(100% - 60px)" height={NODE_H}>
+          <button
+            onClick={() => onSelectPending(pending.id)}
+            className="flex items-center gap-1.5 w-full h-full text-left px-1.5 rounded transition-colors hover:bg-amber-500/8"
+          >
+            <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
+            <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
+              {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : pending.cubeGoal ?? pending.direction}
+            </span>
+            <span className="text-[9px] text-amber-500/40 shrink-0">
+              {pending.streamText.length > 0 ? `${Math.round(pending.streamText.length / 4)} tok` : 'starting…'}
+            </span>
+          </button>
+        </foreignObject>
+      </React.Fragment>
+    );
+    rowOffset++;
+    return el;
+  });
+
   return (
     <div className="overflow-auto p-1">
+      {/* Sort toggle */}
+      <div className="flex items-center gap-1 px-1 pb-1 mb-1 border-b border-border">
+        <span className="text-[9px] uppercase tracking-widest text-text-dim mr-1">Sort</span>
+        <button
+          onClick={() => setSortMode('time')}
+          className={`text-[9px] px-1.5 py-0.5 rounded transition-colors ${sortMode === 'time' ? 'text-text-primary bg-white/8' : 'text-text-dim hover:text-text-secondary'}`}
+        >
+          Time
+        </button>
+        <button
+          onClick={() => setSortMode('value')}
+          className={`text-[9px] px-1.5 py-0.5 rounded transition-colors ${sortMode === 'value' ? 'text-text-primary bg-white/8' : 'text-text-dim hover:text-text-secondary'}`}
+        >
+          Score
+        </button>
+      </div>
       <svg width="100%" height={svgHeight} className="block">
         {nodeElements}
+        {rootPendingElements}
       </svg>
+    </div>
+  );
+}
+
+// ── Pending Expansion Inspector (LLM stream) ────────────────────────────────
+
+function PendingInspector({ pending }: { pending: PendingExpansion }) {
+  const streamRef = React.useRef<HTMLPreElement>(null);
+
+  // Auto-scroll to bottom as stream grows
+  React.useEffect(() => {
+    if (streamRef.current) {
+      streamRef.current.scrollTop = streamRef.current.scrollHeight;
+    }
+  }, [pending.streamText]);
+
+  const beatDir = pending.beatGoal
+    ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]
+    : null;
+  const elapsed = Math.round((Date.now() - pending.startedAt) / 1000);
+
+  return (
+    <div className="flex flex-col gap-3 h-full">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-2">
+          <h2 className="text-[10px] uppercase tracking-widest text-amber-400/70">Generating</h2>
+          <span className="animate-pulse text-amber-400">●</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          {beatDir && <span className="text-sm text-text-primary font-medium">{beatDir.name}</span>}
+          {pending.cubeGoal && (
+            <>
+              <svg width="21" height="12" viewBox="0 0 21 12">
+                {pending.cubeGoal.split('').map((c, i) => {
+                  const isHi = c === 'H';
+                  const colors = ['#EF4444', '#22C55E', '#3B82F6'];
+                  return <rect key={i} x={i * 8} y={isHi ? 1 : 6} width={6} height={isHi ? 10 : 5} rx={1} fill={colors[i]} opacity={isHi ? 1 : 0.4} />;
+                })}
+              </svg>
+              <span className="font-mono text-[10px] text-violet-400">{pending.cubeGoal}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="flex gap-4 text-[10px] text-text-dim uppercase tracking-wider">
+        <span>{elapsed}s elapsed</span>
+        <span>{pending.streamText.length > 0 ? `${Math.round(pending.streamText.length / 4)} tokens` : 'waiting…'}</span>
+        <span>parent: {pending.parentId === 'root' ? 'root' : pending.parentId}</span>
+      </div>
+
+      {/* Stream output */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        <h3 className="text-[10px] uppercase tracking-widest text-text-dim mb-1">LLM Stream</h3>
+        <pre
+          ref={streamRef}
+          className="flex-1 min-h-0 overflow-auto rounded bg-black/40 border border-border p-3 text-[11px] text-text-secondary font-mono leading-relaxed whitespace-pre-wrap wrap-break-word"
+        >
+          {pending.streamText || <span className="text-text-dim italic">Waiting for first tokens…</span>}
+        </pre>
+      </div>
     </div>
   );
 }
@@ -763,11 +948,19 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
   const hasTree = nodeCount > 0;
   const elapsed = useElapsedSeconds(runState.startedAt, isRunning);
   const [inspectedNodeId, setInspectedNodeId] = useState<MCTSNodeId | null>(null);
+  const [inspectedPendingId, setInspectedPendingId] = useState<string | null>(null);
   const inspectedNode = inspectedNodeId ? runState.tree.nodes[inspectedNodeId] ?? null : null;
+  const inspectedPending = inspectedPendingId ? runState.pendingExpansions[inspectedPendingId] ?? null : null;
+
+  const handleSelectPending = useCallback((pendingId: string) => {
+    setInspectedPendingId(pendingId);
+    setInspectedNodeId(null);
+  }, []);
 
   const handleSelectNode = useCallback((nodeId: MCTSNodeId) => {
     // Always inspect the clicked node
     setInspectedNodeId(nodeId);
+    setInspectedPendingId(null);
     // Build path from root to this node
     const current = runState.selectedPath ?? [];
     if (current.includes(nodeId)) {
@@ -1246,14 +1439,18 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
               bestPath={runState.bestPath}
               selectedPath={runState.selectedPath}
               inspectedId={inspectedNodeId}
-              expandingNodeId={runState.expandingNodeId}
+              expandingNodeIds={runState.expandingNodeIds}
+              pendingExpansions={runState.pendingExpansions}
               onSelectNode={handleSelectNode}
+              onSelectPending={handleSelectPending}
             />
           </div>
 
           {/* Inspector */}
           <div className="w-105 shrink-0 overflow-auto border border-border rounded-lg bg-bg-elevated/50 p-4">
-            {inspectedNode ? (
+            {inspectedPending ? (
+              <PendingInspector pending={inspectedPending} />
+            ) : inspectedNode ? (
               <NodeInspector node={inspectedNode} tree={runState.tree} />
             ) : (
               <div className="flex items-center justify-center h-full text-text-dim text-[11px]">

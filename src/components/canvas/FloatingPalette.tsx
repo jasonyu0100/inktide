@@ -49,7 +49,15 @@ export default function FloatingPalette() {
   // Scene search results
   const searchResults = useMemo(() => {
     if (!searchOpen || !searchQuery.trim() || !narrative) return [];
-    const q = searchQuery.toLowerCase().trim();
+    const normalize = (s: string) => s
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')        // strip diacritics: naïve → naive
+      .replace(/\s+/g, ' ')                                    // collapse whitespace
+      .replace(/[\u2018\u2019\u201A\u201B\u0060\u00B4]/g, "'") // curly/backtick/acute → straight apostrophe
+      .replace(/[\u201C\u201D\u201E\u201F]/g, '"')              // curly → straight quotes
+      .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-')// all Unicode hyphens/dashes → ASCII hyphen
+      .replace(/\u2026/g, '...')                                // ellipsis → three dots
+      .toLowerCase();
+    const q = normalize(searchQuery.trim());
     const results: { sceneId: string; timelineIndex: number; summary: string; arcName: string; locationName: string; matchSnippet: string | null }[] = [];
     for (let i = 0; i < state.resolvedSceneKeys.length; i++) {
       const entry = resolveEntry(narrative, state.resolvedSceneKeys[i]);
@@ -59,7 +67,7 @@ export default function FloatingPalette() {
       const location = narrative.locations[scene.locationId];
       const participants = scene.participantIds.map((pid) => narrative.characters[pid]?.name ?? '').join(' ');
       const events = scene.events.join(' ');
-      const haystack = `${scene.summary} ${arc?.name ?? ''} ${location?.name ?? ''} ${participants} ${events}`.toLowerCase();
+      const haystack = normalize(`${scene.summary} ${arc?.name ?? ''} ${location?.name ?? ''} ${participants} ${events} ${scene.prose ?? ''}`);
       if (haystack.includes(q)) {
         // Find a snippet around the match — prefer non-summary sources so the user sees *why* it matched
         let matchSnippet: string | null = null;
@@ -68,9 +76,11 @@ export default function FloatingPalette() {
           participants,
           arc?.name ?? '',
           location?.name ?? '',
+          scene.prose ?? '',
         ];
-        for (const src of sources) {
-          const idx = src.toLowerCase().indexOf(q);
+        for (const rawSrc of sources) {
+          const src = rawSrc.replace(/\s+/g, ' ');
+          const idx = normalize(src).indexOf(q);
           if (idx >= 0 && src.trim()) {
             const snippetStart = Math.max(0, idx - 40);
             const snippetEnd = Math.min(src.length, idx + q.length + 40);

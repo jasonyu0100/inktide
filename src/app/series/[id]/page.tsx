@@ -8,6 +8,7 @@ import Sidebar from '@/components/sidebar/Sidebar';
 import SidePanel from '@/components/inspector/SidePanel';
 import WorldGraph from '@/components/canvas/WorldGraph';
 import FloatingPalette from '@/components/canvas/FloatingPalette';
+import SceneInfoBar from '@/components/canvas/SceneInfoBar';
 import TimelineStrip from '@/components/timeline/TimelineStrip';
 import ForceCharts from '@/components/timeline/ForceCharts';
 import NarrativePanel from '@/components/narrative/NarrativePanel';
@@ -141,6 +142,7 @@ export default function SeriesPage() {
                 onOpenPanel={() => setMctsOpen(true)}
               />
             )}
+            <SceneInfoBar />
             <FloatingPalette />
           </div>
           <NarrativePanel />

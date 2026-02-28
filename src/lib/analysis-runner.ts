@@ -127,10 +127,13 @@ class AnalysisRunner {
       const queue = [...pendingIndices]; // chunks waiting to start
       let activeCount = 0;
 
+      const chunkAttempts = new Map<number, number>(); // track retries per chunk
+
       const launchChunk = (chunkIdx: number) => {
         activeCount++;
         entry.inFlightIndices.add(chunkIdx);
         entry.chunkStreams.set(chunkIdx, '');
+        chunkAttempts.set(chunkIdx, (chunkAttempts.get(chunkIdx) ?? 0) + 1);
         this.emitInFlight(job.id, [...entry.inFlightIndices]);
 
         analyzeChunkParallel(job.chunks[chunkIdx].text, chunkIdx, totalChunks, (_token, accumulated) => {
@@ -140,6 +143,11 @@ class AnalysisRunner {
           .then((result) => onChunkDone(chunkIdx, result, null))
           .catch((err) => onChunkDone(chunkIdx, null, err instanceof Error ? err.message : String(err)));
       };
+
+      const MAX_CHUNK_RETRIES = 3;
+
+      const isParseOrTypeError = (error: string) =>
+        /json|parse|type|unexpected token|syntax/i.test(error);
 
       const onChunkDone = (chunkIdx: number, result: AnalysisChunkResult | null, error: string | null) => {
         activeCount--;
@@ -151,7 +159,15 @@ class AnalysisRunner {
           d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results], currentChunkIndex: completedCount } });
           this.emitStream(job.id, `Phase 1: ${completedCount}/${totalChunks} chunks extracted`);
         } else if (error) {
-          // Queue for retry
+          const attempt = chunkAttempts.get(chunkIdx) ?? 1;
+          if (isParseOrTypeError(error) && attempt < MAX_CHUNK_RETRIES && !entry.cancelled) {
+            // Auto-retry parse/type errors inline
+            console.warn(`[AnalysisRunner] Chunk ${chunkIdx + 1} attempt ${attempt}/${MAX_CHUNK_RETRIES} failed:`, error);
+            this.emitStream(job.id, `Phase 1: Chunk ${chunkIdx + 1} parse error, retrying (${attempt}/${MAX_CHUNK_RETRIES})...`);
+            launchChunk(chunkIdx);
+            return; // don't launch from queue or check pool — we re-incremented activeCount
+          }
+          // Non-retryable or max retries exceeded
           failedChunks.push({ chunkIdx, error });
         }
 

@@ -221,28 +221,22 @@ export function branchContext(
     .map((c) => {
       const relevantNodes = c.knowledge.nodes
         .filter((kn) => !allMutationNodeIds.has(kn.id) || horizonKnowledgeNodeIds.has(kn.id));
-      const relevantNodeIds = new Set(relevantNodes.map((kn) => kn.id));
-      const knowledgeLines = relevantNodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
-      const edgeLines = c.knowledge.edges
-        .filter((e) => relevantNodeIds.has(e.from) || relevantNodeIds.has(e.to))
-        .map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
+      const knowledgeLines = relevantNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
       const omitted = c.knowledge.nodes.length - relevantNodes.length;
       const truncated = omitted > 0
         ? `\n  (${omitted} knowledge items outside time horizon omitted)`
         : '';
       const knowledgeBlock = knowledgeLines.length > 0
-        ? `\n  Knowledge (${relevantNodes.length} in scope):${truncated}\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
+        ? `\n  Knowledge (${relevantNodes.length} in scope):${truncated}\n${knowledgeLines.join('\n')}`
         : '';
       return `- ${c.id}: ${c.name} (${c.role})${knowledgeBlock}`;
     })
     .join('\n');
   const locations = branchLocations
     .map((l) => {
-      const knowledgeLines = l.knowledge.nodes.map((kn) => `    [${kn.id}] (${kn.type}) ${kn.content}`);
-      const edgeLines = l.knowledge.edges
-        .map((e) => `    ${e.from} --(${e.type})--> ${e.to}`);
+      const knowledgeLines = l.knowledge.nodes.map((kn) => `    (${kn.type}) ${kn.content}`);
       const knowledgeBlock = knowledgeLines.length > 0
-        ? `\n  Knowledge (${l.knowledge.nodes.length}):\n${knowledgeLines.join('\n')}${edgeLines.length > 0 ? '\n  Edges:\n' + edgeLines.join('\n') : ''}`
+        ? `\n  Knowledge (${l.knowledge.nodes.length}):\n${knowledgeLines.join('\n')}`
         : '';
       return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${knowledgeBlock}`;
     })

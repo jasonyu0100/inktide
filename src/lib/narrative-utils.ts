@@ -188,14 +188,14 @@ export function zScoreNormalize(values: number[]): number[] {
 // Three forces measure distinct dimensions of narrative movement per scene.
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
-// P = Σ |φ_to - φ_from| + Σ |Δv|         (phase distance + valence shifts)
+// P = Σ |φ_to - φ_from| + |φ|·Σ|Δv|      (phase distance + scaled valence)
 // C = Σ_c log₂(1 + m_c)                  (mutation reach per character)
 // V = Σr(g_c) + r(g_ℓ) + J̄               (cast recency + loc recency + ensemble)
 //     where r(g) = g / (1 + g)            (parameter-free saturating decay)
 //
 // S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCV space)
 // E = (P + C + V) / 3                    (engagement, Gaussian smoothed)
-// g(x̃) = 20(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {2, 7, 5, 1.5})
+// g(x̃) = 20(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {2, 7, 4.5, 1.5})
 //
 
 /** Phase index — distance between indices = magnitude of the phase jump.
@@ -224,8 +224,10 @@ function computeRawPayoff(scene: Scene): number {
     }
   }
 
+  // Scale valence deltas by terminal phase distance so a full reversal (|Δv|=1)
+  // equals a terminal thread transition, and moderate shifts match phase steps
   for (const rm of scene.relationshipMutations) {
-    score += Math.abs(rm.valenceDelta);
+    score += Math.abs(rm.valenceDelta) * TERMINAL_PHASE_DISTANCE;
   }
 
   return score;
@@ -800,7 +802,7 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~86%.
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 2, change: 7, variety: 4.5, swing: 1.5 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 4, change: 7, variety: 4.5, swing: 1.5 } as const;
 
 /** Grade a mean-normalized force value 0→20: g(x̃) = 20(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 17/20 (86%). */
@@ -808,9 +810,8 @@ export function gradeForce(normalizedMean: number): number {
   return Math.min(20, 20 * (1 - Math.exp(-2 * Math.max(0, normalizedMean))));
 }
 
-/** Streak: κ(s) = clamp(s/100, 0, 1).
- *  Penalty only on consecutive arcs below the median score, weighted by run length.
- *  Uses the series' own median as the threshold — no fixed cutoff. */
+/** Streak: sigmoid credit κ(s) = σ(0.1(s - 55)).
+ *  Penalty accumulates over consecutive sub-60 arcs, weighted by run position. */
 function consistencyFactor(arr: number[]): number {
   const n = arr.length;
   if (n < 2) return 1;

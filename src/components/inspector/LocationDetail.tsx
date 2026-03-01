@@ -141,6 +141,11 @@ export default function LocationDetail({ locationId }: Props) {
         </p>
       )}
 
+      {/* Image prompt */}
+      {location.imagePrompt && (
+        <p className="text-[10px] text-text-dim italic leading-relaxed">{location.imagePrompt}</p>
+      )}
+
       {/* Knowledge — paginated, most recent first */}
       {knowledgeNodes.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(knowledgeNodes, knowledgePage);

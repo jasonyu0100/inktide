@@ -4,9 +4,9 @@ import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, type EngagementPoint } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, type EngagementPoint } from '@/lib/narrative-utils';
 
-type ForceKey = 'payoff' | 'change' | 'variety' | 'swing';
+type ForceKey = 'payoff' | 'change' | 'variety' | 'swing' | 'beats';
 
 type SceneDataPoint = {
   index: number;
@@ -32,7 +32,8 @@ type ArcRegion = {
 
 type DrawLine = { points: [number, number][] };
 
-const FORCE_CONFIG: { key: ForceKey; label: string; color: string }[] = [
+type ChartForceKey = 'payoff' | 'change' | 'variety' | 'swing';
+const FORCE_CONFIG: { key: ChartForceKey; label: string; color: string }[] = [
   { key: 'payoff', label: 'PAYOFF', color: '#EF4444' },
   { key: 'change', label: 'CHANGE', color: '#22C55E' },
   { key: 'variety', label: 'VARIETY', color: '#3B82F6' },
@@ -64,7 +65,7 @@ function ForceChart({
   dense,
 }: {
   data: SceneDataPoint[];
-  forceKey: ForceKey;
+  forceKey: ChartForceKey;
   label: string;
   color: string;
   arcRegions: ArcRegion[];
@@ -241,6 +242,19 @@ function ForceChart({
       .attr('stroke', color)
       .attr('stroke-width', 2)
       .attr('opacity', 0.9);
+
+    // Moving average overlay
+    if (values.length >= FORCE_WINDOW_SIZE) {
+      const ma = movingAverage(values, FORCE_WINDOW_SIZE);
+      clipped.append('path')
+        .datum(ma)
+        .attr('d', line)
+        .attr('fill', 'none')
+        .attr('stroke', '#FFFFFF')
+        .attr('stroke-width', 1)
+        .attr('stroke-dasharray', '3,2')
+        .attr('opacity', 0.4);
+    }
 
     // Draw lines overlay
     for (const dl of drawLines) {
@@ -587,6 +601,11 @@ function EngagementChart({
   height,
   width,
   dense,
+  drawing,
+  drawLines,
+  onDrawStart,
+  onDrawMove,
+  onDrawEnd,
 }: {
   data: SceneDataPoint[];
   engagement: EngagementPoint[];
@@ -599,6 +618,11 @@ function EngagementChart({
   height: number;
   width: number;
   dense: boolean;
+  drawing: boolean;
+  drawLines: DrawLine[];
+  onDrawStart: (forceKey: ForceKey, x: number, y: number) => void;
+  onDrawMove: (x: number, y: number) => void;
+  onDrawEnd: () => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -828,23 +852,55 @@ function EngagementChart({
         .attr('fill', 'none').attr('stroke', ENGAGEMENT_COLOR).attr('stroke-width', 1.5).attr('opacity', 0.7);
     }
 
+    // Draw lines overlay
+    for (const dl of drawLines) {
+      if (dl.points.length < 2) continue;
+      const drawPath = d3.line<[number, number]>()
+        .x((d) => d[0])
+        .y((d) => d[1]);
+      g.append('path')
+        .datum(dl.points)
+        .attr('d', drawPath)
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(255, 255, 255, 0.7)')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-linecap', 'round')
+        .attr('stroke-linejoin', 'round');
+    }
+
     // Interaction overlay
     g.append('rect')
       .attr('x', 0).attr('y', 0)
       .attr('width', chartWidth).attr('height', chartHeight)
-      .attr('fill', 'transparent').style('cursor', 'pointer')
+      .attr('fill', 'transparent').style('cursor', drawing ? 'crosshair' : 'pointer')
       .on('mousemove', (event: MouseEvent) => {
+        if (drawing) return;
         const [mx] = d3.pointer(event);
         const idx = Math.round(xScale.invert(mx));
         if (idx >= 0 && idx < data.length) onHover(idx);
       })
-      .on('mouseleave', () => onHover(null))
+      .on('mouseleave', () => { if (!drawing) onHover(null); })
       .on('click', (event: MouseEvent) => {
+        if (drawing) return;
         const [mx] = d3.pointer(event);
         const idx = Math.round(xScale.invert(mx));
         if (idx >= 0 && idx < data.length) onSelect(idx);
+      })
+      .on('mousedown', (event: MouseEvent) => {
+        if (!drawing) return;
+        event.preventDefault();
+        const [mx, my] = d3.pointer(event);
+        onDrawStart('beats', mx, my);
+      })
+      .on('mousemove.draw', (event: MouseEvent) => {
+        if (!drawing) return;
+        const [mx, my] = d3.pointer(event);
+        onDrawMove(mx, my);
+      })
+      .on('mouseup', () => {
+        if (drawing) onDrawEnd();
       });
-  }, [engagement, data, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, dense]);
+  }, [engagement, data, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, dense, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd]);
 
   return <svg ref={svgRef} width={width} height={height} className="block" />;
 }
@@ -922,7 +978,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   // Drawing state
   const [drawing, setDrawing] = useState(false);
   const [drawLines, setDrawLines] = useState<Record<ForceKey, DrawLine[]>>({
-    payoff: [], change: [], variety: [], swing: [],
+    payoff: [], change: [], variety: [], swing: [], beats: [],
   });
   const [activeDrawKey, setActiveDrawKey] = useState<ForceKey | null>(null);
   const activeLineRef = useRef<[number, number][]>([]);
@@ -959,7 +1015,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   }, [activeDrawKey]);
 
   const clearDrawings = useCallback(() => {
-    setDrawLines({ payoff: [], change: [], variety: [], swing: [] });
+    setDrawLines({ payoff: [], change: [], variety: [], swing: [], beats: [] });
   }, []);
 
   // Resize observer
@@ -1087,15 +1143,18 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     return computeEngagementCurve(dataPoints.map((d) => d.forces));
   }, [dataPoints, slidingWindow, selectedIndex]);
 
-  // Current cube corner + local beat position
+  // Current cube corner + local beat position — tracks the focused scene
   const { currentCube, localPosition } = useMemo(() => {
     if (dataPoints.length === 0) return { currentCube: null, localPosition: null };
-    const last = dataPoints[dataPoints.length - 1].forces;
-    const cube = detectCubeCorner(last);
-    const window = engagementData.slice(-FORCE_WINDOW_SIZE);
+    const focusIdx = selectedIndex ?? dataPoints.length - 1;
+    const clamped = Math.max(0, Math.min(focusIdx, dataPoints.length - 1));
+    const cube = detectCubeCorner(dataPoints[clamped].forces);
+    // Local beat position: use engagement data up to the focused scene
+    const engUpToFocus = engagementData.slice(0, Math.min(clamped + 1, engagementData.length));
+    const window = engUpToFocus.slice(-FORCE_WINDOW_SIZE);
     const pos = window.length > 0 ? classifyCurrentPosition(window) : null;
     return { currentCube: cube, localPosition: pos };
-  }, [dataPoints, engagementData]);
+  }, [dataPoints, engagementData, selectedIndex]);
 
   const arcRegions = useMemo((): ArcRegion[] => {
     if (activeDataPoints.length === 0) return [];
@@ -1391,6 +1450,11 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 height={engagementChartHeight}
                 width={dims.width}
                 dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
+                drawing={drawing}
+                drawLines={drawLines.beats}
+                onDrawStart={onDrawStart}
+                onDrawMove={onDrawMove}
+                onDrawEnd={onDrawEnd}
               />
             ) : (
               FORCE_CONFIG.map((cfg) => (

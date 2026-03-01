@@ -138,6 +138,11 @@ export default function CharacterDetail({ characterId }: Props) {
         {character.role}
       </span>
 
+      {/* Image prompt */}
+      {character.imagePrompt && (
+        <p className="text-[10px] text-text-dim italic leading-relaxed">{character.imagePrompt}</p>
+      )}
+
       {/* Knowledge — paginated, most recent first */}
       {knowledgeNodes.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(knowledgeNodes, knowledgePage);

@@ -4,7 +4,6 @@ import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, NARRATIVE_CUBE, type CubeCorner, type CubeCornerKey, type ForceSnapshot, type Scene } from '@/types/narrative';
 import { detectCubeCorner, computeForceSnapshots, computeWindowedForces, computeEngagementCurve, classifyCurrentPosition, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
-import { analyzeForceTrajectory } from '@/lib/ai';
 
 // ── 3D math helpers ──────────────────────────────────────────────────────────
 
@@ -88,10 +87,6 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   const [countdown, setCountdown] = useState(0);
 
   // AI analysis state
-  const [analysisText, setAnalysisText] = useState<string | null>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [showAnalysis, setShowAnalysis] = useState(false);
 
   // Shared scene list derived from resolved keys
   const allScenes = useMemo(() => {
@@ -326,33 +321,6 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       transitions,
     };
   }, [forceEntries]);
-
-  // Run AI analysis
-  const runAnalysis = useCallback(async () => {
-    if (!narrative || forceEntries.length === 0) return;
-    setAnalysisLoading(true);
-    setAnalysisError(null);
-    setShowAnalysis(true);
-    try {
-      const result = await analyzeForceTrajectory(
-        narrative,
-        forceEntries.map(e => ({
-          sceneId: e.sceneId,
-          arcId: e.arcId,
-          arcName: e.arcName,
-          forces: e.forces,
-          swing: e.swing,
-          corner: e.corner.name,
-          cornerKey: e.cornerKey,
-        })),
-      );
-      setAnalysisText(result);
-    } catch (err) {
-      setAnalysisError(err instanceof Error ? err.message : 'Analysis failed');
-    } finally {
-      setAnalysisLoading(false);
-    }
-  }, [narrative, forceEntries]);
 
   // Hover state for trajectory dots
   const [hoveredDotIdx, setHoveredDotIdx] = useState<number | null>(null);
@@ -661,42 +629,6 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     projectedDotsRef.current = dots;
   }, [rotX, rotY, trajectory, currentCorner, hoveredDotIdx, focusedTrajectoryIdx]);
 
-  // Parse AI analysis into sections for rendering
-  const analysisSections = useMemo(() => {
-    if (!analysisText) return [];
-    const sections: { title: string; body: string }[] = [];
-    const sectionNames = ['Trajectory Overview', 'Arc-by-Arc Dynamics', 'Tension Architecture', 'Pacing Rhythm', 'Compositional Observations'];
-
-    // Try to split by section headers
-    let remaining = analysisText.trim();
-    for (let i = 0; i < sectionNames.length; i++) {
-      const name = sectionNames[i];
-      const idx = remaining.indexOf(name);
-      if (idx === -1) continue;
-
-      const nextIdx = i < sectionNames.length - 1
-        ? sectionNames.slice(i + 1).reduce((best, n) => {
-            const found = remaining.indexOf(n, idx + name.length);
-            return found !== -1 && (best === -1 || found < best) ? found : best;
-          }, -1)
-        : -1;
-
-      const body = nextIdx !== -1
-        ? remaining.slice(idx + name.length, nextIdx).trim()
-        : remaining.slice(idx + name.length).trim();
-
-      sections.push({ title: name, body });
-      if (nextIdx !== -1) remaining = remaining.slice(nextIdx);
-      else break;
-    }
-
-    // Fallback: if no sections found, treat as single block
-    if (sections.length === 0 && analysisText.trim()) {
-      sections.push({ title: 'Analysis', body: analysisText.trim() });
-    }
-
-    return sections;
-  }, [analysisText]);
 
   return (
     <div className="fixed inset-0 bg-[#0a0a0f] z-50 flex flex-col">
@@ -908,54 +840,6 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
             </button>
           </div>
 
-          {/* Analysis below cube */}
-          <div className="shrink-0 border-t border-white/10 overflow-y-auto" style={{ maxHeight: '40%' }}>
-            {analysisLoading && (
-              <div className="flex items-center justify-center py-8 gap-3">
-                <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                <p className="text-[11px] text-text-dim">Analyzing force trajectory...</p>
-              </div>
-            )}
-
-            {analysisError && (
-              <div className="px-6 py-4">
-                <p className="text-[11px] text-red-400/80">{analysisError}</p>
-                <button
-                  onClick={runAnalysis}
-                  className="mt-2 text-[10px] px-3 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary transition"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-
-            {!analysisLoading && !analysisError && analysisSections.length > 0 && (
-              <div className="px-6 py-4 space-y-3">
-                {analysisSections.map((section, i) => (
-                  <div key={i}>
-                    <h3 className="text-[10px] uppercase tracking-wider text-text-dim font-mono mb-1">
-                      {section.title}
-                    </h3>
-                    <p className="text-[11px] text-text-secondary leading-[1.6]">
-                      {section.body}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!analysisLoading && !analysisError && analysisSections.length === 0 && (
-              <div className="flex items-center justify-center py-6 gap-3">
-                <button
-                  onClick={runAnalysis}
-                  disabled={analysisLoading || forceEntries.length === 0}
-                  className="text-[10px] px-4 py-1.5 rounded-full border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/15 transition disabled:opacity-40"
-                >
-                  Analyze Trajectory
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Right panel: focused scene detail */}

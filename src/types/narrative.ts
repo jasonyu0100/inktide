@@ -384,8 +384,8 @@ export type ApiLogEntry = {
 
 export type AnalysisChunkResult = {
   chapterSummary: string;
-  characters: { name: string; role: string; firstAppearance: boolean; knowledge: { type: string; content: string }[] }[];
-  locations: { name: string; parentName: string | null; description: string; lore: string[] }[];
+  characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; knowledge: { type: string; content: string }[] }[];
+  locations: { name: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[] }[];
   threads: { description: string; anchorNames: string[]; statusAtStart: string; statusAtEnd: string; development: string }[];
   scenes: {
     locationName: string; povName: string; participantNames: string[]; events: string[];

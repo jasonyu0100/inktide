@@ -357,13 +357,14 @@ Return a single JSON object with this exact structure:
       "name": "Full Name",
       "role": "anchor|recurring|transient",
       "firstAppearance": true/false,
+      "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, and distinguishing features for portrait generation",
       "knowledge": [
         { "type": "specific_contextual_type", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
       ]
     }
   ],
   "locations": [
-    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "lore": ["Notable detail or significance"] }
+    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "lore": ["Notable detail or significance"] }
   ],
   "threads": [
     {
@@ -511,13 +512,14 @@ Return a single JSON object with this exact structure:
       "name": "Full Name",
       "role": "anchor|recurring|transient",
       "firstAppearance": true/false,
+      "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, and distinguishing features for portrait generation",
       "knowledge": [
         { "type": "specific_contextual_type", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
       ]
     }
   ],
   "locations": [
-    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "lore": ["Notable detail or significance"] }
+    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "lore": ["Notable detail or significance"] }
   ],
   "threads": [
     {
@@ -895,7 +897,10 @@ export async function assembleNarrative(
         characters[id] = {
           id, name: c.name, role: c.role as Character['role'], threadIds: [],
           knowledge: { nodes: [] },
+          ...(c.imagePrompt ? { imagePrompt: c.imagePrompt } : {}),
         };
+      } else if (c.imagePrompt) {
+        characters[id].imagePrompt = c.imagePrompt;
       }
       const rank: Record<string, number> = { transient: 0, recurring: 1, anchor: 2 };
       if ((rank[c.role] ?? 0) > (rank[characters[id].role] ?? 0)) {
@@ -920,7 +925,10 @@ export async function assembleNarrative(
         locations[id] = {
           id, name: loc.name, parentId, threadIds: [],
           knowledge: { nodes: [] },
+          ...(loc.imagePrompt ? { imagePrompt: loc.imagePrompt } : {}),
         };
+      } else if (loc.imagePrompt) {
+        locations[id].imagePrompt = loc.imagePrompt;
       }
       if (!seenLocLore.has(id)) seenLocLore.set(id, new Set());
       const locSeen = seenLocLore.get(id)!;

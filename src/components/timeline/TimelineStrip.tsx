@@ -203,12 +203,17 @@ export default function TimelineStrip() {
                   : grade >= 70 ? '#FACC15'
                   : grade >= 60 ? '#F97316'
                   : '#EF4444';
+                const bandWidth = x2 - x1;
+                const clipId = `arc-clip-${band.arc.id}`;
                 return (
                   <>
+                    <clipPath id={clipId}>
+                      <rect x={x1} y={BAND_Y} width={bandWidth} height={BAND_HEIGHT} />
+                    </clipPath>
                     <rect
                       x={x1}
                       y={BAND_Y}
-                      width={x2 - x1}
+                      width={bandWidth}
                       height={BAND_HEIGHT}
                       rx={4}
                       fill={zoneFill}
@@ -220,6 +225,7 @@ export default function TimelineStrip() {
                       className="fill-text-dim"
                       fontSize={9}
                       textAnchor="start"
+                      clipPath={`url(#${clipId})`}
                       style={{
                         textTransform: 'uppercase',
                         letterSpacing: '0.1em',

@@ -55,11 +55,11 @@ export function FormulaModal({ onClose }: Props) {
           </p>
 
           <S title="Payoff" analogy="Did something permanent happen? A betrayal, a death, a vow — moments that can't be undone.">
-            <Block tex="P = \sum_{t \in \mathcal{T}} |\,\phi_{\text{to}} - \phi_{\text{from}}\,| \;+\; \sum_{r \in \mathcal{R}} |\Delta v_r|^{3/2}" />
+            <Block tex="P = \sum_{t \in \mathcal{T}} |\,\phi_{\text{to}} - \phi_{\text{from}}\,| \;+\; \sum_{r \in \mathcal{R}} |\Delta v_r|" />
             <p className="text-[10px] text-text-dim">
               <Tex>{'\\phi'}</Tex>: phase index (dormant=0, active=1, escalating=2, critical=3).
               Terminal transitions use <Tex>{'|\\phi|=4'}</Tex>.
-              Valence shifts use a <Tex>{'\\frac{3}{2}'}</Tex> power — small drifts are dampened; large swings (reversals) contribute near-full weight.
+              Valence deltas contribute linearly to payoff.
             </p>
           </S>
 

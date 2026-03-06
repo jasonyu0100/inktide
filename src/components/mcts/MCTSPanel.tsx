@@ -5,7 +5,7 @@ import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree, PendingExpansion } fro
 import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING, BEAT_DIRECTIONS } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
-import { NARRATIVE_CUBE, type Scene } from '@/types/narrative';
+import { NARRATIVE_CUBE, type Scene, type CubeCornerKey } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner, computeEngagementCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
 import { useStore } from '@/lib/store';
 
@@ -104,7 +104,7 @@ function TreeNode({
   selectedSet,
   inspectedId,
   expandingSet,
-  pendingForNode,
+  pendingMap,
   onSelect,
   onSelectPending,
   collapsedSet,
@@ -119,7 +119,7 @@ function TreeNode({
   selectedSet: Set<MCTSNodeId>;
   inspectedId: MCTSNodeId | null;
   expandingSet: Set<MCTSNodeId>;
-  pendingForNode: PendingExpansion[];
+  pendingMap: Map<MCTSNodeId | 'root', PendingExpansion[]>;
   onSelect: (id: MCTSNodeId) => void;
   onSelectPending: (id: string) => void;
   collapsedSet: Set<MCTSNodeId>;
@@ -132,6 +132,7 @@ function TreeNode({
   const isInspected = inspectedId === node.id;
   const isExp = expandingSet.has(node.id);
   const isCollapsed = collapsedSet.has(node.id);
+  const pendingForNode = pendingMap.get(node.id) ?? [];
   const spark = useMemo(() => nodeSparkline(node), [node]);
   const children = sortChildren(
     node.childIds.map((id) => tree.nodes[id]).filter(Boolean),
@@ -180,7 +181,7 @@ function TreeNode({
         </g>,
       );
 
-      const childVisibleCount = countVisible(child, tree, collapsedSet);
+      const childVisibleCount = countVisible(child, tree, collapsedSet, pendingMap);
       childElements.push(
         <TreeNode
           key={child.id}
@@ -191,7 +192,7 @@ function TreeNode({
           selectedSet={selectedSet}
           inspectedId={inspectedId}
           expandingSet={expandingSet}
-          pendingForNode={[]}
+          pendingMap={pendingMap}
           onSelect={onSelect}
           onSelectPending={onSelectPending}
           collapsedSet={collapsedSet}
@@ -224,9 +225,35 @@ function TreeNode({
               onClick={() => onSelectPending(pending.id)}
               className="flex items-center gap-1.5 w-full h-full text-left px-1.5 rounded transition-colors hover:bg-amber-500/8"
             >
+              {/* Direction indicator — fixed width, matching done rows */}
+              <span className="w-7 shrink-0 flex items-center justify-center">
+                {pending.cubeGoal && (
+                  <span className="font-mono text-[9px] font-bold tracking-tight text-amber-500">
+                    {pending.cubeGoal.split('').map((c, i) => (
+                      <span key={i} style={{ opacity: c === 'H' ? 0.7 : 0.25 }}>{c}</span>
+                    ))}
+                  </span>
+                )}
+                {pending.beatGoal && (() => {
+                  const bg = pending.beatGoal as keyof typeof BEAT_DIRECTIONS;
+                  const strokeColor = bg === 'escalate' ? '#22C55E'
+                    : bg === 'release' ? '#3B82F6'
+                    : bg === 'surge' ? '#F59E0B'
+                    : '#A855F7';
+                  const points = bg === 'escalate' ? '0,8 16,2'
+                    : bg === 'release' ? '0,2 16,8'
+                    : bg === 'surge' ? '0,8 6,2 12,8'
+                    : '0,2 6,8 12,2';
+                  return (
+                    <svg width="16" height="10" viewBox="0 0 16 10">
+                      <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  );
+                })()}
+              </span>
               <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
               <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
-                {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : pending.cubeGoal ?? pending.direction}
+                {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
               </span>
               <span className="text-[9px] text-amber-500/40 shrink-0">
                 {pending.streamText.length > 0 ? `${Math.round(pending.streamText.length / 4)} tok` : 'starting…'}
@@ -265,12 +292,44 @@ function TreeNode({
             isInspected ? 'bg-blue-500/15' : isSelected ? 'bg-blue-500/8' : isBest ? 'bg-green-500/5' : 'hover:bg-white/3'
           }`}
         >
+          {/* Direction indicator — fixed width so score column stays aligned */}
+          <span className="w-7 shrink-0 flex items-center justify-center">
+            {node.cubeGoal && (
+              <span className="font-mono text-[9px] font-bold tracking-tight text-white">
+                {node.cubeGoal.split('').map((c, i) => (
+                  <span key={i} style={{ opacity: c === 'H' ? 0.9 : 0.25 }}>{c}</span>
+                ))}
+              </span>
+            )}
+            {node.beatGoal && (() => {
+              const strokeColor = node.beatGoal === 'escalate' ? '#22C55E'
+                : node.beatGoal === 'release' ? '#3B82F6'
+                : node.beatGoal === 'surge' ? '#F59E0B'
+                : '#A855F7';
+              const points = node.beatGoal === 'escalate' ? '0,8 16,2'
+                : node.beatGoal === 'release' ? '0,2 16,8'
+                : node.beatGoal === 'surge' ? '0,8 6,2 12,8'
+                : '0,2 6,8 12,2';
+              return (
+                <svg width="16" height="10" viewBox="0 0 16 10">
+                  <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              );
+            })()}
+          </span>
           <span className={`font-mono text-[12px] font-bold w-7 text-right shrink-0 ${scoreColorClass(sc)}`}>{sc}</span>
           <span className={`text-[11px] truncate flex-1 ${
             isInspected ? 'text-blue-300 font-medium' : isSelected ? 'text-blue-300' : isBest ? 'text-green-300' : 'text-text-primary'
           }`}>
             {node.arc.name}
           </span>
+          {/* Move type label */}
+          {node.cubeGoal && (
+            <span className="text-[9px] text-text-dim shrink-0">{NARRATIVE_CUBE[node.cubeGoal]?.name}</span>
+          )}
+          {node.beatGoal && (
+            <span className="text-[9px] text-text-dim shrink-0">{BEAT_DIRECTIONS[node.beatGoal]?.name}</span>
+          )}
           {/* Arc progress: scene count always visible */}
           <span className="text-[9px] text-text-dim shrink-0">{node.scenes.length}s</span>
           {spark.points.length > 1 && (() => {
@@ -378,7 +437,7 @@ function MCTSTreeView({
         selectedSet={selectedSet}
         inspectedId={inspectedId}
         expandingSet={expandingSet}
-        pendingForNode={pendingMap.get(node.id) ?? []}
+        pendingMap={pendingMap}
         onSelect={onSelectNode}
         onSelectPending={onSelectPending}
         collapsedSet={collapsedSet}
@@ -401,9 +460,35 @@ function MCTSTreeView({
             onClick={() => onSelectPending(pending.id)}
             className="flex items-center gap-1.5 w-full h-full text-left px-1.5 rounded transition-colors hover:bg-amber-500/8"
           >
+            {/* Direction indicator — fixed width, matching done rows */}
+            <span className="w-7 shrink-0 flex items-center justify-center">
+              {pending.cubeGoal && (
+                <span className="font-mono text-[9px] font-bold tracking-tight text-amber-500">
+                  {pending.cubeGoal.split('').map((c, i) => (
+                    <span key={i} style={{ opacity: c === 'H' ? 0.7 : 0.25 }}>{c}</span>
+                  ))}
+                </span>
+              )}
+              {pending.beatGoal && (() => {
+                const bg = pending.beatGoal as keyof typeof BEAT_DIRECTIONS;
+                const strokeColor = bg === 'escalate' ? '#22C55E'
+                  : bg === 'release' ? '#3B82F6'
+                  : bg === 'surge' ? '#F59E0B'
+                  : '#A855F7';
+                const points = bg === 'escalate' ? '0,8 16,2'
+                  : bg === 'release' ? '0,2 16,8'
+                  : bg === 'surge' ? '0,8 6,2 12,8'
+                  : '0,2 6,8 12,2';
+                return (
+                  <svg width="16" height="10" viewBox="0 0 16 10">
+                    <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                );
+              })()}
+            </span>
             <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
             <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
-              {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : pending.cubeGoal ?? pending.direction}
+              {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
             </span>
             <span className="text-[9px] text-amber-500/40 shrink-0">
               {pending.streamText.length > 0 ? `${Math.round(pending.streamText.length / 4)} tok` : 'starting…'}

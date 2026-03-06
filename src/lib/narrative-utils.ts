@@ -188,7 +188,7 @@ export function zScoreNormalize(values: number[]): number[] {
 // Three forces measure distinct dimensions of narrative movement per scene.
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
-// P = Σ |φ_to - φ_from| + Σ |Δv|^1.5     (phase distance + super-linear valence shifts)
+// P = Σ |φ_to - φ_from| + Σ |Δv|          (phase distance + valence shifts)
 // C = Σ_c log₂(1 + m_c)                  (mutation reach per character)
 // V = Σr(g_c) + r(g_ℓ) + J̄               (cast recency + loc recency + ensemble)
 //     where r(g) = g / (1 + g)            (parameter-free saturating decay)
@@ -224,11 +224,8 @@ function computeRawPayoff(scene: Scene): number {
     }
   }
 
-  // Valence shifts use |Δv|^1.5 — small drifts are dampened,
-  // large swings (reversals) contribute near-full weight.
   for (const rm of scene.relationshipMutations) {
-    const av = Math.abs(rm.valenceDelta);
-    score += av ** 1.5;
+    score += Math.abs(rm.valenceDelta);
   }
 
   return score;
@@ -312,7 +309,7 @@ function rawVariety(
  * Compute ForceSnapshots for a batch of scenes using z-score normalization.
  * 0 = average moment; positive = above average; negative = below average (units of std deviation).
  *
- * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and squared relationship valence shifts (small drifts dampened, large swings amplified)
+ * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence deltas
  * - **Change**: mutation reach — sum of log₂(1 + mutations) per affected character
  * - **Variety**: r̄_char + r_loc + J̄ — three [0,1] components equally weighted
  *

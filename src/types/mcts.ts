@@ -67,43 +67,66 @@ export type DirectionMode = 'cube' | 'beats';
 export const BEAT_DIRECTIONS: Record<BeatDirection, { name: string; description: string; prompt: string }> = {
   escalate: {
     name: 'Escalate',
-    description: 'Rising beats — each scene more mutative than the last',
-    prompt: `Structure this arc so each scene is more mutative than the previous one. Specifically:
-- Advance at least one thread to a new phase in each scene (dormant→active, active→escalating, etc.)
-- Shift relationship valences between characters — new alliances forming, existing loyalties tested
-- Spread mutations across more characters as the arc progresses: early scenes affect 1–2 characters, later scenes affect 3+
-- Rotate the cast — bring in characters who have been absent from recent scenes
-- Move to a location that has not been recently used
-Do not resolve or close anything — leave threads open and escalating at the arc's end.`,
+    description: 'Rising beats — each scene raises the stakes',
+    prompt: `Structure this arc so each scene raises the stakes higher than the last.
+
+- Let tensions build naturally: early scenes plant seeds and surface questions, later scenes force confrontations and hard choices
+- Advance threads progressively — dormant tensions become active, active ones escalate toward crisis points
+- Widen the circle of consequence: early scenes affect one or two characters, later scenes draw more people in
+- Rotate who we see — bring characters back who've been absent, shift to locations we haven't visited recently
+- Relationships should be tested and shifted: alliances strained, loyalties questioned, new bonds forged under pressure
+- Do NOT resolve or close threads — leave them open and climbing at the arc's end`,
   },
   release: {
     name: 'Release',
-    description: 'Falling beats — scenes settle, mutations thin out',
-    prompt: `Structure this arc so scenes become progressively less mutative. Specifically:
-- Do not advance any threads to new phases — leave all thread statuses unchanged
-- Avoid relationship valence changes — no new alliances, no betrayals, no revelations
-- Keep knowledge mutations minimal or absent — characters reflect on what they know, not learn new things
-- Return to recently-seen characters and a familiar, recently-used location
-- Keep the ensemble consistent across scenes — the same small group throughout
-The arc should feel like aftermath: the dust settling after prior events.`,
+    description: 'Falling beats — tension dissolves into stillness',
+    prompt: `Structure this arc as a gradual exhale — the aftermath of intensity.
+
+- No thread phase changes — the plot pauses while characters process what happened
+- Keep the same small intimate group throughout; don't introduce new faces or unfamiliar settings
+- Return to a familiar, recently-visited location — the comfort of known ground
+- Characters reflect on what they already know rather than learning new things
+- Relationship dynamics hold steady — no betrayals, no revelations, no valence shifts
+- The arc should feel like the quiet after a storm: emotionally resonant but structurally still`,
   },
   surge: {
     name: 'Surge',
-    description: 'Peak then fall — spike of mutations followed by stillness',
-    prompt: `Structure this arc as a spike: rapid escalation to a single high-mutation scene, then immediate thinning. Specifically:
-- Early scenes: accumulate pressure — small thread advances, minor relationship shifts
-- Peak scene (middle or late): maximum mutation density — multiple thread phase transitions including terminal ones (resolved/failed/abandoned), large relationship valence swings (±0.5 or more), knowledge mutations hitting multiple characters simultaneously, new or long-absent characters present
-- Post-peak scenes: immediate freeze — no thread mutations, no relationship changes, no new knowledge, return to familiar cast and location
-The peak scene should stand out sharply from everything before and after it.`,
+    description: 'Peak then fall — a single climactic moment',
+    prompt: `Structure this arc around one explosive peak scene, bookended by restraint.
+
+BUILD (early scenes):
+- Slow accumulation of pressure: small thread advances, minor relationship tensions surfacing
+- Narrow focus — few characters, familiar setting, intimate scale
+
+PEAK (one defining scene):
+- Everything converges: threads reach terminal phases, relationships undergo dramatic shifts
+- The widest cast — bring in long-absent characters, shift to a location that hasn't been seen
+- Multiple characters should learn critical new information simultaneously
+- This scene should feel unmistakably like the turning point of the arc
+
+AFTERMATH (final scenes):
+- Immediate stillness: no thread changes, no new knowledge, no relationship shifts
+- The same small group, the same familiar place — the world absorbing what just happened
+- The sharp contrast between the peak and the quiet makes the climax land harder`,
   },
   rebound: {
     name: 'Rebound',
-    description: 'Fall then rise — stillness giving way to escalating mutations',
-    prompt: `Structure this arc as a valley: open in stillness, hold at a low point, then climb back with increasing mutation density. Specifically:
-- Opening scenes: freeze — no thread mutations, no relationship changes, no new knowledge, familiar cast and recently-visited location
-- Trough scene: minimum mutation density — characters present but nothing changes between them
-- Late scenes: rapid escalation — thread phase transitions resume, relationship valences shift, knowledge mutations spread across multiple characters, new or returning-after-absence cast members introduced
-The arc should end with clear upward momentum — threads open and advancing, not resolved.`,
+    description: 'Fall then rise — stillness gives way to momentum',
+    prompt: `Structure this arc as a valley that builds into forward momentum.
+
+OPENING (quiet scenes):
+- Begin in stillness: no thread advancement, no new information, no relationship changes
+- Familiar characters in a familiar place — the story at its lowest energy
+- The same small group across these scenes, a sense of stasis or waiting
+
+TURN (middle):
+- Something shifts: a thread stirs, a character learns one crucial thing, someone unexpected appears
+- The first crack in the stillness — subtle but unmistakable
+
+RISE (late scenes):
+- Threads begin advancing again, relationships are tested, characters discover new truths
+- Widen the cast — bring in characters who've been absent, move to locations not recently visited
+- End with clear upward momentum: threads open and escalating, the ensemble reshuffled, energy climbing`,
   },
 };
 

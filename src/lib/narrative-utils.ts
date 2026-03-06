@@ -188,14 +188,14 @@ export function zScoreNormalize(values: number[]): number[] {
 // Three forces measure distinct dimensions of narrative movement per scene.
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
-// P = Σ |φ_to - φ_from| + |φ|·Σ|Δv|      (phase distance + scaled valence)
+// P = Σ |φ_to - φ_from| + Σ |Δv|         (phase distance + valence shifts)
 // C = Σ_c log₂(1 + m_c)                  (mutation reach per character)
 // V = Σr(g_c) + r(g_ℓ) + J̄               (cast recency + loc recency + ensemble)
 //     where r(g) = g / (1 + g)            (parameter-free saturating decay)
 //
 // S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCV space)
 // E = (P + C + V) / 3                    (engagement, Gaussian smoothed)
-// g(x̃) = 20(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {2, 7, 4.5, 1.5})
+// g(x̃) = 20(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {2, 7, 4.5, 1.2})
 //
 
 /** Phase index — distance between indices = magnitude of the phase jump.
@@ -224,10 +224,8 @@ function computeRawPayoff(scene: Scene): number {
     }
   }
 
-  // Scale valence deltas by terminal phase distance so a full reversal (|Δv|=1)
-  // equals a terminal thread transition, and moderate shifts match phase steps
   for (const rm of scene.relationshipMutations) {
-    score += Math.abs(rm.valenceDelta) * TERMINAL_PHASE_DISTANCE;
+    score += Math.abs(rm.valenceDelta);
   }
 
   return score;
@@ -802,7 +800,7 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~86%.
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 4, change: 7, variety: 4.5, swing: 1.5 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 2, change: 7, variety: 4.5, swing: 1.2 } as const;
 
 /** Grade a mean-normalized force value 0→20: g(x̃) = 20(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 17/20 (86%). */
@@ -839,7 +837,7 @@ function consistencyFactor(arr: number[]): number {
 
 /**
  * Grade narrative forces (0–20 each, 0–100 overall).
- * Each force is mean-normalized then graded: g(x̃) = 20(1 - e^{-2x̃}), μ = {2, 7, 5, 1.5}.
+ * Each force is mean-normalized then graded: g(x̃) = 20(1 - e^{-2x̃}), μ = {2, 7, 4.5, 1.2}.
  * Series-level includes a 5th metric (streak/consistency).
  */
 export function gradeForces(

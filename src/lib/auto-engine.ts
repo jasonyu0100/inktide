@@ -790,10 +790,8 @@ export function buildActionDirective(
 
   const toneClause = config.toneGuidance ? `\nTone: ${config.toneGuidance}` : '';
   const constraintClause = config.narrativeConstraints ? `\nConstraints: ${config.narrativeConstraints}` : '';
-  const directionClause = config.storyDirectionPrompt
-    ? `\nSTORY DIRECTION (high-level trajectory guiding the entire narrative): ${config.storyDirectionPrompt}`
-    : config.arcDirectionPrompt
-    ? `\nNORTH STAR DIRECTION (always steer the narrative toward this): ${config.arcDirectionPrompt}`
+  const directionClause = config.northStarPrompt
+    ? `\nNORTH STAR (always steer the narrative toward this): ${config.northStarPrompt}`
     : '';
 
   // Objective-specific guidance

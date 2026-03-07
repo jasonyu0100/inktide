@@ -144,6 +144,7 @@ export type MCTSConfig = {
   branchingFactor: number;    // Max children per node (hard limit on tree width)
   fullTree: boolean;          // If true, exhaustively expand every node at each depth before going deeper
   worldBuildFocusId?: string; // Optional world build commit to seed all generations with
+  northStarPrompt?: string;   // Optional high-level guidance that steers every generation in the search
 };
 
 export const DEFAULT_MCTS_CONFIG: MCTSConfig = {

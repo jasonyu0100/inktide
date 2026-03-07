@@ -7,6 +7,7 @@ import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
 import { NARRATIVE_CUBE, type Scene, type CubeCornerKey } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner, computeEngagementCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
+import { suggestStoryDirection } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 
 /** Hook that ticks every second while active, returning elapsed seconds since startedAt */
@@ -1006,7 +1007,41 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
 
 // ── Config Tab ───────────────────────────────────────────────────────────────
 
-type ConfigTab = 'search' | 'strategy' | 'other' | 'world';
+type ConfigTab = 'search' | 'strategy' | 'direction' | 'other' | 'world';
+
+function NorthStarSuggestButton({
+  narrative,
+  resolvedKeys,
+  currentIndex,
+  onSuggestion,
+}: {
+  narrative: import('@/types/narrative').NarrativeState;
+  resolvedKeys: string[];
+  currentIndex: number;
+  onSuggestion: (direction: string) => void;
+}) {
+  const [suggesting, setSuggesting] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={suggesting}
+      className="text-[10px] uppercase tracking-widest text-text-dim hover:text-text-secondary transition-colors disabled:opacity-50"
+      onClick={async () => {
+        setSuggesting(true);
+        try {
+          const direction = await suggestStoryDirection(narrative, resolvedKeys, currentIndex);
+          onSuggestion(direction);
+        } catch (err) {
+          console.error('[mcts] suggest direction failed:', err);
+        } finally {
+          setSuggesting(false);
+        }
+      }}
+    >
+      {suggesting ? 'Thinking...' : 'Suggest Story'}
+    </button>
+  );
+}
 
 // ── Main Panel ───────────────────────────────────────────────────────────────
 
@@ -1016,9 +1051,10 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
   const { state } = useStore();
   const { runState, start, pause, resume, stop, selectPath, commitPath, continueSearch } = mcts;
 
-  // Initialize config with dynamic suggestion from narrative context
+  // Initialize config, prepopulating north star from story settings direction
   const [config, setConfig] = useState<MCTSConfig>(() => {
-    return { ...DEFAULT_MCTS_CONFIG };
+    const storyDir = state.activeNarrative?.storySettings?.storyDirection?.trim();
+    return { ...DEFAULT_MCTS_CONFIG, ...(storyDir ? { northStarPrompt: storyDir } : {}) };
   });
   const [configTab, setConfigTab] = useState<ConfigTab>('search');
 
@@ -1098,6 +1134,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
             {([
               { label: 'Search', value: 'search' as ConfigTab },
               { label: 'Strategy', value: 'strategy' as ConfigTab },
+              { label: 'Direction', value: 'direction' as ConfigTab },
               { label: 'World', value: 'world' as ConfigTab },
               { label: 'Other', value: 'other' as ConfigTab },
             ]).map((t) => (
@@ -1268,6 +1305,33 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                   </div>
                 )}
 
+              </>
+            )}
+
+            {configTab === 'direction' && (
+              <>
+                <p className="text-[10px] text-text-dim leading-relaxed">
+                  The north star for this search. Every arc the MCTS generates will be steered toward this direction.
+                </p>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] uppercase tracking-widest text-text-dim">Story Direction</label>
+                    {state.activeNarrative && (
+                      <NorthStarSuggestButton
+                        narrative={state.activeNarrative}
+                        resolvedKeys={state.resolvedSceneKeys}
+                        currentIndex={state.currentSceneIndex}
+                        onSuggestion={(direction) => setConfig((c) => ({ ...c, northStarPrompt: direction }))}
+                      />
+                    )}
+                  </div>
+                  <textarea
+                    value={config.northStarPrompt ?? ''}
+                    onChange={(e) => setConfig((c) => ({ ...c, northStarPrompt: e.target.value || undefined }))}
+                    placeholder="e.g. We're starting the story — ease the reader in gently. Establish the world and characters before introducing conflict..."
+                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-32 resize-none outline-none placeholder:text-text-dim focus:border-white/20 transition-colors"
+                  />
+                </div>
               </>
             )}
 

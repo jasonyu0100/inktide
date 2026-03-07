@@ -147,14 +147,19 @@ export function useMCTS() {
     rootResolvedKeys: string[],
     rootCurrentIndex: number,
     worldBuildFocus: WorldBuildCommit | undefined,
+    northStarPrompt?: string,
   ): Promise<ExpansionResult | null> => {
     updatePhase('expanding');
 
     const { slotId, onToken } = addPendingExpansion(targetId, direction, cubeGoal, beatGoal);
 
+    const effectiveDirection = northStarPrompt
+      ? `NORTH STAR (always steer the narrative toward this): ${northStarPrompt}\n\n${direction}`
+      : direction;
+
     const result = await generateScenes(
       parentNarrative, parentKeys, parentIndex, 0,
-      direction, undefined, cubeGoal ?? undefined,
+      effectiveDirection, undefined, cubeGoal ?? undefined,
       existingSiblings.length > 0 ? existingSiblings : undefined,
       worldBuildFocus,
       onToken,
@@ -328,6 +333,7 @@ export function useMCTS() {
             prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
             prep.existingSiblings, activeBranchId,
             tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
+            config.northStarPrompt,
           ).then((result) => ({ result, seq }));
 
           activeSlots.push({ seq, goal, promise });
@@ -452,6 +458,7 @@ export function useMCTS() {
                 prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
                 prep.existingSiblings, activeBranchId,
                 tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
+                config.northStarPrompt,
               ));
             }
 
@@ -527,6 +534,7 @@ export function useMCTS() {
           prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
           prep.existingSiblings, activeBranchId,
           tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
+          config.northStarPrompt,
         ).then((result) => ({ result, seq }));
 
         activeSlots.push({ seq, targetId, goal, promise });
@@ -696,6 +704,7 @@ export function useMCTS() {
           targetId, parentNarrative, parentKeys, parentIndex,
           direction, cubeGoal, beatGoal, ancestorChain, allPriorScenes, existingSiblings,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
+          runState.config.northStarPrompt,
         ).then((result) => ({ result, seq }));
         activeSlots.push({ seq, targetId, goal, promise });
         return true;
@@ -843,6 +852,7 @@ export function useMCTS() {
           targetId, parentNarrative, parentKeys, parentIndex,
           direction, cubeGoal, beatGoal, ancestorChain, allPriorScenes, existingSiblings,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
+          updatedConfig.northStarPrompt,
         ).then((result) => ({ result, seq }));
         activeSlots.push({ seq, targetId, goal, promise });
         return true;

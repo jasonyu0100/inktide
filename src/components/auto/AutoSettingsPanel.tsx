@@ -23,7 +23,14 @@ const OBJECTIVES: { value: AutoObjective; label: string; desc: string; worldBuil
 export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; onStart: () => void }) {
   const { state, dispatch } = useStore();
   const [tab, setTab] = useState<Tab>('end');
-  const [config, setConfig] = useState<AutoConfig>({ ...state.autoConfig });
+  const [config, setConfig] = useState<AutoConfig>(() => {
+    const base = { ...state.autoConfig };
+    const storyDir = state.activeNarrative?.storySettings?.storyDirection?.trim();
+    if (storyDir && !base.northStarPrompt) {
+      base.northStarPrompt = storyDir;
+    }
+    return base;
+  });
   const [suggesting, setSuggesting] = useState(false);
 
   function update(partial: Partial<AutoConfig>) {
@@ -326,7 +333,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                             state.resolvedSceneKeys,
                             state.currentSceneIndex,
                           );
-                          update({ storyDirectionPrompt: direction });
+                          update({ northStarPrompt: direction });
                         } catch (err) {
                           console.error('[auto-settings] suggest direction failed:', err);
                         } finally {
@@ -340,8 +347,8 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                   )}
                 </div>
                 <textarea
-                  value={config.storyDirectionPrompt}
-                  onChange={(e) => update({ storyDirectionPrompt: e.target.value })}
+                  value={config.northStarPrompt}
+                  onChange={(e) => update({ northStarPrompt: e.target.value })}
                   placeholder="e.g. The protagonist should slowly uncover the truth about their past while alliances shift around them. Build toward a betrayal that redefines the central conflict..."
                   className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-32 resize-none outline-none placeholder:text-text-dim"
                 />

@@ -362,7 +362,7 @@ function FullscreenButton() {
       type="button"
       onClick={toggle}
       title={isFullscreen ? 'Exit full screen' : 'Full screen'}
-      className="absolute bottom-4 right-4 z-10 w-9 h-9 flex items-center justify-center glass-pill text-text-dim hover:text-text-primary transition-colors"
+      className="absolute bottom-4 right-4 z-30 w-9 h-9 flex items-center justify-center glass-pill text-text-dim hover:text-text-primary transition-colors"
     >
       {isFullscreen ? (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

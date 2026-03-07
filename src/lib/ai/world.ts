@@ -1,0 +1,374 @@
+import type { NarrativeState, Character, Location, Thread, RelationshipEdge } from '@/types/narrative';
+import { THREAD_ACTIVE_STATUSES } from '@/types/narrative';
+import { nextId } from '@/lib/narrative-utils';
+import { callGenerate, SYSTEM_PROMPT } from './api';
+import { parseJson } from './json';
+import { branchContext, THREAD_LIFECYCLE_DOC } from './context';
+
+export type WorldExpansion = {
+  characters: Character[];
+  locations: Location[];
+  threads: Thread[];
+  relationships: RelationshipEdge[];
+};
+
+export type DirectionSuggestion = {
+  text: string;
+  arcName: string;
+  suggestedSceneCount: number;
+};
+
+export async function suggestDirection(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): Promise<DirectionSuggestion> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+
+  const prompt = `${ctx}
+
+Based on the full scene history above, suggest the most compelling direction for the NEXT arc.
+Consider:
+- Unresolved threads and their current statuses
+- Character tensions and relationship dynamics
+- Narrative momentum (what has been building?)
+- What would create the most dramatic escalation?
+- How many scenes this arc needs to land properly (don't rush — quiet arcs need fewer, epic arcs need more)
+
+Return JSON with this exact structure:
+{
+  "arcName": "suggested arc name",
+  "direction": "2-3 sentence description of what the next arc should focus on and why",
+  "sceneSuggestion": "brief outline of what kind of scenes would work",
+  "suggestedSceneCount": 3
+}
+
+suggestedSceneCount must be between 1 and 8.`;
+
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestDirection');
+  const parsed = parseJson(raw, 'suggestDirection') as {
+    arcName?: string; direction?: string; sceneSuggestion?: string; suggestedSceneCount?: number;
+  };
+  const sceneCount = Math.max(1, Math.min(8, parsed.suggestedSceneCount ?? 3));
+  return {
+    text: `${parsed.arcName}: ${parsed.direction}${parsed.sceneSuggestion ? '\n\n' + parsed.sceneSuggestion : ''}`,
+    arcName: parsed.arcName ?? '',
+    suggestedSceneCount: sceneCount,
+  };
+}
+
+
+export async function suggestStoryDirection(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): Promise<string> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+
+  const prompt = `${ctx}
+
+You are a showrunner planning the long-term trajectory of this story. Analyze the full narrative state — characters, threads, knowledge graphs, relationships, and scene history — and suggest a high-level STORY DIRECTION that should guide the next several arcs.
+
+Think big picture:
+- What is the central dramatic question the story is building toward?
+- Which character arcs have the most untapped potential?
+- What thematic tensions could be deepened or brought into conflict?
+- Where should alliances shift, secrets surface, or power dynamics change?
+- What is the most satisfying macro-trajectory from where the story stands now?
+
+Do NOT suggest a single scene or arc. Instead, describe the overarching direction the story should move in — the kind of guidance a showrunner gives a writers' room for the next season.
+
+Return JSON: { "direction": "2-4 sentences describing the big-picture story direction" }`;
+
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestStoryDirection');
+  const parsed = parseJson(raw, 'suggestStoryDirection') as { direction?: string };
+  return parsed.direction ?? '';
+}
+
+
+export async function suggestWorldExpansion(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): Promise<string> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+
+  const prompt = `${ctx}
+
+Based on the full narrative context above, suggest what NEW elements the world needs.
+World expansion is critical for narrative VARIETY — it introduces fresh characters, unexplored locations, and dormant threads that prevent the story from becoming repetitive.
+
+Consider:
+- Are there locations referenced in scenes that don't exist yet?
+- Are there implied characters who should be introduced?
+- Are there narrative threads that need new anchors?
+- What would deepen the world and create new story possibilities?
+- Which parts of the world feel underexplored or geographically narrow?
+- Are there factions, organizations, or communities implied but not yet represented by characters?
+- Could contrasting environments (urban vs wild, sacred vs profane, safe vs dangerous) create richer scene variety?
+- Are there secondary characters who could become POV-worthy with more depth?
+
+Aim for breadth: suggest 2-3 new characters from different walks of life, 2-3 locations that contrast with existing ones, and 2-3 threads that introduce new dramatic questions.
+
+Return JSON with this exact structure:
+{
+  "suggestion": "2-4 sentence description of what should be added to the world and why"
+}`;
+
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestWorldExpansion');
+  const parsed = parseJson(raw, 'suggestWorldExpansion') as { suggestion: string };
+  return parsed.suggestion;
+}
+
+export type WorldExpansionSize = 'small' | 'medium' | 'large';
+
+const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, { characters: string; locations: string; threads: string; label: string }> = {
+  small:  { characters: '1-2',   locations: '1-2',   threads: '1-2',   label: 'a focused expansion' },
+  medium: { characters: '3-5',   locations: '3-4',   threads: '3-5',   label: 'a moderate expansion' },
+  large:  { characters: '8-15',  locations: '6-10',  threads: '8-12',  label: 'a large-scale expansion' },
+};
+
+export async function expandWorld(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+  directive: string,
+  size: WorldExpansionSize = 'medium',
+): Promise<WorldExpansion> {
+  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+
+  // Compute next sequential IDs for the AI to use
+  const nextCharId = nextId('C', Object.keys(narrative.characters));
+  const nextLocId = nextId('L', Object.keys(narrative.locations));
+  const nextThreadId = nextId('T', Object.keys(narrative.threads));
+  const existingKIds = [
+    ...Object.values(narrative.characters).flatMap((c) => c.knowledge.nodes.map((n) => n.id)),
+    ...Object.values(narrative.locations).flatMap((l) => l.knowledge.nodes.map((n) => n.id)),
+  ];
+  const nextKId = nextId('K', existingKIds);
+
+  const prompt = `${ctx}
+
+EXPAND the world based on this directive: ${directive}
+
+This is ${EXPANSION_SIZE_CONFIG[size].label}. Generate exactly:
+- ${EXPANSION_SIZE_CONFIG[size].characters} new characters
+- ${EXPANSION_SIZE_CONFIG[size].locations} new locations
+- ${EXPANSION_SIZE_CONFIG[size].threads} new threads
+- Relationships to connect new characters to existing ones
+
+Use sequential IDs continuing from the existing ones.
+
+Return JSON with this exact structure:
+{
+  "characters": [
+    {
+      "id": "${nextCharId}",
+      "name": "string",
+      "role": "anchor|recurring|transient",
+      "threadIds": [],
+      "imagePrompt": "1-2 sentence visual description: physical appearance, clothing, distinguishing features. Used for portrait generation.",
+      "knowledge": {
+        "nodes": [{"id": "${nextKId}", "type": "contextual_type", "content": "string"}]
+      }
+    }
+  ],
+  "locations": [
+    {
+      "id": "${nextLocId}",
+      "name": "string",
+      "parentId": null or "existing location ID for nesting",
+      "threadIds": [],
+      "imagePrompt": "1-2 sentence visual description: architecture, landscape, atmosphere, lighting. Used for establishing shot generation.",
+      "knowledge": {
+        "nodes": [{"id": "K-next", "type": "contextual_type", "content": "string"}]
+      }
+    }
+  ],
+  "threads": [
+    {
+      "id": "${nextThreadId}",
+      "anchors": [{"id": "character or location ID", "type": "character|location"}],
+      "description": "string",
+      "status": "dormant",
+      "openedAt": "new",
+      "dependents": []
+    }
+  ],
+  "relationships": [
+    {"from": "character ID", "to": "character ID", "type": "description", "valence": 0.0}
+  ]
+}
+
+ID RULES:
+- Character IDs: continue sequentially from ${nextCharId} (e.g., ${nextCharId}, C-${String(parseInt(nextCharId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
+- Location IDs: continue sequentially from ${nextLocId} (e.g., ${nextLocId}, L-${String(parseInt(nextLocId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
+- Thread IDs: continue sequentially from ${nextThreadId} (e.g., ${nextThreadId}, T-${String(parseInt(nextThreadId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
+- Knowledge node IDs: continue sequentially from ${nextKId} (e.g., ${nextKId}, K-${String(parseInt(nextKId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
+- ALL knowledge nodes (in both characters and locations) use the K- prefix and share one sequence
+
+Rules:
+- Generate elements that serve the directive AND boost narrative VARIETY — fresh faces, new settings, and untapped dramatic questions
+- Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — this creates knowledge asymmetries that drive dramatic tension when revealed later. Include at least one hidden or dangerous piece of knowledge per character.
+- Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Choose types that describe exactly what kind of knowledge or lore this is. Examples: "cultivation_technique", "blood_pact", "hidden_treasury", "ancient_prophecy", "political_alliance", "forbidden_memory", "territorial_claim", "ancestral_grudge". Pick types that fit the narrative world.
+- Locations should fit the world hierarchy (use existing parentIds where appropriate). Make new locations CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.
+- Location knowledge should describe lore, dangers, secrets, or resources specific to that place (3-4 nodes per location)
+- Threads should connect to existing or new characters/locations via anchors. New threads should introduce DIFFERENT types of dramatic questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
+- ALL new threads MUST have status "dormant" — they are seeds for future arcs, not active storylines yet
+- Relationships should connect new characters to EXISTING ones (not just to each other) — this ensures new characters integrate into the story rather than remaining isolated. Include at least one relationship with valence tension (slight negative or ambivalent).
+- Anchors in threads can reference existing characters/locations
+- Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)`;
+
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld');
+  const parsed = parseJson(raw, 'expandWorld') as WorldExpansion;
+
+  // Force all world-build threads to dormant — they're seeds, not active storylines
+  const threads = (parsed.threads ?? []).map((t: Thread) => ({ ...t, status: THREAD_ACTIVE_STATUSES[0] }));
+
+  return {
+    characters: parsed.characters ?? [],
+    locations: parsed.locations ?? [],
+    threads,
+    relationships: parsed.relationships ?? [],
+  };
+}
+
+export async function generateNarrative(
+  title: string,
+  premise: string,
+  rules: string[] = [],
+): Promise<NarrativeState> {
+  const prompt = `Create a complete narrative world for:
+Title: "${title}"
+Premise: ${premise}
+
+Return JSON with this exact structure:
+{
+  "worldSummary": "2-3 sentence world description",
+  "characters": [
+    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, distinguishing features for portrait generation", "knowledge": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}]}}
+  ],
+  "locations": [
+    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "knowledge": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}]}}
+  ],
+  "threads": [
+    {"id": "T-01", "anchors": [{"id": "C-01", "type": "character"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}
+  ],
+  "relationships": [
+    {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
+  ],
+  "scenes": [
+    {
+      "id": "S-001",
+      "arcId": "ARC-01",
+      "locationId": "L-01",
+      "povId": "C-01",
+      "participantIds": ["C-01"],
+      "events": ["event_tag"],
+      "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "active"}],
+      "knowledgeMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
+      "relationshipMutations": [],
+      "summary": "REQUIRED: 2-4 sentence vivid narrative summary of the scene"
+    }
+  ],
+  "arcs": [
+    {"id": "ARC-01", "name": "string", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
+  ],
+  "rules": ["World rule 1", "World rule 2"]
+}
+
+Generate a world with enough CRITICAL MASS to sustain a long-running story:
+- 6-10 characters: at least 3 anchors, 3-4 recurring, 1-2 transient. Each with 4-8 knowledge nodes. Characters should have secrets, goals, beliefs, and tactical knowledge — not just surface-level facts.
+- 6-10 locations with hierarchy (parent/child nesting). Each with 2-4 knowledge nodes describing lore, dangers, secrets, or resources. Locations should feel lived-in.
+- 5-8 threads representing major narrative tensions, mysteries, and conflicts. Threads should interlock — at least some threads should share dependents or anchors.
+- 8-10 relationships between characters. Relationships should be asymmetric (A→B differs from B→A) with specific, character-voice descriptions. Use valence to show warmth vs hostility.
+- 15-25 scenes across 2-3 arcs. Each arc should have 5-10 scenes.
+
+PACING IS CRITICAL:
+- Do NOT rush through major plot beats. A story needs breathing room.
+- Not every scene should advance the main plot. Include quiet scenes: character conversations, world exploration, daily life, travel, reflection.
+- Only 1 in 3-4 scenes should be a significant plot event. The rest should build atmosphere, deepen relationships, or reveal character.
+- Threads should stay dormant or slowly surface over multiple scenes before escalating. A thread going from dormant to escalating in 2 scenes is too fast.
+- Think of pacing like a novel: setup → slow build → complication → breathing room → escalation. Not: event → event → event → event.
+- Early scenes should establish normalcy and stakes before disrupting them.
+- Thread statuses follow a lifecycle. ${THREAD_LIFECYCLE_DOC} When a thread's story reaches its conclusion, transition it to the appropriate terminal status.
+
+Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.
+
+Scene knowledgeMutations track what characters LEARN during a scene. Each mutation MUST have: characterId (who learned it), nodeId (unique ID like K-GEN-001), action ("added"), content (what they learned), nodeType (specific contextual type). The characterId must reference an existing character ID (C-XX).
+
+WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}`;
+
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 60000, 'generateNarrative');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parsed = parseJson(raw, 'generateNarrative') as any;
+  console.log('[generateNarrative] parsed keys:', Object.keys(parsed));
+  console.log('[generateNarrative] relationships count:', parsed.relationships?.length ?? 0);
+  console.log('[generateNarrative] scenes count:', parsed.scenes?.length ?? 0);
+
+  const now = Date.now();
+  const id = `N-${now}`;
+
+  const characters: NarrativeState['characters'] = {};
+  for (const c of parsed.characters) characters[c.id] = c;
+
+  const locations: NarrativeState['locations'] = {};
+  for (const l of parsed.locations) locations[l.id] = l;
+
+  const threads: NarrativeState['threads'] = {};
+  for (const t of parsed.threads) threads[t.id] = t;
+
+  const scenes: NarrativeState['scenes'] = {};
+  for (const s of parsed.scenes) scenes[s.id] = { ...s, kind: 'scene', summary: s.summary || `Scene ${s.id}` };
+
+  const arcs: NarrativeState['arcs'] = {};
+  for (const a of parsed.arcs) arcs[a.id] = a;
+
+  const branchId = `B-${now}`;
+  const branches: NarrativeState['branches'] = {
+    [branchId]: {
+      id: branchId,
+      name: 'Main',
+      parentBranchId: null,
+      forkEntryId: null,
+      entryIds: Object.keys(scenes),
+      createdAt: now,
+    },
+  };
+
+  const sceneList = Object.values(scenes);
+
+  const commits = sceneList.map((scene, i) => ({
+    id: `CM-${String(i + 1).padStart(3, '0')}`,
+    parentId: i === 0 ? null : `CM-${String(i).padStart(3, '0')}`,
+    sceneId: scene.id,
+    arcId: scene.arcId,
+    diffName: scene.events[0] ?? 'scene',
+    threadMutations: scene.threadMutations,
+    knowledgeMutations: scene.knowledgeMutations,
+    relationshipMutations: scene.relationshipMutations,
+    authorOverride: null,
+    createdAt: now - (sceneList.length - i) * 3600000,
+  }));
+
+  return {
+    id,
+    title,
+    description: premise,
+    characters,
+    locations,
+    threads,
+    arcs,
+    scenes,
+    worldBuilds: {},
+    branches,
+    commits,
+    relationships: parsed.relationships ?? [],
+    worldSummary: parsed.worldSummary ?? premise,
+    rules: Array.isArray(parsed.rules) ? parsed.rules.filter((r: unknown) => typeof r === 'string') : rules,
+    controlMode: 'auto',
+    activeForces: { payoff: 0, change: 0, variety: 0 },
+    createdAt: now,
+    updatedAt: now,
+  };
+}

@@ -1,0 +1,617 @@
+import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
+import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
+import { MAX_CONTEXT_SCENES } from '@/lib/constants';
+
+// Build thread lifecycle documentation from canonical status lists
+export const THREAD_LIFECYCLE_DOC = (() => {
+  const activeList = THREAD_ACTIVE_STATUSES.map((s) => `"${s}"`).join(', ');
+  const terminalList = THREAD_TERMINAL_STATUSES.map(
+    (s) => `"${s}" (${THREAD_STATUS_LABELS[s]})`,
+  ).join(', ');
+  return `Active statuses: ${activeList}. Terminal/closed statuses: ${terminalList}.`;
+})();
+
+/** Build a prompt block from story settings — returns empty string if all defaults */
+export function buildStorySettingsBlock(n: NarrativeState): string {
+  const s: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...n.storySettings };
+  const lines: string[] = [];
+
+  // POV mode
+  const povLabels: Record<string, string> = {
+    single: 'SINGLE POV — every scene must use the same POV character.',
+    dual: 'DUAL POV — alternate between exactly two POV characters across scenes. Each arc should feature both perspectives.',
+    ensemble: 'ENSEMBLE POV — rotate POV among the designated characters, giving each meaningful screen time.',
+    free: '', // no constraint
+  };
+  if (s.povMode !== 'free') {
+    lines.push(povLabels[s.povMode]);
+    if (s.povCharacterIds.length > 0) {
+      const names = s.povCharacterIds
+        .map((id) => n.characters[id] ? `${n.characters[id].name} (${id})` : id)
+        .join(', ');
+      lines.push(`Designated POV anchor${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.`);
+    }
+  }
+
+  // Story direction
+  if (s.storyDirection.trim()) {
+    lines.push(`STORY DIRECTION (high-level north star): ${s.storyDirection.trim()}`);
+  }
+
+  if (lines.length === 0) return '';
+  return `\nSTORY SETTINGS (these shape all generation — respect them):\n${lines.join('\n')}\n`;
+}
+
+export function branchContext(
+  n: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): string {
+  // Apply time horizon: only the most recent MAX_CONTEXT_SCENES keys
+  const allKeysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
+  const horizonStart = Math.max(0, allKeysUpToCurrent.length - MAX_CONTEXT_SCENES);
+  const keysUpToCurrent = allKeysUpToCurrent.slice(horizonStart);
+  const skippedCount = horizonStart;
+
+  // Collect entity IDs and knowledge node IDs referenced within the time horizon
+  const referencedCharIds = new Set<string>();
+  const referencedLocIds = new Set<string>();
+  const referencedThreadIds = new Set<string>();
+  const horizonKnowledgeNodeIds = new Set<string>();
+  for (const k of keysUpToCurrent) {
+    const entry = resolveEntry(n, k);
+    if (!entry) continue;
+    if (entry.kind === 'scene') {
+      referencedCharIds.add(entry.povId);
+      for (const pid of entry.participantIds) referencedCharIds.add(pid);
+      referencedLocIds.add(entry.locationId);
+      for (const tm of entry.threadMutations) referencedThreadIds.add(tm.threadId);
+      for (const km of entry.knowledgeMutations) {
+        referencedCharIds.add(km.characterId);
+        horizonKnowledgeNodeIds.add(km.nodeId);
+      }
+      for (const rm of entry.relationshipMutations) {
+        referencedCharIds.add(rm.from);
+        referencedCharIds.add(rm.to);
+      }
+      if (entry.characterMovements) {
+        for (const [charId, mv] of Object.entries(entry.characterMovements)) {
+          referencedCharIds.add(charId);
+          referencedLocIds.add(mv.locationId);
+        }
+      }
+    } else if (entry.kind === 'world_build') {
+      for (const cid of entry.expansionManifest.characterIds) referencedCharIds.add(cid);
+      for (const lid of entry.expansionManifest.locationIds) referencedLocIds.add(lid);
+      for (const tid of entry.expansionManifest.threadIds) referencedThreadIds.add(tid);
+    }
+  }
+  // Also include threads that anchor to referenced characters/locations
+  for (const t of Object.values(n.threads)) {
+    if (referencedThreadIds.has(t.id)) continue;
+    for (const anchor of t.anchors) {
+      if ((anchor.type === 'character' && referencedCharIds.has(anchor.id)) ||
+          (anchor.type === 'location' && referencedLocIds.has(anchor.id))) {
+        referencedThreadIds.add(t.id);
+        break;
+      }
+    }
+  }
+  // Include parent locations of referenced locations
+  for (const locId of [...referencedLocIds]) {
+    const loc = n.locations[locId];
+    if (loc?.parentId && n.locations[loc.parentId]) referencedLocIds.add(loc.parentId);
+  }
+
+  // If no scenes exist yet (initial generation), include all entities
+  const hasHistory = referencedCharIds.size > 0 || referencedLocIds.size > 0;
+  const branchCharacters = hasHistory
+    ? Object.values(n.characters).filter((c) => referencedCharIds.has(c.id))
+    : Object.values(n.characters);
+  const branchLocations = hasHistory
+    ? Object.values(n.locations).filter((l) => referencedLocIds.has(l.id))
+    : Object.values(n.locations);
+  const branchThreads = hasHistory
+    ? Object.values(n.threads).filter((t) => referencedThreadIds.has(t.id))
+    : Object.values(n.threads);
+  const branchRelationships = hasHistory
+    ? n.relationships.filter((r) => referencedCharIds.has(r.from) && referencedCharIds.has(r.to))
+    : n.relationships;
+
+  // Collect all knowledge node IDs that were ever added via mutations (across full history)
+  // so we can distinguish original/base nodes from mutation-added ones
+  const allMutationNodeIds = new Set<string>();
+  for (const k of allKeysUpToCurrent) {
+    const entry = resolveEntry(n, k);
+    if (entry?.kind === 'scene') {
+      for (const km of entry.knowledgeMutations) allMutationNodeIds.add(km.nodeId);
+    }
+  }
+
+  // Knowledge: keep original (non-mutation) nodes + mutation nodes from the time horizon
+  const characters = branchCharacters
+    .map((c) => {
+      const relevantNodes = c.knowledge.nodes
+        .filter((kn) => !allMutationNodeIds.has(kn.id) || horizonKnowledgeNodeIds.has(kn.id));
+      const knowledgeLines = relevantNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
+      const omitted = c.knowledge.nodes.length - relevantNodes.length;
+      const truncated = omitted > 0
+        ? `\n  (${omitted} knowledge items outside time horizon omitted)`
+        : '';
+      const knowledgeBlock = knowledgeLines.length > 0
+        ? `\n  Knowledge (${relevantNodes.length} in scope):${truncated}\n${knowledgeLines.join('\n')}`
+        : '';
+      return `- ${c.id}: ${c.name} (${c.role})${knowledgeBlock}`;
+    })
+    .join('\n');
+  const locations = branchLocations
+    .map((l) => {
+      const knowledgeLines = l.knowledge.nodes.map((kn) => `    (${kn.type}) ${kn.content}`);
+      const knowledgeBlock = knowledgeLines.length > 0
+        ? `\n  Knowledge (${l.knowledge.nodes.length}):\n${knowledgeLines.join('\n')}`
+        : '';
+      return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${knowledgeBlock}`;
+    })
+    .join('\n');
+  // Build thread age context from scene history (within time horizon)
+  const threadFirstMutation: Record<string, number> = {};
+  const threadMutationCount: Record<string, number> = {};
+  keysUpToCurrent.forEach((k, idx) => {
+    const scene = n.scenes[k];
+    if (!scene) return;
+    for (const tm of scene.threadMutations) {
+      threadMutationCount[tm.threadId] = (threadMutationCount[tm.threadId] ?? 0) + 1;
+      if (threadFirstMutation[tm.threadId] === undefined) threadFirstMutation[tm.threadId] = idx;
+    }
+  });
+  const totalScenes = keysUpToCurrent.length;
+
+  const threads = branchThreads
+    .map((t) => {
+      const firstMut = threadFirstMutation[t.id];
+      const age = firstMut !== undefined ? totalScenes - firstMut : 0;
+      const mutations = threadMutationCount[t.id] ?? 0;
+      const ageLabel = age > 0 ? `, active ${age} scenes, ${mutations} mutations` : '';
+      return `- ${t.id}: ${t.description} [${t.status}${ageLabel}]`;
+    })
+    .join('\n');
+  const relationships = branchRelationships
+    .map((r) => {
+      const fromName = n.characters[r.from]?.name ?? r.from;
+      const toName = n.characters[r.to]?.name ?? r.to;
+      return `- ${r.from} (${fromName}) -> ${r.to} (${toName}): ${r.type} (valence: ${Math.round(r.valence * 100) / 100})`;
+    })
+    .join('\n');
+
+  // All scenes within the time horizon get full mutation detail
+  const sceneHistory = keysUpToCurrent.map((k, i) => {
+    const s = resolveEntry(n, k);
+    if (!s) return '';
+    const globalIdx = horizonStart + i + 1;
+    if (s.kind === 'world_build') {
+      return `[${globalIdx}] ${s.id} [WORLD BUILD]\n   ${s.summary}`;
+    }
+    const loc = `${s.locationId} (${n.locations[s.locationId]?.name ?? 'unknown'})`;
+    const participants = s.participantIds.map((pid) => `${pid} (${n.characters[pid]?.name ?? 'unknown'})`).join(', ');
+    const threadChanges = s.threadMutations.map((tm) => `${tm.threadId}: ${tm.from}->${tm.to}`).join('; ');
+    const knowledgeChanges = s.knowledgeMutations.map((km) => `${km.characterId} learned [${km.nodeType}]: ${km.content}`).join('; ');
+    const relChanges = s.relationshipMutations.map((rm) => {
+      const fromName = n.characters[rm.from]?.name ?? rm.from;
+      const toName = n.characters[rm.to]?.name ?? rm.to;
+      return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
+    }).join('; ');
+    return `[${globalIdx}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}${knowledgeChanges ? ` | Knowledge: ${knowledgeChanges}` : ''}${relChanges ? ` | Relationships: ${relChanges}` : ''}
+   ${s.summary}`;
+  }).filter(Boolean).join('\n');
+
+  // Arcs context — only arcs with scenes within the time horizon
+  const branchSceneIds = new Set(keysUpToCurrent.filter((k) => n.scenes[k]));
+  const arcs = Object.values(n.arcs)
+    .filter((a) => !hasHistory || a.sceneIds.some((sid) => branchSceneIds.has(sid)))
+    .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
+    .join('\n');
+
+  // Force trajectory — computed from all scenes for correct normalization,
+  // but only the time horizon is included in the output
+  const allScenes = keysUpToCurrent
+    .map((k) => resolveEntry(n, k))
+    .filter((e): e is Scene => e?.kind === 'scene');
+  const forceMap = computeForceSnapshots(allScenes);
+  const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
+  const swings = computeSwingMagnitudes(forceSnapshots);
+  const payoffMA = movingAverage(forceSnapshots.map(f => f.payoff), FORCE_WINDOW_SIZE);
+  const changeMA = movingAverage(forceSnapshots.map(f => f.change), FORCE_WINDOW_SIZE);
+  const varietyMA = movingAverage(forceSnapshots.map(f => f.variety), FORCE_WINDOW_SIZE);
+  const swingMA = movingAverage(swings, FORCE_WINDOW_SIZE);
+  const forceTrajectory = allScenes.map((s, i) => {
+    const f = forceMap[s.id];
+    if (!f) return null;
+    const corner = detectCubeCorner(f);
+    return `[${horizonStart + i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.variety >= 0 ? '+' : ''}${f.variety.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} V:${varietyMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
+  }).filter(Boolean).join('\n');
+
+  // Current cube position and local beat position
+  const currentForces = allScenes.length > 0 ? forceMap[allScenes[allScenes.length - 1].id] : null;
+  const currentCube = currentForces ? detectCubeCorner(currentForces) : null;
+  const windowScenes = allScenes.slice(-FORCE_WINDOW_SIZE);
+  const windowMap = computeForceSnapshots(windowScenes, allScenes.slice(0, -FORCE_WINDOW_SIZE));
+  const windowOrdered = windowScenes.map((s) => windowMap[s.id]).filter(Boolean);
+  const engPts = computeEngagementCurve(windowOrdered);
+  const localPos = engPts.length > 0 ? classifyCurrentPosition(engPts) : null;
+  const currentStateBlock = currentCube
+    ? `\nCURRENT NARRATIVE STATE:\n  Cube position: ${currentCube.name} (P:${currentForces!.payoff >= 0 ? 'Hi' : 'Lo'} C:${currentForces!.change >= 0 ? 'Hi' : 'Lo'} V:${currentForces!.variety >= 0 ? 'Hi' : 'Lo'}) — ${currentCube.description}\n  Beat position: ${localPos?.name ?? 'Stable'} — ${localPos?.description ?? 'beats are holding steady'}\n`
+    : '';
+
+  // Compact ID lookup — placed last so it's closest to the generation prompt
+  const charIdList = branchCharacters.map((c) => c.id).join(', ');
+  const locIdList = branchLocations.map((l) => l.id).join(', ');
+  const threadIdList = branchThreads.map((t) => t.id).join(', ');
+
+  const rulesBlock = n.rules && n.rules.length > 0
+    ? `\nWORLD RULES (these are absolute — every scene MUST obey them):\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n`
+    : '';
+
+  const storySettingsBlock = buildStorySettingsBlock(n);
+
+  const horizonLabel = skippedCount > 0
+    ? `SCENE HISTORY (${keysUpToCurrent.length} scenes in time horizon, ${skippedCount} earlier scenes omitted):`
+    : `SCENE HISTORY (${keysUpToCurrent.length} scenes on current branch):`;
+
+  return `NARRATIVE: "${n.title}"
+WORLD: ${n.worldSummary}
+${rulesBlock}${storySettingsBlock}
+────────────────────────────────────────
+CHARACTERS:
+${characters}
+
+────────────────────────────────────────
+LOCATIONS:
+${locations}
+
+────────────────────────────────────────
+THREADS:
+${threads}
+
+────────────────────────────────────────
+RELATIONSHIPS:
+${relationships}
+
+────────────────────────────────────────
+ARCS:
+${arcs}
+
+────────────────────────────────────────
+${horizonLabel}
+${sceneHistory}
+
+────────────────────────────────────────
+FORCE TRAJECTORY (computed from scene structure — shows pacing rhythm):
+${forceTrajectory || '(no scenes yet)'}
+${currentStateBlock}
+────────────────────────────────────────
+VALID IDs (you MUST use ONLY these exact IDs — do NOT invent new ones):
+  Character IDs: ${charIdList}
+  Location IDs: ${locIdList}
+  Thread IDs: ${threadIdList}`;
+}
+
+export function sceneContext(narrative: NarrativeState, scene: Scene): string {
+  const location = narrative.locations[scene.locationId];
+  const pov = narrative.characters[scene.povId];
+  const participants = scene.participantIds.map((pid) => narrative.characters[pid]).filter(Boolean);
+  const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
+  const participantIdSet = new Set(scene.participantIds);
+
+  // ── Characters: full knowledge graph for each participant ──────────
+  const RECENT_KNOWLEDGE = 5; // only most recent nodes to avoid context bloat
+
+  const characterBlocks = participants.map((p) => {
+    const recentNodes = p.knowledge.nodes.slice(-RECENT_KNOWLEDGE);
+    const omitted = p.knowledge.nodes.length - recentNodes.length;
+    const knLines = recentNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
+    const omittedNote = omitted > 0 ? `\n    (${omitted} earlier items omitted)` : '';
+    const knBlock = knLines.length > 0
+      ? `\n  Knowledge (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
+      : '';
+    return `  - ${p.id}: ${p.name} (${p.role})${knBlock}`;
+  });
+
+  // ── Location: recent knowledge ─────────────────────────────────────
+  const locationBlock = (() => {
+    if (!location) return '  - Unknown';
+    const recentNodes = location.knowledge.nodes.slice(-RECENT_KNOWLEDGE);
+    const omitted = location.knowledge.nodes.length - recentNodes.length;
+    const knLines = recentNodes.map((kn) => `    (${kn.type}) ${kn.content}`);
+    const omittedNote = omitted > 0 ? `\n    (${omitted} earlier items omitted)` : '';
+    const knBlock = knLines.length > 0
+      ? `\n  Knowledge (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
+      : '';
+    const parent = location.parentId ? ` (inside ${narrative.locations[location.parentId]?.name ?? location.parentId})` : '';
+    return `  - ${location.id}: ${location.name}${parent}${knBlock}`;
+  })();
+
+  // ── Relationships between participants ─────────────────────────────
+  const relevantRelationships = narrative.relationships.filter(
+    (r) => participantIdSet.has(r.from) && participantIdSet.has(r.to),
+  );
+  const relationshipStateLines = relevantRelationships.map((r) => {
+    const fromName = narrative.characters[r.from]?.name ?? r.from;
+    const toName = narrative.characters[r.to]?.name ?? r.to;
+    return `  - ${fromName} → ${toName}: ${r.type} (valence: ${Math.round(r.valence * 100) / 100})`;
+  });
+
+  // ── Threads involved in this scene ─────────────────────────────────
+  const threadIds = new Set(scene.threadMutations.map((tm) => tm.threadId));
+  const threadBlocks = [...threadIds].map((tid) => {
+    const thread = narrative.threads[tid];
+    if (!thread) return `  - ${tid}: unknown`;
+    const anchors = thread.anchors.map((a) => {
+      if (a.type === 'character') return narrative.characters[a.id]?.name ?? a.id;
+      if (a.type === 'location') return narrative.locations[a.id]?.name ?? a.id;
+      return a.id;
+    });
+    return `  - ${tid}: "${thread.description}" [${thread.status}] anchors: ${anchors.join(', ')}`;
+  });
+
+  // ── Scene mutations ────────────────────────────────────────────────
+  const threadMutationLines = scene.threadMutations.map((tm) => {
+    const thread = narrative.threads[tm.threadId];
+    return `  - "${thread?.description ?? tm.threadId}": ${tm.from} → ${tm.to}`;
+  });
+
+  const knowledgeMutationLines = scene.knowledgeMutations.map((km) => {
+    const char = narrative.characters[km.characterId];
+    return `  - ${char?.name ?? km.characterId} ${km.action === 'added' ? 'learns' : 'loses'}: [${km.nodeType ?? 'knowledge'}] ${km.content}`;
+  });
+
+  const relationshipMutationLines = scene.relationshipMutations.map((rm) => {
+    const fromName = narrative.characters[rm.from]?.name ?? rm.from;
+    const toName = narrative.characters[rm.to]?.name ?? rm.to;
+    return `  - ${fromName} → ${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
+  });
+
+  const movementLines = scene.characterMovements
+    ? Object.entries(scene.characterMovements).map(([charId, mv]) => {
+        const char = narrative.characters[charId];
+        const loc = narrative.locations[mv.locationId];
+        return `  - ${char?.name ?? charId} moves to ${loc?.name ?? mv.locationId} (${mv.transition})`;
+      })
+    : [];
+
+  const SEP = '────────────────────────────────────────';
+
+  return [
+    `Scene: ${scene.id}`,
+    `Summary: ${scene.summary}`,
+    `Arc: ${arc?.name ?? 'standalone'}`,
+    `POV: ${pov?.name ?? 'Unknown'} (${pov?.role ?? 'unknown role'})`,
+    ``,
+    SEP,
+    `CHARACTERS:`,
+    ...characterBlocks,
+    ``,
+    SEP,
+    `LOCATION:`,
+    locationBlock,
+    ``,
+    ...(relationshipStateLines.length > 0 ? [
+      SEP,
+      `RELATIONSHIPS (current state):`,
+      ...relationshipStateLines,
+      ``,
+    ] : []),
+    ...(threadBlocks.length > 0 ? [
+      SEP,
+      `THREADS (involved):`,
+      ...threadBlocks,
+      ``,
+    ] : []),
+    SEP,
+    `EVENTS:`,
+    ...scene.events.map((e) => `  - ${e}`),
+    ...(threadMutationLines.length > 0 ? [
+      ``,
+      SEP,
+      `THREAD SHIFTS:`,
+      ...threadMutationLines,
+    ] : []),
+    ...(knowledgeMutationLines.length > 0 ? [
+      ``,
+      SEP,
+      `KNOWLEDGE CHANGES:`,
+      ...knowledgeMutationLines,
+    ] : []),
+    ...(relationshipMutationLines.length > 0 ? [
+      ``,
+      SEP,
+      `RELATIONSHIP SHIFTS:`,
+      ...relationshipMutationLines,
+    ] : []),
+    ...(movementLines.length > 0 ? [
+      ``,
+      SEP,
+      `MOVEMENTS:`,
+      ...movementLines,
+    ] : []),
+  ].join('\n');
+}
+
+/** Estimate scene complexity to drive dynamic length guidance.
+ *  Returns { prose: { min, max, tokens }, plan: { words } } */
+export function sceneScale(scene: Scene): { proseMin: number; proseMax: number; proseTokens: number; planWords: string } {
+  const mutations = scene.threadMutations.length + scene.knowledgeMutations.length + scene.relationshipMutations.length;
+  const events = scene.events.length;
+  const movements = scene.characterMovements ? Object.keys(scene.characterMovements).length : 0;
+  const participants = scene.participantIds.length;
+  const summaryLen = scene.summary.length;
+
+  // Complexity score: more mutations, events, participants, and longer summaries = bigger scene
+  const complexity = mutations * 2 + events * 1.5 + movements + participants * 0.5 + (summaryLen > 200 ? 2 : 0) + (summaryLen > 400 ? 3 : 0);
+
+  let proseMin: number;
+  let proseMax: number;
+  if (complexity <= 4) { proseMin = 800; proseMax = 1200; }
+  else if (complexity <= 8) { proseMin = 1000; proseMax = 1500; }
+  else if (complexity <= 14) { proseMin = 1200; proseMax = 2500; }
+  else if (complexity <= 20) { proseMin = 1500; proseMax = 3500; }
+  else { proseMin = 2000; proseMax = 5000; }
+
+  // Token budget: ~1.3 tokens per word + headroom
+  const proseTokens = Math.ceil(proseMax * 1.5);
+  // Plan scales proportionally — roughly 40-60% of prose length in words
+  const planMin = Math.round(proseMin * 0.4);
+  const planMax = Math.round(proseMax * 0.5);
+  const planWords = `${planMin}-${planMax}`;
+
+  return { proseMin, proseMax, proseTokens, planWords };
+}
+
+/** Deterministically derive logical rules from the scene graph — no LLM needed.
+ *  Returns plain-text rules the prose must obey (spatial, POV, knowledge, relationships, threads). */
+export function deriveLogicRules(narrative: NarrativeState, scene: Scene): string[] {
+  const rules: string[] = [];
+
+  const participantNames = scene.participantIds
+    .map((pid) => narrative.characters[pid]?.name)
+    .filter(Boolean);
+  const participantIdSet = new Set(scene.participantIds);
+  const location = narrative.locations[scene.locationId];
+  const pov = narrative.characters[scene.povId];
+
+  // Spatial: only participants can appear
+  if (participantNames.length > 0 && location) {
+    const absentNames = Object.values(narrative.characters)
+      .filter((c) => !participantIdSet.has(c.id))
+      .map((c) => c.name)
+      .slice(0, 3);
+    if (absentNames.length > 0) {
+      rules.push(`Only these characters are present at ${location.name}: ${participantNames.join(', ')}. No other characters (e.g. ${absentNames.join(', ')}) may physically appear, speak, or interact.`);
+    }
+  }
+
+  // POV constraint
+  if (pov) {
+    const otherParticipants = scene.participantIds
+      .filter((pid) => pid !== scene.povId)
+      .map((pid) => narrative.characters[pid]?.name)
+      .filter(Boolean);
+    if (otherParticipants.length > 0) {
+      rules.push(`POV is locked to ${pov.name}. Do not reveal the internal thoughts, feelings, or private knowledge of ${otherParticipants.join(', ')} — only what ${pov.name} can observe, hear, or infer.`);
+    }
+  }
+
+  // ── POV knowledge boundary ──────────────────────────────────────────
+  if (pov) {
+    const povKnowledgeIds = new Set(pov.knowledge.nodes.map((kn) => kn.id));
+    // Knowledge being added to POV this scene — they don't have it at the START
+    const povLearnsThisScene = new Set(
+      scene.knowledgeMutations
+        .filter((km) => km.characterId === pov.id && km.action === 'added')
+        .map((km) => km.nodeId),
+    );
+    // POV's knowledge at scene START = current graph - things learned this scene
+    const povStartKnowledge = pov.knowledge.nodes.filter(
+      (kn) => !povLearnsThisScene.has(kn.id),
+    );
+
+    // Summarize what POV knows at scene start (cap to avoid bloat)
+    const MAX_POV_KNOWLEDGE_RULES = 8;
+    const knowledgeSummary = povStartKnowledge.slice(-MAX_POV_KNOWLEDGE_RULES);
+    if (knowledgeSummary.length > 0) {
+      rules.push(`${pov.name}'s knowledge at scene start (narration is limited to this): ${knowledgeSummary.map((kn) => `"${kn.content}"`).join(', ')}${povStartKnowledge.length > MAX_POV_KNOWLEDGE_RULES ? ` (and ${povStartKnowledge.length - MAX_POV_KNOWLEDGE_RULES} earlier items)` : ''}. The narrator must NOT reference, explain, or frame events using information outside this set.`);
+    }
+
+    // Flag knowledge that other participants have but POV does NOT
+    for (const pid of scene.participantIds) {
+      if (pid === pov.id) continue;
+      const other = narrative.characters[pid];
+      if (!other) continue;
+      const otherExclusive = other.knowledge.nodes.filter(
+        (kn) => !povKnowledgeIds.has(kn.id) && !povLearnsThisScene.has(kn.id),
+      );
+      if (otherExclusive.length > 0) {
+        const examples = otherExclusive.slice(-3).map((kn) => `"${kn.content}"`).join(', ');
+        rules.push(`${other.name} knows things ${pov.name} does NOT: ${examples}${otherExclusive.length > 3 ? ` (and ${otherExclusive.length - 3} more)` : ''}. The narrator must NOT reveal, hint at, or frame ${other.name}'s actions using this hidden knowledge. ${pov.name} can only observe ${other.name}'s external behaviour and draw their own (possibly wrong) conclusions.`);
+      }
+    }
+  }
+
+  // Knowledge mutations — temporal ordering within this scene
+  for (const km of scene.knowledgeMutations) {
+    if (km.action !== 'added') continue;
+    const char = narrative.characters[km.characterId];
+    if (!char) continue;
+    if (km.characterId === scene.povId) {
+      rules.push(`${char.name} (POV) does NOT know "${km.content}" at scene start — they learn it during the scene. Before the discovery moment, the narrator must not reference this information even obliquely. Show genuine surprise/realisation, not dramatic irony.`);
+    } else {
+      rules.push(`${char.name} does NOT know "${km.content}" at scene start — they learn it during the scene. Since POV is ${pov?.name ?? 'another character'}, show this discovery only through ${char.name}'s observable reaction (expression, body language, dialogue), not through their inner thoughts.`);
+    }
+  }
+
+  // Relationship valence consistency — compute PRE-scene valence by subtracting this scene's deltas
+  const mutationDeltaMap = new Map<string, number>();
+  for (const rm of scene.relationshipMutations) {
+    const key = `${rm.from}->${rm.to}`;
+    mutationDeltaMap.set(key, (mutationDeltaMap.get(key) ?? 0) + rm.valenceDelta);
+  }
+
+  const participantRelationships = narrative.relationships.filter(
+    (r) => participantIdSet.has(r.from) && participantIdSet.has(r.to),
+  );
+  for (const r of participantRelationships) {
+    const fromName = narrative.characters[r.from]?.name;
+    const toName = narrative.characters[r.to]?.name;
+    if (!fromName || !toName) continue;
+
+    // Pre-scene valence = current valence minus any deltas applied by this scene
+    const key = `${r.from}->${r.to}`;
+    const delta = mutationDeltaMap.get(key) ?? 0;
+    const preSceneValence = Math.round((r.valence - delta) * 100) / 100;
+
+    // Skip edges that have mutations — the relationship mutation rules below handle those
+    if (delta !== 0) continue;
+
+    if (preSceneValence <= -0.5) {
+      rules.push(`${fromName} → ${toName} relationship is hostile (valence ${preSceneValence}). Their interaction must reflect animosity, distrust, or conflict — no friendly or warm exchanges.`);
+    } else if (preSceneValence <= -0.1) {
+      rules.push(`${fromName} → ${toName} relationship is tense (valence ${preSceneValence}). Their interaction should carry friction, wariness, or unease.`);
+    }
+  }
+
+  // Thread temporal ordering
+  for (const tm of scene.threadMutations) {
+    const thread = narrative.threads[tm.threadId];
+    if (!thread) continue;
+    rules.push(`Thread "${thread.description}" is "${tm.from}" at scene start and must transition to "${tm.to}" during the scene. Do not begin with the thread already in its end state.`);
+  }
+
+  // Relationship mutations — include pre-scene valence for context
+  for (const rm of scene.relationshipMutations) {
+    const fromName = narrative.characters[rm.from]?.name;
+    const toName = narrative.characters[rm.to]?.name;
+    if (!fromName || !toName) continue;
+    const edge = narrative.relationships.find((r) => r.from === rm.from && r.to === rm.to);
+    const postValence = edge?.valence ?? 0;
+    const preValence = Math.round((postValence - rm.valenceDelta) * 100) / 100;
+    const delta = Math.round(rm.valenceDelta * 100) / 100;
+    rules.push(`${fromName} → ${toName} starts at valence ${preValence} and shifts by ${delta >= 0 ? '+' : ''}${delta} (${rm.type}) to end at ${Math.round(postValence * 100) / 100}. The prose must dramatise this change — show the relationship starting at its initial state and the shift happening through behaviour, dialogue, or action.`);
+  }
+
+  // Events
+  for (const event of scene.events) {
+    rules.push(`The event "${event}" must occur in this scene.`);
+  }
+
+  // Character movement
+  if (scene.characterMovements) {
+    for (const [charId, mv] of Object.entries(scene.characterMovements)) {
+      const char = narrative.characters[charId];
+      const newLoc = narrative.locations[mv.locationId];
+      if (!char || !newLoc) continue;
+      rules.push(`${char.name} moves to ${newLoc.name} during this scene (${mv.transition}). They start at ${location?.name ?? 'the current location'} — show the transition, not them already at ${newLoc.name}.`);
+    }
+  }
+
+  return rules;
+}

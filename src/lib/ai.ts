@@ -1208,18 +1208,16 @@ export async function generateSceneProse(
 
   const systemPrompt = `You are a literary prose writer crafting a single scene for a novel set in "${narrative.title}".
 
-Voice & style:
-- Third-person limited, locked to the POV character's senses and interiority.
-- Prose should feel novelistic, not summarised. Dramatise through action, dialogue, and sensory texture.
-- Favour subtext over exposition. Let tension live in what characters don't say.
-- Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.
+Tone: ${narrative.worldSummary.slice(0, 200)}.
 
-Enrichment — you are encouraged to add elements not present in the scene summary to increase narrative density:
-- Invent small sensory details, environmental texture, weather, ambient sounds, smells.
-- Add incidental dialogue, passing thoughts, micro-reactions that deepen character.
-- Introduce unnamed background figures, minor worldbuilding details, or cultural texture.
-- Layer in thematic imagery, recurring motifs, or symbolic objects that echo across the story.
-- These additions should feel organic, never forced. They exist to make the world feel lived-in.
+Voice & style:
+- Third-person limited, locked to the POV character's senses and interiority. Their body, breath, and attention are the camera.
+- Enter late, leave early. Start in the middle of something happening — never with setup or orientation.
+- Let scenes breathe. Don't rush through structural beats. A thread shift or relationship change is a turning point — build to it, let it land, show the aftermath ripple through the character's body and thoughts.
+- Dialogue must do at least two things at once: reveal character, advance conflict, shift power, or expose subtext. No filler exchanges. Each character should sound distinct — vocabulary, rhythm, what they avoid saying.
+- Interiority through the body, not narration. Show the POV character's emotional state through physical sensation, impulse, and micro-action — not by naming emotions.
+- Subtext over exposition. What characters don't say, what they notice but look away from, what they almost do — these carry more weight than declarations.
+- Sensory grounding in small, specific details. One precise image beats three generic ones. Anchor abstract tension in concrete objects, textures, sounds.
 
 Strict output rules:
 - Output ONLY the prose. No scene titles, chapter headers, separators (---), or meta-commentary.
@@ -1229,6 +1227,12 @@ Strict output rules:
 - Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. Instead end with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture, or a thought that reframes the scene.`;
 
   const sceneBlock = sceneContext(narrative, scene);
+
+  // Derive logical constraints from the scene graph — these are hard rules the prose must obey
+  const logicRules = deriveLogicRules(narrative, scene);
+  const logicBlock = logicRules.length > 0
+    ? `\nLOGICAL REQUIREMENTS (these are hard constraints derived from the scene graph — violating any is a failure):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
+    : '';
 
   // Adjacent prose edges for transition continuity
   const adjacentProseBlock = [
@@ -1240,13 +1244,124 @@ Strict output rules:
 ${fullContext}
 ${futureSummaries ? `\nFUTURE SCENES (for foreshadowing only — plant subtle seeds, never spoil or reference directly):\n${futureSummaries}\n` : ''}
 ${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${sceneBlock}
-
-Write ~1000 words. Every thread shift, knowledge change, and relationship mutation listed above must be dramatised — these are the structural beats of this scene. Fill around them with extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph.`;
+${logicBlock}
+Write ~1000 words. Every thread shift, knowledge change, and relationship mutation listed above must be dramatised — these are the structural beats of this scene. You MUST satisfy every logical requirement listed above — these encode spatial constraints, POV discipline, knowledge asymmetry, relationship valence, and temporal ordering derived from the scene graph. Fill around them with extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph.`;
 
   if (onToken) {
     return await callGenerateStream(prompt, systemPrompt, onToken, 4000, 'generateSceneProse');
   }
   return await callGenerate(prompt, systemPrompt, 4000, 'generateSceneProse');
+}
+
+
+
+/** Deterministically derive logical rules from the scene graph — no LLM needed.
+ *  Returns plain-text rules the prose must obey (spatial, POV, knowledge, relationships, threads). */
+function deriveLogicRules(narrative: NarrativeState, scene: Scene): string[] {
+  const rules: string[] = [];
+
+  const participantNames = scene.participantIds
+    .map((pid) => narrative.characters[pid]?.name)
+    .filter(Boolean);
+  const participantIdSet = new Set(scene.participantIds);
+  const location = narrative.locations[scene.locationId];
+  const pov = narrative.characters[scene.povId];
+
+  // Spatial: only participants can appear
+  if (participantNames.length > 0 && location) {
+    const absentNames = Object.values(narrative.characters)
+      .filter((c) => !participantIdSet.has(c.id))
+      .map((c) => c.name)
+      .slice(0, 3);
+    if (absentNames.length > 0) {
+      rules.push(`Only these characters are present at ${location.name}: ${participantNames.join(', ')}. No other characters (e.g. ${absentNames.join(', ')}) may physically appear, speak, or interact.`);
+    }
+  }
+
+  // POV constraint
+  if (pov) {
+    const otherParticipants = scene.participantIds
+      .filter((pid) => pid !== scene.povId)
+      .map((pid) => narrative.characters[pid]?.name)
+      .filter(Boolean);
+    if (otherParticipants.length > 0) {
+      rules.push(`POV is locked to ${pov.name}. Do not reveal the internal thoughts, feelings, or private knowledge of ${otherParticipants.join(', ')} — only what ${pov.name} can observe, hear, or infer.`);
+    }
+  }
+
+  // Knowledge asymmetry
+  for (const km of scene.knowledgeMutations) {
+    if (km.action !== 'added') continue;
+    const char = narrative.characters[km.characterId];
+    if (!char) continue;
+    rules.push(`${char.name} does NOT know "${km.content}" at the start of this scene — they learn it during the scene. Show the moment of discovery, not prior knowledge.`);
+  }
+
+  // Relationship valence consistency — compute PRE-scene valence by subtracting this scene's deltas
+  const mutationDeltaMap = new Map<string, number>();
+  for (const rm of scene.relationshipMutations) {
+    const key = `${rm.from}->${rm.to}`;
+    mutationDeltaMap.set(key, (mutationDeltaMap.get(key) ?? 0) + rm.valenceDelta);
+  }
+
+  const participantRelationships = narrative.relationships.filter(
+    (r) => participantIdSet.has(r.from) && participantIdSet.has(r.to),
+  );
+  for (const r of participantRelationships) {
+    const fromName = narrative.characters[r.from]?.name;
+    const toName = narrative.characters[r.to]?.name;
+    if (!fromName || !toName) continue;
+
+    // Pre-scene valence = current valence minus any deltas applied by this scene
+    const key = `${r.from}->${r.to}`;
+    const delta = mutationDeltaMap.get(key) ?? 0;
+    const preSceneValence = Math.round((r.valence - delta) * 100) / 100;
+
+    // Skip edges that have mutations — the relationship mutation rules below handle those
+    if (delta !== 0) continue;
+
+    if (preSceneValence <= -0.5) {
+      rules.push(`${fromName} → ${toName} relationship is hostile (valence ${preSceneValence}). Their interaction must reflect animosity, distrust, or conflict — no friendly or warm exchanges.`);
+    } else if (preSceneValence <= -0.1) {
+      rules.push(`${fromName} → ${toName} relationship is tense (valence ${preSceneValence}). Their interaction should carry friction, wariness, or unease.`);
+    }
+  }
+
+  // Thread temporal ordering
+  for (const tm of scene.threadMutations) {
+    const thread = narrative.threads[tm.threadId];
+    if (!thread) continue;
+    rules.push(`Thread "${thread.description}" is "${tm.from}" at scene start and must transition to "${tm.to}" during the scene. Do not begin with the thread already in its end state.`);
+  }
+
+  // Relationship mutations — include pre-scene valence for context
+  for (const rm of scene.relationshipMutations) {
+    const fromName = narrative.characters[rm.from]?.name;
+    const toName = narrative.characters[rm.to]?.name;
+    if (!fromName || !toName) continue;
+    const edge = narrative.relationships.find((r) => r.from === rm.from && r.to === rm.to);
+    const postValence = edge?.valence ?? 0;
+    const preValence = Math.round((postValence - rm.valenceDelta) * 100) / 100;
+    const delta = Math.round(rm.valenceDelta * 100) / 100;
+    rules.push(`${fromName} → ${toName} starts at valence ${preValence} and shifts by ${delta >= 0 ? '+' : ''}${delta} (${rm.type}) to end at ${Math.round(postValence * 100) / 100}. The prose must dramatise this change — show the relationship starting at its initial state and the shift happening through behaviour, dialogue, or action.`);
+  }
+
+  // Events
+  for (const event of scene.events) {
+    rules.push(`The event "${event}" must occur in this scene.`);
+  }
+
+  // Character movement
+  if (scene.characterMovements) {
+    for (const [charId, locId] of Object.entries(scene.characterMovements)) {
+      const char = narrative.characters[charId];
+      const newLoc = narrative.locations[locId];
+      if (!char || !newLoc) continue;
+      rules.push(`${char.name} moves to ${newLoc.name} during this scene. They start at ${location?.name ?? 'the current location'} — show the transition, not them already at ${newLoc.name}.`);
+    }
+  }
+
+  return rules;
 }
 
 /**

@@ -808,31 +808,55 @@ export function gradeForce(normalizedMean: number): number {
   return Math.min(20, 20 * (1 - Math.exp(-2 * Math.max(0, normalizedMean))));
 }
 
-/** Streak: sigmoid credit κ(s) = σ(0.1(s - 55)).
- *  Penalty accumulates over consecutive sub-60 arcs, weighted by run position. */
+/** Streak: zone-based consistency with compounding streak penalties.
+ *
+ *  Each arc earns credit based on its color zone:
+ *    green (≥90) = 1.0, lime (80-89) = 0.8, yellow (70-79) = 0.6,
+ *    orange (60-69) = 0.4, red (<60) = 0.2
+ *
+ *  The average credit forms the base score. A streak penalty then reduces
+ *  it when below-green arcs (<80) cluster into prolonged low periods.
+ *  Each arc in a streak is penalized by zone weight × streak position:
+ *    yellow = 1×, orange = 2×, red = 3×
+ *  so a red streak compounds much faster than a yellow one. */
 function consistencyFactor(arr: number[]): number {
   const n = arr.length;
   if (n < 2) return 1;
 
-  // Sigmoid credit: arcs above 70 get near-full credit, below 40 get near-zero
-  const credit = (s: number) => 1 / (1 + Math.exp(-0.1 * (s - 55)));
+  // Zone credit: maps arc score to color-zone reward [0, 1]
+  const credit = (s: number) => {
+    if (s >= 90) return 1.0;   // green
+    if (s >= 80) return 0.8;   // lime
+    if (s >= 70) return 0.6;   // yellow
+    if (s >= 60) return 0.4;   // orange
+    return 0.2;                // red
+  };
+
+  // Zone weight for streak penalty: worse zones compound faster
+  const zoneWeight = (s: number) => {
+    if (s >= 70) return 1;     // yellow
+    if (s >= 60) return 2;     // orange
+    return 3;                  // red
+  };
+
+  // Average zone credit across all arcs
   const avgCredit = avg(arr.map(credit));
 
+  // Streak penalty: consecutive below-green arcs, weighted by zone severity
   if (n < 3) return avgCredit;
-
-  // Streak penalty: only consecutive arcs below 60 (genuinely weak) compound
   let penalty = 0;
   let pos = 0;
   for (let i = 0; i <= n; i++) {
-    if (i < n && arr[i] < 60) {
+    if (i < n && arr[i] < 80) {
       pos++;
-      penalty += (1 - credit(arr[i])) * pos;
+      penalty += zoneWeight(arr[i]) * pos;
     } else {
       pos = 0;
     }
   }
+  const streakFactor = 1 / (1 + penalty / (n * 15));
 
-  return avgCredit / (1 + penalty / (n * 8));
+  return avgCredit * streakFactor;
 }
 
 /**

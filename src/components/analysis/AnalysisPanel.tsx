@@ -35,6 +35,15 @@ export function AnalysisPanel({ jobId, sourceText, title: initialTitle, onClose 
     }
   }, [state.analysisJobs, currentJob?.id]);
 
+  // Auto-open narrative when the runner finishes assembly
+  useEffect(() => {
+    if (currentJob?.status === 'completed' && currentJob.narrativeId) {
+      dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: currentJob.narrativeId });
+      router.push(`/series/${currentJob.narrativeId}`);
+      onClose();
+    }
+  }, [currentJob?.status, currentJob?.narrativeId, dispatch, router, onClose]);
+
   const runAnalysis = useCallback(async (job: AnalysisJob) => {
     cancelledRef.current = false;
     setIsRunning(true);
@@ -275,15 +284,22 @@ export function AnalysisPanel({ jobId, sourceText, title: initialTitle, onClose 
           {currentJob.status === 'completed' ? (
             <button
               onClick={async () => {
-                const completedResults = currentJob.results.filter((r): r is AnalysisChunkResult => r !== null);
-                const narrative = await assembleNarrative(currentJob.title, completedResults);
-                dispatch({ type: 'ADD_NARRATIVE', narrative });
-                dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: currentJob.id, updates: { narrativeId: narrative.id } });
-                router.push(`/series/${narrative.id}`);
+                if (currentJob.narrativeId) {
+                  // Already assembled by the runner — just navigate
+                  dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: currentJob.narrativeId });
+                  router.push(`/series/${currentJob.narrativeId}`);
+                } else {
+                  // Fallback: assemble if runner didn't (e.g. old paused job)
+                  const completedResults = currentJob.results.filter((r): r is AnalysisChunkResult => r !== null);
+                  const narrative = await assembleNarrative(currentJob.title, completedResults);
+                  dispatch({ type: 'ADD_NARRATIVE', narrative });
+                  dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: currentJob.id, updates: { narrativeId: narrative.id } });
+                  router.push(`/series/${narrative.id}`);
+                }
               }}
               className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold px-5 py-2 rounded-lg transition w-full"
             >
-              Create Narrative
+              {currentJob.narrativeId ? 'Open Narrative' : 'Create Narrative'}
             </button>
           ) : (
             <>

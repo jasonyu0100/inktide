@@ -595,22 +595,30 @@ const MAX_CORPUS_WORDS = ANALYSIS_MAX_CORPUS_WORDS;
 /* ── Title detection via LLM ─────────────────────────────────────────────── */
 async function detectTitleLLM(chunkText: string): Promise<string> {
   const { apiHeaders } = await import('@/lib/api-headers');
+  const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
+
+  const prompt = `Here is the first chunk of a text. What is the title of this work? Reply with ONLY the title, nothing else. No quotes, no explanation.\n\n${chunkText}`;
+  const systemPrompt = 'You identify book/screenplay/text titles from their content. Reply with only the title in proper title case.';
+  const logId = logApiCall('detectTitleLLM', prompt.length + systemPrompt.length, prompt);
+  const start = performance.now();
 
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({
-        prompt: `Here is the first chunk of a text. What is the title of this work? Reply with ONLY the title, nothing else. No quotes, no explanation.\n\n${chunkText}`,
-        systemPrompt: 'You identify book/screenplay/text titles from their content. Reply with only the title in proper title case.',
-        maxTokens: 50,
-      }),
+      body: JSON.stringify({ prompt, systemPrompt, maxTokens: 50 }),
     });
-    if (!res.ok) return '';
+    if (!res.ok) {
+      updateApiLog(logId, { status: 'error', error: `HTTP ${res.status}`, durationMs: Math.round(performance.now() - start) });
+      return '';
+    }
     const data = await res.json();
     const title = (data.content ?? '').trim().replace(/^["']|["']$/g, '');
+    updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responseLength: title.length, responsePreview: title });
     return title.length > 0 && title.length < 100 ? title : '';
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
     return '';
   }
 }

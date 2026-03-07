@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { generateNarrative } from '@/lib/ai';
+import { logApiCall, updateApiLog } from '@/lib/api-logger';
 import type { CharacterSketch, LocationSketch } from '@/types/narrative';
 
 const ROLES: CharacterSketch['role'][] = ['anchor', 'recurring', 'transient'];
@@ -74,14 +75,19 @@ export function CreationWizard() {
   async function handleSuggest() {
     if (suggesting) return;
     setSuggesting(true);
+    const logId = logApiCall('CreationWizard.suggest', 0, 'suggest-premise');
+    const start = performance.now();
     try {
       const res = await fetch('/api/suggest-premise', { method: 'POST' });
       const data = await res.json();
+      const content = JSON.stringify(data);
+      updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responseLength: content.length, responsePreview: content });
       if (data.title || data.premise) {
         update({ title: data.title ?? '', premise: data.premise ?? '' });
       }
-    } catch {
-      // silently fail
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
     } finally {
       setSuggesting(false);
     }

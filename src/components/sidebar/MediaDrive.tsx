@@ -4,6 +4,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry } from '@/types/narrative';
 import { apiHeaders } from '@/lib/api-headers';
+import { logApiCall, updateApiLog } from '@/lib/api-logger';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import MediaPreview from '@/components/sidebar/MediaPreview';
 import type { MediaItem } from '@/components/sidebar/MediaPreview';
@@ -18,21 +19,34 @@ type SceneReadiness = {
   ready: boolean;
 };
 
-function generateImage(
+async function generateImage(
   type: 'character' | 'location' | 'scene',
   payload: Record<string, unknown>,
 ): Promise<{ imageUrl: string }> {
-  return fetch('/api/generate-image', {
-    method: 'POST',
-    headers: apiHeaders(),
-    body: JSON.stringify({ type, ...payload }),
-  }).then(async (res) => {
+  const body = JSON.stringify({ type, ...payload });
+  const logId = logApiCall(`MediaDrive.generateImage(${type})`, body.length, body);
+  const start = performance.now();
+
+  try {
+    const res = await fetch('/api/generate-image', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body,
+    });
     if (!res.ok) {
       const err = await res.json();
-      throw new Error(err.error || 'Image generation failed');
+      const message = err.error || 'Image generation failed';
+      updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+      throw new Error(message);
     }
-    return res.json();
-  });
+    const data = await res.json();
+    updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responseLength: data.imageUrl?.length ?? 0, responsePreview: `image generated (${type})` });
+    return data;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+    throw err;
+  }
 }
 
 function Spinner() {

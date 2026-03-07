@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { branchContext } from '@/lib/ai';
 import { apiHeaders } from '@/lib/api-headers';
+import { logApiCall, updateApiLog } from '@/lib/api-logger';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 
 type ChatMessage = {
@@ -78,27 +79,37 @@ ${ctx}`;
     setInput('');
     setLoading(true);
 
+    const sysPrompt = buildSystemPrompt();
+    const promptText = newMessages.map((m) => m.content).join('\n');
+    const logId = logApiCall('ChatPanel.send', promptText.length + sysPrompt.length, promptText);
+    const start = performance.now();
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({
           messages: newMessages,
-          systemPrompt: buildSystemPrompt(),
+          systemPrompt: sysPrompt,
         }),
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Chat failed');
+        const message = err.error || 'Chat failed';
+        updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+        throw new Error(message);
       }
 
       const data = await res.json();
+      updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responseLength: data.content.length, responsePreview: data.content });
       setMessages([...newMessages, { role: 'assistant', content: data.content }]);
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
       setMessages([
         ...newMessages,
-        { role: 'assistant', content: `Error: ${err instanceof Error ? err.message : String(err)}` },
+        { role: 'assistant', content: `Error: ${message}` },
       ]);
     } finally {
       setLoading(false);

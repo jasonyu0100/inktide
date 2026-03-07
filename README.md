@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Narrative Engine
+
+An AI-powered interactive fiction editor for building, analyzing, and generating complex multi-threaded narratives. Create rich stories with interconnected characters, locations, and plot threads — then let AI help you plan scenes, write prose, and explore branching storylines.
+
+## Features
+
+- **Scene Generation** — AI creates structured scenes with character interactions, thread mutations, knowledge changes, and relationship shifts
+- **Plan & Prose Pipeline** — Beat-by-beat scene blueprints, then full prose generation with streaming output
+- **Grading & Rewriting** — Score prose on 6 dimensions (voice, pacing, dialogue, sensory, mutation coverage) with detailed critique, then rewrite using the grade or custom analysis
+- **Interactive World Graph** — D3-powered visualization of characters, locations, and their relationships
+- **Text Analysis** — Import existing prose (books, screenplays) and extract a full narrative graph: characters, locations, threads, scenes
+- **Branching Timelines** — Git-like branches for exploring alternate storylines
+- **Narrative Forces** — Track tension, change, and variety metrics across your story arc
+- **Narrative Cube** — Classify scenes by payoff/change/variety into archetypal corners (Spectacle, Revelation, Convergence, etc.)
+- **MCTS Exploration** — Monte Carlo Tree Search for discovering optimal scene sequences
+- **Auto-Generation** — Automated story generation with configurable constraints
+- **EPUB Export** — Export your narrative as a publishable ebook
+- **Character Movements** — Track how characters physically relocate between locations with vivid transition descriptions
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- An [OpenRouter](https://openrouter.ai/) API key
+
+### Setup
+
+```bash
+npm install
+```
+
+Create a `.env.local` file:
+
+```
+OPENROUTER_API_KEY=your_key_here
+REPLICATE_API_TOKEN=your_token_here   # Optional, for image generation
+```
+
+### Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to start creating narratives.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- **Framework:** [Next.js](https://nextjs.org) 16 (App Router)
+- **UI:** React 19, [Tailwind CSS](https://tailwindcss.com) v4
+- **Visualization:** [D3.js](https://d3js.org) (force-directed graphs, charts)
+- **AI:** [OpenRouter](https://openrouter.ai/) API (streaming LLM generation)
+- **Images:** [Replicate](https://replicate.com/) API (cover & scene art)
+- **Language:** TypeScript (strict mode)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/                # Next.js routes & API endpoints
+│   ├── series/[id]/    # Main story editor
+│   ├── analysis/       # Text import & extraction
+│   └── api/            # LLM & image generation endpoints
+├── components/         # React UI organized by feature
+├── lib/                # Core logic (AI, state, algorithms)
+├── types/              # TypeScript domain model
+└── data/               # Seed narratives (demo stories)
+```
 
-## Deploy on Vercel
+## How It Works
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **Create a narrative** — Use the creation wizard or import existing text
+2. **Build your world** — Add characters, locations, and plot threads
+3. **Generate scenes** — AI creates structured scenes with mutations tracking how characters, knowledge, and relationships change
+4. **Plan beats** — Generate beat-by-beat scene blueprints
+5. **Write prose** — AI writes full prose following the plan
+6. **Grade & rewrite** — Score prose quality, then rewrite guided by the critique or your own analysis
+7. **Explore branches** — Fork timelines to try alternate story directions
+8. **Export** — Generate EPUB when your story is complete
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+Private

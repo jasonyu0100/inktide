@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import { useRef, useEffect } from 'react';
+import * as d3 from 'd3';
 import type { MovieData } from '@/lib/movie-data';
 
 const gradeColor = (v: number, max: number) => {
@@ -12,150 +13,148 @@ const gradeColor = (v: number, max: number) => {
   return '#EF4444';
 };
 
-export function ReportCardSlide({ data }: { data: MovieData }) {
-  const forces = [
-    { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
-    { key: 'change' as const, label: 'Change', color: '#22C55E' },
-    { key: 'variety' as const, label: 'Variety', color: '#3B82F6' },
-    { key: 'swing' as const, label: 'Swing', color: '#FACC15' },
-    { key: 'streak' as const, label: 'Streak', color: '#A78BFA' },
-  ];
+const FORCES = [
+  { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
+  { key: 'change' as const, label: 'Change', color: '#22C55E' },
+  { key: 'variety' as const, label: 'Variety', color: '#3B82F6' },
+  { key: 'swing' as const, label: 'Swing', color: '#FACC15' },
+  { key: 'streak' as const, label: 'Streak', color: '#A78BFA' },
+];
 
-  // Determine strengths and weaknesses
-  const forceGrades = forces.map((f) => ({ ...f, grade: data.overallGrades[f.key] }));
-  const sorted = [...forceGrades].sort((a, b) => b.grade - a.grade);
-  const strengths = sorted.slice(0, 2);
-  const weaknesses = sorted.slice(-2).filter((f) => f.grade < 16);
+export function ReportCardSlide({ data }: { data: MovieData }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const raw = data.rawForces;
+  const n = data.sceneCount;
+  const stats = {
+    payoff: { avg: raw.payoff.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.payoff), total: raw.payoff.reduce((s, v) => s + v, 0) },
+    change: { avg: raw.change.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.change), total: raw.change.reduce((s, v) => s + v, 0) },
+    variety: { avg: raw.variety.reduce((s, v) => s + v, 0) / n, peak: Math.max(...raw.variety), total: raw.variety.reduce((s, v) => s + v, 0) },
+    swing: { avg: data.swings.reduce((s, v) => s + v, 0) / data.swings.length, peak: Math.max(...data.swings), total: data.swings.reduce((s, v) => s + v, 0) },
+  };
+
+  // Arc score chart
+  useEffect(() => {
+    const svg = d3.select(svgRef.current);
+    svg.selectAll('*').remove();
+    if (!svgRef.current || data.arcGrades.length < 2) return;
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const width = rect.width;
+    const height = Math.max(rect.height, 80);
+    const margin = { top: 8, right: 8, bottom: 16, left: 24 };
+    const w = width - margin.left - margin.right;
+    const h = height - margin.top - margin.bottom;
+
+    svg.attr('viewBox', `0 0 ${width} ${height}`);
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const scores = data.arcGrades.map((a) => a.grades.overall);
+    const x = d3.scaleLinear().domain([0, scores.length - 1]).range([0, w]);
+    const y = d3.scaleLinear().domain([0, 100]).range([h, 0]);
+
+    // Zone bands
+    const zones = [
+      { y0: 0, y1: 60, color: '#EF4444' },
+      { y0: 60, y1: 70, color: '#F97316' },
+      { y0: 70, y1: 80, color: '#FACC15' },
+      { y0: 80, y1: 90, color: '#A3E635' },
+      { y0: 90, y1: 100, color: '#22C55E' },
+    ];
+    for (const z of zones) {
+      g.append('rect')
+        .attr('x', 0).attr('y', y(z.y1)).attr('width', w).attr('height', y(z.y0) - y(z.y1))
+        .attr('fill', z.color).attr('fill-opacity', 0.04);
+    }
+
+    // Score bars
+    const barW = Math.min(w / scores.length * 0.7, 8);
+    scores.forEach((s, i) => {
+      g.append('rect')
+        .attr('x', x(i) - barW / 2).attr('y', y(s)).attr('width', barW).attr('height', h - y(s))
+        .attr('fill', gradeColor(s, 100)).attr('fill-opacity', 0.6).attr('rx', 1);
+    });
+
+    // Y axis labels
+    for (const tick of [25, 50, 75, 100]) {
+      g.append('text').attr('x', -4).attr('y', y(tick) + 3)
+        .attr('text-anchor', 'end').attr('fill', 'white').attr('fill-opacity', 0.2)
+        .attr('font-size', 8).attr('font-family', 'monospace').text(tick);
+    }
+  }, [data]);
 
   return (
     <div className="flex flex-col h-full px-12 py-8">
-      <h2 className="text-2xl font-bold text-text-primary mb-6">Report Card</h2>
-
-      <div className="flex-1 grid grid-cols-2 gap-10">
-        {/* Left: grades */}
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          {/* Overall score */}
-          <div className="flex items-center gap-4 mb-8">
-            <span
-              className="text-6xl font-bold font-mono"
-              style={{ color: gradeColor(data.overallGrades.overall, 100) }}
-            >
-              {data.overallGrades.overall}
-            </span>
-            <div>
-              <span className="text-lg text-text-dim">/100</span>
-              <p className="text-xs text-text-dim mt-1">Overall Score</p>
-            </div>
-          </div>
-
-          {/* Force grades */}
-          <div className="space-y-3">
-            {forces.map((f) => {
-              const grade = data.overallGrades[f.key];
-              return (
-                <div key={f.key} className="flex items-center gap-3">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
-                  <span className="text-sm w-16" style={{ color: f.color }}>{f.label}</span>
-                  <div className="flex-1 h-3 rounded-full bg-white/5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${(grade / 20) * 100}%`,
-                        backgroundColor: gradeColor(grade, 20),
-                        opacity: 0.7,
-                      }}
-                    />
-                  </div>
-                  <span className="text-sm font-mono font-semibold w-10 text-right" style={{ color: gradeColor(grade, 20) }}>
-                    {grade}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Arc grades */}
-          {data.arcGrades.length > 1 && (
-            <div className="mt-6">
-              <h3 className="text-xs uppercase tracking-widest text-text-dim mb-3">Arc Scores</h3>
-              <div className="flex flex-wrap gap-2">
-                {data.arcGrades.map((ag) => (
-                  <div
-                    key={ag.arcId}
-                    className="px-2.5 py-1.5 rounded-lg border border-white/8 text-center"
-                    style={{ backgroundColor: gradeColor(ag.grades.overall, 100) + '15' }}
-                  >
-                    <span className="text-xs font-mono font-semibold" style={{ color: gradeColor(ag.grades.overall, 100) }}>
-                      {ag.grades.overall}
-                    </span>
-                    <p className="text-[9px] text-text-dim mt-0.5">{ag.arcName}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <h2 className="text-2xl font-bold text-text-primary">{data.title}</h2>
+          <p className="text-xs text-text-dim font-mono mt-0.5">
+            {data.sceneCount} scenes / {data.arcCount} arc{data.arcCount !== 1 ? 's' : ''}
+          </p>
         </div>
-
-        {/* Right: prose scores + analysis */}
-        <div className="flex flex-col gap-6">
-          {/* Prose quality */}
-          {data.avgProseScore && (
-            <div>
-              <h3 className="text-xs uppercase tracking-widest text-text-dim mb-3">Prose Quality (Avg)</h3>
-              <div className="space-y-2">
-                {[
-                  { key: 'voice', label: 'Voice' },
-                  { key: 'pacing', label: 'Pacing' },
-                  { key: 'dialogue', label: 'Dialogue' },
-                  { key: 'sensory', label: 'Sensory' },
-                  { key: 'mutation_coverage', label: 'Coverage' },
-                ].map((dim) => {
-                  const val = data.avgProseScore![dim.key as keyof typeof data.avgProseScore] as number;
-                  return (
-                    <div key={dim.key} className="flex items-center gap-3">
-                      <span className="text-xs text-text-secondary w-16">{dim.label}</span>
-                      <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
-                        <div className="h-full rounded-full bg-violet-400/50" style={{ width: `${(val / 20) * 100}%` }} />
-                      </div>
-                      <span className="text-xs font-mono text-text-primary w-8 text-right">{val.toFixed(1)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Strengths */}
-          <div>
-            <h3 className="text-xs uppercase tracking-widest text-text-dim mb-2">Strengths</h3>
-            <div className="space-y-1.5">
-              {strengths.map((s) => (
-                <div key={s.key} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-400/[0.05] border border-green-400/10">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                  <span className="text-xs text-text-primary capitalize">{s.label}</span>
-                  <span className="text-xs font-mono ml-auto" style={{ color: gradeColor(s.grade, 20) }}>{s.grade}/20</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Weaknesses */}
-          {weaknesses.length > 0 && (
-            <div>
-              <h3 className="text-xs uppercase tracking-widest text-text-dim mb-2">Areas for Improvement</h3>
-              <div className="space-y-1.5">
-                {weaknesses.map((w) => (
-                  <div key={w.key} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-400/[0.05] border border-red-400/10">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: w.color }} />
-                    <span className="text-xs text-text-primary capitalize">{w.label}</span>
-                    <span className="text-xs font-mono ml-auto" style={{ color: gradeColor(w.grade, 20) }}>{w.grade}/20</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        <div className="flex items-baseline gap-1">
+          <span className="text-5xl font-bold font-mono" style={{ color: gradeColor(data.overallGrades.overall, 100) }}>
+            {data.overallGrades.overall}
+          </span>
+          <span className="text-lg text-text-dim">/100</span>
         </div>
       </div>
+
+      {/* Grade table */}
+      <div className="mb-5">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-white/8">
+              <th className="text-left py-2 pr-4 w-28" />
+              <th className="text-right py-2 px-4 text-[10px] uppercase tracking-widest text-text-dim font-mono font-normal w-24">Avg</th>
+              <th className="text-right py-2 px-4 text-[10px] uppercase tracking-widest text-text-dim font-mono font-normal w-24">Peak</th>
+              <th className="text-right py-2 px-4 text-[10px] uppercase tracking-widest text-text-dim font-mono font-normal w-24">Total</th>
+              <th className="text-right py-2 pl-4 text-[10px] uppercase tracking-widest text-text-dim font-mono font-normal w-24">Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {FORCES.map((f) => {
+              const grade = data.overallGrades[f.key];
+              const isStreak = f.key === 'streak';
+              const s = isStreak ? null : stats[f.key as keyof typeof stats];
+              return (
+                <tr key={f.key} className="border-b border-white/4">
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: f.color }} />
+                      <span className="text-sm font-semibold" style={{ color: f.color }}>{f.label}</span>
+                    </div>
+                  </td>
+                  <td className="text-right py-3 px-4 text-sm font-mono font-bold text-text-primary">
+                    {s ? s.avg.toFixed(2) : '—'}
+                  </td>
+                  <td className="text-right py-3 px-4 text-sm font-mono text-text-secondary">
+                    {s ? s.peak.toFixed(2) : '—'}
+                  </td>
+                  <td className="text-right py-3 px-4 text-sm font-mono text-text-secondary">
+                    {s ? s.total.toFixed(1) : '—'}
+                  </td>
+                  <td className="text-right py-3 pl-4">
+                    <span className="text-lg font-bold font-mono" style={{ color: gradeColor(grade, 20) }}>
+                      {grade}
+                    </span>
+                    <span className="text-xs text-text-dim">/20</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Arc scores chart */}
+      {data.arcGrades.length > 1 && (
+        <div className="flex-1 min-h-0">
+          <div className="text-[9px] uppercase tracking-widest text-text-dim mb-1">Score by Arc</div>
+          <svg ref={svgRef} className="w-full h-full" />
+        </div>
+      )}
     </div>
   );
 }

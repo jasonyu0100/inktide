@@ -113,6 +113,11 @@ export type MovieData = {
   overallGrades: ForceGrades;
   arcGrades: ArcGrade[];
   avgProseScore: ProseScore | null;
+
+  /** ID → name lookup maps for resolving scene references */
+  characterNames: Record<string, string>;
+  locationNames: Record<string, string>;
+  threadDescriptions: Record<string, string>;
 };
 
 // ── Computation ────────────────────────────────────────────────────────────────
@@ -276,6 +281,9 @@ export function computeMovieData(
     overallGrades: overallGrades,
     arcGrades,
     avgProseScore,
+    characterNames: Object.fromEntries(Object.entries(narrative.characters).map(([id, c]) => [id, c.name])),
+    locationNames: Object.fromEntries(Object.entries(narrative.locations).map(([id, l]) => [id, l.name])),
+    threadDescriptions: Object.fromEntries(Object.entries(narrative.threads).map(([id, t]) => [id, t.description])),
   };
 }
 
@@ -374,8 +382,7 @@ function buildPeakInfos(
         dominantForce: dominantForce(f.payoff, f.change, f.variety),
       };
     })
-    .sort((a, b) => b.engagement.engagement - a.engagement.engagement)
-    .slice(0, 8);
+    .sort((a, b) => b.engagement.engagement - a.engagement.engagement);
 }
 
 function buildTroughInfos(
@@ -418,8 +425,7 @@ function buildTroughInfos(
         recoveryForce,
       };
     })
-    .sort((a, b) => a.engagement.engagement - b.engagement.engagement)
-    .slice(0, 5);
+    .sort((a, b) => a.engagement.engagement - b.engagement.engagement);
 }
 
 function buildThreadLifecycles(
@@ -427,27 +433,50 @@ function buildThreadLifecycles(
   scenes: Scene[],
   resolvedSceneKeys: string[],
 ): ThreadLifecycle[] {
+  const terminalStatuses = new Set(['resolved', 'subverted', 'abandoned']);
   const threads = Object.values(narrative.threads);
+
   return threads.map((thread) => {
-    const statuses: { sceneIdx: number; status: string }[] = [];
-    let currentStatus = thread.status;
-    // Find first scene where this thread appears
+    // Find all scenes that mutate this thread
+    const mutations: { sceneIdx: number; from: string; to: string }[] = [];
     for (let i = 0; i < scenes.length; i++) {
-      const scene = scenes[i];
-      for (const tm of scene.threadMutations) {
+      for (const tm of scenes[i].threadMutations) {
         if (tm.threadId === thread.id) {
-          currentStatus = tm.to;
+          mutations.push({ sceneIdx: i, from: tm.from, to: tm.to });
         }
       }
-      // Only record if thread has been mutated at least once, or is active
-      if (thread.status !== 'dormant' || scenes.some((s, si) => si <= i && s.threadMutations.some((tm) => tm.threadId === thread.id))) {
-        statuses.push({ sceneIdx: i, status: currentStatus });
-      }
     }
+
+    if (mutations.length === 0) return null;
+
+    // Build status timeline from first mutation to last (or terminal)
+    const firstIdx = mutations[0].sceneIdx;
+    const statuses: { sceneIdx: number; status: string }[] = [];
+
+    // Start with the "from" status of the first mutation
+    let currentStatus = mutations[0].from;
+    let mutIdx = 0;
+
+    for (let i = firstIdx; i < scenes.length; i++) {
+      // Apply all mutations at this scene index
+      while (mutIdx < mutations.length && mutations[mutIdx].sceneIdx === i) {
+        currentStatus = mutations[mutIdx].to;
+        mutIdx++;
+      }
+      statuses.push({ sceneIdx: i, status: currentStatus });
+
+      // Stop after terminal status — thread is done
+      if (terminalStatuses.has(currentStatus)) break;
+
+      // Stop if no more mutations and we've gone past the last one by a gap
+      // (thread goes silent — cap at last mutation + small buffer)
+      if (mutIdx >= mutations.length && i > mutations[mutations.length - 1].sceneIdx) break;
+    }
+
     return {
       threadId: thread.id,
       description: thread.description,
       statuses,
     };
-  }).filter((tl) => tl.statuses.length > 0);
+  }).filter((tl): tl is ThreadLifecycle => tl !== null && tl.statuses.length > 0);
 }

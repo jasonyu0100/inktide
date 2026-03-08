@@ -9,25 +9,25 @@ import { ShapeSlide } from './slides/ShapeSlide';
 import { CastSlide } from './slides/CastSlide';
 import { ForcesOverviewSlide } from './slides/ForcesOverviewSlide';
 import { SegmentSlide } from './slides/SegmentSlide';
-import { PeakSlide } from './slides/PeakSlide';
-import { TroughSlide } from './slides/TroughSlide';
+import { KeyMomentsSlide } from './slides/KeyMomentsSlide';
 import { ForceDecompositionSlide } from './slides/ForceDecompositionSlide';
 import { CubeHeatmapSlide } from './slides/CubeHeatmapSlide';
 import { ThreadLifecycleSlide } from './slides/ThreadLifecycleSlide';
 import { SwingAnalysisSlide } from './slides/SwingAnalysisSlide';
 import { ReportCardSlide } from './slides/ReportCardSlide';
 import { ClosingSlide } from './slides/ClosingSlide';
+import { MethodologySlide, METHODOLOGY_PAGES } from './slides/MethodologySlide';
 
 // ── Slide Spec ─────────────────────────────────────────────────────────────────
 
 type SlideSpec =
   | { type: 'title' }
+  | { type: 'methodology'; page: number }
   | { type: 'shape' }
   | { type: 'cast' }
   | { type: 'forces' }
   | { type: 'segment'; index: number }
-  | { type: 'peak'; index: number }
-  | { type: 'trough'; index: number }
+  | { type: 'moment'; sceneIdx: number; kind: 'peak' | 'valley' }
   | { type: 'decomposition' }
   | { type: 'cube' }
   | { type: 'threads' }
@@ -39,6 +39,9 @@ function buildSlideList(data: MovieData): SlideSpec[] {
   const slides: SlideSpec[] = [];
 
   slides.push({ type: 'title' });
+  for (let i = 0; i < METHODOLOGY_PAGES; i++) {
+    slides.push({ type: 'methodology', page: i });
+  }
 
   if (data.sceneCount >= 6) {
     slides.push({ type: 'shape' });
@@ -47,29 +50,32 @@ function buildSlideList(data: MovieData): SlideSpec[] {
   slides.push({ type: 'cast' });
   slides.push({ type: 'forces' });
 
-  // Segments (cap at 8)
-  for (let i = 0; i < Math.min(data.segments.length, 8); i++) {
+  // Interleave segments (high-level timeline) with key moments (scene deep-dives)
+  // Segment → peaks/valleys within that segment → next segment → ...
+  const allMoments: { sceneIdx: number; kind: 'peak' | 'valley' }[] = [
+    ...data.peaks.map((p) => ({ sceneIdx: p.sceneIdx, kind: 'peak' as const })),
+    ...data.troughs.map((t) => ({ sceneIdx: t.sceneIdx, kind: 'valley' as const })),
+  ].sort((a, b) => a.sceneIdx - b.sceneIdx);
+
+  for (let i = 0; i < data.segments.length; i++) {
+    const seg = data.segments[i];
     slides.push({ type: 'segment', index: i });
-  }
-
-  // Peaks (cap at 5)
-  for (let i = 0; i < Math.min(data.peaks.length, 5); i++) {
-    slides.push({ type: 'peak', index: i });
-  }
-
-  // Troughs (cap at 3)
-  for (let i = 0; i < Math.min(data.troughs.length, 3); i++) {
-    slides.push({ type: 'trough', index: i });
+    // Insert moments that fall within this segment
+    for (const m of allMoments) {
+      if (m.sceneIdx >= seg.startIdx && m.sceneIdx <= seg.endIdx) {
+        slides.push({ type: 'moment', sceneIdx: m.sceneIdx, kind: m.kind });
+      }
+    }
   }
 
   slides.push({ type: 'decomposition' });
+  slides.push({ type: 'swing' });
   slides.push({ type: 'cube' });
 
   if (data.threadLifecycles.length > 0) {
     slides.push({ type: 'threads' });
   }
 
-  slides.push({ type: 'swing' });
   slides.push({ type: 'report' });
   slides.push({ type: 'closing' });
 
@@ -79,12 +85,12 @@ function buildSlideList(data: MovieData): SlideSpec[] {
 function slideLabel(spec: SlideSpec): string {
   switch (spec.type) {
     case 'title': return 'Title';
+    case 'methodology': return ['Forces', 'Engagement & Swing', 'Grading'][spec.page] ?? 'Methodology';
     case 'shape': return 'Shape';
     case 'cast': return 'Cast';
     case 'forces': return 'Forces';
     case 'segment': return `Segment ${spec.index + 1}`;
-    case 'peak': return `Peak ${spec.index + 1}`;
-    case 'trough': return `Valley ${spec.index + 1}`;
+    case 'moment': return `${spec.kind === 'peak' ? 'Peak' : 'Valley'} · Scene ${spec.sceneIdx + 1}`;
     case 'decomposition': return 'Decomposition';
     case 'cube': return 'Cube';
     case 'threads': return 'Threads';
@@ -302,6 +308,8 @@ function renderSlide(spec: SlideSpec, data: MovieData): React.ReactNode {
   switch (spec.type) {
     case 'title':
       return <TitleSlide data={data} />;
+    case 'methodology':
+      return <MethodologySlide data={data} page={spec.page} />;
     case 'shape':
       return <ShapeSlide data={data} />;
     case 'cast':
@@ -310,10 +318,8 @@ function renderSlide(spec: SlideSpec, data: MovieData): React.ReactNode {
       return <ForcesOverviewSlide data={data} />;
     case 'segment':
       return <SegmentSlide data={data} segment={data.segments[spec.index]} />;
-    case 'peak':
-      return <PeakSlide data={data} peak={data.peaks[spec.index]} rank={spec.index + 1} />;
-    case 'trough':
-      return <TroughSlide data={data} trough={data.troughs[spec.index]} rank={spec.index + 1} />;
+    case 'moment':
+      return <KeyMomentsSlide data={data} sceneIdx={spec.sceneIdx} kind={spec.kind} />;
     case 'decomposition':
       return <ForceDecompositionSlide data={data} />;
     case 'cube':

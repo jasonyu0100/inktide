@@ -42,7 +42,7 @@ export const GENERATE_MODEL = 'google/gemini-2.5-flash';
 /** Max scenes included in branchContext — defines the time horizon.
  *  Only entities referenced within this window appear in context,
  *  and only knowledge nodes added during this window are included. */
-export const MAX_CONTEXT_SCENES = 100;
+export const MAX_CONTEXT_SCENES = 50;
 
 /** Rolling window size for force computation & normalization */
 export const FORCE_WINDOW_SIZE = 10;

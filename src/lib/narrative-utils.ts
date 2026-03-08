@@ -1,5 +1,5 @@
 import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner } from '@/types/narrative';
-import { NARRATIVE_CUBE, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
+import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE } from '@/lib/constants';
 
 // ── Sequential ID generation ─────────────────────────────────────────────────
@@ -200,13 +200,13 @@ export function zScoreNormalize(values: number[]): number[] {
 
 /** Phase index — distance between indices = magnitude of the phase jump.
  *  Linear ordering: each step is one unit of payoff.
- *  Backwards transitions (e.g. escalating→active) use absolute magnitude. */
+ *  Backwards transitions (e.g. escalating→active) use absolute magnitude.
+ *  Terminal statuses sit at the top of the scale (4) so resolving from
+ *  any active status produces a natural |φ_to - φ_from| distance. */
 const PHASE_INDEX: Record<string, number> = {
   dormant: 0, active: 1, escalating: 2, critical: 3,
+  resolved: 4, subverted: 4, abandoned: 4,
 };
-/** Terminal transitions use the full phase length (max distance in the active chain) */
-const TERMINAL_PHASE_DISTANCE = Object.keys(PHASE_INDEX).length; // 4
-const TERMINAL_STATUS_SET = new Set<string>(THREAD_TERMINAL_STATUSES.map((s) => s.toLowerCase()));
 /** Small reward for same-status "pulse" — thread is mentioned but doesn't transition */
 const PULSE_REWARD = 0.25;
 
@@ -218,14 +218,10 @@ function computeRawPayoff(scene: Scene): number {
     const to = tm.to.toLowerCase();
 
     if (from === to) {
-      // Pulse: thread is touched but status unchanged — small reward
       score += PULSE_REWARD;
-    } else if (TERMINAL_STATUS_SET.has(to)) {
-      score += TERMINAL_PHASE_DISTANCE;
     } else {
       const fi = PHASE_INDEX[from];
       const ti = PHASE_INDEX[to];
-      // Absolute magnitude — backwards transitions (e.g. escalating→active) also score
       score += fi !== undefined && ti !== undefined ? Math.abs(ti - fi) : 1;
     }
   }

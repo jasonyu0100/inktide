@@ -258,31 +258,16 @@ function rawChange(scene: Scene): number {
   );
 }
 
-/**
- * Jaccard distance between two sets: 1 - |intersection| / |union|.
- * Returns 1 when sets are completely disjoint (novel), 0 when identical.
- */
-function jaccard(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 && b.size === 0) return 0;
-  let intersection = 0;
-  for (const v of a) if (b.has(v)) intersection++;
-  const union = a.size + b.size - intersection;
-  return 1 - intersection / union;
-}
-
-
-/** Raw variety: V = Σr(g_c) + r(g_ℓ) + J̄
+/** Raw variety: V = Σr(g_c) + r(g_ℓ)
  *
  *  - Σr(g_c): sum of recency across participants (scales with cast size)
  *  - r(g_ℓ): location recency [0, 1]
- *  - J̄: mean Jaccard distance vs all prior casts [0, 1]
  *
  *  Recency: r(g) = g / (1 + g). First appearance → r = 1. */
 function rawVariety(
   scene: Scene,
   charLastSeen: Record<string, number>,
   locLastSeen: Record<string, number>,
-  priorCasts: Set<string>[],
   sceneIdx: number,
 ): number {
   const recency = (lastSeen: number | undefined) => {
@@ -297,14 +282,7 @@ function rawVariety(
   // Location recency → [0, 1]
   const locRecency = recency(locLastSeen[scene.locationId]);
 
-  // Ensemble novelty: mean Jaccard distance → [0, 1]
-  const cast = new Set(scene.participantIds);
-  let ensembleNovelty = 1;
-  if (priorCasts.length > 0) {
-    ensembleNovelty = priorCasts.reduce((sum, prior) => sum + jaccard(cast, prior), 0) / priorCasts.length;
-  }
-
-  return charRecency + locRecency + ensembleNovelty;
+  return charRecency + locRecency;
 }
 
 /**
@@ -313,7 +291,7 @@ function rawVariety(
  *
  * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence deltas
  * - **Change**: mutation reach — sum of log₂(1 + mutations) per affected character
- * - **Variety**: r̄_char + r_loc + J̄ — three [0,1] components equally weighted
+ * - **Variety**: Σr_char + r_loc — character and location recency
  *
  * @param scenes - Ordered list of scenes to compute forces for
  * @param priorScenes - Scenes before this batch (for usage tracking). Empty for initial generation.
@@ -325,15 +303,13 @@ export function computeForceSnapshots(
   const result: Record<string, ForceSnapshot> = {};
   if (scenes.length === 0) return result;
 
-  // Build last-seen indices and participant sets from prior scenes
+  // Build last-seen indices from prior scenes
   const charLastSeen: Record<string, number> = {};
   const locLastSeen: Record<string, number> = {};
-  const priorCasts: Set<string>[] = [];
   for (let i = 0; i < priorScenes.length; i++) {
     const s = priorScenes[i];
     for (const pid of s.participantIds) charLastSeen[pid] = i;
     locLastSeen[s.locationId] = i;
-    priorCasts.push(new Set(s.participantIds));
   }
 
   // Compute raw values, updating last-seen as we go
@@ -347,11 +323,10 @@ export function computeForceSnapshots(
     const globalIdx = baseIdx + si;
     rawPayoffs.push(computeRawPayoff(scene));
     rawChanges.push(rawChange(scene));
-    rawVarieties.push(rawVariety(scene, charLastSeen, locLastSeen, priorCasts, globalIdx));
+    rawVarieties.push(rawVariety(scene, charLastSeen, locLastSeen, globalIdx));
     // Update last-seen for subsequent scenes
     for (const pid of scene.participantIds) charLastSeen[pid] = globalIdx;
     locLastSeen[scene.locationId] = globalIdx;
-    priorCasts.push(new Set(scene.participantIds));
   }
 
   // Z-score normalize each dimension (mean = 0, units = std deviations)
@@ -381,12 +356,10 @@ export function computeRawForcetotals(
 
   const charLastSeen: Record<string, number> = {};
   const locLastSeen: Record<string, number> = {};
-  const priorCasts: Set<string>[] = [];
   for (let i = 0; i < priorScenes.length; i++) {
     const s = priorScenes[i];
     for (const pid of s.participantIds) charLastSeen[pid] = i;
     locLastSeen[s.locationId] = i;
-    priorCasts.push(new Set(s.participantIds));
   }
 
   const payoff: number[] = [];
@@ -399,10 +372,9 @@ export function computeRawForcetotals(
     const globalIdx = baseIdx + si;
     payoff.push(computeRawPayoff(scene));
     change.push(rawChange(scene));
-    variety.push(rawVariety(scene, charLastSeen, locLastSeen, priorCasts, globalIdx));
+    variety.push(rawVariety(scene, charLastSeen, locLastSeen, globalIdx));
     for (const pid of scene.participantIds) charLastSeen[pid] = globalIdx;
     locLastSeen[scene.locationId] = globalIdx;
-    priorCasts.push(new Set(scene.participantIds));
   }
 
   return { payoff, change, variety };

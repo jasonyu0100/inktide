@@ -89,17 +89,14 @@ function ForcesPage() {
           </div>
           <div className="flex items-start gap-8">
             <div className="shrink-0">
-              <Tex display>{String.raw`V = \sum_{c \in A} r(g_c) \;+\; r(g_\ell) \;+\; \bar{J}(A, A_k)`}</Tex>
+              <Tex display>{String.raw`V = \sum_{c \in A} r(g_c) \;+\; r(g_\ell)`}</Tex>
               <div className="mt-1">
-                <Tex display>{String.raw`r(g) = \frac{g}{1 + g}, \qquad \bar{J} = \frac{1}{n}\sum_{k} d_J(A, A_k)`}</Tex>
+                <Tex display>{String.raw`r(g) = \frac{g}{1 + g}`}</Tex>
               </div>
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
-              <p className="mb-2">
-                <Tex>{'r(g)'}</Tex> = recency score — 1 on first appearance, decays toward 0 for repeated characters/locations. Computed over the full series.
-              </p>
               <p>
-                <Tex>{'\\bar{J}'}</Tex> = mean Jaccard distance between this scene's cast and all prior casts. High when the audience sees a group that has never shared a scene before.
+                <Tex>{'r(g)'}</Tex> = recency score — 1 on first appearance, decays toward 0 for repeated characters/locations. Computed over the full series.
               </p>
             </div>
           </div>
@@ -132,48 +129,63 @@ function EngagementSwingPage() {
           </div>
           <div className="flex items-start gap-10">
             <div className="shrink-0 space-y-3">
-              <Tex display>{String.raw`E_i = \frac{P_i + C_i + V_i}{3}`}</Tex>
-              <Tex display>{String.raw`\tilde{E} = \mathcal{G}_{\sigma=1.5} \ast E`}</Tex>
-              <Tex display>{String.raw`\hat{E} = \mathcal{G}_{\sigma=4} \ast E`}</Tex>
+              <Tex display>{String.raw`z_i^{(k)} = \frac{x_i^{(k)} - \bar{x}^{(k)}}{\sigma^{(k)}}`}</Tex>
+              <Tex display>{String.raw`E_i = \frac{z_i^P + z_i^C + z_i^V}{3}`}</Tex>
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
               <p className="mb-2">
-                Raw engagement <Tex>{'E_i'}</Tex> is the equal-weighted mean of payoff, change, and variety for each scene. This is then smoothed at two scales:
+                Each raw force is first z-score normalized across all scenes — this puts payoff, change, and variety on a common scale regardless of their different natural magnitudes.
               </p>
               <p className="mb-2">
-                <strong className="text-text-secondary"><Tex>{'\\tilde{E}'}</Tex> (beat-level)</strong> — Gaussian smoothed with σ=1.5, capturing scene-to-scene rhythm. Peaks and valleys are detected by local prominence ≥ 0.4σ.
-              </p>
-              <p className="mb-2">
-                <strong className="text-text-secondary"><Tex>{'\\hat{E}'}</Tex> (macro trend)</strong> — Gaussian smoothed with σ=4, showing the broad shape of the narrative arc — whether the story builds, plateaus, or declines.
+                Engagement <Tex>{'E_i'}</Tex> is then the equal-weighted mean of the three normalized forces. A scene with <Tex>{'E > 0'}</Tex> is above average intensity; <Tex>{'E < 0'}</Tex> is below. The engagement curve is Gaussian-smoothed (σ=1.5) for display and peak/valley detection.
               </p>
               <p>
-                The engagement curve is the primary diagnostic: it tells you where the story is working and where it loses the reader.
+                This is the primary diagnostic: it tells you where the story is working and where it loses the reader.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Peak & Valley Detection */}
+        <div className="flex-1 px-6 py-4 rounded-xl border border-amber-400/10 bg-amber-400/2">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
+            <span className="text-sm font-semibold text-amber-400/80">Peak & Valley Detection</span>
+            <span className="text-[10px] text-text-dim ml-2">Where are the climaxes and breathing room?</span>
+          </div>
+          <div className="flex items-start gap-10">
+            <div className="shrink-0 space-y-2">
+              <Tex display>{String.raw`\tilde{E} = \mathcal{G}_{\sigma=1.5} \ast E, \quad r = \max(2,\, \lfloor n/25 \rfloor)`}</Tex>
+              <Tex display>{String.raw`\text{peak} \iff \tilde{E}_i = \max_{[i-r,\, i+r]} \tilde{E} \;\wedge\; \tilde{E}_i - \text{base}_i \geq 0.4\sigma_{\tilde{E}}`}</Tex>
+            </div>
+            <div className="text-[11px] text-text-dim leading-relaxed pt-1">
+              <p className="mb-1">
+                Engagement is Gaussian-smoothed, then local maxima within an adaptive window (wider for longer stories) are tested for <strong className="text-text-secondary">prominence</strong> — height above the nearest valley on either side.
+              </p>
+              <p>
+                Only peaks rising ≥ 0.4σ above their base qualify. Valleys are detected symmetrically.
               </p>
             </div>
           </div>
         </div>
 
         {/* Swing */}
-        <div className="flex-1 px-6 py-5 rounded-xl border border-yellow-400/10 bg-yellow-400/2">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="flex-1 px-6 py-4 rounded-xl border border-yellow-400/10 bg-yellow-400/2">
+          <div className="flex items-center gap-2 mb-3">
             <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
             <span className="text-sm font-semibold text-yellow-400">Swing</span>
             <span className="text-[10px] text-text-dim ml-2">Is the story breathing?</span>
           </div>
           <div className="flex items-start gap-10">
-            <div className="shrink-0 space-y-3">
-              <Tex display>{String.raw`S_i = \left\|\, \frac{\mathbf{f}_i - \mathbf{f}_{i-1}}{\boldsymbol{\mu}} \,\right\|_2`}</Tex>
-              <Tex display>{String.raw`= \sqrt{\left(\frac{\Delta P}{\mu_P}\right)^{\!2} + \left(\frac{\Delta C}{\mu_C}\right)^{\!2} + \left(\frac{\Delta V}{\mu_V}\right)^{\!2}}`}</Tex>
+            <div className="shrink-0 space-y-2">
+              <Tex display>{String.raw`S_i = \left\|\, \frac{\mathbf{f}_i - \mathbf{f}_{i-1}}{\boldsymbol{\mu}} \,\right\|_2 = \sqrt{\left(\frac{\Delta P}{\mu_P}\right)^{\!2} + \left(\frac{\Delta C}{\mu_C}\right)^{\!2} + \left(\frac{\Delta V}{\mu_V}\right)^{\!2}}`}</Tex>
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
-              <p className="mb-2">
-                Swing is the Euclidean distance between consecutive force vectors, normalized by reference means so each force contributes equally regardless of scale.
-              </p>
-              <p className="mb-2">
-                <strong className="text-text-secondary">High swing</strong> = the story alternates between different types of scenes (action → reflection → revelation). This is the hallmark of dynamic pacing.
+              <p className="mb-1">
+                Euclidean distance between consecutive force vectors, normalized by reference means. <strong className="text-text-secondary">High swing</strong> = the story alternates scene types (action → reflection → revelation).
               </p>
               <p>
-                <strong className="text-text-secondary">Low swing</strong> = consecutive scenes feel similar in their narrative mechanics, even if the content differs. The reader's attention may fatigue.
+                <strong className="text-text-secondary">Low swing</strong> = consecutive scenes feel mechanically similar. The reader's attention may fatigue.
               </p>
             </div>
           </div>

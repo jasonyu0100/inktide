@@ -189,13 +189,13 @@ export function zScoreNormalize(values: number[]): number[] {
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
 // P = Σ |φ_to - φ_from| + Σ |Δv|          (phase distance + valence shifts)
-// C = Σ_c log₂(1 + m_c)                  (mutation reach per character)
+// C = Σ_c log₂(1 + m_c)                  (mutation reach; relationships weighted by |Δv|)
 // V = Σr(g_c) + r(g_ℓ) + J̄               (cast recency + loc recency + ensemble)
 //     where r(g) = g / (1 + g)            (parameter-free saturating decay)
 //
 // S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCV space)
 // E = (P + C + V) / 3                    (engagement, Gaussian smoothed)
-// g(x̃) = 20(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {2, 7, 4.5, 1.2})
+// g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 5.5, 4.5, 1.5})
 //
 
 /** Phase index — distance between indices = magnitude of the phase jump.
@@ -234,7 +234,7 @@ function computeRawPayoff(scene: Scene): number {
 }
 
 /**
- * Compute raw change for a scene — mutation reach across affected characters.
+ * Compute raw change for a scene — mutation reach across affected characters (includes events).
  *
  * Counts all mutations (knowledge, relationship, thread) per character, then
  * sums log₂(1 + count) across all affected characters. This naturally captures
@@ -247,8 +247,9 @@ function rawChange(scene: Scene): number {
     charMutations[km.characterId] = (charMutations[km.characterId] ?? 0) + 1;
   }
   for (const rm of scene.relationshipMutations) {
-    charMutations[rm.from] = (charMutations[rm.from] ?? 0) + 1;
-    charMutations[rm.to] = (charMutations[rm.to] ?? 0) + 1;
+    const weight = Math.abs(rm.valenceDelta) || 0.25;
+    charMutations[rm.from] = (charMutations[rm.from] ?? 0) + weight;
+    charMutations[rm.to] = (charMutations[rm.to] ?? 0) + weight;
   }
   for (const _tm of scene.threadMutations) {
     charMutations[scene.povId] = (charMutations[scene.povId] ?? 0) + 1;
@@ -336,7 +337,7 @@ export function buildCumulativeWorldKnowledge(
  * 0 = average moment; positive = above average; negative = below average (units of std deviation).
  *
  * - **Payoff**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence deltas
- * - **Change**: mutation reach — sum of log₂(1 + mutations) per affected character
+ * - **Change**: mutation reach — sum of log₂(1 + mutations) per affected character (includes events)
  * - **Knowledge**: Σr_char + r_loc — character and location recency
  *
  * @param scenes - Ordered list of scenes to compute forces for

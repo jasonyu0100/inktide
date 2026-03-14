@@ -129,12 +129,11 @@ PAYOFF (thread resolution + relationship shifts):
 
 CHANGE (mutation depth across characters):
 - Change measures how many characters are affected and how deeply. It sums log₂(1 + mutations) per character — diminishing returns per character, rewards breadth.
-- continuityMutations, relationshipMutations, and threadMutations all count toward a character's mutation total.
+- continuityMutations and threadMutations count 1 each per character. relationshipMutations are weighted by |valenceDelta| — a big relationship shift (0.8) counts far more than a subtle one (0.1).
 - A scene where 5 characters each have 1 mutation scores higher on Change than a scene where 1 character has 5 mutations.
 
 KNOWLEDGE (world complexity delta):
-- Each worldKnowledgeMutation node added contributes 1 to Knowledge. Each edge added contributes at the 3/2 power — connections are worth more than isolated concepts.
-- A scene that introduces 1 concept with 4 connections (K≈9) scores far higher than 4 isolated concepts (K=4).
+- Each worldKnowledgeMutation node added contributes 1 to Knowledge. Each edge added contributes ½. New concepts are valued higher than new links between existing ones.
 - Scenes that connect new concepts to EXISTING world knowledge (via edges to existing WK node IDs) build a denser, more valuable knowledge graph.
 - A scene with no world knowledge mutations scores zero on Knowledge — and that's fine for quiet character scenes.
 

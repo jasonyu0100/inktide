@@ -426,8 +426,8 @@ RULES:
 
 HOW MUTATIONS ARE MEASURED — every choice feeds into three narrative forces that evaluate the story:
 - PAYOFF: threadMutations (status transition magnitude) + relationshipMutations (valenceDelta). Bigger thread jumps and relationship shifts = higher Payoff. Terminal transitions are the highest value.
-- CHANGE: How many characters are affected and how deeply. continuityMutations, relationshipMutations, and threadMutations all count per character. Breadth (many characters touched) scores higher than depth (one character with many mutations).
-- KNOWLEDGE: worldKnowledgeMutations — nodes + edges at the 3/2 power. Connections between concepts matter more than isolated facts. Scenes that connect to existing world concepts build a denser graph.
+- CHANGE: How many characters are affected and how deeply. continuityMutations and threadMutations count 1 each. relationshipMutations are weighted by |valenceDelta|. Breadth (many characters touched) scores higher than depth.
+- KNOWLEDGE: worldKnowledgeMutations — nodes (weight 1) + edges (weight ½). New concepts are valued higher than new links between existing ones.
 - A scene should contribute to at least one force. Quiet scenes contribute through subtle continuity shifts or thread pulses. Dense scenes contribute across all three. The best narratives vary their force profile across scenes — rhythm matters.
 ${cumulativeCtx ? `
 CUMULATIVE CONTINUITY:
@@ -607,8 +607,8 @@ RULES:
 
 HOW MUTATIONS ARE MEASURED — every choice feeds into three narrative forces that evaluate the story:
 - PAYOFF: threadMutations (status transition magnitude) + relationshipMutations (valenceDelta). Bigger jumps = higher Payoff.
-- CHANGE: How many characters are affected. continuityMutations, relationshipMutations, threadMutations all count per character. Breadth scores higher than depth.
-- KNOWLEDGE: worldKnowledgeMutations — nodes + edges at 3/2 power. Connections matter more than isolated facts.
+- CHANGE: How many characters are affected. continuityMutations and threadMutations count 1 each. relationshipMutations weighted by |valenceDelta|. Breadth scores higher than depth.
+- KNOWLEDGE: worldKnowledgeMutations — nodes (weight 1) + edges (weight ½). New concepts matter more than new links.
 - A scene should contribute to at least one force. Vary force profiles across scenes — rhythm matters.
 
 THREAD LIFECYCLE:

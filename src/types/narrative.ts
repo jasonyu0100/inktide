@@ -129,7 +129,7 @@ export type WorldKnowledgeMutation = {
 /** Force values are z-score normalized (mean = 0, units = standard deviations).
  *  0 = average moment, positive = above average, negative = below average.
  *  - payoff:  thread phase transitions (weighted by jump magnitude) + relationship valence deltas
- *  - change:  mutation reach (log₂ depth per character) + continuity turbulence (fraction of cast affected, scaled by cast size)
+ *  - change:  mutation reach (log₂ depth per character, includes events)
  *  - knowledge: world knowledge graph complexity delta (new nodes + new edges per scene)
  */
 export type ForceSnapshot = {

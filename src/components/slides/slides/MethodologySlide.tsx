@@ -71,7 +71,7 @@ function ForcesPage() {
             </div>
             <div className="text-[11px] text-text-dim leading-relaxed pt-1">
               <p className="mb-2">
-                <Tex>{'m_c'}</Tex> = total mutations (continuity + relationship + thread) for character <Tex>{'c'}</Tex>. The log scale provides diminishing returns per character — one character with 8 mutations ≈ three characters with 1 each.
+                <Tex>{'m_c'}</Tex> = continuity mutations (1 each) + relationship mutations (<Tex>{'|\\Delta v|'}</Tex> each, weighted by valence shift magnitude) + thread mutations (1 each). The log scale provides diminishing returns per character, rewarding breadth.
               </p>
               <p>
                 This rewards <strong className="text-text-secondary">breadth</strong> over depth: a scene where five characters learn something new ripples wider than one where a single character reflects alone.

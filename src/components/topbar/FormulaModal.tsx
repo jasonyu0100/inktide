@@ -55,7 +55,7 @@ function ForcesTab() {
       <S title="Change" analogy="How many lives were touched? A scene where five characters learn something new ripples wider than one where a single character reflects alone.">
         <Block tex="C = \sum_{c \,\in\, \text{cast}} \log_2(1 + m_c)" />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'m_c'}</Tex>: total mutations (continuity + relationship + thread) for character <Tex>{'c'}</Tex>.
+          <Tex>{'m_c'}</Tex>: continuity (1 each) + relationship (<Tex>{'|\\Delta v|'}</Tex> each) + thread (1 each).
           Log scale: diminishing returns per character, rewards breadth.
         </p>
       </S>

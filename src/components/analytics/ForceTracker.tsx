@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback, useId } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
@@ -84,6 +84,7 @@ function ForceChart({
   dense: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const clipId = useId().replace(/:/g, '_') + `_${forceKey}`;
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
@@ -98,7 +99,7 @@ function ForceChart({
 
     // Clip path so chart content stays within bounds
     g.append('clipPath')
-      .attr('id', `clip-${forceKey}`)
+      .attr('id', clipId)
       .append('rect')
       .attr('x', 0).attr('y', 0)
       .attr('width', chartWidth).attr('height', chartHeight);
@@ -158,11 +159,13 @@ function ForceChart({
       }
     });
 
-    // Gridlines — dynamic based on maxAbs
+    // Gridlines — dynamic based on maxAbs, filtered to y-domain
+    const [domainMin, domainMax] = yScale.domain();
     const gridValues = [0];
     const step = maxAbs <= 2 ? 0.5 : maxAbs <= 5 ? 1 : Math.ceil(maxAbs / 4);
     for (let v = step; v <= maxAbs; v += step) {
-      gridValues.push(v, -v);
+      if (v <= domainMax) gridValues.push(v);
+      if (-v >= domainMin) gridValues.push(-v);
     }
 
     gridValues.forEach((v) => {
@@ -214,7 +217,14 @@ function ForceChart({
       .text(`w${winAvg >= 0 ? '+' : ''}${winAvg.toFixed(2)}`);
 
     // Clipped chart group
-    const clipped = g.append('g').attr('clip-path', `url(#clip-${forceKey})`);
+    const clipped = g.append('g').attr('clip-path', `url(#${clipId})`);
+
+    // Subtle background fill so chart area is always visible
+    clipped.append('rect')
+      .attr('x', 0).attr('y', 0)
+      .attr('width', chartWidth).attr('height', chartHeight)
+      .attr('fill', color)
+      .attr('opacity', 0.03);
 
     // Area fill
     const area = d3.area<number>()
@@ -373,7 +383,7 @@ function ForceChart({
       .on('mouseup', () => {
         if (drawing) onDrawEnd();
       });
-  }, [data, forceKey, label, color, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd, dense]);
+  }, [data, forceKey, label, color, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd, dense, clipId]);
 
   return (
     <svg ref={svgRef} width={width} height={height} className="block" />
@@ -625,6 +635,7 @@ function EngagementChart({
   onDrawEnd: () => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const clipId = useId().replace(/:/g, '_') + '_engagement';
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
@@ -638,7 +649,7 @@ function EngagementChart({
     const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
 
     g.append('clipPath')
-      .attr('id', 'clip-engagement')
+      .attr('id', clipId)
       .append('rect')
       .attr('x', 0).attr('y', 0)
       .attr('width', chartWidth).attr('height', chartHeight);
@@ -728,7 +739,7 @@ function EngagementChart({
       .attr('font-size', '9px').attr('font-weight', '600').attr('font-family', 'monospace').attr('opacity', 0.7)
       .text(`w${winAvg >= 0 ? '+' : ''}${winAvg.toFixed(2)}`);
 
-    const clipped = g.append('g').attr('clip-path', 'url(#clip-engagement)');
+    const clipped = g.append('g').attr('clip-path', `url(#${clipId})`);
 
     // Positive fill (above zero)
     clipped.append('path')
@@ -900,7 +911,7 @@ function EngagementChart({
       .on('mouseup', () => {
         if (drawing) onDrawEnd();
       });
-  }, [engagement, data, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, dense, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd]);
+  }, [engagement, data, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, dense, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd, clipId]);
 
   return <svg ref={svgRef} width={width} height={height} className="block" />;
 }

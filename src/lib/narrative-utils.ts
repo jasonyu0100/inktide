@@ -791,17 +791,19 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~86%.
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 7.0, knowledge: 2.5, swing: 1.5 } as const;
+/** swing_z: reference mean for z-score Euclidean swing (calibrated from literary works) */
+export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 7.0, knowledge: 2.5, swing_z: 1.8 } as const;
 
-/** Grade a z-score normalised force value 0→25: g(z) = 25(1 - e^{-2z}).
- *  z > 0 = above series average; z = 1 (one σ above) → grade ≈ 22/25 (86%). */
-export function gradeForce(zMean: number): number {
-  return Math.min(25, 25 * (1 - Math.exp(-2 * Math.max(0, zMean))));
+/** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
+ *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */
+export function gradeForce(normalizedMean: number): number {
+  return Math.min(25, 25 * (1 - Math.exp(-2 * Math.max(0, normalizedMean))));
 }
 
 /**
  * Grade narrative forces (0–25 each, 0–100 overall).
- * Expects z-score normalised inputs — no further normalisation applied.
+ * Payoff/change/knowledge are raw values, normalised here by FORCE_REFERENCE_MEANS.
+ * Swing values are z-score Euclidean distances, normalised by swing_z reference.
  */
 export function gradeForces(
   payoff: number[],
@@ -809,10 +811,11 @@ export function gradeForces(
   knowledge: number[],
   swing: number[],
 ): ForceGrades {
-  const payoffGrade = gradeForce(avg(payoff));
-  const changeGrade = gradeForce(avg(change));
-  const knowledgeGrade = gradeForce(avg(knowledge));
-  const swingGrade = gradeForce(avg(swing));
+  const R = FORCE_REFERENCE_MEANS;
+  const payoffGrade = gradeForce(avg(payoff) / R.payoff);
+  const changeGrade = gradeForce(avg(change) / R.change);
+  const knowledgeGrade = gradeForce(avg(knowledge) / R.knowledge);
+  const swingGrade = gradeForce(avg(swing) / R.swing_z);
 
   const overall = payoffGrade + changeGrade + knowledgeGrade + swingGrade;
 

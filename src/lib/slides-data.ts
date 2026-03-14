@@ -12,7 +12,6 @@ import {
   detectCubeCorner,
   gradeForces,
   computeThreadStatuses,
-  FORCE_REFERENCE_MEANS,
   type EngagementPoint,
   type NarrativeShape,
   type ForceGrades,
@@ -152,13 +151,8 @@ export function computeSlidesData(
   // Narrative shape
   const shape = classifyNarrativeShape(engagementCurve);
 
-  // Swings
-  const rawForceSnapshots = rawForces.payoff.map((_, i) => ({
-    payoff: rawForces.payoff[i],
-    change: rawForces.change[i],
-    knowledge: rawForces.knowledge[i],
-  }));
-  const swings = computeSwingMagnitudes(rawForceSnapshots, FORCE_REFERENCE_MEANS);
+  // Swings (from z-score normalised snapshots — no double normalisation)
+  const swings = computeSwingMagnitudes(forceSnapshots);
 
   // Peaks and valleys
   const peakIndices = engagementCurve.filter((e) => e.isPeak).map((e) => e.index);

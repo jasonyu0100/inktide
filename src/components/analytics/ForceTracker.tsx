@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useCallback, useId } from 'react'
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, type EngagementPoint } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, type EngagementPoint } from '@/lib/narrative-utils';
 
 type ForceKey = 'payoff' | 'change' | 'knowledge' | 'swing' | 'beats';
 
@@ -425,21 +425,16 @@ function ZoneBar({
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Compute per-arc grades using raw forces + scorecard grading
+  // Compute per-arc grades — raw forces for grading, z-score swing (no double normalisation)
   const arcZones = useMemo((): ArcZone[] => {
     if (allScenes.length === 0 || arcRegions.length === 0) return [];
 
     const raw = computeRawForcetotals(allScenes);
-    // Use raw forces for swing so absolute magnitudes differentiate quality
-    const rawForces = raw.payoff.map((_, i) => ({
-      payoff: raw.payoff[i],
-      change: raw.change[i],
-      knowledge: raw.knowledge[i],
-    }));
-    const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
+    const forceMap = computeForceSnapshots(allScenes);
+    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+    const swings = computeSwingMagnitudes(zForces);
 
     return arcRegions.map((arc) => {
-      // Collect force indices for scenes in this arc's range that match the arcId
       const forceIndices: number[] = [];
       for (let i = arc.startIndex; i <= arc.endIndex; i++) {
         if (i < allScenes.length && allScenes[i].arcId === arc.arcId) {

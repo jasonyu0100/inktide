@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeEngagementCurve, classifyNarrativeShape, gradeForces, FORCE_REFERENCE_MEANS, type NarrativeShape } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeEngagementCurve, classifyNarrativeShape, gradeForces, type NarrativeShape } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
@@ -97,14 +97,11 @@ export default function TopBar() {
       const m = avg(arr);
       return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
     };
-    // Compute swing from raw forces, normalized by reference means
-    // so each dimension contributes equally regardless of natural scale
-    const rawForces = raw.payoff.map((_, i) => ({
-      payoff: raw.payoff[i],
-      change: raw.change[i],
-      knowledge: raw.knowledge[i],
-    }));
-    const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
+
+    // Swing from z-score normalised forces (no double normalisation)
+    const forceMap = computeForceSnapshots(allScenes);
+    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+    const swings = computeSwingMagnitudes(zForces);
 
     const forceStats = (arr: number[]) => ({
       total: sum(arr),
@@ -122,7 +119,7 @@ export default function TopBar() {
 
     const arcCount = Object.keys(narrative.arcs).length;
 
-    // Per-arc scores — map each arc's scenes to force-array indices (same as TimelineStrip)
+    // Per-arc scores — map each arc's scenes to force-array indices
     const sceneIdToIdx = new Map(allScenes.map((s, i) => [s.id, i]));
     const arcsInOrder = Object.values(narrative.arcs);
     const perArc = arcsInOrder

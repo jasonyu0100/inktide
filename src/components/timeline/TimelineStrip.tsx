@@ -4,7 +4,7 @@ import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import type { Arc, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { computeRawForcetotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeForceSnapshots, computeSwingMagnitudes, gradeForces } from '@/lib/narrative-utils';
 
 const NODE_RADIUS = 8;
 const NODE_SPACING = 50;
@@ -60,7 +60,6 @@ export default function TimelineStrip() {
     return bands;
   }, [narrative, sceneKeys]);
 
-  // Compute per-arc zone grades using raw forces + scorecard grading
   const allScenes = useMemo(() => {
     if (!narrative) return [];
     return sceneKeys
@@ -72,20 +71,15 @@ export default function TimelineStrip() {
     if (allScenes.length === 0 || arcBands.length === 0) return new Map<string, number>();
 
     const raw = computeRawForcetotals(allScenes);
-    // Use raw forces for swing (same as scorecard and ForceTracker)
-    const rawForces = raw.payoff.map((_, i) => ({
-      payoff: raw.payoff[i],
-      change: raw.change[i],
-      knowledge: raw.knowledge[i],
-    }));
-    const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
+    // Swing from z-score normalised forces (no double normalisation)
+    const forceMap = computeForceSnapshots(allScenes);
+    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+    const swings = computeSwingMagnitudes(zForces);
 
-    // Map scene IDs to their index in allScenes (scene-only, no world builds)
     const sceneIdToForceIdx = new Map(allScenes.map((s, i) => [s.id, i]));
 
     const grades = new Map<string, number>();
     for (const band of arcBands) {
-      // Collect force-array indices for only scenes in this arc
       const forceIndices = band.arc.sceneIds
         .map((sid) => sceneIdToForceIdx.get(sid))
         .filter((i): i is number => i !== undefined);

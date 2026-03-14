@@ -1,21 +1,63 @@
 # Narrative Engine
 
-An AI-powered interactive fiction editor for building, analyzing, and generating complex multi-threaded narratives. Create rich stories with interconnected characters, locations, and plot threads — then let AI help you plan scenes, write prose, and explore branching storylines.
+A knowledge-graph-based narrative analysis and generation platform that derives the power of stories through scene-level mutation tracking, evaluating metrics on **payoff**, **change**, and **variety** across narrative forces.
+
+## How It Works
+
+Narratives are modelled as a **knowledge graph** — characters, locations, threads, and relationships — that mutates scene by scene. An LLM records structural mutations at each scene, and static analysis formulas compute **narrative forces** from those mutations. This creates a quantitative foundation for understanding what makes narratives compelling.
+
+### Knowledge Graph Mutations
+
+Every scene records changes to the narrative world:
+
+- **Thread mutations** — how plot threads advance, complicate, or resolve
+- **Knowledge mutations** — what characters learn or reveal
+- **Relationship mutations** — how connections between characters shift
+
+### Narrative Forces
+
+Three force dimensions are derived from mutation analysis:
+
+- **Payoff** — how well setups are resolved and threads are paid off
+- **Change** — magnitude of state transitions in the knowledge graph per scene
+- **Variety** — diversity of mutation types and narrative elements engaged
+
+These forces map into a **3D cube model** for trajectory analysis, comparative scoring, and visualisation.
 
 ## Features
 
-- **Scene Generation** — AI creates structured scenes with character interactions, thread mutations, knowledge changes, and relationship shifts
-- **Plan & Prose Pipeline** — Beat-by-beat scene blueprints, then full prose generation with streaming output
-- **Grading & Rewriting** — Score prose on 6 dimensions (voice, pacing, dialogue, sensory, mutation coverage) with detailed critique, then rewrite using the grade or custom analysis
-- **Interactive World Graph** — D3-powered visualization of characters, locations, and their relationships
-- **Text Analysis** — Import existing prose (books, screenplays) and extract a full narrative graph: characters, locations, threads, scenes
-- **Branching Timelines** — Git-like branches for exploring alternate storylines
-- **Narrative Forces** — Track tension, change, and variety metrics across your story arc
-- **Narrative Cube** — Classify scenes by payoff/change/variety into archetypal corners (Spectacle, Revelation, Convergence, etc.)
-- **MCTS Exploration** — Monte Carlo Tree Search for discovering optimal scene sequences
-- **Auto-Generation** — Automated story generation with configurable constraints
-- **EPUB Export** — Export your narrative as a publishable ebook
-- **Character Movements** — Track how characters physically relocate between locations with vivid transition descriptions
+### MCTS Narrative Search
+
+A Monte Carlo Tree Search implementation explores possible narrative branches and optimises for narrative force trajectories — finding story paths that maximise payoff, change, and variety.
+
+### Slides (Series Walkthrough)
+
+An interactive presentation that walks through a series' peaks, valleys, and turning points with in-depth force analysis, decomposition charts, and statistical breakdowns.
+
+### Analysis Engine
+
+Compiles existing text or narratives into the knowledge graph model using a **window function** for efficient, continuous chunk-by-chunk processing. Extracts arcs and scenes with their mutations from raw prose.
+
+### Analysis Modes
+
+- **Cube Trajectory** — 3D visualisation of force paths through narrative space
+- **Explorer** — interactive knowledge graph exploration
+- **Force Charts** — stock-type time-series analysis of narrative forces over scenes
+
+### World Building
+
+Arc-based world expansion that adds characters, locations, and threads to the existing narrative world, growing the knowledge graph organically.
+
+### Scene Generation & Prose
+
+Full generation pipeline: scene structure → beat-by-beat plan → prose → grading → rewriting. Prose is scored across 6 dimensions with LLM-generated critique.
+
+### Additional
+
+- **Branching Timelines** — git-like branches for exploring alternate storylines
+- **Auto-Generation** — automated story generation with configurable constraints
+- **EPUB Export** — export your narrative as a publishable ebook
+- **Character Movements** — track how characters physically relocate between locations
 
 ## Getting Started
 
@@ -43,7 +85,7 @@ REPLICATE_API_TOKEN=your_token_here   # Optional, for image generation
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to start creating narratives.
+Open [http://localhost:3000](http://localhost:3000) to start analysing and generating narratives.
 
 ### Production
 
@@ -56,7 +98,7 @@ npm start
 
 - **Framework:** [Next.js](https://nextjs.org) 16 (App Router)
 - **UI:** React 19, [Tailwind CSS](https://tailwindcss.com) v4
-- **Visualization:** [D3.js](https://d3js.org) (force-directed graphs, charts)
+- **Visualization:** [D3.js](https://d3js.org) (force-directed graphs, charts, cube trajectories)
 - **AI:** [OpenRouter](https://openrouter.ai/) API (streaming LLM generation)
 - **Images:** [Replicate](https://replicate.com/) API (cover & scene art)
 - **Language:** TypeScript (strict mode)
@@ -65,26 +107,31 @@ npm start
 
 ```
 src/
-├── app/                # Next.js routes & API endpoints
-│   ├── series/[id]/    # Main story editor
-│   ├── analysis/       # Text import & extraction
-│   └── api/            # LLM & image generation endpoints
-├── components/         # React UI organized by feature
-├── lib/                # Core logic (AI, state, algorithms)
-├── types/              # TypeScript domain model
-└── data/               # Seed narratives (demo stories)
+├── app/                    # Next.js routes & API endpoints
+│   ├── series/[id]/        # Main story editor workspace
+│   ├── analysis/           # Text-to-narrative extraction pipeline
+│   └── api/                # LLM, image, and idea generation endpoints
+├── components/
+│   ├── canvas/             # WorldGraph — interactive knowledge graph
+│   ├── timeline/           # TimelineStrip, ForceCharts — scene timeline & force analysis
+│   ├── movie/              # Slides — series walkthrough presentation
+│   ├── mcts/               # MCTSPanel — narrative force optimisation
+│   ├── analytics/          # ForceTracker — stock-type force metrics
+│   ├── topbar/             # CubeExplorer, FormulaModal — cube & formula views
+│   ├── story/              # StoryReader — prose reading/grading/rewriting
+│   ├── generation/         # GeneratePanel — scene generation
+│   └── ...
+├── lib/
+│   ├── ai.ts               # LLM calls — generation, scoring, mutation recording
+│   ├── narrative-utils.ts   # Force calculation formulas, cube logic, graph algorithms
+│   ├── text-analysis.ts     # Corpus → knowledge graph extraction (window-function chunking)
+│   ├── mcts-engine.ts       # MCTS — optimises narrative force trajectories
+│   ├── auto-engine.ts       # Automated generation loop
+│   └── ...
+├── types/
+│   └── narrative.ts         # Domain types: Scene, Character, Thread, Arc, etc.
+└── data/                    # Seed narratives (HP, LOTR, Star Wars, Reverend Insanity)
 ```
-
-## How It Works
-
-1. **Create a narrative** — Use the creation wizard or import existing text
-2. **Build your world** — Add characters, locations, and plot threads
-3. **Generate scenes** — AI creates structured scenes with mutations tracking how characters, knowledge, and relationships change
-4. **Plan beats** — Generate beat-by-beat scene blueprints
-5. **Write prose** — AI writes full prose following the plan
-6. **Grade & rewrite** — Score prose quality, then rewrite guided by the critique or your own analysis
-7. **Explore branches** — Fork timelines to try alternate story directions
-8. **Export** — Generate EPUB when your story is complete
 
 ## License
 

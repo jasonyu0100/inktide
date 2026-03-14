@@ -1,6 +1,15 @@
 # Narrative Engine
 
-AI-powered interactive fiction editor. Next.js 16 + React 19 + TypeScript.
+Knowledge-graph-based narrative analysis and generation platform. Derives the power of narratives through scene-level mutation tracking, evaluating metrics on payoff, change, and variety across narrative forces. Next.js 16 + React 19 + TypeScript.
+
+## Core Concept
+
+Narratives are modelled as a **knowledge graph** that mutates scene by scene. An LLM records structural mutations (threads, knowledge, relationships) at each scene, and static analysis formulas compute **narrative forces** — payoff, change, and variety — from those mutations. This enables:
+
+- **MCTS search** that optimises narrative force trajectories to find the strongest possible story paths
+- **Slides** (walkthrough presentation) that guide through a series' peaks, valleys, and in-depth force analysis
+- **Analysis engine** that compiles existing text/narratives into arcs and scenes via chunked window-function processing
+- **Multiple analysis modes**: cube trajectory, explorer, and stock-type force charts
 
 ## Quick Reference
 
@@ -29,23 +38,25 @@ src/
 │   └── api/                # generate, chat, generate-image, generate-cover, random-idea, suggest-premise
 ├── components/             # React UI (organized by feature area)
 │   ├── story/              # StoryReader — prose reading/grading/rewriting
-│   ├── canvas/             # WorldGraph — interactive entity graph
+│   ├── canvas/             # WorldGraph — interactive entity/knowledge graph
 │   ├── inspector/          # SidePanel — entity detail views
-│   ├── timeline/           # TimelineStrip, ForceCharts — scene timeline
-│   ├── topbar/             # TopBar, CubeExplorer — header controls
+│   ├── timeline/           # TimelineStrip, ForceCharts — scene timeline & force analysis
+│   ├── topbar/             # TopBar, CubeExplorer, FormulaModal — header controls & formula inspection
 │   ├── generation/         # GeneratePanel, BranchModal — scene generation
-│   ├── analytics/          # ForceTracker — narrative tension metrics
+│   ├── analytics/          # ForceTracker — narrative force metrics (stock-type analysis)
 │   ├── auto/               # AutoControlBar — automated generation
-│   ├── mcts/               # MCTSPanel — Monte Carlo Tree Search
+│   ├── mcts/               # MCTSPanel — Monte Carlo Tree Search for narrative force optimisation
+│   ├── movie/              # Slides — walkthrough presentation of series peaks, valleys & force analysis
+│   │   └── slides/         # TitleSlide, SegmentSlide, PeakSlide, TroughSlide, ForceDecomposition, etc.
 │   ├── wizard/             # CreationWizard — new story flow
 │   └── ...
 ├── lib/                    # Core logic
-│   ├── ai.ts               # LLM calls — generation, scoring, rewriting (~3500 LOC)
+│   ├── ai.ts               # LLM calls — generation, scoring, rewriting, mutation recording (~3500 LOC)
 │   ├── store.tsx            # State management + reducer actions
-│   ├── narrative-utils.ts   # Force calculation, cube logic, graph algorithms
-│   ├── text-analysis.ts     # Corpus → NarrativeState extraction pipeline
+│   ├── narrative-utils.ts   # Force calculation formulas, cube logic, graph algorithms
+│   ├── text-analysis.ts     # Corpus → NarrativeState extraction pipeline (window-function chunking)
 │   ├── auto-engine.ts       # Automated story generation loop
-│   ├── mcts-engine.ts       # MCTS scene exploration
+│   ├── mcts-engine.ts       # MCTS scene exploration — optimises narrative forces
 │   ├── constants.ts         # All tunable config values
 │   ├── epub-export.ts       # EPUB export
 │   └── persistence.ts       # localStorage read/write
@@ -63,6 +74,18 @@ Core types to know:
 - **CharacterMovement** — `{ locationId: string; transition: string }` — tracks HOW characters physically relocate
 - **ProseScore** — 6-dimension grading (voice, pacing, dialogue, sensory, mutation_coverage, overall) + critique string
 - **Branch/Commit** — git-like branching for story timelines
+- **Arc** — world-building arcs that group scenes and expand the narrative world
+- **Thread** — trackable narrative threads with lifecycle status; mutations record payoff/change per scene
+
+## Narrative Forces & Formulas
+
+The system computes narrative power through three force dimensions derived from knowledge graph mutations:
+
+- **Payoff** — how well setups are resolved and threads are paid off
+- **Change** — magnitude of state transitions in the knowledge graph per scene
+- **Variety** — diversity of mutation types and narrative elements engaged
+
+Formulas are baked into `src/lib/narrative-utils.ts` and inspectable via `FormulaModal`. The **cube** model maps these three forces into a 3D space, enabling trajectory analysis and comparative scoring.
 
 ## AI Pipeline (src/lib/ai.ts)
 
@@ -74,16 +97,19 @@ Key functions:
 - `generateSceneProse()` — full prose from plan (streaming)
 - `scoreSceneProse()` — grade-only, returns ProseScore with critique
 - `rewriteSceneProse()` — rewrite guided by grade critique or custom analysis
-- `expandWorld()` — add characters, locations, threads
+- `expandWorld()` — add characters, locations, threads (world-building arcs)
 - `reconcileScenePlans()` — cross-scene coherence check
 
-## Important Conventions
+## Analysis Engine (src/lib/text-analysis.ts)
 
-- **Mutations are structural** — threadMutations, knowledgeMutations, relationshipMutations define WHAT changes. Plans/prose describe HOW. Never modify mutations during reconciliation or rewriting.
-- **characterMovements** use `CharacterMovement` objects (`{locationId, transition}`), not plain strings. The sanitizer in `ai.ts` handles legacy string format.
-- **Grading is separate from rewriting** — grade first (scoreSceneProse), then rewrite using the critique or custom 3rd-party analysis (rewriteSceneProse).
-- **Prose scores** are defensive — `Number()` parsed, `typeof overall === 'number'` guarded.
-- **Scene generation** JSON is sanitized — hallucinated character/location/thread IDs are stripped.
+Compiles existing narratives or text into the knowledge graph model:
+- Chunks text into processable segments using a **window function** for efficient, continuous analysis
+- Extracts arcs and scenes with their mutations from raw prose
+- Supports multiple analysis modes: **cube trajectory** (3D force path), **explorer** (interactive graph), and **stock-type force charts** (time-series force analysis)
+
+## MCTS Engine (src/lib/mcts-engine.ts)
+
+Monte Carlo Tree Search implementation that explores possible narrative branches and optimises for narrative force trajectories. Uses the force formulas to evaluate candidate scenes and select paths that maximise payoff, change, and variety.
 
 ## Environment Variables
 

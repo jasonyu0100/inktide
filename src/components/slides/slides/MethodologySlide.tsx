@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import type { MovieData } from '@/lib/movie-data';
+import type { SlidesData } from '@/lib/slides-data';
 
 function Tex({ children, display }: { children: string; display?: boolean }) {
   const html = useMemo(() => katex.renderToString(children, {
@@ -277,7 +277,7 @@ function GradingPage() {
 
 // ── Exported component ───────────────────────────────────────────────────────
 
-export function MethodologySlide({ data, page }: { data: MovieData; page: number }) {
+export function MethodologySlide({ data, page }: { data: SlidesData; page: number }) {
   switch (page) {
     case 0: return <ForcesPage />;
     case 1: return <EngagementSwingPage />;

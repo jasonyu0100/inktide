@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import type { MovieData } from '@/lib/movie-data';
+import type { SlidesData } from '@/lib/slides-data';
 
-export function TitleSlide({ data }: { data: MovieData }) {
+export function TitleSlide({ data }: { data: SlidesData }) {
   return (
     <div className="flex flex-col items-center justify-center h-full px-12 text-center">
       {/* Cover image */}

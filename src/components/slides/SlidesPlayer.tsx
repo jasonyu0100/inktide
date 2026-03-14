@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { NarrativeState } from '@/types/narrative';
 import { isScene, resolveEntry } from '@/types/narrative';
-import { computeMovieData, type MovieData } from '@/lib/movie-data';
+import { computeSlidesData, type SlidesData } from '@/lib/slides-data';
 import { TitleSlide } from './slides/TitleSlide';
 import { ShapeSlide } from './slides/ShapeSlide';
 import { CastSlide } from './slides/CastSlide';
@@ -35,7 +35,7 @@ type SlideSpec =
   | { type: 'report' }
   | { type: 'closing' };
 
-function buildSlideList(data: MovieData): SlideSpec[] {
+function buildSlideList(data: SlidesData): SlideSpec[] {
   const slides: SlideSpec[] = [];
 
   slides.push({ type: 'title' });
@@ -119,9 +119,9 @@ function slideLabel(spec: SlideSpec): string {
   }
 }
 
-// ── Movie Player ───────────────────────────────────────────────────────────────
+// ── Slides Player ─────────────────────────────────────────────────────────────
 
-export function MoviePlayer({
+export function SlidesPlayer({
   narrative,
   resolvedKeys,
   onClose,
@@ -130,12 +130,12 @@ export function MoviePlayer({
   resolvedKeys: string[];
   onClose: () => void;
 }) {
-  const movieData = useMemo(
-    () => computeMovieData(narrative, resolvedKeys),
+  const slidesData = useMemo(
+    () => computeSlidesData(narrative, resolvedKeys),
     [narrative, resolvedKeys],
   );
 
-  const slides = useMemo(() => buildSlideList(movieData), [movieData]);
+  const slides = useMemo(() => buildSlideList(slidesData), [slidesData]);
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -190,7 +190,7 @@ export function MoviePlayer({
     containerRef.current?.focus();
   }, []);
 
-  if (movieData.sceneCount === 0) {
+  if (slidesData.sceneCount === 0) {
     return (
       <div className="fixed inset-0 z-100 bg-bg-base flex items-center justify-center">
         <div className="text-center">
@@ -261,7 +261,7 @@ export function MoviePlayer({
 
         {/* Slide area — scrollable */}
         <div className={`flex-1 overflow-y-auto transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
-          {renderSlide(currentSlide, movieData)}
+          {renderSlide(currentSlide, slidesData)}
         </div>
 
         {/* Right arrow */}
@@ -329,7 +329,7 @@ export function MoviePlayer({
   );
 }
 
-function renderSlide(spec: SlideSpec, data: MovieData): React.ReactNode {
+function renderSlide(spec: SlideSpec, data: SlidesData): React.ReactNode {
   switch (spec.type) {
     case 'title':
       return <TitleSlide data={data} />;

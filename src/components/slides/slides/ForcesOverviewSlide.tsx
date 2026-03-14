@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
-import type { MovieData } from '@/lib/movie-data';
+import type { SlidesData } from '@/lib/slides-data';
 
 const FORCE_COLORS = {
   payoff: '#EF4444',
@@ -10,7 +10,7 @@ const FORCE_COLORS = {
   variety: '#3B82F6',
 };
 
-export function ForcesOverviewSlide({ data }: { data: MovieData }) {
+export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {

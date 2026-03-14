@@ -1,6 +1,6 @@
 'use client';
 
-import type { MovieData } from '@/lib/movie-data';
+import type { SlidesData } from '@/lib/slides-data';
 
 // Progressive color scale: cool → warm as intensity rises
 const STATUS_COLORS: Record<string, string> = {
@@ -16,7 +16,7 @@ const STATUS_COLORS: Record<string, string> = {
 type Transition = { sceneIdx: number; from: string; to: string };
 type Segment = { start: number; end: number; status: string };
 
-export function ThreadLifecycleSlide({ data }: { data: MovieData }) {
+export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
   const ranked = [...data.threadLifecycles]
     .map((thread) => {
       const transitions: Transition[] = [];

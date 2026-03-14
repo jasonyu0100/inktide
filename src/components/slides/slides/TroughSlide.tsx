@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { MovieData, TroughInfo } from '@/lib/movie-data';
+import type { SlidesData, TroughInfo } from '@/lib/slides-data';
 
 const FORCE_COLORS: Record<string, string> = {
   payoff: '#EF4444',
@@ -9,7 +9,7 @@ const FORCE_COLORS: Record<string, string> = {
   variety: '#3B82F6',
 };
 
-export function TroughSlide({ data, trough, rank }: { data: MovieData; trough: TroughInfo; rank: number }) {
+export function TroughSlide({ data, trough, rank }: { data: SlidesData; trough: TroughInfo; rank: number }) {
   const forces = ['payoff', 'change', 'variety'] as const;
   const maxForce = Math.max(...forces.map((f) => Math.abs(trough.forces[f])), 0.5);
 

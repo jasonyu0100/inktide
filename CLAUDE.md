@@ -46,7 +46,7 @@ src/
 │   ├── analytics/          # ForceTracker — narrative force metrics (stock-type analysis)
 │   ├── auto/               # AutoControlBar — automated generation
 │   ├── mcts/               # MCTSPanel — Monte Carlo Tree Search for narrative force optimisation
-│   ├── movie/              # Slides — walkthrough presentation of series peaks, valleys & force analysis
+│   ├── slides/             # Slides — walkthrough presentation of series peaks, valleys & force analysis
 │   │   └── slides/         # TitleSlide, SegmentSlide, PeakSlide, TroughSlide, ForceDecomposition, etc.
 │   ├── wizard/             # CreationWizard — new story flow
 │   └── ...

@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
-import type { MovieData, Segment } from '@/lib/movie-data';
+import type { SlidesData, Segment } from '@/lib/slides-data';
 
 const FORCE_META: Record<string, { label: string; color: string }> = {
   payoff: { label: 'Payoff', color: '#EF4444' },
@@ -10,7 +10,7 @@ const FORCE_META: Record<string, { label: string; color: string }> = {
   variety: { label: 'Variety', color: '#3B82F6' },
 };
 
-export function SegmentSlide({ data, segment }: { data: MovieData; segment: Segment }) {
+export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Segment }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Derived stats

@@ -82,7 +82,7 @@ export type ArcGrade = {
   grades: ForceGrades;
 };
 
-export type MovieData = {
+export type SlidesData = {
   title: string;
   description: string;
   sceneCount: number;
@@ -128,10 +128,10 @@ function dominantForce(p: number, c: number, v: number): 'payoff' | 'change' | '
   return 'variety';
 }
 
-export function computeMovieData(
+export function computeSlidesData(
   narrative: NarrativeState,
   resolvedSceneKeys: string[],
-): MovieData {
+): SlidesData {
   // Resolve ordered scenes
   const scenes: Scene[] = resolvedSceneKeys
     .map((k) => resolveEntry(narrative, k))

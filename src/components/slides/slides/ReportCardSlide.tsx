@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
-import type { MovieData } from '@/lib/movie-data';
+import type { SlidesData } from '@/lib/slides-data';
 
 const gradeColor = (v: number, max: number) => {
   const pct = v / max;
@@ -21,7 +21,7 @@ const FORCES = [
   { key: 'streak' as const, label: 'Streak', color: '#A78BFA' },
 ];
 
-export function ReportCardSlide({ data }: { data: MovieData }) {
+export function ReportCardSlide({ data }: { data: SlidesData }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const raw = data.rawForces;

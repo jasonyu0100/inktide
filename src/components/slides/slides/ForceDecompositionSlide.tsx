@@ -2,9 +2,9 @@
 
 import React, { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
-import type { MovieData } from '@/lib/movie-data';
+import type { SlidesData } from '@/lib/slides-data';
 
-export function ForceDecompositionSlide({ data }: { data: MovieData }) {
+export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {

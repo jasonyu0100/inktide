@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import type { MovieData } from '@/lib/movie-data';
+import type { SlidesData } from '@/lib/slides-data';
 import { NARRATIVE_CUBE, type CubeCornerKey } from '@/types/narrative';
 
 const CORNER_ORDER: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
 
-export function CubeHeatmapSlide({ data }: { data: MovieData }) {
+export function CubeHeatmapSlide({ data }: { data: SlidesData }) {
   const maxCount = Math.max(...Object.values(data.cubeDistribution), 1);
 
   return (

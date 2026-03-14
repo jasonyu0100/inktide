@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { MovieData, PeakInfo } from '@/lib/movie-data';
+import type { SlidesData, PeakInfo } from '@/lib/slides-data';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 
 const FORCE_COLORS: Record<string, string> = {
@@ -10,7 +10,7 @@ const FORCE_COLORS: Record<string, string> = {
   variety: '#3B82F6',
 };
 
-export function PeakSlide({ data, peak, rank }: { data: MovieData; peak: PeakInfo; rank: number }) {
+export function PeakSlide({ data, peak, rank }: { data: SlidesData; peak: PeakInfo; rank: number }) {
   const forces = ['payoff', 'change', 'variety'] as const;
   const maxForce = Math.max(Math.abs(peak.forces.payoff), Math.abs(peak.forces.change), Math.abs(peak.forces.variety), 0.5);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { MovieData } from '@/lib/movie-data';
+import type { SlidesData } from '@/lib/slides-data';
 
 const FORCE_COLORS: Record<string, string> = {
   payoff: '#EF4444',
@@ -33,7 +33,7 @@ function ForceBar({ force, value, maxForce }: { force: string; value: number; ma
   );
 }
 
-export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: MovieData; sceneIdx: number; kind: 'peak' | 'valley' }) {
+export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sceneIdx: number; kind: 'peak' | 'valley' }) {
   const isPeak = kind === 'peak';
 
   // Find the matching peak or trough info

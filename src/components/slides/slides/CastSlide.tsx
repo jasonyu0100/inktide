@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import type { MovieData } from '@/lib/movie-data';
+import type { SlidesData } from '@/lib/slides-data';
 
-export function CastSlide({ data }: { data: MovieData }) {
+export function CastSlide({ data }: { data: SlidesData }) {
   const maxCount = data.topCharacters[0]?.sceneCount ?? 1;
 
   return (

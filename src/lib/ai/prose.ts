@@ -13,7 +13,7 @@ export async function scoreSceneProse(
   const logicRules = deriveLogicRules(narrative, scene);
 
   const planBlock = scene.plan
-    ? `\nSCENE PLAN (grade against this beat structure):\n${scene.plan}\n`
+    ? `\nSCENE PLAN (grade against this delivery structure):\n${scene.plan}\n`
     : '';
 
   const logicBlock = logicRules.length > 0
@@ -31,7 +31,7 @@ ${currentProse}
 
 Score the prose on these 6 dimensions (1-10 each):
 - voice: POV discipline, character distinctiveness, consistent narrative voice
-- pacing: scene breathes, beats land with proper weight, no rushing or dragging
+- pacing: scene breathes, deliveries land with proper weight, no rushing or dragging
 - dialogue: subtext-rich, character-specific speech patterns, no filler exchanges
 - sensory: grounded in concrete physical detail, body-first interiority
 - mutation_coverage: all thread shifts, knowledge changes, and relationship mutations are dramatised (not summarised)
@@ -49,7 +49,7 @@ Return JSON:
     "sensory": 5,
     "mutation_coverage": 8
   },
-  "critique": "Voice (8): Strong POV lock on Kael, distinct internal rhythm. Pacing (6): The middle sags — the market confrontation needs tighter beats. Dialogue (7): Subtext works in the alley scene but the tavern exchange feels expository. Sensory (5): Too much telling of emotions, not enough physical grounding. Mutation coverage (8): Thread shifts land well. Overall (7): Solid foundation but the sensory and pacing weaknesses hold it back."
+  "critique": "Voice (8): Strong POV lock on Kael, distinct internal rhythm. Pacing (6): The middle sags — the market confrontation needs tighter deliveries. Dialogue (7): Subtext works in the alley scene but the tavern exchange feels expository. Sensory (5): Too much telling of emotions, not enough physical grounding. Mutation coverage (8): Thread shifts land well. Overall (7): Solid foundation but the sensory and pacing weaknesses hold it back."
 }`;
 
   const raw = await callGenerate(prompt, systemPrompt, 2000, 'scoreSceneProse', ANALYSIS_MODEL);
@@ -90,7 +90,7 @@ export async function rewriteSceneProse(
   const nextOpening = nextProse ? nextProse.split(/\n\n+/)[0]?.slice(0, 300) : null;
 
   const planBlock = scene.plan
-    ? `\nSCENE PLAN (the rewrite must preserve this beat structure):\n${scene.plan}\n`
+    ? `\nSCENE PLAN (the rewrite must preserve this delivery structure):\n${scene.plan}\n`
     : '';
 
   const logicBlock = logicRules.length > 0
@@ -121,7 +121,7 @@ ${currentProse}
 ANALYSIS / CRITIQUE TO ADDRESS:
 ${analysis}
 
-Rewrite the prose to address the weaknesses identified in the analysis above. Preserve all narrative beats, events, and plot points. The rewrite should feel like the same scene written better. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for engagement; never pad. Do not artificially compress or expand the original — let the content dictate length.
+Rewrite the prose to address the weaknesses identified in the analysis above. Preserve all narrative deliveries, events, and plot points. The rewrite should feel like the same scene written better. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for engagement; never pad. Do not artificially compress or expand the original — let the content dictate length.
 
 Return JSON:
 {

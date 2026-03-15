@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { MCTSNode } from '@/types/mcts';
-import { computeRawForcetotals, computeForceSnapshots, computeSwingMagnitudes, gradeForces } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 
 /**
  * Apply scene mutations (relationship + knowledge + thread) to a narrative state.
@@ -129,21 +129,21 @@ export function buildVirtualState(
 /**
  * Score a generated arc's scenes using the force grading system.
  * Raw forces for payoff/change/knowledge (normalised by reference means in gradeForces).
- * Swing from z-score normalised forces relative to prior + arc context (no double normalisation).
+ * Swing from mean-normalised raw forces (single normalisation, preserves absolute magnitude).
  *
  * @param arcScenes - The scenes in this arc
- * @param priorScenes - All scenes before this arc (z-score normalisation context for swing)
+ * @param priorScenes - All scenes before this arc (unused, retained for API compatibility)
  */
 export function scoreArc(arcScenes: Scene[], priorScenes: Scene[]): number {
   if (arcScenes.length === 0) return 0;
 
   const raw = computeRawForcetotals(arcScenes);
-
-  // Z-normalise against full context for swing computation
-  const allScenes = [...priorScenes, ...arcScenes];
-  const forceMap = computeForceSnapshots(allScenes);
-  const arcZ = arcScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
-  const swings = computeSwingMagnitudes(arcZ);
+  const forces = raw.payoff.map((_, i) => ({
+    payoff: raw.payoff[i],
+    change: raw.change[i],
+    knowledge: raw.knowledge[i],
+  }));
+  const swings = computeSwingMagnitudes(forces, FORCE_REFERENCE_MEANS);
 
   const grades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
   return grades.overall;

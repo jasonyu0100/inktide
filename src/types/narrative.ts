@@ -197,7 +197,7 @@ export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
   LLL: {
     key: 'LLL',
     name: 'Rest',
-    description: 'Nothing resolves, no one transforms, no new world concepts. Recovery and breathing room — quiet character beats and seed-planting.',
+    description: 'Nothing resolves, no one transforms, no new world concepts. Recovery and breathing room — quiet character deliveries and seed-planting.',
     forces: { payoff: -1, change: -1, knowledge: -1 },
   },
 };
@@ -242,7 +242,7 @@ export type Scene = {
   relationshipMutations: RelationshipMutation[];
   /** World knowledge graph mutations — new concepts and connections about how the world works */
   worldKnowledgeMutations?: WorldKnowledgeMutation;
-  /** Beat-by-beat scene blueprint — generated before prose to detail HOW mutations unfold */
+  /** Delivery-by-delivery scene blueprint — generated before prose to detail HOW mutations unfold */
   plan?: string;
   prose?: string;
   /** Prose quality score from the last rewrite pass */

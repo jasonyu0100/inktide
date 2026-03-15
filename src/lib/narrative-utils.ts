@@ -498,29 +498,27 @@ function detectPeaksAndValleys(
 export interface EngagementPoint {
   /** Scene index (0-based) */
   index: number;
-  /**
-   * Composite engagement score: equal-weighted mean of payoff, change, and knowledge,
-   * amplified by an anticipation factor when prior scenes had high emotional change.
-   */
+  /** Delivery: equal-weighted mean of payoff, change, and knowledge z-scores.
+   *  Measures the overall narrative presence of a scene — how strongly all three forces radiate. */
   engagement: number;
   /** Tension buildup: change + knowledge − payoff. High when energy accumulates without release. */
   tension: number;
-  /** Gaussian-smoothed engagement (σ=1.5) — local curve shape for display. */
+  /** Gaussian-smoothed delivery (σ=1.5) — local curve shape for display. */
   smoothed: number;
   /** Heavily smoothed macro trend (σ=4) — overall arc of the narrative. */
   macroTrend: number;
-  /** True if this is a significant local engagement peak (dopamine spike). */
+  /** True if this is a significant local delivery peak. */
   isPeak: boolean;
-  /** True if this is a significant local engagement valley (rest/recovery). */
+  /** True if this is a significant local delivery valley. */
   isValley: boolean;
 }
 
 /**
- * Compute the reader engagement (dopamine) curve from z-score normalised force snapshots.
+ * Compute the delivery curve from z-score normalised force snapshots.
  *
- * Engagement is the equal-weighted mean of all three forces — no arbitrary prioritisation.
- * Peak/valley detection uses adaptive prominence (relative to the signal's own variance) and
- * an adaptive window radius so longer books don't produce spuriously many local extrema.
+ * Delivery is the equal-weighted mean of all three forces — it measures the overall
+ * narrative presence of a scene. High delivery means all three forces are radiating
+ * above average; low delivery means the scene is quiet or one-dimensional.
  */
 export function computeEngagementCurve(snapshots: ForceSnapshot[]): EngagementPoint[] {
   if (snapshots.length === 0) return [];
@@ -568,71 +566,74 @@ const SHAPES = {
   rags_to_riches: {
     key: 'rags_to_riches',
     name: 'Escalating',
-    description: 'Beats climb continuously — momentum builds from start to finish',
+    description: 'Deliveries climb continuously — momentum builds from start to finish',
     curve: [[0,0.1],[0.2,0.25],[0.4,0.45],[0.6,0.65],[0.8,0.82],[1,1]] as [number,number][],
   },
   tragedy: {
     key: 'tragedy',
     name: 'Subsiding',
-    description: 'Beats fall throughout — intensity drains as the narrative progresses',
+    description: 'Deliveries fall throughout — intensity drains as the narrative progresses',
     curve: [[0,1],[0.2,0.8],[0.4,0.6],[0.6,0.4],[0.8,0.22],[1,0.08]] as [number,number][],
   },
   man_in_hole: {
     key: 'man_in_hole',
     name: 'Rebounding',
-    description: 'Beats drop in the middle then climb back — low point followed by upswing',
+    description: 'Deliveries drop in the middle then climb back — low point followed by upswing',
     curve: [[0,0.6],[0.2,0.35],[0.4,0.1],[0.6,0.3],[0.8,0.65],[1,0.9]] as [number,number][],
   },
   icarus: {
     key: 'icarus',
     name: 'Peaking',
-    description: 'Beats peak early then trail off — intensity concentrated at the opening',
+    description: 'Deliveries peak early then trail off — intensity concentrated at the opening',
     curve: [[0,0.4],[0.2,0.85],[0.35,1],[0.55,0.65],[0.75,0.35],[1,0.15]] as [number,number][],
   },
   cinderella: {
     key: 'cinderella',
     name: 'Cyclical',
-    description: 'Two distinct rises separated by a trough — beats crest, fall, then crest again',
+    description: 'Two distinct rises separated by a trough — deliveries crest, fall, then crest again',
     curve: [[0,0.3],[0.2,0.75],[0.35,0.9],[0.5,0.35],[0.65,0.2],[0.8,0.75],[1,1]] as [number,number][],
   },
   one_climax: {
     key: 'one_climax',
     name: 'Climactic',
-    description: 'Beats converge on one central high — build, climax, resolution',
+    description: 'Deliveries converge on one central high — build, climax, resolution',
     curve: [[0,0.2],[0.25,0.5],[0.45,0.8],[0.5,1],[0.55,0.8],[0.75,0.5],[1,0.25]] as [number,number][],
   },
   slow_burn: {
     key: 'slow_burn',
     name: 'Slow Burn',
-    description: 'Beats stay low early then surge — intensity concentrated at the close',
+    description: 'Deliveries stay low early then surge — intensity concentrated at the close',
     curve: [[0,0.15],[0.2,0.2],[0.4,0.18],[0.6,0.35],[0.75,0.65],[0.9,0.9],[1,1]] as [number,number][],
   },
   episodic: {
     key: 'episodic',
     name: 'Episodic',
-    description: 'Multiple beats of similar weight — no single dominant high point',
+    description: 'Multiple deliveries of similar weight — no single dominant high point',
     curve: [[0,0.3],[0.1,0.7],[0.2,0.3],[0.35,0.75],[0.5,0.25],[0.65,0.8],[0.8,0.3],[0.9,0.7],[1,0.35]] as [number,number][],
   },
   plateau: {
     key: 'plateau',
     name: 'Uniform',
-    description: 'Beats show little structural variation — measured and consistent throughout',
+    description: 'Deliveries show little structural variation — measured and consistent throughout',
     curve: [[0,0.5],[0.25,0.52],[0.5,0.48],[0.75,0.51],[1,0.5]] as [number,number][],
   },
 } satisfies Record<string, NarrativeShape>;
 
 /**
- * Classify the overall shape of an engagement curve into a named narrative archetype.
+ * Classify the overall shape of a narrative based on its payoff curve.
  *
- * Uses the macro trend (heavily smoothed) for direction and overall slope,
- * and the peak count from the local detection for episodic vs focused structure.
+ * Accepts z-score normalised payoff values (one per scene), applies Gaussian
+ * smoothing internally, and classifies the trajectory into a named archetype.
+ * Uses payoff specifically because it tracks thread resolution and relationship
+ * shifts — the structural backbone of narrative shape.
+ *
  * Inspired by Vonnegut's story shapes and Reagan et al.'s arc research.
  */
-export function classifyNarrativeShape(points: EngagementPoint[]): NarrativeShape {
-  if (points.length < 6) return SHAPES.plateau;
-  const n = points.length;
-  const macro = points.map((p) => p.macroTrend);
-  const smoothed = points.map((p) => p.smoothed);
+export function classifyNarrativeShape(payoffs: number[]): NarrativeShape {
+  if (payoffs.length < 6) return SHAPES.plateau;
+  const n = payoffs.length;
+  const smoothed = gaussianSmooth(payoffs, 1.5);
+  const macro = gaussianSmooth(payoffs, 4);
 
   // Variance of the smoothed curve — low means flat/plateau
   const smMean = smoothed.reduce((s, v) => s + v, 0) / n;
@@ -648,7 +649,13 @@ export function classifyNarrativeShape(points: EngagementPoint[]): NarrativeShap
   const avgQ3 = segAvg(t2, n);
 
   const overallSlope = macro[n - 1] - macro[0];
-  const peakCount = points.filter((p) => p.isPeak).length;
+
+  // Peak detection on the smoothed payoff curve
+  const smStd = Math.sqrt(smoothed.reduce((s, v) => s + (v - smMean) ** 2, 0) / n);
+  const minProm = Math.max(0.1, 0.4 * smStd);
+  const windowR = Math.max(2, Math.floor(n / 25));
+  const { peaks } = detectPeaksAndValleys(smoothed, minProm, windowR);
+  const peakCount = peaks.size;
 
   // Episodic: four or more labeled peaks with no dominant direction
   if (peakCount >= 4 && Math.abs(overallSlope) < 0.5) return SHAPES.episodic;
@@ -661,19 +668,16 @@ export function classifyNarrativeShape(points: EngagementPoint[]): NarrativeShap
   if (midPeak) return SHAPES.one_climax;
 
   if (midDip) {
-    // Man in Hole if it recovers to at least starting level
     return SHAPES.man_in_hole;
   }
 
   // Strong overall direction
   if (overallSlope > 0.4) {
-    // Slow Burn: starts genuinely below zero and climbs to positive
     if (macro[0] < -0.2 && macro[n - 1] > 0.2) return SHAPES.slow_burn;
     return SHAPES.rags_to_riches;
   }
 
   if (overallSlope < -0.4) {
-    // Icarus: peak is in the first half, then falls away
     const maxIdx = smoothed.indexOf(Math.max(...smoothed));
     if (maxIdx / n < 0.45) return SHAPES.icarus;
     return SHAPES.tragedy;
@@ -685,6 +689,59 @@ export function classifyNarrativeShape(points: EngagementPoint[]): NarrativeShap
   return SHAPES.one_climax;
 }
 
+// ── Narrative Archetype Classification ────────────────────────────────────────
+
+export interface NarrativeArchetype {
+  key: string;
+  name: string;
+  description: string;
+  /** Which force(s) define this archetype */
+  dominant: ('payoff' | 'change' | 'knowledge')[];
+}
+
+const ARCHETYPES = {
+  masterwork:  { key: 'masterwork',  name: 'Masterwork',  description: 'All three forces in concert — payoffs land, characters transform, and the world deepens together', dominant: ['payoff', 'change', 'knowledge'] as const },
+  epic:        { key: 'epic',        name: 'Epic',        description: 'High-stakes payoffs across a sprawling cast — consequences are real and far-reaching', dominant: ['payoff', 'change'] as const },
+  chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Resolutions deepen the world — each payoff reveals how things work', dominant: ['payoff', 'knowledge'] as const },
+  saga:        { key: 'saga',        name: 'Saga',        description: 'A rich world explored through many lives — expansive in both cast and ideas', dominant: ['change', 'knowledge'] as const },
+  classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['payoff'] as const },
+  anthology:   { key: 'anthology',   name: 'Anthology',   description: 'Many lives touched — the story weaves across a wide cast of characters', dominant: ['change'] as const },
+  atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['knowledge'] as const },
+  emerging:    { key: 'emerging',    name: 'Emerging',    description: 'No single force has reached its potential yet — the story is still finding its voice', dominant: [] as const },
+} satisfies Record<string, NarrativeArchetype>;
+
+/**
+ * Classify a narrative's archetype based on its force grade profile.
+ *
+ * Uses the relative gap between forces rather than a fixed threshold:
+ * - If all three forces are within 5 points of each other → balanced
+ * - Otherwise, forces ≥ (max - 5) are "co-dominant"
+ * - The combination of dominant forces determines the archetype
+ * - Balanced + high (avg ≥ 18) = Masterwork; balanced + low = Intimate
+ */
+export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
+  const p = grades.payoff;
+  const c = grades.change;
+  const k = grades.knowledge;
+  const max = Math.max(p, c, k);
+  const gap = 5;
+  const floor = 20;
+
+  // A force must score ≥ 20 AND be within 5 of the max to be dominant
+  const pDom = p >= floor && p >= max - gap;
+  const cDom = c >= floor && c >= max - gap;
+  const kDom = k >= floor && k >= max - gap;
+
+  if (pDom && cDom && kDom) return ARCHETYPES.masterwork;
+  if (pDom && cDom)         return ARCHETYPES.epic;
+  if (pDom && kDom)         return ARCHETYPES.chronicle;
+  if (cDom && kDom)         return ARCHETYPES.saga;
+  if (pDom)                 return ARCHETYPES.classic;
+  if (cDom)                 return ARCHETYPES.anthology;
+  if (kDom)                 return ARCHETYPES.atlas;
+  return ARCHETYPES.emerging;
+}
+
 // ── Local Position Classification ─────────────────────────────────────────────
 
 export interface NarrativePosition {
@@ -694,15 +751,15 @@ export interface NarrativePosition {
 }
 
 const POSITIONS: Record<NarrativePosition['key'], NarrativePosition> = {
-  peak:    { key: 'peak',    name: 'Peak',    description: 'Beats are at a local high — intensity is cresting' },
-  trough:  { key: 'trough',  name: 'Trough',  description: 'Beats are at a local low — energy has bottomed out' },
-  rising:  { key: 'rising',  name: 'Rising',  description: 'Beats are climbing — building toward a high point' },
-  falling: { key: 'falling', name: 'Falling', description: 'Beats are declining — unwinding from a high' },
-  stable:  { key: 'stable',  name: 'Stable',  description: 'Beats are holding steady — no strong directional movement' },
+  peak:    { key: 'peak',    name: 'Peak',    description: 'Deliveries are at a local high — intensity is cresting' },
+  trough:  { key: 'trough',  name: 'Trough',  description: 'Deliveries are at a local low — energy has bottomed out' },
+  rising:  { key: 'rising',  name: 'Rising',  description: 'Deliveries are climbing — building toward a high point' },
+  falling: { key: 'falling', name: 'Falling', description: 'Deliveries are declining — unwinding from a high' },
+  stable:  { key: 'stable',  name: 'Stable',  description: 'Deliveries are holding steady — no strong directional movement' },
 };
 
 /**
- * Classify the local beat position at the current (last) point of an engagement window.
+ * Classify the local delivery position at the current (last) point of an engagement window.
  * Checks proximity to detected peaks/valleys first, then falls back to slope direction.
  */
 export function classifyCurrentPosition(points: EngagementPoint[]): NarrativePosition {
@@ -791,8 +848,7 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~86%.
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-/** swing_z: reference mean for z-score Euclidean swing (calibrated from literary works) */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 7.0, knowledge: 2.5, swing_z: 1.8 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 7.0, knowledge: 2.5 } as const;
 
 /** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */
@@ -803,7 +859,7 @@ export function gradeForce(normalizedMean: number): number {
 /**
  * Grade narrative forces (0–25 each, 0–100 overall).
  * Payoff/change/knowledge are raw values, normalised here by FORCE_REFERENCE_MEANS.
- * Swing values are z-score Euclidean distances, normalised by swing_z reference.
+ * Swing values are mean-normalised Euclidean distances — graded directly (single normalisation).
  */
 export function gradeForces(
   payoff: number[],
@@ -815,7 +871,7 @@ export function gradeForces(
   const payoffGrade = gradeForce(avg(payoff) / R.payoff);
   const changeGrade = gradeForce(avg(change) / R.change);
   const knowledgeGrade = gradeForce(avg(knowledge) / R.knowledge);
-  const swingGrade = gradeForce(avg(swing) / R.swing_z);
+  const swingGrade = gradeForce(avg(swing));
 
   const overall = payoffGrade + changeGrade + knowledgeGrade + swingGrade;
 

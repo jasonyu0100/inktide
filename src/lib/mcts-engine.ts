@@ -1,8 +1,8 @@
 import type { NarrativeState, Scene, Arc, CubeCornerKey } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { MCTSNode, MCTSNodeId, MCTSTree, MCTSConfig, PathStrategy } from '@/types/mcts';
-import { SEARCH_MODE_C, BEAT_DIRECTIONS } from '@/types/mcts';
-import type { SearchMode, BeatDirection, DirectionMode } from '@/types/mcts';
+import { SEARCH_MODE_C, DELIVERY_DIRECTIONS } from '@/types/mcts';
+import type { SearchMode, DeliveryDirection, DirectionMode } from '@/types/mcts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -155,12 +155,12 @@ function findExpandableNode(
 
 const ALL_CUBE_CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
 
-const ALL_BEAT_DIRECTIONS: BeatDirection[] = ['escalate', 'release', 'surge', 'rebound'];
+const ALL_DELIVERY_DIRECTIONS: DeliveryDirection[] = ['escalate', 'release', 'surge', 'rebound'];
 
 /**
  * Pick the next direction to explore for a given parent node.
  *
- * When directionMode === 'beats':
+ * When directionMode === 'delivery':
  * - Pool = ['escalate', 'release', 'surge'] minus already-used ones
  * - If pool empty, allow reuse of all 3
  * - Random mode: pick random from pool
@@ -180,13 +180,13 @@ export function pickNextDirection(
   directionMode: DirectionMode,
   parentCubeGoal?: CubeCornerKey | null,
   randomDirections = false,
-): { direction: string; cubeGoal: CubeCornerKey | null; beatGoal: BeatDirection | null } {
-  if (directionMode === 'beats') {
+): { direction: string; cubeGoal: CubeCornerKey | null; deliveryGoal: DeliveryDirection | null } {
+  if (directionMode === 'delivery') {
     const usedSet = new Set(existingGoals.filter((g): g is string => g !== null));
-    let pool = ALL_BEAT_DIRECTIONS.filter((d) => !usedSet.has(d));
-    if (pool.length === 0) pool = [...ALL_BEAT_DIRECTIONS];
+    let pool = ALL_DELIVERY_DIRECTIONS.filter((d) => !usedSet.has(d));
+    if (pool.length === 0) pool = [...ALL_DELIVERY_DIRECTIONS];
 
-    let chosen: BeatDirection;
+    let chosen: DeliveryDirection;
     if (randomDirections) {
       chosen = pool[Math.floor(Math.random() * pool.length)];
     } else {
@@ -194,7 +194,7 @@ export function pickNextDirection(
       chosen = pool[0];
     }
 
-    return { direction: BEAT_DIRECTIONS[chosen].prompt, cubeGoal: null, beatGoal: chosen };
+    return { direction: DELIVERY_DIRECTIONS[chosen].prompt, cubeGoal: null, deliveryGoal: chosen };
   }
 
   // Cube mode
@@ -227,7 +227,7 @@ export function pickNextDirection(
     }
   }
 
-  return { direction: buildDirectionFromCube(chosen), cubeGoal: chosen, beatGoal: null };
+  return { direction: buildDirectionFromCube(chosen), cubeGoal: chosen, deliveryGoal: null };
 }
 
 /** Hamming distance between two cube corner keys (e.g., HHH vs LLL = 3) */
@@ -258,7 +258,7 @@ export function addChildNode(
   arc: Arc,
   direction: string,
   cubeGoal: CubeCornerKey | null,
-  beatGoal: BeatDirection | null,
+  deliveryGoal: DeliveryDirection | null,
   virtualNarrative: NarrativeState,
   virtualResolvedKeys: string[],
   virtualCurrentIndex: number,
@@ -274,7 +274,7 @@ export function addChildNode(
     arc,
     direction,
     cubeGoal,
-    beatGoal,
+    deliveryGoal,
     immediateScore,
     totalScore: immediateScore,
     visitCount: 1,

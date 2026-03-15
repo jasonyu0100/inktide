@@ -231,7 +231,7 @@ export function branchContext(
     return `[${horizonStart + i + 1}] P:${f.payoff >= 0 ? '+' : ''}${f.payoff.toFixed(1)} C:${f.change >= 0 ? '+' : ''}${f.change.toFixed(1)} V:${f.knowledge >= 0 ? '+' : ''}${f.knowledge.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${payoffMA[i].toFixed(1)} C:${changeMA[i].toFixed(1)} V:${varietyMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
   }).filter(Boolean).join('\n');
 
-  // Current cube position and local beat position
+  // Current cube position and local delivery position
   const currentForces = allScenes.length > 0 ? forceMap[allScenes[allScenes.length - 1].id] : null;
   const currentCube = currentForces ? detectCubeCorner(currentForces) : null;
   const windowScenes = allScenes.slice(-FORCE_WINDOW_SIZE);
@@ -240,7 +240,7 @@ export function branchContext(
   const engPts = computeEngagementCurve(windowOrdered);
   const localPos = engPts.length > 0 ? classifyCurrentPosition(engPts) : null;
   const currentStateBlock = currentCube
-    ? `\nCURRENT NARRATIVE STATE:\n  Cube position: ${currentCube.name} (P:${currentForces!.payoff >= 0 ? 'Hi' : 'Lo'} C:${currentForces!.change >= 0 ? 'Hi' : 'Lo'} V:${currentForces!.knowledge >= 0 ? 'Hi' : 'Lo'}) — ${currentCube.description}\n  Beat position: ${localPos?.name ?? 'Stable'} — ${localPos?.description ?? 'beats are holding steady'}\n`
+    ? `\nCURRENT NARRATIVE STATE:\n  Cube position: ${currentCube.name} (P:${currentForces!.payoff >= 0 ? 'Hi' : 'Lo'} C:${currentForces!.change >= 0 ? 'Hi' : 'Lo'} V:${currentForces!.knowledge >= 0 ? 'Hi' : 'Lo'}) — ${currentCube.description}\n  Delivery position: ${localPos?.name ?? 'Stable'} — ${localPos?.description ?? 'deliveries are holding steady'}\n`
     : '';
 
   // ── World Knowledge Graph ──────────────────────────────────────────
@@ -662,7 +662,7 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
     // New concepts: must be revealed during the scene
     for (const addedNode of scene.worldKnowledgeMutations.addedNodes ?? []) {
       const shortConcept = addedNode.concept.includes(' — ') ? addedNode.concept.split(' — ')[0] : addedNode.concept;
-      rules.push(`WORLD KNOWLEDGE REVEAL: "${shortConcept}" (${addedNode.type}) has NOT been established yet at scene start — it must be revealed through a specific mechanism (demonstration, explanation, discovery, action). Do not reference it as pre-existing before its revelation beat.`);
+      rules.push(`WORLD KNOWLEDGE REVEAL: "${shortConcept}" (${addedNode.type}) has NOT been established yet at scene start — it must be revealed through a specific mechanism (demonstration, explanation, discovery, action). Do not reference it as pre-existing before its revelation delivery.`);
     }
     // New edges: dramatise the connection
     for (const edge of scene.worldKnowledgeMutations.addedEdges ?? []) {

@@ -458,7 +458,7 @@ const scenes: Record<string, Scene> = {
     summary: 'Dusk on Qing Mao Mountain. Fang Yuan walks the ridge path alone, ostensibly gathering herbs for a class assignment. The real work is invisible: he is mapping the terrain against five centuries of memory, noting what has changed and what remains. A luminous beetle Gu drifts past — a Moonlight Gu, rank one, harmless and beautiful. In his previous life he crushed a thousand of them for reagents. Tonight he lets it pass. Not out of mercy. Out of patience.',
   },
 
-  // [plot beat] The Awakening Ceremony — the seed's first significant moment
+  // [plot delivery] The Awakening Ceremony — the seed's first significant moment
   'S-005': {
     id: 'S-005',
     kind: 'scene',
@@ -679,7 +679,7 @@ const scenes: Record<string, Scene> = {
     summary: 'Academy training yard. The newly awakened students practice channeling primeval essence into their first Gu. Most fail repeatedly — the Gu squirm away from clumsy flows of energy like fish from a child\'s hands. Fang Zheng, despite his A-grade talent, struggles with fine control. Shen Cui corrects his grip. The other students watch him with a mix of envy and hope. A normal afternoon. The kind of afternoon that makes a world feel lived-in before the world begins to crack.',
   },
 
-  // [plot beat] Fang Yuan enters the tunnels for the first time — careful, alone
+  // [plot delivery] Fang Yuan enters the tunnels for the first time — careful, alone
   'S-012': {
     id: 'S-012',
     kind: 'scene',
@@ -744,7 +744,7 @@ const scenes: Record<string, Scene> = {
     summary: 'Their small house. Fang Zheng cooks — badly — while talking about his first successful Gu channeling. He wants to become strong enough to protect the whole clan, like their parents did. He asks Fang Yuan what he wants. Fang Yuan says he wants to be useful. The soup boils over. They eat in companionable silence, and for a single unguarded moment Fang Yuan watches his brother with something that might, in better light, be mistaken for grief. Then it is gone, and he asks for more soup.',
   },
 
-  // [plot beat] Fang Yuan spots the ceremony results being politicized
+  // [plot delivery] Fang Yuan spots the ceremony results being politicized
   'S-014': {
     id: 'S-014',
     kind: 'scene',

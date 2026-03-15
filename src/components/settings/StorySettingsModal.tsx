@@ -229,11 +229,11 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 <textarea
                   value={settings.planGuidance}
                   onChange={(e) => update({ planGuidance: e.target.value })}
-                  placeholder="e.g. &quot;Plans should emphasize character interiority over plot mechanics. Include specific dialogue seeds. Each beat should have a clear emotional shift.&quot;"
+                  placeholder="e.g. &quot;Plans should emphasize character interiority over plot mechanics. Include specific dialogue seeds. Each delivery should have a clear emotional shift.&quot;"
                   className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-32"
                 />
                 <p className="text-[9px] text-text-dim/50 mt-1">
-                  Shape how scene plans are structured. Plans are beat-by-beat blueprints that guide prose generation.
+                  Shape how scene plans are structured. Plans are delivery-by-delivery blueprints that guide prose generation.
                 </p>
               </div>
             </>

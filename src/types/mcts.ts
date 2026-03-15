@@ -14,7 +14,7 @@ export type MCTSNode = {
   arc: Arc;
   direction: string;
   cubeGoal: CubeCornerKey | null;
-  beatGoal: BeatDirection | null;
+  deliveryGoal: DeliveryDirection | null;
 
   // Scoring
   immediateScore: number;   // gradeForces().overall for this arc (0-100)
@@ -51,7 +51,7 @@ export type MCTSTree = {
  *   promising nodes get more children, dead ends are abandoned early.
  *   Branching factor is a soft cap (direction count), not a target.
  * - constrained: Complete tree. Every node at each depth gets exactly
- *   directionCount children (4 for beats, 8 for cube) before going deeper.
+ *   directionCount children (4 for delivery, 8 for cube) before going deeper.
  *   Branching factor is locked to the number of available directions.
  * - baseline: Unlimited children per node. Keep generating at each depth
  *   until a node meets the target score, then descend the optimal path
@@ -65,14 +65,14 @@ export type PathStrategy = 'best_score' | 'most_explored';
 /** How search termination is determined */
 export type StopMode = 'timer' | 'iterations';
 
-export type BeatDirection = 'escalate' | 'release' | 'surge' | 'rebound';
+export type DeliveryDirection = 'escalate' | 'release' | 'surge' | 'rebound';
 
-export type DirectionMode = 'cube' | 'beats';
+export type DirectionMode = 'cube' | 'delivery';
 
-export const BEAT_DIRECTIONS: Record<BeatDirection, { name: string; description: string; prompt: string }> = {
+export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; description: string; prompt: string }> = {
   escalate: {
     name: 'Escalate',
-    description: 'Rising beats — each scene raises the stakes',
+    description: 'Rising deliveries — each scene raises the stakes',
     prompt: `Structure this arc so each scene raises the stakes higher than the last.
 
 THREADS (primary driver):
@@ -92,7 +92,7 @@ KNOWLEDGE:
   },
   release: {
     name: 'Release',
-    description: 'Falling beats — tension dissolves into stillness',
+    description: 'Falling deliveries — tension dissolves into stillness',
     prompt: `Structure this arc as a gradual exhale — the aftermath of intensity.
 
 THREADS:
@@ -178,13 +178,13 @@ export const DEFAULT_MCTS_CONFIG: MCTSConfig = {
   timeLimitSeconds: 60,
   baselineScore: 80,
   randomDirections: false,
-  directionMode: 'beats',
+  directionMode: 'delivery',
   branchingFactor: 4,
 };
 
 /** Default branching factor per direction mode */
 export const DEFAULT_BRANCHING: Record<DirectionMode, number> = {
-  beats: 4,
+  delivery: 4,
   cube: 8,
 };
 
@@ -211,7 +211,7 @@ export type PendingExpansion = {
   parentId: MCTSNodeId | 'root';
   direction: string;
   cubeGoal: CubeCornerKey | null;
-  beatGoal: BeatDirection | null;
+  deliveryGoal: DeliveryDirection | null;
   streamText: string;
   startedAt: number;
 };

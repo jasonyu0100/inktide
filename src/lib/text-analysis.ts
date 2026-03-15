@@ -418,9 +418,11 @@ RULES:
   * Crime/thriller: legal systems, criminal hierarchies, institutional power structures
 - Four types: "law" (governing truths — social rules, physical laws, cultural expectations), "system" (institutions, processes, hierarchies — both formal and informal), "concept" (named ideas, phenomena, symbolic motifs, places-as-concepts), "tension" (contradictions, paradoxes, unresolved social forces).
 - Add nodes when a scene reveals, establishes, or names a world concept. Add edges (fromConcept/toConcept) when it connects concepts.
+- REUSING existing world knowledge nodes is encouraged. If a scene reinforces, deepens, or tests an existing concept, reference the existing node ID in addedNodes — this signals engagement with established world knowledge rather than inventing something new. Similarly, re-adding an existing edge reinforces that connection. Only create new IDs for genuinely new concepts.
 - How much to extract depends on the prose:
   * A scene that establishes social rules, describes how institutions work, reveals class dynamics, or names symbolic concepts → several nodes and edges.
   * A scene that shows how two world concepts relate (old money enables social access, prohibition creates underground economies) → edges.
+  * A scene that reinforces or tests an already-established concept → reuse the existing node ID.
   * A quiet scene with no world context → none.
   * Let the prose guide you — extract what's there, don't invent what isn't.
 
@@ -603,7 +605,8 @@ RULES:
   * Fantasy/sci-fi: magic systems, supernatural laws, alien species. Literary: class structures, social norms, economic systems. Historical: period customs, political systems. Crime: legal systems, criminal hierarchies.
 - Four types: "law" (governing truths — social rules, physical laws), "system" (institutions, hierarchies), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved social forces).
 - Add nodes when a scene reveals world concepts. Add edges when it connects them.
-- How much depends on the prose: scenes establishing social rules, institutional dynamics, cultural expectations → several nodes. Quiet scenes with no world context → none. Let the prose guide you.
+- REUSE existing node IDs when a scene reinforces or tests an already-established concept — don't create duplicates. Only create new IDs for genuinely new concepts. Re-adding existing edges reinforces those connections.
+- How much depends on the prose: scenes establishing social rules, institutional dynamics, cultural expectations → several nodes. Scenes reinforcing existing concepts → reuse existing IDs. Quiet scenes with no world context → none. Let the prose guide you.
 
 HOW MUTATIONS ARE MEASURED — every choice feeds into three narrative forces that evaluate the story:
 - PAYOFF: threadMutations (status transition magnitude) + relationshipMutations (valenceDelta). Bigger jumps = higher Payoff.

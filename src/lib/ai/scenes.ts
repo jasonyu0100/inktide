@@ -66,7 +66,7 @@ ${cubeGoal ? (() => {
     LHH: `This is a DISCOVERY arc — characters grow rapidly through encountering new world systems. No threads need to resolve — this is about exploration and world-building. Introduce new concepts, rules, and connections that expand the knowledge graph. Characters are learning, adapting, being changed by encountering how the world works. Think: discovering a magic system, entering a new culture, uncovering ancient history. Maintain POV streaks.`,
     LHL: `This is a GROWTH arc — the familiar cast evolves through internal development within established world rules. No plot payoffs needed — threads stay active but don't resolve. No new world concepts. Characters train, bond, argue, process, and change through interaction. Think: training montages, heart-to-heart conversations, mentorship. Anchor on one POV.`,
     LLH: `This is a LORE arc — pure world-building without resolution or personal transformation. Establish new rules, systems, cultures, and connections in the world knowledge graph. Threads simmer without advancing. Think: a sage explains the magic system, a journey through lands with distinct customs, the narrator establishes world context through action and observation. Use one POV throughout.`,
-    LLL: `This is a REST arc — recovery and seed-planting. Nothing resolves, no one transforms, no new world concepts. Quiet character beats, domestic scenes with undercurrents. Subtle foreshadowing through small details. Stay with one POV and one location.`,
+    LLL: `This is a REST arc — recovery and seed-planting. Nothing resolves, no one transforms, no new world concepts. Quiet character deliveries, domestic scenes with undercurrents. Subtle foreshadowing through small details. Stay with one POV and one location.`,
   };
   return `
 NARRATIVE CUBE GOAL — "${cube.name}" (${cubeGoal}: Payoff ${p ? 'High' : 'Low'}, Change ${c ? 'High' : 'Low'}, Knowledge ${k ? 'High' : 'Low'}):
@@ -79,7 +79,7 @@ ALREADY GENERATED AT THIS BRANCH POINT (${rejectSiblings.length} alternatives ex
 ${rejectSiblings.filter((s) => s.summary).map((s) => `- "${s.name}": ${s.summary}`).join('\n')}
 ${rejectSiblings.filter((s) => !s.summary).length > 0 ? `Also being generated in parallel: ${rejectSiblings.filter((s) => !s.summary).map((s) => s.name).join(', ')}` : ''}
 
-CRITICAL: Your arc MUST be substantially different from ALL of the above. Do NOT use similar arc names (avoid "Echoes of…", "Seeds of…", "Whispers of…" if those patterns appear above). Do NOT cover the same plot beats or involve the same character groupings. Find a completely different angle — a different subplot, different characters in focus, a different emotional register, or a different narrative question entirely.` : ''}
+CRITICAL: Your arc MUST be substantially different from ALL of the above. Do NOT use similar arc names (avoid "Echoes of…", "Seeds of…", "Whispers of…" if those patterns appear above). Do NOT cover the same plot deliveries or involve the same character groupings. Find a completely different angle — a different subplot, different characters in focus, a different emotional register, or a different narrative question entirely.` : ''}
 
 Return JSON with this exact structure:
 {
@@ -116,7 +116,8 @@ Rules:
 - continuityMutations track what characters learn. Include them when a character gains or loses information — secrets revealed, lies uncovered, skills observed, intel gathered.
 - events capture concrete narrative happenings. Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "duel_of_wits", "storm_breaks", "letter_intercepted". Aim for 2-4 events per scene.
 - worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. NOT character knowledge (that's continuityMutations). World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths), "system" (institutions, processes), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved forces). Add nodes when a scene reveals, reinforces, or tests a world concept. Add edges when it connects concepts — edges can reference existing world knowledge node IDs from the context above OR newly created WK-GEN-XXX IDs. Most scenes touch the world in some way — a conversation reveals social norms, a fight tests power hierarchies, a journey exposes geography or customs. Aim for at least 1 world knowledge node per scene; world-building scenes may have 3-5 with edges.
-- World knowledge node IDs must be unique: WK-GEN-001, WK-GEN-002, etc.
+- REUSING existing world knowledge nodes is encouraged. If a scene reinforces, deepens, or tests an existing concept, reference the existing node ID in addedNodes with the same ID — this signals that the scene engages with established world knowledge rather than inventing something new. Similarly, re-adding an existing edge reinforces that connection. Only create new WK-GEN-XXX IDs for genuinely new concepts. A scene that ties into the existing knowledge graph (via reused nodes and edges to existing IDs) is more valuable than one that creates isolated new concepts.
+- World knowledge node IDs for NEW concepts must be unique: WK-GEN-001, WK-GEN-002, etc. Reused nodes should keep their original ID.
 - characterMovements track when characters physically relocate to a different location during the scene. Only include characters whose location CHANGES — omit characters who stay put. The "transition" field should be a vivid, specific description of HOW they traveled (e.g. "Fled through the sewers beneath the city", "Sailed upriver on a merchant barge"). The "locationId" MUST be a valid location ID from the narrative. Do NOT include movements where the destination is the same as the scene's locationId.
 
 HOW YOUR CHOICES ARE MEASURED — every mutation feeds into three narrative forces that grade the story:
@@ -158,7 +159,7 @@ SPATIAL CONTINUITY:
 
 PACING:
 - Not every scene should be a major plot event. Include quieter scenes: character moments, travel, reflection, relationship building.
-- Only 1 in 3 scenes should be a significant plot beat. Others build atmosphere, deepen character, or plant seeds.
+- Only 1 in 3 scenes should be a significant plot delivery. Others build atmosphere, deepen character, or plant seeds.
 - Even quiet scenes benefit from small mutations — a character noticing tension, recalling a memory, warming to an ally, or growing suspicious all count.
 - Threads evolve gradually — a dormant thread surfaces over several scenes, not in one jump. But don't be afraid to escalate when the story demands it.
 - When a thread's storyline has concluded (conflict resolved, mystery answered, goal achieved or failed), transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}. Choose the terminal status that best fits HOW the thread ended.
@@ -384,26 +385,26 @@ export async function generateScenePlan(
 
   const scale = sceneScale(scene);
 
-  const systemPrompt = `You are a dramaturg and scene architect for "${narrative.title}". Your job is to expand structural beats into a detailed staging plan that a prose writer can follow. Do NOT write prose — write a blueprint.
+  const systemPrompt = `You are a dramaturg and scene architect for "${narrative.title}". Your job is to expand structural deliveries into a detailed staging plan that a prose writer can follow. Do NOT write prose — write a blueprint.
 
 Output format (free-form text — length should match the scene's complexity; a simple scene needs a short plan, a dense multi-thread convergence needs a thorough one):
 
 OPENING STATE
 2-3 sentences: where characters are physically, what they know, emotional temperature entering the scene. If characters are arriving from elsewhere, describe HOW they arrived — the mode of travel, the journey's toll, what they saw along the way. Ground the reader in the spatial reality before the scene's action begins.
 
-BEATS
-Numbered list (4-8 beats). Each beat specifies:
+DELIVERIES
+Numbered list (4-8 deliveries). Each delivery specifies:
 - Trigger: what initiates this moment
 - Action: what happens physically and emotionally
 - Shift: what mutation (thread/knowledge/relationship) this dramatises, and HOW it occurs mechanically
 
-Every structural mutation in the scene data MUST map to at least one beat with a concrete mechanism:
+Every structural mutation in the scene data MUST map to at least one delivery with a concrete mechanism:
 - Thread transitions need a trigger (not "the thread becomes active" but "the letter falls from the coat pocket, she reads it aloud")
 - Knowledge discoveries need a device (overheard, found object, deduction, confession, demonstration, letter, physical evidence)
 - Relationship shifts need a catalytic moment (a specific line, gesture, betrayal, sacrifice, shared danger)
-- Character movements need a SPATIAL TRANSITION beat: describe the journey itself — what they see/experience in transit, how the landscape changes, what it costs them physically or emotionally. Transitions are narrative moments, not teleportation. Include sensory detail about the route (terrain, weather, crowds, vehicles) and the character's internal state during travel.
+- Character movements need a SPATIAL TRANSITION delivery: describe the journey itself — what they see/experience in transit, how the landscape changes, what it costs them physically or emotionally. Transitions are narrative moments, not teleportation. Include sensory detail about the route (terrain, weather, crowds, vehicles) and the character's internal state during travel.
 - World knowledge reveals need a discovery mechanism: a character explains a rule, demonstrates a technique, references a historical event, or the narrator establishes world context through action. Each new world concept should feel earned, not lectured. The mechanism must be specific — not 'they learn about X' but 'the old woman draws the rune pattern in ash and explains its binding properties'.
-- Do NOT reuse the same discovery device across multiple beats
+- Do NOT reuse the same discovery device across multiple deliveries
 
 DIALOGUE SEEDS
 2-4 key exchanges. For each: who speaks, the surface topic, and the subtext underneath. Not full dialogue — just the tension map.
@@ -416,22 +417,22 @@ THE THREE PILLARS OF NARRATIVE LOGIC:
 1. CONTINUITY LOGIC (what characters know):
 - The scene is told from the POV character's perspective. They can only perceive what their senses and existing knowledge allow.
 - In the OPENING STATE, specify exactly what the POV character knows and does NOT know. This sets the information boundary for the entire scene.
-- When planning beats where NON-POV characters act on private knowledge, describe only their observable behaviour — the POV character must interpret from the outside (and may misread the situation).
-- When the POV character discovers new knowledge (continuity mutation), the beat must specify the exact mechanism: what they see, hear, read, or deduce. No omniscient revelation.
+- When planning deliveries where NON-POV characters act on private knowledge, describe only their observable behaviour — the POV character must interpret from the outside (and may misread the situation).
+- When the POV character discovers new knowledge (continuity mutation), the delivery must specify the exact mechanism: what they see, hear, read, or deduce. No omniscient revelation.
 - If another character conceals something from the POV character, note what the POV character sees on the surface vs. what is actually happening underneath. The plan should mark which layer the prose can access.
 
 2. THREAD LOGIC (how plot advances):
 - Each thread mutation must have a concrete narrative trigger — not "the thread escalates" but "the scout's report changes everything."
-- Thread transitions are MOMENTS — they happen at a specific beat, not diffusely across the scene. Identify the exact beat where the status changes.
-- Threads that pulse (same status → same status) still need a beat showing active engagement with the thread's tension.
-- If multiple threads shift in one scene, stagger the moments — don't cluster all transitions in a single beat.
+- Thread transitions are MOMENTS — they happen at a specific delivery, not diffusely across the scene. Identify the exact delivery where the status changes.
+- Threads that pulse (same status → same status) still need a delivery showing active engagement with the thread's tension.
+- If multiple threads shift in one scene, stagger the moments — don't cluster all transitions in a single delivery.
 
 3. KNOWLEDGE LOGIC (what the world reveals):
 - World knowledge nodes added in this scene have NOT been established yet at scene start. They must be REVEALED through the narrative — a character explains, demonstrates, discovers, or the narrator establishes through action.
 - The OPENING STATE should note which world rules ARE already established (can be referenced freely) vs which will be revealed during the scene.
 - World knowledge edges (connections between concepts) should be dramatised: if concept A "enables" concept B, show that enabling relationship through action, not exposition.
 - Revelation mechanisms must be specific and earned — not "they learn about the magic system" but "the old woman lights the candle without a match, and when asked, explains that fire-calling is the first skill any practitioner masters."
-- Existing world concepts from the knowledge graph can be REFERENCED in the plan as established facts. Only NEW concepts require revelation beats.
+- Existing world concepts from the knowledge graph can be REFERENCED in the plan as established facts. Only NEW concepts require revelation deliveries.
 
 Rules:
 - Be specific and concrete. "A tense exchange" is useless. "She asks about the missing shipment; he deflects by mentioning the festival" is useful.
@@ -487,7 +488,7 @@ Check for:
 1. THREAD ORDERING: If thread T transitions in scene 3, earlier scene plans should not treat it as already transitioned.
 2. EMOTIONAL CONTINUITY: A character ending scene N in a particular emotional state should open scene N+1 consistently.
 3. REPEATED MECHANISMS: If scene 1 uses "overheard conversation" as a discovery device, later scenes should use different devices.
-4. PACING: Not all scenes should have the same intensity or number of beats.
+4. PACING: Not all scenes should have the same intensity or number of deliveries.
 5. SPATIAL HANDOFFS: Character positions at scene N's closing must match scene N+1's opening.
 
 Return JSON:
@@ -503,7 +504,7 @@ Return JSON:
 
 Rules:
 - Only include scenes that need changes. If all plans are coherent, return {"revisions": []}.
-- Preserve the plan structure (OPENING STATE, BEATS, DIALOGUE SEEDS, CLOSING STATE).
+- Preserve the plan structure (OPENING STATE, DELIVERIES, DIALOGUE SEEDS, CLOSING STATE).
 - Do not change WHAT happens — only HOW it's staged, ordered, or mechanically delivered.
 - Preserve each plan's length — don't compress or expand unless the change requires it.`;
 
@@ -568,11 +569,11 @@ Tone: ${narrative.worldSummary.slice(0, 200)}.
 Voice & style:
 - Third-person limited, locked to the POV character's senses and interiority. Their body, breath, and attention are the camera.
 - Enter late, leave early. Start in the middle of something happening — never with setup or orientation.
-- Let scenes breathe. Don't rush through structural beats. A thread shift or relationship change is a turning point — build to it, let it land, show the aftermath ripple through the character's body and thoughts.
+- Let scenes breathe. Don't rush through structural deliveries. A thread shift or relationship change is a turning point — build to it, let it land, show the aftermath ripple through the character's body and thoughts.
 - Dialogue must do at least two things at once: reveal character, advance conflict, shift power, or expose subtext. No filler exchanges. Each character should sound distinct — vocabulary, rhythm, what they avoid saying.
 - Interiority through the body, not narration. Show the POV character's emotional state through physical sensation, impulse, and micro-action — not by naming emotions.
 - Subtext over exposition. What characters don't say, what they notice but look away from, what they almost do — these carry more weight than declarations.
-- Sensory grounding in small, specific details. One precise image beats three generic ones. Anchor abstract tension in concrete objects, textures, sounds.
+- Sensory grounding in small, specific details. One precise image outweighs three generic ones. Anchor abstract tension in concrete objects, textures, sounds.
 
 Strict output rules:
 - Output ONLY the prose. No scene titles, chapter headers, separators (---), or meta-commentary.
@@ -588,7 +589,7 @@ Strict output rules:
 
   // Scene plan — when available, this is the primary creative direction
   const planBlock = scene.plan
-    ? `\nSCENE PLAN (follow this blueprint closely — it specifies beat-by-beat staging, discovery mechanisms, and dialogue seeds):\n${scene.plan}\n`
+    ? `\nSCENE PLAN (follow this blueprint closely — it specifies delivery-by-delivery staging, discovery mechanisms, and dialogue seeds):\n${scene.plan}\n`
     : '';
 
   // Derive logical constraints from the scene graph — these are hard rules the prose must obey
@@ -606,20 +607,20 @@ Strict output rules:
   const scale = sceneScale(scene);
 
   const instruction = scene.plan
-    ? `Follow the scene plan's beat sequence — it specifies the concrete mechanisms for every mutation.
+    ? `Follow the scene plan's delivery sequence — it specifies the concrete mechanisms for every mutation.
 
 THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
 3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, explanation, or consequence. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Fill around the planned beats with extended dialogue, internal monologue, physical action, and sensory detail. Let scenes breathe. Foreshadow future events through subtle imagery — never telegraph. Write as many words as the scene demands — a quiet scene with few beats may need only 800 words, a dense convergence scene may need 3000+. Err on the side of brevity for engagement; never pad.`
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Fill around the planned deliveries with extended dialogue, internal monologue, physical action, and sensory detail. Let scenes breathe. Foreshadow future events through subtle imagery — never telegraph. Write as many words as the scene demands — a quiet scene with few deliveries may need only 800 words, a dense convergence scene may need 3000+. Err on the side of brevity for engagement; never pad.`
     : `THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
 3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, explanation, or consequence. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural beats of this scene. You MUST satisfy every logical requirement. Fill around them with extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write as many words as the scene demands — a quiet scene with few beats may need only 800 words, a dense convergence scene may need 3000+. Err on the side of brevity for engagement; never pad.`;
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Fill around them with extended dialogue exchanges, internal monologue, physical action, environmental detail, and character interaction. Let scenes breathe. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write as many words as the scene demands — a quiet scene with few deliveries may need only 800 words, a dense convergence scene may need 3000+. Err on the side of brevity for engagement; never pad.`;
 
   const prompt = `BRANCH CONTEXT (for continuity — do not summarise or repeat this):
 ${fullContext}

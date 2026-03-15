@@ -4,7 +4,7 @@ import { useRef, useCallback, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes } from '@/lib/ai';
 import type { NarrativeState, Scene, CubeCornerKey, WorldBuildCommit } from '@/types/narrative';
-import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, BeatDirection, PendingExpansion } from '@/types/mcts';
+import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, DeliveryDirection, PendingExpansion } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
 import type { Arc } from '@/types/narrative';
 import {
@@ -28,7 +28,7 @@ type ExpansionResult = {
   arc: Arc;
   direction: string;
   cubeGoal: CubeCornerKey | null;
-  beatGoal: BeatDirection | null;
+  deliveryGoal: DeliveryDirection | null;
   virtualNarrative: NarrativeState;
   virtualResolvedKeys: string[];
   virtualCurrentIndex: number;
@@ -72,11 +72,11 @@ export function useMCTS() {
     parentId: MCTSNodeId | 'root',
     direction: string,
     cubeGoal: CubeCornerKey | null,
-    beatGoal: BeatDirection | null,
+    deliveryGoal: DeliveryDirection | null,
   ): { slotId: string; onToken: (token: string) => void } => {
     const slotId = `slot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const pending: PendingExpansion = {
-      id: slotId, parentId, direction, cubeGoal, beatGoal, streamText: '', startedAt: Date.now(),
+      id: slotId, parentId, direction, cubeGoal, deliveryGoal, streamText: '', startedAt: Date.now(),
     };
     setRunState((prev) => {
       const parentNodeId = parentId === 'root' ? null : parentId;
@@ -138,7 +138,7 @@ export function useMCTS() {
     parentIndex: number,
     direction: string,
     cubeGoal: CubeCornerKey | null,
-    beatGoal: BeatDirection | null,
+    deliveryGoal: DeliveryDirection | null,
     ancestorChain: MCTSNode[],
     allPriorScenes: Scene[],
     existingSiblings: { name: string; summary: string }[],
@@ -151,7 +151,7 @@ export function useMCTS() {
   ): Promise<ExpansionResult | null> => {
     updatePhase('expanding');
 
-    const { slotId, onToken } = addPendingExpansion(targetId, direction, cubeGoal, beatGoal);
+    const { slotId, onToken } = addPendingExpansion(targetId, direction, cubeGoal, deliveryGoal);
 
     const effectiveDirection = northStarPrompt
       ? `NORTH STAR (always steer the narrative toward this): ${northStarPrompt}\n\n${direction}`
@@ -180,7 +180,7 @@ export function useMCTS() {
     const score = scoreArc(scenes, allPriorScenes);
 
     return {
-      targetId, scenes, arc, direction, cubeGoal, beatGoal,
+      targetId, scenes, arc, direction, cubeGoal, deliveryGoal,
       virtualNarrative: parentVirtual.narrative,
       virtualResolvedKeys: parentVirtual.resolvedKeys,
       virtualCurrentIndex: parentVirtual.currentIndex,
@@ -255,14 +255,14 @@ export function useMCTS() {
       const siblingIds = isRoot ? tree.rootChildIds : (parentNode?.childIds ?? []);
       const siblingGoals = siblingIds.map((id) => {
         const n = tree.nodes[id];
-        return (n?.cubeGoal ?? n?.beatGoal ?? null);
+        return (n?.cubeGoal ?? n?.deliveryGoal ?? null);
       });
       const currentInFlight = inFlightGoals.get(targetId) ?? [];
       const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
-      const ancestorGoals = ancestorChain.map((n) => n.cubeGoal ?? n.beatGoal ?? null);
+      const ancestorGoals = ancestorChain.map((n) => n.cubeGoal ?? n.deliveryGoal ?? null);
       const allUsedGoals = [...siblingGoals, ...currentInFlight, ...ancestorGoals];
 
-      const { direction, cubeGoal, beatGoal } = pickNextDirection(
+      const { direction, cubeGoal, deliveryGoal } = pickNextDirection(
         allUsedGoals,
         config.searchMode,
         config.directionMode,
@@ -276,7 +276,7 @@ export function useMCTS() {
         .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
       const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
-      return { targetId, direction, cubeGoal, beatGoal, parentNarrative, parentKeys, parentIndex, ancestorChain, allPriorScenes, existingSiblings };
+      return { targetId, direction, cubeGoal, deliveryGoal, parentNarrative, parentKeys, parentIndex, ancestorChain, allPriorScenes, existingSiblings };
     };
 
     if (config.searchMode === 'baseline') {
@@ -324,13 +324,13 @@ export function useMCTS() {
           const prep = prepareSlot(parentTarget, inFlightGoals);
           if (!prep) return false;
 
-          const goal = prep.cubeGoal ?? prep.beatGoal;
+          const goal = prep.cubeGoal ?? prep.deliveryGoal;
           inFlightGoals.set(parentTarget, [...(inFlightGoals.get(parentTarget) ?? []), goal]);
 
           const seq = slotSeq++;
           const promise = runSingleExpansion(
             prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
-            prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
+            prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
             prep.existingSiblings, activeBranchId,
             tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
             config.northStarPrompt,
@@ -364,7 +364,7 @@ export function useMCTS() {
             const nodeId = nextNodeId();
             tree = addChildNode(
               tree, parentTarget,
-              nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+              nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
               result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
               result.score,
             );
@@ -450,12 +450,12 @@ export function useMCTS() {
               const prep = prepareSlot(parentTarget, inFlightGoals);
               if (!prep) break;
 
-              const goal = prep.cubeGoal ?? prep.beatGoal;
+              const goal = prep.cubeGoal ?? prep.deliveryGoal;
               inFlightGoals.set(parentTarget, [...(inFlightGoals.get(parentTarget) ?? []), goal]);
 
               batch.push(runSingleExpansion(
                 prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
-                prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
+                prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
                 prep.existingSiblings, activeBranchId,
                 tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
                 config.northStarPrompt,
@@ -474,7 +474,7 @@ export function useMCTS() {
               const nodeId = nextNodeId();
               tree = addChildNode(
                 tree, result.targetId === 'root' ? 'root' : result.targetId,
-                nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+                nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
                 result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
                 result.score,
               );
@@ -524,14 +524,14 @@ export function useMCTS() {
         if (!prep) return false;
 
         // Register in-flight (use whichever goal is set)
-        const goal = prep.cubeGoal ?? prep.beatGoal;
+        const goal = prep.cubeGoal ?? prep.deliveryGoal;
         inFlightCounts.set(targetId, (inFlightCounts.get(targetId) ?? 0) + 1);
         inFlightGoals.set(targetId, [...(inFlightGoals.get(targetId) ?? []), goal]);
 
         const seq = slotSeq++;
         const promise = runSingleExpansion(
           prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
-          prep.direction, prep.cubeGoal, prep.beatGoal, prep.ancestorChain, prep.allPriorScenes,
+          prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
           prep.existingSiblings, activeBranchId,
           tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
           config.northStarPrompt,
@@ -571,7 +571,7 @@ export function useMCTS() {
           const nodeId = nextNodeId();
           tree = addChildNode(
             tree, result.targetId === 'root' ? 'root' : result.targetId,
-            nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+            nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
             result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
             result.score,
           );
@@ -683,12 +683,12 @@ export function useMCTS() {
         const siblingIds = isRoot ? tree.rootChildIds : (parentNode?.childIds ?? []);
         const siblingGoals = siblingIds.map((id) => {
           const n = tree.nodes[id];
-          return (n?.cubeGoal ?? n?.beatGoal ?? null);
+          return (n?.cubeGoal ?? n?.deliveryGoal ?? null);
         });
         const currentInFlight = inFlightGoals.get(targetId) ?? [];
         const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
-        const ancestorGoals = ancestorChain.map((n) => n.cubeGoal ?? n.beatGoal ?? null);
-        const { direction, cubeGoal, beatGoal } = pickNextDirection(
+        const ancestorGoals = ancestorChain.map((n) => n.cubeGoal ?? n.deliveryGoal ?? null);
+        const { direction, cubeGoal, deliveryGoal } = pickNextDirection(
           [...siblingGoals, ...currentInFlight, ...ancestorGoals], runState.config.searchMode, runState.config.directionMode,
           parentNode?.cubeGoal ?? null, runState.config.randomDirections,
         );
@@ -696,14 +696,14 @@ export function useMCTS() {
           .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
         const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
-        const goal = cubeGoal ?? beatGoal;
+        const goal = cubeGoal ?? deliveryGoal;
         inFlightCounts.set(targetId, (inFlightCounts.get(targetId) ?? 0) + 1);
         inFlightGoals.set(targetId, [...(inFlightGoals.get(targetId) ?? []), goal]);
 
         const seq = slotSeq++;
         const promise = runSingleExpansion(
           targetId, parentNarrative, parentKeys, parentIndex,
-          direction, cubeGoal, beatGoal, ancestorChain, allPriorScenes, existingSiblings,
+          direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes, existingSiblings,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
           runState.config.northStarPrompt,
         ).then((result) => ({ result, seq }));
@@ -732,7 +732,7 @@ export function useMCTS() {
         if (result && !cancelledRef.current) {
           const nodeId = nextNodeId();
           tree = addChildNode(tree, result.targetId === 'root' ? 'root' : result.targetId,
-            nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+            nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
             result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex, result.score);
           tree = backpropagate(tree, nodeId);
           if (result.targetId !== 'root') {
@@ -832,12 +832,12 @@ export function useMCTS() {
         const siblingIds = isRoot ? tree.rootChildIds : (parentNode?.childIds ?? []);
         const siblingGoals = siblingIds.map((id) => {
           const n = tree.nodes[id];
-          return (n?.cubeGoal ?? n?.beatGoal ?? null);
+          return (n?.cubeGoal ?? n?.deliveryGoal ?? null);
         });
         const currentInFlight = inFlightGoals.get(targetId) ?? [];
         const ancestorChain = isRoot ? [] : getAncestorChain(tree, targetId);
-        const ancestorGoals = ancestorChain.map((n) => n.cubeGoal ?? n.beatGoal ?? null);
-        const { direction, cubeGoal, beatGoal } = pickNextDirection(
+        const ancestorGoals = ancestorChain.map((n) => n.cubeGoal ?? n.deliveryGoal ?? null);
+        const { direction, cubeGoal, deliveryGoal } = pickNextDirection(
           [...siblingGoals, ...currentInFlight, ...ancestorGoals], updatedConfig.searchMode, updatedConfig.directionMode,
           parentNode?.cubeGoal ?? null, updatedConfig.randomDirections,
         );
@@ -845,14 +845,14 @@ export function useMCTS() {
           .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
         const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
-        const goal = cubeGoal ?? beatGoal;
+        const goal = cubeGoal ?? deliveryGoal;
         inFlightCounts.set(targetId, (inFlightCounts.get(targetId) ?? 0) + 1);
         inFlightGoals.set(targetId, [...(inFlightGoals.get(targetId) ?? []), goal]);
 
         const seq = slotSeq++;
         const promise = runSingleExpansion(
           targetId, parentNarrative, parentKeys, parentIndex,
-          direction, cubeGoal, beatGoal, ancestorChain, allPriorScenes, existingSiblings,
+          direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes, existingSiblings,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
           updatedConfig.northStarPrompt,
         ).then((result) => ({ result, seq }));
@@ -881,7 +881,7 @@ export function useMCTS() {
         if (result && !cancelledRef.current) {
           const nodeId = nextNodeId();
           tree = addChildNode(tree, result.targetId === 'root' ? 'root' : result.targetId,
-            nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.beatGoal,
+            nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
             result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex, result.score);
           tree = backpropagate(tree, nodeId);
           if (result.targetId !== 'root') {

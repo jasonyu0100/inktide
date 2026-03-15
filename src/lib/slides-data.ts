@@ -9,8 +9,10 @@ import {
   computeEngagementCurve,
   computeSwingMagnitudes,
   classifyNarrativeShape,
+  classifyArchetype,
   detectCubeCorner,
   gradeForces,
+  FORCE_REFERENCE_MEANS,
   computeThreadStatuses,
   type EngagementPoint,
   type NarrativeShape,
@@ -110,6 +112,7 @@ export type SlidesData = {
   topLocations: { location: Location; sceneCount: number }[];
 
   overallGrades: ForceGrades;
+  archetype: import('@/lib/narrative-utils').NarrativeArchetype;
   arcGrades: ArcGrade[];
   avgProseScore: ProseScore | null;
 
@@ -148,11 +151,16 @@ export function computeSlidesData(
   // Engagement curve
   const engagementCurve = computeEngagementCurve(forceSnapshots);
 
-  // Narrative shape
-  const shape = classifyNarrativeShape(engagementCurve);
+  // Narrative shape (based on payoff curve)
+  const shape = classifyNarrativeShape(forceSnapshots.map((f) => f.payoff));
 
-  // Swings (from z-score normalised snapshots — no double normalisation)
-  const swings = computeSwingMagnitudes(forceSnapshots);
+  // Swings from mean-normalised raw forces (preserves cross-series differences)
+  const rawForceSnapshots = rawForces.payoff.map((_, i) => ({
+    payoff: rawForces.payoff[i],
+    change: rawForces.change[i],
+    knowledge: rawForces.knowledge[i],
+  }));
+  const swings = computeSwingMagnitudes(rawForceSnapshots, FORCE_REFERENCE_MEANS);
 
   // Peaks and valleys
   const peakIndices = engagementCurve.filter((e) => e.isPeak).map((e) => e.index);
@@ -317,6 +325,7 @@ export function computeSlidesData(
     topCharacters,
     topLocations,
     overallGrades: overallGrades,
+    archetype: classifyArchetype(overallGrades),
     arcGrades,
     avgProseScore,
     characterNames: Object.fromEntries(Object.entries(narrative.characters).map(([id, c]) => [id, c.name])),

@@ -104,7 +104,7 @@ function buildSlideList(data: SlidesData): SlideSpec[] {
 function slideLabel(spec: SlideSpec): string {
   switch (spec.type) {
     case 'title': return 'Title';
-    case 'methodology': return ['Forces', 'Engagement & Swing', 'Grading'][spec.page] ?? 'Methodology';
+    case 'methodology': return ['Forces', 'Delivery & Swing', 'Grading'][spec.page] ?? 'Methodology';
     case 'shape': return 'Shape';
     case 'cast': return 'Cast';
     case 'forces': return 'Forces';
@@ -206,8 +206,15 @@ export function SlidesPlayer({
   return (
     // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
     <div ref={containerRef} className="fixed inset-0 z-100 bg-bg-base flex flex-col outline-none" tabIndex={0}>
+      {/* Aurora background */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-1/3 -left-1/4 w-2/3 h-2/3 rounded-full bg-red-500/[0.04] blur-[120px] animate-[aurora-drift_25s_ease-in-out_infinite]" />
+        <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 rounded-full bg-blue-500/[0.04] blur-[120px] animate-[aurora-drift_30s_ease-in-out_infinite_reverse]" />
+        <div className="absolute top-1/3 left-1/3 w-1/3 h-1/3 rounded-full bg-green-500/[0.03] blur-[100px] animate-[aurora-drift_20s_ease-in-out_infinite_2s]" />
+        <div className="absolute bottom-1/3 right-1/3 w-1/4 h-1/4 rounded-full bg-amber-500/[0.03] blur-[100px] animate-[aurora-drift_22s_ease-in-out_infinite_reverse_4s]" />
+      </div>
       {/* Top bar */}
-      <div className="flex items-center justify-between h-10 px-4 border-b border-white/8 shrink-0">
+      <div className="flex items-center justify-between h-10 px-4 border-b border-white/8 shrink-0 relative z-10">
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}

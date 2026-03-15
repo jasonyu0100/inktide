@@ -113,10 +113,19 @@ export function ShapeSlide({ data }: { data: SlidesData }) {
   return (
     <div className="flex flex-col h-full px-12 py-8">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-text-primary mb-2">The Shape of This Story</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-text-primary mb-2">The Delivery of This Story</h2>
+          <div className="flex items-center gap-2">
+            {data.shape && (
+              <span className="text-xs px-2.5 py-1 rounded-full border border-amber-400/20 bg-amber-400/5 text-amber-400 font-medium">
+                {data.shape.name}
+              </span>
+            )}
+          </div>
+        </div>
         <p className="text-sm text-text-secondary">
-          Engagement curve showing reader interest over {data.sceneCount} scenes.
-          Peaks mark high-intensity moments, valleys mark recovery beats.
+          Delivery curve showing narrative presence over {data.sceneCount} scenes.
+          Peaks mark high-intensity moments, valleys mark recovery deliveries.
         </p>
       </div>
 
@@ -124,27 +133,13 @@ export function ShapeSlide({ data }: { data: SlidesData }) {
         <svg ref={svgRef} className="w-full" style={{ height: 280 }} />
       </div>
 
-      <div className="mt-6 flex items-center gap-6">
-        <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-white/10 bg-white/[0.03]">
-          <svg width="48" height="24" viewBox="0 0 48 24">
-            <polyline
-              points={data.shape.curve.map(([x, y]) => `${x * 48},${(1 - y) * 24}`).join(' ')}
-              fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-            />
-          </svg>
-          <div>
-            <span className="text-sm font-semibold text-amber-400">{data.shape.name}</span>
-            <p className="text-[11px] text-text-dim">{data.shape.description}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 text-xs text-text-dim">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400" /> Peaks: {data.peaks.length}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-300" /> Valleys: {data.troughs.length}
-          </span>
-        </div>
+      <div className="mt-6 flex items-center gap-4 text-xs text-text-dim">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-amber-400" /> Peaks: {data.peaks.length}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-blue-300" /> Valleys: {data.troughs.length}
+        </span>
       </div>
     </div>
   );

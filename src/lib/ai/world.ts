@@ -374,7 +374,7 @@ POV DISCIPLINE:
 - A single POV for the entire opening arc is often the strongest choice — it grounds the reader before introducing complexity.
 
 PACING IS CRITICAL:
-- Do NOT rush through major plot beats. A story needs breathing room.
+- Do NOT rush through major plot deliveries. A story needs breathing room.
 - Not every scene should advance the main plot. Include quiet scenes: character conversations, world exploration, daily life, travel, reflection.
 - Only 1 in 3-4 scenes should be a significant plot event. The rest should build atmosphere, deepen relationships, or reveal character.
 - Threads should stay dormant or slowly surface over multiple scenes before escalating. A thread going from dormant to escalating in 2 scenes is too fast.
@@ -388,7 +388,7 @@ Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic lab
 
 Scene continuityMutations track what characters LEARN during a scene. Each mutation MUST have: characterId (who learned it), nodeId (unique ID like K-GEN-001), action ("added"), content (what they learned), nodeType (specific contextual type). The characterId must reference an existing character ID (C-XX).
 
-Scene worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths — social rules, physical laws, cultural expectations), "system" (institutions, processes, hierarchies), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved social forces). Node IDs must be unique: WK-GEN-001, WK-GEN-002, etc. Add nodes when a scene reveals a world concept. Add edges (addedEdges) when it connects concepts. How much depends on the scene — world-building scenes may have several nodes, quiet character scenes may have none. Let the narrative guide you.
+Scene worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths — social rules, physical laws, cultural expectations), "system" (institutions, processes, hierarchies), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved social forces). Add nodes when a scene reveals a world concept. Add edges (addedEdges) when it connects concepts. REUSE existing node IDs when a scene reinforces or tests an already-established concept — don't create duplicates. Re-adding existing edges reinforces those connections. Only create new WK-GEN-XXX IDs for genuinely new concepts. How much depends on the scene — world-building scenes may have several nodes, quiet character scenes may have none. Let the narrative guide you.
 
 WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}`;
 

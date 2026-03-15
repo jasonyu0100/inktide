@@ -170,7 +170,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     return entry.corner;
   }, [forceEntries, focusedIdx]);
 
-  // Local beat position from the trailing window ending at focusedIdx
+  // Local delivery position from the trailing window ending at focusedIdx
   const localPosition = useMemo(() => {
     if (forceEntries.length === 0) return null;
     const windowEntries = forceEntries.slice(Math.max(0, focusedIdx - FORCE_WINDOW_SIZE + 1), focusedIdx + 1);

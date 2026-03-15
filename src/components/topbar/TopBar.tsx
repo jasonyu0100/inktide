@@ -3,9 +3,10 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeEngagementCurve, classifyNarrativeShape, gradeForces, type NarrativeShape } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeEngagementCurve, classifyNarrativeShape, classifyArchetype, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
@@ -40,7 +41,7 @@ export default function TopBar() {
   const [slidesOpen, setSlidesOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
-  const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'beats'>('arcs');
+  const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'delivery'>('arcs');
   const scorecardRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,10 +99,13 @@ export default function TopBar() {
       return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
     };
 
-    // Swing from z-score normalised forces (no double normalisation)
-    const forceMap = computeForceSnapshots(allScenes);
-    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
-    const swings = computeSwingMagnitudes(zForces);
+    // Swing from mean-normalised raw forces (preserves cross-series differences)
+    const rawForces = raw.payoff.map((_, i) => ({
+      payoff: raw.payoff[i],
+      change: raw.change[i],
+      knowledge: raw.knowledge[i],
+    }));
+    const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
     const forceStats = (arr: number[]) => ({
       total: sum(arr),
@@ -144,10 +148,13 @@ export default function TopBar() {
 
     const seriesGrades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
 
-    // Narrative shape classification from engagement curve
+    // Narrative shape from payoff curve; engagement points for delivery chart
     const normSnapshots = Object.values(computeForceSnapshots(allScenes));
+    const zPayoffs = normSnapshots.map((s) => s.payoff);
+    const shape = classifyNarrativeShape(zPayoffs);
     const engagementPoints = computeEngagementCurve(normSnapshots);
-    const shape = classifyNarrativeShape(engagementPoints);
+
+    const archetype = classifyArchetype(seriesGrades);
 
     return {
       title: narrative.title,
@@ -155,6 +162,7 @@ export default function TopBar() {
       arcs: arcCount,
       ...stats,
       grades: seriesGrades,
+      archetype,
       perArc,
       shape,
       engagementPoints,
@@ -419,7 +427,7 @@ export default function TopBar() {
               </div>
 
               {/* Force table */}
-              <div className="grid grid-cols-6 gap-px bg-white/5 rounded overflow-hidden">
+              <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] gap-px bg-white/5 rounded overflow-hidden">
                 {/* Header row */}
                 <div className="bg-bg-base p-2" />
                 {['Avg', 'σ', 'Peak', 'Total', 'Grade'].map((col) => (
@@ -467,25 +475,53 @@ export default function TopBar() {
                 })}
               </div>
 
-              {/* Shape classification */}
-              <div className="mt-3 px-1 py-2 border border-white/5 rounded flex flex-col gap-1">
-                <span className="text-[9px] uppercase tracking-widest text-text-dim">Shape</span>
-                <div className="flex items-center gap-2">
-                  <svg width="48" height="24" viewBox="0 0 48 24" className="shrink-0">
-                    <polyline
-                      points={scorecard.shape.curve
-                        .map(([x, y]) => `${x * 48},${(1 - y) * 24}`)
-                        .join(' ')}
-                      fill="none"
-                      stroke="#F59E0B"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <span className="text-[11px] font-medium text-text-primary">{scorecard.shape.name}</span>
+              {/* One-liner verdict */}
+              <div className="mt-3 px-2 py-1">
+                <p className="text-[13px] text-text-secondary italic leading-snug">
+                  {'"'}A <span className="text-amber-400 font-medium">{scorecard.shape.name}</span>{' '}
+                  <span className="text-violet-400 font-medium">{scorecard.archetype.name}</span>
+                  {' that is '}
+                  {(() => {
+                    const forces = ['payoff', 'change', 'knowledge'] as const;
+                    const colors: Record<string, string> = { payoff: '#EF4444', change: '#22C55E', knowledge: '#3B82F6' };
+                    const names: Record<string, string> = { payoff: 'Payoff', change: 'Change', knowledge: 'Knowledge' };
+                    const top = forces.reduce((a, b) => scorecard.grades[a] > scorecard.grades[b] ? a : b);
+                    return <span className="font-medium" style={{ color: colors[top] }}>{names[top]}</span>;
+                  })()}
+                  {' driven.'}
+                  {'"'}
+                </p>
+              </div>
+
+              {/* Shape + Archetype detail */}
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="px-2 py-2 border border-white/5 rounded flex flex-col gap-1">
+                  <span className="text-[9px] uppercase tracking-widest text-text-dim">Shape</span>
+                  <div className="flex items-center gap-2">
+                    <svg width="36" height="18" viewBox="0 0 36 18" className="shrink-0">
+                      <polyline
+                        points={scorecard.shape.curve
+                          .map(([x, y]) => `${x * 36},${(1 - y) * 18}`)
+                          .join(' ')}
+                        fill="none"
+                        stroke="#F59E0B"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span className="text-[11px] font-medium text-amber-400">{scorecard.shape.name}</span>
+                  </div>
+                  <span className="text-[9px] text-text-dim leading-snug">{scorecard.shape.description}</span>
                 </div>
-                <span className="text-[10px] text-text-dim leading-snug">{scorecard.shape.description}</span>
+                <div className="px-2 py-2 border border-white/5 rounded flex flex-col gap-1">
+                  <span className="text-[9px] uppercase tracking-widest text-text-dim">Archetype</span>
+                  <div className="flex items-center gap-2">
+                    <ArchetypeIcon archetypeKey={scorecard.archetype.key} size={18} />
+                    <span className="text-[11px] font-medium text-violet-400">{scorecard.archetype.name}</span>
+                  </div>
+                  <span className="text-[9px] text-text-dim leading-snug">{scorecard.archetype.description}</span>
+                </div>
               </div>
 
               {/* Per-arc score graph / engagement graph */}
@@ -528,10 +564,10 @@ export default function TopBar() {
                   <div className="mt-4 pt-4 border-t border-white/8">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-[9px] uppercase tracking-widest text-text-dim">
-                        {scorecardGraphView === 'arcs' ? 'Score by Arc' : 'Beats'}
+                        {scorecardGraphView === 'arcs' ? 'Score by Arc' : 'Delivery'}
                       </h3>
                       <div className="flex items-center rounded border border-white/8 overflow-hidden">
-                        {(['arcs', 'beats'] as const).map((v) => (
+                        {(['arcs', 'delivery'] as const).map((v) => (
                           <button
                             key={v}
                             onClick={() => setScorecardGraphView(v)}

@@ -92,9 +92,9 @@ export function TroughSlide({ data, trough, rank }: { data: SlidesData; trough: 
             <p className="text-xs text-text-dim mb-1">Narrative Purpose</p>
             <p className="text-sm text-text-secondary leading-relaxed">
               {trough.cubeCorner.key === 'LLL'
-                ? 'Recovery beat — breathing room before the next escalation. Seeds may be planted for future threads.'
+                ? 'Recovery delivery — breathing room before the next escalation. Seeds may be planted for future threads.'
                 : trough.cubeCorner.key === 'LLH'
-                  ? 'Transition beat — the story moves to unfamiliar territory, setting up new possibilities.'
+                  ? 'Transition delivery — the story moves to unfamiliar territory, setting up new possibilities.'
                   : trough.cubeCorner.key === 'LHL'
                     ? 'Internal development — characters grow quietly without thread advancement.'
                     : 'A moment of reduced intensity that lets the reader recalibrate before the next surge.'}

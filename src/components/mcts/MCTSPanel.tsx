@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree, PendingExpansion } from '@/types/mcts';
-import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING, BEAT_DIRECTIONS } from '@/types/mcts';
+import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING, DELIVERY_DIRECTIONS } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
 import { NARRATIVE_CUBE, type Scene, type CubeCornerKey } from '@/types/narrative';
@@ -235,8 +235,8 @@ function TreeNode({
                     ))}
                   </span>
                 )}
-                {pending.beatGoal && (() => {
-                  const bg = pending.beatGoal as keyof typeof BEAT_DIRECTIONS;
+                {pending.deliveryGoal && (() => {
+                  const bg = pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS;
                   const strokeColor = bg === 'escalate' ? '#22C55E'
                     : bg === 'release' ? '#3B82F6'
                     : bg === 'surge' ? '#F59E0B'
@@ -254,7 +254,7 @@ function TreeNode({
               </span>
               <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
               <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
-                {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
+                {pending.deliveryGoal ? DELIVERY_DIRECTIONS[pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
               </span>
               {/* Fixed-width columns matching completed node rows */}
               <span className="w-16 text-right text-[9px] text-amber-500/40 shrink-0">
@@ -306,14 +306,14 @@ function TreeNode({
                 ))}
               </span>
             )}
-            {node.beatGoal && (() => {
-              const strokeColor = node.beatGoal === 'escalate' ? '#22C55E'
-                : node.beatGoal === 'release' ? '#3B82F6'
-                : node.beatGoal === 'surge' ? '#F59E0B'
+            {node.deliveryGoal && (() => {
+              const strokeColor = node.deliveryGoal === 'escalate' ? '#22C55E'
+                : node.deliveryGoal === 'release' ? '#3B82F6'
+                : node.deliveryGoal === 'surge' ? '#F59E0B'
                 : '#A855F7';
-              const points = node.beatGoal === 'escalate' ? '0,8 16,2'
-                : node.beatGoal === 'release' ? '0,2 16,8'
-                : node.beatGoal === 'surge' ? '0,8 6,2 12,8'
+              const points = node.deliveryGoal === 'escalate' ? '0,8 16,2'
+                : node.deliveryGoal === 'release' ? '0,2 16,8'
+                : node.deliveryGoal === 'surge' ? '0,8 6,2 12,8'
                 : '0,2 6,8 12,2';
               return (
                 <svg width="16" height="10" viewBox="0 0 16 10">
@@ -331,7 +331,7 @@ function TreeNode({
           {/* Move type label — fixed width for alignment */}
           <span className="w-16 text-right text-[9px] text-text-dim shrink-0">
             {node.cubeGoal ? NARRATIVE_CUBE[node.cubeGoal]?.name : ''}
-            {node.beatGoal ? BEAT_DIRECTIONS[node.beatGoal]?.name : ''}
+            {node.deliveryGoal ? DELIVERY_DIRECTIONS[node.deliveryGoal]?.name : ''}
           </span>
           {/* Arc progress: scene count — fixed width for alignment */}
           <span className="w-5 text-right text-[9px] text-text-dim shrink-0">{node.scenes.length}s</span>
@@ -475,8 +475,8 @@ function MCTSTreeView({
                   ))}
                 </span>
               )}
-              {pending.beatGoal && (() => {
-                const bg = pending.beatGoal as keyof typeof BEAT_DIRECTIONS;
+              {pending.deliveryGoal && (() => {
+                const bg = pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS;
                 const strokeColor = bg === 'escalate' ? '#22C55E'
                   : bg === 'release' ? '#3B82F6'
                   : bg === 'surge' ? '#F59E0B'
@@ -494,7 +494,7 @@ function MCTSTreeView({
             </span>
             <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
             <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
-              {pending.beatGoal ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
+              {pending.deliveryGoal ? DELIVERY_DIRECTIONS[pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
             </span>
             {/* Fixed-width columns matching completed node rows */}
             <span className="w-16 text-right text-[9px] text-amber-500/40 shrink-0">
@@ -549,8 +549,8 @@ function PendingInspector({ pending }: { pending: PendingExpansion }) {
     }
   }, [pending.streamText]);
 
-  const beatDir = pending.beatGoal
-    ? BEAT_DIRECTIONS[pending.beatGoal as keyof typeof BEAT_DIRECTIONS]
+  const deliveryDir = pending.deliveryGoal
+    ? DELIVERY_DIRECTIONS[pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS]
     : null;
   const elapsed = Math.round((Date.now() - pending.startedAt) / 1000);
 
@@ -563,7 +563,7 @@ function PendingInspector({ pending }: { pending: PendingExpansion }) {
           <span className="animate-pulse text-amber-400">●</span>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          {beatDir && <span className="text-sm text-text-primary font-medium">{beatDir.name}</span>}
+          {deliveryDir && <span className="text-sm text-text-primary font-medium">{deliveryDir.name}</span>}
           {pending.cubeGoal && (
             <>
               <svg width="21" height="12" viewBox="0 0 21 12">
@@ -657,9 +657,9 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
       </div>
 
       {/* Direction goal */}
-      {(node.cubeGoal || node.beatGoal) && (
+      {(node.cubeGoal || node.deliveryGoal) && (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-text-dim">{node.beatGoal ? 'Beat' : 'Direction'}</span>
+          <span className="text-[10px] uppercase tracking-wider text-text-dim">{node.deliveryGoal ? 'Delivery' : 'Direction'}</span>
           {node.cubeGoal && (
             <>
               <svg width="21" height="12" viewBox="0 0 21 12">
@@ -673,15 +673,15 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
               {cubeLabel && <span className="text-[10px] text-text-secondary">{cubeLabel}</span>}
             </>
           )}
-          {node.beatGoal && (() => {
-            const engDir = BEAT_DIRECTIONS[node.beatGoal];
-            const strokeColor = node.beatGoal === 'escalate' ? '#22C55E'
-              : node.beatGoal === 'release' ? '#3B82F6'
-              : node.beatGoal === 'surge' ? '#F59E0B'
+          {node.deliveryGoal && (() => {
+            const engDir = DELIVERY_DIRECTIONS[node.deliveryGoal];
+            const strokeColor = node.deliveryGoal === 'escalate' ? '#22C55E'
+              : node.deliveryGoal === 'release' ? '#3B82F6'
+              : node.deliveryGoal === 'surge' ? '#F59E0B'
               : '#A855F7';
-            const points = node.beatGoal === 'escalate' ? '0,10 24,2'
-              : node.beatGoal === 'release' ? '0,2 24,10'
-              : node.beatGoal === 'surge' ? '0,10 9,2 18,10'
+            const points = node.deliveryGoal === 'escalate' ? '0,10 24,2'
+              : node.deliveryGoal === 'release' ? '0,2 24,10'
+              : node.deliveryGoal === 'surge' ? '0,10 9,2 18,10'
               : '0,2 9,10 18,2';
             return (
               <>
@@ -1297,7 +1297,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                       <input type="radio" name="searchMode" checked={config.searchMode === 'constrained'} onChange={() => setConfig((c) => ({ ...c, searchMode: 'constrained', branchingFactor: DEFAULT_BRANCHING[c.directionMode] }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Constrained</div>
-                        <div className="text-[9px] text-text-dim">Complete tree. Every node at each depth gets exactly {config.directionMode === 'beats' ? '4' : '8'} children ({config.directionMode === 'beats' ? 'all beat directions' : 'all cube corners'}) before going deeper. Generates {(() => { let total = 0; const bf = DEFAULT_BRANCHING[config.directionMode]; for (let d = 0; d < config.maxDepth; d++) total += Math.pow(bf, d + 1); return total; })()} total arcs for a {DEFAULT_BRANCHING[config.directionMode]}×{config.maxDepth} tree.</div>
+                        <div className="text-[9px] text-text-dim">Complete tree. Every node at each depth gets exactly {config.directionMode === 'delivery' ? '4' : '8'} children ({config.directionMode === 'delivery' ? 'all delivery directions' : 'all cube corners'}) before going deeper. Generates {(() => { let total = 0; const bf = DEFAULT_BRANCHING[config.directionMode]; for (let d = 0; d < config.maxDepth; d++) total += Math.pow(bf, d + 1); return total; })()} total arcs for a {DEFAULT_BRANCHING[config.directionMode]}×{config.maxDepth} tree.</div>
                       </div>
                     </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.searchMode === 'baseline' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
@@ -1407,11 +1407,11 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                 <div>
                   <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Mode</label>
                   <div className="flex flex-col gap-1.5">
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'beats' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionMode" checked={config.directionMode === 'beats'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'beats', branchingFactor: DEFAULT_BRANCHING.beats }))} className="accent-blue-500 mt-0.5" />
+                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'delivery' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                      <input type="radio" name="directionMode" checked={config.directionMode === 'delivery'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'delivery', branchingFactor: DEFAULT_BRANCHING.delivery }))} className="accent-blue-500 mt-0.5" />
                       <div>
-                        <div className="text-xs text-text-primary font-medium">Beat Directions</div>
-                        <div className="text-[9px] text-text-dim">4 moves per node targeting the beat curve directly — <span className="text-green-400">Escalate</span> (rising), <span className="text-blue-400">Release</span> (falling), <span className="text-amber-400">Surge</span> (peak then still), <span className="text-purple-400">Rebound</span> (still then rising). The four fundamental curve shapes.</div>
+                        <div className="text-xs text-text-primary font-medium">Delivery Directions</div>
+                        <div className="text-[9px] text-text-dim">4 moves per node targeting the delivery curve directly — <span className="text-green-400">Escalate</span> (rising), <span className="text-blue-400">Release</span> (falling), <span className="text-amber-400">Surge</span> (peak then still), <span className="text-purple-400">Rebound</span> (still then rising). The four fundamental curve shapes.</div>
                       </div>
                     </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'cube' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
@@ -1427,20 +1427,20 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                 {/* Direction Order */}
                 <div className="border-t border-border pt-4">
                   <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Order</label>
-                  <p className="text-[9px] text-text-dim mb-2">{config.directionMode === 'cube' ? 'Which cube corner each worker explores next. The 8 cube positions are the available moves from any node — like pieces on a board.' : 'Which beat direction each worker explores next. The 4 beat curves are the available moves from any node.'}</p>
+                  <p className="text-[9px] text-text-dim mb-2">{config.directionMode === 'cube' ? 'Which cube corner each worker explores next. The 8 cube positions are the available moves from any node — like pieces on a board.' : 'Which delivery direction each worker explores next. The 4 delivery curves are the available moves from any node.'}</p>
                   <div className="flex flex-col gap-1.5">
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${!config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
                       <input type="radio" name="directionOrder" checked={!config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: false }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Deterministic</div>
-                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? 'Most diverse corners tried first — maximises spread across all 8 cube positions.' : 'Cycle through beat directions in canonical order — Escalate, Release, Surge, Rebound.'}</div>
+                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? 'Most diverse corners tried first — maximises spread across all 8 cube positions.' : 'Cycle through delivery directions in canonical order — Escalate, Release, Surge, Rebound.'}</div>
                       </div>
                     </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
                       <input type="radio" name="directionOrder" checked={config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: true }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Random</div>
-                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? 'Workers pick a random unused cube corner each time. Results vary across runs — good for open-ended creative exploration.' : 'Workers pick a random unused beat direction each time. Results vary across runs — good for open-ended creative exploration.'}</div>
+                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? 'Workers pick a random unused cube corner each time. Results vary across runs — good for open-ended creative exploration.' : 'Workers pick a random unused delivery direction each time. Results vary across runs — good for open-ended creative exploration.'}</div>
                       </div>
                     </label>
                   </div>

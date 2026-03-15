@@ -4,7 +4,7 @@ import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import type { Arc, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { computeRawForcetotals, computeForceSnapshots, computeSwingMagnitudes, gradeForces } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 
 const NODE_RADIUS = 8;
 const NODE_SPACING = 50;
@@ -71,10 +71,13 @@ export default function TimelineStrip() {
     if (allScenes.length === 0 || arcBands.length === 0) return new Map<string, number>();
 
     const raw = computeRawForcetotals(allScenes);
-    // Swing from z-score normalised forces (no double normalisation)
-    const forceMap = computeForceSnapshots(allScenes);
-    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
-    const swings = computeSwingMagnitudes(zForces);
+    // Swing from mean-normalised raw forces (preserves cross-series differences)
+    const rawForces = raw.payoff.map((_, i) => ({
+      payoff: raw.payoff[i],
+      change: raw.change[i],
+      knowledge: raw.knowledge[i],
+    }));
+    const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
     const sceneIdToForceIdx = new Map(allScenes.map((s, i) => [s.id, i]));
 

@@ -4,9 +4,9 @@ import { useMemo, useState, useRef, useEffect, useCallback, useId } from 'react'
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, type EngagementPoint } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, type EngagementPoint } from '@/lib/narrative-utils';
 
-type ForceKey = 'payoff' | 'change' | 'knowledge' | 'swing' | 'beats';
+type ForceKey = 'payoff' | 'change' | 'knowledge' | 'swing' | 'delivery';
 
 type SceneDataPoint = {
   index: number;
@@ -430,9 +430,12 @@ function ZoneBar({
     if (allScenes.length === 0 || arcRegions.length === 0) return [];
 
     const raw = computeRawForcetotals(allScenes);
-    const forceMap = computeForceSnapshots(allScenes);
-    const zForces = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
-    const swings = computeSwingMagnitudes(zForces);
+    const rawForces = raw.payoff.map((_, i) => ({
+      payoff: raw.payoff[i],
+      change: raw.change[i],
+      knowledge: raw.knowledge[i],
+    }));
+    const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
 
     return arcRegions.map((arc) => {
       const forceIndices: number[] = [];
@@ -727,7 +730,7 @@ function EngagementChart({
       .attr('x', 6).attr('y', -m.top + 14)
       .attr('fill', ENGAGEMENT_COLOR)
       .attr('font-size', '10px').attr('font-weight', '600').attr('letter-spacing', '0.1em')
-      .text('BEATS');
+      .text('DELIVERY');
     g.append('text')
       .attr('x', 6 + 5 * 8 + 6).attr('y', -m.top + 14)
       .attr('fill', ENGAGEMENT_COLOR)
@@ -896,7 +899,7 @@ function EngagementChart({
         if (!drawing) return;
         event.preventDefault();
         const [mx, my] = d3.pointer(event);
-        onDrawStart('beats', mx, my);
+        onDrawStart('delivery', mx, my);
       })
       .on('mousemove.draw', (event: MouseEvent) => {
         if (!drawing) return;
@@ -971,8 +974,8 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     return null;
   });
 
-  // View mode: individual force charts or beats curve
-  const [view, setView] = useState<'forces' | 'beats'>('forces');
+  // View mode: individual force charts or delivery curve
+  const [view, setView] = useState<'forces' | 'delivery'>('forces');
 
   // Raw force toggle (absolute values vs z-score normalised)
   const [showRawForce, setShowRawForce] = useState(true);
@@ -984,7 +987,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   // Drawing state
   const [drawing, setDrawing] = useState(false);
   const [drawLines, setDrawLines] = useState<Record<ForceKey, DrawLine[]>>({
-    payoff: [], change: [], knowledge: [], swing: [], beats: [],
+    payoff: [], change: [], knowledge: [], swing: [], delivery: [],
   });
   const [activeDrawKey, setActiveDrawKey] = useState<ForceKey | null>(null);
   const activeLineRef = useRef<[number, number][]>([]);
@@ -1021,7 +1024,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   }, [activeDrawKey]);
 
   const clearDrawings = useCallback(() => {
-    setDrawLines({ payoff: [], change: [], knowledge: [], swing: [], beats: [] });
+    setDrawLines({ payoff: [], change: [], knowledge: [], swing: [], delivery: [] });
   }, []);
 
   // Resize observer
@@ -1149,13 +1152,13 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     return computeEngagementCurve(dataPoints.map((d) => d.forces));
   }, [dataPoints, slidingWindow, selectedIndex]);
 
-  // Current cube corner + local beat position — tracks the focused scene
+  // Current cube corner + local delivery position — tracks the focused scene
   const { currentCube, localPosition } = useMemo(() => {
     if (dataPoints.length === 0) return { currentCube: null, localPosition: null };
     const focusIdx = selectedIndex ?? dataPoints.length - 1;
     const clamped = Math.max(0, Math.min(focusIdx, dataPoints.length - 1));
     const cube = detectCubeCorner(dataPoints[clamped].forces);
-    // Local beat position: use engagement data up to the focused scene
+    // Local delivery position: use engagement data up to the focused scene
     const engUpToFocus = engagementData.slice(0, Math.min(clamped + 1, engagementData.length));
     const window = engUpToFocus.slice(-FORCE_WINDOW_SIZE);
     const pos = window.length > 0 ? classifyCurrentPosition(window) : null;
@@ -1322,7 +1325,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center rounded-full border border-border overflow-hidden">
-            {(['forces', 'beats'] as const).map((v) => (
+            {(['forces', 'delivery'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -1416,7 +1419,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
           </div>
         ) : (
           <>
-            {view === 'beats' && (currentCube || localPosition) && (
+            {view === 'delivery' && (currentCube || localPosition) && (
               <div className="flex items-center gap-4 px-4 py-1.5 border-b border-border/50 shrink-0">
                 {currentCube && (
                   <div className="flex items-center gap-2">
@@ -1443,7 +1446,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 )}
               </div>
             )}
-            {view === 'beats' ? (
+            {view === 'delivery' ? (
               <EngagementChart
                 data={activeDataPoints}
                 engagement={engagementData}
@@ -1457,7 +1460,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 width={dims.width}
                 dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
                 drawing={drawing}
-                drawLines={drawLines.beats}
+                drawLines={drawLines.delivery}
                 onDrawStart={onDrawStart}
                 onDrawMove={onDrawMove}
                 onDrawEnd={onDrawEnd}

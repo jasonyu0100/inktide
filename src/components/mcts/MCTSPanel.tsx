@@ -6,7 +6,7 @@ import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING, DELIVERY_DIRECTIONS } from '@/t
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
 import { NARRATIVE_CUBE, type Scene, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, detectCubeCorner, computeEngagementCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
+import { computeForceSnapshots, detectCubeCorner, computeDeliveryCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
 import { suggestStoryDirection } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 
@@ -53,7 +53,7 @@ function nodeSparkline(node: MCTSNode): { points: number[]; position: string; po
   if (node.scenes.length === 0) return { points: [], position: 'Stable', positionKey: 'stable' };
   const forceMap = computeForceSnapshots(node.scenes);
   const ordered = node.scenes.map((s) => forceMap[s.id]).filter(Boolean);
-  const engPts = computeEngagementCurve(ordered);
+  const engPts = computeDeliveryCurve(ordered);
   const raw = engPts.map((p) => p.smoothed);
   if (raw.length === 0) return { points: [], position: 'Stable', positionKey: 'stable' };
   const min = Math.min(...raw);
@@ -608,15 +608,15 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
   const [view, setView] = useState<InspectorView>('arc');
   const cubeLabel = node.cubeGoal ? NARRATIVE_CUBE[node.cubeGoal]?.name ?? null : null;
 
-  // Full-path engagement curve for this node
-  const pathEngagement = useMemo(() => {
+  // Full-path delivery curve for this node
+  const pathDelivery = useMemo(() => {
     const allScenes = node.virtualResolvedKeys
       .map((k) => node.virtualNarrative.scenes[k])
       .filter((s): s is Scene => !!s);
     if (allScenes.length === 0) return { pts: [], position: null, nodeStart: 0 };
     const forceMap = computeForceSnapshots(allScenes);
     const ordered = allScenes.map((s) => forceMap[s.id]).filter(Boolean);
-    const pts = computeEngagementCurve(ordered);
+    const pts = computeDeliveryCurve(ordered);
     const position = pts.length > 0 ? classifyCurrentPosition(pts) : null;
     // Where this node's scenes start in the full path
     const nodeStart = allScenes.length - node.scenes.length;
@@ -695,9 +695,9 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
         </div>
       )}
 
-      {/* Engagement chart */}
-      {pathEngagement.pts.length > 1 && (() => {
-        const { pts, position, nodeStart } = pathEngagement;
+      {/* Delivery chart */}
+      {pathDelivery.pts.length > 1 && (() => {
+        const { pts, position, nodeStart } = pathDelivery;
         const n = pts.length;
         const W = 260, H = 48;
         const smoothed = pts.map((p) => p.smoothed);
@@ -713,7 +713,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
         return (
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] uppercase tracking-widest text-text-dim">Engagement</span>
+              <span className="text-[9px] uppercase tracking-widest text-text-dim">Delivery</span>
               {position && (
                 <span className="text-[9px] font-medium" style={{ color: POSITION_COLORS[position.key] ?? 'white' }}>
                   {position.name}

@@ -9,11 +9,10 @@ import {
   computeDeliveryCurve,
   computeSwingMagnitudes,
   classifyNarrativeShape,
-  classifyArchetype,
   detectCubeCorner,
   gradeForces,
-  FORCE_REFERENCE_MEANS,
   computeThreadStatuses,
+  FORCE_REFERENCE_MEANS,
   type DeliveryPoint,
   type NarrativeShape,
   type ForceGrades,
@@ -31,7 +30,7 @@ export type Segment = {
   /** Delivery points for this segment */
   delivery: DeliveryPoint[];
   /** Dominant force in this segment */
-  dominantForce: 'payoff' | 'change' | 'knowledge';
+  dominantForce: 'payoff' | 'change' | 'variety';
   /** Key thread mutations in this segment */
   threadChanges: { threadId: string; from: string; to: string; sceneIdx: number }[];
   /** Peaks within this segment */
@@ -54,7 +53,7 @@ export type PeakInfo = {
   /** Relationship mutations at this scene */
   relationshipChanges: { from: string; to: string; type: string; delta: number }[];
   /** Force decomposition: which force contributed most */
-  dominantForce: 'payoff' | 'change' | 'knowledge';
+  dominantForce: 'payoff' | 'change' | 'variety';
 };
 
 export type TroughInfo = {
@@ -66,7 +65,7 @@ export type TroughInfo = {
   /** How many scenes until next peak */
   scenesToNextPeak: number;
   /** Which force recovers first in the scenes after this trough */
-  recoveryForce: 'payoff' | 'change' | 'knowledge' | null;
+  recoveryForce: 'payoff' | 'change' | 'variety' | null;
 };
 
 export type ThreadLifecycle = {
@@ -83,7 +82,7 @@ export type ArcGrade = {
   grades: ForceGrades;
 };
 
-export type SlidesData = {
+export type MovieData = {
   title: string;
   description: string;
   sceneCount: number;
@@ -95,7 +94,7 @@ export type SlidesData = {
 
   scenes: Scene[];
   forceSnapshots: ForceSnapshot[];
-  rawForces: { payoff: number[]; change: number[]; knowledge: number[] };
+  rawForces: { payoff: number[]; change: number[]; variety: number[] };
   deliveryCurve: DeliveryPoint[];
   shape: NarrativeShape;
   swings: number[];
@@ -112,7 +111,6 @@ export type SlidesData = {
   topLocations: { location: Location; sceneCount: number }[];
 
   overallGrades: ForceGrades;
-  archetype: import('@/lib/narrative-utils').NarrativeArchetype;
   arcGrades: ArcGrade[];
   avgProseScore: ProseScore | null;
 
@@ -124,16 +122,16 @@ export type SlidesData = {
 
 // ── Computation ────────────────────────────────────────────────────────────────
 
-function dominantForce(p: number, c: number, v: number): 'payoff' | 'change' | 'knowledge' {
+function dominantForce(p: number, c: number, v: number): 'payoff' | 'change' | 'variety' {
   if (p >= c && p >= v) return 'payoff';
   if (c >= p && c >= v) return 'change';
-  return 'knowledge';
+  return 'variety';
 }
 
-export function computeSlidesData(
+export function computeMovieData(
   narrative: NarrativeState,
   resolvedSceneKeys: string[],
-): SlidesData {
+): MovieData {
   // Resolve ordered scenes
   const scenes: Scene[] = resolvedSceneKeys
     .map((k) => resolveEntry(narrative, k))
@@ -143,7 +141,7 @@ export function computeSlidesData(
 
   // Force snapshots (z-score normalized)
   const forceMap = computeForceSnapshots(scenes);
-  const forceSnapshots = scenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+  const forceSnapshots = scenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, variety: 0 });
 
   // Raw forces
   const rawForces = computeRawForcetotals(scenes);
@@ -151,14 +149,14 @@ export function computeSlidesData(
   // Delivery curve
   const deliveryCurve = computeDeliveryCurve(forceSnapshots);
 
-  // Narrative shape (based on payoff curve)
-  const shape = classifyNarrativeShape(forceSnapshots.map((f) => f.payoff));
+  // Narrative shape
+  const shape = classifyNarrativeShape(deliveryCurve);
 
-  // Swings from mean-normalised raw forces (preserves cross-series differences)
+  // Swings
   const rawForceSnapshots = rawForces.payoff.map((_, i) => ({
     payoff: rawForces.payoff[i],
     change: rawForces.change[i],
-    knowledge: rawForces.knowledge[i],
+    variety: rawForces.variety[i],
   }));
   const swings = computeSwingMagnitudes(rawForceSnapshots, FORCE_REFERENCE_MEANS);
 
@@ -186,7 +184,7 @@ export function computeSlidesData(
       relationshipChanges: scene.relationshipMutations.map((rm) => ({
         from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
       })),
-      dominantForce: dominantForce(f.payoff, f.change, f.knowledge),
+      dominantForce: dominantForce(f.payoff, f.change, f.variety),
     }];
   }
 
@@ -203,10 +201,10 @@ export function computeSlidesData(
     if (minPoint.index + 3 < forceSnapshots.length) {
       const dp = forceSnapshots[minPoint.index + 3].payoff - f.payoff;
       const dc = forceSnapshots[minPoint.index + 3].change - f.change;
-      const dv = forceSnapshots[minPoint.index + 3].knowledge - f.knowledge;
+      const dv = forceSnapshots[minPoint.index + 3].variety - f.variety;
       const maxDelta = Math.max(dp, dc, dv);
       if (maxDelta > 0) {
-        recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'knowledge';
+        recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'variety';
       }
     }
     troughs = [{
@@ -276,7 +274,7 @@ export function computeSlidesData(
     if (indices.length === 0) continue;
     const ap = indices.map((i) => rawForces.payoff[i]);
     const ac = indices.map((i) => rawForces.change[i]);
-    const av = indices.map((i) => rawForces.knowledge[i]);
+    const av = indices.map((i) => rawForces.variety[i]);
     const as_ = indices.map((i) => swings[i]);
     arcGrades.push({
       arcId,
@@ -286,7 +284,8 @@ export function computeSlidesData(
     });
   }
 
-  const overallGrades = gradeForces(rawForces.payoff, rawForces.change, rawForces.knowledge, swings);
+  const arcOveralls = arcGrades.map((a) => a.grades.overall);
+  const overallGrades = gradeForces(rawForces.payoff, rawForces.change, rawForces.variety, swings, arcOveralls.length >= 2 ? arcOveralls : undefined);
 
   // Average prose scores
   const proseScores = scenes.map((s) => s.proseScore).filter((p): p is ProseScore => !!p && typeof p.overall === 'number');
@@ -325,7 +324,6 @@ export function computeSlidesData(
     topCharacters,
     topLocations,
     overallGrades: overallGrades,
-    archetype: classifyArchetype(overallGrades),
     arcGrades,
     avgProseScore,
     characterNames: Object.fromEntries(Object.entries(narrative.characters).map(([id, c]) => [id, c.name])),
@@ -342,7 +340,7 @@ function avg(arr: number[]): number {
 
 function buildSegments(
   scenes: Scene[],
-  dlvPts: DeliveryPoint[],
+  delivery: DeliveryPoint[],
   forces: ForceSnapshot[],
   valleyIndices: number[],
 ): Segment[] {
@@ -360,14 +358,14 @@ function buildSegments(
     const endIdx = uniqueSplits[i + 1];
     if (startIdx > endIdx) continue;
 
-    const segDelivery = dlvPts.slice(startIdx, endIdx + 1);
+    const segDelivery = delivery.slice(startIdx, endIdx + 1);
     const segPeaks = segDelivery.filter((e) => e.isPeak).map((e) => e.index);
 
     // Average z-score normalized forces in segment
     const segForces = forces.slice(startIdx, endIdx + 1);
     const segPayoff = avg(segForces.map((f) => f.payoff));
     const segChange = avg(segForces.map((f) => f.change));
-    const segKnowledge = avg(segForces.map((f) => f.knowledge));
+    const segVariety = avg(segForces.map((f) => f.variety));
 
     // Thread changes in this segment
     const threadChanges: Segment['threadChanges'] = [];
@@ -392,7 +390,7 @@ function buildSegments(
       startIdx,
       endIdx,
       delivery: segDelivery,
-      dominantForce: dominantForce(segPayoff, segChange, segKnowledge),
+      dominantForce: dominantForce(segPayoff, segChange, segVariety),
       threadChanges,
       peakIndices: segPeaks,
       avgDelivery: avg(segDelivery.map((e) => e.delivery)),
@@ -425,7 +423,7 @@ function buildPeakInfos(
         relationshipChanges: scene.relationshipMutations.map((rm) => ({
           from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
         })),
-        dominantForce: dominantForce(f.payoff, f.change, f.knowledge),
+        dominantForce: dominantForce(f.payoff, f.change, f.variety),
       };
     })
     .sort((a, b) => b.delivery.delivery - a.delivery.delivery);
@@ -454,10 +452,10 @@ function buildTroughInfos(
       if (e.index + 3 < forces.length) {
         const dp = forces[e.index + 3].payoff - f.payoff;
         const dc = forces[e.index + 3].change - f.change;
-        const dv = forces[e.index + 3].knowledge - f.knowledge;
+        const dv = forces[e.index + 3].variety - f.variety;
         const maxDelta = Math.max(dp, dc, dv);
         if (maxDelta > 0) {
-          recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'knowledge';
+          recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'variety';
         }
       }
 

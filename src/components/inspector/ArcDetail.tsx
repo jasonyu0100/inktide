@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { computeForceSnapshots, computeEngagementCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeDeliveryCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
 import type { Scene } from '@/types/narrative';
 
 const POSITION_COLORS: Record<string, string> = {
@@ -33,14 +33,14 @@ export default function ArcDetail({ arcId }: Props) {
       .filter(Boolean);
   }, [arc, narrative, state.resolvedSceneKeys]);
 
-  const engagement = useMemo(() => {
+  const delivery = useMemo(() => {
     const allScenes = state.resolvedSceneKeys
       .map((k) => narrative.scenes[k])
       .filter((s): s is Scene => !!s);
     if (allScenes.length === 0) return null;
     const forceMap = computeForceSnapshots(allScenes);
     const ordered = allScenes.map((s) => forceMap[s.id]).filter(Boolean);
-    const pts = computeEngagementCurve(ordered);
+    const pts = computeDeliveryCurve(ordered);
     if (pts.length < 2) return null;
     const arcSceneIds = new Set(arc.sceneIds);
     const arcStart = allScenes.findIndex((s) => arcSceneIds.has(s.id));
@@ -66,9 +66,9 @@ export default function ArcDetail({ arcId }: Props) {
         <span>{arc.locationIds.length} locations</span>
       </div>
 
-      {/* Engagement chart */}
-      {engagement && (() => {
-        const { pts, arcStart, position } = engagement;
+      {/* Delivery chart */}
+      {delivery && (() => {
+        const { pts, arcStart, position } = delivery;
         const n = pts.length;
         const W = 260, H = 48;
         const smoothed = pts.map((p) => p.smoothed);
@@ -84,7 +84,7 @@ export default function ArcDetail({ arcId }: Props) {
         return (
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] uppercase tracking-widest text-text-dim">Engagement</span>
+              <span className="text-[9px] uppercase tracking-widest text-text-dim">Delivery</span>
               {position && (
                 <span className="text-[9px] font-medium" style={{ color: POSITION_COLORS[position.key] ?? 'white' }}>
                   {position.name}

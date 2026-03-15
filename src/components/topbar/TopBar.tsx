@@ -6,7 +6,7 @@ import { useStore } from '@/lib/store';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeEngagementCurve, classifyNarrativeShape, classifyArchetype, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
@@ -148,11 +148,11 @@ export default function TopBar() {
 
     const seriesGrades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
 
-    // Narrative shape from payoff curve; engagement points for delivery chart
+    // Narrative shape from payoff curve; delivery points for delivery chart
     const normSnapshots = Object.values(computeForceSnapshots(allScenes));
     const zPayoffs = normSnapshots.map((s) => s.payoff);
     const shape = classifyNarrativeShape(zPayoffs);
-    const engagementPoints = computeEngagementCurve(normSnapshots);
+    const deliveryPoints = computeDeliveryCurve(normSnapshots);
 
     const archetype = classifyArchetype(seriesGrades);
 
@@ -165,7 +165,7 @@ export default function TopBar() {
       archetype,
       perArc,
       shape,
-      engagementPoints,
+      deliveryPoints,
     };
   }, [allScenes, narrative]);
 
@@ -524,7 +524,7 @@ export default function TopBar() {
                 </div>
               </div>
 
-              {/* Per-arc score graph / engagement graph */}
+              {/* Per-arc score graph / delivery graph */}
               {scorecard.perArc.length > 1 && (() => {
                 const arcs = scorecard.perArc;
                 const dense = arcs.length >= 15;
@@ -549,12 +549,12 @@ export default function TopBar() {
                   score: a.grades.overall,
                 }));
 
-                const eng = scorecard.engagementPoints;
+                const eng = scorecard.deliveryPoints;
                 const engMaxAbs = Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
                 const engPoints = eng.map((e, i) => ({
                   x: PAD.left + i * (cw / Math.max(eng.length - 1, 1)),
                   y: PAD.top + ch / 2 - (e.smoothed / engMaxAbs) * (ch / 2),
-                  engagement: e.engagement,
+                  delivery: e.delivery,
                   isPeak: e.isPeak,
                   isValley: e.isValley,
                 }));
@@ -641,7 +641,7 @@ export default function TopBar() {
                           d={`M${engPoints[0].x},${zeroY} ${engPoints.map((p) => `L${p.x},${Math.max(p.y, zeroY)}`).join(' ')} L${engPoints[engPoints.length-1].x},${zeroY} Z`}
                           fill="#93C5FD" fillOpacity="0.08"
                         />
-                        {/* Engagement line */}
+                        {/* Delivery line */}
                         <polyline
                           points={engPoints.map((p) => `${p.x},${p.y}`).join(' ')}
                           fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round"

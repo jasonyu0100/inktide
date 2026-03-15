@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, detectCubeCorner } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, detectCubeCorner } from '@/lib/narrative-utils';
 import ForceLineChart, { type ChartStyle } from './ForceLineChart';
 import { FORCE_CHARTS_WINDOW_DEFAULT } from '@/lib/constants';
 
@@ -239,7 +239,7 @@ export default function ForceCharts() {
     ? (localForceData.payoff.length - 1)
     : state.currentSceneIndex - globalWindowOffset;
 
-  // Local position + recent engagement sparkline from the trailing window
+  // Local position + recent delivery sparkline from the trailing window
   const { currentPosition, recentSparkline } = useMemo(() => {
     if (allScenes.length === 0) return { currentPosition: null, recentSparkline: [] };
     const scenes = windowed
@@ -247,7 +247,7 @@ export default function ForceCharts() {
       : allScenes;
     const snapshotMap = computeForceSnapshots(scenes);
     const ordered = scenes.map((s) => snapshotMap[s.id]).filter(Boolean);
-    const pts = computeEngagementCurve(ordered);
+    const pts = computeDeliveryCurve(ordered);
     const position = ordered.length > 0 ? classifyCurrentPosition(pts) : null;
     // Last ~12 smoothed values for the mini sparkline
     const spark = pts.slice(-12).map((p) => p.smoothed);

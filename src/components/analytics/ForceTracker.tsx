@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useCallback, useId } from 'react'
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, type EngagementPoint } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint } from '@/lib/narrative-utils';
 
 type ForceKey = 'payoff' | 'change' | 'knowledge' | 'swing' | 'delivery';
 
@@ -593,13 +593,13 @@ function ZoneBar({
   );
 }
 
-const ENGAGEMENT_COLOR = '#F59E0B';
+const DELIVERY_COLOR = '#F59E0B';
 const PEAK_COLOR = '#FCD34D';
 const VALLEY_COLOR = '#93C5FD';
 
-function EngagementChart({
+function DeliveryChart({
   data,
-  engagement,
+  delivery,
   arcRegions,
   hoverIndex,
   onHover,
@@ -616,7 +616,7 @@ function EngagementChart({
   onDrawEnd,
 }: {
   data: SceneDataPoint[];
-  engagement: EngagementPoint[];
+  delivery: DeliveryPoint[];
   arcRegions: ArcRegion[];
   hoverIndex: number | null;
   onHover: (index: number | null) => void;
@@ -633,12 +633,12 @@ function EngagementChart({
   onDrawEnd: () => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const clipId = useId().replace(/:/g, '_') + '_engagement';
+  const clipId = useId().replace(/:/g, '_') + '_delivery';
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
-    if (engagement.length === 0 || width <= 0) return;
+    if (delivery.length === 0 || width <= 0) return;
 
     const m = dense ? MARGIN_DENSE : MARGIN;
     const chartWidth = width - m.left - m.right;
@@ -652,8 +652,8 @@ function EngagementChart({
       .attr('x', 0).attr('y', 0)
       .attr('width', chartWidth).attr('height', chartHeight);
 
-    const xScale = d3.scaleLinear().domain([0, Math.max(engagement.length - 1, 1)]).range([0, chartWidth]);
-    const allValues = engagement.flatMap((e) => [e.smoothed, e.macroTrend]);
+    const xScale = d3.scaleLinear().domain([0, Math.max(delivery.length - 1, 1)]).range([0, chartWidth]);
+    const allValues = delivery.flatMap((e) => [e.smoothed, e.macroTrend]);
     const maxAbs = Math.max(d3.max(allValues.map(Math.abs)) ?? 1, 0.5);
     // 20% headroom so peak/valley markers don't get clipped at the domain boundary
     const yScale = d3.scaleLinear().domain([-maxAbs * 1.2, maxAbs * 1.2]).range([chartHeight, 0]);
@@ -665,11 +665,11 @@ function EngagementChart({
       g.append('rect')
         .attr('x', wx1).attr('y', 0)
         .attr('width', Math.max(wx2 - wx1, 1)).attr('height', chartHeight)
-        .attr('fill', ENGAGEMENT_COLOR).attr('opacity', 0.06);
+        .attr('fill', DELIVERY_COLOR).attr('opacity', 0.06);
       g.append('line')
         .attr('x1', wx1).attr('x2', wx1)
         .attr('y1', 0).attr('y2', chartHeight)
-        .attr('stroke', ENGAGEMENT_COLOR).attr('stroke-width', 0.5).attr('opacity', 0.3);
+        .attr('stroke', DELIVERY_COLOR).attr('stroke-width', 0.5).attr('opacity', 0.3);
     }
 
     // Arc boundary lines + arc number labels
@@ -719,21 +719,21 @@ function EngagementChart({
 
     // Window average
     const windowSlice = windowRange
-      ? engagement.slice(windowRange.start, windowRange.end + 1)
-      : engagement.slice(-FORCE_WINDOW_SIZE);
+      ? delivery.slice(windowRange.start, windowRange.end + 1)
+      : delivery.slice(-FORCE_WINDOW_SIZE);
     const winAvg = windowSlice.length > 0
-      ? windowSlice.reduce((s, e) => s + e.engagement, 0) / windowSlice.length
+      ? windowSlice.reduce((s, e) => s + e.delivery, 0) / windowSlice.length
       : 0;
 
     // Label
     g.append('text')
       .attr('x', 6).attr('y', -m.top + 14)
-      .attr('fill', ENGAGEMENT_COLOR)
+      .attr('fill', DELIVERY_COLOR)
       .attr('font-size', '10px').attr('font-weight', '600').attr('letter-spacing', '0.1em')
       .text('DELIVERY');
     g.append('text')
       .attr('x', 6 + 5 * 8 + 6).attr('y', -m.top + 14)
-      .attr('fill', ENGAGEMENT_COLOR)
+      .attr('fill', DELIVERY_COLOR)
       .attr('font-size', '9px').attr('font-weight', '600').attr('font-family', 'monospace').attr('opacity', 0.7)
       .text(`w${winAvg >= 0 ? '+' : ''}${winAvg.toFixed(2)}`);
 
@@ -741,18 +741,18 @@ function EngagementChart({
 
     // Positive fill (above zero)
     clipped.append('path')
-      .datum(engagement)
-      .attr('d', d3.area<EngagementPoint>()
+      .datum(delivery)
+      .attr('d', d3.area<DeliveryPoint>()
         .x((e) => xScale(e.index))
         .y0(yScale(0))
         .y1((e) => yScale(Math.max(0, e.smoothed)))
         .curve(d3.curveMonotoneX))
-      .attr('fill', ENGAGEMENT_COLOR).attr('opacity', 0.10);
+      .attr('fill', DELIVERY_COLOR).attr('opacity', 0.10);
 
     // Negative fill (below zero)
     clipped.append('path')
-      .datum(engagement)
-      .attr('d', d3.area<EngagementPoint>()
+      .datum(delivery)
+      .attr('d', d3.area<DeliveryPoint>()
         .x((e) => xScale(e.index))
         .y0(yScale(0))
         .y1((e) => yScale(Math.min(0, e.smoothed)))
@@ -761,8 +761,8 @@ function EngagementChart({
 
     // Macro trend (dashed, white)
     clipped.append('path')
-      .datum(engagement)
-      .attr('d', d3.line<EngagementPoint>()
+      .datum(delivery)
+      .attr('d', d3.line<DeliveryPoint>()
         .x((e) => xScale(e.index))
         .y((e) => yScale(e.macroTrend))
         .curve(d3.curveMonotoneX))
@@ -771,21 +771,21 @@ function EngagementChart({
       .attr('stroke-width', 1)
       .attr('stroke-dasharray', '5,4');
 
-    // Primary engagement line (smoothed)
+    // Primary delivery line (smoothed)
     clipped.append('path')
-      .datum(engagement)
-      .attr('d', d3.line<EngagementPoint>()
+      .datum(delivery)
+      .attr('d', d3.line<DeliveryPoint>()
         .x((e) => xScale(e.index))
         .y((e) => yScale(e.smoothed))
         .curve(d3.curveMonotoneX))
       .attr('fill', 'none')
-      .attr('stroke', ENGAGEMENT_COLOR)
+      .attr('stroke', DELIVERY_COLOR)
       .attr('stroke-width', 2)
       .attr('opacity', 0.9);
 
     // Peak markers — upward triangles
     const triUp = d3.symbol().type(d3.symbolTriangle).size(40);
-    engagement.filter((e) => e.isPeak).forEach((e) => {
+    delivery.filter((e) => e.isPeak).forEach((e) => {
       const cx = xScale(e.index);
       const cy = yScale(e.smoothed);
       clipped.append('path')
@@ -804,7 +804,7 @@ function EngagementChart({
     });
 
     // Valley markers — downward triangles
-    engagement.filter((e) => e.isValley).forEach((e) => {
+    delivery.filter((e) => e.isValley).forEach((e) => {
       const cx = xScale(e.index);
       const cy = yScale(e.smoothed);
       clipped.append('path')
@@ -823,8 +823,8 @@ function EngagementChart({
     });
 
     // Hover crosshair
-    if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < engagement.length) {
-      const e = engagement[hoverIndex];
+    if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < delivery.length) {
+      const e = delivery[hoverIndex];
       const cx = xScale(e.index);
       const cy = yScale(e.smoothed);
       g.append('line')
@@ -832,25 +832,25 @@ function EngagementChart({
         .attr('stroke', 'rgba(255,255,255,0.3)').attr('stroke-width', 1);
       g.append('line')
         .attr('x1', 0).attr('x2', chartWidth).attr('y1', cy).attr('y2', cy)
-        .attr('stroke', ENGAGEMENT_COLOR).attr('stroke-width', 0.5)
+        .attr('stroke', DELIVERY_COLOR).attr('stroke-width', 0.5)
         .attr('stroke-dasharray', '3,3').attr('opacity', 0.5);
       clipped.append('circle')
         .attr('cx', cx).attr('cy', cy).attr('r', 4)
-        .attr('fill', ENGAGEMENT_COLOR).attr('stroke', '#111').attr('stroke-width', 2);
+        .attr('fill', DELIVERY_COLOR).attr('stroke', '#111').attr('stroke-width', 2);
       g.append('circle')
         .attr('cx', chartWidth - 46).attr('cy', -MARGIN.top + 11)
-        .attr('r', 3).attr('fill', ENGAGEMENT_COLOR);
+        .attr('r', 3).attr('fill', DELIVERY_COLOR);
       g.append('text')
         .attr('x', chartWidth - 4).attr('y', -m.top + 14)
         .attr('text-anchor', 'end')
-        .attr('fill', ENGAGEMENT_COLOR)
+        .attr('fill', DELIVERY_COLOR)
         .attr('font-size', '11px').attr('font-family', 'monospace').attr('font-weight', '600')
-        .text(e.engagement.toFixed(2));
+        .text(e.delivery.toFixed(2));
     }
 
     // Selected scene marker
-    if (selectedIndex !== null && selectedIndex >= 0 && selectedIndex < engagement.length && selectedIndex !== hoverIndex) {
-      const e = engagement[selectedIndex];
+    if (selectedIndex !== null && selectedIndex >= 0 && selectedIndex < delivery.length && selectedIndex !== hoverIndex) {
+      const e = delivery[selectedIndex];
       const sx = xScale(e.index);
       const sy = yScale(e.smoothed);
       g.append('line')
@@ -858,7 +858,7 @@ function EngagementChart({
         .attr('stroke', 'rgba(255,255,255,0.25)').attr('stroke-width', 1).attr('stroke-dasharray', '2,2');
       clipped.append('circle')
         .attr('cx', sx).attr('cy', sy).attr('r', 4.5)
-        .attr('fill', 'none').attr('stroke', ENGAGEMENT_COLOR).attr('stroke-width', 1.5).attr('opacity', 0.7);
+        .attr('fill', 'none').attr('stroke', DELIVERY_COLOR).attr('stroke-width', 1.5).attr('opacity', 0.7);
     }
 
     // Draw lines overlay
@@ -909,7 +909,7 @@ function EngagementChart({
       .on('mouseup', () => {
         if (drawing) onDrawEnd();
       });
-  }, [engagement, data, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, dense, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd, clipId]);
+  }, [delivery, data, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, dense, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd, clipId]);
 
   return <svg ref={svgRef} width={width} height={height} className="block" />;
 }
@@ -1135,9 +1135,9 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     return { activeDataPoints: sliced, slidingWindowOffset: start, visibleScenes: allScenes.slice(start, end) };
   }, [allActiveDataPoints, allScenes, slidingWindow, selectedIndex]);
 
-  // Engagement curve always computed from z-score normalised forces (not raw)
+  // Delivery curve always computed from z-score normalised forces (not raw)
   // When windowed, use the windowed slice of the normalized data
-  const engagementData = useMemo((): EngagementPoint[] => {
+  const deliveryData = useMemo((): DeliveryPoint[] => {
     if (dataPoints.length === 0) return [];
     if (slidingWindow !== null && slidingWindow < dataPoints.length) {
       const anchor = selectedIndex ?? dataPoints.length - 1;
@@ -1147,9 +1147,9 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
       if (start < 0) { start = 0; end = slidingWindow; }
       if (end > dataPoints.length) { end = dataPoints.length; start = end - slidingWindow; }
       start = Math.max(0, start);
-      return computeEngagementCurve(dataPoints.slice(start, end).map((d) => d.forces));
+      return computeDeliveryCurve(dataPoints.slice(start, end).map((d) => d.forces));
     }
-    return computeEngagementCurve(dataPoints.map((d) => d.forces));
+    return computeDeliveryCurve(dataPoints.map((d) => d.forces));
   }, [dataPoints, slidingWindow, selectedIndex]);
 
   // Current cube corner + local delivery position — tracks the focused scene
@@ -1158,12 +1158,12 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     const focusIdx = selectedIndex ?? dataPoints.length - 1;
     const clamped = Math.max(0, Math.min(focusIdx, dataPoints.length - 1));
     const cube = detectCubeCorner(dataPoints[clamped].forces);
-    // Local delivery position: use engagement data up to the focused scene
-    const engUpToFocus = engagementData.slice(0, Math.min(clamped + 1, engagementData.length));
+    // Local delivery position: use delivery data up to the focused scene
+    const engUpToFocus = deliveryData.slice(0, Math.min(clamped + 1, deliveryData.length));
     const window = engUpToFocus.slice(-FORCE_WINDOW_SIZE);
     const pos = window.length > 0 ? classifyCurrentPosition(window) : null;
     return { currentCube: cube, localPosition: pos };
-  }, [dataPoints, engagementData, selectedIndex]);
+  }, [dataPoints, deliveryData, selectedIndex]);
 
   const arcRegions = useMemo((): ArcRegion[] => {
     if (activeDataPoints.length === 0) return [];
@@ -1242,7 +1242,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   const zoneBarHeight = 48;
   const availableChartHeight = dims.height - headerHeight - hoverBarHeight - arcLabelHeight - zoneBarHeight;
   const chartHeight = Math.max(Math.floor(availableChartHeight / 4), 80);
-  const engagementChartHeight = Math.max(availableChartHeight, 120);
+  const deliveryChartHeight = Math.max(availableChartHeight, 120);
 
   const hasDrawings = Object.values(drawLines).some((lines) => lines.length > 0);
 
@@ -1447,16 +1447,16 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
               </div>
             )}
             {view === 'delivery' ? (
-              <EngagementChart
+              <DeliveryChart
                 data={activeDataPoints}
-                engagement={engagementData}
+                delivery={deliveryData}
                 arcRegions={arcRegions}
                 hoverIndex={hoverIndex}
                 onHover={setHoverIndex}
                 selectedIndex={visibleSelIdx}
                 onSelect={handleSelect}
                 windowRange={windowRange}
-                height={engagementChartHeight}
+                height={deliveryChartHeight}
                 width={dims.width}
                 dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
                 drawing={drawing}

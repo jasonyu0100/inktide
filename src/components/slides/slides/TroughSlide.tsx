@@ -28,7 +28,7 @@ export function TroughSlide({ data, trough, rank }: { data: SlidesData; trough: 
         <div className="flex flex-col gap-6">
           {/* Force bars */}
           <div>
-            <h3 className="text-xs uppercase tracking-widest text-text-dim mb-3">Why Engagement Dropped</h3>
+            <h3 className="text-xs uppercase tracking-widest text-text-dim mb-3">Why Delivery Dropped</h3>
             <div className="space-y-3">
               {forces.map((f) => {
                 const val = trough.forces[f];
@@ -77,12 +77,12 @@ export function TroughSlide({ data, trough, rank }: { data: SlidesData; trough: 
                 </div>
               )}
               <div className="flex items-center justify-between">
-                <span className="text-xs text-text-dim">Engagement at trough</span>
-                <span className="text-sm font-mono text-blue-300">{trough.engagement.engagement.toFixed(2)}</span>
+                <span className="text-xs text-text-dim">Delivery at trough</span>
+                <span className="text-sm font-mono text-blue-300">{trough.delivery.delivery.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-text-dim">Tension level</span>
-                <span className="text-sm font-mono text-text-secondary">{trough.engagement.tension.toFixed(2)}</span>
+                <span className="text-sm font-mono text-text-secondary">{trough.delivery.tension.toFixed(2)}</span>
               </div>
             </div>
           </div>

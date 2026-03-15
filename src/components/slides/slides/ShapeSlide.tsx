@@ -22,7 +22,7 @@ export function ShapeSlide({ data }: { data: SlidesData }) {
 
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const eng = data.engagementCurve;
+    const eng = data.deliveryCurve;
     const x = d3.scaleLinear().domain([0, eng.length - 1]).range([0, w]);
     const maxAbs = Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
     const y = d3.scaleLinear().domain([-maxAbs, maxAbs]).range([h, 0]);
@@ -62,7 +62,7 @@ export function ShapeSlide({ data }: { data: SlidesData }) {
       .attr('fill', 'none').attr('stroke', 'white').attr('stroke-opacity', 0.25)
       .attr('stroke-width', 1.5).attr('stroke-dasharray', '6,4');
 
-    // Engagement line with draw animation
+    // Delivery line with draw animation
     const line = d3.line<typeof eng[0]>()
       .x((d) => x(d.index))
       .y((d) => y(d.smoothed))

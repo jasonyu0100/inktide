@@ -162,7 +162,7 @@ export type MCTSConfig = {
   timeLimitSeconds: number;   // Time budget for search (timer mode)
   baselineScore: number;      // Target score per layer (baseline mode)
   randomDirections: boolean;  // If true, pick next cube corner randomly (ignores mode-based ordering)
-  directionMode: DirectionMode; // Whether to use cube corners or engagement arc directions
+  directionMode: DirectionMode; // Whether to use cube corners or delivery arc directions
   branchingFactor: number;    // Max children per node (derived from mode: direction count for freedom/constrained, Infinity for baseline)
   worldBuildFocusId?: string; // Optional world build commit to seed all generations with
   northStarPrompt?: string;   // Optional high-level guidance that steers every generation in the search

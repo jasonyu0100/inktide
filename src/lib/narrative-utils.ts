@@ -194,7 +194,7 @@ export function zScoreNormalize(values: number[]): number[] {
 //     where r(g) = g / (1 + g)            (parameter-free saturating decay)
 //
 // S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCV space)
-// E = (P + C + V) / 3                    (engagement, Gaussian smoothed)
+// E = (P + C + V) / 3                    (delivery, Gaussian smoothed)
 // g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 7.0, 2.5, 1.5})
 //
 
@@ -410,7 +410,7 @@ export function movingAverage(data: number[], windowSize: number): number[] {
   return result;
 }
 
-// ── Engagement / Dopamine Curve ────────────────────────────────────────────
+// ── Delivery / Dopamine Curve ──────────────────────────────────────────────
 
 /** Gaussian kernel smooth with mirror-padding at boundaries. */
 function gaussianSmooth(values: number[], sigma: number): number[] {
@@ -495,12 +495,12 @@ function detectPeaksAndValleys(
   return { peaks, valleys };
 }
 
-export interface EngagementPoint {
+export interface DeliveryPoint {
   /** Scene index (0-based) */
   index: number;
   /** Delivery: equal-weighted mean of payoff, change, and knowledge z-scores.
    *  Measures the overall narrative presence of a scene — how strongly all three forces radiate. */
-  engagement: number;
+  delivery: number;
   /** Tension buildup: change + knowledge − payoff. High when energy accumulates without release. */
   tension: number;
   /** Gaussian-smoothed delivery (σ=1.5) — local curve shape for display. */
@@ -520,7 +520,7 @@ export interface EngagementPoint {
  * narrative presence of a scene. High delivery means all three forces are radiating
  * above average; low delivery means the scene is quiet or one-dimensional.
  */
-export function computeEngagementCurve(snapshots: ForceSnapshot[]): EngagementPoint[] {
+export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[] {
   if (snapshots.length === 0) return [];
   const n = snapshots.length;
 
@@ -543,7 +543,7 @@ export function computeEngagementCurve(snapshots: ForceSnapshot[]): EngagementPo
 
   return snapshots.map(({ payoff, change, knowledge }, i) => ({
     index: i,
-    engagement: engValues[i],
+    delivery: engValues[i],
     tension: change + knowledge - payoff,
     smoothed: smoothed[i],
     macroTrend: macroTrend[i],
@@ -759,10 +759,10 @@ const POSITIONS: Record<NarrativePosition['key'], NarrativePosition> = {
 };
 
 /**
- * Classify the local delivery position at the current (last) point of an engagement window.
+ * Classify the local delivery position at the current (last) point of a delivery window.
  * Checks proximity to detected peaks/valleys first, then falls back to slope direction.
  */
-export function classifyCurrentPosition(points: EngagementPoint[]): NarrativePosition {
+export function classifyCurrentPosition(points: DeliveryPoint[]): NarrativePosition {
   if (points.length === 0) return POSITIONS.stable;
   const n = points.length;
 

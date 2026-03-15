@@ -44,7 +44,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
   if (!scene) return null;
 
   const forces = peakInfo?.forces ?? troughInfo?.forces ?? { payoff: 0, change: 0, knowledge: 0 };
-  const engagement = peakInfo?.engagement ?? troughInfo?.engagement;
+  const delivery = peakInfo?.delivery ?? troughInfo?.delivery;
   const cubeCorner = peakInfo?.cubeCorner ?? troughInfo?.cubeCorner;
   const threadChanges = peakInfo?.threadChanges ?? scene.threadMutations?.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })) ?? [];
   const relationshipChanges = peakInfo?.relationshipChanges ?? scene.relationshipMutations?.map((rm) => ({ from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta })) ?? [];
@@ -72,9 +72,9 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
             {cubeCorner.name}
           </span>
         )}
-        {engagement && (
+        {delivery && (
           <span className="ml-auto text-sm font-mono text-text-dim">
-            Engagement <span className={`font-bold ${isPeak ? 'text-amber-400' : 'text-blue-300'}`}>{engagement.engagement.toFixed(2)}</span>
+            Delivery <span className={`font-bold ${isPeak ? 'text-amber-400' : 'text-blue-300'}`}>{delivery.delivery.toFixed(2)}</span>
           </span>
         )}
       </div>
@@ -157,19 +157,19 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
             </div>
           </div>
 
-          {engagement && (
+          {delivery && (
             <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between text-[10px]">
                 <span className="text-text-dim">Tension</span>
-                <span className="font-mono text-text-secondary">{engagement.tension.toFixed(2)}</span>
+                <span className="font-mono text-text-secondary">{delivery.tension.toFixed(2)}</span>
               </div>
-              {engagement.isPeak && (
+              {delivery.isPeak && (
                 <div className="flex items-center justify-between text-[10px]">
                   <span className="text-text-dim">Local max</span>
                   <span className="text-amber-400 font-mono">yes</span>
                 </div>
               )}
-              {engagement.isValley && (
+              {delivery.isValley && (
                 <div className="flex items-center justify-between text-[10px]">
                   <span className="text-text-dim">Local min</span>
                   <span className="text-blue-300 font-mono">yes</span>

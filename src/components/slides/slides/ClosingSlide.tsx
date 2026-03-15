@@ -34,7 +34,7 @@ export function ClosingSlide({ data }: { data: SlidesData }) {
     svg.attr('viewBox', `0 0 ${width} ${height}`);
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const eng = data.engagementCurve;
+    const eng = data.deliveryCurve;
     const x = d3.scaleLinear().domain([0, eng.length - 1]).range([0, w]);
     const maxAbs = Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
     const y = d3.scaleLinear().domain([-maxAbs, maxAbs]).range([h, 0]);

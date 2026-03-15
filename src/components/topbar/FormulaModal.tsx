@@ -78,10 +78,10 @@ function DynamicsTab() {
         Derived signals that measure pacing and structure across the scene sequence.
       </p>
 
-      <S title="Engagement" analogy="The heartbeat of the story — where peaks are climaxes and valleys are the quiet before the storm.">
+      <S title="Delivery" analogy="The heartbeat of the story — where peaks are climaxes and valleys are the quiet before the storm.">
         <Block tex="z_i^{(k)} = \frac{x_i^{(k)} - \bar{x}^{(k)}}{\sigma^{(k)}}, \qquad E_i = \frac{z_i^P + z_i^C + z_i^K}{3}" />
         <p className="text-[10px] text-text-dim">
-          Each force is z-score normalized, then engagement is their mean.
+          Each force is z-score normalized, then delivery is their mean.
           Gaussian-smoothed (σ=1.5) for display.
         </p>
       </S>

@@ -418,7 +418,7 @@ RULES:
   * Crime/thriller: legal systems, criminal hierarchies, institutional power structures
 - Four types: "law" (governing truths — social rules, physical laws, cultural expectations), "system" (institutions, processes, hierarchies — both formal and informal), "concept" (named ideas, phenomena, symbolic motifs, places-as-concepts), "tension" (contradictions, paradoxes, unresolved social forces).
 - Add nodes when a scene reveals, establishes, or names a world concept. Add edges (fromConcept/toConcept) when it connects concepts.
-- REUSING existing world knowledge nodes is encouraged. If a scene reinforces, deepens, or tests an existing concept, reference the existing node ID in addedNodes — this signals engagement with established world knowledge rather than inventing something new. Similarly, re-adding an existing edge reinforces that connection. Only create new IDs for genuinely new concepts.
+- REUSING existing world knowledge nodes is encouraged. If a scene reinforces, deepens, or tests an existing concept, reference the existing node ID in addedNodes — this signals delivery with established world knowledge rather than inventing something new. Similarly, re-adding an existing edge reinforces that connection. Only create new IDs for genuinely new concepts.
 - How much to extract depends on the prose:
   * A scene that establishes social rules, describes how institutions work, reveals class dynamics, or names symbolic concepts → several nodes and edges.
   * A scene that shows how two world concepts relate (old money enables social access, prohibition creates underground economies) → edges.

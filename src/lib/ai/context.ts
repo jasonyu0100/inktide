@@ -1,6 +1,6 @@
 import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeEngagementCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
 import { MAX_CONTEXT_SCENES } from '@/lib/constants';
 
 // Build thread lifecycle documentation from canonical status lists
@@ -237,7 +237,7 @@ export function branchContext(
   const windowScenes = allScenes.slice(-FORCE_WINDOW_SIZE);
   const windowMap = computeForceSnapshots(windowScenes);
   const windowOrdered = windowScenes.map((s) => windowMap[s.id]).filter(Boolean);
-  const engPts = computeEngagementCurve(windowOrdered);
+  const engPts = computeDeliveryCurve(windowOrdered);
   const localPos = engPts.length > 0 ? classifyCurrentPosition(engPts) : null;
   const currentStateBlock = currentCube
     ? `\nCURRENT NARRATIVE STATE:\n  Cube position: ${currentCube.name} (P:${currentForces!.payoff >= 0 ? 'Hi' : 'Lo'} C:${currentForces!.change >= 0 ? 'Hi' : 'Lo'} V:${currentForces!.knowledge >= 0 ? 'Hi' : 'Lo'}) — ${currentCube.description}\n  Delivery position: ${localPos?.name ?? 'Stable'} — ${localPos?.description ?? 'deliveries are holding steady'}\n`

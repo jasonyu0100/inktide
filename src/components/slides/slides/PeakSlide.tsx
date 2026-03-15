@@ -77,7 +77,7 @@ export function PeakSlide({ data, peak, rank }: { data: SlidesData; peak: PeakIn
           </div>
 
           <div className="text-xs text-text-dim">
-            Engagement: <span className="text-amber-400 font-mono font-semibold">{peak.engagement.engagement.toFixed(2)}</span>
+            Delivery: <span className="text-amber-400 font-mono font-semibold">{peak.delivery.delivery.toFixed(2)}</span>
           </div>
         </div>
 

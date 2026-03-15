@@ -121,7 +121,7 @@ ${currentProse}
 ANALYSIS / CRITIQUE TO ADDRESS:
 ${analysis}
 
-Rewrite the prose to address the weaknesses identified in the analysis above. Preserve all narrative deliveries, events, and plot points. The rewrite should feel like the same scene written better. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for engagement; never pad. Do not artificially compress or expand the original — let the content dictate length.
+Rewrite the prose to address the weaknesses identified in the analysis above. Preserve all narrative deliveries, events, and plot points. The rewrite should feel like the same scene written better. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for delivery; never pad. Do not artificially compress or expand the original — let the content dictate length.
 
 Return JSON:
 {

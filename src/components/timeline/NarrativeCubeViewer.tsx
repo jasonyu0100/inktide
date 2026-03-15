@@ -3,7 +3,7 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, NARRATIVE_CUBE, type CubeCorner, type CubeCornerKey, type ForceSnapshot, type Scene } from '@/types/narrative';
-import { detectCubeCorner, computeForceSnapshots, computeWindowedForces, computeEngagementCurve, classifyCurrentPosition, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { detectCubeCorner, computeForceSnapshots, computeWindowedForces, computeDeliveryCurve, classifyCurrentPosition, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
 
 // ── 3D math helpers ──────────────────────────────────────────────────────────
 
@@ -175,7 +175,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     if (forceEntries.length === 0) return null;
     const windowEntries = forceEntries.slice(Math.max(0, focusedIdx - FORCE_WINDOW_SIZE + 1), focusedIdx + 1);
     const snapshots = windowEntries.map((e) => e.forces);
-    const pts = computeEngagementCurve(snapshots);
+    const pts = computeDeliveryCurve(snapshots);
     return pts.length > 0 ? classifyCurrentPosition(pts) : null;
   }, [forceEntries, focusedIdx]);
 

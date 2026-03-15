@@ -40,7 +40,7 @@ export const GENERATE_MODEL = 'google/gemini-2.5-flash';
 // ── AI Token Limits ─────────────────────────────────────────────────────────
 
 /** Max output tokens for large structured generation (scenes, narratives, analysis) */
-export const MAX_TOKENS_LARGE = 65000;
+export const MAX_TOKENS_LARGE = 64000;
 
 /** Max output tokens for the /api/generate route when no explicit limit is passed */
 export const MAX_TOKENS_DEFAULT = 32000;

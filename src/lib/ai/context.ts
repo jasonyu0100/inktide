@@ -261,24 +261,24 @@ export function branchContext(
       adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), fromConcept]);
     }
 
-    // Show each node with its type, significance, and connections — ranked by importance
-    const nodeLines = rankedWorldNodes.map(({ node, degree }) => {
+    // Show each node with its type and relationships
+    const nodeLines = rankedWorldNodes.map(({ node }) => {
       const connections = adjacency.get(node.id);
       const connStr = connections && connections.length > 0
         ? ` ↔ ${connections.join(', ')}`
         : '';
-      return `  [${node.type}] ${node.concept} (${degree} connections)${connStr}`;
+      return `  [${node.type}] ${node.concept}${connStr}`;
     });
 
     const totalNodes = Object.keys(cumulativeWorldKnowledge.nodes).length;
     const totalEdges = cumulativeWorldKnowledge.edges.length;
     worldKnowledgeBlock = `\n────────────────────────────────────────
-WORLD KNOWLEDGE GRAPH (${totalNodes} concepts, ${totalEdges} connections — ranked by significance):
-These are the established rules, systems, concepts, and tensions of this world. New scenes should REFERENCE existing concepts when relevant and ADD new ones that connect to this graph. The more connections a concept has, the more central it is to this world.
+WORLD KNOWLEDGE GRAPH (${totalNodes} concepts, ${totalEdges} relationships):
+The established rules, systems, concepts, and tensions of this world. Edges describe how concepts relate (enables, governs, opposes, etc.) — they make the world coherent. New scenes should reference existing concepts when relevant and add new ones with edges showing how they relate to what's established.
 
 ${nodeLines.join('\n')}
 
-Existing world knowledge node IDs (use these in worldKnowledgeMutations.addedEdges to connect new concepts to existing ones):
+Existing world knowledge node IDs (use in addedEdges to show how new concepts relate to existing ones):
   ${rankedWorldNodes.map(({ node }) => `${node.id}: ${node.concept}`).join(', ')}
 `;
   }
@@ -487,6 +487,29 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
       `MOVEMENTS:`,
       ...movementLines,
     ] : []),
+    // Established world knowledge — top concepts for grounding
+    ...(() => {
+      const wkg = narrative.worldKnowledge;
+      if (!wkg || Object.keys(wkg.nodes).length === 0) return [];
+      const ranked = rankWorldKnowledgeNodes(wkg);
+      const top = ranked.slice(0, 8);
+      if (top.length === 0) return [];
+      // Build adjacency for compact display
+      const adj = new Map<string, string[]>();
+      for (const e of wkg.edges) {
+        const fc = wkg.nodes[e.from]?.concept;
+        const tc = wkg.nodes[e.to]?.concept;
+        if (fc && tc) {
+          adj.set(e.from, [...(adj.get(e.from) ?? []), tc]);
+        }
+      }
+      const lines = top.map(({ node }) => {
+        const conns = adj.get(node.id);
+        const connStr = conns && conns.length > 0 ? ` → ${conns.slice(0, 3).join(', ')}` : '';
+        return `  [${node.type}] ${node.concept}${connStr}`;
+      });
+      return [``, SEP, `ESTABLISHED WORLD (reference relevant concepts — these are the rules, systems, and tensions characters live within):`, ...lines];
+    })(),
   ].join('\n');
 }
 

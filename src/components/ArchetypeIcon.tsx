@@ -39,151 +39,90 @@ export function ArchetypeIcon({ archetypeKey, size = 20, color = DEFAULT_COLOR, 
 }
 
 const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React.ReactNode> = {
-  // Masterwork: three overlapping circles (all 3 forces in concert)
-  masterwork: (half, s, c) => {
-    const r = s * 0.26;
-    const cy1 = s * 0.32;
-    const cy2 = s * 0.58;
-    const cx1 = half - s * 0.18;
-    const cx2 = half + s * 0.18;
-    return (
-      <>
-        <circle cx={half} cy={cy1} r={r} stroke={c} strokeWidth={1.2} strokeOpacity={0.8} />
-        <circle cx={cx1} cy={cy2} r={r} stroke={c} strokeWidth={1.2} strokeOpacity={0.8} />
-        <circle cx={cx2} cy={cy2} r={r} stroke={c} strokeWidth={1.2} strokeOpacity={0.8} />
-        <circle cx={half} cy={half} r={s * 0.06} fill={c} fillOpacity={0.9} />
-      </>
-    );
-  },
+  // Masterwork: concentric rings — convergence
+  masterwork: (half, s, c) => (
+    <>
+      <circle cx={half} cy={half} r={s * 0.38} stroke={c} strokeWidth={1} />
+      <circle cx={half} cy={half} r={s * 0.22} stroke={c} strokeWidth={1} />
+      <circle cx={half} cy={half} r={s * 0.07} fill={c} />
+    </>
+  ),
 
-  // Epic: shield shape (high-stakes payoffs + broad cast)
-  epic: (half, s, c) => {
-    const pad = s * 0.15;
-    return (
-      <path
-        d={`M ${half} ${pad} L ${s - pad} ${s * 0.3} L ${s - pad} ${s * 0.55} L ${half} ${s - pad} L ${pad} ${s * 0.55} L ${pad} ${s * 0.3} Z`}
-        stroke={c}
-        strokeWidth={1.2}
-        strokeLinejoin="round"
-        fill={c}
-        fillOpacity={0.1}
-      />
-    );
-  },
+  // Epic: upward chevron — ascent
+  epic: (half, s, c) => (
+    <>
+      <polyline points={`${s * 0.18},${s * 0.58} ${half},${s * 0.22} ${s * 0.82},${s * 0.58}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={`${s * 0.18},${s * 0.76} ${half},${s * 0.40} ${s * 0.82},${s * 0.76}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.4} />
+    </>
+  ),
 
-  // Chronicle: open book (payoff + knowledge — resolutions deepen the world)
-  chronicle: (half, s, c) => {
-    const top = s * 0.2;
-    const bot = s * 0.8;
-    const spine = half;
-    const left = s * 0.12;
-    const right = s - s * 0.12;
-    return (
-      <>
-        <path
-          d={`M ${spine} ${top} Q ${(spine + left) / 2} ${top + s * 0.06} ${left} ${top + s * 0.04} L ${left} ${bot - s * 0.04} Q ${(spine + left) / 2} ${bot - s * 0.06} ${spine} ${bot}`}
-          stroke={c}
-          strokeWidth={1.2}
-          fill={c}
-          fillOpacity={0.06}
-        />
-        <path
-          d={`M ${spine} ${top} Q ${(spine + right) / 2} ${top + s * 0.06} ${right} ${top + s * 0.04} L ${right} ${bot - s * 0.04} Q ${(spine + right) / 2} ${bot - s * 0.06} ${spine} ${bot}`}
-          stroke={c}
-          strokeWidth={1.2}
-          fill={c}
-          fillOpacity={0.06}
-        />
-        <line x1={spine} y1={top} x2={spine} y2={bot} stroke={c} strokeWidth={1} strokeOpacity={0.4} />
-      </>
-    );
-  },
+  // Chronicle: two parallel horizontals with a bisecting vertical — layered record
+  chronicle: (half, s, c) => (
+    <>
+      <line x1={s * 0.2} y1={s * 0.33} x2={s * 0.8} y2={s * 0.33} stroke={c} strokeWidth={1.2} strokeLinecap="round" />
+      <line x1={s * 0.2} y1={s * 0.67} x2={s * 0.8} y2={s * 0.67} stroke={c} strokeWidth={1.2} strokeLinecap="round" />
+      <line x1={half} y1={s * 0.18} x2={half} y2={s * 0.82} stroke={c} strokeWidth={1.2} strokeLinecap="round" strokeOpacity={0.4} />
+    </>
+  ),
 
-  // Saga: spiral (expansive in cast and ideas)
-  saga: (half, s, c) => {
-    const cx = half;
-    const cy = half;
-    // Approximate a spiral with an arc path
-    const r1 = s * 0.08;
-    const r2 = s * 0.18;
-    const r3 = s * 0.28;
-    const r4 = s * 0.38;
-    return (
-      <path
-        d={`M ${cx + r1} ${cy} A ${r1} ${r1} 0 1 1 ${cx - r1} ${cy} A ${r2} ${r2} 0 1 0 ${cx + r2} ${cy} A ${r3} ${r3} 0 1 1 ${cx - r3} ${cy} A ${r4} ${r4} 0 1 0 ${cx + r4} ${cy}`}
-        stroke={c}
-        strokeWidth={1.2}
-        strokeLinecap="round"
-      />
-    );
-  },
+  // Saga: expanding arc — outward sweep
+  saga: (half, s, c) => (
+    <>
+      <path d={`M ${s * 0.22} ${s * 0.7} A ${s * 0.35} ${s * 0.35} 0 0 1 ${s * 0.78} ${s * 0.7}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" fill="none" />
+      <path d={`M ${s * 0.3} ${s * 0.48} A ${s * 0.24} ${s * 0.24} 0 0 1 ${s * 0.7} ${s * 0.48}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" fill="none" />
+      <circle cx={half} cy={s * 0.3} r={s * 0.04} fill={c} />
+    </>
+  ),
 
-  // Classic: diamond (clean resolution-driven)
+  // Classic: single rotated square — clean, balanced
   classic: (half, s, c) => {
-    const pad = s * 0.15;
+    const r = s * 0.3;
     return (
-      <>
-        <rect
-          x={half - (half - pad)}
-          y={half - (half - pad)}
-          width={(half - pad) * 2}
-          height={(half - pad) * 2}
-          transform={`rotate(45 ${half} ${half})`}
-          stroke={c}
-          strokeWidth={1.2}
-          strokeLinejoin="round"
-          fill={c}
-          fillOpacity={0.1}
-        />
-        <circle cx={half} cy={half} r={s * 0.06} fill={c} fillOpacity={0.8} />
-      </>
-    );
-  },
-
-  // Anthology: overlapping squares / mosaic (many lives woven)
-  anthology: (half, s, c) => {
-    const sz = s * 0.32;
-    const off = s * 0.12;
-    return (
-      <>
-        <rect x={half - sz / 2 - off} y={half - sz / 2 - off} width={sz} height={sz} rx={1.5} stroke={c} strokeWidth={1} fill={c} fillOpacity={0.08} />
-        <rect x={half - sz / 2 + off} y={half - sz / 2 - off} width={sz} height={sz} rx={1.5} stroke={c} strokeWidth={1} fill={c} fillOpacity={0.08} />
-        <rect x={half - sz / 2 - off} y={half - sz / 2 + off} width={sz} height={sz} rx={1.5} stroke={c} strokeWidth={1} fill={c} fillOpacity={0.08} />
-        <rect x={half - sz / 2 + off} y={half - sz / 2 + off} width={sz} height={sz} rx={1.5} stroke={c} strokeWidth={1} fill={c} fillOpacity={0.08} />
-      </>
-    );
-  },
-
-  // Atlas: hexagon (dense with ideas and systems)
-  atlas: (half, s, c) => {
-    const r = s * 0.4;
-    const pts = Array.from({ length: 6 }, (_, i) => {
-      const angle = (Math.PI / 3) * i - Math.PI / 2;
-      return `${half + r * Math.cos(angle)},${half + r * Math.sin(angle)}`;
-    }).join(' ');
-    return (
-      <>
-        <polygon points={pts} stroke={c} strokeWidth={1.2} strokeLinejoin="round" fill={c} fillOpacity={0.08} />
-        {/* Inner connections suggesting a knowledge graph */}
-        <line x1={half} y1={half - r * 0.6} x2={half - r * 0.5} y2={half + r * 0.3} stroke={c} strokeWidth={0.8} strokeOpacity={0.3} />
-        <line x1={half} y1={half - r * 0.6} x2={half + r * 0.5} y2={half + r * 0.3} stroke={c} strokeWidth={0.8} strokeOpacity={0.3} />
-        <line x1={half - r * 0.5} y1={half + r * 0.3} x2={half + r * 0.5} y2={half + r * 0.3} stroke={c} strokeWidth={0.8} strokeOpacity={0.3} />
-      </>
-    );
-  },
-
-  // Emerging: dashed circle (still finding its form)
-  emerging: (half, _s, c) => {
-    const r = half * 0.65;
-    return (
-      <circle
-        cx={half}
-        cy={half}
-        r={r}
+      <rect
+        x={half - r}
+        y={half - r}
+        width={r * 2}
+        height={r * 2}
+        transform={`rotate(45 ${half} ${half})`}
         stroke={c}
         strokeWidth={1.2}
-        strokeDasharray={`${r * 0.5} ${r * 0.3}`}
+        fill="none"
+      />
+    );
+  },
+
+  // Anthology: three offset dots — discrete parts
+  anthology: (half, s, c) => {
+    const r = s * 0.07;
+    return (
+      <>
+        <circle cx={s * 0.28} cy={half} r={r} fill={c} />
+        <circle cx={half} cy={half} r={r} fill={c} />
+        <circle cx={s * 0.72} cy={half} r={r} fill={c} />
+      </>
+    );
+  },
+
+  // Atlas: single hexagon — structure
+  atlas: (half, s, c) => {
+    const r = s * 0.36;
+    const pts = Array.from({ length: 6 }, (_, i) => {
+      const a = (Math.PI / 3) * i - Math.PI / 2;
+      return `${half + r * Math.cos(a)},${half + r * Math.sin(a)}`;
+    }).join(' ');
+    return <polygon points={pts} stroke={c} strokeWidth={1.2} strokeLinejoin="round" fill="none" />;
+  },
+
+  // Emerging: broken circle — incomplete form
+  emerging: (half, s, c) => {
+    const r = s * 0.32;
+    return (
+      <path
+        d={`M ${half + r} ${half} A ${r} ${r} 0 1 1 ${half} ${half - r}`}
+        stroke={c}
+        strokeWidth={1.2}
         strokeLinecap="round"
+        fill="none"
       />
     );
   },

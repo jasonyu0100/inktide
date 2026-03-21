@@ -13,10 +13,10 @@ const TABS: { label: string; value: Tab }[] = [
   { label: 'Direction', value: 'direction' },
 ];
 
-const OBJECTIVES: { value: AutoObjective; label: string; desc: string; worldBuilding: boolean }[] = [
-  { value: 'resolve_threads', label: 'Resolve Threads', desc: 'Drive all threads toward resolution and bring the story to a satisfying conclusion. No world building.', worldBuilding: false },
-  { value: 'explore_and_resolve', label: 'Explore & Resolve', desc: 'Balance world-building exploration with thread resolution. World building enabled.', worldBuilding: true },
-  { value: 'open_ended', label: 'Open Ended', desc: 'Keep the story evolving with new complications and world expansion, rarely resolving threads.', worldBuilding: true },
+const OBJECTIVES: { value: AutoObjective; label: string; desc: string }[] = [
+  { value: 'resolve_threads', label: 'Resolve Threads', desc: 'Drive all threads toward resolution and bring the story to a satisfying conclusion.' },
+  { value: 'explore_and_resolve', label: 'Explore & Resolve', desc: 'Balance world-building exploration with thread resolution.' },
+  { value: 'open_ended', label: 'Open Ended', desc: 'Keep the story evolving with new complications and world expansion, rarely resolving threads.' },
 ];
 
 
@@ -64,8 +64,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
   }
 
   const noEndConditions = config.endConditions.length === 0;
-  const selectedObjective = OBJECTIVES.find((o) => o.value === config.objective);
-  const worldBuildingEnabled = selectedObjective?.worldBuilding ?? false;
+  const worldBuildingEnabled = config.worldBuildInterval > 0;
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
@@ -210,10 +209,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                         type="radio"
                         name="objective"
                         checked={config.objective === o.value}
-                        onChange={() => update({
-                          objective: o.value,
-                          worldBuildInterval: o.worldBuilding ? (config.worldBuildInterval || 3) : 0,
-                        })}
+                        onChange={() => update({ objective: o.value })}
                         className="accent-yellow-500 mt-0.5"
                       />
                       <div>
@@ -246,67 +242,84 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                 </p>
               </div>
 
-              {/* World building settings — only when objective supports it */}
-              {worldBuildingEnabled && (
-                <div className="border-t border-border pt-4">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-3">
-                    World Building
-                  </label>
+              {/* World building settings */}
+              <div className="border-t border-border pt-4">
+                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-3">
+                  World Building
+                </label>
 
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs text-text-secondary">Expand every</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={config.worldBuildInterval}
-                      onChange={(e) => update({ worldBuildInterval: Math.max(1, Number(e.target.value)) })}
-                      className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-16 outline-none text-center"
-                    />
-                    <span className="text-xs text-text-secondary">arc{config.worldBuildInterval !== 1 ? 's' : ''}</span>
-                  </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none mb-3">
+                  <input
+                    type="checkbox"
+                    checked={worldBuildingEnabled}
+                    onChange={(e) => update({ worldBuildInterval: e.target.checked ? 3 : 0 })}
+                    className="accent-yellow-500"
+                  />
+                  <span className="text-xs text-text-secondary">Enable world building</span>
+                </label>
+                <p className="text-[10px] text-text-dim leading-relaxed ml-6 -mt-2 mb-3">
+                  {worldBuildingEnabled
+                    ? 'New characters, locations, and threads will be periodically introduced.'
+                    : 'Only existing elements are used. Arcs are generated without world expansion.'}
+                </p>
 
-                  <div className="mb-3">
-                    <span className="text-[10px] text-text-dim uppercase tracking-widest block mb-2">Expansion Size</span>
-                    <div className="flex gap-1">
-                      {([
-                        { value: 'small',  label: 'Small',  desc: '1–2 of each',    interval: 2 },
-                        { value: 'medium', label: 'Medium', desc: '3–5 of each',    interval: 3 },
-                        { value: 'large',  label: 'Large',  desc: '8–15 entities',  interval: 6 },
-                      ] as const).map((s) => (
-                        <button
-                          key={s.value}
-                          onClick={() => update({ worldBuildSize: s.value, worldBuildInterval: s.interval })}
-                          title={s.desc}
-                          className={`flex-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors ${
-                            config.worldBuildSize === s.value
-                              ? 'bg-bg-overlay text-text-primary'
-                              : 'text-text-dim hover:text-text-secondary'
-                          }`}
-                        >
-                          {s.label}
-                          <span className="block text-[9px] font-normal opacity-60">{s.desc}</span>
-                        </button>
-                      ))}
+                {worldBuildingEnabled && (
+                  <>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xs text-text-secondary">Expand every</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={config.worldBuildInterval}
+                        onChange={(e) => update({ worldBuildInterval: Math.max(1, Number(e.target.value)) })}
+                        className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-16 outline-none text-center"
+                      />
+                      <span className="text-xs text-text-secondary">arc{config.worldBuildInterval !== 1 ? 's' : ''}</span>
                     </div>
-                  </div>
 
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={config.enforceWorldBuildUsage}
-                      onChange={(e) => update({ enforceWorldBuildUsage: e.target.checked })}
-                      className="accent-yellow-500"
-                    />
-                    <span className="text-xs text-text-secondary">Enforce usage of new elements</span>
-                  </label>
-                  <p className="text-[10px] text-text-dim leading-relaxed ml-6 mt-1">
-                    {config.enforceWorldBuildUsage
-                      ? 'New arcs must incorporate unused world-building characters, locations, or threads.'
-                      : 'New arcs will follow the natural flow of the story using existing elements.'}
-                  </p>
-                </div>
-              )}
+                    <div className="mb-3">
+                      <span className="text-[10px] text-text-dim uppercase tracking-widest block mb-2">Expansion Size</span>
+                      <div className="flex gap-1">
+                        {([
+                          { value: 'small',  label: 'Small',  desc: '1–2 of each',    interval: 2 },
+                          { value: 'medium', label: 'Medium', desc: '3–5 of each',    interval: 3 },
+                          { value: 'large',  label: 'Large',  desc: '8–15 entities',  interval: 6 },
+                        ] as const).map((s) => (
+                          <button
+                            key={s.value}
+                            onClick={() => update({ worldBuildSize: s.value, worldBuildInterval: s.interval })}
+                            title={s.desc}
+                            className={`flex-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors ${
+                              config.worldBuildSize === s.value
+                                ? 'bg-bg-overlay text-text-primary'
+                                : 'text-text-dim hover:text-text-secondary'
+                            }`}
+                          >
+                            {s.label}
+                            <span className="block text-[9px] font-normal opacity-60">{s.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={config.enforceWorldBuildUsage}
+                        onChange={(e) => update({ enforceWorldBuildUsage: e.target.checked })}
+                        className="accent-yellow-500"
+                      />
+                      <span className="text-xs text-text-secondary">Enforce usage of new elements</span>
+                    </label>
+                    <p className="text-[10px] text-text-dim leading-relaxed ml-6 mt-1">
+                      {config.enforceWorldBuildUsage
+                        ? 'New arcs must incorporate unused world-building characters, locations, or threads.'
+                        : 'New arcs will follow the natural flow of the story using existing elements.'}
+                    </p>
+                  </>
+                )}
+              </div>
             </>
           )}
 

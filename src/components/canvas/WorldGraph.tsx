@@ -52,26 +52,26 @@ interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
 
 // ── Helper: compute connected components (groups) ──────────────────────────
 
-function computeGroups(
-  nodes: GraphNode[],
-  links: GraphLink[],
-): GraphNode[][] {
+function computeGroups<N extends d3.SimulationNodeDatum & { id: string }, L extends d3.SimulationLinkDatum<N>>(
+  nodes: N[],
+  links: L[],
+): N[][] {
   const adj = new Map<string, Set<string>>();
   for (const n of nodes) adj.set(n.id, new Set());
   for (const l of links) {
-    const s = typeof l.source === 'string' ? l.source : (l.source as GraphNode).id;
-    const t = typeof l.target === 'string' ? l.target : (l.target as GraphNode).id;
+    const s = typeof l.source === 'string' ? l.source : (l.source as N).id;
+    const t = typeof l.target === 'string' ? l.target : (l.target as N).id;
     adj.get(s)?.add(t);
     adj.get(t)?.add(s);
   }
 
   const visited = new Set<string>();
-  const groups: GraphNode[][] = [];
+  const groups: N[][] = [];
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
   for (const node of nodes) {
     if (visited.has(node.id)) continue;
-    const component: GraphNode[] = [];
+    const component: N[] = [];
     const stack = [node.id];
     while (stack.length) {
       const id = stack.pop()!;
@@ -428,7 +428,9 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
   const [showRelations, setShowRelations] = useState(false);
   const [showTypes, setShowTypes] = useState(true);
   const [showEval, setShowEval] = useState(true);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; concept: string; type: string; degree: number; connections: string[] } | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; concept: string; type: string; degree: number } | null>(null);
+  const [wkGroups, setWkGroups] = useState<WKNode[][]>([]);
+  const [wkFocusedGroupIndex, setWkFocusedGroupIndex] = useState<number | null>(null);
 
   const graphData = useMemo(() => {
     if (mode === 'spark') {
@@ -447,7 +449,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
       }
       return { nodes, edges: wkm.addedEdges ?? [] };
     }
-    return buildCumulativeWorldKnowledge(narrative.scenes, resolvedKeys, currentIndex, undefined, narrative.worldBuilds);
+    return buildCumulativeWorldKnowledge(narrative.scenes, resolvedKeys, currentIndex, narrative.worldKnowledge, narrative.worldBuilds);
   }, [narrative, resolvedKeys, currentIndex, mode]);
 
   // Scene-added node IDs for highlight in nexus mode
@@ -462,19 +464,6 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
     }
     return ids;
   }, [narrative, resolvedKeys, currentIndex, mode]);
-
-  // Adjacency map for tooltips
-  const adjMap = useMemo(() => {
-    const m = new Map<string, string[]>();
-    for (const e of graphData.edges) {
-      const fc = graphData.nodes[e.from]?.concept;
-      const tc = graphData.nodes[e.to]?.concept;
-      if (!fc || !tc) continue;
-      m.set(e.from, [...(m.get(e.from) ?? []), tc]);
-      m.set(e.to, [...(m.get(e.to) ?? []), fc]);
-    }
-    return m;
-  }, [graphData]);
 
   // ── Initial setup: create SVG structure, zoom, glow filters (once) ──
   useEffect(() => {
@@ -604,7 +593,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
       .on('mouseenter', (event, d) => {
         const rect = svgRef.current?.getBoundingClientRect();
         if (!rect) return;
-        setTooltip({ x: event.clientX - rect.left, y: event.clientY - rect.top - 10, concept: d.concept, type: d.type, degree: d.degree, connections: adjMap.get(d.id) ?? [] });
+        setTooltip({ x: event.clientX - rect.left, y: event.clientY - rect.top - 10, concept: d.concept, type: d.type, degree: d.degree });
       })
       .on('mouseleave', () => setTooltip(null))
       .on('click', (_event, d) => {
@@ -673,7 +662,76 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
         .attr('y', (d) => ((d.source as WKNode).y! + (d.target as WKNode).y!) / 2);
     });
     sim.alpha(0.5).restart();
-  }, [graphData, mode, sceneNodeIds, showLabels, showRelations, showTypes, adjMap]);
+
+    // Compute connected groups and reset focus
+    setWkGroups(computeGroups(simNodes, simLinks));
+    setWkFocusedGroupIndex(null);
+  }, [graphData, mode, sceneNodeIds, showLabels, showRelations, showTypes]);
+
+  // ── Zoom to focused group ──
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    const zoom = zoomRef.current;
+    if (!svgEl || !zoom || wkFocusedGroupIndex === null || !wkGroups[wkFocusedGroupIndex]) return;
+
+    const group = wkGroups[wkFocusedGroupIndex];
+    const width = svgEl.clientWidth || 800;
+    const height = svgEl.clientHeight || 600;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of group) {
+      const x = n.x ?? 0;
+      const y = n.y ?? 0;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+
+    const padding = 80;
+    minX -= padding; minY -= padding; maxX += padding; maxY += padding;
+    const bw = maxX - minX;
+    const bh = maxY - minY;
+    const scale = Math.min(width / bw, height / bh, 2);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+
+    const transform = d3.zoomIdentity
+      .translate(width / 2, height / 2)
+      .scale(scale)
+      .translate(-cx, -cy);
+
+    d3.select(svgEl)
+      .transition()
+      .duration(500)
+      .call(zoom.transform as unknown as (t: d3.Transition<SVGSVGElement, unknown, null, undefined>) => void, transform);
+  }, [wkFocusedGroupIndex, wkGroups]);
+
+  const navigateWkGroup = useCallback(
+    (direction: 'next' | 'prev' | 'reset') => {
+      if (wkGroups.length === 0) return;
+      if (direction === 'reset') {
+        setWkFocusedGroupIndex(null);
+        const svgEl = svgRef.current;
+        const zoom = zoomRef.current;
+        if (svgEl && zoom) {
+          const width = svgEl.clientWidth ?? 800;
+          const height = svgEl.clientHeight ?? 600;
+          d3.select(svgEl)
+            .transition()
+            .duration(500)
+            .call(zoom.transform as unknown as (t: d3.Transition<SVGSVGElement, unknown, null, undefined>) => void, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.9));
+        }
+        return;
+      }
+      setWkFocusedGroupIndex((prev) => {
+        if (prev === null) return 0;
+        if (direction === 'next') return (prev + 1) % wkGroups.length;
+        return (prev - 1 + wkGroups.length) % wkGroups.length;
+      });
+    },
+    [wkGroups],
+  );
 
   // Listen for focus-knowledge-node events and zoom to the target
   useEffect(() => {
@@ -738,11 +796,44 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
               </div>
             </div>
             <div className="text-[10px] text-text-secondary">{tooltip.degree} connection{tooltip.degree !== 1 ? 's' : ''}</div>
-            {tooltip.connections.length > 0 && (
-              <div className="text-[10px] text-text-dim mt-0.5">↔ {tooltip.connections.join(', ')}</div>
-            )}
           </div>
           <div className="flex justify-center"><div className="w-2.5 h-2.5 bg-bg-elevated border-r border-b border-border rotate-45 -mt-1.5" /></div>
+        </div>
+      )}
+      {/* Group navigation (bottom-left) */}
+      {wkGroups.length > 1 && (
+        <div className="absolute bottom-4 left-2 z-30 flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
+          <button
+            className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
+            onClick={() => navigateWkGroup('prev')}
+            title="Previous group"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+          <span className="text-text-dim px-0.5 tabular-nums">
+            {wkFocusedGroupIndex !== null
+              ? `${wkFocusedGroupIndex + 1}/${wkGroups.length} (${wkGroups[wkFocusedGroupIndex].length})`
+              : `${wkGroups.length} groups`}
+          </span>
+          <button
+            className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
+            onClick={() => navigateWkGroup('next')}
+            title="Next group"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+          {wkFocusedGroupIndex !== null && (
+            <>
+              <div className="w-px h-3.5 bg-border" />
+              <button
+                className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
+                onClick={() => navigateWkGroup('reset')}
+                title="Reset view"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -1846,7 +1937,7 @@ export default function WorldGraph() {
         />
       )}
       {/* Group navigation (bottom-left) */}
-      {graphViewMode !== 'prose' && groups.length > 1 && (
+      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && groups.length > 1 && (
         <div className="absolute bottom-4 left-2 z-10 flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
           <button
             className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"

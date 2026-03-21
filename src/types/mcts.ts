@@ -138,7 +138,7 @@ export const DEFAULT_MCTS_CONFIG: MCTSConfig = {
   parallelism: 8,
   maxDepth: 5,
   maxNodes: 20,
-  searchMode: 'freedom',
+  searchMode: 'constrained',
   pathStrategy: 'best_score',
   stopMode: 'timer',
   timeLimitSeconds: 60,

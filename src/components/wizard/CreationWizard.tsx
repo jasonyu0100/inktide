@@ -158,31 +158,19 @@ export function CreationWizard() {
       <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
         <div className="glass max-w-2xl w-full rounded-2xl p-6 relative">
           <div className="flex flex-col gap-5">
-            <div>
-              <h2 className="text-sm font-semibold text-text-primary mb-1">
-                {loading ? 'Generating your world...' : 'Generation failed'}
-              </h2>
-              {loading && (
-                <p className="text-[11px] text-text-dim">
-                  Creating characters, locations, threads, relationships, and scenes. This may take a moment.
-                </p>
-              )}
-            </div>
-
-            {loading && (
-              <div className="flex flex-col gap-2">
-                {['Building characters & relationships...', 'Crafting locations & world lore...', 'Weaving narrative threads...', 'Generating opening scenes...'].map((label, i) => (
-                  <div key={label} className="flex items-center gap-2">
-                    <div className="h-1.5 flex-1 bg-white/6 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-white/20 rounded-full animate-pulse"
-                        style={{ width: '60%', animationDelay: `${i * 0.3}s` }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-text-dim w-48 shrink-0">{label}</span>
-                  </div>
-                ))}
+            {loading ? (
+              <div className="flex flex-col gap-4">
+                <h2 className="text-sm font-semibold text-text-primary">Generating world&hellip;</h2>
+                <div className="flex flex-col gap-3">
+                  <div className="h-3 w-3/4 bg-white/6 rounded animate-pulse" />
+                  <div className="h-3 w-1/2 bg-white/6 rounded animate-pulse" />
+                  <div className="h-3 w-5/6 bg-white/6 rounded animate-pulse" />
+                  <div className="h-3 w-2/3 bg-white/6 rounded animate-pulse" />
+                  <div className="h-3 w-3/5 bg-white/6 rounded animate-pulse" />
+                </div>
               </div>
+            ) : (
+              <h2 className="text-sm font-semibold text-text-primary">Generation failed</h2>
             )}
 
             {error && (

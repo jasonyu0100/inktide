@@ -1286,18 +1286,18 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                 <div>
                   <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Strategy</label>
                   <div className="flex flex-col gap-1.5">
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.searchMode === 'freedom' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="searchMode" checked={config.searchMode === 'freedom'} onChange={() => setConfig((c) => ({ ...c, searchMode: 'freedom', branchingFactor: DEFAULT_BRANCHING[c.directionMode] }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Freedom</div>
-                        <div className="text-[9px] text-text-dim">Dynamic allocation. UCB1 decides which branches to grow — promising paths get more children, dead ends are abandoned. Tree shape is organic.</div>
-                      </div>
-                    </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.searchMode === 'constrained' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
                       <input type="radio" name="searchMode" checked={config.searchMode === 'constrained'} onChange={() => setConfig((c) => ({ ...c, searchMode: 'constrained', branchingFactor: DEFAULT_BRANCHING[c.directionMode] }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Constrained</div>
                         <div className="text-[9px] text-text-dim">Complete tree. Every node at each depth gets exactly {config.directionMode === 'delivery' ? '4' : '8'} children ({config.directionMode === 'delivery' ? 'all delivery directions' : 'all cube corners'}) before going deeper. Generates {(() => { let total = 0; const bf = DEFAULT_BRANCHING[config.directionMode]; for (let d = 0; d < config.maxDepth; d++) total += Math.pow(bf, d + 1); return total; })()} total arcs for a {DEFAULT_BRANCHING[config.directionMode]}×{config.maxDepth} tree.</div>
+                      </div>
+                    </label>
+                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.searchMode === 'freedom' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                      <input type="radio" name="searchMode" checked={config.searchMode === 'freedom'} onChange={() => setConfig((c) => ({ ...c, searchMode: 'freedom', branchingFactor: DEFAULT_BRANCHING[c.directionMode] }))} className="accent-blue-500 mt-0.5" />
+                      <div>
+                        <div className="text-xs text-text-primary font-medium">Freedom</div>
+                        <div className="text-[9px] text-text-dim">Dynamic allocation. UCB1 decides which branches to grow — promising paths get more children, dead ends are abandoned. Tree shape is organic.</div>
                       </div>
                     </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.searchMode === 'baseline' ? 'bg-white/8' : 'hover:bg-white/4'}`}>

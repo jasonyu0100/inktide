@@ -59,7 +59,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
   const knowledgeGains = scene.continuityMutations?.filter((km) => km.action === 'added') ?? [];
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col h-full justify-center px-12 py-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-1">
         <div className={`w-3 h-3 rounded-full ${isPeak ? 'bg-amber-400' : 'bg-blue-400'}`} />
@@ -83,7 +83,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
       )}
 
       {/* Main grid */}
-      <div className="flex-1 grid grid-cols-5 gap-8 min-h-0">
+      <div className="grid grid-cols-5 gap-8 min-h-0">
         {/* Col 1-2: Scene details */}
         <div className="col-span-2 flex flex-col gap-5">
           {/* POV & Location */}

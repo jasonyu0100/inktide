@@ -1313,22 +1313,44 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
 
                   {/* Parallelism */}
                   <div className="mb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-text-secondary">Parallel workers</span>
-                      <span className="text-xs font-mono text-text-primary">{config.parallelism}</span>
+                    <span className="text-[10px] text-text-secondary block mb-1.5">Parallel workers</span>
+                    <div className="flex gap-1.5">
+                      {[1, 2, 4, 6, 8, 10, 12].map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => setConfig((c) => ({ ...c, parallelism: v }))}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-mono transition-colors ${
+                            config.parallelism === v
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                              : 'bg-white/4 text-text-dim hover:bg-white/8 border border-transparent'
+                          }`}
+                        >
+                          {v}
+                        </button>
+                      ))}
                     </div>
-                    <input type="range" min={1} max={8} step={1} value={config.parallelism} onChange={(e) => { const v = Number(e.target.value); setConfig((c) => ({ ...c, parallelism: v, branchingFactor: v })); }} className="w-full accent-blue-500" />
-                    <p className="text-[9px] text-text-dim mt-0.5">How many {config.moveType === 'scene' ? 'scenes' : 'arcs'} are generated simultaneously.</p>
+                    <p className="text-[9px] text-text-dim mt-1.5">How many {config.moveType === 'scene' ? 'scenes' : 'arcs'} are generated simultaneously.</p>
                   </div>
 
                   {/* Branching factor */}
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-text-secondary">Branching factor</span>
-                      <span className="text-xs font-mono text-text-primary">{config.branchingFactor}</span>
+                    <span className="text-[10px] text-text-secondary block mb-1.5">Branching factor</span>
+                    <div className="flex gap-1.5">
+                      {[1, 2, 4, 6, 8].map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => setConfig((c) => ({ ...c, branchingFactor: v }))}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-mono transition-colors ${
+                            config.branchingFactor === v
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                              : 'bg-white/4 text-text-dim hover:bg-white/8 border border-transparent'
+                          }`}
+                        >
+                          {v}
+                        </button>
+                      ))}
                     </div>
-                    <input type="range" min={1} max={8} step={1} value={config.branchingFactor} onChange={(e) => setConfig((c) => ({ ...c, branchingFactor: Number(e.target.value) }))} className="w-full accent-blue-500" />
-                    <p className="text-[9px] text-text-dim mt-0.5">Max children per node. Default is {DEFAULT_BRANCHING[config.directionMode]} ({config.directionMode === 'cube' ? '8 cube corners' : '4 delivery directions'}). Lower values force deeper exploration; higher values explore more alternatives at each step.</p>
+                    <p className="text-[9px] text-text-dim mt-1.5">Max children per node. Lower values force deeper exploration.</p>
                   </div>
 
                 </div>

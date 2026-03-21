@@ -111,7 +111,7 @@ export function ShapeSlide({ data }: { data: SlidesData }) {
   }, [data]);
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col justify-center h-full px-12 py-8">
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-text-primary mb-2">The Delivery of This Story</h2>
@@ -129,7 +129,7 @@ export function ShapeSlide({ data }: { data: SlidesData }) {
         </p>
       </div>
 
-      <div className="flex-1 flex flex-col justify-center">
+      <div className="flex flex-col justify-center">
         <svg ref={svgRef} className="w-full" style={{ height: 280 }} />
       </div>
 

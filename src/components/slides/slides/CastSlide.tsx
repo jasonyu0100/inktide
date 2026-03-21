@@ -7,13 +7,13 @@ export function CastSlide({ data }: { data: SlidesData }) {
   const maxCount = data.topCharacters[0]?.sceneCount ?? 1;
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col justify-center h-full px-12 py-8">
       <h2 className="text-2xl font-bold text-text-primary mb-2">Cast & Stage</h2>
       <p className="text-sm text-text-secondary mb-8">
         Top characters by scene participation and most-visited locations.
       </p>
 
-      <div className="flex-1 grid grid-cols-2 gap-10">
+      <div className="grid grid-cols-2 gap-10">
         {/* Characters */}
         <div>
           <h3 className="text-xs uppercase tracking-widest text-text-dim mb-4">Characters</h3>

@@ -10,13 +10,13 @@ export function CubeHeatmapSlide({ data }: { data: SlidesData }) {
   const maxCount = Math.max(...Object.values(data.cubeDistribution), 1);
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col justify-center h-full px-12 py-8">
       <h2 className="text-2xl font-bold text-text-primary mb-2">Narrative Cube</h2>
       <p className="text-sm text-text-secondary mb-6">
         Distribution of scenes across the 8 narrative archetypes. Heat shows frequency.
       </p>
 
-      <div className="flex-1 flex gap-10">
+      <div className="flex gap-10">
         {/* Heatmap grid */}
         <div className="grid grid-cols-4 gap-3 self-start">
           {CORNER_ORDER.map((key) => {

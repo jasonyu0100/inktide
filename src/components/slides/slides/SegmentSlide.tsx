@@ -139,7 +139,7 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
   }, [data, segment]);
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col justify-center h-full px-12 py-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-1">
         <h2 className="text-2xl font-bold text-text-primary">Segment {segment.index + 1}</h2>
@@ -171,7 +171,7 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
       </div>
 
       {/* Bottom: Force profile + Thread summary */}
-      <div className="flex-1 grid grid-cols-2 gap-8 min-h-0">
+      <div className="grid grid-cols-2 gap-8 min-h-0">
         {/* Force profile */}
         <div>
           <div className="text-[9px] uppercase tracking-widest text-text-dim mb-3">Force Profile</div>

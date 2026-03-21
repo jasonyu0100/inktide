@@ -235,25 +235,20 @@ function computeRawPayoff(scene: Scene): number {
   return score;
 }
 
-/**
- * Compute raw change for a scene — mutation reach across affected characters (includes events).
- *
- * Counts all mutations (knowledge, relationship, thread) per character, then
- * sums log₂(1 + count) across all affected characters. This naturally captures
- * both breadth (how many characters changed) and depth (how much each changed)
- * with diminishing returns — one character with 8 mutations ≈ three with 1 each.
- */
+/** Raw change: mutation reach across affected characters.
+ *  C = Σ_c log₂(1 + m_c) where m_c = continuity + relationship (|Δv| weighted) + event mutations per character.
+ *  Rewards breadth (many characters affected) over depth (many mutations on one). */
 function rawChange(scene: Scene): number {
   const charMutations: Record<string, number> = {};
-  for (const km of scene.continuityMutations) {
-    charMutations[km.characterId] = (charMutations[km.characterId] ?? 0) + 1;
+  for (const cm of scene.continuityMutations) {
+    charMutations[cm.characterId] = (charMutations[cm.characterId] ?? 0) + 1;
   }
   for (const rm of scene.relationshipMutations) {
     const weight = Math.abs(rm.valenceDelta) || 0.25;
     charMutations[rm.from] = (charMutations[rm.from] ?? 0) + weight;
     charMutations[rm.to] = (charMutations[rm.to] ?? 0) + weight;
   }
-  for (const _tm of scene.threadMutations) {
+  for (const _ev of scene.events) {
     charMutations[scene.povId] = (charMutations[scene.povId] ?? 0) + 1;
   }
   return Object.values(charMutations).reduce(

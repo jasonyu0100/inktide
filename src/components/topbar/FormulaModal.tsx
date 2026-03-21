@@ -53,18 +53,19 @@ function ForcesTab() {
       </S>
 
       <S title="Change" analogy="How many lives were touched? A scene where five characters learn something new ripples wider than one where a single character reflects alone.">
-        <Block tex="C = \sum_{c \,\in\, \text{cast}} \log_2(1 + m_c)" />
+        <Block tex={String.raw`C = \sum_{c \,\in\, \text{cast}} \log_2(1 + m_c)`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'m_c'}</Tex>: continuity (1 each) + relationship (<Tex>{'|\\Delta v|'}</Tex> each) + thread (1 each).
-          Log scale: diminishing returns per character, rewards breadth.
+          <Tex>{'m_c'}</Tex>: continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) + event mutations per character.
+          Log scale gives diminishing returns per character, rewarding breadth — a scene that ripples across many lives scores higher than one focused on a single character.
         </p>
       </S>
 
-      <S title="Knowledge" analogy="Is the world growing richer? New concepts matter more than new links.">
+      <S title="Knowledge" analogy="Is the world growing richer? A scene that reveals a new law of magic expands the world more than one that links two known rules.">
         <Block tex={String.raw`K = \Delta N + \tfrac{1}{2}\,\Delta E`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`\Delta N`}</Tex>: new world concepts (weight 1). <Tex>{String.raw`\Delta E`}</Tex>: new connections (weight ½).
-          New concepts matter more than new links — a fresh idea outweighs a connection between known ones.
+          <Tex>{String.raw`\Delta N`}</Tex>: new world-building nodes — laws, systems, concepts, or tensions revealed in a scene.{' '}
+          <Tex>{String.raw`\Delta E`}</Tex>: new relationships between those nodes (weight ½).
+          Introducing a fresh idea outweighs connecting known ones.
         </p>
       </S>
     </div>
@@ -86,8 +87,8 @@ function DynamicsTab() {
       </S>
 
       <S title="Delivery" analogy="The dopamine hit — payoff-weighted presence with a bonus for earned resolution. Scenes that release built-up tension hit hardest.">
-        <Block tex={String.raw`E_i = 0.5\,z_i^P + 0.25\,z_i^C + 0.25\,z_i^K + \alpha \cdot \text{contrast}_i`} />
-        <Block tex={String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i), \qquad \alpha = 0.3`} />
+        <Block tex={String.raw`E_i = 0.5\,z_i^P + 0.25\,z_i^C + 0.25\,z_i^K + 0.3 \cdot \text{contrast}_i`} />
+        <Block tex={String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i)`} />
         <p className="text-[10px] text-text-dim">
           Payoff weighted 2&times; because resolution drives satisfaction. The contrast bonus rewards tension-release: a payoff after sustained buildup scores higher than the same payoff in isolation. Gaussian-smoothed (&sigma;=1.5) for display.
         </p>

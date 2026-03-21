@@ -30,7 +30,7 @@ export function TitleSlide({ data }: { data: SlidesData }) {
       <div className={`flex items-center gap-10 relative ${data.coverImageUrl ? '' : 'flex-col text-center'}`}>
         {/* Cover image */}
         {data.coverImageUrl && (
-          <div className="w-56 shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+          <div className="w-72 shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
             <img src={data.coverImageUrl} alt="" className="w-full aspect-3/4 object-cover" />
           </div>
         )}

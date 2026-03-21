@@ -112,13 +112,13 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
   };
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col justify-center h-full px-12 py-8">
       <h2 className="text-2xl font-bold text-text-primary mb-2">Forces At Play</h2>
       <p className="text-sm text-text-secondary mb-6">
         Four narrative forces graded against literary reference benchmarks.
       </p>
 
-      <div className="flex-1 flex items-center gap-12">
+      <div className="flex items-center gap-12">
         {/* Radar chart */}
         <div className="shrink-0">
           <svg ref={svgRef} className="w-60 h-60" />

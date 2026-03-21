@@ -20,11 +20,11 @@ export const METHODOLOGY_PAGES = 3;
 
 function ForcesPage({ data }: { data: SlidesData }) {
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col h-full px-12 py-8 text-center">
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-text-dim mb-1 font-mono">Methodology · 1 of {METHODOLOGY_PAGES}</div>
         <h2 className="text-2xl font-bold text-text-primary mb-1">The Three Narrative Forces</h2>
-        <p className="text-xs text-text-dim max-w-2xl">
+        <p className="text-xs text-text-dim">
           Every scene is measured by three independent forces computed directly from structural mutations in the knowledge graph.
         </p>
       </div>
@@ -51,7 +51,7 @@ function ForcesPage({ data }: { data: SlidesData }) {
           <span className="text-[10px] text-text-dim mb-3">How many lives were touched?</span>
           <Tex display>{String.raw`C = \sum_{c \,\in\, \text{cast}} \log_2(1 + m_c)`}</Tex>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            <Tex>{'m_c'}</Tex> = continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) + thread mutations per character. Log scale rewards breadth over depth.
+            <Tex>{'m_c'}</Tex> = continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) + event mutations per character. Log scale gives diminishing returns per character, rewarding breadth — a scene that ripples across many lives scores higher than one focused on a single character.
           </p>
         </div>
 
@@ -63,7 +63,8 @@ function ForcesPage({ data }: { data: SlidesData }) {
           <span className="text-[10px] text-text-dim mb-3">Is the world growing richer?</span>
           <Tex display>{String.raw`K = \Delta N + \tfrac{1}{2}\,\Delta E`}</Tex>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            <Tex>{String.raw`\Delta N`}</Tex> = new concepts (weight 1). <Tex>{String.raw`\Delta E`}</Tex> = new connections (weight &frac12;). The knowledge graph persists — early concepts compound later.
+            <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes — laws, systems, concepts, or tensions revealed in a scene.{' '}
+            <Tex>{String.raw`\Delta E`}</Tex> = new relationships between those nodes (weight &frac12;). Introducing a fresh idea outweighs connecting known ones.
           </p>
         </div>
       </div>
@@ -75,11 +76,11 @@ function ForcesPage({ data }: { data: SlidesData }) {
 
 function DeliveryShapeSwingPage({ data }: { data: SlidesData }) {
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col h-full px-12 py-8 text-center">
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-text-dim mb-1 font-mono">Methodology · 2 of {METHODOLOGY_PAGES}</div>
         <h2 className="text-2xl font-bold text-text-primary mb-1">Tension, Delivery & Shape</h2>
-        <p className="text-xs text-text-dim max-w-2xl">
+        <p className="text-xs text-text-dim">
           The three forces combine into tension and delivery — the buildup-release cycle that drives narrative dopamine.
         </p>
       </div>
@@ -102,8 +103,8 @@ function DeliveryShapeSwingPage({ data }: { data: SlidesData }) {
           <span className="text-sm font-semibold text-text-primary mb-1">Delivery</span>
           <span className="text-[10px] text-text-dim mb-3">How hard does the scene hit?</span>
           <div className="space-y-1">
-            <Tex display>{String.raw`E_i = 0.5\,z_i^P + 0.25\,z_i^C + 0.25\,z_i^K + \alpha \cdot \text{contrast}_i`}</Tex>
-            <Tex display>{String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i), \qquad \alpha = 0.3`}</Tex>
+            <Tex display>{String.raw`E_i = 0.5\,z_i^P + 0.25\,z_i^C + 0.25\,z_i^K + 0.3 \cdot \text{contrast}_i`}</Tex>
+            <Tex display>{String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i)`}</Tex>
           </div>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
             Payoff weighted 2&times; because resolution drives satisfaction. The contrast bonus rewards tension-release patterns — a payoff after sustained buildup scores higher than the same payoff in isolation.
@@ -136,11 +137,11 @@ function GradingPage({ data }: { data: SlidesData }) {
   const avgK = n > 0 ? data.rawForces.knowledge.reduce((s, v) => s + v, 0) / n : 0;
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col h-full px-12 py-8 text-center">
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-text-dim mb-1 font-mono">Methodology · 3 of {METHODOLOGY_PAGES}</div>
         <h2 className="text-2xl font-bold text-text-primary mb-1">Grading</h2>
-        <p className="text-xs text-text-dim max-w-2xl">
+        <p className="text-xs text-text-dim">
           Scores are calibrated against literary reference works so that Harry Potter, The Great Gatsby, and Crime &amp; Punishment land at 88–93 overall.
         </p>
       </div>

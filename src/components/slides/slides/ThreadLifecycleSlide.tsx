@@ -67,7 +67,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
     .slice(0, 10);
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col h-full px-12 py-8 justify-center">
       <div className="flex items-center gap-3 mb-1">
         <h2 className="text-2xl font-bold text-text-primary">Thread Lifecycle</h2>
         <span className="text-xs text-text-dim font-mono">Top {ranked.length} by transitions</span>
@@ -76,7 +76,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
         Each thread&apos;s lifecycle from first to last mention. Bright lines mark phase transitions, subtle ticks show pulses.
       </p>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="overflow-y-auto">
         <div className="space-y-1">
           {ranked.map(({ thread, transitions, pulseScenes, segments, endStatus, firstScene, lastScene }) => {
             const range = Math.max(lastScene - firstScene, 1);

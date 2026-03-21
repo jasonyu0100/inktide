@@ -14,7 +14,7 @@ export function TroughSlide({ data, trough, rank }: { data: SlidesData; trough: 
   const maxForce = Math.max(...forces.map((f) => Math.abs(trough.forces[f])), 0.5);
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col justify-center h-full px-12 py-8">
       <div className="flex items-center gap-4 mb-2">
         <h2 className="text-2xl font-bold text-blue-300">Valley #{rank}</h2>
         <span className="text-sm text-text-dim font-mono">Scene {trough.sceneIdx + 1}</span>
@@ -24,7 +24,7 @@ export function TroughSlide({ data, trough, rank }: { data: SlidesData; trough: 
       </div>
       <p className="text-xs text-text-dim mb-6">{trough.cubeCorner.description}</p>
 
-      <div className="flex-1 grid grid-cols-2 gap-10">
+      <div className="grid grid-cols-2 gap-10">
         <div className="flex flex-col gap-6">
           {/* Force bars */}
           <div>

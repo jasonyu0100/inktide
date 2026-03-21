@@ -83,7 +83,7 @@ export function SwingAnalysisSlide({ data }: { data: SlidesData }) {
       ? 'Erratic' : 'Varied';
 
   return (
-    <div className="flex flex-col h-full px-12 py-8">
+    <div className="flex flex-col justify-center h-full px-12 py-8">
       <h2 className="text-2xl font-bold text-text-primary mb-2">Swing Analysis</h2>
       <p className="text-sm text-text-secondary mb-4">
         Scene-to-scene volatility in force space — high swing means dramatic shifts between consecutive scenes.

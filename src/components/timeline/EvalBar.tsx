@@ -7,8 +7,8 @@ import { computeForceSnapshots, computeDeliveryCurve } from '@/lib/narrative-uti
 
 /**
  * Floating vertical evaluation bar for narrative Delivery.
- * White fill from bottom encodes delivery magnitude.
- * Spring animation on scene change.
+ * Grows from center: teal gradient fills upward for positive, rose gradient fills downward for negative.
+ * The gradient deepens toward the extremes. Spring animation on scene change.
  */
 export default function EvalBar() {
   const { state } = useStore();
@@ -40,11 +40,11 @@ export default function EvalBar() {
     return deliveryCurve[sceneIdx];
   }, [narrative, allScenes, deliveryCurve, currentSceneIndex, resolvedSceneKeys]);
 
-  // Sigmoid: delivery z-score → 0..100%
+  // Sigmoid: delivery z-score → 0..100% (50% = zero delivery)
   const targetPct = useMemo(() => {
     if (!currentDelivery) return 50;
     const d = currentDelivery.smoothed;
-    return 100 / (1 + Math.exp(-d * 1.2));
+    return 100 / (1 + Math.exp(-d * 3.0));
   }, [currentDelivery]);
 
   // Spring animation
@@ -86,11 +86,23 @@ export default function EvalBar() {
     return () => cancelAnimationFrame(animFrame.current);
   }, [targetPct]);
 
+  const isPositive = displayPct >= 50;
+  const extent = Math.abs(displayPct - 50); // 0-50% how far from center
   const displayValue = currentDelivery
     ? (currentDelivery.smoothed >= 0 ? '+' : '') + currentDelivery.smoothed.toFixed(1)
     : '—';
 
   const tag = currentDelivery?.isPeak ? 'PEAK' : currentDelivery?.isValley ? 'VALLEY' : null;
+
+  // Fill grows from center: positive upward, negative downward
+  // Gradient deepens from center (subtle) to edge (saturated)
+  const fillStyle = isPositive
+    ? { bottom: '50%', height: `${extent}%` }
+    : { top: '50%', height: `${extent}%` };
+
+  const fillGradient = isPositive
+    ? 'linear-gradient(to top, rgba(45, 212, 191, 0.08), rgba(45, 212, 191, 0.55))'
+    : 'linear-gradient(to bottom, rgba(251, 113, 133, 0.08), rgba(251, 113, 133, 0.55))';
 
   return (
     <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20 select-none"
@@ -100,23 +112,13 @@ export default function EvalBar() {
       {/* Bar track */}
       <div className="w-4 h-full rounded-full overflow-hidden shadow-lg">
         <div className="relative w-full h-full bg-neutral-900/80 backdrop-blur-sm">
-          {/* White fill from bottom */}
+          {/* Growing fill from center */}
           <div
-            className="absolute inset-x-0 bottom-0 bg-white"
-            style={{ height: `${displayPct}%` }}
+            className="absolute inset-x-0"
+            style={{ ...fillStyle, background: fillGradient }}
           />
-          {/* Shimmer during calibration */}
-          {calibrating && (
-            <div
-              className="absolute inset-x-0 h-4 animate-pulse"
-              style={{
-                bottom: `calc(${displayPct}% - 8px)`,
-                background: 'linear-gradient(to top, transparent, rgba(255,255,255,0.4), transparent)',
-              }}
-            />
-          )}
           {/* Center tick (zero line) */}
-          <div className="absolute inset-x-0 top-1/2 h-px bg-white/20" />
+          <div className="absolute inset-x-0 top-1/2 h-px bg-white/10" />
         </div>
       </div>
 
@@ -125,11 +127,15 @@ export default function EvalBar() {
         className="absolute left-full pointer-events-none"
         style={{ bottom: `${displayPct}%`, transform: 'translateY(50%)' }}
       >
-        <span className={`ml-1.5 text-[10px] font-mono font-semibold whitespace-nowrap drop-shadow-md ${calibrating ? 'text-white/40' : 'text-white/80'}`}>
+        <span className={`ml-1.5 text-[10px] font-mono font-semibold whitespace-nowrap drop-shadow-md ${
+          calibrating ? 'text-white/40' : isPositive ? 'text-teal-400/80' : 'text-rose-400/80'
+        }`}>
           {displayValue}
         </span>
         {tag && (
-          <span className="ml-1 text-[9px] font-bold text-white/60 drop-shadow-md">
+          <span className={`ml-1 text-[9px] font-bold drop-shadow-md ${
+            isPositive ? 'text-teal-400/60' : 'text-rose-400/60'
+          }`}>
             {tag}
           </span>
         )}

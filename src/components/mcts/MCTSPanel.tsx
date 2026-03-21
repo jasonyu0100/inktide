@@ -73,17 +73,18 @@ const POSITION_COLORS: Record<string, string> = {
 
 // ── Tree constants ───────────────────────────────────────────────────────────
 
-const NODE_H = 28;         // row height in px
+const NODE_H = 44;         // row height in px (accommodates direction vector on second line)
+const PENDING_H = 28;      // pending expansion row height (single line)
 const INDENT = 24;          // horizontal indent per depth level
 const DOT_R = 4;            // node dot radius
 const LINE_PAD_LEFT = 14;   // left padding to center of first dot
 
-/** Count visible descendant nodes (for SVG sizing), including pending expansions */
-function countVisible(node: MCTSNode, tree: MCTSTree, collapsedSet: Set<MCTSNodeId>, pendingMap?: Map<MCTSNodeId | 'root', PendingExpansion[]>): number {
-  if (collapsedSet.has(node.id)) return 1;
+/** Total visible pixel height for a node and its descendants, including pending expansions */
+function countVisiblePx(node: MCTSNode, tree: MCTSTree, collapsedSet: Set<MCTSNodeId>, pendingMap?: Map<MCTSNodeId | 'root', PendingExpansion[]>): number {
+  if (collapsedSet.has(node.id)) return NODE_H;
   const children = node.childIds.map((id) => tree.nodes[id]).filter(Boolean);
   const pendingCount = pendingMap?.get(node.id)?.length ?? 0;
-  return 1 + children.reduce((sum, c) => sum + countVisible(c, tree, collapsedSet, pendingMap), 0) + pendingCount;
+  return NODE_H + children.reduce((sum, c) => sum + countVisiblePx(c, tree, collapsedSet, pendingMap), 0) + pendingCount * PENDING_H;
 }
 
 // ── Tree Node (recursive with SVG connectors) ───────────────────────────────
@@ -153,18 +154,20 @@ function TreeNode({
     : isBest ? 'rgba(34,197,94,0.5)'
     : 'rgba(255,255,255,0.15)';
 
+  const thisH = NODE_H;
   const x = LINE_PAD_LEFT + depth * INDENT;
-  const cy = yOffset * NODE_H + NODE_H / 2;
+  const cy = yOffset + thisH / 2;
 
   // Build child rows + SVG lines
-  let childOffset = yOffset + 1;
+  let childOffset = yOffset + thisH;
   const childElements: React.ReactNode[] = [];
   const svgLines: React.ReactNode[] = [];
 
   if (hasChildren && !isCollapsed) {
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
-      const childCy = childOffset * NODE_H + NODE_H / 2;
+      const childH = NODE_H;
+      const childCy = childOffset + childH / 2;
       const childX = LINE_PAD_LEFT + (depth + 1) * INDENT;
       const childIsBest = bestSet.has(child.id);
       const childIsSelected = selectedSet.has(child.id);
@@ -182,7 +185,7 @@ function TreeNode({
         </g>,
       );
 
-      const childVisibleCount = countVisible(child, tree, collapsedSet, pendingMap);
+      const childVisiblePx = countVisiblePx(child, tree, collapsedSet, pendingMap);
       childElements.push(
         <TreeNode
           key={child.id}
@@ -202,7 +205,7 @@ function TreeNode({
           sortMode={sortMode}
         />,
       );
-      childOffset += childVisibleCount;
+      childOffset += childVisiblePx;
     }
   }
 
@@ -210,7 +213,7 @@ function TreeNode({
   const pendingElements: React.ReactNode[] = [];
   if (!isCollapsed && pendingForNode.length > 0) {
     for (const pending of pendingForNode) {
-      const pendCy = childOffset * NODE_H + NODE_H / 2;
+      const pendCy = childOffset + PENDING_H / 2;
       const pendX = LINE_PAD_LEFT + (depth + 1) * INDENT;
       svgLines.push(
         <g key={`line-pending-${pending.id}`}>
@@ -221,7 +224,7 @@ function TreeNode({
       pendingElements.push(
         <React.Fragment key={`pending-${pending.id}`}>
           <circle cx={pendX} cy={pendCy} r={DOT_R} fill="rgba(245,158,11,0.5)" className="animate-pulse" />
-          <foreignObject x={pendX + DOT_R + 6} y={childOffset * NODE_H} width={`calc(100% - ${pendX + DOT_R + 6}px)`} height={NODE_H}>
+          <foreignObject x={pendX + DOT_R + 6} y={childOffset} width={`calc(100% - ${pendX + DOT_R + 6}px)`} height={PENDING_H}>
             <button
               onClick={() => onSelectPending(pending.id)}
               className="flex items-center gap-1.5 w-full h-full text-left px-1.5 pr-2 rounded transition-colors hover:bg-amber-500/8"
@@ -267,7 +270,7 @@ function TreeNode({
           </foreignObject>
         </React.Fragment>,
       );
-      childOffset++;
+      childOffset += PENDING_H;
     }
   }
 
@@ -290,74 +293,83 @@ function TreeNode({
       )}
 
       {/* HTML overlay: score + arc name (positioned absolutely in the foreignObject) */}
-      <foreignObject x={x + DOT_R + 6} y={yOffset * NODE_H} width={`calc(100% - ${x + DOT_R + 6}px)`} height={NODE_H}>
+      <foreignObject x={x + DOT_R + 6} y={yOffset} width={`calc(100% - ${x + DOT_R + 6}px)`} height={thisH}>
         <button
           onClick={() => onSelect(node.id)}
-          className={`flex items-center gap-1.5 w-full h-full text-left px-1.5 pr-2 rounded transition-colors group ${
+          className={`flex flex-col justify-center w-full h-full text-left px-1.5 pr-2 rounded transition-colors group ${
             isInspected ? 'bg-blue-500/15' : isSelected ? 'bg-blue-500/8' : isBest ? 'bg-green-500/5' : 'hover:bg-white/3'
           }`}
         >
-          {/* Direction indicator — fixed width so score column stays aligned */}
-          <span className="w-7 shrink-0 flex items-center justify-center">
-            {node.cubeGoal && (
-              <span className="font-mono text-[9px] font-bold tracking-tight text-white">
-                {node.cubeGoal.split('').map((c, i) => (
-                  <span key={i} style={{ opacity: c === 'H' ? 0.9 : 0.25 }}>{c}</span>
-                ))}
-              </span>
+          {/* Row 1: score + arc name + meta */}
+          <span className="flex items-center gap-1.5 w-full">
+            {/* Direction indicator — fixed width so score column stays aligned */}
+            <span className="w-7 shrink-0 flex items-center justify-center">
+              {node.cubeGoal && (
+                <span className="font-mono text-[9px] font-bold tracking-tight text-white">
+                  {node.cubeGoal.split('').map((c, i) => (
+                    <span key={i} style={{ opacity: c === 'H' ? 0.9 : 0.25 }}>{c}</span>
+                  ))}
+                </span>
+              )}
+              {node.deliveryGoal && (() => {
+                const strokeColor = node.deliveryGoal === 'escalate' ? '#22C55E'
+                  : node.deliveryGoal === 'release' ? '#3B82F6'
+                  : node.deliveryGoal === 'surge' ? '#F59E0B'
+                  : '#A855F7';
+                const points = node.deliveryGoal === 'escalate' ? '0,8 16,2'
+                  : node.deliveryGoal === 'release' ? '0,2 16,8'
+                  : node.deliveryGoal === 'surge' ? '0,8 6,2 12,8'
+                  : '0,2 6,8 12,2';
+                return (
+                  <svg width="16" height="10" viewBox="0 0 16 10">
+                    <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                );
+              })()}
+            </span>
+            <span className={`font-mono text-[12px] font-bold w-7 text-right shrink-0 ${scoreColorClass(sc)}`}>{sc}</span>
+            <span className={`text-[11px] truncate flex-1 ${
+              isInspected ? 'text-blue-300 font-medium' : isSelected ? 'text-blue-300' : isBest ? 'text-green-300' : 'text-text-primary'
+            }`}>
+              {node.arc.name}
+            </span>
+            {/* Move type label — fixed width for alignment */}
+            <span className="w-16 text-right text-[9px] text-text-dim shrink-0">
+              {node.cubeGoal ? NARRATIVE_CUBE[node.cubeGoal]?.name : ''}
+              {node.deliveryGoal ? DELIVERY_DIRECTIONS[node.deliveryGoal]?.name : ''}
+            </span>
+            {/* Arc progress: scene count — fixed width for alignment */}
+            <span className="w-5 text-right text-[9px] text-text-dim shrink-0">{node.scenes.length}s</span>
+            {/* Sparkline — fixed narrow container for alignment */}
+            <span className="w-10 shrink-0 flex items-center justify-end">
+              {spark.points.length > 1 && (() => {
+                const W = 36;
+                return (
+                  <svg width={W} height="14" viewBox={`0 0 ${W} 14`}>
+                    <polyline
+                      points={spark.points.map((v, i) => `${(i / (spark.points.length - 1)) * W},${14 - v * 12}`).join(' ')}
+                      fill="none"
+                      stroke="#F59E0B"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                );
+              })()}
+            </span>
+            <span className="w-4 text-[9px] text-text-dim shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-right">
+              {node.visitCount > 1 ? `${node.visitCount}v` : ''}
+            </span>
+            {isCollapsed && (hasChildren || pendingForNode.length > 0) && (
+              <span className="text-[9px] text-text-dim/50 shrink-0">+{children.length + pendingForNode.length}</span>
             )}
-            {node.deliveryGoal && (() => {
-              const strokeColor = node.deliveryGoal === 'escalate' ? '#22C55E'
-                : node.deliveryGoal === 'release' ? '#3B82F6'
-                : node.deliveryGoal === 'surge' ? '#F59E0B'
-                : '#A855F7';
-              const points = node.deliveryGoal === 'escalate' ? '0,8 16,2'
-                : node.deliveryGoal === 'release' ? '0,2 16,8'
-                : node.deliveryGoal === 'surge' ? '0,8 6,2 12,8'
-                : '0,2 6,8 12,2';
-              return (
-                <svg width="16" height="10" viewBox="0 0 16 10">
-                  <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              );
-            })()}
           </span>
-          <span className={`font-mono text-[12px] font-bold w-7 text-right shrink-0 ${scoreColorClass(sc)}`}>{sc}</span>
-          <span className={`text-[11px] truncate flex-1 ${
-            isInspected ? 'text-blue-300 font-medium' : isSelected ? 'text-blue-300' : isBest ? 'text-green-300' : 'text-text-primary'
-          }`}>
-            {node.arc.name}
-          </span>
-          {/* Move type label — fixed width for alignment */}
-          <span className="w-16 text-right text-[9px] text-text-dim shrink-0">
-            {node.cubeGoal ? NARRATIVE_CUBE[node.cubeGoal]?.name : ''}
-            {node.deliveryGoal ? DELIVERY_DIRECTIONS[node.deliveryGoal]?.name : ''}
-          </span>
-          {/* Arc progress: scene count — fixed width for alignment */}
-          <span className="w-5 text-right text-[9px] text-text-dim shrink-0">{node.scenes.length}s</span>
-          {/* Sparkline — fixed narrow container for alignment */}
-          <span className="w-10 shrink-0 flex items-center justify-end">
-            {spark.points.length > 1 && (() => {
-              const W = 36;
-              return (
-                <svg width={W} height="14" viewBox={`0 0 ${W} 14`}>
-                  <polyline
-                    points={spark.points.map((v, i) => `${(i / (spark.points.length - 1)) * W},${14 - v * 12}`).join(' ')}
-                    fill="none"
-                    stroke="#F59E0B"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              );
-            })()}
-          </span>
-          <span className="w-4 text-[9px] text-text-dim shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-right">
-            {node.visitCount > 1 ? `${node.visitCount}v` : ''}
-          </span>
-          {isCollapsed && (hasChildren || pendingForNode.length > 0) && (
-            <span className="text-[9px] text-text-dim/50 shrink-0">+{children.length + pendingForNode.length}</span>
+          {/* Row 2: direction vector */}
+          {node.arc.directionVector && (
+            <span className="text-[10px] text-text-dim leading-tight pl-15.5 pr-1">
+              {node.arc.directionVector}
+            </span>
           )}
         </button>
       </foreignObject>
@@ -422,17 +434,17 @@ function MCTSTreeView({
 
   if (rootChildren.length === 0 && rootPending.length === 0) return null;
 
-  // Count total visible rows for SVG height
-  const totalRows = rootChildren.reduce(
-    (sum, node) => sum + countVisible(node, tree, collapsedSet, pendingMap), 0,
-  ) + rootPending.length;
-  const svgHeight = totalRows * NODE_H + 8;
+  // Count total visible pixel height for SVG sizing
+  const totalPx = rootChildren.reduce(
+    (sum, node) => sum + countVisiblePx(node, tree, collapsedSet, pendingMap), 0,
+  ) + rootPending.length * PENDING_H;
+  const svgHeight = totalPx + 8;
 
-  // Build root-level nodes with offsets
-  let rowOffset = 0;
+  // Build root-level nodes with pixel offsets
+  let pxOffset = 0;
   const nodeElements = rootChildren.map((node) => {
-    const offset = rowOffset;
-    rowOffset += countVisible(node, tree, collapsedSet, pendingMap);
+    const offset = pxOffset;
+    pxOffset += countVisiblePx(node, tree, collapsedSet, pendingMap);
     return (
       <TreeNode
         key={node.id}
@@ -456,12 +468,12 @@ function MCTSTreeView({
 
   // Render root-level pending expansions
   const rootPendingElements = rootPending.map((pending) => {
-    const cy = rowOffset * NODE_H + NODE_H / 2;
+    const cy = pxOffset + PENDING_H / 2;
     const px = LINE_PAD_LEFT;
     const el = (
       <React.Fragment key={`pending-root-${pending.id}`}>
         <circle cx={px} cy={cy} r={DOT_R} fill="rgba(245,158,11,0.5)" className="animate-pulse" />
-        <foreignObject x={px + DOT_R + 6} y={rowOffset * NODE_H} width={`calc(100% - ${px + DOT_R + 6}px)`} height={NODE_H}>
+        <foreignObject x={px + DOT_R + 6} y={pxOffset} width={`calc(100% - ${px + DOT_R + 6}px)`} height={PENDING_H}>
           <button
             onClick={() => onSelectPending(pending.id)}
             className="flex items-center gap-1.5 w-full h-full text-left px-1.5 pr-2 rounded transition-colors hover:bg-amber-500/8"
@@ -507,7 +519,7 @@ function MCTSTreeView({
         </foreignObject>
       </React.Fragment>
     );
-    rowOffset++;
+    pxOffset += PENDING_H;
     return el;
   });
 

@@ -90,6 +90,7 @@ CRITICAL: Your arc MUST be substantially different from ALL of the above. Do NOT
 Return JSON with this exact structure:
 {
   "arcName": "A short, evocative arc name (2-4 words) like a chapter title. Must be UNIQUE — not a variation of any existing arc name. Bad: 'Continuation', 'New Beginnings', 'Echoes of X', 'Seeds of Y'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths', 'Blackwater Gambit'.",
+  "directionVector": "A single concise sentence (10-15 words max) capturing the narrative thrust of this arc — what changes, who drives it, and what's at stake. This is a high-level summary for comparing alternative branches at a glance. Examples: 'Kael discovers the seal is failing and must choose between duty and survival', 'Political alliances fracture as the harvest festival exposes hidden rivalries'.",
   "scenes": [
     {
       "id": "S-GEN-001",
@@ -169,8 +170,9 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
     ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL)
     : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL);
 
-  const parsed = parseJson(raw, 'generateScenes') as { arcName?: string; scenes: Scene[] };
+  const parsed = parseJson(raw, 'generateScenes') as { arcName?: string; directionVector?: string; scenes: Scene[] };
   const arcName = existingArc?.name ?? parsed.arcName ?? 'Untitled Arc';
+  const directionVector = parsed.directionVector;
 
   const sceneIds = nextIds('S', Object.keys(narrative.scenes), parsed.scenes.length, 3);
   const scenes: Scene[] = parsed.scenes.map((s: Scene, i: number) => ({
@@ -331,6 +333,7 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
         locationIds: newLocationIds,
         activeCharacterIds: newCharacterIds,
         initialCharacterLocations: {},
+        directionVector,
       };
 
   if (!existingArc && scenes.length > 0) {

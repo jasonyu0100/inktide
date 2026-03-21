@@ -282,6 +282,8 @@ export type Arc = {
   activeCharacterIds: string[];
   /** Starting positions — characterId → locationId. Established at arc start. */
   initialCharacterLocations: Record<string, string>;
+  /** Short sentence summarising the narrative direction of this arc */
+  directionVector?: string;
 };
 
 // ── Branch ───────────────────────────────────────────────────────────────────

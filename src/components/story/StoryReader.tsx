@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { NarrativeState, Scene, StorySettings } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings, AlignmentReport, ContinuityPlan } from '@/types/narrative';
 import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { generateSceneProse, generateScenePlan, scoreSceneProse, rewriteSceneProse } from '@/lib/ai';
+import { generateSceneProse, generateScenePlan, scoreSceneProse, rewriteSceneProse, runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from '@/lib/ai';
+import type { AlignmentProgress } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
-import { PROSE_CONCURRENCY, PLAN_CONCURRENCY } from '@/lib/constants';
+import { PROSE_CONCURRENCY, PLAN_CONCURRENCY, ALIGNMENT_CONCURRENCY, ALIGNMENT_WINDOW_SIZE, ALIGNMENT_STRIDE } from '@/lib/constants';
 
 type ContentCache = Record<string, { text: string; status: 'loading' | 'ready' | 'error'; error?: string }>;
 type BulkState = { running: boolean; completed: number; total: number; errors: number } | null;
@@ -58,6 +59,17 @@ export function StoryReader({
     ...narrative.storySettings,
   });
   const [settingsTab, setSettingsTab] = useState<'prose' | 'plan'>('prose');
+
+  // ── Alignment state ────────────────────────────────────────────────
+  const [alignmentReport, setAlignmentReport] = useState<AlignmentReport | null>(null);
+  const [continuityPlan, setContinuityPlan] = useState<ContinuityPlan | null>(null);
+  const [alignmentProgress, setAlignmentProgress] = useState<AlignmentProgress | null>(null);
+  const [fixProgress, setFixProgress] = useState<{ completed: number; total: number; current?: string } | null>(null);
+  const alignmentCancelledRef = useRef(false);
+
+  // What-was-done summary after fixes are applied
+  type FixSummaryEntry = { sceneId: string; sceneSummary: string; issues: { category: string; summary: string }[] };
+  const [fixSummary, setFixSummary] = useState<FixSummaryEntry[] | null>(null);
 
   const scene = scenes[currentIndex];
   const arc = scene ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id)) : null;
@@ -193,6 +205,115 @@ export function StoryReader({
     setProseBulk((prev) => prev ? { ...prev, running: false } : null);
     setPlanBulk((prev) => prev ? { ...prev, running: false } : null);
   }, []);
+
+  // ── Alignment pipeline: Align → Fix ─────────────────────────────────
+  const isAlignmentRunning = !!alignmentProgress || !!fixProgress;
+
+  // Align — sliding window audit, auto-builds continuity plan on completion
+  const runAlignPhase = useCallback(async () => {
+    const scenesWithProse = scenes.filter((s) => !!s.prose);
+    if (scenesWithProse.length < 2) return;
+    alignmentCancelledRef.current = false;
+    setContinuityPlan(null);
+    setFixProgress(null);
+    setFixSummary(null);
+    const sceneIds = scenesWithProse.map((s) => s.id);
+    try {
+      const report = await runAlignment(
+        narrative, sceneIds, ALIGNMENT_WINDOW_SIZE, ALIGNMENT_STRIDE, ALIGNMENT_CONCURRENCY,
+        (p) => { if (!alignmentCancelledRef.current) setAlignmentProgress(p); },
+      );
+      if (!alignmentCancelledRef.current) {
+        setAlignmentReport(report);
+        // Programmatically build continuity plan — no LLM needed
+        const plan = buildContinuityPlan(report);
+        setContinuityPlan(plan);
+        setAlignmentProgress(null);
+      }
+    } catch (err) {
+      console.error('Alignment failed:', err);
+      setAlignmentProgress(null);
+    }
+  }, [narrative, scenes]);
+
+  // Fix — sliding window parallel rewrite
+  const runFixPhase = useCallback(async () => {
+    if (!continuityPlan || !alignmentReport || continuityPlan.edits.length === 0) return;
+    alignmentCancelledRef.current = false;
+    setFixProgress({ completed: 0, total: continuityPlan.edits.length });
+
+    await runFixWindows(
+      narrative, continuityPlan, alignmentReport, resolvedKeys,
+      ALIGNMENT_WINDOW_SIZE, ALIGNMENT_STRIDE,
+      (p) => {
+        if (!alignmentCancelledRef.current) {
+          setFixProgress({ completed: p.completed, total: p.total, current: p.step });
+        }
+      },
+      (result) => {
+        dispatch({ type: 'UPDATE_SCENE', sceneId: result.sceneId, updates: { prose: result.prose } });
+        setProseCache((prev) => ({ ...prev, [result.sceneId]: { text: result.prose, status: 'ready' } }));
+      },
+      () => alignmentCancelledRef.current,
+    );
+
+    // Build summary of what was fixed before clearing
+    const summary: FixSummaryEntry[] = continuityPlan.edits.map((edit) => {
+      const s = narrative.scenes[edit.sceneId];
+      const relatedIssues = alignmentReport.issues
+        .filter((i) => edit.issueIds.includes(i.id))
+        .map((i) => ({ category: i.category, summary: i.summary }));
+      return { sceneId: edit.sceneId, sceneSummary: s?.summary?.slice(0, 80) ?? edit.sceneId, issues: relatedIssues };
+    });
+    setFixSummary(summary);
+
+    // Clear alignment state — fixes have been applied, issues are stale
+    setFixProgress(null);
+    setAlignmentReport(null);
+    setContinuityPlan(null);
+  }, [narrative, continuityPlan, alignmentReport, resolvedKeys, dispatch]);
+
+  const cancelAlignmentPipeline = useCallback(() => {
+    alignmentCancelledRef.current = true;
+    setAlignmentProgress(null);
+    setFixProgress(null);
+  }, []);
+
+  // Fix a single scene from the continuity plan
+  const [fixingSceneId, setFixingSceneId] = useState<string | null>(null);
+  const fixSingleScene = useCallback(async (sceneId: string) => {
+    if (!continuityPlan || !alignmentReport) return;
+    const edit = continuityPlan.edits.find((e) => e.sceneId === sceneId);
+    if (!edit) return;
+    const s = narrative.scenes[sceneId];
+    if (!s?.prose) return;
+    setFixingSceneId(sceneId);
+    try {
+      const analysis = buildFixAnalysis(edit, alignmentReport);
+      const prose = await rewriteSceneProse(narrative, s, resolvedKeys, s.prose, analysis);
+      dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose } });
+      setProseCache((prev) => ({ ...prev, [sceneId]: { text: prose, status: 'ready' } }));
+
+      // Record in summary and remove from plan
+      const entry: FixSummaryEntry = {
+        sceneId,
+        sceneSummary: s.summary?.slice(0, 80) ?? sceneId,
+        issues: alignmentReport.issues
+          .filter((i) => edit.issueIds.includes(i.id))
+          .map((i) => ({ category: i.category, summary: i.summary })),
+      };
+      setFixSummary((prev) => [...(prev ?? []), entry]);
+      setContinuityPlan((prev) => prev ? { ...prev, edits: prev.edits.filter((e) => e.sceneId !== sceneId) } : null);
+    } catch (err) {
+      console.error(`Fix failed for ${sceneId}:`, err);
+    }
+    setFixingSceneId(null);
+  }, [narrative, continuityPlan, alignmentReport, resolvedKeys, dispatch]);
+
+  // Current scene's edit from the continuity plan
+  const currentSceneEdit = scene && continuityPlan
+    ? continuityPlan.edits.find((e) => e.sceneId === scene.id)
+    : null;
 
   // ── Sync cached plan/prose from scene data ───────────────────────────
   useEffect(() => {
@@ -347,7 +468,69 @@ export function StoryReader({
                   </button>
                 ) : null;
               })()}
+
+              {/* ── Alignment pipeline: Align → Fix ── */}
+              {(() => {
+                const proseCount = scenes.filter((s) => !!s.prose).length;
+                if (proseCount < 2) return null;
+
+                const hasIssues = alignmentReport && alignmentReport.issues.length > 0;
+                const isClean = alignmentReport && alignmentReport.issues.length === 0;
+                const wasFixed = !alignmentReport && fixSummary && fixSummary.length > 0;
+
+                return (
+                  <div className="flex items-center">
+                    <button
+                      onClick={runAlignPhase}
+                      disabled={isAlignmentRunning || !!fixingSceneId}
+                      className={`text-[10px] px-2.5 py-1 rounded-l-full border transition flex items-center gap-1.5 disabled:opacity-50 ${
+                        wasFixed ? 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'
+                        : isClean ? 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'
+                        : hasIssues ? 'border-orange-500/20 text-orange-400 hover:bg-orange-500/10'
+                        : 'border-white/10 text-text-dim hover:text-orange-400 hover:border-orange-400/20'
+                      }`}
+                      title={wasFixed ? `${fixSummary.length} scenes fixed — re-run to verify` : `Audit ${proseCount} scenes for continuity issues`}
+                    >
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                      {wasFixed ? `Aligned (${fixSummary.length} fixed)` : `Align${alignmentReport ? ` (${alignmentReport.issues.length})` : ''}`}
+                    </button>
+
+                    <button
+                      onClick={runFixPhase}
+                      disabled={!continuityPlan || continuityPlan.edits.length === 0 || isAlignmentRunning || !!fixingSceneId}
+                      className={`text-[10px] px-2.5 py-1 rounded-r-full border transition flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed ${
+                        continuityPlan && continuityPlan.edits.length > 0
+                          ? 'border-orange-500/20 text-orange-400 hover:bg-orange-500/10'
+                          : 'border-white/10 text-text-dim hover:text-emerald-400 hover:border-emerald-400/20'
+                      }`}
+                      title={continuityPlan ? `Fix ${continuityPlan.edits.length} scenes in sliding windows` : 'Run Align first'}
+                    >
+                      Fix{continuityPlan && continuityPlan.edits.length > 0 ? ` (${continuityPlan.edits.length})` : ''}
+                    </button>
+                  </div>
+                );
+              })()}
             </>
+          )}
+
+          {/* Pipeline progress */}
+          {(alignmentProgress || fixProgress) && (
+            <div className="flex items-center gap-2">
+              <div className={`w-3.5 h-3.5 border-2 rounded-full animate-spin ${
+                alignmentProgress ? 'border-orange-400/20 border-t-orange-400' : 'border-emerald-400/20 border-t-emerald-400'
+              }`} />
+              <span className="text-[10px] text-text-dim font-mono">
+                {alignmentProgress
+                  ? `${alignmentProgress.step} ${alignmentProgress.completed}/${alignmentProgress.total}`
+                  : fixProgress
+                    ? `Fixing ${fixProgress.completed}/${fixProgress.total}`
+                    : ''}
+              </span>
+              {fixProgress?.current && (
+                <span className="text-[10px] text-text-dim/60 truncate max-w-30">{fixProgress.current}</span>
+              )}
+              <button onClick={cancelAlignmentPipeline} className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary transition">Stop</button>
+            </div>
           )}
 
           <span className="text-[10px] text-text-dim font-mono">{currentIndex + 1} / {scenes.length}</span>
@@ -399,6 +582,12 @@ export function StoryReader({
                   {!isGen && hasPlanDot && <span className="text-[8px] text-sky-400/60">●</span>}
                   {!isGen && hasProseDot && <span className="text-[8px] text-emerald-400/60">●</span>}
                   {score && typeof score.overall === 'number' && <span className={`text-[9px] font-mono ${scoreColor(score.overall)}`}>{score.overall}</span>}
+                  {continuityPlan && continuityPlan.edits.some((e) => e.sceneId === s.id) && (
+                    <span className="text-[8px] text-orange-400/70" title="Has continuity issues">!</span>
+                  )}
+                  {fixSummary && fixSummary.some((e) => e.sceneId === s.id) && (
+                    <span className="text-[8px] text-emerald-400/70" title="Continuity fixed">&#10003;</span>
+                  )}
                 </div>
               </button>
             );
@@ -590,6 +779,73 @@ export function StoryReader({
                 </div>
               </div>
             )}
+
+            {/* ── Continuity issues for current scene ─────────────── */}
+            {currentSceneEdit && alignmentReport && (
+              <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-orange-500/5 border border-orange-500/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] uppercase tracking-widest text-orange-400/60">
+                    Continuity ({currentSceneEdit.issueIds.length} issue{currentSceneEdit.issueIds.length !== 1 ? 's' : ''})
+                  </span>
+                  <button
+                    onClick={() => fixSingleScene(scene.id)}
+                    disabled={!scene.prose || isAlignmentRunning || fixingSceneId === scene.id}
+                    className="text-[9px] px-2 py-1 rounded bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/15 transition disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    title="Rewrite this scene to fix continuity issues"
+                  >
+                    {fixingSceneId === scene.id && <div className="w-2.5 h-2.5 border border-orange-400/40 border-t-orange-400 rounded-full animate-spin" />}
+                    {fixingSceneId === scene.id ? 'Fixing...' : 'Fix Scene'}
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {alignmentReport.issues.filter((i) => currentSceneEdit.issueIds.includes(i.id)).map((issue) => (
+                    <div key={issue.id} className="text-[11px] leading-relaxed">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                          issue.severity === 'major' ? 'bg-red-500/15 text-red-400' :
+                          issue.severity === 'moderate' ? 'bg-orange-500/15 text-orange-400' :
+                          'bg-yellow-500/15 text-yellow-400'
+                        }`}>
+                          {issue.severity}
+                        </span>
+                        <span className="text-[9px] text-text-dim font-mono">{issue.category}</span>
+                        {issue.confidence > 1 && (
+                          <span className="text-[9px] text-orange-400/50 font-mono" title={`Flagged by ${issue.confidence} overlapping windows`}>
+                            {issue.confidence}x
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-text-secondary font-medium">{issue.summary}</p>
+                      <p className="text-text-dim mt-0.5">{issue.detail}</p>
+                      <p className="text-orange-400/70 mt-0.5 text-[10px]">Fix: {issue.fix}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── What was fixed (shown after fixes applied) ──────── */}
+            {fixSummary && (() => {
+              const sceneEntry = fixSummary.find((e) => e.sceneId === scene.id);
+              if (!sceneEntry) return null;
+              return (
+                <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[9px] uppercase tracking-widest text-emerald-400/60">
+                      Fixed ({sceneEntry.issues.length} issue{sceneEntry.issues.length !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {sceneEntry.issues.map((issue, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[11px]">
+                        <span className="text-[9px] text-text-dim font-mono">{issue.category}</span>
+                        <span className="text-emerald-400/80">{issue.summary}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── SUMMARY VIEW ───────────────────────────────────────── */}
             {viewMode === 'summary' && (

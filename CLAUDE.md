@@ -55,7 +55,7 @@ src/
 │   ├── ai/                 # LLM calls (modularised)
 │   │   ├── api.ts          # callGenerate, callGenerateStream
 │   │   ├── context.ts      # branchContext, sceneContext — LLM context building
-│   │   ├── scenes.ts       # generateScenes, generateScenePlan, reconcileScenePlans
+│   │   ├── scenes.ts       # generateScenes, generateScenePlan
 │   │   ├── prose.ts        # scoreSceneProse, rewriteSceneProse
 │   │   ├── world.ts        # expandWorld, suggestDirection
 │   │   └── json.ts         # JSON parsing utilities
@@ -111,7 +111,6 @@ Key functions across modules:
 - `scoreSceneProse()` — returns ProseScore with critique
 - `rewriteSceneProse()` — rewrite guided by critique or custom analysis
 - `expandWorld()` — add characters, locations, threads
-- `reconcileScenePlans()` — cross-scene coherence check
 
 ## Environment Variables
 

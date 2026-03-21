@@ -2,8 +2,7 @@
 export { branchContext, sceneContext } from './context';
 
 // Scene generation
-export { generateScenes, generateScenePlan, generateSceneProse, reconcileScenePlans } from './scenes';
-export type { ReconcileRevision } from './scenes';
+export { generateScenes, generateScenePlan, generateSceneProse } from './scenes';
 
 // World building & direction
 export { suggestDirection, suggestStoryDirection, suggestWorldExpansion, expandWorld, generateNarrative } from './world';
@@ -12,3 +11,7 @@ export type { WorldExpansion, WorldExpansionSize, DirectionSuggestion } from './
 // Prose scoring & rewriting
 export { scoreSceneProse, rewriteSceneProse, scoreAndRewriteSceneProse, generateChartAnnotations } from './prose';
 export type { ChartAnnotation } from './prose';
+
+// Prose alignment
+export { runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from './alignment';
+export type { AlignmentProgress, AlignmentPhase, FixResult } from './alignment';

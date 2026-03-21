@@ -260,6 +260,69 @@ export type WorldBuildCommit = {
   worldKnowledgeMutations?: WorldKnowledgeMutation;
 };
 
+// ── Alignment ────────────────────────────────────────────────────────────────
+
+export type AlignmentCategory =
+  | 'character-state'    // character knows/has/feels something contradicted by another scene
+  | 'voice-drift'        // tone, style, or POV discipline shifts between scenes
+  | 'timeline'           // temporal impossibilities or inconsistent passage of time
+  | 'spatial'            // character in wrong place, impossible movement
+  | 'thread-continuity'  // thread status or plot point contradicted across scenes
+  | 'tone-shift'         // abrupt unearned mood change between consecutive scenes
+  | 'missing-transition' // character arrives/departs/changes state with no connective tissue between scenes
+  | 'state-reset'        // injury, emotion, exhaustion, or consequence from a prior scene is silently dropped
+  | 'knowledge-leak'     // character acts on information they haven't received yet in the prose
+  | 'proximity'          // characters share a scene but prose doesn't establish their spatial relationship
+  | 'repetition';        // same beat, reveal, description, or emotional realization happens in multiple scenes
+
+export type AlignmentSeverity = 'minor' | 'moderate' | 'major';
+
+export type AlignmentIssue = {
+  id: string;
+  category: AlignmentCategory;
+  severity: AlignmentSeverity;
+  /** Scene IDs involved in this issue (at least 2 — the contradiction pair) */
+  sceneIds: string[];
+  /** One-line summary of the inconsistency */
+  summary: string;
+  /** Detailed explanation with quotes from the prose */
+  detail: string;
+  /** Suggested fix direction (fed as analysis to rewriteSceneProse) */
+  fix: string;
+  /** How many overlapping windows flagged this same issue (higher = more confident) */
+  confidence: number;
+};
+
+export type AlignmentReport = {
+  id: string;
+  createdAt: string;
+  /** Window config used */
+  windowSize: number;
+  stride: number;
+  /** Scene range audited */
+  sceneIds: string[];
+  issues: AlignmentIssue[];
+};
+
+/** One scene's entry in a chronological continuity plan.
+ *  Created by synthesizing raw alignment issues into ordered, non-conflicting edits. */
+export type ContinuityEdit = {
+  sceneId: string;
+  /** Ordered list of issue IDs this edit resolves */
+  issueIds: string[];
+  /** Full rewrite analysis — what to change and why, accounting for earlier edits in the sequence */
+  analysis: string;
+};
+
+/** Chronologically-ordered edit plan produced from raw alignment issues.
+ *  Each edit is aware of earlier edits so fixes don't contradict each other. */
+export type ContinuityPlan = {
+  id: string;
+  alignmentReportId: string;
+  /** Edits in chronological scene order — earlier edits are applied first */
+  edits: ContinuityEdit[];
+};
+
 /** A timeline entry is either a narrative scene or a world-building commit */
 export type TimelineEntry = Scene | WorldBuildCommit;
 
@@ -433,8 +496,6 @@ export type AutoConfig = {
   minScenesBetweenCharacterFocus: number;
   /** When true, auto mode must use latest world-building elements in new arcs */
   enforceWorldBuildUsage: boolean;
-  /** When true, auto mode generates prose for each scene after structural generation */
-  includeProse: boolean;
 };
 
 export type AutoRunLog = {

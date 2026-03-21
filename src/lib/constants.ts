@@ -65,6 +65,15 @@ export const PROSE_CONCURRENCY = 10;
 /** Concurrent prose rewrite slots */
 export const REWRITE_CONCURRENCY = 10;
 
+/** Concurrent alignment audit windows */
+export const ALIGNMENT_CONCURRENCY = 5;
+
+/** Default alignment window size (scenes per batch) */
+export const ALIGNMENT_WINDOW_SIZE = 5;
+
+/** Default alignment stride (overlap = windowSize - stride) */
+export const ALIGNMENT_STRIDE = 3;
+
 /** Max children per MCTS node */
 export const MCTS_MAX_NODE_CHILDREN = 8;
 

@@ -338,7 +338,7 @@ function TreeNode({
               {node.cubeGoal ? NARRATIVE_CUBE[node.cubeGoal]?.name : ''}
               {node.deliveryGoal ? DELIVERY_DIRECTIONS[node.deliveryGoal]?.name : ''}
             </span>
-            {/* Arc progress: scene count — fixed width for alignment */}
+            {/* Scene count — fixed width for alignment */}
             <span className="w-5 text-right text-[9px] text-text-dim shrink-0">{node.scenes.length}s</span>
             {/* Sparkline — fixed narrow container for alignment */}
             <span className="w-10 shrink-0 flex items-center justify-end">
@@ -365,8 +365,12 @@ function TreeNode({
               <span className="text-[9px] text-text-dim/50 shrink-0">+{children.length + pendingForNode.length}</span>
             )}
           </span>
-          {/* Row 2: direction vector */}
-          {node.arc.directionVector && (
+          {/* Row 2: scene summary (scene moves) or direction vector (arc moves) */}
+          {node.moveType === 'scene' && node.scenes.length === 1 ? (
+            <span className="text-[10px] text-text-dim leading-tight pl-15.5 pr-1 truncate">
+              {node.scenes[0].summary}
+            </span>
+          ) : node.arc.directionVector && (
             <span className="text-[10px] text-text-dim leading-tight pl-15.5 pr-1">
               {node.arc.directionVector}
             </span>
@@ -618,6 +622,34 @@ type InspectorView = 'arc' | number; // 'arc' = summary list, number = scene ind
 
 function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
   const [view, setView] = useState<InspectorView>('arc');
+
+  // For scene moves, find the root ancestor and collect all scenes down the path
+  const { displayNode, allPathScenes } = useMemo(() => {
+    if (node.moveType !== 'scene') return { displayNode: node, allPathScenes: node.scenes };
+    // Walk up to find the root ancestor (depth 0)
+    let rootAncestor = node;
+    let currentId: string | null = node.parentId;
+    while (currentId) {
+      const parent = tree.nodes[currentId];
+      if (!parent) break;
+      rootAncestor = parent;
+      currentId = parent.parentId;
+    }
+    // Walk down from root ancestor to this node, collecting all scenes
+    const scenes: Scene[] = [];
+    const pathIds: MCTSNodeId[] = [];
+    let walkId: MCTSNodeId | null = node.id;
+    while (walkId) {
+      pathIds.unshift(walkId);
+      walkId = tree.nodes[walkId]?.parentId ?? null;
+    }
+    for (const id of pathIds) {
+      const n = tree.nodes[id];
+      if (n) scenes.push(...n.scenes);
+    }
+    return { displayNode: rootAncestor, allPathScenes: scenes };
+  }, [node, tree]);
+
   const cubeLabel = node.cubeGoal ? NARRATIVE_CUBE[node.cubeGoal]?.name ?? null : null;
 
   // Full-path delivery curve for this node
@@ -625,15 +657,17 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
     const allScenes = node.virtualResolvedKeys
       .map((k) => node.virtualNarrative.scenes[k])
       .filter((s): s is Scene => !!s);
-    if (allScenes.length === 0) return { pts: [], position: null, nodeStart: 0 };
+    if (allScenes.length === 0) return { pts: [], position: null, arcStart: 0, nodeStart: 0 };
     const forceMap = computeForceSnapshots(allScenes);
     const ordered = allScenes.map((s) => forceMap[s.id]).filter(Boolean);
     const pts = computeDeliveryCurve(ordered);
     const position = pts.length > 0 ? classifyCurrentPosition(pts) : null;
-    // Where this node's scenes start in the full path
+    // Where the arc's scenes start (for background highlight)
+    const arcStart = allScenes.length - allPathScenes.length;
+    // Where this specific node's scene(s) start (for bright highlight)
     const nodeStart = allScenes.length - node.scenes.length;
-    return { pts, position, nodeStart };
-  }, [node]);
+    return { pts, position, arcStart, nodeStart };
+  }, [node, allPathScenes]);
 
   // Reset to arc view when node changes
   const [prevNodeId, setPrevNodeId] = useState(node.id);
@@ -642,7 +676,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
     setView('arc');
   }
 
-  const scene = typeof view === 'number' ? node.scenes[view] : null;
+  const scene = typeof view === 'number' ? allPathScenes[view] : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -650,19 +684,19 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
       <div>
         <div className="flex items-baseline gap-2">
           <h2 className="text-[10px] uppercase tracking-widest text-text-dim">Arc</h2>
-          <span className="font-mono text-[10px] text-text-dim">{node.arc.id}</span>
+          <span className="font-mono text-[10px] text-text-dim">{displayNode.arc.id}</span>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           <span className={`font-mono text-sm font-bold ${scoreColorClass(node.immediateScore)}`}>
             {node.immediateScore}
           </span>
-          <span className="text-sm text-text-primary font-medium">{node.arc.name}</span>
+          <span className="text-sm text-text-primary font-medium">{displayNode.arc.name}</span>
         </div>
       </div>
 
       {/* Stats */}
       <div className="flex gap-4 text-[10px] text-text-dim uppercase tracking-wider">
-        <span>{node.scenes.length} scenes</span>
+        <span>{allPathScenes.length} scenes</span>
         <span>depth {node.depth}</span>
         <span>{node.visitCount} visits</span>
         {node.childIds.length > 0 && <span>{node.childIds.length} children</span>}
@@ -709,7 +743,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
 
       {/* Delivery chart */}
       {pathDelivery.pts.length > 1 && (() => {
-        const { pts, position, nodeStart } = pathDelivery;
+        const { pts, position, arcStart, nodeStart } = pathDelivery;
         const n = pts.length;
         const W = 260, H = 48;
         const smoothed = pts.map((p) => p.smoothed);
@@ -718,9 +752,14 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
         const range = max - min || 1;
         const toY = (v: number) => H - ((v - min) / range) * (H - 4) - 2;
         const allPts = smoothed.map((v, i) => `${(i / (n - 1)) * W},${toY(v)}`).join(' ');
+        // Arc range (dim) + node's specific scenes (bright)
+        const arcPts = smoothed.slice(arcStart).map((v, i) =>
+          `${((arcStart + i) / (n - 1)) * W},${toY(v)}`
+        ).join(' ');
         const nodePts = smoothed.slice(nodeStart).map((v, i) =>
           `${((nodeStart + i) / (n - 1)) * W},${toY(v)}`
         ).join(' ');
+        const arcX1 = (arcStart / (n - 1)) * W;
         const nodeX1 = (nodeStart / (n - 1)) * W;
         return (
           <div className="flex flex-col gap-1">
@@ -733,11 +772,15 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
               )}
             </div>
             <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="rounded bg-white/2">
-              {/* Node range highlight */}
-              <rect x={nodeX1} y={0} width={W - nodeX1} height={H} fill="rgba(245,158,11,0.06)" />
+              {/* Arc range background */}
+              <rect x={arcX1} y={0} width={W - arcX1} height={H} fill="rgba(245,158,11,0.04)" />
+              {/* Node's scene highlight */}
+              <rect x={nodeX1} y={0} width={W - nodeX1} height={H} fill="rgba(245,158,11,0.08)" />
               {/* Prior path */}
               <polyline points={allPts} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeLinejoin="round" />
-              {/* This node's scenes */}
+              {/* Arc's scenes (dim) */}
+              {arcPts && <polyline points={arcPts} fill="none" stroke="rgba(245,158,11,0.4)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />}
+              {/* Selected node's scene (bright) */}
               {nodePts && <polyline points={nodePts} fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
               {/* Peak/valley markers */}
               {pts.map((p, i) => {
@@ -754,14 +797,14 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
       })()}
 
       {/* Develops */}
-      {node.arc.develops.length > 0 && (
+      {displayNode.arc.develops.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Develops</h3>
           <div className="flex flex-col gap-1">
-            {node.arc.develops.map((threadId) => {
+            {displayNode.arc.develops.map((threadId) => {
               const thread = node.virtualNarrative.threads[threadId];
-              // Collect all transitions for this thread across the arc's scenes
-              const transitions = node.scenes.flatMap((s) =>
+              // Collect all transitions for this thread across path scenes
+              const transitions = allPathScenes.flatMap((s) =>
                 s.threadMutations.filter((tm) => tm.threadId === threadId)
               );
               return (
@@ -798,7 +841,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             view === 'arc' ? 'text-text-primary bg-white/6' : 'text-text-dim hover:text-text-secondary'
           }`}
         >
-          Scenes ({node.scenes.length})
+          Scenes ({allPathScenes.length})
         </button>
         {scene && (
           <span className="text-[10px] text-text-dim mx-1">›</span>
@@ -811,7 +854,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
       {/* Arc view — scene summary list */}
       {view === 'arc' && (
         <div className="flex flex-col gap-2">
-          {node.scenes.map((s, i) => {
+          {allPathScenes.map((s, i) => {
             const loc = node.virtualNarrative.locations[s.locationId];
             const pov = s.povId ? node.virtualNarrative.characters[s.povId] : null;
             return (
@@ -870,7 +913,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           {/* Scene ID + arc */}
           <div className="flex items-baseline gap-2">
             <h2 className="font-mono text-xs text-text-dim">{scene.id}</h2>
-            <span className="text-[10px] text-text-dim uppercase tracking-wider">{node.arc.name}</span>
+            <span className="text-[10px] text-text-dim uppercase tracking-wider">{displayNode.arc.name}</span>
           </div>
 
           {/* Location + POV */}
@@ -1073,7 +1116,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
 
 // ── Config Tab ───────────────────────────────────────────────────────────────
 
-type ConfigTab = 'search' | 'strategy' | 'direction' | 'other';
+type ConfigTab = 'search' | 'move' | 'strategy' | 'direction';
 
 function NorthStarSuggestButton({
   narrative,
@@ -1199,9 +1242,9 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
           <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4 shrink-0">
             {([
               { label: 'Search', value: 'search' as ConfigTab },
+              { label: 'Move', value: 'move' as ConfigTab },
               { label: 'Strategy', value: 'strategy' as ConfigTab },
               { label: 'Direction', value: 'direction' as ConfigTab },
-              { label: 'Other', value: 'other' as ConfigTab },
             ]).map((t) => (
               <button
                 key={t.value}
@@ -1235,7 +1278,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                       <input type="radio" name="stopMode" checked={config.stopMode === 'iterations'} onChange={() => setConfig((c) => ({ ...c, stopMode: 'iterations' }))} className="accent-blue-500 mt-0.5" />
                       <div className="flex-1">
                         <div className="text-xs text-text-primary font-medium">Iterations</div>
-                        <div className="text-[9px] text-text-dim">Generate a fixed total number of arcs (LLM calls)</div>
+                        <div className="text-[9px] text-text-dim">Generate a fixed total number of {config.moveType === 'scene' ? 'scenes' : 'arcs'} (LLM calls)</div>
                       </div>
                     </label>
                   </div>
@@ -1257,16 +1300,16 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                 {config.stopMode === 'iterations' && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-[10px] uppercase tracking-widest text-text-dim">Max Arcs (LLM calls)</label>
+                      <label className="text-[10px] uppercase tracking-widest text-text-dim">Max {config.moveType === 'scene' ? 'Scenes' : 'Arcs'} (LLM calls)</label>
                       <span className="text-xs font-mono text-text-primary">{config.maxNodes}</span>
                     </div>
                     <input type="range" min={5} max={200} step={5} value={config.maxNodes} onChange={(e) => setConfig((c) => ({ ...c, maxNodes: Number(e.target.value) }))} className="w-full accent-blue-500" />
-                    <p className="text-[9px] text-text-dim mt-0.5">Total arcs to generate across the whole tree. Each arc = one LLM call. With {config.parallelism} parallel workers, expect ~{Math.ceil(config.maxNodes / config.parallelism)} rounds of generation.</p>
+                    <p className="text-[9px] text-text-dim mt-0.5">Total {config.moveType === 'scene' ? 'scenes' : 'arcs'} to generate across the whole tree. Each {config.moveType === 'scene' ? 'scene' : 'arc'} = one LLM call. With {config.parallelism} parallel workers, expect ~{Math.ceil(config.maxNodes / config.parallelism)} rounds of generation.</p>
                   </div>
                 )}
 
                 <div className="border-t border-border pt-4">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-3">Parallelism &amp; Depth</label>
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-3">Parallelism &amp; Branching</label>
 
                   {/* Parallelism */}
                   <div className="mb-3">
@@ -1274,18 +1317,18 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                       <span className="text-[10px] text-text-secondary">Parallel workers</span>
                       <span className="text-xs font-mono text-text-primary">{config.parallelism}</span>
                     </div>
-                    <input type="range" min={1} max={8} step={1} value={config.parallelism} onChange={(e) => setConfig((c) => ({ ...c, parallelism: Number(e.target.value) }))} className="w-full accent-blue-500" />
-                    <p className="text-[9px] text-text-dim mt-0.5">How many arcs are generated simultaneously. Each worker picks an unexplored node via UCB1 and generates one arc. When it finishes, a new one starts immediately — keeping all workers busy.</p>
+                    <input type="range" min={1} max={8} step={1} value={config.parallelism} onChange={(e) => { const v = Number(e.target.value); setConfig((c) => ({ ...c, parallelism: v, branchingFactor: v })); }} className="w-full accent-blue-500" />
+                    <p className="text-[9px] text-text-dim mt-0.5">How many {config.moveType === 'scene' ? 'scenes' : 'arcs'} are generated simultaneously.</p>
                   </div>
 
-                  {/* Max depth */}
+                  {/* Branching factor */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] text-text-secondary">Max depth</span>
-                      <span className="text-xs font-mono text-text-primary">{config.maxDepth}</span>
+                      <span className="text-[10px] text-text-secondary">Branching factor</span>
+                      <span className="text-xs font-mono text-text-primary">{config.branchingFactor}</span>
                     </div>
-                    <input type="range" min={1} max={10} step={1} value={config.maxDepth} onChange={(e) => setConfig((c) => ({ ...c, maxDepth: Number(e.target.value) }))} className="w-full accent-blue-500" />
-                    <p className="text-[9px] text-text-dim mt-0.5">Max arcs-deep the tree can grow. Each depth level is a new arc after the previous one — deeper = longer narrative chains.</p>
+                    <input type="range" min={1} max={8} step={1} value={config.branchingFactor} onChange={(e) => setConfig((c) => ({ ...c, branchingFactor: Number(e.target.value) }))} className="w-full accent-blue-500" />
+                    <p className="text-[9px] text-text-dim mt-0.5">Max children per node. Default is {DEFAULT_BRANCHING[config.directionMode]} ({config.directionMode === 'cube' ? '8 cube corners' : '4 delivery directions'}). Lower values force deeper exploration; higher values explore more alternatives at each step.</p>
                   </div>
 
                 </div>
@@ -1316,7 +1359,14 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                       <input type="radio" name="searchMode" checked={config.searchMode === 'baseline'} onChange={() => setConfig((c) => ({ ...c, searchMode: 'baseline' }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Baseline</div>
-                        <div className="text-[9px] text-text-dim">Quality gating. At each depth, keep generating arcs until one meets the target score, then descend the optimal path and continue expanding. No child limit — directions can be retried.</div>
+                        <div className="text-[9px] text-text-dim">Quality gating. At each depth, keep generating until one meets the target score, then descend and repeat. No child limit — directions can be retried.</div>
+                      </div>
+                    </label>
+                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.searchMode === 'greedy' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                      <input type="radio" name="searchMode" checked={config.searchMode === 'greedy'} onChange={() => setConfig((c) => ({ ...c, searchMode: 'greedy' }))} className="accent-blue-500 mt-0.5" />
+                      <div>
+                        <div className="text-xs text-text-primary font-medium">Greedy</div>
+                        <div className="text-[9px] text-text-dim">Depth-first. Generate {config.branchingFactor} children at each level, pick the best, descend immediately. Produces a single deep path — maximises depth with minimal branching.</div>
                       </div>
                     </label>
                   </div>
@@ -1335,10 +1385,77 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
               </>
             )}
 
+            {configTab === 'move' && (
+              <>
+                {/* Move type */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Move Type</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.moveType === 'arc' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                      <input type="radio" name="moveType" checked={config.moveType === 'arc'} onChange={() => setConfig((c) => ({ ...c, moveType: 'arc', directionMode: 'delivery', branchingFactor: DEFAULT_BRANCHING.delivery, randomDirections: true }))} className="accent-blue-500 mt-0.5" />
+                      <div>
+                        <div className="text-xs text-text-primary font-medium">Arc Moves</div>
+                        <div className="text-[9px] text-text-dim">Each move generates a full arc (multiple scenes). Default direction: delivery curves.</div>
+                      </div>
+                    </label>
+                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.moveType === 'scene' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                      <input type="radio" name="moveType" checked={config.moveType === 'scene'} onChange={() => setConfig((c) => ({ ...c, moveType: 'scene', directionMode: 'cube', branchingFactor: DEFAULT_BRANCHING.cube, randomDirections: true }))} className="accent-blue-500 mt-0.5" />
+                      <div>
+                        <div className="text-xs text-text-primary font-medium">Scene Moves</div>
+                        <div className="text-[9px] text-text-dim">Each move generates a single scene with a new arc. Default direction: cube positions.</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Direction Mode */}
+                <div className="border-t border-border pt-4">
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Mode</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'delivery' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                      <input type="radio" name="directionMode" checked={config.directionMode === 'delivery'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'delivery', branchingFactor: DEFAULT_BRANCHING.delivery }))} className="accent-blue-500 mt-0.5" />
+                      <div>
+                        <div className="text-xs text-text-primary font-medium">Delivery Directions</div>
+                        <div className="text-[9px] text-text-dim">4 moves per node — <span className="text-green-400">Escalate</span>, <span className="text-blue-400">Release</span>, <span className="text-amber-400">Surge</span>, <span className="text-purple-400">Rebound</span>.</div>
+                      </div>
+                    </label>
+                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'cube' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                      <input type="radio" name="directionMode" checked={config.directionMode === 'cube'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'cube', branchingFactor: DEFAULT_BRANCHING.cube }))} className="accent-blue-500 mt-0.5" />
+                      <div>
+                        <div className="text-xs text-text-primary font-medium">Cube Positions</div>
+                        <div className="text-[9px] text-text-dim">8 moves per node — every combination of <span style={{color:'#EF4444'}}>P</span><span style={{color:'#22C55E'}}>C</span><span style={{color:'#3B82F6'}}>K</span> at high or low.</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Direction Order */}
+                <div className="border-t border-border pt-4">
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Order</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                      <input type="radio" name="directionOrder" checked={config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: true }))} className="accent-blue-500 mt-0.5" />
+                      <div>
+                        <div className="text-xs text-text-primary font-medium">Random</div>
+                        <div className="text-[9px] text-text-dim">Pick a random unused direction each time. Results vary across runs.</div>
+                      </div>
+                    </label>
+                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${!config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
+                      <input type="radio" name="directionOrder" checked={!config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: false }))} className="accent-blue-500 mt-0.5" />
+                      <div>
+                        <div className="text-xs text-text-primary font-medium">Deterministic</div>
+                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? 'Most diverse corners tried first.' : 'Cycle in canonical order — Escalate, Release, Surge, Rebound.'}</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+
             {configTab === 'direction' && (
               <>
                 <p className="text-[10px] text-text-dim leading-relaxed">
-                  The north star for this search. Every arc the MCTS generates will be steered toward this direction.
+                  The north star for this search. Every {config.moveType === 'scene' ? 'scene' : 'arc'} the MCTS generates will be steered toward this direction.
                 </p>
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -1370,7 +1487,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                   return (
                     <div className="border-t border-border pt-4">
                       <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">World Build Focus</label>
-                      <p className="text-[9px] text-text-dim mb-3">Select a world build to seed every generation in this search. The model will prioritise those characters, locations, and dormant threads across all arcs explored.</p>
+                      <p className="text-[9px] text-text-dim mb-3">Select a world build to seed every generation in this search.</p>
                       {worldBuildEntries.length === 0 ? (
                         <p className="text-[10px] text-text-dim italic">No world builds yet. Use Expand World in the Generate panel to introduce new entities.</p>
                       ) : (
@@ -1410,76 +1527,6 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                     </div>
                   );
                 })()}
-              </>
-            )}
-
-            {configTab === 'other' && (
-              <>
-                {/* Direction Mode */}
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Mode</label>
-                  <div className="flex flex-col gap-1.5">
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'delivery' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionMode" checked={config.directionMode === 'delivery'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'delivery', branchingFactor: DEFAULT_BRANCHING.delivery }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Delivery Directions</div>
-                        <div className="text-[9px] text-text-dim">4 moves per node targeting the delivery curve directly — <span className="text-green-400">Escalate</span> (rising), <span className="text-blue-400">Release</span> (falling), <span className="text-amber-400">Surge</span> (peak then still), <span className="text-purple-400">Rebound</span> (still then rising). The four fundamental curve shapes.</div>
-                      </div>
-                    </label>
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'cube' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionMode" checked={config.directionMode === 'cube'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'cube', branchingFactor: DEFAULT_BRANCHING.cube }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Cube Positions</div>
-                        <div className="text-[9px] text-text-dim">8 moves per node — every combination of <span style={{color:'#EF4444'}}>Payoff</span>, <span style={{color:'#22C55E'}}>Change</span>, and <span style={{color:'#3B82F6'}}>Knowledge</span> at high or low. Derived from the narrative cube model.</div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Direction Order */}
-                <div className="border-t border-border pt-4">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Order</label>
-                  <p className="text-[9px] text-text-dim mb-2">{config.directionMode === 'cube' ? 'Which cube corner each worker explores next. The 8 cube positions are the available moves from any node — like pieces on a board.' : 'Which delivery direction each worker explores next. The 4 delivery curves are the available moves from any node.'}</p>
-                  <div className="flex flex-col gap-1.5">
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${!config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionOrder" checked={!config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: false }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Deterministic</div>
-                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? 'Most diverse corners tried first — maximises spread across all 8 cube positions.' : 'Cycle through delivery directions in canonical order — Escalate, Release, Surge, Rebound.'}</div>
-                      </div>
-                    </label>
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionOrder" checked={config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: true }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Random</div>
-                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? 'Workers pick a random unused cube corner each time. Results vary across runs — good for open-ended creative exploration.' : 'Workers pick a random unused delivery direction each time. Results vary across runs — good for open-ended creative exploration.'}</div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Path Selection */}
-                <div className="border-t border-border pt-4">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Path Selection</label>
-                  <p className="text-[9px] text-text-dim mb-2">How the recommended path is highlighted after search. You can always override by clicking nodes manually.</p>
-                  <div className="flex flex-col gap-1.5">
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.pathStrategy === 'best_score' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="pathStrategy" checked={config.pathStrategy === 'best_score'} onChange={() => setConfig((c) => ({ ...c, pathStrategy: 'best_score' }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Best Score</div>
-                        <div className="text-[9px] text-text-dim">Recommend the path with the highest average arc score. Best for short searches where raw quality is the signal.</div>
-                      </div>
-                    </label>
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.pathStrategy === 'most_explored' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="pathStrategy" checked={config.pathStrategy === 'most_explored'} onChange={() => setConfig((c) => ({ ...c, pathStrategy: 'most_explored' }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Most Explored</div>
-                        <div className="text-[9px] text-text-dim">Recommend the most-visited path. MCTS naturally invests more workers in promising paths, so visit count reflects search confidence. Best for longer searches.</div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
               </>
             )}
 
@@ -1673,7 +1720,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                     hasPath ? 'bg-white/12 text-text-primary hover:bg-white/16' : 'bg-white/4 text-text-dim cursor-not-allowed'
                   }`}
                 >
-                  Commit {activePath?.length ?? 0} Arc{(activePath?.length ?? 0) !== 1 ? 's' : ''}
+                  Commit {activePath?.length ?? 0} {runState.config.moveType === 'scene' ? 'Scene' : 'Arc'}{(activePath?.length ?? 0) !== 1 ? 's' : ''}
                 </button>
               </>
             )}

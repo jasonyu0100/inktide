@@ -2,16 +2,18 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
+import { apiHeaders } from '@/lib/api-headers';
 import type { StorySettings, POVMode } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS } from '@/types/narrative';
 
-type Tab = 'pov' | 'direction' | 'structure' | 'memory';
+type Tab = 'pov' | 'direction' | 'structure' | 'memory' | 'cover';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'POV', value: 'pov' },
   { label: 'Direction', value: 'direction' },
   { label: 'Structure', value: 'structure' },
   { label: 'Memory', value: 'memory' },
+  { label: 'Cover', value: 'cover' },
 ];
 
 const POV_MODES: { value: POVMode; label: string; desc: string }[] = [
@@ -34,9 +36,46 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
     setSettings((s) => ({ ...s, ...partial }));
   }
 
+  const [coverGenerating, setCoverGenerating] = useState(false);
+  const [coverError, setCoverError] = useState('');
+  const coverUrl = narrative?.coverImageUrl;
+
   function handleSave() {
     dispatch({ type: 'SET_STORY_SETTINGS', settings });
     onClose();
+  }
+
+  async function handleGenerateCover() {
+    if (!narrative) return;
+    setCoverGenerating(true);
+    setCoverError('');
+    try {
+      const res = await fetch('/api/generate-cover', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          title: narrative.title,
+          description: narrative.description,
+          rules: narrative.rules,
+          imageStyle: narrative.imageStyle,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Cover generation failed');
+      }
+      const { imageUrl } = await res.json();
+      dispatch({ type: 'SET_COVER_IMAGE', narrativeId: narrative.id, imageUrl });
+    } catch (err) {
+      setCoverError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCoverGenerating(false);
+    }
+  }
+
+  function handleRemoveCover() {
+    if (!narrative) return;
+    dispatch({ type: 'SET_COVER_IMAGE', narrativeId: narrative.id, imageUrl: '' });
   }
 
   const anchorCharacters = narrative
@@ -194,6 +233,51 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   <span className="text-[11px] text-text-primary font-mono w-16 text-right">
                     {settings.targetArcLength} scenes
                   </span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {tab === 'cover' && (
+            <>
+              <div className="flex gap-3 items-start">
+                {/* Thumbnail preview */}
+                <div className="shrink-0 w-28 rounded-lg overflow-hidden border border-white/10">
+                  {coverUrl ? (
+                    <img src={coverUrl} alt="Cover" className="w-full aspect-3/4 object-cover" />
+                  ) : (
+                    <div className="w-full aspect-3/4 bg-white/3 flex items-center justify-center">
+                      <span className="text-[9px] text-text-dim/30">No cover</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex-1 space-y-2">
+                  <button
+                    onClick={handleGenerateCover}
+                    disabled={coverGenerating}
+                    className="w-full text-[11px] px-3 py-2 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+                  >
+                    {coverGenerating ? 'Generating…' : coverUrl ? 'Regenerate Cover' : 'Generate Cover'}
+                  </button>
+
+                  {coverUrl && (
+                    <button
+                      onClick={handleRemoveCover}
+                      className="w-full text-[10px] px-3 py-1.5 rounded-md text-text-dim hover:text-text-secondary transition-colors"
+                    >
+                      Remove Cover
+                    </button>
+                  )}
+
+                  {coverError && (
+                    <p className="text-[10px] text-red-400/80">{coverError}</p>
+                  )}
+
+                  <p className="text-[9px] text-text-dim/50">
+                    Generated from title, description, rules, and image style via Replicate.
+                  </p>
                 </div>
               </div>
             </>

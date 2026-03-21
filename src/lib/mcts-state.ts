@@ -149,6 +149,39 @@ export function scoreArc(arcScenes: Scene[], priorScenes: Scene[]): number {
   return grades.overall;
 }
 
+// ── Scene Scoring ────────────────────────────────────────────────────────────
+
+/**
+ * Score a single scene using the force grading system.
+ * For a single scene there's no swing (no consecutive pair), so the score is
+ * out of 75 (P + C + K) rescaled to 0-100 for consistency with arc scoring.
+ *
+ * @param scene - The scene to score
+ * @param priorScenes - Prior scenes for swing context (last scene used for swing calc)
+ */
+export function scoreScene(scene: Scene, priorScenes: Scene[]): number {
+  const raw = computeRawForcetotals([scene]);
+
+  // If we have prior scenes, compute swing against the last one for a meaningful swing grade
+  let swings: number[];
+  if (priorScenes.length > 0) {
+    const lastScene = priorScenes[priorScenes.length - 1];
+    const combined = computeRawForcetotals([lastScene, scene]);
+    const combinedForces = combined.payoff.map((_, i) => ({
+      payoff: combined.payoff[i],
+      change: combined.change[i],
+      knowledge: combined.knowledge[i],
+    }));
+    const allSwings = computeSwingMagnitudes(combinedForces, FORCE_REFERENCE_MEANS);
+    swings = [allSwings[allSwings.length - 1] ?? 0];
+  } else {
+    swings = [0];
+  }
+
+  const grades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
+  return grades.overall;
+}
+
 /**
  * Extract all scenes in order from a virtual narrative state (for use as priorScenes).
  */

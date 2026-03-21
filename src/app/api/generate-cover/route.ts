@@ -8,15 +8,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { title, description, worldSummary } = await req.json() as {
+    const { title, description, rules, imageStyle } = await req.json() as {
       title: string;
       description?: string;
-      worldSummary?: string;
+      rules?: string[];
+      imageStyle?: string;
     };
 
     // Build an evocative image prompt from narrative context
-    const context = [description, worldSummary].filter(Boolean).join('. ');
-    const imagePrompt = `Cinematic wide-angle digital painting, book cover art style. ${title}. ${context}. Dramatic lighting, rich atmosphere, high detail, no text, no letters, no words, no watermarks.`;
+    const context = [description, rules?.length ? `World rules: ${rules.join('. ')}` : ''].filter(Boolean).join('. ');
+    const styleDirective = imageStyle || 'Cinematic wide-angle digital painting, book cover art style';
+    const imagePrompt = `${styleDirective}. ${title}. ${context}. Dramatic lighting, rich atmosphere, high detail, no text, no letters, no words, no watermarks.`;
 
     // Call Replicate Seedream 4.5 with sync mode
     const response = await fetch('https://api.replicate.com/v1/models/bytedance/seedream-4.5/predictions', {

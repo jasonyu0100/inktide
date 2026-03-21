@@ -4,10 +4,15 @@ import type { Scene, Arc, NarrativeState, CubeCornerKey } from './narrative';
 
 export type MCTSNodeId = string;
 
+export type MoveType = 'arc' | 'scene';
+
 export type MCTSNode = {
   id: MCTSNodeId;
   parentId: MCTSNodeId | null;
   childIds: MCTSNodeId[];
+
+  // Move type
+  moveType: MoveType;       // 'arc' = multi-scene arc, 'scene' = single scene
 
   // Narrative payload (the generated arc)
   scenes: Scene[];
@@ -17,7 +22,7 @@ export type MCTSNode = {
   deliveryGoal: DeliveryDirection | null;
 
   // Scoring
-  immediateScore: number;   // gradeForces().overall for this arc (0-100)
+  immediateScore: number;   // gradeForces().overall for this arc/scene (0-100)
   totalScore: number;       // Sum of backpropagated scores
   visitCount: number;       // Times selected/visited in MCTS
 
@@ -56,8 +61,12 @@ export type MCTSTree = {
  * - baseline: Unlimited children per node. Keep generating at each depth
  *   until a node meets the target score, then descend the optimal path
  *   and continue expanding until baseline is met again.
+ * - greedy: DFS depth-first. Generate branchingFactor children at the current
+ *   frontier, pick the best, descend immediately, repeat. Maximises depth
+ *   by always expanding the highest-scoring leaf. All workers target the
+ *   same parent for fast parallel evaluation at each level.
  */
-export type SearchMode = 'freedom' | 'constrained' | 'baseline';
+export type SearchMode = 'freedom' | 'constrained' | 'baseline' | 'greedy';
 
 /** How the recommended path is selected after search completes */
 export type PathStrategy = 'best_score' | 'most_explored';
@@ -119,6 +128,7 @@ RISE (late scenes):
 };
 
 export type MCTSConfig = {
+  moveType: MoveType;         // 'arc' = generate full arcs, 'scene' = generate individual scenes
   parallelism: number;        // Max concurrent generation slots in sliding window
   maxDepth: number;           // Max tree depth (1-10, default 5)
   maxNodes: number;           // Max total nodes (LLM calls) in iterations mode
@@ -135,15 +145,16 @@ export type MCTSConfig = {
 };
 
 export const DEFAULT_MCTS_CONFIG: MCTSConfig = {
-  parallelism: 8,
-  maxDepth: 5,
+  moveType: 'arc',
+  parallelism: 4,
+  maxDepth: 100,
   maxNodes: 20,
   searchMode: 'constrained',
   pathStrategy: 'best_score',
   stopMode: 'timer',
   timeLimitSeconds: 60,
   baselineScore: 80,
-  randomDirections: false,
+  randomDirections: true,
   directionMode: 'delivery',
   branchingFactor: 4,
 };
@@ -159,6 +170,7 @@ export const SEARCH_MODE_C: Record<SearchMode, number> = {
   freedom: 2.5,
   constrained: 0.5,
   baseline: 0.5,
+  greedy: 0,
 };
 
 // ── MCTS Run State ───────────────────────────────────────────────────────────

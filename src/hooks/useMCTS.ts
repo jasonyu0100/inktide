@@ -20,7 +20,7 @@ import {
   nextNodeId,
   resetNodeCounter,
 } from '@/lib/mcts-engine';
-import { buildVirtualState, scoreArc, extractOrderedScenes } from '@/lib/mcts-state';
+import { buildVirtualState, scoreArc, scoreScene, extractOrderedScenes } from '@/lib/mcts-state';
 
 type ExpansionResult = {
   targetId: MCTSNodeId | 'root';
@@ -148,6 +148,8 @@ export function useMCTS() {
     rootCurrentIndex: number,
     worldBuildFocus: WorldBuildCommit | undefined,
     northStarPrompt?: string,
+    moveType: 'arc' | 'scene' = 'arc',
+    existingArc?: Arc,
   ): Promise<ExpansionResult | null> => {
     updatePhase('expanding');
 
@@ -157,9 +159,12 @@ export function useMCTS() {
       ? `NORTH STAR (always steer the narrative toward this): ${northStarPrompt}\n\n${direction}`
       : direction;
 
+    // Scene moves generate exactly 1 scene and continue the existing arc
+    const sceneCount = moveType === 'scene' ? 1 : 0;
+
     const result = await generateScenes(
-      parentNarrative, parentKeys, parentIndex, 0,
-      effectiveDirection, undefined, cubeGoal ?? undefined,
+      parentNarrative, parentKeys, parentIndex, sceneCount,
+      effectiveDirection, moveType === 'scene' ? existingArc : undefined, cubeGoal ?? undefined,
       existingSiblings.length > 0 ? existingSiblings : undefined,
       worldBuildFocus,
       onToken,
@@ -177,7 +182,11 @@ export function useMCTS() {
       [...ancestorChain, { scenes, arc } as any],
       activeBranchId,
     );
-    const score = scoreArc(scenes, allPriorScenes);
+
+    // Scene moves use per-scene scoring; arc moves use aggregate scoring
+    const score = moveType === 'scene' && scenes.length === 1
+      ? scoreScene(scenes[0], allPriorScenes)
+      : scoreArc(scenes, allPriorScenes);
 
     return {
       targetId, scenes, arc, direction, cubeGoal, deliveryGoal,
@@ -276,7 +285,13 @@ export function useMCTS() {
         .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
       const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
-      return { targetId, direction, cubeGoal, deliveryGoal, parentNarrative, parentKeys, parentIndex, ancestorChain, allPriorScenes, existingSiblings };
+      // For scene moves: root-level creates a new arc (with title), children continue parent's arc
+      let existingArc: Arc | undefined;
+      if (config.moveType === 'scene' && parentNode) {
+        existingArc = parentNode.arc;
+      }
+
+      return { targetId, direction, cubeGoal, deliveryGoal, parentNarrative, parentKeys, parentIndex, ancestorChain, allPriorScenes, existingSiblings, existingArc };
     };
 
     if (config.searchMode === 'baseline') {
@@ -333,7 +348,7 @@ export function useMCTS() {
             prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
             prep.existingSiblings, activeBranchId,
             tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-            config.northStarPrompt,
+            config.northStarPrompt, config.moveType, prep.existingArc,
           ).then((result) => ({ result, seq }));
 
           activeSlots.push({ seq, goal, promise });
@@ -366,7 +381,7 @@ export function useMCTS() {
               tree, parentTarget,
               nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
               result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
-              result.score,
+              result.score, config.moveType,
             );
             tree = backpropagate(tree, nodeId);
 
@@ -458,7 +473,7 @@ export function useMCTS() {
                 prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
                 prep.existingSiblings, activeBranchId,
                 tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-                config.northStarPrompt,
+                config.northStarPrompt, config.moveType, prep.existingArc,
               ));
             }
 
@@ -476,7 +491,7 @@ export function useMCTS() {
                 tree, result.targetId === 'root' ? 'root' : result.targetId,
                 nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
                 result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
-                result.score,
+                result.score, config.moveType,
               );
               tree = backpropagate(tree, nodeId);
               nodesGenerated++;
@@ -492,6 +507,91 @@ export function useMCTS() {
             }));
           }
         }
+      }
+
+    } else if (config.searchMode === 'greedy') {
+      // ── Greedy mode: DFS depth-first, always expand the best leaf ──────────
+      // At each depth, generate branchingFactor children in parallel for the
+      // current target parent, pick the highest-scoring child, descend to it,
+      // and repeat. Produces a single deep path through the search space.
+
+      let parentTarget: MCTSNodeId | 'root' = 'root';
+
+      while (!shouldStop()) {
+        const childrenToGenerate = config.branchingFactor;
+        const inFlightGoals = new Map<MCTSNodeId | 'root', (string | null)[]>();
+        let generated = 0;
+
+        // Generate branchingFactor children in parallel batches
+        while (generated < childrenToGenerate && !shouldStop()) {
+          const batchSize = Math.min(config.parallelism, childrenToGenerate - generated);
+          const batch: Promise<ExpansionResult | null>[] = [];
+
+          for (let i = 0; i < batchSize; i++) {
+            const prep = prepareSlot(parentTarget, inFlightGoals);
+            if (!prep) break;
+
+            const goal = prep.cubeGoal ?? prep.deliveryGoal;
+            inFlightGoals.set(parentTarget, [...(inFlightGoals.get(parentTarget) ?? []), goal]);
+
+            batch.push(runSingleExpansion(
+              prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
+              prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
+              prep.existingSiblings, activeBranchId,
+              tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
+              config.northStarPrompt, config.moveType, prep.existingArc,
+            ));
+          }
+
+          if (batch.length === 0) break;
+
+          const results = await Promise.all(batch);
+          inFlightGoals.delete(parentTarget);
+
+          for (const result of results) {
+            if (cancelledRef.current) break;
+            if (!result) continue;
+
+            const nodeId = nextNodeId();
+            tree = addChildNode(
+              tree, result.targetId === 'root' ? 'root' : result.targetId,
+              nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
+              result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
+              result.score, config.moveType,
+            );
+            tree = backpropagate(tree, nodeId);
+            nodesGenerated++;
+            generated++;
+          }
+
+          const best = bestPath(tree, config.pathStrategy);
+          setRunState((prev) => ({
+            ...prev,
+            tree,
+            iterationsCompleted: nodesGenerated,
+            bestPath: best,
+          }));
+        }
+
+        // Greedy descent: pick the best-scoring child and descend
+        const childIds = parentTarget === 'root'
+          ? tree.rootChildIds
+          : (tree.nodes[parentTarget]?.childIds ?? []);
+
+        if (childIds.length === 0) break;
+
+        let bestChildId: MCTSNodeId | null = null;
+        let bestScore = -Infinity;
+        for (const id of childIds) {
+          const child = tree.nodes[id];
+          if (child && child.immediateScore > bestScore) {
+            bestScore = child.immediateScore;
+            bestChildId = id;
+          }
+        }
+
+        if (!bestChildId) break;
+        parentTarget = bestChildId;
       }
 
     } else {
@@ -534,7 +634,7 @@ export function useMCTS() {
           prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
           prep.existingSiblings, activeBranchId,
           tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-          config.northStarPrompt,
+          config.northStarPrompt, config.moveType, prep.existingArc,
         ).then((result) => ({ result, seq }));
 
         activeSlots.push({ seq, targetId, goal, promise });
@@ -573,7 +673,7 @@ export function useMCTS() {
             tree, result.targetId === 'root' ? 'root' : result.targetId,
             nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
             result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex,
-            result.score,
+            result.score, config.moveType,
           );
 
           updatePhase('backpropagating');
@@ -696,6 +796,9 @@ export function useMCTS() {
           .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
         const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
+        // Scene moves: root creates new arc, children continue parent's arc
+        const resumeExistingArc = (runState.config.moveType === 'scene' && parentNode) ? parentNode.arc : undefined;
+
         const goal = cubeGoal ?? deliveryGoal;
         inFlightCounts.set(targetId, (inFlightCounts.get(targetId) ?? 0) + 1);
         inFlightGoals.set(targetId, [...(inFlightGoals.get(targetId) ?? []), goal]);
@@ -705,7 +808,7 @@ export function useMCTS() {
           targetId, parentNarrative, parentKeys, parentIndex,
           direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes, existingSiblings,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-          runState.config.northStarPrompt,
+          runState.config.northStarPrompt, runState.config.moveType, resumeExistingArc,
         ).then((result) => ({ result, seq }));
         activeSlots.push({ seq, targetId, goal, promise });
         return true;
@@ -733,7 +836,7 @@ export function useMCTS() {
           const nodeId = nextNodeId();
           tree = addChildNode(tree, result.targetId === 'root' ? 'root' : result.targetId,
             nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
-            result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex, result.score);
+            result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex, result.score, runState.config.moveType);
           tree = backpropagate(tree, nodeId);
           if (result.targetId !== 'root') {
             const parent = tree.nodes[result.targetId];
@@ -845,6 +948,9 @@ export function useMCTS() {
           .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
         const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
+        // Scene moves: root creates new arc, children continue parent's arc
+        const contExistingArc = (updatedConfig.moveType === 'scene' && parentNode) ? parentNode.arc : undefined;
+
         const goal = cubeGoal ?? deliveryGoal;
         inFlightCounts.set(targetId, (inFlightCounts.get(targetId) ?? 0) + 1);
         inFlightGoals.set(targetId, [...(inFlightGoals.get(targetId) ?? []), goal]);
@@ -854,7 +960,7 @@ export function useMCTS() {
           targetId, parentNarrative, parentKeys, parentIndex,
           direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes, existingSiblings,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-          updatedConfig.northStarPrompt,
+          updatedConfig.northStarPrompt, updatedConfig.moveType, contExistingArc,
         ).then((result) => ({ result, seq }));
         activeSlots.push({ seq, targetId, goal, promise });
         return true;
@@ -882,7 +988,7 @@ export function useMCTS() {
           const nodeId = nextNodeId();
           tree = addChildNode(tree, result.targetId === 'root' ? 'root' : result.targetId,
             nodeId, result.scenes, result.arc, result.direction, result.cubeGoal, result.deliveryGoal,
-            result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex, result.score);
+            result.virtualNarrative, result.virtualResolvedKeys, result.virtualCurrentIndex, result.score, updatedConfig.moveType);
           tree = backpropagate(tree, nodeId);
           if (result.targetId !== 'root') {
             const parent = tree.nodes[result.targetId];

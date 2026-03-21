@@ -18,8 +18,8 @@ export function TitleSlide({ data }: { data: SlidesData }) {
   const dominantColors: Record<string, string> = { payoff: '#EF4444', change: '#22C55E', knowledge: '#3B82F6' };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full px-12 text-center relative overflow-hidden">
-      {/* Subtle radial glow behind title */}
+    <div className="flex items-center justify-center h-full px-12 relative overflow-hidden">
+      {/* Subtle radial glow */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -27,23 +27,27 @@ export function TitleSlide({ data }: { data: SlidesData }) {
         }}
       />
 
-      {/* Cover image */}
-      {data.coverImageUrl && (
-        <div className="w-32 h-32 rounded-2xl overflow-hidden mb-8 border border-white/10 shadow-2xl relative">
-          <img src={data.coverImageUrl} alt="" className="w-full h-full object-cover" />
+      <div className={`flex items-center gap-10 relative ${data.coverImageUrl ? '' : 'flex-col text-center'}`}>
+        {/* Cover image */}
+        {data.coverImageUrl && (
+          <div className="w-56 shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+            <img src={data.coverImageUrl} alt="" className="w-full aspect-3/4 object-cover" />
+          </div>
+        )}
+
+        {/* Title & description */}
+        <div className={data.coverImageUrl ? 'text-left' : ''}>
+          <h1 className="text-5xl font-bold text-text-primary mb-3 leading-tight max-w-2xl">
+            {data.title}
+          </h1>
+
+          {data.description && (
+            <p className="text-lg text-text-secondary max-w-xl leading-relaxed">
+              {data.description}
+            </p>
+          )}
         </div>
-      )}
-
-      {/* Title */}
-      <h1 className="text-5xl font-bold text-text-primary mb-3 leading-tight max-w-3xl relative">
-        {data.title}
-      </h1>
-
-      {data.description && (
-        <p className="text-lg text-text-secondary max-w-2xl mb-8 leading-relaxed relative">
-          {data.description}
-        </p>
-      )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { NarrativeState, Scene, Arc, CubeCornerKey } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
-import type { MCTSNode, MCTSNodeId, MCTSTree, MCTSConfig, PathStrategy } from '@/types/mcts';
+import type { MCTSNode, MCTSNodeId, MCTSTree, MCTSConfig, PathStrategy, MoveType } from '@/types/mcts';
 import { SEARCH_MODE_C, DELIVERY_DIRECTIONS } from '@/types/mcts';
 import type { SearchMode, DeliveryDirection, DirectionMode } from '@/types/mcts';
 
@@ -62,6 +62,7 @@ function maxSlots(
 ): number {
   if (config.searchMode === 'baseline') return Infinity;
   if (config.searchMode === 'constrained') return config.branchingFactor;
+  if (config.searchMode === 'greedy') return config.branchingFactor;
 
   // Freedom mode
   if (id === 'root') return config.parallelism;
@@ -276,6 +277,7 @@ export function addChildNode(
   virtualResolvedKeys: string[],
   virtualCurrentIndex: number,
   immediateScore: number,
+  moveType: MoveType = 'arc',
 ): MCTSTree {
   const depth = parentId === 'root' ? 0 : (tree.nodes[parentId]?.depth ?? 0) + 1;
 
@@ -283,6 +285,7 @@ export function addChildNode(
     id,
     parentId: parentId === 'root' ? null : parentId,
     childIds: [],
+    moveType,
     scenes,
     arc,
     direction,

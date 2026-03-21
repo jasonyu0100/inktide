@@ -148,11 +148,10 @@ export default function TopBar() {
 
     const seriesGrades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
 
-    // Narrative shape from payoff curve; delivery points for delivery chart
+    // Narrative shape from delivery curve; delivery points for delivery chart
     const normSnapshots = Object.values(computeForceSnapshots(allScenes));
-    const zPayoffs = normSnapshots.map((s) => s.payoff);
-    const shape = classifyNarrativeShape(zPayoffs);
     const deliveryPoints = computeDeliveryCurve(normSnapshots);
+    const shape = classifyNarrativeShape(deliveryPoints.map((d) => d.delivery));
 
     const archetype = classifyArchetype(seriesGrades);
 

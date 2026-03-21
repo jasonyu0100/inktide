@@ -71,27 +71,42 @@ function ForcesPage({ data }: { data: SlidesData }) {
   );
 }
 
-// ── Page 2: Delivery, Shape & Swing ─────────────────────────────────────────
+// ── Page 2: Tension, Delivery, Shape & Swing ────────────────────────────────
 
 function DeliveryShapeSwingPage({ data }: { data: SlidesData }) {
   return (
     <div className="flex flex-col h-full px-12 py-8">
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-text-dim mb-1 font-mono">Methodology · 2 of {METHODOLOGY_PAGES}</div>
-        <h2 className="text-2xl font-bold text-text-primary mb-1">Delivery, Shape & Swing</h2>
+        <h2 className="text-2xl font-bold text-text-primary mb-1">Tension, Delivery & Shape</h2>
         <p className="text-xs text-text-dim max-w-2xl">
-          The three forces combine into composite signals that reveal narrative presence, emotional trajectory, and pacing dynamics.
+          The three forces combine into tension and delivery — the buildup-release cycle that drives narrative dopamine.
         </p>
       </div>
 
       <div className="flex-1 flex flex-col justify-evenly">
+        {/* Tension */}
+        <div className="flex flex-col items-center text-center">
+          <span className="text-sm font-semibold text-text-primary mb-1">Tension</span>
+          <span className="text-[10px] text-text-dim mb-3">How much energy is coiling without release?</span>
+          <Tex display>{String.raw`T_i = z_i^C + z_i^K - z_i^P`}</Tex>
+          <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
+            High when characters change and the world expands but threads don&apos;t resolve. Drops at payoff scenes — the release the audience craves. The contrast between consecutive tension values drives delivery.
+          </p>
+        </div>
+
+        <div className="w-24 mx-auto border-t border-white/5" />
+
         {/* Delivery */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-1">Delivery</span>
-          <span className="text-[10px] text-text-dim mb-3">How strongly does the scene radiate?</span>
-          <Tex display>{String.raw`A_i = \frac{z_i^P + z_i^C + z_i^K}{3}`}</Tex>
+          <span className="text-[10px] text-text-dim mb-3">How hard does the scene hit?</span>
+          <div className="space-y-1">
+            <Tex display>{String.raw`E_i = 0.5\,z_i^P + 0.25\,z_i^C + 0.25\,z_i^K + \alpha \cdot \text{contrast}_i`}</Tex>
+            <Tex display>{String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i), \qquad \alpha = 0.3`}</Tex>
+          </div>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            Each force is z-score normalised across all scenes, then averaged. High delivery means all three forces fire above average simultaneously.
+            Payoff weighted 2&times; because resolution drives satisfaction. The contrast bonus rewards tension-release patterns — a payoff after sustained buildup scores higher than the same payoff in isolation.
           </p>
         </div>
 
@@ -100,23 +115,11 @@ function DeliveryShapeSwingPage({ data }: { data: SlidesData }) {
         {/* Shape */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-1">Narrative Shape</span>
-          <span className="text-[10px] text-text-dim mb-3">What is the emotional trajectory?</span>
-          <Tex display>{String.raw`\text{Shape} = f\!\left(\tilde{P}_1, \tilde{P}_2, \ldots, \tilde{P}_n\right)`}</Tex>
+          <span className="text-[10px] text-text-dim mb-3">What is the dopamine trajectory?</span>
+          <Tex display>{String.raw`\text{Shape} = f\!\left(E_1, E_2, \ldots, E_n\right)`}</Tex>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            Classified from the Gaussian-smoothed z-score payoff trajectory. Payoff tracks thread resolution and relationship shifts — the structural backbone of narrative arc.
+            Classified from the Gaussian-smoothed delivery curve. Delivery captures the full dopamine profile — payoff-weighted force presence plus tension-release contrast — making it a more accurate measure of emotional trajectory than any single force alone.
             {data.shape && <> This series: <span className="text-text-secondary font-medium">{data.shape.name}</span>.</>}
-          </p>
-        </div>
-
-        <div className="w-24 mx-auto border-t border-white/5" />
-
-        {/* Swing */}
-        <div className="flex flex-col items-center text-center">
-          <span className="text-sm font-semibold text-text-primary mb-1">Swing</span>
-          <span className="text-[10px] text-text-dim mb-3">Is the story breathing?</span>
-          <Tex display>{String.raw`S_i = \left\|\, \frac{\mathbf{f}_i - \mathbf{f}_{i-1}}{\boldsymbol{\mu}} \,\right\|_2`}</Tex>
-          <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            Euclidean distance between consecutive force vectors, mean-normalised. High swing means alternating scene types; low swing means mechanical repetition.
           </p>
         </div>
       </div>

@@ -64,7 +64,7 @@ function ForcesTab() {
         <Block tex={String.raw`K = \Delta N + \tfrac{1}{2}\,\Delta E`} />
         <p className="text-[10px] text-text-dim">
           <Tex>{String.raw`\Delta N`}</Tex>: new world concepts (weight 1). <Tex>{String.raw`\Delta E`}</Tex>: new connections (weight ½).
-          The exponent rewards dense graphs — 5 edges scores 11.2, not 5.
+          New concepts matter more than new links — a fresh idea outweighs a connection between known ones.
         </p>
       </S>
     </div>
@@ -75,14 +75,21 @@ function DynamicsTab() {
   return (
     <div className="space-y-5">
       <p className="text-[10px] text-text-dim">
-        Derived signals that measure pacing and structure across the scene sequence.
+        Derived signals that measure pacing, tension, and structure across the scene sequence.
       </p>
 
-      <S title="Delivery" analogy="The heartbeat of the story — where peaks are climaxes and valleys are the quiet before the storm.">
-        <Block tex="z_i^{(k)} = \frac{x_i^{(k)} - \bar{x}^{(k)}}{\sigma^{(k)}}, \qquad E_i = \frac{z_i^P + z_i^C + z_i^K}{3}" />
+      <S title="Tension" analogy="The coiled spring — energy building without release. The audience feels it as anticipation, dread, or mounting stakes.">
+        <Block tex="T_i = z_i^C + z_i^K - z_i^P" />
         <p className="text-[10px] text-text-dim">
-          Each force is z-score normalized, then delivery is their mean.
-          Gaussian-smoothed (σ=1.5) for display.
+          High when characters change and the world expands but threads don&apos;t resolve. Drops sharply at payoff scenes — the release the audience craves.
+        </p>
+      </S>
+
+      <S title="Delivery" analogy="The dopamine hit — payoff-weighted presence with a bonus for earned resolution. Scenes that release built-up tension hit hardest.">
+        <Block tex={String.raw`E_i = 0.5\,z_i^P + 0.25\,z_i^C + 0.25\,z_i^K + \alpha \cdot \text{contrast}_i`} />
+        <Block tex={String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i), \qquad \alpha = 0.3`} />
+        <p className="text-[10px] text-text-dim">
+          Payoff weighted 2&times; because resolution drives satisfaction. The contrast bonus rewards tension-release: a payoff after sustained buildup scores higher than the same payoff in isolation. Gaussian-smoothed (&sigma;=1.5) for display.
         </p>
       </S>
 

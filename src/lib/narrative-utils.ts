@@ -194,7 +194,9 @@ export function zScoreNormalize(values: number[]): number[] {
 //     where r(g) = g / (1 + g)            (parameter-free saturating decay)
 //
 // S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCV space)
-// E = (P + C + V) / 3                    (delivery, Gaussian smoothed)
+// E = 0.5P + 0.25C + 0.25K + α·contrast  (delivery, payoff-weighted + tension-release bonus)
+//     contrast = max(0, T_{i-1} - T_i)   (tension drop = release)
+//     T = C + K - P                       (tension: buildup without payoff)
 // g(x̃) = 25(1 - e^{-2x̃}), x̃ = x̄/μ     (grade, μ = {1.5, 7.0, 2.5, 1.5})
 //
 
@@ -516,16 +518,28 @@ export interface DeliveryPoint {
 /**
  * Compute the delivery curve from z-score normalised force snapshots.
  *
- * Delivery is the equal-weighted mean of all three forces — it measures the overall
- * narrative presence of a scene. High delivery means all three forces are radiating
- * above average; low delivery means the scene is quiet or one-dimensional.
+ * Delivery is payoff-weighted (0.5P + 0.25C + 0.25K) with a contrast bonus
+ * that rewards tension-release patterns. A payoff scene that follows sustained
+ * buildup (high C+K, low P) gets a bonus proportional to the tension drop —
+ * this models the dopamine spike from prediction error / earned resolution.
  */
 export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[] {
   if (snapshots.length === 0) return [];
   const n = snapshots.length;
 
-  const engValues = snapshots.map(({ payoff, change, knowledge }) =>
-    (payoff + change + knowledge) / 3,
+  // Tension per scene: buildup without release
+  const tensions = snapshots.map(({ payoff, change, knowledge }) =>
+    change + knowledge - payoff,
+  );
+
+  // Contrast bonus: reward scenes where tension drops (= release)
+  const CONTRAST_WEIGHT = 0.3;
+  const contrasts = tensions.map((t, i) =>
+    i === 0 ? 0 : Math.max(0, tensions[i - 1] - t),
+  );
+
+  const engValues = snapshots.map(({ payoff, change, knowledge }, i) =>
+    0.5 * payoff + 0.25 * change + 0.25 * knowledge + CONTRAST_WEIGHT * contrasts[i],
   );
 
   const smoothed = gaussianSmooth(engValues, 1.5);
@@ -620,20 +634,20 @@ const SHAPES = {
 } satisfies Record<string, NarrativeShape>;
 
 /**
- * Classify the overall shape of a narrative based on its payoff curve.
+ * Classify the overall shape of a narrative based on its delivery curve.
  *
- * Accepts z-score normalised payoff values (one per scene), applies Gaussian
- * smoothing internally, and classifies the trajectory into a named archetype.
- * Uses payoff specifically because it tracks thread resolution and relationship
- * shifts — the structural backbone of narrative shape.
+ * Accepts delivery values (one per scene), applies Gaussian smoothing
+ * internally, and classifies the trajectory into a named archetype.
+ * Uses delivery because it captures the full dopamine profile — payoff-weighted
+ * force presence plus tension-release contrast.
  *
  * Inspired by Vonnegut's story shapes and Reagan et al.'s arc research.
  */
-export function classifyNarrativeShape(payoffs: number[]): NarrativeShape {
-  if (payoffs.length < 6) return SHAPES.plateau;
-  const n = payoffs.length;
-  const smoothed = gaussianSmooth(payoffs, 1.5);
-  const macro = gaussianSmooth(payoffs, 4);
+export function classifyNarrativeShape(deliveries: number[]): NarrativeShape {
+  if (deliveries.length < 6) return SHAPES.plateau;
+  const n = deliveries.length;
+  const smoothed = gaussianSmooth(deliveries, 1.5);
+  const macro = gaussianSmooth(deliveries, 4);
 
   // Variance of the smoothed curve — low means flat/plateau
   const smMean = smoothed.reduce((s, v) => s + v, 0) / n;

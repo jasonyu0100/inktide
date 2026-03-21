@@ -151,8 +151,8 @@ export function computeSlidesData(
   // Delivery curve
   const deliveryCurve = computeDeliveryCurve(forceSnapshots);
 
-  // Narrative shape (based on payoff curve)
-  const shape = classifyNarrativeShape(forceSnapshots.map((f) => f.payoff));
+  // Narrative shape (based on delivery curve)
+  const shape = classifyNarrativeShape(deliveryCurve.map((d) => d.delivery));
 
   // Swings from mean-normalised raw forces (preserves cross-series differences)
   const rawForceSnapshots = rawForces.payoff.map((_, i) => ({

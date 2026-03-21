@@ -94,8 +94,8 @@ Three force dimensions derived from knowledge graph mutations, all **z-score nor
 - **Knowledge (K)** — world knowledge graph complexity delta per scene. Formula: `K = ΔN + 0.5 · ΔE`. Nodes weighted 1x, edges 0.5x.
 
 Derived metrics:
-- **Delivery** — `(P + C + K) / 3`, Gaussian-smoothed overall narrative presence
-- **Tension** — `C + K - P`, buildup without release
+- **Tension** — `T = C + K - P`, buildup without release — the coiled spring
+- **Delivery** — `E = 0.5P + 0.25C + 0.25K + 0.3 · contrast`, payoff-weighted with tension-release bonus. `contrast = max(0, T[i-1] - T[i])` rewards scenes that release built-up tension
 - **Swing** — Euclidean distance between consecutive force snapshots
 
 Formulas in `src/lib/narrative-utils.ts`, inspectable via `FormulaModal`. The **cube** model maps forces into 3D space for trajectory analysis.

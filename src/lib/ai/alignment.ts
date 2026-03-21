@@ -371,6 +371,7 @@ export function buildFixAnalysis(edit: ContinuityEdit, report: AlignmentReport):
 export type FixResult = {
   sceneId: string;
   prose: string;
+  changelog: string;
 };
 
 /** Apply continuity fixes using a sliding window — scenes within a window
@@ -433,8 +434,8 @@ export async function runFixWindows(
 
       try {
         const analysis = buildFixAnalysis(edit, report);
-        const prose = await rewriteSceneProse(narrative, s, resolvedKeys, s.prose, analysis);
-        const result: FixResult = { sceneId: edit.sceneId, prose };
+        const { prose, changelog } = await rewriteSceneProse(narrative, s, resolvedKeys, s.prose, analysis);
+        const result: FixResult = { sceneId: edit.sceneId, prose, changelog };
         allResults.push(result);
         onSceneFixed?.(result);
       } catch (err) {

@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { NarrativeState, Scene, StorySettings, AlignmentReport, ContinuityPlan } from '@/types/narrative';
 import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { generateSceneProse, generateScenePlan, scoreSceneProse, rewriteSceneProse, runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from '@/lib/ai';
+import { generateSceneProse, generateScenePlan, rewriteSceneProse, runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from '@/lib/ai';
 import type { AlignmentProgress } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
@@ -113,33 +113,28 @@ export function StoryReader({
     }
   }, [narrative, resolvedKeys, dispatch]);
 
-  // ── Grade (score only) ──────────────────────────────────────────────
-  const [grading, setGrading] = useState<string | null>(null); // sceneId currently grading
-  const [customAnalysis, setCustomAnalysis] = useState('');
-  const [showCustomAnalysis, setShowCustomAnalysis] = useState(false);
+  const [rewriteAnalysis, setRewriteAnalysis] = useState('');
+  const [showRewrite, setShowRewrite] = useState(false);
+  const [contextPast, setContextPast] = useState(0);
+  const [contextFuture, setContextFuture] = useState(0);
+  const [referenceSceneIds, setReferenceSceneIds] = useState<string[]>([]);
+  const [refPickerOpen, setRefPickerOpen] = useState(false);
+  const [rewriteChangelogs, setRewriteChangelogs] = useState<Record<string, string>>({});
 
-  const gradeScene = useCallback(async (s: Scene) => {
+  // ── Rewrite ────────────────────────────────────────────────────────
+  const rewriteScene = useCallback(async (s: Scene, analysis: string, past = 0, future = 0, refIds?: string[]) => {
     const currentProse = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
     if (!currentProse) return;
-    setGrading(s.id);
+    setProseCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'loading' } }));
     try {
-      const score = await scoreSceneProse(narrative, s, currentProse);
-      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { proseScore: score } });
-    } catch {
-      // Grade failure is non-destructive — prose is unchanged
-    } finally {
-      setGrading(null);
-    }
-  }, [narrative, proseCache, dispatch]);
-
-  // ── Rewrite (using grade critique or custom analysis) ──────────────
-  const rewriteScene = useCallback(async (s: Scene, analysis: string) => {
-    const currentProse = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
-    if (!currentProse) return;
-    setProseCache((prev) => ({ ...prev, [s.id]: { text: currentProse, status: 'loading' } }));
-    try {
-      const prose = await rewriteSceneProse(narrative, s, resolvedKeys, currentProse, analysis);
+      const { prose, changelog } = await rewriteSceneProse(narrative, s, resolvedKeys, currentProse, analysis, past, future, refIds, (token) => {
+        setProseCache((prev) => {
+          const existing = prev[s.id];
+          return { ...prev, [s.id]: { text: (existing?.text ?? '') + token, status: 'loading' } };
+        });
+      });
       setProseCache((prev) => ({ ...prev, [s.id]: { text: prose, status: 'ready' } }));
+      if (changelog) setRewriteChangelogs((prev) => ({ ...prev, [s.id]: changelog }));
       dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { prose, proseScore: undefined } });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -253,6 +248,7 @@ export function StoryReader({
       (result) => {
         dispatch({ type: 'UPDATE_SCENE', sceneId: result.sceneId, updates: { prose: result.prose } });
         setProseCache((prev) => ({ ...prev, [result.sceneId]: { text: result.prose, status: 'ready' } }));
+        if (result.changelog) setRewriteChangelogs((prev) => ({ ...prev, [result.sceneId]: result.changelog }));
       },
       () => alignmentCancelledRef.current,
     );
@@ -288,11 +284,18 @@ export function StoryReader({
     const s = narrative.scenes[sceneId];
     if (!s?.prose) return;
     setFixingSceneId(sceneId);
+    setProseCache((prev) => ({ ...prev, [sceneId]: { text: '', status: 'loading' } }));
     try {
       const analysis = buildFixAnalysis(edit, alignmentReport);
-      const prose = await rewriteSceneProse(narrative, s, resolvedKeys, s.prose, analysis);
+      const { prose, changelog } = await rewriteSceneProse(narrative, s, resolvedKeys, s.prose, analysis, 0, 0, undefined, (token) => {
+        setProseCache((prev) => {
+          const existing = prev[sceneId];
+          return { ...prev, [sceneId]: { text: (existing?.text ?? '') + token, status: 'loading' } };
+        });
+      });
       dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose } });
       setProseCache((prev) => ({ ...prev, [sceneId]: { text: prose, status: 'ready' } }));
+      if (changelog) setRewriteChangelogs((prev) => ({ ...prev, [sceneId]: changelog }));
 
       // Record in summary and remove from plan
       const entry: FixSummaryEntry = {
@@ -327,7 +330,7 @@ export function StoryReader({
   }, [scene, proseCache, planCache]);
 
   // Reset edited plan when changing scenes
-  useEffect(() => { setEditedPlan(null); setShowCustomAnalysis(false); setCustomAnalysis(''); }, [currentIndex]);
+  useEffect(() => { setEditedPlan(null); setShowRewrite(false); setRewriteAnalysis(''); }, [currentIndex]);
 
   useEffect(() => { activeSceneRef.current?.scrollIntoView({ block: 'center' }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { contentRef.current?.scrollTo(0, 0); }, [currentIndex, viewMode]);
@@ -362,13 +365,6 @@ export function StoryReader({
   const isPlanLoading = planCached?.status === 'loading';
   const hasProseError = proseCached?.status === 'error';
   const hasPlanError = planCached?.status === 'error';
-  const sceneScore = scene?.proseScore && typeof scene.proseScore.overall === 'number' ? scene.proseScore : undefined;
-
-  // Score averages for header
-  const scoredScenes = scenes.filter((s) => s.proseScore);
-  const avgScore = scoredScenes.length > 0
-    ? Math.round(scoredScenes.reduce((sum, s) => sum + (s.proseScore?.overall ?? 0), 0) / scoredScenes.length * 10) / 10
-    : null;
 
   const isAnyBulkRunning = !!(proseBulk?.running || planBulk?.running);
   const activeBulk = proseBulk?.running ? proseBulk : planBulk?.running ? planBulk : null;
@@ -392,11 +388,6 @@ export function StoryReader({
         <div className="flex items-baseline gap-3">
           <h2 className="text-sm font-semibold text-text-primary">{narrative.title}</h2>
           {arc && <span className="text-[11px] text-text-dim">{arc.name}</span>}
-          {avgScore !== null && (
-            <span className={`text-[10px] font-mono ${scoreColor(avgScore)}`} title="Average prose score">
-              Avg: {avgScore}
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-3">
           {/* Bulk progress */}
@@ -634,11 +625,6 @@ export function StoryReader({
                 );
               })}
 
-              {/* Score indicator — small dot in tab bar when grade exists */}
-              {sceneScore && viewMode === 'prose' && (
-                <span className={`ml-auto text-[9px] font-mono ${scoreColor(sceneScore.overall)}`}>{String(sceneScore.overall)}</span>
-              )}
-
               {/* Context actions — shown in tab bar, right-aligned */}
               {viewMode === 'plan' && hasPlan && !isPlanLoading && (
                 <div className="ml-auto flex items-center gap-1.5">
@@ -695,28 +681,12 @@ export function StoryReader({
                 </div>
               )}
               {viewMode === 'prose' && hasProse && !isProseLoading && (
-                <div className={`${sceneScore ? '' : 'ml-auto'} flex items-center gap-1.5 ${sceneScore ? 'ml-2' : ''}`}>
+                <div className="ml-auto flex items-center gap-1.5">
                   <button
-                    onClick={() => gradeScene(scene)}
-                    disabled={grading === scene.id}
-                    className="text-[9px] px-2 py-1 rounded text-amber-400/80 hover:text-amber-400 hover:bg-amber-500/10 transition disabled:opacity-50"
-                  >
-                    {grading === scene.id ? 'Grading...' : 'Grade'}
-                  </button>
-                  <button
-                    onClick={() => rewriteScene(scene, sceneScore?.critique ?? '')}
-                    disabled={!sceneScore}
-                    title={!sceneScore ? 'Grade the scene first' : 'Rewrite using grade critique'}
-                    className="text-[9px] px-2 py-1 rounded text-violet-400/80 hover:text-violet-400 hover:bg-violet-500/10 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    onClick={() => setShowRewrite((v: boolean) => !v)}
+                    className={`text-[9px] px-2 py-1 rounded transition ${showRewrite ? 'text-cyan-400 bg-cyan-500/10' : 'text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10'}`}
                   >
                     Rewrite
-                  </button>
-                  <button
-                    onClick={() => setShowCustomAnalysis((v) => !v)}
-                    title="Rewrite using custom analysis"
-                    className={`text-[9px] px-2 py-1 rounded transition ${showCustomAnalysis ? 'text-cyan-400 bg-cyan-500/10' : 'text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10'}`}
-                  >
-                    Custom
                   </button>
                   <button
                     onClick={() => { dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); generateProse(scene, sceneKeyIndex); }}
@@ -734,48 +704,77 @@ export function StoryReader({
               )}
             </div>
 
-            {/* ── Grade panel — always visible when score exists ──── */}
-            {viewMode === 'prose' && sceneScore && (
-              <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-[9px] uppercase tracking-widest text-amber-400/60">Grade</span>
-                  <div className="flex items-center gap-2 text-[9px] font-mono">
-                    <span className={scoreColor(sceneScore.overall)}>{String(sceneScore.overall)}</span>
-                    <span className="text-text-dim/30">|</span>
-                    <span title="Voice" className="text-text-dim">V:{String(sceneScore.voice)}</span>
-                    <span title="Pacing" className="text-text-dim">P:{String(sceneScore.pacing)}</span>
-                    <span title="Dialogue" className="text-text-dim">D:{String(sceneScore.dialogue)}</span>
-                    <span title="Sensory" className="text-text-dim">S:{String(sceneScore.sensory)}</span>
-                    <span title="Coverage" className="text-text-dim">M:{String(sceneScore.mutation_coverage)}</span>
-                  </div>
-                </div>
-                {sceneScore.critique && (
-                  <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap">{sceneScore.critique}</p>
-                )}
-              </div>
-            )}
-
-            {/* ── Custom analysis input ────────────────────────────── */}
-            {viewMode === 'prose' && showCustomAnalysis && hasProse && !isProseLoading && (
+            {/* ── Rewrite input ──────────────────────────────────── */}
+            {viewMode === 'prose' && showRewrite && hasProse && !isProseLoading && (
               <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[9px] uppercase tracking-widest text-cyan-400/60">Custom Analysis</span>
-                  <button onClick={() => setShowCustomAnalysis(false)} className="text-[9px] text-text-dim/40 hover:text-text-dim transition">&times;</button>
+                  <span className="text-[9px] uppercase tracking-widest text-cyan-400/60">Rewrite</span>
+                  <button onClick={() => setShowRewrite(false)} className="text-[9px] text-text-dim/40 hover:text-text-dim transition">&times;</button>
                 </div>
                 <textarea
-                  value={customAnalysis}
-                  onChange={(e) => setCustomAnalysis(e.target.value)}
+                  value={rewriteAnalysis}
+                  onChange={(e) => setRewriteAnalysis(e.target.value)}
                   placeholder="Paste 3rd-party analysis or write your own critique to guide the rewrite..."
                   className="w-full h-24 bg-black/20 border border-white/5 rounded text-[11px] text-text-secondary p-2 resize-y outline-none focus:border-cyan-500/20 placeholder:text-text-dim/30"
                 />
-                <div className="flex justify-end mt-2">
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] text-text-dim/60">Past</span>
+                      {[0, 1, 3, 5].map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setContextPast(n)}
+                          className={`text-[9px] w-5 h-5 rounded transition ${
+                            contextPast === n
+                              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                              : 'text-text-dim/50 hover:text-text-dim border border-white/5 hover:border-white/10'
+                          }`}
+                          title={n === 0 ? 'Last paragraph only' : `${n} scene${n > 1 ? 's' : ''} before`}
+                        >
+                          {n || '—'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] text-text-dim/60">Future</span>
+                      {[0, 1, 3, 5].map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setContextFuture(n)}
+                          className={`text-[9px] w-5 h-5 rounded transition ${
+                            contextFuture === n
+                              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                              : 'text-text-dim/50 hover:text-text-dim border border-white/5 hover:border-white/10'
+                          }`}
+                          title={n === 0 ? 'First paragraph only' : `${n} scene${n > 1 ? 's' : ''} after`}
+                        >
+                          {n || '—'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <button
-                    onClick={() => { rewriteScene(scene, customAnalysis); setShowCustomAnalysis(false); setCustomAnalysis(''); }}
-                    disabled={!customAnalysis.trim()}
+                    onClick={() => { rewriteScene(scene, rewriteAnalysis, contextPast, contextFuture, referenceSceneIds.length > 0 ? referenceSceneIds : undefined); setShowRewrite(false); setRewriteAnalysis(''); setReferenceSceneIds([]); }}
+                    disabled={!rewriteAnalysis.trim()}
                     className="text-[9px] px-3 py-1 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/15 transition disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    Rewrite with Analysis
+                    Rewrite
                   </button>
+                </div>
+                {/* Reference chapters link */}
+                <div className="mt-2 pt-2 border-t border-white/5 flex items-center gap-2">
+                  <button
+                    onClick={() => setRefPickerOpen(true)}
+                    className="text-[9px] text-text-dim/60 hover:text-cyan-400 transition"
+                  >
+                    {referenceSceneIds.length > 0
+                      ? `${referenceSceneIds.length} pinned chapter${referenceSceneIds.length > 1 ? 's' : ''}`
+                      : 'Pin reference chapters...'}
+                  </button>
+                  {referenceSceneIds.length > 0 && (
+                    <button onClick={() => setReferenceSceneIds([])} className="text-[9px] text-text-dim/30 hover:text-text-dim transition">clear</button>
+                  )}
                 </div>
               </div>
             )}
@@ -828,6 +827,7 @@ export function StoryReader({
             {fixSummary && (() => {
               const sceneEntry = fixSummary.find((e) => e.sceneId === scene.id);
               if (!sceneEntry) return null;
+              const changelog = rewriteChangelogs[scene.id];
               return (
                 <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
                   <div className="flex items-center justify-between mb-2">
@@ -835,7 +835,7 @@ export function StoryReader({
                       Fixed ({sceneEntry.issues.length} issue{sceneEntry.issues.length !== 1 ? 's' : ''})
                     </span>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 mb-2">
                     {sceneEntry.issues.map((issue, i) => (
                       <div key={i} className="flex items-center gap-2 text-[11px]">
                         <span className="text-[9px] text-text-dim font-mono">{issue.category}</span>
@@ -843,9 +843,33 @@ export function StoryReader({
                       </div>
                     ))}
                   </div>
+                  {changelog && (
+                    <>
+                      <div className="border-t border-emerald-500/10 pt-2 mt-2">
+                        <span className="text-[9px] uppercase tracking-widest text-emerald-400/40">Changes Made</span>
+                      </div>
+                      <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap mt-1">{changelog}</p>
+                    </>
+                  )}
                 </div>
               );
             })()}
+
+            {/* ── Rewrite changelog (shown after custom analysis rewrite) ── */}
+            {!fixSummary?.find((e) => e.sceneId === scene.id) && rewriteChangelogs[scene.id] && (
+              <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] uppercase tracking-widest text-cyan-400/60">Rewrite Summary</span>
+                  <button
+                    onClick={() => setRewriteChangelogs((prev) => { const next = { ...prev }; delete next[scene.id]; return next; })}
+                    className="text-[9px] text-text-dim/40 hover:text-text-dim transition"
+                  >
+                    &times;
+                  </button>
+                </div>
+                <p className="text-[11px] text-text-secondary leading-relaxed whitespace-pre-wrap">{rewriteChangelogs[scene.id]}</p>
+              </div>
+            )}
 
             {/* ── SUMMARY VIEW ───────────────────────────────────────── */}
             {viewMode === 'summary' && (
@@ -1093,6 +1117,47 @@ export function StoryReader({
           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
         </button>
       </div>
+
+      {/* Reference chapter picker modal */}
+      {refPickerOpen && (
+        <div className="fixed inset-0 bg-black/70 z-60 flex items-center justify-center" onClick={() => setRefPickerOpen(false)}>
+          <div className="glass max-w-lg w-full rounded-2xl p-6 relative max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setRefPickerOpen(false)} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
+            <h2 className="text-sm font-semibold text-text-primary mb-1">Pin Reference Chapters</h2>
+            <p className="text-[10px] text-text-dim mb-3">Select chapters whose prose the rewriter should see as context.</p>
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-0.5 pr-1">
+              {scenes.map((s, i) => {
+                if (s.id === scene.id) return null;
+                if (!s.prose) return null;
+                const selected = referenceSceneIds.includes(s.id);
+                const sArc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(s.id));
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setReferenceSceneIds((prev) =>
+                      selected ? prev.filter((id) => id !== s.id) : [...prev, s.id]
+                    )}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition flex items-center gap-3 ${
+                      selected ? 'bg-cyan-500/10 border border-cyan-500/20' : 'hover:bg-white/5 border border-transparent'
+                    }`}
+                  >
+                    <span className={`text-[10px] font-mono w-6 shrink-0 ${selected ? 'text-cyan-400' : 'text-text-dim/50'}`}>{i + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-[11px] truncate ${selected ? 'text-text-primary' : 'text-text-secondary'}`}>{s.summary.slice(0, 80)}</p>
+                      {sArc && <p className="text-[9px] text-text-dim/50">{sArc.name}</p>}
+                    </div>
+                    {selected && <span className="text-[9px] text-cyan-400 shrink-0">pinned</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex justify-between items-center mt-4 pt-3 border-t border-white/5 shrink-0">
+              <span className="text-[10px] text-text-dim">{referenceSceneIds.length} selected</span>
+              <button onClick={() => setRefPickerOpen(false)} className="text-[10px] px-3 py-1.5 rounded-md bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition font-semibold">Done</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings modal (nested inside StoryReader) */}
       {settingsOpen && (

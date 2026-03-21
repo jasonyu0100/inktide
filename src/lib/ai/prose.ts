@@ -1,8 +1,10 @@
 import type { NarrativeState, Scene, ProseScore } from '@/types/narrative';
-import { callGenerate, SYSTEM_PROMPT } from './api';
+import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { sceneContext, deriveLogicRules, sceneScale } from './context';
+
+
 
 export async function scoreSceneProse(
   narrative: NarrativeState,
@@ -12,10 +14,6 @@ export async function scoreSceneProse(
   const sceneBlock = sceneContext(narrative, scene);
   const logicRules = deriveLogicRules(narrative, scene);
 
-  const planBlock = scene.plan
-    ? `\nSCENE PLAN (grade against this delivery structure):\n${scene.plan}\n`
-    : '';
-
   const logicBlock = logicRules.length > 0
     ? `\nLOGICAL CONSTRAINTS (check all are satisfied):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
     : '';
@@ -24,7 +22,7 @@ export async function scoreSceneProse(
 
   const prompt = `SCENE CONTEXT:
 ${sceneBlock}
-${planBlock}${logicBlock}
+${logicBlock}
 
 CURRENT PROSE:
 ${currentProse}
@@ -76,22 +74,91 @@ export async function rewriteSceneProse(
   resolvedKeys: string[],
   currentProse: string,
   analysis: string,
-): Promise<string> {
+  /** How many past scenes' full prose to include (0 = last paragraph only) */
+  contextPast = 0,
+  /** How many future scenes' full prose to include (0 = first paragraph only) */
+  contextFuture = 0,
+  /** Specific scene IDs to include as reference context (for distant chapters) */
+  referenceSceneIds?: string[],
+  /** Stream prose tokens as they arrive */
+  onToken?: (token: string) => void,
+): Promise<{ prose: string; changelog: string }> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const sceneBlock = sceneContext(narrative, scene);
   const logicRules = deriveLogicRules(narrative, scene);
 
   // Get neighboring prose for continuity
-  const prevId = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
-  const nextId = sceneIdx < resolvedKeys.length - 1 ? resolvedKeys[sceneIdx + 1] : null;
-  const prevProse = prevId ? narrative.scenes[prevId]?.prose : null;
-  const nextProse = nextId ? narrative.scenes[nextId]?.prose : null;
-  const prevEnding = prevProse ? prevProse.split(/\n\n+/).slice(-1)[0]?.slice(-300) : null;
-  const nextOpening = nextProse ? nextProse.split(/\n\n+/)[0]?.slice(0, 300) : null;
+  let prevEnding: string | null = null;
+  let nextOpening: string | null = null;
+  let neighborContext = '';
 
-  const planBlock = scene.plan
-    ? `\nSCENE PLAN (the rewrite must preserve this delivery structure):\n${scene.plan}\n`
-    : '';
+  const hasExpandedContext = contextPast > 0 || contextFuture > 0;
+
+  // Past scenes
+  if (contextPast > 0) {
+    const prevScenes: string[] = [];
+    for (let i = 1; i <= contextPast; i++) {
+      const pIdx = sceneIdx - i;
+      if (pIdx < 0) break;
+      const pId = resolvedKeys[pIdx];
+      const pScene = pId ? narrative.scenes[pId] : null;
+      if (pScene?.prose) {
+        const pov = narrative.characters[pScene.povId]?.name ?? pScene.povId;
+        const loc = narrative.locations[pScene.locationId]?.name ?? pScene.locationId;
+        prevScenes.unshift(`--- SCENE ${pIdx + 1} (POV: ${pov}, @${loc}) ---\n${pScene.summary}\n\n${pScene.prose}`);
+      }
+    }
+    if (prevScenes.length > 0) {
+      neighborContext += `\nPRECEDING SCENES (${prevScenes.length} scene${prevScenes.length > 1 ? 's' : ''} before — read these to understand what has already happened):\n${prevScenes.join('\n\n')}\n`;
+    }
+  }
+
+  // Future scenes
+  if (contextFuture > 0) {
+    const nextScenes: string[] = [];
+    for (let i = 1; i <= contextFuture; i++) {
+      const nIdx = sceneIdx + i;
+      if (nIdx >= resolvedKeys.length) break;
+      const nId = resolvedKeys[nIdx];
+      const nScene = nId ? narrative.scenes[nId] : null;
+      if (nScene?.prose) {
+        const pov = narrative.characters[nScene.povId]?.name ?? nScene.povId;
+        const loc = narrative.locations[nScene.locationId]?.name ?? nScene.locationId;
+        nextScenes.push(`--- SCENE ${nIdx + 1} (POV: ${pov}, @${loc}) ---\n${nScene.summary}\n\n${nScene.prose}`);
+      }
+    }
+    if (nextScenes.length > 0) {
+      neighborContext += `\nFOLLOWING SCENES (${nextScenes.length} scene${nextScenes.length > 1 ? 's' : ''} after — read these to understand what must be set up):\n${nextScenes.join('\n\n')}\n`;
+    }
+  }
+
+  // Default: ±1 paragraph (300 chars) when no expanded context
+  if (!hasExpandedContext) {
+    const prevId = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
+    const nextId = sceneIdx < resolvedKeys.length - 1 ? resolvedKeys[sceneIdx + 1] : null;
+    const prevProse = prevId ? narrative.scenes[prevId]?.prose : null;
+    const nextProse = nextId ? narrative.scenes[nextId]?.prose : null;
+    prevEnding = prevProse ? prevProse.split(/\n\n+/).slice(-1)[0]?.slice(-300) : null;
+    nextOpening = nextProse ? nextProse.split(/\n\n+/)[0]?.slice(0, 300) : null;
+  }
+
+  // Pinned reference scenes (distant chapters selected by the author)
+  if (referenceSceneIds && referenceSceneIds.length > 0) {
+    const refBlocks = referenceSceneIds
+      .filter((id) => id !== scene.id)
+      .map((id) => {
+        const refScene = narrative.scenes[id];
+        if (!refScene?.prose) return null;
+        const idx = resolvedKeys.indexOf(id);
+        const pov = narrative.characters[refScene.povId]?.name ?? refScene.povId;
+        const loc = narrative.locations[refScene.locationId]?.name ?? refScene.locationId;
+        return `--- SCENE ${idx + 1} [pinned reference] (POV: ${pov}, @${loc}) ---\n${refScene.summary}\n\n${refScene.prose}`;
+      })
+      .filter(Boolean);
+    if (refBlocks.length > 0) {
+      neighborContext += `\nPINNED REFERENCE SCENES (selected by the author — these are not adjacent but contain relevant context for this rewrite):\n${refBlocks.join('\n\n')}\n`;
+    }
+  }
 
   const logicBlock = logicRules.length > 0
     ? `\nLOGICAL CONSTRAINTS (all must be satisfied):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
@@ -111,9 +178,12 @@ Voice & style for the rewrite:
     ? `\n\nAUTHOR VOICE (mimic this style — it overrides the defaults above):\n${narrative.storySettings.proseVoice.trim()}`
     : '');
 
+  const neighborBlock = neighborContext
+    || `${prevEnding ? `\nPREVIOUS SCENE ENDING:\n"...${prevEnding}"\n` : ''}${nextOpening ? `\nNEXT SCENE OPENING:\n"${nextOpening}..."\n` : ''}`;
+
   const prompt = `SCENE CONTEXT:
 ${sceneBlock}
-${planBlock}${logicBlock}${prevEnding ? `\nPREVIOUS SCENE ENDING:\n"...${prevEnding}"\n` : ''}${nextOpening ? `\nNEXT SCENE OPENING:\n"${nextOpening}..."\n` : ''}
+${logicBlock}${neighborBlock}
 
 CURRENT PROSE:
 ${currentProse}
@@ -121,18 +191,56 @@ ${currentProse}
 ANALYSIS / CRITIQUE TO ADDRESS:
 ${analysis}
 
-Rewrite the prose to address the weaknesses identified in the analysis above. Preserve all narrative deliveries, events, and plot points. The rewrite should feel like the same scene written better. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for delivery; never pad. Do not artificially compress or expand the original — let the content dictate length.
+Rewrite the prose to FULLY ADDRESS every point in the analysis above. The analysis describes specific changes that MUST be implemented — do not merely acknowledge them cosmetically. If the analysis says a character should leave, they must leave in the prose. If it says an event should be removed, remove it entirely. If it says a detail should be added, add it concretely. The rewrite is not a polish pass — it is a structural edit guided by the analysis.
 
-Return JSON:
-{
-  "prose": "the full rewritten prose text"
-}`;
+Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Length should match the scene's needs — a quiet scene may be 800 words, a dense convergence scene 3000+. Err on the side of brevity for delivery; never pad. Do not artificially compress or expand — let the content dictate length.${hasExpandedContext ? '\n\nYou have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.' : ''}
+
+${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, no commentary. Start with the first word of the scene.' : 'Return JSON:\n{\n  "prose": "the full rewritten prose text"\n}'}`;
 
   const scale = sceneScale(scene);
-  const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 500, 'rewriteSceneProse', WRITING_MODEL);
-  const parsed = parseJson(raw, 'rewriteSceneProse') as { prose: string };
+  let prose: string;
+  if (onToken) {
+    const rawStream = await callGenerateStream(prompt, systemPrompt, onToken, scale.proseTokens, 'rewriteSceneProse', WRITING_MODEL);
+    // LLM may ignore "no JSON" instruction — extract prose if it returned JSON
+    prose = rawStream;
+  } else {
+    const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 500, 'rewriteSceneProse', WRITING_MODEL);
+    const parsed = parseJson(raw, 'rewriteSceneProse') as { prose: string };
+    prose = parsed.prose;
+  }
 
-  return parsed.prose;
+  // Generate changelog in a separate cheap call — diffing old vs new
+  let changelog = '';
+  try {
+    const changelogRaw = await callGenerate(
+      `ANALYSIS ADDRESSED:\n${analysis.slice(0, 500)}\n\nSummarize the key changes between the original and rewritten prose in 3-5 SHORT bullet points. Each bullet: one sentence, no quotes, just describe the change plainly. Focus on structural and continuity changes, not word-level edits.\n\nExample format:\n• Moved Chi Shan's death to the opening to establish it immediately\n• Added Tie Ruo Nan's departure via the false trail before Fang Yuan loots\n• Removed duplicate arrival description that repeated the prior scene\n\nReturn JSON:\n{"changelog": "• bullet 1\\n• bullet 2\\n• bullet 3"}`,
+      'You are a literary editor writing a brief change summary. Return ONLY valid JSON.',
+      800,
+      'rewriteChangelog',
+      ANALYSIS_MODEL,
+    );
+    const changelogParsed = parseJson(changelogRaw, 'rewriteChangelog') as { changelog: unknown };
+    // Handle both string and structured formats — LLM may return an array of objects
+    const raw = changelogParsed.changelog;
+    if (typeof raw === 'string') {
+      changelog = raw;
+    } else if (Array.isArray(raw)) {
+      changelog = raw.map((item: unknown) => {
+        if (typeof item === 'string') return `• ${item}`;
+        if (item && typeof item === 'object') {
+          const obj = item as Record<string, string>;
+          return `• ${obj.original ? `"${obj.original}" → ` : ''}${obj.rewritten ? `"${obj.rewritten}"` : ''}${obj.why ? ` — ${obj.why}` : obj.reason ? ` — ${obj.reason}` : ''}`;
+        }
+        return '';
+      }).filter(Boolean).join('\n');
+    } else {
+      changelog = String(raw ?? '');
+    }
+  } catch {
+    // Changelog generation is non-critical — don't fail the rewrite
+  }
+
+  return { prose: prose, changelog };
 }
 
 export async function scoreAndRewriteSceneProse(
@@ -140,10 +248,10 @@ export async function scoreAndRewriteSceneProse(
   scene: Scene,
   resolvedKeys: string[],
   currentProse: string,
-): Promise<{ prose: string; score: ProseScore }> {
+): Promise<{ prose: string; changelog: string; score: ProseScore }> {
   const score = await scoreSceneProse(narrative, scene, currentProse);
-  const prose = await rewriteSceneProse(narrative, scene, resolvedKeys, currentProse, score.critique ?? 'General polish pass — improve all dimensions.');
-  return { score, prose };
+  const result = await rewriteSceneProse(narrative, scene, resolvedKeys, currentProse, score.critique ?? 'General polish pass — improve all dimensions.');
+  return { score, ...result };
 }
 
 export type ChartAnnotation = {

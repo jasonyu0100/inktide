@@ -50,10 +50,10 @@ function ForcesTab() {
         </p>
       </S>
 
-      <S title="Change" analogy="How many lives were touched? A scene rippling across five characters scores higher than one reflecting alone.">
-        <Block tex={String.raw`C = \sum_{c} \log_2(1 + m_c) + \log_2(1 + |\text{events}|)`} />
+      <S title="Change" analogy="How intensely did this scene transform? A tight confrontation scores the same as an ensemble with equal total mutations.">
+        <Block tex={String.raw`C = \log_2(1 + \Sigma m) + \log_2(1 + |\text{events}|)`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'m_c'}</Tex> = continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations per character. Log scale gives diminishing returns, rewarding breadth over depth.
+          <Tex>{'\\Sigma m'}</Tex> = total continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations. Cast-blind — one log of total mass, not a sum of per-character logs.
         </p>
       </S>
 

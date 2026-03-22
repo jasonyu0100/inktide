@@ -189,7 +189,7 @@ export function zScoreNormalize(values: number[]): number[] {
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
 // P = Σ |φ_to - φ_from| + Σ |Δv|          (phase distance + valence shifts)
-// C = Σ_c log₂(1 + m_c)                  (mutation reach; relationships weighted by |Δv|)
+// C = log₂(1 + Σm) + log₂(1 + |events|) (total mutation mass + events; cast-blind)
 // V = Σr(g_c) + r(g_ℓ) + J̄               (cast recency + loc recency + ensemble)
 //     where r(g) = g / (1 + g)            (parameter-free saturating decay)
 //
@@ -235,24 +235,19 @@ function computeRawPayoff(scene: Scene): number {
   return score;
 }
 
-/** Raw change: mutation reach across affected characters.
- *  C = Σ_c log₂(1 + m_c) + log₂(1 + |events|)
- *  m_c = continuity + relationship (|Δv| weighted) mutations per character.
- *  Events contribute as their own log term — not attributed to any character.
- *  Rewards breadth (many characters affected) over depth (many mutations on one). */
+/** Raw change: total mutation intensity with logarithmic scaling.
+ *  C = log₂(1 + Σm) + log₂(1 + |events|)
+ *  Σm = total continuity + relationship (|Δv| weighted) mutations across all characters.
+ *  Cast-blind — a tight 2-character confrontation scores the same as a 10-character
+ *  ensemble with equal total mutations. Events contribute as a separate log term. */
 function rawChange(scene: Scene): number {
-  const charMutations: Record<string, number> = {};
-  for (const cm of scene.continuityMutations) {
-    charMutations[cm.characterId] = (charMutations[cm.characterId] ?? 0) + 1;
-  }
+  let totalMutations = 0;
+  totalMutations += scene.continuityMutations.length;
   for (const rm of scene.relationshipMutations) {
     const weight = Math.abs(rm.valenceDelta) || 0.25;
-    charMutations[rm.from] = (charMutations[rm.from] ?? 0) + weight;
-    charMutations[rm.to] = (charMutations[rm.to] ?? 0) + weight;
+    totalMutations += weight * 2; // both sides of the relationship
   }
-  return Object.values(charMutations).reduce(
-    (sum, count) => sum + Math.log2(1 + count), 0,
-  ) + Math.log2(1 + scene.events.length);
+  return Math.log2(1 + totalMutations) + Math.log2(1 + scene.events.length);
 }
 
 /** Raw knowledge: K = ΔN + 0.5 · ΔE

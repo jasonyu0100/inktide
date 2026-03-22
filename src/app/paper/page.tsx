@@ -251,11 +251,11 @@ export default function PaperPage() {
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">Change</h3>
               <P>
-                How many lives did this scene touch? A scene that ripples through five characters scores higher than one character reflecting alone&mdash;the formula rewards breadth of consequence.
+                How intensely did this scene transform? A tight two-character confrontation scores the same as a ten-character ensemble with equal total mutations&mdash;the formula is cast-blind.
               </P>
-              <Eq tex="C = \sum_{c} \log_2(1 + m_c) + \log_2(1 + |\text{events}|)" />
+              <Eq tex={String.raw`C = \log_2(1 + \Sigma m) + \log_2(1 + |\text{events}|)`} />
               <P>
-                <Tex>{'m_c'}</Tex> is the sum of continuity and relationship mutations (weighted by <Tex>{'|\\Delta v|'}</Tex>) for character <Tex>{'c'}</Tex>. The logarithm gives diminishing returns per character&mdash;the fifth mutation on the same character matters less than the first on a new one.
+                <Tex>{String.raw`\Sigma m`}</Tex> is the total continuity and relationship mutations (weighted by <Tex>{'|\\Delta v|'}</Tex>) across all characters. The logarithm gives diminishing returns&mdash;doubling the mutations adds one point, not two. Events contribute as a separate log term.
               </P>
             </div>
 

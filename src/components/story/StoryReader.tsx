@@ -685,26 +685,30 @@ export function StoryReader({
               )}
               {viewMode === 'prose' && hasProse && !isProseLoading && (
                 <div className="ml-auto flex items-center gap-1.5">
+                  {!scene.locked && (
+                    <>
+                      <button
+                        onClick={() => setShowRewrite((v: boolean) => !v)}
+                        className={`text-[9px] px-2 py-1 rounded transition ${showRewrite ? 'text-cyan-400 bg-cyan-500/10' : 'text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10'}`}
+                      >
+                        Rewrite
+                      </button>
+                      <button
+                        onClick={() => { dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); generateProse(scene, sceneKeyIndex); }}
+                        className="text-[9px] px-2 py-1 rounded text-text-dim hover:text-text-secondary hover:bg-white/5 transition"
+                      >
+                        Regenerate
+                      </button>
+                      <button
+                        onClick={() => { setProseCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; }); dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); }}
+                        className="text-[9px] px-2 py-1 rounded text-text-dim/50 hover:text-red-400/80 hover:bg-red-500/5 transition"
+                      >
+                        Clear
+                      </button>
+                    </>
+                  )}
                   <button
-                    onClick={() => setShowRewrite((v: boolean) => !v)}
-                    className={`text-[9px] px-2 py-1 rounded transition ${showRewrite ? 'text-cyan-400 bg-cyan-500/10' : 'text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10'}`}
-                  >
-                    Rewrite
-                  </button>
-                  <button
-                    onClick={() => { dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); generateProse(scene, sceneKeyIndex); }}
-                    className="text-[9px] px-2 py-1 rounded text-text-dim hover:text-text-secondary hover:bg-white/5 transition"
-                  >
-                    Regenerate
-                  </button>
-                  <button
-                    onClick={() => { setProseCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; }); dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); }}
-                    className="text-[9px] px-2 py-1 rounded text-text-dim/50 hover:text-red-400/80 hover:bg-red-500/5 transition"
-                  >
-                    Clear
-                  </button>
-                  <button
-                    onClick={() => dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { locked: !scene.locked } })}
+                    onClick={() => { setShowRewrite(false); dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { locked: !scene.locked } }); }}
                     className={`text-[9px] px-2 py-1 rounded transition ${scene.locked ? 'text-amber-400 bg-amber-500/10' : 'text-text-dim/40 hover:text-text-dim hover:bg-white/5'}`}
                     title={scene.locked ? 'Unlock — include in alignment' : 'Lock — skip during alignment'}
                   >

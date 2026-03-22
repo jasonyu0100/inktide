@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { NarrativeState, Scene, StorySettings, AlignmentReport, ContinuityPlan } from '@/types/narrative';
 import { resolveEntry, isScene, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { generateSceneProse, generateScenePlan, rewriteSceneProse, runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from '@/lib/ai';
+import { generateSceneProse, generateScenePlan, rewriteScenePlan, rewriteSceneProse, runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from '@/lib/ai';
 import type { AlignmentProgress } from '@/lib/ai';
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
@@ -52,7 +52,9 @@ export function StoryReader({
   const [proseBulk, setProseBulk] = useState<BulkState>(null);
   const [planBulk, setPlanBulk] = useState<BulkState>(null);
   const bulkCancelledRef = useRef(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | false>(false);
+  const [copyMenuOpen, setCopyMenuOpen] = useState(false);
+  const copyMenuRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState<StorySettings>({
     ...DEFAULT_STORY_SETTINGS,
@@ -115,6 +117,8 @@ export function StoryReader({
 
   const [rewriteAnalysis, setRewriteAnalysis] = useState('');
   const [showRewrite, setShowRewrite] = useState(false);
+  const [planRewriteAnalysis, setPlanRewriteAnalysis] = useState('');
+  const [showPlanRewrite, setShowPlanRewrite] = useState(false);
   const [contextPast, setContextPast] = useState(0);
   const [contextFuture, setContextFuture] = useState(0);
   const [referenceSceneIds, setReferenceSceneIds] = useState<string[]>([]);
@@ -141,6 +145,26 @@ export function StoryReader({
       setProseCache((prev) => ({ ...prev, [s.id]: { text: currentProse, status: 'error', error: message } }));
     }
   }, [narrative, resolvedKeys, proseCache, dispatch]);
+
+  // ── Rewrite plan ──────────────────────────────────────────────────────
+  const rewritePlan = useCallback(async (s: Scene, analysis: string) => {
+    const currentPlan = planCache[s.id]?.status === 'ready' ? planCache[s.id].text : s.plan;
+    if (!currentPlan) return;
+    setPlanCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'loading' } }));
+    try {
+      const plan = await rewriteScenePlan(narrative, s, resolvedKeys, currentPlan, analysis, (token) => {
+        setPlanCache((prev) => {
+          const existing = prev[s.id];
+          return { ...prev, [s.id]: { text: (existing?.text ?? '') + token, status: 'loading' } };
+        });
+      });
+      setPlanCache((prev) => ({ ...prev, [s.id]: { text: plan, status: 'ready' } }));
+      dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { plan } });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setPlanCache((prev) => ({ ...prev, [s.id]: { text: currentPlan, status: 'error', error: message } }));
+    }
+  }, [narrative, resolvedKeys, planCache, dispatch]);
 
   // ── Bulk helpers ─────────────────────────────────────────────────────
   const runBulk = useCallback(async (
@@ -330,9 +354,17 @@ export function StoryReader({
   }, [scene, proseCache, planCache]);
 
   // Reset edited plan when changing scenes
-  useEffect(() => { setEditedPlan(null); setShowRewrite(false); setRewriteAnalysis(''); }, [currentIndex]);
+  useEffect(() => { setEditedPlan(null); setShowRewrite(false); setRewriteAnalysis(''); setShowPlanRewrite(false); setPlanRewriteAnalysis(''); }, [currentIndex]);
 
   useEffect(() => { activeSceneRef.current?.scrollIntoView({ block: 'center' }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!copyMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (copyMenuRef.current && !copyMenuRef.current.contains(e.target as Node)) setCopyMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [copyMenuOpen]);
   useEffect(() => { contentRef.current?.scrollTo(0, 0); }, [currentIndex, viewMode]);
 
   useEffect(() => {
@@ -384,7 +416,7 @@ export function StoryReader({
       </div>
 
       {/* Header */}
-      <div className="relative z-10 px-6 py-4 border-b border-white/8 bg-black/40 backdrop-blur-sm flex items-center justify-between shrink-0">
+      <div className="relative z-20 px-6 py-4 border-b border-white/8 bg-black/40 backdrop-blur-sm flex items-center justify-between shrink-0 overflow-visible">
         <div className="flex items-baseline gap-3">
           <h2 className="text-sm font-semibold text-text-primary">{narrative.title}</h2>
           {arc && <span className="text-[11px] text-text-dim">{arc.name}</span>}
@@ -432,22 +464,63 @@ export function StoryReader({
                 );
               })()}
 
-              {/* Copy All */}
+              {/* Copy dropdown */}
               {(() => {
-                const allProse = scenes.filter((s) => proseCache[s.id]?.status === 'ready' || !!s.prose);
-                return allProse.length > 0 ? (
-                  <button
-                    onClick={() => {
-                      const text = scenes.map((s) => proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose).filter(Boolean).join('\n\n');
-                      navigator.clipboard.writeText(text);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
-                    }}
-                    className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/15 transition flex items-center gap-1.5"
-                  >
-                    {copied ? <span className="text-emerald-400">Copied</span> : <>Copy ({allProse.length})</>}
-                  </button>
-                ) : null;
+                const hasSummaries = scenes.some((s) => s.summary);
+                const hasPlans = scenes.some((s) => s.plan || planCache[s.id]?.status === 'ready');
+                const hasProse = scenes.some((s) => s.prose || proseCache[s.id]?.status === 'ready');
+                if (!hasSummaries && !hasPlans && !hasProse) return null;
+
+                function doCopy(type: string) {
+                  let text = '';
+                  if (type === 'summaries') {
+                    text = scenes.map((s, i) => `Scene ${i + 1}: ${s.summary || '(no summary)'}`).join('\n\n');
+                  } else if (type === 'plans') {
+                    text = scenes.map((s, i) => {
+                      const plan = planCache[s.id]?.status === 'ready' ? planCache[s.id].text : s.plan;
+                      return plan ? `Scene ${i + 1}:\n${plan}` : null;
+                    }).filter(Boolean).join('\n\n---\n\n');
+                  } else {
+                    text = scenes.map((s) => proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose).filter(Boolean).join('\n\n');
+                  }
+                  navigator.clipboard.writeText(text);
+                  setCopied(type);
+                  setCopyMenuOpen(false);
+                  setTimeout(() => setCopied(false), 2000);
+                }
+
+                return (
+                  <div className="relative" ref={copyMenuRef}>
+                    <button
+                      onClick={() => setCopyMenuOpen((v) => !v)}
+                      className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/15 transition flex items-center gap-1.5"
+                    >
+                      {copied ? <span className="text-emerald-400">Copied {copied}</span> : 'Copy'}
+                    </button>
+                    {copyMenuOpen && (
+                      <div
+                        className="absolute top-full mt-1 left-0 rounded-lg border border-white/10 py-1 z-50 min-w-[140px]"
+                        style={{ background: '#1a1a1a', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
+                      >
+                        {hasSummaries && (
+                          <button onClick={() => doCopy('summaries')} className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition">
+                            Summaries ({scenes.filter((s) => s.summary).length})
+                          </button>
+                        )}
+                        {hasPlans && (
+                          <button onClick={() => doCopy('plans')} className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition">
+                            Plans ({scenes.filter((s) => s.plan || planCache[s.id]?.status === 'ready').length})
+                          </button>
+                        )}
+                        {hasProse && (
+                          <button onClick={() => doCopy('prose')} className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition">
+                            Prose ({scenes.filter((s) => s.prose || proseCache[s.id]?.status === 'ready').length})
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
               })()}
 
               {/* EPUB */}
@@ -643,6 +716,12 @@ export function StoryReader({
                       Save
                     </button>
                   )}
+                  <button
+                    onClick={() => setShowPlanRewrite((v) => !v)}
+                    className={`text-[9px] px-2 py-1 rounded transition ${showPlanRewrite ? 'text-sky-400 bg-sky-500/10' : 'text-sky-400/60 hover:text-sky-400 hover:bg-sky-500/10'}`}
+                  >
+                    Rewrite
+                  </button>
                   <button
                     onClick={() => {
                       dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { plan: undefined, prose: undefined, proseScore: undefined } });
@@ -1010,6 +1089,31 @@ export function StoryReader({
                   <div className="py-12 text-center">
                     <p className="text-[11px] text-red-400/80 mb-3">{planCached?.error}</p>
                     <button onClick={() => generatePlan(scene, sceneKeyIndex)} className="text-[10px] px-4 py-1.5 rounded-full border border-white/10 text-text-dim hover:text-text-secondary transition">Retry</button>
+                  </div>
+                )}
+
+                {/* ── Plan rewrite input ──────────────────────────── */}
+                {viewMode === 'plan' && showPlanRewrite && hasPlan && !isPlanLoading && (
+                  <div className="mx-0 mb-4 px-4 py-3 rounded-lg bg-sky-500/5 border border-sky-500/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[9px] uppercase tracking-widest text-sky-400/60">Rewrite Plan</span>
+                      <button onClick={() => setShowPlanRewrite(false)} className="text-[9px] text-text-dim/40 hover:text-text-dim transition">&times;</button>
+                    </div>
+                    <textarea
+                      value={planRewriteAnalysis}
+                      onChange={(e) => setPlanRewriteAnalysis(e.target.value)}
+                      placeholder="Describe what to change about this plan — fix spatial issues, add transitions, adjust pacing, restructure deliveries..."
+                      className="w-full h-24 bg-black/20 border border-white/5 rounded text-[11px] text-text-secondary p-2 resize-y outline-none focus:border-sky-500/20 placeholder:text-text-dim/30"
+                    />
+                    <div className="flex items-center justify-end mt-2">
+                      <button
+                        onClick={() => { rewritePlan(scene, planRewriteAnalysis); setShowPlanRewrite(false); setPlanRewriteAnalysis(''); }}
+                        disabled={!planRewriteAnalysis.trim()}
+                        className="text-[9px] px-3 py-1 rounded bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Rewrite Plan
+                      </button>
+                    </div>
                   </div>
                 )}
 

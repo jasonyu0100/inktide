@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit } from '@/types/narrative';
-import { resolveSceneSequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForcetotals } from '@/lib/narrative-utils';
+import { resolveSceneSequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForcetotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs } from '@/lib/persistence';
 import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
@@ -26,11 +26,16 @@ function narrativeToEntry(n: NarrativeState): NarrativeEntry {
   let overallScore: number | undefined;
 
   if (allScenes.length >= 3) {
+    const raw = computeRawForcetotals(allScenes);
+    const rawForces = raw.payoff.map((_, i) => ({
+      payoff: raw.payoff[i],
+      change: raw.change[i],
+      knowledge: raw.knowledge[i],
+    }));
+    const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
     const forceMap = computeForceSnapshots(allScenes);
     const ordered = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
-    const swings = computeSwingMagnitudes(ordered);
     const deliveryPoints = computeDeliveryCurve(ordered);
-    const raw = computeRawForcetotals(allScenes);
     const grades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
 
     const shape = classifyNarrativeShape(deliveryPoints.map((d) => d.delivery));
@@ -49,7 +54,7 @@ function narrativeToEntry(n: NarrativeState): NarrativeEntry {
     description: n.description,
     createdAt: n.createdAt,
     updatedAt: n.updatedAt,
-    sceneCount: Object.keys(n.scenes).length,
+    sceneCount: allScenes.length,
     coverThread: threadValues[0]?.description ?? '',
     coverImageUrl: n.coverImageUrl,
     shapeKey, shapeName, shapeCurve,

@@ -2,7 +2,7 @@
 export { branchContext, sceneContext } from './context';
 
 // Scene generation
-export { generateScenes, generateScenePlan, generateSceneProse } from './scenes';
+export { generateScenes, generateScenePlan, rewriteScenePlan, generateSceneProse } from './scenes';
 
 // World building & direction
 export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expandWorld, generateNarrative } from './world';

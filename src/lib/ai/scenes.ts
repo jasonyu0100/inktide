@@ -428,6 +428,50 @@ Create a detailed staging plan for this scene. Every structural mutation must ha
   return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'generateScenePlan', WRITING_MODEL);
 }
 
+/**
+ * Rewrite a scene plan guided by user-provided analysis/critique.
+ * Preserves the plan structure (OPENING STATE, DELIVERIES, DIALOGUE SEEDS,
+ * CLOSING STATE) but revises content based on the feedback.
+ */
+export async function rewriteScenePlan(
+  narrative: NarrativeState,
+  scene: Scene,
+  resolvedKeys: string[],
+  currentPlan: string,
+  analysis: string,
+  onToken?: (token: string) => void,
+): Promise<string> {
+  const sceneBlock = sceneContext(narrative, scene);
+  const scale = sceneScale(scene);
+
+  // Adjacent plans for continuity
+  const sceneIdx = resolvedKeys.indexOf(scene.id);
+  const prevScene = sceneIdx > 0 ? narrative.scenes[resolvedKeys[sceneIdx - 1]] : null;
+  const nextScene = sceneIdx < resolvedKeys.length - 1 ? narrative.scenes[resolvedKeys[sceneIdx + 1]] : null;
+
+  const adjacentBlock = [
+    prevScene?.plan ? `PREVIOUS SCENE PLAN (your opening must flow from this):\n${prevScene.plan}` : '',
+    nextScene?.plan ? `NEXT SCENE PLAN (your closing must hand off to this):\n${nextScene.plan}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  const systemPrompt = `You are a dramaturg revising a scene plan for "${narrative.title}". You receive the current plan and editorial feedback. Rewrite the plan to address the feedback while preserving the plan structure (OPENING STATE, DELIVERIES, DIALOGUE SEEDS, CLOSING STATE). Every structural mutation in the scene data must still be covered. Output ONLY the revised plan text — no commentary, no markdown fences.`;
+
+  const prompt = `${sceneBlock}
+
+${adjacentBlock ? `${adjacentBlock}\n\n` : ''}CURRENT PLAN:
+${currentPlan}
+
+EDITORIAL FEEDBACK (address all points in your revision):
+${analysis}
+
+Rewrite the plan to address the feedback. Preserve the structure and ensure all scene mutations are still covered. If the feedback conflicts with scene data, prioritise scene data for structural accuracy but incorporate the feedback's creative direction.`;
+
+  if (onToken) {
+    return await callGenerateStream(prompt, systemPrompt, onToken, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', WRITING_MODEL);
+  }
+  return await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', WRITING_MODEL);
+}
+
 export async function generateSceneProse(
   narrative: NarrativeState,
   scene: Scene,

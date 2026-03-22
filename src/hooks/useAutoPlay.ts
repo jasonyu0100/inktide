@@ -89,8 +89,7 @@ export function useAutoPlay() {
         currentSceneIndex,
         sceneCount,
         directive,
-        undefined,
-        cubeGoal,
+        { cubeGoal },
       );
       if (cancelledRef.current) return;
 

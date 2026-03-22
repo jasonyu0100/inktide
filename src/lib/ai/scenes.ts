@@ -1,10 +1,21 @@
 import type { NarrativeState, Scene, Arc, CubeCornerKey, WorldBuildCommit, StorySettings } from '@/types/narrative';
-import { resolveEntry, NARRATIVE_CUBE, THREAD_TERMINAL_STATUSES, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import type { DeliveryDirection } from '@/types/mcts';
+import { DELIVERY_DIRECTIONS } from '@/types/mcts';
+import { resolveEntry, NARRATIVE_CUBE, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
 import { parseJson } from './json';
-import { branchContext, sceneContext, deriveLogicRules, sceneScale, THREAD_LIFECYCLE_DOC } from './context';
+import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
+import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_SPATIAL, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle } from './prompts';
+
+export type GenerateScenesOptions = {
+  existingArc?: Arc;
+  cubeGoal?: CubeCornerKey;
+  deliveryGoal?: DeliveryDirection;
+  worldBuildFocus?: WorldBuildCommit;
+  onToken?: (token: string) => void;
+};
 
 export async function generateScenes(
   narrative: NarrativeState,
@@ -12,12 +23,9 @@ export async function generateScenes(
   currentIndex: number,
   count: number,
   direction: string,
-  existingArc?: Arc,
-  cubeGoal?: CubeCornerKey,
-  rejectSiblings?: { name: string; summary: string }[],
-  worldBuildFocus?: WorldBuildCommit,
-  onToken?: (token: string) => void,
+  options: GenerateScenesOptions = {},
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
+  const { existingArc, cubeGoal, deliveryGoal, worldBuildFocus, onToken } = options;
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
@@ -79,12 +87,14 @@ ${CORNER_INSTRUCTIONS[cubeGoal]}
 
 This goal OVERRIDES any momentum from previous scenes. Write scenes that genuinely embody this corner's energy — don't default to generic action or generic rest.`;
 })() : ''}
-${rejectSiblings && rejectSiblings.length > 0 ? `
-ALREADY GENERATED AT THIS BRANCH POINT (${rejectSiblings.length} alternatives exist):
-${rejectSiblings.filter((s) => s.summary).map((s) => `- "${s.name}": ${s.summary}`).join('\n')}
-${rejectSiblings.filter((s) => !s.summary).length > 0 ? `Also being generated in parallel: ${rejectSiblings.filter((s) => !s.summary).map((s) => s.name).join(', ')}` : ''}
+${deliveryGoal && !cubeGoal ? (() => {
+  const dd = DELIVERY_DIRECTIONS[deliveryGoal];
+  return `
+DELIVERY GOAL — "${dd.name}":
+${dd.prompt}
 
-CRITICAL: Your arc MUST be substantially different from ALL of the above. Do NOT use similar arc names (avoid "Echoes of…", "Seeds of…", "Whispers of…" if those patterns appear above). Do NOT cover the same plot deliveries or involve the same character groupings. Find a completely different angle — a different subplot, different characters in focus, a different emotional register, or a different narrative question entirely.` : ''}
+This delivery shape takes priority — structure the arc's force profile to match this trajectory.`;
+})() : ''}
 
 Return JSON with this exact structure:
 {
@@ -109,56 +119,17 @@ Return JSON with this exact structure:
 }
 
 Rules:
-- EVERY scene MUST have a non-empty "summary" field. Write 3-5 detailed sentences: name characters and locations, describe the key action and its consequence, and set up the tension for what follows. Summaries drive plan and prose quality — vague summaries produce vague stories.
 - Use ONLY existing character IDs and location IDs from the narrative context above
-- Thread statuses follow a lifecycle. ${THREAD_LIFECYCLE_DOC}
-- Threads that have reached their narrative conclusion MUST be transitioned to a terminal status. Do not leave threads stuck in active states when their story is over. When a mystery is solved, a conflict is won/lost, a goal is achieved or failed — close the thread.
-- Each thread must be DISTINCT — if two threads describe the same underlying tension, they should be merged. Include thread mutations when a thread's status changes OR when a scene meaningfully engages with a thread (pulse: same→same). Prefer real transitions over pulses.
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
-- continuityMutations.nodeType should be a specific, contextual label for what kind of knowledge this is — NOT limited to a fixed set. Examples: "tactical_insight", "betrayal_discovered", "forbidden_technique", "political_leverage", "hidden_lineage", "oath_sworn". Choose the type that best describes the specific knowledge gained.
-- Thread mutations should reflect the direction — escalate relevant threads, surface dormant ones aggressively. Every scene should advance 2-4 threads. Dormant threads should be surfaced to active or escalating, not left dormant indefinitely
-- relationshipMutations track how character dynamics shift. Include them whenever characters interact meaningfully — trust gained, betrayal discovered, alliance forming, rivalry deepening. valenceDelta ranges from -0.5 (major damage) to +0.5 (major bonding). Use ±0.2 to ±0.3 for most meaningful interactions. Reserve ±0.1 for truly subtle shifts and ±0.4-0.5 for dramatic moments.
-- continuityMutations track what characters learn. Include them liberally — every participant should gain at least one piece of knowledge per scene. Secrets revealed, lies uncovered, skills observed, intel gathered, emotional realisations, tactical observations, social dynamics noticed. Characters are always learning from their environment and interactions.
-- events capture concrete narrative happenings. Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "duel_of_wits", "storm_breaks", "letter_intercepted". Aim for 2-4 events per scene.
-- worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. NOT character knowledge (that's continuityMutations). World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths), "system" (institutions, processes), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved forces). Add nodes when a scene reveals, reinforces, or tests a world concept. Add edges when it connects concepts — edges can reference existing world knowledge node IDs from the context above OR newly created WK-GEN-XXX IDs. EVERY scene touches the world — a conversation reveals social norms, a fight tests power hierarchies, a journey exposes geography or customs. Aim for 2-3 world knowledge nodes per scene with connecting edges; world-building scenes should have 3-5+ with edges showing how they relate.
-- REUSING existing world knowledge nodes is encouraged. If a scene reinforces, deepens, or tests an existing concept, reference the existing node ID in addedNodes with the same ID — this signals that the scene engages with established world knowledge rather than inventing something new. Similarly, re-adding an existing edge reinforces that connection. Only create new WK-GEN-XXX IDs for genuinely new concepts.
-- Edges describe HOW concepts relate — "enables", "governs", "opposes", "located_in", "extends", etc. They make the world coherent by showing why things connect. Add edges when a scene reveals or demonstrates a relationship between concepts, whether both are new or one is established.
 - World knowledge node IDs for NEW concepts must be unique: WK-GEN-001, WK-GEN-002, etc. Reused nodes should keep their original ID.
-- characterMovements track when characters physically relocate to a different location during the scene. Only include characters whose location CHANGES — omit characters who stay put. The "transition" field should be a vivid, specific description of HOW they traveled (e.g. "Fled through the sewers beneath the city", "Sailed upriver on a merchant barge"). The "locationId" MUST be a valid location ID from the narrative. Do NOT include movements where the destination is the same as the scene's locationId.
-
-FORCE SCORING — every mutation feeds three forces. The numbers below are MINIMUM FLOORS for a passing arc (~80). Exceptional scenes will naturally exceed these when the narrative demands it — a climactic thread resolution earns far more payoff than the floor, a scene introducing a rich magic system earns far more knowledge. Don't aim for the minimums; aim for what the scene NEEDS and the scores will follow. The best arcs have scenes that spike dramatically in one or two forces while others provide contrast.
-
-PAYOFF floor ≥ ~1.2 avg raw per scene:
-- ~1 real thread status transition per scene (active→escalating = 1pt, active→resolved = 3pt). Pulses (same→same) only give 0.25 — you need actual movement.
-- OR a mix of smaller transitions + relationship |Δv| shifts. Scenes with zero thread/relationship mutations score ZERO.
-- High-payoff scenes (climaxes, confrontations, reveals) should far exceed this — 3-5+ raw payoff is achievable.
-
-CHANGE floor ≥ ~3.6 avg raw per scene:
-- 2 characters with 2 mutations each = log₂(3) × 2 ≈ 3.2, plus 1-2 events ≈ 1.0 → ~4.2. The floor is reachable with modest cast interaction.
-- Ensemble scenes with 3-4+ affected characters score much higher. Let the cast density match the scene's needs.
-
-KNOWLEDGE floor ≥ ~2.0 avg raw per scene:
-- ~2 new world knowledge nodes per scene, or 1 node + 2 edges.
-- World-building scenes, discovery sequences, or lore-heavy moments should aim for 4-6+ nodes with connecting edges.
-
-SWING floor ≥ ~1.2 normalized avg:
-- Consecutive scenes must DIFFER in force profile — a high-payoff scene followed by a high-knowledge scene creates swing. Repetitive mutation patterns kill swing.
-
-POV DISCIPLINE:
-- POV should come in STREAKS of 2-4 consecutive scenes before switching. Prefer AAABBA or AAABBCCC.
-- Within an arc, anchor on one or two POV characters. Switch only when a different perspective unlocks something the current POV cannot access.
-
-SPATIAL CONTINUITY:
-- Consecutive scenes in the same location build atmosphere. Location changes should be purposeful and grounded with characterMovements.
-- Prefer revisiting established locations over introducing new ones.
-
-THREAD LIFECYCLE:
-- When a thread's storyline concludes, transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}.
-- Threads can regress (escalating→active) when tension eases. Not every scene ratchets upward.
-- Dormant threads should be surfaced — transition them to active or escalating. Don't let threads sit dormant for the whole arc.
-- Touch 3-5 threads per scene. Threads unmentioned for multiple scenes feel abandoned.
-
+${PROMPT_SUMMARY_REQUIREMENT}
+${PROMPT_FORCE_STANDARDS}
+${PROMPT_PACING}
+${PROMPT_MUTATIONS}
+${PROMPT_POV}
+${PROMPT_SPATIAL}
+${promptThreadLifecycle()}
 CRITICAL ID CONSTRAINT (re-stated for emphasis):
 You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thread IDs.
   Character IDs: ${Object.keys(narrative.characters).join(', ')}

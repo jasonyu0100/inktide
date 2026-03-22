@@ -141,7 +141,6 @@ export function useMCTS() {
     deliveryGoal: DeliveryDirection | null,
     ancestorChain: MCTSNode[],
     allPriorScenes: Scene[],
-    existingSiblings: { name: string; summary: string }[],
     activeBranchId: string,
     rootNarrative: NarrativeState,
     rootResolvedKeys: string[],
@@ -164,10 +163,14 @@ export function useMCTS() {
 
     const result = await generateScenes(
       parentNarrative, parentKeys, parentIndex, sceneCount,
-      effectiveDirection, moveType === 'scene' ? existingArc : undefined, cubeGoal ?? undefined,
-      existingSiblings.length > 0 ? existingSiblings : undefined,
-      worldBuildFocus,
-      onToken,
+      effectiveDirection,
+      {
+        existingArc: moveType === 'scene' ? existingArc : undefined,
+        cubeGoal: cubeGoal ?? undefined,
+        deliveryGoal: deliveryGoal ?? undefined,
+        worldBuildFocus,
+        onToken,
+      },
     ).catch((err) => { console.error('[mcts] generation error:', err); return null; });
 
     removePendingExpansion(slotId);
@@ -279,10 +282,6 @@ export function useMCTS() {
         config.randomDirections,
       );
 
-      const existingSiblings = siblingIds
-        .map((id) => tree.nodes[id])
-        .filter(Boolean)
-        .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
       const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
       // For scene moves: root-level creates a new arc (with title), children continue parent's arc
@@ -291,7 +290,7 @@ export function useMCTS() {
         existingArc = parentNode.arc;
       }
 
-      return { targetId, direction, cubeGoal, deliveryGoal, parentNarrative, parentKeys, parentIndex, ancestorChain, allPriorScenes, existingSiblings, existingArc };
+      return { targetId, direction, cubeGoal, deliveryGoal, parentNarrative, parentKeys, parentIndex, ancestorChain, allPriorScenes, existingArc };
     };
 
     if (config.searchMode === 'baseline') {
@@ -346,7 +345,7 @@ export function useMCTS() {
           const promise = runSingleExpansion(
             prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
             prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
-            prep.existingSiblings, activeBranchId,
+            activeBranchId,
             tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
             config.northStarPrompt, config.moveType, prep.existingArc,
           ).then((result) => ({ result, seq }));
@@ -471,7 +470,7 @@ export function useMCTS() {
               batch.push(runSingleExpansion(
                 prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
                 prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
-                prep.existingSiblings, activeBranchId,
+                activeBranchId,
                 tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
                 config.northStarPrompt, config.moveType, prep.existingArc,
               ));
@@ -537,7 +536,7 @@ export function useMCTS() {
             batch.push(runSingleExpansion(
               prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
               prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
-              prep.existingSiblings, activeBranchId,
+              activeBranchId,
               tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
               config.northStarPrompt, config.moveType, prep.existingArc,
             ));
@@ -632,7 +631,7 @@ export function useMCTS() {
         const promise = runSingleExpansion(
           prep.targetId, prep.parentNarrative, prep.parentKeys, prep.parentIndex,
           prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
-          prep.existingSiblings, activeBranchId,
+          activeBranchId,
           tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
           config.northStarPrompt, config.moveType, prep.existingArc,
         ).then((result) => ({ result, seq }));
@@ -792,8 +791,6 @@ export function useMCTS() {
           [...siblingGoals, ...currentInFlight, ...ancestorGoals], runState.config.searchMode, runState.config.directionMode,
           parentNode?.cubeGoal ?? null, runState.config.randomDirections,
         );
-        const existingSiblings = siblingIds.map((id) => tree.nodes[id]).filter(Boolean)
-          .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
         const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
         // Scene moves: root creates new arc, children continue parent's arc
@@ -806,7 +803,7 @@ export function useMCTS() {
         const seq = slotSeq++;
         const promise = runSingleExpansion(
           targetId, parentNarrative, parentKeys, parentIndex,
-          direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes, existingSiblings,
+          direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
           runState.config.northStarPrompt, runState.config.moveType, resumeExistingArc,
         ).then((result) => ({ result, seq }));
@@ -944,8 +941,6 @@ export function useMCTS() {
           [...siblingGoals, ...currentInFlight, ...ancestorGoals], updatedConfig.searchMode, updatedConfig.directionMode,
           parentNode?.cubeGoal ?? null, updatedConfig.randomDirections,
         );
-        const existingSiblings = siblingIds.map((id) => tree.nodes[id]).filter(Boolean)
-          .map((n) => ({ name: n.arc.name, summary: n.scenes.map((s) => s.summary).join(' ') }));
         const allPriorScenes = extractOrderedScenes(parentNarrative, parentKeys);
 
         // Scene moves: root creates new arc, children continue parent's arc
@@ -958,7 +953,7 @@ export function useMCTS() {
         const seq = slotSeq++;
         const promise = runSingleExpansion(
           targetId, parentNarrative, parentKeys, parentIndex,
-          direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes, existingSiblings,
+          direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
           updatedConfig.northStarPrompt, updatedConfig.moveType, contExistingArc,
         ).then((result) => ({ result, seq }));

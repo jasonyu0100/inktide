@@ -4,7 +4,8 @@ import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE } from '@/lib/constants';
 import { parseJson } from './json';
-import { branchContext, THREAD_LIFECYCLE_DOC } from './context';
+import { branchContext } from './context';
+import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -368,29 +369,11 @@ Generate a world with enough CRITICAL MASS to sustain a long-running story:
 - 8-10 relationships between characters. Relationships should be asymmetric (A→B differs from B→A) with specific, character-voice descriptions. Use valence to show warmth vs hostility.
 - 15-25 scenes across 2-3 arcs. Each arc should have 5-10 scenes.
 
-POV DISCIPLINE:
-- POV should come in STREAKS — stay with one POV character for 2-4 consecutive scenes before switching. An ABABA pattern is disorienting — prefer AAABBA or AAABBCCC.
-- A POV switch is a cost. Only switch when the new perspective offers something the current POV cannot: a different location, access to hidden information, or an emotional angle.
-- Within an arc, anchor on one or two POV characters. Save breadth for later arcs.
-- A single POV for the entire opening arc is often the strongest choice — it grounds the reader before introducing complexity.
-
-FORCE SCORING — every scene is scored across three forces. The numbers below are MINIMUM FLOORS for a passing grade (~80). These are not targets — they're the bare minimum. Exceptional scenes naturally exceed these when the narrative calls for it. A climactic reveal might spike payoff to 5+, a lore-heavy discovery scene might push knowledge to 6+. Don't write to the floor; write the scene the story needs and let the forces reflect its richness.
-- PAYOFF floor ≥ ~1.2 avg/scene: ~1 real thread transition per scene (active→escalating = 1pt, active→resolved = 3pt). Pulses (same→same) only give 0.25. Climaxes and confrontations should far exceed this.
-- CHANGE floor ≥ ~3.6 avg/scene: 2 characters with 2 mutations each + 1-2 events meets the floor. Ensemble scenes with 3-4+ affected characters score higher naturally.
-- KNOWLEDGE floor ≥ ~2.0 avg/scene: ~2 world knowledge nodes per scene or 1 node + 2 edges. World-building scenes should aim for 4-6+.
-- SWING floor ≥ ~1.2 avg: Consecutive scenes must differ in force profile. Vary which force dominates scene to scene.
-
-PACING:
-- Vary scene intensity — some scenes are high-payoff (thread resolutions), some are high-knowledge (world reveals), some are high-change (broad cast interactions). This variation creates swing.
-- Thread lifecycle: ${THREAD_LIFECYCLE_DOC}. Threads can regress. Include pulses when a scene engages a thread without shifting phase, but prefer real transitions.
-- Touch 2-4 threads per scene. Dormant threads should surface within a few scenes — don't leave them dormant long.
-- Early scenes establish the world and cast while still generating mutations — every scene must earn its force scores.
-
-Knowledge types must be SPECIFIC and CONTEXTUAL to the world — not generic labels like "knows" or "secret". Use types that describe exactly what kind of knowledge or lore this is (e.g. "cultivation_technique", "blood_debt", "prophecy_fragment", "territorial_claim", "hidden_identity"). Knowledge edge types should also be contextual: "enables", "contradicts", "unlocks", "corrupts", "conceals", "depends_on", etc.
-
-Scene continuityMutations track what characters LEARN during a scene. Each mutation MUST have: characterId (who learned it), nodeId (unique ID like K-GEN-001), action ("added"), content (what they learned), nodeType (specific contextual type). The characterId must reference an existing character ID (C-XX).
-
-Scene worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions that define the world characters inhabit. World knowledge exists in every genre: fantasy has magic systems, literary fiction has class structures and social norms, historical fiction has period customs, crime has institutional hierarchies. Four node types: "law" (governing truths — social rules, physical laws, cultural expectations), "system" (institutions, processes, hierarchies), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved social forces). Add nodes when a scene reveals a world concept. Add edges (addedEdges) when it connects concepts. REUSE existing node IDs when a scene reinforces or tests an already-established concept — don't create duplicates. Re-adding existing edges reinforces those connections. Only create new WK-GEN-XXX IDs for genuinely new concepts. How much depends on the scene — world-building scenes may have several nodes, quiet character scenes may have none. Let the narrative guide you.
+${PROMPT_POV}
+${PROMPT_FORCE_STANDARDS}
+${PROMPT_PACING}
+${PROMPT_MUTATIONS}
+${PROMPT_SUMMARY_REQUIREMENT}
 
 WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}`;
 

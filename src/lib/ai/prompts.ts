@@ -1,0 +1,160 @@
+/**
+ * Modular prompt sections for scene and narrative generation.
+ *
+ * Each section is an independent block that can be composed into prompts.
+ * Sections are grouped by concern for easy maintenance:
+ *   - FORCE STANDARDS: reference means aligned to grading formulas
+ *   - PACING: buildup/payoff balance derived from state machine analysis
+ *   - MUTATIONS: how to write each mutation type
+ *   - POV: point-of-view discipline
+ *   - SPATIAL: location continuity
+ *   - THREADS: thread lifecycle rules
+ *
+ * When updating: check src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS
+ * to keep prompt numbers in sync with grading formulas.
+ */
+
+import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
+import { THREAD_LIFECYCLE_DOC } from './context';
+
+// ── Force Standards ──────────────────────────────────────────────────────────
+// Numbers here MUST match FORCE_REFERENCE_MEANS in narrative-utils.ts:
+//   { payoff: 1.5, change: 4.5, knowledge: 2.5 }
+// These are the values where the exponential grading curve scores ~86% (22/25).
+
+export const PROMPT_FORCE_STANDARDS = `
+FORCE STANDARDS — these are the reference means used by the grading system. They represent the average raw force values of well-structured narratives. Individual scenes naturally vary above and below — that variation is essential, not a flaw. The arc average should approximate these standards.
+
+How scoring works: each force is graded on an exponential curve where matching the reference mean scores ~86%. Higher is better but with diminishing returns. Crucially, forces are graded per-arc, not per-scene — a single high-payoff scene can carry several quiet buildup scenes.
+
+PAYOFF reference mean ~1.5 per scene:
+- Formula: Σ|phase_jump| for thread mutations + Σ|valenceDelta| for relationship mutations.
+- Phase indices: dormant(0) → active(1) → escalating(2) → critical(3) → resolved/subverted/abandoned(4).
+- Examples: active→escalating = 1pt, dormant→critical = 3pt, active→resolved = 3pt. Pulses (same→same) = 0.25.
+- Some scenes will have 0 payoff (pure buildup). Others spike to 4-6+ (climaxes, reveals). Both are correct — the ARC average is what matters.
+
+CHANGE reference mean ~4.5 per scene:
+- Formula: log₂(1 + totalMutations) + log₂(1 + eventCount). Cast-blind — total mutations matter, not character count.
+- totalMutations = continuityMutation count + relationship |Δv| × 2 (both sides).
+- Examples: 3 continuity mutations + 2 events = log₂(4) + log₂(3) ≈ 3.6. A dense scene with 6 mutations + 3 events ≈ 5.5.
+- Quiet scenes with 1 mutation + 1 event score ~1.6. This is fine for buildup scenes.
+
+KNOWLEDGE reference mean ~2.5 per scene:
+- Formula: addedNodes count + 0.5 × addedEdges count.
+- Examples: 2 nodes + 1 edge = 2.5. 3 nodes + 3 edges = 4.5.
+- Some scenes add 0 nodes (pure character work). Lore/discovery scenes may add 4-6+.
+- REUSE existing node IDs when a scene reinforces an established concept — don't duplicate.
+
+SWING reference mean ~1.2 normalized:
+- Consecutive scenes should differ in force profile. A high-payoff scene followed by a high-knowledge scene creates swing. Repetitive force patterns kill swing.
+`;
+
+// ── Pacing ───────────────────────────────────────────────────────────────────
+// Derived from Markov chain state machine analysis of published works vs
+// AI-generated series. HP: 57% buildup / 43% payoff, high variety (entropy 2.88).
+// AI default without guidance: 73% payoff / 27% buildup, low variety.
+//
+// The delivery formula rewards this balance directly:
+//   Tension = C + K - P (buildup without release)
+//   Delivery = 0.5P + 0.5·tanh(C/2) + 0.5·tanh(K/2) + 0.3·contrast
+//   Contrast = max(0, tension[i-1] - tension[i])
+// A scene that RELEASES tension built by previous scenes scores higher on
+// delivery than one that simply has high raw forces. This means buildup scenes
+// directly improve the delivery score of subsequent payoff scenes.
+
+export const PROMPT_PACING = `
+PACING — how to vary force profiles across scenes within an arc:
+
+The force standards above are ARC AVERAGES, not per-scene targets. Great stories breathe — individual scenes should vary dramatically.
+
+THE DELIVERY FORMULA REWARDS CONTRAST. A payoff scene scores higher on delivery when preceded by buildup scenes that accumulated tension (Change + Knowledge without Payoff). Writing nothing but high-payoff scenes actually HURTS delivery scores because there's no tension to release. The math explicitly rewards the pattern: build tension → release it.
+
+AIM FOR ~55-60% BUILDUP, ~40-45% PAYOFF across the arc. There are 8 narrative modes, 4 buildup and 4 payoff:
+- BUILDUP (Low Payoff): Growth (High C — character development), Discovery (High C+K — exploration), Lore (High K — world texture), Rest (Low everything — reflection, atmosphere).
+- PAYOFF (High Payoff): Epoch (High P+C+K — everything converges), Climax (High P+C — threads resolve), Revelation (High P+K — knowledge unlocks resolution), Closure (High P — loose ends tied).
+- In a 4-scene arc: ~1 payoff scene + ~3 buildup is healthy. In a 6-scene arc: 2-3 payoff + 3-4 buildup.
+
+ALTERNATE INTENSITY. After a dense scene where all forces are high, the NEXT scene should pull back. Let characters process. Let the world breathe. The pattern is: buildup → buildup → peak → process → buildup → peak, not peak → peak → peak.
+
+VALID LOW-DENSITY SCENES — these are not failures, they are connective tissue:
+- A Growth scene: 0 thread transitions, 3 relationship mutations (±0.2), 1 continuity mutation, 0 WK nodes. Pure character development. Raw forces: P≈0.6, C≈3, K=0.
+- A Lore scene: 0 thread transitions, 0 relationship mutations, 1 continuity mutation, 4 WK nodes + 2 edges. Pure world texture. Raw forces: P=0, C≈1, K=5.
+- A Rest scene: 2 thread pulses, 1 continuity mutation, 0 WK nodes, 1 event. Reflection. Raw forces: P=0.5, C≈1.6, K=0.
+- A Discovery scene: 1 thread pulse, 3 continuity mutations, 2 WK nodes + 1 edge, 2 events. Raw forces: P=0.25, C≈4, K=2.5.
+
+These scenes IMPROVE the delivery score of subsequent payoff scenes by building the tension that gets released. Skipping them makes every scene feel the same.
+`;
+
+// ── Mutation Guidelines ──────────────────────────────────────────────────────
+
+export const PROMPT_MUTATIONS = `
+MUTATION GUIDELINES:
+
+threadMutations — track thread status changes or engagement:
+- Real transitions advance the lifecycle: dormant→active→escalating→critical→terminal.
+- Pulses (same→same) indicate a scene engages a thread without shifting its phase (0.25 payoff each).
+- Prefer real transitions over pulses, but pulses are valid for buildup scenes.
+- Each thread must be distinct — merge threads that describe the same underlying tension.
+
+continuityMutations — track what characters learn:
+- Every participant should gain knowledge appropriate to the scene's intensity.
+- Dense scenes: 2-3 mutations per character. Quiet scenes: 0-1 per character.
+- nodeType should be specific and contextual: "tactical_insight", "betrayal_discovered", "forbidden_technique", "political_leverage", "hidden_lineage", "oath_sworn".
+
+relationshipMutations — track how dynamics shift:
+- valenceDelta ranges: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
+- Include whenever characters interact meaningfully. Omit in scenes where characters don't interact.
+
+worldKnowledgeMutations — track the world's abstract structure:
+- Four node types: "law" (governing truths), "system" (institutions/processes), "concept" (ideas/motifs), "tension" (contradictions/unresolved forces).
+- REUSE existing node IDs when a scene reinforces or tests an established concept.
+- Add edges to show HOW concepts relate: "enables", "governs", "opposes", "extends", etc.
+- World-building exists in every genre — social norms, class structures, institutional hierarchies, not just magic systems.
+- Let density match the scene: lore scenes 3-5+ nodes, character scenes 0-1 nodes.
+
+events — concrete narrative happenings:
+- Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "storm_breaks".
+- 2-4 events per scene on average. Quiet scenes may have 1. Action scenes may have 5+.
+
+characterMovements — physical relocation:
+- Only include characters whose location CHANGES during the scene.
+- "transition" should be vivid: "Fled through the sewers", "Sailed upriver on a merchant barge".
+`;
+
+// ── POV Discipline ───────────────────────────────────────────────────────────
+
+export const PROMPT_POV = `
+POV DISCIPLINE:
+- POV should come in STREAKS of 2-4 consecutive scenes before switching. Prefer AAABBA or AAABBCCC.
+- Within an arc, anchor on one or two POV characters. Switch only when a different perspective unlocks something the current POV cannot access.
+- A single POV for an entire arc is often the strongest choice.
+`;
+
+// ── Spatial Continuity ───────────────────────────────────────────────────────
+
+export const PROMPT_SPATIAL = `
+SPATIAL CONTINUITY:
+- Consecutive scenes in the same location build atmosphere. Location changes should be purposeful and grounded with characterMovements.
+- Prefer revisiting established locations over introducing new ones.
+`;
+
+// ── Thread Lifecycle ─────────────────────────────────────────────────────────
+
+export function promptThreadLifecycle(): string {
+  return `
+THREAD LIFECYCLE:
+- ${THREAD_LIFECYCLE_DOC}
+- When a thread's storyline concludes, transition it to a terminal status: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}.
+- Threads can regress (escalating→active) when tension eases. Not every scene ratchets upward.
+- Dormant threads should be surfaced within a few scenes — don't let them sit dormant for the whole arc.
+- Touch 2-4 threads per scene on average. Threads unmentioned for many scenes feel abandoned.
+`;
+}
+
+// ── Summaries ────────────────────────────────────────────────────────────────
+
+export const PROMPT_SUMMARY_REQUIREMENT = `
+SUMMARIES — EVERY scene MUST have a non-empty "summary" field:
+- Write 3-5 detailed sentences: name characters and locations, describe the key action and its consequence, and set up the tension for what follows.
+- Vague summaries produce vague stories. Be specific and cinematic.
+`;

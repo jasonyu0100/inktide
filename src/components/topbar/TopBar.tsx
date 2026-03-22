@@ -13,6 +13,7 @@ import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 import { BranchContextModal } from '@/components/topbar/BranchContextModal';
 import { FormulaModal } from '@/components/topbar/FormulaModal';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
+import { MarkovChainModal } from '@/components/topbar/MarkovChainModal';
 
 
 function exportNarrative(narrative: NarrativeState) {
@@ -26,6 +27,107 @@ function exportNarrative(narrative: NarrativeState) {
   URL.revokeObjectURL(url);
 }
 
+// ── Menu Dropdown ────────────────────────────────────────────────────────────
+
+type MenuItem = {
+  label: string;
+  shortcut?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  separator?: false;
+  indicator?: React.ReactNode;
+} | {
+  separator: true;
+};
+
+function MenuDropdown({
+  label,
+  items,
+  openMenu,
+  setOpenMenu,
+  menuKey,
+  anyMenuOpen,
+}: {
+  label: string;
+  items: MenuItem[];
+  openMenu: string | null;
+  setOpenMenu: (key: string | null) => void;
+  menuKey: string;
+  anyMenuOpen: boolean;
+}) {
+  const isOpen = openMenu === menuKey;
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen, setOpenMenu]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpenMenu(isOpen ? null : menuKey)}
+        onMouseEnter={() => { if (anyMenuOpen) setOpenMenu(menuKey); }}
+        className={`px-2.5 py-1 text-[12px] rounded transition-colors ${
+          isOpen
+            ? 'bg-white/10 text-text-primary'
+            : 'text-text-secondary hover:bg-white/5 hover:text-text-primary'
+        }`}
+      >
+        {label}
+      </button>
+      {isOpen && (
+        <div
+          className="absolute top-full left-0 mt-1 min-w-[200px] rounded-lg border border-white/10 py-1 z-50"
+          style={{
+            background: '#1a1a1a',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)',
+          }}
+        >
+          {items.map((item, i) => {
+            if ('separator' in item && item.separator) {
+              return <div key={i} className="my-1 border-t border-white/8" />;
+            }
+            const mi = item as Exclude<MenuItem, { separator: true }>;
+            return (
+              <button
+                key={i}
+                onClick={() => {
+                  if (mi.disabled) return;
+                  mi.onClick();
+                  setOpenMenu(null);
+                }}
+                disabled={mi.disabled}
+                className={`w-full flex items-center justify-between px-3 py-1.5 text-[12px] transition-colors ${
+                  mi.disabled
+                    ? 'text-text-dim/40 cursor-default'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  {mi.label}
+                  {mi.indicator}
+                </span>
+                {mi.shortcut && (
+                  <span className="text-[10px] text-text-dim/50 ml-4 font-mono">{mi.shortcut}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main TopBar ──────────────────────────────────────────────────────────────
+
 export default function TopBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,12 +136,16 @@ export default function TopBar() {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  // Modal states
   const [logsOpen, setLogsOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [branchContextOpen, setBranchContextOpen] = useState(false);
   const [formulaOpen, setFormulaOpen] = useState(false);
   const [slidesOpen, setSlidesOpen] = useState(false);
+  const [markovOpen, setMarkovOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'delivery'>('arcs');
@@ -51,7 +157,6 @@ export default function TopBar() {
   useEffect(() => {
     if (searchParams.get('slides') === '1' && narrative) {
       setSlidesOpen(true);
-      // Clean up the URL param without a navigation
       router.replace(`/series/${narrative.id}`, { scroll: false });
     }
   }, [searchParams, narrative, router]);
@@ -109,7 +214,6 @@ export default function TopBar() {
       return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
     };
 
-    // Swing from mean-normalised raw forces (preserves cross-series differences)
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],
       change: raw.change[i],
@@ -133,7 +237,6 @@ export default function TopBar() {
 
     const arcCount = Object.keys(narrative.arcs).length;
 
-    // Per-arc scores — map each arc's scenes to force-array indices
     const sceneIdToIdx = new Map(allScenes.map((s, i) => [s.id, i]));
     const arcsInOrder = Object.values(narrative.arcs);
     const perArc = arcsInOrder
@@ -158,7 +261,6 @@ export default function TopBar() {
 
     const seriesGrades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
 
-    // Narrative shape from delivery curve; delivery points for delivery chart
     const normSnapshots = Object.values(computeForceSnapshots(allScenes));
     const deliveryPoints = computeDeliveryCurve(normSnapshots);
     const shape = classifyNarrativeShape(deliveryPoints.map((d) => d.delivery));
@@ -193,7 +295,6 @@ export default function TopBar() {
           alert('Invalid narrative file');
           return;
         }
-        // Always create a new series with a fresh ID
         const newId = crypto.randomUUID();
         const newNarrative = { ...imported, id: newId };
         dispatch({ type: 'ADD_NARRATIVE', narrative: newNarrative });
@@ -207,10 +308,14 @@ export default function TopBar() {
     e.target.value = '';
   }, [dispatch, router]);
 
+  const hasNarrative = !!narrative;
+  const hasPendingLogs = state.apiLogs.some((l) => l.status === 'pending');
+  const hasErrorLogs = state.apiLogs.some((l) => l.status === 'error');
+
   return (
     <div className="flex items-center justify-between h-11 glass-panel border-b border-border px-3">
-      {/* Left: home + title + arc breadcrumb */}
-      <div className="flex items-center gap-1 text-sm min-w-0">
+      {/* Left: home + title + menus */}
+      <div className="flex items-center gap-0.5 text-sm min-w-0">
         {/* Home button */}
         <button
           onClick={() => router.push('/')}
@@ -222,12 +327,13 @@ export default function TopBar() {
           </svg>
         </button>
 
+        {/* Narrative selector */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setSelectorOpen((o) => !o)}
             className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-bg-elevated transition-colors"
           >
-            <span className="text-text-primary truncate max-w-50">
+            <span className="text-text-primary truncate max-w-50 text-[12px] font-medium">
               {narrative ? narrative.title : 'Select Narrative'}
             </span>
             <svg
@@ -359,56 +465,101 @@ export default function TopBar() {
           className="hidden"
         />
 
-        {activeArc && (
-          <>
-            <span className="text-text-dim mx-1">&middot;</span>
-            <span className="text-text-secondary truncate">{activeArc.name}</span>
-          </>
-        )}
+        {/* Divider */}
+        <div className="w-px h-4 bg-white/8 mx-1.5" />
+
+        {/* Menu bar */}
+        <MenuDropdown
+          label="View"
+          menuKey="view"
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+          anyMenuOpen={openMenu !== null}
+          items={[
+            { label: 'Story Reader', onClick: () => setStoryOpen(true), disabled: !hasNarrative },
+            { label: 'Slides', onClick: () => setSlidesOpen(true), disabled: !hasNarrative },
+            { separator: true },
+            { label: 'Force Tracker', onClick: () => window.dispatchEvent(new Event('open-force-tracker')), disabled: !hasNarrative },
+            { label: 'Narrative Cube', onClick: () => window.dispatchEvent(new CustomEvent('open-cube-viewer')), disabled: !hasNarrative },
+          ]}
+        />
+
+        <MenuDropdown
+          label="Analyze"
+          menuKey="analyze"
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+          anyMenuOpen={openMenu !== null}
+          items={[
+            { label: 'Scorecard', onClick: () => setScorecardOpen((v) => !v), disabled: !hasNarrative },
+            { label: 'Cube Explorer', onClick: () => setCubeExplorerOpen(true), disabled: !hasNarrative },
+            { label: 'State Machine', onClick: () => setMarkovOpen(true), disabled: !hasNarrative },
+            { separator: true },
+            { label: 'Formulas', onClick: () => setFormulaOpen(true) },
+          ]}
+        />
+
+        <MenuDropdown
+          label="World"
+          menuKey="world"
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+          anyMenuOpen={openMenu !== null}
+          items={[
+            { label: 'Rules', onClick: () => window.dispatchEvent(new Event('open-rules-panel')), disabled: !hasNarrative },
+            ...(process.env.NEXT_PUBLIC_USER_API_KEYS === 'true'
+              ? [{ label: 'API Keys', onClick: () => window.dispatchEvent(new Event('open-api-keys')) } as Exclude<MenuItem, { separator: true }>]
+              : []),
+          ]}
+        />
+
+        <MenuDropdown
+          label="Debug"
+          menuKey="debug"
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+          anyMenuOpen={openMenu !== null}
+          items={[
+            { label: 'LLM Context', onClick: () => setBranchContextOpen(true), disabled: !hasNarrative },
+            {
+              label: 'API Logs',
+              onClick: () => setLogsOpen(true),
+              indicator: hasPendingLogs
+                ? <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                : hasErrorLogs
+                ? <span className="w-2 h-2 rounded-full bg-red-400" />
+                : undefined,
+            },
+          ]}
+        />
       </div>
 
-      {/* Right: action buttons */}
-      <div className="flex items-center gap-1">
-        {process.env.NEXT_PUBLIC_USER_API_KEYS === 'true' && (
-          <button
-            onClick={() => window.dispatchEvent(new Event('open-api-keys'))}
-            className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-            title="API Keys"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-            </svg>
-            <span className="text-[11px]">Keys</span>
-          </button>
-        )}
-        <button
-          onClick={() => window.dispatchEvent(new Event('open-rules-panel'))}
-          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-          title="World Rules — narrative commandments"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
-          <span className="text-[11px]">Rules</span>
-        </button>
+      {/* Right: quick actions */}
+      <div className="flex items-center gap-1.5">
+        {/* Scorecard pill */}
         <div className="relative" ref={scorecardRef}>
-          <button
-            onClick={() => setScorecardOpen((v) => !v)}
-            className={`px-2 py-1 rounded hover:bg-bg-elevated transition-colors flex items-center gap-1.5 ${
-              scorecardOpen ? 'text-text-primary bg-bg-elevated' : 'text-text-dim hover:text-text-primary'
-            }`}
-            title="Force Scorecard — absolute values for cross-series comparison"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="3" width="20" height="18" rx="2" />
-              <path d="M8 7v10M12 7v10M16 7v10" />
-            </svg>
-            <span className="text-[11px]">Score</span>
-          </button>
+          {scorecard && (
+            <button
+              onClick={() => setScorecardOpen((v) => !v)}
+              className={`px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border ${
+                scorecardOpen
+                  ? 'text-text-primary bg-white/10 border-white/15'
+                  : 'text-text-dim hover:text-text-primary hover:bg-white/5 border-white/8'
+              }`}
+              title="Force Scorecard"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="18" rx="2" />
+                <path d="M8 7v10M12 7v10M16 7v10" />
+              </svg>
+              <span className={`font-semibold font-mono ${
+                scorecard.grades.overall >= 90 ? 'text-green-400' :
+                scorecard.grades.overall >= 80 ? 'text-lime-400' :
+                scorecard.grades.overall >= 70 ? 'text-yellow-400' :
+                scorecard.grades.overall >= 60 ? 'text-orange-400' : 'text-red-400'
+              }`}>{scorecard.grades.overall}</span>
+            </button>
+          )}
           {scorecardOpen && !scorecard && (
             <div className="absolute top-full right-0 mt-1 z-50 bg-bg-base border border-white/10 rounded-lg shadow-2xl p-5 w-[420px]">
               <p className="text-[12px] text-text-dim text-center py-4">No scenes yet — generate some arcs to see scores.</p>
@@ -437,14 +588,12 @@ export default function TopBar() {
 
               {/* Force table */}
               <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] gap-px bg-white/5 rounded overflow-hidden">
-                {/* Header row */}
                 <div className="bg-bg-base p-2" />
                 {['Avg', 'σ', 'Peak', 'Total', 'Grade'].map((col) => (
                   <div key={col} className="bg-bg-base p-2 text-center">
                     <span className={`text-[9px] tracking-wider text-text-dim font-mono ${col === 'σ' ? '' : 'uppercase'}`}>{col}</span>
                   </div>
                 ))}
-                {/* Force rows */}
                 {([
                   { key: 'payoff' as const, label: 'Payoff', color: '#EF4444' },
                   { key: 'change' as const, label: 'Change', color: '#22C55E' },
@@ -482,24 +631,6 @@ export default function TopBar() {
                     </React.Fragment>
                   );
                 })}
-              </div>
-
-              {/* One-liner verdict */}
-              <div className="mt-3 px-2 py-1">
-                <p className="text-[13px] text-text-secondary italic leading-snug">
-                  {'"'}A <span className="text-amber-400 font-medium">{scorecard.shape.name}</span>{' '}
-                  <span className="text-violet-400 font-medium">{scorecard.archetype.name}</span>
-                  {' that is '}
-                  {(() => {
-                    const forces = ['payoff', 'change', 'knowledge'] as const;
-                    const colors: Record<string, string> = { payoff: '#EF4444', change: '#22C55E', knowledge: '#3B82F6' };
-                    const names: Record<string, string> = { payoff: 'Payoff', change: 'Change', knowledge: 'Knowledge' };
-                    const top = forces.reduce((a, b) => scorecard.grades[a] > scorecard.grades[b] ? a : b);
-                    return <span className="font-medium" style={{ color: colors[top] }}>{names[top]}</span>;
-                  })()}
-                  {' driven.'}
-                  {'"'}
-                </p>
               </div>
 
               {/* Shape + Archetype detail */}
@@ -637,29 +768,23 @@ export default function TopBar() {
                       </svg>
                     ) : (
                       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
-                        {/* Zero line */}
                         <line x1={PAD.left} y1={zeroY} x2={PAD.left + cw} y2={zeroY} stroke="white" strokeOpacity="0.12" />
                         <text x={PAD.left - 4} y={zeroY + 3} textAnchor="end" fill="white" fillOpacity="0.2" fontSize="8" fontFamily="monospace">0</text>
-                        {/* Positive fill */}
                         <path
                           d={`M${engPoints[0].x},${zeroY} ${engPoints.map((p) => `L${p.x},${Math.min(p.y, zeroY)}`).join(' ')} L${engPoints[engPoints.length-1].x},${zeroY} Z`}
                           fill="#F59E0B" fillOpacity="0.12"
                         />
-                        {/* Negative fill */}
                         <path
                           d={`M${engPoints[0].x},${zeroY} ${engPoints.map((p) => `L${p.x},${Math.max(p.y, zeroY)}`).join(' ')} L${engPoints[engPoints.length-1].x},${zeroY} Z`}
                           fill="#93C5FD" fillOpacity="0.08"
                         />
-                        {/* Delivery line */}
                         <polyline
                           points={engPoints.map((p) => `${p.x},${p.y}`).join(' ')}
                           fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round"
                         />
-                        {/* Peak markers */}
                         {engPoints.filter((p) => p.isPeak).map((p, i) => (
                           <polygon key={i} points={`${p.x},${p.y - 6} ${p.x - 4},${p.y - 1} ${p.x + 4},${p.y - 1}`} fill="#FCD34D" opacity="0.9" />
                         ))}
-                        {/* Valley markers */}
                         {engPoints.filter((p) => p.isValley).map((p, i) => (
                           <polygon key={i} points={`${p.x},${p.y + 6} ${p.x - 4},${p.y + 1} ${p.x + 4},${p.y + 1}`} fill="#93C5FD" opacity="0.8" />
                         ))}
@@ -671,106 +796,36 @@ export default function TopBar() {
             </div>
           )}
         </div>
-        <button
-          onClick={() => setSlidesOpen(true)}
-          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-          title="Analysis Slides — automated presentation"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
-          <span className="text-[11px]">Slides</span>
-        </button>
-        <button
-          onClick={() => window.dispatchEvent(new Event('open-force-tracker'))}
-          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-          title="Force Tracker — narrative analysis"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M2 20h20" />
-            <polyline points="4,16 8,8 12,12 16,4 20,10" />
-          </svg>
-          <span className="text-[11px]">Analysis</span>
-        </button>
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('open-cube-viewer'))}
-          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-          title="Narrative Cube — 3D force trajectory"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-          <span className="text-[11px]">Cube</span>
-        </button>
-        <button
-          onClick={() => setCubeExplorerOpen(true)}
-          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-          title="Cube Explorer — filter scenes by cube corner"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="7" />
-            <rect x="14" y="3" width="7" height="7" />
-            <rect x="3" y="14" width="7" height="7" />
-            <rect x="14" y="14" width="7" height="7" />
-          </svg>
-          <span className="text-[11px]">Explorer</span>
-        </button>
-        <button
-          onClick={() => setStoryOpen(true)}
-          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-          title="View full story"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-          </svg>
-          <span className="text-[11px]">Story</span>
-        </button>
-        <button
-          onClick={() => setBranchContextOpen(true)}
-          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-          title="View branch context sent to LLM"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <span className="text-[11px]">Context</span>
-        </button>
-        <button
-          onClick={() => setFormulaOpen(true)}
-          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-          title="Narrative force formulas"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="4" y1="9" x2="20" y2="9" />
-            <line x1="4" y1="15" x2="20" y2="15" />
-            <line x1="10" y1="3" x2="8" y2="21" />
-            <line x1="16" y1="3" x2="14" y2="21" />
-          </svg>
-          <span className="text-[11px]">Formulas</span>
-        </button>
-        <button
-          onClick={() => setLogsOpen(true)}
-          className="relative px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary flex items-center gap-1.5"
-          title="API Logs"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-          </svg>
-          <span className="text-[11px]">Logs</span>
-          {state.apiLogs.some((l) => l.status === 'pending') && (
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          )}
-          {state.apiLogs.some((l) => l.status === 'error') && !state.apiLogs.some((l) => l.status === 'pending') && (
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-400" />
-          )}
-        </button>
+
+        {/* Quick actions */}
+        {hasNarrative && (
+          <>
+            <button
+              onClick={() => setStoryOpen(true)}
+              className="px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border border-white/8 text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/15"
+              title="Read full story"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+              <span>Story</span>
+            </button>
+            <button
+              onClick={() => setSlidesOpen(true)}
+              className="px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border border-white/8 text-text-secondary hover:text-text-primary hover:bg-white/5 hover:border-white/15"
+              title="Play analysis slides"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <polygon points="6 3 20 12 6 21" />
+              </svg>
+              <span>Play</span>
+            </button>
+          </>
+        )}
       </div>
+
+      {/* Modals */}
       {logsOpen && <ApiLogsModal onClose={() => setLogsOpen(false)} />}
       {storyOpen && narrative && (
         <StoryReader
@@ -790,6 +845,14 @@ export default function TopBar() {
         />
       )}
       {formulaOpen && <FormulaModal onClose={() => setFormulaOpen(false)} />}
+      {markovOpen && narrative && (
+        <MarkovChainModal
+          narrative={narrative}
+          resolvedKeys={state.resolvedSceneKeys}
+          currentSceneIndex={state.currentSceneIndex}
+          onClose={() => setMarkovOpen(false)}
+        />
+      )}
       {branchContextOpen && narrative && (
         <BranchContextModal
           narrative={narrative}
@@ -808,4 +871,3 @@ export default function TopBar() {
     </div>
   );
 }
-

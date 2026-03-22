@@ -14,12 +14,11 @@ const CORNER_COLORS: Record<CubeCornerKey, string> = {
   LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
 };
 
-// ── PCK Badge (3-column force indicator) ─────────────────────────────────────
+// ── PCK Badge ────────────────────────────────────────────────────────────────
 
 const FORCE_LABELS = ['P', 'C', 'K'] as const;
 const FORCE_BAR_COLORS = ['#EF4444', '#22C55E', '#3B82F6'];
 
-/** PCK bar badge — matches the ForceCharts cube indicator style exactly. */
 export function CubeBadge({ mode, size = 'sm' }: { mode: CubeCornerKey; size?: 'sm' | 'md' }) {
   const w = size === 'md' ? 36 : 24;
   const h = size === 'md' ? 18 : 12;
@@ -27,7 +26,7 @@ export function CubeBadge({ mode, size = 'sm' }: { mode: CubeCornerKey; size?: '
   const gap = size === 'md' ? 13 : 8.5;
   const highH = size === 'md' ? 14 : 10;
   const lowH = size === 'md' ? 6 : 4;
-  const fontSize = size === 'md' ? 4.5 : 0; // only show labels on md
+  const fontSize = size === 'md' ? 4.5 : 0;
 
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0">
@@ -48,55 +47,46 @@ export function CubeBadge({ mode, size = 'sm' }: { mode: CubeCornerKey; size?: '
   );
 }
 
-// ── Slot Cell ────────────────────────────────────────────────────────────────
+// ── Transition Chain (mathematical notation with arrows) ─────────────────────
 
-function SlotCell({
+function TransitionStep({
   mode,
-  index,
   spinning,
   spinMode,
   settled,
-  total,
+  showArrow,
 }: {
   mode: CubeCornerKey;
-  index: number;
   spinning: boolean;
   spinMode: CubeCornerKey;
   settled: boolean;
-  total: number;
+  showArrow: boolean;
 }) {
   const displayMode = spinning && !settled ? spinMode : mode;
   const corner = NARRATIVE_CUBE[displayMode];
-  const isPayoff = displayMode[0] === 'H';
 
   return (
-    <div
-      className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${
-        settled ? 'opacity-100' : spinning ? 'opacity-60' : 'opacity-100'
-      }`}
-      style={{ flex: `1 1 ${100 / total}%`, minWidth: 0 }}
-    >
-      {/* Badge */}
+    <>
+      {showArrow && (
+        <span className="text-text-dim/30 text-[13px] font-light select-none mx-0.5">→</span>
+      )}
       <div
-        className={`w-full aspect-square rounded-lg flex flex-col items-center justify-center gap-1 border transition-all duration-200 ${
-          settled
-            ? isPayoff
-              ? 'border-white/15 bg-white/[0.06]'
-              : 'border-white/6 bg-white/[0.02]'
-            : 'border-white/4 bg-white/[0.01]'
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-all duration-200 ${
+          settled ? 'opacity-100' : spinning ? 'opacity-40' : 'opacity-100'
         }`}
+        style={{
+          backgroundColor: settled ? `${CORNER_COLORS[displayMode]}15` : 'transparent',
+        }}
       >
-        <CubeBadge mode={displayMode} size="md" />
+        <CubeBadge mode={displayMode} size="sm" />
         <span
-          className="text-[9px] font-semibold leading-none transition-colors duration-150"
+          className="text-[10px] font-semibold leading-none whitespace-nowrap transition-colors duration-150"
           style={{ color: CORNER_COLORS[displayMode] }}
         >
           {corner.name}
         </span>
       </div>
-      {/* Index */}
-      <span className="text-[8px] font-mono text-text-dim">{index + 1}</span>
-    </div>
+    </>
   );
 }
 
@@ -133,12 +123,10 @@ export function PacingStrip({
     timeoutRefs.current.forEach(clearTimeout);
     timeoutRefs.current = [];
 
-    // Rapid cycling
     intervalRef.current = setInterval(() => {
       setSpinModes(sequence.steps.map(() => CORNERS[Math.floor(Math.random() * CORNERS.length)]));
     }, 50);
 
-    // Staggered settle
     sequence.steps.forEach((_, i) => {
       const t = setTimeout(() => {
         setSettledCount((prev) => {
@@ -166,34 +154,26 @@ export function PacingStrip({
   }, [animating, sequence, onAnimationDone]);
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Strip */}
-      <div className="flex gap-1.5">
+    <div className="flex flex-col gap-3">
+      {/* Transition chain */}
+      <div className="flex items-center flex-wrap gap-y-1.5">
         {sequence.steps.map((step, i) => (
-          <SlotCell
+          <TransitionStep
             key={i}
             mode={step.mode}
-            index={i}
             spinning={animating && settledCount <= i}
             spinMode={spinModes[i] ?? 'LLL'}
             settled={settledCount > i}
-            total={sequence.steps.length}
+            showArrow={i > 0}
           />
         ))}
       </div>
 
       {/* Pacing summary */}
       {settledCount >= sequence.steps.length && (
-        <div className="space-y-1.5">
-          <p className="text-[10px] text-text-dim leading-snug">
-            {sequence.pacingDescription}
-          </p>
-          {sequence.reasoning && (
-            <p className="text-[10px] text-text-secondary leading-snug italic">
-              {sequence.reasoning}
-            </p>
-          )}
-        </div>
+        <p className="text-[10px] text-text-dim leading-snug">
+          {sequence.pacingDescription}
+        </p>
       )}
     </div>
   );

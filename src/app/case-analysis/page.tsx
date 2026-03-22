@@ -59,7 +59,7 @@ export default function ExamplePage() {
       narrative={narrative}
       resolvedKeys={resolvedKeys}
       onClose={() => {
-        dispatch({ type: 'ADD_NARRATIVE', narrative });
+        dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: narrative.id });
         router.push(`/series/${narrative.id}`);
       }}
     />

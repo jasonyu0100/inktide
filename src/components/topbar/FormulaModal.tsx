@@ -39,33 +39,29 @@ function ForcesTab() {
   return (
     <div className="space-y-5">
       <p className="text-[10px] text-text-dim">
-        Three raw forces capture distinct dimensions of narrative intensity. Each is z-score normalized: <Tex>{'z_i = (x_i - \\mu) \\,/\\, \\sigma'}</Tex>
+        Three forces capture distinct dimensions of narrative intensity. All z-score normalized: <Tex>{'z_i = (x_i - \\mu) \\,/\\, \\sigma'}</Tex>
       </p>
 
       <S title="Payoff" analogy="Did something permanent happen? A betrayal, a death, a vow — moments that can't be undone.">
-        <Block tex="P = \sum_{t \in \mathcal{T}} \delta(t) \;+\; \sum_{r \in \mathcal{R}} |\Delta v_r|" />
-        <Block tex={String.raw`\delta(t) = \begin{cases} 0.25 & \text{from} = \text{to} \;\text{(pulse)} \\ |\,\phi_{\text{to}} - \phi_{\text{from}}\,| & \text{otherwise} \end{cases}`} />
+        <Block tex="P = \sum_{t} \left| \varphi_{\text{to}} - \varphi_{\text{from}} \right| + \sum_{r} |\Delta v_r|" />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'\\phi'}</Tex>: phase index (dormant=0, active=1, escalating=2, critical=3, resolved/subverted/abandoned=4).
-          Same-status pulses earn 0.25. All transitions use absolute distance.
-          Valence deltas contribute linearly.
+          Phase index: dormant(0), active(1), escalating(2), critical(3), resolved/subverted/abandoned(4).
+          Transitions score by distance. Same-status mentions earn a 0.25 pulse. Relationship valence deltas add <Tex>{'|\\Delta v|'}</Tex>.
         </p>
       </S>
 
-      <S title="Change" analogy="How many lives were touched? A scene where five characters learn something new ripples wider than one where a single character reflects alone.">
-        <Block tex={String.raw`C = \sum_{c \,\in\, \text{cast}} \log_2(1 + m_c)`} />
+      <S title="Change" analogy="How many lives were touched? A scene rippling across five characters scores higher than one reflecting alone.">
+        <Block tex={String.raw`C = \sum_{c} \log_2(1 + m_c) + \log_2(1 + |\text{events}|)`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'m_c'}</Tex>: continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations per character. Events contribute as a separate log term.
-          Log scale gives diminishing returns per character, rewarding breadth — a scene that ripples across many lives scores higher than one focused on a single character.
+          <Tex>{'m_c'}</Tex> = continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations per character. Log scale gives diminishing returns, rewarding breadth over depth.
         </p>
       </S>
 
-      <S title="Knowledge" analogy="Is the world growing richer? A scene that reveals a new law of magic expands the world more than one that links two known rules.">
-        <Block tex={String.raw`K = \Delta N + \tfrac{1}{2}\,\Delta E`} />
+      <S title="Knowledge" analogy="Is the world growing richer? Revealing a new law of magic expands the world more than linking two known rules.">
+        <Block tex={String.raw`K = \Delta N + 0.5 \cdot \Delta E`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`\Delta N`}</Tex>: new world-building nodes — laws, systems, concepts, or tensions revealed in a scene.{' '}
-          <Tex>{String.raw`\Delta E`}</Tex>: new relationships between those nodes (weight ½).
-          Introducing a fresh idea outweighs connecting known ones.
+          <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes (laws, systems, concepts, tensions).{' '}
+          <Tex>{String.raw`\Delta E`}</Tex> = new edges between nodes (weight 0.5). Fresh ideas outweigh new connections.
         </p>
       </S>
     </div>
@@ -76,38 +72,35 @@ function DynamicsTab() {
   return (
     <div className="space-y-5">
       <p className="text-[10px] text-text-dim">
-        Derived signals that measure pacing, tension, and structure across the scene sequence.
+        Derived metrics that capture pacing, tension, and the buildup-release cycle.
       </p>
 
-      <S title="Tension" analogy="The coiled spring — energy building without release. The audience feels it as anticipation, dread, or mounting stakes.">
-        <Block tex="T_i = z_i^C + z_i^K - z_i^P" />
+      <S title="Tension" analogy="The coiled spring — energy building without release.">
+        <Block tex="T_i = C_i + K_i - P_i" />
         <p className="text-[10px] text-text-dim">
-          High when characters change and the world expands but threads don&apos;t resolve. Drops sharply at payoff scenes — the release the audience craves.
+          High when characters change and the world expands but nothing resolves. Drops sharply at payoff scenes.
         </p>
       </S>
 
-      <S title="Delivery" analogy="The dopamine hit — payoff-weighted presence with a bonus for earned resolution. Scenes that release built-up tension hit hardest.">
-        <Block tex={String.raw`E_i = 0.5\,z_i^P + 0.25\,z_i^C + 0.25\,z_i^K + 0.3 \cdot \text{contrast}_i`} />
+      <S title="Delivery" analogy="The dopamine hit — earned resolution lands hardest.">
+        <Block tex={String.raw`E_i = 0.5 P_i + 0.25 C_i + 0.25 K_i + 0.3 \cdot \text{contrast}_i`} />
         <Block tex={String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i)`} />
         <p className="text-[10px] text-text-dim">
-          Payoff weighted 2&times; because resolution drives satisfaction. The contrast bonus rewards tension-release: a payoff after sustained buildup scores higher than the same payoff in isolation. Gaussian-smoothed (&sigma;=1.5) for display.
+          Payoff weighted 2&times;. The contrast bonus rewards tension-release: a payoff after sustained buildup scores higher than the same payoff in isolation.
         </p>
       </S>
 
-      <S title="Swing" analogy="Is the story breathing? A quiet scene after an explosion, a tense pause before the climax — great stories alternate intensity.">
-        <Block tex="S_i = \left\|\, \frac{\mathbf{f}_i - \mathbf{f}_{i-1}}{\boldsymbol{\mu}} \,\right\|_2 = \sqrt{\left(\frac{\Delta P}{\mu_P}\right)^{\!2} + \left(\frac{\Delta C}{\mu_C}\right)^{\!2} + \left(\frac{\Delta K}{\mu_K}\right)^{\!2}}" />
+      <S title="Swing" analogy="The story breathing — great stories alternate intensity.">
+        <Block tex={String.raw`S_i = \sqrt{\left(\frac{\Delta P}{\mu_P}\right)^{2} + \left(\frac{\Delta C}{\mu_C}\right)^{2} + \left(\frac{\Delta K}{\mu_K}\right)^{2}}`} />
         <p className="text-[10px] text-text-dim">
-          Normalized by reference means so each force contributes equally. High swing = dynamic pacing.
+          Normalized Euclidean distance between consecutive force snapshots. Each delta divided by its reference mean so all three contribute equally.
         </p>
       </S>
 
-      <S title="Peak & Valley Detection" analogy="Where are the climaxes and the breathing room? Peaks are moments that tower above their surroundings.">
+      <S title="Peak & Valley Detection" analogy="Where are the climaxes and the breathing room?">
         <Block tex={String.raw`\tilde{E} = \mathcal{G}_{\sigma=1.5} \ast E, \qquad r = \max\!\left(2,\, \lfloor n/25 \rfloor\right)`} />
-        <Block tex={String.raw`\text{peak at } i \iff \tilde{E}_i = \max_{j \in [i-r,\, i+r]} \tilde{E}_j \;\wedge\; \tilde{E}_i - \text{base}_i \geq 0.4\,\sigma_{\tilde{E}}`} />
         <p className="text-[10px] text-text-dim">
-          Local maximum within an adaptive window (wider for longer books).
-          Prominence = height above the nearest valley on either side.
-          Only peaks rising <Tex>{'\\geq 0.4\\sigma'}</Tex> above their base qualify. Valleys are symmetric.
+          Gaussian-smoothed delivery with adaptive window (wider for longer works). Peaks must rise <Tex>{'\\geq 0.4\\sigma'}</Tex> above their base. Valleys are symmetric.
         </p>
       </S>
     </div>
@@ -118,16 +111,28 @@ function ScoringTab() {
   return (
     <div className="space-y-5">
       <p className="text-[10px] text-text-dim">
-        Forces and dynamics are converted to grades calibrated against literary reference works.
+        Forces convert to grades calibrated against literary reference works (HP, Gatsby, Crime &amp; Punishment land at 88&ndash;93).
       </p>
 
-      <S title="Grading" analogy="How does this story compare to great literature? Scores are calibrated so HP, Gatsby, and Crime & Punishment land at 88–93.">
-        <Block tex="\tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}, \qquad g(\tilde{x}) = 20\!\left(1 - e^{-2\tilde{x}}\right)" />
-        <Block tex="\text{Overall} = \sum_k g_k \quad (k \in \{P, C, K, S\})" />
+      <S title="Grading" analogy="Exponential curve — steep early, plateaus at high levels.">
+        <Block tex={String.raw`g(\tilde{x}) = 25\!\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}`} />
+        <Block tex="\text{Overall} = g(\tilde{P}) + g(\tilde{C}) + g(\tilde{K}) + g(\tilde{S})" />
         <p className="text-[10px] text-text-dim">
-          Reference means <Tex>{'\\mu'}</Tex>: P=1.5, C=7.0, K=2.5, S=1.5. Calibrated from literary works.
-          At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade <Tex>{'\\approx'}</Tex> 22/25.
+          At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade &asymp; 22/25. Swing is already mean-normalized, graded directly.
         </p>
+        <div className="mt-2 flex gap-2 text-[10px]">
+          {[
+            { label: 'Payoff', value: '1.5', color: '#EF4444' },
+            { label: 'Change', value: '7.0', color: '#22C55E' },
+            { label: 'Knowledge', value: '2.5', color: '#3B82F6' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/8">
+              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+              <span className="text-text-dim">{label}</span>
+              <span className="font-mono text-text-secondary">{value}</span>
+            </div>
+          ))}
+        </div>
       </S>
     </div>
   );

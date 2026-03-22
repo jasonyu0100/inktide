@@ -58,6 +58,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
           description: narrative.description,
           rules: narrative.rules,
           imageStyle: narrative.imageStyle,
+          coverPrompt: settings.coverPrompt,
         }),
       });
       if (!res.ok) {
@@ -240,9 +241,9 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
 
           {tab === 'cover' && (
             <>
-              <div className="flex gap-3 items-start">
-                {/* Thumbnail preview */}
-                <div className="shrink-0 w-28 rounded-lg overflow-hidden border border-white/10">
+              {/* Preview */}
+              <div className="flex justify-center">
+                <div className="w-36 rounded-lg overflow-hidden border border-white/10">
                   {coverUrl ? (
                     <img src={coverUrl} alt="Cover" className="w-full aspect-3/4 object-cover" />
                   ) : (
@@ -251,35 +252,49 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                     </div>
                   )}
                 </div>
-
-                {/* Actions */}
-                <div className="flex-1 space-y-2">
-                  <button
-                    onClick={handleGenerateCover}
-                    disabled={coverGenerating}
-                    className="w-full text-[11px] px-3 py-2 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
-                  >
-                    {coverGenerating ? 'Generating…' : coverUrl ? 'Regenerate Cover' : 'Generate Cover'}
-                  </button>
-
-                  {coverUrl && (
-                    <button
-                      onClick={handleRemoveCover}
-                      className="w-full text-[10px] px-3 py-1.5 rounded-md text-text-dim hover:text-text-secondary transition-colors"
-                    >
-                      Remove Cover
-                    </button>
-                  )}
-
-                  {coverError && (
-                    <p className="text-[10px] text-red-400/80">{coverError}</p>
-                  )}
-
-                  <p className="text-[9px] text-text-dim/50">
-                    Generated from title, description, rules, and image style via Replicate.
-                  </p>
-                </div>
               </div>
+
+              {/* Custom Prompt */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-1.5">
+                  Image Prompt <span className="normal-case tracking-normal text-text-dim/50">(optional)</span>
+                </label>
+                <textarea
+                  value={settings.coverPrompt}
+                  onChange={(e) => update({ coverPrompt: e.target.value })}
+                  placeholder="e.g. &quot;Dark fantasy oil painting of a lone figure standing before an enormous gate carved into a mountain, storm clouds above, warm light spilling from within&quot;"
+                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-20"
+                />
+                <p className="text-[9px] text-text-dim/50 mt-1">
+                  {settings.coverPrompt.trim()
+                    ? 'Your custom prompt will be used directly.'
+                    : 'Leave empty to auto-generate from title, description, and image style.'}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleGenerateCover}
+                  disabled={coverGenerating}
+                  className="flex-1 text-[11px] px-3 py-2 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+                >
+                  {coverGenerating ? 'Generating…' : coverUrl ? 'Regenerate' : 'Generate Cover'}
+                </button>
+
+                {coverUrl && (
+                  <button
+                    onClick={handleRemoveCover}
+                    className="text-[10px] px-3 py-2 rounded-lg border border-white/5 text-text-dim hover:text-text-secondary hover:bg-white/5 transition-colors"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
+              {coverError && (
+                <p className="text-[10px] text-red-400/80">{coverError}</p>
+              )}
             </>
           )}
 

@@ -232,7 +232,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               onClick={async () => {
                 if (liveJob.narrativeId) {
                   dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: liveJob.narrativeId });
-                  router.push(`/series/${liveJob.narrativeId}`);
+                  router.push(`/series/${liveJob.narrativeId}?slides=1`);
                 } else {
                   setAssembling(true);
                   try {
@@ -241,7 +241,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     const narrative = await assembleNarrative(liveJob.title, completedResults);
                     dispatch({ type: 'ADD_NARRATIVE', narrative });
                     dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: liveJob.id, updates: { narrativeId: narrative.id } });
-                    router.push(`/series/${narrative.id}`);
+                    router.push(`/series/${narrative.id}?slides=1`);
                   } catch (err) {
                     console.error('[analysis] assembly failed:', err);
                   } finally {

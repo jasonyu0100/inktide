@@ -8,17 +8,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { title, description, rules, imageStyle } = await req.json() as {
+    const { title, description, rules, imageStyle, coverPrompt } = await req.json() as {
       title: string;
       description?: string;
       rules?: string[];
       imageStyle?: string;
+      coverPrompt?: string;
     };
 
-    // Build an evocative image prompt from narrative context
-    const context = [description, rules?.length ? `World rules: ${rules.join('. ')}` : ''].filter(Boolean).join('. ');
-    const styleDirective = imageStyle || 'Cinematic wide-angle digital painting, book cover art style';
-    const imagePrompt = `${styleDirective}. ${title}. ${context}. Dramatic lighting, rich atmosphere, high detail, no text, no letters, no words, no watermarks.`;
+    // Use custom prompt if provided, otherwise build from narrative context
+    let imagePrompt: string;
+    if (coverPrompt?.trim()) {
+      imagePrompt = `${coverPrompt.trim()}. No text, no letters, no words, no watermarks.`;
+    } else {
+      const context = [description, rules?.length ? `World rules: ${rules.join('. ')}` : ''].filter(Boolean).join('. ');
+      const styleDirective = imageStyle || 'Cinematic wide-angle digital painting, book cover art style';
+      imagePrompt = `${styleDirective}. ${title}. ${context}. Dramatic lighting, rich atmosphere, high detail, no text, no letters, no words, no watermarks.`;
+    }
 
     // Call Replicate Seedream 4.5 with sync mode
     const response = await fetch('https://api.replicate.com/v1/models/bytedance/seedream-4.5/predictions', {

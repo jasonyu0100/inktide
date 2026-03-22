@@ -18,53 +18,47 @@ export const METHODOLOGY_PAGES = 3;
 
 // ── Page 1: The Three Forces ─────────────────────────────────────────────────
 
-function ForcesPage({ data }: { data: SlidesData }) {
+function ForcesPage() {
   return (
     <div className="flex flex-col h-full px-12 py-8 text-center">
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-text-dim mb-1 font-mono">Methodology · 1 of {METHODOLOGY_PAGES}</div>
-        <h2 className="text-2xl font-bold text-text-primary mb-1">The Three Narrative Forces</h2>
+        <h2 className="text-2xl font-bold text-text-primary mb-1">The Three Forces</h2>
         <p className="text-xs text-text-dim">
-          Every scene is measured by three independent forces computed directly from structural mutations in the knowledge graph.
+          Each scene is measured by three independent forces computed from structural mutations in the knowledge graph.
         </p>
       </div>
 
       <div className="flex-1 flex flex-col justify-evenly">
-        {/* Payoff */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-1">Payoff</span>
           <span className="text-[10px] text-text-dim mb-3">Did something permanent happen?</span>
-          <div className="space-y-1">
-            <Tex display>{String.raw`P = \sum_{t \in \mathcal{T}} \delta(t) \;+\; \sum_{r \in \mathcal{R}} |\Delta v_r|`}</Tex>
-            <Tex display>{String.raw`\delta(t) = \begin{cases} 0.25 & \text{from} = \text{to} \\ |\,\phi_{\text{to}} - \phi_{\text{from}}\,| & \text{otherwise} \end{cases}`}</Tex>
-          </div>
+          <Tex display>{String.raw`P = \sum_{t} \left| \varphi_{\text{to}} - \varphi_{\text{from}} \right| + \sum_{r} \left| \Delta v_r \right|`}</Tex>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            Phase jumps score by distance on the dormant&rarr;terminal ladder. Pulses (same&rarr;same) earn 0.25. Relationship valence shifts add |&Delta;v|.
+            Thread phase transitions scored by distance (dormant&rarr;active&rarr;escalating&rarr;critical&rarr;resolved). Same-status mentions earn a 0.25 pulse. Relationship valence shifts add |&Delta;v|.
           </p>
         </div>
 
         <div className="w-24 mx-auto border-t border-white/5" />
 
-        {/* Change */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-1">Change</span>
           <span className="text-[10px] text-text-dim mb-3">How many lives were touched?</span>
-          <Tex display>{String.raw`C = \sum_{c \,\in\, \text{cast}} \log_2(1 + m_c)`}</Tex>
+          <Tex display>{String.raw`C = \sum_{c} \log_2(1 + m_c) + \log_2(1 + |\text{events}|)`}</Tex>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            <Tex>{'m_c'}</Tex> = continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations per character. Events contribute as a separate log term. Log scale gives diminishing returns, rewarding breadth — a scene that ripples across many lives scores higher than one focused on a single character.
+            <Tex>{'m_c'}</Tex> = continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations per character. Log scale rewards breadth&mdash;a scene rippling across many lives scores higher than one focused on a single character.
           </p>
         </div>
 
         <div className="w-24 mx-auto border-t border-white/5" />
 
-        {/* Knowledge */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-1">Knowledge</span>
           <span className="text-[10px] text-text-dim mb-3">Is the world growing richer?</span>
-          <Tex display>{String.raw`K = \Delta N + \tfrac{1}{2}\,\Delta E`}</Tex>
+          <Tex display>{String.raw`K = \Delta N + 0.5 \cdot \Delta E`}</Tex>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes — laws, systems, concepts, or tensions revealed in a scene.{' '}
-            <Tex>{String.raw`\Delta E`}</Tex> = new relationships between those nodes (weight &frac12;). Introducing a fresh idea outweighs connecting known ones.
+            <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes (laws, systems, concepts, tensions).{' '}
+            <Tex>{String.raw`\Delta E`}</Tex> = new edges between nodes (weight 0.5). Fresh ideas outweigh new connections.
           </p>
         </div>
       </div>
@@ -81,45 +75,42 @@ function DeliveryShapeSwingPage({ data }: { data: SlidesData }) {
         <div className="text-[10px] uppercase tracking-widest text-text-dim mb-1 font-mono">Methodology · 2 of {METHODOLOGY_PAGES}</div>
         <h2 className="text-2xl font-bold text-text-primary mb-1">Tension, Delivery & Shape</h2>
         <p className="text-xs text-text-dim">
-          The three forces combine into tension and delivery — the buildup-release cycle that drives narrative dopamine.
+          Forces combine into the buildup-release cycle that drives narrative dopamine.
         </p>
       </div>
 
       <div className="flex-1 flex flex-col justify-evenly">
-        {/* Tension */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-1">Tension</span>
-          <span className="text-[10px] text-text-dim mb-3">How much energy is coiling without release?</span>
-          <Tex display>{String.raw`T_i = z_i^C + z_i^K - z_i^P`}</Tex>
+          <span className="text-[10px] text-text-dim mb-3">The coiled spring&mdash;energy building without release.</span>
+          <Tex display>{String.raw`T_i = C_i + K_i - P_i`}</Tex>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            High when characters change and the world expands but threads don&apos;t resolve. Drops at payoff scenes — the release the audience craves. The contrast between consecutive tension values drives delivery.
+            High when characters change and the world expands but nothing resolves. Drops sharply at payoff scenes.
           </p>
         </div>
 
         <div className="w-24 mx-auto border-t border-white/5" />
 
-        {/* Delivery */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-1">Delivery</span>
-          <span className="text-[10px] text-text-dim mb-3">How hard does the scene hit?</span>
+          <span className="text-[10px] text-text-dim mb-3">The dopamine hit&mdash;earned resolution lands hardest.</span>
           <div className="space-y-1">
-            <Tex display>{String.raw`E_i = 0.5\,z_i^P + 0.25\,z_i^C + 0.25\,z_i^K + 0.3 \cdot \text{contrast}_i`}</Tex>
+            <Tex display>{String.raw`E_i = 0.5 P_i + 0.25 C_i + 0.25 K_i + 0.3 \cdot \text{contrast}_i`}</Tex>
             <Tex display>{String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i)`}</Tex>
           </div>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            Payoff weighted 2&times; because resolution drives satisfaction. The contrast bonus rewards tension-release patterns — a payoff after sustained buildup scores higher than the same payoff in isolation.
+            Payoff weighted 2&times;. The contrast bonus rewards tension-release: a payoff after buildup scores higher than the same payoff in isolation.
           </p>
         </div>
 
         <div className="w-24 mx-auto border-t border-white/5" />
 
-        {/* Shape */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-1">Narrative Shape</span>
-          <span className="text-[10px] text-text-dim mb-3">What is the dopamine trajectory?</span>
+          <span className="text-[10px] text-text-dim mb-3">The delivery trajectory classified into an archetype.</span>
           <Tex display>{String.raw`\text{Shape} = f\!\left(E_1, E_2, \ldots, E_n\right)`}</Tex>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            Classified from the Gaussian-smoothed delivery curve. Delivery captures the full dopamine profile — payoff-weighted force presence plus tension-release contrast — making it a more accurate measure of emotional trajectory than any single force alone.
+            Classified from the Gaussian-smoothed delivery curve using peak detection, slope analysis, and variance thresholds.
             {data.shape && <> This series: <span className="text-text-secondary font-medium">{data.shape.name}</span>.</>}
           </p>
         </div>
@@ -142,28 +133,24 @@ function GradingPage({ data }: { data: SlidesData }) {
         <div className="text-[10px] uppercase tracking-widest text-text-dim mb-1 font-mono">Methodology · 3 of {METHODOLOGY_PAGES}</div>
         <h2 className="text-2xl font-bold text-text-primary mb-1">Grading</h2>
         <p className="text-xs text-text-dim">
-          Scores are calibrated against literary reference works so that Harry Potter, The Great Gatsby, and Crime &amp; Punishment land at 88–93 overall.
+          Calibrated so HP, Gatsby, and Crime &amp; Punishment land at 88&ndash;93 overall.
         </p>
       </div>
 
       <div className="flex-1 flex flex-col justify-evenly">
-        {/* Grade function */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-1">Grade Function</span>
-          <span className="text-[10px] text-text-dim mb-3">How are raw forces mapped to scores?</span>
+          <span className="text-[10px] text-text-dim mb-3">Exponential curve&mdash;steep early, plateaus at high levels.</span>
           <div className="space-y-1">
-            <Tex display>{String.raw`\tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}`}</Tex>
-            <Tex display>{String.raw`g(\tilde{x}) = 25\!\left(1 - e^{-2\tilde{x}}\right)`}</Tex>
+            <Tex display>{String.raw`g(\tilde{x}) = 25\!\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}`}</Tex>
           </div>
           <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            Each force mean is divided by its reference mean, then mapped through a saturating exponential.
-            At <Tex>{'\\tilde{x}=1'}</Tex> (matching the reference), grade &asymp; 21.6/25.
+            At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade &asymp; 22/25 (88%).
           </p>
         </div>
 
         <div className="w-24 mx-auto border-t border-white/5" />
 
-        {/* Reference means */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-3">Reference Means</span>
           <div className="flex items-center gap-10">
@@ -181,14 +168,10 @@ function GradingPage({ data }: { data: SlidesData }) {
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-text-dim leading-relaxed mt-3 max-w-lg">
-            Calibrated from literary works. A force matching its reference scores ~86% of the available 25 points.
-          </p>
         </div>
 
         <div className="w-24 mx-auto border-t border-white/5" />
 
-        {/* Overall composition */}
         <div className="flex flex-col items-center text-center">
           <span className="text-sm font-semibold text-text-primary mb-3">Overall Score</span>
           <Tex display>{String.raw`\text{Overall} = g(\tilde{P}) + g(\tilde{C}) + g(\tilde{K}) + g(\tilde{S})`}</Tex>
@@ -220,9 +203,9 @@ function GradingPage({ data }: { data: SlidesData }) {
 
 export function MethodologySlide({ data, page }: { data: SlidesData; page: number }) {
   switch (page) {
-    case 0: return <ForcesPage data={data} />;
+    case 0: return <ForcesPage />;
     case 1: return <DeliveryShapeSwingPage data={data} />;
     case 2: return <GradingPage data={data} />;
-    default: return <ForcesPage data={data} />;
+    default: return <ForcesPage />;
   }
 }

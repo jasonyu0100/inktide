@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStore, SEED_NARRATIVE_IDS } from '@/lib/store';
+import { useStore, PLAYGROUND_NARRATIVE_IDS, ANALYSIS_NARRATIVE_IDS } from '@/lib/store';
+import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
 import ApiKeyModal from '@/components/layout/ApiKeyModal';
@@ -17,17 +18,6 @@ function useIsMobile(breakpoint = 768) {
     return () => window.removeEventListener('resize', check);
   }, [breakpoint]);
   return isMobile;
-}
-
-function timeAgo(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
 
 /* ── Morph text — letters shift through similar glyphs ────────────────────── */
@@ -146,14 +136,28 @@ function ThreadLine() {
   );
 }
 
+/* ── Card color helpers ─────────────────────────────────────────────────── */
+function scoreColor(score: number): string {
+  if (score >= 80) return '#4ade80';
+  if (score >= 60) return '#facc15';
+  if (score >= 40) return '#fb923c';
+  return '#f87171';
+}
+
+const ARCHETYPE_COLORS: Record<string, string> = {
+  masterwork: '#f59e0b', epic: '#ef4444', chronicle: '#3b82f6',
+  saga: '#8b5cf6', classic: '#10b981', anthology: '#ec4899',
+  atlas: '#06b6d4', emerging: '#6b7280',
+};
+
 /* ── Seed vertical cards ─────────────────────────────────────────────────── */
 
-function SeedCard({ entry, index }: { entry: NarrativeEntry; index: number }) {
+function SeedCard({ entry, index, openSlides }: { entry: NarrativeEntry; index: number; openSlides?: boolean }) {
   const router = useRouter();
 
   return (
     <div
-      onClick={() => router.push(`/series/${entry.id}`)}
+      onClick={() => router.push(`/series/${entry.id}${openSlides ? '?slides=1' : ''}`)}
       className="group relative shrink-0 w-52 cursor-pointer animate-fade-up"
       style={{ animationDelay: `${0.5 + index * 0.1}s` }}
     >
@@ -181,7 +185,24 @@ function SeedCard({ entry, index }: { entry: NarrativeEntry; index: number }) {
           </div>
 
           <div className="mt-4 pt-3 border-t border-white/6 flex items-center justify-between">
-            <span className="text-[9px] text-white/25 font-mono">seed</span>
+            <div className="flex items-center gap-2.5">
+              {entry.shapeCurve && (
+                <div className="flex items-center gap-1" title={entry.shapeName ?? 'Shape'}>
+                  <svg width="20" height="10" viewBox="0 0 20 10" className="opacity-70">
+                    <polyline
+                      points={entry.shapeCurve.map(([x, y]) => `${x * 20},${10 - y * 10}`).join(' ')}
+                      fill="none" stroke="#fb923c" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              )}
+              {entry.archetypeKey && (
+                <ArchetypeIcon archetypeKey={entry.archetypeKey} size={11} color={ARCHETYPE_COLORS[entry.archetypeKey] ?? '#6b7280'} />
+              )}
+              {entry.overallScore !== undefined && (
+                <span className="text-[10px] font-mono font-semibold" style={{ color: scoreColor(entry.overallScore) }}>{entry.overallScore}</span>
+              )}
+            </div>
             <span className="flex items-center gap-1 text-[10px] text-white/30 group-hover:text-white/70 transition-colors font-medium">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
               Play
@@ -193,7 +214,7 @@ function SeedCard({ entry, index }: { entry: NarrativeEntry; index: number }) {
   );
 }
 
-function SeedCarousel({ seeds }: { seeds: NarrativeEntry[] }) {
+function SeedCarousel({ seeds, openSlides }: { seeds: NarrativeEntry[]; openSlides?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -247,54 +268,8 @@ function SeedCarousel({ seeds }: { seeds: NarrativeEntry[] }) {
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {seeds.map((entry, i) => (
-          <SeedCard key={entry.id} entry={entry} index={i} />
+          <SeedCard key={entry.id} entry={entry} index={i} openSlides={openSlides} />
         ))}
-      </div>
-    </div>
-  );
-}
-
-/* ── User series card — same style as SeedCard ─────────────────────────── */
-function UserSeriesCard({ entry, index }: { entry: NarrativeEntry; index: number }) {
-  const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  return (
-    <div
-      onClick={() => router.push(`/series/${entry.id}`)}
-      className="group relative shrink-0 w-52 cursor-pointer animate-fade-up"
-      style={{ animationDelay: `${index * 0.1}s` }}
-    >
-      <div className="relative h-80 rounded-lg overflow-hidden border border-white/6 bg-transparent transition-all duration-300 group-hover:border-white/15 group-hover:-translate-y-1 group-hover:shadow-[0_8px_30px_-10px_rgba(80,200,160,0.15)]">
-        {/* Cover image background */}
-        {entry.coverImageUrl && (
-          <div className="absolute inset-0">
-            <img src={entry.coverImageUrl} alt="" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
-          </div>
-        )}
-        {/* Content */}
-        <div className="relative h-full flex flex-col p-4 pt-5">
-          <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/30">
-            {entry.sceneCount} scenes
-          </p>
-
-          <div className="mt-auto">
-            <h3 className="text-[15px] font-semibold leading-snug mb-2 text-white/90 group-hover:text-white transition-colors">
-              {entry.title}
-            </h3>
-            <p className="text-[11px] text-white/40 leading-relaxed line-clamp-4">
-              {entry.coverThread || entry.description}
-            </p>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-white/6 flex items-center justify-between">
-            <span className="text-[9px] text-white/25 font-mono" suppressHydrationWarning>
-              {mounted ? timeAgo(entry.updatedAt) : ''}
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -325,8 +300,8 @@ export default function HomePage() {
     dispatch({ type: 'OPEN_WIZARD', prefill });
   };
 
-  const seeds = state.narratives.filter((e) => SEED_NARRATIVE_IDS.has(e.id));
-  const userSeries = state.narratives.filter((e) => !SEED_NARRATIVE_IDS.has(e.id));
+  const playgrounds = state.narratives.filter((e) => PLAYGROUND_NARRATIVE_IDS.has(e.id));
+  const analysisSeeds = state.narratives.filter((e) => ANALYSIS_NARRATIVE_IDS.has(e.id));
 
   return (
     <>
@@ -429,144 +404,93 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ── Seed carousel ────────────────────────────────────────────── */}
-        {seeds.length > 0 && (
-          <div className="relative px-4 sm:px-8 pb-14 mt-4">
-            <div className="max-w-240 mx-auto">
-              <div className="flex items-center gap-3 mb-4">
+        {/* ── Open source book analysis ─────────────────────────────── */}
+        {analysisSeeds.length > 0 && (
+          <div className="relative px-4 sm:px-8 pb-10 mt-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center gap-3 mb-2">
                 <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono whitespace-nowrap">
-                  Living Worlds
+                  Analyzed Works
                 </h2>
                 <div className="flex-1 h-px bg-white/6" />
               </div>
-              <SeedCarousel seeds={seeds} />
+              <p className="text-[11px] text-white/25 leading-relaxed mb-4 max-w-lg">
+                Published works analyzed with our formulas. Do the force peaks match the moments you remember? This is how we verify the system captures what readers actually feel.
+              </p>
+              <SeedCarousel seeds={analysisSeeds} openSlides />
             </div>
           </div>
         )}
 
-        {/* ── User series ──────────────────────────────────────────────── */}
-        <div className="relative flex-1 px-4 sm:px-8 pb-16">
-          <div className="max-w-240 mx-auto">
-            <div className="flex items-center gap-3 mb-4">
-              <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">
-                Your Stories
+        {/* ── Playground seeds ────────────────────────────────────────── */}
+        {playgrounds.length > 0 && (
+          <div className="relative px-4 sm:px-8 pb-14">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center gap-3 mb-2">
+                <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono whitespace-nowrap">
+                  AI Playgrounds
+                </h2>
+                <div className="flex-1 h-px bg-white/6" />
+              </div>
+              <p className="text-[11px] text-white/25 leading-relaxed mb-4 max-w-lg">
+                AI-generated alternate realities of real series&mdash;not the original texts. Experiment with generation, branching, and force analysis.
+              </p>
+              <SeedCarousel seeds={playgrounds} />
+            </div>
+          </div>
+        )}
+
+        {/* ── Q&A ───────────────────────────────────────────────────── */}
+        <div className="relative px-4 sm:px-8 pb-20 mt-4">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center gap-3 mb-8">
+              <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono whitespace-nowrap">
+                Questions
               </h2>
               <div className="flex-1 h-px bg-white/6" />
             </div>
-            {userSeries.length > 0 ? (
-              <div className="flex gap-3 flex-wrap">
-                {userSeries.map((entry, i) => (
-                  <UserSeriesCard key={entry.id} entry={entry} index={i} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 border border-dashed border-white/8 rounded-lg">
-                <p className="text-white/25 text-sm">No stories yet</p>
-                {!isMobile && (
-                  <button
-                    onClick={() => openCreate()}
-                    className="mt-3 text-xs text-white/40 hover:text-white/70 underline underline-offset-2 transition"
-                  >
-                    Create your first narrative
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Analysis Jobs (resumable) ──────────────────────────────── */}
-        {state.analysisJobs.length > 0 && (
-          <div className="relative px-4 sm:px-8 pb-16">
-            <div className="max-w-240 mx-auto">
-              <div className="flex items-center gap-3 mb-4">
-                <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">
-                  Analysis Jobs
-                </h2>
-                <div className="flex-1 h-px bg-white/6" />
-              </div>
-              <div className="flex flex-col gap-2">
-                {state.analysisJobs.map((job) => {
-                  const completedChunks = job.results.filter((r) => r !== null).length;
-                  const totalChunks = job.chunks.length;
-                  const progress = totalChunks > 0 ? Math.round((completedChunks / totalChunks) * 100) : 0;
-                  const statusColor =
-                    job.status === 'completed' ? 'text-emerald-400' :
-                    job.status === 'failed' ? 'text-red-400' :
-                    job.status === 'running' ? 'text-change' :
-                    'text-white/40';
-
-                  return (
-                    <div
-                      key={job.id}
-                      className="group flex items-center gap-4 border border-white/6 rounded-lg px-4 py-3 hover:border-white/12 transition cursor-pointer"
-                      onClick={() => {
-                        router.push(`/analysis?job=${job.id}`);
-                      }}
-                    >
-                      {/* Status indicator */}
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${
-                        job.status === 'completed' ? 'bg-emerald-400' :
-                        job.status === 'failed' ? 'bg-red-400' :
-                        job.status === 'running' ? 'bg-change animate-pulse' :
-                        job.status === 'paused' ? 'bg-yellow-400/60' :
-                        'bg-white/20'
-                      }`} />
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-white/80 font-medium truncate">{job.title}</span>
-                          <span className={`text-[10px] font-mono ${statusColor}`}>
-                            {job.status === 'completed' ? 'done' :
-                             job.status === 'failed' ? 'failed' :
-                             job.status === 'running' ? 'running' :
-                             job.status === 'paused' ? 'paused' :
-                             'pending'}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-white/25 font-mono mt-0.5">
-                          {completedChunks}/{totalChunks} chunks &middot; {progress}%
-                        </div>
-                      </div>
-
-                      {/* Progress bar */}
-                      <div className="w-24 h-1.5 bg-white/6 rounded-full overflow-hidden shrink-0">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            job.status === 'failed' ? 'bg-red-500/60' :
-                            job.status === 'completed' ? 'bg-emerald-500/60' :
-                            'bg-change/60'
-                          }`}
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-
-                      {/* Action hint */}
-                      <span className="text-[10px] text-white/20 group-hover:text-white/50 transition shrink-0">
-                        {job.status === 'completed' ? 'open' :
-                         job.status === 'paused' || job.status === 'failed' ? 'resume' :
-                         job.status === 'running' ? 'view' : 'start'}
-                        &nbsp;&rsaquo;
-                      </span>
-
-                      {/* Delete button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          dispatch({ type: 'DELETE_ANALYSIS_JOB', id: job.id });
-                        }}
-                        className="text-white/15 hover:text-white/50 text-sm opacity-0 group-hover:opacity-100 transition shrink-0"
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="space-y-6">
+              {[
+                {
+                  q: 'What is the Knowledge Graph?',
+                  a: 'Every narrative is a knowledge graph that mutates scene by scene. Characters have continuity nodes (what they know, believe, possess). Locations have lore. Threads track plot lines with lifecycle statuses. Relationships carry typed valence between characters. World knowledge captures laws, systems, and tensions. Each scene records structural mutations — who learned what, which threads shifted, how relationships changed — and the engine computes narrative forces from those deltas.',
+                },
+                {
+                  q: 'How do the formulas work?',
+                  a: 'Three force dimensions are derived from knowledge graph mutations, all z-score normalised. Payoff measures thread phase transitions weighted by jump magnitude plus relationship valence deltas. Change measures mutation reach per character with logarithmic scaling. Knowledge measures world knowledge graph complexity delta per scene. From these: Tension = C + K - P (buildup without release), Delivery = 0.5P + 0.25C + 0.25K + contrast bonus (payoff-weighted with tension-release reward), and Swing = Euclidean distance between consecutive force snapshots.',
+                },
+                {
+                  q: 'What is the commit tree?',
+                  a: 'Narratives use a git-like branching model. Each branch is a sequence of scene commits and world-build commits. You can fork at any scene to explore alternative story paths — different character decisions, different thread resolutions, different world directions. Branches share history up to the fork point, then diverge. This lets you compare parallel narrative trajectories, backtrack from dead ends, and maintain multiple versions of the same story without losing work.',
+                },
+                {
+                  q: 'How does MCTS search work?',
+                  a: 'Monte Carlo Tree Search explores the narrative state space to find optimal story paths. Each node in the tree is a possible scene. The engine generates multiple candidate scenes at each step, evaluates them using the force formulas (payoff, change, knowledge, delivery), and expands the most promising branches. Over many iterations, MCTS converges on story trajectories that maximise narrative force — scenes that pay off threads, transform characters, and deepen the world in concert.',
+                },
+                {
+                  q: 'How does prose generation work?',
+                  a: 'Three-phase pipeline: structure, then plan, then prose. First, the engine generates scene structures — participants, location, thread mutations, knowledge changes, relationship shifts. Second, a delivery-by-delivery staging plan blueprints HOW each mutation unfolds through concrete mechanisms. Third, prose is written from the plan with full branch context (up to 50 prior scenes), recent prose lookback for continuity, and voice/style settings. The alignment system then audits consecutive chapters in sliding windows to fix continuity gaps from parallel generation.',
+                },
+                {
+                  q: 'How does AI-generated text compare to human writing?',
+                  a: 'There is a measurable quality gap. Human-written works from published literature consistently score 90+ on the grading curve — dense thread lifecycles, earned payoffs, and layered world-building compound over hundreds of pages. AI-generated texts typically land in the 70–80 range. The mutations are structurally valid but thinner: threads resolve too neatly, character change lacks accumulation, and knowledge graphs expand without the connective depth that human authors build instinctively. The AI playgrounds on this site are alternate realities of real series — useful for experimenting with the engine, but not representative of the source material\'s quality.',
+                },
+                {
+                  q: 'What does it cost?',
+                  a: 'Narrative Engine is free and open source. You bring your own API key (OpenRouter) which gives you access to any LLM — Gemini, GPT, Claude, Llama, and others. You pay only for the tokens you use at the model provider\'s rates. There is no subscription, no platform fee, and no usage limits beyond what your API key supports.',
+                },
+              ].map(({ q, a }, i) => (
+                <details key={i} className="group">
+                  <summary className="flex items-center justify-between cursor-pointer list-none py-2">
+                    <span className="text-[13px] text-white/70 group-hover:text-white/90 transition font-medium">{q}</span>
+                    <svg className="w-3.5 h-3.5 text-white/20 group-open:rotate-90 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
+                  </summary>
+                  <p className="text-[12px] text-white/35 leading-relaxed pb-2 pl-0">{a}</p>
+                </details>
+              ))}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {state.wizardOpen && <CreationWizard />}

@@ -2,13 +2,11 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { NarrativeState } from '@/types/narrative';
-import { isScene, resolveEntry } from '@/types/narrative';
 import { computeSlidesData, type SlidesData } from '@/lib/slides-data';
 import { TitleSlide } from './slides/TitleSlide';
 import { ShapeSlide } from './slides/ShapeSlide';
 import { CastSlide } from './slides/CastSlide';
 import { ForcesOverviewSlide } from './slides/ForcesOverviewSlide';
-import { SegmentSlide } from './slides/SegmentSlide';
 import { KeyMomentsSlide } from './slides/KeyMomentsSlide';
 import { ForceDecompositionSlide } from './slides/ForceDecompositionSlide';
 import { CubeHeatmapSlide } from './slides/CubeHeatmapSlide';
@@ -16,17 +14,14 @@ import { ThreadLifecycleSlide } from './slides/ThreadLifecycleSlide';
 import { SwingAnalysisSlide } from './slides/SwingAnalysisSlide';
 import { ReportCardSlide } from './slides/ReportCardSlide';
 import { ClosingSlide } from './slides/ClosingSlide';
-import { MethodologySlide, METHODOLOGY_PAGES } from './slides/MethodologySlide';
 
 // ── Slide Spec ─────────────────────────────────────────────────────────────────
 
 type SlideSpec =
   | { type: 'title' }
-  | { type: 'methodology'; page: number }
   | { type: 'shape' }
   | { type: 'cast' }
   | { type: 'forces' }
-  | { type: 'segment'; index: number }
   | { type: 'moment'; sceneIdx: number; kind: 'peak' | 'valley' }
   | { type: 'decomposition' }
   | { type: 'cube' }
@@ -39,9 +34,6 @@ function buildSlideList(data: SlidesData): SlideSpec[] {
   const slides: SlideSpec[] = [];
 
   slides.push({ type: 'title' });
-  for (let i = 0; i < METHODOLOGY_PAGES; i++) {
-    slides.push({ type: 'methodology', page: i });
-  }
 
   if (data.sceneCount >= 6) {
     slides.push({ type: 'shape' });
@@ -50,41 +42,14 @@ function buildSlideList(data: SlidesData): SlideSpec[] {
   slides.push({ type: 'cast' });
   slides.push({ type: 'forces' });
 
-  // Interleave segments (high-level timeline) with key moments (scene deep-dives)
-  // Segment → peaks/valleys within that segment → next segment → ...
+  // Key moments — peaks and valleys in chronological order
   const allMoments: { sceneIdx: number; kind: 'peak' | 'valley' }[] = [
     ...data.peaks.map((p) => ({ sceneIdx: p.sceneIdx, kind: 'peak' as const })),
     ...data.troughs.map((t) => ({ sceneIdx: t.sceneIdx, kind: 'valley' as const })),
   ].sort((a, b) => a.sceneIdx - b.sceneIdx);
 
-  for (let i = 0; i < data.segments.length; i++) {
-    const seg = data.segments[i];
-    slides.push({ type: 'segment', index: i });
-
-    // Collect detected moments within this segment
-    const segMoments = allMoments.filter((m) => m.sceneIdx >= seg.startIdx && m.sceneIdx <= seg.endIdx);
-    const hasPeak = segMoments.some((m) => m.kind === 'peak');
-    const hasValley = segMoments.some((m) => m.kind === 'valley');
-
-    // Synthesize missing peak/valley from smoothed delivery (matches segment chart y-axis)
-    const segEng = data.deliveryCurve.slice(seg.startIdx, seg.endIdx + 1);
-    if (!hasPeak && segEng.length > 0) {
-      const best = segEng.reduce((a, b) => (b.smoothed > a.smoothed ? b : a), segEng[0]);
-      segMoments.push({ sceneIdx: best.index, kind: 'peak' });
-    }
-    if (!hasValley && segEng.length > 1) {
-      const worst = segEng.reduce((a, b) => (b.smoothed < a.smoothed ? b : a), segEng[0]);
-      // Skip if same scene as the synthetic peak
-      if (!segMoments.some((m) => m.sceneIdx === worst.index)) {
-        segMoments.push({ sceneIdx: worst.index, kind: 'valley' });
-      }
-    }
-
-    // Sort all moments chronologically, then add slides
-    segMoments.sort((a, b) => a.sceneIdx - b.sceneIdx);
-    for (const m of segMoments) {
-      slides.push({ type: 'moment', sceneIdx: m.sceneIdx, kind: m.kind });
-    }
+  for (const m of allMoments) {
+    slides.push({ type: 'moment', sceneIdx: m.sceneIdx, kind: m.kind });
   }
 
   slides.push({ type: 'decomposition' });
@@ -104,11 +69,9 @@ function buildSlideList(data: SlidesData): SlideSpec[] {
 function slideLabel(spec: SlideSpec): string {
   switch (spec.type) {
     case 'title': return 'Title';
-    case 'methodology': return ['Forces', 'Delivery & Swing', 'Grading'][spec.page] ?? 'Methodology';
     case 'shape': return 'Shape';
     case 'cast': return 'Cast';
     case 'forces': return 'Forces';
-    case 'segment': return `Segment ${spec.index + 1}`;
     case 'moment': return `${spec.kind === 'peak' ? 'Peak' : 'Valley'} · Scene ${spec.sceneIdx + 1}`;
     case 'decomposition': return 'Decomposition';
     case 'cube': return 'Cube';
@@ -214,42 +177,73 @@ export function SlidesPlayer({
         <div className="absolute bottom-1/3 right-1/3 w-1/4 h-1/4 rounded-full bg-amber-500/[0.03] blur-[100px] animate-[aurora-drift_22s_ease-in-out_infinite_reverse_4s]" />
       </div>
       {/* Top bar */}
-      <div className="flex items-center justify-between h-10 px-4 border-b border-white/8 shrink-0 relative z-10">
+      <div className="flex items-center justify-between h-10 px-4 shrink-0 relative z-10">
+        {/* Left: close + slide label */}
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            className="text-text-dim hover:text-text-primary transition-colors text-sm"
+            className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/10 text-red-400/70 hover:bg-red-500/20 hover:text-red-400 border border-red-500/15 hover:border-red-500/30 transition-all"
             title="Close (Esc)"
           >
-            &times;
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
-          <span className="text-xs text-text-dim font-mono">
-            {currentIdx + 1} / {totalSlides}
-          </span>
-          <span className="text-xs text-text-secondary">
+          <span className="text-[11px] text-white/40">
             {slideLabel(currentSlide)}
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Speed control */}
-          <select
-            value={slideDuration}
-            onChange={(e) => setSlideDuration(Number(e.target.value))}
-            className="bg-transparent border border-white/10 rounded px-2 py-0.5 text-[10px] text-text-dim outline-none"
+
+        {/* Center: playback controls */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
+          <button
+            onClick={prev}
+            disabled={currentIdx === 0}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/8 disabled:opacity-20 disabled:pointer-events-none transition-all"
+            title="Previous"
           >
-            <option value={5000}>5s</option>
-            <option value={8000}>8s</option>
-            <option value={12000}>12s</option>
-            <option value={20000}>20s</option>
-          </select>
-          {/* Play/pause */}
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
           <button
             onClick={() => setIsPlaying((v) => !v)}
-            className="px-2 py-0.5 rounded text-xs text-text-dim hover:text-text-primary border border-white/10 hover:border-white/20 transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white/90 hover:bg-white/8 transition-all"
+            title={isPlaying ? 'Pause (P)' : 'Play (P)'}
           >
-            {isPlaying ? 'Pause' : 'Play'}
+            {isPlaying ? (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="6,3 20,12 6,21" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={next}
+            disabled={currentIdx === totalSlides - 1}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/8 disabled:opacity-20 disabled:pointer-events-none transition-all"
+            title="Next"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
           </button>
         </div>
+
+        {/* Right: speed */}
+        <select
+          value={slideDuration}
+          onChange={(e) => setSlideDuration(Number(e.target.value))}
+          className="bg-transparent border border-white/8 rounded-full px-2.5 py-1 text-[10px] text-white/30 hover:text-white/50 hover:border-white/15 outline-none transition-colors cursor-pointer"
+        >
+          <option value={5000}>5s</option>
+          <option value={8000}>8s</option>
+          <option value={12000}>12s</option>
+          <option value={20000}>20s</option>
+        </select>
       </div>
 
       {/* Slide content with side navigation arrows */}
@@ -268,7 +262,7 @@ export function SlidesPlayer({
 
         {/* Slide area — scrollable */}
         <div className={`flex-1 overflow-y-auto transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
-          {renderSlide(currentSlide, slidesData)}
+          {renderSlide(currentSlide, slidesData, onClose)}
         </div>
 
         {/* Right arrow */}
@@ -285,14 +279,14 @@ export function SlidesPlayer({
       </div>
 
       {/* Bottom progress bar */}
-      <div className="h-12 px-4 border-t border-white/8 flex items-center gap-2 shrink-0">
-        <button onClick={prev} disabled={currentIdx === 0}
-          className="text-text-dim hover:text-text-primary disabled:opacity-20 transition-colors text-sm px-2">
-          &larr;
-        </button>
+      <div className="h-12 px-4 border-t border-white/8 flex items-center justify-center gap-2 shrink-0 relative">
+        {/* Page number */}
+        <span className="absolute left-4 text-[10px] font-mono text-text-dim">
+          {currentIdx + 1} / {totalSlides}
+        </span>
 
         {/* Progress dots */}
-        <div className="flex-1 flex items-center gap-1 overflow-x-auto py-1">
+        <div className="flex items-center gap-1 overflow-x-auto py-1 max-w-[60%]">
           {slides.map((s, i) => (
             <button
               key={i}
@@ -309,8 +303,9 @@ export function SlidesPlayer({
           ))}
         </div>
 
+        {/* Right arrow */}
         <button onClick={next} disabled={currentIdx === totalSlides - 1}
-          className="text-text-dim hover:text-text-primary disabled:opacity-20 transition-colors text-sm px-2">
+          className="absolute right-4 text-text-dim hover:text-text-primary disabled:opacity-20 transition-colors text-sm px-2">
           &rarr;
         </button>
       </div>
@@ -336,20 +331,16 @@ export function SlidesPlayer({
   );
 }
 
-function renderSlide(spec: SlideSpec, data: SlidesData): React.ReactNode {
+function renderSlide(spec: SlideSpec, data: SlidesData, onClose: () => void): React.ReactNode {
   switch (spec.type) {
     case 'title':
       return <TitleSlide data={data} />;
-    case 'methodology':
-      return <MethodologySlide data={data} page={spec.page} />;
     case 'shape':
       return <ShapeSlide data={data} />;
     case 'cast':
       return <CastSlide data={data} />;
     case 'forces':
       return <ForcesOverviewSlide data={data} />;
-    case 'segment':
-      return <SegmentSlide data={data} segment={data.segments[spec.index]} />;
     case 'moment':
       return <KeyMomentsSlide data={data} sceneIdx={spec.sceneIdx} kind={spec.kind} />;
     case 'decomposition':
@@ -363,6 +354,6 @@ function renderSlide(spec: SlideSpec, data: SlidesData): React.ReactNode {
     case 'report':
       return <ReportCardSlide data={data} />;
     case 'closing':
-      return <ClosingSlide data={data} />;
+      return <ClosingSlide data={data} onClose={onClose} />;
   }
 }

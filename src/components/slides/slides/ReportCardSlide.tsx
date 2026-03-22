@@ -86,7 +86,7 @@ export function ReportCardSlide({ data }: { data: SlidesData }) {
   }, [data]);
 
   return (
-    <div className="flex flex-col h-full px-20 py-8 max-w-5xl mx-auto w-full">
+    <div className="flex flex-col h-full px-20 py-8 max-w-4xl mx-auto w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

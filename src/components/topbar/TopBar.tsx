@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import type { NarrativeState } from '@/types/narrative';
@@ -28,6 +28,7 @@ function exportNarrative(narrative: NarrativeState) {
 
 export default function TopBar() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -45,6 +46,15 @@ export default function TopBar() {
   const scorecardRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-open slides when ?slides=1 is in the URL (fresh analysis or works seed)
+  useEffect(() => {
+    if (searchParams.get('slides') === '1' && narrative) {
+      setSlidesOpen(true);
+      // Clean up the URL param without a navigation
+      router.replace(`/series/${narrative.id}`, { scroll: false });
+    }
+  }, [searchParams, narrative, router]);
 
   const activeArc = narrative
     ? Object.values(narrative.arcs).find((a) =>

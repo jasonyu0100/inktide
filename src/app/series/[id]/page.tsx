@@ -21,7 +21,6 @@ import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import ApiKeyModal from '@/components/layout/ApiKeyModal';
-import { OnboardingGuide } from '@/components/onboarding/OnboardingGuide';
 import { ForceTracker } from '@/components/analytics/ForceTracker';
 import RulesPanel from '@/components/layout/RulesPanel';
 import { MCTSPanel } from '@/components/mcts/MCTSPanel';
@@ -173,7 +172,6 @@ export default function SeriesPage() {
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}
       <MCTSPanel isOpen={mctsOpen} onClose={() => setMctsOpen(false)} mcts={mcts} />
-      <OnboardingGuide narrativeId={id} />
       {isMobile && (
         <div className="fixed inset-0 z-9999 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center px-6 text-center">
           <p className="text-white/90 text-lg font-semibold mb-2">Desktop Only</p>

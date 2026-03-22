@@ -423,6 +423,18 @@ export type NarrativeEntry = {
   sceneCount: number;
   coverThread: string;
   coverImageUrl?: string;
+  /** Narrative shape classification key */
+  shapeKey?: string;
+  /** Narrative shape name for display */
+  shapeName?: string;
+  /** Narrative shape curve points [x,y] normalised 0-1 */
+  shapeCurve?: [number, number][];
+  /** Narrative archetype classification key */
+  archetypeKey?: string;
+  /** Narrative archetype name for display */
+  archetypeName?: string;
+  /** Overall force grade (0-100) */
+  overallScore?: number;
 };
 
 // ── Story Settings ──────────────────────────────────────────────────────────
@@ -445,6 +457,8 @@ export type StorySettings = {
   planGuidance: string;
   /** How many recent scenes the LLM sees when building context (time horizon) */
   branchTimeHorizon: number;
+  /** Optional custom prompt for cover image generation */
+  coverPrompt: string;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -457,6 +471,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   proseVoice: '',
   planGuidance: '',
   branchTimeHorizon: 50,
+  coverPrompt: '',
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────

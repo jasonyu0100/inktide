@@ -1,13 +1,7 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
-import * as d3 from 'd3';
+import Link from 'next/link';
 import type { SlidesData } from '@/lib/slides-data';
-import { ArchetypeIcon } from '@/components/ArchetypeIcon';
-
-const FORCE_COLORS: Record<string, string> = {
-  payoff: '#EF4444', change: '#22C55E', knowledge: '#3B82F6', swing: '#FACC15',
-};
 
 const gradeColor = (v: number) => {
   if (v >= 90) return '#22C55E';
@@ -17,131 +11,51 @@ const gradeColor = (v: number) => {
   return '#EF4444';
 };
 
-export function ClosingSlide({ data }: { data: SlidesData }) {
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    const svg = d3.select(svgRef.current);
-    svg.selectAll('*').remove();
-    if (!svgRef.current) return;
-
-    const { width } = svgRef.current.getBoundingClientRect();
-    const height = 120;
-    const margin = { top: 8, right: 16, bottom: 16, left: 24 };
-    const w = width - margin.left - margin.right;
-    const h = height - margin.top - margin.bottom;
-
-    svg.attr('viewBox', `0 0 ${width} ${height}`);
-    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
-
-    const eng = data.deliveryCurve;
-    const x = d3.scaleLinear().domain([0, eng.length - 1]).range([0, w]);
-    const maxAbs = Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
-    const y = d3.scaleLinear().domain([-maxAbs, maxAbs]).range([h, 0]);
-    const zeroY = y(0);
-
-    g.append('line').attr('x1', 0).attr('y1', zeroY).attr('x2', w).attr('y2', zeroY)
-      .attr('stroke', 'white').attr('stroke-opacity', 0.08);
-
-    // Positive fill
-    const posArea = d3.area<typeof eng[0]>()
-      .x((d) => x(d.index)).y0(zeroY).y1((d) => Math.min(y(d.smoothed), zeroY))
-      .curve(d3.curveMonotoneX);
-    g.append('path').datum(eng).attr('d', posArea).attr('fill', '#F59E0B').attr('fill-opacity', 0.1);
-
-    // Line
-    const line = d3.line<typeof eng[0]>()
-      .x((d) => x(d.index)).y((d) => y(d.smoothed)).curve(d3.curveMonotoneX);
-    g.append('path').datum(eng).attr('d', line)
-      .attr('fill', 'none').attr('stroke', '#F59E0B').attr('stroke-width', 2);
-
-    // Peak markers
-    for (const p of eng.filter((e) => e.isPeak)) {
-      g.append('path')
-        .attr('d', d3.symbol().type(d3.symbolTriangle).size(24)())
-        .attr('transform', `translate(${x(p.index)},${y(p.smoothed) - 5})`)
-        .attr('fill', '#FCD34D');
-    }
-
-    // Valley markers
-    for (const v of eng.filter((e) => e.isValley)) {
-      g.append('path')
-        .attr('d', d3.symbol().type(d3.symbolTriangle).size(24)())
-        .attr('transform', `translate(${x(v.index)},${y(v.smoothed) + 5}) rotate(180)`)
-        .attr('fill', '#93C5FD').attr('opacity', 0.6);
-    }
-  }, [data]);
-
-  const forces = ['payoff', 'change', 'knowledge'] as const;
-  const colors: Record<string, string> = { payoff: '#EF4444', change: '#22C55E', knowledge: '#3B82F6' };
-  const names: Record<string, string> = { payoff: 'Payoff', change: 'Change', knowledge: 'Knowledge' };
-  const dominant = forces.reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
+export function ClosingSlide({ data, onClose }: { data: SlidesData; onClose: () => void }) {
+  const dominant = (['payoff', 'change', 'knowledge'] as const)
+    .reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
+  const dominantColors: Record<string, string> = { payoff: '#EF4444', change: '#22C55E', knowledge: '#3B82F6' };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full px-12 py-8 relative overflow-hidden">
-      {/* Subtle glow behind score */}
+    <div className="flex items-center justify-center h-full px-12 relative overflow-hidden">
+      {/* Subtle radial glow */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 50% 50% at 50% 55%, ${gradeColor(data.overallGrades.overall)}06 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse 60% 40% at 50% 45%, ${dominantColors[dominant]}08 0%, transparent 70%)`,
         }}
       />
 
-      {/* Final annotated curve */}
-      <div className="w-full max-w-3xl mb-6 relative">
-        <svg ref={svgRef} className="w-full" style={{ height: 120 }} />
-      </div>
+      <div className="flex flex-col items-center text-center relative">
+        <h1 className="text-4xl font-bold text-text-primary leading-tight max-w-2xl mb-3">
+          {data.title}
+        </h1>
 
-      {/* Verdict */}
-      <div className="text-center mb-6 relative">
-        <p className="text-lg text-text-secondary leading-relaxed max-w-2xl italic">
-          &ldquo;A <span className="text-amber-400 font-semibold">{data.shape.name}</span>{' '}
-          <span className="text-violet-400 font-semibold inline-flex items-center gap-1">{data.archetype.name}</span>
-          {' that is '}
-          <span className="font-semibold" style={{ color: colors[dominant] }}>{names[dominant]}</span>
-          {' driven'}.&rdquo;
-        </p>
-      </div>
-
-      {/* Score + force breakdown */}
-      <div className="flex items-center gap-8 mb-6 relative">
-        {/* Main score */}
-        <div className="flex items-baseline gap-1">
-          <span className="text-6xl font-bold font-mono" style={{ color: gradeColor(data.overallGrades.overall) }}>
+        <div className="flex items-center gap-1 mb-8">
+          <span className="text-3xl font-bold font-mono" style={{ color: gradeColor(data.overallGrades.overall) }}>
             {data.overallGrades.overall}
           </span>
-          <span className="text-xl text-text-dim">/100</span>
+          <span className="text-sm text-text-dim">/100</span>
         </div>
 
-        {/* Force sub-grades */}
-        <div className="flex flex-col gap-1.5">
-          {(['payoff', 'change', 'knowledge', 'swing'] as const).map((f) => (
-            <div key={f} className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: FORCE_COLORS[f] }} />
-              <span className="text-[10px] w-16 capitalize" style={{ color: FORCE_COLORS[f] }}>{f}</span>
-              <div className="w-24 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${(data.overallGrades[f] / 25) * 100}%`, backgroundColor: FORCE_COLORS[f], opacity: 0.7 }}
-                />
-              </div>
-              <span className="text-[10px] font-mono text-text-dim w-8 text-right">{data.overallGrades[f]}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+        <p className="text-[13px] text-white/35 max-w-md leading-relaxed mb-8">
+          This concludes the force analysis. Explore the knowledge graph to see how characters, threads, and world-building connect across scenes.
+        </p>
 
-      {/* Stats summary */}
-      <div className="flex items-center gap-5 text-xs text-text-dim relative">
-        <span>{data.peaks.length} peak{data.peaks.length !== 1 ? 's' : ''}</span>
-        <span className="opacity-20">|</span>
-        <span>{data.troughs.length} valle{data.troughs.length !== 1 ? 'ys' : 'y'}</span>
-        <span className="opacity-20">|</span>
-        <span>{data.characterCount} characters</span>
-        <span className="opacity-20">|</span>
-        <span>{data.threadCount} threads</span>
-        <span className="opacity-20">|</span>
-        <span>{data.sceneCount} scenes</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-lg bg-white/10 hover:bg-white/15 text-[12px] font-medium text-text-primary border border-white/10 hover:border-white/20 transition-all"
+          >
+            Explore the Graph
+          </button>
+          <Link
+            href="/"
+            className="px-5 py-2.5 rounded-lg text-[12px] font-medium text-text-dim hover:text-text-secondary border border-white/8 hover:border-white/15 transition-all"
+          >
+            Return Home
+          </Link>
+        </div>
       </div>
     </div>
   );

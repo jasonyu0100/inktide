@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { Providers } from "./providers";
+import { LandingTopbar } from "@/components/landing/LandingTopbar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +30,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-bg-base text-text-primary`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <LandingTopbar />
+          {children}
+        </Providers>
         <Analytics />
       </body>
     </html>

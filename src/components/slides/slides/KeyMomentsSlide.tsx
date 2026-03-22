@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import * as d3 from 'd3';
 import type { SlidesData } from '@/lib/slides-data';
 
 const FORCE_COLORS: Record<string, string> = {
@@ -9,34 +10,76 @@ const FORCE_COLORS: Record<string, string> = {
   knowledge: '#3B82F6',
 };
 
-function ForceBar({ force, value, maxForce }: { force: string; value: number; maxForce: number }) {
-  const pct = Math.abs(value) / maxForce;
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] font-medium w-12 capitalize" style={{ color: FORCE_COLORS[force] }}>{force}</span>
-      <div className="flex-1 h-2.5 rounded-full bg-white/5 overflow-hidden relative">
-        <div className="absolute left-1/2 top-0 w-px h-full bg-white/8" />
-        <div
-          className="absolute h-full rounded-full"
-          style={{
-            ...(value >= 0 ? { left: '50%' } : { right: '50%' }),
-            width: `${pct * 50}%`,
-            backgroundColor: FORCE_COLORS[force],
-            opacity: 0.7,
-          }}
-        />
-      </div>
-      <span className="text-[10px] font-mono text-text-secondary w-10 text-right">
-        {value >= 0 ? '+' : ''}{value.toFixed(1)}
-      </span>
-    </div>
-  );
+function DeliveryCurve({ data, sceneIdx, isPeak }: { data: SlidesData; sceneIdx: number; isPeak: boolean }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    const svg = d3.select(svgRef.current);
+    svg.selectAll('*').remove();
+    if (!svgRef.current) return;
+
+    const { width } = svgRef.current.getBoundingClientRect();
+    const height = 64;
+    const margin = { top: 6, right: 12, bottom: 6, left: 12 };
+    const w = width - margin.left - margin.right;
+    const h = height - margin.top - margin.bottom;
+
+    svg.attr('viewBox', `0 0 ${width} ${height}`);
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const eng = data.deliveryCurve;
+    const x = d3.scaleLinear().domain([0, eng.length - 1]).range([0, w]);
+    const maxAbs = Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
+    const y = d3.scaleLinear().domain([-maxAbs, maxAbs]).range([h, 0]);
+    const zeroY = y(0);
+
+    // Zero line
+    g.append('line').attr('x1', 0).attr('y1', zeroY).attr('x2', w).attr('y2', zeroY)
+      .attr('stroke', 'white').attr('stroke-opacity', 0.06);
+
+    // Full curve (dim)
+    const line = d3.line<typeof eng[0]>()
+      .x((d) => x(d.index)).y((d) => y(d.smoothed)).curve(d3.curveMonotoneX);
+    g.append('path').datum(eng).attr('d', line)
+      .attr('fill', 'none').attr('stroke', 'white').attr('stroke-opacity', 0.12).attr('stroke-width', 1);
+
+    // Highlight area around current scene
+    const pad = Math.max(3, Math.floor(eng.length * 0.08));
+    const regionStart = Math.max(0, sceneIdx - pad);
+    const regionEnd = Math.min(eng.length - 1, sceneIdx + pad);
+    const regionData = eng.slice(regionStart, regionEnd + 1);
+
+    const color = isPeak ? '#F59E0B' : '#60A5FA';
+    const area = d3.area<typeof eng[0]>()
+      .x((d) => x(d.index)).y0(zeroY).y1((d) => y(d.smoothed)).curve(d3.curveMonotoneX);
+    g.append('path').datum(regionData).attr('d', area)
+      .attr('fill', color).attr('fill-opacity', 0.08);
+    g.append('path').datum(regionData).attr('d', line)
+      .attr('fill', 'none').attr('stroke', color).attr('stroke-width', 1.5).attr('stroke-opacity', 0.6);
+
+    // Current scene marker
+    const cx = x(sceneIdx);
+    const cy = y(eng[sceneIdx]?.smoothed ?? 0);
+    g.append('circle').attr('cx', cx).attr('cy', cy).attr('r', 4)
+      .attr('fill', color).attr('stroke', 'white').attr('stroke-width', 1.5);
+
+    // Peak/valley markers (dim, for context)
+    for (const e of eng.filter((e) => e.isPeak && e.index !== sceneIdx)) {
+      g.append('path').attr('d', d3.symbol().type(d3.symbolTriangle).size(16)())
+        .attr('transform', `translate(${x(e.index)},${y(e.smoothed) - 4})`).attr('fill', '#FCD34D').attr('opacity', 0.25);
+    }
+    for (const e of eng.filter((e) => e.isValley && e.index !== sceneIdx)) {
+      g.append('path').attr('d', d3.symbol().type(d3.symbolTriangle).size(16)())
+        .attr('transform', `translate(${x(e.index)},${y(e.smoothed) + 4}) rotate(180)`).attr('fill', '#93C5FD').attr('opacity', 0.25);
+    }
+  }, [data, sceneIdx, isPeak]);
+
+  return <svg ref={svgRef} className="w-full" style={{ height: 64 }} />;
 }
 
 export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sceneIdx: number; kind: 'peak' | 'valley' }) {
   const isPeak = kind === 'peak';
 
-  // Find the matching peak or trough info
   const peakInfo = isPeak ? data.peaks.find((p) => p.sceneIdx === sceneIdx) : null;
   const troughInfo = !isPeak ? data.troughs.find((t) => t.sceneIdx === sceneIdx) : null;
 
@@ -58,62 +101,112 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
 
   const knowledgeGains = scene.continuityMutations?.filter((km) => km.action === 'added') ?? [];
 
+  const accentText = isPeak ? 'text-amber-400' : 'text-blue-300';
+
   return (
-    <div className="flex flex-col h-full justify-center px-12 py-8">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-1">
-        <div className={`w-3 h-3 rounded-full ${isPeak ? 'bg-amber-400' : 'bg-blue-400'}`} />
-        <h2 className={`text-2xl font-bold ${isPeak ? 'text-amber-400' : 'text-blue-300'}`}>
+    <div className="flex flex-col h-full justify-center px-14 py-8 max-w-5xl mx-auto w-full">
+      {/* Header row */}
+      <div className="flex items-baseline gap-3 mb-1">
+        <h2 className={`text-2xl font-bold ${accentText}`}>
           {isPeak ? 'Peak' : 'Valley'}
         </h2>
-        <span className="text-sm text-text-dim font-mono">Scene {sceneIdx + 1}</span>
+        <span className="text-xs text-text-dim font-mono">Scene {sceneIdx + 1}</span>
         {cubeCorner && (
-          <span className="text-[10px] px-2.5 py-1 rounded-lg border border-white/10 bg-white/3 text-text-dim">
-            {cubeCorner.name}
-          </span>
+          <span className="text-[10px] px-2 py-0.5 rounded border border-white/8 text-text-dim">{cubeCorner.name}</span>
         )}
+        <div className="flex-1" />
         {delivery && (
-          <span className="ml-auto text-sm font-mono text-text-dim">
-            Delivery <span className={`font-bold ${isPeak ? 'text-amber-400' : 'text-blue-300'}`}>{delivery.delivery.toFixed(2)}</span>
+          <span className="text-xs font-mono text-text-dim">
+            Delivery <span className={`font-bold ${accentText}`}>{delivery.delivery.toFixed(2)}</span>
           </span>
         )}
       </div>
-      {cubeCorner && (
-        <p className="text-[11px] text-text-dim mb-5">{cubeCorner.description}</p>
-      )}
 
-      {/* Main grid */}
-      <div className="grid grid-cols-5 gap-8 min-h-0">
-        {/* Col 1-2: Scene details */}
-        <div className="col-span-2 flex flex-col gap-5">
-          {/* POV & Location */}
+      {/* Delivery curve sparkline */}
+      <div className="mb-4">
+        <DeliveryCurve data={data} sceneIdx={sceneIdx} isPeak={isPeak} />
+      </div>
+
+      {/* Summary — full width, prominent */}
+      <div className={`px-4 py-3 rounded-lg border mb-6 ${isPeak ? 'border-amber-400/12 bg-amber-400/3' : 'border-blue-400/12 bg-blue-400/3'}`}>
+        <p className="text-[12.5px] text-text-secondary leading-relaxed">{scene.summary}</p>
+      </div>
+
+      {/* Two-column layout */}
+      <div className="grid grid-cols-2 gap-10 min-h-0">
+        {/* Left: Scene context */}
+        <div className="space-y-5">
+          {/* POV + participants */}
           <div>
-            <div className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Scene</div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center text-xs font-bold text-text-primary">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="w-7 h-7 rounded-full bg-white/8 flex items-center justify-center text-[11px] font-bold text-text-primary">
                 {povName.charAt(0)}
               </div>
               <div>
-                <div className="text-sm text-text-primary font-medium">{povName}</div>
-                <div className="text-[10px] text-emerald-400/70">{locationName}</div>
+                <div className="text-[13px] text-text-primary font-medium">{povName}</div>
+                <div className="text-[10px] text-emerald-400/60">{locationName}</div>
               </div>
             </div>
             {participants.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
+              <div className="flex flex-wrap gap-1 ml-9">
                 {participants.slice(0, 6).map((name) => (
-                  <span key={name} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-text-dim">{name}</span>
+                  <span key={name} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim">{name}</span>
                 ))}
                 {participants.length > 6 && (
-                  <span className="text-[10px] px-2 py-0.5 text-text-dim">+{participants.length - 6}</span>
+                  <span className="text-[10px] text-text-dim">+{participants.length - 6}</span>
                 )}
               </div>
             )}
           </div>
 
-          {/* Summary */}
-          <div className={`px-4 py-3 rounded-lg border ${isPeak ? 'border-amber-400/15 bg-amber-400/2' : 'border-blue-400/15 bg-blue-400/2'}`}>
-            <p className="text-[12px] text-text-secondary leading-relaxed">{scene.summary}</p>
+          {/* Forces */}
+          <div>
+            <div className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Forces</div>
+            <div className="space-y-1.5">
+              {(['payoff', 'change', 'knowledge'] as const).map((f) => {
+                const val = forces[f];
+                const pct = Math.abs(val) / maxForce;
+                return (
+                  <div key={f} className="flex items-center gap-2">
+                    <span className="text-[10px] w-14 capitalize" style={{ color: FORCE_COLORS[f] }}>{f}</span>
+                    <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden relative">
+                      <div className="absolute left-1/2 top-0 w-px h-full bg-white/8" />
+                      <div
+                        className="absolute h-full rounded-full"
+                        style={{
+                          ...(val >= 0 ? { left: '50%' } : { right: '50%' }),
+                          width: `${pct * 50}%`,
+                          backgroundColor: FORCE_COLORS[f],
+                          opacity: 0.65,
+                        }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-mono text-text-dim w-10 text-right">
+                      {val >= 0 ? '+' : ''}{val.toFixed(1)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {delivery && (
+              <div className="flex items-center gap-4 mt-2 text-[10px] text-text-dim">
+                <span>Tension <span className="font-mono text-text-secondary">{delivery.tension.toFixed(2)}</span></span>
+              </div>
+            )}
           </div>
+
+          {/* Valley recovery */}
+          {troughInfo && (
+            <div className="flex items-center gap-4 text-[10px] px-3 py-2 rounded-lg bg-white/3 border border-white/6">
+              <span className="text-text-dim">Next peak in <span className="font-mono text-text-secondary">{troughInfo.scenesToNextPeak}</span> scenes</span>
+              {troughInfo.recoveryForce && (
+                <>
+                  <span className="text-white/10">|</span>
+                  <span className="text-text-dim">Driver: <span className="font-medium capitalize" style={{ color: FORCE_COLORS[troughInfo.recoveryForce] }}>{troughInfo.recoveryForce}</span></span>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Events */}
           {scene.events.length > 0 && (
@@ -121,7 +214,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
               <div className="text-[9px] uppercase tracking-widest text-text-dim mb-1.5">Events</div>
               <div className="flex flex-wrap gap-1.5">
                 {scene.events.map((ev, i) => (
-                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-text-secondary font-mono">{ev}</span>
+                  <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-text-secondary">{ev}</span>
                 ))}
               </div>
             </div>
@@ -146,79 +239,29 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
           )}
         </div>
 
-        {/* Col 3: Forces */}
-        <div className="col-span-1 flex flex-col gap-5">
-          <div>
-            <div className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Forces</div>
-            <div className="space-y-2">
-              <ForceBar force="payoff" value={forces.payoff} maxForce={maxForce} />
-              <ForceBar force="change" value={forces.change} maxForce={maxForce} />
-              <ForceBar force="knowledge" value={forces.knowledge} maxForce={maxForce} />
-            </div>
-          </div>
-
-          {delivery && (
-            <div className="space-y-2 pt-2">
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="text-text-dim">Tension</span>
-                <span className="font-mono text-text-secondary">{delivery.tension.toFixed(2)}</span>
-              </div>
-              {delivery.isPeak && (
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-text-dim">Local max</span>
-                  <span className="text-amber-400 font-mono">yes</span>
-                </div>
-              )}
-              {delivery.isValley && (
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-text-dim">Local min</span>
-                  <span className="text-blue-300 font-mono">yes</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Valley recovery info */}
-          {troughInfo && (
-            <div className="pt-2 space-y-2 border-t border-white/6">
-              <div className="text-[9px] uppercase tracking-widest text-text-dim mb-1">Recovery</div>
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="text-text-dim">Next peak in</span>
-                <span className="font-mono text-text-secondary">{troughInfo.scenesToNextPeak} scenes</span>
-              </div>
-              {troughInfo.recoveryForce && (
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-text-dim">Driver</span>
-                  <span className="font-medium capitalize" style={{ color: FORCE_COLORS[troughInfo.recoveryForce] }}>{troughInfo.recoveryForce}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Col 4-5: Mutations */}
-        <div className="col-span-2 flex flex-col gap-5">
+        {/* Right: Mutations */}
+        <div className="space-y-5">
           {/* Thread mutations */}
           {threadChanges.length > 0 && (
             <div>
               <div className="text-[9px] uppercase tracking-widest text-text-dim mb-2">
-                Thread Mutations ({threadChanges.length})
+                Thread Mutations <span className="text-text-dim/50">({threadChanges.length})</span>
               </div>
-              <div className="space-y-1.5">
-                {threadChanges.slice(0, 6).map((tc, i) => {
+              <div className="space-y-1">
+                {threadChanges.slice(0, 7).map((tc, i) => {
                   const desc = data.threadDescriptions[tc.threadId];
-                  const label = desc ? (desc.length > 50 ? desc.slice(0, 50) + '\u2026' : desc) : tc.threadId;
+                  const label = desc ? (desc.length > 55 ? desc.slice(0, 55) + '\u2026' : desc) : tc.threadId;
                   return (
-                    <div key={i} className="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-lg bg-white/3 border border-white/5">
+                    <div key={i} className="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded bg-white/3 border border-white/5">
                       <span className="text-text-secondary flex-1 truncate" title={desc}>{label}</span>
-                      <span className="text-text-dim shrink-0">{tc.from}</span>
-                      <span className={`shrink-0 ${isPeak ? 'text-amber-400' : 'text-blue-300'}`}>&rarr;</span>
-                      <span className="text-text-primary font-medium shrink-0">{tc.to}</span>
+                      <span className="text-text-dim shrink-0 font-mono text-[9px]">{tc.from}</span>
+                      <span className={`shrink-0 ${accentText} text-[9px]`}>&rarr;</span>
+                      <span className="text-text-primary font-medium shrink-0 font-mono text-[9px]">{tc.to}</span>
                     </div>
                   );
                 })}
-                {threadChanges.length > 6 && (
-                  <span className="text-[9px] text-text-dim">+{threadChanges.length - 6} more</span>
+                {threadChanges.length > 7 && (
+                  <span className="text-[9px] text-text-dim pl-3">+{threadChanges.length - 7} more</span>
                 )}
               </div>
             </div>
@@ -228,30 +271,33 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
           {relationshipChanges.length > 0 && (
             <div>
               <div className="text-[9px] uppercase tracking-widest text-text-dim mb-2">
-                Relationship Shifts ({relationshipChanges.length})
+                Relationship Shifts <span className="text-text-dim/50">({relationshipChanges.length})</span>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {relationshipChanges.slice(0, 5).map((rc, i) => {
                   const fromName = data.characterNames[rc.from] ?? rc.from;
                   const toName = data.characterNames[rc.to] ?? rc.to;
                   return (
-                    <div key={i} className="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-lg bg-white/3 border border-white/5">
+                    <div key={i} className="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded bg-white/3 border border-white/5">
                       <span className="text-text-secondary">{fromName}</span>
-                      <span className="text-text-dim">&harr;</span>
+                      <span className="text-white/15">&harr;</span>
                       <span className="text-text-secondary">{toName}</span>
-                      <span className="text-text-dim flex-1 truncate ml-1">{rc.type}</span>
+                      <span className="text-text-dim truncate ml-1 text-[9px]">{rc.type}</span>
                       <span className="ml-auto font-mono shrink-0" style={{ color: rc.delta > 0 ? '#22C55E' : '#EF4444' }}>
                         {rc.delta > 0 ? '+' : ''}{rc.delta.toFixed(1)}
                       </span>
                     </div>
                   );
                 })}
+                {relationshipChanges.length > 5 && (
+                  <span className="text-[9px] text-text-dim pl-3">+{relationshipChanges.length - 5} more</span>
+                )}
               </div>
             </div>
           )}
 
           {threadChanges.length === 0 && relationshipChanges.length === 0 && (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-32">
               <p className="text-[11px] text-text-dim italic">No mutations in this scene</p>
             </div>
           )}

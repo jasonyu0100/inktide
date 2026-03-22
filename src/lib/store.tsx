@@ -2,19 +2,47 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit } from '@/types/narrative';
-import { seedNarrative } from '@/data/seed-ri';
-import { seedGOT } from '@/data/seed-got';
-import { seedLOTR } from '@/data/seed-lotr';
-import { seedHP } from '@/data/seed-hp';
-import { seedSW } from '@/data/seed-sw';
-import { resolveSceneSequence, nextId } from '@/lib/narrative-utils';
+import { resolveSceneSequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForcetotals } from '@/lib/narrative-utils';
+import { resolveEntry, isScene } from '@/types/narrative';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs } from '@/lib/persistence';
 import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
 
-const ALL_SEEDS: NarrativeState[] = [seedGOT, seedLOTR, seedHP, seedSW, seedNarrative];
+// Bundled narratives loaded at runtime from /public manifests
+const bundledNarratives = new Map<string, NarrativeState>();
 
 function narrativeToEntry(n: NarrativeState): NarrativeEntry {
   const threadValues = Object.values(n.threads);
+
+  // Compute shape, archetype, and score from scenes
+  const branchId = getRootBranchId(n);
+  const keys = branchId ? resolveSceneSequence(n.branches, branchId) : [...Object.keys(n.scenes), ...Object.keys(n.worldBuilds)];
+  const allScenes = keys.map((k) => resolveEntry(n, k)).filter((e): e is Scene => !!e && isScene(e));
+
+  let shapeKey: string | undefined;
+  let shapeName: string | undefined;
+  let shapeCurve: [number, number][] | undefined;
+  let archetypeKey: string | undefined;
+  let archetypeName: string | undefined;
+  let overallScore: number | undefined;
+
+  if (allScenes.length >= 3) {
+    const forceMap = computeForceSnapshots(allScenes);
+    const ordered = allScenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
+    const swings = computeSwingMagnitudes(ordered);
+    const deliveryPoints = computeDeliveryCurve(ordered);
+    const raw = computeRawForcetotals(allScenes);
+    const grades = gradeForces(raw.payoff, raw.change, raw.knowledge, swings);
+
+    const shape = classifyNarrativeShape(deliveryPoints.map((d) => d.delivery));
+    const archetype = classifyArchetype(grades);
+    shapeKey = shape.key;
+    shapeName = shape.name;
+    shapeCurve = shape.curve;
+    archetypeKey = archetype.key;
+    archetypeName = archetype.name;
+    overallScore = grades.overall;
+  }
+
   return {
     id: n.id,
     title: n.title,
@@ -24,6 +52,9 @@ function narrativeToEntry(n: NarrativeState): NarrativeEntry {
     sceneCount: Object.keys(n.scenes).length,
     coverThread: threadValues[0]?.description ?? '',
     coverImageUrl: n.coverImageUrl,
+    shapeKey, shapeName, shapeCurve,
+    archetypeKey, archetypeName,
+    overallScore,
   };
 }
 
@@ -37,7 +68,9 @@ function getResolvedKeys(n: NarrativeState, branchId: string | null): string[] {
   return resolveSceneSequence(n.branches, branchId);
 }
 
-const SEED_IDS = new Set(ALL_SEEDS.map((s) => s.id));
+const SEED_IDS = new Set<string>();
+const PLAYGROUND_IDS = new Set<string>();
+const ANALYSIS_IDS = new Set<string>();
 
 // Pure state updater — no persistence side effects
 function updateNarrative(
@@ -147,10 +180,12 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
 }
 
 export const SEED_NARRATIVE_IDS = SEED_IDS;
+export const PLAYGROUND_NARRATIVE_IDS = PLAYGROUND_IDS;
+export const ANALYSIS_NARRATIVE_IDS = ANALYSIS_IDS;
 
 
 const initialState: AppState = {
-  narratives: ALL_SEEDS.map(narrativeToEntry),
+  narratives: [],
   activeNarrativeId: null,
   activeNarrative: null,
   controlMode: 'auto',
@@ -400,8 +435,9 @@ function reducer(state: AppState, action: Action): AppState {
       });
 
       if (isSeed) {
-        // Reset seed to original static data instead of removing it
-        const originalSeed = ALL_SEEDS.find((s) => s.id === action.id)!;
+        // Reset seed to original bundled data instead of removing it
+        const originalSeed = bundledNarratives.get(action.id);
+        if (!originalSeed) return state;
         const resetEntry = narrativeToEntry(originalSeed);
         return {
           ...state,
@@ -1074,17 +1110,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       const persistedById = new Map(persisted.map((n) => [n.id, n]));
 
-      // For seeds, prefer persisted version if it exists (user made edits), otherwise use static
-      const seedEntries = ALL_SEEDS.map((seed) => {
-        const saved = persistedById.get(seed.id);
-        return narrativeToEntry(saved ?? seed);
-      });
+      // Load bundled narratives from /public manifests
+      async function loadManifest(dir: string, idSet: Set<string>) {
+        try {
+          const res = await fetch(`/${dir}/manifest.json`);
+          if (!res.ok) return [];
+          const files: string[] = await res.json();
+          const entries: NarrativeEntry[] = [];
+          for (const file of files) {
+            try {
+              const r = await fetch(`/${dir}/${file}`);
+              if (!r.ok) continue;
+              const narrative: NarrativeState = await r.json();
+              bundledNarratives.set(narrative.id, narrative);
+              SEED_IDS.add(narrative.id);
+              idSet.add(narrative.id);
+              const saved = persistedById.get(narrative.id);
+              entries.push(narrativeToEntry(saved ?? narrative));
+            } catch { /* skip malformed */ }
+          }
+          return entries;
+        } catch { return []; }
+      }
+
+      const playgroundEntries = await loadManifest('playgrounds', PLAYGROUND_IDS);
+      const analysisEntries = await loadManifest('works', ANALYSIS_IDS);
 
       const userEntries = persisted
         .filter((n) => !SEED_IDS.has(n.id))
         .map(narrativeToEntry);
 
-      dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...seedEntries, ...userEntries] });
+      dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...playgroundEntries, ...analysisEntries, ...userEntries] });
 
       // Restore last active narrative
       const savedActiveId = await loadActiveNarrativeId();
@@ -1107,11 +1163,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     async function load() {
-      // Try IndexedDB first, then fall back to static seed data
+      // Try IndexedDB first, then fall back to bundled narrative
       let narrative = await loadNarrative(id!);
       if (!narrative) {
-        const seed = ALL_SEEDS.find((s) => s.id === id);
-        if (seed) narrative = seed;
+        const bundled = bundledNarratives.get(id!);
+        if (bundled) narrative = bundled;
       }
       const savedBranchId = await loadActiveBranchId();
       if (narrative && !cancelled) {

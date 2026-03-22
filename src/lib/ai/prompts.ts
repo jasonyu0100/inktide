@@ -12,6 +12,7 @@
  *
  * When updating: check src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS
  * to keep prompt numbers in sync with grading formulas.
+ * Current: { payoff: 1.5, change: 3.5, knowledge: 2.5 }
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
@@ -33,15 +34,15 @@ PAYOFF reference mean ~1.5 per scene:
 - Examples: active→escalating = 1pt, dormant→critical = 3pt, active→resolved = 3pt. Pulses (same→same) = 0.25.
 - Some scenes will have 0 payoff (pure buildup). Others spike to 4-6+ (climaxes, reveals). Both are correct — the ARC average is what matters.
 
-CHANGE reference mean ~4.5 per scene:
-- Formula: log₂(1 + totalMutations) + log₂(1 + eventCount). Cast-blind — total mutations matter, not character count.
+CHANGE reference mean ~3.5 per scene:
+- Formula: √(totalMutations) + √(eventCount). Cast-blind — total mutations matter, not character count.
 - totalMutations = continuityMutation count + relationship |Δv| × 2 (both sides).
-- Examples: 3 continuity mutations + 2 events = log₂(4) + log₂(3) ≈ 3.6. A dense scene with 6 mutations + 3 events ≈ 5.5.
-- Quiet scenes with 1 mutation + 1 event score ~1.6. This is fine for buildup scenes.
+- Examples: 3 mutations + 2 events = √3 + √2 ≈ 3.1. A dense scene with 8 mutations + 3 events = √8 + √3 ≈ 4.6.
+- Quiet scenes with 0 mutations + 1 event score 1.0. Scenes with 1 mutation + 1 event score 2.0. This variation is essential.
 
 KNOWLEDGE reference mean ~2.5 per scene:
-- Formula: addedNodes count + 0.5 × addedEdges count.
-- Examples: 2 nodes + 1 edge = 2.5. 3 nodes + 3 edges = 4.5.
+- Formula: addedNodes count + √(addedEdges count). Nodes linear, edges sqrt.
+- Examples: 2 nodes + 1 edge = 3.0. 2 nodes + 4 edges = 4.0. 0 nodes + 10 edges = 3.2.
 - Some scenes add 0 nodes (pure character work). Lore/discovery scenes may add 4-6+.
 - REUSE existing node IDs when a scene reinforces an established concept — don't duplicate.
 
@@ -89,7 +90,7 @@ VALID LOW-DENSITY SCENES — these are not failures, they are connective tissue:
 - A Growth scene: 0 thread transitions, 3 relationship mutations (±0.2), 1 continuity mutation, 0 WK nodes. Pure character development. Raw forces: P≈0.6, C≈3, K=0.
 - A Lore scene: 0 thread transitions, 0 relationship mutations, 1 continuity mutation, 4 WK nodes + 2 edges. Pure world texture. Raw forces: P=0, C≈1, K=5.
 - A Rest scene: 2 thread pulses, 0 continuity mutations, 0 WK nodes, 1 event. Reflection. Raw forces: P=0.5, C≈1.0, K=0.
-- A Discovery scene: 1 thread pulse, 2 continuity mutations, 2 WK nodes + 1 edge, 1 event. Raw forces: P=0.25, C≈3, K=2.5.
+- A Discovery scene: 1 thread pulse, 2 continuity mutations, 2 WK nodes + 1 edge, 1 event. Raw forces: P=0.25, C≈3, K=3.0.
 
 These scenes IMPROVE the delivery score of subsequent payoff scenes by building the tension that gets released. Skipping them makes every scene feel the same.
 `;

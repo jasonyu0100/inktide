@@ -90,8 +90,8 @@ src/
 Three force dimensions derived from knowledge graph mutations, all **z-score normalised** (mean=0, units=standard deviations):
 
 - **Payoff (P)** — thread phase transitions weighted by jump magnitude, plus relationship valence deltas. Formula: `Σ |φ_to - φ_from| + Σ |Δv|`. Phase indices: dormant(0) → active(1) → escalating(2) → critical(3) → resolved/subverted/abandoned(4). Small pulse reward (0.25) for same-status mentions.
-- **Change (C)** — total mutation intensity with logarithmic scaling. Formula: `log₂(1 + Σm) + log₂(1 + |events|)` where Σm = total continuity + relationship (|Δv| weighted) mutations. Cast-blind — a tight confrontation scores the same as an ensemble with equal total mutations.
-- **Knowledge (K)** — world knowledge graph complexity delta per scene. Formula: `K = ΔN + 0.5 · ΔE`. Nodes weighted 1x, edges 0.5x.
+- **Change (C)** — total mutation intensity. Formula: `√Σm + √|events|` where Σm = total continuity + relationship (|Δv| weighted) mutations. Square root scaling allows dense scenes to spike meaningfully above sparse ones. Cast-blind — total mutations matter, not character count.
+- **Knowledge (K)** — world knowledge graph complexity delta per scene. Formula: `K = ΔN + √ΔE`. Nodes linear (each new concept = 1), edges sqrt (first connections matter more than bulk linking).
 
 Derived metrics:
 - **Tension** — `T = C + K - P`, buildup without release — the coiled spring

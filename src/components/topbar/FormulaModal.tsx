@@ -51,17 +51,17 @@ function ForcesTab() {
       </S>
 
       <S title="Change" analogy="How intensely did this scene transform? A tight confrontation scores the same as an ensemble with equal total mutations.">
-        <Block tex={String.raw`C = \log_2(1 + \Sigma m) + \log_2(1 + |\text{events}|)`} />
+        <Block tex={String.raw`C = \sqrt{\Sigma m} + \sqrt{|\text{events}|}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{'\\Sigma m'}</Tex> = total continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations. Cast-blind — one log of total mass, not a sum of per-character logs.
+          <Tex>{'\\Sigma m'}</Tex> = total continuity + relationship (<Tex>{'|\\Delta v|'}</Tex> weighted) mutations. Square root scaling — less compression than log, allowing dense scenes to spike meaningfully above sparse ones. Cast-blind.
         </p>
       </S>
 
       <S title="Knowledge" analogy="Is the world growing richer? Revealing a new law of magic expands the world more than linking two known rules.">
-        <Block tex={String.raw`K = \Delta N + 0.5 \cdot \Delta E`} />
+        <Block tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
         <p className="text-[10px] text-text-dim">
           <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes (laws, systems, concepts, tensions).{' '}
-          <Tex>{String.raw`\Delta E`}</Tex> = new edges between nodes (weight 0.5). Fresh ideas outweigh new connections.
+          <Tex>{String.raw`\Delta E`}</Tex> = new edges between nodes (sqrt — first connections matter more than bulk linking). Fresh ideas outweigh new connections.
         </p>
       </S>
     </div>
@@ -123,7 +123,7 @@ function ScoringTab() {
         <div className="mt-2 flex gap-2 text-[10px]">
           {[
             { label: 'Payoff', value: '1.5', color: '#EF4444' },
-            { label: 'Change', value: '4.5', color: '#22C55E' },
+            { label: 'Change', value: '3.5', color: '#22C55E' },
             { label: 'Knowledge', value: '2.5', color: '#3B82F6' },
           ].map(({ label, value, color }) => (
             <div key={label} className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/8">

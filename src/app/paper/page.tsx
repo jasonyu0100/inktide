@@ -253,9 +253,9 @@ export default function PaperPage() {
               <P>
                 How intensely did this scene transform? A tight two-character confrontation scores the same as a ten-character ensemble with equal total mutations&mdash;the formula is cast-blind.
               </P>
-              <Eq tex={String.raw`C = \log_2(1 + \Sigma m) + \log_2(1 + |\text{events}|)`} />
+              <Eq tex={String.raw`C = \sqrt{\Sigma m} + \sqrt{|\text{events}|}`} />
               <P>
-                <Tex>{String.raw`\Sigma m`}</Tex> is the total continuity and relationship mutations (weighted by <Tex>{'|\\Delta v|'}</Tex>) across all characters. The logarithm gives diminishing returns&mdash;doubling the mutations adds one point, not two. Events contribute as a separate log term.
+                <Tex>{String.raw`\Sigma m`}</Tex> is the total continuity and relationship mutations (weighted by <Tex>{'|\\Delta v|'}</Tex>) across all characters. Square root scaling gives diminishing returns while preserving meaningful spikes&mdash;a dense confrontation with 8 mutations scores 2.8&times; a quiet scene with 1 mutation, producing visible peaks and valleys in the force graph.
               </P>
             </div>
 
@@ -264,9 +264,9 @@ export default function PaperPage() {
               <P>
                 Is the world getting richer? Knowledge tracks expansion of the world-building graph. Revealing a new law of magic contributes more than linking two rules the reader already knows.
               </P>
-              <Eq tex="K = \Delta N + 0.5 \cdot \Delta E" />
+              <Eq tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
               <P>
-                <Tex>{'\\Delta N'}</Tex> counts new nodes (laws, systems, concepts, tensions). <Tex>{'\\Delta E'}</Tex> counts new edges. Nodes carry full weight; edges carry half. This applies to every genre&mdash;fantasy magic systems, literary class structures, crime world hierarchies.
+                <Tex>{'\\Delta N'}</Tex> counts new nodes (laws, systems, concepts, tensions). <Tex>{'\\Delta E'}</Tex> counts new edges. Nodes contribute linearly&mdash;each new concept is genuinely new information. Edges use square root scaling&mdash;the first few connections between concepts matter more than the tenth, preventing bulk edge additions from inflating Knowledge. This applies to every genre&mdash;fantasy magic systems, literary class structures, crime world hierarchies.
               </P>
             </div>
           </Section>
@@ -355,7 +355,7 @@ export default function PaperPage() {
             <div className="mt-3 mb-4 grid grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
                 { force: 'Payoff', value: '1.5', color: '#EF4444' },
-                { force: 'Change', value: '4.5', color: '#22C55E' },
+                { force: 'Change', value: '3.5', color: '#22C55E' },
                 { force: 'Knowledge', value: '2.5', color: '#3B82F6' },
               ].map(({ force, value, color }) => (
                 <div key={force} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">

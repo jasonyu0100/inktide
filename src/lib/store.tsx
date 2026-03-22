@@ -1115,31 +1115,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       const persistedById = new Map(persisted.map((n) => [n.id, n]));
 
-      // Load bundled narratives from /public manifests
+      // Load bundled narratives from /public manifests (parallel fetches)
       async function loadManifest(dir: string, idSet: Set<string>) {
         try {
           const res = await fetch(`/${dir}/manifest.json`);
-          if (!res.ok) return [];
+          if (!res.ok) { console.warn(`[store] manifest ${dir} returned ${res.status}`); return []; }
           const files: string[] = await res.json();
-          const entries: NarrativeEntry[] = [];
-          for (const file of files) {
-            try {
+          const results = await Promise.allSettled(
+            files.map(async (file) => {
               const r = await fetch(`/${dir}/${file}`);
-              if (!r.ok) continue;
-              const narrative: NarrativeState = await r.json();
-              bundledNarratives.set(narrative.id, narrative);
-              SEED_IDS.add(narrative.id);
-              idSet.add(narrative.id);
-              const saved = persistedById.get(narrative.id);
-              entries.push(narrativeToEntry(saved ?? narrative));
-            } catch { /* skip malformed */ }
+              if (!r.ok) return null;
+              return (await r.json()) as NarrativeState;
+            })
+          );
+          const entries: NarrativeEntry[] = [];
+          for (const result of results) {
+            if (result.status !== 'fulfilled' || !result.value) continue;
+            const narrative = result.value;
+            bundledNarratives.set(narrative.id, narrative);
+            SEED_IDS.add(narrative.id);
+            idSet.add(narrative.id);
+            const saved = persistedById.get(narrative.id);
+            entries.push(narrativeToEntry(saved ?? narrative));
           }
           return entries;
-        } catch { return []; }
+        } catch (err) { console.warn(`[store] loadManifest ${dir} failed:`, err); return []; }
       }
 
-      const playgroundEntries = await loadManifest('playgrounds', PLAYGROUND_IDS);
-      const analysisEntries = await loadManifest('works', ANALYSIS_IDS);
+      const [playgroundEntries, analysisEntries] = await Promise.all([
+        loadManifest('playgrounds', PLAYGROUND_IDS),
+        loadManifest('works', ANALYSIS_IDS),
+      ]);
 
       const userEntries = persisted
         .filter((n) => !SEED_IDS.has(n.id) && !PLAYGROUND_IDS.has(n.id) && !ANALYSIS_IDS.has(n.id))

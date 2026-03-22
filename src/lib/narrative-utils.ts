@@ -247,28 +247,31 @@ function rawChange(scene: Scene): number {
     const weight = Math.abs(rm.valenceDelta) || 0.25;
     totalMutations += weight * 2; // both sides of the relationship
   }
-  return Math.log2(1 + totalMutations) + Math.log2(1 + scene.events.length);
+  // sqrt for both — less aggressive compression than log₂,
+  // allows dense scenes to spike meaningfully above sparse ones.
+  return Math.sqrt(totalMutations) + Math.sqrt(scene.events.length);
 }
 
-/** Raw knowledge: K = ΔN + 0.5 · ΔE
+/** Raw knowledge: K = ΔN + √ΔE
  *
  *  World knowledge graph complexity delta per scene.
- *  Nodes contribute linearly — each new concept is worth 1.
- *  Edges contribute at half weight — connections matter but
- *  a new concept is worth more than a new link between existing ones.
+ *  Nodes contribute linearly — each new concept is genuinely new information.
+ *  Edges use sqrt — the first few connections between concepts matter more
+ *  than the tenth. Prevents bulk edge additions from inflating Knowledge.
  *
  *  Examples:
  *    3 nodes, 0 edges → K = 3        (isolated concepts)
- *    2 nodes, 3 edges → K = 3.5      (connected)
- *    3 nodes, 5 edges → K = 5.5      (dense)
+ *    2 nodes, 2 edges → K = 3.4      (connected)
+ *    3 nodes, 4 edges → K = 5        (dense)
  *    1 node,  4 edges → K = 3        (hub integration)
- *    0 nodes, 3 edges → K = 1.5      (pure reconnection) */
+ *    0 nodes, 4 edges → K = 2        (pure reconnection)
+ *    0 nodes, 10 edges → K = 3.2     (diminishing returns) */
 function rawKnowledge(scene: Scene): number {
   const wkm = scene.worldKnowledgeMutations;
   if (!wkm) return 0;
   const n = wkm.addedNodes?.length ?? 0;
   const e = wkm.addedEdges?.length ?? 0;
-  return n + 0.5 * e;
+  return n + Math.sqrt(e);
 }
 
 // ── World Knowledge Graph Utilities ─────────────────────────────────────────
@@ -858,7 +861,7 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 4.5, knowledge: 2.5 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 3.5, knowledge: 2.5 } as const;
 
 /** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */

@@ -1137,7 +1137,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const analysisEntries = await loadManifest('works', ANALYSIS_IDS);
 
       const userEntries = persisted
-        .filter((n) => !SEED_IDS.has(n.id))
+        .filter((n) => !SEED_IDS.has(n.id) && !PLAYGROUND_IDS.has(n.id) && !ANALYSIS_IDS.has(n.id))
         .map(narrativeToEntry);
 
       dispatch({ type: 'HYDRATE_NARRATIVES', entries: [...playgroundEntries, ...analysisEntries, ...userEntries] });

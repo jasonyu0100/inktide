@@ -7,11 +7,12 @@ import type { StorySettings, POVMode } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS } from '@/types/narrative';
 import { MATRIX_PRESETS } from '@/lib/markov';
 
-type Tab = 'pov' | 'direction' | 'structure' | 'memory' | 'cover';
+type Tab = 'pov' | 'direction' | 'rhythm' | 'structure' | 'memory' | 'cover';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'POV', value: 'pov' },
   { label: 'Direction', value: 'direction' },
+  { label: 'Rhythm', value: 'rhythm' },
   { label: 'Structure', value: 'structure' },
   { label: 'Memory', value: 'memory' },
   { label: 'Cover', value: 'cover' },
@@ -97,7 +98,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-      <div className="glass max-w-lg w-full rounded-2xl p-6 relative max-h-[85vh] flex flex-col">
+      <div className="glass max-w-2xl w-full rounded-2xl p-6 relative max-h-[85vh] flex flex-col">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none"
@@ -214,6 +215,38 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
             </>
           )}
 
+          {tab === 'rhythm' && (
+            <>
+              <p className="text-[10px] text-text-dim leading-snug mb-3">
+                The rhythm profile controls the Markov chain transition matrix that sequences scene pacing. Each profile produces a different narrative rhythm — how the story moves between buildup and payoff modes.
+              </p>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+                {MATRIX_PRESETS.map((preset) => {
+                  const isSelected = (settings.rhythmPreset || 'harry_potter') === preset.key;
+                  return (
+                    <button
+                      key={preset.key}
+                      onClick={() => update({ rhythmPreset: preset.key })}
+                      className={`shrink-0 w-44 rounded-xl text-left transition-all border p-4 flex flex-col gap-2 ${
+                        isSelected
+                          ? 'border-blue-500/40 bg-blue-500/8 ring-1 ring-blue-500/20'
+                          : 'border-white/6 hover:border-white/15 hover:bg-white/3'
+                      }`}
+                    >
+                      <span className={`text-[13px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>
+                        {preset.name}
+                      </span>
+                      <p className="text-[10px] text-text-dim leading-snug flex-1">{preset.description}</p>
+                      {isSelected && (
+                        <span className="text-[9px] text-blue-400 uppercase tracking-wider font-medium">Active</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
           {tab === 'structure' && (
             <>
               {/* Target Arc Length */}
@@ -234,37 +267,6 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   <span className="text-[11px] text-text-primary font-mono w-16 text-right">
                     {settings.targetArcLength} scenes
                   </span>
-                </div>
-              </div>
-
-              {/* Rhythm Preset */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Rhythm Profile
-                </label>
-                <p className="text-[10px] text-text-dim mb-3 leading-snug">
-                  Controls the Markov chain transition matrix used to sequence scene pacing. Each profile produces a different narrative rhythm.
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  {MATRIX_PRESETS.map((preset) => {
-                    const isSelected = (settings.rhythmPreset || 'harry_potter') === preset.key;
-                    return (
-                      <button
-                        key={preset.key}
-                        onClick={() => update({ rhythmPreset: preset.key })}
-                        className={`px-3 py-2.5 rounded-lg text-left transition-colors border ${
-                          isSelected
-                            ? 'border-blue-500/40 bg-blue-500/10'
-                            : 'border-white/6 hover:border-white/12 hover:bg-white/3'
-                        }`}
-                      >
-                        <span className={`text-[11px] font-semibold ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>
-                          {preset.name}
-                        </span>
-                        <p className="text-[10px] text-text-dim mt-0.5 leading-snug">{preset.description}</p>
-                      </button>
-                    );
-                  })}
                 </div>
               </div>
             </>

@@ -1414,62 +1414,28 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                   <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Move Type</label>
                   <div className="flex flex-col gap-1.5">
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.moveType === 'arc' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="moveType" checked={config.moveType === 'arc'} onChange={() => setConfig((c) => ({ ...c, moveType: 'arc', directionMode: 'delivery', branchingFactor: DEFAULT_BRANCHING.delivery, randomDirections: true }))} className="accent-blue-500 mt-0.5" />
+                      <input type="radio" name="moveType" checked={config.moveType === 'arc'} onChange={() => setConfig((c) => ({ ...c, moveType: 'arc' }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Arc Moves</div>
-                        <div className="text-[9px] text-text-dim">Each move generates a full arc (multiple scenes). Default direction: delivery curves.</div>
+                        <div className="text-[9px] text-text-dim">Each move generates a full arc (multiple scenes).</div>
                       </div>
                     </label>
                     <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.moveType === 'scene' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="moveType" checked={config.moveType === 'scene'} onChange={() => setConfig((c) => ({ ...c, moveType: 'scene', directionMode: 'cube', branchingFactor: DEFAULT_BRANCHING.cube, randomDirections: true }))} className="accent-blue-500 mt-0.5" />
+                      <input type="radio" name="moveType" checked={config.moveType === 'scene'} onChange={() => setConfig((c) => ({ ...c, moveType: 'scene' }))} className="accent-blue-500 mt-0.5" />
                       <div>
                         <div className="text-xs text-text-primary font-medium">Scene Moves</div>
-                        <div className="text-[9px] text-text-dim">Each move generates a single scene with a new arc. Default direction: cube positions.</div>
+                        <div className="text-[9px] text-text-dim">Each move generates a single scene with a new arc.</div>
                       </div>
                     </label>
                   </div>
                 </div>
 
-                {/* Direction Mode */}
+                {/* Pacing info */}
                 <div className="border-t border-border pt-4">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Mode</label>
-                  <div className="flex flex-col gap-1.5">
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'delivery' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionMode" checked={config.directionMode === 'delivery'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'delivery', branchingFactor: DEFAULT_BRANCHING.delivery }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Delivery Directions</div>
-                        <div className="text-[9px] text-text-dim">4 moves per node — <span className="text-green-400">Escalate</span>, <span className="text-blue-400">Release</span>, <span className="text-amber-400">Surge</span>, <span className="text-purple-400">Rebound</span>.</div>
-                      </div>
-                    </label>
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.directionMode === 'cube' ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionMode" checked={config.directionMode === 'cube'} onChange={() => setConfig((c) => ({ ...c, directionMode: 'cube', branchingFactor: DEFAULT_BRANCHING.cube }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Cube Positions</div>
-                        <div className="text-[9px] text-text-dim">8 moves per node — every combination of <span style={{color:'#EF4444'}}>P</span><span style={{color:'#22C55E'}}>C</span><span style={{color:'#3B82F6'}}>K</span> at high or low.</div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Direction Order */}
-                <div className="border-t border-border pt-4">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Direction Order</label>
-                  <div className="flex flex-col gap-1.5">
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionOrder" checked={config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: true }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Random</div>
-                        <div className="text-[9px] text-text-dim">Pick a random unused direction each time. Results vary across runs.</div>
-                      </div>
-                    </label>
-                    <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${!config.randomDirections ? 'bg-white/8' : 'hover:bg-white/4'}`}>
-                      <input type="radio" name="directionOrder" checked={!config.randomDirections} onChange={() => setConfig((c) => ({ ...c, randomDirections: false }))} className="accent-blue-500 mt-0.5" />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">Deterministic</div>
-                        <div className="text-[9px] text-text-dim">{config.directionMode === 'cube' ? 'Most diverse corners tried first.' : 'Cycle in canonical order — Escalate, Release, Surge, Rebound.'}</div>
-                      </div>
-                    </label>
-                  </div>
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Pacing</label>
+                  <p className="text-[10px] text-text-dim leading-snug">
+                    Scene pacing is automatically sequenced using the Markov chain rhythm profile set in Story Settings. Each expansion samples a probabilistic route from the transition matrix, ensuring varied force profiles across scenes.
+                  </p>
                 </div>
               </>
             )}

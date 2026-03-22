@@ -5,7 +5,9 @@ import { useStore } from '@/lib/store';
 import { apiHeaders } from '@/lib/api-headers';
 import type { StorySettings, POVMode } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS } from '@/types/narrative';
-import { MATRIX_PRESETS } from '@/lib/markov';
+import { NARRATIVE_CUBE } from '@/types/narrative';
+import type { CubeCornerKey } from '@/types/narrative';
+import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
 
 type Tab = 'pov' | 'direction' | 'rhythm' | 'structure' | 'memory' | 'cover';
 
@@ -215,37 +217,105 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
             </>
           )}
 
-          {tab === 'rhythm' && (
-            <>
-              <p className="text-[10px] text-text-dim leading-snug mb-3">
-                The rhythm profile controls the Markov chain transition matrix that sequences scene pacing. Each profile produces a different narrative rhythm — how the story moves between buildup and payoff modes.
-              </p>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-                {MATRIX_PRESETS.map((preset) => {
-                  const isSelected = (settings.rhythmPreset || 'harry_potter') === preset.key;
-                  return (
-                    <button
-                      key={preset.key}
-                      onClick={() => update({ rhythmPreset: preset.key })}
-                      className={`shrink-0 w-44 rounded-xl text-left transition-all border p-4 flex flex-col gap-2 ${
-                        isSelected
-                          ? 'border-blue-500/40 bg-blue-500/8 ring-1 ring-blue-500/20'
-                          : 'border-white/6 hover:border-white/15 hover:bg-white/3'
-                      }`}
-                    >
-                      <span className={`text-[13px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>
-                        {preset.name}
-                      </span>
-                      <p className="text-[10px] text-text-dim leading-snug flex-1">{preset.description}</p>
-                      {isSelected && (
-                        <span className="text-[9px] text-blue-400 uppercase tracking-wider font-medium">Active</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          {tab === 'rhythm' && (() => {
+            const CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
+            const COLORS: Record<CubeCornerKey, string> = {
+              HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
+              LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
+            };
+            const activePreset = MATRIX_PRESETS.find((p) => p.key === (settings.rhythmPreset || 'harry_potter'));
+            const matrix: TransitionMatrix | null = activePreset?.matrix ?? null;
+
+            return (
+              <>
+                {/* Preset cards */}
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-4">
+                  {MATRIX_PRESETS.map((preset) => {
+                    const isSelected = preset.key === (settings.rhythmPreset || 'harry_potter');
+                    return (
+                      <button
+                        key={preset.key}
+                        onClick={() => update({ rhythmPreset: preset.key })}
+                        className={`shrink-0 w-36 rounded-xl text-left transition-all border p-3 flex flex-col gap-1.5 ${
+                          isSelected
+                            ? 'border-blue-500/40 bg-blue-500/8 ring-1 ring-blue-500/20'
+                            : 'border-white/6 hover:border-white/15 hover:bg-white/3'
+                        }`}
+                      >
+                        <span className={`text-[12px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>
+                          {preset.name}
+                        </span>
+                        <p className="text-[9px] text-text-dim leading-snug flex-1">{preset.description}</p>
+                        {isSelected && (
+                          <span className="text-[8px] text-blue-400 uppercase tracking-wider font-medium">Active</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Transition matrix visualization */}
+                {matrix && (
+                  <div>
+                    <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                      Transition Matrix — {activePreset?.name}
+                    </label>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[10px] border-collapse">
+                        <thead>
+                          <tr>
+                            <th className="p-1.5 text-left text-text-dim font-medium w-20">From ↓ To →</th>
+                            {CORNERS.map((c) => (
+                              <th key={c} className="p-1.5 text-center font-medium" style={{ color: COLORS[c] }}>
+                                {NARRATIVE_CUBE[c].name.slice(0, 5)}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {CORNERS.map((from) => {
+                            const row = matrix[from];
+                            const total = CORNERS.reduce((s, to) => s + (row[to] ?? 0), 0);
+                            return (
+                              <tr key={from} className="border-t border-white/5">
+                                <td className="p-1.5 font-medium" style={{ color: COLORS[from] }}>
+                                  {NARRATIVE_CUBE[from].name.slice(0, 5)}
+                                </td>
+                                {CORNERS.map((to) => {
+                                  const prob = row[to] ?? 0;
+                                  const intensity = Math.round(20 + prob * 80);
+                                  return (
+                                    <td
+                                      key={to}
+                                      className="p-1.5 text-center tabular-nums"
+                                      style={{
+                                        backgroundColor: prob > 0 ? `rgba(52, 211, 153, ${intensity / 100})` : 'transparent',
+                                        color: prob >= 0.25 ? '#fff' : prob > 0.05 ? '#d1d5db' : '#4b5563',
+                                      }}
+                                    >
+                                      {total > 0 && prob > 0 ? `${Math.round(prob * 100)}` : total > 0 ? '·' : '–'}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-[9px] text-text-dim">
+                      <span>Probability:</span>
+                      <div className="flex items-center gap-1">
+                        <div className="w-10 h-2 rounded-sm" style={{ background: 'linear-gradient(to right, rgba(52,211,153,0.05), rgba(52,211,153,0.9))' }} />
+                        <span>0%</span>
+                        <span className="ml-6">100%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {tab === 'structure' && (
             <>

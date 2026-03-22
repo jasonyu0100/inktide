@@ -76,11 +76,20 @@ AIM FOR ~55-60% BUILDUP, ~40-45% PAYOFF across the arc. There are 8 narrative mo
 
 ALTERNATE INTENSITY. After a dense scene where all forces are high, the NEXT scene should pull back. Let characters process. Let the world breathe. The pattern is: buildup → buildup → peak → process → buildup → peak, not peak → peak → peak.
 
+CHANGE MUST VARY. The most common AI failure is flat Change — every scene has the same density of continuity mutations and events, producing a monotone graph with no swing. This happens because the AI packs every scene with 3-4 character learnings and 2-3 events regardless of whether the scene warrants it. Resist this:
+- A quiet scene where ONE character notices ONE thing is valid. Raw Change ~1.0.
+- A scene with no events — just two people talking — is valid. Raw Change from relationship mutations only.
+- A scene where nothing is "learned" — characters just exist in a space, experiencing atmosphere — is valid. 0 continuity mutations, 1 event. Raw Change ~1.0.
+- Dense scenes (confrontations, revelations, crises) earn high Change naturally. Don't inflate quiet scenes to match.
+- The CONTRAST between a Change-1 scene and a Change-8 scene creates swing. Without valleys, peaks don't register.
+
+REVEALS NEED ROOM. Major world-building concepts, new characters, and plot revelations each need space to develop weight. Don't introduce premise-level reveals as throwaway beats. If a concept is important enough to create a world-knowledge node for, the scene should sit with it — show characters reacting, questioning, or being changed by the revelation. Stacking 3-4 major reveals in a single scene dilutes all of them.
+
 VALID LOW-DENSITY SCENES — these are not failures, they are connective tissue:
 - A Growth scene: 0 thread transitions, 3 relationship mutations (±0.2), 1 continuity mutation, 0 WK nodes. Pure character development. Raw forces: P≈0.6, C≈3, K=0.
 - A Lore scene: 0 thread transitions, 0 relationship mutations, 1 continuity mutation, 4 WK nodes + 2 edges. Pure world texture. Raw forces: P=0, C≈1, K=5.
-- A Rest scene: 2 thread pulses, 1 continuity mutation, 0 WK nodes, 1 event. Reflection. Raw forces: P=0.5, C≈1.6, K=0.
-- A Discovery scene: 1 thread pulse, 3 continuity mutations, 2 WK nodes + 1 edge, 2 events. Raw forces: P=0.25, C≈4, K=2.5.
+- A Rest scene: 2 thread pulses, 0 continuity mutations, 0 WK nodes, 1 event. Reflection. Raw forces: P=0.5, C≈1.0, K=0.
+- A Discovery scene: 1 thread pulse, 2 continuity mutations, 2 WK nodes + 1 edge, 1 event. Raw forces: P=0.25, C≈3, K=2.5.
 
 These scenes IMPROVE the delivery score of subsequent payoff scenes by building the tension that gets released. Skipping them makes every scene feel the same.
 `;
@@ -97,8 +106,8 @@ threadMutations — track thread status changes or engagement:
 - Each thread must be distinct — merge threads that describe the same underlying tension.
 
 continuityMutations — track what characters learn:
-- Every participant should gain knowledge appropriate to the scene's intensity.
-- Dense scenes: 2-3 mutations per character. Quiet scenes: 0-1 per character.
+- NOT every scene requires continuity mutations. Only add them when a character genuinely learns, discovers, or realises something. A scene where characters simply act on existing knowledge needs zero continuity mutations.
+- Dense scenes (reveals, confrontations): 2-3 mutations per character. Normal scenes: 0-1 total. Quiet scenes: 0.
 - nodeType should be specific and contextual: "tactical_insight", "betrayal_discovered", "forbidden_technique", "political_leverage", "hidden_lineage", "oath_sworn".
 
 relationshipMutations — track how dynamics shift:
@@ -114,7 +123,7 @@ worldKnowledgeMutations — track the world's abstract structure:
 
 events — concrete narrative happenings:
 - Use specific, descriptive tags: "ambush_at_dawn", "secret_pact_formed", "storm_breaks".
-- 2-4 events per scene on average. Quiet scenes may have 1. Action scenes may have 5+.
+- Match event count to the scene's actual action density. A conversation scene has 1 event ("tense_negotiation"). A battle has 4-5. A scene of quiet observation may have 1 ("watching_the_sunset"). Do NOT pad quiet scenes with extra events to inflate the Change score.
 
 characterMovements — physical relocation:
 - Only include characters whose location CHANGES during the scene.

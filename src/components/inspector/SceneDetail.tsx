@@ -334,11 +334,11 @@ export default function SceneDetail({ sceneId }: Props) {
         </div>
       )}
 
-      {/* Knowledge Mutations */}
+      {/* Continuity Mutations */}
       {scene.continuityMutations.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Knowledge Mutations
+            Continuity Mutations
           </h3>
           {scene.continuityMutations.map((km, i) => {
             const charName = narrative.characters[km.characterId]?.name ?? km.characterId;

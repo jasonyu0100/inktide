@@ -452,7 +452,7 @@ THREAD LIFECYCLE:
 - Be aggressive about detecting transitions. Turning points, revelations, confrontations, and emotional shifts are triggers. If a chapter opens with simmering tension and ends with a confrontation, that's at least one status jump.
 - Each scene's threadMutations should touch threads meaningfully present in that scene, even if status doesn't change.
 
-KNOWLEDGE MUTATIONS:
+CONTINUITY MUTATIONS:
 - Track INFORMATION ASYMMETRY — what one character knows that others don't
 - Each entry should pass the test: "Would the story change if this character didn't know this?"`;
 
@@ -622,7 +622,7 @@ THREAD LIFECYCLE:
 - Be aggressive about detecting transitions. Turning points, revelations, confrontations, and emotional shifts are triggers. If a chapter opens with simmering tension and ends with a confrontation, that's at least one status jump.
 - Each scene's threadMutations should touch threads meaningfully present in that scene, even if status doesn't change.
 
-KNOWLEDGE MUTATIONS:
+CONTINUITY MUTATIONS:
 - Track INFORMATION ASYMMETRY — what one character knows that others don't
 - Each entry should pass the test: "Would the story change if this character didn't know this?"`;
 

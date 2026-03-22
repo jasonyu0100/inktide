@@ -1041,10 +1041,10 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             </div>
           )}
 
-          {/* Knowledge Mutations */}
+          {/* Continuity Mutations */}
           {scene.continuityMutations.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Knowledge</h3>
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Continuity</h3>
               {scene.continuityMutations.map((km, j) => {
                 const charName = node.virtualNarrative.characters[km.characterId]?.name ?? km.characterId;
                 return (

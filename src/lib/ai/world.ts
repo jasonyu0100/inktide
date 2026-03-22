@@ -5,7 +5,7 @@ import { callGenerate, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
+import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
 
 export type WorldExpansion = {
   characters: Character[];
@@ -373,6 +373,7 @@ ${PROMPT_POV}
 ${PROMPT_FORCE_STANDARDS}
 ${PROMPT_PACING}
 ${PROMPT_MUTATIONS}
+${PROMPT_CONTINUITY}
 ${PROMPT_SUMMARY_REQUIREMENT}
 
 WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}`;

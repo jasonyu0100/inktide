@@ -130,12 +130,31 @@ POV DISCIPLINE:
 - A single POV for an entire arc is often the strongest choice.
 `;
 
-// ── Spatial Continuity ───────────────────────────────────────────────────────
+// ── Intra-Arc Continuity ─────────────────────────────────────────────────────
+// Derived from the most common issues caught by the alignment auditor.
+// These are the errors AI generation produces most frequently when scenes
+// within an arc are generated without careful attention to what came before.
 
-export const PROMPT_SPATIAL = `
-SPATIAL CONTINUITY:
-- Consecutive scenes in the same location build atmosphere. Location changes should be purposeful and grounded with characterMovements.
-- Prefer revisiting established locations over introducing new ones.
+export const PROMPT_CONTINUITY = `
+INTRA-ARC CONTINUITY — scenes within an arc must read as a continuous narrative, not independent chapters. The following are the most common generation errors:
+
+SPATIAL:
+- NEVER teleport characters. If a character is at Location A in scene N and Location B in scene N+1, scene N must end with departure OR scene N+1 must open with arrival. Use characterMovements to track this. A single line of travel grounds the reader.
+- When multiple characters share a scene, establish WHERE they are relative to each other. Without spatial grounding, dialogue and action feel disembodied. "She stood across the table" not just "she said."
+- Prefer revisiting established locations. Introducing a new location costs reader orientation — earn it.
+
+STATE CARRYOVER:
+- Injuries, exhaustion, emotional states, and consequences from scene N MUST persist into scene N+1. They don't need to dominate — but they must EXIST. A character who was stabbed in scene 3 cannot stretch easily in scene 4 without acknowledgment.
+- If time passes between scenes, signal it: "Three days later", "By morning", "After the fever broke." Unanchored time jumps disorient readers.
+- Characters cannot act on information they haven't learned yet. If a secret is revealed in scene 5, characters in scenes 1-4 cannot know it.
+
+TRANSITIONS:
+- Each scene should connect to the previous one. The opening beat of scene N+1 should acknowledge the state established at the end of scene N — emotionally, physically, or temporally.
+- Abrupt mood shifts between consecutive scenes need narrative justification. Going from a funeral to a comedy scene requires a bridge — time passing, a character deliberately seeking levity, a contrast that serves the story.
+
+AVOIDING REPETITION:
+- Do NOT repeat the same beat, reveal, or emotional realization across multiple scenes. A character should not have the same epiphany twice. Information presented as new in scene 3 cannot be presented as new again in scene 5.
+- Each scene must advance something — if it ends in the same state it began, it has no reason to exist.
 `;
 
 // ── Thread Lifecycle ─────────────────────────────────────────────────────────

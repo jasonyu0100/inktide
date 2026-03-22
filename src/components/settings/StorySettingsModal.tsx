@@ -18,9 +18,8 @@ const TABS: { label: string; value: Tab }[] = [
 
 const POV_MODES: { value: POVMode; label: string; desc: string }[] = [
   { value: 'single', label: 'Single POV', desc: 'One protagonist drives every scene. Tight interiority, dramatic irony from limited knowledge.' },
-  { value: 'dual', label: 'Dual POV', desc: 'Two alternating viewpoint characters. Good for parallel storylines that converge.' },
   { value: 'ensemble', label: 'Ensemble', desc: 'Multiple POV characters rotate. Wider world, more threads, epic scope.' },
-  { value: 'free', label: 'Free (Default)', desc: 'Any anchor character can be POV. The engine picks whoever fits the scene best.' },
+  { value: 'free', label: 'Free (Default)', desc: 'Any character can be POV. The engine picks whoever fits the scene best.' },
 ];
 
 export function StorySettingsModal({ onClose }: { onClose: () => void }) {
@@ -79,12 +78,12 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
     dispatch({ type: 'SET_COVER_IMAGE', narrativeId: narrative.id, imageUrl: '' });
   }
 
-  const anchorCharacters = narrative
-    ? Object.values(narrative.characters).filter((c) => c.role === 'anchor')
+  const allCharacters = narrative
+    ? Object.values(narrative.characters)
     : [];
 
   const showPovPicker = settings.povMode !== 'free';
-  const maxPovChars = settings.povMode === 'single' ? 1 : settings.povMode === 'dual' ? 2 : anchorCharacters.length;
+  const maxPovChars = settings.povMode === 'single' ? 1 : allCharacters.length;
 
   function togglePovCharacter(charId: string) {
     const current = settings.povCharacterIds;
@@ -160,13 +159,13 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* POV Character Picker */}
-              {showPovPicker && anchorCharacters.length > 0 && (
+              {showPovPicker && allCharacters.length > 0 && (
                 <div>
                   <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                    POV Anchor{maxPovChars > 1 ? 's' : ''}{maxPovChars < anchorCharacters.length ? ` (select up to ${maxPovChars})` : ''}
+                    POV Character{maxPovChars > 1 ? 's' : ''}{maxPovChars < allCharacters.length ? ` (select up to ${maxPovChars})` : ''}
                   </label>
                   <div className="flex flex-wrap gap-1.5">
-                    {anchorCharacters.map((c) => {
+                    {allCharacters.map((c) => {
                       const selected = settings.povCharacterIds.includes(c.id);
                       return (
                         <button

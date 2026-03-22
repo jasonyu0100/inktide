@@ -7,7 +7,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_SPATIAL, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle } from './prompts';
+import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle } from './prompts';
 
 export type GenerateScenesOptions = {
   existingArc?: Arc;
@@ -105,7 +105,7 @@ Return JSON with this exact structure:
       "id": "S-GEN-001",
       "arcId": "${arcId}",
       "locationId": "existing location ID from the narrative",
-      "povId": "character ID whose perspective this scene is told from (MUST be an anchor-role character who is also a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : ''}",
+      "povId": "character ID whose perspective this scene is told from (must be a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : ''}",
       "participantIds": ["existing character IDs"],
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition narrating HOW they moved, e.g. 'Rode horseback through the night', 'Slipped through the back gate at dawn', 'Got on a bus to the school'"}},
       "events": ["event_tag_1", "event_tag_2"],
@@ -128,7 +128,7 @@ ${PROMPT_FORCE_STANDARDS}
 ${PROMPT_PACING}
 ${PROMPT_MUTATIONS}
 ${PROMPT_POV}
-${PROMPT_SPATIAL}
+${PROMPT_CONTINUITY}
 ${promptThreadLifecycle()}
 CRITICAL ID CONSTRAINT (re-stated for emphasis):
 You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thread IDs.
@@ -159,16 +159,7 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
   const validThreadIds = new Set(Object.keys(narrative.threads));
   const stripped: string[] = [];
 
-  // Determine anchor characters and find the most-used anchor by POV count for fallback
-  const anchorIds = new Set(Object.entries(narrative.characters).filter(([, c]) => c.role === 'anchor').map(([id]) => id));
-  const povCounts = new Map<string, number>();
-  for (const s of Object.values(narrative.scenes)) {
-    if (s.povId && anchorIds.has(s.povId)) {
-      povCounts.set(s.povId, (povCounts.get(s.povId) ?? 0) + 1);
-    }
-  }
-  const mostUsedAnchor = [...anchorIds].sort((a, b) => (povCounts.get(b) ?? 0) - (povCounts.get(a) ?? 0))[0]
-    ?? Object.keys(narrative.characters)[0];
+  const fallbackCharId = Object.keys(narrative.characters)[0];
 
   for (const scene of scenes) {
     // Fix invalid locationId — fall back to first valid location
@@ -176,10 +167,10 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
       stripped.push(`locationId "${scene.locationId}" in scene ${scene.id}`);
       scene.locationId = Object.keys(narrative.locations)[0];
     }
-    // Fix invalid povId — must be a valid anchor character, fallback to most-used anchor
-    if (!scene.povId || !validCharIds.has(scene.povId) || !anchorIds.has(scene.povId)) {
-      if (scene.povId) stripped.push(`povId "${scene.povId}" in scene ${scene.id} (non-anchor or invalid)`);
-      scene.povId = scene.participantIds.find((pid) => anchorIds.has(pid)) ?? mostUsedAnchor;
+    // Fix invalid povId — must be a valid character
+    if (!scene.povId || !validCharIds.has(scene.povId)) {
+      if (scene.povId) stripped.push(`povId "${scene.povId}" in scene ${scene.id} (invalid)`);
+      scene.povId = scene.participantIds.find((pid) => validCharIds.has(pid)) ?? fallbackCharId;
     }
     // Remove invalid participantIds
     const validParticipants = scene.participantIds.filter((pid) => {
@@ -189,10 +180,10 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
     });
     scene.participantIds = validParticipants.length > 0
       ? validParticipants
-      : [Object.keys(narrative.characters)[0]]; // ensure at least one participant
-    // Ensure povId is a valid anchor participant
-    if (!scene.participantIds.includes(scene.povId) || !anchorIds.has(scene.povId)) {
-      scene.povId = scene.participantIds.find((pid) => anchorIds.has(pid)) ?? mostUsedAnchor;
+      : [fallbackCharId];
+    // Ensure povId is a participant
+    if (!scene.participantIds.includes(scene.povId)) {
+      scene.povId = scene.participantIds[0] ?? fallbackCharId;
     }
     // Remove invalid threadMutations
     scene.threadMutations = scene.threadMutations.filter((tm) => {

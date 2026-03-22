@@ -440,7 +440,7 @@ export type NarrativeEntry = {
 // ── Story Settings ──────────────────────────────────────────────────────────
 
 /** How many POV characters drive the narrative */
-export type POVMode = 'single' | 'dual' | 'ensemble' | 'free';
+export type POVMode = 'single' | 'ensemble' | 'free';
 
 export type StorySettings = {
   /** How POV is distributed across the story */

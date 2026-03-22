@@ -30,7 +30,7 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
       const names = s.povCharacterIds
         .map((id) => n.characters[id] ? `${n.characters[id].name} (${id})` : id)
         .join(', ');
-      lines.push(`Designated POV anchor${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.`);
+      lines.push(`Designated POV character${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.`);
     }
   }
 

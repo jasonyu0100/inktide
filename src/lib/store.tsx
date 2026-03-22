@@ -98,13 +98,13 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
 
       if (km.action === 'added') {
         // Add knowledge node if it doesn't already exist
-        const exists = char.continuity.nodes.some((kn) => kn.id === km.nodeId);
+        const exists = (char.continuity?.nodes ?? []).some((kn) => kn.id === km.nodeId);
         if (!exists) {
           characters[km.characterId] = {
             ...char,
             continuity: {
               ...char.continuity,
-              nodes: [...char.continuity.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }],
+              nodes: [...(char.continuity?.nodes ?? []), { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }],
             },
           };
         }
@@ -113,7 +113,7 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
           ...char,
           continuity: {
             ...char.continuity,
-            nodes: char.continuity.nodes.filter((kn) => kn.id !== km.nodeId),
+            nodes: (char.continuity?.nodes ?? []).filter((kn) => kn.id !== km.nodeId),
           },
         };
       }

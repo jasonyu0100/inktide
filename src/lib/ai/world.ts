@@ -167,8 +167,8 @@ export async function expandWorld(
   const nextLocId = nextId('L', Object.keys(narrative.locations));
   const nextThreadId = nextId('T', Object.keys(narrative.threads));
   const existingKIds = [
-    ...Object.values(narrative.characters).flatMap((c) => c.continuity.nodes.map((n) => n.id)),
-    ...Object.values(narrative.locations).flatMap((l) => l.continuity.nodes.map((n) => n.id)),
+    ...Object.values(narrative.characters).flatMap((c) => (c.continuity?.nodes ?? []).map((n) => n.id)),
+    ...Object.values(narrative.locations).flatMap((l) => (l.continuity?.nodes ?? []).map((n) => n.id)),
   ];
   const nextKId = nextId('K', existingKIds);
 

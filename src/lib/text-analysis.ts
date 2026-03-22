@@ -1228,6 +1228,7 @@ export async function assembleNarrative(
     for (const km of scene.continuityMutations) {
       const char = characters[km.characterId];
       if (!char) continue;
+      if (!char.continuity) char.continuity = { nodes: [] };
       if (km.action === 'added') {
         const exists = char.continuity.nodes.some((n) => n.id === km.nodeId);
         if (!exists) {
@@ -1243,11 +1244,12 @@ export async function assembleNarrative(
   for (let ci = 0; ci < results.length; ci++) {
     const existingLore = new Set<string>();
     for (const loc of Object.values(locations)) {
-      for (const n of loc.continuity.nodes) existingLore.add(n.content);
+      for (const n of (loc.continuity?.nodes ?? [])) existingLore.add(n.content);
     }
     for (const dl of chunkDeferredLore[ci]) {
       const loc = locations[dl.locationId];
       if (loc && !existingLore.has(dl.content)) {
+        if (!loc.continuity) loc.continuity = { nodes: [] };
         loc.continuity.nodes.push({ id: nextKId(), type: 'lore', content: dl.content });
         existingLore.add(dl.content);
       }

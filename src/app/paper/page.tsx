@@ -346,7 +346,7 @@ export default function PaperPage() {
             </P>
             <Eq tex="g(\tilde{x}) = 25\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
-              At <Tex>{'\\tilde{x} = 1'}</Tex> (matching the reference mean), the grade is ~22/25. The curve is steep early&mdash;rewarding baseline competence&mdash;and flattens at high levels. Reference works land between 88 and 93.
+              At <Tex>{'\\tilde{x} = 1'}</Tex> (matching the reference mean), the grade is ~21/25. The curve rewards baseline competence early and flattens at high levels, leaving room at the top for works that significantly exceed the reference.
             </P>
 
             <P>

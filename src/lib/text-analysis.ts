@@ -426,11 +426,11 @@ RULES:
   * A quiet scene with no world context → none.
   * Let the prose guide you — extract what's there, don't invent what isn't.
 
-FORCE SCORING — extract mutations that reflect what ACTUALLY happens in the prose:
-- PAYOFF (≥ ~1.2 avg/scene): thread transitions (active→escalating = 1pt, active→resolved = 3pt) + relationship |Δv|. Pulses give only 0.25. Extract real transitions when the text supports them.
-- CHANGE (≥ ~5.6 avg/scene): 3-4 characters affected per scene with 2-3 mutations each. Breadth over depth. Every character who acts, reacts, or learns something in the text should have mutations.
-- KNOWLEDGE (≥ ~2.0 avg/scene): ~2 world knowledge nodes per scene, or 1 node + 2 edges. Extract the world concepts the prose reveals — social norms, power structures, systems, tensions.
-- Vary force profiles across scenes — scenes naturally differ in which force dominates. Extract what's there faithfully.
+FORCE SCORING — extract ONLY what the prose actually supports. Do NOT inflate:
+- PAYOFF: Only record thread transitions when the text clearly shows a shift in tension level. A scene where a thread is merely present is a pulse (same status), NOT a transition. Do not manufacture transitions.
+- CHANGE: Only include characters who meaningfully act, react, learn, or are changed in the scene. Background characters who are merely present get no mutations. A quiet scene with one character reflecting alone should have few mutations.
+- KNOWLEDGE: Only add world-building nodes when the prose explicitly reveals, establishes, or names a concept. A scene that takes place in an already-established setting with no new world information gets ZERO knowledge nodes. Do not invent concepts the text doesn't surface.
+- Scenes vary dramatically in intensity. A transitional scene may have near-zero mutations across all forces. A climactic scene may have many. Extract what's actually there — never pad sparse scenes to hit a target.
 ${cumulativeCtx ? `
 CUMULATIVE CONTINUITY:
 - Thread "statusAtStart" MUST match the thread's current status from the THREADS section above
@@ -608,11 +608,11 @@ RULES:
 - REUSE existing node IDs when a scene reinforces or tests an already-established concept — don't create duplicates. Only create new IDs for genuinely new concepts. Re-adding existing edges reinforces those connections.
 - How much depends on the prose: scenes establishing social rules, institutional dynamics, cultural expectations → several nodes. Scenes reinforcing existing concepts → reuse existing IDs. Quiet scenes with no world context → none. Let the prose guide you.
 
-FORCE SCORING — extract mutations that reflect what ACTUALLY happens in the prose:
-- PAYOFF (≥ ~1.2 avg/scene): thread transitions (active→escalating = 1pt, active→resolved = 3pt) + relationship |Δv|. Pulses give only 0.25. Extract real transitions when the text supports them.
-- CHANGE (≥ ~5.6 avg/scene): 3-4 characters affected per scene with 2-3 mutations each. Breadth over depth.
-- KNOWLEDGE (≥ ~2.0 avg/scene): ~2 world knowledge nodes per scene, or 1 node + 2 edges. Extract world concepts the prose reveals.
-- Vary force profiles across scenes — extract what's there faithfully.
+FORCE SCORING — extract ONLY what the prose actually supports. Do NOT inflate:
+- PAYOFF: Only record thread transitions when the text clearly shows a shift in tension level. A scene where a thread is merely present is a pulse (same status), NOT a transition. Do not manufacture transitions.
+- CHANGE: Only include characters who meaningfully act, react, learn, or are changed in the scene. Background characters who are merely present get no mutations. A quiet scene with one character reflecting alone should have few mutations.
+- KNOWLEDGE: Only add world-building nodes when the prose explicitly reveals, establishes, or names a concept. A scene in an already-known setting with no new world information gets ZERO knowledge nodes. Do not invent concepts the text doesn't surface.
+- Scenes vary dramatically in intensity. Transitional scenes may have near-zero mutations. Climactic scenes may have many. Extract what's there — never pad sparse scenes.
 
 THREAD LIFECYCLE:
 - Active statuses: ${THREAD_ACTIVE_STATUSES.map((s: string) => `"${s}"`).join(', ')}

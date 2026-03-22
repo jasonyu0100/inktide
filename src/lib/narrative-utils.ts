@@ -854,14 +854,16 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
 
 /** Reference means per force — the expected mean for a well-structured narrative.
  *  Raw force values are divided by these to produce a unit-free normalized value
- *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~86%.
+ *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon). */
 export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 7.0, knowledge: 2.5 } as const;
 
-/** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
- *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */
+/** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-kx̃}).
+ *  k = 1.8 balances differentiation across the range:
+ *  x̃ = 0.5 → 15/25 (weak), x̃ = 1.0 → 21/25 (good),
+ *  x̃ = 1.5 → 23/25 (very good), x̃ = 2.0 → 24/25 (excellent). */
 export function gradeForce(normalizedMean: number): number {
-  return Math.min(25, 25 * (1 - Math.exp(-2 * Math.max(0, normalizedMean))));
+  return Math.min(25, 25 * (1 - Math.exp(-1.8 * Math.max(0, normalizedMean))));
 }
 
 /**

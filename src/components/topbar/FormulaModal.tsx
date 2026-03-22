@@ -118,7 +118,7 @@ function ScoringTab() {
         <Block tex={String.raw`g(\tilde{x}) = 25\!\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}`} />
         <Block tex="\text{Overall} = g(\tilde{P}) + g(\tilde{C}) + g(\tilde{K}) + g(\tilde{S})" />
         <p className="text-[10px] text-text-dim">
-          At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade &asymp; 22/25. Swing is already mean-normalized, graded directly.
+          At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade &asymp; 21/25. Swing is already mean-normalized, graded directly.
         </p>
         <div className="mt-2 flex gap-2 text-[10px]">
           {[

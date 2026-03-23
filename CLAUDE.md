@@ -91,17 +91,33 @@ src/
 - **Arc** — world-building arcs that group scenes and expand the narrative world
 - **CubeCorner** — one of 8 narrative modes (Epoch, Climax, Revelation, Closure, Discovery, Growth, Lore, Rest) defined by high/low combinations of the three forces
 
+## Scene Mutations
+
+Every scene records structural changes to the knowledge graph. These mutations are the raw inputs to the force formulas — the forces are computed *from* the mutations, not from the prose.
+
+### Thread Mutations → Payoff
+Threads are narrative tensions (a rivalry, a secret, a quest) with a lifecycle: `dormant → active → escalating → critical → resolved/subverted/abandoned`. Each scene records thread mutations as `{threadId, from, to}` status transitions. A thread jumping from `active` to `critical` contributes `|3 - 1| = 2` to Payoff. Threads mentioned without transitioning earn a pulse of 0.25.
+
+### Continuity Mutations → Change
+Continuity mutations track what characters learn, lose, or become: `{characterId, nodeId, action, content, nodeType}`. Each mutation adds a knowledge node to a character's continuity graph. Events are tagged per scene. Both feed Change via square root scaling: `C = √M_c + √|E|`.
+
+### World Knowledge Mutations → Knowledge
+The world knowledge graph tracks laws, systems, concepts, and tensions as nodes with typed edges between them. Each scene can add nodes (`{id, concept, type}`) and edges (`{from, to, relation}`). Knowledge is computed as `K = ΔN + √ΔE` — nodes linear, edges sqrt.
+
+### Relationship Mutations (tracked, not scored)
+Relationship mutations (`{from, to, type, valenceDelta}`) track how connections between characters shift. These are recorded and displayed but do not feed into the force formulas — they exist for the user's reference and the LLM's context.
+
 ## Narrative Forces & Formulas
 
-Three force dimensions derived from knowledge graph mutations, all **z-score normalised** (mean=0, units=standard deviations):
+Three force dimensions derived from the mutations above, all **z-score normalised** (mean=0, units=standard deviations):
 
-- **Payoff (P)** — thread phase transitions weighted by jump magnitude. Formula: `Σ |φ_to - φ_from|`. Phase indices: dormant(0) → active(1) → escalating(2) → critical(3) → resolved/subverted/abandoned(4). Small pulse reward (0.25) for same-status mentions.
-- **Change (C)** — mutation intensity. Formula: `√M_c + √|E|` where M_c = continuity mutations and |E| = event count. Square root scaling allows dense scenes to spike meaningfully above sparse ones. Cast-blind.
-- **Knowledge (K)** — world knowledge graph complexity delta per scene. Formula: `K = ΔN + √ΔE`. Nodes linear (each new concept = 1), edges sqrt (first connections matter more than bulk linking).
+- **Payoff (P)** — `Σ |φ_to - φ_from|` over thread mutations, plus 0.25 pulse per same-status mention
+- **Change (C)** — `√M_c + √|E|` where M_c = continuity mutation count, |E| = event count. Cast-blind.
+- **Knowledge (K)** — `ΔN + √ΔE` where ΔN = new world knowledge nodes, ΔE = new world knowledge edges
 
 Derived metrics:
 - **Tension** — `T = C + K - P`, buildup without release — the coiled spring
-- **Delivery** — `E = 0.5P + 0.5·tanh(C/2) + 0.5·tanh(K/2) + 0.3·contrast`, payoff linear, C/K saturated via tanh to prevent ensemble inflation. `contrast = max(0, T[i-1] - T[i])` rewards tension-release scenes
+- **Delivery** — `0.5P + 0.5·tanh(C/2) + 0.5·tanh(K/2) + 0.3·contrast`, payoff linear, C/K saturated via tanh to prevent ensemble inflation. `contrast = max(0, T[i-1] - T[i])` rewards tension-release scenes
 - **Swing** — Euclidean distance between consecutive force snapshots
 
 Formulas in `src/lib/narrative-utils.ts`, inspectable via `FormulaModal`. The **cube** model maps forces into 3D space for trajectory analysis.

@@ -6,13 +6,25 @@ A knowledge-graph-based narrative analysis and generation platform that measures
 
 Every narrative is a **knowledge graph** — characters, locations, threads, and world concepts — that mutates scene by scene. An LLM records structural mutations at each scene, then deterministic formulas compute **narrative forces** from those mutations. The LLM handles comprehension; the math handles measurement.
 
+### Scene Mutations
+
+Every scene records three types of structural mutations to the knowledge graph:
+
+- **Thread mutations** — narrative tensions (a rivalry, a secret, a quest) move through lifecycle phases: `dormant → active → escalating → critical → resolved/subverted/abandoned`. Each transition is recorded as `{threadId, from, to}`.
+- **Continuity mutations** — what characters learn, lose, or become. Each mutation adds a knowledge node to a character's graph: `{characterId, nodeId, content, nodeType}`. Events are tagged separately.
+- **World knowledge mutations** — the world's rules, systems, and concepts as a graph of nodes and typed edges. Nodes are ideas (`{id, concept, type}`); edges link them (`{from, to, relation}`).
+
+Relationship mutations (how connections between characters shift) are also tracked and displayed, but do not feed into the force formulas.
+
 ### Three Forces
 
-| Force | What it measures | Formula |
-|-------|-----------------|---------|
-| **Payoff** | Thread phase transitions — moments the story can't take back | `P = Σ \|φ_to - φ_from\|` |
-| **Change** | Mutation intensity — how much happened | `C = √M_c + √\|E\|` |
-| **Knowledge** | World-building expansion — new concepts and connections | `K = ΔN + √ΔE` |
+Each force is computed directly from one mutation type:
+
+| Force | Driven by | Formula |
+|-------|-----------|---------|
+| **Payoff** | Thread mutations — phase transitions weighted by jump distance | `P = Σ \|φ_to - φ_from\|` |
+| **Change** | Continuity mutations + events — how intensely characters were affected | `C = √M_c + √\|E\|` |
+| **Knowledge** | World knowledge mutations — new nodes and edges in the world graph | `K = ΔN + √ΔE` |
 
 Forces are z-score normalised (mean=0, units=standard deviations) and compose into:
 - **Tension** — `C + K - P` — buildup without release

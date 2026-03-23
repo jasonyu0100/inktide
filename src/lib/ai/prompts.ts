@@ -29,14 +29,13 @@ FORCE STANDARDS — these are the reference means used by the grading system. Th
 How scoring works: each force is graded on an exponential curve where matching the reference mean scores ~86%. Higher is better but with diminishing returns. Crucially, forces are graded per-arc, not per-scene — a single high-payoff scene can carry several quiet buildup scenes.
 
 PAYOFF reference mean ~1.5 per scene:
-- Formula: Σ|phase_jump| for thread mutations + Σ|valenceDelta| for relationship mutations.
+- Formula: Σ|phase_jump| for thread mutations.
 - Phase indices: dormant(0) → active(1) → escalating(2) → critical(3) → resolved/subverted/abandoned(4).
 - Examples: active→escalating = 1pt, dormant→critical = 3pt, active→resolved = 3pt. Pulses (same→same) = 0.25.
 - Some scenes will have 0 payoff (pure buildup). Others spike to 4-6+ (climaxes, reveals). Both are correct — the ARC average is what matters.
 
 CHANGE reference mean ~3.5 per scene:
-- Formula: √(totalMutations) + √(eventCount). Cast-blind — total mutations matter, not character count.
-- totalMutations = continuityMutation count + relationship |Δv| × 2 (both sides).
+- Formula: √(continuityMutations) + √(eventCount). Cast-blind — total mutations matter, not character count.
 - Examples: 3 mutations + 2 events = √3 + √2 ≈ 3.1. A dense scene with 8 mutations + 3 events = √8 + √3 ≈ 4.6.
 - Quiet scenes with 0 mutations + 1 event score 1.0. Scenes with 1 mutation + 1 event score 2.0. This variation is essential.
 
@@ -87,9 +86,9 @@ CHANGE MUST VARY. The most common AI failure is flat Change — every scene has 
 REVEALS NEED ROOM. Major world-building concepts, new characters, and plot revelations each need space to develop weight. Don't introduce premise-level reveals as throwaway beats. If a concept is important enough to create a world-knowledge node for, the scene should sit with it — show characters reacting, questioning, or being changed by the revelation. Stacking 3-4 major reveals in a single scene dilutes all of them.
 
 VALID LOW-DENSITY SCENES — these are not failures, they are connective tissue:
-- A Growth scene: 0 thread transitions, 3 relationship mutations (±0.2), 1 continuity mutation, 0 WK nodes. Pure character development. Raw forces: P≈0.6, C≈3, K=0.
+- A Growth scene: 0 thread transitions, 4 continuity mutations, 2 events, 0 WK nodes. Pure character development. Raw forces: P=0, C≈3.4, K=0.
 - A Lore scene: 0 thread transitions, 0 relationship mutations, 1 continuity mutation, 4 WK nodes + 2 edges. Pure world texture. Raw forces: P=0, C≈1, K=5.
-- A Rest scene: 2 thread pulses, 0 continuity mutations, 0 WK nodes, 1 event. Reflection. Raw forces: P=0.5, C≈1.0, K=0.
+- A Rest scene: 2 thread pulses, 1 continuity mutation, 0 WK nodes, 1 event. Reflection. Raw forces: P=0.5, C≈2.0, K=0.
 - A Discovery scene: 1 thread pulse, 2 continuity mutations, 2 WK nodes + 1 edge, 1 event. Raw forces: P=0.25, C≈3, K=3.0.
 
 These scenes IMPROVE the delivery score of subsequent payoff scenes by building the tension that gets released. Skipping them makes every scene feel the same.

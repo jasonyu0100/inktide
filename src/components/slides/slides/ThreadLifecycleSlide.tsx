@@ -63,14 +63,13 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
 
       return { thread, transitions, pulseScenes, segments, endStatus, firstScene, lastScene };
     })
-    .sort((a, b) => b.transitions.length - a.transitions.length)
-    .slice(0, 10);
+    .sort((a, b) => (b.transitions.length + b.pulseScenes.length) - (a.transitions.length + a.pulseScenes.length));
 
   return (
     <div className="flex flex-col h-full px-12 py-8 justify-center">
       <div className="flex items-center gap-3 mb-1">
         <h2 className="text-2xl font-bold text-text-primary">Thread Lifecycle</h2>
-        <span className="text-xs text-text-dim font-mono">Top {ranked.length} by transitions</span>
+        <span className="text-xs text-text-dim font-mono">{ranked.length} threads — sorted by transitions</span>
       </div>
       <p className="text-xs text-text-dim mb-5">
         Each thread&apos;s lifecycle from first to last mention. Bright lines mark phase transitions, subtle ticks show pulses.
@@ -106,7 +105,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
                 </div>
 
                 {/* Timeline bar */}
-                <div className="h-4 rounded-sm bg-white/3 relative">
+                <div className="h-4 rounded-sm bg-white/3 relative overflow-hidden">
                   {/* Status segments */}
                   {segments.map((seg, i) => {
                     const left = toPercent(seg.start);

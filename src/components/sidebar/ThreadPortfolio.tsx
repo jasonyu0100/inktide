@@ -113,7 +113,7 @@ export default function ThreadPortfolio() {
     const unopenedThreads: ThreadWithStatus[] = [];
 
     for (const t of allThreads) {
-      const isVisible = visibleKeys.has(t.openedAt) && (narrative.scenes[t.openedAt] || mutatedThreadIds.has(t.id));
+      const isVisible = mutatedThreadIds.has(t.id) || (visibleKeys.has(t.openedAt) && !!narrative.scenes[t.openedAt]);
       const status = (isVisible ? (currentStatuses[t.id] ?? t.status) : t.status) as ThreadStatus;
       const entry = { ...t, currentStatus: status };
 

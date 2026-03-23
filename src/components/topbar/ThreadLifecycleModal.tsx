@@ -48,48 +48,53 @@ export function ThreadLifecycleModal({
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && e.kind === 'scene');
 
-    // Build status history per thread from scene mutations
-    const threadStatuses = new Map<string, { sceneIdx: number; status: string }[]>();
+    // Collect mutations per thread
+    const threadMutations = new Map<string, { sceneIdx: number; from: string; to: string }[]>();
 
     for (let i = 0; i < scenes.length; i++) {
       for (const tm of scenes[i].threadMutations) {
-        if (!threadStatuses.has(tm.threadId)) {
-          threadStatuses.set(tm.threadId, []);
+        if (!threadMutations.has(tm.threadId)) {
+          threadMutations.set(tm.threadId, []);
         }
-        threadStatuses.get(tm.threadId)!.push({ sceneIdx: i, status: tm.to.toLowerCase() });
+        threadMutations.get(tm.threadId)!.push({ sceneIdx: i, from: tm.from.toLowerCase(), to: tm.to.toLowerCase() });
       }
     }
 
     const result: ThreadRow[] = [];
 
-    for (const [threadId, statuses] of threadStatuses) {
-      if (statuses.length === 0) continue;
+    for (const [threadId, mutations] of threadMutations) {
+      if (mutations.length === 0) continue;
       const thread = narrative.threads[threadId];
       if (!thread) continue;
 
       const transitions: Transition[] = [];
       const pulseScenes: number[] = [];
 
-      // Detect transitions and pulses from scene mutations
-      for (let i = 0; i < scenes.length; i++) {
-        for (const tm of scenes[i].threadMutations) {
-          if (tm.threadId !== threadId) continue;
-          const from = tm.from.toLowerCase();
-          const to = tm.to.toLowerCase();
-          if (from === to) {
-            pulseScenes.push(i);
-          } else {
-            transitions.push({ sceneIdx: i, from, to });
-          }
+      for (const m of mutations) {
+        if (m.from === m.to) {
+          pulseScenes.push(m.sceneIdx);
+        } else {
+          transitions.push({ sceneIdx: m.sceneIdx, from: m.from, to: m.to });
         }
       }
 
-      // Build segments from status history
+      // Build status timeline: start with the initial status (from the first mutation's "from")
+      const initialStatus = mutations[0].from;
+      const firstScene = mutations[0].sceneIdx;
+      const lastScene = mutations[mutations.length - 1].sceneIdx;
+
+      // Build statuses array including the initial state
+      const statuses: { sceneIdx: number; status: string }[] = [{ sceneIdx: firstScene, status: initialStatus }];
+      for (const m of mutations) {
+        if (m.from !== m.to) {
+          statuses.push({ sceneIdx: m.sceneIdx, status: m.to });
+        }
+      }
+
+      // Build segments from status timeline
       const segments: Segment[] = [];
       let currentStatus = '';
       let segStart = 0;
-      const firstScene = statuses[0].sceneIdx;
-      const lastScene = statuses[statuses.length - 1].sceneIdx;
 
       for (const s of statuses) {
         if (s.status !== currentStatus) {
@@ -118,7 +123,7 @@ export function ThreadLifecycleModal({
       });
     }
 
-    return result.sort((a, b) => b.transitions.length - a.transitions.length);
+    return result.sort((a, b) => (b.transitions.length + b.pulseScenes.length) - (a.transitions.length + a.pulseScenes.length));
   }, [narrative, resolvedKeys]);
 
   return (
@@ -152,7 +157,7 @@ export function ThreadLifecycleModal({
                   <div key={threadId} className="py-1.5">
                     {/* Row: description left, status right */}
                     <div className="flex items-baseline justify-between mb-1 gap-4">
-                      <p className="text-[11px] text-text-secondary leading-snug flex-1 line-clamp-1">
+                      <p className="text-[11px] text-text-secondary leading-snug flex-1 truncate" title={description}>
                         {description}
                       </p>
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -172,7 +177,7 @@ export function ThreadLifecycleModal({
                     </div>
 
                     {/* Timeline bar */}
-                    <div className="h-4 rounded-sm bg-white/3 relative">
+                    <div className="h-4 rounded-sm bg-white/3 relative overflow-hidden">
                       {/* Status segments */}
                       {segments.map((seg, i) => {
                         const left = toPercent(seg.start);

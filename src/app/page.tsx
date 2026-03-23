@@ -452,32 +452,32 @@ export default function HomePage() {
             <div className="space-y-6">
               {[
                 {
-                  q: 'What is the Knowledge Graph?',
-                  a: 'Every narrative is a knowledge graph that mutates scene by scene. Characters have continuity nodes (what they know, believe, possess). Locations have lore. Threads track plot lines with lifecycle statuses. Relationships carry typed valence between characters. World knowledge captures laws, systems, and tensions. Each scene records structural mutations — who learned what, which threads shifted, how relationships changed — and the engine computes narrative forces from those deltas.',
+                  q: 'What can I do with this?',
+                  a: 'Create stories with a knowledge graph underneath. The engine tracks your characters, threads, relationships, and world-building as structured data — then uses that graph to generate scenes, grade pacing, and find the strongest story paths. You can also paste in existing text (novels, screenplays, fanfiction) and the analysis pipeline will extract the graph and show you where the peaks and valleys land.',
                 },
                 {
-                  q: 'How do the formulas work?',
-                  a: 'Three force dimensions are derived from knowledge graph mutations, all z-score normalised. Payoff measures thread phase transitions weighted by jump magnitude plus relationship valence deltas. Change measures mutation reach per character with logarithmic scaling. Knowledge measures world knowledge graph complexity delta per scene. From these: Tension = C + K - P (buildup without release), Delivery = 0.5P + 0.25C + 0.25K + contrast bonus (payoff-weighted with tension-release reward), and Swing = Euclidean distance between consecutive force snapshots.',
+                  q: 'How do I start a story?',
+                  a: 'Click "New Story" and describe your premise. The engine builds out an initial cast, locations, threads, and world knowledge. From there you can generate scenes, edit anything by hand, branch into alternate timelines, or let the auto-engine run and build arcs for you. Everything is editable — the AI proposes, you decide.',
                 },
                 {
                   q: 'What is the commit tree?',
-                  a: 'Narratives use a git-like branching model. Each branch is a sequence of scene commits and world-build commits. You can fork at any scene to explore alternative story paths — different character decisions, different thread resolutions, different world directions. Branches share history up to the fork point, then diverge. This lets you compare parallel narrative trajectories, backtrack from dead ends, and maintain multiple versions of the same story without losing work.',
+                  a: 'Your story has a git-like timeline. Every scene is a commit. You can fork at any point to explore a different path — what if the villain won? What if two characters never met? Branches share history up to the fork, then diverge. You can compare them side by side, keep the best, or merge ideas across branches.',
                 },
                 {
-                  q: 'How does MCTS search work?',
-                  a: 'Monte Carlo Tree Search explores the narrative state space to find optimal story paths. Each node in the tree is a possible scene. The engine generates multiple candidate scenes at each step, evaluates them using the force formulas (payoff, change, knowledge, delivery), and expands the most promising branches. Over many iterations, MCTS converges on story trajectories that maximise narrative force — scenes that pay off threads, transform characters, and deepen the world in concert.',
+                  q: 'What do the force charts show me?',
+                  a: 'Three scores per scene: Payoff (did threads resolve?), Change (how much happened?), and Knowledge (did the world get richer?). The delivery curve combines them into a single line — peaks are your big moments, valleys are your buildup. If the curve is flat, your story might need more contrast between quiet scenes and dramatic ones.',
                 },
                 {
-                  q: 'How does prose generation work?',
-                  a: 'Three-phase pipeline: structure, then plan, then prose. First, the engine generates scene structures — participants, location, thread mutations, knowledge changes, relationship shifts. Second, a delivery-by-delivery staging plan blueprints HOW each mutation unfolds through concrete mechanisms. Third, prose is written from the plan with full branch context (up to 50 prior scenes), recent prose lookback for continuity, and voice/style settings. The alignment system then audits consecutive chapters in sliding windows to fix continuity gaps from parallel generation.',
+                  q: 'What does MCTS do?',
+                  a: 'It searches for the best next arc. The engine generates multiple possible directions, scores each one, and expands the most promising branches — like a chess engine, but for story paths. You pick a rhythm profile (pacing inspired by a published work) and MCTS finds scenes that hit those beats. The result is a set of candidate arcs ranked by narrative force.',
                 },
                 {
-                  q: 'How does AI-generated text compare to human writing?',
-                  a: 'There is a measurable quality gap. Human-written works from published literature consistently score 90+ on the grading curve — dense thread lifecycles, earned payoffs, and layered world-building compound over hundreds of pages. AI-generated texts typically land in the 70–80 range. The mutations are structurally valid but thinner: threads resolve too neatly, character change lacks accumulation, and knowledge graphs expand without the connective depth that human authors build instinctively. The AI playgrounds on this site are alternate realities of real series — useful for experimenting with the engine, but not representative of the source material\'s quality.',
+                  q: 'Can I analyse existing books?',
+                  a: 'Yes. Go to the analysis page and paste in any text — up to 500K words. The engine chunks it, extracts characters, threads, and world knowledge, then computes force curves and a grade. You can see exactly where a novel peaks, what archetype it fits, and how its pacing compares to other works in the system.',
                 },
                 {
                   q: 'What does it cost?',
-                  a: 'Narrative Engine is free and open source. You bring your own API key (OpenRouter) which gives you access to any LLM — Gemini, GPT, Claude, Llama, and others. You pay only for the tokens you use at the model provider\'s rates. There is no subscription, no platform fee, and no usage limits beyond what your API key supports.',
+                  a: 'Narrative Engine is free and open source. You bring your own API key (OpenRouter) which gives you access to any LLM — Gemini, GPT, Claude, Llama, and others. You pay only for the tokens you use at the provider\'s rates. No subscription, no platform fee.',
                 },
               ].map(({ q, a }, i) => (
                 <details key={i} className="group">

@@ -2,10 +2,10 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree, PendingExpansion } from '@/types/mcts';
-import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING, DELIVERY_DIRECTIONS } from '@/types/mcts';
+import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
-import { NARRATIVE_CUBE, type Scene, type CubeCornerKey } from '@/types/narrative';
+import type { Scene } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner, computeDeliveryCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
 import { suggestAutoDirection } from '@/lib/ai';
 import { useStore } from '@/lib/store';
@@ -229,35 +229,18 @@ function TreeNode({
               onClick={() => onSelectPending(pending.id)}
               className="flex items-center gap-1.5 w-full h-full text-left px-1.5 pr-2 rounded transition-colors hover:bg-amber-500/8"
             >
-              {/* Direction indicator — fixed width, matching done rows */}
+              {/* Markov indicator */}
               <span className="w-7 shrink-0 flex items-center justify-center">
-                {pending.cubeGoal && (
-                  <span className="font-mono text-[9px] font-bold tracking-tight text-amber-500">
-                    {pending.cubeGoal.split('').map((c, i) => (
-                      <span key={i} style={{ opacity: c === 'H' ? 0.7 : 0.25 }}>{c}</span>
-                    ))}
-                  </span>
-                )}
-                {pending.deliveryGoal && (() => {
-                  const bg = pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS;
-                  const strokeColor = bg === 'escalate' ? '#22C55E'
-                    : bg === 'release' ? '#3B82F6'
-                    : bg === 'surge' ? '#F59E0B'
-                    : '#A855F7';
-                  const points = bg === 'escalate' ? '0,8 16,2'
-                    : bg === 'release' ? '0,2 16,8'
-                    : bg === 'surge' ? '0,8 6,2 12,8'
-                    : '0,2 6,8 12,2';
-                  return (
-                    <svg width="16" height="10" viewBox="0 0 16 10">
-                      <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  );
-                })()}
+                <svg className="w-3.5 h-3.5 text-amber-500/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
+                  <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
+                  <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+                </svg>
               </span>
               <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
               <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
-                {pending.deliveryGoal ? DELIVERY_DIRECTIONS[pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
+                Generating...
               </span>
               {/* Fixed-width columns matching completed node rows */}
               <span className="w-16 text-right text-[9px] text-amber-500/40 shrink-0">
@@ -302,30 +285,14 @@ function TreeNode({
         >
           {/* Row 1: score + arc name + meta */}
           <span className="flex items-center gap-1.5 w-full">
-            {/* Direction indicator — fixed width so score column stays aligned */}
+            {/* Markov indicator */}
             <span className="w-7 shrink-0 flex items-center justify-center">
-              {node.cubeGoal && (
-                <span className="font-mono text-[9px] font-bold tracking-tight text-white">
-                  {node.cubeGoal.split('').map((c, i) => (
-                    <span key={i} style={{ opacity: c === 'H' ? 0.9 : 0.25 }}>{c}</span>
-                  ))}
-                </span>
-              )}
-              {node.deliveryGoal && (() => {
-                const strokeColor = node.deliveryGoal === 'escalate' ? '#22C55E'
-                  : node.deliveryGoal === 'release' ? '#3B82F6'
-                  : node.deliveryGoal === 'surge' ? '#F59E0B'
-                  : '#A855F7';
-                const points = node.deliveryGoal === 'escalate' ? '0,8 16,2'
-                  : node.deliveryGoal === 'release' ? '0,2 16,8'
-                  : node.deliveryGoal === 'surge' ? '0,8 6,2 12,8'
-                  : '0,2 6,8 12,2';
-                return (
-                  <svg width="16" height="10" viewBox="0 0 16 10">
-                    <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                );
-              })()}
+              <svg className="w-3.5 h-3.5 text-text-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
+                <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
+                <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+              </svg>
             </span>
             <span className={`font-mono text-[12px] font-bold w-7 text-right shrink-0 ${scoreColorClass(sc)}`}>{sc}</span>
             <span className={`text-[11px] truncate flex-1 ${
@@ -334,9 +301,21 @@ function TreeNode({
               {node.arc.name}
             </span>
             {/* Move type label — fixed width for alignment */}
-            <span className="w-16 text-right text-[9px] text-text-dim shrink-0">
-              {node.cubeGoal ? NARRATIVE_CUBE[node.cubeGoal]?.name : ''}
-              {node.deliveryGoal ? DELIVERY_DIRECTIONS[node.deliveryGoal]?.name : ''}
+            {/* Compact cube sequence for scenes */}
+            <span className="w-20 flex items-center justify-end gap-px shrink-0">
+              {node.scenes.slice(0, 6).map((s, si) => {
+                const forceMap = computeForceSnapshots(node.scenes);
+                const forces = forceMap[s.id];
+                if (!forces) return null;
+                const corner = detectCubeCorner(forces);
+                const COLORS: Record<string, string> = {
+                  HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
+                  LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
+                };
+                return (
+                  <div key={si} className="w-2 h-2 rounded-sm" style={{ backgroundColor: COLORS[corner.key] ?? '#6b7280' }} title={corner.name} />
+                );
+              })}
             </span>
             {/* Scene count — fixed width for alignment */}
             <span className="w-5 text-right text-[9px] text-text-dim shrink-0">{node.scenes.length}s</span>
@@ -482,35 +461,18 @@ function MCTSTreeView({
             onClick={() => onSelectPending(pending.id)}
             className="flex items-center gap-1.5 w-full h-full text-left px-1.5 pr-2 rounded transition-colors hover:bg-amber-500/8"
           >
-            {/* Direction indicator — fixed width, matching done rows */}
+            {/* Markov indicator */}
             <span className="w-7 shrink-0 flex items-center justify-center">
-              {pending.cubeGoal && (
-                <span className="font-mono text-[9px] font-bold tracking-tight text-amber-500">
-                  {pending.cubeGoal.split('').map((c, i) => (
-                    <span key={i} style={{ opacity: c === 'H' ? 0.7 : 0.25 }}>{c}</span>
-                  ))}
-                </span>
-              )}
-              {pending.deliveryGoal && (() => {
-                const bg = pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS;
-                const strokeColor = bg === 'escalate' ? '#22C55E'
-                  : bg === 'release' ? '#3B82F6'
-                  : bg === 'surge' ? '#F59E0B'
-                  : '#A855F7';
-                const points = bg === 'escalate' ? '0,8 16,2'
-                  : bg === 'release' ? '0,2 16,8'
-                  : bg === 'surge' ? '0,8 6,2 12,8'
-                  : '0,2 6,8 12,2';
-                return (
-                  <svg width="16" height="10" viewBox="0 0 16 10">
-                    <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                );
-              })()}
+              <svg className="w-3.5 h-3.5 text-amber-500/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
+                <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
+                <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+              </svg>
             </span>
             <span className="font-mono text-[12px] font-bold w-7 text-right shrink-0 text-amber-500/50">···</span>
             <span className="text-[11px] text-amber-400/70 truncate flex-1 animate-pulse">
-              {pending.deliveryGoal ? DELIVERY_DIRECTIONS[pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS]?.name ?? pending.direction : NARRATIVE_CUBE[pending.cubeGoal as CubeCornerKey]?.name ?? pending.direction}
+              Generating...
             </span>
             {/* Fixed-width columns matching completed node rows */}
             <span className="w-16 text-right text-[9px] text-amber-500/40 shrink-0">
@@ -565,9 +527,6 @@ function PendingInspector({ pending }: { pending: PendingExpansion }) {
     }
   }, [pending.streamText]);
 
-  const deliveryDir = pending.deliveryGoal
-    ? DELIVERY_DIRECTIONS[pending.deliveryGoal as keyof typeof DELIVERY_DIRECTIONS]
-    : null;
   const elapsed = Math.round((Date.now() - pending.startedAt) / 1000);
 
   return (
@@ -579,19 +538,13 @@ function PendingInspector({ pending }: { pending: PendingExpansion }) {
           <span className="animate-pulse text-amber-400">●</span>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          {deliveryDir && <span className="text-sm text-text-primary font-medium">{deliveryDir.name}</span>}
-          {pending.cubeGoal && (
-            <>
-              <svg width="21" height="12" viewBox="0 0 21 12">
-                {pending.cubeGoal.split('').map((c, i) => {
-                  const isHi = c === 'H';
-                  const colors = ['#EF4444', '#22C55E', '#3B82F6'];
-                  return <rect key={i} x={i * 8} y={isHi ? 1 : 6} width={6} height={isHi ? 10 : 5} rx={1} fill={colors[i]} opacity={isHi ? 1 : 0.4} />;
-                })}
-              </svg>
-              <span className="font-mono text-[10px] text-violet-400">{pending.cubeGoal}</span>
-            </>
-          )}
+          <svg className="w-4 h-4 text-amber-500/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3" />
+            <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
+            <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
+            <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+          </svg>
+          <span className="text-sm text-text-primary font-medium">Markov sequence</span>
         </div>
       </div>
 
@@ -650,7 +603,6 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
     return { displayNode: rootAncestor, allPathScenes: scenes };
   }, [node, tree]);
 
-  const cubeLabel = node.cubeGoal ? NARRATIVE_CUBE[node.cubeGoal]?.name ?? null : null;
 
   // Full-path delivery curve for this node
   const pathDelivery = useMemo(() => {
@@ -702,44 +654,47 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
         {node.childIds.length > 0 && <span>{node.childIds.length} children</span>}
       </div>
 
-      {/* Direction goal */}
-      {(node.cubeGoal || node.deliveryGoal) && (
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-text-dim">{node.deliveryGoal ? 'Delivery' : 'Direction'}</span>
-          {node.cubeGoal && (
-            <>
-              <svg width="21" height="12" viewBox="0 0 21 12">
-                {node.cubeGoal.split('').map((c, i) => {
-                  const isHi = c === 'H';
-                  const colors = ['#EF4444', '#22C55E', '#3B82F6'];
-                  return <rect key={i} x={i * 8} y={isHi ? 1 : 6} width={6} height={isHi ? 10 : 5} rx={1} fill={colors[i]} opacity={isHi ? 1 : 0.4} />;
-                })}
-              </svg>
-              <span className="font-mono text-[10px] text-violet-400">{node.cubeGoal}</span>
-              {cubeLabel && <span className="text-[10px] text-text-secondary">{cubeLabel}</span>}
-            </>
-          )}
-          {node.deliveryGoal && (() => {
-            const engDir = DELIVERY_DIRECTIONS[node.deliveryGoal];
-            const strokeColor = node.deliveryGoal === 'escalate' ? '#22C55E'
-              : node.deliveryGoal === 'release' ? '#3B82F6'
-              : node.deliveryGoal === 'surge' ? '#F59E0B'
-              : '#A855F7';
-            const points = node.deliveryGoal === 'escalate' ? '0,10 24,2'
-              : node.deliveryGoal === 'release' ? '0,2 24,10'
-              : node.deliveryGoal === 'surge' ? '0,10 9,2 18,10'
-              : '0,2 9,10 18,2';
-            return (
-              <>
-                <svg width="24" height="12" viewBox="0 0 24 12">
-                  <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="text-[10px] text-text-secondary">{engDir.name}</span>
-              </>
-            );
-          })()}
-        </div>
-      )}
+      {/* Cube sequence — shows the actual scene transitions */}
+      {allPathScenes.length > 0 && (() => {
+        const vScenes = node.virtualResolvedKeys
+          .map((k) => node.virtualNarrative.scenes[k])
+          .filter((s): s is Scene => !!s);
+        const fMap = computeForceSnapshots(vScenes);
+        const CC: Record<string, string> = {
+          HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
+          LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
+        };
+        return (
+          <div>
+            <span className="text-[10px] uppercase tracking-wider text-text-dim block mb-1.5">Sequence</span>
+            <div className="flex items-center flex-wrap gap-y-1">
+              {allPathScenes.map((s, i) => {
+                const f = fMap[s.id];
+                const c = f ? detectCubeCorner(f) : null;
+                return (
+                  <span key={s.id} className="flex items-center">
+                    {i > 0 && <span className="text-text-dim/25 text-[11px] mx-0.5">→</span>}
+                    <span className="flex items-center gap-0.5 px-1 py-0.5 rounded" style={{ backgroundColor: c ? `${CC[c.key]}15` : 'transparent' }}>
+                      {c && (
+                        <svg width="15" height="8" viewBox="0 0 15 8">
+                          {['P','C','K'].map((_, fi) => {
+                            const isHi = c.key[fi] === 'H';
+                            const cols = ['#EF4444', '#22C55E', '#3B82F6'];
+                            return <rect key={fi} x={fi * 5.5} y={isHi ? 0 : 4} width={4} height={isHi ? 7 : 3} rx={0.8} fill={cols[fi]} opacity={isHi ? 0.8 : 0.2} />;
+                          })}
+                        </svg>
+                      )}
+                      <span className="text-[9px] font-medium" style={{ color: c ? CC[c.key] : '#6b7280' }}>
+                        {c?.name ?? '?'}
+                      </span>
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Delivery chart */}
       {pathDelivery.pts.length > 1 && (() => {
@@ -851,41 +806,70 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
         )}
       </div>
 
-      {/* Arc view — scene summary list */}
-      {view === 'arc' && (
-        <div className="flex flex-col gap-2">
-          {allPathScenes.map((s, i) => {
-            const loc = node.virtualNarrative.locations[s.locationId];
-            const pov = s.povId ? node.virtualNarrative.characters[s.povId] : null;
-            return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setView(i)}
-              className="group flex flex-col gap-1 rounded bg-white/3 p-2 text-left transition-colors hover:bg-white/[0.07]"
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] text-text-dim">{i + 1}</span>
-                <span className="text-[10px] text-text-dim">{loc?.name ?? s.locationId}</span>
-                {(pov || s.povId) && (
-                  <span className="text-[10px] text-text-dim ml-auto">POV: {pov?.name ?? s.povId}</span>
-                )}
-              </div>
-              <p className="text-xs text-text-secondary leading-relaxed group-hover:text-text-primary transition-colors">
-                {s.summary || 'No summary available.'}
-              </p>
-              {s.events.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-0.5">
-                  {s.events.map((ev, j) => (
-                    <span key={j} className="text-[9px] bg-amber-500/10 text-amber-400/80 rounded px-1.5 py-0.5">{ev}</span>
-                  ))}
+      {/* Arc view — scene summary list with cube positions */}
+      {view === 'arc' && (() => {
+        // Compute forces for all scenes so we can classify each
+        const allVirtualScenes = node.virtualResolvedKeys
+          .map((k) => node.virtualNarrative.scenes[k])
+          .filter((s): s is Scene => !!s);
+        const forceMap = computeForceSnapshots(allVirtualScenes);
+        const CCOLORS: Record<string, string> = {
+          HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
+          LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
+        };
+
+        return (
+          <div className="flex flex-col gap-2">
+            {allPathScenes.map((s, i) => {
+              const loc = node.virtualNarrative.locations[s.locationId];
+              const pov = s.povId ? node.virtualNarrative.characters[s.povId] : null;
+              const forces = forceMap[s.id];
+              const sceneCorner = forces ? detectCubeCorner(forces) : null;
+              return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setView(i)}
+                className="group flex flex-col gap-1 rounded bg-white/3 p-2 text-left transition-colors hover:bg-white/[0.07]"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] text-text-dim">{i + 1}</span>
+                  {/* Cube position badge */}
+                  {sceneCorner && (
+                    <span className="flex items-center gap-1">
+                      <svg width="18" height="10" viewBox="0 0 18 10">
+                        {['P','C','K'].map((label, fi) => {
+                          const isHi = sceneCorner.key[fi] === 'H';
+                          const colors = ['#EF4444', '#22C55E', '#3B82F6'];
+                          return <rect key={fi} x={fi * 6.5} y={isHi ? 1 : 5} width={5} height={isHi ? 8 : 4} rx={1} fill={colors[fi]} opacity={isHi ? 0.8 : 0.25} />;
+                        })}
+                      </svg>
+                      <span className="text-[9px] font-medium" style={{ color: CCOLORS[sceneCorner.key] }}>
+                        {sceneCorner.name}
+                      </span>
+                    </span>
+                  )}
+                  <span className="text-[10px] text-text-dim">{loc?.name ?? s.locationId}</span>
+                  {(pov || s.povId) && (
+                    <span className="text-[10px] text-text-dim ml-auto">POV: {pov?.name ?? s.povId}</span>
+                  )}
                 </div>
-              )}
-            </button>
-            );
-          })}
-        </div>
-      )}
+                <p className="text-xs text-text-secondary leading-relaxed group-hover:text-text-primary transition-colors">
+                  {s.summary || 'No summary available.'}
+                </p>
+                {s.events.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {s.events.map((ev, j) => (
+                      <span key={j} className="text-[9px] bg-amber-500/10 text-amber-400/80 rounded px-1.5 py-0.5">{ev}</span>
+                    ))}
+                  </div>
+                )}
+              </button>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Scene detail view */}
       {scene && (() => {

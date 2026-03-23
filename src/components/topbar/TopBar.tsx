@@ -14,6 +14,7 @@ import { BranchContextModal } from '@/components/topbar/BranchContextModal';
 import { FormulaModal } from '@/components/topbar/FormulaModal';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
 import { MarkovChainModal } from '@/components/topbar/MarkovChainModal';
+import { ThreadLifecycleModal } from '@/components/topbar/ThreadLifecycleModal';
 
 
 function exportNarrative(narrative: NarrativeState) {
@@ -146,6 +147,7 @@ export default function TopBar() {
   const [formulaOpen, setFormulaOpen] = useState(false);
   const [slidesOpen, setSlidesOpen] = useState(false);
   const [markovOpen, setMarkovOpen] = useState(false);
+  const [threadLifecycleOpen, setThreadLifecycleOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'delivery'>('arcs');
@@ -479,37 +481,25 @@ export default function TopBar() {
             { label: 'Story Reader', onClick: () => setStoryOpen(true), disabled: !hasNarrative },
             { label: 'Slides', onClick: () => setSlidesOpen(true), disabled: !hasNarrative },
             { separator: true },
+            { label: 'Scorecard', onClick: () => setScorecardOpen((v) => !v), disabled: !hasNarrative },
             { label: 'Force Tracker', onClick: () => window.dispatchEvent(new Event('open-force-tracker')), disabled: !hasNarrative },
             { label: 'Narrative Cube', onClick: () => window.dispatchEvent(new CustomEvent('open-cube-viewer')), disabled: !hasNarrative },
           ]}
         />
 
         <MenuDropdown
-          label="Analyze"
-          menuKey="analyze"
+          label="Inspect"
+          menuKey="inspect"
           openMenu={openMenu}
           setOpenMenu={setOpenMenu}
           anyMenuOpen={openMenu !== null}
           items={[
-            { label: 'Scorecard', onClick: () => setScorecardOpen((v) => !v), disabled: !hasNarrative },
+            { label: 'Thread Lifecycle', onClick: () => setThreadLifecycleOpen(true), disabled: !hasNarrative },
             { label: 'Cube Explorer', onClick: () => setCubeExplorerOpen(true), disabled: !hasNarrative },
             { label: 'State Machine', onClick: () => setMarkovOpen(true), disabled: !hasNarrative },
             { separator: true },
             { label: 'Formulas', onClick: () => setFormulaOpen(true) },
-          ]}
-        />
-
-        <MenuDropdown
-          label="World"
-          menuKey="world"
-          openMenu={openMenu}
-          setOpenMenu={setOpenMenu}
-          anyMenuOpen={openMenu !== null}
-          items={[
             { label: 'Rules', onClick: () => window.dispatchEvent(new Event('open-rules-panel')), disabled: !hasNarrative },
-            ...(process.env.NEXT_PUBLIC_USER_API_KEYS === 'true'
-              ? [{ label: 'API Keys', onClick: () => window.dispatchEvent(new Event('open-api-keys')) } as Exclude<MenuItem, { separator: true }>]
-              : []),
           ]}
         />
 
@@ -530,6 +520,9 @@ export default function TopBar() {
                 ? <span className="w-2 h-2 rounded-full bg-red-400" />
                 : undefined,
             },
+            ...(process.env.NEXT_PUBLIC_USER_API_KEYS === 'true'
+              ? [{ separator: true } as MenuItem, { label: 'API Keys', onClick: () => window.dispatchEvent(new Event('open-api-keys')) } as Exclude<MenuItem, { separator: true }>]
+              : []),
           ]}
         />
       </div>
@@ -845,6 +838,13 @@ export default function TopBar() {
         />
       )}
       {formulaOpen && <FormulaModal onClose={() => setFormulaOpen(false)} />}
+      {threadLifecycleOpen && narrative && (
+        <ThreadLifecycleModal
+          narrative={narrative}
+          resolvedKeys={state.resolvedSceneKeys}
+          onClose={() => setThreadLifecycleOpen(false)}
+        />
+      )}
       {markovOpen && narrative && (
         <MarkovChainModal
           narrative={narrative}

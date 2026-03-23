@@ -246,6 +246,11 @@ export function buildPresetSequence(preset: PacingPreset): PacingSequence {
   return { steps, pacingDescription: buildPacingDescription(steps) };
 }
 
+/** Build a PacingSequence from a raw list of modes. */
+export function buildSequenceFromModes(modes: CubeCornerKey[]): PacingSequence {
+  return buildPresetSequence({ key: 'custom', name: 'Custom', description: 'Custom sequence', modes });
+}
+
 /** Build the introduction sequence for new story generation (wizard). */
 export function buildIntroductionSequence(): PacingSequence {
   return buildPresetSequence({

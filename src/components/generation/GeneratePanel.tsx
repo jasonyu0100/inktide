@@ -6,7 +6,7 @@ import { generateScenes, suggestArcDirection, expandWorld, suggestWorldExpansion
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
-import { samplePacingSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, PACING_PRESETS, buildPresetSequence, type PacingSequence } from '@/lib/markov';
+import { samplePacingSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, PACING_PRESETS, buildPresetSequence, buildSequenceFromModes, type PacingSequence } from '@/lib/markov';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { PacingStrip, CubeBadge } from './PacingStrip';
 import { MarkovGraph } from './MarkovGraph';
@@ -19,6 +19,8 @@ const CORNER_COLORS: Record<CubeCornerKey, string> = {
   HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
   LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
 };
+
+const ALL_CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
 
 // ── Streaming Output ─────────────────────────────────────────────────────────
 
@@ -98,6 +100,28 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setAnimating(true);
   }, [currentMode, count, storyMatrix]);
 
+  const handleCycleStep = useCallback((index: number, direction: 1 | -1) => {
+    if (!previewSequence) return;
+    const modes = previewSequence.steps.map((s) => s.mode);
+    const cur = ALL_CORNERS.indexOf(modes[index]);
+    modes[index] = ALL_CORNERS[(cur + direction + ALL_CORNERS.length) % ALL_CORNERS.length];
+    setPreviewSequence(buildSequenceFromModes(modes));
+  }, [previewSequence]);
+
+  const handleAddStep = useCallback(() => {
+    if (!previewSequence) return;
+    const modes = previewSequence.steps.map((s) => s.mode);
+    modes.push('LLL');
+    setPreviewSequence(buildSequenceFromModes(modes));
+    setCount(modes.length);
+  }, [previewSequence]);
+
+  const handleRemoveStep = useCallback((index: number) => {
+    if (!previewSequence || previewSequence.steps.length <= 1) return;
+    const modes = previewSequence.steps.map((s) => s.mode).filter((_, i) => i !== index);
+    setPreviewSequence(buildSequenceFromModes(modes));
+    setCount(modes.length);
+  }, [previewSequence]);
 
   async function handleSuggestArc() {
     if (!narrative) return;
@@ -194,7 +218,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         {loading ? (
           <StreamingOutput label={mode === 'continuation' ? (newArc ? 'Generating arc' : 'Continuing arc') : 'Expanding world'} text={streamText} />
         ) : showPreview ? (
-          /* ── Pacing Preview ───────────────────────────────────── */
+          /* ── Pacing Preview (editable) ─────────────────────────── */
           <div className="flex flex-col gap-4">
             {/* Graph centered */}
             <div className="flex justify-center">
@@ -208,11 +232,56 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
               />
             </div>
 
-            {/* Strip below */}
-            <PacingStrip
-              sequence={previewSequence}
-              animating={animating}
-            />
+            {/* Editable strip — animated on first render, then editable */}
+            {animating ? (
+              <PacingStrip
+                sequence={previewSequence}
+                animating={animating}
+              />
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center flex-wrap gap-1.5">
+                  {previewSequence.steps.map((step, i) => (
+                    <div key={i} className="group relative flex items-center">
+                      {i > 0 && <span className="text-text-dim/30 text-[13px] font-light select-none mx-0.5">→</span>}
+                      <button
+                        onClick={() => handleCycleStep(i, 1)}
+                        onContextMenu={(e) => { e.preventDefault(); handleCycleStep(i, -1); }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-all hover:ring-1 hover:ring-white/20"
+                        style={{ backgroundColor: `${CORNER_COLORS[step.mode]}15` }}
+                        title={`${NARRATIVE_CUBE[step.mode].name} — click to cycle, right-click to reverse`}
+                      >
+                        <CubeBadge mode={step.mode} size="sm" />
+                        <span className="text-[10px] font-semibold leading-none whitespace-nowrap" style={{ color: CORNER_COLORS[step.mode] }}>
+                          {NARRATIVE_CUBE[step.mode].name}
+                        </span>
+                      </button>
+                      {/* Remove button */}
+                      {previewSequence.steps.length > 1 && (
+                        <button
+                          onClick={() => handleRemoveStep(i)}
+                          className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-red-500/80 text-white text-[8px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remove step"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {/* Add step */}
+                  <button
+                    onClick={handleAddStep}
+                    className="w-6 h-6 rounded border border-dashed border-white/15 text-text-dim hover:text-text-primary hover:border-white/30 transition flex items-center justify-center text-[11px]"
+                    title="Add step"
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="text-[10px] text-text-dim leading-snug">
+                  {previewSequence.pacingDescription}
+                </p>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex items-center gap-2 pt-1">

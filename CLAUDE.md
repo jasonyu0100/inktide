@@ -6,7 +6,9 @@ Knowledge-graph-based narrative analysis and generation platform. Derives the po
 
 Narratives are modelled as a **knowledge graph** that mutates scene by scene. An LLM records structural mutations (threads, knowledge, relationships) at each scene, and static analysis formulas compute **narrative forces** from those mutations. This enables:
 
+- **Markov chain pacing** — transition matrices derived from published works shape scene-by-scene rhythm
 - **MCTS search** that optimises narrative force trajectories to find the strongest possible story paths
+- **Pacing presets** — curated cube position sequences that bypass Markov sampling for targeted arcs
 - **Slides** that walk through a series' peaks, valleys, and force analysis
 - **Analysis engine** that compiles existing text into arcs and scenes via chunked window-function processing
 - **Multiple analysis modes**: cube trajectory, explorer, and stock-type force charts
@@ -34,6 +36,7 @@ npm run lint     # ESLint
 src/
 ├── app/                    # Next.js routes & API endpoints
 │   ├── series/[id]/        # Main story editor workspace
+│   ├── paper/              # Whitepaper — theory, formulas, validation
 │   ├── analysis/           # Text-to-narrative extraction pipeline
 │   └── api/                # generate, chat, generate-image, generate-cover, random-idea, suggest-premise, analyze-chapter
 ├── components/             # React UI (organized by feature area)
@@ -42,7 +45,7 @@ src/
 │   ├── inspector/          # SidePanel — entity detail views
 │   ├── timeline/           # TimelineStrip, ForceCharts, NarrativeCubeViewer
 │   ├── topbar/             # TopBar, CubeExplorer, FormulaModal
-│   ├── generation/         # GeneratePanel, BranchModal
+│   ├── generation/         # GeneratePanel, BranchModal, PacingStrip, MarkovGraph
 │   ├── analytics/          # ForceTracker — stock-type force analysis
 │   ├── auto/               # AutoControlBar, AutoSettingsPanel
 │   ├── mcts/               # MCTSPanel, MCTSControlBar
@@ -57,9 +60,11 @@ src/
 │   │   ├── context.ts      # branchContext, sceneContext — LLM context building
 │   │   ├── scenes.ts       # generateScenes, generateScenePlan
 │   │   ├── prose.ts        # scoreSceneProse, rewriteSceneProse
-│   │   ├── world.ts        # expandWorld, suggestDirection
+│   │   ├── world.ts        # expandWorld, suggestDirection, generateNarrative
+│   │   ├── prompts.ts      # Modular prompt sections (force standards, pacing, mutations, POV, continuity)
 │   │   └── json.ts         # JSON parsing utilities
 │   ├── narrative-utils.ts  # Force calculation formulas, cube logic, graph algorithms
+│   ├── markov.ts           # Markov chain pacing — transition matrices, sequence sampling, presets, prompt generation
 │   ├── store.tsx           # State management + reducer actions
 │   ├── text-analysis.ts    # Corpus → NarrativeState extraction (window-function chunking)
 │   ├── auto-engine.ts      # Automated story generation loop
@@ -71,7 +76,7 @@ src/
 │   ├── epub-export.ts      # EPUB export
 │   └── api-logger.ts       # API call logging & token tracking
 ├── types/
-│   ├── narrative.ts        # Domain types: Scene, Character, Location, Thread, Arc, ProseScore, etc.
+│   ├── narrative.ts        # Domain types: Scene, Character, Location, Thread, Arc, ProseScore, CubeCorner, etc.
 │   └── mcts.ts             # MCTS-specific types
 ├── hooks/                  # useAutoPlay, useMCTS, useFeatureAccess
 └── data/                   # Seed narratives (HP, LOTR, Star Wars, GoT, Reverend Insanity)
@@ -84,13 +89,14 @@ src/
 - **Thread** — trackable narrative threads with lifecycle status; mutations record payoff/change per scene
 - **Branch/Commit** — git-like branching for story timelines
 - **Arc** — world-building arcs that group scenes and expand the narrative world
+- **CubeCorner** — one of 8 narrative modes (Epoch, Climax, Revelation, Closure, Discovery, Growth, Lore, Rest) defined by high/low combinations of the three forces
 
 ## Narrative Forces & Formulas
 
 Three force dimensions derived from knowledge graph mutations, all **z-score normalised** (mean=0, units=standard deviations):
 
-- **Payoff (P)** — thread phase transitions weighted by jump magnitude, plus relationship valence deltas. Formula: `Σ |φ_to - φ_from| + Σ |Δv|`. Phase indices: dormant(0) → active(1) → escalating(2) → critical(3) → resolved/subverted/abandoned(4). Small pulse reward (0.25) for same-status mentions.
-- **Change (C)** — total mutation intensity. Formula: `√Σm + √|events|` where Σm = total continuity + relationship (|Δv| weighted) mutations. Square root scaling allows dense scenes to spike meaningfully above sparse ones. Cast-blind — total mutations matter, not character count.
+- **Payoff (P)** — thread phase transitions weighted by jump magnitude. Formula: `Σ |φ_to - φ_from|`. Phase indices: dormant(0) → active(1) → escalating(2) → critical(3) → resolved/subverted/abandoned(4). Small pulse reward (0.25) for same-status mentions.
+- **Change (C)** — mutation intensity. Formula: `√M_c + √|E|` where M_c = continuity mutations and |E| = event count. Square root scaling allows dense scenes to spike meaningfully above sparse ones. Cast-blind.
 - **Knowledge (K)** — world knowledge graph complexity delta per scene. Formula: `K = ΔN + √ΔE`. Nodes linear (each new concept = 1), edges sqrt (first connections matter more than bulk linking).
 
 Derived metrics:
@@ -100,12 +106,49 @@ Derived metrics:
 
 Formulas in `src/lib/narrative-utils.ts`, inspectable via `FormulaModal`. The **cube** model maps forces into 3D space for trajectory analysis.
 
+## Narrative Cube (8 Modes)
+
+Each scene is classified into one of 8 modes based on which forces are above (H) or below (L) the mean:
+
+| Key | Name | Forces | Role |
+|-----|------|--------|------|
+| HHH | Epoch | P↑ C↑ K↑ | Everything converges — the defining moment |
+| HHL | Climax | P↑ C↑ K↓ | Threads resolve, characters transform within established rules |
+| HLH | Revelation | P↑ C↓ K↑ | World-building unlocks resolution |
+| HLL | Closure | P↑ C↓ K↓ | Quiet resolution, tying loose ends |
+| LHH | Discovery | P↓ C↑ K↑ | Characters transform through new world systems |
+| LHL | Growth | P↓ C↑ K↓ | Internal character development |
+| LLH | Lore | P↓ C↓ K↑ | Pure world-building, planting seeds |
+| LLL | Rest | P↓ C↓ K↓ | Recovery and breathing room |
+
+## Markov Chain Pacing (src/lib/markov.ts)
+
+Scene generation is guided by **Markov chain sequences** that determine the pacing rhythm before the LLM generates content. This separates *what happens* (LLM) from *how intense it is* (math).
+
+**Flow:**
+1. Detect current mode from the last scene's force snapshot
+2. Sample a sequence of cube modes from a transition matrix (or use a preset)
+3. Build a prompt with per-scene mode assignments and mutation guidance
+4. LLM generates scenes with mutations matching each mode's targets
+
+**Transition matrices** are computed from analysed works (Harry Potter is the default). Each matrix captures the pacing fingerprint of a published work — how often it transitions between modes.
+
+**Pacing presets** are curated fixed sequences that bypass Markov sampling:
+- 3-scene: Sucker Punch, Quick Resolve, Crucible
+- 5-scene: Classic Arc, Unravelling, Pressure Cooker, Inversion, Deep Dive
+- 8-scene: Introduction, Full Arc, Slow Burn, Roller Coaster, Revelation Arc, Gauntlet
+
+**Introduction sequence** (used by the wizard for new stories): Rest → Lore → Growth → Discovery → Lore → Growth → Discovery → Climax. Designed to showcase varied locations and build to a first climax.
+
+The **sequence prompt** (`buildSequencePrompt`) tells the LLM the formulas, per-mode mutation guidance (what kind and how many mutations each mode requires), and force targets. The LLM knows that "the mutations you generate ARE the forces."
+
 ## AI Pipeline (src/lib/ai/)
 
 All LLM calls go through `callGenerate` (non-streaming) or `callGenerateStream` (streaming) in `api.ts`, which hit `/api/generate`.
 
 Key functions across modules:
-- `generateScenes()` — scene structures with mutations from narrative state
+- `generateNarrative()` — full world + 8-scene introduction arc (wizard)
+- `generateScenes()` — scene structures with mutations, paced by Markov sequence
 - `generateScenePlan()` — beat-by-beat blueprint (streaming)
 - `generateSceneProse()` — full prose from plan (streaming)
 - `scoreSceneProse()` — returns ProseScore with critique

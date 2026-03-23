@@ -1,44 +1,51 @@
 # Narrative Engine
 
-A knowledge-graph-based narrative analysis and generation platform that derives the power of stories through scene-level mutation tracking, computing **payoff**, **change**, and **knowledge** forces from knowledge graph mutations.
+A knowledge-graph-based narrative analysis and generation platform that measures what stories do to readers — computing **payoff**, **change**, and **knowledge** forces from structural mutations scene by scene.
 
 ## How It Works
 
-Narratives are modelled as a **knowledge graph** — characters, locations, threads, and relationships — that mutates scene by scene. An LLM records structural mutations at each scene, and static analysis formulas compute **narrative forces** from those mutations.
+Every narrative is a **knowledge graph** — characters, locations, threads, and world concepts — that mutates scene by scene. An LLM records structural mutations at each scene, then deterministic formulas compute **narrative forces** from those mutations. The LLM handles comprehension; the math handles measurement.
 
-### Knowledge Graph Mutations
+### Three Forces
 
-Every scene records changes to the narrative world:
+| Force | What it measures | Formula |
+|-------|-----------------|---------|
+| **Payoff** | Thread phase transitions — moments the story can't take back | `P = Σ \|φ_to - φ_from\|` |
+| **Change** | Mutation intensity — how much happened | `C = √M_c + √\|E\|` |
+| **Knowledge** | World-building expansion — new concepts and connections | `K = ΔN + √ΔE` |
 
-- **Thread mutations** — how plot threads advance, complicate, or resolve
-- **Knowledge mutations** — what characters learn or reveal (new concepts and connections)
-- **Relationship mutations** — how connections between characters shift
+Forces are z-score normalised (mean=0, units=standard deviations) and compose into:
+- **Tension** — `C + K - P` — buildup without release
+- **Delivery** — `0.5P + 0.5·tanh(C/2) + 0.5·tanh(K/2) + 0.3·contrast` — the dopamine hit
+- **Swing** — Euclidean distance between consecutive force snapshots — the story breathing
 
-### Narrative Forces
+### The Narrative Cube
 
-Three force dimensions derived from mutations, all **z-score normalised**:
+Forces map into a 3D cube with 8 modes — every scene occupies one corner:
 
-- **Payoff (P)** — thread phase transitions weighted by jump magnitude, plus relationship valence deltas. `Σ |φ_to - φ_from| + Σ |Δv|`
-- **Change (C)** — mutation reach per character with logarithmic scaling. `Σ_c log₂(1 + m_c)`
-- **Knowledge (K)** — world knowledge graph complexity delta. `K = ΔN + 0.5 · ΔE`
+**Payoff modes:** Epoch (P↑C↑K↑), Climax (P↑C↑K↓), Revelation (P↑C↓K↑), Closure (P↑C↓K↓)
+**Buildup modes:** Discovery (P↓C↑K↑), Growth (P↓C↑K↓), Lore (P↓C↓K↑), Rest (P↓C↓K↓)
 
-Derived metrics:
-- **Delivery** — `(P + C + K) / 3`, Gaussian-smoothed overall narrative presence
-- **Tension** — `C + K - P`, buildup without release
-- **Swing** — Euclidean distance between consecutive force snapshots
+### Markov Chain Pacing
 
-These forces map into a **3D cube model** for trajectory analysis, comparative scoring, and visualisation.
+Scene-to-scene transitions form an empirical Markov chain. Transition matrices computed from published works capture each work's pacing fingerprint — Harry Potter breathes differently from 1984. Before generating an arc, the engine samples a pacing sequence from the matrix, producing assignments like `Growth → Lore → Climax → Rest → Growth`. Each scene gets specific mutation guidance so the computed forces land at the intended cube position.
+
+**Pacing presets** offer curated sequences for common arc shapes: Classic Arc, Slow Burn, Pressure Cooker, Roller Coaster, and more.
 
 ## Features
 
+- **Markov Chain Pacing** — transition matrices from published works shape generation rhythm
+- **Pacing Presets** — curated cube position sequences for targeted arcs (3, 5, or 8 scenes)
 - **MCTS Narrative Search** — Monte Carlo Tree Search explores narrative branches, optimising force trajectories
 - **Slides** — interactive walkthrough of a series' peaks, valleys, and force decomposition
-- **Analysis Engine** — compiles existing text into the knowledge graph via window-function chunking
-- **Analysis Modes** — cube trajectory (3D force paths), explorer (interactive graph), force charts (stock-type time-series)
+- **Analysis Engine** — paste any text (up to 500K words) and extract the knowledge graph, forces, and delivery curve
 - **Scene Generation** — full pipeline: scene structure → beat-by-beat plan → prose → grading → rewriting
 - **World Building** — arc-based expansion of characters, locations, and threads
 - **Branching Timelines** — git-like branches for alternate storylines
 - **Auto-Generation** — automated story generation with configurable constraints
+- **Force Charts** — stock-type time-series of payoff, change, knowledge, delivery, and swing
+- **Grading** — exponential curve calibrated against published literature (HP, Gatsby, Crime and Punishment, Coiling Dragon)
+- **Classification** — archetype detection (Masterwork, Epic, Chronicle, Saga, etc.) and narrative shape classification
 - **EPUB Export** — export as a publishable ebook
 
 ## Getting Started
@@ -91,6 +98,7 @@ npm start
 src/
 ├── app/                    # Next.js routes & API endpoints
 │   ├── series/[id]/        # Main story editor workspace
+│   ├── paper/              # Whitepaper — theory, formulas, validation
 │   ├── analysis/           # Text-to-narrative extraction pipeline
 │   └── api/                # LLM, image, and idea generation endpoints
 ├── components/             # React UI (organized by feature area)
@@ -99,21 +107,23 @@ src/
 │   ├── slides/             # SlidesPlayer — series walkthrough presentation
 │   ├── mcts/               # MCTSPanel — narrative force optimisation
 │   ├── analytics/          # ForceTracker — stock-type force metrics
+│   ├── generation/         # GeneratePanel, PacingStrip, MarkovGraph — scene generation with pacing
 │   ├── topbar/             # CubeExplorer, FormulaModal
 │   ├── story/              # StoryReader — prose reading/grading/rewriting
-│   ├── generation/         # GeneratePanel — scene generation
 │   └── ...
 ├── lib/
-│   ├── ai/                 # LLM calls (modularised: api, context, scenes, prose, world, json)
-│   ├── narrative-utils.ts  # Force calculation formulas, cube logic, graph algorithms
+│   ├── ai/                 # LLM calls (modularised: api, context, scenes, prose, world, prompts, json)
+│   ├── narrative-utils.ts  # Force calculation formulas, cube logic, delivery curve, grading
+│   ├── markov.ts           # Markov chain pacing — transition matrices, presets, sequence prompts
 │   ├── text-analysis.ts    # Corpus → knowledge graph extraction (window-function chunking)
 │   ├── mcts-engine.ts      # MCTS — optimises narrative force trajectories
 │   ├── auto-engine.ts      # Automated generation loop
 │   └── ...
 ├── types/
-│   ├── narrative.ts        # Domain types: Scene, Character, Thread, Arc, etc.
+│   ├── narrative.ts        # Domain types: Scene, Character, Thread, Arc, CubeCorner, etc.
 │   └── mcts.ts             # MCTS-specific types
-└── data/                   # Seed narratives (HP, LOTR, Star Wars, GoT, Reverend Insanity)
+├── public/works/           # Analysed reference works (HP, Gatsby, 1984, etc.) — JSON knowledge graphs
+└── data/                   # Seed narratives
 ```
 
 ## License

@@ -228,28 +228,18 @@ function computeRawPayoff(scene: Scene): number {
     }
   }
 
-  for (const rm of scene.relationshipMutations) {
-    score += Math.abs(rm.valenceDelta);
-  }
-
   return score;
 }
 
-/** Raw change: total mutation intensity with logarithmic scaling.
- *  C = log₂(1 + Σm) + log₂(1 + |events|)
- *  Σm = total continuity + relationship (|Δv| weighted) mutations across all characters.
+/** Raw change: total mutation intensity with sqrt scaling.
+ *  C = √|M_c| + √|events|
+ *  M_c = continuity mutations (what characters learn, lose, or become).
  *  Cast-blind — a tight 2-character confrontation scores the same as a 10-character
- *  ensemble with equal total mutations. Events contribute as a separate log term. */
+ *  ensemble with equal total mutations. Events contribute as a separate sqrt term. */
 function rawChange(scene: Scene): number {
-  let totalMutations = 0;
-  totalMutations += scene.continuityMutations.length;
-  for (const rm of scene.relationshipMutations) {
-    const weight = Math.abs(rm.valenceDelta) || 0.25;
-    totalMutations += weight * 2; // both sides of the relationship
-  }
   // sqrt for both — less aggressive compression than log₂,
   // allows dense scenes to spike meaningfully above sparse ones.
-  return Math.sqrt(totalMutations) + Math.sqrt(scene.events.length);
+  return Math.sqrt(scene.continuityMutations.length) + Math.sqrt(scene.events.length);
 }
 
 /** Raw knowledge: K = ΔN + √ΔE

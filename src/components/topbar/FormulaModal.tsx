@@ -43,17 +43,17 @@ function ForcesTab() {
       </p>
 
       <S title="Payoff" analogy="Did something permanent happen? A betrayal, a death, a vow — moments that can't be undone.">
-        <Block tex="P = \sum_{t} \left| \varphi_{\text{to}} - \varphi_{\text{from}} \right| + \sum_{r} |\Delta v_r|" />
+        <Block tex="P = \sum_{t} \left| \varphi_{\text{to}} - \varphi_{\text{from}} \right|" />
         <p className="text-[10px] text-text-dim">
           Phase index: dormant(0), active(1), escalating(2), critical(3), resolved/subverted/abandoned(4).
-          Transitions score by distance. Same-status mentions earn a 0.25 pulse. Relationship valence deltas add <Tex>{'|\\Delta v|'}</Tex>.
+          Transitions score by distance. Same-status mentions earn a 0.25 pulse.
         </p>
       </S>
 
       <S title="Change" analogy="How intensely did this scene transform? A tight confrontation scores the same as an ensemble with equal total mutations.">
-        <Block tex={String.raw`C = \sqrt{\,M_c + \!\sum_{r}\, 2\,|\Delta v_r|\,} \;+\; \sqrt{\,|\mathcal{E}|\,}`} />
+        <Block tex={String.raw`C = \sqrt{\,M_c\,} \;+\; \sqrt{\,|\mathcal{E}|\,}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`M_c`}</Tex> = continuity mutations, <Tex>{String.raw`|\Delta v_r|`}</Tex> = relationship intensity (counted twice — both sides), <Tex>{String.raw`|\mathcal{E}|`}</Tex> = events. Square root scaling — dense scenes spike meaningfully above sparse ones. Cast-blind.
+          <Tex>{String.raw`M_c`}</Tex> = continuity mutations (what characters learn, lose, or become), <Tex>{String.raw`|\mathcal{E}|`}</Tex> = events. Square root scaling — dense scenes spike meaningfully above sparse ones. Cast-blind.
         </p>
       </S>
 

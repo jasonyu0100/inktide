@@ -245,11 +245,11 @@ export default function PaperPage() {
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">Payoff</h3>
               <P>
-                Did something permanent happen? Payoff measures thread phase transitions and relationship valence shifts — moments the story can&apos;t take back.
+                Did something permanent happen? Payoff measures thread phase transitions — moments the story can&apos;t take back.
               </P>
-              <Eq tex="P = \sum_{t} \left| \varphi_{\text{to}} - \varphi_{\text{from}} \right| + \sum_{r} \left| \Delta v_r \right|" />
+              <Eq tex="P = \sum_{t} \left| \varphi_{\text{to}} - \varphi_{\text{from}} \right|" />
               <P>
-                Threads carry a phase index: dormant (0), active (1), escalating (2), critical (3), resolved/subverted/abandoned (4). A thread jumping from active to critical contributes <Tex>{'|3 - 1| = 2'}</Tex>. Relationship valence deltas capture shifts like ally-to-enemy. Threads mentioned without transitioning earn a pulse of 0.25 — enough to stay visible without inflating the score.
+                Threads carry a phase index: dormant (0), active (1), escalating (2), critical (3), resolved/subverted/abandoned (4). A thread jumping from active to critical contributes <Tex>{'|3 - 1| = 2'}</Tex>. Threads mentioned without transitioning earn a pulse of 0.25 — enough to stay visible without inflating the score.
               </P>
             </div>
 
@@ -258,9 +258,9 @@ export default function PaperPage() {
               <P>
                 How intensely did this scene transform? A tight two-character confrontation scores the same as a ten-character ensemble with equal total mutations — the formula is cast-blind.
               </P>
-              <Eq tex={String.raw`C = \sqrt{\,M_c + \!\sum_{r}\, 2\,|\Delta v_r|\,} \;+\; \sqrt{\,|\mathcal{E}|\,}`} />
+              <Eq tex={String.raw`C = \sqrt{\,M_c\,} \;+\; \sqrt{\,|\mathcal{E}|\,}`} />
               <P>
-                <Tex>{String.raw`M_c`}</Tex> is the number of continuity mutations (what characters learn or forget), <Tex>{String.raw`|\Delta v_r|`}</Tex> weights each relationship shift by its intensity (counted twice — both sides change), and <Tex>{String.raw`|\mathcal{E}|`}</Tex> is the event count. Square root scaling gives diminishing returns while preserving meaningful spikes — a dense confrontation with 8 mutations scores 2.8&times; a quiet scene with 1 mutation, producing visible peaks and valleys in the force graph.
+                <Tex>{String.raw`M_c`}</Tex> is the number of continuity mutations (what characters learn, lose, or become) and <Tex>{String.raw`|\mathcal{E}|`}</Tex> is the event count. Square root scaling gives diminishing returns while preserving meaningful spikes — a dense confrontation with 8 mutations scores 2.8&times; a quiet scene with 1 mutation, producing visible peaks and valleys in the force graph.
               </P>
             </div>
 
@@ -286,7 +286,7 @@ export default function PaperPage() {
             {(() => {
               // Smoothed delivery values computed from the actual works JSON:
               // raw forces → z-score normalise → delivery formula → Gaussian smooth (σ=1.5)
-              const delivery = [0.744,0.587,0.37,0.273,0.378,0.539,0.544,0.36,0.169,0.164,0.328,0.451,0.36,0.094,-0.16,-0.288,-0.317,-0.289,-0.18,0.017,0.209,0.277,0.191,0.049,0.004,0.14,0.395,0.649,0.841,0.976,1.031,0.96,0.84,0.797,0.765,0.596,0.32,0.072,-0.083,-0.157,-0.164,-0.103,0.022,0.225,0.524,0.844,0.993,0.886,0.705,0.635,0.593,0.421,0.147,-0.069,-0.152,-0.168,-0.208,-0.239,-0.186,-0.084,-0.05,-0.152,-0.332,-0.417,-0.299,-0.059,0.158,0.268,0.248,0.143,0.094,0.151,0.133,-0.114,-0.448,-0.61,-0.501,-0.215,0.022,0.008,-0.213,-0.385,-0.338,-0.104,0.203,0.459,0.588,0.6,0.522,0.393,0.278];
+              const delivery = [1.067,0.858,0.558,0.392,0.471,0.626,0.614,0.402,0.174,0.115,0.224,0.335,0.288,0.081,-0.155,-0.299,-0.325,-0.255,-0.097,0.109,0.263,0.266,0.129,-0.018,-0.041,0.097,0.325,0.553,0.756,0.933,1.022,0.946,0.775,0.68,0.656,0.534,0.273,0.016,-0.118,-0.144,-0.123,-0.078,0.011,0.189,0.477,0.78,0.905,0.79,0.613,0.523,0.449,0.284,0.066,-0.077,-0.082,-0.035,-0.059,-0.114,-0.087,-0.018,-0.04,-0.179,-0.327,-0.334,-0.16,0.076,0.248,0.308,0.242,0.097,0.023,0.07,0.064,-0.147,-0.437,-0.574,-0.469,-0.212,-0.007,-0.033,-0.241,-0.387,-0.313,-0.065,0.24,0.504,0.662,0.687,0.582,0.406,0.238];
               const n = delivery.length;
               const W = 620, H = 200;
               const PAD = { top: 30, right: 20, bottom: 40, left: 40 };

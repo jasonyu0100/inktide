@@ -26,6 +26,11 @@ const MORPH_GLYPHS: Record<string, string[]> = {
   v: ['ν', 'ʋ', 'ᵥ', 'ṽ'],
   o: ['ö', 'ø', 'ō', 'ő', 'ȯ', 'ò', 'ó'],
   l: ['ł', 'ĺ', 'ḷ', 'ℓ', 'ḻ'],
+  t: ['ţ', 'ť', 'ț', 'ƭ', 'ṭ'],
+  h: ['ħ', 'ḥ', 'ȟ', 'ḫ'],
+  i: ['ï', 'ī', 'į', 'ĭ', 'ì', 'í'],
+  n: ['ñ', 'ń', 'ņ', 'ň', 'ṅ'],
+  k: ['ķ', 'ƙ', 'ḳ', 'ǩ'],
 };
 
 function MorphText({ text }: { text: string }) {
@@ -326,24 +331,13 @@ export default function HomePage() {
 
           <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160">
             <span className="text-white">Stories that </span>
-            <span className="glitch-wrapper text-white italic whitespace-nowrap" data-text="evolve."><MorphText text="evolve" />.</span>
+            <span className="glitch-wrapper text-white italic whitespace-nowrap" data-text="think."><MorphText text="think" />.</span>
           </h1>
 
-          <p className="animate-fade-up-delay-2 text-[15px] text-white/40 mt-6 max-w-md text-center leading-relaxed">
-            Drop in a premise. Watch characters collide, alliances shift, and worlds
-            reshape themselves — one scene at a time.
+          <p className="animate-fade-up-delay-2 text-[15px] text-white/40 mt-6 max-w-lg text-center leading-relaxed">
+            A knowledge graph lives beneath every scene. Threads escalate, characters transform, worlds expand.
+            Three forces measure exactly what the reader feels.
           </p>
-
-          <div className="animate-fade-up-delay-3 flex items-center gap-2 mt-5">
-            {['Branching plots', 'Living characters', 'Knowledge graphs'].map((label) => (
-              <span
-                key={label}
-                className="text-[10px] font-mono text-white/30 border border-white/8 rounded-full px-2.5 py-1 tracking-wide"
-              >
-                {label}
-              </span>
-            ))}
-          </div>
 
           {/* ── Analyze Corpus ─────────────────────────────────────────── */}
           <div className="animate-fade-up-delay-3 mt-10 w-full max-w-xl">

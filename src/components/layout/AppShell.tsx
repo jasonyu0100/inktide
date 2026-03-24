@@ -14,9 +14,10 @@ function useResize(
   minWidth: number,
   maxWidth: number,
   side: 'left' | 'right',
+  initialCollapsed = false,
 ) {
   const [width, setWidth] = useState(initialWidth);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
   const dragging = useRef(false);
   const startX = useRef(0);
   const startW = useRef(0);
@@ -59,8 +60,8 @@ function useResize(
 }
 
 export default function AppShell({ children, sidebar, sidepanel }: AppShellProps) {
-  const left = useResize(240, 160, 400, 'left');
-  const right = useResize(280, 180, 480, 'right');
+  const left = useResize(240, 160, 400, 'left', true);
+  const right = useResize(360, 180, 480, 'right', false);
 
   return (
     <div className="h-screen bg-bg-base flex flex-col overflow-hidden relative">

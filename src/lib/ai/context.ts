@@ -699,3 +699,127 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
 
   return rules;
 }
+
+/**
+ * World context — cumulative state of the world up to a given timeline index,
+ * organised by world build commits so the LLM can see when each part was introduced.
+ */
+export function worldContext(
+  n: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): string {
+  const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
+
+  // Replay thread status up to this point
+  const threadStatusAtPoint: Record<string, string> = {};
+  for (const k of keysUpToCurrent) {
+    const entry = resolveEntry(n, k);
+    if (entry?.kind !== 'scene') continue;
+    for (const tm of entry.threadMutations) threadStatusAtPoint[tm.threadId] = tm.to;
+  }
+
+  // Replay continuity mutations up to this point to know which nodes are live
+  const liveNodeIds = new Set<string>();
+  for (const k of keysUpToCurrent) {
+    const entry = resolveEntry(n, k);
+    if (entry?.kind !== 'scene') continue;
+    for (const km of entry.continuityMutations) {
+      if (km.action === 'added') liveNodeIds.add(km.nodeId);
+      else liveNodeIds.delete(km.nodeId);
+    }
+  }
+
+  // Find world build commits up to current index (in order)
+  const wxKeys = keysUpToCurrent.filter((k) => n.worldBuilds[k]);
+
+  // Build each commit section
+  const commitSections = wxKeys.map((wxKey) => {
+    const wb = n.worldBuilds[wxKey];
+    const { characterIds, locationIds, threadIds } = wb.expansionManifest;
+
+    const charLines = characterIds
+      .map((cid) => {
+        const c = n.characters[cid];
+        if (!c) return null;
+        const nodes = c.continuity.nodes.filter((kn) => liveNodeIds.has(kn.id));
+        const continuityBlock = nodes.length > 0
+          ? `\n    Continuity: ${nodes.map((kn) => `(${kn.type}) ${kn.content}`).join(' | ')}`
+          : '';
+        return `  - ${cid}: ${c.name} (${c.role})${continuityBlock}`;
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    const locLines = locationIds
+      .map((lid) => {
+        const l = n.locations[lid];
+        if (!l) return null;
+        const parent = l.parentId ? ` ⊂ ${n.locations[l.parentId]?.name ?? l.parentId}` : '';
+        const loreBlock = l.continuity.nodes.length > 0
+          ? `\n    Lore: ${l.continuity.nodes.map((kn) => kn.content).join(' | ')}`
+          : '';
+        return `  - ${lid}: ${l.name}${parent}${loreBlock}`;
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    const threadLines = threadIds
+      .map((tid) => {
+        const t = n.threads[tid];
+        if (!t) return null;
+        const status = threadStatusAtPoint[tid] ?? t.status;
+        const anchorNames = t.anchors
+          .map((a) => n.characters[a.id]?.name ?? n.locations[a.id]?.name ?? a.id)
+          .join(', ');
+        return `  - ${tid}: "${t.description}" [${status}] anchors: ${anchorNames}`;
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    const parts: string[] = [
+      `[${wxKey}] ${wb.summary}`,
+      charLines ? `  CHARACTERS:\n${charLines}` : '  CHARACTERS: (none)',
+      locLines ? `  LOCATIONS:\n${locLines}` : '  LOCATIONS: (none)',
+      threadLines ? `  THREADS:\n${threadLines}` : '  THREADS: (none)',
+    ];
+    return parts.join('\n');
+  });
+
+  // Cumulative world knowledge graph up to this point
+  const wk = buildCumulativeWorldKnowledge(n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, undefined, n.worldBuilds);
+  const rankedNodes = rankWorldKnowledgeNodes(wk);
+  let wkBlock = '';
+  if (rankedNodes.length > 0) {
+    const adjacency = new Map<string, string[]>();
+    for (const e of wk.edges) {
+      const fc = wk.nodes[e.from]?.concept;
+      const tc = wk.nodes[e.to]?.concept;
+      if (!fc || !tc) continue;
+      adjacency.set(e.from, [...(adjacency.get(e.from) ?? []), tc]);
+      adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), fc]);
+    }
+    const nodeLines = rankedNodes.map(({ node }) => {
+      const conns = adjacency.get(node.id);
+      return `  [${node.type}] ${node.concept}${conns?.length ? ` ↔ ${conns.join(', ')}` : ''}`;
+    });
+    wkBlock = `\n────────────────────────────────────────
+WORLD KNOWLEDGE GRAPH (${rankedNodes.length} concepts, ${wk.edges.length} relationships):
+${nodeLines.join('\n')}\n`;
+  }
+
+  const rulesBlock = n.rules?.length
+    ? `WORLD RULES:\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n\n`
+    : '';
+
+  const sceneCount = keysUpToCurrent.filter((k) => n.scenes[k]).length;
+
+  return `WORLD STATE: "${n.title}" — ${sceneCount} scenes, ${wxKeys.length} world commits
+SUMMARY: ${n.worldSummary ?? ''}
+
+${rulesBlock}────────────────────────────────────────
+WORLD COMMITS (chronological — each section shows what was introduced):
+
+${commitSections.join('\n\n────────────────────────────────────────\n')}
+${wkBlock}`;
+}

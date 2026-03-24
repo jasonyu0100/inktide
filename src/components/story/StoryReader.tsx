@@ -380,7 +380,7 @@ export function StoryReader({
 
   if (scenes.length === 0) {
     return (
-      <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-text-dim text-sm">No scenes yet.</p>
           <button onClick={onClose} className="mt-4 text-[11px] text-text-dim hover:text-text-primary transition">Close</button>
@@ -1238,7 +1238,7 @@ export function StoryReader({
 
       {/* Reference chapter picker modal */}
       {refPickerOpen && (
-        <div className="fixed inset-0 bg-black/70 z-60 flex items-center justify-center" onClick={() => setRefPickerOpen(false)}>
+        <div className="fixed inset-0 bg-black/80 z-60 flex items-center justify-center" onClick={() => setRefPickerOpen(false)}>
           <div className="glass max-w-lg w-full rounded-2xl p-6 relative max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setRefPickerOpen(false)} className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none">&times;</button>
             <h2 className="text-sm font-semibold text-text-primary mb-1">Pin Reference Chapters</h2>
@@ -1279,7 +1279,7 @@ export function StoryReader({
 
       {/* Settings modal (nested inside StoryReader) */}
       {settingsOpen && (
-        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center" onClick={() => setSettingsOpen(false)}>
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center" onClick={() => setSettingsOpen(false)}>
           <div className="glass max-w-md w-full rounded-2xl p-6 relative max-h-[70vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setSettingsOpen(false)}

@@ -127,7 +127,7 @@ export function ThreadLifecycleModal({
   }, [narrative, resolvedKeys]);
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={onClose}>
       <div
         className="bg-bg-base border border-white/10 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}

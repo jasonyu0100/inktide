@@ -405,6 +405,8 @@ export type NarrativeState = {
   imageStyle?: string;
   /** Story-level settings that guide generation (POV, tone, pacing, etc.) */
   storySettings?: StorySettings;
+  /** Chat threads keyed by thread ID — persisted with the narrative */
+  chatThreads?: Record<string, ChatThread>;
   createdAt: number;
   updatedAt: number;
 };
@@ -629,6 +631,20 @@ export type WizardData = {
 
 export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex';
 
+// ── Chat Threads ──────────────────────────────────────────────────────────────
+export type ChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export type ChatThread = {
+  id: string;
+  name: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type AppState = {
   narratives: NarrativeEntry[];
   activeNarrativeId: string | null;
@@ -650,4 +666,5 @@ export type AppState = {
   autoRunState: AutoRunState | null;
   apiLogs: ApiLogEntry[];
   analysisJobs: AnalysisJob[];
+  activeChatThreadId: string | null;
 };

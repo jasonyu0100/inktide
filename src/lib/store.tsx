@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit } from '@/types/narrative';
+import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit, ChatThread, ChatMessage } from '@/types/narrative';
 import { resolveSceneSequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForcetotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
@@ -225,6 +225,7 @@ const initialState: AppState = {
   autoRunState: null,
   apiLogs: [],
   analysisJobs: [],
+  activeChatThreadId: null,
 };
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -298,7 +299,13 @@ export type Action =
   | { type: 'ADD_ANALYSIS_JOB'; job: import('@/types/narrative').AnalysisJob }
   | { type: 'UPDATE_ANALYSIS_JOB'; id: string; updates: Partial<import('@/types/narrative').AnalysisJob> }
   | { type: 'DELETE_ANALYSIS_JOB'; id: string }
-  | { type: 'HYDRATE_ANALYSIS_JOBS'; jobs: import('@/types/narrative').AnalysisJob[] };
+  | { type: 'HYDRATE_ANALYSIS_JOBS'; jobs: import('@/types/narrative').AnalysisJob[] }
+  // Chat threads
+  | { type: 'CREATE_CHAT_THREAD'; thread: ChatThread }
+  | { type: 'DELETE_CHAT_THREAD'; threadId: string }
+  | { type: 'RENAME_CHAT_THREAD'; threadId: string; name: string }
+  | { type: 'SET_ACTIVE_CHAT_THREAD'; threadId: string | null }
+  | { type: 'UPSERT_CHAT_THREAD'; threadId: string; messages: ChatMessage[]; name?: string };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -317,6 +324,7 @@ function reducer(state: AppState, action: Action): AppState {
         currentSceneIndex: 0,
         inspectorContext: null,
         selectedKnowledgeEntity: null,
+        activeChatThreadId: null,
       };
     }
     case 'LOADED_NARRATIVE': {
@@ -1070,6 +1078,57 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'HYDRATE_ANALYSIS_JOBS':
       return { ...state, analysisJobs: action.jobs };
+
+    // ── Chat threads ──────────────────────────────────────────────────────
+    case 'CREATE_CHAT_THREAD': {
+      const withThread = updateNarrative(state, (n) => ({
+        ...n,
+        chatThreads: { ...(n.chatThreads ?? {}), [action.thread.id]: action.thread },
+      }));
+      return { ...withThread, activeChatThreadId: action.thread.id };
+    }
+
+    case 'DELETE_CHAT_THREAD': {
+      const withoutThread = updateNarrative(state, (n) => {
+        const { [action.threadId]: _, ...rest } = n.chatThreads ?? {};
+        return { ...n, chatThreads: rest };
+      });
+      let nextActive = state.activeChatThreadId;
+      if (state.activeChatThreadId === action.threadId) {
+        const remaining = Object.values(withoutThread.activeNarrative?.chatThreads ?? {});
+        remaining.sort((a, b) => b.updatedAt - a.updatedAt);
+        nextActive = remaining[0]?.id ?? null;
+      }
+      return { ...withoutThread, activeChatThreadId: nextActive };
+    }
+
+    case 'RENAME_CHAT_THREAD':
+      return updateNarrative(state, (n) => {
+        const thread = n.chatThreads?.[action.threadId];
+        if (!thread) return n;
+        return { ...n, chatThreads: { ...(n.chatThreads ?? {}), [action.threadId]: { ...thread, name: action.name } } };
+      });
+
+    case 'SET_ACTIVE_CHAT_THREAD':
+      return { ...state, activeChatThreadId: action.threadId };
+
+    case 'UPSERT_CHAT_THREAD':
+      return updateNarrative(state, (n) => {
+        const thread = (n.chatThreads ?? {})[action.threadId];
+        if (!thread) return n;
+        return {
+          ...n,
+          chatThreads: {
+            ...(n.chatThreads ?? {}),
+            [action.threadId]: {
+              ...thread,
+              messages: action.messages,
+              ...(action.name ? { name: action.name } : {}),
+              updatedAt: Date.now(),
+            },
+          },
+        };
+      });
 
     default:
       return state;

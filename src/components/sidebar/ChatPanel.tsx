@@ -1,28 +1,34 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { branchContext } from '@/lib/ai';
+import { branchContext, sceneContext, worldContext } from '@/lib/ai';
+import { resolveEntry } from '@/types/narrative';
 import { apiHeaders } from '@/lib/api-headers';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 
-type ChatMessage = {
-  role: 'user' | 'assistant';
-  content: string;
-};
-
 export default function ChatPanel() {
-  const { state } = useStore();
+  const { state, dispatch } = useStore();
   const access = useFeatureAccess();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [contextMode, setContextMode] = useState<'scene' | 'branch' | 'world'>('scene');
+  const [threadPickerOpen, setThreadPickerOpen] = useState(false);
+  const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const threadPickerRef = useRef<HTMLDivElement>(null);
 
   // Track which scene index the context was built for
   const [contextSceneIndex, setContextSceneIndex] = useState(state.currentSceneIndex);
+
+  // Active thread messages from store
+  const activeThread = state.activeChatThreadId
+    ? state.activeNarrative?.chatThreads?.[state.activeChatThreadId] ?? null
+    : null;
+  const messages = activeThread?.messages ?? [];
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -31,31 +37,61 @@ export default function ChatPanel() {
     }
   }, [messages]);
 
-  // Clear chat when narrative changes
-  const narrativeId = state.activeNarrative?.id;
-  const prevNarrativeId = useRef(narrativeId);
+  // Close thread picker on outside click
   useEffect(() => {
-    if (narrativeId !== prevNarrativeId.current) {
-      setMessages([]);
-      prevNarrativeId.current = narrativeId;
+    if (!threadPickerOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (threadPickerRef.current && !threadPickerRef.current.contains(e.target as Node)) {
+        setThreadPickerOpen(false);
+        setRenamingThreadId(null);
+      }
     }
-  }, [narrativeId]);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [threadPickerOpen]);
 
-  // Update context scene index when user navigates
+  // Update context scene index when user navigates, and auto-detect context mode
   useEffect(() => {
     setContextSceneIndex(state.currentSceneIndex);
+    if (state.activeNarrative) {
+      const key = state.resolvedSceneKeys[state.currentSceneIndex];
+      const entry = key ? resolveEntry(state.activeNarrative, key) : null;
+      if (entry?.kind === 'world_build') setContextMode('world');
+      else setContextMode('scene');
+    }
   }, [state.currentSceneIndex]);
 
   const buildSystemPrompt = useCallback(() => {
     if (!state.activeNarrative) return '';
+    const currentSceneId = state.resolvedSceneKeys[contextSceneIndex];
+    const currentScene = currentSceneId ? state.activeNarrative.scenes[currentSceneId] : null;
+
+    if (contextMode === 'scene' && currentScene) {
+      const ctx = sceneContext(state.activeNarrative, currentScene);
+      return `You are a narrative consultant for the story "${state.activeNarrative.title}", focused on the current scene: ${currentScene.id} — "${currentScene.summary}".
+
+Answer questions about this specific scene, its characters, location, and events. Be concise and specific.
+
+${ctx}`;
+    }
+
+    if (contextMode === 'world') {
+      const ctx = worldContext(state.activeNarrative, state.resolvedSceneKeys, contextSceneIndex);
+      const currentKey = state.resolvedSceneKeys[contextSceneIndex];
+      const wb = state.activeNarrative.worldBuilds[currentKey];
+      const commitLabel = wb ? ` viewing world commit: ${currentKey} — "${wb.summary}"` : '';
+      return `You are a narrative consultant for the story "${state.activeNarrative.title}". You have a cumulative view of the world as it has been built up to this point in the timeline.${commitLabel}
+
+Answer questions about the world's characters, locations, threads, and lore. Explain what was introduced when, identify gaps or contradictions, or discuss how the world has evolved. Be concise and specific.
+
+${ctx}`;
+    }
+
     const ctx = branchContext(
       state.activeNarrative,
       state.resolvedSceneKeys,
       contextSceneIndex,
     );
-
-    const currentSceneId = state.resolvedSceneKeys[contextSceneIndex];
-    const currentScene = currentSceneId ? state.activeNarrative.scenes[currentSceneId] : null;
     const sceneLabel = currentScene
       ? `\nCURRENT SCENE: ${currentScene.id} — "${currentScene.summary}"`
       : '';
@@ -67,15 +103,36 @@ Answer questions about the narrative, suggest story directions, analyze characte
 You are viewing the story at scene ${contextSceneIndex + 1} of ${state.resolvedSceneKeys.length}.${sceneLabel}
 
 ${ctx}`;
-  }, [state.activeNarrative, state.resolvedSceneKeys, contextSceneIndex]);
+  }, [state.activeNarrative, state.resolvedSceneKeys, contextSceneIndex, contextMode]);
+
+  // Ensure there is an active thread; create one if needed. Returns thread id.
+  const ensureThread = useCallback(() => {
+    if (state.activeChatThreadId && state.activeNarrative?.chatThreads?.[state.activeChatThreadId]) {
+      return state.activeChatThreadId;
+    }
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    dispatch({
+      type: 'CREATE_CHAT_THREAD',
+      thread: { id, name: 'New thread', messages: [], createdAt: now, updatedAt: now },
+    });
+    return id;
+  }, [state.activeChatThreadId, state.activeNarrative, dispatch]);
 
   const send = useCallback(async () => {
     const text = input.trim();
     if (!text || loading) return;
 
-    const userMsg: ChatMessage = { role: 'user', content: text };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    const threadId = ensureThread();
+    const prevMessages = state.activeNarrative?.chatThreads?.[threadId]?.messages ?? messages;
+    const userMsg = { role: 'user' as const, content: text };
+    const newMessages = [...prevMessages, userMsg];
+
+    // Auto-name thread from first user message
+    const isFirstMessage = prevMessages.length === 0;
+    const autoName = isFirstMessage ? text.slice(0, 40) + (text.length > 40 ? '…' : '') : undefined;
+
+    dispatch({ type: 'UPSERT_CHAT_THREAD', threadId, messages: newMessages, name: autoName });
     setInput('');
     setLoading(true);
 
@@ -103,18 +160,15 @@ ${ctx}`;
 
       const data = await res.json();
       updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responseLength: data.content.length, responsePreview: data.content });
-      setMessages([...newMessages, { role: 'assistant', content: data.content }]);
+      dispatch({ type: 'UPSERT_CHAT_THREAD', threadId, messages: [...newMessages, { role: 'assistant', content: data.content }] });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
-      setMessages([
-        ...newMessages,
-        { role: 'assistant', content: `Error: ${message}` },
-      ]);
+      dispatch({ type: 'UPSERT_CHAT_THREAD', threadId, messages: [...newMessages, { role: 'assistant', content: `Error: ${message}` }] });
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, buildSystemPrompt]);
+  }, [input, loading, messages, buildSystemPrompt, ensureThread, state.activeNarrative, dispatch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -145,8 +199,27 @@ ${ctx}`;
     );
   }
 
-  const currentSceneId = state.resolvedSceneKeys[contextSceneIndex];
-  const currentScene = currentSceneId ? state.activeNarrative.scenes[currentSceneId] : null;
+  const sortedThreads = useMemo(() => {
+    const all = Object.values(state.activeNarrative?.chatThreads ?? {});
+    all.sort((a, b) => b.updatedAt - a.updatedAt);
+    return all;
+  }, [state.activeNarrative?.chatThreads]);
+
+  function recencyGroup(ts: number): string {
+    const diff = Date.now() - ts;
+    const day = 86400000;
+    if (diff < day) return 'Today';
+    if (diff < 2 * day) return 'Yesterday';
+    if (diff < 7 * day) return 'This Week';
+    return 'Older';
+  }
+
+  function createNewThread() {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    dispatch({ type: 'CREATE_CHAT_THREAD', thread: { id, name: 'New thread', messages: [], createdAt: now, updatedAt: now } });
+    setThreadPickerOpen(false);
+  }
 
   // Estimate token count for the full prompt (system + messages)
   const systemPrompt = buildSystemPrompt();
@@ -159,15 +232,111 @@ ${ctx}`;
 
   return (
     <div className="flex flex-col h-full">
-      {/* Context indicator */}
-      <div className="shrink-0 px-3 py-2 border-b border-border">
-        <p className="text-[10px] text-text-dim leading-tight">
-          Context: scene {contextSceneIndex + 1}/{state.resolvedSceneKeys.length}
-          {currentScene && (
-            <span className="text-text-secondary"> — {currentScene.summary.slice(0, 60)}{currentScene.summary.length > 60 ? '...' : ''}</span>
-          )}
-          <span className="text-text-dim ml-1">({tokenLabel})</span>
-        </p>
+      {/* Thread header */}
+      <div className="shrink-0 border-b border-border px-3 py-2 flex items-center gap-2 relative" ref={threadPickerRef}>
+        <button
+          onClick={() => setThreadPickerOpen((o) => !o)}
+          className="flex-1 flex items-center gap-1.5 min-w-0 group"
+        >
+          <span className="text-[11px] font-medium text-text-secondary truncate group-hover:text-text-primary transition-colors">
+            {activeThread ? activeThread.name : 'No thread'}
+          </span>
+          <svg className={`w-2.5 h-2.5 shrink-0 text-text-dim transition-transform ${threadPickerOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={createNewThread}
+          title="New thread"
+          className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-text-dim hover:text-text-primary hover:bg-white/8 transition-colors text-sm"
+        >
+          +
+        </button>
+
+        {threadPickerOpen && (
+          <div
+            className="absolute top-full left-0 right-0 z-50 rounded-b-xl border-x border-b border-white/10 overflow-hidden"
+            style={{ background: '#1a1a1a', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+          >
+            <div className="max-h-64 overflow-y-auto py-1">
+              {sortedThreads.length === 0 ? (
+                <p className="text-xs text-text-dim px-3 py-3 text-center">No threads yet</p>
+              ) : (['Today', 'Yesterday', 'This Week', 'Earlier']).flatMap((group) => {
+                const items = sortedThreads.filter((t) => recencyGroup(t.updatedAt) === group);
+                if (items.length === 0) return [];
+                return [
+                  <div key={`hdr-${group}`} className="px-3 pt-2 pb-0.5">
+                    <span className="text-[9px] font-semibold uppercase tracking-widest text-text-dim">{group}</span>
+                  </div>,
+                  ...items.map((thread) => {
+                    const isActive = state.activeChatThreadId === thread.id;
+                    const isRenaming = renamingThreadId === thread.id;
+                    return (
+                      <div key={thread.id} className={`mx-1.5 rounded-lg ${isActive ? 'bg-white/8' : ''}`}>
+                        {isRenaming ? (
+                          <div className="px-2 py-1.5">
+                            <input
+                              autoFocus
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  dispatch({ type: 'RENAME_CHAT_THREAD', threadId: thread.id, name: renameValue.trim() || thread.name });
+                                  setRenamingThreadId(null);
+                                } else if (e.key === 'Escape') {
+                                  setRenamingThreadId(null);
+                                }
+                              }}
+                              onBlur={() => {
+                                dispatch({ type: 'RENAME_CHAT_THREAD', threadId: thread.id, name: renameValue.trim() || thread.name });
+                                setRenamingThreadId(null);
+                              }}
+                              className="w-full bg-white/8 border border-white/15 rounded px-2 py-1 text-xs text-text-primary outline-none"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center group/row">
+                            <button
+                              onClick={() => {
+                                dispatch({ type: 'SET_ACTIVE_CHAT_THREAD', threadId: thread.id });
+                                setThreadPickerOpen(false);
+                              }}
+                              className="flex-1 text-left px-3 py-1.5 min-w-0"
+                            >
+                              <div className={`text-[11px] truncate ${isActive ? 'text-text-primary' : 'text-text-secondary'}`}>{thread.name}</div>
+                              <div className="text-[9px] text-text-dim">{thread.messages.length} msg{thread.messages.length !== 1 ? 's' : ''}</div>
+                            </button>
+                            <div className="flex items-center gap-0.5 mr-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setRenamingThreadId(thread.id); setRenameValue(thread.name); }}
+                                className="p-1 rounded text-text-dim hover:text-text-secondary hover:bg-white/8 transition-colors"
+                                title="Rename"
+                              >
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'DELETE_CHAT_THREAD', threadId: thread.id }); }}
+                                className="p-1 rounded text-text-dim hover:text-payoff hover:bg-white/8 transition-colors"
+                                title="Delete"
+                              >
+                                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4h6v2" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }),
+                ];
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Messages */}
@@ -215,8 +384,25 @@ ${ctx}`;
         )}
       </div>
 
-      {/* Input */}
-      <div className="shrink-0 border-t border-border p-2">
+      {/* Input + context mode */}
+      <div className="shrink-0 border-t border-border p-2 space-y-1.5">
+        {/* Context mode toggle row */}
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-medium">
+            {(['scene', 'branch', 'world'] as const).map((mode, idx) => (
+              <button
+                key={mode}
+                onClick={() => setContextMode(mode)}
+                className={`px-2.5 py-1 transition-colors capitalize ${idx > 0 ? 'border-l border-border' : ''} ${contextMode === mode ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'}`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-text-dim truncate flex-1 opacity-60">
+            {tokenLabel}
+          </p>
+        </div>
         <div className="flex gap-2 items-end">
           <textarea
             ref={inputRef}

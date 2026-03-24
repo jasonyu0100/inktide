@@ -19,8 +19,6 @@ import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
 import { AutoControlBar } from '@/components/auto/AutoControlBar';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
-import { useFeatureAccess } from '@/hooks/useFeatureAccess';
-import ApiKeyModal from '@/components/layout/ApiKeyModal';
 import { ForceTracker } from '@/components/analytics/ForceTracker';
 import RulesPanel from '@/components/layout/RulesPanel';
 import { MCTSPanel } from '@/components/mcts/MCTSPanel';
@@ -48,15 +46,12 @@ export default function SeriesPage() {
   const [forkOpen, setForkOpen] = useState(false);
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
   const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
-  const [apiKeysOpen, setApiKeysOpen] = useState(false);
   const [forceTrackerOpen, setForceTrackerOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [mctsOpen, setMctsOpen] = useState(false);
   const [storySettingsOpen, setStorySettingsOpen] = useState(false);
   const autoPlay = useAutoPlay();
   const mcts = useMCTS();
-  const access = useFeatureAccess();
-
   const id = params.id as string;
 
   // Activate narrative from URL param
@@ -78,7 +73,6 @@ export default function SeriesPage() {
     function handleOpenFork() { setForkOpen(true); }
     function handleOpenAutoSettings() { setAutoSettingsOpen(true); }
     function handleOpenCubeViewer() { setCubeViewerOpen(true); }
-    function handleOpenApiKeys() { setApiKeysOpen(true); }
     function handleOpenForceTracker() { setForceTrackerOpen(true); }
     function handleOpenRules() { setRulesOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
@@ -87,7 +81,6 @@ export default function SeriesPage() {
     window.addEventListener('open-branch-modal', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
     window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
-    window.addEventListener('open-api-keys', handleOpenApiKeys);
     window.addEventListener('open-force-tracker', handleOpenForceTracker);
     window.addEventListener('open-rules-panel', handleOpenRules);
     window.addEventListener('open-mcts-panel', handleOpenMcts);
@@ -97,7 +90,6 @@ export default function SeriesPage() {
       window.removeEventListener('open-branch-modal', handleOpenFork);
       window.removeEventListener('open-auto-settings', handleOpenAutoSettings);
       window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
-      window.removeEventListener('open-api-keys', handleOpenApiKeys);
       window.removeEventListener('open-force-tracker', handleOpenForceTracker);
       window.removeEventListener('open-rules-panel', handleOpenRules);
       window.removeEventListener('open-mcts-panel', handleOpenMcts);
@@ -167,7 +159,6 @@ export default function SeriesPage() {
       {cubeViewerOpen && (
         <NarrativeCubeViewer onClose={() => setCubeViewerOpen(false)} />
       )}
-      {apiKeysOpen && <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />}
       {forceTrackerOpen && <ForceTracker onClose={() => setForceTrackerOpen(false)} />}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}

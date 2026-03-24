@@ -3,9 +3,9 @@
 import React, { useMemo, useState } from 'react';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { branchContext, sceneContext } from '@/lib/ai';
+import { branchContext, sceneContext, worldContext } from '@/lib/ai';
 
-type ContextView = 'branch' | 'scene';
+type ContextView = 'branch' | 'scene' | 'world';
 
 type Props = {
   narrative: NarrativeState;
@@ -32,7 +32,12 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
     [narrative, currentScene],
   );
 
-  const context = view === 'scene' && sceneCtx ? sceneCtx : branchCtx;
+  const worldCtx = useMemo(
+    () => worldContext(narrative, resolvedKeys, currentSceneIndex),
+    [narrative, resolvedKeys, currentSceneIndex],
+  );
+
+  const context = view === 'scene' && sceneCtx ? sceneCtx : view === 'world' ? worldCtx : branchCtx;
 
   const wordCount = useMemo(() => context.split(/\s+/).length, [context]);
   const estimatedTokens = Math.round(context.length / 4);
@@ -47,7 +52,7 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
   };
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="bg-bg-base border border-white/10 rounded-2xl flex flex-col max-w-4xl w-full"
         style={{ maxHeight: 'calc(100vh - 4rem)' }}
@@ -68,13 +73,22 @@ export function BranchContextModal({ narrative, resolvedKeys, currentSceneIndex,
               </button>
               <div className="w-px h-3.5 bg-border" />
               <button
-                className={`px-2.5 py-1.5 rounded-r transition-colors ${
+                className={`px-2.5 py-1.5 transition-colors ${
                   view === 'scene' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
                 } ${!sceneCtx ? 'opacity-30 pointer-events-none' : ''}`}
                 onClick={() => setView('scene')}
                 disabled={!sceneCtx}
               >
                 Scene
+              </button>
+              <div className="w-px h-3.5 bg-border" />
+              <button
+                className={`px-2.5 py-1.5 rounded-r transition-colors ${
+                  view === 'world' ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
+                }`}
+                onClick={() => setView('world')}
+              >
+                World
               </button>
             </div>
             <span className="text-[11px] text-text-dim px-2 py-0.5 rounded bg-bg-elevated">

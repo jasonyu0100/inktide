@@ -33,16 +33,12 @@ function getDefaultContext(state: ReturnType<typeof useStore>['state']) {
     if (entry.locationId && narrative.locations[entry.locationId]) {
       return { type: 'location' as const, locationId: entry.locationId };
     }
-  }
-
-  if (entry && !isScene(entry)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wb = entry as any;
-    const firstChar: string | undefined = wb.expansionManifest?.characters?.[0]?.id;
+  } else if (entry) {
+    const firstChar = entry.expansionManifest?.characters?.[0]?.id;
     if (firstChar && narrative.characters[firstChar]) {
       return { type: 'character' as const, characterId: firstChar };
     }
-    const firstLoc: string | undefined = wb.expansionManifest?.locations?.[0]?.id;
+    const firstLoc = entry.expansionManifest?.locations?.[0]?.id;
     if (firstLoc && narrative.locations[firstLoc]) {
       return { type: 'location' as const, locationId: firstLoc };
     }

@@ -152,61 +152,53 @@ const ARCHETYPE_COLORS: Record<string, string> = {
 
 /* ── Seed vertical cards ─────────────────────────────────────────────────── */
 
-function SeedCard({ entry, index, openSlides }: { entry: NarrativeEntry; index: number; openSlides?: boolean }) {
+function SeedCard({ entry, index, openSlides, size = 'md' }: { entry: NarrativeEntry; index: number; openSlides?: boolean; size?: 'lg' | 'md' }) {
   const router = useRouter();
+  const isLg = size === 'lg';
 
   return (
     <div
       onClick={() => router.push(`/series/${entry.id}${openSlides ? '?slides=1' : ''}`)}
-      className="group relative shrink-0 w-52 cursor-pointer animate-fade-up"
-      style={{ animationDelay: `${0.5 + index * 0.1}s` }}
+      className={`group relative shrink-0 cursor-pointer animate-fade-up ${isLg ? 'w-56' : 'w-52'}`}
+      style={{ animationDelay: `${0.5 + index * 0.08}s` }}
     >
-      <div className="relative h-80 rounded-lg overflow-hidden border border-white/6 bg-transparent transition-all duration-300 group-hover:border-white/15 group-hover:-translate-y-1 group-hover:shadow-[0_8px_30px_-10px_rgba(80,200,160,0.15)]">
-        {/* Cover image background */}
+      <div className={`relative rounded-xl overflow-hidden border border-white/6 bg-transparent transition-all duration-300 group-hover:border-white/15 group-hover:-translate-y-1 group-hover:shadow-[0_8px_30px_-10px_rgba(80,200,160,0.2)] ${isLg ? 'h-96' : 'h-76'}`}>
         {entry.coverImageUrl && (
           <div className="absolute inset-0">
             <img src={entry.coverImageUrl} alt="" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/50 to-black/20" />
           </div>
         )}
-        {/* Content */}
-        <div className="relative h-full flex flex-col p-4 pt-5">
+        <div className="relative h-full flex flex-col p-4 pt-4">
           <p className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/30">
             {entry.sceneCount} scenes
           </p>
-
           <div className="mt-auto">
-            <h3 className="text-[15px] font-semibold leading-snug mb-2 text-white/90 group-hover:text-white transition-colors">
+            <h3 className={`font-semibold leading-snug mb-1.5 text-white/90 group-hover:text-white transition-colors ${isLg ? 'text-[15px]' : 'text-[14px]'}`}>
               {entry.title}
             </h3>
-            <p className="text-[11px] text-white/40 leading-relaxed line-clamp-4">
+            <p className={`text-white/40 leading-relaxed ${isLg ? 'text-[11px] line-clamp-4' : 'text-[11px] line-clamp-3'}`}>
               {entry.coverThread || entry.description}
             </p>
           </div>
-
-          <div className="mt-4 pt-3 border-t border-white/6 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+          <div className="mt-4 pt-3 border-t border-white/8 flex items-center justify-between">
+            <div className="flex items-center gap-2">
               {entry.shapeCurve && (
-                <div className="flex items-center gap-1" title={entry.shapeName ?? 'Shape'}>
-                  <svg width="20" height="10" viewBox="0 0 20 10" className="opacity-70">
-                    <polyline
-                      points={entry.shapeCurve.map(([x, y]) => `${x * 20},${10 - y * 10}`).join(' ')}
-                      fill="none" stroke="#fb923c" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
+                <svg width={isLg ? 22 : 20} height={isLg ? 10 : 9} viewBox={`0 0 ${isLg ? 22 : 20} ${isLg ? 10 : 9}`} className="opacity-70">
+                  <polyline
+                    points={entry.shapeCurve.map(([x, y]) => `${x * (isLg ? 22 : 20)},${(isLg ? 10 : 9) - y * (isLg ? 10 : 9)}`).join(' ')}
+                    fill="none" stroke="#fb923c" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"
+                  />
+                </svg>
               )}
               {entry.archetypeKey && (
-                <ArchetypeIcon archetypeKey={entry.archetypeKey} size={11} color={ARCHETYPE_COLORS[entry.archetypeKey] ?? '#6b7280'} />
+                <ArchetypeIcon archetypeKey={entry.archetypeKey} size={isLg ? 11 : 11} color={ARCHETYPE_COLORS[entry.archetypeKey] ?? '#6b7280'} />
               )}
               {entry.overallScore !== undefined && (
                 <span className="text-[10px] font-mono font-semibold" style={{ color: scoreColor(entry.overallScore) }}>{entry.overallScore}</span>
               )}
             </div>
-            <span className="flex items-center gap-1 text-[10px] text-white/30 group-hover:text-white/70 transition-colors font-medium">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-              Play
-            </span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-white/30 group-hover:text-white/60 transition-colors ml-0.5"><path d="M8 5v14l11-7z" /></svg>
           </div>
         </div>
       </div>
@@ -214,7 +206,7 @@ function SeedCard({ entry, index, openSlides }: { entry: NarrativeEntry; index: 
   );
 }
 
-function SeedCarousel({ seeds, openSlides }: { seeds: NarrativeEntry[]; openSlides?: boolean }) {
+function SeedCarousel({ seeds, openSlides, size = 'md' }: { seeds: NarrativeEntry[]; openSlides?: boolean; size?: 'lg' | 'md' }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -239,8 +231,9 @@ function SeedCarousel({ seeds, openSlides }: { seeds: NarrativeEntry[]; openSlid
     };
   }, [checkScroll]);
 
+  const scrollAmt = size === 'lg' ? 300 : 240;
   const scroll = (dir: 'left' | 'right') => {
-    scrollRef.current?.scrollBy({ left: dir === 'left' ? -240 : 240, behavior: 'smooth' });
+    scrollRef.current?.scrollBy({ left: dir === 'left' ? -scrollAmt : scrollAmt, behavior: 'smooth' });
   };
 
   return (
@@ -264,11 +257,11 @@ function SeedCarousel({ seeds, openSlides }: { seeds: NarrativeEntry[]; openSlid
 
       <div
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto pb-2 px-1"
+        className="flex gap-5 overflow-x-auto pb-2 px-1"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {seeds.map((entry, i) => (
-          <SeedCard key={entry.id} entry={entry} index={i} openSlides={openSlides} />
+          <SeedCard key={entry.id} entry={entry} index={i} openSlides={openSlides} size={size} />
         ))}
       </div>
     </div>
@@ -406,16 +399,16 @@ export default function HomePage() {
 
         {/* ── Open source book analysis ─────────────────────────────── */}
         {analysisSeeds.length > 0 && (
-          <div className="relative px-4 sm:px-8 pb-10 mt-4">
-            <div className="max-w-4xl mx-auto">
-              <div className="flex items-center gap-3 mb-2">
+          <div className="relative px-4 sm:px-10 pb-16 mt-16">
+            <div className="max-w-5xl mx-auto">
+              <div className="flex items-center gap-3 mb-3">
                 <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono whitespace-nowrap">
                   Analyzed Works
                 </h2>
                 <div className="flex-1 h-px bg-white/6" />
               </div>
-              <p className="text-[11px] text-white/25 leading-relaxed mb-4 max-w-lg">
-                Published works analyzed with our formulas. Do the force peaks match the moments you remember? This is how we verify the system captures what readers actually feel.
+              <p className="text-[13px] text-white/40 leading-relaxed mb-8 max-w-lg">
+                We ran the formulas on the books that shaped a generation. See where the tension actually peaks — and whether it matches what you remember feeling.
               </p>
               <SeedCarousel seeds={analysisSeeds} openSlides />
             </div>
@@ -424,16 +417,16 @@ export default function HomePage() {
 
         {/* ── Playground seeds ────────────────────────────────────────── */}
         {playgrounds.length > 0 && (
-          <div className="relative px-4 sm:px-8 pb-14">
-            <div className="max-w-4xl mx-auto">
-              <div className="flex items-center gap-3 mb-2">
+          <div className="relative px-4 sm:px-10 pb-16 mt-16">
+            <div className="max-w-5xl mx-auto">
+              <div className="flex items-center gap-3 mb-3">
                 <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono whitespace-nowrap">
                   AI Playgrounds
                 </h2>
                 <div className="flex-1 h-px bg-white/6" />
               </div>
-              <p className="text-[11px] text-white/25 leading-relaxed mb-4 max-w-lg">
-                AI-generated alternate realities of real series&mdash;not the original texts. Experiment with generation, branching, and force analysis.
+              <p className="text-[13px] text-white/40 leading-relaxed mb-5 max-w-lg">
+                What if the story went differently? These are AI-generated alternate realities — same worlds, different paths. Branch timelines, stress-test arcs, and watch the force curves shift.
               </p>
               <SeedCarousel seeds={playgrounds} />
             </div>
@@ -488,6 +481,37 @@ export default function HomePage() {
                   <p className="text-[12px] text-white/35 leading-relaxed pb-2 pl-0">{a}</p>
                 </details>
               ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Footer ───────────────────────────────────────────────────── */}
+        <div className="relative px-4 sm:px-10 py-8 border-t border-white/6">
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <p className="text-[11px] font-mono text-white/20 uppercase tracking-[0.2em]">Narrative Engine</p>
+            <div className="flex items-center gap-5">
+              <a
+                href="https://x.com/_jason_y_"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white/25 hover:text-white/60 transition-colors"
+                aria-label="X / Twitter"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
+              <a
+                href="https://github.com/jasonyu0100/narrative-engine"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white/25 hover:text-white/60 transition-colors"
+                aria-label="GitHub"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                </svg>
+              </a>
             </div>
           </div>
         </div>

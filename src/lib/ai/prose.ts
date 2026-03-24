@@ -266,7 +266,7 @@ export async function generateChartAnnotations(
 ): Promise<ChartAnnotation[]> {
   const trajectoryLines = forceData.map((d) => {
     const tc = d.threadChanges.length > 0 ? ` | ${d.threadChanges.join('; ')}` : '';
-    return `[${d.sceneIndex + 1}] ${d.arcName} | ${d.corner} | P:${d.forces.payoff.toFixed(2)} C:${d.forces.change.toFixed(2)} V:${d.forces.knowledge.toFixed(2)} | @${d.location} | ${d.participants.join(', ')} | "${d.summary.slice(0, 80)}"${tc}`;
+    return `[${d.sceneIndex + 1}] ${d.arcName} | ${d.corner} | P:${d.forces.payoff.toFixed(2)} C:${d.forces.change.toFixed(2)} K:${d.forces.knowledge.toFixed(2)} | @${d.location} | ${d.participants.join(', ')} | "${d.summary.slice(0, 80)}"${tc}`;
   }).join('\n');
 
   const systemPrompt = `You are a narrative analyst annotating force trajectory charts. Return ONLY valid JSON — no markdown, no code fences, no commentary.`;

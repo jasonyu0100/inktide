@@ -221,7 +221,7 @@ export function CubeExplorer({
             { key: 'index' as SortKey, label: 'Summary', width: '' },
             { key: 'payoff' as SortKey, label: 'P', width: '' },
             { key: 'change' as SortKey, label: 'C', width: '' },
-            { key: 'knowledge' as SortKey, label: 'V', width: '' },
+            { key: 'knowledge' as SortKey, label: 'K', width: '' },
             { key: 'proximity' as SortKey, label: 'Prox', width: '' },
           ].map((col, i) => (
             <button
@@ -252,7 +252,7 @@ export function CubeExplorer({
                     <span className="text-[10px] font-mono text-text-dim">{entry.index + 1}</span>
                     <span className="flex items-center gap-1.5">
                       <svg width="24" height="12" viewBox="0 0 24 12" className="shrink-0">
-                        {(['P','C','V'] as const).map((_, i) => {
+                        {(['P','C','K'] as const).map((_, i) => {
                           const isHigh = entry.corner[i] === 'H';
                           const colors = ['#EF4444','#22C55E','#3B82F6'];
                           const barH = isHigh ? 9 : 4;

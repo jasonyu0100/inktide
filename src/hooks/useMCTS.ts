@@ -47,7 +47,7 @@ export function useMCTS() {
     const narrative = state.activeNarrative;
     const tree = narrative
       ? createTree(narrative, state.resolvedEntryKeys, state.currentSceneIndex)
-      : { nodes: {}, rootNarrative: {} as any, rootResolvedKeys: [], rootCurrentIndex: -1, rootChildIds: [] };
+      : { nodes: {}, rootNarrative: {} as NarrativeState, rootResolvedKeys: [], rootCurrentIndex: -1, rootChildIds: [] };
     return {
       status: 'idle' as const,
       tree,
@@ -866,7 +866,7 @@ export function useMCTS() {
       effectiveBaseline: null,
       tree: narrative
         ? createTree(narrative, state.resolvedEntryKeys, state.currentSceneIndex)
-        : { nodes: {}, rootNarrative: {} as any, rootResolvedKeys: [], rootCurrentIndex: -1, rootChildIds: [] },
+        : { nodes: {}, rootNarrative: {} as NarrativeState, rootResolvedKeys: [], rootCurrentIndex: -1, rootChildIds: [] },
     }));
   }, [state]);
 

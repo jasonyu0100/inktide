@@ -104,7 +104,7 @@ export function computeThreadStatuses(
 // ── Narrative Cube detection ───────────────────────────────────────────────
 
 /** Euclidean distance between two force snapshots */
-function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
+export function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
   return Math.sqrt(
     (a.payoff - b.payoff) ** 2 +
     (a.change - b.change) ** 2 +

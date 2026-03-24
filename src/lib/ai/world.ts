@@ -387,9 +387,6 @@ WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene 
     : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'generateNarrative') as any;
-  console.log('[generateNarrative] parsed keys:', Object.keys(parsed));
-  console.log('[generateNarrative] relationships count:', parsed.relationships?.length ?? 0);
-  console.log('[generateNarrative] scenes count:', parsed.scenes?.length ?? 0);
 
   const now = Date.now();
   const id = `N-${now}`;

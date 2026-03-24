@@ -79,8 +79,8 @@ function computeGroups<N extends d3.SimulationNodeDatum & { id: string }, L exte
       visited.add(id);
       const n = nodeMap.get(id);
       if (n) component.push(n);
-      for (const neighbour of adj.get(id) ?? []) {
-        if (!visited.has(neighbour)) stack.push(neighbour);
+      for (const neighbor of adj.get(id) ?? []) {
+        if (!visited.has(neighbor)) stack.push(neighbor);
       }
     }
     groups.push(component);
@@ -1143,7 +1143,7 @@ export default function WorldGraph() {
     const g = svg.append('g');
     gRef.current = g;
 
-    // Zoom behaviour
+    // Zoom behavior
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.2, 4])

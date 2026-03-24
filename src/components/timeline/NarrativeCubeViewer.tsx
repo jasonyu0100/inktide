@@ -932,7 +932,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
                   <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.change.toFixed(1)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[9px] text-knowledge font-medium">V</span>
+                  <span className="text-[9px] text-knowledge font-medium">K</span>
                   <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
                       className="h-full bg-knowledge rounded-full"

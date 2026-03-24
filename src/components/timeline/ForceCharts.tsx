@@ -309,7 +309,7 @@ export default function ForceCharts() {
           {cubeCorner ? (
             <>
               <svg width="36" height="18" viewBox="0 0 36 18" className="shrink-0">
-                {(['P','C','V'] as const).map((label, i) => {
+                {(['P','C','K'] as const).map((label, i) => {
                   const isHigh = cubeCorner.key[i] === 'H';
                   const colors = ['#EF4444', '#22C55E', '#3B82F6'];
                   const barH = isHigh ? 14 : 6;

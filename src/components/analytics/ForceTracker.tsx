@@ -1424,7 +1424,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                 {currentCube && (
                   <div className="flex items-center gap-2">
                     <svg width="30" height="14" viewBox="0 0 30 14">
-                      {(['P','C','V'] as const).map((label, i) => {
+                      {(['P','C','K'] as const).map((label, i) => {
                         const isHigh = currentCube.key[i] === 'H';
                         const colors = ['#EF4444','#22C55E','#3B82F6'];
                         const barH = isHigh ? 10 : 5;
@@ -1539,7 +1539,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                   </svg>
                   <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{infoScene.forces.payoff >= 0 ? '+' : ''}{infoScene.forces.payoff.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>C:{infoScene.forces.change >= 0 ? '+' : ''}{infoScene.forces.change.toFixed(2)}</span>
-                  <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>V:{infoScene.forces.knowledge >= 0 ? '+' : ''}{infoScene.forces.knowledge.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>K:{infoScene.forces.knowledge >= 0 ? '+' : ''}{infoScene.forces.knowledge.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#facc15' }}>S:{infoScene.swing.toFixed(2)}</span>
                 </div>
               </div>

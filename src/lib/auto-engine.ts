@@ -11,7 +11,7 @@ import type {
   CubeCornerKey,
 } from '@/types/narrative';
 import { isScene, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_PRIMED_STATUSES } from '@/types/narrative';
-import { detectCubeCorner, computeWindowedForces, averageSwing, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import { detectCubeCorner, computeWindowedForces, averageSwing, FORCE_WINDOW_SIZE, forceDistance } from '@/lib/narrative-utils';
 import { AUTO_STOP_CYCLE_LENGTH } from '@/lib/constants';
 
 // ── Thread status helpers (derived from canonical lists in narrative.ts) ─────
@@ -326,14 +326,6 @@ export function getStoryPhase(progress: number): PhaseDefinition {
     if (progress >= phase.range[0] && progress < phase.range[1]) return phase;
   }
   return STORY_PHASES[STORY_PHASES.length - 1]; // resolution
-}
-
-// ── Euclidean distance between two force snapshots ──────────────────────────
-function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
-  const ds = a.payoff - b.payoff;
-  const dp = a.change - b.change;
-  const dv = a.knowledge - b.knowledge;
-  return Math.sqrt(ds * ds + dp * dp + dv * dv);
 }
 
 // ── Check end conditions ────────────────────────────────────────────────────

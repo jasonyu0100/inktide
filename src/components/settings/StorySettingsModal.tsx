@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import type { StorySettings, POVMode } from '@/types/narrative';
+import type { StorySettings, POVMode, WorldFocusMode } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
@@ -316,6 +316,55 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                     {settings.targetArcLength} scenes
                   </span>
                 </div>
+              </div>
+
+              {/* World Focus */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  World Focus
+                </label>
+                <div className="space-y-1.5">
+                  {([
+                    { value: 'none' as WorldFocusMode, label: 'None', desc: 'No world build seeded into generation' },
+                    { value: 'latest' as WorldFocusMode, label: 'Latest', desc: 'Always seed with the most recent world commit' },
+                    { value: 'custom' as WorldFocusMode, label: 'Custom', desc: 'Pick a specific world commit to focus on' },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => update({ worldFocus: opt.value })}
+                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                        settings.worldFocus === opt.value
+                          ? 'border-blue-500/50 bg-blue-500/10'
+                          : 'border-white/5 bg-white/2 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
+                      <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                {settings.worldFocus === 'custom' && narrative && (() => {
+                  const resolvedSet = new Set(state.resolvedEntryKeys);
+                  const worldBuilds = Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id));
+                  if (worldBuilds.length === 0) return <p className="text-[10px] text-text-dim mt-2">No world commits available</p>;
+                  return (
+                    <div className="mt-2 flex flex-col gap-1 max-h-24 overflow-y-auto">
+                      {worldBuilds.map((wb) => (
+                        <button
+                          key={wb.id}
+                          onClick={() => update({ worldFocusId: wb.id })}
+                          className={`text-left rounded px-2 py-1.5 text-[10px] transition border ${
+                            settings.worldFocusId === wb.id
+                              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                              : 'bg-bg-elevated border-border text-text-secondary hover:border-white/16'
+                          }`}
+                        >
+                          {wb.summary}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Branch Time Horizon */}

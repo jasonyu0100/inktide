@@ -316,6 +316,23 @@ export default function FloatingPalette() {
           </>
         )}
 
+        {/* Planning Queue */}
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-planning-queue'))}
+          title="Planning queue"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </button>
+
         {/* Story Settings — always visible */}
         <button
           type="button"

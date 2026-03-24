@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
@@ -225,12 +225,9 @@ const initialState: AppState = {
   selectedKnowledgeEntity: null,
   graphViewMode: 'spatial',
   autoConfig: {
-    objective: 'explore_and_resolve',
     endConditions: [{ type: 'scene_count', target: 50 }],
     minArcLength: 2,
     maxArcLength: 5,
-    worldBuildInterval: 3,
-    worldBuildSize: 'medium',
     maxActiveThreads: 6,
     threadStagnationThreshold: 5,
     northStarPrompt: '',
@@ -238,7 +235,6 @@ const initialState: AppState = {
     narrativeConstraints: '',
     characterRotationEnabled: true,
     minScenesBetweenCharacterFocus: 3,
-    enforceWorldBuildUsage: true,
   },
   autoRunState: null,
   apiLogs: [],
@@ -311,7 +307,11 @@ export type Action =
   | { type: 'CREATE_NOTE'; note: Note }
   | { type: 'DELETE_NOTE'; noteId: string }
   | { type: 'UPDATE_NOTE'; noteId: string; title?: string; content?: string }
-  | { type: 'SET_ACTIVE_NOTE'; noteId: string | null };
+  | { type: 'SET_ACTIVE_NOTE'; noteId: string | null }
+  // Planning queue
+  | { type: 'SET_PLANNING_QUEUE'; branchId: string; queue: PlanningQueue | undefined }
+  | { type: 'UPDATE_PLANNING_PHASE'; branchId: string; phaseIndex: number; updates: Partial<PlanningPhase> }
+  | { type: 'ADVANCE_PLANNING_PHASE'; branchId: string };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -631,8 +631,26 @@ function reducer(state: AppState, action: Action): AppState {
         const branch = n.branches[action.branchId];
         const existingEntrySet = branch ? new Set(branch.entryIds) : new Set<string>();
         const dedupedEntries = newSceneIds.filter((id) => !existingEntrySet.has(id));
-        const updatedBranches = branch
-          ? { ...n.branches, [action.branchId]: { ...branch, entryIds: [...branch.entryIds, ...dedupedEntries] } }
+
+        // Auto-increment planning queue scene count
+        let updatedBranch = branch
+          ? { ...branch, entryIds: [...branch.entryIds, ...dedupedEntries] }
+          : null;
+        if (updatedBranch?.planningQueue) {
+          const queue = updatedBranch.planningQueue;
+          const activePhase = queue.phases[queue.activePhaseIndex];
+          if (activePhase && activePhase.status === 'active') {
+            const phases = [...queue.phases];
+            phases[queue.activePhaseIndex] = {
+              ...activePhase,
+              scenesCompleted: activePhase.scenesCompleted + action.scenes.length,
+            };
+            updatedBranch = { ...updatedBranch, planningQueue: { ...queue, phases } };
+          }
+        }
+
+        const updatedBranches = updatedBranch
+          ? { ...n.branches, [action.branchId]: updatedBranch }
           : n.branches;
         return { ...n, scenes: newScenes, arcs: updatedArcs, branches: updatedBranches };
       });
@@ -653,10 +671,14 @@ function reducer(state: AppState, action: Action): AppState {
       const locNames = action.locations.map((l) => l.name);
       const threadDescs = action.threads.map((t) => t.description);
       const parts: string[] = [];
+      const wkNodeCount = action.worldKnowledgeMutations?.addedNodes?.length ?? 0;
+      const wkEdgeCount = action.worldKnowledgeMutations?.addedEdges?.length ?? 0;
       if (charNames.length > 0) parts.push(`${charNames.length} character${charNames.length > 1 ? 's' : ''} (${charNames.join(', ')})`);
       if (locNames.length > 0) parts.push(`${locNames.length} location${locNames.length > 1 ? 's' : ''} (${locNames.join(', ')})`);
       if (threadDescs.length > 0) parts.push(`${threadDescs.length} thread${threadDescs.length > 1 ? 's' : ''}`);
       if (action.relationships.length > 0) parts.push(`${action.relationships.length} relationship${action.relationships.length > 1 ? 's' : ''}`);
+      if (wkNodeCount > 0) parts.push(`${wkNodeCount} knowledge node${wkNodeCount > 1 ? 's' : ''} (${action.worldKnowledgeMutations!.addedNodes.map((n) => n.concept).join(', ')})`);
+      if (wkEdgeCount > 0) parts.push(`${wkEdgeCount} knowledge edge${wkEdgeCount > 1 ? 's' : ''}`);
       const worldBuildSummary = parts.length > 0 ? `World expanded: added ${parts.join(', ')}` : 'World expansion (no new elements)';
 
       // Build manifest worldKnowledge: explicit mutations + auto-generated nodes for threads/locations
@@ -987,6 +1009,76 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_ACTIVE_NOTE':
       return { ...state, activeNoteId: action.noteId };
+
+    // ── Planning Queue ────────────────────────────────────────────────────
+    case 'SET_PLANNING_QUEUE':
+      return updateNarrative(state, (n) => {
+        const branch = n.branches[action.branchId];
+        if (!branch) return n;
+        return {
+          ...n,
+          branches: { ...n.branches, [action.branchId]: { ...branch, planningQueue: action.queue } },
+        };
+      });
+
+    case 'UPDATE_PLANNING_PHASE':
+      return updateNarrative(state, (n) => {
+        const branch = n.branches[action.branchId];
+        if (!branch?.planningQueue) return n;
+        const phases = [...branch.planningQueue.phases];
+        const phase = phases[action.phaseIndex];
+        if (!phase) return n;
+        phases[action.phaseIndex] = { ...phase, ...action.updates };
+        return {
+          ...n,
+          branches: {
+            ...n.branches,
+            [action.branchId]: {
+              ...branch,
+              planningQueue: { ...branch.planningQueue, phases },
+            },
+          },
+        };
+      });
+
+    case 'ADVANCE_PLANNING_PHASE':
+      return updateNarrative(state, (n) => {
+        const branch = n.branches[action.branchId];
+        if (!branch?.planningQueue) return n;
+        const queue = branch.planningQueue;
+        const currentIdx = queue.activePhaseIndex;
+        const nextIdx = currentIdx + 1;
+
+        // Mark current phase as completed
+        const phases = [...queue.phases];
+        if (currentIdx >= 0 && currentIdx < phases.length) {
+          phases[currentIdx] = { ...phases[currentIdx], status: 'completed' };
+        }
+
+        // Activate next phase or exhaust queue
+        if (nextIdx < phases.length) {
+          phases[nextIdx] = { ...phases[nextIdx], status: 'active' };
+        }
+
+        const isExhausted = nextIdx >= phases.length;
+
+        return {
+          ...n,
+          branches: {
+            ...n.branches,
+            [action.branchId]: {
+              ...branch,
+              planningQueue: isExhausted
+                ? undefined  // Queue exhausted — remove planning layer
+                : { ...queue, phases, activePhaseIndex: nextIdx },
+            },
+          },
+          // Clear direction/constraints when queue exhausts
+          ...(isExhausted && n.storySettings ? {
+            storySettings: { ...n.storySettings, storyDirection: '', storyConstraints: '' },
+          } : {}),
+        };
+      });
 
     default:
       return state;

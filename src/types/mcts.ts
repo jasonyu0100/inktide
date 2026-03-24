@@ -141,6 +141,8 @@ export type MCTSConfig = {
   branchingFactor: number;    // Max children per node (derived from mode: direction count for freedom/constrained, Infinity for baseline)
   worldBuildFocusId?: string; // Optional world build commit to seed all generations with
   northStarPrompt?: string;   // Optional high-level guidance that steers every generation in the search
+  /** Constraints prompt — defaults from StorySettings.storyConstraints, overridable here */
+  constraintsPrompt?: string;
 };
 
 export const DEFAULT_MCTS_CONFIG: MCTSConfig = {

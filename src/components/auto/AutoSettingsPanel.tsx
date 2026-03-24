@@ -3,31 +3,28 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { suggestAutoDirection } from '@/lib/ai';
-import type { AutoConfig, AutoEndCondition, AutoObjective } from '@/types/narrative';
+import type { AutoConfig, AutoEndCondition } from '@/types/narrative';
 
-type Tab = 'end' | 'objective' | 'direction';
+type Tab = 'end' | 'direction';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'End', value: 'end' },
-  { label: 'Objective', value: 'objective' },
   { label: 'Direction', value: 'direction' },
-];
-
-const OBJECTIVES: { value: AutoObjective; label: string; desc: string }[] = [
-  { value: 'resolve_threads', label: 'Resolve Threads', desc: 'Drive all threads toward resolution and bring the story to a satisfying conclusion.' },
-  { value: 'explore_and_resolve', label: 'Explore & Resolve', desc: 'Balance world-building exploration with thread resolution.' },
-  { value: 'open_ended', label: 'Open Ended', desc: 'Keep the story evolving with new complications and world expansion, rarely resolving threads.' },
 ];
 
 
 export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; onStart: () => void }) {
   const { state, dispatch } = useStore();
-  const [tab, setTab] = useState<Tab>('end');
+  const [tab, setTab] = useState<Tab>('direction');
   const [config, setConfig] = useState<AutoConfig>(() => {
     const base = { ...state.autoConfig };
     const storyDir = state.activeNarrative?.storySettings?.storyDirection?.trim();
     if (storyDir && !base.northStarPrompt) {
       base.northStarPrompt = storyDir;
+    }
+    const storyCon = state.activeNarrative?.storySettings?.storyConstraints?.trim();
+    if (storyCon && !base.narrativeConstraints) {
+      base.narrativeConstraints = storyCon;
     }
     return base;
   });
@@ -64,7 +61,6 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
   }
 
   const noEndConditions = config.endConditions.length === 0;
-  const worldBuildingEnabled = config.worldBuildInterval > 0;
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
@@ -190,127 +186,17 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
             </>
           )}
 
-          {tab === 'objective' && (
-            <>
-              {/* Objective selector */}
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
-                  Story Objective
-                </label>
-                <div className="flex flex-col gap-2">
-                  {OBJECTIVES.map((o) => (
-                    <label
-                      key={o.value}
-                      className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                        config.objective === o.value ? 'bg-white/8' : 'hover:bg-white/4'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="objective"
-                        checked={config.objective === o.value}
-                        onChange={() => update({ objective: o.value })}
-                        className="accent-yellow-500 mt-0.5"
-                      />
-                      <div>
-                        <div className="text-xs text-text-primary font-medium">{o.label}</div>
-                        <div className="text-[10px] text-text-dim">{o.desc}</div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* World building settings */}
-              <div className="border-t border-border pt-4">
-                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-3">
-                  World Building
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer select-none mb-3">
-                  <input
-                    type="checkbox"
-                    checked={worldBuildingEnabled}
-                    onChange={(e) => update({ worldBuildInterval: e.target.checked ? 3 : 0 })}
-                    className="accent-yellow-500"
-                  />
-                  <span className="text-xs text-text-secondary">Enable world building</span>
-                </label>
-                <p className="text-[10px] text-text-dim leading-relaxed ml-6 -mt-2 mb-3">
-                  {worldBuildingEnabled
-                    ? 'New characters, locations, and threads will be periodically introduced.'
-                    : 'Only existing elements are used. Arcs are generated without world expansion.'}
-                </p>
-
-                {worldBuildingEnabled && (
-                  <>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs text-text-secondary">Expand every</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={config.worldBuildInterval}
-                        onChange={(e) => update({ worldBuildInterval: Math.max(1, Number(e.target.value)) })}
-                        className="bg-bg-elevated border border-border rounded px-2 py-1 text-xs text-text-primary w-16 outline-none text-center"
-                      />
-                      <span className="text-xs text-text-secondary">arc{config.worldBuildInterval !== 1 ? 's' : ''}</span>
-                    </div>
-
-                    <div className="mb-3">
-                      <span className="text-[10px] text-text-dim uppercase tracking-widest block mb-2">Expansion Size</span>
-                      <div className="flex gap-1">
-                        {([
-                          { value: 'small',  label: 'Small',  desc: '1–2 of each',    interval: 2 },
-                          { value: 'medium', label: 'Medium', desc: '3–5 of each',    interval: 3 },
-                          { value: 'large',  label: 'Large',  desc: '8–15 entities',  interval: 6 },
-                        ] as const).map((s) => (
-                          <button
-                            key={s.value}
-                            onClick={() => update({ worldBuildSize: s.value, worldBuildInterval: s.interval })}
-                            title={s.desc}
-                            className={`flex-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors ${
-                              config.worldBuildSize === s.value
-                                ? 'bg-bg-overlay text-text-primary'
-                                : 'text-text-dim hover:text-text-secondary'
-                            }`}
-                          >
-                            {s.label}
-                            <span className="block text-[9px] font-normal opacity-60">{s.desc}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={config.enforceWorldBuildUsage}
-                        onChange={(e) => update({ enforceWorldBuildUsage: e.target.checked })}
-                        className="accent-yellow-500"
-                      />
-                      <span className="text-xs text-text-secondary">Enforce usage of new elements</span>
-                    </label>
-                    <p className="text-[10px] text-text-dim leading-relaxed ml-6 mt-1">
-                      {config.enforceWorldBuildUsage
-                        ? 'New arcs must incorporate unused world-building characters, locations, or threads.'
-                        : 'New arcs will follow the natural flow of the story using existing elements.'}
-                    </p>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-
           {tab === 'direction' && (
             <>
               <p className="text-[10px] text-text-dim leading-relaxed">
-                The north star for your story. Auto mode will constantly steer the narrative toward this direction across every arc it generates.
+                Direction and constraints guide every arc. Use the planning queue for long-form narrative structure.
               </p>
+
+              {/* Direction */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] uppercase tracking-widest text-text-dim">
-                    Story Direction
+                    Direction
                   </label>
                   {state.activeNarrative && Object.keys(state.activeNarrative.scenes).length > 0 && (
                     <button
@@ -334,16 +220,32 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                       }}
                       className="text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 uppercase tracking-wider"
                     >
-                      {suggesting ? 'Thinking...' : 'Suggest Story'}
+                      {suggesting ? 'Thinking...' : 'Suggest'}
                     </button>
                   )}
                 </div>
                 <textarea
                   value={config.northStarPrompt}
                   onChange={(e) => update({ northStarPrompt: e.target.value })}
-                  placeholder="e.g. The protagonist should slowly uncover the truth about their past while alliances shift around them. Build toward a betrayal that redefines the central conflict..."
-                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-32 resize-none outline-none placeholder:text-text-dim"
+                  placeholder="e.g. The protagonist should slowly uncover the truth about their past while alliances shift around them..."
+                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim"
                 />
+              </div>
+
+              {/* Constraints */}
+              <div>
+                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">
+                  Constraints
+                </label>
+                <textarea
+                  value={config.narrativeConstraints}
+                  onChange={(e) => update({ narrativeConstraints: e.target.value })}
+                  placeholder="e.g. Do not kill the mentor character. Avoid deus ex machina resolutions. Keep the tone grounded..."
+                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim"
+                />
+                <p className="text-[10px] text-text-dim mt-1">
+                  Overrides story-level constraints for this auto run.
+                </p>
               </div>
             </>
           )}

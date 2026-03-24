@@ -1147,7 +1147,12 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
   // Initialize config, prepopulating north star from story settings direction
   const [config, setConfig] = useState<MCTSConfig>(() => {
     const storyDir = state.activeNarrative?.storySettings?.storyDirection?.trim();
-    return { ...DEFAULT_MCTS_CONFIG, ...(storyDir ? { northStarPrompt: storyDir } : {}) };
+    const storyCon = state.activeNarrative?.storySettings?.storyConstraints?.trim();
+    return {
+      ...DEFAULT_MCTS_CONFIG,
+      ...(storyDir ? { northStarPrompt: storyDir } : {}),
+      ...(storyCon ? { constraintsPrompt: storyCon } : {}),
+    };
   });
   const [configTab, setConfigTab] = useState<ConfigTab>('search');
 
@@ -1445,8 +1450,22 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                     value={config.northStarPrompt ?? ''}
                     onChange={(e) => setConfig((c) => ({ ...c, northStarPrompt: e.target.value || undefined }))}
                     placeholder="e.g. We're starting the story — ease the reader in gently. Establish the world and characters before introducing conflict..."
-                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-32 resize-none outline-none placeholder:text-text-dim focus:border-white/20 transition-colors"
+                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim focus:border-white/20 transition-colors"
                   />
+                </div>
+
+                {/* Constraints */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">Constraints</label>
+                  <textarea
+                    value={config.constraintsPrompt ?? ''}
+                    onChange={(e) => setConfig((c) => ({ ...c, constraintsPrompt: e.target.value || undefined }))}
+                    placeholder="e.g. Do not kill the mentor character. Avoid deus ex machina resolutions..."
+                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim focus:border-white/20 transition-colors"
+                  />
+                  <p className="text-[10px] text-text-dim mt-1">
+                    Overrides story-level constraints for this search.
+                  </p>
                 </div>
 
                 {/* World Build Focus */}

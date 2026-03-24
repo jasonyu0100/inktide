@@ -2,9 +2,8 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective, pickCubeGoal, isWorldBuildDue } from '@/lib/auto-engine';
-import { generateScenes, expandWorld, suggestWorldExpansion } from '@/lib/ai';
-import { nextId } from '@/lib/narrative-utils';
+import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective } from '@/lib/auto-engine';
+import { generateScenes } from '@/lib/ai';
 import type { AutoRunLog } from '@/types/narrative';
 
 export function useAutoPlay() {
@@ -58,25 +57,14 @@ export function useAutoPlay() {
     let worldExpanded = false;
 
     try {
-      // World expansion as a pre-step (interval-triggered, not scored)
-      if (isWorldBuildDue(activeNarrative, resolvedEntryKeys, autoConfig)) {
-        const suggestion = await suggestWorldExpansion(activeNarrative, resolvedEntryKeys, currentSceneIndex, autoConfig.worldBuildSize);
-        if (cancelledRef.current) return;
-
-        const expansion = await expandWorld(activeNarrative, resolvedEntryKeys, currentSceneIndex, suggestion, autoConfig.worldBuildSize);
-        if (cancelledRef.current) return;
-
-        dispatch({
-          type: 'EXPAND_WORLD',
-          worldBuildId: nextId('WB', Object.keys(activeNarrative.worldBuilds), 3),
-          characters: expansion.characters,
-          locations: expansion.locations,
-          threads: expansion.threads,
-          relationships: expansion.relationships,
-          worldKnowledgeMutations: expansion.worldKnowledgeMutations,
-          branchId: activeBranchId,
-        });
-        worldExpanded = true;
+      // Resolve world focus from story settings
+      const worldFocusMode = activeNarrative.storySettings?.worldFocus ?? 'none';
+      let worldBuildFocus = undefined;
+      if (worldFocusMode === 'latest') {
+        const lastWbKey = [...resolvedEntryKeys].reverse().find((k) => activeNarrative.worldBuilds[k]);
+        if (lastWbKey) worldBuildFocus = activeNarrative.worldBuilds[lastWbKey];
+      } else if (worldFocusMode === 'custom' && activeNarrative.storySettings?.worldFocusId) {
+        worldBuildFocus = activeNarrative.worldBuilds[activeNarrative.storySettings.worldFocusId];
       }
 
       // Generate arc — pacing is handled by Markov chain sequencing inside generateScenes
@@ -88,7 +76,7 @@ export function useAutoPlay() {
         currentSceneIndex,
         sceneCount,
         directive,
-        {},
+        { worldBuildFocus },
       );
       if (cancelledRef.current) return;
 

@@ -147,6 +147,7 @@ export function useMCTS() {
     rootCurrentIndex: number,
     worldBuildFocus: WorldBuild | undefined,
     northStarPrompt?: string,
+    constraintsPrompt?: string,
     moveType: 'arc' | 'scene' = 'arc',
     existingArc?: Arc,
   ): Promise<ExpansionResult | null> => {
@@ -154,9 +155,12 @@ export function useMCTS() {
 
     const { slotId, onToken } = addPendingExpansion(targetId, direction, cubeGoal, deliveryGoal);
 
-    const effectiveDirection = northStarPrompt
+    let effectiveDirection = northStarPrompt
       ? `NORTH STAR (always steer the narrative toward this): ${northStarPrompt}\n\n${direction}`
       : direction;
+    if (constraintsPrompt) {
+      effectiveDirection += `\nCONSTRAINTS (DO NOT do any of the following): ${constraintsPrompt}`;
+    }
 
     // Scene moves generate exactly 1 scene and continue the existing arc
     const sceneCount = moveType === 'scene' ? 1 : 0;
@@ -343,7 +347,7 @@ export function useMCTS() {
             prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
             activeBranchId,
             tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-            config.northStarPrompt, config.moveType, prep.existingArc,
+            config.northStarPrompt, config.constraintsPrompt, config.moveType, prep.existingArc,
           ).then((result) => ({ result, seq }));
 
           activeSlots.push({ seq, goal, promise });
@@ -467,7 +471,7 @@ export function useMCTS() {
                 prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
                 activeBranchId,
                 tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-                config.northStarPrompt, config.moveType, prep.existingArc,
+                config.northStarPrompt, config.constraintsPrompt, config.moveType, prep.existingArc,
               ));
             }
 
@@ -533,7 +537,7 @@ export function useMCTS() {
               prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
               activeBranchId,
               tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-              config.northStarPrompt, config.moveType, prep.existingArc,
+              config.northStarPrompt, config.constraintsPrompt, config.moveType, prep.existingArc,
             ));
           }
 
@@ -628,7 +632,7 @@ export function useMCTS() {
           prep.direction, prep.cubeGoal, prep.deliveryGoal, prep.ancestorChain, prep.allPriorScenes,
           activeBranchId,
           tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-          config.northStarPrompt, config.moveType, prep.existingArc,
+          config.northStarPrompt, config.constraintsPrompt, config.moveType, prep.existingArc,
         ).then((result) => ({ result, seq }));
 
         activeSlots.push({ seq, targetId, goal, promise });
@@ -800,7 +804,7 @@ export function useMCTS() {
           targetId, parentNarrative, parentKeys, parentIndex,
           direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-          runState.config.northStarPrompt, runState.config.moveType, resumeExistingArc,
+          runState.config.northStarPrompt, runState.config.constraintsPrompt, runState.config.moveType, resumeExistingArc,
         ).then((result) => ({ result, seq }));
         activeSlots.push({ seq, targetId, goal, promise });
         return true;
@@ -950,7 +954,7 @@ export function useMCTS() {
           targetId, parentNarrative, parentKeys, parentIndex,
           direction, cubeGoal, deliveryGoal, ancestorChain, allPriorScenes,
           activeBranchId, tree.rootNarrative, tree.rootResolvedKeys, tree.rootCurrentIndex, worldBuildFocus,
-          updatedConfig.northStarPrompt, updatedConfig.moveType, contExistingArc,
+          updatedConfig.northStarPrompt, updatedConfig.constraintsPrompt, updatedConfig.moveType, contExistingArc,
         ).then((result) => ({ result, seq }));
         activeSlots.push({ seq, targetId, goal, promise });
         return true;

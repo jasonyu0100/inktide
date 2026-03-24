@@ -359,6 +359,8 @@ export type Branch = {
   forkEntryId: string | null;
   /** Ordered timeline entry IDs (scenes + world builds) owned by this branch */
   entryIds: string[];
+  /** Branch-scoped planning queue (optional — absent means no planning layer) */
+  planningQueue?: PlanningQueue;
   createdAt: number;
 };
 
@@ -431,6 +433,9 @@ export type NarrativeEntry = {
 /** How many POV characters drive the narrative */
 export type POVMode = 'single' | 'ensemble' | 'free';
 
+/** Which world commit to seed generations with */
+export type WorldFocusMode = 'latest' | 'custom' | 'none';
+
 export type StorySettings = {
   /** How POV is distributed across the story */
   povMode: POVMode;
@@ -452,6 +457,10 @@ export type StorySettings = {
   branchTimeHorizon: number;
   /** Optional custom prompt for cover image generation */
   coverPrompt: string;
+  /** World focus mode — which world commit to seed generations with */
+  worldFocus: WorldFocusMode;
+  /** Specific WorldBuild ID when worldFocus is 'custom' */
+  worldFocusId?: string;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -467,6 +476,64 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   planGuidance: '',
   branchTimeHorizon: 50,
   coverPrompt: '',
+  worldFocus: 'none',
+};
+
+// ── Planning Queue ──────────────────────────────────────────────────────────
+
+/** Completion status of a planning phase */
+export type PlanningPhaseStatus = 'pending' | 'active' | 'completed';
+
+/** A single phase in the planning queue — an allocated block of scenes with objectives */
+export type PlanningPhase = {
+  id: string;
+  /** Display name (e.g. "Call to Adventure", "Ordeal") */
+  name: string;
+  /** What this phase should achieve */
+  objective: string;
+  /** Number of scenes allocated to this phase */
+  sceneAllocation: number;
+  /** Number of scenes generated so far in this phase */
+  scenesCompleted: number;
+  /** Current status */
+  status: PlanningPhaseStatus;
+  /** Phase-specific constraint overrides (empty = use story settings) */
+  constraints: string;
+  /** AI-generated direction for this phase (set when phase becomes active) */
+  direction: string;
+  /** AI-generated completion report when phase finishes */
+  completionReport?: string;
+  /** World build ID created during transition into this phase */
+  worldBuildId?: string;
+  /** Hints for world expansion when transitioning into this phase */
+  worldExpansionHints: string;
+};
+
+/** A named superstructure template that populates the queue */
+export type PlanningProfile = {
+  id: string;
+  name: string;
+  description: string;
+  /** Whether this is a built-in archetype or user-created */
+  builtIn: boolean;
+  /** Phase templates — no runtime state, just the blueprint */
+  phases: {
+    name: string;
+    objective: string;
+    sceneAllocation: number;
+    constraints: string;
+    worldExpansionHints: string;
+  }[];
+};
+
+/** Branch-scoped planning queue */
+export type PlanningQueue = {
+  /** The profile that populated this queue (null if manually built) */
+  profileId: string | null;
+  /** Ordered list of phases */
+  phases: PlanningPhase[];
+  /** Index of the currently active phase (-1 if none active yet) */
+  activePhaseIndex: number;
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────
@@ -486,28 +553,19 @@ export type AutoActionWeight = {
   reason: string;
 };
 
-/** High-level objective that guides auto mode's action selection */
-export type AutoObjective = 'resolve_threads' | 'explore_and_resolve' | 'open_ended';
-
 export type AutoConfig = {
-  objective: AutoObjective;
   endConditions: AutoEndCondition[];
   minArcLength: number;
   maxArcLength: number;
-  /** World build every N arcs (0 = off) */
-  worldBuildInterval: number;
-  /** How large each world-building expansion is */
-  worldBuildSize: 'small' | 'medium' | 'large';
   maxActiveThreads: number;
   threadStagnationThreshold: number;
   /** High-level north star that steers every arc */
   northStarPrompt: string;
   toneGuidance: string;
+  /** Constraints prompt — defaults from StorySettings.storyConstraints, overridable here */
   narrativeConstraints: string;
   characterRotationEnabled: boolean;
   minScenesBetweenCharacterFocus: number;
-  /** When true, auto mode must use latest world-building elements in new arcs */
-  enforceWorldBuildUsage: boolean;
 };
 
 export type AutoRunLog = {

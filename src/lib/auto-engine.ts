@@ -360,30 +360,9 @@ export function checkEndConditions(
   return null;
 }
 
-// ── Check if world expansion is due (interval-based) ────────────────────────
-export function isWorldBuildDue(
-  narrative: NarrativeState,
-  resolvedKeys: string[],
-  config: AutoConfig,
-): boolean {
-  if (config.worldBuildInterval === 0) return false;
-
-  const allArcIds = Object.keys(narrative.arcs);
-  const lastWorldBuildIdx = resolvedKeys.findLastIndex((k) => narrative.worldBuilds[k] != null);
-
-  let arcsSinceLastWorldBuild: number;
-  if (lastWorldBuildIdx < 0) {
-    arcsSinceLastWorldBuild = allArcIds.length;
-  } else {
-    const scenesAfter = resolvedKeys.slice(lastWorldBuildIdx + 1)
-      .map((k) => narrative.scenes[k])
-      .filter(Boolean);
-    const arcIdsAfter = new Set(scenesAfter.map((s) => s.arcId));
-    arcsSinceLastWorldBuild = arcIdsAfter.size;
-  }
-
-  return arcsSinceLastWorldBuild >= config.worldBuildInterval;
-}
+// World building is now driven exclusively by the planning queue.
+// When a planning phase completes, the transition pipeline triggers
+// world expansion before generating direction/constraints for the next phase.
 
 // ── Per-force saturation detection ───────────────────────────────────────────
 // Detects when individual forces are pinned at extremes, which composite
@@ -465,7 +444,8 @@ export function evaluateNarrativeState(
   const scenes = resolvedKeys.map((k) => narrative.scenes[k]).filter(Boolean).filter(isScene) as Scene[];
   const threads = Object.values(narrative.threads);
   const characters = Object.values(narrative.characters);
-  const objectiveMult = OBJECTIVE_MULTIPLIERS[config.objective] ?? OBJECTIVE_MULTIPLIERS.explore_and_resolve;
+  // Neutral multipliers — direction and constraints guide the narrative instead of objectives
+  const objectiveMult = OBJECTIVE_MULTIPLIERS.explore_and_resolve;
 
   // ── Story trajectory ──────────────────────────────────────────────────
   const storyProgress = computeStoryProgress(narrative, resolvedKeys, config, startingSceneCount, startingArcCount);
@@ -786,15 +766,10 @@ export function buildActionDirective(
     ? `\nNORTH STAR (always steer the narrative toward this): ${config.northStarPrompt}`
     : '';
 
-  // Objective-specific guidance
-  const objectiveClause = config.objective === 'resolve_threads'
-    ? '\nOBJECTIVE: Drive all threads toward resolution and bring the story to a satisfying conclusion. Do not introduce new complications or expand the world — focus on closing existing storylines.'
-    : config.objective === 'open_ended'
-    ? '\nOBJECTIVE: Keep the story open and evolving. Prioritize introducing new elements, complications, and world expansion over resolving threads.'
-    : '';
+  // Direction and constraints are the primary guidance — no objective clause needed
 
   // World build seed clause
-  const worldBuildSeed = buildWorldBuildSeedClause(narrative, ctx.scenes, config);
+  const worldBuildSeed = buildWorldBuildSeedClause(narrative, ctx.scenes);
 
   // Thread context for relevant corners
   const threadContext = ctx.stagnantThreads.length > 0
@@ -828,7 +803,7 @@ export function buildActionDirective(
     LLL: `REST — ${corner.description} Breathing room after intensity. Focus on recovery, character relationships, and subtle foreshadowing. Plant seeds for future conflict. Quiet realizations, overheard details, gentle relationship shifts.`,
   };
 
-  return `${cornerDirectives[action]}${trajectoryClause}${vibrancyClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${objectiveClause}${toneClause}${constraintClause}${directionClause}`;
+  return `${cornerDirectives[action]}${trajectoryClause}${vibrancyClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${toneClause}${constraintClause}${directionClause}`;
 }
 
 /** Build LLM correction text from pre-computed saturation results */
@@ -909,7 +884,6 @@ function buildKnowledgeAsymmetryClause(
 function buildWorldBuildSeedClause(
   narrative: NarrativeState,
   scenes: Scene[],
-  config: AutoConfig,
 ): string {
   const worldBuilds = Object.values(narrative.worldBuilds);
   if (worldBuilds.length === 0) return '';
@@ -945,11 +919,7 @@ function buildWorldBuildSeedClause(
 
   if (unusedChars.length === 0 && unusedLocs.length === 0 && unusedThreads.length === 0) return '';
 
-  const enforce = config.enforceWorldBuildUsage;
-  const header = enforce
-    ? '\nYou MUST incorporate at least one of these unused world-building elements into this arc:'
-    : '\nConsider incorporating these unused world-building elements:';
-  const parts: string[] = [header];
+  const parts: string[] = ['\nConsider incorporating these unused world-building elements:'];
   if (unusedChars.length > 0) parts.push(`- Characters: ${unusedChars.slice(0, 4).join(', ')}`);
   if (unusedLocs.length > 0) parts.push(`- Locations: ${unusedLocs.slice(0, 3).join(', ')}`);
   if (unusedThreads.length > 0) parts.push(`- Threads: ${unusedThreads.slice(0, 3).join(', ')}`);

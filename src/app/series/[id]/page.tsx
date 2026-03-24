@@ -25,6 +25,10 @@ import { MCTSPanel } from '@/components/mcts/MCTSPanel';
 import { MCTSControlBar } from '@/components/mcts/MCTSControlBar';
 import { useMCTS } from '@/hooks/useMCTS';
 import { StorySettingsModal } from '@/components/settings/StorySettingsModal';
+import { PlanningIndicator } from '@/components/planning/PlanningIndicator';
+import { PlanningQueueEditor } from '@/components/planning/PlanningQueueEditor';
+import { PhaseCompletionModal } from '@/components/planning/PhaseCompletionModal';
+import { usePlanningQueue } from '@/hooks/usePlanningQueue';
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(false);
@@ -50,8 +54,10 @@ export default function SeriesPage() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [mctsOpen, setMctsOpen] = useState(false);
   const [storySettingsOpen, setStorySettingsOpen] = useState(false);
+  const [planningQueueOpen, setPlanningQueueOpen] = useState(false);
   const autoPlay = useAutoPlay();
   const mcts = useMCTS();
+  const planning = usePlanningQueue();
   const id = params.id as string;
 
   // Activate narrative from URL param
@@ -77,6 +83,7 @@ export default function SeriesPage() {
     function handleOpenRules() { setRulesOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
     function handleOpenStorySettings() { setStorySettingsOpen(true); }
+    function handleOpenPlanningQueue() { setPlanningQueueOpen(true); }
     window.addEventListener('open-generate-panel', handleOpenGenerate);
     window.addEventListener('open-branch-modal', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
@@ -85,6 +92,7 @@ export default function SeriesPage() {
     window.addEventListener('open-rules-panel', handleOpenRules);
     window.addEventListener('open-mcts-panel', handleOpenMcts);
     window.addEventListener('open-story-settings', handleOpenStorySettings);
+    window.addEventListener('open-planning-queue', handleOpenPlanningQueue);
     return () => {
       window.removeEventListener('open-generate-panel', handleOpenGenerate);
       window.removeEventListener('open-branch-modal', handleOpenFork);
@@ -94,6 +102,7 @@ export default function SeriesPage() {
       window.removeEventListener('open-rules-panel', handleOpenRules);
       window.removeEventListener('open-mcts-panel', handleOpenMcts);
       window.removeEventListener('open-story-settings', handleOpenStorySettings);
+      window.removeEventListener('open-planning-queue', handleOpenPlanningQueue);
     };
   }, []);
 
@@ -141,6 +150,11 @@ export default function SeriesPage() {
             )}
             {!showAutoBar && !showMctsBar && <SceneInfoBar />}
             <FloatingPalette />
+            {planning.queue && (
+              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">
+                <PlanningIndicator queue={planning.queue} onClick={() => setPlanningQueueOpen(true)} />
+              </div>
+            )}
           </div>
           <NarrativePanel />
           <TimelineStrip />
@@ -162,6 +176,16 @@ export default function SeriesPage() {
       {forceAnalyticsOpen && <ForceAnalytics onClose={() => setForceAnalyticsOpen(false)} />}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}
+      {planningQueueOpen && <PlanningQueueEditor onClose={() => setPlanningQueueOpen(false)} />}
+      {planning.pendingCompletion && planning.queue && (
+        <PhaseCompletionModal
+          queue={planning.queue}
+          completionReport={planning.pendingCompletion.report}
+          onExtend={() => planning.extendPhase()}
+          onAdvance={(customWorldPrompt) => planning.advancePhase(customWorldPrompt)}
+          onClose={() => planning.advancePhase()}
+        />
+      )}
       <MCTSPanel isOpen={mctsOpen} onClose={() => setMctsOpen(false)} mcts={mcts} />
       {isMobile && (
         <div className="fixed inset-0 z-9999 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center px-6 text-center">

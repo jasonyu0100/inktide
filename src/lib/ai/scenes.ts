@@ -120,11 +120,25 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
   Location IDs: ${Object.keys(narrative.locations).join(', ')}
   Thread IDs: ${Object.keys(narrative.threads).join(', ')}`;
 
-  const raw = onToken
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL)
-    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL);
-
-  const parsed = parseJson(raw, 'generateScenes') as { arcName?: string; directionVector?: string; scenes: Scene[] };
+  // Retry on JSON parse failures (truncation, malformed output)
+  const MAX_RETRIES = 2;
+  let parsed: { arcName?: string; directionVector?: string; scenes: Scene[] };
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const raw = onToken
+        ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL)
+        : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL);
+      parsed = parseJson(raw, 'generateScenes') as { arcName?: string; directionVector?: string; scenes: Scene[] };
+      break;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < MAX_RETRIES) {
+        console.warn(`[generateScenes] Attempt ${attempt + 1} failed, retrying...`, err instanceof Error ? err.message : err);
+      }
+    }
+  }
+  if (!parsed!) throw lastErr;
   const arcName = existingArc?.name ?? parsed.arcName ?? 'Untitled Arc';
   const directionVector = parsed.directionVector;
 

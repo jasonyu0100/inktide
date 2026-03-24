@@ -263,11 +263,11 @@ export default function CharacterDetail({ characterId }: Props) {
         );
       })()}
 
-      {/* Knowledge — paginated, most recent first */}
+      {/* Continuity — paginated, most recent first */}
       {continuityNodes.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(continuityNodes, continuityPage);
         return (
-          <CollapsibleSection title="Knowledge" count={continuityNodes.length}>
+          <CollapsibleSection title="Continuity" count={continuityNodes.length}>
             <ul className="flex flex-col gap-1">
               {pageItems.map((node, i) => (
                 <li key={`${node.id}-${i}`} className="flex items-start gap-2">

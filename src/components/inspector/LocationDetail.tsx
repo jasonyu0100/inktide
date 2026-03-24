@@ -42,10 +42,10 @@ type Props = {
 };
 
 const continuityDotColors: Record<ContinuityNodeType, string> = {
-  lore: 'bg-[#8B5CF6]',
+  lore: 'bg-white/40',
   secret: 'bg-[#F59E0B]',
   danger: 'bg-[#EF4444]',
-  resource: 'bg-[#10B981]',
+  resource: 'bg-[#3B82F6]',
 };
 
 export default function LocationDetail({ locationId }: Props) {
@@ -74,10 +74,6 @@ export default function LocationDetail({ locationId }: Props) {
     state.currentSceneIndex,
   );
 
-  // Total scenes at this location up to current scene
-  const totalSceneCount = sceneKeysUpToCurrent
-    .filter((k) => narrative.scenes[k]?.locationId === locationId).length;
-
   // Threads filtered to current scene
   const threadIds = getThreadIdsAtScene(
     location.threadIds,
@@ -100,10 +96,7 @@ export default function LocationDetail({ locationId }: Props) {
       arrivals: Object.entries(s.characterMovements ?? {})
         .filter(([, mv]) => mv.locationId === locationId)
         .map(([charId]) => charId),
-    }))
-    .filter(({ threadMuts, continuityMuts, arrivals }) =>
-      threadMuts.length > 0 || continuityMuts.length > 0 || arrivals.length > 0,
-    );
+    }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -146,11 +139,11 @@ export default function LocationDetail({ locationId }: Props) {
         <p className="text-[10px] text-text-dim italic leading-relaxed">{location.imagePrompt}</p>
       )}
 
-      {/* Knowledge — paginated, most recent first */}
+      {/* Continuity — paginated, most recent first */}
       {continuityNodes.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(continuityNodes, continuityPage);
         return (
-          <CollapsibleSection title="Knowledge" count={continuityNodes.length}>
+          <CollapsibleSection title="Continuity" count={continuityNodes.length} defaultOpen>
             <ul className="flex flex-col gap-1">
               {pageItems.map((node, i) => (
                 <li key={`${node.id}-${i}`} className="flex items-start gap-2">
@@ -168,7 +161,7 @@ export default function LocationDetail({ locationId }: Props) {
       {threadIds.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(threadIds, threadPage);
         return (
-          <CollapsibleSection title="Threads" count={threadIds.length}>
+          <CollapsibleSection title="Threads" count={threadIds.length} defaultOpen>
             <ul className="flex flex-col gap-1">
               {pageItems.map((tid, i) => (
                 <li key={`${tid}-${i}`}>
@@ -191,10 +184,10 @@ export default function LocationDetail({ locationId }: Props) {
       })()}
 
       {/* Scenes — paginated, most recent first */}
-      {totalSceneCount > 0 && (() => {
+      {lifecycle.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(lifecycle, scenesPage);
         return (
-          <CollapsibleSection title="Scenes" count={totalSceneCount} defaultOpen>
+          <CollapsibleSection title="Scenes" count={lifecycle.length} defaultOpen>
             {pageItems.length > 0 && (
               <ul className="flex flex-col gap-2">
                 {pageItems.map(({ sceneId, threadMuts, continuityMuts, arrivals }) => (

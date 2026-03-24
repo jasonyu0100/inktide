@@ -10,7 +10,7 @@
 import type {
   NarrativeState, AnalysisChunkResult, AnalysisJob,
   Character, Location, Thread, Arc, Scene, RelationshipEdge,
-  WorldBuildCommit, Branch, Commit,
+  WorldBuildCommit, Branch,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
@@ -1267,21 +1267,6 @@ export async function assembleNarrative(
 
   const relationships = Object.values(relationshipMap);
 
-  // Commits
-  const sceneList = Object.values(scenes);
-  const commits: Commit[] = sceneList.map((scene, i) => ({
-    id: `CM-${PREFIX}-${String(i + 1).padStart(3, '0')}`,
-    parentId: i === 0 ? null : `CM-${PREFIX}-${String(i).padStart(3, '0')}`,
-    sceneId: scene.id,
-    arcId: scene.arcId,
-    diffName: scene.events[0] ?? 'scene',
-    threadMutations: scene.threadMutations,
-    continuityMutations: scene.continuityMutations,
-    relationshipMutations: scene.relationshipMutations,
-    authorOverride: null,
-    createdAt: Date.now() - (sceneList.length - i) * 3600000,
-  }));
-
   // World builds — one per 3-chunk batch, only when new entities are introduced.
   // The first batch always gets a commit; later batches are skipped if nothing new appeared.
   const WORLD_COMMIT_INTERVAL = 3;
@@ -1409,13 +1394,10 @@ Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive"
     scenes,
     worldBuilds,
     branches,
-    commits,
     relationships,
     worldKnowledge: { nodes: wkNodes, edges: wkEdges },
     worldSummary,
     rules,
-    controlMode: 'auto',
-    activeForces: { payoff: 0, change: 0, knowledge: 0 },
     imageStyle,
     createdAt: Date.now() - 86400000,
     updatedAt: Date.now(),

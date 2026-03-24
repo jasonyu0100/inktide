@@ -362,43 +362,29 @@ export type Branch = {
   createdAt: number;
 };
 
-// ── Commit ───────────────────────────────────────────────────────────────────
-export type Commit = {
-  id: string;
-  parentId: string | null;
-  sceneId: string;
-  arcId: string;
-  diffName: string;
-  threadMutations: ThreadMutation[];
-  continuityMutations: ContinuityMutation[];
-  relationshipMutations: RelationshipMutation[];
-  authorOverride: string | null;
-  createdAt: number;
-};
-
 // ── Narrative State ──────────────────────────────────────────────────────────
-export type ControlMode = 'auto' | 'manual';
 
 export type NarrativeState = {
   id: string;
   title: string;
   description: string;
+  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedSceneKeys */
   characters: Record<string, Character>;
+  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedSceneKeys */
   locations: Record<string, Location>;
+  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedSceneKeys */
   threads: Record<string, Thread>;
   arcs: Record<string, Arc>;
   scenes: Record<string, Scene>;
   worldBuilds: Record<string, WorldBuildCommit>;
   branches: Record<string, Branch>;
-  commits: Commit[];
+  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedSceneKeys */
   relationships: RelationshipEdge[];
-  /** Cumulative world knowledge graph — abstract concepts, rules, systems, and their connections */
+  /** Derived cache — cumulative world knowledge graph built from world-build manifests + scene mutations */
   worldKnowledge: WorldKnowledgeGraph;
   worldSummary: string;
   /** World rules / commandments that the narrative must follow */
   rules: string[];
-  controlMode: ControlMode;
-  activeForces: ForceSnapshot;
   coverImageUrl?: string;
   /** Style directive appended to all image generation prompts for visual consistency */
   imageStyle?: string;
@@ -659,7 +645,6 @@ export type AppState = {
   narratives: NarrativeEntry[];
   activeNarrativeId: string | null;
   activeNarrative: NarrativeState | null;
-  controlMode: ControlMode;
   isPlaying: boolean;
   currentSceneIndex: number;
   activeBranchId: string | null;
@@ -670,7 +655,6 @@ export type AppState = {
   wizardStep: WizardStep;
   wizardData: WizardData;
   selectedKnowledgeEntity: string | null;
-  autoTimer: number;
   graphViewMode: GraphViewMode;
   autoConfig: AutoConfig;
   autoRunState: AutoRunState | null;

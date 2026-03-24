@@ -463,19 +463,6 @@ WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene 
     }
   }
 
-  const commits = sceneList.map((scene, i) => ({
-    id: `CM-${String(i + 1).padStart(3, '0')}`,
-    parentId: i === 0 ? null : `CM-${String(i).padStart(3, '0')}`,
-    sceneId: scene.id,
-    arcId: scene.arcId,
-    diffName: scene.events[0] ?? 'scene',
-    threadMutations: scene.threadMutations,
-    continuityMutations: scene.continuityMutations,
-    relationshipMutations: scene.relationshipMutations,
-    authorOverride: null,
-    createdAt: now - (sceneList.length - i) * 3600000,
-  }));
-
   return {
     id,
     title,
@@ -487,13 +474,10 @@ WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene 
     scenes,
     worldBuilds: {},
     branches,
-    commits,
     relationships: parsed.relationships ?? [],
     worldKnowledge: { nodes: worldKnowledgeNodes, edges: worldKnowledgeEdges },
     worldSummary: parsed.worldSummary ?? premise,
     rules: Array.isArray(parsed.rules) ? parsed.rules.filter((r: unknown) => typeof r === 'string') : rules,
-    controlMode: 'auto',
-    activeForces: { payoff: 0, change: 0, knowledge: 0 },
     createdAt: now,
     updatedAt: now,
   };

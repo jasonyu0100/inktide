@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, ControlMode, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunState, AutoRunLog, WorldBuildCommit, ChatThread, ChatMessage, Note } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuildCommit, ChatThread, ChatMessage, Note } from '@/types/narrative';
 import { resolveSceneSequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForcetotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
@@ -214,7 +214,6 @@ const initialState: AppState = {
   narratives: [],
   activeNarrativeId: null,
   activeNarrative: null,
-  controlMode: 'auto',
   isPlaying: false,
   currentSceneIndex: 0,
   activeBranchId: null,
@@ -224,7 +223,6 @@ const initialState: AppState = {
   wizardStep: 'form',
   wizardData: { title: '', premise: '', characters: [], locations: [], rules: [] },
   selectedKnowledgeEntity: null,
-  autoTimer: 30,
   graphViewMode: 'spatial',
   autoConfig: {
     objective: 'explore_and_resolve',
@@ -254,10 +252,7 @@ export type Action =
   | { type: 'HYDRATE_NARRATIVES'; entries: NarrativeEntry[] }
   | { type: 'SET_ACTIVE_NARRATIVE'; id: string }
   | { type: 'LOADED_NARRATIVE'; narrative: NarrativeState; savedBranchId?: string | null }
-  | { type: 'CLEAR_ACTIVE_NARRATIVE' }
-  | { type: 'SET_CONTROL_MODE'; mode: ControlMode }
   | { type: 'TOGGLE_PLAY' }
-  | { type: 'STOP' }
   | { type: 'NEXT_SCENE' }
   | { type: 'PREV_SCENE' }
   | { type: 'SET_SCENE_INDEX'; index: number }
@@ -269,32 +264,17 @@ export type Action =
   | { type: 'ADD_NARRATIVE'; narrative: NarrativeState }
   | { type: 'DELETE_NARRATIVE'; id: string }
   | { type: 'SELECT_KNOWLEDGE_ENTITY'; entityId: string | null }
-  | { type: 'SET_AUTO_TIMER'; seconds: number }
   | { type: 'SET_GRAPH_VIEW_MODE'; mode: GraphViewMode }
   | { type: 'SWITCH_BRANCH'; branchId: string }
-  // CRUD
-  | { type: 'UPDATE_NARRATIVE_META'; title?: string; description?: string; worldSummary?: string }
+  // Scene mutations
   | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'proseScore' | 'plan' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId' | 'locked'>> }
-  | { type: 'CREATE_SCENE'; scene: Scene; branchId: string }
   | { type: 'DELETE_SCENE'; sceneId: string; branchId: string }
-  | { type: 'UPDATE_ARC'; arcId: string; updates: Partial<Pick<Arc, 'name' | 'develops' | 'locationIds' | 'activeCharacterIds'>> }
-  | { type: 'CREATE_ARC'; arc: Arc }
-  | { type: 'DELETE_ARC'; arcId: string }
-  | { type: 'UPDATE_CHARACTER'; characterId: string; updates: Partial<Pick<Character, 'name' | 'role'>> }
-  | { type: 'CREATE_CHARACTER'; character: Character }
-  | { type: 'DELETE_CHARACTER'; characterId: string }
-  | { type: 'UPDATE_LOCATION'; locationId: string; updates: Partial<Pick<Location, 'name' | 'parentId'>> }
-  | { type: 'CREATE_LOCATION'; location: Location }
-  | { type: 'DELETE_LOCATION'; locationId: string }
-  | { type: 'UPDATE_THREAD'; threadId: string; updates: Partial<Pick<Thread, 'description' | 'status'>> }
-  | { type: 'CREATE_THREAD'; thread: Thread }
-  | { type: 'DELETE_THREAD'; threadId: string }
+  // Branch management
   | { type: 'CREATE_BRANCH'; branch: Branch }
   | { type: 'DELETE_BRANCH'; branchId: string }
   | { type: 'RENAME_BRANCH'; branchId: string; name: string }
   | { type: 'REMOVE_BRANCH_ENTRY'; entryId: string; branchId: string }
-  | { type: 'ADD_RELATIONSHIP'; relationship: RelationshipEdge }
-  | { type: 'REMOVE_RELATIONSHIP'; from: string; to: string }
+  // Bulk AI-generated content
   | { type: 'BULK_ADD_SCENES'; scenes: Scene[]; arc: Arc; branchId: string }
   | { type: 'EXPAND_WORLD'; wxId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: import('@/types/narrative').WorldKnowledgeMutation }
   | { type: 'REPLACE_NARRATIVE'; narrative: NarrativeState }
@@ -371,14 +351,8 @@ function reducer(state: AppState, action: Action): AppState {
         currentSceneIndex: resolved.length - 1,
       };
     }
-    case 'CLEAR_ACTIVE_NARRATIVE':
-      return { ...state, activeNarrativeId: null, activeNarrative: null, inspectorContext: null, selectedKnowledgeEntity: null };
-    case 'SET_CONTROL_MODE':
-      return { ...state, controlMode: action.mode, isPlaying: false };
     case 'TOGGLE_PLAY':
       return { ...state, isPlaying: !state.isPlaying };
-    case 'STOP':
-      return { ...state, isPlaying: false };
     case 'NEXT_SCENE': {
       const max = state.resolvedSceneKeys.length - 1;
       const nextIdx = Math.min(state.currentSceneIndex + 1, Math.max(0, max));
@@ -497,8 +471,6 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'SELECT_KNOWLEDGE_ENTITY':
       return { ...state, selectedKnowledgeEntity: action.entityId };
-    case 'SET_AUTO_TIMER':
-      return { ...state, autoTimer: action.seconds };
     case 'SET_GRAPH_VIEW_MODE':
       return { ...state, graphViewMode: action.mode };
     case 'SWITCH_BRANCH': {
@@ -518,15 +490,6 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
 
-    // ── CRUD: Narrative meta ──────────────────────────────────────────────
-    case 'UPDATE_NARRATIVE_META':
-      return updateNarrative(state, (n) => ({
-        ...n,
-        title: action.title ?? n.title,
-        description: action.description ?? n.description,
-        worldSummary: action.worldSummary ?? n.worldSummary,
-      }));
-
     // ── CRUD: Scenes ──────────────────────────────────────────────────────
     case 'UPDATE_SCENE':
       return updateNarrative(state, (n) => {
@@ -534,31 +497,6 @@ function reducer(state: AppState, action: Action): AppState {
         if (!scene) return n;
         return { ...n, scenes: { ...n.scenes, [action.sceneId]: { ...scene, ...action.updates } } };
       });
-
-    case 'CREATE_SCENE': {
-      const newState = updateNarrative(state, (n) => {
-        const branch = n.branches[action.branchId];
-        if (!branch) return n;
-        const arc = n.arcs[action.scene.arcId];
-        const updatedArcs = arc
-          ? { ...n.arcs, [arc.id]: { ...arc, sceneIds: [...arc.sceneIds, action.scene.id] } }
-          : n.arcs;
-        return {
-          ...n,
-          scenes: { ...n.scenes, [action.scene.id]: action.scene },
-          arcs: updatedArcs,
-          branches: {
-            ...n.branches,
-            [action.branchId]: { ...branch, entryIds: [...branch.entryIds, action.scene.id] },
-          },
-        };
-      });
-      if (newState.activeNarrative && newState.activeBranchId) {
-        const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
-        return { ...newState, resolvedSceneKeys: resolved, currentSceneIndex: resolved.length - 1 };
-      }
-      return newState;
-    }
 
     case 'DELETE_SCENE': {
       const newState = updateNarrative(state, (n) => {
@@ -580,121 +518,6 @@ function reducer(state: AppState, action: Action): AppState {
       return newState;
     }
 
-    // ── CRUD: Arcs ────────────────────────────────────────────────────────
-    case 'UPDATE_ARC':
-      return updateNarrative(state, (n) => {
-        const arc = n.arcs[action.arcId];
-        if (!arc) return n;
-        return { ...n, arcs: { ...n.arcs, [action.arcId]: { ...arc, ...action.updates } } };
-      });
-
-    case 'CREATE_ARC':
-      return updateNarrative(state, (n) => ({
-        ...n, arcs: { ...n.arcs, [action.arc.id]: action.arc },
-      }));
-
-    case 'DELETE_ARC':
-      return updateNarrative(state, (n) => {
-        const { [action.arcId]: _, ...restArcs } = n.arcs;
-        return { ...n, arcs: restArcs };
-      });
-
-    // ── CRUD: Characters ──────────────────────────────────────────────────
-    case 'UPDATE_CHARACTER': {
-      const afterUpdate = updateNarrative(state, (n) => {
-        const wxEntry = Object.values(n.worldBuilds).find((wb) =>
-          wb.expansionManifest.characters.some((c) => c.id === action.characterId)
-        );
-        if (!wxEntry) return n;
-        return {
-          ...n,
-          worldBuilds: {
-            ...n.worldBuilds,
-            [wxEntry.id]: {
-              ...wxEntry,
-              expansionManifest: {
-                ...wxEntry.expansionManifest,
-                characters: wxEntry.expansionManifest.characters.map((c) =>
-                  c.id === action.characterId ? { ...c, ...action.updates } : c
-                ),
-              },
-            },
-          },
-        };
-      });
-      if (!afterUpdate.activeNarrative) return afterUpdate;
-      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedSceneKeys);
-      return { ...afterUpdate, activeNarrative: derived };
-    }
-
-    case 'CREATE_CHARACTER':
-      return updateNarrative(state, (n) => ({
-        ...n, characters: { ...n.characters, [action.character.id]: action.character },
-      }));
-
-    case 'DELETE_CHARACTER':
-      return updateNarrative(state, (n) => {
-        const { [action.characterId]: _, ...rest } = n.characters;
-        return { ...n, characters: rest };
-      });
-
-    // ── CRUD: Locations ───────────────────────────────────────────────────
-    case 'UPDATE_LOCATION': {
-      const afterUpdate = updateNarrative(state, (n) => {
-        const wxEntry = Object.values(n.worldBuilds).find((wb) =>
-          wb.expansionManifest.locations.some((l) => l.id === action.locationId)
-        );
-        if (!wxEntry) return n;
-        return {
-          ...n,
-          worldBuilds: {
-            ...n.worldBuilds,
-            [wxEntry.id]: {
-              ...wxEntry,
-              expansionManifest: {
-                ...wxEntry.expansionManifest,
-                locations: wxEntry.expansionManifest.locations.map((l) =>
-                  l.id === action.locationId ? { ...l, ...action.updates } : l
-                ),
-              },
-            },
-          },
-        };
-      });
-      if (!afterUpdate.activeNarrative) return afterUpdate;
-      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedSceneKeys);
-      return { ...afterUpdate, activeNarrative: derived };
-    }
-
-    case 'CREATE_LOCATION':
-      return updateNarrative(state, (n) => ({
-        ...n, locations: { ...n.locations, [action.location.id]: action.location },
-      }));
-
-    case 'DELETE_LOCATION':
-      return updateNarrative(state, (n) => {
-        const { [action.locationId]: _, ...rest } = n.locations;
-        return { ...n, locations: rest };
-      });
-
-    // ── CRUD: Threads ─────────────────────────────────────────────────────
-    case 'UPDATE_THREAD':
-      return updateNarrative(state, (n) => {
-        const thread = n.threads[action.threadId];
-        if (!thread) return n;
-        return { ...n, threads: { ...n.threads, [action.threadId]: { ...thread, ...action.updates } } };
-      });
-
-    case 'CREATE_THREAD':
-      return updateNarrative(state, (n) => ({
-        ...n, threads: { ...n.threads, [action.thread.id]: action.thread },
-      }));
-
-    case 'DELETE_THREAD':
-      return updateNarrative(state, (n) => {
-        const { [action.threadId]: _, ...rest } = n.threads;
-        return { ...n, threads: rest };
-      });
 
     // ── CRUD: Branches ────────────────────────────────────────────────────
     case 'CREATE_BRANCH': {
@@ -710,7 +533,7 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'DELETE_BRANCH': {
       if (action.branchId === state.activeBranchId) return state;
-      // Build full cascade set before mutating so we can guard against it
+      // Build full cascade set (branch + all child branches)
       const toDelete = new Set<string>();
       if (state.activeNarrative) {
         const queue = [action.branchId];
@@ -722,114 +545,34 @@ function reducer(state: AppState, action: Action): AppState {
           });
         }
       }
-      // Block if the cascade would wipe out the active branch
       if (state.activeBranchId && toDelete.has(state.activeBranchId)) return state;
+
       const result = updateNarrative(state, (n) => {
         const remaining = Object.fromEntries(
           Object.entries(n.branches).filter(([id]) => !toDelete.has(id)),
         );
 
-        // Collect entry IDs owned by deleted branches
+        // Entries owned exclusively by deleted branches (not shared with survivors)
         const deletedEntries = new Set<string>();
-        toDelete.forEach((bid) => {
-          n.branches[bid]?.entryIds.forEach((eid) => deletedEntries.add(eid));
-        });
-
-        // Keep entries that are still referenced by a surviving branch
+        toDelete.forEach((bid) => n.branches[bid]?.entryIds.forEach((eid) => deletedEntries.add(eid)));
         const survivingEntries = new Set<string>();
-        Object.values(remaining).forEach((b) => {
-          b.entryIds.forEach((eid) => survivingEntries.add(eid));
-        });
+        Object.values(remaining).forEach((b) => b.entryIds.forEach((eid) => survivingEntries.add(eid)));
+        const entriesToRemove = new Set([...deletedEntries].filter((eid) => !survivingEntries.has(eid)));
 
-        const entriesToRemove = new Set(
-          [...deletedEntries].filter((eid) => !survivingEntries.has(eid)),
-        );
+        const scenes = Object.fromEntries(Object.entries(n.scenes).filter(([id]) => !entriesToRemove.has(id)));
+        const worldBuilds = Object.fromEntries(Object.entries(n.worldBuilds).filter(([id]) => !entriesToRemove.has(id)));
 
-        // Surviving scenes and world builds
-        const scenes = Object.fromEntries(
-          Object.entries(n.scenes).filter(([id]) => !entriesToRemove.has(id)),
-        );
-        const worldBuilds = Object.fromEntries(
-          Object.entries(n.worldBuilds).filter(([id]) => !entriesToRemove.has(id)),
-        );
-
-        // Collect candidate characters/locations/threads from deleted world builds
-        const candidateCharIds = new Set<string>();
-        const candidateLocIds = new Set<string>();
-        const candidateThreadIds = new Set<string>();
-        entriesToRemove.forEach((eid) => {
-          const wb = n.worldBuilds[eid];
-          if (wb) {
-            wb.expansionManifest.characters.forEach((c) => candidateCharIds.add(c.id));
-            wb.expansionManifest.locations.forEach((l) => candidateLocIds.add(l.id));
-            wb.expansionManifest.threads.forEach((t) => candidateThreadIds.add(t.id));
-          }
-        });
-
-        // Scan surviving scenes/arcs to find which candidates are still referenced
-        const usedCharIds = new Set<string>();
-        const usedLocIds = new Set<string>();
-        Object.values(scenes).forEach((s) => {
-          s.participantIds.forEach((id) => usedCharIds.add(id));
-          usedCharIds.add(s.povId);
-          usedLocIds.add(s.locationId);
-          Object.keys(s.characterMovements ?? {}).forEach((id) => usedCharIds.add(id));
-          Object.values(s.characterMovements ?? {}).forEach((mv) => usedLocIds.add(typeof mv === 'string' ? mv : mv.locationId));
-        });
-        Object.values(n.arcs).forEach((arc) => {
-          arc.activeCharacterIds.forEach((id) => usedCharIds.add(id));
-          arc.locationIds.forEach((id) => usedLocIds.add(id));
-          Object.keys(arc.initialCharacterLocations).forEach((id) => usedCharIds.add(id));
-          Object.values(arc.initialCharacterLocations).forEach((id) => usedLocIds.add(id));
-        });
-        // Threads anchored to surviving characters/locations
-        const usedThreadIds = new Set<string>();
-        Object.values(n.threads).forEach((t) => {
-          t.anchors.forEach((a) => {
-            if (a.type === 'character' && !candidateCharIds.has(a.id)) usedThreadIds.add(t.id);
-            if (a.type === 'location' && !candidateLocIds.has(a.id)) usedThreadIds.add(t.id);
-          });
-        });
-
-        const charsToDelete = new Set([...candidateCharIds].filter((id) => !usedCharIds.has(id)));
-        const locsToDelete = new Set([...candidateLocIds].filter((id) => !usedLocIds.has(id)));
-        const threadsToDelete = new Set([...candidateThreadIds].filter((id) => !usedThreadIds.has(id)));
-
-        const characters = Object.fromEntries(
-          Object.entries(n.characters)
-            .filter(([id]) => !charsToDelete.has(id))
-            .map(([id, c]) => [id, { ...c, threadIds: c.threadIds.filter((tid) => !threadsToDelete.has(tid)) }]),
-        );
-        const locations = Object.fromEntries(
-          Object.entries(n.locations).filter(([id]) => !locsToDelete.has(id)),
-        );
-        const threads = Object.fromEntries(
-          Object.entries(n.threads).filter(([id]) => !threadsToDelete.has(id)),
-        );
-        const relationships = n.relationships.filter(
-          (r) => !charsToDelete.has(r.from) && !charsToDelete.has(r.to),
-        );
-
-        // Clean up arcs: remove deleted scene IDs, drop empty arcs, strip deleted char/loc refs
+        // Clean up arcs: remove deleted scene IDs, drop arcs that become empty
         const arcs = Object.fromEntries(
           Object.entries(n.arcs).flatMap(([id, arc]) => {
             const sceneIds = arc.sceneIds.filter((sid) => !entriesToRemove.has(sid));
-            if (sceneIds.length === 0) return [];
-            return [[id, {
-              ...arc,
-              sceneIds,
-              activeCharacterIds: arc.activeCharacterIds.filter((cid) => !charsToDelete.has(cid)),
-              locationIds: arc.locationIds.filter((lid) => !locsToDelete.has(lid)),
-              initialCharacterLocations: Object.fromEntries(
-                Object.entries(arc.initialCharacterLocations)
-                  .filter(([cid, lid]) => !charsToDelete.has(cid) && !locsToDelete.has(lid)),
-              ),
-            }]];
+            return sceneIds.length === 0 ? [] : [[id, { ...arc, sceneIds }]];
           }),
         );
 
-        return { ...n, branches: remaining, scenes, worldBuilds, arcs, characters, locations, threads, relationships };
+        return { ...n, branches: remaining, scenes, worldBuilds, arcs };
       });
+
       if (result.activeNarrative && result.activeBranchId) {
         const resolved = getResolvedKeys(result.activeNarrative, result.activeBranchId);
         const derived = withDerivedEntities(result.activeNarrative, resolved);
@@ -866,17 +609,6 @@ function reducer(state: AppState, action: Action): AppState {
       }
       return newState;
     }
-
-    // ── CRUD: Relationships ───────────────────────────────────────────────
-    case 'ADD_RELATIONSHIP':
-      return updateNarrative(state, (n) => ({
-        ...n, relationships: [...n.relationships, action.relationship],
-      }));
-
-    case 'REMOVE_RELATIONSHIP':
-      return updateNarrative(state, (n) => ({
-        ...n, relationships: n.relationships.filter((r) => !(r.from === action.from && r.to === action.to)),
-      }));
 
     // ── Bulk: AI-generated scenes ─────────────────────────────────────────
     case 'BULK_ADD_SCENES': {
@@ -978,27 +710,6 @@ function reducer(state: AppState, action: Action): AppState {
         return { ...newState, activeNarrative: derived, resolvedSceneKeys: resolved, currentSceneIndex: resolved.length - 1 };
       }
       return newState;
-    }
-
-    // ── Replace entire narrative (import) ─────────────────────────────────
-    case 'REPLACE_NARRATIVE': {
-      const entry = narrativeToEntry(action.narrative);
-      const branchId = getRootBranchId(action.narrative);
-      const resolved = getResolvedKeys(action.narrative, branchId);
-      const existingIdx = state.narratives.findIndex((n) => n.id === action.narrative.id);
-      const narratives = existingIdx >= 0
-        ? state.narratives.map((n, i) => (i === existingIdx ? entry : n))
-        : [...state.narratives, entry];
-      return {
-        ...state,
-        narratives,
-        activeNarrativeId: action.narrative.id,
-        activeNarrative: action.narrative,
-        activeBranchId: branchId,
-        resolvedSceneKeys: resolved,
-        currentSceneIndex: Math.max(0, resolved.length - 1),
-        wizardOpen: false,
-      };
     }
 
     // ── Auto mode ──────────────────────────────────────────────────────────

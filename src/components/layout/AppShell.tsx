@@ -95,42 +95,10 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
           </div>
         )}
 
-        {/* Left collapse toggle — always visible, positioned at left panel edge */}
-        <button
-          onClick={left.toggle}
-          className="absolute top-1/2 -translate-y-1/2 z-20 w-4 h-8 flex items-center justify-center rounded-full glass-panel border border-border text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors"
-          style={{ left: left.collapsed ? 0 : left.width - 8 }}
-          title={left.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <svg width="6" height="10" viewBox="0 0 6 10">
-            {left.collapsed ? (
-              <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            ) : (
-              <path d="M5 1l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            )}
-          </svg>
-        </button>
-
         {/* Main content */}
         <div className="flex-1 min-w-0 overflow-hidden">
           {children}
         </div>
-
-        {/* Right collapse toggle — always visible, positioned at right panel edge */}
-        <button
-          onClick={right.toggle}
-          className="absolute top-1/2 -translate-y-1/2 z-20 w-4 h-8 flex items-center justify-center rounded-full glass-panel border border-border text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors"
-          style={{ right: right.collapsed ? 0 : right.width - 8 }}
-          title={right.collapsed ? 'Expand inspector' : 'Collapse inspector'}
-        >
-          <svg width="6" height="10" viewBox="0 0 6 10">
-            {right.collapsed ? (
-              <path d="M5 1l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            ) : (
-              <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            )}
-          </svg>
-        </button>
 
         {/* Right side panel */}
         {!right.collapsed && (
@@ -146,6 +114,42 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
             {sidepanel}
           </div>
         )}
+
+        {/* Left toggle — full-height hit zone, no flex space, pill on hover */}
+        <div
+          className="absolute top-0 bottom-0 z-30 w-4 flex items-center justify-center cursor-pointer group"
+          style={{ left: left.collapsed ? 0 : left.width - 8 }}
+          onClick={left.toggle}
+          title={left.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <span className="flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <svg width="6" height="10" viewBox="0 0 6 10">
+              {left.collapsed ? (
+                <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              ) : (
+                <path d="M5 1l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              )}
+            </svg>
+          </span>
+        </div>
+
+        {/* Right toggle — full-height hit zone, no flex space, pill on hover */}
+        <div
+          className="absolute top-0 bottom-0 z-30 w-4 flex items-center justify-center cursor-pointer group"
+          style={{ right: right.collapsed ? 0 : right.width - 8 }}
+          onClick={right.toggle}
+          title={right.collapsed ? 'Expand inspector' : 'Collapse inspector'}
+        >
+          <span className="flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <svg width="6" height="10" viewBox="0 0 6 10">
+              {right.collapsed ? (
+                <path d="M5 1l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              ) : (
+                <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              )}
+            </svg>
+          </span>
+        </div>
       </div>
     </div>
   );

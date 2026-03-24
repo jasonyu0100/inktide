@@ -697,9 +697,6 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   );
 }
 
-/* ── Constants ────────────────────────────────────────────────────────────── */
-const MAX_CORPUS_WORDS = ANALYSIS_MAX_CORPUS_WORDS;
-
 /* ── Title detection via LLM ─────────────────────────────────────────────── */
 async function detectTitleLLM(chunkText: string): Promise<string> {
   const { apiHeaders } = await import('@/lib/api-headers');
@@ -737,6 +734,8 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
   const [title, setTitle] = useState('');
   const [detecting, setDetecting] = useState(true);
 
+  const chunks = splitCorpusIntoChunks(sourceText);
+
   // Auto-detect title via LLM using first chunk
   useEffect(() => {
     let cancelled = false;
@@ -748,10 +747,8 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
     });
     return () => { cancelled = true; };
   }, [sourceText]);
-
-  const chunks = splitCorpusIntoChunks(sourceText);
   const wordCount = sourceText.split(/\s+/).length;
-  const tooLarge = wordCount > MAX_CORPUS_WORDS;
+  const tooLarge = wordCount > ANALYSIS_MAX_CORPUS_WORDS;
 
   const handleStart = () => {
     if (!title.trim() || tooLarge) return;
@@ -781,14 +778,14 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
           <h2 className="text-sm font-semibold text-white/90 mb-1">New Analysis</h2>
           <p className={`text-[10px] uppercase tracking-wider font-mono ${tooLarge ? 'text-red-400/70' : 'text-white/30'}`}>
             {wordCount.toLocaleString()} words &middot; {chunks.length} chunk{chunks.length !== 1 ? 's' : ''} detected
-            {tooLarge && ` · max ${MAX_CORPUS_WORDS.toLocaleString()}`}
+            {tooLarge && ` · max ${ANALYSIS_MAX_CORPUS_WORDS.toLocaleString()}`}
           </p>
         </div>
 
         {tooLarge && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3">
             <p className="text-[11px] text-red-400/80 leading-relaxed">
-              This text exceeds the {MAX_CORPUS_WORDS.toLocaleString()} word limit. Analyze a single book or screenplay at a time, not an entire series.
+              This text exceeds the {ANALYSIS_MAX_CORPUS_WORDS.toLocaleString()} word limit. Analyze a single book or screenplay at a time, not an entire series.
             </p>
           </div>
         )}

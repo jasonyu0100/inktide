@@ -6,7 +6,7 @@ import { useStore, PLAYGROUND_NARRATIVE_IDS, ANALYSIS_NARRATIVE_IDS } from '@/li
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
-import ApiKeyModal from '@/components/layout/ApiKeyModal';
+import ApiKeyModal from '@/components/topbar/ApiKeyModal';
 import type { NarrativeEntry } from '@/types/narrative';
 
 function useIsMobile(breakpoint = 768) {

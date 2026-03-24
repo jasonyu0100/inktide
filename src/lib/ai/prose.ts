@@ -278,11 +278,11 @@ NARRATIVE: "${narrative.title}" (${forceData.length} scenes)
 SCENE-BY-SCENE DATA:
 ${trajectoryLines}
 
-Annotate ONLY the peaks (local maxima) and troughs (local minima) of each force line. Look at the P/C/V values — find where each force hits its highest and lowest points, then label those.
+Annotate ONLY the peaks (local maxima) and troughs (local minima) of each force line. Look at the P/C/K values — find where each force hits its highest and lowest points, then label those.
 
 Rules:
 - ONLY peaks and troughs — nothing in between. If the value is rising or falling but hasn't reached an extremum, skip it.
-- Include annotations for ALL THREE forces — payoff, change, AND variety
+- Include annotations for ALL THREE forces — payoff, change, AND knowledge
 - ~4-6 annotations per force (the clearest peaks and troughs only)
 - Labels: 2-5 words, specific to the story. Use character names, places, events.
 - Never use generic labels like "high tension" or "calm period"

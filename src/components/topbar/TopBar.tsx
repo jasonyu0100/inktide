@@ -7,9 +7,9 @@ import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
-import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
+import { ApiLogsModal } from '@/components/topbar/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
-import ApiKeyModal from '@/components/layout/ApiKeyModal';
+import ApiKeyModal from '@/components/topbar/ApiKeyModal';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 import { BranchContextModal } from '@/components/topbar/BranchContextModal';
@@ -261,13 +261,13 @@ export default function TopBar() {
 
         const arcPayoffs = forceIndices.map((i) => raw.payoff[i]);
         const arcChanges = forceIndices.map((i) => raw.change[i]);
-        const arcVarieties = forceIndices.map((i) => raw.knowledge[i]);
+        const arcKnowledge = forceIndices.map((i) => raw.knowledge[i]);
         const arcSwingVals = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
 
         return {
           name: arc.name,
           scenes: forceIndices.length,
-          grades: gradeForces(arcPayoffs, arcChanges, arcVarieties, arcSwingVals),
+          grades: gradeForces(arcPayoffs, arcChanges, arcKnowledge, arcSwingVals),
         };
       })
       .filter((a): a is NonNullable<typeof a> => a !== null);
@@ -507,7 +507,7 @@ export default function TopBar() {
             { label: 'Slides', onClick: () => setSlidesOpen(true), disabled: !hasNarrative },
             { separator: true },
             { label: 'Scorecard', onClick: () => setScorecardOpen((v) => !v), disabled: !hasNarrative },
-            { label: 'Force Tracker', onClick: () => window.dispatchEvent(new Event('open-force-tracker')), disabled: !hasNarrative },
+            { label: 'Force Analytics', onClick: () => window.dispatchEvent(new Event('open-force-analytics')), disabled: !hasNarrative },
             { label: 'Narrative Cube', onClick: () => window.dispatchEvent(new CustomEvent('open-cube-viewer')), disabled: !hasNarrative },
           ]}
         />

@@ -143,13 +143,13 @@ export function computeSwingMagnitudes(
 ): number[] {
   const rp = refMeans?.payoff ?? 1;
   const rc = refMeans?.change ?? 1;
-  const rv = refMeans?.knowledge ?? 1;
+  const rk = refMeans?.knowledge ?? 1;
   const swings: number[] = [0];
   for (let i = 1; i < forceSnapshots.length; i++) {
     const dp = (forceSnapshots[i].payoff - forceSnapshots[i - 1].payoff) / rp;
     const dc = (forceSnapshots[i].change - forceSnapshots[i - 1].change) / rc;
-    const dv = (forceSnapshots[i].knowledge - forceSnapshots[i - 1].knowledge) / rv;
-    swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
+    const dk = (forceSnapshots[i].knowledge - forceSnapshots[i - 1].knowledge) / rk;
+    swings.push(Math.sqrt(dp * dp + dc * dc + dk * dk));
   }
   return swings;
 }

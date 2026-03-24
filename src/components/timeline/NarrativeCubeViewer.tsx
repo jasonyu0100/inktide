@@ -144,8 +144,8 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
           if (prevForce) {
             const dp = f.payoff - prevForce.payoff;
             const dc = f.change - prevForce.change;
-            const dv = f.knowledge - prevForce.knowledge;
-            swing = Math.sqrt(dp * dp + dc * dc + dv * dv);
+            const dk = f.knowledge - prevForce.knowledge;
+            swing = Math.sqrt(dp * dp + dc * dc + dk * dk);
           }
           entries.push({
             sceneId: entry.id,

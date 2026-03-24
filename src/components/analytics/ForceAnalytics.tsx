@@ -948,7 +948,7 @@ function ArcLabelsBar({
   );
 }
 
-export function ForceTracker({ onClose }: { onClose: () => void }) {
+export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1085,8 +1085,8 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
       const curr = points[i].forces;
       const dp = curr.payoff - prev.payoff;
       const dc = curr.change - prev.change;
-      const dv = curr.knowledge - prev.knowledge;
-      return Math.sqrt(dp * dp + dc * dc + dv * dv);
+      const dk = curr.knowledge - prev.knowledge;
+      return Math.sqrt(dp * dp + dc * dc + dk * dk);
     });
     const normSwings = zScoreNormalize(rawSwings);
     for (let i = 0; i < points.length; i++) {
@@ -1135,7 +1135,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     return { activeDataPoints: sliced, slidingWindowOffset: start, visibleScenes: allScenes.slice(start, end) };
   }, [allActiveDataPoints, allScenes, slidingWindow, selectedIndex]);
 
-  // Delivery curve always computed from z-score normalised forces (not raw)
+  // Delivery curve always computed from z-score normalised forces
   // When windowed, use the windowed slice of the normalized data
   const deliveryData = useMemo((): DeliveryPoint[] => {
     if (dataPoints.length === 0) return [];
@@ -1339,7 +1339,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
               </button>
             ))}
           </div>
-          <button
+          {view === 'forces' && <button
             onClick={() => setShowRawForce((v) => !v)}
             className={`text-[11px] px-3.5 py-1.5 rounded-full border transition flex items-center gap-1.5 ${
               showRawForce
@@ -1353,7 +1353,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
               <path d="M7 16l4-8 4 4 4-10" />
             </svg>
             Raw
-          </button>
+          </button>}
           {/* Sliding window toggle */}
           <div className="flex items-center rounded-full border border-border overflow-hidden">
             <button

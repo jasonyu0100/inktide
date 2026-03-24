@@ -19,8 +19,8 @@ function computeSwings(payoff: number[], change: number[], knowledge: number[]):
   for (let i = 1; i < payoff.length; i++) {
     const dp = payoff[i] - payoff[i - 1];
     const dc = change[i] - change[i - 1];
-    const dv = knowledge[i] - knowledge[i - 1];
-    swings.push(Math.sqrt(dp * dp + dc * dc + dv * dv));
+    const dk = knowledge[i] - knowledge[i - 1];
+    swings.push(Math.sqrt(dp * dp + dc * dc + dk * dk));
   }
   return swings;
 }

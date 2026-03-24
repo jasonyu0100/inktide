@@ -19,7 +19,7 @@ import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
 import { AutoControlBar } from '@/components/auto/AutoControlBar';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
-import { ForceTracker } from '@/components/analytics/ForceTracker';
+import { ForceAnalytics } from '@/components/analytics/ForceAnalytics';
 import RulesPanel from '@/components/layout/RulesPanel';
 import { MCTSPanel } from '@/components/mcts/MCTSPanel';
 import { MCTSControlBar } from '@/components/mcts/MCTSControlBar';
@@ -46,7 +46,7 @@ export default function SeriesPage() {
   const [forkOpen, setForkOpen] = useState(false);
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
   const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
-  const [forceTrackerOpen, setForceTrackerOpen] = useState(false);
+  const [forceAnalyticsOpen, setForceAnalyticsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [mctsOpen, setMctsOpen] = useState(false);
   const [storySettingsOpen, setStorySettingsOpen] = useState(false);
@@ -73,7 +73,7 @@ export default function SeriesPage() {
     function handleOpenFork() { setForkOpen(true); }
     function handleOpenAutoSettings() { setAutoSettingsOpen(true); }
     function handleOpenCubeViewer() { setCubeViewerOpen(true); }
-    function handleOpenForceTracker() { setForceTrackerOpen(true); }
+    function handleOpenForceAnalytics() { setForceAnalyticsOpen(true); }
     function handleOpenRules() { setRulesOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
     function handleOpenStorySettings() { setStorySettingsOpen(true); }
@@ -81,7 +81,7 @@ export default function SeriesPage() {
     window.addEventListener('open-branch-modal', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
     window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
-    window.addEventListener('open-force-tracker', handleOpenForceTracker);
+    window.addEventListener('open-force-analytics', handleOpenForceAnalytics);
     window.addEventListener('open-rules-panel', handleOpenRules);
     window.addEventListener('open-mcts-panel', handleOpenMcts);
     window.addEventListener('open-story-settings', handleOpenStorySettings);
@@ -90,7 +90,7 @@ export default function SeriesPage() {
       window.removeEventListener('open-branch-modal', handleOpenFork);
       window.removeEventListener('open-auto-settings', handleOpenAutoSettings);
       window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
-      window.removeEventListener('open-force-tracker', handleOpenForceTracker);
+      window.removeEventListener('open-force-analytics', handleOpenForceAnalytics);
       window.removeEventListener('open-rules-panel', handleOpenRules);
       window.removeEventListener('open-mcts-panel', handleOpenMcts);
       window.removeEventListener('open-story-settings', handleOpenStorySettings);
@@ -159,7 +159,7 @@ export default function SeriesPage() {
       {cubeViewerOpen && (
         <NarrativeCubeViewer onClose={() => setCubeViewerOpen(false)} />
       )}
-      {forceTrackerOpen && <ForceTracker onClose={() => setForceTrackerOpen(false)} />}
+      {forceAnalyticsOpen && <ForceAnalytics onClose={() => setForceAnalyticsOpen(false)} />}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}
       <MCTSPanel isOpen={mctsOpen} onClose={() => setMctsOpen(false)} mcts={mcts} />

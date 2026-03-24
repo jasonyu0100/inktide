@@ -227,7 +227,7 @@ Return JSON with this exact structure:
   "threads": [
     {
       "id": "${nextThreadId}",
-      "anchors": [{"id": "character or location ID", "type": "character|location"}],
+      "participants": [{"id": "character or location ID", "type": "character|location"}],
       "description": "string",
       "status": "dormant",
       "openedAt": "new",
@@ -279,7 +279,11 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
   const parsed = parseJson(raw, 'expandWorld') as any;
 
   // Force all world-build threads to dormant — they're seeds, not active storylines
-  const threads = (parsed.threads ?? []).map((t: Thread) => ({ ...t, status: THREAD_ACTIVE_STATUSES[0] }));
+  // Normalize: LLM may still output "anchors" (legacy field name) — remap to "participants"
+  const threads = (parsed.threads ?? []).map((t: Thread & { anchors?: Thread['participants'] }) => {
+    const { anchors, ...rest } = t;
+    return { ...rest, participants: rest.participants ?? anchors ?? [], status: THREAD_ACTIVE_STATUSES[0] };
+  });
 
   // Process worldKnowledgeMutations: assign real WK-XX IDs
   let worldKnowledgeMutations: WorldKnowledgeMutation | undefined;
@@ -338,7 +342,7 @@ Return JSON with this exact structure:
     {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "continuity": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}]}}
   ],
   "threads": [
-    {"id": "T-01", "anchors": [{"id": "C-01", "type": "character"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}
+    {"id": "T-01", "participants": [{"id": "C-01", "type": "character"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}
   ],
   "relationships": [
     {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
@@ -398,7 +402,11 @@ WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene 
   for (const l of parsed.locations) locations[l.id] = l;
 
   const threads: NarrativeState['threads'] = {};
-  for (const t of parsed.threads) threads[t.id] = t;
+  // Normalize: LLM may still output "anchors" (legacy field name) — remap to "participants"
+  for (const t of parsed.threads) {
+    const { anchors, ...rest } = t as Thread & { anchors?: Thread['participants'] };
+    threads[t.id] = { ...rest, participants: rest.participants ?? anchors ?? [] };
+  }
 
   const scenes: NarrativeState['scenes'] = {};
   for (const s of parsed.scenes) scenes[s.id] = { ...s, kind: 'scene', summary: s.summary || `Scene ${s.id}` };

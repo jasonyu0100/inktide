@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore, SEED_NARRATIVE_IDS } from '@/lib/store';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
-import ApiKeyModal from '@/components/layout/ApiKeyModal';
+import ApiKeyModal from '@/components/topbar/ApiKeyModal';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import type { NarrativeEntry } from '@/types/narrative';
 

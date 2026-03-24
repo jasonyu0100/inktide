@@ -95,7 +95,7 @@ export const INSPECTOR_PAGE_SIZE = 20;
 /** Knowledge nodes shown in the WorldGraph per entity */
 export const GRAPH_CONTINUITY_LIMIT = 20;
 
-/** Arc count above which ForceTracker switches to dense mode */
+/** Arc count above which ForceAnalytics switches to dense mode */
 export const DENSE_ARC_THRESHOLD = 20;
 
 /** Default sliding window size for home-page ForceCharts */

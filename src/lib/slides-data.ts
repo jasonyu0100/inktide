@@ -124,9 +124,9 @@ export type SlidesData = {
 
 // ── Computation ────────────────────────────────────────────────────────────────
 
-function dominantForce(p: number, c: number, v: number): 'payoff' | 'change' | 'knowledge' {
-  if (p >= c && p >= v) return 'payoff';
-  if (c >= p && c >= v) return 'change';
+function dominantForce(p: number, c: number, k: number): 'payoff' | 'change' | 'knowledge' {
+  if (p >= c && p >= k) return 'payoff';
+  if (c >= p && c >= k) return 'change';
   return 'knowledge';
 }
 
@@ -203,8 +203,8 @@ export function computeSlidesData(
     if (minPoint.index + 3 < forceSnapshots.length) {
       const dp = forceSnapshots[minPoint.index + 3].payoff - f.payoff;
       const dc = forceSnapshots[minPoint.index + 3].change - f.change;
-      const dv = forceSnapshots[minPoint.index + 3].knowledge - f.knowledge;
-      const maxDelta = Math.max(dp, dc, dv);
+      const dk = forceSnapshots[minPoint.index + 3].knowledge - f.knowledge;
+      const maxDelta = Math.max(dp, dc, dk);
       if (maxDelta > 0) {
         recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'knowledge';
       }
@@ -276,13 +276,13 @@ export function computeSlidesData(
     if (indices.length === 0) continue;
     const ap = indices.map((i) => rawForces.payoff[i]);
     const ac = indices.map((i) => rawForces.change[i]);
-    const av = indices.map((i) => rawForces.knowledge[i]);
+    const ak = indices.map((i) => rawForces.knowledge[i]);
     const as_ = indices.map((i) => swings[i]);
     arcGrades.push({
       arcId,
       arcName: arc.name,
       sceneCount: indices.length,
-      grades: gradeForces(ap, ac, av, as_),
+      grades: gradeForces(ap, ac, ak, as_),
     });
   }
 
@@ -454,8 +454,8 @@ function buildTroughInfos(
       if (e.index + 3 < forces.length) {
         const dp = forces[e.index + 3].payoff - f.payoff;
         const dc = forces[e.index + 3].change - f.change;
-        const dv = forces[e.index + 3].knowledge - f.knowledge;
-        const maxDelta = Math.max(dp, dc, dv);
+        const dk = forces[e.index + 3].knowledge - f.knowledge;
+        const maxDelta = Math.max(dp, dc, dk);
         if (maxDelta > 0) {
           recoveryForce = dp === maxDelta ? 'payoff' : dc === maxDelta ? 'change' : 'knowledge';
         }

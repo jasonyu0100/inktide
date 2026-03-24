@@ -1363,26 +1363,6 @@ Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive"
     console.error('[text-analysis] Rules/style extraction failed:', err);
   }
 
-  // Build cumulative world knowledge graph from scene mutations
-  const wkNodes: Record<string, { id: string; concept: string; type: 'law' | 'system' | 'concept' | 'tension' }> = {};
-  const wkEdges: { from: string; to: string; relation: string }[] = [];
-  const wkEdgeSet = new Set<string>();
-  for (const scene of Object.values(scenes)) {
-    if (!scene.worldKnowledgeMutations) continue;
-    for (const node of scene.worldKnowledgeMutations.addedNodes) {
-      if (!wkNodes[node.id]) {
-        wkNodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
-      }
-    }
-    for (const edge of scene.worldKnowledgeMutations.addedEdges) {
-      const edgeKey = `${edge.from}→${edge.to}→${edge.relation}`;
-      if (!wkEdgeSet.has(edgeKey)) {
-        wkEdges.push(edge);
-        wkEdgeSet.add(edgeKey);
-      }
-    }
-  }
-
   const narrative: NarrativeState = {
     id: `N-${PREFIX}-${Date.now().toString(36)}`,
     title,
@@ -1395,7 +1375,7 @@ Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive"
     worldBuilds,
     branches,
     relationships,
-    worldKnowledge: { nodes: wkNodes, edges: wkEdges },
+    worldKnowledge: { nodes: {}, edges: [] }, // derived — recomputed by withDerivedEntities on load
     worldSummary,
     rules,
     imageStyle,

@@ -180,7 +180,7 @@ export function useMCTS() {
 
     const parentVirtual = buildVirtualState(
       rootNarrative, rootResolvedKeys, rootCurrentIndex,
-      [...ancestorChain, { scenes, arc } as any],
+      [...ancestorChain, { scenes, arc }],
       activeBranchId,
     );
 

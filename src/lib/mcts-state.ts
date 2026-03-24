@@ -77,7 +77,7 @@ export function buildVirtualState(
   rootNarrative: NarrativeState,
   rootResolvedKeys: string[],
   rootCurrentIndex: number,
-  ancestorNodes: MCTSNode[],
+  ancestorNodes: Pick<MCTSNode, 'scenes' | 'arc'>[],
   activeBranchId: string,
 ): VirtualState {
   // Deep clone the root to avoid mutation

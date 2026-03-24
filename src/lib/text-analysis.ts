@@ -17,22 +17,19 @@ import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYS
 
 // ── Text Splitting ───────────────────────────────────────────────────────────
 
-const TARGET_SECTIONS_PER_CHUNK = ANALYSIS_TARGET_SECTIONS_PER_CHUNK;
-const TARGET_CHUNK_WORDS = ANALYSIS_TARGET_CHUNK_WORDS;
-
 function splitIntoSections(text: string): string[] {
   let chunks = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 
   if (chunks.length < 6) {
     const continuous = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const sentences = continuous.match(/[^.!?]+[.!?]+["']?\s*/g) ?? [continuous];
-    const sentencesPerChunk = Math.max(1, Math.round(sentences.length / TARGET_SECTIONS_PER_CHUNK));
+    const sentencesPerChunk = Math.max(1, Math.round(sentences.length / ANALYSIS_TARGET_SECTIONS_PER_CHUNK));
     chunks = [];
     for (let i = 0; i < sentences.length; i += sentencesPerChunk) {
       chunks.push(sentences.slice(i, i + sentencesPerChunk).join('').trim());
     }
   } else {
-    const parasPerSection = Math.max(1, Math.round(chunks.length / TARGET_SECTIONS_PER_CHUNK));
+    const parasPerSection = Math.max(1, Math.round(chunks.length / ANALYSIS_TARGET_SECTIONS_PER_CHUNK));
     const grouped: string[] = [];
     for (let i = 0; i < chunks.length; i += parasPerSection) {
       grouped.push(chunks.slice(i, i + parasPerSection).join('\n\n'));
@@ -66,8 +63,8 @@ export function splitCorpusIntoChunks(text: string): AnalysisJob['chunks'] {
     // No chapter markers — split by word count
     const words = text.split(/\s+/);
     rawChunks = [];
-    for (let i = 0; i < words.length; i += TARGET_CHUNK_WORDS) {
-      rawChunks.push(words.slice(i, i + TARGET_CHUNK_WORDS).join(' '));
+    for (let i = 0; i < words.length; i += ANALYSIS_TARGET_CHUNK_WORDS) {
+      rawChunks.push(words.slice(i, i + ANALYSIS_TARGET_CHUNK_WORDS).join(' '));
     }
   }
 
@@ -76,16 +73,16 @@ export function splitCorpusIntoChunks(text: string): AnalysisJob['chunks'] {
   let buffer = '';
   for (const chunk of rawChunks) {
     const wordCount = chunk.split(/\s+/).length;
-    if (buffer && (buffer.split(/\s+/).length + wordCount) > TARGET_CHUNK_WORDS * 1.5) {
+    if (buffer && (buffer.split(/\s+/).length + wordCount) > ANALYSIS_TARGET_CHUNK_WORDS * 1.5) {
       merged.push(buffer);
       buffer = chunk;
-    } else if (wordCount > TARGET_CHUNK_WORDS * 2) {
+    } else if (wordCount > ANALYSIS_TARGET_CHUNK_WORDS * 2) {
       if (buffer) merged.push(buffer);
       buffer = '';
       // Split oversized chunk
       const words = chunk.split(/\s+/);
-      for (let i = 0; i < words.length; i += TARGET_CHUNK_WORDS) {
-        merged.push(words.slice(i, i + TARGET_CHUNK_WORDS).join(' '));
+      for (let i = 0; i < words.length; i += ANALYSIS_TARGET_CHUNK_WORDS) {
+        merged.push(words.slice(i, i + ANALYSIS_TARGET_CHUNK_WORDS).join(' '));
       }
     } else {
       buffer = buffer ? buffer + '\n\n' + chunk : chunk;

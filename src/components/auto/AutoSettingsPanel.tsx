@@ -322,7 +322,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                         try {
                           const direction = await suggestAutoDirection(
                             state.activeNarrative,
-                            state.resolvedSceneKeys,
+                            state.resolvedEntryKeys,
                             state.currentSceneIndex,
                           );
                           update({ northStarPrompt: direction });

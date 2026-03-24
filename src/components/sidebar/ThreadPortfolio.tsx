@@ -94,12 +94,12 @@ export default function ThreadPortfolio() {
   const { opened, closed, unopened } = useMemo(() => {
     if (!narrative) return { opened: emptyList, closed: emptyList, unopened: emptyList };
 
-    const visibleKeys = new Set(state.resolvedSceneKeys.slice(0, state.currentSceneIndex + 1));
+    const visibleKeys = new Set(state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1));
     const allThreads = Object.values(narrative.threads);
 
     // A thread is "opened" only when it has appeared in a scene (not just a world build commit)
     const sceneKeys = new Set(
-      state.resolvedSceneKeys.slice(0, state.currentSceneIndex + 1).filter((k) => narrative.scenes[k])
+      state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1).filter((k) => narrative.scenes[k])
     );
     const mutatedThreadIds = new Set(
       Array.from(sceneKeys).flatMap((k) => {
@@ -133,7 +133,7 @@ export default function ThreadPortfolio() {
     unopenedThreads.sort((a, b) => statusIdx(a.currentStatus) - statusIdx(b.currentStatus));
 
     return { opened: active, closed: terminal, unopened: unopenedThreads };
-  }, [narrative, currentStatuses, state.resolvedSceneKeys, state.currentSceneIndex]);
+  }, [narrative, currentStatuses, state.resolvedEntryKeys, state.currentSceneIndex]);
 
   if (!narrative) {
     return (

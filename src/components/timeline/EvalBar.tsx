@@ -13,15 +13,15 @@ import { computeForceSnapshots, computeDeliveryCurve } from '@/lib/narrative-uti
 export default function EvalBar() {
   const { state } = useStore();
   const narrative = state.activeNarrative;
-  const resolvedSceneKeys = state.resolvedSceneKeys;
+  const resolvedEntryKeys = state.resolvedEntryKeys;
   const currentSceneIndex = state.currentSceneIndex;
 
   const allScenes = useMemo(() => {
     if (!narrative) return [];
-    return resolvedSceneKeys
+    return resolvedEntryKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
-  }, [narrative, resolvedSceneKeys]);
+  }, [narrative, resolvedEntryKeys]);
 
   const deliveryCurve = useMemo(() => {
     if (allScenes.length === 0) return [];
@@ -33,12 +33,12 @@ export default function EvalBar() {
     if (!narrative || allScenes.length === 0 || deliveryCurve.length === 0) return null;
     const sceneIdx = Math.min(
       allScenes.length - 1,
-      resolvedSceneKeys.slice(0, currentSceneIndex + 1)
+      resolvedEntryKeys.slice(0, currentSceneIndex + 1)
         .filter((k) => resolveEntry(narrative, k)?.kind === 'scene').length - 1,
     );
     if (sceneIdx < 0 || sceneIdx >= deliveryCurve.length) return null;
     return deliveryCurve[sceneIdx];
-  }, [narrative, allScenes, deliveryCurve, currentSceneIndex, resolvedSceneKeys]);
+  }, [narrative, allScenes, deliveryCurve, currentSceneIndex, resolvedEntryKeys]);
 
   // Sigmoid: delivery z-score → 0..100% (50% = zero delivery)
   const targetPct = useMemo(() => {

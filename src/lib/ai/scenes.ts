@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Arc, WorldBuildCommit, StorySettings } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings } from '@/types/narrative';
 import { resolveEntry, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
@@ -14,7 +14,7 @@ export type GenerateScenesOptions = {
   transitionMatrix?: TransitionMatrix;
   /** Pre-sampled sequence (skips automatic sampling) */
   pacingSequence?: PacingSequence;
-  worldBuildFocus?: WorldBuildCommit;
+  worldBuildFocus?: WorldBuild;
   onToken?: (token: string) => void;
 };
 

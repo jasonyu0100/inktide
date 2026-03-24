@@ -34,7 +34,7 @@ export default function ThreadDetail({ threadId }: Props) {
   const currentStatus = currentStatuses[threadId] ?? thread.status;
 
   // Resolve anchor names
-  const anchors = (thread.anchors ?? []).map((a) => ({
+  const anchors = (thread.participants ?? []).map((a) => ({
     ...a,
     name:
       a.type === 'character'
@@ -43,7 +43,7 @@ export default function ThreadDetail({ threadId }: Props) {
   }));
 
   // Find scenes on the current branch where this thread was mutated
-  const lifecycle = state.resolvedSceneKeys
+  const lifecycle = state.resolvedEntryKeys
     .map((k) => narrative.scenes[k])
     .filter((s) => s && s.threadMutations.some((tm) => tm.threadId === threadId))
     .map((s) => ({

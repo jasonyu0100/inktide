@@ -16,11 +16,11 @@ export function useAutoPlay() {
   stateRef.current = state;
 
   const runCycle = useCallback(async () => {
-    const { activeNarrative, resolvedSceneKeys, currentSceneIndex, activeBranchId, autoConfig, autoRunState } = stateRef.current;
+    const { activeNarrative, resolvedEntryKeys, currentSceneIndex, activeBranchId, autoConfig, autoRunState } = stateRef.current;
     if (!activeNarrative || !activeBranchId || !autoRunState) return;
 
     // Check end conditions
-    const endMet = checkEndConditions(activeNarrative, resolvedSceneKeys, autoConfig, autoRunState.startingSceneCount, autoRunState.startingArcCount);
+    const endMet = checkEndConditions(activeNarrative, resolvedEntryKeys, autoConfig, autoRunState.startingSceneCount, autoRunState.startingArcCount);
     if (endMet) {
       dispatch({
         type: 'LOG_AUTO_CYCLE',
@@ -41,7 +41,7 @@ export function useAutoPlay() {
     // Evaluate and pick action
     const { weights, directiveCtx } = evaluateNarrativeState(
       activeNarrative,
-      resolvedSceneKeys,
+      resolvedEntryKeys,
       currentSceneIndex,
       autoConfig,
       autoRunState.startingSceneCount,
@@ -59,16 +59,16 @@ export function useAutoPlay() {
 
     try {
       // World expansion as a pre-step (interval-triggered, not scored)
-      if (isWorldBuildDue(activeNarrative, resolvedSceneKeys, autoConfig)) {
-        const suggestion = await suggestWorldExpansion(activeNarrative, resolvedSceneKeys, currentSceneIndex, autoConfig.worldBuildSize);
+      if (isWorldBuildDue(activeNarrative, resolvedEntryKeys, autoConfig)) {
+        const suggestion = await suggestWorldExpansion(activeNarrative, resolvedEntryKeys, currentSceneIndex, autoConfig.worldBuildSize);
         if (cancelledRef.current) return;
 
-        const expansion = await expandWorld(activeNarrative, resolvedSceneKeys, currentSceneIndex, suggestion, autoConfig.worldBuildSize);
+        const expansion = await expandWorld(activeNarrative, resolvedEntryKeys, currentSceneIndex, suggestion, autoConfig.worldBuildSize);
         if (cancelledRef.current) return;
 
         dispatch({
           type: 'EXPAND_WORLD',
-          wxId: nextId('WX', Object.keys(activeNarrative.worldBuilds), 3),
+          worldBuildId: nextId('WB', Object.keys(activeNarrative.worldBuilds), 3),
           characters: expansion.characters,
           locations: expansion.locations,
           threads: expansion.threads,
@@ -84,7 +84,7 @@ export function useAutoPlay() {
       const sceneCount = pickArcLength(autoConfig, action);
       const { scenes, arc } = await generateScenes(
         activeNarrative,
-        resolvedSceneKeys,
+        resolvedEntryKeys,
         currentSceneIndex,
         sceneCount,
         directive,

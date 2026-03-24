@@ -1,8 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuildCommit, ChatThread, ChatMessage, Note } from '@/types/narrative';
-import { resolveSceneSequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForcetotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note } from '@/types/narrative';
+import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs } from '@/lib/persistence';
@@ -12,18 +12,18 @@ import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
 const bundledNarratives = new Map<string, NarrativeState>();
 
 function computeDerivedEntities(
-  worldBuilds: Record<string, import('@/types/narrative').WorldBuildCommit>,
-  scenes: Record<string, import('@/types/narrative').Scene>,
+  worldBuilds: Record<string, WorldBuild>,
+  scenes: Record<string, Scene>,
   resolvedKeys: string[],
-): { characters: Record<string, Character>; locations: Record<string, import('@/types/narrative').Location>; threads: Record<string, Thread>; relationships: RelationshipEdge[]; worldKnowledge: import('@/types/narrative').WorldKnowledgeGraph } {
+): { characters: Record<string, Character>; locations: Record<string, Location>; threads: Record<string, Thread>; relationships: RelationshipEdge[]; worldKnowledge: WorldKnowledgeGraph } {
   const characters: Record<string, Character> = {};
   const locations: Record<string, Location> = {};
   const threads: Record<string, Thread> = {};
   let relationships: RelationshipEdge[] = [];
-  const wkNodes: Record<string, import('@/types/narrative').WorldKnowledgeNode> = {};
-  const wkEdges: import('@/types/narrative').WorldKnowledgeEdge[] = [];
+  const wkNodes: Record<string, WorldKnowledgeNode> = {};
+  const wkEdges: WorldKnowledgeEdge[] = [];
 
-  const applyWkMutation = (wkm: import('@/types/narrative').WorldKnowledgeMutation) => {
+  const applyWkMutation = (wkm: WorldKnowledgeMutation) => {
     for (const n of wkm.addedNodes ?? []) {
       if (!wkNodes[n.id]) wkNodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
     }
@@ -101,7 +101,7 @@ function computeDerivedEntities(
 
   // Compute threadIds on characters from thread anchors
   for (const thread of Object.values(threads)) {
-    for (const anchor of thread.anchors) {
+    for (const anchor of thread.participants) {
       if (anchor.type === 'character' && characters[anchor.id]) {
         const char = characters[anchor.id];
         if (!char.threadIds.includes(thread.id)) {
@@ -125,7 +125,7 @@ function narrativeToEntry(n: NarrativeState): NarrativeEntry {
 
   // Compute shape, archetype, and score from scenes
   const branchId = getRootBranchId(n);
-  const keys = branchId ? resolveSceneSequence(n.branches, branchId) : [...Object.keys(n.scenes), ...Object.keys(n.worldBuilds)];
+  const keys = branchId ? resolveEntrySequence(n.branches, branchId) : [...Object.keys(n.scenes), ...Object.keys(n.worldBuilds)];
   const allScenes = keys.map((k) => resolveEntry(n, k)).filter((e): e is Scene => !!e && isScene(e));
 
   let shapeKey: string | undefined;
@@ -136,7 +136,7 @@ function narrativeToEntry(n: NarrativeState): NarrativeEntry {
   let overallScore: number | undefined;
 
   if (allScenes.length >= 3) {
-    const raw = computeRawForcetotals(allScenes);
+    const raw = computeRawForceTotals(allScenes);
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],
       change: raw.change[i],
@@ -180,7 +180,7 @@ function getRootBranchId(n: NarrativeState): string | null {
 
 function getResolvedKeys(n: NarrativeState, branchId: string | null): string[] {
   if (!branchId) return [...Object.keys(n.scenes), ...Object.keys(n.worldBuilds)];
-  return resolveSceneSequence(n.branches, branchId);
+  return resolveEntrySequence(n.branches, branchId);
 }
 
 const SEED_IDS = new Set<string>();
@@ -217,7 +217,7 @@ const initialState: AppState = {
   isPlaying: false,
   currentSceneIndex: 0,
   activeBranchId: null,
-  resolvedSceneKeys: [],
+  resolvedEntryKeys: [],
   inspectorContext: null,
   wizardOpen: false,
   wizardStep: 'form',
@@ -276,8 +276,7 @@ export type Action =
   | { type: 'REMOVE_BRANCH_ENTRY'; entryId: string; branchId: string }
   // Bulk AI-generated content
   | { type: 'BULK_ADD_SCENES'; scenes: Scene[]; arc: Arc; branchId: string }
-  | { type: 'EXPAND_WORLD'; wxId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: import('@/types/narrative').WorldKnowledgeMutation }
-  | { type: 'REPLACE_NARRATIVE'; narrative: NarrativeState }
+  | { type: 'EXPAND_WORLD'; worldBuildId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: WorldKnowledgeMutation }
   // Auto mode
   | { type: 'SET_AUTO_CONFIG'; config: AutoConfig }
   | { type: 'START_AUTO_RUN' }
@@ -286,8 +285,8 @@ export type Action =
   | { type: 'STOP_AUTO_RUN' }
   | { type: 'LOG_AUTO_CYCLE'; entry: AutoRunLog }
   // API Logs
-  | { type: 'LOG_API_CALL'; entry: import('@/types/narrative').ApiLogEntry }
-  | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<import('@/types/narrative').ApiLogEntry> }
+  | { type: 'LOG_API_CALL'; entry: ApiLogEntry }
+  | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<ApiLogEntry> }
   | { type: 'CLEAR_API_LOGS' }
   | { type: 'SET_COVER_IMAGE'; narrativeId: string; imageUrl: string }
   | { type: 'SET_SCENE_IMAGE'; sceneId: string; imageUrl: string }
@@ -295,12 +294,12 @@ export type Action =
   | { type: 'SET_LOCATION_IMAGE'; locationId: string; imageUrl: string }
   | { type: 'SET_IMAGE_STYLE'; style: string }
   | { type: 'SET_RULES'; rules: string[] }
-  | { type: 'SET_STORY_SETTINGS'; settings: import('@/types/narrative').StorySettings }
+  | { type: 'SET_STORY_SETTINGS'; settings: StorySettings }
   // Analysis
-  | { type: 'ADD_ANALYSIS_JOB'; job: import('@/types/narrative').AnalysisJob }
-  | { type: 'UPDATE_ANALYSIS_JOB'; id: string; updates: Partial<import('@/types/narrative').AnalysisJob> }
+  | { type: 'ADD_ANALYSIS_JOB'; job: AnalysisJob }
+  | { type: 'UPDATE_ANALYSIS_JOB'; id: string; updates: Partial<AnalysisJob> }
   | { type: 'DELETE_ANALYSIS_JOB'; id: string }
-  | { type: 'HYDRATE_ANALYSIS_JOBS'; jobs: import('@/types/narrative').AnalysisJob[] }
+  | { type: 'HYDRATE_ANALYSIS_JOBS'; jobs: AnalysisJob[] }
   // Chat threads
   | { type: 'CREATE_CHAT_THREAD'; thread: ChatThread }
   | { type: 'DELETE_CHAT_THREAD'; threadId: string }
@@ -326,7 +325,7 @@ function reducer(state: AppState, action: Action): AppState {
         activeNarrativeId: action.id,
         activeNarrative: null, // cleared until async load completes
         activeBranchId: null,
-        resolvedSceneKeys: [],
+        resolvedEntryKeys: [],
         currentSceneIndex: 0,
         inspectorContext: null,
         selectedKnowledgeEntity: null,
@@ -347,16 +346,16 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         activeNarrative: derivedNarrative,
         activeBranchId: branchId,
-        resolvedSceneKeys: resolved,
+        resolvedEntryKeys: resolved,
         currentSceneIndex: resolved.length - 1,
       };
     }
     case 'TOGGLE_PLAY':
       return { ...state, isPlaying: !state.isPlaying };
     case 'NEXT_SCENE': {
-      const max = state.resolvedSceneKeys.length - 1;
+      const max = state.resolvedEntryKeys.length - 1;
       const nextIdx = Math.min(state.currentSceneIndex + 1, Math.max(0, max));
-      const nextSceneId = state.resolvedSceneKeys[nextIdx] ?? null;
+      const nextSceneId = state.resolvedEntryKeys[nextIdx] ?? null;
       return {
         ...state,
         currentSceneIndex: nextIdx,
@@ -365,7 +364,7 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'PREV_SCENE': {
       const prevIdx = Math.max(state.currentSceneIndex - 1, 0);
-      const prevSceneId = state.resolvedSceneKeys[prevIdx] ?? null;
+      const prevSceneId = state.resolvedEntryKeys[prevIdx] ?? null;
       return {
         ...state,
         currentSceneIndex: prevIdx,
@@ -393,18 +392,18 @@ function reducer(state: AppState, action: Action): AppState {
       const allThreads = Object.values(n.threads);
 
       // Only inject a world-build commit if the narrative doesn't already have one
-      const hasExistingWx = Object.keys(n.worldBuilds).length > 0;
-      const wxId = nextId('WX', Object.keys(n.worldBuilds), 3);
-      if (rootBranch && !hasExistingWx && (allChars.length > 0 || allLocs.length > 0 || allThreads.length > 0)) {
+      const hasExistingWorldBuild = Object.keys(n.worldBuilds).length > 0;
+      const worldBuildId = nextId('WB', Object.keys(n.worldBuilds), 3);
+      if (rootBranch && !hasExistingWorldBuild && (allChars.length > 0 || allLocs.length > 0 || allThreads.length > 0)) {
         const parts: string[] = [];
         if (allChars.length > 0) parts.push(`${allChars.length} character${allChars.length > 1 ? 's' : ''} (${allChars.map((c) => c.name).join(', ')})`);
         if (allLocs.length > 0) parts.push(`${allLocs.length} location${allLocs.length > 1 ? 's' : ''} (${allLocs.map((l) => l.name).join(', ')})`);
         if (allThreads.length > 0) parts.push(`${allThreads.length} thread${allThreads.length > 1 ? 's' : ''}`);
         if (n.relationships.length > 0) parts.push(`${n.relationships.length} relationship${n.relationships.length > 1 ? 's' : ''}`);
 
-        const wxCommit: WorldBuildCommit = {
+        const worldBuild: WorldBuild = {
           kind: 'world_build',
-          id: wxId,
+          id: worldBuildId,
           summary: `World created: ${parts.join(', ')}`,
           expansionManifest: {
             characters: allChars,
@@ -416,10 +415,10 @@ function reducer(state: AppState, action: Action): AppState {
         };
 
         // Prepend the world-build commit before existing entries in the branch
-        n.worldBuilds[wxId] = wxCommit;
+        n.worldBuilds[worldBuildId] = worldBuild;
         n.branches[rootBranch.id] = {
           ...rootBranch,
-          entryIds: [wxId, ...rootBranch.entryIds],
+          entryIds: [worldBuildId, ...rootBranch.entryIds],
         };
       }
 
@@ -435,7 +434,7 @@ function reducer(state: AppState, action: Action): AppState {
         activeNarrativeId: derived.id,
         activeNarrative: derived,
         activeBranchId: newBranchId,
-        resolvedSceneKeys: newResolved,
+        resolvedEntryKeys: newResolved,
         currentSceneIndex: Math.max(0, newResolved.length - 1),
         wizardOpen: false,
       };
@@ -481,7 +480,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         activeNarrative: derived,
         activeBranchId: action.branchId,
-        resolvedSceneKeys: resolved,
+        resolvedEntryKeys: resolved,
         currentSceneIndex: resolved.length - 1,
         inspectorContext: resolved.length > 0
           ? { type: 'scene' as const, sceneId: resolved[resolved.length - 1] }
@@ -513,7 +512,7 @@ function reducer(state: AppState, action: Action): AppState {
       });
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
-        return { ...newState, resolvedSceneKeys: resolved, currentSceneIndex: Math.min(newState.currentSceneIndex, resolved.length - 1) };
+        return { ...newState, resolvedEntryKeys: resolved, currentSceneIndex: Math.min(newState.currentSceneIndex, resolved.length - 1) };
       }
       return newState;
     }
@@ -526,7 +525,7 @@ function reducer(state: AppState, action: Action): AppState {
       }));
       if (newState.activeNarrative) {
         const resolved = getResolvedKeys(newState.activeNarrative, action.branch.id);
-        return { ...newState, activeBranchId: action.branch.id, resolvedSceneKeys: resolved, currentSceneIndex: resolved.length - 1 };
+        return { ...newState, activeBranchId: action.branch.id, resolvedEntryKeys: resolved, currentSceneIndex: resolved.length - 1 };
       }
       return newState;
     }
@@ -576,7 +575,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (result.activeNarrative && result.activeBranchId) {
         const resolved = getResolvedKeys(result.activeNarrative, result.activeBranchId);
         const derived = withDerivedEntities(result.activeNarrative, resolved);
-        return { ...result, activeNarrative: derived, resolvedSceneKeys: resolved };
+        return { ...result, activeNarrative: derived, resolvedEntryKeys: resolved };
       }
       return result;
     }
@@ -605,7 +604,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
         const derived = withDerivedEntities(newState.activeNarrative, resolved);
-        return { ...newState, activeNarrative: derived, resolvedSceneKeys: resolved, currentSceneIndex: Math.min(newState.currentSceneIndex, resolved.length - 1) };
+        return { ...newState, activeNarrative: derived, resolvedEntryKeys: resolved, currentSceneIndex: Math.min(newState.currentSceneIndex, resolved.length - 1) };
       }
       return newState;
     }
@@ -639,14 +638,14 @@ function reducer(state: AppState, action: Action): AppState {
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
         const derived = withDerivedEntities(newState.activeNarrative, resolved);
-        return { ...newState, activeNarrative: derived, resolvedSceneKeys: resolved, currentSceneIndex: resolved.length - 1 };
+        return { ...newState, activeNarrative: derived, resolvedEntryKeys: resolved, currentSceneIndex: resolved.length - 1 };
       }
       return newState;
     }
 
-    // ── Expand World: merge new elements + create world-build commit ─────
+    // ── Expand World: merge new elements + create world build ─────
     case 'EXPAND_WORLD': {
-      const wxId = action.wxId;
+      const worldBuildId = action.worldBuildId;
 
       // Build summary from expansion contents
       const charNames = action.characters.map((c) => c.name);
@@ -657,32 +656,32 @@ function reducer(state: AppState, action: Action): AppState {
       if (locNames.length > 0) parts.push(`${locNames.length} location${locNames.length > 1 ? 's' : ''} (${locNames.join(', ')})`);
       if (threadDescs.length > 0) parts.push(`${threadDescs.length} thread${threadDescs.length > 1 ? 's' : ''}`);
       if (action.relationships.length > 0) parts.push(`${action.relationships.length} relationship${action.relationships.length > 1 ? 's' : ''}`);
-      const wxSummary = parts.length > 0 ? `World expanded: added ${parts.join(', ')}` : 'World expansion (no new elements)';
+      const worldBuildSummary = parts.length > 0 ? `World expanded: added ${parts.join(', ')}` : 'World expansion (no new elements)';
 
       // Build manifest worldKnowledge: explicit mutations + auto-generated nodes for threads/locations
-      const autoNodes: import('@/types/narrative').WorldKnowledgeMutation['addedNodes'] = [];
+      const autoNodes: WorldKnowledgeMutation['addedNodes'] = [];
       let autoCounter = 0;
       for (const t of action.threads) {
         const covered = (action.worldKnowledgeMutations?.addedNodes ?? []).some((nd) => nd.concept === t.description);
-        if (!covered) autoNodes.push({ id: `${wxId}-T${++autoCounter}`, concept: t.description, type: 'concept' as const });
+        if (!covered) autoNodes.push({ id: `${worldBuildId}-T${++autoCounter}`, concept: t.description, type: 'concept' as const });
       }
       for (const l of action.locations) {
         const covered = (action.worldKnowledgeMutations?.addedNodes ?? []).some((nd) => nd.concept === l.name);
-        if (!covered) autoNodes.push({ id: `${wxId}-L${++autoCounter}`, concept: l.name, type: 'concept' as const });
+        if (!covered) autoNodes.push({ id: `${worldBuildId}-L${++autoCounter}`, concept: l.name, type: 'concept' as const });
       }
-      const manifestWK: import('@/types/narrative').WorldKnowledgeMutation = {
+      const manifestWK: WorldKnowledgeMutation = {
         addedNodes: [...(action.worldKnowledgeMutations?.addedNodes ?? []), ...autoNodes],
         addedEdges: action.worldKnowledgeMutations?.addedEdges ?? [],
       };
 
-      const wxCommit: WorldBuildCommit = {
+      const worldBuild: WorldBuild = {
         kind: 'world_build',
-        id: wxId,
-        summary: wxSummary,
+        id: worldBuildId,
+        summary: worldBuildSummary,
         expansionManifest: {
           characters: action.characters,
           locations: action.locations,
-          threads: action.threads.map((t) => ({ ...t, openedAt: wxId })),
+          threads: action.threads.map((t) => ({ ...t, openedAt: worldBuildId })),
           relationships: action.relationships,
           worldKnowledge: manifestWK,
         },
@@ -690,16 +689,16 @@ function reducer(state: AppState, action: Action): AppState {
 
       const newState = updateNarrative(state, (n) => {
         // Idempotent: skip if this world build was already applied
-        if (n.worldBuilds[wxId]) return n;
+        if (n.worldBuilds[worldBuildId]) return n;
 
         const branch = n.branches[action.branchId];
         const updatedBranches = branch
-          ? { ...n.branches, [action.branchId]: { ...branch, entryIds: [...branch.entryIds, wxId] } }
+          ? { ...n.branches, [action.branchId]: { ...branch, entryIds: [...branch.entryIds, worldBuildId] } }
           : n.branches;
 
         return {
           ...n,
-          worldBuilds: { ...n.worldBuilds, [wxId]: wxCommit },
+          worldBuilds: { ...n.worldBuilds, [worldBuildId]: worldBuild },
           branches: updatedBranches,
         };
       });
@@ -707,7 +706,7 @@ function reducer(state: AppState, action: Action): AppState {
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
         const derived = withDerivedEntities(newState.activeNarrative, resolved);
-        return { ...newState, activeNarrative: derived, resolvedSceneKeys: resolved, currentSceneIndex: resolved.length - 1 };
+        return { ...newState, activeNarrative: derived, resolvedEntryKeys: resolved, currentSceneIndex: resolved.length - 1 };
       }
       return newState;
     }
@@ -725,7 +724,7 @@ function reducer(state: AppState, action: Action): AppState {
           currentCycle: 0,
           totalScenesGenerated: 0,
           totalWorldExpansions: 0,
-          startingSceneCount: state.resolvedSceneKeys.length,
+          startingSceneCount: state.resolvedEntryKeys.length,
           startingArcCount: state.activeNarrative ? Object.keys(state.activeNarrative.arcs).length : 0,
           log: [],
         },
@@ -798,19 +797,19 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_CHARACTER_IMAGE': {
       const afterUpdate = updateNarrative(state, (n) => {
-        const wxEntry = Object.values(n.worldBuilds).find((wb) =>
+        const worldBuildEntry = Object.values(n.worldBuilds).find((wb) =>
           wb.expansionManifest.characters.some((c) => c.id === action.characterId)
         );
-        if (!wxEntry) return n;
+        if (!worldBuildEntry) return n;
         return {
           ...n,
           worldBuilds: {
             ...n.worldBuilds,
-            [wxEntry.id]: {
-              ...wxEntry,
+            [worldBuildEntry.id]: {
+              ...worldBuildEntry,
               expansionManifest: {
-                ...wxEntry.expansionManifest,
-                characters: wxEntry.expansionManifest.characters.map((c) =>
+                ...worldBuildEntry.expansionManifest,
+                characters: worldBuildEntry.expansionManifest.characters.map((c) =>
                   c.id === action.characterId ? { ...c, imageUrl: action.imageUrl } : c
                 ),
               },
@@ -819,25 +818,25 @@ function reducer(state: AppState, action: Action): AppState {
         };
       });
       if (!afterUpdate.activeNarrative) return afterUpdate;
-      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedSceneKeys);
+      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedEntryKeys);
       return { ...afterUpdate, activeNarrative: derived };
     }
 
     case 'SET_LOCATION_IMAGE': {
       const afterUpdate = updateNarrative(state, (n) => {
-        const wxEntry = Object.values(n.worldBuilds).find((wb) =>
+        const worldBuildEntry = Object.values(n.worldBuilds).find((wb) =>
           wb.expansionManifest.locations.some((l) => l.id === action.locationId)
         );
-        if (!wxEntry) return n;
+        if (!worldBuildEntry) return n;
         return {
           ...n,
           worldBuilds: {
             ...n.worldBuilds,
-            [wxEntry.id]: {
-              ...wxEntry,
+            [worldBuildEntry.id]: {
+              ...worldBuildEntry,
               expansionManifest: {
-                ...wxEntry.expansionManifest,
-                locations: wxEntry.expansionManifest.locations.map((l) =>
+                ...worldBuildEntry.expansionManifest,
+                locations: worldBuildEntry.expansionManifest.locations.map((l) =>
                   l.id === action.locationId ? { ...l, imageUrl: action.imageUrl } : l
                 ),
               },
@@ -846,7 +845,7 @@ function reducer(state: AppState, action: Action): AppState {
         };
       });
       if (!afterUpdate.activeNarrative) return afterUpdate;
-      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedSceneKeys);
+      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedEntryKeys);
       return { ...afterUpdate, activeNarrative: derived };
     }
 

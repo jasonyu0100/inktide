@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useCallback, useId } from 'react'
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint } from '@/lib/narrative-utils';
 
 type ForceKey = 'payoff' | 'change' | 'knowledge' | 'swing' | 'delivery';
 
@@ -429,7 +429,7 @@ function ZoneBar({
   const arcZones = useMemo((): ArcZone[] => {
     if (allScenes.length === 0 || arcRegions.length === 0) return [];
 
-    const raw = computeRawForcetotals(allScenes);
+    const raw = computeRawForceTotals(allScenes);
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],
       change: raw.change[i],
@@ -957,14 +957,14 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(() => {
     // Initialize to the current scene so the tracker opens with it selected
     if (!narrative) return null;
-    const currentKey = state.resolvedSceneKeys[state.currentSceneIndex];
+    const currentKey = state.resolvedEntryKeys[state.currentSceneIndex];
     if (!currentKey) return null;
     const currentEntry = resolveEntry(narrative, currentKey);
     if (!currentEntry || !isScene(currentEntry)) return null;
     // Find this scene's index in the scene-only array
     let sceneIdx = 0;
     for (let i = 0; i <= state.currentSceneIndex; i++) {
-      const k = state.resolvedSceneKeys[i];
+      const k = state.resolvedEntryKeys[i];
       const e = resolveEntry(narrative, k);
       if (e && isScene(e)) {
         if (i === state.currentSceneIndex) return sceneIdx;
@@ -1044,10 +1044,10 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
 
   const allScenes = useMemo(() => {
     if (!narrative) return [];
-    return state.resolvedSceneKeys
+    return state.resolvedEntryKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
-  }, [narrative, state.resolvedSceneKeys]);
+  }, [narrative, state.resolvedEntryKeys]);
 
   const forceMap = useMemo(() => {
     if (allScenes.length === 0) return {};
@@ -1098,7 +1098,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
   // Raw (non-normalised) data points for absolute force view
   const rawDataPoints = useMemo((): SceneDataPoint[] => {
     if (dataPoints.length === 0 || allScenes.length === 0) return [];
-    const raw = computeRawForcetotals(allScenes);
+    const raw = computeRawForceTotals(allScenes);
     return dataPoints.map((dp, i) => ({
       ...dp,
       forces: {
@@ -1200,12 +1200,12 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
     setSelectedIndex(fullIndex);
     if (dataPoints.length > 0 && fullIndex < dataPoints.length) {
       const sceneId = dataPoints[fullIndex].sceneId;
-      const tlIdx = state.resolvedSceneKeys.indexOf(sceneId);
+      const tlIdx = state.resolvedEntryKeys.indexOf(sceneId);
       if (tlIdx >= 0) {
         dispatch({ type: 'SET_SCENE_INDEX', index: tlIdx });
       }
     }
-  }, [dataPoints, slidingWindowOffset, state.resolvedSceneKeys, dispatch]);
+  }, [dataPoints, slidingWindowOffset, state.resolvedEntryKeys, dispatch]);
 
   const stats = useMemo(() => {
     if (dataPoints.length === 0) return null;
@@ -1311,7 +1311,7 @@ export function ForceTracker({ onClose }: { onClose: () => void }) {
                         setSelectedIndex(n - 1);
                         const sceneId = dataPoints[n - 1]?.sceneId;
                         if (sceneId) {
-                          const tlIdx = state.resolvedSceneKeys.indexOf(sceneId);
+                          const tlIdx = state.resolvedEntryKeys.indexOf(sceneId);
                           if (tlIdx >= 0) dispatch({ type: 'SET_SCENE_INDEX', index: tlIdx });
                         }
                         (e.target as HTMLInputElement).blur();

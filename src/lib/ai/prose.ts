@@ -32,7 +32,7 @@ Score the prose on these 6 dimensions (1-10 each):
 - pacing: scene breathes, deliveries land with proper weight, no rushing or dragging
 - dialogue: subtext-rich, character-specific speech patterns, no filler exchanges
 - sensory: grounded in concrete physical detail, body-first interiority
-- mutation_coverage: all thread shifts, knowledge changes, and relationship mutations are dramatised (not summarised)
+- mutationCoverage: all thread shifts, knowledge changes, and relationship mutations are dramatised (not summarised)
 - overall: holistic quality considering all dimensions
 
 For each dimension, provide a brief critique (1-2 sentences) explaining the score — what works and what doesn't.
@@ -45,7 +45,7 @@ Return JSON:
     "pacing": 6,
     "dialogue": 7,
     "sensory": 5,
-    "mutation_coverage": 8
+    "mutationCoverage": 8
   },
   "critique": "Voice (8): Strong POV lock on Kael, distinct internal rhythm. Pacing (6): The middle sags — the market confrontation needs tighter deliveries. Dialogue (7): Subtext works in the alley scene but the tavern exchange feels expository. Sensory (5): Too much telling of emotions, not enough physical grounding. Mutation coverage (8): Thread shifts land well. Overall (7): Solid foundation but the sensory and pacing weaknesses hold it back."
 }`;
@@ -63,7 +63,7 @@ Return JSON:
     pacing: Number(scoreObj.pacing) || 0,
     dialogue: Number(scoreObj.dialogue) || 0,
     sensory: Number(scoreObj.sensory) || 0,
-    mutation_coverage: Number(scoreObj.mutation_coverage) || 0,
+    mutationCoverage: Number(scoreObj.mutationCoverage ?? scoreObj.mutation_coverage) || 0,
     critique,
   };
 }

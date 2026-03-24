@@ -1,4 +1,4 @@
-import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeMutation } from '@/types/narrative';
+import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldBuild } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE } from '@/lib/constants';
 
@@ -48,7 +48,7 @@ export function nextIds(prefix: string, existingIds: string[], count: number, pa
  * Root branch returns its own entryIds.
  * Child branch returns parent's resolved sequence up to forkEntryId (inclusive) + own entryIds.
  */
-export function resolveSceneSequence(
+export function resolveEntrySequence(
   branches: Record<string, Branch>,
   branchId: string,
 ): string[] {
@@ -59,7 +59,7 @@ export function resolveSceneSequence(
   if (!branch.parentBranchId) return branch.entryIds;
 
   // Recursively resolve parent
-  const parentSequence = resolveSceneSequence(branches, branch.parentBranchId);
+  const parentSequence = resolveEntrySequence(branches, branch.parentBranchId);
 
   // Find the fork point in the parent sequence
   if (branch.forkEntryId) {
@@ -80,7 +80,7 @@ export function resolveSceneSequence(
 export function computeThreadStatuses(
   narrative: NarrativeState,
   sceneIndex: number,
-  resolvedSceneKeys?: string[],
+  resolvedEntryKeys?: string[],
 ): Record<string, ThreadStatus> {
   // Start with the base statuses from thread definitions
   const statuses: Record<string, ThreadStatus> = {};
@@ -89,7 +89,7 @@ export function computeThreadStatuses(
   }
 
   // Replay mutations up to and including the current scene (skip world builds)
-  const sceneKeys = resolvedSceneKeys ?? Object.keys(narrative.scenes);
+  const sceneKeys = resolvedEntryKeys ?? Object.keys(narrative.scenes);
   for (let i = 0; i <= sceneIndex && i < sceneKeys.length; i++) {
     const scene = narrative.scenes[sceneKeys[i]];
     if (!scene) continue;
@@ -133,11 +133,10 @@ export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCorner
   return Math.exp(-d / 2);
 }
 
-/** Compute swing magnitude (Euclidean distance) between consecutive force snapshots.
- *  Returns an array of the same length; the first element is always 0. */
 /** Compute swing as Euclidean distance in force space between consecutive scenes.
  *  When reference means are provided, forces are normalized first so each
- *  dimension contributes equally regardless of natural scale. */
+ *  dimension contributes equally regardless of natural scale.
+ *  Returns an array of the same length; the first element is always 0. */
 export function computeSwingMagnitudes(
   forceSnapshots: ForceSnapshot[],
   refMeans?: { payoff: number; change: number; knowledge: number },
@@ -285,10 +284,10 @@ export function buildCumulativeWorldKnowledge(
   scenes: Record<string, Scene>,
   resolvedKeys: string[],
   upToIndex: number,
-  worldBuilds?: Record<string, import('@/types/narrative').WorldBuildCommit>,
+  worldBuilds?: Record<string, WorldBuild>,
 ): WorldKnowledgeGraph {
   const nodes: Record<string, WorldKnowledgeNode> = {};
-  const edges: import('@/types/narrative').WorldKnowledgeEdge[] = [];
+  const edges: WorldKnowledgeEdge[] = [];
 
   const applyMutation = (wkm: WorldKnowledgeMutation) => {
     for (const n of wkm.addedNodes ?? []) {
@@ -363,7 +362,7 @@ export function computeForceSnapshots(
  * Compute raw (non-normalized) force totals for a set of scenes.
  * Returns absolute values suitable for cross-series comparison.
  */
-export function computeRawForcetotals(
+export function computeRawForceTotals(
   scenes: Scene[],
 ): { payoff: number[]; change: number[]; knowledge: number[] } {
   if (scenes.length === 0) return { payoff: [], change: [], knowledge: [] };

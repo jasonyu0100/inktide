@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { resolveSceneSequence } from '@/lib/narrative-utils';
+import { resolveEntrySequence } from '@/lib/narrative-utils';
 import type { Branch, NarrativeState } from '@/types/narrative';
 
 // ─── Colours ──────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ function buildGrid(
   }
 
   const byId = new Map(allBranches.map(b => [b.id, b]));
-  const activeSeq = resolveSceneSequence(narrative.branches, activeBranchId);
+  const activeSeq = resolveEntrySequence(narrative.branches, activeBranchId);
   const activeEntrySet = new Set(activeSeq);
 
   // Build ancestry set — branches in the active branch's parent chain
@@ -97,7 +97,7 @@ function buildGrid(
     if (isAncestor) {
       // Ancestor of active branch — use LCP to find where it diverges,
       // show only entries NOT inherited by the active branch
-      const seq = resolveSceneSequence(narrative.branches, b.id);
+      const seq = resolveEntrySequence(narrative.branches, b.id);
       let lcp = 0;
       while (lcp < activeSeq.length && lcp < seq.length && activeSeq[lcp] === seq[lcp]) lcp++;
       forkRow = lcp - 1;
@@ -170,7 +170,7 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
   const [renameValue, setRenameValue] = useState('');
   const [newBranchName, setNewBranchName] = useState('');
   const [forkEntryId, setForkEntryId] = useState<string | null>(
-    state.resolvedSceneKeys[state.currentSceneIndex] ?? null,
+    state.resolvedEntryKeys[state.currentSceneIndex] ?? null,
   );
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -505,7 +505,7 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setForkEntryId(e.target.value || null)}
                 className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full outline-none"
               >
-                {state.resolvedSceneKeys.map((key, idx) => {
+                {state.resolvedEntryKeys.map((key, idx) => {
                   const label = narrative!.worldBuilds[key]
                     ? narrative!.worldBuilds[key].summary
                     : (narrative!.scenes[key]?.summary ?? key);

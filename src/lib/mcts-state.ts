@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { MCTSNode } from '@/types/mcts';
-import { computeRawForcetotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { computeRawForceTotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 
 /**
  * Apply scene mutations (relationship + knowledge + thread) to a narrative state.
@@ -137,7 +137,7 @@ export function buildVirtualState(
 export function scoreArc(arcScenes: Scene[], priorScenes: Scene[]): number {
   if (arcScenes.length === 0) return 0;
 
-  const raw = computeRawForcetotals(arcScenes);
+  const raw = computeRawForceTotals(arcScenes);
   const forces = raw.payoff.map((_, i) => ({
     payoff: raw.payoff[i],
     change: raw.change[i],
@@ -160,13 +160,13 @@ export function scoreArc(arcScenes: Scene[], priorScenes: Scene[]): number {
  * @param priorScenes - Prior scenes for swing context (last scene used for swing calc)
  */
 export function scoreScene(scene: Scene, priorScenes: Scene[]): number {
-  const raw = computeRawForcetotals([scene]);
+  const raw = computeRawForceTotals([scene]);
 
   // If we have prior scenes, compute swing against the last one for a meaningful swing grade
   let swings: number[];
   if (priorScenes.length > 0) {
     const lastScene = priorScenes[priorScenes.length - 1];
-    const combined = computeRawForcetotals([lastScene, scene]);
+    const combined = computeRawForceTotals([lastScene, scene]);
     const combinedForces = combined.payoff.map((_, i) => ({
       payoff: combined.payoff[i],
       change: combined.change[i],

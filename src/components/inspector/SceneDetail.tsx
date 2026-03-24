@@ -14,7 +14,7 @@ export default function SceneDetail({ sceneId }: Props) {
   const narrative = state.activeNarrative;
   const { forceSnapshot, swing } = useMemo(() => {
     if (!narrative) return { forceSnapshot: { payoff: 0, change: 0, knowledge: 0 }, swing: 0 };
-    const allScenes = state.resolvedSceneKeys
+    const allScenes = state.resolvedEntryKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
     const forceMap = computeForceSnapshots(allScenes);
@@ -24,7 +24,7 @@ export default function SceneDetail({ sceneId }: Props) {
     const swings = computeSwingMagnitudes(orderedSnapshots);
     const idx = allScenes.findIndex((s) => s.id === sceneId);
     return { forceSnapshot: snap, swing: idx >= 0 ? swings[idx] : 0 };
-  }, [narrative, state.resolvedSceneKeys, sceneId]);
+  }, [narrative, state.resolvedEntryKeys, sceneId]);
 
   if (!narrative) return null;
 

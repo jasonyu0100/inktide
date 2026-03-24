@@ -3,7 +3,7 @@
 import { useRef, useCallback, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes } from '@/lib/ai';
-import type { NarrativeState, Scene, CubeCornerKey, WorldBuildCommit } from '@/types/narrative';
+import type { NarrativeState, Scene, CubeCornerKey, WorldBuild } from '@/types/narrative';
 import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, DeliveryDirection, PendingExpansion } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
 import type { Arc } from '@/types/narrative';
@@ -46,7 +46,7 @@ export function useMCTS() {
   const [runState, setRunState] = useState<MCTSRunState>(() => {
     const narrative = state.activeNarrative;
     const tree = narrative
-      ? createTree(narrative, state.resolvedSceneKeys, state.currentSceneIndex)
+      ? createTree(narrative, state.resolvedEntryKeys, state.currentSceneIndex)
       : { nodes: {}, rootNarrative: {} as any, rootResolvedKeys: [], rootCurrentIndex: -1, rootChildIds: [] };
     return {
       status: 'idle' as const,
@@ -145,7 +145,7 @@ export function useMCTS() {
     rootNarrative: NarrativeState,
     rootResolvedKeys: string[],
     rootCurrentIndex: number,
-    worldBuildFocus: WorldBuildCommit | undefined,
+    worldBuildFocus: WorldBuild | undefined,
     northStarPrompt?: string,
     moveType: 'arc' | 'scene' = 'arc',
     existingArc?: Arc,
@@ -201,10 +201,10 @@ export function useMCTS() {
   // ── Main loop ──────────────────────────────────────────────────────────────
 
   const runLoop = useCallback(async (config: MCTSConfig) => {
-    const { activeNarrative, resolvedSceneKeys, currentSceneIndex, activeBranchId } = state;
+    const { activeNarrative, resolvedEntryKeys, currentSceneIndex, activeBranchId } = state;
     if (!activeNarrative || !activeBranchId) return;
 
-    let tree = retainedTreeRef.current ?? createTree(activeNarrative, resolvedSceneKeys, currentSceneIndex);
+    let tree = retainedTreeRef.current ?? createTree(activeNarrative, resolvedEntryKeys, currentSceneIndex);
     retainedTreeRef.current = null;
     const worldBuildFocus = config.worldBuildFocusId
       ? activeNarrative.worldBuilds[config.worldBuildFocusId]
@@ -865,7 +865,7 @@ export function useMCTS() {
       startedAt: null,
       effectiveBaseline: null,
       tree: narrative
-        ? createTree(narrative, state.resolvedSceneKeys, state.currentSceneIndex)
+        ? createTree(narrative, state.resolvedEntryKeys, state.currentSceneIndex)
         : { nodes: {}, rootNarrative: {} as any, rootResolvedKeys: [], rootCurrentIndex: -1, rootChildIds: [] },
     }));
   }, [state]);
@@ -1037,7 +1037,7 @@ export function useMCTS() {
       bestPath: null,
       startedAt: null,
       effectiveBaseline: null,
-      tree: pruned ?? createTree(state.activeNarrative!, state.resolvedSceneKeys, state.currentSceneIndex),
+      tree: pruned ?? createTree(state.activeNarrative!, state.resolvedEntryKeys, state.currentSceneIndex),
     }));
   }, [runState, state, dispatch]);
 

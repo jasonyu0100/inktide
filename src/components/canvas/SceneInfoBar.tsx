@@ -14,8 +14,8 @@ export default function SceneInfoBar() {
     const arcs = Object.values(narrative.arcs);
     const arcOrder: { arcId: string; firstTlIdx: number }[] = [];
     const seen = new Set<string>();
-    for (let i = 0; i < state.resolvedSceneKeys.length; i++) {
-      const entry = resolveEntry(narrative, state.resolvedSceneKeys[i]);
+    for (let i = 0; i < state.resolvedEntryKeys.length; i++) {
+      const entry = resolveEntry(narrative, state.resolvedEntryKeys[i]);
       if (entry && isScene(entry)) {
         const arc = arcs.find((a) => a.sceneIds.includes(entry.id));
         if (arc && !seen.has(arc.id)) {
@@ -29,9 +29,9 @@ export default function SceneInfoBar() {
       if (state.currentSceneIndex >= arcOrder[i].firstTlIdx) { currentArc = i + 1; break; }
     }
     return { total: arcOrder.length, currentArc, arcOrder };
-  }, [narrative, state.resolvedSceneKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
 
-  const totalScenes = state.resolvedSceneKeys.length;
+  const totalScenes = state.resolvedEntryKeys.length;
 
   // Inline editing
   const [editField, setEditField] = useState<'scene' | 'arc' | null>(null);

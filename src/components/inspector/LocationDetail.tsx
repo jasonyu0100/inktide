@@ -61,7 +61,7 @@ export default function LocationDetail({ locationId }: Props) {
 
   const parent = location.parentId ? narrative.locations[location.parentId] : null;
 
-  const sceneKeysUpToCurrent = state.resolvedSceneKeys.slice(0, state.currentSceneIndex + 1);
+  const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
 
   // Knowledge filtered to current scene (location knowledge uses locationId as characterId
   // in the mutation replay — location-specific knowledge nodes aren't mutated by scenes,
@@ -70,7 +70,7 @@ export default function LocationDetail({ locationId }: Props) {
     location.continuity.nodes,
     locationId,
     narrative.scenes,
-    state.resolvedSceneKeys,
+    state.resolvedEntryKeys,
     state.currentSceneIndex,
   );
 
@@ -78,7 +78,7 @@ export default function LocationDetail({ locationId }: Props) {
   const threadIds = getThreadIdsAtScene(
     location.threadIds,
     narrative.threads,
-    state.resolvedSceneKeys,
+    state.resolvedEntryKeys,
     state.currentSceneIndex,
   );
 

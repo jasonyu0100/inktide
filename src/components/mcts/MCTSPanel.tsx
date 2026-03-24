@@ -1435,7 +1435,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                     {state.activeNarrative && (
                       <NorthStarSuggestButton
                         narrative={state.activeNarrative}
-                        resolvedKeys={state.resolvedSceneKeys}
+                        resolvedKeys={state.resolvedEntryKeys}
                         currentIndex={state.currentSceneIndex}
                         onSuggestion={(direction) => setConfig((c) => ({ ...c, northStarPrompt: direction }))}
                       />
@@ -1452,7 +1452,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                 {/* World Build Focus */}
                 {(() => {
                   const narrative = state.activeNarrative;
-                  const resolvedSet = new Set(state.resolvedSceneKeys);
+                  const resolvedSet = new Set(state.resolvedEntryKeys);
                   const worldBuildEntries = narrative
                     ? Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id))
                     : [];

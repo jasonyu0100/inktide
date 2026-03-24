@@ -78,16 +78,16 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const narrative = state.activeNarrative;
   if (!narrative) return null;
 
-  const headIndex = state.resolvedSceneKeys.length - 1;
-  const headKey = state.resolvedSceneKeys[headIndex];
+  const headIndex = state.resolvedEntryKeys.length - 1;
+  const headKey = state.resolvedEntryKeys[headIndex];
   const headEntry = headKey ? resolveEntry(narrative, headKey) : null;
   const currentArc = headEntry?.kind === 'scene' && narrative.arcs[headEntry.arcId]
     ? narrative.arcs[headEntry.arcId]
     : null;
 
   const currentMode = useMemo(
-    () => detectCurrentMode(narrative, state.resolvedSceneKeys),
-    [narrative, state.resolvedSceneKeys],
+    () => detectCurrentMode(narrative, state.resolvedEntryKeys),
+    [narrative, state.resolvedEntryKeys],
   );
 
   const storyMatrix = useMemo(() => {
@@ -130,7 +130,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setSuggesting(true);
     setError('');
     try {
-      const suggestion = await suggestArcDirection(narrative, state.resolvedSceneKeys, headIndex);
+      const suggestion = await suggestArcDirection(narrative, state.resolvedEntryKeys, headIndex);
       setArcName(suggestion.arcName);
       setDirection(suggestion.text.includes(':') ? suggestion.text.slice(suggestion.text.indexOf(':') + 1).trim() : suggestion.text);
       setCount(suggestion.suggestedSceneCount);
@@ -151,7 +151,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       const existingArc = !newArc ? currentArc ?? undefined : undefined;
       const worldBuildFocus = worldBuildFocusId ? narrative.worldBuilds[worldBuildFocusId] : undefined;
       const { scenes, arc } = await generateScenes(
-        narrative, state.resolvedSceneKeys, headIndex, count, direction,
+        narrative, state.resolvedEntryKeys, headIndex, count, direction,
         { existingArc, pacingSequence: previewSequence ?? undefined, worldBuildFocus, onToken: (token) => setStreamText((prev) => prev + token) },
       );
       dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: state.activeBranchId! });
@@ -168,7 +168,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setSuggesting(true);
     setError('');
     try {
-      const suggestion = await suggestWorldExpansion(narrative, state.resolvedSceneKeys, headIndex, worldSize);
+      const suggestion = await suggestWorldExpansion(narrative, state.resolvedEntryKeys, headIndex, worldSize);
       setWorldDirective(suggestion);
     } catch (err) { setError(String(err)); } finally { setSuggesting(false); }
   }
@@ -178,9 +178,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError('');
     try {
-      const expansion = await expandWorld(narrative, state.resolvedSceneKeys, headIndex, worldDirective, worldSize);
+      const expansion = await expandWorld(narrative, state.resolvedEntryKeys, headIndex, worldDirective, worldSize);
       dispatch({
-        type: 'EXPAND_WORLD', wxId: nextId('WX', Object.keys(narrative.worldBuilds), 3),
+        type: 'EXPAND_WORLD', worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
         characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
         relationships: expansion.relationships, worldKnowledgeMutations: expansion.worldKnowledgeMutations,
         branchId: state.activeBranchId!,
@@ -457,7 +457,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
                       {/* World build focus */}
                       {(() => {
-                        const resolvedSet = new Set(state.resolvedSceneKeys);
+                        const resolvedSet = new Set(state.resolvedEntryKeys);
                         const wbEntries = Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id));
                         if (wbEntries.length === 0) return null;
                         return (

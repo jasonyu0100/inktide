@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForcetotals, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, detectCubeCorner } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, movingAverage, zScoreNormalize, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, detectCubeCorner } from '@/lib/narrative-utils';
 import ForceLineChart, { type ChartStyle } from './ForceLineChart';
 import { FORCE_CHARTS_WINDOW_DEFAULT } from '@/lib/constants';
 
@@ -30,7 +30,7 @@ type Scope = 'global' | 'local';
 export default function ForceCharts() {
   const { state } = useStore();
   const narrative = state.activeNarrative;
-  const resolvedSceneKeys = state.resolvedSceneKeys;
+  const resolvedEntryKeys = state.resolvedEntryKeys;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scope, setScope] = useState<Scope>('global');
@@ -61,20 +61,20 @@ export default function ForceCharts() {
   // All scenes in timeline order
   const allScenes = useMemo(() => {
     if (!narrative) return [];
-    return resolvedSceneKeys
+    return resolvedEntryKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
-  }, [narrative, resolvedSceneKeys]);
+  }, [narrative, resolvedEntryKeys]);
 
   // Map current timeline index → scene-array index
   const currentSceneIdx = useMemo(() => {
     if (allScenes.length === 0 || !narrative) return -1;
     return Math.min(
       allScenes.length - 1,
-      resolvedSceneKeys.slice(0, state.currentSceneIndex + 1)
+      resolvedEntryKeys.slice(0, state.currentSceneIndex + 1)
         .filter((k) => resolveEntry(narrative, k)?.kind === 'scene').length - 1,
     );
-  }, [allScenes, state.currentSceneIndex, resolvedSceneKeys, narrative]);
+  }, [allScenes, state.currentSceneIndex, resolvedEntryKeys, narrative]);
 
   // Windowed forces
   const windowed = useMemo(() => {
@@ -90,7 +90,7 @@ export default function ForceCharts() {
     const knowledge: number[] = [];
     const forceMap = computeForceSnapshots(allScenes);
     let lastForce = { payoff: 0, change: 0, knowledge: 0 };
-    for (const k of resolvedSceneKeys) {
+    for (const k of resolvedEntryKeys) {
       const entry = resolveEntry(narrative, k);
       if (entry && isScene(entry)) {
         lastForce = forceMap[entry.id] ?? lastForce;
@@ -100,19 +100,19 @@ export default function ForceCharts() {
       knowledge.push(lastForce.knowledge);
     }
     return { payoff, change, knowledge, swing: zScoreNormalize(computeSwings(payoff, change, knowledge)) };
-  }, [narrative, allScenes, resolvedSceneKeys]);
+  }, [narrative, allScenes, resolvedEntryKeys]);
 
   // Full-history forces (raw)
   const globalRawForceData = useMemo(() => {
     if (!narrative) return { payoff: [] as number[], change: [] as number[], knowledge: [] as number[], swing: [] as number[] };
-    const raw = computeRawForcetotals(allScenes);
+    const raw = computeRawForceTotals(allScenes);
     const rawMap: Record<string, { payoff: number; change: number; knowledge: number }> = {};
     allScenes.forEach((s, i) => { rawMap[s.id] = { payoff: raw.payoff[i], change: raw.change[i], knowledge: raw.knowledge[i] }; });
     const payoff: number[] = [];
     const change: number[] = [];
     const knowledge: number[] = [];
     let lastForce = { payoff: 0, change: 0, knowledge: 0 };
-    for (const k of resolvedSceneKeys) {
+    for (const k of resolvedEntryKeys) {
       const entry = resolveEntry(narrative, k);
       if (entry && isScene(entry)) {
         lastForce = rawMap[entry.id] ?? lastForce;
@@ -122,7 +122,7 @@ export default function ForceCharts() {
       knowledge.push(lastForce.knowledge);
     }
     return { payoff, change, knowledge, swing: computeSwings(payoff, change, knowledge) };
-  }, [narrative, allScenes, resolvedSceneKeys]);
+  }, [narrative, allScenes, resolvedEntryKeys]);
 
   // Window-only forces for local scope (normalized)
   const localForceData = useMemo(() => {
@@ -145,7 +145,7 @@ export default function ForceCharts() {
   const localRawForceData = useMemo(() => {
     if (!windowed || !narrative) return { payoff: [] as number[], change: [] as number[], knowledge: [] as number[], swing: [] as number[] };
     const windowScenes = allScenes.slice(windowed.windowStart, windowed.windowEnd + 1);
-    const raw = computeRawForcetotals(windowScenes);
+    const raw = computeRawForceTotals(windowScenes);
     const rawMap: Record<string, { payoff: number; change: number; knowledge: number }> = {};
     windowScenes.forEach((s, i) => { rawMap[s.id] = { payoff: raw.payoff[i], change: raw.change[i], knowledge: raw.knowledge[i] }; });
     const payoff: number[] = [];
@@ -167,15 +167,15 @@ export default function ForceCharts() {
     const windowStartId = allScenes[windowed.windowStart]?.id;
     const windowEndId = allScenes[windowed.windowEnd]?.id;
     let tlStart = 0;
-    let tlEnd = resolvedSceneKeys.length - 1;
-    for (let i = 0; i < resolvedSceneKeys.length; i++) {
-      if (resolvedSceneKeys[i] === windowStartId) { tlStart = i; break; }
+    let tlEnd = resolvedEntryKeys.length - 1;
+    for (let i = 0; i < resolvedEntryKeys.length; i++) {
+      if (resolvedEntryKeys[i] === windowStartId) { tlStart = i; break; }
     }
-    for (let i = resolvedSceneKeys.length - 1; i >= 0; i--) {
-      if (resolvedSceneKeys[i] === windowEndId) { tlEnd = i; break; }
+    for (let i = resolvedEntryKeys.length - 1; i >= 0; i--) {
+      if (resolvedEntryKeys[i] === windowEndId) { tlEnd = i; break; }
     }
     return { start: tlStart, end: tlEnd };
-  }, [windowed, allScenes, resolvedSceneKeys, narrative]);
+  }, [windowed, allScenes, resolvedEntryKeys, narrative]);
 
   const isLocal = scope === 'local';
   const fullChartData = isLocal

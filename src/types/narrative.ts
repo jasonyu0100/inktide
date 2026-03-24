@@ -13,14 +13,14 @@ export const THREAD_STATUS_LABELS: Record<string, string> = {
   abandoned: 'faded without resolution',
 };
 
-export type ThreadAnchor = {
+export type ThreadParticipant = {
   id: string;
   type: 'character' | 'location';
 };
 
 export type Thread = {
   id: string;
-  anchors: ThreadAnchor[];
+  participants: ThreadParticipant[];
   description: string;
   status: ThreadStatus;
   openedAt: string;
@@ -38,7 +38,7 @@ export type ContinuityNode = {
   content: string;
 };
 
-export type ContinuityGraph = {
+export type Continuity = {
   nodes: ContinuityNode[];
 };
 
@@ -46,7 +46,7 @@ export type Character = {
   id: string;
   name: string;
   role: CharacterRole;
-  continuity: ContinuityGraph;
+  continuity: Continuity;
   threadIds: string[];
   /** AI-generated visual description used as image prompt seed */
   imagePrompt?: string;
@@ -59,7 +59,7 @@ export type Location = {
   name: string;
   parentId: string | null;
   threadIds: string[];
-  continuity: ContinuityGraph;
+  continuity: Continuity;
   /** AI-generated visual description used as image prompt seed */
   imagePrompt?: string;
   imageUrl?: string;
@@ -216,7 +216,7 @@ export type ProseScore = {
   pacing: number;
   dialogue: number;
   sensory: number;
-  mutation_coverage: number;
+  mutationCoverage: number;
   /** Per-dimension critique notes from the grading pass */
   critique?: string;
 };
@@ -254,7 +254,7 @@ export type Scene = {
   locked?: boolean;
 };
 
-export type WorldBuildCommit = {
+export type WorldBuild = {
   kind: 'world_build';
   id: string;
   summary: string;
@@ -324,14 +324,14 @@ export type ContinuityPlan = {
   edits: ContinuityEdit[];
 };
 
-/** A timeline entry is either a narrative scene or a world-building commit */
-export type TimelineEntry = Scene | WorldBuildCommit;
+/** A timeline entry is either a narrative scene or a world build */
+export type TimelineEntry = Scene | WorldBuild;
 
 export function isScene(entry: TimelineEntry): entry is Scene {
   return entry.kind === 'scene';
 }
 
-export function isWorldBuild(entry: TimelineEntry): entry is WorldBuildCommit {
+export function isWorldBuild(entry: TimelineEntry): entry is WorldBuild {
   return entry.kind === 'world_build';
 }
 
@@ -368,17 +368,17 @@ export type NarrativeState = {
   id: string;
   title: string;
   description: string;
-  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedSceneKeys */
+  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
   characters: Record<string, Character>;
-  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedSceneKeys */
+  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
   locations: Record<string, Location>;
-  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedSceneKeys */
+  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
   threads: Record<string, Thread>;
   arcs: Record<string, Arc>;
   scenes: Record<string, Scene>;
-  worldBuilds: Record<string, WorldBuildCommit>;
+  worldBuilds: Record<string, WorldBuild>;
   branches: Record<string, Branch>;
-  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedSceneKeys */
+  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
   relationships: RelationshipEdge[];
   /** Derived cache — cumulative world knowledge graph built from world-build manifests + scene mutations */
   worldKnowledge: WorldKnowledgeGraph;
@@ -553,7 +553,7 @@ export type AnalysisChunkResult = {
   chapterSummary: string;
   characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; continuity: { type: string; content: string }[] }[];
   locations: { name: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[] }[];
-  threads: { description: string; anchorNames: string[]; statusAtStart: string; statusAtEnd: string; development: string }[];
+  threads: { description: string; participantNames: string[]; statusAtStart: string; statusAtEnd: string; development: string }[];
   scenes: {
     locationName: string; povName: string; participantNames: string[]; events: string[];
     summary: string; sections: number[]; prose?: string;
@@ -648,8 +648,8 @@ export type AppState = {
   isPlaying: boolean;
   currentSceneIndex: number;
   activeBranchId: string | null;
-  /** Resolved scene keys for the active branch (inherited + own) */
-  resolvedSceneKeys: string[];
+  /** Ordered timeline entry IDs (scenes + world builds) for the active branch, resolved across parent branches */
+  resolvedEntryKeys: string[];
   inspectorContext: InspectorContext | null;
   wizardOpen: boolean;
   wizardStep: WizardStep;

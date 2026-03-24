@@ -32,11 +32,11 @@ export default function KnowledgeDetail({ nodeId }: Props) {
   const graph = useMemo(() => {
     return buildCumulativeWorldKnowledge(
       narrative.scenes,
-      state.resolvedSceneKeys,
+      state.resolvedEntryKeys,
       state.currentSceneIndex,
       narrative.worldBuilds,
     );
-  }, [narrative, state.resolvedSceneKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
 
   const node = graph.nodes[nodeId];
   if (!node) return <p className="text-xs text-text-dim">Node not found</p>;
@@ -68,8 +68,8 @@ export default function KnowledgeDetail({ nodeId }: Props) {
   // Build index: for each knowledge node, which scene indices mention it
   const nodeSceneIndex = useMemo(() => {
     const map = new Map<string, number[]>();
-    for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedSceneKeys.length; i++) {
-      const key = state.resolvedSceneKeys[i];
+    for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
+      const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds?.[key];
       const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledge;
@@ -83,7 +83,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
       }
     }
     return map;
-  }, [narrative, state.resolvedSceneKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
 
   // Navigate to a knowledge node:
   // - Spark mode: jump to the nearest scene that mentions it, then zoom in
@@ -112,8 +112,8 @@ export default function KnowledgeDetail({ nodeId }: Props) {
   // Scenes where this node was introduced
   const introScenes = useMemo(() => {
     const scenes: { sceneId: string; sceneTitle: string }[] = [];
-    for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedSceneKeys.length; i++) {
-      const key = state.resolvedSceneKeys[i];
+    for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
+      const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
       if (!scene?.worldKnowledgeMutations) continue;
       const added = scene.worldKnowledgeMutations.addedNodes ?? [];
@@ -122,7 +122,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
       }
     }
     return scenes;
-  }, [narrative, state.resolvedSceneKeys, state.currentSceneIndex, nodeId]);
+  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex, nodeId]);
 
   return (
     <div className="flex flex-col gap-4">

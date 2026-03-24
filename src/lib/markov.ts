@@ -38,14 +38,14 @@ const CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH
 
 // ── Matrix Computation ───────────────────────────────────────────────────────
 
-import { computeRawForcetotals, zScoreNormalize, resolveSceneSequence } from '@/lib/narrative-utils';
+import { computeRawForceTotals, zScoreNormalize, resolveEntrySequence } from '@/lib/narrative-utils';
 
 /** Compute a transition matrix from a NarrativeState using the canon (root) branch. */
 export function computeMatrixFromNarrative(narrative: NarrativeState): TransitionMatrix {
   // Find root branch
   const rootBranch = Object.values(narrative.branches).find((b) => b.parentBranchId === null);
   const keys = rootBranch
-    ? resolveSceneSequence(narrative.branches, rootBranch.id)
+    ? resolveEntrySequence(narrative.branches, rootBranch.id)
     : Object.keys(narrative.scenes);
 
   const scenes = keys
@@ -54,7 +54,7 @@ export function computeMatrixFromNarrative(narrative: NarrativeState): Transitio
 
   if (scenes.length < 3) return emptyMatrix();
 
-  const raw = computeRawForcetotals(scenes);
+  const raw = computeRawForceTotals(scenes);
   const np = zScoreNormalize(raw.payoff);
   const nc = zScoreNormalize(raw.change);
   const nk = zScoreNormalize(raw.knowledge);

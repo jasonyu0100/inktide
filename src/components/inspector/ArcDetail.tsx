@@ -26,15 +26,15 @@ export default function ArcDetail({ arcId }: Props) {
   if (!arc) return null;
 
   const arcScenes = useMemo(() => {
-    const resolvedSet = new Set(state.resolvedSceneKeys);
+    const resolvedSet = new Set(state.resolvedEntryKeys);
     return arc.sceneIds
       .filter((sid) => resolvedSet.has(sid))
       .map((sid) => narrative.scenes[sid])
       .filter(Boolean);
-  }, [arc, narrative, state.resolvedSceneKeys]);
+  }, [arc, narrative, state.resolvedEntryKeys]);
 
   const delivery = useMemo(() => {
-    const allScenes = state.resolvedSceneKeys
+    const allScenes = state.resolvedEntryKeys
       .map((k) => narrative.scenes[k])
       .filter((s): s is Scene => !!s);
     if (allScenes.length === 0) return null;
@@ -46,7 +46,7 @@ export default function ArcDetail({ arcId }: Props) {
     const arcStart = allScenes.findIndex((s) => arcSceneIds.has(s.id));
     const position = classifyCurrentPosition(pts);
     return { pts, arcStart, position };
-  }, [narrative, state.resolvedSceneKeys, arc.sceneIds]);
+  }, [narrative, state.resolvedEntryKeys, arc.sceneIds]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -188,7 +188,7 @@ export default function ArcDetail({ arcId }: Props) {
         </h3>
         <div className="flex flex-col gap-2">
           {arcScenes.map((scene, i) => {
-            const sceneIdx = state.resolvedSceneKeys.indexOf(scene.id);
+            const sceneIdx = state.resolvedEntryKeys.indexOf(scene.id);
             const loc = scene.kind === 'scene' ? narrative.locations[scene.locationId] : null;
             const povId = scene.kind === 'scene' ? (scene.povId || scene.participantIds[0]) : null;
             const pov = povId ? narrative.characters[povId] : null;

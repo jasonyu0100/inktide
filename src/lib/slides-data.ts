@@ -5,7 +5,7 @@ import type {
 import { NARRATIVE_CUBE, isScene, resolveEntry } from '@/types/narrative';
 import {
   computeForceSnapshots,
-  computeRawForcetotals,
+  computeRawForceTotals,
   computeDeliveryCurve,
   computeSwingMagnitudes,
   classifyNarrativeShape,
@@ -132,10 +132,10 @@ function dominantForce(p: number, c: number, v: number): 'payoff' | 'change' | '
 
 export function computeSlidesData(
   narrative: NarrativeState,
-  resolvedSceneKeys: string[],
+  resolvedEntryKeys: string[],
 ): SlidesData {
   // Resolve ordered scenes
-  const scenes: Scene[] = resolvedSceneKeys
+  const scenes: Scene[] = resolvedEntryKeys
     .map((k) => resolveEntry(narrative, k))
     .filter((e): e is Scene => !!e && isScene(e));
 
@@ -146,7 +146,7 @@ export function computeSlidesData(
   const forceSnapshots = scenes.map((s) => forceMap[s.id] ?? { payoff: 0, change: 0, knowledge: 0 });
 
   // Raw forces
-  const rawForces = computeRawForcetotals(scenes);
+  const rawForces = computeRawForceTotals(scenes);
 
   // Delivery curve
   const deliveryCurve = computeDeliveryCurve(forceSnapshots);
@@ -240,7 +240,7 @@ export function computeSlidesData(
     .slice(0, 12);
 
   // Thread lifecycles
-  const threadLifecycles = buildThreadLifecycles(narrative, scenes, resolvedSceneKeys);
+  const threadLifecycles = buildThreadLifecycles(narrative, scenes, resolvedEntryKeys);
 
   // Top characters by participation
   const charCounts = new Map<string, number>();
@@ -297,7 +297,7 @@ export function computeSlidesData(
         pacing: avg(proseScores.map((p) => p.pacing)),
         dialogue: avg(proseScores.map((p) => p.dialogue)),
         sensory: avg(proseScores.map((p) => p.sensory)),
-        mutation_coverage: avg(proseScores.map((p) => p.mutation_coverage)),
+        mutationCoverage: avg(proseScores.map((p) => p.mutationCoverage)),
       }
     : null;
 
@@ -477,7 +477,7 @@ function buildTroughInfos(
 function buildThreadLifecycles(
   narrative: NarrativeState,
   scenes: Scene[],
-  resolvedSceneKeys: string[],
+  resolvedEntryKeys: string[],
 ): ThreadLifecycle[] {
   const terminalStatuses = new Set(['resolved', 'subverted', 'abandoned']);
   const threads = Object.values(narrative.threads);

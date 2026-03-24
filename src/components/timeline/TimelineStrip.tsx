@@ -4,7 +4,7 @@ import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import type { Arc, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { computeRawForcetotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { computeRawForceTotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 
 const NODE_RADIUS = 8;
 const NODE_SPACING = 50;
@@ -26,7 +26,7 @@ export default function TimelineStrip() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const narrative = state.activeNarrative;
 
-  const sceneKeys = state.resolvedSceneKeys;
+  const sceneKeys = state.resolvedEntryKeys;
 
   const scenes = useMemo(
     () => (narrative ? sceneKeys.map((k) => resolveEntry(narrative, k)).filter((e): e is NonNullable<typeof e> => e != null) : []),
@@ -70,7 +70,7 @@ export default function TimelineStrip() {
   const arcGrades = useMemo(() => {
     if (allScenes.length === 0 || arcBands.length === 0) return new Map<string, number>();
 
-    const raw = computeRawForcetotals(allScenes);
+    const raw = computeRawForceTotals(allScenes);
     // Swing from mean-normalised raw forces (preserves cross-series differences)
     const rawForces = raw.payoff.map((_, i) => ({
       payoff: raw.payoff[i],

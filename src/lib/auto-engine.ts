@@ -88,7 +88,7 @@ function computeThreadMaturity(
 
     // Anchor involvement in recent scenes
     const recentScenes = scenes.slice(-FORCE_WINDOW_SIZE);
-    const anchorIds = new Set(thread.anchors.map((a) => a.id));
+    const anchorIds = new Set(thread.participants.map((a) => a.id));
     const anchorAppearances = recentScenes.filter((s) =>
       s.participantIds.some((pid) => anchorIds.has(pid)),
     ).length;
@@ -889,7 +889,7 @@ function buildThreadMaturityClause(
 
 
   const lines = primedThreads.slice(0, 3).map((m) => {
-    const anchors = m.thread.anchors
+    const anchors = m.thread.participants
       .map((a) => a.type === 'character' ? narrative.characters[a.id]?.name : narrative.locations[a.id]?.name)
       .filter(Boolean)
       .join(', ');

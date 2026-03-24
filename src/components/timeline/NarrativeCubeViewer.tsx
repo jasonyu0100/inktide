@@ -65,7 +65,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { state } = useStore();
   const narrative = state.activeNarrative;
-  const resolvedKeys = state.resolvedSceneKeys;
+  const resolvedKeys = state.resolvedEntryKeys;
 
   // Rotation state
   const [rotY, setRotY] = useState(-0.6);

@@ -101,11 +101,11 @@ export default function MediaDrive() {
 
   const scenes = useMemo(() => {
     if (!narrative) return [];
-    const keys = state.resolvedSceneKeys.slice(0, state.currentSceneIndex + 1);
+    const keys = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
     return keys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => e?.kind === 'scene');
-  }, [narrative, state.resolvedSceneKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
 
   // Compute scene readiness — which references are missing
   const sceneReadiness = useMemo((): SceneReadiness[] => {

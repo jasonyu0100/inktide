@@ -3,17 +3,17 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { NarrativeState } from '@/types/narrative';
 import { computeSlidesData, type SlidesData } from '@/lib/slides-data';
-import { TitleSlide } from './slides/TitleSlide';
-import { ShapeSlide } from './slides/ShapeSlide';
-import { CastSlide } from './slides/CastSlide';
-import { ForcesOverviewSlide } from './slides/ForcesOverviewSlide';
-import { KeyMomentsSlide } from './slides/KeyMomentsSlide';
-import { ForceDecompositionSlide } from './slides/ForceDecompositionSlide';
-import { CubeHeatmapSlide } from './slides/CubeHeatmapSlide';
-import { ThreadLifecycleSlide } from './slides/ThreadLifecycleSlide';
-import { SwingAnalysisSlide } from './slides/SwingAnalysisSlide';
-import { ReportCardSlide } from './slides/ReportCardSlide';
-import { ClosingSlide } from './slides/ClosingSlide';
+import { TitleSlide } from './TitleSlide';
+import { ShapeSlide } from './ShapeSlide';
+import { CastSlide } from './CastSlide';
+import { ForcesOverviewSlide } from './ForcesOverviewSlide';
+import { KeyMomentsSlide } from './KeyMomentsSlide';
+import { ForceDecompositionSlide } from './ForceDecompositionSlide';
+import { CubeHeatmapSlide } from './CubeHeatmapSlide';
+import { ThreadLifecycleSlide } from './ThreadLifecycleSlide';
+import { SwingAnalysisSlide } from './SwingAnalysisSlide';
+import { ReportCardSlide } from './ReportCardSlide';
+import { ClosingSlide } from './ClosingSlide';
 
 // ── Slide Spec ─────────────────────────────────────────────────────────────────
 

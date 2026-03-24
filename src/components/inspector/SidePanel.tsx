@@ -20,7 +20,7 @@ function getDefaultContext(state: ReturnType<typeof useStore>['state']) {
   if (!narrative) return null;
 
   // Use the current timeline entry to surface its most prominent node
-  const currentKey = state.resolvedSceneKeys[state.currentSceneIndex];
+  const currentKey = state.resolvedEntryKeys[state.currentSceneIndex];
   const entry: TimelineEntry | null = currentKey
     ? (narrative.scenes[currentKey] ?? narrative.worldBuilds?.[currentKey] ?? null)
     : null;
@@ -34,11 +34,12 @@ function getDefaultContext(state: ReturnType<typeof useStore>['state']) {
       return { type: 'location' as const, locationId: entry.locationId };
     }
   } else if (entry) {
-    const firstChar = entry.expansionManifest?.characters?.[0]?.id;
+    const wb = entry as import('@/types/narrative').WorldBuild;
+    const firstChar = wb.expansionManifest?.characters?.[0]?.id;
     if (firstChar && narrative.characters[firstChar]) {
       return { type: 'character' as const, characterId: firstChar };
     }
-    const firstLoc = entry.expansionManifest?.locations?.[0]?.id;
+    const firstLoc = wb.expansionManifest?.locations?.[0]?.id;
     if (firstLoc && narrative.locations[firstLoc]) {
       return { type: 'location' as const, locationId: firstLoc };
     }

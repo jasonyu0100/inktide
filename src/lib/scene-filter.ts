@@ -2,7 +2,7 @@ import type {
   ContinuityNode,
   RelationshipEdge,
   Scene,
-  WorldBuildCommit,
+  WorldBuild,
   NarrativeState,
 } from '@/types/narrative';
 
@@ -10,16 +10,16 @@ import type {
 
 /** Collect entity IDs introduced by world builds up to (and including) currentSceneIndex. */
 export function getIntroducedIds(
-  worldBuilds: Record<string, WorldBuildCommit>,
-  resolvedSceneKeys: string[],
+  worldBuilds: Record<string, WorldBuild>,
+  resolvedEntryKeys: string[],
   currentSceneIndex: number,
 ): { characterIds: Set<string>; locationIds: Set<string>; threadIds: Set<string> } {
   const characterIds = new Set<string>();
   const locationIds = new Set<string>();
   const threadIds = new Set<string>();
 
-  for (let i = 0; i <= currentSceneIndex && i < resolvedSceneKeys.length; i++) {
-    const wb = worldBuilds[resolvedSceneKeys[i]];
+  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
+    const wb = worldBuilds[resolvedEntryKeys[i]];
     if (!wb) continue;
     for (const c of wb.expansionManifest.characters) characterIds.add(c.id);
     for (const l of wb.expansionManifest.locations) locationIds.add(l.id);
@@ -40,14 +40,14 @@ export function getContinuityNodesAtScene(
   allNodes: ContinuityNode[],
   characterId: string,
   scenes: Record<string, Scene>,
-  resolvedSceneKeys: string[],
+  resolvedEntryKeys: string[],
   currentSceneIndex: number,
 ): ContinuityNode[] {
   // Collect the first mutation type for each node across the full timeline.
   // If a node's first mutation is 'removed', it must have existed initially
   // (introduced by a world-build) and was later removed by a scene.
   const firstMutation = new Map<string, 'added' | 'removed'>();
-  for (const key of resolvedSceneKeys) {
+  for (const key of resolvedEntryKeys) {
     const scene = scenes[key];
     if (!scene) continue;
     for (const km of scene.continuityMutations) {
@@ -64,8 +64,8 @@ export function getContinuityNodesAtScene(
   }
 
   // Replay mutations up to currentSceneIndex
-  for (let i = 0; i <= currentSceneIndex && i < resolvedSceneKeys.length; i++) {
-    const scene = scenes[resolvedSceneKeys[i]];
+  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
+    const scene = scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
     for (const km of scene.continuityMutations) {
       if (km.characterId !== characterId) continue;
@@ -92,12 +92,12 @@ export function getContinuityNodesAtScene(
  */
 export function getRelationshipsAtScene(
   narrative: NarrativeState,
-  resolvedSceneKeys: string[],
+  resolvedEntryKeys: string[],
   currentSceneIndex: number,
 ): RelationshipEdge[] {
   const { characterIds: introducedChars } = getIntroducedIds(
     narrative.worldBuilds,
-    resolvedSceneKeys,
+    resolvedEntryKeys,
     currentSceneIndex,
   );
 
@@ -106,8 +106,8 @@ export function getRelationshipsAtScene(
   // edge for that from-to pair. We detect this by finding pairs whose first-ever
   // scene mutation occurs AFTER currentSceneIndex — those don't exist yet.
   const firstMutationIdx = new Map<string, number>();
-  for (let i = 0; i < resolvedSceneKeys.length; i++) {
-    const scene = narrative.scenes[resolvedSceneKeys[i]];
+  for (let i = 0; i < resolvedEntryKeys.length; i++) {
+    const scene = narrative.scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
     for (const rm of scene.relationshipMutations) {
       const pk = `${rm.from}-${rm.to}`;
@@ -140,8 +140,8 @@ export function getRelationshipsAtScene(
 
   // Accumulate future deltas to subtract from final valence
   const futureDeltas = new Map<string, number>();
-  for (let i = currentSceneIndex + 1; i < resolvedSceneKeys.length; i++) {
-    const scene = narrative.scenes[resolvedSceneKeys[i]];
+  for (let i = currentSceneIndex + 1; i < resolvedEntryKeys.length; i++) {
+    const scene = narrative.scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
     for (const rm of scene.relationshipMutations) {
       const pk = `${rm.from}-${rm.to}`;
@@ -170,10 +170,10 @@ export function getRelationshipsAtScene(
 export function getThreadIdsAtScene(
   threadIds: string[],
   threads: NarrativeState['threads'],
-  resolvedSceneKeys: string[],
+  resolvedEntryKeys: string[],
   currentSceneIndex: number,
 ): string[] {
-  const keysUpToCurrent = new Set(resolvedSceneKeys.slice(0, currentSceneIndex + 1));
+  const keysUpToCurrent = new Set(resolvedEntryKeys.slice(0, currentSceneIndex + 1));
   return threadIds.filter((tid) => {
     const thread = threads[tid];
     if (!thread) return false;

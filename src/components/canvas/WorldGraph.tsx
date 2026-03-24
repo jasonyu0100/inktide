@@ -13,7 +13,7 @@ import type {
   CharacterRole,
   Arc,
   Scene,
-  WorldBuildCommit,
+  WorldBuild,
 } from '@/types/narrative';
 import EvalBar from '@/components/timeline/EvalBar';
 
@@ -151,12 +151,12 @@ function computeCharacterPositions(
   arc: Arc,
   scenes: Record<string, Scene>,
   currentSceneIndex: number,
-  resolvedSceneKeys: string[],
+  resolvedEntryKeys: string[],
 ): Record<string, string> {
   const positions = { ...arc.initialCharacterLocations };
   const arcScenes = arc.sceneIds.map((sid) => scenes[sid]).filter(Boolean);
   // Find the offset of this arc's first scene within the resolved scene order
-  const arcStartGlobal = resolvedSceneKeys.indexOf(arc.sceneIds[0]);
+  const arcStartGlobal = resolvedEntryKeys.indexOf(arc.sceneIds[0]);
 
   for (let i = 0; i < arcScenes.length; i++) {
     const globalIdx = arcStartGlobal + i;
@@ -252,8 +252,8 @@ function buildOverviewGraphData(
   locations: Record<string, Location>,
   relationships: RelationshipEdge[],
   scenes: Record<string, Scene>,
-  worldBuilds: Record<string, WorldBuildCommit>,
-  resolvedSceneKeys: string[],
+  worldBuilds: Record<string, WorldBuild>,
+  resolvedEntryKeys: string[],
   currentSceneIndex: number,
 ): { nodes: GraphNode[]; links: GraphLink[] } {
   const nodes: GraphNode[] = [];
@@ -263,8 +263,8 @@ function buildOverviewGraphData(
   const charUsage: Record<string, number> = {};
   const locUsage: Record<string, number> = {};
 
-  for (let i = 0; i <= currentSceneIndex && i < resolvedSceneKeys.length; i++) {
-    const key = resolvedSceneKeys[i];
+  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
+    const key = resolvedEntryKeys[i];
     const wb = worldBuilds[key];
     if (wb) {
       // World builds introduce elements — count manifest IDs so they appear in overview
@@ -863,9 +863,9 @@ export default function WorldGraph() {
   const graphViewMode = state.graphViewMode;
   const [sceneFocus, setSceneFocus] = useState(true);
 
-  const resolvedSceneKeys = state.resolvedSceneKeys;
+  const resolvedEntryKeys = state.resolvedEntryKeys;
 
-  const currentSceneKey = resolvedSceneKeys[state.currentSceneIndex] ?? null;
+  const currentSceneKey = resolvedEntryKeys[state.currentSceneIndex] ?? null;
 
   const activeArcId = useMemo(() => {
     if (!narrative || !currentSceneKey) return null;
@@ -924,9 +924,9 @@ export default function WorldGraph() {
   // Track the current world build ID (or null) — triggers full rebuild when navigating between world builds
   const currentWorldBuildId = useMemo(() => {
     if (!narrative) return null;
-    const key = resolvedSceneKeys[state.currentSceneIndex];
+    const key = resolvedEntryKeys[state.currentSceneIndex];
     return key && narrative.worldBuilds[key] ? key : null;
-  }, [narrative, resolvedSceneKeys, state.currentSceneIndex]);
+  }, [narrative, resolvedEntryKeys, state.currentSceneIndex]);
 
   // ── Full rebuild: only on arc change or knowledge entity selection ────
   useEffect(() => {
@@ -953,14 +953,14 @@ export default function WorldGraph() {
         narrative.relationships,
         narrative.scenes,
         narrative.worldBuilds,
-        resolvedSceneKeys,
-        resolvedSceneKeys.length - 1,
+        resolvedEntryKeys,
+        resolvedEntryKeys.length - 1,
       );
       nodes = result.nodes;
       links = result.links;
     } else {
       // Check if current scene is a world expansion
-      const currentKey = resolvedSceneKeys[state.currentSceneIndex];
+      const currentKey = resolvedEntryKeys[state.currentSceneIndex];
       const currentWorldBuild = currentKey ? narrative.worldBuilds[currentKey] : null;
 
       if (currentWorldBuild) {
@@ -970,7 +970,7 @@ export default function WorldGraph() {
         const expandedLocIds = new Set(manifest.locations.map((l) => l.id));
 
         // Relationships filtered to current timeline position, then to expansion entities
-        const timelineRels = getRelationshipsAtScene(narrative, resolvedSceneKeys, state.currentSceneIndex);
+        const timelineRels = getRelationshipsAtScene(narrative, resolvedEntryKeys, state.currentSceneIndex);
         const filteredRels = timelineRels.filter(
           (r) => expandedCharIds.has(r.from) || expandedCharIds.has(r.to),
         );
@@ -1019,14 +1019,14 @@ export default function WorldGraph() {
         // Relationships filtered to current scene (valence + visibility)
         const sceneRelationships = getRelationshipsAtScene(
           narrative,
-          resolvedSceneKeys,
+          resolvedEntryKeys,
           state.currentSceneIndex,
         );
 
         if (sceneFocus && currentScene && activeArc) {
           // Scene focus: show scene location + POV character's location (if different)
           // and all characters at either location
-          const charPositions = computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedSceneKeys);
+          const charPositions = computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedEntryKeys);
 
           const sceneLocId = currentScene.locationId;
           const povLocId = charPositions[currentScene.povId] ?? sceneLocId;
@@ -1072,7 +1072,7 @@ export default function WorldGraph() {
         }
 
         const characterPositions = activeArc
-          ? computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedSceneKeys)
+          ? computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedEntryKeys)
           : {};
 
         const result = buildGraphData(
@@ -1158,7 +1158,7 @@ export default function WorldGraph() {
     svg.on('click', (event: MouseEvent) => {
       // Only fire when clicking the SVG background, not a node
       if (event.target === svgRef.current) {
-        const currentKey = resolvedSceneKeys[state.currentSceneIndex];
+        const currentKey = resolvedEntryKeys[state.currentSceneIndex];
         if (currentKey) {
           dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId: currentKey } });
           dispatch({ type: 'SELECT_KNOWLEDGE_ENTITY', entityId: null });
@@ -1551,7 +1551,7 @@ export default function WorldGraph() {
       entity.continuity.nodes,
       eid,
       narrative.scenes,
-      resolvedSceneKeys,
+      resolvedEntryKeys,
       state.currentSceneIndex,
     );
     const visibleContinuityNodes = filteredKgNodes.slice(-GRAPH_CONTINUITY_LIMIT);
@@ -1722,7 +1722,7 @@ export default function WorldGraph() {
 
       updateHull();
     });
-  }, [selectedKnowledgeEntity, narrative, resolvedSceneKeys, state.currentSceneIndex]);
+  }, [selectedKnowledgeEntity, narrative, resolvedEntryKeys, state.currentSceneIndex]);
 
   // ── Lightweight intra-arc update: character-location links on scene change ──
   useEffect(() => {
@@ -1733,7 +1733,7 @@ export default function WorldGraph() {
     const activeArc = narrative.arcs[activeArcId];
     if (!activeArc) return;
 
-    const positions = computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedSceneKeys);
+    const positions = computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedEntryKeys);
 
     // Resolve new links against existing simulation nodes
     const nodeMap = new Map(nodesRef.current.map((n) => [n.id, n]));
@@ -1966,7 +1966,7 @@ export default function WorldGraph() {
       ) : graphViewMode === 'spark' || graphViewMode === 'codex' ? (
         <KnowledgeGraphView
           narrative={narrative!}
-          resolvedKeys={state.resolvedSceneKeys}
+          resolvedKeys={state.resolvedEntryKeys}
           currentIndex={state.currentSceneIndex}
           mode={graphViewMode}
         />

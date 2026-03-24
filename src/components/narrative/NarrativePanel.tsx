@@ -9,7 +9,7 @@ export default function NarrativePanel() {
 
   if (!narrative) return null;
 
-  const currentKey = state.resolvedSceneKeys[state.currentSceneIndex];
+  const currentKey = state.resolvedEntryKeys[state.currentSceneIndex];
   const entry = currentKey ? resolveEntry(narrative, currentKey) : null;
 
   if (!entry) return null;

@@ -54,7 +54,7 @@ export default function ChatPanel() {
   useEffect(() => {
     setContextSceneIndex(state.currentSceneIndex);
     if (state.activeNarrative) {
-      const key = state.resolvedSceneKeys[state.currentSceneIndex];
+      const key = state.resolvedEntryKeys[state.currentSceneIndex];
       const entry = key ? resolveEntry(state.activeNarrative, key) : null;
       if (entry?.kind === 'world_build') setContextMode('world');
       else setContextMode('scene');
@@ -63,7 +63,7 @@ export default function ChatPanel() {
 
   const buildSystemPrompt = useCallback(() => {
     if (!state.activeNarrative) return '';
-    const currentSceneId = state.resolvedSceneKeys[contextSceneIndex];
+    const currentSceneId = state.resolvedEntryKeys[contextSceneIndex];
     const currentScene = currentSceneId ? state.activeNarrative.scenes[currentSceneId] : null;
 
     if (contextMode === 'scene' && currentScene) {
@@ -76,8 +76,8 @@ ${ctx}`;
     }
 
     if (contextMode === 'world') {
-      const ctx = worldContext(state.activeNarrative, state.resolvedSceneKeys, contextSceneIndex);
-      const currentKey = state.resolvedSceneKeys[contextSceneIndex];
+      const ctx = worldContext(state.activeNarrative, state.resolvedEntryKeys, contextSceneIndex);
+      const currentKey = state.resolvedEntryKeys[contextSceneIndex];
       const wb = state.activeNarrative.worldBuilds[currentKey];
       const commitLabel = wb ? ` viewing world commit: ${currentKey} — "${wb.summary}"` : '';
       return `You are a narrative consultant for the story "${state.activeNarrative.title}". You have a cumulative view of the world as it has been built up to this point in the timeline.${commitLabel}
@@ -89,7 +89,7 @@ ${ctx}`;
 
     const ctx = branchContext(
       state.activeNarrative,
-      state.resolvedSceneKeys,
+      state.resolvedEntryKeys,
       contextSceneIndex,
     );
     const sceneLabel = currentScene
@@ -100,10 +100,10 @@ ${ctx}`;
 
 Answer questions about the narrative, suggest story directions, analyze character dynamics, identify plot holes, or discuss themes. Be concise and specific, referencing characters and events by name. When suggesting directions, consider the existing threads and their maturity.
 
-You are viewing the story at scene ${contextSceneIndex + 1} of ${state.resolvedSceneKeys.length}.${sceneLabel}
+You are viewing the story at scene ${contextSceneIndex + 1} of ${state.resolvedEntryKeys.length}.${sceneLabel}
 
 ${ctx}`;
-  }, [state.activeNarrative, state.resolvedSceneKeys, contextSceneIndex, contextMode]);
+  }, [state.activeNarrative, state.resolvedEntryKeys, contextSceneIndex, contextMode]);
 
   // Ensure there is an active thread; create one if needed. Returns thread id.
   const ensureThread = useCallback(() => {

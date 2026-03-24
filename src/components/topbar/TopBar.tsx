@@ -6,7 +6,7 @@ import { useStore, ANALYSIS_NARRATIVE_IDS, PLAYGROUND_NARRATIVE_IDS } from '@/li
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForcetotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/debug/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import ApiKeyModal from '@/components/layout/ApiKeyModal';
@@ -177,7 +177,7 @@ export default function TopBar() {
   const activeArc = narrative
     ? Object.values(narrative.arcs).find((a) =>
         a.sceneIds.includes(
-          state.resolvedSceneKeys[state.currentSceneIndex] ?? ''
+          state.resolvedEntryKeys[state.currentSceneIndex] ?? ''
         )
       )
     : null;
@@ -208,14 +208,14 @@ export default function TopBar() {
   // Scorecard data
   const allScenes = useMemo(() => {
     if (!narrative) return [];
-    return state.resolvedSceneKeys
+    return state.resolvedEntryKeys
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
-  }, [narrative, state.resolvedSceneKeys]);
+  }, [narrative, state.resolvedEntryKeys]);
 
   const scorecard = useMemo(() => {
     if (allScenes.length === 0 || !narrative) return null;
-    const raw = computeRawForcetotals(allScenes);
+    const raw = computeRawForceTotals(allScenes);
     const n = raw.payoff.length;
     if (n === 0) return null;
 
@@ -849,7 +849,7 @@ export default function TopBar() {
       {storyOpen && narrative && (
         <StoryReader
           narrative={narrative}
-          resolvedKeys={state.resolvedSceneKeys}
+          resolvedKeys={state.resolvedEntryKeys}
           currentSceneIndex={state.currentSceneIndex}
           onClose={() => setStoryOpen(false)}
         />
@@ -857,7 +857,7 @@ export default function TopBar() {
       {cubeExplorerOpen && narrative && (
         <CubeExplorer
           narrative={narrative}
-          resolvedKeys={state.resolvedSceneKeys}
+          resolvedKeys={state.resolvedEntryKeys}
           currentSceneIndex={state.currentSceneIndex}
           onClose={() => setCubeExplorerOpen(false)}
           onNavigate={(idx) => dispatch({ type: 'SET_SCENE_INDEX', index: idx })}
@@ -867,14 +867,14 @@ export default function TopBar() {
       {threadLifecycleOpen && narrative && (
         <ThreadLifecycleModal
           narrative={narrative}
-          resolvedKeys={state.resolvedSceneKeys}
+          resolvedKeys={state.resolvedEntryKeys}
           onClose={() => setThreadLifecycleOpen(false)}
         />
       )}
       {markovOpen && narrative && (
         <MarkovChainModal
           narrative={narrative}
-          resolvedKeys={state.resolvedSceneKeys}
+          resolvedKeys={state.resolvedEntryKeys}
           currentSceneIndex={state.currentSceneIndex}
           onClose={() => setMarkovOpen(false)}
         />
@@ -882,7 +882,7 @@ export default function TopBar() {
       {branchContextOpen && narrative && (
         <BranchContextModal
           narrative={narrative}
-          resolvedKeys={state.resolvedSceneKeys}
+          resolvedKeys={state.resolvedEntryKeys}
           currentSceneIndex={state.currentSceneIndex}
           onClose={() => setBranchContextOpen(false)}
         />
@@ -890,7 +890,7 @@ export default function TopBar() {
       {slidesOpen && narrative && (
         <SlidesPlayer
           narrative={narrative}
-          resolvedKeys={state.resolvedSceneKeys}
+          resolvedKeys={state.resolvedEntryKeys}
           onClose={() => setSlidesOpen(false)}
         />
       )}

@@ -10,7 +10,7 @@
 import type {
   NarrativeState, AnalysisChunkResult, AnalysisJob,
   Character, Location, Thread, Arc, Scene, RelationshipEdge,
-  WorldBuildCommit, Branch,
+  WorldBuild, Branch,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
@@ -107,7 +107,7 @@ function buildCumulativeContext(priorResults: (AnalysisChunkResult | null)[]): s
 
   const characters: Record<string, { name: string; role: string; continuity: { type: string; content: string; chunk: number }[] }> = {};
   const locations: Record<string, { name: string; parentName: string | null; description: string; lore: string[] }> = {};
-  const threads: Record<string, { description: string; anchorNames: string[]; currentStatus: string; history: string[] }> = {};
+  const threads: Record<string, { description: string; participantNames: string[]; currentStatus: string; history: string[] }> = {};
   const relationships: Record<string, { from: string; to: string; type: string; valence: number }> = {};
   const sceneHistory: string[] = [];
   let sceneCounter = 0;
@@ -135,7 +135,7 @@ function buildCumulativeContext(priorResults: (AnalysisChunkResult | null)[]): s
     for (const t of ch.threads ?? []) {
       const key = t.description;
       if (!threads[key]) {
-        threads[key] = { description: t.description, anchorNames: t.anchorNames, currentStatus: t.statusAtEnd, history: [`Chunk${chIdx + 1}: ${t.statusAtStart} → ${t.statusAtEnd}`] };
+        threads[key] = { description: t.description, participantNames: t.participantNames, currentStatus: t.statusAtEnd, history: [`Chunk${chIdx + 1}: ${t.statusAtStart} → ${t.statusAtEnd}`] };
       } else {
         threads[key].currentStatus = t.statusAtEnd;
         threads[key].history.push(`Chunk${chIdx + 1}: ${t.statusAtStart} → ${t.statusAtEnd}`);
@@ -169,7 +169,7 @@ function buildCumulativeContext(priorResults: (AnalysisChunkResult | null)[]): s
   ).join('\n');
 
   const threadBlock = Object.values(threads).map((t) =>
-    `- "${t.description}" [${t.currentStatus}] anchors: ${t.anchorNames.join(', ')} | history: ${t.history.join(', ')}`,
+    `- "${t.description}" [${t.currentStatus}] participants: ${t.participantNames.join(', ')} | history: ${t.history.join(', ')}`,
   ).join('\n');
 
   const relBlock = Object.values(relationships).map((r) =>
@@ -369,7 +369,7 @@ Return a single JSON object with this exact structure:
   "threads": [
     {
       "description": "The narrative question or tension — use EXACT description from prior chunks for continuing threads",
-      "anchorNames": ["Character or location names this thread is anchored to"],
+      "participantNames": ["Character or location names this thread is anchored to"],
       "statusAtStart": "status at chunk start",
       "statusAtEnd": "status at chunk end",
       "development": "How this thread developed in this chunk"
@@ -559,7 +559,7 @@ Return a single JSON object with this exact structure:
   "threads": [
     {
       "description": "The narrative question or tension",
-      "anchorNames": ["Character or location names this thread is anchored to"],
+      "participantNames": ["Character or location names this thread is anchored to"],
       "statusAtStart": "status at chunk start",
       "statusAtEnd": "status at chunk end",
       "development": "How this thread developed in this chunk"
@@ -791,7 +791,7 @@ WORLD KNOWLEDGE MERGING:
       (r.threads ?? []).map((t) => ({
         ...t,
         description: resolveThread(t.description),
-        anchorNames: t.anchorNames.map(resolveChar),
+        participantNames: t.participantNames.map(resolveChar),
         statusAtStart: normalizeStatus(t.statusAtStart),
         statusAtEnd: normalizeStatus(t.statusAtEnd),
       })),
@@ -1048,21 +1048,21 @@ export async function assembleNarrative(
     // Threads
     for (const t of ch.threads ?? []) {
       const id = getThreadId(t.description);
-      const newAnchors = (t.anchorNames ?? []).map((name) => {
+      const newAnchors = (t.participantNames ?? []).map((name) => {
         if (charNameToId[name]) return { id: charNameToId[name], type: 'character' as const };
         if (locNameToId[name]) return { id: locNameToId[name], type: 'location' as const };
         return { id: getCharId(name), type: 'character' as const };
       });
       if (!threads[id]) {
-        threads[id] = { id, anchors: newAnchors, description: t.description, status: t.statusAtEnd ?? 'dormant', openedAt: '', dependents: [] };
+        threads[id] = { id, participants: newAnchors, description: t.description, status: t.statusAtEnd ?? 'dormant', openedAt: '', dependents: [] };
         threadFirstChunk.set(id, chunkIdx);
       } else {
         threads[id].status = t.statusAtEnd ?? threads[id].status;
         // Accumulate anchors from later chunks
-        const existingAnchorIds = new Set(threads[id].anchors.map((a) => a.id));
+        const existingAnchorIds = new Set(threads[id].participants.map((a) => a.id));
         for (const anchor of newAnchors) {
           if (!existingAnchorIds.has(anchor.id)) {
-            threads[id].anchors.push(anchor);
+            threads[id].participants.push(anchor);
             existingAnchorIds.add(anchor.id);
           }
         }
@@ -1219,7 +1219,7 @@ export async function assembleNarrative(
 
   // Wire thread IDs on characters/locations
   for (const thread of Object.values(threads)) {
-    for (const anchor of thread.anchors) {
+    for (const anchor of thread.participants) {
       if (anchor.type === 'character' && characters[anchor.id]) {
         if (!characters[anchor.id].threadIds.includes(thread.id)) characters[anchor.id].threadIds.push(thread.id);
       }
@@ -1270,9 +1270,9 @@ export async function assembleNarrative(
   // World builds — one per 3-chunk batch, only when new entities are introduced.
   // The first batch always gets a commit; later batches are skipped if nothing new appeared.
   const WORLD_COMMIT_INTERVAL = 3;
-  const worldBuilds: Record<string, WorldBuildCommit> = {};
+  const worldBuilds: Record<string, WorldBuild> = {};
   // Map from the first scene id of a batch → the world build commit to insert before it
-  const wxBeforeScene = new Map<string, string>(); // sceneId → wxId
+  const worldBuildBeforeScene = new Map<string, string>(); // sceneId → worldBuildId
 
   for (let batchStart = 0; batchStart < results.length; batchStart += WORLD_COMMIT_INTERVAL) {
     const batchEnd = Math.min(batchStart + WORLD_COMMIT_INTERVAL, results.length);
@@ -1286,14 +1286,14 @@ export async function assembleNarrative(
     if (!isInitial && newCharIds.length === 0 && newLocIds.length === 0 && newThreadIds.length === 0) continue;
 
     const batchNum = Math.floor(batchStart / WORLD_COMMIT_INTERVAL) + 1;
-    const wxId = `WX-${PREFIX}-${String(batchNum).padStart(3, '0')}`;
+    const worldBuildId = `WB-${PREFIX}-${String(batchNum).padStart(3, '0')}`;
     const summary = isInitial
       ? `Initial world: ${newCharIds.length} characters, ${newLocIds.length} locations, ${newThreadIds.length} threads`
       : `Chunks ${batchStart + 1}–${batchEnd}: +${newCharIds.length} characters, +${newLocIds.length} locations, +${newThreadIds.length} threads`;
 
-    worldBuilds[wxId] = {
+    worldBuilds[worldBuildId] = {
       kind: 'world_build',
-      id: wxId,
+      id: worldBuildId,
       summary,
       expansionManifest: {
         characters: newCharIds.map((id) => characters[id]).filter(Boolean),
@@ -1307,15 +1307,15 @@ export async function assembleNarrative(
     // Find the first scene of the first chunk in this batch
     for (let ci = batchStart; ci < batchEnd; ci++) {
       const firstScene = chunkFirstSceneId.get(ci);
-      if (firstScene) { wxBeforeScene.set(firstScene, wxId); break; }
+      if (firstScene) { worldBuildBeforeScene.set(firstScene, worldBuildId); break; }
     }
   }
 
   // Build entryIds: world build commits interleaved before their batch's first scene
   const entryIds: string[] = [];
   for (const sceneId of Object.keys(scenes)) {
-    const wxId = wxBeforeScene.get(sceneId);
-    if (wxId) entryIds.push(wxId);
+    const worldBuildId = worldBuildBeforeScene.get(sceneId);
+    if (worldBuildId) entryIds.push(worldBuildId);
     entryIds.push(sceneId);
   }
 

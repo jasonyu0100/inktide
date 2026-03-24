@@ -71,14 +71,14 @@ export default function CharacterDetail({ characterId }: Props) {
   const character = narrative.characters[characterId];
   if (!character) return null;
 
-  const sceneKeysUpToCurrent = state.resolvedSceneKeys.slice(0, state.currentSceneIndex + 1);
+  const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
 
   // Knowledge filtered to current scene
   const continuityNodes = getContinuityNodesAtScene(
     character.continuity.nodes,
     characterId,
     narrative.scenes,
-    state.resolvedSceneKeys,
+    state.resolvedEntryKeys,
     state.currentSceneIndex,
   );
 
@@ -86,19 +86,19 @@ export default function CharacterDetail({ characterId }: Props) {
   const threadIds = getThreadIdsAtScene(
     character.threadIds,
     narrative.threads,
-    state.resolvedSceneKeys,
+    state.resolvedEntryKeys,
     state.currentSceneIndex,
   );
 
   // Relationships filtered + valence adjusted to current scene
   const relationships = getRelationshipsAtScene(
     narrative,
-    state.resolvedSceneKeys,
+    state.resolvedEntryKeys,
     state.currentSceneIndex,
   ).filter((r) => r.from === characterId || r.to === characterId);
 
   // Current scene mutations for this character
-  const currentSceneKey = state.resolvedSceneKeys[state.currentSceneIndex];
+  const currentSceneKey = state.resolvedEntryKeys[state.currentSceneIndex];
   const currentScene = currentSceneKey ? narrative.scenes[currentSceneKey] : null;
   const recentContinuityMuts = currentScene
     ? currentScene.continuityMutations.filter((m) => m.characterId === characterId)
@@ -107,7 +107,7 @@ export default function CharacterDetail({ characterId }: Props) {
     ? currentScene.relationshipMutations.filter((rm) => rm.from === characterId || rm.to === characterId)
     : [];
   const recentThreadMuts = currentScene
-    ? currentScene.threadMutations.filter((tm) => narrative.threads[tm.threadId]?.anchors?.some((a) => a.id === characterId))
+    ? currentScene.threadMutations.filter((tm) => narrative.threads[tm.threadId]?.participants?.some((a) => a.id === characterId))
     : [];
   const recentMovement = currentScene?.characterMovements?.[characterId] ?? null;
   const recentEvents = currentScene && currentScene.participantIds.includes(characterId)

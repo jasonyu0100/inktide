@@ -91,7 +91,7 @@ export function branchContext(
   // Also include threads that anchor to referenced characters/locations
   for (const t of Object.values(n.threads)) {
     if (referencedThreadIds.has(t.id)) continue;
-    for (const anchor of t.anchors) {
+    for (const anchor of t.participants) {
       if ((anchor.type === 'character' && referencedCharIds.has(anchor.id)) ||
           (anchor.type === 'location' && referencedLocIds.has(anchor.id))) {
         referencedThreadIds.add(t.id);
@@ -385,7 +385,7 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
   const threadBlocks = [...threadIds].map((tid) => {
     const thread = narrative.threads[tid];
     if (!thread) return `  - ${tid}: unknown`;
-    const anchors = thread.anchors.map((a) => {
+    const anchors = thread.participants.map((a) => {
       if (a.type === 'character') return narrative.characters[a.id]?.name ?? a.id;
       if (a.type === 'location') return narrative.locations[a.id]?.name ?? a.id;
       return a.id;
@@ -769,10 +769,10 @@ export function worldContext(
         const t = n.threads[mt.id];
         if (!t) return null;
         const status = threadStatusAtPoint[mt.id] ?? t.status;
-        const anchorNames = t.anchors
+        const participantNames = t.participants
           .map((a) => n.characters[a.id]?.name ?? n.locations[a.id]?.name ?? a.id)
           .join(', ');
-        return `  - ${mt.id}: "${t.description}" [${status}] anchors: ${anchorNames}`;
+        return `  - ${mt.id}: "${t.description}" [${status}] participants: ${participantNames}`;
       })
       .filter(Boolean)
       .join('\n');

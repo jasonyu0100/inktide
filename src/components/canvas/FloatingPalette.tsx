@@ -29,10 +29,10 @@ export default function FloatingPalette() {
   const narrative = state.activeNarrative;
   const isActive = narrative !== null;
 
-  const totalScenes = state.resolvedSceneKeys.length;
+  const totalScenes = state.resolvedEntryKeys.length;
   const isHead = state.currentSceneIndex === totalScenes - 1 && totalScenes > 0;
   const activeBranch = narrative && state.activeBranchId ? narrative.branches[state.activeBranchId] : null;
-  const headSceneId = state.resolvedSceneKeys[state.currentSceneIndex];
+  const headSceneId = state.resolvedEntryKeys[state.currentSceneIndex];
   const headIsOwned = activeBranch ? activeBranch.entryIds.includes(headSceneId) : false;
   // Block deletion if this scene is used as a fork point by any other branch
   const headIsForkPoint = narrative
@@ -59,8 +59,8 @@ export default function FloatingPalette() {
       .toLowerCase();
     const q = normalize(searchQuery.trim());
     const results: { sceneId: string; timelineIndex: number; summary: string; arcName: string; locationName: string; matchSnippet: string | null }[] = [];
-    for (let i = 0; i < state.resolvedSceneKeys.length; i++) {
-      const entry = resolveEntry(narrative, state.resolvedSceneKeys[i]);
+    for (let i = 0; i < state.resolvedEntryKeys.length; i++) {
+      const entry = resolveEntry(narrative, state.resolvedEntryKeys[i]);
       if (!entry || !isScene(entry)) continue;
       const scene = entry as Scene;
       const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
@@ -101,7 +101,7 @@ export default function FloatingPalette() {
       if (results.length >= 50) break;
     }
     return results;
-  }, [searchOpen, searchQuery, narrative, state.resolvedSceneKeys]);
+  }, [searchOpen, searchQuery, narrative, state.resolvedEntryKeys]);
 
   // Focus search input when opened
   useEffect(() => {
@@ -114,7 +114,7 @@ export default function FloatingPalette() {
 
   const handleDeleteHead = useCallback(() => {
     if (!narrative || !state.activeBranchId || !isHead) return;
-    const headSceneId = state.resolvedSceneKeys[state.currentSceneIndex];
+    const headSceneId = state.resolvedEntryKeys[state.currentSceneIndex];
     if (!headSceneId) return;
 
     const branchesWithEntry = Object.values(narrative.branches).filter(
@@ -127,7 +127,7 @@ export default function FloatingPalette() {
       dispatch({ type: 'REMOVE_BRANCH_ENTRY', entryId: headSceneId, branchId: state.activeBranchId });
     }
     setDeleteConfirm(false);
-  }, [narrative, state.activeBranchId, state.resolvedSceneKeys, state.currentSceneIndex, isHead, dispatch]);
+  }, [narrative, state.activeBranchId, state.resolvedEntryKeys, state.currentSceneIndex, isHead, dispatch]);
 
   const wrapperClasses = isActive ? '' : 'opacity-30 pointer-events-none';
 

@@ -87,6 +87,15 @@ export const MCTS_MAX_NODE_CHILDREN = 8;
 /** Arcs per season before auto-engine manual stop */
 export const AUTO_STOP_CYCLE_LENGTH = 25;
 
+// ── Narrative Shape Analysis ─────────────────────────────────────────────────
+
+/** Scenes-per-window divisor for adaptive peak detection radius: max(2, floor(n / N)) */
+export const PEAK_WINDOW_SCENES_DIVISOR = 25;
+
+/** Middle band bounds for V-shape trough detection (excludes edge 20% on each side) */
+export const SHAPE_TROUGH_BAND_LO = 0.2;
+export const SHAPE_TROUGH_BAND_HI = 0.8;
+
 // ── UI: Pagination & Limits ──────────────────────────────────────────────────
 
 /** Items per page in inspector detail panels */

@@ -1,6 +1,6 @@
 import type { Branch, NarrativeState, Scene, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldBuild } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
-import { FORCE_WINDOW_SIZE } from '@/lib/constants';
+import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI } from '@/lib/constants';
 
 // ── Sequential ID generation ─────────────────────────────────────────────────
 
@@ -537,7 +537,7 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
   const minProminence = Math.max(0.1, 0.4 * smStd);
 
   // Wider window for longer books — prevents peak saturation
-  const windowR = Math.max(2, Math.floor(n / 25));
+  const windowR = Math.max(2, Math.floor(n / PEAK_WINDOW_SCENES_DIVISOR));
 
   const { peaks, valleys } = detectPeaksAndValleys(smoothed, minProminence, windowR);
 
@@ -642,7 +642,7 @@ export function classifyNarrativeShape(deliveries: number[]): NarrativeShape {
   // Peak detection
   const smStd = flatness;
   const minProm = Math.max(0.1, 0.4 * smStd);
-  const windowR = Math.max(2, Math.floor(n / 25));
+  const windowR = Math.max(2, Math.floor(n / PEAK_WINDOW_SCENES_DIVISOR));
   const { peaks, valleys } = detectPeaksAndValleys(smoothed, minProm, windowR);
   const peakCount = peaks.size;
 
@@ -681,8 +681,8 @@ export function classifyNarrativeShape(deliveries: number[]): NarrativeShape {
   let troughPosition = 0.5;
   if (valleyIndices.length > 0) {
     // Find deepest trough in the middle 60% of the curve (not edges)
-    const midStart = Math.floor(n * 0.2);
-    const midEnd = Math.floor(n * 0.8);
+    const midStart = Math.floor(n * SHAPE_TROUGH_BAND_LO);
+    const midEnd = Math.floor(n * SHAPE_TROUGH_BAND_HI);
     const midValleys = valleyIndices.filter((vi) => vi >= midStart && vi <= midEnd);
     const searchValleys = midValleys.length > 0 ? midValleys : valleyIndices;
 

@@ -108,10 +108,6 @@ export async function POST(req: NextRequest) {
 
     // Non-streaming mode: existing behavior
     const data = await response.json();
-    console.log('[generate] model:', data.model);
-    console.log('[generate] finish_reason:', data.choices?.[0]?.finish_reason);
-    console.log('[generate] usage:', JSON.stringify(data.usage));
-    console.log('[generate] content length:', data.choices?.[0]?.message?.content?.length ?? 0);
     const content = data.choices?.[0]?.message?.content ?? '';
     return NextResponse.json({ content });
   } catch (err) {

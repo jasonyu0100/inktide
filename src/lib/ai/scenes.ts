@@ -296,7 +296,6 @@ You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thr
 export async function generateScenePlan(
   narrative: NarrativeState,
   scene: Scene,
-  _sceneIndex: number,
   resolvedKeys: string[],
   onToken?: (token: string) => void,
 ): Promise<string> {
@@ -459,7 +458,6 @@ Rewrite the plan to address the feedback. Preserve the structure and ensure all 
 export async function generateSceneProse(
   narrative: NarrativeState,
   scene: Scene,
-  _sceneIndex: number,
   resolvedKeys: string[],
   onToken?: (token: string) => void,
 ): Promise<string> {

@@ -77,13 +77,13 @@ export function StoryReader({
   const arc = scene ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id)) : null;
   const location = scene ? narrative.locations[scene.locationId] : null;
   const pov = scene ? narrative.characters[scene.povId] : null;
-  const sceneKeyIndex = scene ? resolvedKeys.indexOf(scene.id) : -1;
+
 
   // ── Plan generation ──────────────────────────────────────────────────
-  const generatePlan = useCallback(async (s: Scene, idx: number) => {
+  const generatePlan = useCallback(async (s: Scene) => {
     setPlanCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'loading' } }));
     try {
-      const plan = await generateScenePlan(narrative, s, idx, resolvedKeys, (token) => {
+      const plan = await generateScenePlan(narrative, s, resolvedKeys, (token) => {
         setPlanCache((prev) => {
           const existing = prev[s.id];
           return { ...prev, [s.id]: { text: (existing?.text ?? '') + token, status: 'loading' } };
@@ -98,10 +98,10 @@ export function StoryReader({
   }, [narrative, resolvedKeys, dispatch]);
 
   // ── Prose generation ─────────────────────────────────────────────────
-  const generateProse = useCallback(async (s: Scene, idx: number) => {
+  const generateProse = useCallback(async (s: Scene) => {
     setProseCache((prev) => ({ ...prev, [s.id]: { text: '', status: 'loading' } }));
     try {
-      const prose = await generateSceneProse(narrative, s, idx, resolvedKeys, (token) => {
+      const prose = await generateSceneProse(narrative, s, resolvedKeys, (token) => {
         setProseCache((prev) => {
           const existing = prev[s.id];
           return { ...prev, [s.id]: { text: (existing?.text ?? '') + token, status: 'loading' } };
@@ -200,10 +200,7 @@ export function StoryReader({
 
   const bulkPlan = useCallback(() => {
     const missing = scenes.filter((s) => !s.plan && planCache[s.id]?.status !== 'ready');
-    runBulk(missing, PLAN_CONCURRENCY, async (s) => {
-      const idx = resolvedKeys.indexOf(s.id);
-      await generatePlan(s, idx);
-    }, setPlanBulk);
+    runBulk(missing, PLAN_CONCURRENCY, (s) => generatePlan(s), setPlanBulk);
   }, [scenes, planCache, resolvedKeys, generatePlan, runBulk]);
 
   const bulkProse = useCallback(() => {
@@ -212,10 +209,7 @@ export function StoryReader({
       (s.plan || planCache[s.id]?.status === 'ready') &&
       !s.prose && proseCache[s.id]?.status !== 'ready'
     );
-    runBulk(missing, PROSE_CONCURRENCY, async (s) => {
-      const idx = resolvedKeys.indexOf(s.id);
-      await generateProse(s, idx);
-    }, setProseBulk);
+    runBulk(missing, PROSE_CONCURRENCY, (s) => generateProse(s), setProseBulk);
   }, [scenes, planCache, proseCache, resolvedKeys, generateProse, runBulk]);
 
 
@@ -728,7 +722,7 @@ export function StoryReader({
                       setPlanCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
                       setProseCache((prev) => { const next = { ...prev }; delete next[scene.id]; return next; });
                       setEditedPlan(null);
-                      generatePlan(scene, sceneKeyIndex);
+                      generatePlan(scene);
                     }}
                     className="text-[9px] px-2 py-1 rounded text-text-dim hover:text-text-secondary hover:bg-white/5 transition"
                   >
@@ -743,7 +737,7 @@ export function StoryReader({
                         setEditedPlan(null);
                       }
                       setViewMode('prose');
-                      if (!hasProse) generateProse(scene, sceneKeyIndex);
+                      if (!hasProse) generateProse(scene);
                     }}
                     className="text-[9px] px-2 py-1 rounded text-sky-400/80 hover:text-sky-400 hover:bg-sky-500/10 transition"
                   >
@@ -773,7 +767,7 @@ export function StoryReader({
                         Rewrite
                       </button>
                       <button
-                        onClick={() => { dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); generateProse(scene, sceneKeyIndex); }}
+                        onClick={() => { dispatch({ type: 'UPDATE_SCENE', sceneId: scene.id, updates: { prose: undefined, proseScore: undefined } }); generateProse(scene); }}
                         className="text-[9px] px-2 py-1 rounded text-text-dim hover:text-text-secondary hover:bg-white/5 transition"
                       >
                         Regenerate
@@ -1053,7 +1047,7 @@ export function StoryReader({
                     </button>
                   ) : (
                     <button
-                      onClick={() => { setViewMode('plan'); generatePlan(scene, sceneKeyIndex); }}
+                      onClick={() => { setViewMode('plan'); generatePlan(scene); }}
                       className="text-[11px] px-5 py-2 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15 transition"
                     >
                       Generate Plan
@@ -1088,7 +1082,7 @@ export function StoryReader({
                 {hasPlanError && (
                   <div className="py-12 text-center">
                     <p className="text-[11px] text-red-400/80 mb-3">{planCached?.error}</p>
-                    <button onClick={() => generatePlan(scene, sceneKeyIndex)} className="text-[10px] px-4 py-1.5 rounded-full border border-white/10 text-text-dim hover:text-text-secondary transition">Retry</button>
+                    <button onClick={() => generatePlan(scene)} className="text-[10px] px-4 py-1.5 rounded-full border border-white/10 text-text-dim hover:text-text-secondary transition">Retry</button>
                   </div>
                 )}
 
@@ -1137,7 +1131,7 @@ export function StoryReader({
                   <div className="flex flex-col items-center justify-center py-20 gap-4">
                     <p className="text-[11px] text-text-dim">No plan yet for this scene.</p>
                     <button
-                      onClick={() => generatePlan(scene, sceneKeyIndex)}
+                      onClick={() => generatePlan(scene)}
                       className="text-[11px] px-5 py-2 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15 transition"
                     >
                       Generate Plan
@@ -1172,7 +1166,7 @@ export function StoryReader({
                 {hasProseError && (
                   <div className="py-12 text-center">
                     <p className="text-[11px] text-red-400/80 mb-3">{proseCached?.error}</p>
-                    <button onClick={() => generateProse(scene, sceneKeyIndex)} className="text-[10px] px-4 py-1.5 rounded-full border border-white/10 text-text-dim hover:text-text-secondary transition">Retry</button>
+                    <button onClick={() => generateProse(scene)} className="text-[10px] px-4 py-1.5 rounded-full border border-white/10 text-text-dim hover:text-text-secondary transition">Retry</button>
                   </div>
                 )}
 
@@ -1190,7 +1184,7 @@ export function StoryReader({
                       <>
                         <p className="text-[11px] text-text-dim">This scene hasn&apos;t been written yet.</p>
                         <button
-                          onClick={() => generateProse(scene, sceneKeyIndex)}
+                          onClick={() => generateProse(scene)}
                           className="text-[11px] px-5 py-2 rounded-full bg-white/8 border border-white/10 text-text-secondary hover:text-text-primary hover:bg-white/12 transition"
                         >
                           Generate Prose
@@ -1200,7 +1194,7 @@ export function StoryReader({
                       <>
                         <p className="text-[11px] text-text-dim">Create a plan first, then generate prose.</p>
                         <button
-                          onClick={() => { setViewMode('plan'); generatePlan(scene, sceneKeyIndex); }}
+                          onClick={() => { setViewMode('plan'); generatePlan(scene); }}
                           className="text-[11px] px-5 py-2 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15 transition"
                         >
                           Generate Plan

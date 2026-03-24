@@ -11,7 +11,7 @@ import ArcDetail from './ArcDetail';
 import KnowledgeDetail from './KnowledgeDetail';
 import ChatPanel from '@/components/sidebar/ChatPanel';
 import NotesPanel from '@/components/sidebar/NotesPanel';
-import { isScene, isWorldBuild, type TimelineEntry } from '@/types/narrative';
+import { isScene, type TimelineEntry } from '@/types/narrative';
 
 type Tab = 'inspector' | 'chat' | 'notes';
 
@@ -35,12 +35,14 @@ function getDefaultContext(state: ReturnType<typeof useStore>['state']) {
     }
   }
 
-  if (entry && isWorldBuild(entry)) {
-    const firstChar = entry.expansionManifest.characterIds[0];
+  if (entry && !isScene(entry)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wb = entry as any;
+    const firstChar: string | undefined = wb.expansionManifest?.characters?.[0]?.id;
     if (firstChar && narrative.characters[firstChar]) {
       return { type: 'character' as const, characterId: firstChar };
     }
-    const firstLoc = entry.expansionManifest.locationIds[0];
+    const firstLoc: string | undefined = wb.expansionManifest?.locations?.[0]?.id;
     if (firstLoc && narrative.locations[firstLoc]) {
       return { type: 'location' as const, locationId: firstLoc };
     }

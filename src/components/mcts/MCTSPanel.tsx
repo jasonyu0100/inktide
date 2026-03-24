@@ -1464,9 +1464,9 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                         {worldBuildEntries.map((wb) => {
                           const manifest = wb.expansionManifest;
                           const parts: string[] = [];
-                          if (manifest.characterIds.length > 0) parts.push(`${manifest.characterIds.length} char${manifest.characterIds.length > 1 ? 's' : ''}`);
-                          if (manifest.locationIds.length > 0) parts.push(`${manifest.locationIds.length} loc${manifest.locationIds.length > 1 ? 's' : ''}`);
-                          if (manifest.threadIds.length > 0) parts.push(`${manifest.threadIds.length} thread${manifest.threadIds.length > 1 ? 's' : ''}`);
+                          if (manifest.characters.length > 0) parts.push(`${manifest.characters.length} char${manifest.characters.length > 1 ? 's' : ''}`);
+                          if (manifest.locations.length > 0) parts.push(`${manifest.locations.length} loc${manifest.locations.length > 1 ? 's' : ''}`);
+                          if (manifest.threads.length > 0) parts.push(`${manifest.threads.length} thread${manifest.threads.length > 1 ? 's' : ''}`);
                           const isSelected = config.worldBuildFocusId === wb.id;
                           return (
                             <button

@@ -46,67 +46,67 @@ export default function SceneDetail({ sceneId }: Props) {
         <p className="text-xs text-text-secondary leading-relaxed">{entry.summary || 'No summary available.'}</p>
 
         <div className="flex flex-col gap-1.5">
-          {m.characterIds.length > 0 && (
+          {m.characters.length > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Characters</h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.characterIds.map((cid) => {
-                  const char = narrative.characters[cid];
+                {m.characters.map((mc) => {
+                  const char = narrative.characters[mc.id];
                   return (
                     <button
-                      key={cid}
+                      key={mc.id}
                       type="button"
-                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: cid } })}
+                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: mc.id } })}
                       className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-text-primary transition-colors hover:bg-white/12"
                     >
-                      {char?.name ?? cid}
+                      {char?.name ?? mc.name}
                     </button>
                   );
                 })}
               </div>
             </div>
           )}
-          {m.locationIds.length > 0 && (
+          {m.locations.length > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Locations</h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.locationIds.map((lid) => {
-                  const loc = narrative.locations[lid];
+                {m.locations.map((ml) => {
+                  const loc = narrative.locations[ml.id];
                   return (
                     <button
-                      key={lid}
+                      key={ml.id}
                       type="button"
-                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: lid } })}
+                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: ml.id } })}
                       className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-text-primary transition-colors hover:bg-white/12"
                     >
-                      {loc?.name ?? lid}
+                      {loc?.name ?? ml.name}
                     </button>
                   );
                 })}
               </div>
             </div>
           )}
-          {m.threadIds.length > 0 && (
+          {m.threads.length > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Threads</h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.threadIds.map((tid) => (
+                {m.threads.map((mt) => (
                   <button
-                    key={tid}
+                    key={mt.id}
                     type="button"
-                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: tid } })}
+                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: mt.id } })}
                     className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12"
                   >
-                    {narrative.threads[tid]?.description ?? tid}
+                    {narrative.threads[mt.id]?.description ?? mt.description}
                   </button>
                 ))}
               </div>
             </div>
           )}
-          {m.relationshipCount > 0 && (
+          {(m.relationships?.length ?? 0) > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">Relationships</span>
-              {m.relationshipCount} new
+              {m.relationships.length} new
             </div>
           )}
         </div>

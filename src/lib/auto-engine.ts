@@ -931,22 +931,22 @@ function buildWorldBuildSeedClause(
   const unusedThreads: string[] = [];
 
   for (const wb of worldBuilds) {
-    for (const cid of wb.expansionManifest.characterIds) {
-      if (!usedCharIds.has(cid)) {
-        const c = narrative.characters[cid];
-        if (c) unusedChars.push(`${c.name} (${c.role})`);
+    for (const c of wb.expansionManifest.characters) {
+      if (!usedCharIds.has(c.id)) {
+        const live = narrative.characters[c.id];
+        unusedChars.push(`${live?.name ?? c.name} (${live?.role ?? c.role})`);
       }
     }
-    for (const lid of wb.expansionManifest.locationIds) {
-      if (!usedLocIds.has(lid)) {
-        const l = narrative.locations[lid];
-        if (l) unusedLocs.push(l.name);
+    for (const l of wb.expansionManifest.locations) {
+      if (!usedLocIds.has(l.id)) {
+        const live = narrative.locations[l.id];
+        unusedLocs.push(live?.name ?? l.name);
       }
     }
-    for (const tid of wb.expansionManifest.threadIds) {
-      if (!mutatedThreadIds.has(tid)) {
-        const t = narrative.threads[tid];
-        if (t) unusedThreads.push(t.description);
+    for (const t of wb.expansionManifest.threads) {
+      if (!mutatedThreadIds.has(t.id)) {
+        const live = narrative.threads[t.id];
+        unusedThreads.push(live?.description ?? t.description);
       }
     }
   }

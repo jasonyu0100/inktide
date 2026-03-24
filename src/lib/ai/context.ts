@@ -83,9 +83,9 @@ export function branchContext(
         }
       }
     } else if (entry.kind === 'world_build') {
-      for (const cid of entry.expansionManifest.characterIds) referencedCharIds.add(cid);
-      for (const lid of entry.expansionManifest.locationIds) referencedLocIds.add(lid);
-      for (const tid of entry.expansionManifest.threadIds) referencedThreadIds.add(tid);
+      for (const c of entry.expansionManifest.characters) referencedCharIds.add(c.id);
+      for (const l of entry.expansionManifest.locations) referencedLocIds.add(l.id);
+      for (const t of entry.expansionManifest.threads) referencedThreadIds.add(t.id);
     }
   }
   // Also include threads that anchor to referenced characters/locations
@@ -246,7 +246,7 @@ export function branchContext(
 
   // ── World Knowledge Graph (scoped to time horizon) ─────────────────
   const horizonWorldKnowledge = buildCumulativeWorldKnowledge(
-    n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, undefined, n.worldBuilds,
+    n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, n.worldBuilds,
   );
   const rankedWorldNodes = rankWorldKnowledgeNodes(horizonWorldKnowledge);
   let worldKnowledgeBlock = '';
@@ -736,43 +736,43 @@ export function worldContext(
   // Build each commit section
   const commitSections = wxKeys.map((wxKey) => {
     const wb = n.worldBuilds[wxKey];
-    const { characterIds, locationIds, threadIds } = wb.expansionManifest;
+    const { characters: manifestChars, locations: manifestLocs, threads: manifestThreads } = wb.expansionManifest;
 
-    const charLines = characterIds
-      .map((cid) => {
-        const c = n.characters[cid];
+    const charLines = manifestChars
+      .map((mc) => {
+        const c = n.characters[mc.id];
         if (!c) return null;
         const nodes = c.continuity.nodes.filter((kn) => liveNodeIds.has(kn.id));
         const continuityBlock = nodes.length > 0
           ? `\n    Continuity: ${nodes.map((kn) => `(${kn.type}) ${kn.content}`).join(' | ')}`
           : '';
-        return `  - ${cid}: ${c.name} (${c.role})${continuityBlock}`;
+        return `  - ${mc.id}: ${c.name} (${c.role})${continuityBlock}`;
       })
       .filter(Boolean)
       .join('\n');
 
-    const locLines = locationIds
-      .map((lid) => {
-        const l = n.locations[lid];
+    const locLines = manifestLocs
+      .map((ml) => {
+        const l = n.locations[ml.id];
         if (!l) return null;
         const parent = l.parentId ? ` ⊂ ${n.locations[l.parentId]?.name ?? l.parentId}` : '';
         const loreBlock = l.continuity.nodes.length > 0
           ? `\n    Lore: ${l.continuity.nodes.map((kn) => kn.content).join(' | ')}`
           : '';
-        return `  - ${lid}: ${l.name}${parent}${loreBlock}`;
+        return `  - ${ml.id}: ${l.name}${parent}${loreBlock}`;
       })
       .filter(Boolean)
       .join('\n');
 
-    const threadLines = threadIds
-      .map((tid) => {
-        const t = n.threads[tid];
+    const threadLines = manifestThreads
+      .map((mt) => {
+        const t = n.threads[mt.id];
         if (!t) return null;
-        const status = threadStatusAtPoint[tid] ?? t.status;
+        const status = threadStatusAtPoint[mt.id] ?? t.status;
         const anchorNames = t.anchors
           .map((a) => n.characters[a.id]?.name ?? n.locations[a.id]?.name ?? a.id)
           .join(', ');
-        return `  - ${tid}: "${t.description}" [${status}] anchors: ${anchorNames}`;
+        return `  - ${mt.id}: "${t.description}" [${status}] anchors: ${anchorNames}`;
       })
       .filter(Boolean)
       .join('\n');
@@ -787,7 +787,7 @@ export function worldContext(
   });
 
   // Cumulative world knowledge graph up to this point
-  const wk = buildCumulativeWorldKnowledge(n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, undefined, n.worldBuilds);
+  const wk = buildCumulativeWorldKnowledge(n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, n.worldBuilds);
   const rankedNodes = rankWorldKnowledgeNodes(wk);
   let wkBlock = '';
   if (rankedNodes.length > 0) {

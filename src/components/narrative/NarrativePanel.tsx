@@ -26,28 +26,28 @@ export default function NarrativePanel() {
           <span className="font-mono text-[10px] text-text-dim">{entry.id}</span>
         </div>
         <div className="flex flex-col gap-1.5">
-          {m.characterIds.length > 0 && (
+          {m.characters.length > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">Characters</span>
-              {m.characterIds.map((id) => narrative.characters[id]?.name ?? id).join(', ')}
+              {m.characters.map((c) => narrative.characters[c.id]?.name ?? c.name).join(', ')}
             </div>
           )}
-          {m.locationIds.length > 0 && (
+          {m.locations.length > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">Locations</span>
-              {m.locationIds.map((id) => narrative.locations[id]?.name ?? id).join(', ')}
+              {m.locations.map((l) => narrative.locations[l.id]?.name ?? l.name).join(', ')}
             </div>
           )}
-          {m.threadIds.length > 0 && (
+          {m.threads.length > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">Threads</span>
-              {m.threadIds.map((id) => narrative.threads[id]?.description ?? id).join(', ')}
+              {m.threads.map((t) => narrative.threads[t.id]?.description ?? t.description).join(', ')}
             </div>
           )}
-          {m.relationshipCount > 0 && (
+          {(m.relationships?.length ?? 0) > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">Relationships</span>
-              {m.relationshipCount} new
+              {m.relationships.length} new
             </div>
           )}
         </div>

@@ -203,10 +203,11 @@ export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
 };
 
 export type ExpansionManifest = {
-  characterIds: string[];
-  locationIds: string[];
-  threadIds: string[];
-  relationshipCount: number;
+  characters: Character[];
+  locations: Location[];
+  threads: Thread[];
+  relationships: RelationshipEdge[];
+  worldKnowledge: WorldKnowledgeMutation;
 };
 
 export type ProseScore = {
@@ -258,8 +259,6 @@ export type WorldBuildCommit = {
   id: string;
   summary: string;
   expansionManifest: ExpansionManifest;
-  /** World knowledge introduced by this world-building commit */
-  worldKnowledgeMutations?: WorldKnowledgeMutation;
 };
 
 // ── Alignment ────────────────────────────────────────────────────────────────

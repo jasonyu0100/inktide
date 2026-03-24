@@ -34,7 +34,6 @@ export default function KnowledgeDetail({ nodeId }: Props) {
       narrative.scenes,
       state.resolvedSceneKeys,
       state.currentSceneIndex,
-      narrative.worldKnowledge,
       narrative.worldBuilds,
     );
   }, [narrative, state.resolvedSceneKeys, state.currentSceneIndex]);
@@ -73,7 +72,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
       const key = state.resolvedSceneKeys[i];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds?.[key];
-      const wkm = scene?.worldKnowledgeMutations ?? wb?.worldKnowledgeMutations;
+      const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledge;
       if (!wkm) continue;
       const ids = new Set<string>();
       for (const n of wkm.addedNodes ?? []) ids.add(n.id);

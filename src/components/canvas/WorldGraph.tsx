@@ -268,11 +268,11 @@ function buildOverviewGraphData(
     const wb = worldBuilds[key];
     if (wb) {
       // World builds introduce elements — count manifest IDs so they appear in overview
-      for (const cid of wb.expansionManifest.characterIds) {
-        charUsage[cid] = (charUsage[cid] ?? 0) + 1;
+      for (const c of wb.expansionManifest.characters) {
+        charUsage[c.id] = (charUsage[c.id] ?? 0) + 1;
       }
-      for (const lid of wb.expansionManifest.locationIds) {
-        locUsage[lid] = (locUsage[lid] ?? 0) + 1;
+      for (const l of wb.expansionManifest.locations) {
+        locUsage[l.id] = (locUsage[l.id] ?? 0) + 1;
       }
     } else {
       const scene = scenes[key];
@@ -437,7 +437,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
       const key = resolvedKeys[currentIndex];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds[key];
-      const wkm = scene?.worldKnowledgeMutations ?? wb?.worldKnowledgeMutations;
+      const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledge;
       if (!wkm) return { nodes: {}, edges: [] };
       const nodes: Record<string, import('@/types/narrative').WorldKnowledgeNode> = {};
       for (const n of wkm.addedNodes ?? []) {
@@ -449,7 +449,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
       }
       return { nodes, edges: wkm.addedEdges ?? [] };
     }
-    return buildCumulativeWorldKnowledge(narrative.scenes, resolvedKeys, currentIndex, narrative.worldKnowledge, narrative.worldBuilds);
+    return buildCumulativeWorldKnowledge(narrative.scenes, resolvedKeys, currentIndex, narrative.worldBuilds);
   }, [narrative, resolvedKeys, currentIndex, mode]);
 
   // Scene-added node IDs for highlight in nexus mode
@@ -459,7 +459,7 @@ function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
       const key = resolvedKeys[currentIndex];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds[key];
-      const wkm = scene?.worldKnowledgeMutations ?? wb?.worldKnowledgeMutations;
+      const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledge;
       for (const n of wkm?.addedNodes ?? []) ids.add(n.id);
     }
     return ids;
@@ -966,8 +966,8 @@ export default function WorldGraph() {
       if (currentWorldBuild) {
         // Expansion mode: show expansion elements + connected existing entities
         const manifest = currentWorldBuild.expansionManifest;
-        const expandedCharIds = new Set(manifest.characterIds);
-        const expandedLocIds = new Set(manifest.locationIds);
+        const expandedCharIds = new Set(manifest.characters.map((c) => c.id));
+        const expandedLocIds = new Set(manifest.locations.map((l) => l.id));
 
         // Relationships filtered to current timeline position, then to expansion entities
         const timelineRels = getRelationshipsAtScene(narrative, resolvedSceneKeys, state.currentSceneIndex);

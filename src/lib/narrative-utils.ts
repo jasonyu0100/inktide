@@ -285,11 +285,10 @@ export function buildCumulativeWorldKnowledge(
   scenes: Record<string, Scene>,
   resolvedKeys: string[],
   upToIndex: number,
-  baseGraph?: WorldKnowledgeGraph,
   worldBuilds?: Record<string, import('@/types/narrative').WorldBuildCommit>,
 ): WorldKnowledgeGraph {
-  const nodes: Record<string, WorldKnowledgeNode> = { ...(baseGraph?.nodes ?? {}) };
-  const edges = [...(baseGraph?.edges ?? [])];
+  const nodes: Record<string, WorldKnowledgeNode> = {};
+  const edges: import('@/types/narrative').WorldKnowledgeEdge[] = [];
 
   const applyMutation = (wkm: WorldKnowledgeMutation) => {
     for (const n of wkm.addedNodes ?? []) {
@@ -309,8 +308,8 @@ export function buildCumulativeWorldKnowledge(
       applyMutation(scene.worldKnowledgeMutations);
     }
     const wb = worldBuilds?.[key];
-    if (wb?.worldKnowledgeMutations) {
-      applyMutation(wb.worldKnowledgeMutations);
+    if (wb?.expansionManifest.worldKnowledge) {
+      applyMutation(wb.expansionManifest.worldKnowledge);
     }
   }
   return { nodes, edges };

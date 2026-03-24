@@ -1,7 +1,7 @@
 {
   "id": "N-HP",
   "title": "Harry Potter and the Philosopher's Stone",
-  "description": "An orphan boy raised in a cupboard under the stairs discovers he is the most famous wizard alive. At Hogwarts School of Witchcraft and Wizardry, Harry stumbles into a world of shifting staircases, impossible classes, and the first friendships of his life — while a forbidden corridor, a three-headed dog, and a scar that will not stop prickling hint at mysteries the castle is not ready to reveal.",
+  "description": "An orphan boy raised in a cupboard under the stairs discovers he is the most famous wizard alive. At Hogwarts School of Witchcraft and Wizardry, Harry stumbles into a world of shifting staircases, impossible classes, and the first friendships of his life \u2014 while a forbidden corridor, a three-headed dog, and a scar that will not stop prickling hint at mysteries the castle is not ready to reveal.",
   "characters": {
     "C-HP-01": {
       "id": "C-HP-01",
@@ -23,7 +23,7 @@
           {
             "id": "K-HP-02",
             "type": "believes",
-            "content": "Strange things happen around him — glass vanishing, hair regrowing — but he cannot explain why"
+            "content": "Strange things happen around him \u2014 glass vanishing, hair regrowing \u2014 but he cannot explain why"
           },
           {
             "id": "K-HP-03",
@@ -72,7 +72,7 @@
           {
             "id": "K-HP-13",
             "type": "knows",
-            "content": "Has memorized every textbook before term begins — including Hogwarts: A History"
+            "content": "Has memorized every textbook before term begins \u2014 including Hogwarts: A History"
           },
           {
             "id": "K-HP-14",
@@ -96,7 +96,7 @@
           {
             "id": "K-HP-20",
             "type": "knows",
-            "content": "Sixth son in a family of accomplished wizards — always compared, never first"
+            "content": "Sixth son in a family of accomplished wizards \u2014 always compared, never first"
           },
           {
             "id": "K-HP-21",
@@ -111,7 +111,7 @@
           {
             "id": "K-HP-23",
             "type": "knows",
-            "content": "Grew up in the wizarding world — understands customs, Quidditch, and wizard chess instinctively"
+            "content": "Grew up in the wizarding world \u2014 understands customs, Quidditch, and wizard chess instinctively"
           }
         ]
       }
@@ -145,7 +145,7 @@
           {
             "id": "K-HP-33",
             "type": "believes",
-            "content": "Love is the deepest magic — Harry carries a protection Voldemort cannot comprehend"
+            "content": "Love is the deepest magic \u2014 Harry carries a protection Voldemort cannot comprehend"
           },
           {
             "id": "K-HP-34",
@@ -169,7 +169,7 @@
           {
             "id": "K-HP-40",
             "type": "secret",
-            "content": "Loved Lily Potter until her death — protects Harry for her sake, despises him for his father's"
+            "content": "Loved Lily Potter until her death \u2014 protects Harry for her sake, despises him for his father's"
           },
           {
             "id": "K-HP-41",
@@ -184,7 +184,7 @@
           {
             "id": "K-HP-43",
             "type": "believes",
-            "content": "Potter is an arrogant mirror of James — talent unearned, fame undeserved"
+            "content": "Potter is an arrogant mirror of James \u2014 talent unearned, fame undeserved"
           }
         ]
       }
@@ -208,7 +208,7 @@
           {
             "id": "K-HP-51",
             "type": "secret",
-            "content": "Told a stranger in a pub how to get past Fluffy — just play him a bit of music"
+            "content": "Told a stranger in a pub how to get past Fluffy \u2014 just play him a bit of music"
           },
           {
             "id": "K-HP-52",
@@ -236,7 +236,7 @@
           {
             "id": "K-HP-60",
             "type": "believes",
-            "content": "Pure-blood wizards are inherently superior — Muggle-borns dilute magical society"
+            "content": "Pure-blood wizards are inherently superior \u2014 Muggle-borns dilute magical society"
           },
           {
             "id": "K-HP-61",
@@ -280,7 +280,7 @@
           {
             "id": "K-HP-73",
             "type": "believes",
-            "content": "There is no returning from this servitude — only obedience or annihilation"
+            "content": "There is no returning from this servitude \u2014 only obedience or annihilation"
           }
         ]
       }
@@ -292,7 +292,7 @@
       "name": "Wizarding Britain",
       "parentId": null,
       "threadIds": [],
-      "imagePrompt": "A misty, rain-swept British landscape with hidden magical enclaves tucked behind ordinary facades — cobblestone lanes, enchanted shopfronts, and owls gliding through grey skies over rolling green countryside.",
+      "imagePrompt": "A misty, rain-swept British landscape with hidden magical enclaves tucked behind ordinary facades \u2014 cobblestone lanes, enchanted shopfronts, and owls gliding through grey skies over rolling green countryside.",
       "continuity": {
         "nodes": [
           {
@@ -303,7 +303,7 @@
           {
             "id": "LK-HP-02",
             "type": "lore",
-            "content": "Ten years of peace since the fall of He-Who-Must-Not-Be-Named — but the peace is fragile"
+            "content": "Ten years of peace since the fall of He-Who-Must-Not-Be-Named \u2014 but the peace is fragile"
           }
         ]
       }
@@ -339,18 +339,18 @@
       "threadIds": [
         "T-HP-06"
       ],
-      "imagePrompt": "A painfully ordinary 1980s suburban semi-detached house on a manicured cul-de-sac — identical hedges, a polished car in the driveway, net curtains, and an oppressive air of enforced normality under flat grey skies.",
+      "imagePrompt": "A painfully ordinary 1980s suburban semi-detached house on a manicured cul-de-sac \u2014 identical hedges, a polished car in the driveway, net curtains, and an oppressive air of enforced normality under flat grey skies.",
       "continuity": {
         "nodes": [
           {
             "id": "LK-HP-05",
             "type": "lore",
-            "content": "A ruthlessly ordinary suburban home in Little Whinging, Surrey — normalcy enforced like a religion"
+            "content": "A ruthlessly ordinary suburban home in Little Whinging, Surrey \u2014 normalcy enforced like a religion"
           },
           {
             "id": "LK-HP-06",
             "type": "secret",
-            "content": "Protected by an ancient blood ward tied to Lily Potter's sacrifice — as long as Harry calls it home, Voldemort cannot touch him there"
+            "content": "Protected by an ancient blood ward tied to Lily Potter's sacrifice \u2014 as long as Harry calls it home, Voldemort cannot touch him there"
           }
         ]
       }
@@ -362,13 +362,13 @@
       "threadIds": [
         "T-HP-02"
       ],
-      "imagePrompt": "A narrow, winding cobblestone street bursting with colour — crooked shopfronts stacked with cauldrons, broomsticks, and spell books, owls perched on awnings, and witches and wizards bustling past in vivid robes under a strip of bright sky.",
+      "imagePrompt": "A narrow, winding cobblestone street bursting with colour \u2014 crooked shopfronts stacked with cauldrons, broomsticks, and spell books, owls perched on awnings, and witches and wizards bustling past in vivid robes under a strip of bright sky.",
       "continuity": {
         "nodes": [
           {
             "id": "LK-HP-07",
             "type": "lore",
-            "content": "The hidden high street of wizarding London — wands, cauldrons, owls, and wonder behind a brick wall"
+            "content": "The hidden high street of wizarding London \u2014 wands, cauldrons, owls, and wonder behind a brick wall"
           },
           {
             "id": "LK-HP-08",
@@ -415,7 +415,7 @@
           {
             "id": "LK-HP-11",
             "type": "danger",
-            "content": "Forbidden to all students on pain of a most painful death — Dumbledore's warning at the start-of-term feast"
+            "content": "Forbidden to all students on pain of a most painful death \u2014 Dumbledore's warning at the start-of-term feast"
           },
           {
             "id": "LK-HP-12",
@@ -443,7 +443,7 @@
           {
             "id": "LK-HP-14",
             "type": "secret",
-            "content": "Something has been killing unicorns and drinking their blood — a crime against nature that sustains a cursed half-life"
+            "content": "Something has been killing unicorns and drinking their blood \u2014 a crime against nature that sustains a cursed half-life"
           }
         ]
       }
@@ -461,12 +461,12 @@
           {
             "id": "LK-HP-15",
             "type": "lore",
-            "content": "Run by goblins deep beneath London — the safest place in the wizarding world, after Hogwarts"
+            "content": "Run by goblins deep beneath London \u2014 the safest place in the wizarding world, after Hogwarts"
           },
           {
             "id": "LK-HP-16",
             "type": "secret",
-            "content": "Vault 713 held a small grubby package retrieved by Hagrid on Dumbledore's orders — the same day it was nearly robbed"
+            "content": "Vault 713 held a small grubby package retrieved by Hagrid on Dumbledore's orders \u2014 the same day it was nearly robbed"
           }
         ]
       }
@@ -485,7 +485,7 @@
           "type": "character"
         }
       ],
-      "description": "The Philosopher's Stone — who is trying to steal it, what it creates, and why someone would kill for immortality",
+      "description": "The Philosopher's Stone \u2014 who is trying to steal it, what it creates, and why someone would kill for immortality",
       "status": "dormant",
       "openedAt": "S-HP-001",
       "dependents": [
@@ -505,7 +505,7 @@
           "type": "character"
         }
       ],
-      "description": "Harry's identity — the Boy Who Lived discovering that he is famous, magical, and marked by a destiny he never chose",
+      "description": "Harry's identity \u2014 the Boy Who Lived discovering that he is famous, magical, and marked by a destiny he never chose",
       "status": "dormant",
       "openedAt": "S-HP-001",
       "dependents": [
@@ -520,7 +520,7 @@
           "type": "character"
         }
       ],
-      "description": "Snape's ambiguous loyalty — the man who seems to hate Harry, appears to threaten Quirrell, and whose true allegiance lies buried beneath layers of cruelty",
+      "description": "Snape's ambiguous loyalty \u2014 the man who seems to hate Harry, appears to threaten Quirrell, and whose true allegiance lies buried beneath layers of cruelty",
       "status": "dormant",
       "openedAt": "S-HP-006",
       "dependents": []
@@ -541,7 +541,7 @@
           "type": "character"
         }
       ],
-      "description": "The trio's friendship — three misfits forging a bond under pressure that will define the shape of the war to come",
+      "description": "The trio's friendship \u2014 three misfits forging a bond under pressure that will define the shape of the war to come",
       "status": "dormant",
       "openedAt": "S-HP-004",
       "dependents": []
@@ -554,7 +554,7 @@
           "type": "character"
         }
       ],
-      "description": "Voldemort's return — the shadow behind Quirrell's turban, drinking unicorn blood in the forest, clawing back toward life one desperate act at a time",
+      "description": "Voldemort's return \u2014 the shadow behind Quirrell's turban, drinking unicorn blood in the forest, clawing back toward life one desperate act at a time",
       "status": "dormant",
       "openedAt": "S-HP-011",
       "dependents": []
@@ -571,7 +571,7 @@
           "type": "character"
         }
       ],
-      "description": "Harry versus the Dursleys — the muggle world that tried to crush the magic out of him, and the reckoning when it failed",
+      "description": "Harry versus the Dursleys \u2014 the muggle world that tried to crush the magic out of him, and the reckoning when it failed",
       "status": "dormant",
       "openedAt": "S-HP-001",
       "dependents": []
@@ -588,7 +588,7 @@
           "type": "location"
         }
       ],
-      "description": "Draco and the house rivalry — blood purity against chosen loyalty, Slytherin ambition against Gryffindor courage, a schoolboy feud that mirrors the larger war",
+      "description": "Draco and the house rivalry \u2014 blood purity against chosen loyalty, Slytherin ambition against Gryffindor courage, a schoolboy feud that mirrors the larger war",
       "status": "dormant",
       "openedAt": "S-HP-005",
       "dependents": []
@@ -760,7 +760,7 @@
           }
         ]
       },
-      "summary": "Number Four, Privet Drive. Harry wakes in the cupboard under the stairs, spider webs brushing his forehead. The Dursleys have spent ten years smothering every trace of strangeness from his life. But the letters have been arriving — dozens, then hundreds, flooding through the mail slot, squeezed under doors, stuffed inside eggs. Uncle Vernon boards the windows and flees to a rock in the sea. At midnight, the door comes off its hinges. Hagrid fills the doorway like a mountain wearing a moleskin coat. \"Yer a wizard, Harry.\" The world cracks open."
+      "summary": "Number Four, Privet Drive. Harry wakes in the cupboard under the stairs, spider webs brushing his forehead. The Dursleys have spent ten years smothering every trace of strangeness from his life. But the letters have been arriving \u2014 dozens, then hundreds, flooding through the mail slot, squeezed under doors, stuffed inside eggs. Uncle Vernon boards the windows and flees to a rock in the sea. At midnight, the door comes off its hinges. Hagrid fills the doorway like a mountain wearing a moleskin coat. \"Yer a wizard, Harry.\" The world cracks open."
     },
     "S-HP-002": {
       "id": "S-HP-002",
@@ -793,13 +793,13 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-06",
           "action": "added",
-          "content": "His parents left him a fortune in gold Galleons — he was never the burden the Dursleys claimed"
+          "content": "His parents left him a fortune in gold Galleons \u2014 he was never the burden the Dursleys claimed"
         },
         {
           "characterId": "C-HP-01",
           "nodeId": "K-HP-07",
           "action": "added",
-          "content": "Ollivander said his wand shares a core with Voldemort's — the phoenix feather that links them"
+          "content": "Ollivander said his wand shares a core with Voldemort's \u2014 the phoenix feather that links them"
         }
       ],
       "relationshipMutations": [],
@@ -829,7 +829,7 @@
           }
         ]
       },
-      "summary": "Diagon Alley unfolds behind the Leaky Cauldron like a fever dream rendered in brick and gold. Witches and wizards recognize Harry in the street — they shake his hand, bow, weep. He has been famous his entire life and never knew. Hagrid leads him through Gringotts, where goblins guard a vault of gold his parents left behind, and retrieves a small grubby package from Vault 713. At Ollivanders, wand after wand refuses him — until the holly wand with the phoenix feather core leaps into his hand. Ollivander goes pale. \"Curious. Very curious.\" The wand that chose Harry is brother to the wand that gave him his scar."
+      "summary": "Diagon Alley unfolds behind the Leaky Cauldron like a fever dream rendered in brick and gold. Witches and wizards recognize Harry in the street \u2014 they shake his hand, bow, weep. He has been famous his entire life and never knew. Hagrid leads him through Gringotts, where goblins guard a vault of gold his parents left behind, and retrieves a small grubby package from Vault 713. At Ollivanders, wand after wand refuses him \u2014 until the holly wand with the phoenix feather core leaps into his hand. Ollivander goes pale. \"Curious. Very curious.\" The wand that chose Harry is brother to the wand that gave him his scar."
     },
     "S-HP-003": {
       "id": "S-HP-003",
@@ -863,20 +863,20 @@
           "characterId": "C-HP-03",
           "nodeId": "K-HP-24",
           "action": "added",
-          "content": "Harry Potter sat in his compartment and shared his sweets — he is nothing like the legend"
+          "content": "Harry Potter sat in his compartment and shared his sweets \u2014 he is nothing like the legend"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-01",
           "to": "C-HP-03",
-          "type": "Immediate warmth — Ron is the first boy his age to treat him normally",
+          "type": "Immediate warmth \u2014 Ron is the first boy his age to treat him normally",
           "valenceDelta": 0.3
         },
         {
           "from": "C-HP-03",
           "to": "C-HP-01",
-          "type": "Starstruck but genuine — likes Harry before the legend, after the Chocolate Frogs",
+          "type": "Starstruck but genuine \u2014 likes Harry before the legend, after the Chocolate Frogs",
           "valenceDelta": 0.3
         }
       ],
@@ -901,7 +901,7 @@
           }
         ]
       },
-      "summary": "Platform Nine and Three-Quarters. Harry runs at a brick wall and emerges into steam and scarlet. On the Hogwarts Express, he shares a compartment with Ron Weasley — a gangly boy with a hand-me-down rat and a sandwich he is embarrassed to eat. Harry buys the entire trolley. They talk about Quidditch, wizard chess, and Chocolate Frog cards. For the first time in his life, Harry has a friend his own age. As darkness falls, the castle appears across the black lake — a thousand windows glittering like scattered stars. Ron whispers, \"Wicked.\" Harry cannot speak at all."
+      "summary": "Platform Nine and Three-Quarters. Harry runs at a brick wall and emerges into steam and scarlet. On the Hogwarts Express, he shares a compartment with Ron Weasley \u2014 a gangly boy with a hand-me-down rat and a sandwich he is embarrassed to eat. Harry buys the entire trolley. They talk about Quidditch, wizard chess, and Chocolate Frog cards. For the first time in his life, Harry has a friend his own age. As darkness falls, the castle appears across the black lake \u2014 a thousand windows glittering like scattered stars. Ron whispers, \"Wicked.\" Harry cannot speak at all."
     },
     "S-HP-004": {
       "id": "S-HP-004",
@@ -941,20 +941,20 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-08",
           "action": "added",
-          "content": "The Sorting Hat wanted to place him in Slytherin — he begged it not to, and it listened"
+          "content": "The Sorting Hat wanted to place him in Slytherin \u2014 he begged it not to, and it listened"
         },
         {
           "characterId": "C-HP-01",
           "nodeId": "K-HP-09",
           "action": "added",
-          "content": "Dumbledore warned the school away from the third-floor corridor on pain of death — not a joke"
+          "content": "Dumbledore warned the school away from the third-floor corridor on pain of death \u2014 not a joke"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
-          "type": "Sorted into the same house — proximity breeds the first fragile threads of recognition",
+          "type": "Sorted into the same house \u2014 proximity breeds the first fragile threads of recognition",
           "valenceDelta": 0.1
         }
       ],
@@ -984,7 +984,7 @@
           }
         ]
       },
-      "summary": "The Great Hall. A thousand candles float beneath a ceiling of stars. The Sorting Hat is placed on Harry's head and whispers: \"Difficult. Very difficult. Plenty of courage, not a bad mind, talent — oh yes — and a thirst to prove yourself. Slytherin could help you on the way to greatness.\" Harry grips the stool and thinks, Not Slytherin, not Slytherin. The Hat relents: \"GRYFFINDOR!\" The table erupts. Ron beams. Hermione Granger, already sorted, nods approvingly. At the staff table, Dumbledore's eyes twinkle — but his start-of-term warning is steel: the third-floor corridor is forbidden to all who do not wish to die a most painful death. The hall laughs. Dumbledore does not."
+      "summary": "The Great Hall. A thousand candles float beneath a ceiling of stars. The Sorting Hat is placed on Harry's head and whispers: \"Difficult. Very difficult. Plenty of courage, not a bad mind, talent \u2014 oh yes \u2014 and a thirst to prove yourself. Slytherin could help you on the way to greatness.\" Harry grips the stool and thinks, Not Slytherin, not Slytherin. The Hat relents: \"GRYFFINDOR!\" The table erupts. Ron beams. Hermione Granger, already sorted, nods approvingly. At the staff table, Dumbledore's eyes twinkle \u2014 but his start-of-term warning is steel: the third-floor corridor is forbidden to all who do not wish to die a most painful death. The hall laughs. Dumbledore does not."
     },
     "S-HP-005": {
       "id": "S-HP-005",
@@ -1015,14 +1015,14 @@
           "characterId": "C-HP-07",
           "nodeId": "K-HP-63",
           "action": "added",
-          "content": "Potter refused his hand in front of everyone — chose a blood traitor Weasley over a Malfoy"
+          "content": "Potter refused his hand in front of everyone \u2014 chose a blood traitor Weasley over a Malfoy"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-01",
           "to": "C-HP-07",
-          "type": "Draco reminds him of Dudley — the same sneering entitlement, different clothes",
+          "type": "Draco reminds him of Dudley \u2014 the same sneering entitlement, different clothes",
           "valenceDelta": -0.2
         },
         {
@@ -1058,7 +1058,7 @@
           }
         ]
       },
-      "summary": "First morning. The Great Hall hums with the clatter of cutlery and the rustle of a hundred owls descending through the enchanted ceiling, parcels and letters tumbling onto plates of eggs and toast. Harry watches it all with his mouth open — he has never received post in his life. Ron explains the customs between bites: the Daily Prophet, Howlers, the way the staircases move. Then Draco Malfoy approaches, hand extended, chin raised. \"You'll soon find out some wizarding families are much better than others, Potter.\" Harry looks at the outstretched hand, then at Ron's flushed face. \"I think I can tell the wrong sort for myself, thanks.\" Draco's hand drops. His eyes harden. The lines are drawn."
+      "summary": "First morning. The Great Hall hums with the clatter of cutlery and the rustle of a hundred owls descending through the enchanted ceiling, parcels and letters tumbling onto plates of eggs and toast. Harry watches it all with his mouth open \u2014 he has never received post in his life. Ron explains the customs between bites: the Daily Prophet, Howlers, the way the staircases move. Then Draco Malfoy approaches, hand extended, chin raised. \"You'll soon find out some wizarding families are much better than others, Potter.\" Harry looks at the outstretched hand, then at Ron's flushed face. \"I think I can tell the wrong sort for myself, thanks.\" Draco's hand drops. His eyes harden. The lines are drawn."
     },
     "S-HP-006": {
       "id": "S-HP-006",
@@ -1095,7 +1095,7 @@
           }
         ]
       },
-      "summary": "The castle resists being learned. Harry and Ron spend their first days hopelessly lost — staircases that swing like pendulums, doors that pretend to be walls, walls that pretend to be doors. The portraits offer contradictory directions and seem to enjoy the confusion. A suit of armour on the fourth floor tries to walk Ron into a broom cupboard. They discover a shortcut behind a tapestry of Barnabas the Barmy, a corridor that smells inexplicably of peppermint, and a balcony overlooking the lake where the giant squid basks in the September sun. The castle is vast and strange and indifferent to their schedules. Harry has never lived anywhere so alive, so shifting, so unlike the rigid geometry of Privet Drive. He does not mind being lost."
+      "summary": "The castle resists being learned. Harry and Ron spend their first days hopelessly lost \u2014 staircases that swing like pendulums, doors that pretend to be walls, walls that pretend to be doors. The portraits offer contradictory directions and seem to enjoy the confusion. A suit of armour on the fourth floor tries to walk Ron into a broom cupboard. They discover a shortcut behind a tapestry of Barnabas the Barmy, a corridor that smells inexplicably of peppermint, and a balcony overlooking the lake where the giant squid basks in the September sun. The castle is vast and strange and indifferent to their schedules. Harry has never lived anywhere so alive, so shifting, so unlike the rigid geometry of Privet Drive. He does not mind being lost."
     },
     "S-HP-007": {
       "id": "S-HP-007",
@@ -1143,7 +1143,7 @@
           }
         ]
       },
-      "summary": "Transfiguration. Professor McGonagall is waiting for them as a tabby cat on her desk, and the gasp when she transforms sets the tone for the class: this is magic at its most precise, most demanding, most beautiful. They are given matches and told to turn them into needles. Most of the class produces nothing. Hermione Granger, lips pressed thin with concentration, turns hers silver by the end of the hour — the only student to manage it. McGonagall awards five points to Gryffindor with the ghost of a smile. Ron stares at his match, which has not changed at all. Harry's has gone slightly pointy. Magic, it turns out, is less about waving a wand and more about wanting something with the right kind of patience."
+      "summary": "Transfiguration. Professor McGonagall is waiting for them as a tabby cat on her desk, and the gasp when she transforms sets the tone for the class: this is magic at its most precise, most demanding, most beautiful. They are given matches and told to turn them into needles. Most of the class produces nothing. Hermione Granger, lips pressed thin with concentration, turns hers silver by the end of the hour \u2014 the only student to manage it. McGonagall awards five points to Gryffindor with the ghost of a smile. Ron stares at his match, which has not changed at all. Harry's has gone slightly pointy. Magic, it turns out, is less about waving a wand and more about wanting something with the right kind of patience."
     },
     "S-HP-008": {
       "id": "S-HP-008",
@@ -1173,14 +1173,14 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-80",
           "action": "added",
-          "content": "Snape singled him out from the first moment — the hatred feels personal, not professional"
+          "content": "Snape singled him out from the first moment \u2014 the hatred feels personal, not professional"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-01",
           "to": "C-HP-05",
-          "type": "Instant antagonism — Snape seems to loathe him on sight",
+          "type": "Instant antagonism \u2014 Snape seems to loathe him on sight",
           "valenceDelta": -0.2
         }
       ],
@@ -1210,7 +1210,7 @@
           }
         ]
       },
-      "summary": "The dungeons. Snape sweeps into his first Potions class like a bat unfolding and fixes Harry with a stare that carries the weight of decades. \"Potter. Our new celebrity.\" What follows is a public dissection — question after impossible question, designed not to teach but to humiliate. What would I get if I added powdered root of asphodel to an infusion of wormwood? Where would you look if I told you to find me a bezoar? Harry endures it. Ron seethes. Hermione's hand goes unacknowledged in the air. But beneath the cruelty lies something Harry cannot name: Snape looks at him with hatred, yes, but also with something that might be grief. Walking back through the corridors, Harry rubs his scar absently. It has been prickling since the start-of-term feast, though he cannot say why."
+      "summary": "The dungeons. Snape sweeps into his first Potions class like a bat unfolding and fixes Harry with a stare that carries the weight of decades. \"Potter. Our new celebrity.\" What follows is a public dissection \u2014 question after impossible question, designed not to teach but to humiliate. What would I get if I added powdered root of asphodel to an infusion of wormwood? Where would you look if I told you to find me a bezoar? Harry endures it. Ron seethes. Hermione's hand goes unacknowledged in the air. But beneath the cruelty lies something Harry cannot name: Snape looks at him with hatred, yes, but also with something that might be grief. Walking back through the corridors, Harry rubs his scar absently. It has been prickling since the start-of-term feast, though he cannot say why."
     },
     "S-HP-009": {
       "id": "S-HP-009",
@@ -1231,7 +1231,7 @@
       "threadMutations": [],
       "continuityMutations": [],
       "relationshipMutations": [],
-      "summary": "Evening in the Gryffindor common room. The fire crackles in the grate and the older students sprawl across armchairs with textbooks they are not reading. Ron sets up a battered wizard chess set — the pieces are his grandfather's, chipped and argumentative, and they shout contradictory advice at anyone who is not Ron. He teaches Harry to play. Harry is terrible. The pieces refuse to trust him. Ron's knight takes Harry's queen and does a small, contemptuous dance. Ron grins — chess is the one thing where he is better than everyone, and for once the comparison does not sting. They play three games. Harry loses all three. Outside, rain streaks the tower windows. Neither boy has anywhere else he would rather be."
+      "summary": "Evening in the Gryffindor common room. The fire crackles in the grate and the older students sprawl across armchairs with textbooks they are not reading. Ron sets up a battered wizard chess set \u2014 the pieces are his grandfather's, chipped and argumentative, and they shout contradictory advice at anyone who is not Ron. He teaches Harry to play. Harry is terrible. The pieces refuse to trust him. Ron's knight takes Harry's queen and does a small, contemptuous dance. Ron grins \u2014 chess is the one thing where he is better than everyone, and for once the comparison does not sting. They play three games. Harry loses all three. Outside, rain streaks the tower windows. Neither boy has anywhere else he would rather be."
     },
     "S-HP-010": {
       "id": "S-HP-010",
@@ -1279,7 +1279,7 @@
           }
         ]
       },
-      "summary": "The flying lesson. Madam Hooch lines the first-years up on the lawn beside a row of battered school brooms. \"Stick out your right hand and say UP!\" Most brooms roll over lazily. Ron's hits him in the face. Harry's leaps into his palm on the first word, as if it has been waiting for him. When they mount and kick off, Harry rises into the air and feels, for the first time since arriving, something he does not have to learn — flying is not a skill but a language he already speaks. The grounds spread beneath him, the lake flashing silver, the forest dark at the edges. Draco Malfoy, hovering nearby, watches Harry bank and turn with an ease that makes his own competence look laboured. He says nothing, but his jaw tightens. Madam Hooch calls them down. Harry descends slowly, reluctantly, as though the sky is the first place that has ever felt like his."
+      "summary": "The flying lesson. Madam Hooch lines the first-years up on the lawn beside a row of battered school brooms. \"Stick out your right hand and say UP!\" Most brooms roll over lazily. Ron's hits him in the face. Harry's leaps into his palm on the first word, as if it has been waiting for him. When they mount and kick off, Harry rises into the air and feels, for the first time since arriving, something he does not have to learn \u2014 flying is not a skill but a language he already speaks. The grounds spread beneath him, the lake flashing silver, the forest dark at the edges. Draco Malfoy, hovering nearby, watches Harry bank and turn with an ease that makes his own competence look laboured. He says nothing, but his jaw tightens. Madam Hooch calls them down. Harry descends slowly, reluctantly, as though the sky is the first place that has ever felt like his."
     },
     "S-HP-011": {
       "id": "S-HP-011",
@@ -1330,14 +1330,14 @@
           "characterId": "C-HP-02",
           "nodeId": "K-HP-15",
           "action": "added",
-          "content": "The dog was standing on a trapdoor — it is guarding something"
+          "content": "The dog was standing on a trapdoor \u2014 it is guarding something"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
-          "type": "Terrified but exhilarated — Harry noticed the trapdoor when she only saw teeth",
+          "type": "Terrified but exhilarated \u2014 Harry noticed the trapdoor when she only saw teeth",
           "valenceDelta": 0.1
         }
       ],
@@ -1401,7 +1401,7 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-81",
           "action": "added",
-          "content": "The Daily Prophet reports a break-in at Gringotts on the same day Hagrid emptied Vault 713 — the vault that was broken into was the same one"
+          "content": "The Daily Prophet reports a break-in at Gringotts on the same day Hagrid emptied Vault 713 \u2014 the vault that was broken into was the same one"
         }
       ],
       "relationshipMutations": [],
@@ -1426,7 +1426,7 @@
           }
         ]
       },
-      "summary": "Breakfast in the Great Hall. A grey morning, rain on the enchanted ceiling, owls arriving damp and ruffled. Harry unfolds the Daily Prophet out of idle curiosity and a small headline catches his eye: break-in at Gringotts. Vault 713 — the vault Hagrid emptied on the very same day — was targeted. Nothing was taken, because the vault had already been cleared. Harry reads the article twice. The grubby package. The three-headed dog. Dumbledore's warning. The connections assemble themselves quietly, like tumblers in a lock he does not yet have the key for. Ron leans over. \"What's wrong?\" Harry folds the paper. \"Nothing. Maybe nothing.\" He eats his toast, but the question follows him to class like a shadow he cannot quite step away from."
+      "summary": "Breakfast in the Great Hall. A grey morning, rain on the enchanted ceiling, owls arriving damp and ruffled. Harry unfolds the Daily Prophet out of idle curiosity and a small headline catches his eye: break-in at Gringotts. Vault 713 \u2014 the vault Hagrid emptied on the very same day \u2014 was targeted. Nothing was taken, because the vault had already been cleared. Harry reads the article twice. The grubby package. The three-headed dog. Dumbledore's warning. The connections assemble themselves quietly, like tumblers in a lock he does not yet have the key for. Ron leans over. \"What's wrong?\" Harry folds the paper. \"Nothing. Maybe nothing.\" He eats his toast, but the question follows him to class like a shadow he cannot quite step away from."
     },
     "S-HP-013": {
       "id": "S-HP-013",
@@ -1478,7 +1478,7 @@
           }
         ]
       },
-      "summary": "The library. Harry wanders in looking for a book on Quidditch and finds Hermione Granger at her usual table, surrounded by a fortress of textbooks stacked three high. She is alone — she is always alone. The other Gryffindor girls cluster at the far end, whispering. Harry hesitates, then sits across from her. She looks up, startled, as though physical proximity is a language she has not learned. They do not say much. She recommends a book. He asks about the Transfiguration homework. It is not friendship — not yet — but it is the absence of cruelty, and for Hermione Granger, who has spent every meal sitting with her books because no one has thought to sit with her, the absence of cruelty is enough to remember."
+      "summary": "The library. Harry wanders in looking for a book on Quidditch and finds Hermione Granger at her usual table, surrounded by a fortress of textbooks stacked three high. She is alone \u2014 she is always alone. The other Gryffindor girls cluster at the far end, whispering. Harry hesitates, then sits across from her. She looks up, startled, as though physical proximity is a language she has not learned. They do not say much. She recommends a book. He asks about the Transfiguration homework. It is not friendship \u2014 not yet \u2014 but it is the absence of cruelty, and for Hermione Granger, who has spent every meal sitting with her books because no one has thought to sit with her, the absence of cruelty is enough to remember."
     },
     "S-HP-014": {
       "id": "S-HP-014",
@@ -1508,32 +1508,32 @@
           "characterId": "C-HP-02",
           "nodeId": "K-HP-16",
           "action": "added",
-          "content": "Harry and Ron risked their lives to save her from the troll — she has never had friends like this"
+          "content": "Harry and Ron risked their lives to save her from the troll \u2014 she has never had friends like this"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-01",
           "to": "C-HP-02",
-          "type": "She lied to protect them — Hermione is braver than her books suggest",
+          "type": "She lied to protect them \u2014 Hermione is braver than her books suggest",
           "valenceDelta": 0.3
         },
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
-          "type": "He came back for her — no one has ever come back for her before",
+          "type": "He came back for her \u2014 no one has ever come back for her before",
           "valenceDelta": 0.3
         },
         {
           "from": "C-HP-02",
           "to": "C-HP-03",
-          "type": "Ron's levitation charm saved her life — the boy she mocked is the boy who rescued her",
+          "type": "Ron's levitation charm saved her life \u2014 the boy she mocked is the boy who rescued her",
           "valenceDelta": 0.4
         },
         {
           "from": "C-HP-03",
           "to": "C-HP-02",
-          "type": "She took the blame for them — maybe she is not so bad after all",
+          "type": "She took the blame for them \u2014 maybe she is not so bad after all",
           "valenceDelta": 0.3
         }
       ],
@@ -1563,7 +1563,7 @@
           }
         ]
       },
-      "summary": "Halloween. A mountain troll is loose in the dungeons. Hermione does not know — she is crying in the girls' bathroom because Ron called her a nightmare. Harry and Ron go after her. They find the troll first: twelve feet tall, granite-grey skin, a club the size of a tree trunk. Ron levitates the club with a charm he has been failing all day — Wingardium Leviosa — and drops it on the troll's head. When the professors arrive, Hermione lies. She says she went looking for the troll because she'd read about them. She takes the blame to protect the boys who saved her. There are some things you cannot share without ending up liking each other, and knocking out a twelve-foot mountain troll is one of them. The trio is formed. The world established. And the mysteries planted in these first weeks — the dog, the vault, the corridor, the scar — wait patiently in the dark for whatever comes next."
+      "summary": "Halloween. A mountain troll is loose in the dungeons. Hermione does not know \u2014 she is crying in the girls' bathroom because Ron called her a nightmare. Harry and Ron go after her. They find the troll first: twelve feet tall, granite-grey skin, a club the size of a tree trunk. Ron levitates the club with a charm he has been failing all day \u2014 Wingardium Leviosa \u2014 and drops it on the troll's head. When the professors arrive, Hermione lies. She says she went looking for the troll because she'd read about them. She takes the blame to protect the boys who saved her. There are some things you cannot share without ending up liking each other, and knocking out a twelve-foot mountain troll is one of them. The trio is formed. The world established. And the mysteries planted in these first weeks \u2014 the dog, the vault, the corridor, the scar \u2014 wait patiently in the dark for whatever comes next."
     },
     "S-HP-ALT-006": {
       "id": "S-HP-ALT-006",
@@ -1592,20 +1592,20 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-ALT-01",
           "action": "added",
-          "content": "The Hat said Slytherin and he did not fight it — something in him wanted to know what greatness meant"
+          "content": "The Hat said Slytherin and he did not fight it \u2014 something in him wanted to know what greatness meant"
         },
         {
           "characterId": "C-HP-07",
           "nodeId": "K-HP-ALT-02",
           "action": "added",
-          "content": "Potter is in Slytherin — Father will be pleased, and this changes everything"
+          "content": "Potter is in Slytherin \u2014 Father will be pleased, and this changes everything"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-07",
           "to": "C-HP-01",
-          "type": "Recalculates entirely — Potter as an ally is worth more than Potter as an enemy",
+          "type": "Recalculates entirely \u2014 Potter as an ally is worth more than Potter as an enemy",
           "valenceDelta": 0.6
         },
         {
@@ -1641,7 +1641,7 @@
           }
         ]
       },
-      "summary": "The Great Hall falls silent when the Hat calls \"SLYTHERIN!\" Harry walks to the wrong table — the table draped in green and silver, where the applause is calculating rather than warm. Draco Malfoy slides over to make room, and this time his extended hand is not a demand but an offering. Harry takes it. Ron Weasley stares from the Gryffindor table as though watching a friend drown. Hermione looks away. At the staff table, Dumbledore's eyes do not twinkle. In the dungeons that night, Harry lies in a four-poster bed hung with emerald curtains and wonders whether the Hat saw something true in him — an ambition, a hunger, a darkness — that he has been refusing to see in himself."
+      "summary": "The Great Hall falls silent when the Hat calls \"SLYTHERIN!\" Harry walks to the wrong table \u2014 the table draped in green and silver, where the applause is calculating rather than warm. Draco Malfoy slides over to make room, and this time his extended hand is not a demand but an offering. Harry takes it. Ron Weasley stares from the Gryffindor table as though watching a friend drown. Hermione looks away. At the staff table, Dumbledore's eyes do not twinkle. In the dungeons that night, Harry lies in a four-poster bed hung with emerald curtains and wonders whether the Hat saw something true in him \u2014 an ambition, a hunger, a darkness \u2014 that he has been refusing to see in himself."
     },
     "S-HP-ALT-007": {
       "id": "S-HP-ALT-007",
@@ -1670,20 +1670,20 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-ALT-03",
           "action": "added",
-          "content": "Snape did not humiliate him — he looked at Harry with an expression that was almost recognition, almost pain"
+          "content": "Snape did not humiliate him \u2014 he looked at Harry with an expression that was almost recognition, almost pain"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-05",
           "to": "C-HP-01",
-          "type": "Lily's son in Slytherin robes — the cruelty catches in his throat, replaced by something worse: hope",
+          "type": "Lily's son in Slytherin robes \u2014 the cruelty catches in his throat, replaced by something worse: hope",
           "valenceDelta": 0.3
         },
         {
           "from": "C-HP-01",
           "to": "C-HP-05",
-          "type": "Snape is not the monster he expected — in Slytherin, the hatred softened into something unreadable",
+          "type": "Snape is not the monster he expected \u2014 in Slytherin, the hatred softened into something unreadable",
           "valenceDelta": 0.3
         }
       ],
@@ -1708,7 +1708,7 @@
           }
         ]
       },
-      "summary": "Potions class. Snape enters and his gaze finds Harry in Slytherin robes. Something fractures in his expression — barely visible, instantly suppressed. There is no public humiliation. The questions come, but they are tests, not punishments. When Harry answers incorrectly, Snape corrects him with clipped precision rather than contempt. The Gryffindors are baffled. Harry is baffled. In Slytherin green, he looks less like James Potter, and the resemblance that remains — Lily's eyes in a Slytherin face — is a mirror Snape cannot look away from. For the first time, the hatred has nowhere to land."
+      "summary": "Potions class. Snape enters and his gaze finds Harry in Slytherin robes. Something fractures in his expression \u2014 barely visible, instantly suppressed. There is no public humiliation. The questions come, but they are tests, not punishments. When Harry answers incorrectly, Snape corrects him with clipped precision rather than contempt. The Gryffindors are baffled. Harry is baffled. In Slytherin green, he looks less like James Potter, and the resemblance that remains \u2014 Lily's eyes in a Slytherin face \u2014 is a mirror Snape cannot look away from. For the first time, the hatred has nowhere to land."
     },
     "S-HP-ALT-008": {
       "id": "S-HP-ALT-008",
@@ -1739,14 +1739,14 @@
           "characterId": "C-HP-02",
           "nodeId": "K-HP-ALT-04",
           "action": "added",
-          "content": "A Slytherin came to save her — Harry Potter crossed every line his house would punish him for"
+          "content": "A Slytherin came to save her \u2014 Harry Potter crossed every line his house would punish him for"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
-          "type": "He is in the wrong house but he came anyway — the bravest thing she has ever seen a Slytherin do",
+          "type": "He is in the wrong house but he came anyway \u2014 the bravest thing she has ever seen a Slytherin do",
           "valenceDelta": 0.4
         },
         {
@@ -1777,7 +1777,7 @@
           }
         ]
       },
-      "summary": "Halloween. The troll. In this timeline, Ron is not there — he and Harry have barely spoken since the Sorting. But Harry hears that Hermione is in the bathroom and goes anyway, alone, a Slytherin breaking ranks for a Muggle-born Gryffindor. He faces the troll with nothing but a wand he barely knows how to use and a recklessness that belongs to no house. Hermione sees a boy in green robes pulling her from the rubble. When the professors arrive, she lies for him — tells them she went looking for the troll. In the corridor after, she whispers, \"You didn't have to come.\" He says, \"I know.\" They are friends now, and it is the most dangerous friendship in Hogwarts — a Slytherin and a Muggle-born, allied across every line the school draws."
+      "summary": "Halloween. The troll. In this timeline, Ron is not there \u2014 he and Harry have barely spoken since the Sorting. But Harry hears that Hermione is in the bathroom and goes anyway, alone, a Slytherin breaking ranks for a Muggle-born Gryffindor. He faces the troll with nothing but a wand he barely knows how to use and a recklessness that belongs to no house. Hermione sees a boy in green robes pulling her from the rubble. When the professors arrive, she lies for him \u2014 tells them she went looking for the troll. In the corridor after, she whispers, \"You didn't have to come.\" He says, \"I know.\" They are friends now, and it is the most dangerous friendship in Hogwarts \u2014 a Slytherin and a Muggle-born, allied across every line the school draws."
     },
     "S-HP-ALT-009": {
       "id": "S-HP-ALT-009",
@@ -1816,20 +1816,20 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-ALT-05",
           "action": "added",
-          "content": "Draco brought him to the third-floor corridor on purpose — in Slytherin, secrets are currency, and Draco is investing in Harry"
+          "content": "Draco brought him to the third-floor corridor on purpose \u2014 in Slytherin, secrets are currency, and Draco is investing in Harry"
         },
         {
           "characterId": "C-HP-07",
           "nodeId": "K-HP-ALT-06",
           "action": "added",
-          "content": "Showed Potter the forbidden corridor — binding him with shared transgression, the Slytherin way"
+          "content": "Showed Potter the forbidden corridor \u2014 binding him with shared transgression, the Slytherin way"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-01",
           "to": "C-HP-07",
-          "type": "Draco is useful and clever but never safe — every gift comes with invisible strings",
+          "type": "Draco is useful and clever but never safe \u2014 every gift comes with invisible strings",
           "valenceDelta": 0.1
         }
       ],
@@ -1854,7 +1854,7 @@
           }
         ]
       },
-      "summary": "The third-floor corridor. In this timeline, it is Draco who leads Harry to Fluffy — not by accident but by design. The Slytherin information network runs deeper than Gryffindor curiosity ever could. \"My father mentioned something about Dumbledore and a certain alchemist,\" Draco says, leading them through the forbidden door with a confidence that makes Harry uneasy. They see the three-headed dog. They see the trapdoor. But here the discovery is not innocent wonder — it is Slytherin calculation. Draco files the knowledge away like a weapon. Harry watches Draco watching Fluffy and understands something new: in this house, everything is leverage. Even friendship. Especially friendship."
+      "summary": "The third-floor corridor. In this timeline, it is Draco who leads Harry to Fluffy \u2014 not by accident but by design. The Slytherin information network runs deeper than Gryffindor curiosity ever could. \"My father mentioned something about Dumbledore and a certain alchemist,\" Draco says, leading them through the forbidden door with a confidence that makes Harry uneasy. They see the three-headed dog. They see the trapdoor. But here the discovery is not innocent wonder \u2014 it is Slytherin calculation. Draco files the knowledge away like a weapon. Harry watches Draco watching Fluffy and understands something new: in this house, everything is leverage. Even friendship. Especially friendship."
     },
     "S-HP-ALT-010": {
       "id": "S-HP-ALT-010",
@@ -1877,26 +1877,26 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-ALT-07",
           "action": "added",
-          "content": "Ron said he would have been his friend if the Hat had chosen differently — and Harry knows he still could be, if either of them is brave enough"
+          "content": "Ron said he would have been his friend if the Hat had chosen differently \u2014 and Harry knows he still could be, if either of them is brave enough"
         },
         {
           "characterId": "C-HP-03",
           "nodeId": "K-HP-ALT-08",
           "action": "added",
-          "content": "Harry is not like the other Slytherins — he saved the Granger girl, and his eyes are honest even when his tie is green"
+          "content": "Harry is not like the other Slytherins \u2014 he saved the Granger girl, and his eyes are honest even when his tie is green"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-03",
           "to": "C-HP-01",
-          "type": "Grudging respect — the Slytherin who keeps acting like a Gryffindor",
+          "type": "Grudging respect \u2014 the Slytherin who keeps acting like a Gryffindor",
           "valenceDelta": 0.3
         },
         {
           "from": "C-HP-01",
           "to": "C-HP-03",
-          "type": "The friend he should have had — the train compartment haunts him",
+          "type": "The friend he should have had \u2014 the train compartment haunts him",
           "valenceDelta": 0.3
         }
       ],
@@ -1921,7 +1921,7 @@
           }
         ]
       },
-      "summary": "A corridor between classes. Ron blocks Harry's path. Months of avoidance collapse into a single confrontation. \"You chose them.\" \"The Hat chose.\" \"You could have fought it.\" The silence stretches. Then Ron says, quieter: \"I would've been your friend, you know. On the train. Before any of it.\" Harry says, \"You still could be.\" It is the most dangerous sentence either of them has spoken — a Weasley allying with a Slytherin would shake both houses to their foundations. Ron looks at Harry's green tie, then at his eyes. Something shifts. The story fractures here: in the canon timeline, the trio formed around a troll. In this one, it might form around something harder and rarer — the choice to reach across a divide that everyone says cannot be crossed."
+      "summary": "A corridor between classes. Ron blocks Harry's path. Months of avoidance collapse into a single confrontation. \"You chose them.\" \"The Hat chose.\" \"You could have fought it.\" The silence stretches. Then Ron says, quieter: \"I would've been your friend, you know. On the train. Before any of it.\" Harry says, \"You still could be.\" It is the most dangerous sentence either of them has spoken \u2014 a Weasley allying with a Slytherin would shake both houses to their foundations. Ron looks at Harry's green tie, then at his eyes. Something shifts. The story fractures here: in the canon timeline, the trio formed around a troll. In this one, it might form around something harder and rarer \u2014 the choice to reach across a divide that everyone says cannot be crossed."
     }
   },
   "worldBuilds": {
@@ -1930,157 +1930,781 @@
       "id": "WX-HP-init",
       "summary": "World created: 8 characters (Harry Potter, Hermione Granger, Ron Weasley, Albus Dumbledore, Severus Snape, Rubeus Hagrid, Draco Malfoy, Quirinus Quirrell), 8 locations (Wizarding Britain, Hogwarts, Privet Drive, Diagon Alley, The Great Hall, The Third-Floor Corridor, The Forbidden Forest, Gringotts), 7 threads, 10 relationships",
       "expansionManifest": {
-        "characterIds": [
-          "C-HP-01",
-          "C-HP-02",
-          "C-HP-03",
-          "C-HP-04",
-          "C-HP-05",
-          "C-HP-06",
-          "C-HP-07",
-          "C-HP-08"
-        ],
-        "locationIds": [
-          "L-HP-01",
-          "L-HP-02",
-          "L-HP-03",
-          "L-HP-04",
-          "L-HP-05",
-          "L-HP-06",
-          "L-HP-07",
-          "L-HP-08"
-        ],
-        "threadIds": [
-          "T-HP-01",
-          "T-HP-02",
-          "T-HP-03",
-          "T-HP-04",
-          "T-HP-05",
-          "T-HP-06",
-          "T-HP-07"
-        ],
-        "relationshipCount": 10
-      },
-      "worldKnowledgeMutations": {
-        "addedNodes": [
+        "characters": [
           {
-            "id": "WK-HP-WB-01",
-            "concept": "Hogwarts School of Witchcraft and Wizardry — a thousand-year-old institution that shapes every witch and wizard in Britain, sorting them into houses that define identity, rivalry, and allegiance",
-            "type": "system"
+            "id": "C-HP-01",
+            "name": "Harry Potter",
+            "role": "anchor",
+            "imagePrompt": "A thin eleven-year-old boy with untidy jet-black hair, bright green eyes behind round wire-rimmed glasses, and a lightning-bolt scar on his forehead. He wears an oversized hand-me-down jumper, looking small but alert.",
+            "threadIds": [
+              "T-HP-01",
+              "T-HP-02",
+              "T-HP-06"
+            ],
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "K-HP-01",
+                  "type": "knows",
+                  "content": "An orphan raised by the Dursleys, told his parents died in a car crash"
+                },
+                {
+                  "id": "K-HP-02",
+                  "type": "believes",
+                  "content": "Strange things happen around him \u2014 glass vanishing, hair regrowing \u2014 but he cannot explain why"
+                },
+                {
+                  "id": "K-HP-03",
+                  "type": "goal",
+                  "content": "Escape the cupboard under the stairs and find where he truly belongs"
+                },
+                {
+                  "id": "K-HP-04",
+                  "type": "knows",
+                  "content": "A lightning-bolt scar on his forehead, origin unknown"
+                },
+                {
+                  "id": "K-HP-05",
+                  "type": "secret",
+                  "content": "Does not yet know he is the Boy Who Lived, or that an entire world reveres his name"
+                }
+              ]
+            }
           },
           {
-            "id": "WK-HP-WB-02",
-            "concept": "Wand magic — the primary magical discipline, channeled through wands of wood and core, where the instrument chooses the wielder and shapes the craft",
-            "type": "system"
+            "id": "C-HP-02",
+            "name": "Hermione Granger",
+            "role": "anchor",
+            "imagePrompt": "A girl with bushy brown hair, bright brown eyes, and slightly large front teeth, carrying an armful of heavy books. She wears crisp Hogwarts robes with a Gryffindor tie, her expression earnest and determined.",
+            "threadIds": [
+              "T-HP-01",
+              "T-HP-04"
+            ],
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "K-HP-10",
+                  "type": "knows",
+                  "content": "Muggle-born witch who received her Hogwarts letter with no prior knowledge of magic"
+                },
+                {
+                  "id": "K-HP-11",
+                  "type": "believes",
+                  "content": "Knowledge and preparation are the surest shields against an uncertain world"
+                },
+                {
+                  "id": "K-HP-12",
+                  "type": "goal",
+                  "content": "Prove that she belongs in the wizarding world despite her parentage"
+                },
+                {
+                  "id": "K-HP-13",
+                  "type": "knows",
+                  "content": "Has memorized every textbook before term begins \u2014 including Hogwarts: A History"
+                },
+                {
+                  "id": "K-HP-14",
+                  "type": "believes",
+                  "content": "Rules exist for good reasons, and breaking them endangers everyone"
+                }
+              ]
+            }
           },
           {
-            "id": "WK-HP-WB-03",
-            "concept": "The Ministry of Magic — the governing body of wizarding Britain, enforcing the Statute of Secrecy and regulating all magical activity",
-            "type": "system"
+            "id": "C-HP-03",
+            "name": "Ron Weasley",
+            "role": "recurring",
+            "imagePrompt": "A tall, gangly boy with flaming red hair, freckles, and a long nose. He wears slightly shabby second-hand robes and has a warm, lopsided grin despite looking a bit underfed.",
+            "threadIds": [
+              "T-HP-04",
+              "T-HP-07"
+            ],
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "K-HP-20",
+                  "type": "knows",
+                  "content": "Sixth son in a family of accomplished wizards \u2014 always compared, never first"
+                },
+                {
+                  "id": "K-HP-21",
+                  "type": "believes",
+                  "content": "He will never be as good as his brothers, so why pretend otherwise"
+                },
+                {
+                  "id": "K-HP-22",
+                  "type": "goal",
+                  "content": "Step out from the shadow of his brothers and prove his own worth"
+                },
+                {
+                  "id": "K-HP-23",
+                  "type": "knows",
+                  "content": "Grew up in the wizarding world \u2014 understands customs, Quidditch, and wizard chess instinctively"
+                }
+              ]
+            }
           },
           {
-            "id": "WK-HP-WB-04",
-            "concept": "Quidditch — the defining sport of wizarding culture, played on broomsticks, a social ritual that channels competition and house loyalty",
-            "type": "system"
+            "id": "C-HP-04",
+            "name": "Albus Dumbledore",
+            "role": "recurring",
+            "imagePrompt": "A tall, thin, very old man with a long silver beard and half-moon spectacles perched on a crooked nose. He wears sweeping purple robes embroidered with silver stars, his blue eyes twinkling with quiet amusement.",
+            "threadIds": [
+              "T-HP-01",
+              "T-HP-05"
+            ],
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "K-HP-30",
+                  "type": "knows",
+                  "content": "The Philosopher's Stone is hidden in Hogwarts at Nicholas Flamel's request"
+                },
+                {
+                  "id": "K-HP-31",
+                  "type": "secret",
+                  "content": "Suspects Voldemort has attached himself to someone inside the school"
+                },
+                {
+                  "id": "K-HP-32",
+                  "type": "goal",
+                  "content": "Protect the Stone while allowing Harry to grow into the courage he will need"
+                },
+                {
+                  "id": "K-HP-33",
+                  "type": "believes",
+                  "content": "Love is the deepest magic \u2014 Harry carries a protection Voldemort cannot comprehend"
+                },
+                {
+                  "id": "K-HP-34",
+                  "type": "knows",
+                  "content": "The Mirror of Erised will only yield the Stone to one who desires it but not its use"
+                }
+              ]
+            }
           },
           {
-            "id": "WK-HP-WB-05",
-            "concept": "The Muggle-Magical divide — two worlds coexisting in the same space, separated by enchantment, ignorance, and institutional secrecy",
-            "type": "tension"
+            "id": "C-HP-05",
+            "name": "Severus Snape",
+            "role": "recurring",
+            "imagePrompt": "A thin man with sallow skin, a large hooked nose, and greasy shoulder-length black hair that frames his gaunt face. He wears billowing black robes and regards the world with cold, glittering dark eyes.",
+            "threadIds": [
+              "T-HP-03",
+              "T-HP-01"
+            ],
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "K-HP-40",
+                  "type": "secret",
+                  "content": "Loved Lily Potter until her death \u2014 protects Harry for her sake, despises him for his father's"
+                },
+                {
+                  "id": "K-HP-41",
+                  "type": "knows",
+                  "content": "Quirrell is behaving suspiciously and may be compromised"
+                },
+                {
+                  "id": "K-HP-42",
+                  "type": "goal",
+                  "content": "Guard the Stone and keep his oath to Dumbledore, regardless of personal cost"
+                },
+                {
+                  "id": "K-HP-43",
+                  "type": "believes",
+                  "content": "Potter is an arrogant mirror of James \u2014 talent unearned, fame undeserved"
+                }
+              ]
+            }
           },
           {
-            "id": "WK-HP-WB-06",
-            "concept": "Voldemort's ideology — blood purity as political program, the belief that magical power flows through lineage and that Muggle-born wizards are lesser",
-            "type": "concept"
+            "id": "C-HP-06",
+            "name": "Rubeus Hagrid",
+            "role": "transient",
+            "imagePrompt": "An enormous man nearly twice the height of a normal person, with a wild tangle of bushy black hair and a thick, matted beard that hides most of his face. He wears a massive moleskin overcoat with countless pockets, his beetle-black eyes crinkling warmly.",
+            "threadIds": [
+              "T-HP-02",
+              "T-HP-06"
+            ],
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "K-HP-50",
+                  "type": "knows",
+                  "content": "Delivered baby Harry to Privet Drive the night his parents died"
+                },
+                {
+                  "id": "K-HP-51",
+                  "type": "secret",
+                  "content": "Told a stranger in a pub how to get past Fluffy \u2014 just play him a bit of music"
+                },
+                {
+                  "id": "K-HP-52",
+                  "type": "believes",
+                  "content": "Dumbledore is the greatest wizard alive and his trust is never misplaced"
+                },
+                {
+                  "id": "K-HP-53",
+                  "type": "goal",
+                  "content": "Protect Harry and help him feel at home in the world that has always been his"
+                }
+              ]
+            }
           },
           {
-            "id": "WK-HP-WB-07",
-            "concept": "The Hogwarts House system — Gryffindor, Slytherin, Ravenclaw, Hufflepuff — a sorting at age eleven that assigns identity, community, and expectation for life",
-            "type": "system"
+            "id": "C-HP-07",
+            "name": "Draco Malfoy",
+            "role": "transient",
+            "imagePrompt": "A pale, pointed-faced boy with sleek white-blond hair combed neatly back and cold grey eyes. He wears immaculate, expensive-looking Hogwarts robes and carries himself with a haughty sneer.",
+            "threadIds": [
+              "T-HP-07"
+            ],
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "K-HP-60",
+                  "type": "believes",
+                  "content": "Pure-blood wizards are inherently superior \u2014 Muggle-borns dilute magical society"
+                },
+                {
+                  "id": "K-HP-61",
+                  "type": "goal",
+                  "content": "Establish himself as the dominant figure in his year, as befits a Malfoy"
+                },
+                {
+                  "id": "K-HP-62",
+                  "type": "knows",
+                  "content": "His father served the Dark Lord and still whispers of the old ways at home"
+                }
+              ]
+            }
           },
           {
-            "id": "WK-HP-WB-08",
-            "concept": "Magical creatures — a parallel ecosystem of dragons, hippogriffs, phoenixes, and house-elves that exists alongside wizarding society, governed by its own laws",
-            "type": "concept"
+            "id": "C-HP-08",
+            "name": "Quirinus Quirrell",
+            "role": "transient",
+            "imagePrompt": "A pale, nervous young professor with a large purple turban wound around his head and a twitchy, stammering manner. His face is pinched and anxious, and there is a faint smell of garlic about his robes.",
+            "threadIds": [
+              "T-HP-05",
+              "T-HP-01"
+            ],
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "K-HP-70",
+                  "type": "secret",
+                  "content": "Voldemort lives as a parasitic face on the back of his skull, hidden beneath a turban"
+                },
+                {
+                  "id": "K-HP-71",
+                  "type": "goal",
+                  "content": "Retrieve the Philosopher's Stone for his master and restore Voldemort to power"
+                },
+                {
+                  "id": "K-HP-72",
+                  "type": "knows",
+                  "content": "The Stone is protected by enchantments from each Hogwarts professor"
+                },
+                {
+                  "id": "K-HP-73",
+                  "type": "believes",
+                  "content": "There is no returning from this servitude \u2014 only obedience or annihilation"
+                }
+              ]
+            }
           }
         ],
-        "addedEdges": [
+        "locations": [
           {
-            "from": "WK-HP-WB-01",
-            "to": "WK-HP-01",
-            "relation": "is the central institution of"
+            "id": "L-HP-01",
+            "name": "Wizarding Britain",
+            "parentId": null,
+            "threadIds": [],
+            "imagePrompt": "A misty, rain-swept British landscape with hidden magical enclaves tucked behind ordinary facades \u2014 cobblestone lanes, enchanted shopfronts, and owls gliding through grey skies over rolling green countryside.",
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "LK-HP-01",
+                  "type": "lore",
+                  "content": "A hidden magical society layered beneath Muggle Britain, governed by the Ministry of Magic"
+                },
+                {
+                  "id": "LK-HP-02",
+                  "type": "lore",
+                  "content": "Ten years of peace since the fall of He-Who-Must-Not-Be-Named \u2014 but the peace is fragile"
+                }
+              ]
+            }
           },
           {
-            "from": "WK-HP-WB-02",
-            "to": "WK-HP-04",
-            "relation": "is the discipline governed by"
+            "id": "L-HP-02",
+            "name": "Hogwarts School of Witchcraft and Wizardry",
+            "parentId": "L-HP-01",
+            "threadIds": [
+              "T-HP-01",
+              "T-HP-04"
+            ],
+            "imagePrompt": "A vast medieval castle with soaring towers, turrets, and battlements perched on a cliff above a dark lake, its hundreds of windows glowing warmly against a starlit Scottish Highland sky.",
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "LK-HP-03",
+                  "type": "lore",
+                  "content": "A thousand-year-old castle in the Scottish Highlands, the foremost school of magic in Europe"
+                },
+                {
+                  "id": "LK-HP-04",
+                  "type": "secret",
+                  "content": "The third-floor corridor on the right-hand side conceals a trapdoor guarded by a three-headed dog"
+                }
+              ]
+            }
           },
           {
-            "from": "WK-HP-WB-02",
-            "to": "WK-HP-06",
-            "relation": "is the practical application of"
+            "id": "L-HP-03",
+            "name": "Number Four, Privet Drive",
+            "parentId": "L-HP-01",
+            "threadIds": [
+              "T-HP-06"
+            ],
+            "imagePrompt": "A painfully ordinary 1980s suburban semi-detached house on a manicured cul-de-sac \u2014 identical hedges, a polished car in the driveway, net curtains, and an oppressive air of enforced normality under flat grey skies.",
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "LK-HP-05",
+                  "type": "lore",
+                  "content": "A ruthlessly ordinary suburban home in Little Whinging, Surrey \u2014 normalcy enforced like a religion"
+                },
+                {
+                  "id": "LK-HP-06",
+                  "type": "secret",
+                  "content": "Protected by an ancient blood ward tied to Lily Potter's sacrifice \u2014 as long as Harry calls it home, Voldemort cannot touch him there"
+                }
+              ]
+            }
           },
           {
-            "from": "WK-HP-WB-03",
-            "to": "WK-HP-02",
-            "relation": "enforces and administers"
+            "id": "L-HP-04",
+            "name": "Diagon Alley",
+            "parentId": "L-HP-01",
+            "threadIds": [
+              "T-HP-02"
+            ],
+            "imagePrompt": "A narrow, winding cobblestone street bursting with colour \u2014 crooked shopfronts stacked with cauldrons, broomsticks, and spell books, owls perched on awnings, and witches and wizards bustling past in vivid robes under a strip of bright sky.",
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "LK-HP-07",
+                  "type": "lore",
+                  "content": "The hidden high street of wizarding London \u2014 wands, cauldrons, owls, and wonder behind a brick wall"
+                },
+                {
+                  "id": "LK-HP-08",
+                  "type": "lore",
+                  "content": "Accessible through the Leaky Cauldron, invisible to Muggle eyes"
+                }
+              ]
+            }
           },
           {
-            "from": "WK-HP-WB-03",
-            "to": "WK-HP-01",
-            "relation": "governs"
+            "id": "L-HP-05",
+            "name": "The Great Hall",
+            "parentId": "L-HP-02",
+            "threadIds": [
+              "T-HP-07"
+            ],
+            "imagePrompt": "A cavernous hall lit by thousands of floating candles, four long wooden tables stretching toward a raised staff dais, with an enchanted ceiling showing a swirl of stars and drifting clouds above.",
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "LK-HP-09",
+                  "type": "lore",
+                  "content": "An enchanted ceiling reflecting the sky above, four long house tables, and the Sorting Hat's ancient song"
+                },
+                {
+                  "id": "LK-HP-10",
+                  "type": "lore",
+                  "content": "Where the Sorting Ceremony determines the trajectory of every student's life at Hogwarts"
+                }
+              ]
+            }
           },
           {
-            "from": "WK-HP-WB-04",
-            "to": "WK-HP-WB-01",
-            "relation": "is the defining competitive ritual of"
+            "id": "L-HP-06",
+            "name": "The Third-Floor Corridor",
+            "parentId": "L-HP-02",
+            "threadIds": [
+              "T-HP-01",
+              "T-HP-05"
+            ],
+            "imagePrompt": "A dark, dusty stone corridor lit by guttering torches, with a heavy locked door at the far end. The air is thick with dread, and deep growling reverberates from behind the door.",
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "LK-HP-11",
+                  "type": "danger",
+                  "content": "Forbidden to all students on pain of a most painful death \u2014 Dumbledore's warning at the start-of-term feast"
+                },
+                {
+                  "id": "LK-HP-12",
+                  "type": "secret",
+                  "content": "Contains the trapdoor beneath Fluffy, leading to a gauntlet of enchantments protecting the Philosopher's Stone"
+                }
+              ]
+            }
           },
           {
-            "from": "WK-HP-WB-04",
-            "to": "WK-HP-09",
-            "relation": "channels and intensifies"
+            "id": "L-HP-07",
+            "name": "The Forbidden Forest",
+            "parentId": "L-HP-02",
+            "threadIds": [
+              "T-HP-05"
+            ],
+            "imagePrompt": "An ancient, dense forest of towering gnarled trees with a thick canopy that blocks out moonlight. Silver mist curls between the roots, and the darkness between the trunks feels alive and watchful.",
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "LK-HP-13",
+                  "type": "danger",
+                  "content": "Ancient woodland on the Hogwarts grounds, home to centaurs, unicorns, and darker things"
+                },
+                {
+                  "id": "LK-HP-14",
+                  "type": "secret",
+                  "content": "Something has been killing unicorns and drinking their blood \u2014 a crime against nature that sustains a cursed half-life"
+                }
+              ]
+            }
           },
           {
-            "from": "WK-HP-WB-05",
-            "to": "WK-HP-02",
-            "relation": "is maintained by"
-          },
-          {
-            "from": "WK-HP-WB-05",
-            "to": "WK-HP-03",
-            "relation": "is bridged by"
-          },
-          {
-            "from": "WK-HP-WB-06",
-            "to": "WK-HP-11",
-            "relation": "is the political weaponization of"
-          },
-          {
-            "from": "WK-HP-WB-06",
-            "to": "WK-HP-12",
-            "relation": "is the ideology that drives"
-          },
-          {
-            "from": "WK-HP-WB-07",
-            "to": "WK-HP-08",
-            "relation": "is enacted through"
-          },
-          {
-            "from": "WK-HP-WB-07",
-            "to": "WK-HP-10",
-            "relation": "institutionalizes"
-          },
-          {
-            "from": "WK-HP-WB-08",
-            "to": "WK-HP-WB-01",
-            "relation": "is studied and managed within"
-          },
-          {
-            "from": "WK-HP-WB-08",
-            "to": "WK-HP-13",
-            "relation": "inhabits and shapes"
+            "id": "L-HP-08",
+            "name": "Gringotts Wizarding Bank",
+            "parentId": "L-HP-04",
+            "threadIds": [
+              "T-HP-01"
+            ],
+            "imagePrompt": "A towering white marble building that leans slightly over Diagon Alley, with burnished bronze doors flanked by goblin guards in scarlet-and-gold uniforms. Inside, a vast hall of polished counters stretches into shadow.",
+            "continuity": {
+              "nodes": [
+                {
+                  "id": "LK-HP-15",
+                  "type": "lore",
+                  "content": "Run by goblins deep beneath London \u2014 the safest place in the wizarding world, after Hogwarts"
+                },
+                {
+                  "id": "LK-HP-16",
+                  "type": "secret",
+                  "content": "Vault 713 held a small grubby package retrieved by Hagrid on Dumbledore's orders \u2014 the same day it was nearly robbed"
+                }
+              ]
+            }
           }
-        ]
+        ],
+        "threads": [
+          {
+            "id": "T-HP-01",
+            "anchors": [
+              {
+                "id": "L-HP-06",
+                "type": "location"
+              },
+              {
+                "id": "C-HP-04",
+                "type": "character"
+              }
+            ],
+            "description": "The Philosopher's Stone \u2014 who is trying to steal it, what it creates, and why someone would kill for immortality",
+            "status": "dormant",
+            "openedAt": "S-HP-001",
+            "dependents": [
+              "T-HP-05",
+              "T-HP-03"
+            ]
+          },
+          {
+            "id": "T-HP-02",
+            "anchors": [
+              {
+                "id": "C-HP-01",
+                "type": "character"
+              },
+              {
+                "id": "C-HP-06",
+                "type": "character"
+              }
+            ],
+            "description": "Harry's identity \u2014 the Boy Who Lived discovering that he is famous, magical, and marked by a destiny he never chose",
+            "status": "dormant",
+            "openedAt": "S-HP-001",
+            "dependents": [
+              "T-HP-06"
+            ]
+          },
+          {
+            "id": "T-HP-03",
+            "anchors": [
+              {
+                "id": "C-HP-05",
+                "type": "character"
+              }
+            ],
+            "description": "Snape's ambiguous loyalty \u2014 the man who seems to hate Harry, appears to threaten Quirrell, and whose true allegiance lies buried beneath layers of cruelty",
+            "status": "dormant",
+            "openedAt": "S-HP-006",
+            "dependents": []
+          },
+          {
+            "id": "T-HP-04",
+            "anchors": [
+              {
+                "id": "C-HP-01",
+                "type": "character"
+              },
+              {
+                "id": "C-HP-02",
+                "type": "character"
+              },
+              {
+                "id": "C-HP-03",
+                "type": "character"
+              }
+            ],
+            "description": "The trio's friendship \u2014 three misfits forging a bond under pressure that will define the shape of the war to come",
+            "status": "dormant",
+            "openedAt": "S-HP-004",
+            "dependents": []
+          },
+          {
+            "id": "T-HP-05",
+            "anchors": [
+              {
+                "id": "C-HP-08",
+                "type": "character"
+              }
+            ],
+            "description": "Voldemort's return \u2014 the shadow behind Quirrell's turban, drinking unicorn blood in the forest, clawing back toward life one desperate act at a time",
+            "status": "dormant",
+            "openedAt": "S-HP-011",
+            "dependents": []
+          },
+          {
+            "id": "T-HP-06",
+            "anchors": [
+              {
+                "id": "L-HP-03",
+                "type": "location"
+              },
+              {
+                "id": "C-HP-01",
+                "type": "character"
+              }
+            ],
+            "description": "Harry versus the Dursleys \u2014 the muggle world that tried to crush the magic out of him, and the reckoning when it failed",
+            "status": "dormant",
+            "openedAt": "S-HP-001",
+            "dependents": []
+          },
+          {
+            "id": "T-HP-07",
+            "anchors": [
+              {
+                "id": "C-HP-07",
+                "type": "character"
+              },
+              {
+                "id": "L-HP-05",
+                "type": "location"
+              }
+            ],
+            "description": "Draco and the house rivalry \u2014 blood purity against chosen loyalty, Slytherin ambition against Gryffindor courage, a schoolboy feud that mirrors the larger war",
+            "status": "dormant",
+            "openedAt": "S-HP-005",
+            "dependents": []
+          }
+        ],
+        "relationships": [
+          {
+            "from": "C-HP-01",
+            "to": "C-HP-02",
+            "type": "Finds her bossy and insufferable at first, but senses something familiar \u2014 an outsider trying too hard to belong",
+            "valence": 0.1
+          },
+          {
+            "from": "C-HP-02",
+            "to": "C-HP-01",
+            "type": "Disapproves of his rule-breaking but is drawn to his quiet bravery \u2014 he acts where she only reads",
+            "valence": 0.2
+          },
+          {
+            "from": "C-HP-01",
+            "to": "C-HP-03",
+            "type": "First real friend \u2014 Ron treats him like a normal boy, and that is the rarest gift Harry has ever received",
+            "valence": 0.6
+          },
+          {
+            "from": "C-HP-03",
+            "to": "C-HP-01",
+            "type": "Awed by Harry's fame but genuinely likes the quiet kid who shares his sweets on the train",
+            "valence": 0.5
+          },
+          {
+            "from": "C-HP-01",
+            "to": "C-HP-04",
+            "type": "Trusts Dumbledore implicitly \u2014 the first adult who spoke to him with honesty and warmth",
+            "valence": 0.7
+          },
+          {
+            "from": "C-HP-04",
+            "to": "C-HP-01",
+            "type": "Watches the boy with a mixture of hope and sorrow, knowing the weight that must eventually fall on those young shoulders",
+            "valence": 0.8
+          },
+          {
+            "from": "C-HP-01",
+            "to": "C-HP-05",
+            "type": "Convinced Snape despises him \u2014 the man's eyes carry a hatred Harry cannot explain or escape",
+            "valence": -0.6
+          },
+          {
+            "from": "C-HP-05",
+            "to": "C-HP-01",
+            "type": "Sees James Potter's arrogance in the boy's face, and Lily's eyes staring back \u2014 an unbearable contradiction",
+            "valence": -0.3
+          },
+          {
+            "from": "C-HP-01",
+            "to": "C-HP-07",
+            "type": "Rejected Draco's handshake and chose Ron \u2014 a choice that defined his Hogwarts life from the first day",
+            "valence": -0.4
+          },
+          {
+            "from": "C-HP-07",
+            "to": "C-HP-01",
+            "type": "Humiliated by the public rejection \u2014 Potter chose a Weasley over a Malfoy, and that insult will not be forgotten",
+            "valence": -0.5
+          }
+        ],
+        "worldKnowledge": {
+          "addedNodes": [
+            {
+              "id": "WK-HP-WB-01",
+              "concept": "Hogwarts School of Witchcraft and Wizardry \u2014 a thousand-year-old institution that shapes every witch and wizard in Britain, sorting them into houses that define identity, rivalry, and allegiance",
+              "type": "system"
+            },
+            {
+              "id": "WK-HP-WB-02",
+              "concept": "Wand magic \u2014 the primary magical discipline, channeled through wands of wood and core, where the instrument chooses the wielder and shapes the craft",
+              "type": "system"
+            },
+            {
+              "id": "WK-HP-WB-03",
+              "concept": "The Ministry of Magic \u2014 the governing body of wizarding Britain, enforcing the Statute of Secrecy and regulating all magical activity",
+              "type": "system"
+            },
+            {
+              "id": "WK-HP-WB-04",
+              "concept": "Quidditch \u2014 the defining sport of wizarding culture, played on broomsticks, a social ritual that channels competition and house loyalty",
+              "type": "system"
+            },
+            {
+              "id": "WK-HP-WB-05",
+              "concept": "The Muggle-Magical divide \u2014 two worlds coexisting in the same space, separated by enchantment, ignorance, and institutional secrecy",
+              "type": "tension"
+            },
+            {
+              "id": "WK-HP-WB-06",
+              "concept": "Voldemort's ideology \u2014 blood purity as political program, the belief that magical power flows through lineage and that Muggle-born wizards are lesser",
+              "type": "concept"
+            },
+            {
+              "id": "WK-HP-WB-07",
+              "concept": "The Hogwarts House system \u2014 Gryffindor, Slytherin, Ravenclaw, Hufflepuff \u2014 a sorting at age eleven that assigns identity, community, and expectation for life",
+              "type": "system"
+            },
+            {
+              "id": "WK-HP-WB-08",
+              "concept": "Magical creatures \u2014 a parallel ecosystem of dragons, hippogriffs, phoenixes, and house-elves that exists alongside wizarding society, governed by its own laws",
+              "type": "concept"
+            }
+          ],
+          "addedEdges": [
+            {
+              "from": "WK-HP-WB-01",
+              "to": "WK-HP-01",
+              "relation": "is the central institution of"
+            },
+            {
+              "from": "WK-HP-WB-02",
+              "to": "WK-HP-04",
+              "relation": "is the discipline governed by"
+            },
+            {
+              "from": "WK-HP-WB-02",
+              "to": "WK-HP-06",
+              "relation": "is the practical application of"
+            },
+            {
+              "from": "WK-HP-WB-03",
+              "to": "WK-HP-02",
+              "relation": "enforces and administers"
+            },
+            {
+              "from": "WK-HP-WB-03",
+              "to": "WK-HP-01",
+              "relation": "governs"
+            },
+            {
+              "from": "WK-HP-WB-04",
+              "to": "WK-HP-WB-01",
+              "relation": "is the defining competitive ritual of"
+            },
+            {
+              "from": "WK-HP-WB-04",
+              "to": "WK-HP-09",
+              "relation": "channels and intensifies"
+            },
+            {
+              "from": "WK-HP-WB-05",
+              "to": "WK-HP-02",
+              "relation": "is maintained by"
+            },
+            {
+              "from": "WK-HP-WB-05",
+              "to": "WK-HP-03",
+              "relation": "is bridged by"
+            },
+            {
+              "from": "WK-HP-WB-06",
+              "to": "WK-HP-11",
+              "relation": "is the political weaponization of"
+            },
+            {
+              "from": "WK-HP-WB-06",
+              "to": "WK-HP-12",
+              "relation": "is the ideology that drives"
+            },
+            {
+              "from": "WK-HP-WB-07",
+              "to": "WK-HP-08",
+              "relation": "is enacted through"
+            },
+            {
+              "from": "WK-HP-WB-07",
+              "to": "WK-HP-10",
+              "relation": "institutionalizes"
+            },
+            {
+              "from": "WK-HP-WB-08",
+              "to": "WK-HP-WB-01",
+              "relation": "is studied and managed within"
+            },
+            {
+              "from": "WK-HP-WB-08",
+              "to": "WK-HP-13",
+              "relation": "inhabits and shapes"
+            }
+          ]
+        }
       }
     }
   },
@@ -2160,13 +2784,13 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-06",
           "action": "added",
-          "content": "His parents left him a fortune in gold Galleons — he was never the burden the Dursleys claimed"
+          "content": "His parents left him a fortune in gold Galleons \u2014 he was never the burden the Dursleys claimed"
         },
         {
           "characterId": "C-HP-01",
           "nodeId": "K-HP-07",
           "action": "added",
-          "content": "Ollivander said his wand shares a core with Voldemort's — the phoenix feather that links them"
+          "content": "Ollivander said his wand shares a core with Voldemort's \u2014 the phoenix feather that links them"
         }
       ],
       "relationshipMutations": [],
@@ -2185,20 +2809,20 @@
           "characterId": "C-HP-03",
           "nodeId": "K-HP-24",
           "action": "added",
-          "content": "Harry Potter sat in his compartment and shared his sweets — he is nothing like the legend"
+          "content": "Harry Potter sat in his compartment and shared his sweets \u2014 he is nothing like the legend"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-01",
           "to": "C-HP-03",
-          "type": "Immediate warmth — Ron is the first boy his age to treat him normally",
+          "type": "Immediate warmth \u2014 Ron is the first boy his age to treat him normally",
           "valenceDelta": 0.3
         },
         {
           "from": "C-HP-03",
           "to": "C-HP-01",
-          "type": "Starstruck but genuine — likes Harry before the legend, after the Chocolate Frogs",
+          "type": "Starstruck but genuine \u2014 likes Harry before the legend, after the Chocolate Frogs",
           "valenceDelta": 0.3
         }
       ],
@@ -2217,20 +2841,20 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-08",
           "action": "added",
-          "content": "The Sorting Hat wanted to place him in Slytherin — he begged it not to, and it listened"
+          "content": "The Sorting Hat wanted to place him in Slytherin \u2014 he begged it not to, and it listened"
         },
         {
           "characterId": "C-HP-01",
           "nodeId": "K-HP-09",
           "action": "added",
-          "content": "Dumbledore warned the school away from the third-floor corridor on pain of death — not a joke"
+          "content": "Dumbledore warned the school away from the third-floor corridor on pain of death \u2014 not a joke"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
-          "type": "Sorted into the same house — proximity breeds the first fragile threads of recognition",
+          "type": "Sorted into the same house \u2014 proximity breeds the first fragile threads of recognition",
           "valenceDelta": 0.1
         }
       ],
@@ -2255,14 +2879,14 @@
           "characterId": "C-HP-07",
           "nodeId": "K-HP-63",
           "action": "added",
-          "content": "Potter refused his hand in front of everyone — chose a blood traitor Weasley over a Malfoy"
+          "content": "Potter refused his hand in front of everyone \u2014 chose a blood traitor Weasley over a Malfoy"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-01",
           "to": "C-HP-07",
-          "type": "Draco reminds him of Dudley — the same sneering entitlement, different clothes",
+          "type": "Draco reminds him of Dudley \u2014 the same sneering entitlement, different clothes",
           "valenceDelta": -0.2
         },
         {
@@ -2317,14 +2941,14 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-80",
           "action": "added",
-          "content": "Snape singled him out from the first moment — the hatred feels personal, not professional"
+          "content": "Snape singled him out from the first moment \u2014 the hatred feels personal, not professional"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-01",
           "to": "C-HP-05",
-          "type": "Instant antagonism — Snape seems to loathe him on sight",
+          "type": "Instant antagonism \u2014 Snape seems to loathe him on sight",
           "valenceDelta": -0.2
         }
       ],
@@ -2379,14 +3003,14 @@
           "characterId": "C-HP-02",
           "nodeId": "K-HP-15",
           "action": "added",
-          "content": "The dog was standing on a trapdoor — it is guarding something"
+          "content": "The dog was standing on a trapdoor \u2014 it is guarding something"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
-          "type": "Terrified but exhilarated — Harry noticed the trapdoor when she only saw teeth",
+          "type": "Terrified but exhilarated \u2014 Harry noticed the trapdoor when she only saw teeth",
           "valenceDelta": 0.1
         }
       ],
@@ -2405,7 +3029,7 @@
           "characterId": "C-HP-01",
           "nodeId": "K-HP-81",
           "action": "added",
-          "content": "The Daily Prophet reports a break-in at Gringotts on the same day Hagrid emptied Vault 713 — the vault that was broken into was the same one"
+          "content": "The Daily Prophet reports a break-in at Gringotts on the same day Hagrid emptied Vault 713 \u2014 the vault that was broken into was the same one"
         }
       ],
       "relationshipMutations": [],
@@ -2442,32 +3066,32 @@
           "characterId": "C-HP-02",
           "nodeId": "K-HP-16",
           "action": "added",
-          "content": "Harry and Ron risked their lives to save her from the troll — she has never had friends like this"
+          "content": "Harry and Ron risked their lives to save her from the troll \u2014 she has never had friends like this"
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-HP-01",
           "to": "C-HP-02",
-          "type": "She lied to protect them — Hermione is braver than her books suggest",
+          "type": "She lied to protect them \u2014 Hermione is braver than her books suggest",
           "valenceDelta": 0.3
         },
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
-          "type": "He came back for her — no one has ever come back for her before",
+          "type": "He came back for her \u2014 no one has ever come back for her before",
           "valenceDelta": 0.3
         },
         {
           "from": "C-HP-02",
           "to": "C-HP-03",
-          "type": "Ron's levitation charm saved her life — the boy she mocked is the boy who rescued her",
+          "type": "Ron's levitation charm saved her life \u2014 the boy she mocked is the boy who rescued her",
           "valenceDelta": 0.4
         },
         {
           "from": "C-HP-03",
           "to": "C-HP-02",
-          "type": "She took the blame for them — maybe she is not so bad after all",
+          "type": "She took the blame for them \u2014 maybe she is not so bad after all",
           "valenceDelta": 0.3
         }
       ],
@@ -2479,19 +3103,19 @@
     {
       "from": "C-HP-01",
       "to": "C-HP-02",
-      "type": "Finds her bossy and insufferable at first, but senses something familiar — an outsider trying too hard to belong",
+      "type": "Finds her bossy and insufferable at first, but senses something familiar \u2014 an outsider trying too hard to belong",
       "valence": 0.1
     },
     {
       "from": "C-HP-02",
       "to": "C-HP-01",
-      "type": "Disapproves of his rule-breaking but is drawn to his quiet bravery — he acts where she only reads",
+      "type": "Disapproves of his rule-breaking but is drawn to his quiet bravery \u2014 he acts where she only reads",
       "valence": 0.2
     },
     {
       "from": "C-HP-01",
       "to": "C-HP-03",
-      "type": "First real friend — Ron treats him like a normal boy, and that is the rarest gift Harry has ever received",
+      "type": "First real friend \u2014 Ron treats him like a normal boy, and that is the rarest gift Harry has ever received",
       "valence": 0.6
     },
     {
@@ -2503,7 +3127,7 @@
     {
       "from": "C-HP-01",
       "to": "C-HP-04",
-      "type": "Trusts Dumbledore implicitly — the first adult who spoke to him with honesty and warmth",
+      "type": "Trusts Dumbledore implicitly \u2014 the first adult who spoke to him with honesty and warmth",
       "valence": 0.7
     },
     {
@@ -2515,25 +3139,25 @@
     {
       "from": "C-HP-01",
       "to": "C-HP-05",
-      "type": "Convinced Snape despises him — the man's eyes carry a hatred Harry cannot explain or escape",
+      "type": "Convinced Snape despises him \u2014 the man's eyes carry a hatred Harry cannot explain or escape",
       "valence": -0.6
     },
     {
       "from": "C-HP-05",
       "to": "C-HP-01",
-      "type": "Sees James Potter's arrogance in the boy's face, and Lily's eyes staring back — an unbearable contradiction",
+      "type": "Sees James Potter's arrogance in the boy's face, and Lily's eyes staring back \u2014 an unbearable contradiction",
       "valence": -0.3
     },
     {
       "from": "C-HP-01",
       "to": "C-HP-07",
-      "type": "Rejected Draco's handshake and chose Ron — a choice that defined his Hogwarts life from the first day",
+      "type": "Rejected Draco's handshake and chose Ron \u2014 a choice that defined his Hogwarts life from the first day",
       "valence": -0.4
     },
     {
       "from": "C-HP-07",
       "to": "C-HP-01",
-      "type": "Humiliated by the public rejection — Potter chose a Weasley over a Malfoy, and that insult will not be forgotten",
+      "type": "Humiliated by the public rejection \u2014 Potter chose a Weasley over a Malfoy, and that insult will not be forgotten",
       "valence": -0.5
     }
   ],
@@ -2696,42 +3320,42 @@
       },
       "WK-HP-WB-01": {
         "id": "WK-HP-WB-01",
-        "concept": "Hogwarts School of Witchcraft and Wizardry — a thousand-year-old institution that shapes every witch and wizard in Britain, sorting them into houses that define identity, rivalry, and allegiance",
+        "concept": "Hogwarts School of Witchcraft and Wizardry \u2014 a thousand-year-old institution that shapes every witch and wizard in Britain, sorting them into houses that define identity, rivalry, and allegiance",
         "type": "system"
       },
       "WK-HP-WB-02": {
         "id": "WK-HP-WB-02",
-        "concept": "Wand magic — the primary magical discipline, channeled through wands of wood and core, where the instrument chooses the wielder and shapes the craft",
+        "concept": "Wand magic \u2014 the primary magical discipline, channeled through wands of wood and core, where the instrument chooses the wielder and shapes the craft",
         "type": "system"
       },
       "WK-HP-WB-03": {
         "id": "WK-HP-WB-03",
-        "concept": "The Ministry of Magic — the governing body of wizarding Britain, enforcing the Statute of Secrecy and regulating all magical activity",
+        "concept": "The Ministry of Magic \u2014 the governing body of wizarding Britain, enforcing the Statute of Secrecy and regulating all magical activity",
         "type": "system"
       },
       "WK-HP-WB-04": {
         "id": "WK-HP-WB-04",
-        "concept": "Quidditch — the defining sport of wizarding culture, played on broomsticks, a social ritual that channels competition and house loyalty",
+        "concept": "Quidditch \u2014 the defining sport of wizarding culture, played on broomsticks, a social ritual that channels competition and house loyalty",
         "type": "system"
       },
       "WK-HP-WB-05": {
         "id": "WK-HP-WB-05",
-        "concept": "The Muggle-Magical divide — two worlds coexisting in the same space, separated by enchantment, ignorance, and institutional secrecy",
+        "concept": "The Muggle-Magical divide \u2014 two worlds coexisting in the same space, separated by enchantment, ignorance, and institutional secrecy",
         "type": "tension"
       },
       "WK-HP-WB-06": {
         "id": "WK-HP-WB-06",
-        "concept": "Voldemort's ideology — blood purity as political program, the belief that magical power flows through lineage and that Muggle-born wizards are lesser",
+        "concept": "Voldemort's ideology \u2014 blood purity as political program, the belief that magical power flows through lineage and that Muggle-born wizards are lesser",
         "type": "concept"
       },
       "WK-HP-WB-07": {
         "id": "WK-HP-WB-07",
-        "concept": "The Hogwarts House system — Gryffindor, Slytherin, Ravenclaw, Hufflepuff — a sorting at age eleven that assigns identity, community, and expectation for life",
+        "concept": "The Hogwarts House system \u2014 Gryffindor, Slytherin, Ravenclaw, Hufflepuff \u2014 a sorting at age eleven that assigns identity, community, and expectation for life",
         "type": "system"
       },
       "WK-HP-WB-08": {
         "id": "WK-HP-WB-08",
-        "concept": "Magical creatures — a parallel ecosystem of dragons, hippogriffs, phoenixes, and house-elves that exists alongside wizarding society, governed by its own laws",
+        "concept": "Magical creatures \u2014 a parallel ecosystem of dragons, hippogriffs, phoenixes, and house-elves that exists alongside wizarding society, governed by its own laws",
         "type": "concept"
       }
     },
@@ -3093,14 +3717,14 @@
       }
     ]
   },
-  "worldSummary": "Wizarding Britain hides in plain sight beneath Muggle England — a parallel world of wands and cauldrons, owls and enchantments, governed by the Ministry of Magic and haunted by the shadow of Lord Voldemort. Ten years ago, the darkest wizard in a century fell when his Killing Curse rebounded off a one-year-old boy named Harry Potter. The wizarding world celebrated. Harry was left on a doorstep. Now eleven, he arrives at Hogwarts carrying nothing but a wand, an owl, and a scar. The school is ancient, magnificent, and not entirely safe. Something is hidden on the third-floor corridor. A professor with a turban smells faintly of garlic and something worse. And Harry is only beginning to learn what it means to be the Boy Who Lived.",
+  "worldSummary": "Wizarding Britain hides in plain sight beneath Muggle England \u2014 a parallel world of wands and cauldrons, owls and enchantments, governed by the Ministry of Magic and haunted by the shadow of Lord Voldemort. Ten years ago, the darkest wizard in a century fell when his Killing Curse rebounded off a one-year-old boy named Harry Potter. The wizarding world celebrated. Harry was left on a doorstep. Now eleven, he arrives at Hogwarts carrying nothing but a wand, an owl, and a scar. The school is ancient, magnificent, and not entirely safe. Something is hidden on the third-floor corridor. A professor with a turban smells faintly of garlic and something worse. And Harry is only beginning to learn what it means to be the Boy Who Lived.",
   "rules": [
-    "Magic has rules and limits — spells require training, wands choose the wizard, and some magic is beyond skill level",
-    "The wizarding world is hidden from Muggles by the Statute of Secrecy — breaches have serious consequences",
-    "Hogwarts is the safest place in wizarding Britain, but \"safe\" is relative — the castle has real dangers",
-    "Harry is famous in the wizarding world but was raised knowing nothing about it — he is learning alongside the reader",
+    "Magic has rules and limits \u2014 spells require training, wands choose the wizard, and some magic is beyond skill level",
+    "The wizarding world is hidden from Muggles by the Statute of Secrecy \u2014 breaches have serious consequences",
+    "Hogwarts is the safest place in wizarding Britain, but \"safe\" is relative \u2014 the castle has real dangers",
+    "Harry is famous in the wizarding world but was raised knowing nothing about it \u2014 he is learning alongside the reader",
     "Voldemort is feared so deeply that most wizards will not speak his name",
-    "Love is the most powerful magical protection — Lily's sacrifice shields Harry in ways no spell can replicate"
+    "Love is the most powerful magical protection \u2014 Lily's sacrifice shields Harry in ways no spell can replicate"
   ],
   "controlMode": "auto",
   "imageStyle": "Whimsical storybook illustration, warm golden candlelight, rich jewel tones, soft painterly textures, magical realism with a cozy British boarding-school atmosphere",

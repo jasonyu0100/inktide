@@ -21,9 +21,9 @@ export function getIntroducedIds(
   for (let i = 0; i <= currentSceneIndex && i < resolvedSceneKeys.length; i++) {
     const wb = worldBuilds[resolvedSceneKeys[i]];
     if (!wb) continue;
-    for (const id of wb.expansionManifest.characterIds) characterIds.add(id);
-    for (const id of wb.expansionManifest.locationIds) locationIds.add(id);
-    for (const id of wb.expansionManifest.threadIds) threadIds.add(id);
+    for (const c of wb.expansionManifest.characters) characterIds.add(c.id);
+    for (const l of wb.expansionManifest.locations) locationIds.add(l.id);
+    for (const t of wb.expansionManifest.threads) threadIds.add(t.id);
   }
 
   return { characterIds, locationIds, threadIds };

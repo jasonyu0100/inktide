@@ -11,6 +11,115 @@ import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
 // Bundled narratives loaded at runtime from /public manifests
 const bundledNarratives = new Map<string, NarrativeState>();
 
+function computeDerivedEntities(
+  worldBuilds: Record<string, import('@/types/narrative').WorldBuildCommit>,
+  scenes: Record<string, import('@/types/narrative').Scene>,
+  resolvedKeys: string[],
+): { characters: Record<string, Character>; locations: Record<string, import('@/types/narrative').Location>; threads: Record<string, Thread>; relationships: RelationshipEdge[]; worldKnowledge: import('@/types/narrative').WorldKnowledgeGraph } {
+  const characters: Record<string, Character> = {};
+  const locations: Record<string, Location> = {};
+  const threads: Record<string, Thread> = {};
+  let relationships: RelationshipEdge[] = [];
+  const wkNodes: Record<string, import('@/types/narrative').WorldKnowledgeNode> = {};
+  const wkEdges: import('@/types/narrative').WorldKnowledgeEdge[] = [];
+
+  const applyWkMutation = (wkm: import('@/types/narrative').WorldKnowledgeMutation) => {
+    for (const n of wkm.addedNodes ?? []) {
+      if (!wkNodes[n.id]) wkNodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
+    }
+    for (const e of wkm.addedEdges ?? []) {
+      if (!wkEdges.some((x) => x.from === e.from && x.to === e.to && x.relation === e.relation)) {
+        wkEdges.push({ from: e.from, to: e.to, relation: e.relation });
+      }
+    }
+  };
+
+  for (const key of resolvedKeys) {
+    const wb = worldBuilds[key];
+    if (wb) {
+      for (const c of wb.expansionManifest.characters) {
+        characters[c.id] = { ...c, continuity: { nodes: [] } };
+      }
+      for (const l of wb.expansionManifest.locations) {
+        locations[l.id] = { ...l };
+      }
+      for (const t of wb.expansionManifest.threads) {
+        threads[t.id] = { ...t };
+      }
+      // Collect relationships (deduplicated by from+to)
+      for (const r of wb.expansionManifest.relationships ?? []) {
+        const exists = relationships.some((x) => x.from === r.from && x.to === r.to);
+        if (!exists) relationships.push({ ...r });
+      }
+      // Collect world knowledge
+      applyWkMutation(wb.expansionManifest.worldKnowledge ?? { addedNodes: [], addedEdges: [] });
+    } else {
+      const scene = scenes[key];
+      if (!scene) continue;
+      for (const km of scene.continuityMutations ?? []) {
+        const char = characters[km.characterId];
+        if (!char) continue;
+        if (km.action === 'added') {
+          const exists = char.continuity.nodes.some((n) => n.id === km.nodeId);
+          if (!exists) {
+            characters[km.characterId] = {
+              ...char,
+              continuity: { nodes: [...char.continuity.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }] },
+            };
+          }
+        } else if (km.action === 'removed') {
+          characters[km.characterId] = {
+            ...char,
+            continuity: { nodes: char.continuity.nodes.filter((n) => n.id !== km.nodeId) },
+          };
+        }
+      }
+      for (const tm of scene.threadMutations ?? []) {
+        const thread = threads[tm.threadId];
+        if (thread) threads[tm.threadId] = { ...thread, status: tm.to };
+      }
+      // Apply relationship mutations from scene
+      for (const rm of scene.relationshipMutations ?? []) {
+        const idx = relationships.findIndex((r) => r.from === rm.from && r.to === rm.to);
+        if (idx >= 0) {
+          const existing = relationships[idx];
+          relationships = [
+            ...relationships.slice(0, idx),
+            { ...existing, type: rm.type, valence: Math.max(-1, Math.min(1, existing.valence + rm.valenceDelta)) },
+            ...relationships.slice(idx + 1),
+          ];
+        } else {
+          relationships.push({ from: rm.from, to: rm.to, type: rm.type, valence: Math.max(-1, Math.min(1, rm.valenceDelta)) });
+        }
+      }
+      // Apply world knowledge mutations from scene
+      if (scene.worldKnowledgeMutations) {
+        applyWkMutation(scene.worldKnowledgeMutations);
+      }
+    }
+  }
+
+  // Compute threadIds on characters from thread anchors
+  for (const thread of Object.values(threads)) {
+    for (const anchor of thread.anchors) {
+      if (anchor.type === 'character' && characters[anchor.id]) {
+        const char = characters[anchor.id];
+        if (!char.threadIds.includes(thread.id)) {
+          characters[anchor.id] = { ...char, threadIds: [...char.threadIds, thread.id] };
+        }
+      }
+    }
+  }
+
+  return { characters, locations, threads, relationships, worldKnowledge: { nodes: wkNodes, edges: wkEdges } };
+}
+
+function withDerivedEntities(n: NarrativeState, resolvedKeys: string[]): NarrativeState {
+  const derived = computeDerivedEntities(n.worldBuilds, n.scenes, resolvedKeys);
+  return { ...n, characters: derived.characters, locations: derived.locations, threads: derived.threads, relationships: derived.relationships, worldKnowledge: derived.worldKnowledge };
+}
+
+
 function narrativeToEntry(n: NarrativeState): NarrativeEntry {
   const threadValues = Object.values(n.threads);
 
@@ -95,95 +204,6 @@ function updateNarrative(
   };
 }
 
-/**
- * Apply scene mutations (relationship + knowledge) to the narrative state.
- * - relationshipMutations: update valence of existing edges or create new ones
- * - continuityMutations: add/remove knowledge nodes on characters
- * - threadMutations: update thread statuses
- */
-function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState {
-  let relationships = [...n.relationships];
-  const characters = { ...n.characters };
-  const threads = { ...n.threads };
-  const worldKnowledge = { nodes: { ...n.worldKnowledge?.nodes }, edges: [...(n.worldKnowledge?.edges ?? [])] };
-
-  for (const scene of scenes) {
-    // ── Apply relationship mutations ──────────────────────────────────
-    for (const rm of scene.relationshipMutations) {
-      const idx = relationships.findIndex((r) => r.from === rm.from && r.to === rm.to);
-      if (idx >= 0) {
-        // Update existing edge
-        const existing = relationships[idx];
-        relationships = [
-          ...relationships.slice(0, idx),
-          { ...existing, type: rm.type, valence: Math.max(-1, Math.min(1, existing.valence + rm.valenceDelta)) },
-          ...relationships.slice(idx + 1),
-        ];
-      } else {
-        // Create new relationship edge
-        relationships.push({
-          from: rm.from,
-          to: rm.to,
-          type: rm.type,
-          valence: Math.max(-1, Math.min(1, rm.valenceDelta)),
-        });
-      }
-    }
-
-    // ── Apply knowledge mutations ─────────────────────────────────────
-    for (const km of scene.continuityMutations) {
-      const char = characters[km.characterId];
-      if (!char) continue;
-
-      if (km.action === 'added') {
-        // Add knowledge node if it doesn't already exist
-        const exists = (char.continuity?.nodes ?? []).some((kn) => kn.id === km.nodeId);
-        if (!exists) {
-          characters[km.characterId] = {
-            ...char,
-            continuity: {
-              ...char.continuity,
-              nodes: [...(char.continuity?.nodes ?? []), { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }],
-            },
-          };
-        }
-      } else if (km.action === 'removed') {
-        characters[km.characterId] = {
-          ...char,
-          continuity: {
-            ...char.continuity,
-            nodes: (char.continuity?.nodes ?? []).filter((kn) => kn.id !== km.nodeId),
-          },
-        };
-      }
-    }
-
-    // ── Apply thread mutations ────────────────────────────────────────
-    for (const tm of scene.threadMutations) {
-      const thread = threads[tm.threadId];
-      if (thread) {
-        threads[tm.threadId] = { ...thread, status: tm.to };
-      }
-    }
-
-    // ── Apply world knowledge mutations ──────────────────────────────
-    const wkm = scene.worldKnowledgeMutations;
-    if (wkm) {
-      for (const node of wkm.addedNodes ?? []) {
-        if (!worldKnowledge.nodes[node.id]) {
-          worldKnowledge.nodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
-        }
-      }
-      for (const edge of wkm.addedEdges ?? []) {
-        if (!worldKnowledge.edges.some((e: { from: string; to: string; relation: string }) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
-          worldKnowledge.edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
-        }
-      }
-    }
-  }
-
-  return { ...n, relationships, characters, threads, worldKnowledge };
-}
 
 export const SEED_NARRATIVE_IDS = SEED_IDS;
 export const PLAYGROUND_NARRATIVE_IDS = PLAYGROUND_IDS;
@@ -342,9 +362,10 @@ function reducer(state: AppState, action: Action): AppState {
         : null;
       const branchId = savedBranch ?? getRootBranchId(action.narrative);
       const resolved = getResolvedKeys(action.narrative, branchId);
+      const derivedNarrative = withDerivedEntities(action.narrative, resolved);
       return {
         ...state,
-        activeNarrative: action.narrative,
+        activeNarrative: derivedNarrative,
         activeBranchId: branchId,
         resolvedSceneKeys: resolved,
         currentSceneIndex: resolved.length - 1,
@@ -412,10 +433,11 @@ function reducer(state: AppState, action: Action): AppState {
           id: wxId,
           summary: `World created: ${parts.join(', ')}`,
           expansionManifest: {
-            characterIds: allChars.map((c) => c.id),
-            locationIds: allLocs.map((l) => l.id),
-            threadIds: allThreads.map((t) => t.id),
-            relationshipCount: n.relationships.length,
+            characters: allChars,
+            locations: allLocs,
+            threads: allThreads,
+            relationships: n.relationships,
+            worldKnowledge: { addedNodes: [], addedEdges: [] },
           },
         };
 
@@ -427,19 +449,17 @@ function reducer(state: AppState, action: Action): AppState {
         };
       }
 
-      // Apply relationship, knowledge, and thread mutations from initial scenes
-      const allScenes = Object.values(n.scenes);
-      const mutated = applySceneMutations(n, allScenes);
+      const newBranchId = getRootBranchId(n);
+      const newResolved = getResolvedKeys(n, newBranchId);
+      const derived = withDerivedEntities(n, newResolved ?? []);
 
-      const entry = narrativeToEntry(mutated);
-      const newBranchId = getRootBranchId(mutated);
-      const newResolved = getResolvedKeys(mutated, newBranchId);
+      const entry = narrativeToEntry(derived);
       // Persistence handled by effects watching activeNarrative
       return {
         ...state,
         narratives: [...state.narratives, entry],
-        activeNarrativeId: mutated.id,
-        activeNarrative: mutated,
+        activeNarrativeId: derived.id,
+        activeNarrative: derived,
         activeBranchId: newBranchId,
         resolvedSceneKeys: newResolved,
         currentSceneIndex: Math.max(0, newResolved.length - 1),
@@ -484,8 +504,10 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SWITCH_BRANCH': {
       if (!state.activeNarrative) return state;
       const resolved = getResolvedKeys(state.activeNarrative, action.branchId);
+      const derived = withDerivedEntities(state.activeNarrative, resolved);
       return {
         ...state,
+        activeNarrative: derived,
         activeBranchId: action.branchId,
         resolvedSceneKeys: resolved,
         currentSceneIndex: resolved.length - 1,
@@ -578,12 +600,32 @@ function reducer(state: AppState, action: Action): AppState {
       });
 
     // ── CRUD: Characters ──────────────────────────────────────────────────
-    case 'UPDATE_CHARACTER':
-      return updateNarrative(state, (n) => {
-        const char = n.characters[action.characterId];
-        if (!char) return n;
-        return { ...n, characters: { ...n.characters, [action.characterId]: { ...char, ...action.updates } } };
+    case 'UPDATE_CHARACTER': {
+      const afterUpdate = updateNarrative(state, (n) => {
+        const wxEntry = Object.values(n.worldBuilds).find((wb) =>
+          wb.expansionManifest.characters.some((c) => c.id === action.characterId)
+        );
+        if (!wxEntry) return n;
+        return {
+          ...n,
+          worldBuilds: {
+            ...n.worldBuilds,
+            [wxEntry.id]: {
+              ...wxEntry,
+              expansionManifest: {
+                ...wxEntry.expansionManifest,
+                characters: wxEntry.expansionManifest.characters.map((c) =>
+                  c.id === action.characterId ? { ...c, ...action.updates } : c
+                ),
+              },
+            },
+          },
+        };
       });
+      if (!afterUpdate.activeNarrative) return afterUpdate;
+      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedSceneKeys);
+      return { ...afterUpdate, activeNarrative: derived };
+    }
 
     case 'CREATE_CHARACTER':
       return updateNarrative(state, (n) => ({
@@ -597,12 +639,32 @@ function reducer(state: AppState, action: Action): AppState {
       });
 
     // ── CRUD: Locations ───────────────────────────────────────────────────
-    case 'UPDATE_LOCATION':
-      return updateNarrative(state, (n) => {
-        const loc = n.locations[action.locationId];
-        if (!loc) return n;
-        return { ...n, locations: { ...n.locations, [action.locationId]: { ...loc, ...action.updates } } };
+    case 'UPDATE_LOCATION': {
+      const afterUpdate = updateNarrative(state, (n) => {
+        const wxEntry = Object.values(n.worldBuilds).find((wb) =>
+          wb.expansionManifest.locations.some((l) => l.id === action.locationId)
+        );
+        if (!wxEntry) return n;
+        return {
+          ...n,
+          worldBuilds: {
+            ...n.worldBuilds,
+            [wxEntry.id]: {
+              ...wxEntry,
+              expansionManifest: {
+                ...wxEntry.expansionManifest,
+                locations: wxEntry.expansionManifest.locations.map((l) =>
+                  l.id === action.locationId ? { ...l, ...action.updates } : l
+                ),
+              },
+            },
+          },
+        };
       });
+      if (!afterUpdate.activeNarrative) return afterUpdate;
+      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedSceneKeys);
+      return { ...afterUpdate, activeNarrative: derived };
+    }
 
     case 'CREATE_LOCATION':
       return updateNarrative(state, (n) => ({
@@ -662,7 +724,7 @@ function reducer(state: AppState, action: Action): AppState {
       }
       // Block if the cascade would wipe out the active branch
       if (state.activeBranchId && toDelete.has(state.activeBranchId)) return state;
-      return updateNarrative(state, (n) => {
+      const result = updateNarrative(state, (n) => {
         const remaining = Object.fromEntries(
           Object.entries(n.branches).filter(([id]) => !toDelete.has(id)),
         );
@@ -698,9 +760,9 @@ function reducer(state: AppState, action: Action): AppState {
         entriesToRemove.forEach((eid) => {
           const wb = n.worldBuilds[eid];
           if (wb) {
-            wb.expansionManifest.characterIds.forEach((id) => candidateCharIds.add(id));
-            wb.expansionManifest.locationIds.forEach((id) => candidateLocIds.add(id));
-            wb.expansionManifest.threadIds.forEach((id) => candidateThreadIds.add(id));
+            wb.expansionManifest.characters.forEach((c) => candidateCharIds.add(c.id));
+            wb.expansionManifest.locations.forEach((l) => candidateLocIds.add(l.id));
+            wb.expansionManifest.threads.forEach((t) => candidateThreadIds.add(t.id));
           }
         });
 
@@ -768,6 +830,12 @@ function reducer(state: AppState, action: Action): AppState {
 
         return { ...n, branches: remaining, scenes, worldBuilds, arcs, characters, locations, threads, relationships };
       });
+      if (result.activeNarrative && result.activeBranchId) {
+        const resolved = getResolvedKeys(result.activeNarrative, result.activeBranchId);
+        const derived = withDerivedEntities(result.activeNarrative, resolved);
+        return { ...result, activeNarrative: derived, resolvedSceneKeys: resolved };
+      }
+      return result;
     }
 
     case 'RENAME_BRANCH':
@@ -793,7 +861,8 @@ function reducer(state: AppState, action: Action): AppState {
       });
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
-        return { ...newState, resolvedSceneKeys: resolved, currentSceneIndex: Math.min(newState.currentSceneIndex, resolved.length - 1) };
+        const derived = withDerivedEntities(newState.activeNarrative, resolved);
+        return { ...newState, activeNarrative: derived, resolvedSceneKeys: resolved, currentSceneIndex: Math.min(newState.currentSceneIndex, resolved.length - 1) };
       }
       return newState;
     }
@@ -833,16 +902,12 @@ function reducer(state: AppState, action: Action): AppState {
         const updatedBranches = branch
           ? { ...n.branches, [action.branchId]: { ...branch, entryIds: [...branch.entryIds, ...dedupedEntries] } }
           : n.branches;
-        // Apply relationship, knowledge, and thread mutations from the new scenes
-        const withMutations = applySceneMutations(
-          { ...n, scenes: newScenes, arcs: updatedArcs, branches: updatedBranches },
-          action.scenes,
-        );
-        return withMutations;
+        return { ...n, scenes: newScenes, arcs: updatedArcs, branches: updatedBranches };
       });
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
-        return { ...newState, resolvedSceneKeys: resolved, currentSceneIndex: resolved.length - 1 };
+        const derived = withDerivedEntities(newState.activeNarrative, resolved);
+        return { ...newState, activeNarrative: derived, resolvedSceneKeys: resolved, currentSceneIndex: resolved.length - 1 };
       }
       return newState;
     }
@@ -862,59 +927,38 @@ function reducer(state: AppState, action: Action): AppState {
       if (action.relationships.length > 0) parts.push(`${action.relationships.length} relationship${action.relationships.length > 1 ? 's' : ''}`);
       const wxSummary = parts.length > 0 ? `World expanded: added ${parts.join(', ')}` : 'World expansion (no new elements)';
 
+      // Build manifest worldKnowledge: explicit mutations + auto-generated nodes for threads/locations
+      const autoNodes: import('@/types/narrative').WorldKnowledgeMutation['addedNodes'] = [];
+      let autoCounter = 0;
+      for (const t of action.threads) {
+        const covered = (action.worldKnowledgeMutations?.addedNodes ?? []).some((nd) => nd.concept === t.description);
+        if (!covered) autoNodes.push({ id: `${wxId}-T${++autoCounter}`, concept: t.description, type: 'concept' as const });
+      }
+      for (const l of action.locations) {
+        const covered = (action.worldKnowledgeMutations?.addedNodes ?? []).some((nd) => nd.concept === l.name);
+        if (!covered) autoNodes.push({ id: `${wxId}-L${++autoCounter}`, concept: l.name, type: 'concept' as const });
+      }
+      const manifestWK: import('@/types/narrative').WorldKnowledgeMutation = {
+        addedNodes: [...(action.worldKnowledgeMutations?.addedNodes ?? []), ...autoNodes],
+        addedEdges: action.worldKnowledgeMutations?.addedEdges ?? [],
+      };
+
       const wxCommit: WorldBuildCommit = {
         kind: 'world_build',
         id: wxId,
         summary: wxSummary,
         expansionManifest: {
-          characterIds: action.characters.map((c) => c.id),
-          locationIds: action.locations.map((l) => l.id),
-          threadIds: action.threads.map((t) => t.id),
-          relationshipCount: action.relationships.length,
+          characters: action.characters,
+          locations: action.locations,
+          threads: action.threads.map((t) => ({ ...t, openedAt: wxId })),
+          relationships: action.relationships,
+          worldKnowledge: manifestWK,
         },
-        worldKnowledgeMutations: action.worldKnowledgeMutations,
       };
 
       const newState = updateNarrative(state, (n) => {
         // Idempotent: skip if this world build was already applied
         if (n.worldBuilds[wxId]) return n;
-
-        // Merge world elements
-        const newCharacters = { ...n.characters };
-        for (const c of action.characters) newCharacters[c.id] = c;
-        const newLocations = { ...n.locations };
-        for (const l of action.locations) newLocations[l.id] = l;
-        const newThreads = { ...n.threads };
-        for (const t of action.threads) newThreads[t.id] = { ...t, openedAt: wxId };
-        const newRelationships = [...n.relationships, ...action.relationships];
-
-        // Apply world knowledge: explicit mutations from action + auto-generated from new entities
-        const wk = { nodes: { ...n.worldKnowledge?.nodes }, edges: [...(n.worldKnowledge?.edges ?? [])] };
-        const existingWkIds = Object.keys(wk.nodes);
-        let wkCounter = existingWkIds.length;
-        // Explicit mutations (if provided)
-        const wkm = action.worldKnowledgeMutations;
-        if (wkm) {
-          for (const node of wkm.addedNodes ?? []) {
-            if (!wk.nodes[node.id]) wk.nodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
-          }
-          for (const edge of wkm.addedEdges ?? []) {
-            if (!wk.edges.some((e: { from: string; to: string; relation: string }) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
-              wk.edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
-            }
-          }
-        }
-        // Auto-generate for new threads and locations (skip if already covered by explicit mutations)
-        for (const t of action.threads) {
-          if (Object.values(wk.nodes).some((n) => n.concept === t.description)) continue;
-          const wkId = `WK-${String(++wkCounter).padStart(2, '0')}`;
-          wk.nodes[wkId] = { id: wkId, concept: t.description, type: 'concept' as const };
-        }
-        for (const l of action.locations) {
-          if (Object.values(wk.nodes).some((n) => n.concept === l.name)) continue;
-          const wkId = `WK-${String(++wkCounter).padStart(2, '0')}`;
-          wk.nodes[wkId] = { id: wkId, concept: l.name, type: 'concept' as const };
-        }
 
         const branch = n.branches[action.branchId];
         const updatedBranches = branch
@@ -923,11 +967,6 @@ function reducer(state: AppState, action: Action): AppState {
 
         return {
           ...n,
-          characters: newCharacters,
-          locations: newLocations,
-          threads: newThreads,
-          relationships: newRelationships,
-          worldKnowledge: wk,
           worldBuilds: { ...n.worldBuilds, [wxId]: wxCommit },
           branches: updatedBranches,
         };
@@ -935,7 +974,8 @@ function reducer(state: AppState, action: Action): AppState {
 
       if (newState.activeNarrative && newState.activeBranchId) {
         const resolved = getResolvedKeys(newState.activeNarrative, newState.activeBranchId);
-        return { ...newState, resolvedSceneKeys: resolved, currentSceneIndex: resolved.length - 1 };
+        const derived = withDerivedEntities(newState.activeNarrative, resolved);
+        return { ...newState, activeNarrative: derived, resolvedSceneKeys: resolved, currentSceneIndex: resolved.length - 1 };
       }
       return newState;
     }
@@ -1045,19 +1085,59 @@ function reducer(state: AppState, action: Action): AppState {
         return { ...n, scenes: { ...n.scenes, [action.sceneId]: { ...scene, imageUrl: action.imageUrl } } };
       });
 
-    case 'SET_CHARACTER_IMAGE':
-      return updateNarrative(state, (n) => {
-        const char = n.characters[action.characterId];
-        if (!char) return n;
-        return { ...n, characters: { ...n.characters, [action.characterId]: { ...char, imageUrl: action.imageUrl } } };
+    case 'SET_CHARACTER_IMAGE': {
+      const afterUpdate = updateNarrative(state, (n) => {
+        const wxEntry = Object.values(n.worldBuilds).find((wb) =>
+          wb.expansionManifest.characters.some((c) => c.id === action.characterId)
+        );
+        if (!wxEntry) return n;
+        return {
+          ...n,
+          worldBuilds: {
+            ...n.worldBuilds,
+            [wxEntry.id]: {
+              ...wxEntry,
+              expansionManifest: {
+                ...wxEntry.expansionManifest,
+                characters: wxEntry.expansionManifest.characters.map((c) =>
+                  c.id === action.characterId ? { ...c, imageUrl: action.imageUrl } : c
+                ),
+              },
+            },
+          },
+        };
       });
+      if (!afterUpdate.activeNarrative) return afterUpdate;
+      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedSceneKeys);
+      return { ...afterUpdate, activeNarrative: derived };
+    }
 
-    case 'SET_LOCATION_IMAGE':
-      return updateNarrative(state, (n) => {
-        const loc = n.locations[action.locationId];
-        if (!loc) return n;
-        return { ...n, locations: { ...n.locations, [action.locationId]: { ...loc, imageUrl: action.imageUrl } } };
+    case 'SET_LOCATION_IMAGE': {
+      const afterUpdate = updateNarrative(state, (n) => {
+        const wxEntry = Object.values(n.worldBuilds).find((wb) =>
+          wb.expansionManifest.locations.some((l) => l.id === action.locationId)
+        );
+        if (!wxEntry) return n;
+        return {
+          ...n,
+          worldBuilds: {
+            ...n.worldBuilds,
+            [wxEntry.id]: {
+              ...wxEntry,
+              expansionManifest: {
+                ...wxEntry.expansionManifest,
+                locations: wxEntry.expansionManifest.locations.map((l) =>
+                  l.id === action.locationId ? { ...l, imageUrl: action.imageUrl } : l
+                ),
+              },
+            },
+          },
+        };
       });
+      if (!afterUpdate.activeNarrative) return afterUpdate;
+      const derived = withDerivedEntities(afterUpdate.activeNarrative, afterUpdate.resolvedSceneKeys);
+      return { ...afterUpdate, activeNarrative: derived };
+    }
 
     case 'SET_IMAGE_STYLE':
       return updateNarrative(state, (n) => ({ ...n, imageStyle: action.style }));

@@ -64,15 +64,12 @@ ${arcInstruction}
 ${direction.trim() ? `DIRECTION (this takes priority over any patterns in the scene history below):\n${direction}` : 'DIRECTION: Use your own judgment — analyze the branch context above and choose the most compelling next development based on unresolved threads, character tensions, and narrative momentum.'}
 ${worldBuildFocus ? (() => {
   const wb = worldBuildFocus;
-  const chars = wb.expansionManifest.characterIds
-    .map((id) => { const c = narrative.characters[id]; return c ? `${c.name} (${c.role})` : null; })
-    .filter(Boolean);
-  const locs = wb.expansionManifest.locationIds
-    .map((id) => narrative.locations[id]?.name)
-    .filter(Boolean);
-  const threads = wb.expansionManifest.threadIds
-    .map((id) => { const t = narrative.threads[id]; return t ? `${t.description} [${t.status}]` : null; })
-    .filter(Boolean);
+  const chars = wb.expansionManifest.characters.map((c) => `${c.name} (${c.role})`);
+  const locs = wb.expansionManifest.locations.map((l) => l.name);
+  const threads = wb.expansionManifest.threads.map((t) => {
+    const live = narrative.threads[t.id];
+    return `${t.description} [${live?.status ?? t.status}]`;
+  });
   const lines: string[] = [`WORLD BUILD FOCUS (${wb.id} — "${wb.summary}"): The entities below were recently introduced and have not yet had a presence in the story. This arc should bring them in — use these characters in scenes, set at least one scene in these locations, and begin activating these dormant threads:`];
   if (chars.length) lines.push(`  Characters: ${chars.join(', ')}`);
   if (locs.length) lines.push(`  Locations: ${locs.join(', ')}`);

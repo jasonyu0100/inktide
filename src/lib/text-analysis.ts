@@ -1311,10 +1311,11 @@ export async function assembleNarrative(
       id: wxId,
       summary,
       expansionManifest: {
-        characterIds: newCharIds,
-        locationIds: newLocIds,
-        threadIds: newThreadIds,
-        relationshipCount: 0,
+        characters: newCharIds.map((id) => characters[id]).filter(Boolean),
+        locations: newLocIds.map((id) => locations[id]).filter(Boolean),
+        threads: newThreadIds.map((id) => threads[id]).filter(Boolean),
+        relationships: [],
+        worldKnowledge: { addedNodes: [], addedEdges: [] },
       },
     };
 

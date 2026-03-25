@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStore } from '@/lib/store';
+import { useStore, withDerivedEntities } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
+import { resolveEntrySequence } from '@/lib/narrative-utils';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
 
 export default function ExamplePage() {
@@ -18,7 +19,12 @@ export default function ExamplePage() {
         if (!r.ok) throw new Error('Failed to load');
         return r.json();
       })
-      .then((data: NarrativeState) => setNarrative(data))
+      .then((data: NarrativeState) => {
+        // Derive characters/locations/threads from scenes if the top-level dicts are empty
+        const rootBranch = Object.values(data.branches).find(b => b.parentBranchId === null);
+        const keys = rootBranch ? resolveEntrySequence(data.branches, rootBranch.id) : Object.keys(data.scenes);
+        setNarrative(withDerivedEntities(data, keys));
+      })
       .catch(() => setError(true));
   }, []);
 

@@ -83,10 +83,10 @@ function DynamicsTab() {
       </S>
 
       <S title="Delivery" analogy="The dopamine hit — earned resolution lands hardest.">
-        <Block tex={String.raw`E_i = 0.5 P_i + 0.5\,\tanh\!\left(\tfrac{C_i}{2}\right) + 0.5\,\tanh\!\left(\tfrac{K_i}{2}\right) + 0.3 \cdot \text{contrast}_i`} />
+        <Block tex={String.raw`E_i = 0.3 P_i + 0.4\,\tanh\!\left(\tfrac{C_i}{1.5}\right) + 0.4\,\tanh\!\left(\tfrac{K_i}{1.5}\right) + 0.1 \cdot \text{contrast}_i`} />
         <Block tex={String.raw`\text{contrast}_i = \max(0,\; T_{i-1} - T_i)`} />
         <p className="text-[10px] text-text-dim">
-          Payoff is linear — high payoff IS the climax signal. C and K saturate via tanh to prevent ensemble inflation. The contrast bonus rewards tension-release.
+          C and K weighted equally (0.4), P at 0.3. Low contrast (0.1) — raw forces already encode tension-release. tanh(x/1.5) saturates faster for cleaner peak separation. Calibrated across HP, 1984, Gatsby, RI.
         </p>
       </S>
 

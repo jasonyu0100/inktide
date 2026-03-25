@@ -114,7 +114,7 @@ function computeDerivedEntities(
   return { characters, locations, threads, relationships, worldKnowledge: { nodes: wkNodes, edges: wkEdges } };
 }
 
-function withDerivedEntities(n: NarrativeState, resolvedKeys: string[]): NarrativeState {
+export function withDerivedEntities(n: NarrativeState, resolvedKeys: string[]): NarrativeState {
   const derived = computeDerivedEntities(n.worldBuilds, n.scenes, resolvedKeys);
   return { ...n, characters: derived.characters, locations: derived.locations, threads: derived.threads, relationships: derived.relationships, worldKnowledge: derived.worldKnowledge };
 }

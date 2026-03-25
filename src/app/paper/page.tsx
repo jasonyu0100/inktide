@@ -354,7 +354,7 @@ export default function PaperPage() {
             {(() => {
               // Smoothed delivery values computed from the actual works JSON:
               // raw forces → z-score normalise → delivery formula → Gaussian smooth (σ=1.5)
-              const delivery = [1.067,0.858,0.558,0.392,0.471,0.626,0.614,0.402,0.174,0.115,0.224,0.335,0.288,0.081,-0.155,-0.299,-0.325,-0.255,-0.097,0.109,0.263,0.266,0.129,-0.018,-0.041,0.097,0.325,0.553,0.756,0.933,1.022,0.946,0.775,0.68,0.656,0.534,0.273,0.016,-0.118,-0.144,-0.123,-0.078,0.011,0.189,0.477,0.78,0.905,0.79,0.613,0.523,0.449,0.284,0.066,-0.077,-0.082,-0.035,-0.059,-0.114,-0.087,-0.018,-0.04,-0.179,-0.327,-0.334,-0.16,0.076,0.248,0.308,0.242,0.097,0.023,0.07,0.064,-0.147,-0.437,-0.574,-0.469,-0.212,-0.007,-0.033,-0.241,-0.387,-0.313,-0.065,0.24,0.504,0.662,0.687,0.582,0.406,0.238];
+              const delivery = [0.724,0.493,0.248,0.133,0.194,0.305,0.302,0.177,0.063,0.061,0.132,0.163,0.086,-0.061,-0.189,-0.241,-0.229,-0.189,-0.122,-0.016,0.095,0.135,0.08,0,-0.02,0.06,0.212,0.38,0.533,0.668,0.741,0.683,0.536,0.409,0.301,0.167,0.04,-0.041,-0.098,-0.153,-0.19,-0.174,-0.103,0,0.151,0.344,0.47,0.451,0.356,0.269,0.182,0.067,-0.051,-0.12,-0.127,-0.111,-0.118,-0.114,-0.054,0.002,-0.045,-0.187,-0.312,-0.318,-0.201,-0.055,0.033,0.043,-0.004,-0.075,-0.103,-0.057,-0.044,-0.177,-0.374,-0.483,-0.461,-0.354,-0.237,-0.197,-0.248,-0.284,-0.214,-0.062,0.096,0.197,0.238,0.269,0.311,0.322,0.283];
               const n = delivery.length;
               const W = 620, H = 200;
               const PAD = { top: 30, right: 20, bottom: 40, left: 40 };
@@ -370,17 +370,17 @@ export default function PaperPage() {
               const points = delivery.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
 
               const annotations = [
-                { scene: 1, label: 'Dursleys\' ordinary day', side: 'above' as const },
-                { scene: 12, label: 'Hagrid reveals truth', side: 'above' as const },
-                { scene: 17, label: 'Diagon Alley', side: 'below' as const },
-                { scene: 31, label: 'Sorting Hat', side: 'above' as const },
-                { scene: 47, label: 'Troll fight', side: 'above' as const },
-                { scene: 51, label: 'First Quidditch', side: 'above' as const },
-                { scene: 64, label: 'Snape in the forest', side: 'below' as const },
-                { scene: 73, label: 'Forbidden Forest', side: 'above' as const },
-                { scene: 76, label: 'Quiet before storm', side: 'below' as const },
-                { scene: 86, label: 'Quirrell confrontation', side: 'above' as const },
-                { scene: 88, label: 'Dumbledore reveals truth', side: 'above' as const },
+                { scene: 1, label: 'Privet Drive' },
+                { scene: 6, label: 'Snake incident' },
+                { scene: 11, label: 'Hagrid arrives' },
+                { scene: 22, label: 'Diagon Alley' },
+                { scene: 31, label: 'Sorting Hat' },
+                { scene: 47, label: 'Troll fight' },
+                { scene: 56, label: 'Invisibility Cloak' },
+                { scene: 67, label: 'Norbert hatches' },
+                { scene: 73, label: 'Forbidden Forest' },
+                { scene: 85, label: 'Trapdoor' },
+                { scene: 90, label: 'Quirrell confrontation' },
               ];
 
               return (
@@ -407,18 +407,17 @@ export default function PaperPage() {
                     {/* Delivery line */}
                     <polyline points={points} fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinejoin="round" />
 
-                    {/* Annotations */}
-                    {annotations.map(({ scene, label, side }) => {
+                    {/* Peak annotations — peaks only, above the curve */}
+                    {annotations.map(({ scene, label }) => {
                       const i = scene - 1;
                       const x = toX(i);
                       const y = toY(delivery[i]);
-                      const above = side === 'above';
                       return (
                         <g key={scene}>
-                          <line x1={x} y1={y} x2={x} y2={above ? y - 16 : y + 16} stroke="white" strokeOpacity="0.2" strokeDasharray="2 2" />
-                          <circle cx={x} cy={y} r={3} fill={delivery[i] > 0 ? '#FCD34D' : '#93C5FD'} opacity="0.9" />
+                          <line x1={x} y1={y} x2={x} y2={y - 16} stroke="white" strokeOpacity="0.2" strokeDasharray="2 2" />
+                          <circle cx={x} cy={y} r={3} fill="#FCD34D" opacity="0.9" />
                           <text
-                            x={x} y={above ? y - 20 : y + 24}
+                            x={x} y={y - 20}
                             textAnchor="middle" fill="white" fillOpacity="0.5" fontSize="7"
                             fontFamily="system-ui"
                           >
@@ -471,9 +470,9 @@ export default function PaperPage() {
 
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">Delivery</h3>
-              <Eq tex="E_i = 0.5 P_i + 0.5 \tanh\!\left(\tfrac{C_i}{2}\right) + 0.5 \tanh\!\left(\tfrac{K_i}{2}\right) + 0.3 \cdot \text{contrast}_i" />
+              <Eq tex="E_i = 0.3 P_i + 0.4 \tanh\!\left(\tfrac{C_i}{1.5}\right) + 0.4 \tanh\!\left(\tfrac{K_i}{1.5}\right) + 0.1 \cdot \text{contrast}_i" />
               <P>
-                The dopamine hit. Payoff is linear — high payoff IS the climax signal and should not be dampened. Change and Knowledge pass through <Tex>{'\\tanh(x/2)'}</Tex>, which smoothly saturates toward &plusmn;1, preventing ensemble scenes from inflating delivery through sheer breadth. The contrast term, <Tex>{'\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)'}</Tex>, rewards tension-release patterns: the same payoff lands harder after buildup than it does in isolation.
+                The dopamine hit. Change and Knowledge are weighted equally (0.4) — character transformation and world-building are equally strong delivery signals. Payoff contributes at 0.3 — thread resolution matters but doesn&apos;t dominate. All non-Payoff terms pass through <Tex>{'\\tanh(x/1.5)'}</Tex>, which saturates faster for cleaner separation between high and low intensity scenes. The contrast term, <Tex>{'\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)'}</Tex>, is kept low (0.1) — the raw forces already encode tension-release, and heavy contrast distorts smaller peaks. Calibrated against <em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>, <em>The Great Gatsby</em>, and <em>Reverend Insanity</em>.
               </P>
             </div>
 

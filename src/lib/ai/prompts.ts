@@ -45,11 +45,40 @@ REUSE existing world knowledge node IDs when a scene reinforces an established c
 export const PROMPT_PACING = `
 PACING — common failure modes to avoid:
 
-CHANGE MUST VARY. The most common AI failure is flat Change — every scene gets 3-4 continuity mutations and 2-3 events regardless of mode. A quiet scene with ONE character noticing ONE thing (Change ~1.0) is valid. The contrast between sparse and dense scenes creates swing. Without valleys, peaks don't register.
+DENSITY MUST VARY. The most damaging AI failure is uniform scene density — every scene tries to accomplish the same amount. A battle scene should have 4-5 events and 3+ thread mutations. A quiet observation scene should have 1 event and 0-1 mutations. The CONTRAST between dense and sparse scenes creates swing. Without valleys, peaks don't register. Aim for a 3:1 ratio — for every dense scene, write three lighter ones.
+
+BIG MOMENTS NEED SPACE. Confrontations, betrayals, battles, and revelations deserve more events, more mutations, and longer summaries than reconnaissance, travel, or routine scenes. If a scene is the dramatic peak of an arc, pack it. If it's setup, keep it lean.
 
 REVEALS NEED ROOM. If a concept is important enough to create a world-knowledge node for, the scene should sit with it — show characters reacting, questioning, being changed. Stacking 3-4 major reveals in one scene dilutes all of them.
 
+NEVER REPEAT A BEAT. If a character has already "observed X and filed it away" in a previous scene, do NOT use that pattern again. If a character's fear response has been described once, the next time must show CHANGE — escalation, numbing, or a new coping mechanism. Check the scene history above: if a pattern appears more than twice, it is dead. Find a new way.
+
+NO DUPLICATE SCENES. Before writing a scene, check the scene history. If a character has already visited a location and discovered something there, do NOT write another scene where they visit the same location and discover the same kind of thing. Every scene must advance — never re-establish.
+
 The pacing sequence above assigns each scene a specific mode with mutation targets. Follow those assignments — they handle buildup/payoff balance and intensity variation.
+`;
+
+// ── Thread Collision ─────────────────────────────────────────────────────────
+// This is the most critical structural prompt. Without it, AI-generated
+// narratives produce parallel threads that never interact — the single
+// most common structural failure in long-form generation.
+
+export const PROMPT_THREAD_COLLISION = `
+STORYTELLING — how great authors weave threads:
+
+A story is not three plots running side by side. It is one world where every character wants something, and those wants are on collision courses. The reader should feel the threads tightening around each other like cables in a rope — each one pulling the others.
+
+Think about it this way: every active thread is a character WANTING something. When two characters want things that are incompatible — the same resource, the same person's loyalty, contradictory outcomes — the story writes itself. Your job is to set up the incompatibilities and then let the characters crash into each other.
+
+HOW TO WEAVE:
+- When writing a scene for Thread A, ask: "What is Thread B doing RIGHT NOW that could walk through this door?" If the answer is anything other than "nothing" — let it walk through the door.
+- Characters from different threads should share LOCATIONS, ALLIES, and RESOURCES. When two threads need the same thing, collision is inevitable.
+- Information is the most powerful collision tool. What Character A learns in Scene 3 should be exactly what Character B is trying to hide in Scene 7. The reader sees both sides; the characters don't.
+- Every scene should leave the reader thinking about at least two threads — the one in focus AND the one it's about to hit.
+
+THE COST OF ACTION: A protagonist who succeeds at everything is not a character — they are a mechanism. In every arc, something must go WRONG that the protagonist did not choose and cannot simply outmanoeuvre. The world must push back. Other characters must be competent enough to threaten the protagonist's plans through their own intelligence and agency, not through the protagonist's mistakes.
+
+RECURRING CHARACTERS MUST CHANGE. If a character appears three times with the same reaction — same fear, same loyalty, same suspicion — they are furniture. By their third appearance, something must have shifted: they help when expected to hinder, they crack under pressure, they notice something they shouldn't. A character who never changes should stop appearing.
 `;
 
 // ── Mutation Guidelines ──────────────────────────────────────────────────────
@@ -143,5 +172,18 @@ THREAD LIFECYCLE:
 export const PROMPT_SUMMARY_REQUIREMENT = `
 SUMMARIES — EVERY scene MUST have a non-empty "summary" field:
 - Write 3-5 detailed sentences: name characters and locations, describe the key action and its consequence, and set up the tension for what follows.
+- SCALE THE SUMMARY TO THE SCENE'S WEIGHT. A pivotal confrontation deserves 5 rich sentences. A quiet transition needs 2-3. Not every scene is the same size.
 - Vague summaries produce vague stories. Be specific and cinematic.
+- NEVER use the phrase "observes and files away" or "notes for future leverage" — show characters ACTING on what they know, not passively cataloguing.
+`;
+
+// ── Character Arc Discipline ─────────────────────────────────────────────────
+
+export const PROMPT_CHARACTER_ARCS = `
+CHARACTER ARC DISCIPLINE:
+- Characters who appear in 3+ consecutive scenes MUST show visible change between their first and last appearance in this arc. Change means: a belief shifts, a relationship breaks or deepens, a capability is gained or lost, an emotional state transforms.
+- A character who ends an arc in the same internal state they started is a FAILURE — even if the plot advanced around them. The reader needs to feel that scenes cost something.
+- Protagonists who succeed at everything without cost become uninteresting. At least one plan per arc must go wrong in a way that forces genuine adaptation, not just tactical adjustment.
+- Secondary characters must not be atmospheric props. If a character appears in multiple scenes with the same reaction (same fear, same loyalty, same suspicion), they must CHANGE or be removed from the scene.
+- Every arc should contain at least one moment where a character's action in Thread A creates an unintended consequence in Thread B. This is how threads collide.
 `;

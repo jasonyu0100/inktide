@@ -18,6 +18,18 @@ export function useAutoPlay() {
     const { activeNarrative, resolvedEntryKeys, currentSceneIndex, activeBranchId, autoConfig, autoRunState } = stateRef.current;
     if (!activeNarrative || !activeBranchId || !autoRunState) return;
 
+    // Wait if a planning phase just completed — the planning queue hook needs time to
+    // run the transition (world expansion + direction generation) before we generate more scenes
+    const branch = activeNarrative.branches[activeBranchId];
+    const pq = branch?.planningQueue;
+    if (pq) {
+      const ap = pq.phases[pq.activePhaseIndex];
+      if (ap?.status === 'active' && ap.scenesCompleted >= ap.sceneAllocation) {
+        // Phase just completed — skip this tick, let usePlanningQueue handle transition
+        return;
+      }
+    }
+
     // Check end conditions
     const endMet = checkEndConditions(activeNarrative, resolvedEntryKeys, autoConfig, autoRunState.startingSceneCount, autoRunState.startingArcCount);
     if (endMet) {
@@ -75,10 +87,32 @@ export function useAutoPlay() {
       if (freshDir) freshConfig.northStarPrompt = freshDir;
       if (freshCon) freshConfig.narrativeConstraints = freshCon;
 
-      // Generate arc
+      // Generate arc — cap scene count to fit planning phase allocation
       const directive = buildActionDirective(action, activeNarrative, freshConfig, directiveCtx);
-      const sceneCount = pickArcLength(autoConfig, action);
-      const { scenes, arc } = await generateScenes(
+      let sceneCount = pickArcLength(autoConfig, action);
+
+      // If a planning queue phase is active, cap to remaining scenes exactly
+      const MIN_ARC_SCENES = 3;
+      let phaseRemaining = Infinity;
+      if (pq) {
+        const ap = pq.phases[pq.activePhaseIndex];
+        if (ap?.status === 'active') {
+          phaseRemaining = ap.sceneAllocation - ap.scenesCompleted;
+          if (phaseRemaining <= 0) return; // Phase already full, let transition handle it
+
+          // If remaining is less than a viable arc, absorb into this arc to avoid 1-2 scene runts
+          // e.g. 7 remaining with sceneCount=5 → would leave 2. Instead generate all 7.
+          const wouldLeave = phaseRemaining - Math.min(sceneCount, phaseRemaining);
+          if (wouldLeave > 0 && wouldLeave < MIN_ARC_SCENES) {
+            // Generate all remaining scenes in one arc
+            sceneCount = phaseRemaining;
+          } else {
+            sceneCount = Math.min(sceneCount, phaseRemaining);
+          }
+        }
+      }
+
+      let { scenes, arc } = await generateScenes(
         activeNarrative,
         resolvedEntryKeys,
         currentSceneIndex,
@@ -86,6 +120,12 @@ export function useAutoPlay() {
         directive,
         { worldBuildFocus },
       );
+
+      // Truncate if LLM returned more scenes than requested
+      if (phaseRemaining < Infinity && scenes.length > phaseRemaining) {
+        scenes = scenes.slice(0, phaseRemaining);
+        arc = { ...arc, sceneIds: arc.sceneIds.slice(0, phaseRemaining) };
+      }
       if (cancelledRef.current) return;
 
       dispatch({

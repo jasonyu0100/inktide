@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useStore } from '@/lib/store';
 import { suggestAutoDirection } from '@/lib/ai';
 
@@ -16,11 +16,11 @@ type Props = {
 /**
  * Reusable direction + constraints fields with story-settings sync.
  *
- * - Checkbox checked → shows story settings read-only
- * - Unchecking → clears to editable textarea
- * - Suggest → generates AI suggestion, unchecks, populates
- * - Manual edit → unchecks automatically
- * - Re-checking → restores story settings
+ * - Defaults to "use story settings" when they exist
+ * - Auto-updates parent when story settings change while checkbox is on
+ * - Unchecking clears to editable textarea
+ * - Suggest generates AI suggestion, unchecks, populates
+ * - Re-checking restores current story settings
  */
 export function GuidanceFields({
   direction, constraints, onDirectionChange, onConstraintsChange, hideSuggest,
@@ -31,9 +31,39 @@ export function GuidanceFields({
   const storyDir = narrative?.storySettings?.storyDirection?.trim() ?? '';
   const storyCon = narrative?.storySettings?.storyConstraints?.trim() ?? '';
 
-  const [useStoryDir, setUseStoryDir] = useState(!!storyDir && (!direction || direction === storyDir));
-  const [useStoryCon, setUseStoryCon] = useState(!!storyCon && (!constraints || constraints === storyCon));
+  // Default to true when story settings exist
+  const [useStoryDir, setUseStoryDir] = useState(!!storyDir);
+  const [useStoryCon, setUseStoryCon] = useState(!!storyCon);
   const [suggestingDir, setSuggestingDir] = useState(false);
+
+  // Track previous story settings to detect changes
+  const prevDirRef = useRef(storyDir);
+  const prevConRef = useRef(storyCon);
+
+  // When story settings change and checkbox is on, push new values to parent
+  useEffect(() => {
+    if (useStoryDir && storyDir !== prevDirRef.current) {
+      onDirectionChange(storyDir);
+    }
+    prevDirRef.current = storyDir;
+  }, [storyDir, useStoryDir, onDirectionChange]);
+
+  useEffect(() => {
+    if (useStoryCon && storyCon !== prevConRef.current) {
+      onConstraintsChange(storyCon);
+    }
+    prevConRef.current = storyCon;
+  }, [storyCon, useStoryCon, onConstraintsChange]);
+
+  // On mount, sync parent if using story settings
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+    if (useStoryDir && storyDir && direction !== storyDir) onDirectionChange(storyDir);
+    if (useStoryCon && storyCon && constraints !== storyCon) onConstraintsChange(storyCon);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSuggestDirection = useCallback(async () => {
     if (!narrative) return;
@@ -51,7 +81,6 @@ export function GuidanceFields({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Direction */}
       <Field
         label="Direction"
         storyValue={storyDir}
@@ -68,7 +97,6 @@ export function GuidanceFields({
         />
       </Field>
 
-      {/* Constraints */}
       <Field
         label="Constraints"
         storyValue={storyCon}
@@ -86,7 +114,6 @@ export function GuidanceFields({
   );
 }
 
-/** Single field with optional story-settings checkbox and suggest button */
 function Field({ label, storyValue, useStory, onToggleStory, suggesting, onSuggest, children }: {
   label: string;
   storyValue: string;

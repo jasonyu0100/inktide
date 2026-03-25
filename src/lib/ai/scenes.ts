@@ -39,7 +39,8 @@ export async function generateScenes(
   const seed = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
 
   // ── Pacing sequence: always on — auto-sample if not provided ──
-  const sceneCount = count > 0 ? count : targetLen;
+  // Floor at 3 scenes — arcs shorter than 3 lack enough structure for pacing
+  const sceneCount = count > 0 ? Math.max(3, count) : targetLen;
   let sequence: PacingSequence;
   if (pacingSequence) {
     sequence = pacingSequence;

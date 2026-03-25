@@ -24,6 +24,7 @@ export function PlanningQueueEditor({ onClose }: Props) {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(existingQueue?.profileId ?? null);
   const [planDocument, setPlanDocument] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [showCustomPlan, setShowCustomPlan] = useState(false);
   const [regenerating, setRegenerating] = useState<'world' | 'direction' | null>(null);
 
   async function generateFromDocument() {
@@ -290,50 +291,84 @@ export function PlanningQueueEditor({ onClose }: Props) {
           {/* Selection view — only when no queue is chosen yet */}
           {!queue && (
             <>
-              {/* Profile selector */}
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
-                  Narrative Archetype
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {BUILT_IN_PROFILES.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => selectProfile(p)}
-                      className="text-left rounded-lg px-3 py-2 transition border bg-bg-elevated border-border hover:border-white/16"
-                    >
-                      <div className="text-xs font-medium text-text-primary">{p.name}</div>
-                      <div className="text-[10px] text-text-dim line-clamp-2 mt-0.5">{p.description}</div>
-                    </button>
-                  ))}
-                </div>
+              {/* Profile selector — horizontal carousel */}
+              <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {(['complete', 'episodic'] as const).map((cat, catIdx) => {
+                  const profiles = BUILT_IN_PROFILES.filter((p) => p.category === cat);
+                  return (
+                    <div key={cat} className="flex gap-2 shrink-0">
+                      {catIdx > 0 && (
+                        <div className="flex flex-col items-center justify-center px-1 shrink-0">
+                          <div className="h-full w-px bg-white/8" />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-1 shrink-0">
+                        <span className="text-[9px] uppercase tracking-widest text-text-dim font-mono px-0.5">
+                          {cat === 'complete' ? 'Complete' : 'Episodic'}
+                        </span>
+                        <div className="flex gap-2">
+                          {profiles.map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => selectProfile(p)}
+                              className={`w-36 h-40 shrink-0 text-left rounded-xl border p-3 transition flex flex-col ${
+                                selectedProfileId === p.id
+                                  ? 'border-white/25 bg-white/8'
+                                  : 'border-white/6 bg-white/2 hover:border-white/15 hover:bg-white/4'
+                              }`}
+                            >
+                              <span className="text-[11px] font-semibold text-text-primary leading-tight">{p.name}</span>
+                              <span className="text-[10px] text-text-dim leading-snug mt-1.5">{p.description}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              {/* Custom plan from document */}
-              <div className="border-t border-border pt-4">
+              {/* Custom / AI plan */}
+              <div className="border-t border-white/6 pt-4">
                 <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
-                  Custom Plan
+                  Or generate a plan
                 </label>
-                <p className="text-[10px] text-text-dim leading-relaxed mb-2">
-                  Describe your story structure — plot outline, character arcs, key events, act breaks. The AI will generate a superstructure tailored to your vision.
-                </p>
-                <textarea
-                  value={planDocument}
-                  onChange={(e) => setPlanDocument(e.target.value)}
-                  placeholder={"e.g. The story follows three timelines that converge in Act III..."}
-                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-28 resize-none outline-none placeholder:text-text-dim focus:border-white/20 transition-colors"
-                />
-                <button
-                  onClick={generateFromDocument}
-                  disabled={!planDocument.trim() || generating}
-                  className={`mt-2 text-[10px] font-semibold px-4 py-1.5 rounded-lg transition-colors uppercase tracking-wider ${
-                    !planDocument.trim() || generating
-                      ? 'bg-white/4 text-text-dim cursor-not-allowed'
-                      : 'bg-white/10 text-text-primary hover:bg-white/16'
-                  }`}
-                >
-                  {generating ? 'Generating Plan...' : 'Generate from Document'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const autoPrompt = 'Analyse the current narrative state — characters, threads, world knowledge, and scene history — and design the optimal superstructure for continuing this story. Consider thread maturity, character arcs, and pacing.';
+                      setPlanDocument(autoPrompt);
+                      generateFromDocument();
+                    }}
+                    disabled={generating}
+                    className="flex-1 py-2 rounded-lg border border-white/6 bg-white/2 hover:bg-white/5 hover:border-white/12 text-xs text-text-secondary transition disabled:opacity-30"
+                  >
+                    {generating && !planDocument.trim() ? 'Generating...' : 'AI from branch'}
+                  </button>
+                  <button
+                    onClick={() => setShowCustomPlan((v) => !v)}
+                    className="flex-1 py-2 rounded-lg border border-white/6 bg-white/2 hover:bg-white/5 hover:border-white/12 text-xs text-text-secondary transition"
+                  >
+                    Custom plan
+                  </button>
+                </div>
+                {showCustomPlan && (
+                  <div className="mt-2">
+                    <textarea
+                      value={planDocument}
+                      onChange={(e) => setPlanDocument(e.target.value)}
+                      placeholder="Describe your story structure — plot outline, character arcs, key events..."
+                      className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-[11px] text-text-primary w-full h-20 resize-none outline-none placeholder:text-text-dim focus:border-white/16 transition"
+                    />
+                    <button
+                      onClick={generateFromDocument}
+                      disabled={!planDocument.trim() || generating}
+                      className="mt-1.5 text-[10px] font-medium px-4 py-1.5 rounded-lg bg-white/8 hover:bg-white/12 text-text-primary transition disabled:opacity-30"
+                    >
+                      {generating ? 'Generating...' : 'Generate'}
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}

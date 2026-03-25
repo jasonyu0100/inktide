@@ -76,10 +76,10 @@ ${completedSummary ? `COMPLETED PHASES:\n${completedSummary}\n` : ''}
 ${remaining ? `UPCOMING PHASES:\n${remaining}\n` : ''}
 
 Generate:
-1. A DIRECTION prompt (2-4 sentences) that tells the AI what to focus on during this phase. Be specific about which characters, threads, and locations should drive the action. Consider the pacing — this phase has ${phase.sceneAllocation} scenes to accomplish its objective.
-2. A CONSTRAINTS prompt (1-2 sentences) listing what the AI must NOT do during this phase. Consider what would undermine the phase objective or prematurely resolve things needed for later phases.
+1. A DIRECTION prompt (2-4 sentences) — advisory guidance, not a script. Describe the FEEL and TRAJECTORY of this phase: what kind of energy it should have, which threads are ripe for development, what the reader should experience. Name characters and threads that are ready to move, but leave room for emergent storytelling. The world will be expanded before generation — the direction should guide how the new and existing elements interact.
+2. A CONSTRAINTS prompt (1-2 sentences) — what must NOT happen yet. Protect threads and reveals that belong to later phases. Keep it to absolute prohibitions, not creative restrictions.
 
-IMPORTANT: Use character NAMES (e.g. "Harry", "Fang Yuan"), location NAMES (e.g. "Diagon Alley"), and thread DESCRIPTIONS — never raw IDs like C-01 or T-03.
+Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
 
 Return JSON:
 {
@@ -129,17 +129,18 @@ TASK: Generate a narrative superstructure (planning queue) from the user's plan 
 USER'S PLAN DOCUMENT:
 ${planDocument}
 
-Analyse the plan document alongside the current narrative state. Produce a sequence of phases that:
-1. Break the plan into distinct narrative phases (5-10 phases for a full book)
-2. Each phase has a clear, evocative objective that captures the FEELING of that narrative moment — not just what happens but how it should resonate
-3. Scene allocations are 6-9 scenes per phase
-4. Constraints for each phase prevent premature resolution of elements needed later
-5. World expansion hints describe what new characters, locations, or world elements each phase needs
-6. The phases respect what already exists in the narrative — don't re-establish what's already built
-7. Thread lifecycle management: which threads should escalate, which should remain dormant, which approach resolution
-8. Character arcs: which characters drive each phase, how they should develop
+Analyse the plan document alongside the current narrative state. The superstructure is a RHYTHM FOR WORLD EXPANSION AND STORYTELLING — each phase says "expand the world this way, then tell stories in it." Phases are advisory, not scripts.
 
-IMPORTANT: Use character NAMES, location NAMES, and thread DESCRIPTIONS throughout — never raw IDs.
+Produce a sequence of phases that:
+1. Break the plan into 4-8 narrative phases
+2. Each phase describes the FEEL and TRAJECTORY — what kind of energy, what the reader should experience, which threads are ripe for movement. Advisory, not prescriptive.
+3. Scene allocations are 6-9 scenes per phase
+4. Constraints protect threads and reveals that belong to later phases — absolute prohibitions only
+5. World expansion hints describe what NEW elements the world needs for this phase — characters, locations, systems, lore. The world grows phase by phase; each expansion fuels the storytelling that follows.
+6. Respect what already exists — don't re-establish what's built
+7. Leave room for emergent storytelling. The AI will make specific scene-level decisions. Phases guide the current, not the individual waves.
+
+Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
 
 Return JSON:
 {
@@ -147,10 +148,10 @@ Return JSON:
   "phases": [
     {
       "name": "Phase name (2-4 words, like a chapter title)",
-      "objective": "Detailed objective (3-5 sentences). What must happen in this phase AND how it should FEEL — the emotional texture, the narrative rhythm, the reader's experience. Be specific about characters, threads, and the essence of this narrative moment.",
+      "objective": "Advisory objective (2-4 sentences). The feel of this phase, which threads are ready to develop, what the reader should experience. Not a plot outline — a compass heading.",
       "sceneAllocation": 7,
-      "constraints": "What must NOT happen in this phase (1-2 sentences). What would undermine the plan if it happened too early.",
-      "worldExpansionHints": "New characters, locations, world systems, or lore needed for this phase (1 sentence). Empty string if the existing world is sufficient."
+      "constraints": "What must NOT happen yet (1 sentence). Protect later phases.",
+      "worldExpansionHints": "New characters, locations, or world systems needed for this phase. Empty string if existing world is sufficient."
     }
   ]
 }`;

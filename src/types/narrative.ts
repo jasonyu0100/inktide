@@ -514,6 +514,8 @@ export type PlanningProfile = {
   id: string;
   name: string;
   description: string;
+  /** 'complete' for self-contained stories, 'episodic' for series volumes */
+  category: 'complete' | 'episodic';
   /** Whether this is a built-in archetype or user-created */
   builtIn: boolean;
   /** Phase templates — no runtime state, just the blueprint */

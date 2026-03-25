@@ -5,10 +5,10 @@ import type { MCTSConfig, MCTSNodeId, MCTSNode, MCTSTree, PendingExpansion } fro
 import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
-import type { NarrativeState, Scene } from '@/types/narrative';
+import type { Scene } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner, computeDeliveryCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
-import { suggestAutoDirection } from '@/lib/ai';
 import { useStore } from '@/lib/store';
+import { GuidanceFields } from '@/components/generation/GuidanceFields';
 
 /** Hook that ticks every second while active, returning elapsed seconds since startedAt */
 function useElapsedSeconds(startedAt: number | null, isActive: boolean): number {
@@ -1102,39 +1102,6 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
 
 type ConfigTab = 'search' | 'move' | 'strategy' | 'direction';
 
-function NorthStarSuggestButton({
-  narrative,
-  resolvedKeys,
-  currentIndex,
-  onSuggestion,
-}: {
-  narrative: NarrativeState;
-  resolvedKeys: string[];
-  currentIndex: number;
-  onSuggestion: (direction: string) => void;
-}) {
-  const [suggesting, setSuggesting] = useState(false);
-  return (
-    <button
-      type="button"
-      disabled={suggesting}
-      className="text-[10px] uppercase tracking-widest text-text-dim hover:text-text-secondary transition-colors disabled:opacity-50"
-      onClick={async () => {
-        setSuggesting(true);
-        try {
-          const direction = await suggestAutoDirection(narrative, resolvedKeys, currentIndex);
-          onSuggestion(direction);
-        } catch (err) {
-          console.error('[mcts] suggest direction failed:', err);
-        } finally {
-          setSuggesting(false);
-        }
-      }}
-    >
-      {suggesting ? 'Thinking...' : 'Suggest Story'}
-    </button>
-  );
-}
 
 // ── Main Panel ───────────────────────────────────────────────────────────────
 
@@ -1431,42 +1398,12 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
 
             {configTab === 'direction' && (
               <>
-                <p className="text-[10px] text-text-dim leading-relaxed">
-                  The north star for this search. Every {config.moveType === 'scene' ? 'scene' : 'arc'} the MCTS generates will be steered toward this direction.
-                </p>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[10px] uppercase tracking-widest text-text-dim">Story Direction</label>
-                    {state.activeNarrative && (
-                      <NorthStarSuggestButton
-                        narrative={state.activeNarrative}
-                        resolvedKeys={state.resolvedEntryKeys}
-                        currentIndex={state.currentSceneIndex}
-                        onSuggestion={(direction) => setConfig((c) => ({ ...c, northStarPrompt: direction }))}
-                      />
-                    )}
-                  </div>
-                  <textarea
-                    value={config.northStarPrompt ?? ''}
-                    onChange={(e) => setConfig((c) => ({ ...c, northStarPrompt: e.target.value || undefined }))}
-                    placeholder="e.g. We're starting the story — ease the reader in gently. Establish the world and characters before introducing conflict..."
-                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim focus:border-white/20 transition-colors"
-                  />
-                </div>
-
-                {/* Constraints */}
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">Constraints</label>
-                  <textarea
-                    value={config.constraintsPrompt ?? ''}
-                    onChange={(e) => setConfig((c) => ({ ...c, constraintsPrompt: e.target.value || undefined }))}
-                    placeholder="e.g. Do not kill the mentor character. Avoid deus ex machina resolutions..."
-                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim focus:border-white/20 transition-colors"
-                  />
-                  <p className="text-[10px] text-text-dim mt-1">
-                    Overrides story-level constraints for this search.
-                  </p>
-                </div>
+                <GuidanceFields
+                  direction={config.northStarPrompt ?? ''}
+                  constraints={config.constraintsPrompt ?? ''}
+                  onDirectionChange={(v) => setConfig((c) => ({ ...c, northStarPrompt: v || undefined }))}
+                  onConstraintsChange={(v) => setConfig((c) => ({ ...c, constraintsPrompt: v || undefined }))}
+                />
 
                 {/* World Build Focus */}
                 {(() => {

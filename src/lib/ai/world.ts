@@ -47,7 +47,8 @@ Return JSON with this exact structure:
   "suggestedSceneCount": 3
 }
 
-suggestedSceneCount must be between 1 and 8.`;
+suggestedSceneCount must be between 1 and 8.
+IMPORTANT: Use character NAMES, location NAMES, and thread DESCRIPTIONS in the direction and suggestion — never raw IDs.`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestDirection');
   const parsed = parseJson(raw, 'suggestDirection') as {
@@ -81,6 +82,8 @@ Think big picture:
 - What is the most satisfying macro-trajectory from where the story stands now?
 
 Do NOT suggest a single scene or arc. Instead, describe the overarching direction the story should move in — the kind of guidance a showrunner gives a writers' room for the next season.
+
+Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
 
 Return JSON: { "direction": "2-4 sentences describing the big-picture story direction" }`;
 
@@ -143,7 +146,7 @@ Consider:
 - Are there power structures, social hierarchies, or institutional relationships missing?
 - Could adding characters from different social strata or factions create productive tension?
 
-Your suggestion should emphasize HOW new elements connect to existing ones — not just what to add, but who they relate to and where they fit in the hierarchy.
+Your suggestion should emphasize HOW new elements connect to existing ones — not just what to add, but who they relate to and where they fit in the hierarchy. Use character NAMES and location NAMES — never raw IDs.
 
 Return JSON with this exact structure:
 {
@@ -175,9 +178,13 @@ export async function expandWorld(
   const nextKId = nextId('K', existingKIds);
 
   // Build existing entity summary for integration context
-  const existingCharList = Object.values(narrative.characters).map(c => `${c.id}: ${c.name} (${c.role})`).join(', ');
-  const existingLocList = Object.values(narrative.locations).map(l => `${l.id}: ${l.name}${l.parentId ? ` (child of ${l.parentId})` : ''}`).join(', ');
-  const existingRelList = narrative.relationships.map(r => `${r.from}→${r.to}: ${r.type}`).join(', ');
+  const existingCharList = Object.values(narrative.characters).map(c => `${c.name} [${c.id}, ${c.role}]`).join(', ');
+  const existingLocList = Object.values(narrative.locations).map(l => `${l.name} [${l.id}]${l.parentId ? ` (inside ${narrative.locations[l.parentId]?.name ?? l.parentId})` : ''}`).join(', ');
+  const existingRelList = narrative.relationships.map(r => {
+    const fromName = narrative.characters[r.from]?.name ?? r.from;
+    const toName = narrative.characters[r.to]?.name ?? r.to;
+    return `${fromName}→${toName}: ${r.type}`;
+  }).join(', ');
 
   const prompt = `${ctx}
 
@@ -368,12 +375,31 @@ Return JSON with this exact structure:
   "rules": ["World rule 1", "World rule 2"]
 }
 
-Generate a world with enough CRITICAL MASS to sustain a long-running story:
-- 6-10 characters: at least 3 anchors, 3-4 recurring, 1-2 transient. Each with 4-8 knowledge nodes. Characters should have secrets, goals, beliefs, and tactical knowledge — not just surface-level facts.
-- 6-10 locations with hierarchy (parent/child nesting). Each with 2-4 knowledge nodes describing lore, dangers, secrets, or resources. Locations should feel lived-in.
-- 5-8 threads representing major narrative tensions, mysteries, and conflicts. Threads should interlock — at least some threads should share participants.
-- 8-10 relationships between characters. Relationships should be asymmetric (A→B differs from B→A) with specific, character-voice descriptions. Use valence to show warmth vs hostility.
-- Exactly 8 scenes in 1 arc, following the introduction pacing sequence below. Use varied locations — showcase the world's best settings across different scenes.
+HARD MINIMUMS — the world MUST contain at least these counts. Generating fewer is a failure:
+- EXACTLY 18 characters: 3 anchors + 5 recurring + 10 transient
+- EXACTLY 20 locations with parent/child hierarchy (at least 3 nesting levels)
+- EXACTLY 6 threads (interlocking — at least 3 must share participants)
+- EXACTLY 20 relationships (asymmetric, at least 3 hostile)
+- EXACTLY 10 world knowledge nodes with 6 edges
+- EXACTLY 8 scenes in 1 arc
+
+CHARACTER DEPTH BY ROLE:
+- Anchors (3): 6-8 knowledge nodes each — secrets, goals, fears, contradictions
+- Recurring (5): 3-5 knowledge nodes each — a clear role, a relationship to an anchor, at least one hidden agenda
+- Transient (10): 1-2 knowledge nodes each — shopkeepers, guards, neighbours, lackeys, bystanders. These populate the world. Not every character needs to matter — some just need to exist.
+
+LOCATION HIERARCHY:
+- Build spatial nesting: Region → Settlement → District → Specific Place
+- A city with 5 sub-locations feels more real than 5 unconnected cities
+- Include contrasting environments: if the story starts safe, the world needs a dangerous frontier
+- Each location: 2-4 knowledge nodes (lore, dangers, who controls it)
+
+RELATIONSHIPS:
+- Connect anchors to MANY characters (6+ relationships per anchor)
+- Asymmetric descriptions: "A admires B" while "B suspects A"
+- At least 2 hidden relationships (known to reader, not to characters)
+
+Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
 
 ${buildSequencePrompt(buildIntroductionSequence())}
 

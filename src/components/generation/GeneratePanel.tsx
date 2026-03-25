@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { generateScenes, suggestArcDirection, expandWorld, suggestWorldExpansion, type WorldExpansionSize } from '@/lib/ai';
+import { generateScenes, expandWorld, suggestWorldExpansion, type WorldExpansionSize } from '@/lib/ai';
 import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
@@ -10,6 +10,7 @@ import { samplePacingSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSI
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { PacingStrip, CubeBadge } from './PacingStrip';
 import { MarkovGraph } from './MarkovGraph';
+import { GuidanceFields } from './GuidanceFields';
 
 type Mode = 'continuation' | 'world';
 
@@ -58,6 +59,8 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [direction, setDirection] = useState('');
   const [count, setCount] = useState(5);
   const [worldBuildFocusId, setWorldBuildFocusId] = useState<string | null>(null);
+  const [guidanceDirection, setGuidanceDirection] = useState('');
+  const [guidanceConstraints, setGuidanceConstraints] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Pacing preview
@@ -77,6 +80,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
   const narrative = state.activeNarrative;
   if (!narrative) return null;
+
 
   const headIndex = state.resolvedEntryKeys.length - 1;
   const headKey = state.resolvedEntryKeys[headIndex];
@@ -125,21 +129,6 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setEditingStep(null);
   }, [previewSequence]);
 
-  async function handleSuggestArc() {
-    if (!narrative) return;
-    setSuggesting(true);
-    setError('');
-    try {
-      const suggestion = await suggestArcDirection(narrative, state.resolvedEntryKeys, headIndex);
-      setArcName(suggestion.arcName);
-      setDirection(suggestion.text.includes(':') ? suggestion.text.slice(suggestion.text.indexOf(':') + 1).trim() : suggestion.text);
-      setCount(suggestion.suggestedSceneCount);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setSuggesting(false);
-    }
-  }
 
   async function handleGenerateArc() {
     if (!narrative) return;
@@ -148,6 +137,15 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setStreamText('');
     setError('');
     try {
+      // Apply direction/constraints to story settings so branchContext picks them up
+      const currentSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
+      if (guidanceDirection !== currentSettings.storyDirection || guidanceConstraints !== currentSettings.storyConstraints) {
+        dispatch({
+          type: 'SET_STORY_SETTINGS',
+          settings: { ...currentSettings, storyDirection: guidanceDirection, storyConstraints: guidanceConstraints },
+        });
+      }
+
       const existingArc = !newArc ? currentArc ?? undefined : undefined;
       const worldBuildFocus = worldBuildFocusId ? narrative.worldBuilds[worldBuildFocusId] : undefined;
       const { scenes, arc } = await generateScenes(
@@ -377,21 +375,13 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                   </div>
                 ) : null}
 
-                {/* Direction */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[10px] uppercase tracking-widest text-text-dim">Direction</label>
-                    <button onClick={handleSuggestArc} disabled={suggesting}
-                      className="text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 uppercase tracking-wider">
-                      {suggesting ? 'Thinking...' : 'Suggest'}
-                    </button>
-                  </div>
-                  <textarea
-                    value={direction} onChange={(e) => setDirection(e.target.value)}
-                    placeholder="What should this arc focus on?"
-                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-16 resize-none outline-none placeholder:text-text-dim"
-                  />
-                </div>
+                {/* Direction + Constraints */}
+                <GuidanceFields
+                  direction={guidanceDirection}
+                  constraints={guidanceConstraints}
+                  onDirectionChange={(v) => { setGuidanceDirection(v); setDirection(v); }}
+                  onConstraintsChange={setGuidanceConstraints}
+                />
 
                 {/* Scene Count */}
                 <div className="flex items-center gap-3">

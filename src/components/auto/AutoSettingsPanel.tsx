@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { suggestAutoDirection } from '@/lib/ai';
+import { GuidanceFields } from '@/components/generation/GuidanceFields';
 import type { AutoConfig, AutoEndCondition } from '@/types/narrative';
 
 type Tab = 'end' | 'direction';
@@ -19,16 +19,11 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
   const [config, setConfig] = useState<AutoConfig>(() => {
     const base = { ...state.autoConfig };
     const storyDir = state.activeNarrative?.storySettings?.storyDirection?.trim();
-    if (storyDir && !base.northStarPrompt) {
-      base.northStarPrompt = storyDir;
-    }
     const storyCon = state.activeNarrative?.storySettings?.storyConstraints?.trim();
-    if (storyCon && !base.narrativeConstraints) {
-      base.narrativeConstraints = storyCon;
-    }
+    if (!base.northStarPrompt && storyDir) base.northStarPrompt = storyDir;
+    if (!base.narrativeConstraints && storyCon) base.narrativeConstraints = storyCon;
     return base;
   });
-  const [suggesting, setSuggesting] = useState(false);
 
   function update(partial: Partial<AutoConfig>) {
     setConfig((c) => ({ ...c, ...partial }));
@@ -192,61 +187,13 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                 Direction and constraints guide every arc. Use the planning queue for long-form narrative structure.
               </p>
 
-              {/* Direction */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim">
-                    Direction
-                  </label>
-                  {state.activeNarrative && Object.keys(state.activeNarrative.scenes).length > 0 && (
-                    <button
-                      type="button"
-                      disabled={suggesting}
-                      onClick={async () => {
-                        if (!state.activeNarrative) return;
-                        setSuggesting(true);
-                        try {
-                          const direction = await suggestAutoDirection(
-                            state.activeNarrative,
-                            state.resolvedEntryKeys,
-                            state.currentSceneIndex,
-                          );
-                          update({ northStarPrompt: direction });
-                        } catch (err) {
-                          console.error('[auto-settings] suggest direction failed:', err);
-                        } finally {
-                          setSuggesting(false);
-                        }
-                      }}
-                      className="text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 uppercase tracking-wider"
-                    >
-                      {suggesting ? 'Thinking...' : 'Suggest'}
-                    </button>
-                  )}
-                </div>
-                <textarea
-                  value={config.northStarPrompt}
-                  onChange={(e) => update({ northStarPrompt: e.target.value })}
-                  placeholder="e.g. The protagonist should slowly uncover the truth about their past while alliances shift around them..."
-                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim"
-                />
-              </div>
-
-              {/* Constraints */}
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">
-                  Constraints
-                </label>
-                <textarea
-                  value={config.narrativeConstraints}
-                  onChange={(e) => update({ narrativeConstraints: e.target.value })}
-                  placeholder="e.g. Do not kill the mentor character. Avoid deus ex machina resolutions. Keep the tone grounded..."
-                  className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-24 resize-none outline-none placeholder:text-text-dim"
-                />
-                <p className="text-[10px] text-text-dim mt-1">
-                  Overrides story-level constraints for this auto run.
-                </p>
-              </div>
+              {/* Direction + Constraints */}
+              <GuidanceFields
+                direction={config.northStarPrompt}
+                constraints={config.narrativeConstraints}
+                onDirectionChange={(v) => update({ northStarPrompt: v })}
+                onConstraintsChange={(v) => update({ narrativeConstraints: v })}
+              />
             </>
           )}
         </div>

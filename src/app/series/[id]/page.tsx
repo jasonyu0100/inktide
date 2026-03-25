@@ -181,6 +181,8 @@ export default function SeriesPage() {
         <PhaseCompletionModal
           queue={planning.queue}
           completionReport={planning.pendingCompletion.report}
+          transitioning={planning.transitioning}
+          transitionStep={planning.transitionStep}
           onExtend={() => planning.extendPhase()}
           onAdvance={(customWorldPrompt) => planning.advancePhase(customWorldPrompt)}
           onClose={() => planning.advancePhase()}

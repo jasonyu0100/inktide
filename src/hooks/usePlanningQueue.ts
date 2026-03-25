@@ -22,6 +22,7 @@ export function usePlanningQueue() {
   stateRef.current = state;
 
   const [transitioning, setTransitioning] = useState(false);
+  const [transitionStep, setTransitionStep] = useState<string | null>(null);
   const [pendingCompletion, setPendingCompletion] = useState<{
     report: string;
     queue: PlanningQueue;
@@ -67,6 +68,7 @@ export function usePlanningQueue() {
     if (transitioningRef.current) return;
     transitioningRef.current = true;
     setTransitioning(true);
+    setTransitionStep('Generating completion report...');
 
     try {
       const { activeNarrative, resolvedEntryKeys, currentSceneIndex } = stateRef.current;
@@ -92,6 +94,7 @@ export function usePlanningQueue() {
     } finally {
       transitioningRef.current = false;
       setTransitioning(false);
+      setTransitionStep(null);
     }
   }
 
@@ -112,6 +115,7 @@ export function usePlanningQueue() {
 
       // 1. Completion report
       if (!phase.completionReport) {
+        setTransitionStep('Generating completion report...');
         const report = await generatePhaseCompletionReport(
           narrative, s.resolvedEntryKeys, s.currentSceneIndex, phase,
         );
@@ -132,6 +136,7 @@ export function usePlanningQueue() {
         const freshState1 = stateRef.current;
         const freshNarrative1 = freshState1.activeNarrative ?? narrative;
         if (nextPhase.worldExpansionHints) {
+          setTransitionStep('Expanding world...');
           const expansion = await expandWorld(
             freshNarrative1, freshState1.resolvedEntryKeys, freshState1.currentSceneIndex,
             nextPhase.worldExpansionHints, 'medium',
@@ -150,6 +155,7 @@ export function usePlanningQueue() {
         }
 
         // 3. Generate direction and constraints
+        setTransitionStep('Generating direction...');
         const freshState2 = stateRef.current;
         const freshNarrative2 = freshState2.activeNarrative ?? freshNarrative1;
         const { direction, constraints } = await generatePhaseDirection(
@@ -190,6 +196,7 @@ export function usePlanningQueue() {
     } finally {
       transitioningRef.current = false;
       setTransitioning(false);
+      setTransitionStep(null);
     }
   }, [dispatch]);
 
@@ -230,6 +237,7 @@ export function usePlanningQueue() {
     queue,
     activePhase,
     transitioning,
+    transitionStep,
     pendingCompletion,
     extendPhase,
     advancePhase,

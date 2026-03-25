@@ -156,7 +156,7 @@ export function useMCTS() {
     const { slotId, onToken } = addPendingExpansion(targetId, direction, cubeGoal, deliveryGoal);
 
     let effectiveDirection = northStarPrompt
-      ? `NORTH STAR (always steer the narrative toward this): ${northStarPrompt}\n\n${direction}`
+      ? `STORY DIRECTION (steer the narrative toward this): ${northStarPrompt}\n\n${direction}`
       : direction;
     if (constraintsPrompt) {
       effectiveDirection += `\nCONSTRAINTS (DO NOT do any of the following): ${constraintsPrompt}`;

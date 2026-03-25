@@ -6,11 +6,11 @@ import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_P
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle } from './prompts';
-import { buildSequencePrompt, type PacingSequence } from '@/lib/markov';
+import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/markov';
 
 export type GenerateScenesOptions = {
   existingArc?: Arc;
-  /** Opt-in pacing sequence (Markov presets or MCTS). When omitted, no sequence pacing is applied. */
+  /** Pre-sampled pacing sequence. When omitted, one is auto-sampled from the story's transition matrix. */
   pacingSequence?: PacingSequence;
   worldBuildFocus?: WorldBuild;
   onToken?: (token: string) => void;
@@ -38,8 +38,18 @@ export async function generateScenes(
   // Unique seed to ensure divergent narrative directions across parallel generations
   const seed = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
 
-  // ── Pacing sequence: only included when explicitly provided (MCTS or user opt-in presets) ──
-  const sequencePrompt = pacingSequence ? buildSequencePrompt(pacingSequence) : '';
+  // ── Pacing sequence: always on — auto-sample if not provided ──
+  const sceneCount = count > 0 ? count : targetLen;
+  let sequence: PacingSequence;
+  if (pacingSequence) {
+    sequence = pacingSequence;
+  } else {
+    const currentMode = detectCurrentMode(narrative, resolvedKeys);
+    const matrix = MATRIX_PRESETS.find((p) => p.key === storySettings.rhythmPreset)?.matrix
+      ?? DEFAULT_TRANSITION_MATRIX;
+    sequence = samplePacingSequence(currentMode, sceneCount, matrix);
+  }
+  const sequencePrompt = buildSequencePrompt(sequence);
 
   const prompt = `${ctx}
 
@@ -69,7 +79,7 @@ ${sequencePrompt}
 Return JSON with this exact structure:
 {
   "arcName": "A short, evocative arc name (2-4 words) like a chapter title. Must be UNIQUE — not a variation of any existing arc name. Bad: 'Continuation', 'New Beginnings', 'Echoes of X', 'Seeds of Y'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths', 'Blackwater Gambit'.",
-  "directionVector": "A single concise sentence (10-15 words max) capturing the narrative thrust of this arc — what changes, who drives it, and what's at stake. This is a high-level summary for comparing alternative branches at a glance. Examples: 'Kael discovers the seal is failing and must choose between duty and survival', 'Political alliances fracture as the harvest festival exposes hidden rivalries'.",
+  "directionVector": "A single concise sentence (10-15 words max) using character NAMES capturing the narrative thrust — what changes, who drives it, and what's at stake. Examples: 'Kael discovers the seal is failing and must choose between duty and survival', 'Political alliances fracture as the harvest festival exposes hidden rivalries'.",
   "scenes": [
     {
       "id": "S-GEN-001",
@@ -83,7 +93,7 @@ Return JSON with this exact structure:
       "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
       "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "typed relationship: enables, requires, governs, located_in, opposes, created_by, extends, etc."}]},
-      "summary": "REQUIRED: 3-5 sentence detailed narrative summary. Name characters and locations. Describe the key action, the consequence, and the tension it creates for what comes next. Example: 'Michael Corleone sits across from Sollozzo and McCluskey at the small Italian restaurant in the Bronx, listening to terms he has no intention of accepting. He excuses himself to the bathroom where a pistol has been planted behind the toilet tank. He returns to the table and shoots both men — Sollozzo first through the forehead, then McCluskey through the throat and skull. The gun clatters to the floor as Michael walks out in a daze to a waiting car. The killing severs him permanently from his civilian life and sets in motion a gang war that will consume every family in New York.'"
+      "summary": "REQUIRED: 3-5 sentence detailed narrative summary. Use character NAMES and location NAMES — never raw IDs. Describe the key action, the consequence, and the tension it creates for what comes next. Example: 'Michael Corleone sits across from Sollozzo and McCluskey at the small Italian restaurant in the Bronx, listening to terms he has no intention of accepting. He excuses himself to the bathroom where a pistol has been planted behind the toilet tank. He returns to the table and shoots both men. The gun clatters to the floor as Michael walks out in a daze to a waiting car. The killing severs him permanently from his civilian life and sets in motion a gang war that will consume every family in New York.'"
     }
   ]
 }
@@ -102,9 +112,9 @@ ${PROMPT_CONTINUITY}
 ${promptThreadLifecycle()}
 CRITICAL ID CONSTRAINT (re-stated for emphasis):
 You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thread IDs.
-  Character IDs: ${Object.keys(narrative.characters).join(', ')}
-  Location IDs: ${Object.keys(narrative.locations).join(', ')}
-  Thread IDs: ${Object.keys(narrative.threads).join(', ')}`;
+  Characters: ${Object.entries(narrative.characters).map(([id, c]) => `${c.name} (${id})`).join(', ')}
+  Locations: ${Object.entries(narrative.locations).map(([id, l]) => `${l.name} (${id})`).join(', ')}
+  Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}`;
 
   // Retry on JSON parse failures (truncation, malformed output)
   const MAX_RETRIES = 2;

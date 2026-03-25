@@ -8,6 +8,7 @@ import { expandWorld } from '@/lib/ai';
 import { nextId } from '@/lib/narrative-utils';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import type { PlanningPhase, PlanningProfile, PlanningQueue } from '@/types/narrative';
+import { PlanningLoadingModal } from './PlanningLoadingModal';
 
 type Props = {
   onClose: () => void;
@@ -187,6 +188,7 @@ export function PlanningQueueEditor({ onClose }: Props) {
   }
 
   const [activating, setActivating] = useState(false);
+  const [activatingStep, setActivatingStep] = useState<string | null>(null);
 
   async function handleSave() {
     if (!branchId || !queue || queue.phases.length === 0) return;
@@ -206,6 +208,7 @@ export function PlanningQueueEditor({ onClose }: Props) {
 
         // World expansion for first phase
         if (firstPhase.worldExpansionHints) {
+          setActivatingStep('Expanding world...');
           const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints, 'medium');
           dispatch({
             type: 'EXPAND_WORLD',
@@ -220,6 +223,7 @@ export function PlanningQueueEditor({ onClose }: Props) {
         }
 
         // Generate direction and constraints
+        setActivatingStep('Generating direction...');
         const { direction, constraints } = await generatePhaseDirection(
           narrative, resolvedKeys, currentIndex, firstPhase, queue,
         );
@@ -247,6 +251,7 @@ export function PlanningQueueEditor({ onClose }: Props) {
         console.error('[planning-queue] first phase init failed:', err);
       } finally {
         setActivating(false);
+        setActivatingStep(null);
       }
     }
 
@@ -261,6 +266,10 @@ export function PlanningQueueEditor({ onClose }: Props) {
   }
 
   const totalScenes = queue?.phases.reduce((sum, p) => sum + p.sceneAllocation, 0) ?? 0;
+
+  if (activating) {
+    return <PlanningLoadingModal step={activatingStep ?? 'Initializing...'} subtitle="Preparing the first phase" />;
+  }
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
@@ -516,7 +525,7 @@ export function PlanningQueueEditor({ onClose }: Props) {
                   : 'bg-white/12 text-text-primary hover:bg-white/16'
               }`}
             >
-              {activating ? 'Initializing...' : 'Activate Queue'}
+              {activating ? (activatingStep ?? 'Initializing...') : 'Activate Queue'}
             </button>
           )}
         </div>

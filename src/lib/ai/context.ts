@@ -148,7 +148,7 @@ export function branchContext(
       const continuityBlock = continuityLines.length > 0
         ? `\n  Continuity — what this character knows, has experienced, or possesses (${relevantNodes.length} in scope):${truncated}\n${continuityLines.join('\n')}`
         : '';
-      return `- ${c.id}: ${c.name} (${c.role})${continuityBlock}`;
+      return `- ${c.name} [${c.id}, ${c.role}]${continuityBlock}`;
     })
     .join('\n');
   const locations = branchLocations
@@ -157,7 +157,7 @@ export function branchContext(
       const continuityBlock = continuityLines.length > 0
         ? `\n  Continuity — established facts, conditions, and state of this place (${l.continuity.nodes.length}):\n${continuityLines.join('\n')}`
         : '';
-      return `- ${l.id}: ${l.name}${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${continuityBlock}`;
+      return `- ${l.name} [${l.id}]${l.parentId ? ` (inside ${n.locations[l.parentId]?.name ?? l.parentId})` : ''}${continuityBlock}`;
     })
     .join('\n');
   // Build thread age context from scene history (within time horizon)
@@ -179,14 +179,15 @@ export function branchContext(
       const age = firstMut !== undefined ? totalScenes - firstMut : 0;
       const mutations = threadMutationCount[t.id] ?? 0;
       const ageLabel = age > 0 ? `, active ${age} scenes, ${mutations} mutations` : '';
-      return `- ${t.id}: ${t.description} [${t.status}${ageLabel}]`;
+      const participantNames = t.participants.map((a) => n.characters[a.id]?.name ?? n.locations[a.id]?.name ?? a.id).join(', ');
+      return `- ${t.description} [${t.id}, ${t.status}${ageLabel}]${participantNames ? ` (${participantNames})` : ''}`;
     })
     .join('\n');
   const relationships = branchRelationships
     .map((r) => {
       const fromName = n.characters[r.from]?.name ?? r.from;
       const toName = n.characters[r.to]?.name ?? r.to;
-      return `- ${r.from} (${fromName}) -> ${r.to} (${toName}): ${r.type} (valence: ${Math.round(r.valence * 100) / 100})`;
+      return `- ${fromName} -> ${toName}: ${r.type} (valence: ${Math.round(r.valence * 100) / 100})`;
     })
     .join('\n');
 
@@ -198,16 +199,24 @@ export function branchContext(
     if (s.kind === 'world_build') {
       return `[${globalIdx}] ${s.id} [WORLD BUILD]\n   ${s.summary}`;
     }
-    const loc = `${s.locationId} (${n.locations[s.locationId]?.name ?? 'unknown'})`;
-    const participants = s.participantIds.map((pid) => `${pid} (${n.characters[pid]?.name ?? 'unknown'})`).join(', ');
-    const threadChanges = s.threadMutations.map((tm) => `${tm.threadId}: ${tm.from}->${tm.to}`).join('; ');
-    const continuityChanges = s.continuityMutations.map((km) => `${km.characterId} learned [${km.nodeType}]: ${km.content}`).join('; ');
+    const loc = n.locations[s.locationId]?.name ?? s.locationId;
+    const participants = s.participantIds.map((pid) => n.characters[pid]?.name ?? pid).join(', ');
+    const threadChanges = s.threadMutations.map((tm) => {
+      const thr = n.threads[tm.threadId];
+      const desc = thr ? thr.description.slice(0, 40) : tm.threadId;
+      return `${desc}: ${tm.from}->${tm.to}`;
+    }).join('; ');
+    const continuityChanges = s.continuityMutations.map((km) => {
+      const charName = n.characters[km.characterId]?.name ?? km.characterId;
+      return `${charName} learned [${km.nodeType}]: ${km.content}`;
+    }).join('; ');
     const relChanges = s.relationshipMutations.map((rm) => {
       const fromName = n.characters[rm.from]?.name ?? rm.from;
       const toName = n.characters[rm.to]?.name ?? rm.to;
       return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
     }).join('; ');
-    return `[${globalIdx}] ${s.id} @ ${loc} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}${continuityChanges ? ` | Continuity: ${continuityChanges}` : ''}${relChanges ? ` | Relationships: ${relChanges}` : ''}
+    const povName = n.characters[s.povId]?.name ?? s.povId;
+    return `[${globalIdx}] @ ${loc}, POV: ${povName} | ${participants}${threadChanges ? ` | Threads: ${threadChanges}` : ''}${continuityChanges ? ` | Continuity: ${continuityChanges}` : ''}${relChanges ? ` | Relationships: ${relChanges}` : ''}
    ${s.summary}`;
   }).filter(Boolean).join('\n');
 
@@ -215,7 +224,10 @@ export function branchContext(
   const branchSceneIds = new Set(keysUpToCurrent.filter((k) => n.scenes[k]));
   const arcs = Object.values(n.arcs)
     .filter((a) => !hasHistory || a.sceneIds.some((sid) => branchSceneIds.has(sid)))
-    .map((a) => `- ${a.id}: "${a.name}" (${a.sceneIds.length} scenes, develops: ${a.develops.join(', ')})`)
+    .map((a) => {
+      const developsNames = a.develops.map((tid) => n.threads[tid]?.description?.slice(0, 40) ?? tid).join(', ');
+      return `- "${a.name}" [${a.id}] (${a.sceneIds.length} scenes, develops: ${developsNames})`;
+    })
     .join('\n');
 
   // Force trajectory — computed from all scenes for correct normalization,
@@ -358,7 +370,7 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
     const knBlock = knLines.length > 0
       ? `\n  Continuity (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
       : '';
-    return `  - ${p.id}: ${p.name} (${p.role})${knBlock}`;
+    return `  - ${p.name} [${p.id}, ${p.role}]${knBlock}`;
   });
 
   // ── Location: recent continuity ────────────────────────────────────
@@ -372,7 +384,7 @@ export function sceneContext(narrative: NarrativeState, scene: Scene): string {
       ? `\n  Continuity (${recentNodes.length} recent):${omittedNote}\n${knLines.join('\n')}`
       : '';
     const parent = location.parentId ? ` (inside ${narrative.locations[location.parentId]?.name ?? location.parentId})` : '';
-    return `  - ${location.id}: ${location.name}${parent}${knBlock}`;
+    return `  - ${location.name} [${location.id}]${parent}${knBlock}`;
   })();
 
   // ── Relationships between participants ─────────────────────────────
@@ -751,7 +763,7 @@ export function worldContext(
         const continuityBlock = nodes.length > 0
           ? `\n    Continuity: ${nodes.map((kn) => `(${kn.type}) ${kn.content}`).join(' | ')}`
           : '';
-        return `  - ${mc.id}: ${c.name} (${c.role})${continuityBlock}`;
+        return `  - ${c.name} [${mc.id}, ${c.role}]${continuityBlock}`;
       })
       .filter(Boolean)
       .join('\n');
@@ -764,7 +776,7 @@ export function worldContext(
         const loreBlock = l.continuity.nodes.length > 0
           ? `\n    Lore: ${l.continuity.nodes.map((kn) => kn.content).join(' | ')}`
           : '';
-        return `  - ${ml.id}: ${l.name}${parent}${loreBlock}`;
+        return `  - ${l.name} [${ml.id}]${parent}${loreBlock}`;
       })
       .filter(Boolean)
       .join('\n');
@@ -777,7 +789,7 @@ export function worldContext(
         const participantNames = t.participants
           .map((a) => n.characters[a.id]?.name ?? n.locations[a.id]?.name ?? a.id)
           .join(', ');
-        return `  - ${mt.id}: "${t.description}" [${status}] participants: ${participantNames}`;
+        return `  - ${t.description} [${mt.id}, ${status}] (${participantNames})`;
       })
       .filter(Boolean)
       .join('\n');

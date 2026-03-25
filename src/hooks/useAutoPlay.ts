@@ -67,8 +67,16 @@ export function useAutoPlay() {
         worldBuildFocus = activeNarrative.worldBuilds[activeNarrative.storySettings.worldFocusId];
       }
 
-      // Generate arc — pacing is handled by Markov chain sequencing inside generateScenes
-      const directive = buildActionDirective(action, activeNarrative, autoConfig, directiveCtx);
+      // Merge fresh story settings direction/constraints into auto config
+      // (planning queue may have updated these mid-run)
+      const freshConfig = { ...autoConfig };
+      const freshDir = activeNarrative.storySettings?.storyDirection?.trim();
+      const freshCon = activeNarrative.storySettings?.storyConstraints?.trim();
+      if (freshDir) freshConfig.northStarPrompt = freshDir;
+      if (freshCon) freshConfig.narrativeConstraints = freshCon;
+
+      // Generate arc
+      const directive = buildActionDirective(action, activeNarrative, freshConfig, directiveCtx);
       const sceneCount = pickArcLength(autoConfig, action);
       const { scenes, arc } = await generateScenes(
         activeNarrative,

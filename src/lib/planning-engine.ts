@@ -29,7 +29,7 @@ Produce a concise completion report covering:
 2. What was accomplished — key events, thread changes, character developments
 3. What remains open or unresolved from this phase's goals
 
-Keep the report to 3-5 sentences. Be specific — name characters, threads, and events.
+Keep the report to 3-5 sentences. Be specific — use character NAMES, location NAMES, and thread DESCRIPTIONS, never raw IDs.
 Return ONLY the report text, no JSON or markup.`;
 
   const report = await callGenerate(prompt, SYSTEM_PROMPT, 500, 'planningEngine');
@@ -78,6 +78,8 @@ ${remaining ? `UPCOMING PHASES:\n${remaining}\n` : ''}
 Generate:
 1. A DIRECTION prompt (2-4 sentences) that tells the AI what to focus on during this phase. Be specific about which characters, threads, and locations should drive the action. Consider the pacing — this phase has ${phase.sceneAllocation} scenes to accomplish its objective.
 2. A CONSTRAINTS prompt (1-2 sentences) listing what the AI must NOT do during this phase. Consider what would undermine the phase objective or prematurely resolve things needed for later phases.
+
+IMPORTANT: Use character NAMES (e.g. "Harry", "Fang Yuan"), location NAMES (e.g. "Diagon Alley"), and thread DESCRIPTIONS — never raw IDs like C-01 or T-03.
 
 Return JSON:
 {
@@ -136,6 +138,8 @@ Analyse the plan document alongside the current narrative state. Produce a seque
 6. The phases respect what already exists in the narrative — don't re-establish what's already built
 7. Thread lifecycle management: which threads should escalate, which should remain dormant, which approach resolution
 8. Character arcs: which characters drive each phase, how they should develop
+
+IMPORTANT: Use character NAMES, location NAMES, and thread DESCRIPTIONS throughout — never raw IDs.
 
 Return JSON:
 {

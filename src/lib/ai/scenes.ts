@@ -6,13 +6,11 @@ import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_P
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle } from './prompts';
-import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type TransitionMatrix } from '@/lib/markov';
+import { buildSequencePrompt, type PacingSequence } from '@/lib/markov';
 
 export type GenerateScenesOptions = {
   existingArc?: Arc;
-  /** Override the transition matrix for sequence sampling */
-  transitionMatrix?: TransitionMatrix;
-  /** Pre-sampled sequence (skips automatic sampling) */
+  /** Opt-in pacing sequence (Markov presets or MCTS). When omitted, no sequence pacing is applied. */
   pacingSequence?: PacingSequence;
   worldBuildFocus?: WorldBuild;
   onToken?: (token: string) => void;
@@ -26,7 +24,7 @@ export async function generateScenes(
   direction: string,
   options: GenerateScenesOptions = {},
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
-  const { existingArc, transitionMatrix, pacingSequence: preSequence, worldBuildFocus, onToken } = options;
+  const { existingArc, pacingSequence, worldBuildFocus, onToken } = options;
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
@@ -40,20 +38,8 @@ export async function generateScenes(
   // Unique seed to ensure divergent narrative directions across parallel generations
   const seed = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
 
-  // ── Markov sequence: determine pacing before generation ──────────────
-  const sceneCount = count > 0 ? count : targetLen;
-  let sequence: PacingSequence;
-  if (preSequence) {
-    sequence = preSequence;
-  } else {
-    const currentMode = detectCurrentMode(narrative, resolvedKeys);
-    // Resolve matrix: explicit override > story setting > default
-    const matrix = transitionMatrix
-      ?? MATRIX_PRESETS.find((p) => p.key === storySettings.rhythmPreset)?.matrix
-      ?? DEFAULT_TRANSITION_MATRIX;
-    sequence = samplePacingSequence(currentMode, sceneCount, matrix);
-  }
-  const sequencePrompt = buildSequencePrompt(sequence);
+  // ── Pacing sequence: only included when explicitly provided (MCTS or user opt-in presets) ──
+  const sequencePrompt = pacingSequence ? buildSequencePrompt(pacingSequence) : '';
 
   const prompt = `${ctx}
 

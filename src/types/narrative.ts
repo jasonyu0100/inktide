@@ -669,11 +669,17 @@ export type LocationSketch = {
   description: string;
 };
 
+export type ThreadSketch = {
+  description: string;
+  participantNames: string[];
+};
+
 export type WizardData = {
   title: string;
   premise: string;
   characters: CharacterSketch[];
   locations: LocationSketch[];
+  threads: ThreadSketch[];
   rules: string[];
 };
 

@@ -221,7 +221,7 @@ const initialState: AppState = {
   inspectorContext: null,
   wizardOpen: false,
   wizardStep: 'form',
-  wizardData: { title: '', premise: '', characters: [], locations: [], rules: [] },
+  wizardData: { title: '', premise: '', characters: [], locations: [], threads: [], rules: [] },
   selectedKnowledgeEntity: null,
   graphViewMode: 'spatial',
   autoConfig: {
@@ -253,7 +253,7 @@ export type Action =
   | { type: 'PREV_SCENE' }
   | { type: 'SET_SCENE_INDEX'; index: number }
   | { type: 'SET_INSPECTOR'; context: InspectorContext | null }
-  | { type: 'OPEN_WIZARD'; prefill?: string }
+  | { type: 'OPEN_WIZARD'; prefill?: string; prefillData?: Partial<WizardData> }
   | { type: 'CLOSE_WIZARD' }
   | { type: 'SET_WIZARD_STEP'; step: WizardStep }
   | { type: 'UPDATE_WIZARD_DATA'; data: Partial<WizardData> }
@@ -377,7 +377,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_INSPECTOR':
       return { ...state, inspectorContext: action.context };
     case 'OPEN_WIZARD':
-      return { ...state, wizardOpen: true, wizardStep: 'form', wizardData: { title: '', premise: action.prefill ?? '', characters: [], locations: [], rules: [] } };
+      return { ...state, wizardOpen: true, wizardStep: action.prefillData ? 'details' : 'form', wizardData: { title: '', premise: action.prefill ?? '', characters: [], locations: [], threads: [], rules: [], ...action.prefillData } };
     case 'CLOSE_WIZARD':
       return { ...state, wizardOpen: false };
     case 'SET_WIZARD_STEP':

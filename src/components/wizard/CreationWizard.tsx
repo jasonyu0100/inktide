@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { generateNarrative } from '@/lib/ai';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
-import type { CharacterSketch, LocationSketch } from '@/types/narrative';
+import type { CharacterSketch, LocationSketch, ThreadSketch } from '@/types/narrative';
 
 const ROLES: CharacterSketch['role'][] = ['anchor', 'recurring', 'transient'];
 
@@ -62,6 +62,19 @@ export function CreationWizard() {
     update({ locations: wd.locations.filter((_, idx) => idx !== i) });
   }
 
+  // ── Threads ─────────────────────────────────────────────────────────
+  function addThread() {
+    update({ threads: [...wd.threads, { description: '', participantNames: [] }] });
+  }
+  function updateThread(i: number, patch: Partial<ThreadSketch>) {
+    const t = [...wd.threads];
+    t[i] = { ...t[i], ...patch };
+    update({ threads: t });
+  }
+  function removeThread(i: number) {
+    update({ threads: wd.threads.filter((_, idx) => idx !== i) });
+  }
+
   // ── Rules ────────────────────────────────────────────────────────────
   function addRule() {
     const text = ruleDraft.trim();
@@ -116,6 +129,15 @@ export function CreationWizard() {
         .map((l) => `  - ${l.name}${l.description ? `: ${l.description}` : ''}`);
       if (locLines.length > 0) {
         details.push(`Key locations:\n${locLines.join('\n')}`);
+      }
+    }
+
+    if (wd.threads.length > 0) {
+      const threadLines = wd.threads
+        .filter((t) => t.description.trim())
+        .map((t) => `  - ${t.description}${t.participantNames.length > 0 ? ` (involves: ${t.participantNames.join(', ')})` : ''}`);
+      if (threadLines.length > 0) {
+        details.push(`Narrative threads:\n${threadLines.join('\n')}`);
       }
     }
 
@@ -219,7 +241,7 @@ export function CreationWizard() {
     );
   }
 
-  const hasDetails = wd.characters.length > 0 || wd.locations.length > 0 || wd.rules.length > 0;
+  const hasDetails = wd.characters.length > 0 || wd.locations.length > 0 || wd.threads.length > 0 || wd.rules.length > 0;
 
   // ── Step 2: Details view ───────────────────────────────────────────
   if (isDetails) {
@@ -241,7 +263,7 @@ export function CreationWizard() {
               </div>
               <h2 className="text-sm font-semibold text-text-primary mb-1">Details (Optional)</h2>
               <p className="text-[11px] text-text-dim">
-                Add characters, locations, or world rules — or skip and let the AI fill in everything.
+                Add characters, locations, threads, or world rules — or skip and let the AI fill in everything.
               </p>
             </div>
 
@@ -317,6 +339,40 @@ export function CreationWizard() {
                       />
                     </div>
                     <button type="button" onClick={() => removeLocation(i)} className="text-text-dim hover:text-text-secondary text-xs mt-0.5">&times;</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Threads */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">Threads</label>
+                <button type="button" onClick={addThread} className="text-[10px] text-text-dim hover:text-text-secondary transition">+ Add</button>
+              </div>
+              {wd.threads.length === 0 && (
+                <p className="text-[11px] text-text-dim/60 italic">No threads defined — the AI will generate narrative tensions from the premise.</p>
+              )}
+              <div className="flex flex-col gap-2">
+                {wd.threads.map((th, i) => (
+                  <div key={i} className="flex gap-2 items-start bg-bg-elevated rounded-lg p-2.5 border border-border">
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <input
+                        type="text"
+                        value={th.description}
+                        onChange={(e) => updateThread(i, { description: e.target.value })}
+                        placeholder="Describe the tension, conflict, or open question..."
+                        className="flex-1 bg-transparent border-b border-border text-xs text-text-primary outline-none placeholder:text-text-dim focus:border-white/20 transition pb-0.5"
+                      />
+                      <input
+                        type="text"
+                        value={th.participantNames.join(', ')}
+                        onChange={(e) => updateThread(i, { participantNames: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                        placeholder="Participants (comma-separated names)..."
+                        className="bg-transparent border-b border-border text-[10px] text-text-dim outline-none placeholder:text-text-dim/60 focus:border-white/20 transition pb-0.5"
+                      />
+                    </div>
+                    <button type="button" onClick={() => removeThread(i)} className="text-text-dim hover:text-text-secondary text-xs mt-0.5">&times;</button>
                   </div>
                 ))}
               </div>
@@ -462,6 +518,28 @@ export function CreationWizard() {
               Generate
             </button>
           </div>
+
+          {/* Premise builder nudge */}
+          {!wd.premise.trim() && (
+            <button
+              onClick={() => {
+                dispatch({ type: 'CLOSE_WIZARD' });
+                router.push('/premise');
+              }}
+              className="flex items-center gap-3 w-full rounded-lg border border-dashed border-white/8 hover:border-white/16 px-4 py-3 transition group"
+            >
+              <svg className="w-4 h-4 text-white/20 group-hover:text-white/40 transition shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <div className="text-left">
+                <p className="text-[11px] text-white/50 group-hover:text-white/70 transition font-medium">Not sure where to start?</p>
+                <p className="text-[10px] text-white/25 group-hover:text-white/35 transition">Answer a few questions and we&rsquo;ll help you discover a world.</p>
+              </div>
+              <svg className="w-3.5 h-3.5 text-white/15 group-hover:text-white/35 transition ml-auto shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+          )}
         </div>
       </div>
     </div>

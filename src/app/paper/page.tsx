@@ -192,7 +192,7 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              A chapter lands. A reveal reframes everything before it. A quiet scene holds more weight than the battle it follows. Readers recognise these moments instantly, yet no existing metric captures why they work. Sentiment arcs miss structure. Topic models miss momentum. The patterns that make stories feel inevitable — threads converging, knowledge compounding, relationships shifting at exactly the right moment — have remained beyond the reach of computation.
+              A chapter lands. A reveal reframes everything before it. A quiet scene holds more weight than the battle it follows. Readers recognise these moments instantly, yet no existing metric captures why they work. Sentiment arcs miss structure. Topic models miss momentum. The patterns that make stories feel inevitable have remained beyond the reach of computation.
             </P>
             <P>
               This paper introduces a framework that makes them computable. We model a narrative as a <B>knowledge graph that mutates scene by scene</B>, then derive three orthogonal forces — Payoff, Change, and Knowledge — from those mutations alone. The formulas are deterministic, z-score normalised, and genre-agnostic. They compose into higher-order metrics — Tension, Delivery, Swing — that trace the shape of a story. Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation. No human labeled those peaks. The math found them.
@@ -205,11 +205,82 @@ export default function PaperPage() {
           {/* ── The Problem ───────────────────────────────────────────── */}
           <Section id="problem" label="The Problem">
             <P>
-              Sentiment analysis sees that a chapter is &ldquo;positive.&rdquo; It misses that the warmth comes from an unreliable narrator, and that the scene&apos;s structural role is the opposite of its surface tone. Topic modeling sees that a chapter mentions &ldquo;war.&rdquo; It cannot distinguish a thread that just escalated from dormant to critical from one that resolved three scenes ago — where this mention is merely an echo.
+              Existing metrics cannot distinguish human-written narratives from AI-generated ones in any structurally meaningful way. Sentiment analysis sees tone, not architecture. Topic modeling sees frequency, not momentum. Neither can tell you whether a thread escalated or merely echoed, whether a relationship shifted or repeated, whether a world deepened or just expanded.
             </P>
             <P>
-              The gap is not incremental. What readers actually experience — tension coiling across chapters, threads paying off in unexpected combinations, a world clicking into focus one rule at a time — arises from <B>structural mutations</B>. Which threads changed status. How relationships shifted. What new knowledge entered the world. Sentiment and topic frequencies are shadows cast by these deeper movements. We needed formulas that operate on the mutations themselves, not on the words that happen to describe them.
+              Yet the structural difference is real. What readers experience — tension coiling across chapters, threads paying off in unexpected combinations, a world clicking into focus — arises from <B>structural mutations</B>: which threads changed status, how relationships shifted, what new knowledge entered the world. When we score published literature and AI-generated stories using the same mutation-based formulas, a consistent gap emerges. Published works cluster between 81 and 93. AI-generated stories — structurally valid but thinner — typically land between 68 and 81. The gap is not in grammar or coherence. It is in thread lifecycle depth, relationship valence intensity, and world-knowledge density.
             </P>
+
+            {/* ── Human vs AI gradient bar ──────────────────────────── */}
+            {(() => {
+              const W = 580, H = 80;
+              const BAR_Y = 16, BAR_H = 28;
+              const PAD_L = 30, PAD_R = 20;
+              const barW = W - PAD_L - PAD_R;
+
+              const scoreMin = 60, scoreMax = 100;
+              const toX = (s: number) => PAD_L + ((s - scoreMin) / (scoreMax - scoreMin)) * barW;
+
+              const works = [
+                { score: 68, human: false },
+                { score: 71, human: false },
+                { score: 73, human: false },
+                { score: 75, human: false },
+                { score: 79, human: false },
+                { score: 81, human: false },
+                { score: 81, human: true },
+                { score: 85, human: true },
+                { score: 86, human: true },
+                { score: 90, human: true },
+                { score: 93, human: true },
+                { score: 93, human: true },
+              ];
+
+              const ticks = [60, 70, 80, 90, 100];
+
+              return (
+                <div className="mt-6 rounded-xl border border-white/6 bg-white/[0.02] px-5 py-4">
+                  <svg width={W} height={H} className="mx-auto block" viewBox={`0 0 ${W} ${H}`}>
+                    <defs>
+                      <linearGradient id="score-grad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#ef4444" stopOpacity="0.5" />
+                        <stop offset="25%" stopColor="#f59e0b" stopOpacity="0.5" />
+                        <stop offset="50%" stopColor="#eab308" stopOpacity="0.4" />
+                        <stop offset="75%" stopColor="#84cc16" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="#22c55e" stopOpacity="0.5" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Gradient bar */}
+                    <rect x={PAD_L} y={BAR_Y} width={barW} height={BAR_H} rx={4} fill="url(#score-grad)" />
+
+                    {/* Tick marks */}
+                    {ticks.map(t => (
+                      <g key={t}>
+                        <line x1={toX(t)} y1={BAR_Y + BAR_H} x2={toX(t)} y2={BAR_Y + BAR_H + 4} stroke="rgba(255,255,255,0.15)" />
+                        <text x={toX(t)} y={BAR_Y + BAR_H + 15} textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize="9">{t}</text>
+                      </g>
+                    ))}
+
+                    {/* Points — on the bar */}
+                    {works.map((d, i) => (
+                      <circle key={i} cx={toX(d.score)} cy={BAR_Y + BAR_H / 2} r={d.human ? 4.5 : 3.5}
+                        fill={d.human ? 'white' : 'rgba(251,191,36,0.8)'}
+                        opacity={d.human ? 0.9 : 0.7}
+                        stroke={d.human ? 'rgba(255,255,255,0.3)' : 'none'}
+                        strokeWidth={1}
+                      />
+                    ))}
+
+                    {/* Legend */}
+                    <circle cx={PAD_L} cy={H - 6} r={3} fill="white" opacity={0.7} />
+                    <text x={PAD_L + 7} y={H - 3} fill="rgba(255,255,255,0.35)" fontSize="8">Published literature (n=6)</text>
+                    <circle cx={PAD_L + 130} cy={H - 6} r={2.5} fill="rgba(251,191,36,0.8)" />
+                    <text x={PAD_L + 137} y={H - 3} fill="rgba(255,255,255,0.35)" fontSize="8">AI-generated (n=6)</text>
+                  </svg>
+                </div>
+              );
+            })()}
           </Section>
 
           {/* ── Approach ──────────────────────────────────────────────── */}

@@ -7,7 +7,13 @@ import React from 'react';
  * Maps force-dominance profiles to visually distinctive icons.
  */
 
-type ArchetypeKey = 'masterwork' | 'epic' | 'chronicle' | 'saga' | 'classic' | 'anthology' | 'tome' | 'emerging';
+export type ArchetypeKey = 'masterwork' | 'epic' | 'chronicle' | 'saga' | 'classic' | 'anthology' | 'tome' | 'emerging';
+
+export const ARCHETYPE_COLORS: Record<ArchetypeKey, string> = {
+  masterwork: '#f59e0b', epic: '#ef4444', chronicle: '#3b82f6',
+  saga: '#8b5cf6', classic: '#10b981', anthology: '#ec4899',
+  tome: '#06b6d4', emerging: '#6b7280',
+};
 
 interface ArchetypeIconProps {
   archetypeKey: string;
@@ -16,10 +22,8 @@ interface ArchetypeIconProps {
   className?: string;
 }
 
-/** Default violet-400 matching archetype badge color */
-const DEFAULT_COLOR = '#A78BFA';
-
-export function ArchetypeIcon({ archetypeKey, size = 20, color = DEFAULT_COLOR, className }: ArchetypeIconProps) {
+export function ArchetypeIcon({ archetypeKey, size = 20, color, className }: ArchetypeIconProps) {
+  const resolvedColor = color ?? ARCHETYPE_COLORS[archetypeKey as ArchetypeKey] ?? '#6b7280';
   const key = archetypeKey as ArchetypeKey;
   const s = size;
   const half = s / 2;
@@ -33,7 +37,7 @@ export function ArchetypeIcon({ archetypeKey, size = 20, color = DEFAULT_COLOR, 
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {SHAPES[key]?.(half, s, color) ?? SHAPES.emerging(half, s, color)}
+      {SHAPES[key]?.(half, s, resolvedColor) ?? SHAPES.emerging(half, s, resolvedColor)}
     </svg>
   );
 }

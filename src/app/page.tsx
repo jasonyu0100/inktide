@@ -149,11 +149,6 @@ function scoreColor(score: number): string {
   return '#f87171';
 }
 
-const ARCHETYPE_COLORS: Record<string, string> = {
-  masterwork: '#f59e0b', epic: '#ef4444', chronicle: '#3b82f6',
-  saga: '#8b5cf6', classic: '#10b981', anthology: '#ec4899',
-  tome: '#06b6d4', emerging: '#6b7280',
-};
 
 /* ── Seed vertical cards ─────────────────────────────────────────────────── */
 
@@ -197,7 +192,7 @@ function SeedCard({ entry, index, openSlides, size = 'md' }: { entry: NarrativeE
                 </svg>
               )}
               {entry.archetypeKey && (
-                <ArchetypeIcon archetypeKey={entry.archetypeKey} size={isLg ? 11 : 11} color={ARCHETYPE_COLORS[entry.archetypeKey] ?? '#6b7280'} />
+                <ArchetypeIcon archetypeKey={entry.archetypeKey} size={isLg ? 11 : 11} />
               )}
               {entry.overallScore !== undefined && (
                 <span className="text-[10px] font-mono font-semibold" style={{ color: scoreColor(entry.overallScore) }}>{entry.overallScore}</span>

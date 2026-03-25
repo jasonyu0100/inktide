@@ -27,7 +27,7 @@ Each force is computed directly from one mutation type:
 
 Forces are z-score normalised (mean=0, units=standard deviations) and compose into:
 - **Tension** — `C + K - P` — buildup without release
-- **Delivery** — `0.5P + 0.5·tanh(C/2) + 0.5·tanh(K/2) + 0.3·contrast` — the dopamine hit
+- **Delivery** — `0.3P + 0.4·tanh(C/1.5) + 0.4·tanh(K/1.5) + 0.1·contrast` — calibrated across HP, 1984, Gatsby, RI
 - **Swing** — Euclidean distance between consecutive force snapshots — the story breathing
 
 ### The Narrative Cube

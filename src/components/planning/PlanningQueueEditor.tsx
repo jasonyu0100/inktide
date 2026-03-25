@@ -12,9 +12,10 @@ import { PlanningLoadingModal } from './PlanningLoadingModal';
 
 type Props = {
   onClose: () => void;
+  onStartAuto?: () => void;
 };
 
-export function PlanningQueueEditor({ onClose }: Props) {
+export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
   const { state, dispatch } = useStore();
   const branchId = state.activeBranchId;
   const branch = branchId ? state.activeNarrative?.branches[branchId] : null;
@@ -26,6 +27,7 @@ export function PlanningQueueEditor({ onClose }: Props) {
   const [generating, setGenerating] = useState(false);
   const [showCustomPlan, setShowCustomPlan] = useState(false);
   const [regenerating, setRegenerating] = useState<'world' | 'direction' | null>(null);
+  const [showAutoPrompt, setShowAutoPrompt] = useState(false);
 
   async function generateFromDocument() {
     const narrative = state.activeNarrative;
@@ -256,7 +258,11 @@ export function PlanningQueueEditor({ onClose }: Props) {
       }
     }
 
-    onClose();
+    if (onStartAuto) {
+      setShowAutoPrompt(true);
+    } else {
+      onClose();
+    }
   }
 
   function handleClear() {
@@ -270,6 +276,27 @@ export function PlanningQueueEditor({ onClose }: Props) {
 
   if (activating) {
     return <PlanningLoadingModal step={activatingStep ?? 'Initializing...'} subtitle="Preparing the first phase" />;
+  }
+
+  if (showAutoPrompt) {
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+        <div className="glass max-w-sm w-full rounded-2xl p-5 text-center">
+          <p className="text-sm text-text-primary font-medium mb-1">Queue activated</p>
+          <p className="text-[11px] text-text-dim mb-4">Run auto mode to complete the plan?</p>
+          <div className="flex gap-2 justify-center">
+            <button onClick={onClose}
+              className="px-4 py-2 text-xs text-text-dim hover:text-text-secondary transition">
+              Not now
+            </button>
+            <button onClick={() => { onStartAuto?.(); onClose(); }}
+              className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition">
+              Start Auto Mode
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

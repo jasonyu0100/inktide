@@ -353,6 +353,16 @@ export function checkEndConditions(
         if (arcsThisRun >= cond.target) return cond;
         break;
       }
+      case 'planning_complete': {
+        // Check if all planning phases are completed
+        const branches = Object.values(narrative.branches);
+        const pq = branches.find((b) => b.planningQueue)?.planningQueue;
+        if (pq) {
+          const allDone = pq.phases.every((p) => p.status === 'completed');
+          if (allDone) return cond;
+        }
+        break;
+      }
       case 'manual_stop':
         break; // only triggered by user
     }

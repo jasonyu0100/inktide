@@ -17,6 +17,7 @@ import { GeneratePanel } from '@/components/generation/GeneratePanel';
 import { BranchModal } from '@/components/generation/BranchModal';
 import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
 import { AutoControlBar } from '@/components/auto/AutoControlBar';
+import { AutoLogModal } from '@/components/auto/AutoLogModal';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { ForceAnalytics } from '@/components/analytics/ForceAnalytics';
@@ -49,6 +50,7 @@ export default function SeriesPage() {
   const [generateOpen, setGenerateOpen] = useState(false);
   const [forkOpen, setForkOpen] = useState(false);
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
+  const [autoLogOpen, setAutoLogOpen] = useState(false);
   const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
   const [forceAnalyticsOpen, setForceAnalyticsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -137,6 +139,7 @@ export default function SeriesPage() {
                 onResume={autoPlay.resume}
                 onStop={autoPlay.stop}
                 onOpenSettings={() => setAutoSettingsOpen(true)}
+                onOpenLog={() => setAutoLogOpen(true)}
               />
             )}
             {showMctsBar && (
@@ -170,13 +173,31 @@ export default function SeriesPage() {
           onStart={() => autoPlay.start()}
         />
       )}
+      {autoLogOpen && (
+        <AutoLogModal
+          log={autoPlay.log}
+          onClose={() => setAutoLogOpen(false)}
+        />
+      )}
       {cubeViewerOpen && (
         <NarrativeCubeViewer onClose={() => setCubeViewerOpen(false)} />
       )}
       {forceAnalyticsOpen && <ForceAnalytics onClose={() => setForceAnalyticsOpen(false)} />}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}
-      {planningQueueOpen && <PlanningQueueEditor onClose={() => setPlanningQueueOpen(false)} />}
+      {planningQueueOpen && (
+        <PlanningQueueEditor
+          onClose={() => setPlanningQueueOpen(false)}
+          onStartAuto={() => {
+            // When starting from planning queue, use planning_complete as the sole end condition
+            dispatch({
+              type: 'SET_AUTO_CONFIG',
+              config: { ...state.autoConfig, endConditions: [{ type: 'planning_complete' }] },
+            });
+            autoPlay.start();
+          }}
+        />
+      )}
       {planning.pendingCompletion && planning.queue && (
         <PhaseCompletionModal
           queue={planning.queue}

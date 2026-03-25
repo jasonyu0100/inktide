@@ -16,12 +16,18 @@ const TABS: { label: string; value: Tab }[] = [
 export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; onStart: () => void }) {
   const { state, dispatch } = useStore();
   const [tab, setTab] = useState<Tab>('direction');
+  const hasPlanningQueue = !!(state.activeNarrative?.branches && Object.values(state.activeNarrative.branches).some(b => b.planningQueue));
+
   const [config, setConfig] = useState<AutoConfig>(() => {
     const base = { ...state.autoConfig };
     const storyDir = state.activeNarrative?.storySettings?.storyDirection?.trim();
     const storyCon = state.activeNarrative?.storySettings?.storyConstraints?.trim();
     if (!base.northStarPrompt && storyDir) base.northStarPrompt = storyDir;
     if (!base.narrativeConstraints && storyCon) base.narrativeConstraints = storyCon;
+    // When planning queue is active, default to planning_complete instead of scene_count
+    if (hasPlanningQueue && !base.endConditions.some(c => c.type === 'planning_complete')) {
+      base.endConditions = [{ type: 'planning_complete' }];
+    }
     return base;
   });
 
@@ -150,6 +156,19 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Planning complete */}
+              {state.activeNarrative?.branches && Object.values(state.activeNarrative.branches).some(b => b.planningQueue) && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasEndCondition('planning_complete')}
+                    onChange={() => toggleEndCondition('planning_complete', { type: 'planning_complete' })}
+                    className="accent-white/80"
+                  />
+                  <span className="text-xs text-text-secondary">Stop when planning queue completes</span>
+                </label>
               )}
 
               {/* Manual stop — warning zone */}

@@ -4,6 +4,8 @@ import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective } from '@/lib/auto-engine';
 import { generateScenes } from '@/lib/ai';
+import { refreshDirection } from '@/lib/ai/review';
+import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import type { AutoRunLog } from '@/types/narrative';
 
 export function useAutoPlay() {
@@ -67,6 +69,11 @@ export function useAutoPlay() {
     const action = chosen.action;
     let scenesGenerated = 0;
     let worldExpanded = false;
+    let arcName = '';
+    let cycleDirection = '';
+    let cycleConstraints = '';
+    let courseCorrection: { direction: string; constraints: string } | undefined;
+    let cycleError = '';
 
     try {
       // Resolve world focus from story settings
@@ -86,6 +93,10 @@ export function useAutoPlay() {
       const freshCon = activeNarrative.storySettings?.storyConstraints?.trim();
       if (freshDir) freshConfig.northStarPrompt = freshDir;
       if (freshCon) freshConfig.narrativeConstraints = freshCon;
+
+      // Capture direction/constraints for logging
+      cycleDirection = freshConfig.northStarPrompt;
+      cycleConstraints = freshConfig.narrativeConstraints;
 
       // Generate arc — cap scene count to fit planning phase allocation
       const directive = buildActionDirective(action, activeNarrative, freshConfig, directiveCtx);
@@ -135,15 +146,47 @@ export function useAutoPlay() {
         branchId: activeBranchId,
       });
       scenesGenerated = scenes.length;
+      arcName = arc.name;
+
+      // Course-correct: refresh direction after each arc
+      if (pq && scenesGenerated > 0) {
+        const freshState = stateRef.current;
+        const freshNarrative = freshState.activeNarrative;
+        const freshBranch = freshNarrative?.branches[activeBranchId];
+        const freshQueue = freshBranch?.planningQueue;
+        const freshPhase = freshQueue?.phases[freshQueue.activePhaseIndex];
+        if (freshNarrative && freshPhase?.status === 'active' && freshPhase.scenesCompleted < freshPhase.sceneAllocation) {
+          try {
+            const currentDir = freshNarrative.storySettings?.storyDirection?.trim() ?? '';
+            const currentCon = freshNarrative.storySettings?.storyConstraints?.trim() ?? '';
+            const { direction: newDir, constraints: newCon } = await refreshDirection(
+              freshNarrative, freshState.resolvedEntryKeys, freshState.currentSceneIndex, freshPhase, currentDir, currentCon,
+            );
+            if (newDir !== currentDir || newCon !== currentCon) {
+              courseCorrection = { direction: newDir, constraints: newCon };
+              const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...freshNarrative.storySettings };
+              dispatch({
+                type: 'SET_STORY_SETTINGS',
+                settings: { ...baseSettings, storyDirection: newDir, storyConstraints: newCon },
+              });
+            }
+          } catch (err) {
+            console.error('[auto-play] direction refresh failed:', err);
+          }
+        }
+      }
 
     } catch (err) {
-      // Log error but don't crash the loop
       console.error('[auto-play] cycle error:', err);
+      cycleError = err instanceof Error ? err.message : String(err);
     }
 
     if (cancelledRef.current) return;
 
-    // Log the cycle
+    // Log the cycle with full details
+    const phaseName = pq ? pq.phases[pq.activePhaseIndex]?.name : undefined;
+    const phaseProgress = pq ? `${pq.phases[pq.activePhaseIndex]?.scenesCompleted ?? 0}/${pq.phases[pq.activePhaseIndex]?.sceneAllocation ?? 0}` : undefined;
+
     const logEntry: AutoRunLog = {
       cycle: autoRunState.currentCycle + 1,
       timestamp: Date.now(),
@@ -152,6 +195,13 @@ export function useAutoPlay() {
       scenesGenerated,
       worldExpanded,
       endConditionMet: null,
+      arcName: arcName || undefined,
+      phaseName,
+      phaseProgress,
+      direction: cycleDirection || undefined,
+      constraints: cycleConstraints || undefined,
+      courseCorrection,
+      error: cycleError || undefined,
     };
     dispatch({ type: 'LOG_AUTO_CYCLE', entry: logEntry });
   }, [dispatch]);

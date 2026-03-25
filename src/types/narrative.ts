@@ -544,6 +544,7 @@ export type AutoEndCondition =
   | { type: 'scene_count'; target: number }
   | { type: 'all_threads_resolved' }
   | { type: 'arc_count'; target: number }
+  | { type: 'planning_complete' }
   | { type: 'manual_stop' };
 
 /** Auto actions map directly to the 8 narrative cube corners */
@@ -578,6 +579,18 @@ export type AutoRunLog = {
   scenesGenerated: number;
   worldExpanded: boolean;
   endConditionMet: AutoEndCondition | null;
+  /** Human-readable details for debugging */
+  arcName?: string;
+  /** Phase name if planning queue is active */
+  phaseName?: string;
+  phaseProgress?: string;
+  /** Direction and constraints used for this cycle */
+  direction?: string;
+  constraints?: string;
+  /** Course correction output (if refreshDirection ran) */
+  courseCorrection?: { direction: string; constraints: string };
+  /** Error message if something failed */
+  error?: string;
 };
 
 export type AutoRunState = {

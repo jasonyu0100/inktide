@@ -104,6 +104,26 @@ export default function SceneDetail({ sceneId }: Props) {
               {m.relationships.length} new
             </div>
           )}
+          {(m.artifacts?.length ?? 0) > 0 && (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Artifacts</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {m.artifacts!.map((ma) => {
+                  const art = narrative.artifacts?.[ma.id];
+                  return (
+                    <button
+                      key={ma.id}
+                      type="button"
+                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: ma.id } })}
+                      className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-400 transition-colors hover:bg-amber-400/20"
+                    >
+                      {art?.name ?? ma.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>

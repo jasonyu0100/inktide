@@ -365,7 +365,7 @@ ${worldKnowledgeBlock}${buildDramaticIronyBlock(n, keysUpToCurrent)}
 <valid-ids hint="You MUST use ONLY these exact IDs — do NOT invent new ones.">
   <characters>${charIdList}</characters>
   <locations>${locIdList}</locations>
-  <threads>${threadIdList}</threads>${artifactEntries.length > 0 ? `\n  <artifacts>${artifactEntries.map((a) => `${a.name} (${a.id})`).join(', ')}</artifacts>` : ''}
+  <threads>${threadIdList}</threads>${artifactEntries.length > 0 ? `\n  <artifacts>${artifactEntries.map((a) => a.id).join(', ')}</artifacts>` : ''}
 </valid-ids>
 </narrative>`;
 }

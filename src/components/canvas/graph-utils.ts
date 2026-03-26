@@ -32,6 +32,8 @@ export interface GraphNode extends d3.SimulationNodeDatum {
   imageUrl?: string;
   /** AI-generated visual description */
   imagePrompt?: string;
+  /** Only for artifact nodes */
+  significance?: string;
 }
 
 export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
@@ -257,24 +259,24 @@ export function buildGraphData(
     }
   }
 
-  // Artifact nodes + ownership edges
+  // Artifact nodes + ownership edges — only show if owner is in the graph
   for (const art of Object.values(artifacts ?? {})) {
+    if (!characters[art.parentId] && !locations[art.parentId]) continue;
     nodes.push({
       id: art.id,
       kind: 'artifact',
       label: art.name,
       imageUrl: art.imageUrl,
       imagePrompt: art.imagePrompt,
+      significance: art.significance,
     });
-    if (characters[art.parentId] || locations[art.parentId]) {
-      links.push({
-        id: `ownership-${art.id}-${art.parentId}`,
-        source: art.id,
-        target: art.parentId,
-        linkKind: 'ownership',
-        label: 'owned by',
-      });
-    }
+    links.push({
+      id: `ownership-${art.id}-${art.parentId}`,
+      source: art.id,
+      target: art.parentId,
+      linkKind: 'ownership',
+      label: 'owned by',
+    });
   }
 
   return { nodes, links };
@@ -389,6 +391,7 @@ export function buildOverviewGraphData(
       label: art.name,
       imageUrl: art.imageUrl,
       imagePrompt: art.imagePrompt,
+      significance: art.significance,
     });
     links.push({
       id: `ownership-${art.id}-${art.parentId}`,

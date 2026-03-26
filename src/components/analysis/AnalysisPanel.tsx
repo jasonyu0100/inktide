@@ -251,18 +251,20 @@ export function AnalysisPanel({ jobId, sourceText, title: initialTitle, onClose 
 
         {/* Stats for completed chunks */}
         {completedChunks > 0 && (
-          <div className="grid grid-cols-4 gap-2 mb-4">
+          <div className="grid grid-cols-5 gap-2 mb-4">
             {(() => {
               const completed = currentJob.results.filter((r): r is AnalysisChunkResult => r !== null);
               const chars = new Set(completed.flatMap((r) => r.characters.map((c) => c.name)));
               const locs = new Set(completed.flatMap((r) => r.locations.map((l) => l.name)));
               const sceneCount = completed.reduce((sum, r) => sum + (r.scenes?.length ?? 0), 0);
               const threadCount = new Set(completed.flatMap((r) => r.threads.map((t) => t.description))).size;
+              const artCount = new Set(completed.flatMap((r) => (r.artifacts ?? []).map((a) => a.name))).size;
               return [
                 { label: 'Characters', value: chars.size },
                 { label: 'Locations', value: locs.size },
                 { label: 'Scenes', value: sceneCount },
                 { label: 'Threads', value: threadCount },
+                { label: 'Artifacts', value: artCount },
               ].map((s) => (
                 <div key={s.label} className="text-center">
                   <div className="text-sm font-semibold text-text-primary">{s.value}</div>

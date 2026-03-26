@@ -396,7 +396,7 @@ export default function WorldGraph() {
         'collide',
         d3.forceCollide<GraphNode>().radius((d) => {
           if (d.kind === 'knowledge') return 28;
-          if (d.kind === 'artifact') return 24;
+          if (d.kind === 'artifact') return (d.significance === 'key' ? 14 : d.significance === 'minor' ? 7 : 10) + 14;
           if (scaleByUsage) {
             if (d.kind === 'character') {
               const t = charRange > 0 ? ((d.usageCount ?? 1) - minCharUsage) / charRange : 0;
@@ -596,18 +596,19 @@ export default function WorldGraph() {
       .attr('fill', (d) => CONTINUITY_FILL[d.continuityType ?? 'knows'] ?? DEFAULT_CONTINUITY_FILL)
       .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.continuityType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
 
-    // Artifact diamonds
-    const ARTIFACT_SIZE = 10;
+    // Artifact diamonds — sized by significance
+    const ARTIFACT_SIZES: Record<string, number> = { key: 14, notable: 10, minor: 7 };
+    const ARTIFACT_FILLS: Record<string, string> = { key: '#F59E0B', notable: '#D97706', minor: '#92400E' };
     nodeGroup
       .filter((d) => d.kind === 'artifact')
       .append('rect')
-      .attr('x', -ARTIFACT_SIZE)
-      .attr('y', -ARTIFACT_SIZE)
-      .attr('width', ARTIFACT_SIZE * 2)
-      .attr('height', ARTIFACT_SIZE * 2)
+      .attr('x', (d) => -(ARTIFACT_SIZES[d.significance ?? 'notable'] ?? 10))
+      .attr('y', (d) => -(ARTIFACT_SIZES[d.significance ?? 'notable'] ?? 10))
+      .attr('width', (d) => (ARTIFACT_SIZES[d.significance ?? 'notable'] ?? 10) * 2)
+      .attr('height', (d) => (ARTIFACT_SIZES[d.significance ?? 'notable'] ?? 10) * 2)
       .attr('rx', 2)
       .attr('transform', 'rotate(45)')
-      .attr('fill', '#F59E0B')
+      .attr('fill', (d) => ARTIFACT_FILLS[d.significance ?? 'notable'] ?? '#D97706')
       .attr('opacity', 0.85);
 
     // Character / location labels
@@ -620,6 +621,10 @@ export default function WorldGraph() {
         if (d.kind === 'character') {
           const r = CHAR_MIN_R + (CHAR_MAX_R - CHAR_MIN_R) * normChar(d);
           return r + 14;
+        }
+        if (d.kind === 'artifact') {
+          const sz = ARTIFACT_SIZES[d.significance ?? 'notable'] ?? 10;
+          return sz + 18;
         }
         const s = LOC_MIN_SCALE + (LOC_MAX_SCALE - LOC_MIN_SCALE) * normLoc(d);
         return (LOCATION_SIZE * s) / 2 + 14;

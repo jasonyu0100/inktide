@@ -9,7 +9,7 @@
 
 import type {
   NarrativeState, AnalysisChunkResult, AnalysisJob,
-  Character, Location, Thread, Arc, Scene, RelationshipEdge,
+  Character, Location, Thread, Arc, Scene, RelationshipEdge, Artifact,
   WorldBuild, Branch,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '@/types/narrative';
@@ -363,6 +363,9 @@ Return a single JSON object with this exact structure:
   "locations": [
     { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "lore": ["Notable detail or significance"] }
   ],
+  "artifacts": [
+    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "specific_type", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
+  ],
   "threads": [
     {
       "description": "The narrative question or tension — use EXACT description from prior chunks for continuing threads",
@@ -389,6 +392,9 @@ Return a single JSON object with this exact structure:
       "relationshipMutations": [
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
       ],
+      "ownershipMutations": [
+        { "artifactName": "Artifact Name", "fromName": "Previous owner name", "toName": "New owner name" }
+      ],
       "characterMovements": [
         { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
       ],
@@ -408,6 +414,8 @@ RULES:
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
+- artifacts: objects with narrative significance — weapons, relics, keys, letters, documents, tools. Only extract items that alter what characters can do or drive plot. A named sword that wins battles is an artifact; a generic chair is not. Track who owns each artifact. If ownership changes in a scene, record it as an ownershipMutation.
+- ownershipMutations: only when an artifact physically changes hands in a scene. fromName = previous owner (character or location name), toName = new owner.
 - worldKnowledgeMutations track the world's abstract structure — the rules, systems, ideas, and tensions that define the world the characters inhabit. NOT character knowledge (that's continuityMutations). World knowledge exists in EVERY genre, not just fantasy:
   * Fantasy/sci-fi: magic systems, alien species, supernatural laws, technological rules
   * Literary fiction: class structures, social norms, economic systems, cultural expectations
@@ -553,6 +561,9 @@ Return a single JSON object with this exact structure:
   "locations": [
     { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "lore": ["Notable detail or significance"] }
   ],
+  "artifacts": [
+    { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "specific_type", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
+  ],
   "threads": [
     {
       "description": "The narrative question or tension",
@@ -579,6 +590,9 @@ Return a single JSON object with this exact structure:
       "relationshipMutations": [
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
       ],
+      "ownershipMutations": [
+        { "artifactName": "Artifact Name", "fromName": "Previous owner name", "toName": "New owner name" }
+      ],
       "characterMovements": [
         { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
       ],
@@ -598,6 +612,8 @@ RULES:
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
+- artifacts: objects with narrative significance — weapons, relics, keys, letters, documents, tools. Only extract items that alter what characters can do or drive plot. A named sword that wins battles is an artifact; a generic chair is not. Track who owns each artifact. If ownership changes in a scene, record it as an ownershipMutation.
+- ownershipMutations: only when an artifact physically changes hands in a scene. fromName = previous owner (character or location name), toName = new owner.
 - worldKnowledgeMutations track the world's abstract structure — rules, systems, ideas, and tensions of the world characters inhabit. NOT character knowledge. Exists in EVERY genre:
   * Fantasy/sci-fi: magic systems, supernatural laws, alien species. Literary: class structures, social norms, economic systems. Historical: period customs, political systems. Crime: legal systems, criminal hierarchies.
 - Four types: "law" (governing truths — social rules, physical laws), "system" (institutions, hierarchies), "concept" (named ideas, symbolic motifs, places-as-concepts), "tension" (contradictions, unresolved social forces).
@@ -933,7 +949,7 @@ export async function assembleNarrative(
   onToken?: (token: string, accumulated: string) => void,
 ): Promise<NarrativeState> {
   const PREFIX = title.replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'TXT';
-  let charCounter = 0, locCounter = 0, threadCounter = 0, sceneCounter = 0, arcCounter = 0, kCounter = 0, wkCounter = 0;
+  let charCounter = 0, locCounter = 0, threadCounter = 0, sceneCounter = 0, arcCounter = 0, kCounter = 0, wkCounter = 0, artifactCounter = 0;
 
   const nextId = (pre: string, counter: () => number, pad = 2) => `${pre}-${PREFIX}-${String(counter()).padStart(pad, '0')}`;
   const nextCharId = () => nextId('C', () => ++charCounter);
@@ -943,10 +959,12 @@ export async function assembleNarrative(
   const nextArcId = () => nextId('ARC', () => ++arcCounter);
   const nextKId = () => nextId('K', () => ++kCounter, 3);
   const nextWkId = () => nextId('WK', () => ++wkCounter, 2);
+  const nextArtifactIdFn = () => nextId('A', () => ++artifactCounter);
 
   const charNameToId: Record<string, string> = {};
   const locNameToId: Record<string, string> = {};
   const threadDescToId: Record<string, string> = {};
+  const artifactNameToId: Record<string, string> = {};
   const wkConceptToId: Record<string, string> = {}; // lowercase concept → WK ID
 
   const getWkId = (concept: string) => {
@@ -958,9 +976,11 @@ export async function assembleNarrative(
   const getCharId = (name: string) => { if (!charNameToId[name]) charNameToId[name] = nextCharId(); return charNameToId[name]; };
   const getLocId = (name: string) => { if (!locNameToId[name]) locNameToId[name] = nextLocId(); return locNameToId[name]; };
   const getThreadId = (desc: string) => { if (!threadDescToId[desc]) threadDescToId[desc] = nextThreadId(); return threadDescToId[desc]; };
+  const getArtifactId = (name: string) => { if (!artifactNameToId[name]) artifactNameToId[name] = nextArtifactIdFn(); return artifactNameToId[name]; };
 
   const characters: Record<string, Character> = {};
   const locations: Record<string, Location> = {};
+  const artifactEntities: Record<string, Artifact> = {};
   const threads: Record<string, Thread> = {};
   const scenes: Record<string, Scene> = {};
   const arcs: Record<string, Arc> = {};
@@ -980,6 +1000,7 @@ export async function assembleNarrative(
   const charFirstChunk = new Map<string, number>();
   const locFirstChunk = new Map<string, number>();
   const threadFirstChunk = new Map<string, number>();
+  const artifactFirstChunk = new Map<string, number>();
   const chunkFirstSceneId = new Map<number, string>(); // chunkIdx → first scene id
 
   for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
@@ -1036,6 +1057,30 @@ export async function assembleNarrative(
           deferredL.push({ locationId: id, content: lore });
           locSeen.add(lore);
         }
+      }
+    }
+
+    // Artifacts
+    for (const a of ch.artifacts ?? []) {
+      const id = getArtifactId(a.name);
+      const ownerName = a.ownerName ?? '';
+      const parentId = charNameToId[ownerName] ?? locNameToId[ownerName] ?? (ownerName ? getLocId(ownerName) : '');
+      if (!artifactEntities[id]) {
+        artifactEntities[id] = {
+          id, name: a.name,
+          significance: (['key', 'notable', 'minor'].includes(a.significance) ? a.significance : 'notable') as Artifact['significance'],
+          continuity: { nodes: (a.continuity ?? []).map((k) => ({ id: nextKId(), type: k.type, content: k.content })) },
+          parentId,
+        };
+        artifactFirstChunk.set(id, chunkIdx);
+      } else {
+        // Accumulate continuity from later chunks
+        for (const k of a.continuity ?? []) {
+          if (!artifactEntities[id].continuity.nodes.some((n) => n.content === k.content)) {
+            artifactEntities[id].continuity.nodes.push({ id: nextKId(), type: k.type, content: k.content });
+          }
+        }
+        if (parentId) artifactEntities[id].parentId = parentId;
       }
     }
 
@@ -1115,6 +1160,15 @@ export async function assembleNarrative(
           }
           return Object.keys(result).length > 0 ? result : undefined;
         })(),
+        ownershipMutations: (() => {
+          const oms = s.ownershipMutations ?? [];
+          if (oms.length === 0) return undefined;
+          return oms.map((om) => ({
+            artifactId: getArtifactId(om.artifactName),
+            fromId: charNameToId[om.fromName] ?? locNameToId[om.fromName] ?? getLocId(om.fromName),
+            toId: charNameToId[om.toName] ?? locNameToId[om.toName] ?? getLocId(om.toName),
+          })).filter((om) => artifactEntities[om.artifactId]);
+        })() || undefined,
         worldKnowledgeMutations: (() => {
           const wkm = s.worldKnowledgeMutations;
           if (!wkm) return undefined;
@@ -1279,14 +1333,16 @@ export async function assembleNarrative(
     const newCharIds = Object.keys(characters).filter((id) => batchChunkIndices.has(charFirstChunk.get(id) ?? 0));
     const newLocIds = Object.keys(locations).filter((id) => batchChunkIndices.has(locFirstChunk.get(id) ?? 0));
     const newThreadIds = Object.keys(threads).filter((id) => batchChunkIndices.has(threadFirstChunk.get(id) ?? 0));
+    const newArtifactIds = Object.keys(artifactEntities).filter((id) => batchChunkIndices.has(artifactFirstChunk.get(id) ?? 0));
 
-    if (!isInitial && newCharIds.length === 0 && newLocIds.length === 0 && newThreadIds.length === 0) continue;
+    if (!isInitial && newCharIds.length === 0 && newLocIds.length === 0 && newThreadIds.length === 0 && newArtifactIds.length === 0) continue;
 
     const batchNum = Math.floor(batchStart / WORLD_COMMIT_INTERVAL) + 1;
     const worldBuildId = `WB-${PREFIX}-${String(batchNum).padStart(3, '0')}`;
+    const artSuffix = newArtifactIds.length > 0 ? `, ${newArtifactIds.length} artifacts` : '';
     const summary = isInitial
-      ? `Initial world: ${newCharIds.length} characters, ${newLocIds.length} locations, ${newThreadIds.length} threads`
-      : `Chunks ${batchStart + 1}–${batchEnd}: +${newCharIds.length} characters, +${newLocIds.length} locations, +${newThreadIds.length} threads`;
+      ? `Initial world: ${newCharIds.length} characters, ${newLocIds.length} locations, ${newThreadIds.length} threads${artSuffix}`
+      : `Chunks ${batchStart + 1}–${batchEnd}: +${newCharIds.length} characters, +${newLocIds.length} locations, +${newThreadIds.length} threads${artSuffix}`;
 
     worldBuilds[worldBuildId] = {
       kind: 'world_build',
@@ -1298,6 +1354,7 @@ export async function assembleNarrative(
         threads: newThreadIds.map((id) => threads[id]).filter(Boolean),
         relationships: [],
         worldKnowledge: { addedNodes: [], addedEdges: [] },
+        artifacts: newArtifactIds.map((id) => artifactEntities[id]).filter(Boolean),
       },
     };
 
@@ -1367,7 +1424,7 @@ Return JSON: { "rules": ["rule1", "rule2", ...], "imageStyle": "style directive"
     characters,
     locations,
     threads,
-    artifacts: {},
+    artifacts: artifactEntities,
     arcs,
     scenes,
     worldBuilds,

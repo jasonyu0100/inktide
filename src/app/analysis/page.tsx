@@ -10,7 +10,7 @@ import { ANALYSIS_MAX_CORPUS_WORDS } from '@/lib/constants';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
 
-type WordNode = { label: string; type: 'character' | 'location' | 'thread' | 'knowledge'; count: number; firstSeen: number; knowledgeType?: string };
+type WordNode = { label: string; type: 'character' | 'location' | 'thread' | 'knowledge' | 'artifact'; count: number; firstSeen: number; knowledgeType?: string; significance?: string };
 
 /* ── Job detail panel ─────────────────────────────────────────────────────── */
 function JobDetail({ job }: { job: AnalysisJob }) {
@@ -82,6 +82,12 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         if (existing) { existing.count++; }
         else { map.set(key, { label: t.description, type: 'thread', count: 1, firstSeen: chunkIdx }); }
       }
+      for (const a of result.artifacts ?? []) {
+        const key = `artifact-${a.name}`;
+        const existing = map.get(key);
+        if (existing) { existing.count++; }
+        else { map.set(key, { label: a.name, type: 'artifact', count: 1, firstSeen: chunkIdx, significance: a.significance }); }
+      }
       for (const s of result.scenes ?? []) {
         for (const n of s.worldKnowledgeMutations?.addedNodes ?? []) {
           const shortConcept = n.concept.includes(' — ') ? n.concept.split(' — ')[0] : n.concept;
@@ -97,22 +103,25 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   }, [liveJob.results]);
 
   // Separate word nodes by type
-  const { characters, locations, threads, knowledge } = useMemo(() => {
+  const { characters, locations, threads, knowledge, artifacts } = useMemo(() => {
     const c: WordNode[] = [];
     const l: WordNode[] = [];
     const t: WordNode[] = [];
     const k: WordNode[] = [];
+    const a: WordNode[] = [];
     for (const n of wordNodes) {
       if (n.type === 'character') c.push(n);
       else if (n.type === 'location') l.push(n);
       else if (n.type === 'knowledge') k.push(n);
+      else if (n.type === 'artifact') a.push(n);
       else t.push(n);
     }
     c.sort((a, b) => b.count - a.count);
     l.sort((a, b) => b.count - a.count);
     t.sort((a, b) => b.count - a.count);
     k.sort((a, b) => b.count - a.count);
-    return { characters: c, locations: l, threads: t, knowledge: k };
+    a.sort((x, y) => y.count - x.count);
+    return { characters: c, locations: l, threads: t, knowledge: k, artifacts: a };
   }, [wordNodes]);
 
   const maxCount = Math.max(1, ...wordNodes.map((n) => n.count));
@@ -140,6 +149,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const sceneCount = completed.reduce((sum, r) => sum + (r.scenes?.length ?? 0), 0);
   const threadCount = new Set(completed.flatMap((r) => r.threads.map((t) => t.description))).size;
   const knowledgeCount = new Set(completed.flatMap((r) => (r.scenes ?? []).flatMap((s) => (s.worldKnowledgeMutations?.addedNodes ?? []).map((n) => n.concept)))).size;
+  const artifactCount = new Set(completed.flatMap((r) => (r.artifacts ?? []).map((a) => a.name))).size;
 
   // Current chunk stream text for viewing
   const activeChunkStream = viewingChunkStream !== null ? (chunkStreamTexts.get(viewingChunkStream) ?? '') : '';
@@ -155,6 +165,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       location: { cls: 'text-emerald-400', glow: 'rgba(52,211,153,0.18)' },
       thread: { cls: 'text-sky-400', glow: 'rgba(56,189,248,0.15)' },
       knowledge: { cls: node.knowledgeType === 'law' ? 'text-amber-400' : node.knowledgeType === 'system' ? 'text-sky-300' : node.knowledgeType === 'tension' ? 'text-rose-400' : 'text-violet-400', glow: node.knowledgeType === 'law' ? 'rgba(251,191,36,0.18)' : node.knowledgeType === 'tension' ? 'rgba(251,113,133,0.18)' : 'rgba(167,139,250,0.18)' },
+      artifact: { cls: node.significance === 'key' ? 'text-amber-400' : node.significance === 'notable' ? 'text-amber-500' : 'text-amber-700', glow: 'rgba(245,158,11,0.18)' },
     };
     const styles = styleMap[node.type];
 
@@ -203,6 +214,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               { value: sceneCount, color: 'text-white/35', dot: 'bg-white/20', label: 'scn' },
               { value: threadCount, color: 'text-sky-400/50', dot: 'bg-sky-400/30', label: 'thr' },
               { value: knowledgeCount, color: 'text-violet-400/60', dot: 'bg-violet-400/40', label: 'wk' },
+              { value: artifactCount, color: 'text-amber-400/60', dot: 'bg-amber-400/40', label: 'art' },
             ].map((s) => (
               <div key={s.label} className="flex items-center gap-1.5">
                 <div className={`w-1 h-1 rounded-full ${s.dot}`} />
@@ -344,6 +356,19 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   </div>
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
                     {threads.map(renderNode)}
+                  </div>
+                </div>
+              )}
+
+              {/* Artifacts */}
+              {artifacts.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400/50" />
+                    <span className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-mono">Artifacts ({artifacts.length})</span>
+                  </div>
+                  <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
+                    {artifacts.map(renderNode)}
                   </div>
                 </div>
               )}

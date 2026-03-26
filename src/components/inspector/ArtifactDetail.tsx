@@ -51,6 +51,11 @@ export default function ArtifactDetail({ artifactId }: Props) {
         </span>
       </div>
 
+      {/* Image prompt */}
+      {artifact.imagePrompt && (
+        <p className="text-[10px] text-text-dim italic leading-relaxed">{artifact.imagePrompt}</p>
+      )}
+
       {/* Current owner */}
       <p className="text-xs text-text-secondary">
         owned by{' '}

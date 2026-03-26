@@ -43,6 +43,7 @@ export default function WorldGraph() {
 
   const [showEdgeLabels, setShowEdgeLabels] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showItems, setShowItems] = useState(false);
   const [showEval, setShowEval] = useState(true);
   const [groups, setGroups] = useState<GraphNode[][]>([]);
   const [focusedGroupIndex, setFocusedGroupIndex] = useState<number | null>(null);
@@ -139,9 +140,9 @@ export default function WorldGraph() {
 
     // Filter artifacts to only those introduced by the current timeline position
     const introduced = getIntroducedIds(narrative.worldBuilds, resolvedEntryKeys, state.currentSceneIndex);
-    const visibleArtifacts = Object.fromEntries(
-      Object.entries(narrative.artifacts ?? {}).filter(([id]) => introduced.artifactIds.has(id)),
-    );
+    const visibleArtifacts = showItems
+      ? Object.fromEntries(Object.entries(narrative.artifacts ?? {}).filter(([id]) => introduced.artifactIds.has(id)))
+      : {};
 
     if (graphViewMode === 'overview') {
       // Overview mode: all characters/locations sized by usage
@@ -689,7 +690,7 @@ export default function WorldGraph() {
       gRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap, sceneFocus, currentScene]);
+  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap, sceneFocus, showItems, currentScene]);
 
   // ── Lightweight: update selected node highlight + relationship edges ──
   useEffect(() => {
@@ -1152,6 +1153,15 @@ export default function WorldGraph() {
               Focus
             </label>
           )}
+          <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showItems}
+              onChange={() => setShowItems((v) => !v)}
+              className="accent-accent-cta w-3 h-3"
+            />
+            Items
+          </label>
         </div>
       </div>}
       {showEval && (graphViewMode === 'spatial' || graphViewMode === 'overview') && <EvalBar />}

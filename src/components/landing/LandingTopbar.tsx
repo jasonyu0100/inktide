@@ -4,11 +4,11 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Home' },
-  { href: '/paper', label: 'Paper' },
-  { href: '/case-analysis', label: 'Case Analysis' },
-  { href: '/discover', label: 'Discover' },
-  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/', label: 'Home', mobileOnly: false },
+  { href: '/paper', label: 'Paper', mobileOnly: false },
+  { href: '/case-analysis', label: 'Case Analysis', mobileOnly: true },
+  { href: '/discover', label: 'Discover', mobileOnly: true },
+  { href: '/dashboard', label: 'Dashboard', mobileOnly: true },
 ];
 
 export function LandingTopbar() {
@@ -18,7 +18,7 @@ export function LandingTopbar() {
   return (
     <nav className="relative z-30 flex items-center justify-center pt-5 pb-2">
       <div className="flex items-center gap-0.5 rounded-full border border-white/8 bg-white/3 backdrop-blur-sm px-1 py-1">
-        {NAV_ITEMS.map(({ href, label }) => {
+        {NAV_ITEMS.map(({ href, label, mobileOnly }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (
             <Link
@@ -28,7 +28,7 @@ export function LandingTopbar() {
                 active
                   ? 'text-white bg-white/10'
                   : 'text-white/35 hover:text-white/60'
-              }`}
+              } ${mobileOnly ? 'hidden md:block' : ''}`}
             >
               {label}
             </Link>

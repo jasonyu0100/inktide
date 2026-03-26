@@ -22,7 +22,7 @@ function Tex({ children, display }: { children: string; display?: boolean }) {
 
 function Eq({ tex, label }: { tex: string; label?: string }) {
   return (
-    <div className="my-5 px-5 py-4 rounded-lg bg-white/[0.03] border border-white/6 overflow-x-auto">
+    <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/[0.03] border border-white/6 overflow-x-auto">
       {label && <span className="text-[10px] uppercase tracking-wider text-white/20 block mb-2 font-mono">{label}</span>}
       <div className="text-center">
         <Tex display>{tex}</Tex>
@@ -246,8 +246,8 @@ export default function PaperPage() {
               const ticks = [60, 70, 80, 90, 100];
 
               return (
-                <div className="mt-6 rounded-xl border border-white/6 bg-white/[0.02] px-5 py-4">
-                  <svg width={W} height={H} className="mx-auto block" viewBox={`0 0 ${W} ${H}`}>
+                <div className="mt-6 rounded-xl border border-white/6 bg-white/[0.02] px-5 py-4 overflow-x-auto">
+                  <svg width={W} height={H} className="mx-auto block min-w-[480px]" viewBox={`0 0 ${W} ${H}`}>
                     <defs>
                       <linearGradient id="score-grad" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#ef4444" stopOpacity="0.5" />
@@ -479,7 +479,7 @@ export default function PaperPage() {
             <P>
               The reference means (<Tex>{'\\mu_{\\text{ref}}'}</Tex>) are derived from those same works:
             </P>
-            <div className="mt-3 mb-4 grid grid-cols-3 gap-2 text-[11px] max-w-sm">
+            <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
                 { force: 'Payoff', value: '1.3', color: '#EF4444' },
                 { force: 'Change', value: '4', color: '#22C55E' },
@@ -513,8 +513,8 @@ export default function PaperPage() {
             </P>
 
             {/* HP State Graph — inline SVG */}
-            <div className="my-6 flex flex-col items-center gap-4">
-              <svg width="360" height="360" viewBox="0 0 360 360" className="select-none">
+            <div className="my-6 flex flex-col items-center gap-4 overflow-x-auto">
+              <svg width="360" height="360" viewBox="0 0 360 360" className="select-none max-w-full min-w-[280px]">
                 {/* Nodes in circle */}
                 {(() => {
                   const corners = ['HHH','HHL','HLH','HLL','LHH','LHL','LLH','LLL'] as const;
@@ -623,7 +623,7 @@ export default function PaperPage() {
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Search Modes</h3>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
               {[
                 { name: 'Freedom', desc: 'Dynamic UCB1 allocation. Promising nodes earn more children; dead ends are abandoned early.' },
                 { name: 'Constrained', desc: 'Complete tree. Every node at each depth gets a fixed number of children before going deeper.' },
@@ -666,7 +666,7 @@ export default function PaperPage() {
 
               return (
                 <div className="mt-5 mb-2 rounded-xl border border-white/6 bg-white/2 px-4 py-3 overflow-x-auto">
-                  <svg width={W} height={H} className="mx-auto block" viewBox={`0 0 ${W} ${H}`}>
+                  <svg width={W} height={H} className="mx-auto block min-w-[400px]" viewBox={`0 0 ${W} ${H}`}>
                     {/* Centre / ideal line — dotted */}
                     <line x1={PAD} y1={CY} x2={W - PAD} y2={CY} stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="4 4" />
 
@@ -766,7 +766,7 @@ export default function PaperPage() {
             <P>
               Beyond archetypes, the Gaussian-smoothed delivery curve is classified into one of six shapes using overall slope, peak count, peak dominance, peak position, trough depth, and recovery strength.
             </P>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-[11px]">
               {SHAPES.map(({ name, desc, curve }) => (
                 <div key={name} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-white/6 bg-white/2">
                   <ShapeCurve curve={curve} color="#fb923c" />
@@ -791,10 +791,10 @@ export default function PaperPage() {
               We&apos;d especially love to see the community experiment with their own texts. Paste any corpus into the <Link href="/analysis" className="text-white/60 underline underline-offset-2 hover:text-white/80 transition-colors">analysis pipeline</Link> — novels, screenplays, web serials, fanfiction — and see where the peaks land, what archetype emerges, and whether the force landscape matches your intuition. When it doesn&apos;t, that&apos;s the interesting part. Pull requests welcome.
             </P>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
               <Link
                 href="/case-analysis"
-                className="text-[11px] px-4 py-2 rounded-full border border-amber-500/30 bg-amber-500/5 text-amber-400/80 hover:text-amber-300 hover:border-amber-500/50 hover:bg-amber-500/10 transition-colors"
+                className="text-[11px] px-4 py-2 rounded-full border border-amber-500/30 bg-amber-500/5 text-amber-400/80 hover:text-amber-300 hover:border-amber-500/50 hover:bg-amber-500/10 transition-colors text-center"
               >
                 See it in action: Harry Potter case analysis &rarr;
               </Link>
@@ -802,7 +802,7 @@ export default function PaperPage() {
                 href="https://github.com/jasonyu0100/narrative-engine"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[11px] px-4 py-2 rounded-full border border-white/15 bg-white/3 text-white/50 hover:text-white/70 hover:border-white/25 hover:bg-white/5 transition-colors"
+                className="text-[11px] px-4 py-2 rounded-full border border-white/15 bg-white/3 text-white/50 hover:text-white/70 hover:border-white/25 hover:bg-white/5 transition-colors text-center"
               >
                 View the repo on GitHub &rarr;
               </a>

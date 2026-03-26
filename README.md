@@ -6,9 +6,9 @@ Stories have structure that readers feel but metrics miss. A reveal reframes eve
 
 InkTide makes those tides computable. It models narratives as a **knowledge graph that mutates scene by scene** — tracking how threads escalate, characters transform, relationships shift, and worlds deepen. From those mutations, deterministic formulas derive three forces (**Payoff**, **Change**, **Knowledge**) that trace the shape of a story through time. Applied to Harry Potter, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation — without any human labeling.
 
-Then it uses those forces to **generate** (Markov pacing + MCTS search + planning with course correction) and **revise** (evaluate → reconstruct → converge) until AI-generated narratives score in the high 80s against a benchmark where published literature lands 81–93.
+Then it uses those forces to **generate** (Markov pacing + MCTS search + planning with course correction) and **revise** (evaluate → reconstruct → converge) until AI-generated narratives score in the high 80s against a benchmark where published literature lands 85–95.
 
-**[Read the paper →](https://narrative-engine-orcin.vercel.app/paper)** · **[Case analysis →](https://narrative-engine-orcin.vercel.app/case-analysis)** · **[Try it →](https://narrative-engine-orcin.vercel.app/)**
+**[Read the paper →](https://inktide-sourcenovel.vercel.app/paper)** · **[Case analysis →](https://inktide-sourcenovel.vercel.app/case-analysis)** · **[Try it →](https://inktide-sourcenovel.vercel.app/)**
 
 ## Setup
 

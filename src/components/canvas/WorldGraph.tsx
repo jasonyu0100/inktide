@@ -181,6 +181,12 @@ export default function WorldGraph() {
           connectedCharIds.add(rel.to);
         }
 
+        // Include characters/locations that own artifacts from this expansion
+        for (const art of manifest.artifacts ?? []) {
+          if (narrative.characters[art.parentId]) connectedCharIds.add(art.parentId);
+          if (narrative.locations[art.parentId]) expandedLocIds.add(art.parentId);
+        }
+
         // Collect existing location IDs that are parents of new locations
         const connectedLocIds = new Set(expandedLocIds);
         for (const locId of expandedLocIds) {

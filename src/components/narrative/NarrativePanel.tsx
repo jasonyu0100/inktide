@@ -50,6 +50,12 @@ export default function NarrativePanel() {
               {m.relationships.length} new
             </div>
           )}
+          {(m.artifacts?.length ?? 0) > 0 && (
+            <div className="text-xs text-text-secondary">
+              <span className="text-amber-400/70 uppercase text-[10px] tracking-wider mr-2">Artifacts</span>
+              {m.artifacts!.map((a) => narrative.artifacts?.[a.id]?.name ?? a.name).join(', ')}
+            </div>
+          )}
         </div>
       </div>
     );

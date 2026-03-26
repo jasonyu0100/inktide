@@ -41,6 +41,9 @@ export default function SceneDetail({ sceneId }: Props) {
         <p className="text-xs text-text-secondary leading-relaxed">{entry.summary || 'No summary available.'}</p>
 
         <div className="flex flex-col gap-1.5">
+          {m.characters.length === 0 && m.locations.length === 0 && m.threads.length === 0 && (m.artifacts?.length ?? 0) === 0 && (m.relationships?.length ?? 0) === 0 && (
+            <p className="text-[10px] text-text-dim italic">This expansion updated existing entities (continuity, relationships, or artifact lore).</p>
+          )}
           {m.characters.length > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Characters</h3>

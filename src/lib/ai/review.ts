@@ -85,15 +85,33 @@ Review the scene history and thread velocity report through these lenses:
 
 6. ARTIFACTS — Are any existing artifacts being ignored or underused? Should one change hands?
 
-Write the updated direction and constraints:
-- Direction (4-7 sentences): HOW the next arc should unfold — not what happens, but the specific mechanism. Bad: "The rivalry between X and Y escalates." Good: "X discovers Y's betrayal through the stolen letter and confronts them at the bridge — the confrontation must cost X something they can't take back." Name the character, the action, the location, the consequence. Reference specific threads from the velocity report and state what status they should reach. Every sentence should contain a verb that commits to a specific dramatic action.
+CRITICAL OUTPUT RULES:
+- The direction you write REPLACES the current direction entirely. It is NOT appended. Write it as a fresh, standalone brief.
+- Do NOT restate the previous direction. If the previous direction asked for something and it HAPPENED, move on. If it didn't happen, escalate the ask — don't repeat it.
+- Do NOT be analytical or explanatory. This is a directive, not a report. No "this will", "this should", "this move should" — use imperative voice: "Fang Yuan diverts the grain. Mo Bei Liu calls an emergency session."
+- Keep it tight. 3-5 sentences maximum. Every sentence is a specific action with a named character, a verb, and a consequence.
+- Use thread IDs and target statuses alongside character names — technical precision helps. e.g. "Fang Yuan diverts the grain, pushing T-41 to critical."
+
+Write direction and constraints:
+- Direction (3-5 sentences): Imperative orders for the next arc. Each sentence: [Character] [does specific thing] [at specific place] [causing specific consequence] [thread target].
+
+BAD DIRECTION (vague, analytical, no mechanism):
+"The resource scarcity should push clan politics to critical. Fang Zheng's suspicion continues to deepen. Bai Ning Bing's research accelerates. Threads need to progress toward resolution."
+
+GOOD DIRECTION (specific actions, named characters, concrete mechanisms, thread targets):
+"Mo Bei Liu calls an emergency elder session at the Clan Hall and demands Gu Yue Bo account for the missing grain — Gu Yue Bo must either confess weakness or blame Gu Yue Qing, and either choice fractures his coalition (T-04 → critical). Fang Zheng follows Fang Yuan to the Mountain Wilderness at night and witnesses him extracting wild Gu in ways that contradict his C-grade talent — this shifts Fang Zheng from passive unease to active investigation (T-03 → escalating). Bai Ning Bing deciphers the Flower Wine Monk's symbol in the ancient texts and connects it to the granary's inventory anomalies, giving her a lead that pulls her toward Qing Mao Mountain (T-06 → active). Fang Yuan's manipulation of the grain records must produce an unintended consequence he didn't foresee — a guard notices the discrepancy, or a transient character suffers visibly — so his arrogance costs something concrete."
+
 - Constraints (2-3 sentences): What MUST NOT happen. Ban stale patterns. Protect threads meant for later phases.
 
-Use character NAMES and thread DESCRIPTIONS, never IDs.
+BAD CONSTRAINTS (generic, no specifics):
+"Don't resolve major threads yet. Keep the pacing balanced."
+
+GOOD CONSTRAINTS (precise prohibitions with reasons):
+"Fang Yuan's rebirth must remain secret — no character acquires concrete evidence of his past life. Bai Ning Bing's Northern Dark Ice Soul physique must not be cured or stabilized this phase. No repeat of the 'character overhears a conversation' beat — the last two arcs both used eavesdropping as a discovery mechanism."
 
 Return JSON:
 {
-  "direction": "4-7 sentences — reference specific threads and target statuses",
+  "direction": "3-5 imperative sentences with specific mechanisms and thread targets",
   "constraints": "2-3 sentences"
 }`;
 

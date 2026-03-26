@@ -1129,9 +1129,8 @@ function reducer(state: AppState, action: Action): AppState {
             ...n.branches,
             [action.branchId]: {
               ...branch,
-              planningQueue: isExhausted
-                ? undefined  // Queue exhausted — remove planning layer
-                : { ...queue, phases, activePhaseIndex: nextIdx },
+              // Keep queue with all phases completed so planning_complete end condition can detect it
+              planningQueue: { ...queue, phases, activePhaseIndex: isExhausted ? currentIdx : nextIdx },
             },
           },
           // Clear direction/constraints when queue exhausts

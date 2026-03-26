@@ -30,6 +30,20 @@ export function useAutoPlay() {
         // Phase just completed — skip this tick, let usePlanningQueue handle transition
         return;
       }
+      // All phases completed — stop immediately regardless of end condition config
+      if (pq.phases.every((p) => p.status === 'completed')) {
+        dispatch({
+          type: 'LOG_AUTO_CYCLE',
+          entry: {
+            cycle: autoRunState.currentCycle + 1, timestamp: Date.now(), action: 'LHL',
+            reason: 'Planning queue completed — all phases done',
+            scenesGenerated: 0, worldExpanded: false,
+            endConditionMet: { type: 'planning_complete' },
+          },
+        });
+        dispatch({ type: 'STOP_AUTO_RUN' });
+        return;
+      }
     }
 
     // Check end conditions

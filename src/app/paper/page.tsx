@@ -469,7 +469,7 @@ export default function PaperPage() {
           {/* ── Grading ───────────────────────────────────────────────── */}
           <Section id="grading" label="Grading">
             <P>
-              Each story receives a score out of 100, with 25 points allocated to each force. The grading curve is exponential, calibrated against reference works including <em>Harry Potter</em>, <em>The Great Gatsby</em>, <em>Crime and Punishment</em>, and <em>Coiling Dragon</em>.
+              Each story receives a score out of 100, with 25 points allocated to each of the three forces plus <B>swing</B> — the Euclidean distance between consecutive force snapshots, measuring pacing dynamism. The grading curve is exponential, calibrated against reference works including <em>Harry Potter</em>, <em>The Great Gatsby</em>, <em>Crime and Punishment</em>, and <em>Coiling Dragon</em>.
             </P>
             <Eq tex="g(\tilde{x}) = 25\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
@@ -493,7 +493,7 @@ export default function PaperPage() {
               ))}
             </div>
             <P>
-              The overall score sums all four sub-grades: <Tex>{'\\text{Overall} = g(\\tilde{P}) + g(\\tilde{C}) + g(\\tilde{K}) + g(\\tilde{D})'}</Tex>.
+              The overall score sums all four sub-grades: <Tex>{'\\text{Overall} = g(\\tilde{P}) + g(\\tilde{C}) + g(\\tilde{K}) + g(\\tilde{S})'}</Tex>, where <Tex>{'\\tilde{S}'}</Tex> is swing. Swing values are already mean-normalised by the reference means during distance computation, so no separate reference mean is needed — <Tex>{'g(\\tilde{S})'}</Tex> is applied directly to the average swing magnitude.
             </P>
             <P>
               A consistent gap emerges between human and AI-generated texts. Published literature routinely scores above 90 — dense thread lifecycles, earned payoffs, and layered world-building compound over hundreds of pages. AI-generated narratives typically land in the 70&ndash;80 range: threads resolve too neatly, character change lacks accumulation, and knowledge graphs expand without the connective depth that human authors build instinctively. This isn&apos;t a flaw in the grading — it&apos;s the structural difference the force formulas are designed to detect.

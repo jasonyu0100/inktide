@@ -10,14 +10,15 @@ Knowledge-graph-based narrative analysis, generation, and revision platform. Der
 
 ```bash
 npm install
-cp .env.example .env.local   # then fill in your keys
+cp .env.example .env.local   # then add your OpenRouter key
 npm run dev                   # http://localhost:3001
 ```
 
-```env
-OPENROUTER_API_KEY=sk-or-...    # Required — openrouter.ai/keys
-REPLICATE_API_TOKEN=r8_...      # Optional — image generation (Seedream 4.5)
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENROUTER_API_KEY` | Yes | LLM access — [openrouter.ai/keys](https://openrouter.ai/keys) |
+| `REPLICATE_API_TOKEN` | No | Image generation via Seedream 4.5 — [replicate.com](https://replicate.com/account/api-tokens) |
+| `NEXT_PUBLIC_USER_API_KEYS` | No | Set `true` for hosted mode where users provide their own keys in the UI |
 
 ## Architecture
 

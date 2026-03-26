@@ -426,22 +426,21 @@ export default function HomePage() {
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <div className="relative flex flex-col items-center pt-24 sm:pt-32 pb-10 px-4">
           <p className="animate-fade-up text-[10px] uppercase tracking-[0.3em] text-white/30 font-mono mb-8">
-            InkTide
+            InkTide Engine
           </p>
 
-          <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160">
-            <span className="text-white">Stories </span>
-            <span
-              className="glitch-wrapper text-white italic whitespace-nowrap"
-              data-text="breathe..."
-            >
+          <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160 whitespace-nowrap">
+            <span className="text-white">Stories that </span>
+            <span className="glitch-wrapper text-white italic" data-text="breathe...">
               <MorphText text="breathe" />
               ...
             </span>
           </h1>
 
           <p className="animate-fade-up-delay-2 text-[15px] text-white/40 mt-6 max-w-lg text-center leading-relaxed">
-            An opensource engine built on knowledge graphs.
+            An open source engine built on knowledge graphs.
+            <br />
+            Story intelligence for the AI age.
           </p>
 
           {/* ── Analyze Corpus ─────────────────────────────────────────── */}

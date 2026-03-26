@@ -349,6 +349,34 @@ export type ContinuityPlan = {
   edits: ContinuityEdit[];
 };
 
+// ── Branch Evaluation ─────────────────────────────────────────────────────
+
+/** Per-scene verdict from a branch evaluation pass */
+export type SceneVerdict = 'ok' | 'edit' | 'rewrite' | 'cut';
+
+/** One scene's evaluation entry */
+export type SceneEval = {
+  sceneId: string;
+  verdict: SceneVerdict;
+  /** One-line reason for the verdict */
+  reason: string;
+};
+
+/** Full branch evaluation — overall critique + per-scene verdicts */
+export type BranchEvaluation = {
+  id: string;
+  branchId: string;
+  createdAt: string;
+  /** High-level analysis (what's working, what's weak, thematic questions) */
+  overall: string;
+  /** Per-scene verdicts in timeline order */
+  sceneEvals: SceneEval[];
+  /** Detected repetitive patterns */
+  repetitions: string[];
+  /** Thematic question the evaluator surfaced */
+  thematicQuestion: string;
+};
+
 /** A timeline entry is either a narrative scene or a world build */
 export type TimelineEntry = Scene | WorldBuild;
 
@@ -423,6 +451,8 @@ export type NarrativeState = {
   chatThreads?: Record<string, ChatThread>;
   /** Notes keyed by note ID — persisted with the narrative */
   notes?: Record<string, Note>;
+  /** Branch evaluations keyed by branch ID — most recent eval per branch */
+  branchEvaluations?: Record<string, BranchEvaluation>;
   createdAt: number;
   updatedAt: number;
 };

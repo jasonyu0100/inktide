@@ -12,9 +12,17 @@ import KnowledgeDetail from './KnowledgeDetail';
 import ArtifactDetail from './ArtifactDetail';
 import ChatPanel from '@/components/sidebar/ChatPanel';
 import NotesPanel from '@/components/sidebar/NotesPanel';
+import BranchEval from '@/components/timeline/BranchEval';
 import { isScene, type TimelineEntry } from '@/types/narrative';
 
-type Tab = 'inspector' | 'chat' | 'notes';
+type Tab = 'inspector' | 'chat' | 'notes' | 'eval';
+
+const TAB_LABELS: Record<Tab, string> = {
+  inspector: 'Inspector',
+  chat: 'Chat',
+  notes: 'Notes',
+  eval: 'Eval',
+};
 
 function getDefaultContext(state: ReturnType<typeof useStore>['state']) {
   const narrative = state.activeNarrative;
@@ -99,40 +107,52 @@ export default function SidePanel() {
   }
 
   return (
-    <aside className="h-full flex flex-col border-l border-border glass-panel">
-      {/* Tab bar */}
-      <div className="shrink-0 flex border-b border-border">
-        {(['inspector', 'chat', 'notes'] as Tab[]).map((t) => (
+    <aside className="h-full flex flex-row border-l border-border glass-panel">
+      {/* Vertical tab rail */}
+      <div className="shrink-0 flex flex-col items-center py-2 w-7 border-r border-border">
+        {(['inspector', 'chat', 'notes', 'eval'] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 px-3 py-2 text-[11px] font-medium transition-colors capitalize ${
+            className={`py-3 w-full flex items-center justify-center transition-colors relative ${
               tab === t
-                ? 'text-text-primary border-b border-accent'
+                ? 'text-text-primary border-r border-accent'
                 : 'text-text-dim hover:text-text-secondary'
             }`}
           >
-            {t}
+            <span
+              className="text-[10px] font-medium tracking-wider uppercase"
+              style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}
+            >
+              {TAB_LABELS[t]}
+            </span>
           </button>
         ))}
       </div>
 
       {/* Content */}
-      {tab === 'inspector' && (
-        <div className="flex-1 overflow-y-auto p-4 min-h-0">
-          {renderInspector()}
-        </div>
-      )}
-      {tab === 'chat' && (
-        <div className="flex-1 min-h-0">
-          <ChatPanel />
-        </div>
-      )}
-      {tab === 'notes' && (
-        <div className="flex-1 min-h-0 flex flex-col">
-          <NotesPanel />
-        </div>
-      )}
+      <div className="flex-1 flex flex-col min-w-0">
+        {tab === 'inspector' && (
+          <div className="flex-1 overflow-y-auto p-4 min-h-0">
+            {renderInspector()}
+          </div>
+        )}
+        {tab === 'chat' && (
+          <div className="flex-1 min-h-0">
+            <ChatPanel />
+          </div>
+        )}
+        {tab === 'notes' && (
+          <div className="flex-1 min-h-0 flex flex-col">
+            <NotesPanel />
+          </div>
+        )}
+        {tab === 'eval' && (
+          <div className="flex-1 min-h-0">
+            <BranchEval />
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

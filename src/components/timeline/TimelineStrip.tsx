@@ -170,12 +170,12 @@ export default function TimelineStrip() {
         style={{ minWidth: svgWidth }}
       >
         {/* Arc background bands */}
-        {arcBands.map((band) => {
+        {arcBands.map((band, bandIdx) => {
           const x1 = xOf(band.startIdx) - NODE_RADIUS - 8;
           const x2 = xOf(band.endIdx) + NODE_RADIUS + 8;
           return (
             <g
-              key={band.arc.id}
+              key={`${band.arc.id}-${bandIdx}`}
               className="cursor-pointer"
               onClick={() =>
                 dispatch({

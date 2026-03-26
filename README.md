@@ -2,6 +2,8 @@
 
 # InkTide
 
+> Like a chess engine for stories.
+
 Stories have structure that readers feel but metrics miss. A reveal reframes everything before it. Threads tighten across chapters. A quiet scene holds more weight than the battle it follows. Tension rises and falls like tides—peaks you remember, valleys that make the peaks matter.
 
 InkTide makes those tides computable. It models narratives as a **knowledge graph that mutates scene by scene** — tracking how threads escalate, characters transform, relationships shift, and worlds deepen. From those mutations, deterministic formulas derive three forces (**Payoff**, **Change**, **Knowledge**) that trace the shape of a story through time. Applied to Harry Potter, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation — without any human labeling.

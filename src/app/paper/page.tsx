@@ -99,7 +99,8 @@ const NAV = [
   { id: 'grading', label: 'Grading' },
   { id: 'markov', label: 'Markov Chains' },
   { id: 'mcts', label: 'MCTS' },
-  { id: 'adaptive', label: 'Adaptive Planning' },
+  { id: 'planning', label: 'Planning' },
+  { id: 'revision', label: 'Revision' },
   { id: 'classification', label: 'Classification' },
   { id: 'open-source', label: 'Open Source' },
 ];
@@ -192,23 +193,29 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              A chapter lands. A reveal reframes everything before it. A quiet scene holds more weight than the battle it follows. Readers recognise these moments instantly — yet no existing metric captures why they work. Sentiment analysis sees tone but not architecture. Topic models see frequency but not momentum. The structural patterns that make stories feel inevitable have remained beyond the reach of computation.
+              A chapter lands. A reveal reframes everything before it. A quiet scene holds more weight than the battle it follows. Readers recognise these moments instantly — yet no existing metric captures why they work, and no generation system can reliably produce them.
             </P>
             <P>
-              This paper introduces a framework that makes them computable. We model a narrative as a <B>knowledge graph that mutates scene by scene</B>. From those mutations, we derive four forces — Payoff, Change, Knowledge, and Delivery — using deterministic, z-score normalised, genre-agnostic formulas that trace the shape of a story through time. Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation — without any human labeling those moments. The math found them on its own.
+              This paper introduces a framework that makes narrative structure both <B>computable and improvable</B>. We model a narrative as a knowledge graph that mutates scene by scene. From those mutations, we derive three forces — Payoff, Change, and Knowledge — plus a composite Delivery metric, using deterministic, z-score normalised, genre-agnostic formulas. Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the delivery curve peaks at the Sorting Hat, the troll fight, and the Quirrell confrontation — without any human labeling. The math found them on its own.
             </P>
             <P>
-              What follows is the full framework: the force formulas, the extraction pipeline, and a grading system calibrated against published literature. Everything is open source, every constant is tunable, and the whole thing was written to be forked.
+              But measurement alone doesn&apos;t create stories. We use these forces to <B>generate</B> — Markov chain pacing shapes scene-by-scene rhythm, MCTS explores branching narrative paths, and adaptive planning steers long-form arcs across hundreds of scenes. Then we <B>revise</B> — an evaluation pipeline reads scene summaries, assigns per-scene verdicts, and reconstructs improved branches while preserving the story&apos;s version history. Each pass tightens structure, eliminates repetition, and enforces continuity until the branch converges.
+            </P>
+            <P>
+              What follows is the full framework: force formulas, extraction pipeline, grading system, generation architecture, and revision methodology. Everything is open source, every constant is tunable, and the whole thing was written to be forked.
             </P>
           </Section>
 
           {/* ── The Problem ───────────────────────────────────────────── */}
           <Section id="problem" label="The Problem">
             <P>
-              No existing metric can distinguish human-written narratives from AI-generated ones in any structurally meaningful way. Sentiment analysis tracks tone. Topic modelling tracks frequency. Neither can tell you whether a thread escalated or merely echoed, whether a relationship shifted or repeated, whether a world deepened or just expanded.
+              Narrative AI faces two intertwined problems. The first is <B>measurement</B>: no existing metric captures story structure. Sentiment analysis tracks tone. Topic modelling tracks frequency. Neither can tell you whether a thread escalated or merely echoed, whether a relationship shifted or repeated, whether a world deepened or just expanded.
             </P>
             <P>
-              But the structural difference is real. What readers experience — tension coiling across chapters, threads paying off in unexpected combinations, a world clicking into focus — arises from <B>structural mutations</B>: which threads changed status, how relationships shifted, what new knowledge entered the world. When we score published literature and AI-generated stories with the same mutation-based formulas, a consistent gap emerges. Published works cluster between 81 and 93. AI-generated stories land between 68 and 81 — structurally valid, but thinner. The gap isn&apos;t in grammar or coherence. It&apos;s in thread lifecycle depth, relationship valence intensity, and world-knowledge density.
+              The second is <B>generation quality</B>. LLMs produce fluent prose but structurally thin stories. They repeat beats without escalating. They introduce characters who never change. They build worlds that expand without deepening. A scene-by-scene reading may feel competent, but the arc — the accumulated shape of tension, payoff, and consequence — falls flat.
+            </P>
+            <P>
+              Both problems share a root cause: the structural patterns that make stories feel inevitable — threads tightening across chapters, reveals reframing prior events, quiet moments that hold more weight than the battles they follow — arise from <B>structural mutations</B> in a knowledge graph. Which threads changed status. How relationships shifted. What new knowledge entered the world. When we score published literature and AI-generated text with the same mutation-based formulas, a consistent gap emerges. Published works cluster between 81 and 93. Unguided AI-generated text — without course correction or structural metrics — lands between 68 and 81. The gap isn&apos;t in grammar or coherence. It&apos;s in thread lifecycle depth, relationship valence intensity, and world-knowledge density. With planning, course correction, and iterative revision, AI-generated narratives reach the <B>high 80s</B> — closing the gap significantly and producing structurally dense stories that hold up against published benchmarks.
             </P>
 
             {/* ── Human vs AI gradient bar ──────────────────────────── */}
@@ -577,24 +584,9 @@ export default function PaperPage() {
               Other works produce strikingly different fingerprints. <em>Nineteen Eighty-Four</em> is a pressure cooker — buildup-dominant (66%), dwelling in Rest and Growth before sudden Epoch eruptions. <em>The Great Gatsby</em> oscillates like a pendulum between Rest and Epoch. Each matrix captures the pacing rhythm that no single metric can express.
             </P>
 
-            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Stationary Distribution</h3>
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Pacing Sequences as Direction</h3>
             <P>
-              The stationary distribution <Tex>{'\\pi'}</Tex> of a transition matrix answers a simple question: if this story continued forever with its current patterns, what fraction of time would it spend in each mode?
-            </P>
-            <Eq tex={String.raw`\pi^{(t+1)}_j = \sum_i \pi^{(t)}_i \cdot T_{ij}`} />
-            <P>
-              This distribution is the story&apos;s gravitational centre. A story with 40% Rest naturally orbits quiet moments; one with 30% Epoch is permanently intense. Two stories can score identically overall yet have completely different stationary distributions — revealing different structural personalities that a single number would obscure.
-            </P>
-
-            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Rhythm Profiles for Generation</h3>
-            <P>
-              The most powerful application of Markov chains here is not analysis but generation. Before generating an arc, the engine samples a pacing sequence from the transition matrix: starting from the current mode, it walks the chain for N steps, producing a sequence like <span className="font-mono text-white/50">Growth &rarr; Lore &rarr; Climax &rarr; Rest &rarr; Growth</span>.
-            </P>
-            <P>
-              Each step becomes a per-scene constraint. Scene 1 must produce a Growth force profile (high Change, low Payoff). Scene 3 must spike all forces (Climax). This prevents the AI from defaulting to uniform density — the Markov chain forces structural variation by assigning different modes to different scenes.
-            </P>
-            <P>
-              Users select a <em>rhythm profile</em> — a transition matrix derived from a published work — to shape their story&apos;s pacing. A story using Harry Potter&apos;s matrix will breathe like Harry Potter: exploratory, varied, with regular returns to lore. One using 1984&apos;s matrix will dwell in tension before erupting. The matrices are computed automatically from analysed works in the system.
+              Before generating an arc, the engine samples a pacing sequence from the transition matrix: starting from the current mode, it walks the chain for N steps, producing a sequence like <span className="font-mono text-white/50">Growth &rarr; Lore &rarr; Climax &rarr; Rest &rarr; Growth</span>. Each step becomes a per-scene direction — Scene 1 must produce a Growth force profile, Scene 3 must spike all forces. This prevents the AI from defaulting to uniform density. Users select a <em>rhythm profile</em> derived from a published work to shape pacing — a story using Harry Potter&apos;s matrix will breathe like Harry Potter.
             </P>
           </Section>
 
@@ -610,7 +602,7 @@ export default function PaperPage() {
             </P>
             <Eq tex={String.raw`\text{UCB1}(n) = \frac{Q(n)}{N(n)} + C \sqrt{\frac{\ln N(\text{parent})}{N(n)}}`} />
             <P>
-              <strong>Expansion</strong>: The selected node generates a new arc via the LLM, paced by a fresh Markov chain sample from the story&apos;s rhythm profile. This ensures every branch explores a different force trajectory — the narrative seed provides creative diversity, the Markov chain provides structural diversity.
+              <strong>Expansion</strong>: The selected node generates a new arc via the LLM. A <B>Markov chain pacing sequence</B> is sampled fresh for each expansion and injected as a direction — telling the LLM which cube modes (Rest, Growth, Climax, etc.) to target scene by scene. This ensures every branch explores a different force trajectory — the narrative seed provides creative diversity, the Markov-generated direction provides structural diversity.
             </P>
             <P>
               <strong>Evaluation</strong>: The generated arc is scored using the same force grading system applied to published literature. An arc scoring 85 has comparable structural density to the reference works.
@@ -621,7 +613,7 @@ export default function PaperPage() {
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Markov-Augmented Search</h3>
             <P>
-              Combining Markov chains with MCTS produces a search that is both structurally informed and creatively diverse. Each expansion samples a fresh pacing sequence, so sibling nodes explore different force trajectories even when given similar creative direction — one might sample <span className="font-mono text-white/50">Rest &rarr; Growth &rarr; Epoch</span> while another gets <span className="font-mono text-white/50">Lore &rarr; Lore &rarr; Climax &rarr; Closure</span>.
+              Combining Markov chains with MCTS produces a search that is both structurally informed and creatively diverse. Each expansion samples a fresh pacing sequence from the rhythm profile&apos;s transition matrix and passes it to the LLM as a per-scene direction. Sibling nodes receive different sequences — one might get <span className="font-mono text-white/50">Rest &rarr; Growth &rarr; Epoch</span> while another gets <span className="font-mono text-white/50">Lore &rarr; Lore &rarr; Climax &rarr; Closure</span> — so they explore structurally different trajectories even from the same narrative state.
             </P>
             <P>
               The rhythm profile acts as a structural prior, biasing the search toward transitions observed in published works without constraining the creative content. The LLM decides <em>what</em> happens; the Markov chain shapes <em>how much</em>.
@@ -646,26 +638,108 @@ export default function PaperPage() {
             </div>
           </Section>
 
-          {/* ── Adaptive Planning ─────────────────────────────────────── */}
-          <Section id="adaptive" label="Adaptive Planning">
+          {/* ── Planning ──────────────────────────────────────────────── */}
+          <Section id="planning" label="Planning">
             <P>
-              MCTS finds the best next arc. But a novel isn&apos;t one arc — it&apos;s dozens, unfolding over hundreds of scenes. Steering a story across its full length without losing coherence requires a different mechanism: adaptive planning.
+              MCTS finds the best next arc. But a novel is dozens of arcs over hundreds of scenes. Steering at that scale requires <B>planning with course correction</B> — a system that sets direction, then rewrites that direction as the story evolves.
+            </P>
+            <P>
+              A story is divided into <B>phases</B> — structural chapters with objectives and scene allocations. When a phase activates, the system generates two vectors: a <B>direction vector</B> (which threads to push, what the reader should feel) and a <B>constraint vector</B> (what must <em>not</em> happen yet). Both are injected into scene generation. After every arc, a <B>course correction</B> pass analyses thread tension, character cost, rhythm, freshness, and momentum — then <em>rewrites the vectors in place</em>. The next arc generates under guidance that reflects what actually happened, not what was originally planned.
             </P>
 
-            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">Direction &amp; Constraint Vectors</h3>
+            {/* ── Course correction diagram ────────────────────────── */}
+            {(() => {
+              const W = 520, H = 90;
+              const CY = 44;
+              const PAD = 40;
+              // Each correction tries to get back to centre but over/undershoots.
+              // Format: [endY offset from centre]. Positive = below, negative = above.
+              // The sequence converges toward 0.
+              const drifts = [-18, 14, -10, 8, -4, 3];
+              const segW = (W - PAD * 2) / drifts.length;
+
+              // Build points: each segment starts from previous end
+              const nodes: { x: number; y: number }[] = [{ x: PAD, y: CY }];
+              for (let i = 0; i < drifts.length; i++) {
+                nodes.push({ x: PAD + (i + 1) * segW, y: CY + drifts[i] });
+              }
+
+              return (
+                <div className="mt-5 mb-2 rounded-xl border border-white/6 bg-white/2 px-4 py-3 overflow-x-auto">
+                  <svg width={W} height={H} className="mx-auto block" viewBox={`0 0 ${W} ${H}`}>
+                    {/* Centre / ideal line — dotted */}
+                    <line x1={PAD} y1={CY} x2={W - PAD} y2={CY} stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="4 4" />
+
+                    {/* Direction vectors — each starts from previous endpoint */}
+                    {nodes.slice(0, -1).map((from, i) => {
+                      const to = nodes[i + 1];
+                      const dx = to.x - from.x, dy = to.y - from.y;
+                      const len = Math.sqrt(dx * dx + dy * dy);
+                      const ux = dx / len, uy = dy / len;
+                      // Shorten line slightly so arrowhead sits at tip
+                      const tipX = to.x - ux * 2, tipY = to.y - uy * 2;
+
+                      return (
+                        <g key={i}>
+                          {/* Vector line */}
+                          <line x1={from.x} y1={from.y} x2={tipX} y2={tipY}
+                            stroke="rgba(251,191,36,0.55)" strokeWidth="1.5" />
+                          {/* Arrowhead */}
+                          <polygon
+                            points={`${to.x},${to.y} ${to.x - 5 * ux + 3 * uy},${to.y - 5 * uy - 3 * ux} ${to.x - 5 * ux - 3 * uy},${to.y - 5 * uy + 3 * ux}`}
+                            fill="rgba(251,191,36,0.55)"
+                          />
+                          {/* Node at endpoint */}
+                          <circle cx={to.x} cy={to.y} r={3} fill="rgba(251,191,36,0.7)" />
+                        </g>
+                      );
+                    })}
+
+                    {/* Start marker */}
+                    <circle cx={PAD} cy={CY} r={3} fill="rgba(255,255,255,0.35)" />
+
+                    {/* Labels */}
+                    <text x={W / 2} y={14} textAnchor="middle" fill="rgba(251,191,36,0.3)" fontSize="8">direction vectors course-corrected after each arc</text>
+                  </svg>
+                </div>
+              );
+            })()}
+
             <P>
-              A story is divided into <B>phases</B> — structural chapters with an objective, a scene allocation, and world expansion hints, following a superstructure (three-act, hero&apos;s journey, episodic) or defined freely. But objectives alone are too vague to steer scene-level generation. When a phase activates, the system generates two vectors from the current narrative state: a <B>direction vector</B> (which threads are ripe, what the reader should feel, what trajectory to follow) and a <B>constraint vector</B> (what must <em>not</em> happen yet, protecting later phases from premature resolution). Both are injected into the scene generation prompt.
+              At phase boundaries, a <B>world expansion</B> pipeline introduces new characters, locations, and threads — each woven into the existing knowledge graph and seeded with knowledge asymmetries that drive future conflict. Fresh direction and constraint vectors are then generated accounting for entities that didn&apos;t exist a moment ago. The <B>phase layer</B> provides long-range structure; the <B>direction layer</B> provides short-range steering that evolves continuously.
+            </P>
+          </Section>
+
+          {/* ── Revision ──────────────────────────────────────────── */}
+          <Section id="revision" label="Revision">
+            <P>
+              First drafts are rough. Scenes repeat beats, characters stagnate, threads drift. The revision pipeline improves a branch systematically without starting over, using the same git-like branching that underlies generation.
             </P>
             <P>
-              The key insight: <B>these vectors are not static</B>. After every arc, a review pass analyses the story through five lenses — thread tension, character cost, rhythm, freshness, and momentum — and rewrites the vectors in place. The next arc generates under guidance that reflects what <em>actually happened</em>, not what was originally planned.
+              <B>Evaluation</B> reads scene summaries and assigns per-scene verdicts. <B>Reconstruction</B> creates a new versioned branch, applying verdicts in parallel — edits tighten summaries within locked structure, rewrites rebuild from scratch, cuts are omitted. World commits pass through at their original positions. The original branch is never modified.
             </P>
 
-            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">World Expansion at Phase Boundaries</h3>
+            <div className="mt-4 space-y-1.5 text-[12px]">
+              <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
+                <span className="text-emerald-400 font-mono w-14 shrink-0">ok</span>
+                <span className="text-white/50">Structurally sound, continuity intact. Kept as-is.</span>
+              </div>
+              <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
+                <span className="text-amber-400 font-mono w-14 shrink-0">edit</span>
+                <span className="text-white/50">Right idea, tighten execution. POV, location, cast locked.</span>
+              </div>
+              <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
+                <span className="text-red-400 font-mono w-14 shrink-0">rewrite</span>
+                <span className="text-white/50">Scene should exist but structure is wrong. Everything rebuilt.</span>
+              </div>
+              <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
+                <span className="text-white/30 font-mono w-14 shrink-0">cut</span>
+                <span className="text-white/50">Redundant. Removed — the narrative is tighter without it.</span>
+              </div>
+            </div>
+
             <P>
-              When a phase completes, a transition pipeline fires before the next begins. If the next phase specifies world expansion hints — &ldquo;introduce the antagonist&apos;s inner circle&rdquo; or &ldquo;reveal the second layer of the magic system&rdquo; — the system generates new characters, locations, and threads woven into the existing knowledge graph. Every new entity must connect to existing ones, and new characters are seeded with <B>knowledge asymmetries</B> — secrets only they possess — because asymmetric information drives future conflicts. The system later detects these gaps and surfaces them to the generation prompt, ensuring planted seeds pay off.
-            </P>
-            <P>
-              Only after expansion does the system generate fresh direction and constraint vectors — now accounting for entities that didn&apos;t exist a moment ago. The result is a two-layer architecture: the <B>phase layer</B> provides long-range structure, the <B>direction layer</B> provides short-range steering that evolves continuously. The story follows a plan, but the plan follows the story.
+              Evaluations can be <B>guided</B> with external feedback — from another AI, a human editor, or the author&apos;s own notes — layered on top of the system&apos;s structural analysis. Each reconstruction produces a versioned branch (<em>v2</em>, <em>v3</em>, <em>v4</em>), enabling direct comparison and rollback. The loop converges: each pass reduces non-ok scenes until the evaluator returns all-ok. A 50-scene branch typically stabilises in 2&ndash;3 passes.
             </P>
           </Section>
 

@@ -1,72 +1,10 @@
-import type { NarrativeState, Scene, ProseScore } from '@/types/narrative';
+import type { NarrativeState, Scene } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { sceneContext, deriveLogicRules, sceneScale } from './context';
 
 
-
-export async function scoreSceneProse(
-  narrative: NarrativeState,
-  scene: Scene,
-  currentProse: string,
-): Promise<ProseScore> {
-  const sceneBlock = sceneContext(narrative, scene);
-  const logicRules = deriveLogicRules(narrative, scene);
-
-  const logicBlock = logicRules.length > 0
-    ? `\nLOGICAL CONSTRAINTS (check all are satisfied):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
-    : '';
-
-  const systemPrompt = `You are a literary editor grading prose quality. You return ONLY valid JSON — no markdown, no commentary.`;
-
-  const prompt = `SCENE CONTEXT:
-${sceneBlock}
-${logicBlock}
-
-CURRENT PROSE:
-${currentProse}
-
-Score the prose on these 6 dimensions (1-10 each):
-- voice: POV discipline, character distinctiveness, consistent narrative voice
-- pacing: scene breathes, deliveries land with proper weight, no rushing or dragging
-- dialogue: subtext-rich, character-specific speech patterns, no filler exchanges
-- sensory: grounded in concrete physical detail, body-first interiority
-- mutationCoverage: all thread shifts, knowledge changes, and relationship mutations are dramatised (not summarised)
-- overall: holistic quality considering all dimensions
-
-For each dimension, provide a brief critique (1-2 sentences) explaining the score — what works and what doesn't.
-
-Return JSON:
-{
-  "score": {
-    "overall": 7,
-    "voice": 8,
-    "pacing": 6,
-    "dialogue": 7,
-    "sensory": 5,
-    "mutationCoverage": 8
-  },
-  "critique": "Voice (8): Strong POV lock on Kael, distinct internal rhythm. Pacing (6): The middle sags — the market confrontation needs tighter deliveries. Dialogue (7): Subtext works in the alley scene but the tavern exchange feels expository. Sensory (5): Too much telling of emotions, not enough physical grounding. Mutation coverage (8): Thread shifts land well. Overall (7): Solid foundation but the sensory and pacing weaknesses hold it back."
-}`;
-
-  const raw = await callGenerate(prompt, systemPrompt, 2000, 'scoreSceneProse', ANALYSIS_MODEL);
-  const parsed = parseJson(raw, 'scoreSceneProse') as Record<string, unknown>;
-
-  // Handle both {score: {...}, critique: "..."} and flat {overall: 7, voice: 8, ..., critique: "..."} shapes
-  const scoreObj = (parsed.score && typeof parsed.score === 'object' ? parsed.score : parsed) as Record<string, unknown>;
-  const critique = (typeof parsed.critique === 'string' ? parsed.critique : typeof (scoreObj as Record<string, unknown>).critique === 'string' ? (scoreObj as Record<string, unknown>).critique : undefined) as string | undefined;
-
-  return {
-    overall: Number(scoreObj.overall) || 0,
-    voice: Number(scoreObj.voice) || 0,
-    pacing: Number(scoreObj.pacing) || 0,
-    dialogue: Number(scoreObj.dialogue) || 0,
-    sensory: Number(scoreObj.sensory) || 0,
-    mutationCoverage: Number(scoreObj.mutationCoverage ?? scoreObj.mutation_coverage) || 0,
-    critique,
-  };
-}
 
 export async function rewriteSceneProse(
   narrative: NarrativeState,
@@ -241,17 +179,6 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
   }
 
   return { prose: prose, changelog };
-}
-
-export async function scoreAndRewriteSceneProse(
-  narrative: NarrativeState,
-  scene: Scene,
-  resolvedKeys: string[],
-  currentProse: string,
-): Promise<{ prose: string; changelog: string; score: ProseScore }> {
-  const score = await scoreSceneProse(narrative, scene, currentProse);
-  const result = await rewriteSceneProse(narrative, scene, resolvedKeys, currentProse, score.critique ?? 'General polish pass — improve all dimensions.');
-  return { score, ...result };
 }
 
 export type ChartAnnotation = {

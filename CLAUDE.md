@@ -59,7 +59,7 @@ src/
 │   │   ├── api.ts          # callGenerate, callGenerateStream
 │   │   ├── context.ts      # branchContext, sceneContext — LLM context building
 │   │   ├── scenes.ts       # generateScenes, generateScenePlan
-│   │   ├── prose.ts        # scoreSceneProse, rewriteSceneProse
+│   │   ├── prose.ts        # rewriteSceneProse
 │   │   ├── world.ts        # expandWorld, suggestDirection, generateNarrative
 │   │   ├── review.ts       # refreshDirection — course correction after each arc
 │   │   ├── evaluate.ts     # evaluateBranch — summary-based branch evaluation with guided feedback
@@ -166,7 +166,6 @@ Key functions:
 - `generateScenes()` — scene structures with mutations, paced by Markov sequence
 - `generateScenePlan()` — beat-by-beat blueprint (streaming)
 - `generateSceneProse()` — full prose from plan (streaming)
-- `scoreSceneProse()` — returns ProseScore with critique
 - `rewriteSceneProse()` — rewrite guided by critique or custom analysis
 - `expandWorld()` — add characters, locations, threads
 - `refreshDirection()` — course correction after each arc

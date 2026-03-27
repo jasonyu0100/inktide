@@ -244,6 +244,7 @@ const NAV = [
   { id: "planning", label: "Planning" },
   { id: "revision", label: "Revision" },
   { id: "classification", label: "Classification" },
+  { id: "economics", label: "Economics" },
   { id: "open-source", label: "Open Source" },
 ];
 
@@ -1804,6 +1805,96 @@ export default function PaperPage() {
                 </div>
               ))}
             </div>
+          </Section>
+
+          {/* ── Economics ──────────────────────────────────────────────── */}
+          <Section id="economics" label="Economics">
+            <P>
+              The entire pipeline runs on <B>Gemini 2.5 Flash</B> at{" "}
+              <B>$0.30/M input</B> and <B>$2.50/M output tokens</B>.
+              Input dominates cost (70%) because every call sends
+              the full narrative context and generates a comparatively
+              small structured response. Context is capped by the branch
+              time horizon (default 50 scenes, ~49K tokens), so cost per
+              arc plateaus — arc 10 costs the same as arc 100.
+            </P>
+
+            <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/[0.03] border border-white/6">
+              <span className="text-[10px] uppercase tracking-wider text-white/20 block mb-3 font-mono">
+                Arc Generation Breakdown (measured, 5-scene arc)
+              </span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="text-white/30 text-left">
+                      <th className="pb-2 font-mono font-normal">Call</th>
+                      <th className="pb-2 font-mono font-normal text-right">Count</th>
+                      <th className="pb-2 font-mono font-normal text-right">Avg Input</th>
+                      <th className="pb-2 font-mono font-normal text-right">Avg Output</th>
+                      <th className="pb-2 font-mono font-normal text-right">Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-white/45">
+                    {[
+                      { call: "generateScenes", count: "1", input: "~40K", output: "~4K", cost: "$0.022" },
+                      { call: "generateScenePlan", count: "5", input: "~28K", output: "~230", cost: "$0.045" },
+                      { call: "generateSceneProse", count: "5", input: "~35K", output: "~3.8K", cost: "$0.100" },
+                      { call: "refreshDirection", count: "1", input: "~32K", output: "~300", cost: "$0.010" },
+                      { call: "Other", count: "3", input: "~25K", output: "~250", cost: "$0.024" },
+                    ].map(({ call, count, input, output, cost }) => (
+                      <tr key={call} className="border-t border-white/5">
+                        <td className="py-1.5 text-white/50 font-mono">{call}</td>
+                        <td className="py-1.5 text-right font-mono">{count}</td>
+                        <td className="py-1.5 text-right font-mono">{input}</td>
+                        <td className="py-1.5 text-right font-mono">{output}</td>
+                        <td className="py-1.5 text-right font-mono">{cost}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-white/10">
+                      <td className="py-1.5 text-white/60 font-medium">Total per arc</td>
+                      <td className="py-1.5 text-right font-mono text-white/60">15</td>
+                      <td className="py-1.5 text-right font-mono text-white/60">~468K</td>
+                      <td className="py-1.5 text-right font-mono text-white/60">~28K</td>
+                      <td className="py-1.5 text-right font-mono text-white/60">$0.21</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/[0.03] border border-white/6">
+              <span className="text-[10px] uppercase tracking-wider text-white/20 block mb-3 font-mono">
+                End-to-End Estimates (~5 scenes/arc, ~1K words/scene)
+              </span>
+              <div className="space-y-2 text-[11px] text-white/45">
+                {[
+                  { scale: "Short story (3 arcs, ~15 scenes, ~15K words)", cost: "~$0.63" },
+                  { scale: "Novella (10 arcs, ~50 scenes, ~51K words)", cost: "~$2.10" },
+                  { scale: "Novel (30 arcs, ~150 scenes, ~150K words)", cost: "~$6.30" },
+                  { scale: "Web serial (100 arcs, ~500 scenes, ~500K words)", cost: "~$21.00" },
+                  { scale: "Analysis of existing 100K-word novel", cost: "~$1.00" },
+                ].map(({ scale, cost }, i) => (
+                  <div key={scale} className={`flex justify-between${i > 0 ? ' border-t border-white/5 pt-2' : ''}`}>
+                    <span>{scale}</span>
+                    <span className="font-mono text-white/60">{cost}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-white/25 mt-3">
+                Gemini 2.5 Flash at $0.30/M input, $2.50/M output.
+                Cost per arc is constant once the story exceeds the 50-scene time horizon.
+              </p>
+            </div>
+
+            <P>
+              A human ghostwriter charges $10,000–$50,000 for a novel. A
+              developmental editor charges $2,000–$5,000 for structural
+              feedback. InkTide generates the structure, evaluates it against
+              force targets, course-corrects after every arc, and produces
+              full prose — for under three dollars at novella scale. The
+              economics make iterative experimentation practical: generate,
+              evaluate, discard, try again.
+            </P>
           </Section>
 
           {/* ── Open Source ───────────────────────────────────────────── */}

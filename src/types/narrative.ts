@@ -585,6 +585,8 @@ export type PlanningPhase = {
   status: PlanningPhaseStatus;
   /** Phase-specific constraint overrides (empty = use story settings) */
   constraints: string;
+  /** Structural mechanics rules — convergence, payoff density, scene function variety, protagonist gravity */
+  structuralRules?: string;
   /** AI-generated direction for this phase (set when phase becomes active) */
   direction: string;
   /** AI-generated completion report when phase finishes */
@@ -610,6 +612,8 @@ export type PlanningProfile = {
     objective: string;
     sceneAllocation: number;
     constraints: string;
+    /** Structural mechanics rules — convergence, payoff density, scene function variety, protagonist gravity */
+    structuralRules?: string;
     worldExpansionHints: string;
   }[];
 };
@@ -753,6 +757,32 @@ export type AnalysisJob = {
   narrativeId?: string;
   createdAt: number;
   updatedAt: number;
+};
+
+// ── Discovery Inquiries ──────────────────────────────────────────────────────
+
+import type { PremiseDecision, PremiseEntity, PremiseEdge, PremiseQuestion, PremiseSystemSketch } from '@/lib/ai/premise';
+
+export type DiscoveryPhase = 'systems' | 'rules' | 'cast' | 'threads';
+
+export type DiscoveryInquiryState = {
+  seed: string;
+  decisions: PremiseDecision[];
+  entities: PremiseEntity[];
+  edges: PremiseEdge[];
+  rules: string[];
+  systems: PremiseSystemSketch[];
+  title: string;
+  worldSummary: string;
+  currentQuestion: PremiseQuestion | null;
+  phase: 'seed' | DiscoveryPhase;
+};
+
+export type DiscoveryInquiry = {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  state: DiscoveryInquiryState;
 };
 
 // ── App State ────────────────────────────────────────────────────────────────

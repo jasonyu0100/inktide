@@ -1,4 +1,4 @@
-import type { NarrativeState, AnalysisJob, ApiLogEntry } from '@/types/narrative';
+import type { NarrativeState, AnalysisJob, ApiLogEntry, DiscoveryInquiry } from '@/types/narrative';
 import { idbGet, idbPut, idbDelete, idbGetAll, NARRATIVES_STORE, META_STORE, API_LOGS_STORE } from '@/lib/idb';
 
 const ACTIVE_KEY = 'activeNarrativeId';
@@ -148,6 +148,42 @@ export async function deleteApiLogs(narrativeId: string): Promise<void> {
     await idbDelete(API_LOGS_STORE, narrativeId);
   } catch (err) {
     console.error('[persistence] Failed to delete API logs:', narrativeId, err);
+  }
+}
+
+// ── Discovery Inquiries ──────────────────────────────────────────────────────
+
+const DISCOVERY_KEY = 'discoveryInquiries';
+
+export async function loadDiscoveryInquiries(): Promise<DiscoveryInquiry[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const inquiries = await idbGet<DiscoveryInquiry[]>(META_STORE, DISCOVERY_KEY);
+    return inquiries ?? [];
+  } catch (err) {
+    console.error('[persistence] Failed to load discovery inquiries:', err);
+    return [];
+  }
+}
+
+export async function saveDiscoveryInquiry(inquiry: DiscoveryInquiry): Promise<void> {
+  try {
+    const all = await loadDiscoveryInquiries();
+    const idx = all.findIndex((i) => i.id === inquiry.id);
+    if (idx >= 0) all[idx] = inquiry;
+    else all.unshift(inquiry);
+    await idbPut(META_STORE, DISCOVERY_KEY, all);
+  } catch (err) {
+    console.error('[persistence] Failed to save discovery inquiry:', err);
+  }
+}
+
+export async function deleteDiscoveryInquiry(id: string): Promise<void> {
+  try {
+    const all = await loadDiscoveryInquiries();
+    await idbPut(META_STORE, DISCOVERY_KEY, all.filter((i) => i.id !== id));
+  } catch (err) {
+    console.error('[persistence] Failed to delete discovery inquiry:', err);
   }
 }
 

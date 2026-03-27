@@ -12,11 +12,13 @@ import {
   type PremiseSystemSketch,
 } from '@/lib/ai/premise';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
+import { saveDiscoveryInquiry, deleteDiscoveryInquiry, loadDiscoveryInquiries } from '@/lib/persistence';
+import type { DiscoveryInquiry, DiscoveryInquiryState, DiscoveryPhase } from '@/types/narrative';
 import * as d3 from 'd3';
 
 // ── State ────────────────────────────────────────────────────────────────────
 
-type Phase = 'seed' | 'questioning';
+type Phase = 'seed' | DiscoveryPhase;
 
 type PremiseState = {
   seed: string;
@@ -40,7 +42,8 @@ type PremiseAction =
   | { type: 'SET_ERROR'; error: string | null }
   | { type: 'SET_QUESTION'; question: PremiseQuestion }
   | { type: 'APPLY_ROUND'; decision: PremiseDecision; entities: PremiseEntity[]; edges: PremiseEdge[]; rules: string[]; newSystems: PremiseSystemSketch[]; systemUpdates: { name: string; addPrinciples?: string[]; addConstraints?: string[]; addInteractions?: string[] }[]; title: string; worldSummary: string; question: PremiseQuestion }
-  | { type: 'SET_TITLE'; title: string };
+  | { type: 'SET_TITLE'; title: string }
+  | { type: 'RESTORE'; saved: DiscoveryInquiryState };
 
 const initialState: PremiseState = {
   seed: '',
@@ -62,9 +65,9 @@ function applySysUpdates(existing: PremiseSystemSketch[], newSystems: PremiseSys
   for (const u of updates) {
     const sys = result.find(s => s.name.toLowerCase() === u.name.toLowerCase());
     if (sys) {
-      if (u.addPrinciples?.length) sys.principles = [...sys.principles, ...u.addPrinciples];
-      if (u.addConstraints?.length) sys.constraints = [...sys.constraints, ...u.addConstraints];
-      if (u.addInteractions?.length) sys.interactions = [...sys.interactions, ...u.addInteractions];
+      if (u.addPrinciples?.length) sys.principles = [...(sys.principles ?? []), ...u.addPrinciples];
+      if (u.addConstraints?.length) sys.constraints = [...(sys.constraints ?? []), ...u.addConstraints];
+      if (u.addInteractions?.length) sys.interactions = [...(sys.interactions ?? []), ...u.addInteractions];
     }
   }
   return result;
@@ -92,6 +95,8 @@ function reducer(state: PremiseState, action: PremiseAction): PremiseState {
         loading: false,
         error: null,
       };
+    case 'RESTORE':
+      return { ...state, ...action.saved, loading: false, error: null };
     default: return state;
   }
 }
@@ -313,20 +318,30 @@ function DecisionHistory({ decisions }: { decisions: PremiseDecision[] }) {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
-export function DiscoverPage() {
+export function DiscoverPage({ inquiryId: initialInquiryId }: { inquiryId?: string } = {}) {
   const { state: storeState, dispatch: storeDispatch } = useStore();
   const [state, dispatch] = useReducer(reducer, initialState);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [customAnswer, setCustomAnswer] = useState('');
   const [useCustom, setUseCustom] = useState(false);
   const questionRef = useRef<HTMLDivElement>(null);
+  const inquiryIdRef = useRef<string>(initialInquiryId ?? `inquiry-${Date.now()}`);
+
+  // Restore saved inquiry on mount
+  useEffect(() => {
+    if (!initialInquiryId) return;
+    loadDiscoveryInquiries().then((all) => {
+      const found = all.find((i) => i.id === initialInquiryId);
+      if (found) dispatch({ type: 'RESTORE', saved: found.state });
+    });
+  }, [initialInquiryId]);
 
   const handleBegin = useCallback(async () => {
-    dispatch({ type: 'SET_PHASE', phase: 'questioning' });
+    dispatch({ type: 'SET_PHASE', phase: 'systems' });
     dispatch({ type: 'SET_LOADING', loading: true });
     dispatch({ type: 'SET_ERROR', error: null });
     try {
-      const result = await generatePremiseQuestion(state.seed, [], [], [], [], '', []);
+      const result = await generatePremiseQuestion(state.seed, [], [], [], [], '', [], 'systems');
       dispatch({ type: 'SET_QUESTION', question: result.question });
       if (result.title) dispatch({ type: 'SET_TITLE', title: result.title });
     } catch (err) {
@@ -348,9 +363,10 @@ export function DiscoverPage() {
     dispatch({ type: 'SET_ERROR', error: null });
 
     try {
+      const phase = state.phase === 'seed' ? 'systems' : state.phase;
       const result = await generatePremiseQuestion(
         state.seed, [...state.decisions, decision],
-        state.entities, state.edges, state.rules, state.title, state.systems,
+        state.entities, state.edges, state.rules, state.title, state.systems, phase,
       );
       dispatch({
         type: 'APPLY_ROUND', decision,
@@ -369,6 +385,22 @@ export function DiscoverPage() {
     }
   }, [state, selectedChoice, customAnswer, useCustom]);
 
+  // Auto-save inquiry after each round (when decisions change)
+  const prevDecisionCount = useRef(state.decisions.length);
+  useEffect(() => {
+    if (state.decisions.length === 0 && state.phase === 'seed') return;
+    if (state.decisions.length === prevDecisionCount.current && state.phase === 'seed') return;
+    prevDecisionCount.current = state.decisions.length;
+    const { loading, error, ...saved } = state;
+    const inquiry: DiscoveryInquiry = {
+      id: inquiryIdRef.current,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      state: saved,
+    };
+    saveDiscoveryInquiry(inquiry);
+  }, [state.decisions.length, state.phase, state]);
+
   useEffect(() => {
     if (state.currentQuestion && questionRef.current) {
       questionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -379,6 +411,8 @@ export function DiscoverPage() {
     const { premise, characters, locations, threads, rules, worldSystems } = buildPremiseText(
       state.entities, state.rules, state.worldSummary, state.systems,
     );
+    // Delete saved inquiry since it's being converted to a story
+    deleteDiscoveryInquiry(inquiryIdRef.current);
     storeDispatch({
       type: 'OPEN_WIZARD',
       prefillData: {
@@ -393,10 +427,27 @@ export function DiscoverPage() {
     });
   }, [state, storeDispatch]);
 
+  const handleSwitchPhase = useCallback(async (newPhase: DiscoveryPhase) => {
+    if (newPhase === state.phase || state.loading) return;
+    dispatch({ type: 'SET_PHASE', phase: newPhase });
+    dispatch({ type: 'SET_LOADING', loading: true });
+    dispatch({ type: 'SET_ERROR', error: null });
+    try {
+      const result = await generatePremiseQuestion(
+        state.seed, state.decisions, state.entities, state.edges, state.rules, state.title, state.systems, newPhase,
+      );
+      dispatch({ type: 'SET_QUESTION', question: result.question });
+    } catch (err) {
+      dispatch({ type: 'SET_ERROR', error: String(err) });
+    } finally {
+      dispatch({ type: 'SET_LOADING', loading: false });
+    }
+  }, [state]);
+
   const chars = state.entities.filter(e => e.type === 'character');
   const locs = state.entities.filter(e => e.type === 'location');
   const threads = state.entities.filter(e => e.type === 'thread');
-  const canCreate = state.decisions.length >= 3;
+  const canCreate = state.decisions.length >= 1;
 
   // ── Seed Phase ───────────────────────────────────────────────────────
   if (state.phase === 'seed') {
@@ -449,13 +500,37 @@ export function DiscoverPage() {
       <div className="flex-1 min-w-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 60px)' }}>
         <div className="max-w-xl mx-auto px-6 py-8">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h1 className="text-xl font-semibold text-white/90 tracking-tight">
               {state.title || 'Discover'}
             </h1>
             {state.worldSummary && (
               <p className="text-[12px] text-white/35 mt-1.5 leading-relaxed">{state.worldSummary}</p>
             )}
+          </div>
+
+          {/* Phase tabs */}
+          <div className="flex items-center gap-1 mb-6 border border-white/8 rounded-lg p-1 w-fit">
+            {([
+              { key: 'systems' as const, label: 'Systems', count: state.systems.length },
+              { key: 'rules' as const, label: 'Rules', count: state.rules.length },
+              { key: 'cast' as const, label: 'Cast', count: chars.length + locs.length },
+              { key: 'threads' as const, label: 'Threads', count: threads.length },
+            ]).map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => handleSwitchPhase(key)}
+                disabled={state.loading}
+                className={`text-[11px] px-3 py-1.5 rounded-md transition font-medium ${
+                  state.phase === key
+                    ? 'bg-white/10 text-white/90'
+                    : 'text-white/35 hover:text-white/60 hover:bg-white/5'
+                } disabled:opacity-40`}
+              >
+                {label}
+                {count > 0 && <span className="ml-1.5 text-[9px] text-white/25 font-mono">{count}</span>}
+              </button>
+            ))}
           </div>
 
           {/* Decision history */}
@@ -550,76 +625,132 @@ export function DiscoverPage() {
         </div>
       </div>
 
-      {/* Right: World Graph */}
+      {/* Right: Phase-aware sidebar */}
       <div className="lg:w-[420px] shrink-0 border-l border-white/6 flex flex-col" style={{ maxHeight: 'calc(100vh - 60px)' }}>
         {/* Entity counts */}
         <div className="flex items-center gap-4 px-4 py-3 border-b border-white/6">
-          {(['character', 'location', 'thread'] as const).map(type => {
-            const count = type === 'character' ? chars.length : type === 'location' ? locs.length : threads.length;
-            return (
-              <div key={type} className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: TYPE_COLORS[type] }} />
-                <span className="text-[10px] text-white/30">
-                  {count} {TYPE_LABELS[type]}{count !== 1 ? 's' : ''}
-                </span>
-              </div>
-            );
-          })}
-          {state.rules.length > 0 && (
-            <span className="text-[10px] text-white/30">{state.rules.length} Rule{state.rules.length !== 1 ? 's' : ''}</span>
-          )}
-          {state.systems.length > 0 && (
-            <span className="text-[10px] text-white/30">{state.systems.length} System{state.systems.length !== 1 ? 's' : ''}</span>
-          )}
+          <span className="text-[10px] text-white/30">{state.systems.length} System{state.systems.length !== 1 ? 's' : ''}</span>
+          <span className="text-[10px] text-white/30">{state.rules.length} Rule{state.rules.length !== 1 ? 's' : ''}</span>
+          <span className="text-[10px] text-white/30">{chars.length} Char{chars.length !== 1 ? 's' : ''}</span>
+          <span className="text-[10px] text-white/30">{locs.length} Loc{locs.length !== 1 ? 's' : ''}</span>
+          <span className="text-[10px] text-white/30">{threads.length} Thread{threads.length !== 1 ? 's' : ''}</span>
         </div>
 
-        {/* Graph */}
-        <div className="flex-1 min-h-[300px]">
-          <WorldGraph entities={state.entities} edges={state.edges} />
-        </div>
-
-        {/* Rules */}
-        {state.rules.length > 0 && (
-          <div className="border-t border-white/6 px-4 py-3 max-h-36 overflow-y-auto">
-            <p className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-mono mb-1.5">Rules</p>
-            <div className="flex flex-col gap-1">
-              {state.rules.map((rule, i) => (
-                <p key={i} className="text-[11px] text-white/45 leading-snug">
-                  <span className="text-white/20 mr-1.5">{i + 1}.</span>{rule}
-                </p>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* World Systems */}
-        {state.systems.length > 0 && (
-          <div className="border-t border-white/6 px-4 py-3 max-h-52 overflow-y-auto">
-            <p className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-mono mb-1.5">Systems</p>
-            <div className="flex flex-col gap-2">
-              {state.systems.map((sys, i) => (
-                <div key={i}>
-                  <p className="text-[11px] text-white/60 font-medium">{sys.name}</p>
-                  <p className="text-[10px] text-white/30 leading-snug">{sys.description}</p>
-                  {sys.principles.length > 0 && (
-                    <div className="mt-0.5">
-                      {sys.principles.map((p, j) => (
-                        <p key={j} className="text-[10px] text-white/35 leading-snug pl-2">• {p}</p>
-                      ))}
+        {/* Phase-specific content */}
+        <div className="flex-1 overflow-y-auto">
+          {(state.phase === 'systems') && (
+            <div className="px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-mono mb-2">World Systems</p>
+              {state.systems.length === 0 ? (
+                <p className="text-[11px] text-white/20 italic">No systems yet — answer questions to define how your world works.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {state.systems.map((sys, i) => (
+                    <div key={i} className="border border-white/6 rounded-lg px-3 py-2.5">
+                      <p className="text-[12px] text-white/70 font-medium">{sys.name}</p>
+                      <p className="text-[10px] text-white/30 leading-snug mt-0.5">{sys.description}</p>
+                      {sys.principles?.length > 0 && (
+                        <div className="mt-1.5">
+                          {sys.principles.map((p, j) => (
+                            <p key={j} className="text-[10px] text-white/40 leading-snug pl-2">• {p}</p>
+                          ))}
+                        </div>
+                      )}
+                      {sys.constraints?.length > 0 && (
+                        <div className="mt-1">
+                          {sys.constraints.map((c, j) => (
+                            <p key={j} className="text-[10px] text-amber-400/40 leading-snug pl-2">⚠ {c}</p>
+                          ))}
+                        </div>
+                      )}
+                      {sys.interactions?.length > 0 && (
+                        <div className="mt-1">
+                          {sys.interactions.map((ix, j) => (
+                            <p key={j} className="text-[10px] text-cyan-400/30 leading-snug pl-2">↔ {ix}</p>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {sys.constraints.length > 0 && (
-                    <div className="mt-0.5">
-                      {sys.constraints.map((c, j) => (
-                        <p key={j} className="text-[10px] text-amber-400/40 leading-snug pl-2">⚠ {c}</p>
-                      ))}
-                    </div>
-                  )}
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        )}
+          )}
+
+          {(state.phase === 'rules') && (
+            <div className="px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.15em] text-white/20 font-mono mb-2">World Rules</p>
+              {state.rules.length === 0 ? (
+                <p className="text-[11px] text-white/20 italic">No rules yet — answer questions to define the commandments of your world.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {state.rules.map((rule, i) => (
+                    <div key={i} className="border border-white/6 rounded-lg px-3 py-2">
+                      <p className="text-[11px] text-white/50 leading-snug">
+                        <span className="text-white/20 mr-1.5 font-mono text-[10px]">{i + 1}.</span>{rule}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(state.phase === 'cast') && (
+            <div className="flex flex-col h-full">
+              <div className="flex-1 min-h-[250px]">
+                <WorldGraph entities={state.entities.filter(e => e.type !== 'thread')} edges={state.edges} />
+              </div>
+              {(chars.length > 0 || locs.length > 0) && (
+                <div className="border-t border-white/6 px-4 py-3 max-h-48 overflow-y-auto">
+                  {chars.map((c, i) => (
+                    <div key={i} className="flex items-start gap-2 mb-1.5">
+                      <div className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ backgroundColor: TYPE_COLORS.character }} />
+                      <div>
+                        <span className="text-[11px] text-white/60 font-medium">{c.name}</span>
+                        {c.role && <span className="text-[9px] text-white/20 ml-1.5">{c.role}</span>}
+                        <p className="text-[10px] text-white/30 leading-snug">{c.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {locs.map((l, i) => (
+                    <div key={i} className="flex items-start gap-2 mb-1.5">
+                      <div className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ backgroundColor: TYPE_COLORS.location }} />
+                      <div>
+                        <span className="text-[11px] text-white/60 font-medium">{l.name}</span>
+                        <p className="text-[10px] text-white/30 leading-snug">{l.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(state.phase === 'threads') && (
+            <div className="flex flex-col h-full">
+              <div className="flex-1 min-h-[250px]">
+                <WorldGraph entities={state.entities} edges={state.edges} />
+              </div>
+              {threads.length > 0 && (
+                <div className="border-t border-white/6 px-4 py-3 max-h-48 overflow-y-auto">
+                  {threads.map((t, i) => (
+                    <div key={i} className="flex items-start gap-2 mb-2">
+                      <div className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ backgroundColor: TYPE_COLORS.thread }} />
+                      <div>
+                        <span className="text-[11px] text-white/60 font-medium">{t.name}</span>
+                        <p className="text-[10px] text-white/30 leading-snug">{t.description}</p>
+                        {t.participantNames?.length && (
+                          <p className="text-[9px] text-white/20 mt-0.5">{t.participantNames.join(', ')}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Title */}
         {state.title && (

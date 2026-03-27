@@ -7,7 +7,8 @@ import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
 import ApiKeyModal from '@/components/topbar/ApiKeyModal';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
-import type { NarrativeEntry } from '@/types/narrative';
+import type { NarrativeEntry, DiscoveryInquiry } from '@/types/narrative';
+import { loadDiscoveryInquiries, deleteDiscoveryInquiry } from '@/lib/persistence';
 
 function timeAgo(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -94,7 +95,13 @@ export default function DashboardPage() {
   const { userApiKeys, hasOpenRouterKey } = access;
   const [apiKeysOpen, setApiKeysOpen] = useState(false);
   const [analysisText, setAnalysisText] = useState('');
+  const [inquiries, setInquiries] = useState<DiscoveryInquiry[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load saved discovery inquiries
+  useEffect(() => {
+    loadDiscoveryInquiries().then(setInquiries);
+  }, []);
 
   useEffect(() => {
     const handleOpenApiKeys = () => setApiKeysOpen(true);
@@ -169,6 +176,47 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Discovery Inquiries */}
+          {inquiries.length > 0 && (
+            <div className="max-w-4xl mx-auto mb-12">
+              <div className="flex items-center gap-3 mb-5">
+                <h2 className="text-[10px] uppercase tracking-[0.2em] text-text-dim font-mono">Discovery Inquiries</h2>
+                <div className="flex-1 h-px bg-white/6" />
+              </div>
+              <div className="flex flex-col gap-2">
+                {inquiries.map((inq) => (
+                  <div
+                    key={inq.id}
+                    className="group flex items-center gap-4 border border-white/6 rounded-lg px-4 py-3 hover:border-white/12 transition cursor-pointer"
+                    onClick={() => router.push(`/discover?id=${inq.id}`)}
+                  >
+                    <div className="w-2 h-2 rounded-full shrink-0 bg-cyan-400/60" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-white/80 font-medium truncate block">
+                        {inq.state.title || 'Untitled Inquiry'}
+                      </span>
+                      <span className="text-[10px] text-white/25 font-mono">
+                        {inq.state.decisions.length} decisions &middot; {inq.state.entities.length} entities &middot; {inq.state.systems.length} systems
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-white/20 font-mono shrink-0" suppressHydrationWarning>
+                      {timeAgo(inq.updatedAt)}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteDiscoveryInquiry(inq.id).then(() =>
+                          setInquiries((prev) => prev.filter((i) => i.id !== inq.id))
+                        );
+                      }}
+                      className="text-white/15 hover:text-white/50 text-sm opacity-0 group-hover:opacity-100 transition shrink-0"
+                    >&times;</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Your Stories */}
           <div className="max-w-4xl mx-auto mb-12">

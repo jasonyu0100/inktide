@@ -83,6 +83,7 @@ export async function generatePremiseQuestion(
   rules: string[],
   currentTitle: string,
   systems: PremiseSystemSketch[] = [],
+  discoveryPhase: 'systems' | 'rules' | 'cast' | 'threads' = 'systems',
 ): Promise<PremiseQuestionResult> {
   const round = decisions.length + 1;
 
@@ -116,14 +117,14 @@ ${systemsBlock}
 Edges: ${edges.map(e => `${e.from} → ${e.to}: ${e.label}`).join('; ') || 'none'}`
     : 'No entities established yet.';
 
-  // Guidance based on round number
-  const phaseGuidance = round <= 2
-    ? 'PHASE: Foundation. Ask about genre, tone, setting, or the central premise. Keep it broad.'
-    : round <= 4
-    ? 'PHASE: Structure. Ask about the protagonist, central conflict, power dynamics, or the world\'s defining system/mechanic. Start naming characters and locations.'
-    : round <= 6
-    ? 'PHASE: Depth. Ask about relationships, secrets, factions, specific locations, or narrative threads. Flesh out what exists.'
-    : 'PHASE: Refinement. Ask about specific tensions, rules, edge cases, or underexplored aspects. Fill gaps in the world.';
+  // Phase-specific guidance
+  const PHASE_GUIDANCE: Record<string, string> = {
+    systems: `PHASE: SYSTEMS — Focus exclusively on world mechanics. Ask about power systems, economies, social structures, progression paths, combat logic, cosmic laws, technological frameworks, or any structured mechanic that defines how this world works. Extract structured systems with principles, constraints, and cross-system interactions. You may introduce locations if they are integral to a system (e.g. a magical academy, a trade hub), but do NOT introduce characters or narrative threads yet.`,
+    rules: `PHASE: RULES — Focus exclusively on world rules and narrative tone. Ask about commandments that govern the world's style: what is always true, what is forbidden, the moral framework, genre conventions, narrative voice, thematic boundaries. Examples: "Magic always has a cost", "No character is purely good", "Technology cannot solve social problems". Extract these as rules. Do NOT introduce new characters or threads.`,
+    cast: `PHASE: CAST & LOCATIONS — Focus exclusively on characters and places. Ask about key figures, their roles, relationships, motivations, flaws, and important locations. Reference established systems and rules to ground characters in the world. Extract character and location entities with relationship edges.`,
+    threads: `PHASE: THREADS — Focus exclusively on narrative threads — the tensions, conflicts, secrets, and open questions that will drive the story. Each thread should connect to established characters, locations, and systems. Ask about what's at stake, who wants what, and where interests collide. Extract thread entities with participant names.`,
+  };
+  const phaseGuidance = PHASE_GUIDANCE[discoveryPhase] ?? PHASE_GUIDANCE.systems;
 
   // What's thin?
   const gaps: string[] = [];

@@ -4,9 +4,9 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useStore, ANALYSIS_NARRATIVE_IDS, PLAYGROUND_NARRATIVE_IDS } from '@/lib/store';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
-import type { NarrativeState } from '@/types/narrative';
+import type { NarrativeState, Branch } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, FORCE_REFERENCE_MEANS, resolveEntrySequence } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/topbar/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import ApiKeyModal from '@/components/topbar/ApiKeyModal';
@@ -21,15 +21,148 @@ import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
 import type { NarrativeEntry } from '@/types/narrative';
 
 
-function exportNarrative(narrative: NarrativeState) {
-  const json = JSON.stringify(narrative, null, 2);
+function downloadJson(data: object, filename: string) {
+  const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${narrative.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function exportNarrative(narrative: NarrativeState) {
+  downloadJson(narrative, `${narrative.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`);
+}
+
+/** Export a single branch as a self-contained NarrativeState with only the entries in that branch's timeline */
+function exportBranch(narrative: NarrativeState, branchId: string) {
+  const resolvedKeys = resolveEntrySequence(narrative.branches, branchId);
+  const resolvedSet = new Set(resolvedKeys);
+
+  // Collect only scenes and world builds on this branch's timeline
+  const scenes: NarrativeState['scenes'] = {};
+  const worldBuilds: NarrativeState['worldBuilds'] = {};
+  const referencedCharIds = new Set<string>();
+  const referencedLocIds = new Set<string>();
+  const referencedThreadIds = new Set<string>();
+  const referencedArcIds = new Set<string>();
+  const referencedArtifactIds = new Set<string>();
+
+  for (const key of resolvedKeys) {
+    const scene = narrative.scenes[key];
+    if (scene) {
+      scenes[key] = scene;
+      referencedCharIds.add(scene.povId);
+      for (const pid of scene.participantIds) referencedCharIds.add(pid);
+      referencedLocIds.add(scene.locationId);
+      for (const tm of scene.threadMutations) referencedThreadIds.add(tm.threadId);
+      for (const cm of scene.continuityMutations) referencedCharIds.add(cm.characterId);
+      for (const rm of scene.relationshipMutations) { referencedCharIds.add(rm.from); referencedCharIds.add(rm.to); }
+      if (scene.characterMovements) {
+        for (const [cid, mv] of Object.entries(scene.characterMovements)) {
+          referencedCharIds.add(cid);
+          referencedLocIds.add(mv.locationId);
+        }
+      }
+      for (const om of scene.ownershipMutations ?? []) referencedArtifactIds.add(om.artifactId);
+      // Find arc containing this scene
+      for (const [arcId, arc] of Object.entries(narrative.arcs)) {
+        if (arc.sceneIds.includes(key)) referencedArcIds.add(arcId);
+      }
+    }
+    const wb = narrative.worldBuilds[key];
+    if (wb) worldBuilds[key] = wb;
+  }
+
+  // Also collect entities from world build expansion manifests
+  for (const wb of Object.values(worldBuilds)) {
+    const m = wb.expansionManifest;
+    if (m) {
+      for (const c of m.characters ?? []) referencedCharIds.add(c.id);
+      for (const l of m.locations ?? []) referencedLocIds.add(l.id);
+      for (const t of m.threads ?? []) referencedThreadIds.add(t.id);
+      for (const a of m.artifacts ?? []) referencedArtifactIds.add(a.id);
+    }
+  }
+
+  // Add parent locations to maintain hierarchy
+  for (const locId of [...referencedLocIds]) {
+    let current = narrative.locations[locId];
+    while (current?.parentId && !referencedLocIds.has(current.parentId)) {
+      referencedLocIds.add(current.parentId);
+      current = narrative.locations[current.parentId];
+    }
+  }
+
+  // Build filtered entity catalogs
+  const characters: NarrativeState['characters'] = {};
+  for (const id of referencedCharIds) if (narrative.characters[id]) characters[id] = narrative.characters[id];
+
+  const locations: NarrativeState['locations'] = {};
+  for (const id of referencedLocIds) if (narrative.locations[id]) locations[id] = narrative.locations[id];
+
+  const threads: NarrativeState['threads'] = {};
+  for (const id of referencedThreadIds) if (narrative.threads[id]) threads[id] = narrative.threads[id];
+
+  const artifacts: NarrativeState['artifacts'] = {};
+  for (const id of referencedArtifactIds) if (narrative.artifacts?.[id]) artifacts[id] = narrative.artifacts[id];
+
+  const arcs: NarrativeState['arcs'] = {};
+  for (const id of referencedArcIds) if (narrative.arcs[id]) arcs[id] = narrative.arcs[id];
+
+  // Filter relationships to only those between referenced characters
+  const relationships = narrative.relationships.filter(
+    (r) => referencedCharIds.has(r.from) && referencedCharIds.has(r.to)
+  );
+
+  // Build the branch chain — include this branch and its ancestors
+  const branch = narrative.branches[branchId];
+  const branches: NarrativeState['branches'] = {};
+
+  // Flatten into a single root branch for the export
+  const exportBranchObj: Branch = {
+    id: branchId,
+    name: branch?.name ?? 'main',
+    parentBranchId: null,
+    forkEntryId: null,
+    entryIds: resolvedKeys,
+    planningQueue: branch?.planningQueue,
+    createdAt: branch?.createdAt ?? Date.now(),
+  };
+  branches[branchId] = exportBranchObj;
+
+  const exported: NarrativeState = {
+    id: narrative.id,
+    title: narrative.title,
+    description: narrative.description,
+    characters,
+    locations,
+    threads,
+    artifacts,
+    arcs,
+    scenes,
+    worldBuilds,
+    branches,
+    relationships,
+    worldKnowledge: narrative.worldKnowledge,
+    worldSummary: narrative.worldSummary,
+    rules: narrative.rules,
+    worldSystems: narrative.worldSystems,
+    storySettings: narrative.storySettings,
+    imageStyle: narrative.imageStyle,
+    coverImageUrl: narrative.coverImageUrl,
+    branchEvaluations: narrative.branchEvaluations?.[branchId]
+      ? { [branchId]: narrative.branchEvaluations[branchId] }
+      : undefined,
+    createdAt: narrative.createdAt,
+    updatedAt: narrative.updatedAt,
+  };
+
+  const branchName = branch?.name ?? 'main';
+  const filename = `${narrative.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${branchName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+  downloadJson(exported, filename);
 }
 
 // ── Menu Dropdown ────────────────────────────────────────────────────────────
@@ -485,16 +618,30 @@ export default function TopBar() {
                   Import JSON
                 </button>
                 {narrative && (
-                  <button
-                    onClick={() => {
-                      exportNarrative(narrative);
-                      setSelectorOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                  >
-                    <span className="w-5 h-5 rounded-md bg-white/8 flex items-center justify-center text-[10px]">&darr;</span>
-                    Export JSON
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        exportNarrative(narrative);
+                        setSelectorOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                    >
+                      <span className="w-5 h-5 rounded-md bg-white/8 flex items-center justify-center text-[10px]">&darr;</span>
+                      Export JSON
+                    </button>
+                    {state.activeBranchId && (
+                      <button
+                        onClick={() => {
+                          exportBranch(narrative, state.activeBranchId!);
+                          setSelectorOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                      >
+                        <span className="w-5 h-5 rounded-md bg-white/8 flex items-center justify-center text-[10px]">&darr;</span>
+                        Export Branch
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -537,6 +684,7 @@ export default function TopBar() {
           setOpenMenu={setOpenMenu}
           anyMenuOpen={openMenu !== null}
           items={[
+            { label: 'Narrative Cube', onClick: () => window.dispatchEvent(new CustomEvent('open-cube-viewer')), disabled: !hasNarrative },
             { label: 'Thread Lifecycle', onClick: () => setThreadLifecycleOpen(true), disabled: !hasNarrative },
             { label: 'Cube Explorer', onClick: () => setCubeExplorerOpen(true), disabled: !hasNarrative },
             { label: 'State Machine', onClick: () => setMarkovOpen(true), disabled: !hasNarrative },

@@ -5,7 +5,7 @@ import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, Wizard
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs } from '@/lib/persistence';
+import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs } from '@/lib/persistence';
 import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
 
 // Bundled narratives loaded at runtime from /public manifests
@@ -315,6 +315,7 @@ export type Action =
   | { type: 'LOG_API_CALL'; entry: ApiLogEntry }
   | { type: 'UPDATE_API_LOG'; id: string; updates: Partial<ApiLogEntry> }
   | { type: 'CLEAR_API_LOGS' }
+  | { type: 'HYDRATE_API_LOGS'; logs: ApiLogEntry[] }
   | { type: 'SET_COVER_IMAGE'; narrativeId: string; imageUrl: string }
   | { type: 'UPDATE_NARRATIVE_META'; narrativeId: string; title?: string; description?: string }
   | { type: 'SET_SCENE_IMAGE'; sceneId: string; imageUrl: string }
@@ -480,6 +481,9 @@ function reducer(state: AppState, action: Action): AppState {
       // Fire-and-forget async delete
       deletePersisted(action.id).catch((err) => {
         console.error('[store] Failed to delete narrative:', err);
+      });
+      deleteApiLogs(action.id).catch((err) => {
+        console.error('[store] Failed to delete API logs:', err);
       });
 
       if (isSeed) {
@@ -836,6 +840,9 @@ function reducer(state: AppState, action: Action): AppState {
     case 'CLEAR_API_LOGS':
       return { ...state, apiLogs: [] };
 
+    case 'HYDRATE_API_LOGS':
+      return { ...state, apiLogs: action.logs };
+
     case 'SET_COVER_IMAGE': {
       // Update the narrative entry in the list
       const updatedNarratives = state.narratives.map((e) =>
@@ -1177,6 +1184,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Keep logger aware of which narrative is active
+  useEffect(() => {
+    import('@/lib/api-logger').then(({ setLoggerNarrativeId }) => {
+      setLoggerNarrativeId(state.activeNarrativeId);
+    });
+  }, [state.activeNarrativeId]);
+
   // Wire analysis runner dispatch
   useEffect(() => {
     analysisRunnerRef.setDispatch(dispatch);
@@ -1330,6 +1344,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       console.error('[store] Failed to persist analysis jobs:', err);
     });
   }, [state.analysisJobs]);
+
+  // Load API logs from IndexedDB when the active narrative changes
+  useEffect(() => {
+    const id = state.activeNarrativeId;
+    if (!id) return;
+    loadApiLogs(id).then((logs) => {
+      if (logs.length > 0) dispatch({ type: 'HYDRATE_API_LOGS', logs });
+    }).catch((err) => console.error('[store] Failed to load API logs:', err));
+  }, [state.activeNarrativeId]);
+
+  // Persist API logs to IndexedDB whenever they change (debounced)
+  const prevApiLogsRef = useRef(state.apiLogs);
+  const apiLogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (state.apiLogs === prevApiLogsRef.current) return;
+    prevApiLogsRef.current = state.apiLogs;
+    const id = state.activeNarrativeId;
+    if (!id) return;
+    // Debounce writes — API logs can update rapidly during generation
+    if (apiLogTimerRef.current) clearTimeout(apiLogTimerRef.current);
+    apiLogTimerRef.current = setTimeout(() => {
+      saveApiLogs(id, state.apiLogs).catch((err) => {
+        console.error('[store] Failed to persist API logs:', err);
+      });
+    }, 2000);
+  }, [state.apiLogs, state.activeNarrativeId]);
 
   // Keyboard shortcuts
   useEffect(() => {

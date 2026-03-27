@@ -1,5 +1,5 @@
-import type { NarrativeState, AnalysisJob } from '@/types/narrative';
-import { idbGet, idbPut, idbDelete, idbGetAll, idbDeleteByPrefix, IMAGES_STORE, NARRATIVES_STORE, META_STORE } from '@/lib/image-store';
+import type { NarrativeState, AnalysisJob, ApiLogEntry } from '@/types/narrative';
+import { idbGet, idbPut, idbDelete, idbGetAll, NARRATIVES_STORE, META_STORE, API_LOGS_STORE } from '@/lib/idb';
 
 const ACTIVE_KEY = 'activeNarrativeId';
 const ACTIVE_BRANCH_KEY = 'activeBranchId';
@@ -28,10 +28,7 @@ export async function saveNarrative(narrative: NarrativeState): Promise<void> {
 
 export async function deleteNarrative(id: string): Promise<void> {
   try {
-    await Promise.all([
-      idbDelete(NARRATIVES_STORE, id),
-      idbDeleteByPrefix(IMAGES_STORE, id),
-    ]);
+    await idbDelete(NARRATIVES_STORE, id);
   } catch (err) {
     console.error('[persistence] Failed to delete narrative:', id, err);
   }
@@ -119,6 +116,38 @@ export async function saveAnalysisJobs(jobs: AnalysisJob[]): Promise<void> {
     await idbPut(META_STORE, ANALYSIS_JOBS_KEY, jobs);
   } catch (err) {
     console.error('[persistence] Failed to save analysis jobs:', err);
+  }
+}
+
+// ── API Logs (per narrative) ─────────────────────────────────────────────────
+
+/** Load all API logs for a given narrative */
+export async function loadApiLogs(narrativeId: string): Promise<ApiLogEntry[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const logs = await idbGet<ApiLogEntry[]>(API_LOGS_STORE, narrativeId);
+    return logs ?? [];
+  } catch (err) {
+    console.error('[persistence] Failed to load API logs:', narrativeId, err);
+    return [];
+  }
+}
+
+/** Save all API logs for a given narrative */
+export async function saveApiLogs(narrativeId: string, logs: ApiLogEntry[]): Promise<void> {
+  try {
+    await idbPut(API_LOGS_STORE, narrativeId, logs);
+  } catch (err) {
+    console.error('[persistence] Failed to save API logs:', narrativeId, err);
+  }
+}
+
+/** Delete API logs for a narrative (used when deleting a narrative) */
+export async function deleteApiLogs(narrativeId: string): Promise<void> {
+  try {
+    await idbDelete(API_LOGS_STORE, narrativeId);
+  } catch (err) {
+    console.error('[persistence] Failed to delete API logs:', narrativeId, err);
   }
 }
 

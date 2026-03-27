@@ -4,7 +4,7 @@
  * Uses the existing 'meta' store to avoid a DB version bump.
  */
 
-import { idbPut, idbGet, idbDelete, META_STORE } from './image-store';
+import { idbPut, idbGet, idbDelete, META_STORE } from './idb';
 
 const KEY = 'transfer:analysis-source';
 

@@ -18,6 +18,7 @@ import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
 import { MarkovChainModal } from '@/components/topbar/MarkovChainModal';
 import { ThreadLifecycleModal } from '@/components/topbar/ThreadLifecycleModal';
 import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
+import { UsageDropdown, computeTotalCost } from '@/components/topbar/UsageAnalyticsModal';
 import type { NarrativeEntry } from '@/types/narrative';
 
 
@@ -290,9 +291,11 @@ export default function TopBar() {
   const [markovOpen, setMarkovOpen] = useState(false);
   const [threadLifecycleOpen, setThreadLifecycleOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'delivery'>('arcs');
   const scorecardRef = useRef<HTMLDivElement>(null);
+  const usageRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -329,17 +332,23 @@ export default function TopBar() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [selectorOpen]);
 
-  // Close scorecard on outside click
+  // Close scorecard / usage on outside click
   useEffect(() => {
-    if (!scorecardOpen) return;
+    if (!scorecardOpen && !usageOpen) return;
     function handleClick(e: MouseEvent) {
-      if (scorecardRef.current && !scorecardRef.current.contains(e.target as Node)) {
+      if (scorecardOpen && scorecardRef.current && !scorecardRef.current.contains(e.target as Node)) {
         setScorecardOpen(false);
+      }
+      if (usageOpen && usageRef.current && !usageRef.current.contains(e.target as Node)) {
+        setUsageOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [scorecardOpen]);
+  }, [scorecardOpen, usageOpen]);
+
+  // Usage cost for pill
+  const usageCost = useMemo(() => computeTotalCost(state.apiLogs), [state.apiLogs]);
 
   // Scorecard data
   const allScenes = useMemo(() => {
@@ -721,6 +730,27 @@ export default function TopBar() {
 
       {/* Right: quick actions */}
       <div className="flex items-center gap-1.5">
+        {/* Usage pill */}
+        <div className="relative" ref={usageRef}>
+          <button
+            onClick={() => setUsageOpen((v) => !v)}
+            className={`px-2.5 py-1 rounded-full transition-colors flex items-center gap-1.5 text-[12px] border ${
+              usageOpen
+                ? 'text-text-primary bg-white/10 border-white/15'
+                : 'text-text-dim hover:text-text-primary hover:bg-white/5 border-white/8'
+            }`}
+            title="Usage Analytics"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            <span className="font-semibold font-mono text-emerald-400">
+              {usageCost >= 1 ? `$${usageCost.toFixed(2)}` : usageCost >= 0.01 ? `$${usageCost.toFixed(3)}` : `$${usageCost.toFixed(4)}`}
+            </span>
+          </button>
+          {usageOpen && <UsageDropdown logs={state.apiLogs} />}
+        </div>
+
         {/* Scorecard pill */}
         <div className="relative" ref={scorecardRef}>
           {scorecard && (

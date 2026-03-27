@@ -698,6 +698,8 @@ export type ApiLogEntry = {
   caller: string;
   /** AI model used for this call */
   model?: string;
+  /** Narrative this call belongs to */
+  narrativeId?: string;
   status: 'pending' | 'success' | 'error';
   durationMs: number | null;
   promptTokens: number;

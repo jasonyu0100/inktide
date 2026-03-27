@@ -5,6 +5,7 @@ type UpdateListener = (id: string, updates: Partial<ApiLogEntry>) => void;
 
 let logListener: LogListener | null = null;
 let updateListener: UpdateListener | null = null;
+let activeNarrativeId: string | null = null;
 
 let counter = 0;
 
@@ -14,6 +15,11 @@ export function onApiLog(listener: LogListener) {
 
 export function onApiLogUpdate(listener: UpdateListener) {
   updateListener = listener;
+}
+
+/** Called by the store when the active narrative changes */
+export function setLoggerNarrativeId(id: string | null) {
+  activeNarrativeId = id;
 }
 
 /** Estimate token count from character length (~4 chars per token for English) */
@@ -26,6 +32,7 @@ export function logApiCall(caller: string, promptChars: number, promptPreview: s
     timestamp: Date.now(),
     caller,
     model,
+    narrativeId: activeNarrativeId ?? undefined,
     status: 'pending',
     durationMs: null,
     promptTokens: estimateTokens(promptChars),

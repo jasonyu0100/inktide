@@ -37,6 +37,16 @@ export const ANALYSIS_MODEL = 'google/gemini-2.5-flash';
 /** Model for scene generation — MCTS, auto mode, manual */
 export const GENERATE_MODEL = 'google/gemini-2.5-flash';
 
+// ── AI Pricing (per million tokens) ──────────────────────────────────────────
+
+export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  'google/gemini-2.5-flash': { input: 0.30, output: 2.50 },
+  'google/gemini-3-flash-preview': { input: 0.50, output: 3.00 },
+};
+
+/** Fallback pricing when model is unknown */
+export const DEFAULT_PRICING = { input: 0.30, output: 2.50 };
+
 // ── AI Temperature ───────────────────────────────────────────────────────────
 
 /** Temperature for creative generation — scenes, prose, wizard */

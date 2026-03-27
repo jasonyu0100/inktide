@@ -1,14 +1,14 @@
 /**
  * IndexedDB helpers — thin wrappers over the raw API.
  *
- * Used by persistence.ts for all narrative + image storage.
+ * Used by persistence.ts for all app storage.
  */
 
 const DB_NAME = 'narrative-engine';
-const DB_VERSION = 2; // bumped from 1 to add 'narratives' + 'meta' stores
-const IMAGES_STORE = 'images';
+const DB_VERSION = 3;
 const NARRATIVES_STORE = 'narratives';
 const META_STORE = 'meta';
+const API_LOGS_STORE = 'apiLogs';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -21,14 +21,14 @@ export function openDB(): Promise<IDBDatabase> {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(IMAGES_STORE)) {
-        db.createObjectStore(IMAGES_STORE);
-      }
       if (!db.objectStoreNames.contains(NARRATIVES_STORE)) {
         db.createObjectStore(NARRATIVES_STORE);
       }
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE);
+      }
+      if (!db.objectStoreNames.contains(API_LOGS_STORE)) {
+        db.createObjectStore(API_LOGS_STORE);
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -113,6 +113,6 @@ export async function idbDeleteByPrefix(storeName: string, prefix: string): Prom
   });
 }
 
-// ── Store name constants (exported for persistence.ts) ───────────────────────
+// ── Store name constants ─────────────────────────────────────────────────────
 
-export { IMAGES_STORE, NARRATIVES_STORE, META_STORE };
+export { NARRATIVES_STORE, META_STORE, API_LOGS_STORE };

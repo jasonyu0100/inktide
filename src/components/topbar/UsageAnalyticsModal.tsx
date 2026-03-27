@@ -108,7 +108,7 @@ function BarChart({
   const [hovered, setHovered] = useState<number | null>(null);
   const W = 520;
   const H = 140;
-  const PAD = { top: 12, right: 8, bottom: 24, left: 48 };
+  const PAD = { top: 12, right: 40, bottom: 24, left: 48 };
   const cw = W - PAD.left - PAD.right;
   const ch = H - PAD.top - PAD.bottom;
 
@@ -138,6 +138,10 @@ function BarChart({
             {label2}
           </span>
         )}
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-0.5 rounded" style={{ background: '#EF4444' }} />
+          Cumulative
+        </span>
       </div>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
         {ticks.map((v, i) => {
@@ -196,6 +200,36 @@ function BarChart({
             </g>
           );
         })}
+        {/* Cumulative line overlay */}
+        {data.length > 1 && (() => {
+          const cumulative: number[] = [];
+          let running = 0;
+          for (const d of data) { running += d.v1 + d.v2; cumulative.push(running); }
+          const maxCum = Math.max(...cumulative, 0.001);
+          const points = cumulative.map((v, i) => {
+            const x = PAD.left + gap * i + gap / 2;
+            const y = PAD.top + ch - (v / maxCum) * ch;
+            return `${x},${y}`;
+          });
+          const cumTicks = [0, maxCum * 0.5, maxCum].map((v) => ({
+            v, y: PAD.top + ch - (v / maxCum) * ch,
+          }));
+          return (
+            <g>
+              <polyline points={points.join(' ')} fill="none" stroke="#EF4444" strokeWidth="1.5" strokeLinejoin="round" strokeOpacity="0.7" />
+              {cumulative.map((v, i) => {
+                const x = PAD.left + gap * i + gap / 2;
+                const y = PAD.top + ch - (v / maxCum) * ch;
+                return <circle key={i} cx={x} cy={y} r={hovered === i ? 3 : 1.5} fill="#EF4444" opacity={hovered === i ? 1 : 0.6} />;
+              })}
+              {cumTicks.map((t, i) => (
+                <text key={i} x={PAD.left + cw + 4} y={t.y + 3} textAnchor="start" fill="#EF4444" fillOpacity="0.35" fontSize="6" fontFamily="monospace">
+                  {formatValue(t.v)}
+                </text>
+              ))}
+            </g>
+          );
+        })()}
       </svg>
     </div>
   );

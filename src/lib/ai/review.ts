@@ -90,6 +90,7 @@ Review the scene history and thread velocity report through these lenses:
 CRITICAL OUTPUT RULES:
 - The direction you write REPLACES the current direction entirely. It is NOT appended. Write it as a fresh, standalone brief.
 - Do NOT restate the previous direction. If the previous direction asked for something and it HAPPENED, move on. If it didn't happen, escalate the ask — don't repeat it.
+- PHASE OBJECTIVE ANCHOR: The phase objective above is your north star. Every direction you write must serve that objective. If the objective says "establish the alliance," every arc's direction must either build toward establishing it, deal with obstacles to it, or pay it off. You may adjust tactics (different characters, different mechanisms) but you must NOT drift away from the objective. If the objective is partially achieved, the direction must address the remaining parts.
 - Do NOT be analytical or explanatory. This is a directive, not a report. No "this will", "this should", "this move should" — use imperative voice: "Fang Yuan diverts the grain. Mo Bei Liu calls an emergency session."
 - Keep it tight. 3-5 sentences maximum. Every sentence is a specific action with a named character, a verb, and a consequence.
 - Use thread IDs and target statuses alongside character names — technical precision helps. e.g. "Fang Yuan diverts the grain, pushing T-41 to critical."

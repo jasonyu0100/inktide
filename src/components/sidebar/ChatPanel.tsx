@@ -6,6 +6,7 @@ import { narrativeContext, sceneContext, outlineContext, worldContext } from '@/
 import { resolveEntry } from '@/types/narrative';
 import { apiHeaders } from '@/lib/api-headers';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
+import { DEFAULT_MODEL } from '@/lib/constants';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 
 export default function ChatPanel() {
@@ -148,7 +149,7 @@ ${ctx}`;
 
     const sysPrompt = buildSystemPrompt();
     const promptText = newMessages.map((m) => m.content).join('\n');
-    const logId = logApiCall('ChatPanel.send', promptText.length + sysPrompt.length, promptText);
+    const logId = logApiCall('ChatPanel.send', promptText.length + sysPrompt.length, promptText, DEFAULT_MODEL);
     const start = performance.now();
 
     try {

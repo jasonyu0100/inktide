@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { generateNarrative } from '@/lib/ai';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
+import { DEFAULT_MODEL } from '@/lib/constants';
 import type { CharacterSketch, LocationSketch, ThreadSketch, WorldSystemSketch } from '@/types/narrative';
 
 const ROLES: CharacterSketch['role'][] = ['anchor', 'recurring', 'transient'];
@@ -127,7 +128,7 @@ export function CreationWizard() {
   async function handleSuggest() {
     if (suggesting) return;
     setSuggesting(true);
-    const logId = logApiCall('CreationWizard.suggest', 0, 'suggest-premise');
+    const logId = logApiCall('CreationWizard.suggest', 0, 'suggest-premise', DEFAULT_MODEL);
     const start = performance.now();
     try {
       const res = await fetch('/api/suggest-premise', { method: 'POST' });

@@ -6,7 +6,7 @@ import { useStore } from '@/lib/store';
 import { splitCorpusIntoChunks } from '@/lib/text-analysis';
 import { analysisRunner } from '@/lib/analysis-runner';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
-import { ANALYSIS_MAX_CORPUS_WORDS } from '@/lib/constants';
+import { ANALYSIS_MAX_CORPUS_WORDS, DEFAULT_MODEL } from '@/lib/constants';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
 
@@ -729,7 +729,7 @@ async function detectTitleLLM(chunkText: string): Promise<string> {
 
   const prompt = `Here is the first chunk of a text. What is the title of this work? Reply with ONLY the title, nothing else. No quotes, no explanation.\n\n${chunkText}`;
   const systemPrompt = 'You identify book/screenplay/text titles from their content. Reply with only the title in proper title case.';
-  const logId = logApiCall('detectTitleLLM', prompt.length + systemPrompt.length, prompt);
+  const logId = logApiCall('detectTitleLLM', prompt.length + systemPrompt.length, prompt, DEFAULT_MODEL);
   const start = performance.now();
 
   try {

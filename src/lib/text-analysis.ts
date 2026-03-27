@@ -197,7 +197,7 @@ ${sceneHistory.join('\n')}`;
 async function callAnalysis(prompt: string, systemPrompt: string, onToken?: (token: string, accumulated: string) => void): Promise<string> {
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
   const { apiHeaders } = await import('@/lib/api-headers');
-  const logId = logApiCall('analyzeChunk', prompt.length + systemPrompt.length, prompt);
+  const logId = logApiCall('analyzeChunk', prompt.length + systemPrompt.length, prompt, ANALYSIS_MODEL);
   const start = performance.now();
 
   try {

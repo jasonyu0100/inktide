@@ -24,7 +24,7 @@ async function generateImage(
   payload: Record<string, unknown>,
 ): Promise<{ imageUrl: string }> {
   const body = JSON.stringify({ type, ...payload });
-  const logId = logApiCall(`MediaDrive.generateImage(${type})`, body.length, body);
+  const logId = logApiCall(`MediaDrive.generateImage(${type})`, body.length, body, 'replicate/seedream-4.5');
   const start = performance.now();
 
   try {

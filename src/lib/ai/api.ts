@@ -117,6 +117,12 @@ CORE PRINCIPLES:
 3. Threads are DISTINCT narrative tensions — each one should be genuinely different from every other. Thread advancement is dynamic: some scenes advance several threads at once, others advance none. Let the story dictate the rhythm.
 4. Use ONLY the character, location, and thread IDs provided. Never invent new ones.
 
+NAMING DISCIPLINE — all entity names (characters, locations, artifacts, systems) must feel authored by a human novelist, never by an AI:
+- Detect the cultural origin of the world and draw names from matching real-world linguistic roots. Eastern worlds get names sourced from Chinese, Japanese, Korean, Southeast Asian roots. Middle Eastern worlds from Arabic, Persian, Turkish roots. Western from Slavic, Germanic, Romance, Celtic roots — but SPECIFIC dialects, not generic pan-European. Multicultural worlds should have distinct naming palettes per faction or region.
+- Source from real census records, historical obscurities, occupational surnames, or regional dialects. Names should be asymmetric, textured, and sometimes ugly. Prefer names that feel lived-in over names that sound pretty.
+- Locations named after geography, founders, or corrupted older words — never after narrative function.
+- Never produce smooth soft-consonant + open-vowel constructions designed to sound generically pleasant. Never produce compound fantasy surnames.
+
 WRITING LIKE A NOVELIST — every scene should leave a mark:
 - Characters are always learning. In every scene, someone notices something, overhears a detail, forms an impression, recalls a memory, or pieces together a clue. Track these as continuityMutations — they are the fabric of dramatic irony and character interiority.
 - Relationships shift constantly. When characters interact, their dynamics evolve — trust deepens, suspicion grows, respect is earned or lost. Even a shared glance or an awkward silence shifts something. Track these as relationshipMutations with appropriate valenceDelta.

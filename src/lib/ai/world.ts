@@ -473,6 +473,11 @@ INTEGRATION RULES (most important):
 - Thread participants MUST include at least one existing character or location — threads that only reference new entities won't integrate.
 - Artifacts MUST have a parentId referencing a character or location. A character can possess an artifact from the start (a king's crown, a warrior's blade). Artifacts at locations are discoverable — visiting that place can trigger acquisition. Transferring an artifact to a DIFFERENT character must happen in a scene via ownershipMutation — that's the earned moment. Key artifacts should have 3-5 continuity nodes (what it is, what it does, its history, its limitations). Only create artifacts when they would meaningfully alter what characters can do. Not every expansion needs artifacts.
 
+NAMING:
+- All new names must match the cultural palette and naming conventions already established in the world. Study the existing character and location names and produce names from the same linguistic roots.
+- Source from real census records, historical obscurities, occupational surnames, or regional dialects. Names should feel rough, asymmetric, and lived-in — never smooth or melodic in a generic way.
+- Location names from geography, founders, or corrupted older words. Thread names concrete and specific.
+
 CONTENT RULES:
 - Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — knowledge asymmetries drive narrative tension. Include at least one hidden or dangerous piece of knowledge per character.
 - Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Examples: "cultivation_technique", "blood_pact", "hidden_treasury", "ancient_prophecy", "political_alliance", "forbidden_memory", "territorial_claim", "ancestral_grudge". Pick types that fit the narrative world.
@@ -620,6 +625,25 @@ CHARACTER DEPTH BY ROLE:
 - Anchors (3): 6-8 knowledge nodes each — secrets, goals, fears, contradictions
 - Recurring (5): 3-5 knowledge nodes each — a clear role, a relationship to an anchor, at least one hidden agenda
 - Transient (10): 1-2 knowledge nodes each — shopkeepers, guards, neighbours, lackeys, bystanders. These populate the world. Not every character needs to matter — some just need to exist.
+
+SEED DATA vs. BARE PREMISE:
+The premise may include user-provided characters, locations, threads, rules, and systems. Handle both cases:
+- IF seeded: Use the provided entities as anchors and starting points. Expand the world around them — add supporting cast, sub-locations, connecting threads. Honour the user's descriptions and relationships but deepen them with secrets, contradictions, and hidden connections. The user's input is the skeleton; you build the muscle and skin.
+- IF bare premise (just a concept/genre/theme with no entities): Interpret the premise ambitiously. Extrapolate a full world with factions, geography, history, and power structures. A one-line prompt like "kung fu monks in space" should produce a world as rich and specific as one seeded with 20 entities. Do not produce a thin world just because the input was thin.
+
+NAMING — CRITICAL:
+The premise may contain placeholder or generic names (e.g. "The Reincarnator", "The Elder Council", "Shadow Realm"). Replace ALL placeholder names with original, specific names. Naming is the single biggest quality signal.
+
+Name like a human novelist, not a fantasy name generator:
+- FIRST: detect the cultural origin implied by the premise — eastern, western, Middle Eastern, African, South Asian, multicultural, secondary world with specific influences, etc. This determines your entire naming palette.
+- Source character names from real census records, historical obscurities, regional naming traditions, or deliberate etymological construction rooted in SPECIFIC cultures matching the world's origin. A world inspired by Song Dynasty China should have names sourced from Chinese historical records. A world inspired by Ottoman history from Turkish/Arabic/Persian roots. A Slavic-inspired world from Slavic roots. Never default to generic pan-Celtic/Greek.
+- For multicultural worlds: each faction, region, or cultural group gets its own distinct naming palette reflecting its origin. Names should signal which part of the world a character comes from.
+- Pick a consistent cultural palette for each faction or region and stay within it. Internal consistency is more important than variety.
+- Prefer rough, blunt, asymmetric names. Names with hard consonant clusters, unexpected syllable stress, or occupational origins feel human. Smooth melodic names with open vowels feel generated.
+- Surnames from occupations, geography, or patronymics — never compound noun+noun fantasy construction.
+- Location names: derive from terrain, founders, or linguistic corruption of older words. They should sound like they've been mispronounced for centuries.
+- Thread/system names: concrete and specific. "The Tithe of Ash" not "The Power System". "The Lazar Compact" not "The Ancient Alliance".
+- Test: if a name could appear in 10 different fantasy novels interchangeably, it's too generic. If it could only belong to THIS world, it's right.
 
 LOCATION HIERARCHY:
 - Build spatial nesting: Region → Settlement → District → Specific Place

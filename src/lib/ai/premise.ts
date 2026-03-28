@@ -71,7 +71,13 @@ As you process each answer, extract:
 - Concrete entities (characters, locations, narrative threads)
 - World systems — structured mechanics that define how the world works (power systems, economies, social structures, progression paths, combat logic, cosmic laws, etc.)
 
-Build the world incrementally. World systems should emerge naturally from decisions — when the writer establishes how magic works, how society is organized, how power is gained or lost, capture these as structured systems with principles, constraints, and cross-system interactions.`;
+Build the world incrementally. World systems should emerge naturally from decisions — when the writer establishes how magic works, how society is organized, how power is gained or lost, capture these as structured systems with principles, constraints, and cross-system interactions.
+
+NAMING: All entity names must feel like they were invented by a human novelist for THIS specific world.
+- Detect the cultural origin of the world from the seed and decisions — eastern, western, Middle Eastern, African, South Asian, multicultural, etc. — and draw names from appropriate real-world linguistic roots. If the world is multicultural, each faction or region should have its own distinct naming palette reflecting its cultural origin.
+- Source from real census records, historical obscurities, occupational surnames, regional dialects, or deliberate etymological construction grounded in a SPECIFIC culture.
+- Names should be rough, asymmetric, and textured — never smooth or melodic in a generic way. Prefer names that feel lived-in and could only belong to THIS world.
+- Never produce names that sound like generic fantasy name generator output — no smooth Celtic/Greek constructions, no compound fantasy surnames.`;
 
 // ── Generate next question ───────────────────────────────────────────────────
 
@@ -191,7 +197,15 @@ Rules for world systems:
 - Use newSystems for entirely new systems the answer established.
 - Use systemUpdates to add principles/constraints/interactions to existing systems by matching their name.
 - Systems should emerge naturally — when the writer establishes how power works, how society is organized, what resources matter, capture those as systems.
-- Each system needs: name, description, at least 1 principle. Constraints and interactions can be empty initially.`;
+- Each system needs: name, description, at least 1 principle. Constraints and interactions can be empty initially.
+
+NAMING (applies to ALL names — entities, choices, systems, threads, title):
+- Detect the cultural origin of the world from the seed and prior decisions. Eastern worlds draw from Chinese, Japanese, Korean, SE Asian roots. Middle Eastern from Arabic, Persian, Turkish. Western from specific Slavic, Germanic, Romance dialects — never generic pan-European. Multicultural worlds give each faction its own naming palette.
+- Character names: source from real census records, historical obscurities, occupational surnames, regional dialects. Names should be rough, asymmetric, textured — never smooth or melodic in a generic way.
+- Location names: derive from terrain, founders, or corrupted older words. Never name a place after its narrative function.
+- System/thread names: concrete and specific. "The Lazar Compact" not "The Ancient Alliance". "The Tithe of Ash" not "The Power System".
+- Choice labels in questions should also use specific, textured language — not generic fantasy phrasing.
+- If the user provided a placeholder name (e.g. "The Reincarnator", "The Shadow Council"), replace it with an original name that fits the world's cultural palette when extracting the entity.`;
 
   const raw = await callGenerate(prompt, PREMISE_SYSTEM, undefined, 'premiseQuestion', GENERATE_MODEL);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

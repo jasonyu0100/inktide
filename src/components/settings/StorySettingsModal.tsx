@@ -49,7 +49,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
     ? Object.values(narrative.characters)
     : [];
 
-  const showPovPicker = settings.povMode !== 'free';
+  const showPovPicker = true;
   const maxPovChars = settings.povMode === 'single' || settings.povMode === 'pareto' ? 1 : allCharacters.length;
 
   function togglePovCharacter(charId: string) {
@@ -284,7 +284,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               {showPovPicker && allCharacters.length > 0 && (
                 <div>
                   <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                    POV Character{maxPovChars > 1 ? 's' : ''}{maxPovChars < allCharacters.length ? ` (select up to ${maxPovChars})` : ''}
+                    {settings.povMode === 'free' ? 'Preferred POV Characters' : `POV Character${maxPovChars > 1 ? 's' : ''}`}{maxPovChars < allCharacters.length ? ` (select up to ${maxPovChars})` : ''}
                   </label>
                   <div className="flex flex-wrap gap-1.5">
                     {allCharacters.map((c) => {
@@ -304,9 +304,16 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                       );
                     })}
                   </div>
-                  {settings.povCharacterIds.length === 0 && (
+                  {settings.povCharacterIds.length === 0 && settings.povMode !== 'free' && (
                     <p className="text-[9px] text-amber-400/60 mt-1.5">
                       No anchors selected — engine will choose the most prominent anchor.
+                    </p>
+                  )}
+                  {settings.povMode === 'free' && (
+                    <p className="text-[9px] text-text-dim/60 mt-1.5">
+                      {settings.povCharacterIds.length === 0
+                        ? 'No preferences — engine picks freely.'
+                        : 'Engine will favour these characters but may still use others when the scene calls for it.'}
                     </p>
                   )}
                 </div>

@@ -443,9 +443,18 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
           <div className="flex justify-center"><div className="w-2.5 h-2.5 bg-bg-elevated border-r border-b border-border rotate-45 -mt-1.5" /></div>
         </div>
       )}
-      {/* Group navigation (bottom-left) */}
-      {wkGroups.length > 1 && (
-        <div className="absolute bottom-4 left-2 z-30 flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
+      {/* Legend + Group navigation (bottom-left) */}
+      <div className="absolute bottom-4 left-2 z-30 flex flex-col gap-1 items-start">
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
+          {Object.entries(WK_TYPE_COLORS).map(([type, color]) => (
+            <span key={type} className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+              <span className="capitalize">{type}</span>
+            </span>
+          ))}
+        </div>
+        {wkGroups.length > 1 && (
+        <div className="flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
           <button
             className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
             onClick={() => navigateWkGroup('prev')}
@@ -478,7 +487,8 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
             </>
           )}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

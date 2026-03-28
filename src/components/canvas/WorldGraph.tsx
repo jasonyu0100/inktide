@@ -1103,18 +1103,6 @@ export default function WorldGraph() {
     <div className="relative h-full w-full overflow-hidden">
       {/* Controls (top-left) — contextual per graph view mode */}
       {(graphViewMode === 'spatial' || graphViewMode === 'overview') && <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
-        {showHeatmap && (
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
-            <span>Low</span>
-            <div
-              className="h-2 w-20 rounded-sm"
-              style={{
-                background: 'linear-gradient(to right, #3B82F6, #22C55E, #EF4444)',
-              }}
-            />
-            <span>High</span>
-          </div>
-        )}
         <div className="flex items-center gap-0">
           <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
             <input
@@ -1268,9 +1256,23 @@ export default function WorldGraph() {
           style={{ background: 'transparent' }}
         />
       )}
-      {/* Group navigation (bottom-left) */}
-      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && groups.length > 1 && (
-        <div className="absolute bottom-4 left-2 z-10 flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
+      {/* Legend + Group navigation (bottom-left) */}
+      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && (
+        <div className="absolute bottom-4 left-2 z-10 flex flex-col gap-1 items-start">
+        {showHeatmap && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
+            <span>Low</span>
+            <div
+              className="h-2 w-20 rounded-sm"
+              style={{
+                background: 'linear-gradient(to right, #3B82F6, #22C55E, #EF4444)',
+              }}
+            />
+            <span>High</span>
+          </div>
+        )}
+        {groups.length > 1 && (
+        <div className="flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
           <button
             className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
             onClick={() => navigateGroup('prev')}
@@ -1303,6 +1305,8 @@ export default function WorldGraph() {
             </>
           )}
         </div>
+        )}
+      </div>
       )}
       {/* Fullscreen toggle */}
       <FullscreenButton />

@@ -67,6 +67,11 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
         lines.push(`Designated POV character${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.`);
       }
     }
+  } else if (s.povCharacterIds.length > 0) {
+    const names = s.povCharacterIds
+      .map((id) => n.characters[id] ? `${n.characters[id].name} (${id})` : id)
+      .join(', ');
+    lines.push(`FREE POV with preferred characters: ${names}. Favour these characters as POV when the scene fits their perspective, but you may use any character when a different vantage is narratively stronger.`);
   }
 
   // Story direction

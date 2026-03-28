@@ -466,9 +466,18 @@ export default function ThreadGraphView({
         </div>
       )}
 
-      {/* Group navigation (bottom-left) */}
-      {groups.length > 1 && (
-        <div className="absolute bottom-4 left-2 z-30 flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
+      {/* Legend + Group navigation (bottom-left) */}
+      <div className="absolute bottom-4 left-2 z-30 flex flex-col gap-1 items-start">
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
+          {Object.entries(STATUS_COLORS).map(([status, color]) => (
+            <span key={status} className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+              <span className="capitalize">{status}</span>
+            </span>
+          ))}
+        </div>
+        {groups.length > 1 && (
+        <div className="flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
           <button
             className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
             onClick={() => navigateGroup('prev')}
@@ -501,7 +510,8 @@ export default function ThreadGraphView({
             </>
           )}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

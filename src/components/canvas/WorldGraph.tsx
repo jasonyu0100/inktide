@@ -1167,27 +1167,70 @@ export default function WorldGraph() {
       </div>}
       {showEval && (graphViewMode === 'spatial' || graphViewMode === 'overview') && <EvalBar />}
       {/* Graph view mode toggle (top-right) */}
-      <div className="absolute top-2 right-2 z-30 flex items-center rounded bg-bg-surface text-[11px] leading-none">
-        {([
-          { mode: 'spatial' as const, label: 'Spatial' },
-          { mode: 'overview' as const, label: 'World' },
-          { mode: 'prose' as const, label: 'Prose' },
-          { mode: 'spark' as const, label: 'Spark' },
-          { mode: 'codex' as const, label: 'Codex' },
-          { mode: 'threads' as const, label: 'Threads' },
-        ]).map(({ mode, label }, i, arr) => (
-          <span key={mode} className="contents">
-            {i > 0 && <div className="w-px h-3.5 bg-border" />}
-            <button
-              className={`px-2 py-1.5 ${i === 0 ? 'rounded-l' : ''} ${i === arr.length - 1 ? 'rounded-r' : ''} transition-colors ${
-                graphViewMode === mode ? 'text-accent-cta' : 'text-text-dim hover:text-text-default'
-              }`}
-              onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode })}
-            >
-              {label}
-            </button>
-          </span>
-        ))}
+      <div className="absolute top-2 right-2 z-30 flex flex-col items-end gap-1">
+        {/* Domain selector */}
+        <div className="flex items-center gap-1 text-[11px] leading-none">
+          {([
+            { domain: 'world' as const, label: 'World', local: 'spatial' as const, global: 'overview' as const },
+            { domain: 'knowledge' as const, label: 'Knowledge', local: 'spark' as const, global: 'codex' as const },
+            { domain: 'threads' as const, label: 'Threads', local: 'pulse' as const, global: 'threads' as const },
+          ]).map(({ domain, label, local, global }) => {
+            const isActive = graphViewMode === local || graphViewMode === global;
+            return (
+              <button
+                key={domain}
+                className={`px-2.5 py-1.5 rounded transition-colors ${
+                  isActive ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'
+                }`}
+                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: isActive ? (graphViewMode === local ? global : local) : local })}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Scope + Prose row */}
+        {(() => {
+          const pairs: Record<string, { local: string; global: string }> = {
+            spatial: { local: 'spatial', global: 'overview' },
+            overview: { local: 'spatial', global: 'overview' },
+            spark: { local: 'spark', global: 'codex' },
+            codex: { local: 'spark', global: 'codex' },
+            pulse: { local: 'pulse', global: 'threads' },
+            threads: { local: 'pulse', global: 'threads' },
+          };
+          const pair = graphViewMode !== 'prose' ? pairs[graphViewMode] : null;
+          const isLocal = pair ? graphViewMode === pair.local : false;
+          return (
+            <div className="flex items-center gap-1 text-[10px] leading-none">
+              {pair && (
+                <>
+                  <button
+                    className={`px-2 py-1 rounded transition-colors ${isLocal ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'}`}
+                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: pair.local as import('@/types/narrative').GraphViewMode })}
+                  >
+                    Local
+                  </button>
+                  <button
+                    className={`px-2 py-1 rounded transition-colors ${!isLocal ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'}`}
+                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: pair.global as import('@/types/narrative').GraphViewMode })}
+                  >
+                    Global
+                  </button>
+                </>
+              )}
+              <button
+                className={`px-2 py-1 rounded transition-colors ${
+                  graphViewMode === 'prose' ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'
+                }`}
+                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: graphViewMode === 'prose' ? 'spatial' : 'prose' })}
+              >
+                Prose
+              </button>
+            </div>
+          );
+        })()}
       </div>
       {graphViewMode === 'prose' ? (
         <div className="absolute inset-0 z-20 overflow-y-auto flex justify-center" style={{ scrollbarWidth: 'thin' }}>
@@ -1203,11 +1246,12 @@ export default function WorldGraph() {
             )}
           </div>
         </div>
-      ) : graphViewMode === 'threads' ? (
+      ) : graphViewMode === 'pulse' || graphViewMode === 'threads' ? (
         <ThreadGraphView
           narrative={narrative!}
           resolvedKeys={state.resolvedEntryKeys}
           currentIndex={state.currentSceneIndex}
+          mode={graphViewMode as 'pulse' | 'threads'}
           onSelectThread={(id) => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } })}
         />
       ) : graphViewMode === 'spark' || graphViewMode === 'codex' ? (

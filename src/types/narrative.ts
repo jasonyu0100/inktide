@@ -844,7 +844,7 @@ export type WizardData = {
   worldSystems: WorldSystemSketch[];
 };
 
-export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex' | 'threads';
+export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex' | 'pulse' | 'threads';
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {

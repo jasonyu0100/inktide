@@ -347,8 +347,14 @@ export default function TopBar() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [scorecardOpen, usageOpen]);
 
-  // Usage cost for pill
-  const usageCost = useMemo(() => computeTotalCost(state.apiLogs), [state.apiLogs]);
+  // Usage: filter logs to current narrative
+  const narrativeLogs = useMemo(() =>
+    state.activeNarrativeId
+      ? state.apiLogs.filter(l => l.narrativeId === state.activeNarrativeId)
+      : state.apiLogs,
+    [state.apiLogs, state.activeNarrativeId],
+  );
+  const usageCost = useMemo(() => computeTotalCost(narrativeLogs), [narrativeLogs]);
 
   // Scorecard data
   const allScenes = useMemo(() => {
@@ -748,7 +754,7 @@ export default function TopBar() {
               {usageCost >= 1 ? `$${usageCost.toFixed(2)}` : usageCost >= 0.01 ? `$${usageCost.toFixed(3)}` : `$${usageCost.toFixed(4)}`}
             </span>
           </button>
-          {usageOpen && <UsageDropdown logs={state.apiLogs} />}
+          {usageOpen && <UsageDropdown logs={narrativeLogs} />}
         </div>
 
         {/* Scorecard pill */}

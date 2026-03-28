@@ -73,6 +73,22 @@ export function useAutoPlay() {
           dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId: activeBranchId, phaseIndex: pq.activePhaseIndex, updates: { direction, constraints: constraints || ap.constraints } });
           const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...freshNarrative.storySettings };
           dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || ap.constraints || baseSettings.storyConstraints, worldFocus: 'latest' as const } });
+          // Log the init as a cycle so the direction appears in the run log
+          dispatch({
+            type: 'LOG_AUTO_CYCLE',
+            entry: {
+              cycle: autoRunState.currentCycle + 1,
+              timestamp: Date.now(),
+              action: 'LLL',
+              reason: `Phase "${ap.name}" initialized — world expanded, direction set`,
+              scenesGenerated: 0,
+              worldExpanded: !!ap.worldExpansionHints,
+              endConditionMet: null,
+              phaseName: ap.name,
+              direction,
+              constraints: constraints || ap.constraints || undefined,
+            },
+          });
         } catch (err) {
           console.error('[auto-play] first phase init failed:', err);
         }

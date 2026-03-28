@@ -15,6 +15,7 @@ import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 import { BranchContextModal } from '@/components/topbar/BranchContextModal';
 import { FormulaModal } from '@/components/topbar/FormulaModal';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
+import { NarrativeReport } from '@/components/report/NarrativeReport';
 import { MarkovChainModal } from '@/components/topbar/MarkovChainModal';
 import { ThreadGraphModal } from '@/components/topbar/ThreadGraphModal';
 import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
@@ -288,6 +289,7 @@ export default function TopBar() {
   const [branchContextOpen, setBranchContextOpen] = useState(false);
   const [formulaOpen, setFormulaOpen] = useState(false);
   const [slidesOpen, setSlidesOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [markovOpen, setMarkovOpen] = useState(false);
   const [threadGraphOpen, setThreadGraphOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
@@ -598,67 +600,74 @@ export default function TopBar() {
                   ));
                 })()}
               </div>
-              <div className="border-t border-white/8 py-1.5">
-                {narrative && (() => {
-                  const activeEntry = state.narratives.find((n) => n.id === narrative.id);
-                  return activeEntry ? (
-                    <button
-                      onClick={() => { setEditingEntry(activeEntry); setSelectorOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                    >
-                      <span className="w-5 h-5 rounded-md bg-white/8 flex items-center justify-center">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                      </span>
-                      Story Settings
-                    </button>
-                  ) : null;
-                })()}
-                <button
-                  onClick={() => {
-                    dispatch({ type: 'OPEN_WIZARD' });
-                    setSelectorOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                >
-                  <span className="w-5 h-5 rounded-md bg-white/8 flex items-center justify-center text-xs">+</span>
-                  New Narrative
-                </button>
-                <button
-                  onClick={() => {
-                    handleImport();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                >
-                  <span className="w-5 h-5 rounded-md bg-white/8 flex items-center justify-center text-[10px]">&uarr;</span>
-                  Import JSON
-                </button>
-                {narrative && (
-                  <>
-                    <button
-                      onClick={() => {
-                        exportNarrative(narrative);
-                        setSelectorOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                    >
-                      <span className="w-5 h-5 rounded-md bg-white/8 flex items-center justify-center text-[10px]">&darr;</span>
-                      Export JSON
-                    </button>
-                    {state.activeBranchId && (
-                      <button
-                        onClick={() => {
-                          exportBranch(narrative, state.activeBranchId!);
-                          setSelectorOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                      >
-                        <span className="w-5 h-5 rounded-md bg-white/8 flex items-center justify-center text-[10px]">&darr;</span>
-                        Export Branch
-                      </button>
-                    )}
-                  </>
-                )}
+              {/* ── Actions ── */}
+              <div className="border-t border-white/8 px-3 py-2">
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => { dispatch({ type: 'OPEN_WIZARD' }); setSelectorOpen(false); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors border border-white/6"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    New
+                  </button>
+                  <button
+                    onClick={() => { handleImport(); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors border border-white/6"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                    Import
+                  </button>
+                </div>
               </div>
+
+              {/* ── Current narrative options ── */}
+              {narrative && (
+                <div className="border-t border-white/8 py-1">
+                  <div className="px-3 pt-1.5 pb-1">
+                    <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Current Story</span>
+                  </div>
+                  {(() => {
+                    const activeEntry = state.narratives.find((n) => n.id === narrative.id);
+                    return activeEntry ? (
+                      <button
+                        onClick={() => { setEditingEntry(activeEntry); setSelectorOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-dim shrink-0"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        Settings
+                      </button>
+                    ) : null;
+                  })()}
+
+                  {/* Export group */}
+                  <div className="px-3 pt-2 pb-1">
+                    <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Export</span>
+                  </div>
+                  <button
+                    onClick={() => { exportNarrative(narrative); setSelectorOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-dim shrink-0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Full JSON
+                  </button>
+                  {state.activeBranchId && (
+                    <button
+                      onClick={() => { exportBranch(narrative, state.activeBranchId!); setSelectorOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-dim shrink-0"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                      Branch JSON
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setReportOpen(true); setSelectorOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-dim shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Analysis Report
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1100,6 +1109,13 @@ export default function TopBar() {
           narrative={narrative}
           resolvedKeys={state.resolvedEntryKeys}
           onClose={() => setSlidesOpen(false)}
+        />
+      )}
+      {reportOpen && narrative && (
+        <NarrativeReport
+          narrative={narrative}
+          resolvedKeys={state.resolvedEntryKeys}
+          onClose={() => setReportOpen(false)}
         />
       )}
       {editingEntry && (

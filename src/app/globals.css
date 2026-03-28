@@ -322,6 +322,68 @@ button, [role="button"] {
   box-shadow: 0 0 35px rgba(255,255,255,0.22), 0 0 80px rgba(255,255,255,0.14), 0 0 130px rgba(255,255,255,0.08), inset 0 0 50px rgba(255,255,255,0.04);
 }
 
+/* ── Print / PDF — dark mode report ───────────────────────────────────── */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html, body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    overflow: visible !important;
+    height: auto !important;
+    background: #0d0d0f !important;
+    color: #e8e8e8 !important;
+  }
+
+  /* Hide app, show only the portalled report */
+  body > *:not(.report-shell) {
+    display: none !important;
+  }
+
+  .report-shell {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #0d0d0f !important;
+  }
+  .report-toolbar { display: none !important; }
+  .report-scroll {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    flex: none !important;
+  }
+  .report-body {
+    max-width: none !important;
+    padding: 1.6cm 1.4cm !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Page breaks */
+  .report-cover {
+    page-break-after: always;
+    break-after: page;
+  }
+  .report-section > div:first-child {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  .report-figure,
+  .report-moment,
+  .report-table {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  svg { overflow: visible; }
+}
+
 /* Wisp flicker — faster, more staccato brightness changes */
 @keyframes wisp-flicker {
   0%, 100% { opacity: 0.3; }

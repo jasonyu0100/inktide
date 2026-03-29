@@ -413,7 +413,7 @@ Return JSON with this exact structure:
       "name": "string",
       "role": "anchor|recurring|transient",
       "threadIds": [],
-      "imagePrompt": "1-2 sentence visual description: physical appearance, clothing, distinguishing features. Used for portrait generation.",
+      "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. Never use metaphors, similes, or figurative language — image generators interpret them literally.",
       "continuity": {
         "nodes": [{"id": "${nextKId}", "type": "contextual_type", "content": "string"}]
       }
@@ -425,7 +425,7 @@ Return JSON with this exact structure:
       "name": "string",
       "parentId": "REQUIRED: existing location ID (e.g. L-01) to nest under, or null ONLY for top-level regions",
       "threadIds": [],
-      "imagePrompt": "1-2 sentence visual description: architecture, landscape, atmosphere, lighting. Used for establishing shot generation.",
+      "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret them literally.",
       "continuity": {
         "nodes": [{"id": "K-next", "type": "contextual_type", "content": "string"}]
       }
@@ -451,7 +451,7 @@ Return JSON with this exact structure:
       "significance": "key|notable|minor",
       "parentId": "owner — a character or location ID",
       "continuity": {"nodes": [{"id": "K-next", "type": "contextual_type", "content": "what it is, what it does, its history, its powers, its limitations — everything about this artifact lives in its continuity"}]},
-      "imagePrompt": "1-2 sentence visual description"
+      "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"
     }
   ],
   "worldKnowledgeMutations": {
@@ -579,11 +579,12 @@ Premise: ${premise}
 Return JSON with this exact structure:
 {
   "worldSummary": "2-3 sentence world description",
+  "imageStyle": "A concise visual style directive for all generated images (e.g. 'watercolour style with soft lighting'). Should capture the tone, medium, palette, and aesthetic that best fits this world.",
   "characters": [
-    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, distinguishing features for portrait generation", "continuity": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}]}}
+    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence LITERAL physical description — concrete traits (hair colour, build, clothing). No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}]}}
   ],
   "locations": [
-    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "continuity": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}]}}
+    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}]}}
   ],
   "threads": [
     {"id": "T-01", "participants": [{"id": "C-01", "type": "character"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}
@@ -592,7 +593,7 @@ Return JSON with this exact structure:
     {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
   ],
   "artifacts": [
-    {"id": "A-01", "name": "string", "significance": "key|notable|minor", "parentId": "character or location ID", "continuity": {"nodes": [{"id": "AK-01", "type": "specific_type", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence visual description"}
+    {"id": "A-01", "name": "string", "significance": "key|notable|minor", "parentId": "character or location ID", "continuity": {"nodes": [{"id": "AK-01", "type": "specific_type", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
   ],
   "scenes": [
     {
@@ -797,6 +798,7 @@ The goal is to make the world feel like a coherent machine where systems interlo
     relationships: parsed.relationships ?? [],
     worldKnowledge: { nodes: worldKnowledgeNodes, edges: worldKnowledgeEdges },
     worldSummary: parsed.worldSummary ?? premise,
+    imageStyle: typeof parsed.imageStyle === 'string' ? parsed.imageStyle : undefined,
     rules: Array.isArray(parsed.rules) ? parsed.rules.filter((r: unknown) => typeof r === 'string') : rules,
     worldSystems: Array.isArray(parsed.worldSystems) ? parsed.worldSystems.filter(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

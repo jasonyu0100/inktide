@@ -1806,10 +1806,10 @@ export default function PaperPage() {
             <P>
               <B>Evaluation</B> reads scene summaries and assigns per-scene
               verdicts. <B>Reconstruction</B> creates a new versioned branch,
-              applying verdicts in parallel — edits tighten summaries within
-              locked structure, rewrites rebuild from scratch, cuts are omitted.
-              World commits pass through at their original positions. The
-              original branch is never modified.
+              applying verdicts in parallel — edits revise content, merges
+              combine scenes, deferred beats are removed for later, cuts are
+              omitted. World commits pass through at their original positions.
+              The original branch is never modified.
             </P>
 
             <div className="mt-4 space-y-1.5 text-[12px]">
@@ -1826,15 +1826,23 @@ export default function PaperPage() {
                   edit
                 </span>
                 <span className="text-white/50">
-                  Right idea, tighten execution. POV, location, cast locked.
+                  Revise content — may change POV, location, participants, mutations, and summary.
                 </span>
               </div>
               <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
-                <span className="text-red-400 font-mono w-14 shrink-0">
-                  rewrite
+                <span className="text-blue-400 font-mono w-14 shrink-0">
+                  merge
                 </span>
                 <span className="text-white/50">
-                  Scene should exist but structure is wrong. Everything rebuilt.
+                  Absorbed into another scene. Both scenes&apos; best elements combined into one denser beat.
+                </span>
+              </div>
+              <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
+                <span className="text-violet-400 font-mono w-14 shrink-0">
+                  defer
+                </span>
+                <span className="text-white/50">
+                  Beat is valid but premature. Removed now, noted for reintroduction later.
                 </span>
               </div>
               <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
-import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel } from '@/types/narrative';
+import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
@@ -26,6 +26,134 @@ const POV_MODES: { value: POVMode; label: string; desc: string }[] = [
   { value: 'ensemble', label: 'Ensemble', desc: 'Multiple POV characters rotate. Wider world, more threads, epic scope.' },
   { value: 'free', label: 'Free (Default)', desc: 'Any character can be POV. The engine picks whoever fits the scene best.' },
 ];
+
+function AdvancedSection({ settings, update, narrative, resolvedEntryKeys }: {
+  settings: StorySettings;
+  update: (patch: Partial<StorySettings>) => void;
+  narrative: NarrativeState | null;
+  resolvedEntryKeys: Set<string>;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-[10px] text-text-dim hover:text-text-secondary transition-colors cursor-pointer"
+      >
+        <svg
+          width="10" height="10" viewBox="0 0 12 12"
+          className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        >
+          <path d="M3 4.5L6 7.5L9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="uppercase tracking-wider">Advanced</span>
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-4">
+          {/* Generation Mode */}
+          <div>
+            <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+              Generation Mode
+            </label>
+            <div className="space-y-1.5">
+              {([
+                { value: 'batch' as const, label: 'Batch', desc: 'Generate all scenes at once — fast, single LLM call per arc' },
+                { value: 'stepwise' as const, label: 'Stepwise', desc: 'Generate one scene at a time — slower, but each scene sees full context of prior scenes' },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => update({ generationMode: opt.value })}
+                  className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                    settings.generationMode === opt.value
+                      ? 'border-blue-500/50 bg-blue-500/10'
+                      : 'border-white/5 bg-white/2 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
+                  <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* World Focus */}
+          <div>
+            <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+              World Focus
+            </label>
+            <div className="space-y-1.5">
+              {([
+                { value: 'none' as WorldFocusMode, label: 'None', desc: 'No world build seeded into generation' },
+                { value: 'latest' as WorldFocusMode, label: 'Latest', desc: 'Always seed with the most recent world commit' },
+                { value: 'custom' as WorldFocusMode, label: 'Custom', desc: 'Pick a specific world commit to focus on' },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => update({ worldFocus: opt.value })}
+                  className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                    settings.worldFocus === opt.value
+                      ? 'border-blue-500/50 bg-blue-500/10'
+                      : 'border-white/5 bg-white/2 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
+                  <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+            {settings.worldFocus === 'custom' && narrative && (() => {
+              const worldBuilds = Object.values(narrative.worldBuilds).filter((wb) => resolvedEntryKeys.has(wb.id));
+              if (worldBuilds.length === 0) return <p className="text-[10px] text-text-dim mt-2">No world commits available</p>;
+              return (
+                <div className="mt-2 flex flex-col gap-1 max-h-24 overflow-y-auto">
+                  {worldBuilds.map((wb) => (
+                    <button
+                      key={wb.id}
+                      onClick={() => update({ worldFocusId: wb.id })}
+                      className={`text-left rounded px-2 py-1.5 text-[10px] transition border ${
+                        settings.worldFocusId === wb.id
+                          ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                          : 'bg-bg-elevated border-border text-text-secondary hover:border-white/16'
+                      }`}
+                    >
+                      {wb.summary}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Branch Time Horizon */}
+          <div>
+            <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+              Branch Time Horizon
+            </label>
+            <div className="space-y-1.5">
+              {BRANCH_TIME_HORIZON_OPTIONS.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => update({ branchTimeHorizon: v })}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                    settings.branchTimeHorizon === v
+                      ? 'border-blue-500/50 bg-blue-500/10'
+                      : 'border-white/5 bg-white/2 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="text-[11px] font-semibold text-text-primary">{v} scenes</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[9px] text-text-dim/50 mt-2">
+              How many recent scenes the AI sees when generating. Lower values reduce cost and keep focus tight. Higher values give the AI more narrative history to draw from.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function StorySettingsModal({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
@@ -371,22 +499,23 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
-              {/* World Focus */}
+              {/* Reasoning Level */}
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  World Focus
+                  Reasoning Level
                 </label>
                 <div className="space-y-1.5">
                   {([
-                    { value: 'none' as WorldFocusMode, label: 'None', desc: 'No world build seeded into generation' },
-                    { value: 'latest' as WorldFocusMode, label: 'Latest', desc: 'Always seed with the most recent world commit' },
-                    { value: 'custom' as WorldFocusMode, label: 'Custom', desc: 'Pick a specific world commit to focus on' },
+                    { value: 'none' as ReasoningLevel, label: 'None', desc: 'No thinking tokens — fastest, cheapest. Structured extraction only.' },
+                    { value: 'low' as ReasoningLevel, label: 'Low', desc: `~${(REASONING_BUDGETS.low / 1024).toFixed(0)}k thinking tokens — light reasoning for basic structural checks` },
+                    { value: 'medium' as ReasoningLevel, label: 'Medium', desc: `~${(REASONING_BUDGETS.medium / 1024).toFixed(0)}k thinking tokens — traces causality, checks agency patterns, validates convergence` },
+                    { value: 'high' as ReasoningLevel, label: 'High', desc: `~${(REASONING_BUDGETS.high / 1024).toFixed(0)}k thinking tokens — deep reasoning for complex world states. Slowest, highest quality.` },
                   ]).map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => update({ worldFocus: opt.value })}
+                      onClick={() => update({ reasoningLevel: opt.value })}
                       className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                        settings.worldFocus === opt.value
+                        (settings.reasoningLevel ?? 'low') === opt.value
                           ? 'border-blue-500/50 bg-blue-500/10'
                           : 'border-white/5 bg-white/2 hover:bg-white/5'
                       }`}
@@ -396,28 +525,9 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                     </button>
                   ))}
                 </div>
-                {settings.worldFocus === 'custom' && narrative && (() => {
-                  const resolvedSet = new Set(state.resolvedEntryKeys);
-                  const worldBuilds = Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id));
-                  if (worldBuilds.length === 0) return <p className="text-[10px] text-text-dim mt-2">No world commits available</p>;
-                  return (
-                    <div className="mt-2 flex flex-col gap-1 max-h-24 overflow-y-auto">
-                      {worldBuilds.map((wb) => (
-                        <button
-                          key={wb.id}
-                          onClick={() => update({ worldFocusId: wb.id })}
-                          className={`text-left rounded px-2 py-1.5 text-[10px] transition border ${
-                            settings.worldFocusId === wb.id
-                              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                              : 'bg-bg-elevated border-border text-text-secondary hover:border-white/16'
-                          }`}
-                        >
-                          {wb.summary}
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })()}
+                <p className="text-[9px] text-text-dim/50 mt-2">
+                  Applies to structural calls (scene skeletons, direction, evaluation, planning) — not prose. Reasoning tokens are billed as output tokens.
+                </p>
               </div>
 
               {/* Expansion Strategy */}
@@ -447,86 +557,8 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
 
-              {/* Generation Mode */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Generation Mode
-                </label>
-                <div className="space-y-1.5">
-                  {([
-                    { value: 'batch' as const, label: 'Batch', desc: 'Generate all scenes at once — fast, single LLM call per arc' },
-                    { value: 'stepwise' as const, label: 'Stepwise', desc: 'Generate one scene at a time — slower, but each scene sees full context of prior scenes' },
-                  ]).map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => update({ generationMode: opt.value })}
-                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                        settings.generationMode === opt.value
-                          ? 'border-blue-500/50 bg-blue-500/10'
-                          : 'border-white/5 bg-white/2 hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
-                      <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Reasoning Level */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Reasoning Level
-                </label>
-                <div className="space-y-1.5">
-                  {([
-                    { value: 'low' as ReasoningLevel, label: 'Low', desc: `~${(REASONING_BUDGETS.low / 1024).toFixed(0)}k thinking tokens — light reasoning for basic structural checks` },
-                    { value: 'medium' as ReasoningLevel, label: 'Medium', desc: `~${(REASONING_BUDGETS.medium / 1024).toFixed(0)}k thinking tokens — traces causality, checks agency patterns, validates convergence` },
-                    { value: 'high' as ReasoningLevel, label: 'High', desc: `~${(REASONING_BUDGETS.high / 1024).toFixed(0)}k thinking tokens — deep reasoning for complex world states. Slowest, highest quality.` },
-                  ]).map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => update({ reasoningLevel: opt.value })}
-                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                        (settings.reasoningLevel ?? 'low') === opt.value
-                          ? 'border-blue-500/50 bg-blue-500/10'
-                          : 'border-white/5 bg-white/2 hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold text-text-primary">{opt.label}</span>
-                      <span className="text-[10px] text-text-dim ml-2">{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[9px] text-text-dim/50 mt-2">
-                  Applies to structural calls (scene skeletons, direction, evaluation, planning) — not prose. Reasoning tokens are billed as output tokens. Check API logs to inspect model thinking.
-                </p>
-              </div>
-
-              {/* Branch Time Horizon */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Branch Time Horizon
-                </label>
-                <div className="space-y-1.5">
-                  {BRANCH_TIME_HORIZON_OPTIONS.map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => update({ branchTimeHorizon: v })}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
-                        settings.branchTimeHorizon === v
-                          ? 'border-blue-500/50 bg-blue-500/10'
-                          : 'border-white/5 bg-white/2 hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold text-text-primary">{v} scenes</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[9px] text-text-dim/50 mt-2">
-                  How many recent scenes the AI sees when generating. Lower values reduce cost and keep focus tight. Higher values give the AI more narrative history to draw from.
-                </p>
-              </div>
+              {/* Advanced */}
+              <AdvancedSection settings={settings} update={update} narrative={narrative} resolvedEntryKeys={new Set(state.resolvedEntryKeys)} />
             </>
           )}
         </div>

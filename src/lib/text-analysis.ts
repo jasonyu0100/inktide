@@ -354,14 +354,14 @@ Return a single JSON object with this exact structure:
       "name": "Full Name",
       "role": "anchor|recurring|transient",
       "firstAppearance": true/false,
-      "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, and distinguishing features for portrait generation",
+      "imagePrompt": "1-2 sentence LITERAL physical description for portrait generation. Describe concrete physical traits (hair colour, build, clothing style) — never use figurative language, metaphors, or similes (e.g. say 'bright green eyes' not 'emerald eyes like twin moons'). Image generators interpret descriptions literally.",
       "continuity": [
         { "type": "specific_contextual_type", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
       ]
     }
   ],
   "locations": [
-    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "lore": ["Notable detail or significance"] }
+    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"] }
   ],
   "artifacts": [
     { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "specific_type", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
@@ -553,14 +553,14 @@ Return a single JSON object with this exact structure:
       "name": "Full Name",
       "role": "anchor|recurring|transient",
       "firstAppearance": true/false,
-      "imagePrompt": "1-2 sentence visual description of physical appearance, clothing, and distinguishing features for portrait generation",
+      "imagePrompt": "1-2 sentence LITERAL physical description for portrait generation. Describe concrete physical traits (hair colour, build, clothing style) — never use figurative language, metaphors, or similes (e.g. say 'bright green eyes' not 'emerald eyes like twin moons'). Image generators interpret descriptions literally.",
       "continuity": [
         { "type": "specific_contextual_type", "content": "What they learn, reveal, or demonstrate in THIS chunk" }
       ]
     }
   ],
   "locations": [
-    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence visual description of architecture, landscape, atmosphere for establishing shot generation", "lore": ["Notable detail or significance"] }
+    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"] }
   ],
   "artifacts": [
     { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "specific_type", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }

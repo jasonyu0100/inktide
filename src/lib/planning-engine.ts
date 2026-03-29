@@ -2,6 +2,7 @@ import type { NarrativeState, PlanningQueue, PlanningPhase } from '@/types/narra
 import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './ai/api';
 import { branchContext } from './ai/context';
+import { MAX_TOKENS_SMALL } from '@/lib/constants';
 
 /**
  * Generate a completion report for a phase that has finished its scene allocation.
@@ -34,7 +35,7 @@ Keep the report to 3-5 sentences. Be specific — use character NAMES, location 
 Return ONLY the report text, no JSON or markup.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const report = await callGenerate(prompt, SYSTEM_PROMPT, 500, 'planningEngine', undefined, reasoningBudget);
+  const report = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'planningEngine', undefined, reasoningBudget);
   return report.trim();
 }
 
@@ -91,7 +92,7 @@ Return JSON:
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const response = await callGenerate(prompt, SYSTEM_PROMPT, 500, 'planningEngine', undefined, reasoningBudget);
+  const response = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'planningEngine', undefined, reasoningBudget);
 
   try {
     const match = response.match(/\{[\s\S]*\}/);
@@ -163,7 +164,7 @@ Return JSON:
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateCustomPlan', undefined, reasoningBudget);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'generateCustomPlan', undefined, reasoningBudget);
 
   try {
     const match = raw.match(/\{[\s\S]*\}/);

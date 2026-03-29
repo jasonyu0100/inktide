@@ -3,7 +3,7 @@ import { resolveEntry, isScene, isWorldBuild, REASONING_BUDGETS } from '@/types/
 import { nextId } from '@/lib/narrative-utils';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
-import { GENERATE_MODEL, PROSE_CONCURRENCY } from '@/lib/constants';
+import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { branchContext } from './context';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -356,7 +356,7 @@ Return JSON:
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 2000, 'editScene', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'editScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'editScene') as Partial<Scene>;
 
   return {
@@ -457,7 +457,7 @@ Return JSON:
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 2500, 'mergeScenes', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'mergeScenes', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'mergeScenes') as Partial<Scene>;
 
   return {

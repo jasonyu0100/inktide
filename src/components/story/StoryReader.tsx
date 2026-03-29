@@ -58,6 +58,8 @@ export function StoryReader({
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
   const copyMenuRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [clearAllOpen, setClearAllOpen] = useState(false);
+  const [clearAllConfirm, setClearAllConfirm] = useState('');
   const [settingsDraft, setSettingsDraft] = useState<StorySettings>({
     ...DEFAULT_STORY_SETTINGS,
     ...narrative.storySettings,
@@ -382,7 +384,8 @@ export function StoryReader({
   const isAnyBulkRunning = !!(proseBulk?.running || planBulk?.running);
   const activeBulk = proseBulk?.running ? proseBulk : planBulk?.running ? planBulk : null;
 
-  const activePlan: BeatPlan | null = planCached?.plan ?? scene?.plan ?? null;
+  const rawPlan = planCached?.plan ?? scene?.plan ?? null;
+  const activePlan: BeatPlan | null = rawPlan && Array.isArray(rawPlan.beats) ? rawPlan : null;
 
   return (
     <div className="fixed inset-0 bg-bg-base z-50 flex flex-col">
@@ -516,6 +519,51 @@ export function StoryReader({
                   </button>
                 ) : null;
               })()}
+
+              {/* Clear All */}
+              <div className="relative">
+                <button
+                  onClick={() => { setClearAllOpen((v) => !v); setClearAllConfirm(''); }}
+                  className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-red-400 hover:border-red-400/20 transition"
+                >
+                  Clear All
+                </button>
+                {clearAllOpen && (
+                  <div
+                    className="absolute top-full mt-1 right-0 rounded-lg border border-red-500/20 p-3 z-50 w-64"
+                    style={{ background: '#1a1a1a', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
+                  >
+                    <p className="text-[10px] text-text-dim mb-1.5">
+                      Type <span className="text-red-400 font-medium">{narrative.title}</span> to clear all plans and prose
+                    </p>
+                    <input
+                      type="text"
+                      value={clearAllConfirm}
+                      onChange={(e) => setClearAllConfirm(e.target.value)}
+                      placeholder={narrative.title}
+                      className="bg-white/5 border border-white/8 rounded-md px-2.5 py-1.5 text-[11px] text-text-primary w-full outline-none placeholder:text-text-dim/30 mb-2 focus:border-red-500/30 transition-colors"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        if (clearAllConfirm === narrative.title) {
+                          for (const s of scenes) {
+                            dispatch({ type: 'UPDATE_SCENE', sceneId: s.id, updates: { plan: undefined, prose: undefined, proseScore: undefined, locked: false } });
+                          }
+                          setPlanCache({});
+                          setProseCache({});
+                          setClearAllOpen(false);
+                          setClearAllConfirm('');
+                        }
+                      }}
+                      disabled={clearAllConfirm !== narrative.title}
+                      className="w-full text-[10px] font-medium py-1.5 rounded-md transition-colors bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      Clear all plans & prose
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* ── Alignment pipeline: Align → Fix ── */}
               {(() => {

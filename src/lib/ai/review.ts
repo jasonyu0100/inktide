@@ -4,6 +4,7 @@ import { callGenerate, SYSTEM_PROMPT } from './api';
 import { branchContext } from './context';
 import { buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { parseJson } from './json';
+import { MAX_TOKENS_SMALL } from '@/lib/constants';
 
 /**
  * Course-correct direction and constraints after each arc.
@@ -133,7 +134,7 @@ Return JSON:
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1200, 'refreshDirection', undefined, reasoningBudget);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'refreshDirection', undefined, reasoningBudget);
 
   try {
     const parsed = parseJson(raw, 'refreshDirection') as { direction?: string; constraints?: string; sceneBudget?: Record<string, number> };

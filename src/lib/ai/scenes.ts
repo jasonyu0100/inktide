@@ -383,7 +383,7 @@ MECHANISMS (8):
 
 RULES:
 - Open with 1-3 breathe beats to ground the scene physically.
-- You MUST produce exactly ${targetBeats} beats (±2). This is calibrated from the prose profile's beat density and the scene's target word count (~${estWords} words). Do not produce fewer.
+- Produce AT LEAST ${targetBeats} beats. This is the minimum bar — you are free to add more beats if the scene's content warrants it. Do not produce fewer than ${targetBeats}.
 - Every structural mutation (thread, continuity, relationship, world knowledge) must map to at least one beat.
 - Thread transitions need a concrete trigger in the 'what' field.
 - Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed).
@@ -592,13 +592,13 @@ THREE PILLARS — the prose must honour all three:
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
 3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, explanation, or consequence. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Anchor lines must appear VERBATIM. Fill around the beats with dialogue, internal monologue, physical action, and sensory detail. Let the scene be as long or short as its content demands — say more in fewer words rather than padding to reach a length.`
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Anchor lines must appear VERBATIM. Fill around the beats with dialogue, internal monologue, physical action, and sensory detail. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.`
     : `THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
 3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, explanation, or consequence. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Let the scene be as long or short as its content demands — say more in fewer words rather than padding to reach a length.`;
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.`;
 
   const prompt = `BRANCH CONTEXT (for continuity — do not summarise or repeat this):
 ${fullContext}
@@ -812,7 +812,7 @@ Return JSON:
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 1500, 'generateArcPlan', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'generateArcPlan', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'generateArcPlan') as Partial<ArcPlan>;
   return {
     arcName: parsed.arcName ?? 'Untitled Arc',
@@ -906,8 +906,8 @@ Use ONLY these IDs:
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const useStream = !!(onToken || onReasoning);
   const raw = useStream
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), 4000, 'generateSingleScene', GENERATE_MODEL, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateSingleScene', GENERATE_MODEL, reasoningBudget);
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_SMALL, 'generateSingleScene', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'generateSingleScene', GENERATE_MODEL, reasoningBudget);
 
   const parsed = parseJson(raw, 'generateSingleScene') as Scene;
   return { ...parsed, kind: 'scene' as const, arcId };

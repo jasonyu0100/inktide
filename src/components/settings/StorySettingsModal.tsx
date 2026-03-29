@@ -272,204 +272,182 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
               LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
             };
-            const resolvedKey = settings.rhythmPreset || 'storyteller';
-            const activePreset = MATRIX_PRESETS.find((p) => p.key === resolvedKey);
-            const matrix: TransitionMatrix | null = activePreset?.matrix ?? null;
+            const resolvedPacingKey = settings.rhythmPreset || 'storyteller';
+            const activePacingPreset = MATRIX_PRESETS.find((p) => p.key === resolvedPacingKey);
+            const pacingMatrix: TransitionMatrix | null = activePacingPreset?.matrix ?? null;
+
+            const FN_COLORS: Record<string, string> = {
+              breathe: '#6b7280', inform: '#3b82f6', advance: '#22c55e', bond: '#ec4899',
+              turn: '#f59e0b', reveal: '#a855f7', shift: '#ef4444', expand: '#06b6d4',
+              foreshadow: '#84cc16', resolve: '#14b8a6',
+            };
+            const BEAT_FNS: string[] = ['breathe', 'inform', 'advance', 'bond', 'turn', 'reveal', 'shift', 'expand', 'foreshadow', 'resolve'];
+
+            // Resolve beat profile
+            const beatPresets = [
+              { key: '', label: 'Storyteller', desc: 'Balanced fiction — derived from 10 published works' },
+              { key: 'action', label: 'Action', desc: 'Fast pacing, high advance/turn — thrillers, xianxia' },
+              { key: 'introspective', label: 'Introspective', desc: 'Slow pacing, thought-heavy — literary fiction' },
+              { key: 'self', label: 'This Story', desc: 'Use this story\'s own analysed profile' },
+              { key: 'harry_potter', label: 'Harry Potter', desc: 'Conversational, comic escalation' },
+              { key: 'reverend_insanity', label: 'Reverend Insanity', desc: 'Raw, strategic introspection' },
+              { key: 'nineteen_eighty_four', label: '1984', desc: 'Clinical, ironic understatement' },
+              { key: 'the_great_gatsby', label: 'Gatsby', desc: 'Literary, sardonic first person' },
+              { key: 'a_tale_of_two_cities', label: 'Dickens', desc: 'Omniscient ironic, anaphora' },
+              { key: 'romeo_and_juliet', label: 'Shakespeare', desc: 'Detached observer, dialogue-heavy' },
+            ];
 
             return (
               <>
-                {/* Preset cards */}
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-4">
-                  {MATRIX_PRESETS.map((preset) => {
-                    const isSelected = preset.key === resolvedKey;
-                    return (
-                      <button
-                        key={preset.key}
-                        onClick={() => update({ rhythmPreset: preset.key })}
-                        className={`shrink-0 w-36 rounded-xl text-left transition-all border p-3 flex flex-col gap-1.5 ${
-                          isSelected
-                            ? 'border-blue-500/40 bg-blue-500/8 ring-1 ring-blue-500/20'
-                            : 'border-white/6 hover:border-white/15 hover:bg-white/3'
-                        }`}
-                      >
-                        <span className={`text-[12px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>
-                          {preset.name}
-                        </span>
-                        <p className="text-[9px] text-text-dim leading-snug flex-1">{preset.description}</p>
-                        {isSelected && (
-                          <span className="text-[8px] text-blue-400 uppercase tracking-wider font-medium">Active</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Transition matrix visualization */}
-                {matrix && (
-                  <div>
-                    <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                      Transition Matrix — {activePreset?.name}
-                    </label>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-[10px] border-collapse">
-                        <thead>
-                          <tr>
-                            <th className="p-1.5 text-left text-text-dim font-medium w-20">From ↓ To →</th>
-                            {CORNERS.map((c) => (
-                              <th key={c} className="p-1.5 text-center font-medium" style={{ color: COLORS[c] }}>
-                                {NARRATIVE_CUBE[c].name.slice(0, 5)}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {CORNERS.map((from) => {
-                            const row = matrix[from];
-                            const total = CORNERS.reduce((s, to) => s + (row[to] ?? 0), 0);
-                            return (
-                              <tr key={from} className="border-t border-white/5">
-                                <td className="p-1.5 font-medium" style={{ color: COLORS[from] }}>
-                                  {NARRATIVE_CUBE[from].name.slice(0, 5)}
-                                </td>
-                                {CORNERS.map((to) => {
-                                  const prob = row[to] ?? 0;
-                                  const intensity = Math.round(20 + prob * 80);
-                                  return (
-                                    <td
-                                      key={to}
-                                      className="p-1.5 text-center tabular-nums"
-                                      style={{
-                                        backgroundColor: prob > 0 ? `rgba(52, 211, 153, ${intensity / 100})` : 'transparent',
-                                        color: prob >= 0.25 ? '#fff' : prob > 0.05 ? '#d1d5db' : '#4b5563',
-                                      }}
-                                    >
-                                      {total > 0 && prob > 0 ? `${Math.round(prob * 100)}` : total > 0 ? '·' : '–'}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="flex items-center gap-3 mt-2 text-[9px] text-text-dim">
-                      <span>Probability:</span>
-                      <div className="flex items-center gap-1">
-                        <div className="w-10 h-2 rounded-sm" style={{ background: 'linear-gradient(to right, rgba(52,211,153,0.05), rgba(52,211,153,0.9))' }} />
-                        <span>0%</span>
-                        <span className="ml-6">100%</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Beat Profile Preset */}
-                <div className="mt-6">
-                  <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                    Beat Profile
-                  </label>
-                  <p className="text-[9px] text-text-dim/50 mb-2">
-                    Prose plans use beat transition probabilities from a published work to shape scene rhythm. Leave empty for AI-optimal (no profile constraints).
-                  </p>
-                  <div className="space-y-1.5">
-                    <button
-                      onClick={() => update({ beatProfilePreset: '' })}
-                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                        !settings.beatProfilePreset
-                          ? 'border-blue-500/50 bg-blue-500/10'
-                          : 'border-white/5 bg-white/2 hover:bg-white/5'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold text-text-primary">AI Optimal</span>
-                      <span className="text-[10px] text-text-dim ml-2">No profile — AI picks best beats per scene</span>
-                    </button>
-                    {narrative?.proseProfile && (
-                      <button
-                        onClick={() => update({ beatProfilePreset: 'self' })}
-                        className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                          settings.beatProfilePreset === 'self'
-                            ? 'border-blue-500/50 bg-blue-500/10'
-                            : 'border-white/5 bg-white/2 hover:bg-white/5'
-                        }`}
-                      >
-                        <span className="text-[11px] font-semibold text-text-primary">This Story</span>
-                        <span className="text-[10px] text-text-dim ml-2">Use this story&apos;s own prose profile</span>
-                      </button>
-                    )}
-                    {[
-                      { key: 'action', label: 'Action', desc: 'Fast pacing, high advance/turn — thrillers, xianxia, action sequences' },
-                      { key: 'introspective', label: 'Introspective', desc: 'Slow pacing, thought-heavy — literary fiction, character studies' },
-                      { key: 'harry_potter', label: 'Harry Potter', desc: 'Conversational, comic escalation, close third' },
-                      { key: 'reverend_insanity', label: 'Reverend Insanity', desc: 'Raw, strategic introspection, dramatic irony' },
-                      { key: 'nineteen_eighty_four', label: '1984', desc: 'Clinical, internal surveillance, ironic understatement' },
-                      { key: 'the_great_gatsby', label: 'The Great Gatsby', desc: 'Literary, sardonic first person, extended metaphor' },
-                      { key: 'a_tale_of_two_cities', label: 'A Tale of Two Cities', desc: 'Literary, omniscient ironic, anaphora' },
-                      { key: 'romeo_and_juliet', label: 'Romeo and Juliet', desc: 'Literary, detached observer, dialogue-heavy' },
-                    ].map((preset) => (
-                      <button
-                        key={preset.key}
-                        onClick={() => update({ beatProfilePreset: preset.key })}
-                        className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
-                          settings.beatProfilePreset === preset.key
-                            ? 'border-blue-500/50 bg-blue-500/10'
-                            : 'border-white/5 bg-white/2 hover:bg-white/5'
-                        }`}
-                      >
-                        <span className="text-[11px] font-semibold text-text-primary">{preset.label}</span>
-                        <span className="text-[10px] text-text-dim ml-2">{preset.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Markov Chain Toggles */}
-                <div className="mt-6 space-y-3">
-                  <label className="text-[10px] text-text-dim uppercase tracking-wider block">
-                    Markov Chains
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div>
-                      <span className="text-[11px] text-text-secondary">Pacing Chain</span>
-                      <p className="text-[9px] text-text-dim/50 mt-0.5">
-                        Scene generation uses cube corner transition probabilities for pacing rhythm.
-                      </p>
-                    </div>
+                {/* ── PACING CHAIN (Cube Corners) ── */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-[10px] text-text-dim uppercase tracking-wider">Pacing Chain</label>
                     <button
                       type="button"
                       role="switch"
                       aria-checked={settings.usePacingChain}
                       onClick={() => update({ usePacingChain: !settings.usePacingChain })}
-                      className={`w-7 h-4 rounded-full transition-colors relative ${
-                        settings.usePacingChain ? 'bg-white/25' : 'bg-white/8'
-                      }`}
+                      className={`w-7 h-4 rounded-full transition-colors relative ${settings.usePacingChain ? 'bg-white/25' : 'bg-white/8'}`}
                     >
-                      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
-                        settings.usePacingChain ? 'left-3.5' : 'left-0.5'
-                      }`} />
+                      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${settings.usePacingChain ? 'left-3.5' : 'left-0.5'}`} />
                     </button>
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div>
-                      <span className="text-[11px] text-text-secondary">Beat Chain</span>
-                      <p className="text-[9px] text-text-dim/50 mt-0.5">
-                        Plan generation uses beat function transition probabilities from the selected profile.
-                      </p>
-                    </div>
+                  </div>
+
+                  {settings.usePacingChain && (
+                    <>
+                      <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
+                        {MATRIX_PRESETS.map((preset) => {
+                          const isSelected = preset.key === resolvedPacingKey;
+                          return (
+                            <button
+                              key={preset.key}
+                              onClick={() => update({ rhythmPreset: preset.key })}
+                              className={`shrink-0 w-32 rounded-xl text-left transition-all border p-2.5 flex flex-col gap-1 ${
+                                isSelected ? 'border-blue-500/40 bg-blue-500/8 ring-1 ring-blue-500/20' : 'border-white/6 hover:border-white/15 hover:bg-white/3'
+                              }`}
+                            >
+                              <span className={`text-[11px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>{preset.name}</span>
+                              <p className="text-[8px] text-text-dim leading-snug flex-1">{preset.description}</p>
+                              {isSelected && <span className="text-[7px] text-blue-400 uppercase tracking-wider font-medium">Active</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {pacingMatrix && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-[9px] border-collapse">
+                            <thead>
+                              <tr>
+                                <th className="p-1 text-left text-text-dim font-medium w-16">From ↓</th>
+                                {CORNERS.map((c) => (
+                                  <th key={c} className="p-1 text-center font-medium" style={{ color: COLORS[c] }}>{NARRATIVE_CUBE[c].name.slice(0, 4)}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {CORNERS.map((from) => {
+                                const row = pacingMatrix[from];
+                                return (
+                                  <tr key={from} className="border-t border-white/5">
+                                    <td className="p-1 font-medium" style={{ color: COLORS[from] }}>{NARRATIVE_CUBE[from].name.slice(0, 4)}</td>
+                                    {CORNERS.map((to) => {
+                                      const prob = row[to] ?? 0;
+                                      return (
+                                        <td key={to} className="p-1 text-center tabular-nums" style={{
+                                          backgroundColor: prob > 0 ? `rgba(52,211,153,${Math.min(prob * 1.2, 1)})` : 'transparent',
+                                          color: prob >= 0.25 ? '#fff' : prob > 0.05 ? '#d1d5db' : '#4b5563',
+                                        }}>
+                                          {prob > 0 ? Math.round(prob * 100) : '·'}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* ── BEAT CHAIN (Beat Functions) ── */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-[10px] text-text-dim uppercase tracking-wider">Beat Chain</label>
                     <button
                       type="button"
                       role="switch"
                       aria-checked={settings.useBeatChain}
                       onClick={() => update({ useBeatChain: !settings.useBeatChain })}
-                      className={`w-7 h-4 rounded-full transition-colors relative ${
-                        settings.useBeatChain ? 'bg-white/25' : 'bg-white/8'
-                      }`}
+                      className={`w-7 h-4 rounded-full transition-colors relative ${settings.useBeatChain ? 'bg-white/25' : 'bg-white/8'}`}
                     >
-                      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
-                        settings.useBeatChain ? 'left-3.5' : 'left-0.5'
-                      }`} />
+                      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${settings.useBeatChain ? 'left-3.5' : 'left-0.5'}`} />
                     </button>
-                  </label>
+                  </div>
+
+                  {settings.useBeatChain && (
+                    <>
+                      <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-3">
+                        {beatPresets.filter((p) => p.key !== 'self' || narrative?.proseProfile).map((preset) => {
+                          const isSelected = (settings.beatProfilePreset || '') === preset.key;
+                          return (
+                            <button
+                              key={preset.key || '_default'}
+                              onClick={() => update({ beatProfilePreset: preset.key })}
+                              className={`shrink-0 w-32 rounded-xl text-left transition-all border p-2.5 flex flex-col gap-1 ${
+                                isSelected ? 'border-violet-500/40 bg-violet-500/8 ring-1 ring-violet-500/20' : 'border-white/6 hover:border-white/15 hover:bg-white/3'
+                              }`}
+                            >
+                              <span className={`text-[11px] font-semibold leading-tight ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>{preset.label}</span>
+                              <p className="text-[8px] text-text-dim leading-snug flex-1">{preset.desc}</p>
+                              {isSelected && <span className="text-[7px] text-violet-400 uppercase tracking-wider font-medium">Active</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Beat transition matrix */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[9px] border-collapse">
+                          <thead>
+                            <tr>
+                              <th className="p-1 text-left text-text-dim font-medium w-16">From ↓</th>
+                              {BEAT_FNS.map((fn) => (
+                                <th key={fn} className="p-1 text-center font-medium" style={{ color: FN_COLORS[fn] }}>{fn.slice(0, 4)}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {BEAT_FNS.map((from) => {
+                              // Get matrix from resolved profile
+                              const profileMarkov = narrative?.proseProfile?.markov ?? {};
+                              const row = (profileMarkov as Record<string, Record<string, number>>)[from] ?? {};
+                              return (
+                                <tr key={from} className="border-t border-white/5">
+                                  <td className="p-1 font-medium" style={{ color: FN_COLORS[from] }}>{from.slice(0, 4)}</td>
+                                  {BEAT_FNS.map((to) => {
+                                    const prob = row[to] ?? 0;
+                                    return (
+                                      <td key={to} className="p-1 text-center tabular-nums" style={{
+                                        backgroundColor: prob > 0 ? `rgba(167,139,250,${Math.min(prob * 1.5, 1)})` : 'transparent',
+                                        color: prob >= 0.25 ? '#fff' : prob > 0.05 ? '#d1d5db' : '#4b5563',
+                                      }}>
+                                        {prob > 0 ? Math.round(prob * 100) : '·'}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             );

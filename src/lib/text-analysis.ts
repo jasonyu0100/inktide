@@ -12,7 +12,7 @@ import type {
   Character, Location, Thread, Arc, Scene, RelationshipEdge, Artifact,
   WorldBuild, Branch, ProseProfile,
 } from '@/types/narrative';
-import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS } from '@/types/narrative';
+import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 
 // ── Text Splitting ───────────────────────────────────────────────────────────
@@ -1403,6 +1403,7 @@ export async function assembleNarrative(
   let worldSystems: NarrativeState['worldSystems'] = [];
   let imageStyle: string | undefined;
   let proseProfile: ProseProfile | undefined;
+  let planGuidance = '';
 
   try {
     const metaResult = await callAnalysis(
@@ -1423,6 +1424,9 @@ export async function assembleNarrative(
    - dialogueWeight: the role and proportion of dialogue
    - devices: 2-5 literary devices this author characteristically employs (specific, not generic)
    - rules: 2-4 prose rules that capture this author's constraints as imperatives (e.g. "Characters never say what they mean directly")
+   - antiPatterns: 2-3 specific prose failures that would break this author's voice — things to AVOID. Derive these from what the author does NOT do. e.g. "Do not explain system mechanics after demonstrating them", "No internal monologue that reads like a textbook", "Never summarise a character's strategic reasoning — show it through their actions"
+
+5. PLAN GUIDANCE: 1-3 sentences describing how scene beat plans should be structured for this work. What should beat plans emphasise? What mechanisms should dominate? How should exposition be handled?
 
 WORLD SUMMARY: ${worldSummary.slice(0, 2000)}
 
@@ -1447,8 +1451,10 @@ Return JSON:
     "interiority": "string",
     "dialogueWeight": "string",
     "devices": ["device1", "device2"],
-    "rules": ["prose rule 1", "prose rule 2"]
-  }
+    "rules": ["prose rule 1", "prose rule 2"],
+    "antiPatterns": ["anti-pattern 1", "anti-pattern 2"]
+  },
+  "planGuidance": "How beat plans should be structured for this work"
 }`,
       'You are a world-building and literary analyst. Extract the implicit rules, mechanical systems, visual style, and prose voice of a narrative universe. Return only valid JSON.',
       onToken,
@@ -1468,7 +1474,11 @@ Return JSON:
         dialogueWeight: str(pp.dialogueWeight),
         devices:        Array.isArray(pp.devices) ? pp.devices.filter((d: unknown) => typeof d === 'string') : [],
         rules:          Array.isArray(pp.rules)   ? pp.rules.filter((r: unknown) => typeof r === 'string')   : [],
+        antiPatterns:   Array.isArray(pp.antiPatterns) ? pp.antiPatterns.filter((a: unknown) => typeof a === 'string') : [],
       };
+    }
+    if (typeof metaParsed.planGuidance === 'string' && metaParsed.planGuidance.trim()) {
+      planGuidance = metaParsed.planGuidance.trim();
     }
     if (Array.isArray(metaParsed.worldSystems)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1504,6 +1514,7 @@ Return JSON:
     worldSystems,
     imageStyle,
     proseProfile,
+    storySettings: planGuidance ? { ...DEFAULT_STORY_SETTINGS, planGuidance } : undefined,
     createdAt: Date.now() - 86400000,
     updatedAt: Date.now(),
   };

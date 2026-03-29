@@ -195,6 +195,8 @@ export type ProseProfile = {
   devices: string[];
   /** Show-don't-tell constraints — apply to ALL scenes */
   rules: string[];
+  /** Negative constraints — specific prose failures to avoid for this voice */
+  antiPatterns?: string[];
 };
 
 /** Beat sampling data — derived from analyzed works, separate from voice profile. */

@@ -125,6 +125,7 @@ For each field, extract the most accurate single value:
 - dialogueWeight: Proportion of prose given to dialogue. Examples: heavy, moderate, sparse, minimal, none
 - devices: Rhetorical and narrative devices the author uses. Examples: free_indirect_discourse, dramatic_irony, unreliable_narrator, extended_metaphor, ironic_understatement, comic_escalation, epistolary_fragments, stream_of_consciousness, second_person_address, pathetic_fallacy
 - rules: Show-don't-tell craft constraints — imperative sentences that guide prose generation. These should be specific, actionable style rules derived from the text. Examples: "Show emotion through physical reaction, never name it", "Every scene must ground the reader in one sensory detail before dialogue begins", "Interior thought only through free indirect discourse, never italicised monologue"
+- antiPatterns: Specific prose failures that would break this voice — things to AVOID. Derive from what the author does NOT do, or from explicit critique in the text. Examples: "Do not explain system mechanics after demonstrating them", "No internal monologue that reads like a textbook", "Never follow an action with a sentence restating its significance"
 
 ${existingBlock}
 TEXT TO ANALYZE:
@@ -139,10 +140,11 @@ Return JSON:
   "interiority": "...",
   "dialogueWeight": "...",
   "devices": ["...", "..."],
-  "rules": ["...", "..."]
+  "rules": ["...", "..."],
+  "antiPatterns": ["...", "..."]
 }
 
-Extract 2-6 devices and 2-8 rules depending on how much the text reveals. Only extract what is clearly stated or strongly implied — don't invent. If a field cannot be determined from the text, use a reasonable default. Use snake_case for multi-word values (e.g., "close_third", not "close third").`;
+Extract 2-6 devices, 2-8 rules, and 2-4 anti-patterns depending on how much the text reveals. Only extract what is clearly stated or strongly implied — don't invent. If a field cannot be determined from the text, use a reasonable default. Use snake_case for multi-word values (e.g., "close_third", not "close third").`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'ingestProseProfile', GENERATE_MODEL);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -157,6 +159,7 @@ Extract 2-6 devices and 2-8 rules depending on how much the text reveals. Only e
     dialogueWeight: typeof parsed.dialogueWeight === 'string' ? parsed.dialogueWeight : undefined,
     devices:        Array.isArray(parsed.devices) ? parsed.devices.filter((d: unknown) => typeof d === 'string') : [],
     rules:          Array.isArray(parsed.rules)   ? parsed.rules.filter((r: unknown) => typeof r === 'string')   : [],
+    antiPatterns:   Array.isArray(parsed.antiPatterns) ? parsed.antiPatterns.filter((a: unknown) => typeof a === 'string') : [],
   };
 }
 
@@ -236,6 +239,7 @@ Analyze the story's genre, tone, subject matter, and existing prose (if any) to 
 - How deep should interiority go given the POV and character complexity?
 - What rhetorical devices would serve this story?
 - What craft rules should guide prose generation?
+- What specific prose failures would break this voice? (anti-patterns)
 
 Return JSON:
 {
@@ -246,10 +250,11 @@ Return JSON:
   "interiority": "...",
   "dialogueWeight": "...",
   "devices": ["...", "..."],
-  "rules": ["...", "..."]
+  "rules": ["...", "..."],
+  "antiPatterns": ["...", "..."]
 }
 
-Extract 2-6 devices and 3-8 rules. Rules should be specific, actionable style directives — not generic advice. Use snake_case for multi-word values (e.g., "close_third").`;
+Extract 2-6 devices, 3-8 rules, and 2-4 anti-patterns. Rules should be specific, actionable style directives — not generic advice. Anti-patterns should be concrete failures to avoid — things that would break immersion for this genre ("Do not explain mechanics after showing them", "No strategic summaries in internal monologue"). Use snake_case for multi-word values (e.g., "close_third").`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'deriveProseProfile', GENERATE_MODEL);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -264,5 +269,6 @@ Extract 2-6 devices and 3-8 rules. Rules should be specific, actionable style di
     dialogueWeight: typeof parsed.dialogueWeight === 'string' ? parsed.dialogueWeight : undefined,
     devices:        Array.isArray(parsed.devices) ? parsed.devices.filter((d: unknown) => typeof d === 'string') : [],
     rules:          Array.isArray(parsed.rules)   ? parsed.rules.filter((r: unknown) => typeof r === 'string')   : [],
+    antiPatterns:   Array.isArray(parsed.antiPatterns) ? parsed.antiPatterns.filter((a: unknown) => typeof a === 'string') : [],
   };
 }

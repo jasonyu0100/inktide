@@ -58,6 +58,17 @@ function deriveRuleTemplates(presets: BeatProfilePreset[]): string[] {
   return [...seen];
 }
 
+/** Collect all anti-pattern strings used across presets. */
+function deriveAntiPatternTemplates(presets: BeatProfilePreset[]): string[] {
+  const seen = new Set<string>();
+  for (const p of presets) {
+    for (const a of p.profile.antiPatterns ?? []) {
+      if (a.trim()) seen.add(a);
+    }
+  }
+  return [...seen];
+}
+
 const FIELD_LABELS: Record<StringField, string> = {
   register:       'Register',
   stance:         'Stance',
@@ -82,6 +93,9 @@ function profileMatchesPreset(draft: Partial<ProseProfile>, preset: ProseProfile
   const dr = [...(draft.rules ?? [])].sort();
   const pr = [...(preset.rules ?? [])].sort();
   if (dr.length !== pr.length || dr.some((v, i) => v !== pr[i])) return false;
+  const da = [...(draft.antiPatterns ?? [])].sort();
+  const pa = [...(preset.antiPatterns ?? [])].sort();
+  if (da.length !== pa.length || da.some((v, i) => v !== pa[i])) return false;
   return true;
 }
 
@@ -98,7 +112,7 @@ function detectPresetKey(profile: Partial<ProseProfile> | undefined, presets: Be
 type Draft = {
   register: string; stance: string; tense: string;
   sentenceRhythm: string; interiority: string; dialogueWeight: string;
-  devices: string[]; rules: string[];
+  devices: string[]; rules: string[]; antiPatterns: string[];
 };
 
 function toDraft(p: Partial<ProseProfile>): Draft {
@@ -111,6 +125,7 @@ function toDraft(p: Partial<ProseProfile>): Draft {
     dialogueWeight: p.dialogueWeight ?? '',
     devices:        p.devices        ? [...p.devices] : [],
     rules:          p.rules          ? [...p.rules]   : [],
+    antiPatterns:   p.antiPatterns   ? [...p.antiPatterns] : [],
   };
 }
 
@@ -141,7 +156,9 @@ export default function ProseProfilePanel({ onClose }: Props) {
   const [draft, setDraft] = useState<Draft>(() => toDraft(current ?? {}));
   const [appliedKey, setAppliedKey] = useState<string | null>(() => detectPresetKey(current, presets));
   const [newRule, setNewRule] = useState('');
+  const [newAntiPattern, setNewAntiPattern] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showAntiPatternTemplates, setShowAntiPatternTemplates] = useState(false);
   const [tab, setTab] = useState<'edit' | 'import'>('edit');
   const [ingestText, setIngestText] = useState('');
   const [ingesting, setIngesting] = useState(false);
@@ -172,6 +189,7 @@ export default function ProseProfilePanel({ onClose }: Props) {
 
   const deviceOptions = deriveDeviceOptions(presets);
   const ruleTemplates = deriveRuleTemplates(presets);
+  const antiPatternTemplates = deriveAntiPatternTemplates(presets);
 
   async function handleIngest() {
     if (!ingestText.trim() || ingesting) return;
@@ -327,6 +345,51 @@ export default function ProseProfilePanel({ onClose }: Props) {
                     placeholder="Add rule…"
                     className="flex-1 bg-white/4 border border-white/8 rounded-lg px-3 py-1.5 text-[10px] text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20" />
                   <button onClick={() => addRule(newRule)} className="px-3 rounded-lg border border-white/10 text-[10px] text-text-secondary hover:text-text-primary transition-all">Add</button>
+                </div>
+              </div>
+
+              {/* Anti-patterns */}
+              <div className="col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] uppercase tracking-widest text-text-dim">Anti-patterns</span>
+                  {antiPatternTemplates.length > 0 && (
+                    <button onClick={() => setShowAntiPatternTemplates((v) => !v)} className="text-[9px] text-text-dim hover:text-text-secondary transition-colors">
+                      {showAntiPatternTemplates ? 'Hide templates' : 'From presets'}
+                    </button>
+                  )}
+                </div>
+
+                {showAntiPatternTemplates && (
+                  <div className="flex flex-col gap-1 mb-3 p-3 rounded-lg bg-white/2 border border-white/5 max-h-36 overflow-y-auto">
+                    {antiPatternTemplates.filter((t) => !draft.antiPatterns.includes(t)).map((t) => (
+                      <button key={t} onClick={() => setDraft((d) => ({ ...d, antiPatterns: [...d.antiPatterns, t] }))}
+                        className="text-left text-[9px] text-text-dim hover:text-text-secondary transition-colors py-0.5">
+                        + {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-1.5 mb-2">
+                  {draft.antiPatterns.length === 0
+                    ? <p className="text-[10px] text-text-dim italic">No anti-patterns set</p>
+                    : draft.antiPatterns.map((a, i) => (
+                      <div key={i} className="flex items-start gap-2 group">
+                        <span className="flex-1 text-[10px] text-text-secondary leading-snug pl-2.5 border-l border-red-500/30 py-0.5">{a}</span>
+                        <button onClick={() => set('antiPatterns', draft.antiPatterns.filter((_, j) => j !== i))}
+                          className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-text-primary transition-opacity mt-0.5 shrink-0">×</button>
+                      </div>
+                    ))
+                  }
+                </div>
+
+                <div className="flex gap-2">
+                  <input value={newAntiPattern} onChange={(e) => setNewAntiPattern(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && newAntiPattern.trim()) { set('antiPatterns', [...draft.antiPatterns, newAntiPattern.trim()]); setNewAntiPattern(''); } }}
+                    placeholder="Add anti-pattern…"
+                    className="flex-1 bg-white/4 border border-white/8 rounded-lg px-3 py-1.5 text-[10px] text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20" />
+                  <button onClick={() => { if (newAntiPattern.trim()) { set('antiPatterns', [...draft.antiPatterns, newAntiPattern.trim()]); setNewAntiPattern(''); } }}
+                    className="px-3 rounded-lg border border-white/10 text-[10px] text-text-secondary hover:text-text-primary transition-all">Add</button>
                 </div>
               </div>
 

@@ -1,5 +1,5 @@
 import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, Artifact, ReasoningLevel } from '@/types/narrative';
-import { THREAD_ACTIVE_STATUSES, resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
+import { THREAD_ACTIVE_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
@@ -625,8 +625,10 @@ Return JSON with this exact structure:
     "interiority": "surface/moderate/deep/embedded",
     "dialogueWeight": "sparse/moderate/heavy/almost_none",
     "devices": ["2-4 literary devices that suit this world's tone"],
-    "rules": ["2-3 prose rules that capture the ideal authorial voice for this story — imperatives, e.g. 'Ground every revelation in a physical gesture'"]
-  }
+    "rules": ["2-3 prose rules that capture the ideal authorial voice — imperatives, e.g. 'Ground every revelation in a physical gesture'"],
+    "antiPatterns": ["2-3 specific prose failures this voice must avoid — things that would break immersion for this genre. e.g. 'Do not explain system mechanics after demonstrating them', 'No strategic summaries in internal monologue — show calculation through action', 'Do not follow a revelation with a sentence restating its significance'"]
+  },
+  "planGuidance": "1-3 sentences of guidance for how scene beat plans should be structured for this story. What should beat plans emphasise? e.g. 'Prioritise action and dialogue beats over narration. System mechanics should be revealed through usage, never through expository narration beats. Internal monologue should be tactical and clipped, not reflective.'"
 }
 
 HARD MINIMUMS — the world MUST contain at least these counts. Generating fewer is a failure:
@@ -836,8 +838,12 @@ The goal is to make the world feel like a coherent machine where systems interlo
         dialogueWeight: typeof pp.dialogueWeight === 'string' ? pp.dialogueWeight : undefined,
         devices:        Array.isArray(pp.devices) ? pp.devices.filter((d: unknown) => typeof d === 'string') : [],
         rules:          Array.isArray(pp.rules)   ? pp.rules.filter((r: unknown) => typeof r === 'string')   : [],
+        antiPatterns:   Array.isArray(pp.antiPatterns) ? pp.antiPatterns.filter((a: unknown) => typeof a === 'string') : [],
       };
     })(),
+    storySettings: typeof parsed.planGuidance === 'string' && parsed.planGuidance.trim()
+      ? { ...DEFAULT_STORY_SETTINGS, planGuidance: parsed.planGuidance.trim() }
+      : undefined,
     createdAt: now,
     updatedAt: now,
   };

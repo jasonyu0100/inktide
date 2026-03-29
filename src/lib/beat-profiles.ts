@@ -75,6 +75,11 @@ export const DEFAULT_PROSE_PROFILE: ProseProfile = {
   stance: 'close_third',
   devices: ['free_indirect_discourse', 'dramatic_irony'],
   rules: ['Show emotion through physical reaction, never name it'],
+  antiPatterns: [
+    'Do not follow an action with a sentence explaining what it means or why it matters',
+    'Do not write 4+ consecutive short declarative sentences — vary rhythm',
+    'Internal monologue must sound like the character, not a narrator documenting mechanics',
+  ],
 };
 
 export const ACTION_PROFILE: ProseProfile = {
@@ -86,6 +91,11 @@ export const ACTION_PROFILE: ProseProfile = {
   dialogueWeight: 'heavy',
   devices: ['dramatic_irony', 'comic_escalation'],
   rules: ['Show urgency through short sentences and physical reactions', 'Never pause for internal monologue during action — show through body'],
+  antiPatterns: [
+    'Never explain a combat mechanic after showing it — the action IS the explanation',
+    'No strategic summaries ("He calculated that..." / "This meant that...") — show the calculation through what the character does',
+    'Do not recap what just happened — momentum only moves forward',
+  ],
 };
 
 export const INTROSPECTIVE_PROFILE: ProseProfile = {
@@ -97,6 +107,11 @@ export const INTROSPECTIVE_PROFILE: ProseProfile = {
   dialogueWeight: 'sparse',
   devices: ['free_indirect_discourse', 'ironic_understatement', 'extended_metaphor'],
   rules: ['Emotions through landscape and object — the world reflects inner state', 'Let observations accumulate before any character acts'],
+  antiPatterns: [
+    'Do not explain subtext — if the prose needs a sentence saying what a gesture "really meant", the gesture was too weak',
+    'Do not use "He realized that..." or "She understood that..." — show the shift in perception through changed behaviour',
+    'Avoid chains of abstract nouns ("the weight of responsibility, the burden of knowledge") — ground in concrete image',
+  ],
 };
 
 // ── Compute sampler from scene plans ────────────────────────────────────────

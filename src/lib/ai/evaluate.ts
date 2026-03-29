@@ -223,7 +223,7 @@ export async function evaluateProseQuality(
     ? `PROSE PROFILE (the prose should conform to this voice):
 Register: ${profile.register} | Stance: ${profile.stance}${profile.tense ? ` | Tense: ${profile.tense}` : ''}${profile.sentenceRhythm ? ` | Rhythm: ${profile.sentenceRhythm}` : ''}${profile.interiority ? ` | Interiority: ${profile.interiority}` : ''}${profile.dialogueWeight ? ` | Dialogue: ${profile.dialogueWeight}` : ''}
 ${profile.devices?.length ? `Devices: ${profile.devices.join(', ')}` : ''}
-${profile.rules?.length ? `Rules:\n${profile.rules.map((r) => `  - ${r}`).join('\n')}` : ''}`
+${profile.rules?.length ? `Rules:\n${profile.rules.map((r) => `  - ${r}`).join('\n')}` : ''}${profile.antiPatterns?.length ? `\nAnti-patterns (flag violations):\n${profile.antiPatterns.map((a) => `  ✗ ${a}`).join('\n')}` : ''}`
     : '';
 
   const guidanceBlock = guidance?.trim()

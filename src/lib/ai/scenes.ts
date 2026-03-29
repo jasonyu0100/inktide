@@ -337,6 +337,7 @@ ${sampledFns.map((fn, i) => `  ${i + 1}. ${fn}`).join('\n')}\n`;
   if (profile.dialogueWeight) planProfileLines.push(`Dialogue weight: ${profile.dialogueWeight}`);
   if (profile.devices?.length) planProfileLines.push(`Devices: ${profile.devices.join(', ')}`);
   if (profile.rules?.length)   planProfileLines.push(`Rules: ${profile.rules.slice(0, 3).join('; ')}`);
+  if (profile.antiPatterns?.length) planProfileLines.push(`Anti-patterns: ${profile.antiPatterns.slice(0, 3).join('; ')}`);
 
   const profileBlock = `\nPROSE PROFILE (use these settings when choosing mechanisms and structuring beats):
 ${planProfileLines.map((l) => `  ${l}`).join('\n')}
@@ -537,6 +538,10 @@ export async function generateSceneProse(
         proseProfile?.rules?.length
           ? `\n- Rules:\n${proseProfile.rules.map((r) => `  • ${r}`).join('\n')}`
           : ''
+      }${
+        proseProfile?.antiPatterns?.length
+          ? `\n- ANTI-PATTERNS (these are specific failures for this voice — avoid them):\n${proseProfile.antiPatterns.map((a) => `  ✗ ${a}`).join('\n')}`
+          : ''
       }`
     : '';
 
@@ -554,7 +559,18 @@ General craft${hasVoiceOverride ? ' (defer to AUTHOR VOICE when these conflict)'
 - Enter late, leave early. Start in the middle of something happening.
 - Let scenes breathe. A thread shift or relationship change is a turning point — build to it, let it land.
 - Dialogue must do at least two things at once: reveal character, advance conflict, shift power, or expose subtext.
-- Sensory grounding in small, specific details. One precise image outweighs three generic ones.${!hasVoiceOverride ? '\n- Subtext over exposition. What characters don\'t say carries more weight than declarations.' : ''}${profileSection}
+- Sensory grounding in small, specific details. One precise image outweighs three generic ones.${!hasVoiceOverride ? '\n- Subtext over exposition. What characters don\'t say carries more weight than declarations.' : ''}
+
+Compression & implication:
+- SHOW, NEVER EXPLAIN. When a system, rule, or concept is revealed, dramatise it through action or consequence. Do not follow it with a sentence explaining what it means or why it matters. Trust the reader to infer.
+- Cut the "explanation chain": action → explanation → strategic implication is a failure pattern. Write the action. Let the implication live in what happens next.
+- Internal monologue must sound like the CHARACTER thinking, not the narrator documenting a mechanic. "The formation had three nodes left" not "This was a tri-node defensive formation designed to..."
+- After writing any sentence that explains a concept, DELETE IT and check if the scene still works. If it does, the sentence was unnecessary.
+
+Sentence rhythm:
+- VARY sentence length deliberately. Follow two short declarative sentences with a longer flowing one. Break a tense sequence with a fragment. Let paragraphs breathe with mixed cadence.
+- Avoid chains of 4+ sentences with identical structure (subject-verb-object). Rotate between: fragments, compound sentences, dialogue interruptions, sensory inserts, and longer periodic sentences.
+- The prose should feel like a novel, not a storyboard. Storyboard prose = "He did X. She did Y. The result was Z." Novel prose = varied rhythm, texture, voice.${profileSection}
 
 Strict output rules:
 - Output ONLY the prose. No scene titles, chapter headers, separators (---), or meta-commentary.
@@ -590,13 +606,13 @@ ${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must
 THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
-3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, explanation, or consequence. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
+3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, consequence, or character action. Never explain a concept after showing it — let the demonstration speak. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
 Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Anchor lines must appear VERBATIM. Fill around the beats with dialogue, internal monologue, physical action, and sensory detail. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.`
     : `THREE PILLARS — the prose must honour all three:
 1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
 2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
-3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, explanation, or consequence. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
+3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, consequence, or character action. Never explain a concept after showing it — let the demonstration speak. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
 
 Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.`;
 

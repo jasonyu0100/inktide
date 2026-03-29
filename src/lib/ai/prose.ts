@@ -117,7 +117,16 @@ Voice & style for the rewrite${hasVoiceOverride ? ' (defer to AUTHOR VOICE when 
 - Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.
 - Use straight quotes (" and '), never smart/curly quotes.${!hasVoiceOverride ? `
 - CRITICAL: Do NOT open with weather, atmosphere, scent, or environmental description.
-- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs.` : ''}`;
+- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs.` : ''}
+
+Compression & implication:
+- SHOW, NEVER EXPLAIN. When a system, rule, or concept appears, dramatise it through action or consequence — never follow with a sentence explaining what it means.
+- Cut "explanation chains": action → explanation → strategic implication. Write the action. Let the reader infer.
+- Internal monologue must sound like the character thinking in the moment, not the narrator documenting a mechanic.
+
+Sentence rhythm:
+- VARY sentence length. Follow short declarative sentences with longer flowing ones. Use fragments for impact. Rotate structure — avoid 4+ sentences with identical subject-verb-object cadence.
+- The prose should read like a novel, not a storyboard.`;
 
   const neighborBlock = neighborContext
     || `${prevEnding ? `\nPREVIOUS SCENE ENDING:\n"...${prevEnding}"\n` : ''}${nextOpening ? `\nNEXT SCENE OPENING:\n"${nextOpening}..."\n` : ''}`;

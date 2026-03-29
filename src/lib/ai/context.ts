@@ -798,7 +798,7 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
     for (const addedNode of scene.worldKnowledgeMutations.addedNodes ?? []) {
       if (!addedNode.concept) continue;
       const shortConcept = addedNode.concept.includes(' — ') ? addedNode.concept.split(' — ')[0] : addedNode.concept;
-      rules.push(`WORLD KNOWLEDGE REVEAL: "${shortConcept}" (${addedNode.type}) has NOT been established yet at scene start — it must be revealed through a specific mechanism (demonstration, explanation, discovery, action). Do not reference it as pre-existing before its revelation delivery.`);
+      rules.push(`WORLD KNOWLEDGE REVEAL: "${shortConcept}" (${addedNode.type}) has NOT been established yet at scene start — it must be revealed through demonstration, consequence, or character action. Do not explain it after showing it. Do not reference it as pre-existing before its revelation moment.`);
     }
     // New edges: dramatise the connection
     for (const edge of scene.worldKnowledgeMutations.addedEdges ?? []) {
@@ -808,7 +808,7 @@ export function deriveLogicRules(narrative: NarrativeState, scene: Scene): strin
       if (fromNode?.concept && toNode?.concept) {
         const fromShort = fromNode.concept.includes(' — ') ? fromNode.concept.split(' — ')[0] : fromNode.concept;
         const toShort = toNode.concept.includes(' — ') ? toNode.concept.split(' — ')[0] : toNode.concept;
-        rules.push(`WORLD KNOWLEDGE CONNECTION: The relationship "${fromShort}" ${edge.relation} "${toShort}" must be demonstrated through the narrative — show it through action, dialogue, or consequence, not exposition.`);
+        rules.push(`WORLD KNOWLEDGE CONNECTION: "${fromShort}" ${edge.relation} "${toShort}" — show through action, dialogue, or consequence. Do not explain the connection; let it emerge from what happens.`);
       }
     }
     // Existing concepts referenced by edges: these ARE established and can be used freely

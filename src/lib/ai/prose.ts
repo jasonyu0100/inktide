@@ -1,4 +1,5 @@
 import type { NarrativeState, Scene } from '@/types/narrative';
+import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
@@ -136,13 +137,14 @@ Preserve narrative deliveries, events, and plot points that the analysis does NO
 ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, no commentary. Start with the first word of the scene.' : 'Return JSON:\n{\n  "prose": "the full rewritten prose text"\n}'}`;
 
   const scale = sceneScale(scene);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   let prose: string;
   if (onToken) {
-    const rawStream = await callGenerateStream(prompt, systemPrompt, onToken, scale.proseTokens, 'rewriteSceneProse', WRITING_MODEL);
+    const rawStream = await callGenerateStream(prompt, systemPrompt, onToken, scale.proseTokens, 'rewriteSceneProse', WRITING_MODEL, reasoningBudget);
     // LLM may ignore "no JSON" instruction — extract prose if it returned JSON
     prose = rawStream;
   } else {
-    const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 500, 'rewriteSceneProse', WRITING_MODEL);
+    const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 500, 'rewriteSceneProse', WRITING_MODEL, reasoningBudget);
     const parsed = parseJson(raw, 'rewriteSceneProse') as { prose: string };
     prose = parsed.prose;
   }
@@ -156,6 +158,7 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
       800,
       'rewriteChangelog',
       ANALYSIS_MODEL,
+      reasoningBudget,
     );
     const changelogParsed = parseJson(changelogRaw, 'rewriteChangelog') as { changelog: unknown };
     // Handle both string and structured formats — LLM may return an array of objects
@@ -222,7 +225,8 @@ Return a JSON array:
 
 sceneIndex is 0-based. force is one of: "payoff", "change", "knowledge".`;
 
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateChartAnnotations', ANALYSIS_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, 4000, 'generateChartAnnotations', ANALYSIS_MODEL, reasoningBudget);
 
   // Parse JSON from response, handling potential markdown fences
   const cleaned = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();

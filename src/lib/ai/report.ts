@@ -1,6 +1,6 @@
 import type { SlidesData } from '@/lib/slides-data';
 import type { NarrativeState, Scene } from '@/types/narrative';
-import { NARRATIVE_CUBE, type CubeCornerKey, resolveEntry, isScene } from '@/types/narrative';
+import { NARRATIVE_CUBE, type CubeCornerKey, resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
 import { detectCubeCorner } from '@/lib/narrative-utils';
 import { callGenerate } from './api';
 import { parseJson } from './json';
@@ -265,7 +265,8 @@ Return a JSON object with these keys. Follow the length guidance exactly — the
   "closing": "2-3 sentences. What does this story do best, and what's the single most impactful change that would improve it? End on a forward-looking note."
 }`;
 
-  const result = await callGenerate(prompt, REPORT_SYSTEM, 12288, 'generateReportAnalysis', ANALYSIS_MODEL);
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const result = await callGenerate(prompt, REPORT_SYSTEM, 12288, 'generateReportAnalysis', ANALYSIS_MODEL, reasoningBudget);
   const parsed = parseJson(result, 'report-analysis') as Record<string, string>;
 
   const analysis = {} as ReportAnalysis;

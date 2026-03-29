@@ -1,0 +1,119 @@
+{
+  "title": "A Tale of Two Cities",
+  "scenesAnalyzed": 10,
+  "totalBeats": 159,
+  "avgBeatsPerKWord": 13.1,
+  "beatDistribution": {
+    "breathe": 0.208,
+    "inform": 0.189,
+    "advance": 0.201,
+    "bond": 0.094,
+    "turn": 0.031,
+    "reveal": 0.063,
+    "shift": 0.031,
+    "expand": 0.088,
+    "foreshadow": 0.057,
+    "resolve": 0.038
+  },
+  "mechanismDistribution": {
+    "dialogue": 0.308,
+    "thought": 0.119,
+    "action": 0.226,
+    "environment": 0.157,
+    "narration": 0.189
+  },
+  "markovTransitions": {
+    "breathe": {
+      "inform": 0.323,
+      "advance": 0.29,
+      "expand": 0.097,
+      "reveal": 0.097,
+      "resolve": 0.032,
+      "breathe": 0.032,
+      "foreshadow": 0.032,
+      "bond": 0.032,
+      "shift": 0.065
+    },
+    "inform": {
+      "expand": 0.172,
+      "inform": 0.103,
+      "foreshadow": 0.034,
+      "advance": 0.276,
+      "reveal": 0.034,
+      "resolve": 0.069,
+      "breathe": 0.069,
+      "bond": 0.207,
+      "turn": 0.034
+    },
+    "advance": {
+      "breathe": 0.3,
+      "turn": 0.067,
+      "inform": 0.2,
+      "advance": 0.2,
+      "reveal": 0.067,
+      "foreshadow": 0.033,
+      "bond": 0.067,
+      "expand": 0.033,
+      "shift": 0.033
+    },
+    "bond": {
+      "advance": 0.267,
+      "inform": 0.2,
+      "bond": 0.2,
+      "shift": 0.067,
+      "resolve": 0.067,
+      "breathe": 0.067,
+      "reveal": 0.067,
+      "expand": 0.067
+    },
+    "turn": {
+      "advance": 0.4,
+      "reveal": 0.4,
+      "resolve": 0.2
+    },
+    "reveal": {
+      "bond": 0.2,
+      "breathe": 0.2,
+      "advance": 0.2,
+      "inform": 0.3,
+      "turn": 0.1
+    },
+    "shift": {
+      "bond": 0.25,
+      "reveal": 0.25,
+      "foreshadow": 0.25,
+      "inform": 0.25
+    },
+    "expand": {
+      "inform": 0.231,
+      "resolve": 0.077,
+      "foreshadow": 0.231,
+      "breathe": 0.231,
+      "advance": 0.077,
+      "turn": 0.077,
+      "expand": 0.077
+    },
+    "foreshadow": {
+      "expand": 0.375,
+      "breathe": 0.5,
+      "foreshadow": 0.125
+    },
+    "resolve": {
+      "breathe": 0.5,
+      "foreshadow": 0.25,
+      "shift": 0.25
+    }
+  },
+  "sampleAnchors": [
+    "It was the best of times, it was the worst of times",
+    "It was the year of Our Lord one thousand seven hundred and seventy-five.",
+    "already marked by the Woodman, Fate, to come down and be sawn into boards, to make a certain movable framework with a sack and a knife in it, terrible in history.",
+    "Daring burglaries by armed men, and highway robberies, took place in the capital itself every night",
+    "It was the Dover road that lay, on a Friday night late in November",
+    "It was the best of times, it was the worst of times",
+    "It was the year of Our Lord one thousand seven hundred and seventy-five.",
+    "the Woodman, Fate, to come down and be sawn into boards, to make a certain movable framework with a sack and a knife in it, terrible in history.",
+    "There was a steaming mist in all the hollows, and it had roamed in its forlornness up the hill, like an evil spirit",
+    "RECALLED TO LIFE."
+  ]
+}

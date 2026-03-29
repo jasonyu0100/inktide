@@ -1,0 +1,1092 @@
+[
+  {
+    "title": "Harry Potter and the Prisoner of Azkaban",
+    "scenesAnalyzed": 10,
+    "totalBeats": 136,
+    "avgBeatsPerKWord": 18.2,
+    "beatDistribution": {
+      "breathe": 0.169,
+      "inform": 0.221,
+      "advance": 0.301,
+      "bond": 0.037,
+      "turn": 0.066,
+      "reveal": 0.11,
+      "shift": 0.022,
+      "expand": 0.029,
+      "foreshadow": 0.015,
+      "resolve": 0.029
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.338,
+      "thought": 0.125,
+      "action": 0.301,
+      "environment": 0.118,
+      "narration": 0.059,
+      "document": 0.059
+    },
+    "markovTransitions": {
+      "breathe": {
+        "inform": 0.429,
+        "expand": 0.048,
+        "reveal": 0.238,
+        "advance": 0.286
+      },
+      "inform": {
+        "breathe": 0.133,
+        "advance": 0.4,
+        "inform": 0.2,
+        "turn": 0.067,
+        "expand": 0.067,
+        "shift": 0.033,
+        "reveal": 0.067,
+        "resolve": 0.033
+      },
+      "advance": {
+        "advance": 0.325,
+        "breathe": 0.15,
+        "inform": 0.15,
+        "bond": 0.125,
+        "reveal": 0.15,
+        "expand": 0.025,
+        "turn": 0.075
+      },
+      "bond": {
+        "inform": 0.25,
+        "shift": 0.25,
+        "advance": 0.25,
+        "breathe": 0.25
+      },
+      "turn": {
+        "inform": 0.429,
+        "resolve": 0.286,
+        "reveal": 0.143,
+        "advance": 0.143
+      },
+      "reveal": {
+        "turn": 0.2,
+        "inform": 0.2,
+        "reveal": 0.067,
+        "advance": 0.333,
+        "resolve": 0.067,
+        "breathe": 0.133
+      },
+      "shift": {
+        "advance": 1
+      },
+      "expand": {
+        "inform": 0.25,
+        "foreshadow": 0.5,
+        "turn": 0.25
+      },
+      "foreshadow": {
+        "shift": 1
+      },
+      "resolve": {
+        "advance": 0.5,
+        "breathe": 0.5
+      }
+    },
+    "sampleAnchors": [
+      "It was nearly midnight, and he was lying on his stomach in bed, the blankets drawn right over his head like a tent, a flashlight in one hand and a large leather-bound book (A History of Magic by Bathilda Bagshot) propped open against the pillow.",
+      "HELLO? HELLO? CAN YOU HEAR ME? I — WANT — TO — TALK — TO — HARRY — POTTER!",
+      "It was one o’clock in the morning. Harry’s stomach gave a funny jolt. He had been thirteen years old, without realizing it, for a whole hour.",
+      "Through the window soared three owls, two of them holding up the third, which appeared to be unconscious.",
+      "And out fell — a book. Harry just had time to register its handsome green cover, emblazoned with the golden title The Monster Book of Monsters, before it flipped onto its edge and scuttled sideways along the bed like some weird crab.",
+      "Harry went down to breakfast the next morning to find the three Dursleys already sitting around the kitchen table.",
+      "Far from wishing Harry a happy birthday, none of the Dursleys made any sign that they had noticed Harry enter the room",
+      "“. . . The public is warned that Black is armed and extremely dangerous.",
+      "“Look at the state of him, the filthy layabout! Look at his hair!”",
+      "He shot a nasty look sideways at Harry, whose untidy hair had always been a source of great annoyance to Uncle Vernon."
+    ]
+  },
+  {
+    "title": "Harry Potter and the Chamber of Secrets",
+    "scenesAnalyzed": 10,
+    "totalBeats": 137,
+    "avgBeatsPerKWord": 13.7,
+    "beatDistribution": {
+      "breathe": 0.175,
+      "inform": 0.204,
+      "advance": 0.241,
+      "bond": 0.08,
+      "turn": 0.073,
+      "reveal": 0.058,
+      "shift": 0.036,
+      "expand": 0.058,
+      "foreshadow": 0.044,
+      "resolve": 0.029
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.431,
+      "thought": 0.073,
+      "action": 0.234,
+      "environment": 0.182,
+      "narration": 0.058,
+      "memory": 0.007,
+      "document": 0.015
+    },
+    "markovTransitions": {
+      "breathe": {
+        "inform": 0.5,
+        "advance": 0.167,
+        "reveal": 0.083,
+        "foreshadow": 0.042,
+        "bond": 0.083,
+        "breathe": 0.083,
+        "expand": 0.042
+      },
+      "inform": {
+        "advance": 0.462,
+        "expand": 0.154,
+        "breathe": 0.115,
+        "bond": 0.077,
+        "reveal": 0.077,
+        "shift": 0.038,
+        "foreshadow": 0.038,
+        "inform": 0.038
+      },
+      "advance": {
+        "bond": 0.188,
+        "inform": 0.063,
+        "shift": 0.094,
+        "resolve": 0.094,
+        "reveal": 0.031,
+        "turn": 0.125,
+        "foreshadow": 0.063,
+        "advance": 0.188,
+        "breathe": 0.156
+      },
+      "bond": {
+        "turn": 0.182,
+        "advance": 0.182,
+        "reveal": 0.091,
+        "inform": 0.273,
+        "breathe": 0.182,
+        "expand": 0.091
+      },
+      "turn": {
+        "advance": 0.375,
+        "inform": 0.5,
+        "shift": 0.125
+      },
+      "reveal": {
+        "inform": 0.125,
+        "foreshadow": 0.125,
+        "breathe": 0.25,
+        "expand": 0.125,
+        "turn": 0.125,
+        "advance": 0.125,
+        "resolve": 0.125
+      },
+      "shift": {
+        "advance": 0.75,
+        "inform": 0.25
+      },
+      "expand": {
+        "reveal": 0.286,
+        "bond": 0.143,
+        "advance": 0.143,
+        "inform": 0.143,
+        "turn": 0.143,
+        "breathe": 0.143
+      },
+      "foreshadow": {
+        "turn": 0.4,
+        "inform": 0.2,
+        "expand": 0.2,
+        "breathe": 0.2
+      },
+      "resolve": {
+        "foreshadow": 0.5,
+        "breathe": 0.5
+      }
+    },
+    "sampleAnchors": [
+      "“If you can’t control that owl, it’ll have to go!”",
+      "“You’ve forgotten the magic word,” said Harry irritably.",
+      "“WHAT HAVE I TOLD YOU,” thundered his uncle, spraying spit over the table, “ABOUT SAYING THE ‘M’ WORD IN OUR HOUSE?”",
+      "Harry Potter was a wizard — a wizard fresh from his first year at Hogwarts School of Witchcraft and Wizardry.",
+      "“I’ll be in my bedroom, making no noise and pretending I’m not there,” said Harry tonelessly.",
+      "“I’ll be in my room, making no noise and pretending I’m not there,” he said.",
+      "“Happy birthday to me . . happy birthday to me . . .”",
+      "Two enormous green eyes had appeared among the leaves.",
+      "“MUUUUUUM!” howled Dudley, tripping over his feet as he dashed back toward the house.",
+      "The trouble was, there was already someone sitting on it."
+    ]
+  },
+  {
+    "title": "Harry Potter and the Sorcerer's Stone",
+    "scenesAnalyzed": 10,
+    "totalBeats": 146,
+    "avgBeatsPerKWord": 13.7,
+    "beatDistribution": {
+      "breathe": 0.164,
+      "inform": 0.192,
+      "advance": 0.295,
+      "bond": 0.082,
+      "turn": 0.055,
+      "reveal": 0.075,
+      "shift": 0.027,
+      "expand": 0.021,
+      "foreshadow": 0.055,
+      "resolve": 0.034
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.288,
+      "thought": 0.062,
+      "action": 0.349,
+      "environment": 0.164,
+      "narration": 0.123,
+      "memory": 0.007,
+      "document": 0.007
+    },
+    "markovTransitions": {
+      "breathe": {
+        "breathe": 0.05,
+        "inform": 0.5,
+        "advance": 0.3,
+        "resolve": 0.1,
+        "bond": 0.05
+      },
+      "inform": {
+        "advance": 0.464,
+        "bond": 0.107,
+        "inform": 0.071,
+        "reveal": 0.214,
+        "resolve": 0.036,
+        "turn": 0.036,
+        "breathe": 0.071
+      },
+      "advance": {
+        "breathe": 0.098,
+        "turn": 0.098,
+        "inform": 0.146,
+        "bond": 0.098,
+        "advance": 0.317,
+        "foreshadow": 0.049,
+        "shift": 0.049,
+        "resolve": 0.049,
+        "reveal": 0.073,
+        "expand": 0.024
+      },
+      "bond": {
+        "foreshadow": 0.417,
+        "inform": 0.25,
+        "reveal": 0.083,
+        "shift": 0.083,
+        "bond": 0.083,
+        "breathe": 0.083
+      },
+      "turn": {
+        "advance": 0.375,
+        "bond": 0.25,
+        "inform": 0.125,
+        "expand": 0.125,
+        "turn": 0.125
+      },
+      "reveal": {
+        "inform": 0.364,
+        "advance": 0.273,
+        "expand": 0.091,
+        "turn": 0.091,
+        "breathe": 0.091,
+        "shift": 0.091
+      },
+      "shift": {
+        "advance": 0.25,
+        "reveal": 0.25,
+        "turn": 0.25,
+        "breathe": 0.25
+      },
+      "expand": {
+        "advance": 0.5,
+        "breathe": 0.5
+      },
+      "foreshadow": {
+        "breathe": 0.333,
+        "inform": 0.167,
+        "bond": 0.167,
+        "advance": 0.333
+      },
+      "resolve": {
+        "inform": 0.25,
+        "advance": 0.25,
+        "foreshadow": 0.25,
+        "breathe": 0.25
+      }
+    },
+    "sampleAnchors": [
+      "Mr. and Mrs. Dursley, of number four, Privet Drive, were proud to say that they were perfectly normal, thank you very much.",
+      "It was on the corner of the street that he noticed the first sign of something peculiar — a cat reading a map.",
+      "“The Potters, that’s right, that’s what I heard —” “— yes, their son, Harry —”",
+      "“Don’t be sorry, my dear sir, for nothing could upset me today! Rejoice, for You-Know-Who has gone at last! Even Muggles like yourself should be celebrating, this happy, happy day!”",
+      "A man appeared on the corner the cat had been watching, appeared so suddenly and silently you’d have thought he’d just popped out of the ground.",
+      "Twelve times he clicked the Put-Outer, until the only lights left on the whole street were two tiny pinpricks in the distance, which were the eyes of the cat watching him.",
+      "“My dear Professor, I’ve never seen a cat sit so stiffly.”",
+      "“All this ‘You-Know-Who’ nonsense — for eleven years I have been trying to persuade people to call him by his proper name: Voldemort.”",
+      "“What they’re saying, ” she pressed on, “is that last night Voldemort turned up in Godric’s Hollow. He went to find the Potters. The rumor is that Lily and James Potter are — are — that they’re — dead. ”",
+      "— and a huge motorcycle fell out of the air and landed on the road in front of them."
+    ]
+  },
+  {
+    "title": "Reverend Insanity",
+    "scenesAnalyzed": 10,
+    "totalBeats": 149,
+    "avgBeatsPerKWord": 708,
+    "beatDistribution": {
+      "breathe": 0.161,
+      "inform": 0.235,
+      "advance": 0.195,
+      "bond": 0.101,
+      "turn": 0.074,
+      "reveal": 0.074,
+      "shift": 0.02,
+      "expand": 0.047,
+      "foreshadow": 0.047,
+      "resolve": 0.047
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.248,
+      "thought": 0.268,
+      "action": 0.228,
+      "environment": 0.181,
+      "narration": 0.074
+    },
+    "markovTransitions": {
+      "breathe": {
+        "inform": 0.583,
+        "advance": 0.083,
+        "turn": 0.083,
+        "expand": 0.083,
+        "bond": 0.042,
+        "breathe": 0.083,
+        "resolve": 0.042
+      },
+      "inform": {
+        "advance": 0.4,
+        "expand": 0.057,
+        "reveal": 0.086,
+        "resolve": 0.057,
+        "foreshadow": 0.029,
+        "breathe": 0.029,
+        "inform": 0.143,
+        "bond": 0.114,
+        "turn": 0.057,
+        "shift": 0.029
+      },
+      "advance": {
+        "breathe": 0.172,
+        "reveal": 0.069,
+        "expand": 0.034,
+        "advance": 0.207,
+        "inform": 0.276,
+        "bond": 0.138,
+        "foreshadow": 0.069,
+        "shift": 0.034
+      },
+      "bond": {
+        "turn": 0.143,
+        "breathe": 0.071,
+        "reveal": 0.357,
+        "inform": 0.286,
+        "expand": 0.071,
+        "bond": 0.071
+      },
+      "turn": {
+        "resolve": 0.25,
+        "inform": 0.375,
+        "advance": 0.25,
+        "foreshadow": 0.125
+      },
+      "reveal": {
+        "advance": 0.273,
+        "resolve": 0.182,
+        "breathe": 0.182,
+        "foreshadow": 0.091,
+        "reveal": 0.091,
+        "bond": 0.091,
+        "turn": 0.091
+      },
+      "shift": {
+        "bond": 0.5,
+        "expand": 0.5
+      },
+      "expand": {
+        "foreshadow": 0.286,
+        "inform": 0.143,
+        "breathe": 0.143,
+        "advance": 0.143,
+        "bond": 0.286
+      },
+      "foreshadow": {
+        "bond": 0.167,
+        "shift": 0.167,
+        "turn": 0.667
+      },
+      "resolve": {
+        "breathe": 0.667,
+        "advance": 0.333
+      }
+    },
+    "sampleAnchors": [
+      "Fang Yuan, you damned demon. In order to cultivate the Spring and Autumn Cicada, you've taken the lives of millions.",
+      "His gaze was faint, like a deep well, bottomless as always.",
+      "right at this time, with a loud explosion, Fang Yuan self-detonated.",
+      "The spring rain continued, quietly nourishing Qing Mao Mountain.",
+      "The Spring Autumn Cicada really worked … ",
+      "Fang Yuan, obediently hand over the Spring and Autumn Cicada, and I'll give you a quick death!",
+      "The setting sun on the green mountain, the autumn moon and the spring breeze.",
+      "Ancestors bless us, I hope that in this Awakening Ceremony, there will be many talented youths, to add new blood and hope to the family!",
+      "Especially the Bai clan's Bai Ning Bing, his talent is really terrifying.",
+      "If this child is tested to have A grade aptitude, with proper training, he may be able to compete with Bai Ning Bing."
+    ]
+  },
+  {
+    "title": "Nineteen Eighty-Four",
+    "scenesAnalyzed": 10,
+    "totalBeats": 119,
+    "avgBeatsPerKWord": 13.4,
+    "beatDistribution": {
+      "breathe": 0.176,
+      "inform": 0.202,
+      "advance": 0.252,
+      "bond": 0.017,
+      "turn": 0.042,
+      "reveal": 0.092,
+      "shift": 0.017,
+      "expand": 0.134,
+      "foreshadow": 0.042,
+      "resolve": 0.025
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.067,
+      "thought": 0.193,
+      "action": 0.269,
+      "environment": 0.235,
+      "narration": 0.202,
+      "memory": 0.017,
+      "document": 0.017
+    },
+    "markovTransitions": {
+      "breathe": {
+        "breathe": 0.1,
+        "inform": 0.5,
+        "expand": 0.05,
+        "advance": 0.15,
+        "resolve": 0.05,
+        "turn": 0.05,
+        "bond": 0.05,
+        "reveal": 0.05
+      },
+      "inform": {
+        "inform": 0.087,
+        "breathe": 0.13,
+        "reveal": 0.13,
+        "shift": 0.043,
+        "advance": 0.391,
+        "resolve": 0.043,
+        "expand": 0.13,
+        "turn": 0.043
+      },
+      "advance": {
+        "inform": 0.115,
+        "turn": 0.115,
+        "expand": 0.154,
+        "bond": 0.038,
+        "advance": 0.308,
+        "breathe": 0.115,
+        "reveal": 0.077,
+        "shift": 0.038,
+        "foreshadow": 0.038
+      },
+      "bond": {
+        "resolve": 0.5,
+        "inform": 0.5
+      },
+      "turn": {
+        "inform": 0.2,
+        "reveal": 0.2,
+        "advance": 0.6
+      },
+      "reveal": {
+        "expand": 0.2,
+        "advance": 0.4,
+        "breathe": 0.1,
+        "inform": 0.3
+      },
+      "shift": {
+        "breathe": 0.5,
+        "reveal": 0.5
+      },
+      "expand": {
+        "inform": 0.188,
+        "expand": 0.25,
+        "foreshadow": 0.25,
+        "advance": 0.063,
+        "reveal": 0.188,
+        "breathe": 0.063
+      },
+      "foreshadow": {
+        "advance": 0.5,
+        "expand": 0.25,
+        "inform": 0.25
+      },
+      "resolve": {
+        "expand": 1
+      }
+    },
+    "sampleAnchors": [
+      "It was a bright cold day in April, and the clocks were striking thirteen.",
+      "BIG BROTHER IS WATCHING YOU, the caption beneath it ran.",
+      "The instrument (the telescreen, it was called) could be dimmed, but there was no way of shutting it off completely.",
+      "You had to live--did live, from habit that became instinct--in the assumption that every sound you made was overheard, and, except in darkness, every movement scrutinized.",
+      "WAR IS PEACE\n  FREEDOM IS SLAVERY\n  IGNORANCE IS STRENGTH",
+      "The stuff was like nitric acid",
+      "a thick, quarto-sized blank book with a red back and a marbled cover",
+      "a shallow alcove in which Winston was now sitting",
+      "punished by death, or at least by twenty-five years in a forced-labour camp",
+      "April 4th, 1984."
+    ]
+  },
+  {
+    "title": "The Great Gatsby",
+    "scenesAnalyzed": 10,
+    "totalBeats": 146,
+    "avgBeatsPerKWord": 12.8,
+    "beatDistribution": {
+      "breathe": 0.192,
+      "inform": 0.212,
+      "advance": 0.205,
+      "bond": 0.096,
+      "turn": 0.048,
+      "reveal": 0.103,
+      "shift": 0.027,
+      "expand": 0.034,
+      "foreshadow": 0.048,
+      "resolve": 0.034
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.377,
+      "thought": 0.041,
+      "action": 0.233,
+      "environment": 0.171,
+      "narration": 0.171,
+      "memory": 0.007
+    },
+    "markovTransitions": {
+      "breathe": {
+        "inform": 0.5,
+        "bond": 0.077,
+        "breathe": 0.038,
+        "reveal": 0.077,
+        "expand": 0.115,
+        "advance": 0.192
+      },
+      "inform": {
+        "reveal": 0.161,
+        "advance": 0.387,
+        "expand": 0.032,
+        "bond": 0.161,
+        "inform": 0.065,
+        "breathe": 0.065,
+        "shift": 0.032,
+        "foreshadow": 0.065,
+        "turn": 0.032
+      },
+      "advance": {
+        "bond": 0.138,
+        "breathe": 0.345,
+        "reveal": 0.034,
+        "advance": 0.138,
+        "resolve": 0.034,
+        "inform": 0.207,
+        "turn": 0.069,
+        "shift": 0.034
+      },
+      "bond": {
+        "breathe": 0.143,
+        "resolve": 0.071,
+        "inform": 0.214,
+        "turn": 0.143,
+        "reveal": 0.214,
+        "advance": 0.214
+      },
+      "turn": {
+        "foreshadow": 0.143,
+        "bond": 0.286,
+        "advance": 0.143,
+        "inform": 0.143,
+        "resolve": 0.143,
+        "reveal": 0.143
+      },
+      "reveal": {
+        "turn": 0.143,
+        "foreshadow": 0.143,
+        "inform": 0.214,
+        "shift": 0.143,
+        "advance": 0.214,
+        "resolve": 0.071,
+        "reveal": 0.071
+      },
+      "shift": {
+        "breathe": 0.25,
+        "advance": 0.25,
+        "reveal": 0.25,
+        "resolve": 0.25
+      },
+      "expand": {
+        "breathe": 0.4,
+        "advance": 0.2,
+        "inform": 0.2,
+        "bond": 0.2
+      },
+      "foreshadow": {
+        "reveal": 0.25,
+        "breathe": 0.25,
+        "inform": 0.25,
+        "expand": 0.25
+      },
+      "resolve": {
+        "foreshadow": 1
+      }
+    },
+    "sampleAnchors": [
+      "“Whenever you feel like criticizing anyone,” he told me, “just remember that all the people in this world haven’t had the advantages that you’ve had.”",
+      "Only Gatsby, the man who gives his name to this book, was exempt from my reaction",
+      "it was an extraordinary gift for hope, a romantic readiness such as I have never found in any other person",
+      "Instead of being the warm centre of the world, the Middle West now seemed like the ragged edge of the universe—so I decided to go East and learn the bond business.",
+      "I had that familiar conviction that life was beginning over again with the summer.",
+      "I bought a dozen volumes on banking and credit and investment securities",
+      "Twenty miles from the city a pair of enormous eggs",
+      "My house was at the very tip of the egg, only fifty yards from the Sound",
+      "It was Gatsby’s mansion.",
+      "My own house was an eyesore, but it was a small eyesore"
+    ]
+  },
+  {
+    "title": "A Tale of Two Cities",
+    "scenesAnalyzed": 10,
+    "totalBeats": 159,
+    "avgBeatsPerKWord": 13.1,
+    "beatDistribution": {
+      "breathe": 0.208,
+      "inform": 0.189,
+      "advance": 0.201,
+      "bond": 0.094,
+      "turn": 0.031,
+      "reveal": 0.063,
+      "shift": 0.031,
+      "expand": 0.088,
+      "foreshadow": 0.057,
+      "resolve": 0.038
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.308,
+      "thought": 0.119,
+      "action": 0.226,
+      "environment": 0.157,
+      "narration": 0.189
+    },
+    "markovTransitions": {
+      "breathe": {
+        "inform": 0.323,
+        "advance": 0.29,
+        "expand": 0.097,
+        "reveal": 0.097,
+        "resolve": 0.032,
+        "breathe": 0.032,
+        "foreshadow": 0.032,
+        "bond": 0.032,
+        "shift": 0.065
+      },
+      "inform": {
+        "expand": 0.172,
+        "inform": 0.103,
+        "foreshadow": 0.034,
+        "advance": 0.276,
+        "reveal": 0.034,
+        "resolve": 0.069,
+        "breathe": 0.069,
+        "bond": 0.207,
+        "turn": 0.034
+      },
+      "advance": {
+        "breathe": 0.3,
+        "turn": 0.067,
+        "inform": 0.2,
+        "advance": 0.2,
+        "reveal": 0.067,
+        "foreshadow": 0.033,
+        "bond": 0.067,
+        "expand": 0.033,
+        "shift": 0.033
+      },
+      "bond": {
+        "advance": 0.267,
+        "inform": 0.2,
+        "bond": 0.2,
+        "shift": 0.067,
+        "resolve": 0.067,
+        "breathe": 0.067,
+        "reveal": 0.067,
+        "expand": 0.067
+      },
+      "turn": {
+        "advance": 0.4,
+        "reveal": 0.4,
+        "resolve": 0.2
+      },
+      "reveal": {
+        "bond": 0.2,
+        "breathe": 0.2,
+        "advance": 0.2,
+        "inform": 0.3,
+        "turn": 0.1
+      },
+      "shift": {
+        "bond": 0.25,
+        "reveal": 0.25,
+        "foreshadow": 0.25,
+        "inform": 0.25
+      },
+      "expand": {
+        "inform": 0.231,
+        "resolve": 0.077,
+        "foreshadow": 0.231,
+        "breathe": 0.231,
+        "advance": 0.077,
+        "turn": 0.077,
+        "expand": 0.077
+      },
+      "foreshadow": {
+        "expand": 0.375,
+        "breathe": 0.5,
+        "foreshadow": 0.125
+      },
+      "resolve": {
+        "breathe": 0.5,
+        "foreshadow": 0.25,
+        "shift": 0.25
+      }
+    },
+    "sampleAnchors": [
+      "It was the best of times, it was the worst of times",
+      "It was the year of Our Lord one thousand seven hundred and seventy-five.",
+      "already marked by the Woodman, Fate, to come down and be sawn into boards, to make a certain movable framework with a sack and a knife in it, terrible in history.",
+      "Daring burglaries by armed men, and highway robberies, took place in the capital itself every night",
+      "It was the Dover road that lay, on a Friday night late in November",
+      "It was the best of times, it was the worst of times",
+      "It was the year of Our Lord one thousand seven hundred and seventy-five.",
+      "the Woodman, Fate, to come down and be sawn into boards, to make a certain movable framework with a sack and a knife in it, terrible in history.",
+      "There was a steaming mist in all the hollows, and it had roamed in its forlornness up the hill, like an evil spirit",
+      "RECALLED TO LIFE."
+    ]
+  },
+  {
+    "title": "Romeo and Juliet",
+    "scenesAnalyzed": 10,
+    "totalBeats": 158,
+    "avgBeatsPerKWord": 12.1,
+    "beatDistribution": {
+      "breathe": 0.127,
+      "inform": 0.196,
+      "advance": 0.272,
+      "bond": 0.108,
+      "turn": 0.063,
+      "reveal": 0.082,
+      "shift": 0.032,
+      "expand": 0.044,
+      "foreshadow": 0.032,
+      "resolve": 0.044
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.696,
+      "thought": 0.057,
+      "action": 0.101,
+      "environment": 0.114,
+      "narration": 0.032
+    },
+    "markovTransitions": {
+      "breathe": {
+        "breathe": 0.235,
+        "inform": 0.471,
+        "advance": 0.118,
+        "bond": 0.059,
+        "turn": 0.059,
+        "reveal": 0.059
+      },
+      "inform": {
+        "advance": 0.452,
+        "inform": 0.129,
+        "reveal": 0.161,
+        "expand": 0.097,
+        "bond": 0.065,
+        "resolve": 0.032,
+        "breathe": 0.032,
+        "foreshadow": 0.032
+      },
+      "advance": {
+        "advance": 0.317,
+        "shift": 0.049,
+        "turn": 0.122,
+        "expand": 0.049,
+        "inform": 0.195,
+        "foreshadow": 0.073,
+        "resolve": 0.024,
+        "bond": 0.098,
+        "reveal": 0.073
+      },
+      "bond": {
+        "inform": 0.294,
+        "advance": 0.294,
+        "reveal": 0.118,
+        "turn": 0.118,
+        "bond": 0.059,
+        "resolve": 0.059,
+        "expand": 0.059
+      },
+      "turn": {
+        "advance": 0.1,
+        "resolve": 0.2,
+        "bond": 0.2,
+        "foreshadow": 0.1,
+        "shift": 0.1,
+        "breathe": 0.2,
+        "inform": 0.1
+      },
+      "reveal": {
+        "bond": 0.462,
+        "advance": 0.154,
+        "inform": 0.154,
+        "turn": 0.077,
+        "shift": 0.154
+      },
+      "shift": {
+        "advance": 0.2,
+        "inform": 0.2,
+        "reveal": 0.2,
+        "bond": 0.2,
+        "resolve": 0.2
+      },
+      "expand": {
+        "advance": 0.5,
+        "turn": 0.167,
+        "inform": 0.167,
+        "breathe": 0.167
+      },
+      "foreshadow": {
+        "resolve": 0.25,
+        "advance": 0.5,
+        "expand": 0.25
+      },
+      "resolve": {
+        "breathe": 0.5,
+        "inform": 0.25,
+        "reveal": 0.25
+      }
+    },
+    "sampleAnchors": [
+      "Two households, both alike in dignity",
+      "A dog of the house of Montague moves me.",
+      "Do you bite your thumb at us, sir?",
+      "I hate the word As I hate hell, all Montagues, and thee: Have at thee, coward.",
+      "If ever you disturb our streets again, Your lives shall pay the forfeit of the peace.",
+      "Away from light steals home my heavy son, And private in his chamber pens himself, Shuts up his windows, locks fair daylight out And makes himself an artificial night.",
+      "O brawling love! O loving hate! O anything, of nothing first create! O heavy lightness! serious vanity!",
+      "she’ll not be hit With Cupid’s arrow, she hath Dian’s wit; And in strong proof of chastity well arm’d, From love’s weak childish bow she lives uncharm’d.",
+      "I’ll pay that doctrine, or else die in debt.",
+      "My will to her consent is but a part;"
+    ]
+  },
+  {
+    "title": "Alice's Adventures in Wonderland",
+    "scenesAnalyzed": 10,
+    "totalBeats": 160,
+    "avgBeatsPerKWord": 12.8,
+    "beatDistribution": {
+      "breathe": 0.125,
+      "inform": 0.194,
+      "advance": 0.388,
+      "bond": 0.031,
+      "turn": 0.075,
+      "reveal": 0.069,
+      "shift": 0.031,
+      "expand": 0.025,
+      "foreshadow": 0.019,
+      "resolve": 0.044
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.313,
+      "thought": 0.2,
+      "action": 0.375,
+      "environment": 0.113
+    },
+    "markovTransitions": {
+      "breathe": {
+        "inform": 0.5,
+        "advance": 0.35,
+        "expand": 0.05,
+        "breathe": 0.1
+      },
+      "inform": {
+        "breathe": 0.033,
+        "advance": 0.567,
+        "turn": 0.067,
+        "reveal": 0.067,
+        "inform": 0.167,
+        "bond": 0.033,
+        "shift": 0.033,
+        "expand": 0.033
+      },
+      "advance": {
+        "advance": 0.322,
+        "turn": 0.136,
+        "breathe": 0.068,
+        "reveal": 0.119,
+        "inform": 0.136,
+        "resolve": 0.085,
+        "expand": 0.017,
+        "bond": 0.068,
+        "shift": 0.034,
+        "foreshadow": 0.017
+      },
+      "bond": {
+        "advance": 0.4,
+        "breathe": 0.2,
+        "shift": 0.2,
+        "resolve": 0.2
+      },
+      "turn": {
+        "advance": 0.333,
+        "breathe": 0.167,
+        "reveal": 0.167,
+        "resolve": 0.083,
+        "inform": 0.167,
+        "expand": 0.083
+      },
+      "reveal": {
+        "inform": 0.333,
+        "advance": 0.556,
+        "shift": 0.111
+      },
+      "shift": {
+        "advance": 0.6,
+        "inform": 0.2,
+        "turn": 0.2
+      },
+      "expand": {
+        "advance": 1
+      },
+      "foreshadow": {
+        "advance": 0.5,
+        "turn": 0.5
+      },
+      "resolve": {
+        "inform": 0.2,
+        "advance": 0.2,
+        "foreshadow": 0.4,
+        "breathe": 0.2
+      }
+    },
+    "sampleAnchors": [
+      "Alice was beginning to get very tired of sitting by her sister on the bank",
+      "suddenly a White Rabbit with pink eyes ran close by her.",
+      "when the Rabbit actually _took a watch out of its waistcoat-pocket_",
+      "In another moment down went Alice after it, never once considering how in the world she was to get out again.",
+      "she found herself falling down a very deep well.",
+      "Down, down, down.",
+      "“Oh my ears and whiskers, how late it’s getting!”",
+      "“DRINK ME,” beautifully printed on it in large letters.",
+      "“What a curious feeling!” said Alice; “I must be shutting up like a telescope.”",
+      "“EAT ME” were beautifully marked in currants."
+    ]
+  },
+  {
+    "title": "The Wealth Of Nations",
+    "scenesAnalyzed": 10,
+    "totalBeats": 138,
+    "avgBeatsPerKWord": 12.7,
+    "beatDistribution": {
+      "breathe": 0.094,
+      "inform": 0.406,
+      "advance": 0.159,
+      "bond": 0.007,
+      "turn": 0.036,
+      "reveal": 0.029,
+      "shift": 0.014,
+      "expand": 0.138,
+      "foreshadow": 0.029,
+      "resolve": 0.087
+    },
+    "mechanismDistribution": {
+      "action": 0.007,
+      "environment": 0.014,
+      "narration": 0.957,
+      "document": 0.022
+    },
+    "markovTransitions": {
+      "breathe": {
+        "inform": 0.923,
+        "bond": 0.077
+      },
+      "inform": {
+        "expand": 0.161,
+        "advance": 0.304,
+        "resolve": 0.054,
+        "inform": 0.268,
+        "breathe": 0.054,
+        "reveal": 0.054,
+        "turn": 0.071,
+        "foreshadow": 0.036
+      },
+      "advance": {
+        "expand": 0.286,
+        "foreshadow": 0.048,
+        "inform": 0.619,
+        "turn": 0.048
+      },
+      "turn": {
+        "inform": 0.4,
+        "resolve": 0.6
+      },
+      "reveal": {
+        "inform": 0.5,
+        "resolve": 0.25,
+        "shift": 0.25
+      },
+      "shift": {
+        "resolve": 1
+      },
+      "expand": {
+        "inform": 0.529,
+        "expand": 0.059,
+        "resolve": 0.176,
+        "advance": 0.176,
+        "reveal": 0.059
+      },
+      "foreshadow": {
+        "inform": 0.75,
+        "advance": 0.25
+      },
+      "resolve": {
+        "expand": 0.429,
+        "shift": 0.143,
+        "foreshadow": 0.143,
+        "resolve": 0.143,
+        "advance": 0.143
+      }
+    },
+    "sampleAnchors": [
+      "The greatest improvements in the productive powers of labour... seem to have been the effects of the division of labour.",
+      "One man draws out the wire; another straights it; a third cuts it...",
+      "Those ten persons, therefore, could make among them upwards of forty-eight thousand pins in a day.",
+      "The nature of agriculture, indeed, does not admit of so many subdivisions of labour...",
+      "This great increase in the quantity of work... is owing to three different circumstances",
+      "First, the improvement of the dexterity of the workmen, necessarily increases the quantity of the work he can perform",
+      "One of those boys...observed that, by tying a string from the handle of the valve...the valve would open and shut without his assistance, and leave him at liberty to divert himself with his play-fellows.",
+      "It is the great multiplication of the productions of all the different arts, in consequence of the division of labour, which occasions...that universal opulence which extends itself to the lowest ranks of the people.",
+      "Observe the accommodation of the most common artificer or daylabourer in a civilized and thriving country, and you will perceive that the number of people, of whose industry a part...has been employed in procuring him this accommodation, exceeds all computation.",
+      "the accommodation of an European prince does not always so much exceed that of an industrious and frugal peasant, as the accommodation of the latter exceeds that of many an African king"
+    ]
+  }
+]

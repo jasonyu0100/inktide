@@ -1,0 +1,116 @@
+{
+  "title": "Romeo and Juliet",
+  "scenesAnalyzed": 10,
+  "totalBeats": 158,
+  "avgBeatsPerKWord": 12.1,
+  "beatDistribution": {
+    "breathe": 0.127,
+    "inform": 0.196,
+    "advance": 0.272,
+    "bond": 0.108,
+    "turn": 0.063,
+    "reveal": 0.082,
+    "shift": 0.032,
+    "expand": 0.044,
+    "foreshadow": 0.032,
+    "resolve": 0.044
+  },
+  "mechanismDistribution": {
+    "dialogue": 0.696,
+    "thought": 0.057,
+    "action": 0.101,
+    "environment": 0.114,
+    "narration": 0.032
+  },
+  "markovTransitions": {
+    "breathe": {
+      "breathe": 0.235,
+      "inform": 0.471,
+      "advance": 0.118,
+      "bond": 0.059,
+      "turn": 0.059,
+      "reveal": 0.059
+    },
+    "inform": {
+      "advance": 0.452,
+      "inform": 0.129,
+      "reveal": 0.161,
+      "expand": 0.097,
+      "bond": 0.065,
+      "resolve": 0.032,
+      "breathe": 0.032,
+      "foreshadow": 0.032
+    },
+    "advance": {
+      "advance": 0.317,
+      "shift": 0.049,
+      "turn": 0.122,
+      "expand": 0.049,
+      "inform": 0.195,
+      "foreshadow": 0.073,
+      "resolve": 0.024,
+      "bond": 0.098,
+      "reveal": 0.073
+    },
+    "bond": {
+      "inform": 0.294,
+      "advance": 0.294,
+      "reveal": 0.118,
+      "turn": 0.118,
+      "bond": 0.059,
+      "resolve": 0.059,
+      "expand": 0.059
+    },
+    "turn": {
+      "advance": 0.1,
+      "resolve": 0.2,
+      "bond": 0.2,
+      "foreshadow": 0.1,
+      "shift": 0.1,
+      "breathe": 0.2,
+      "inform": 0.1
+    },
+    "reveal": {
+      "bond": 0.462,
+      "advance": 0.154,
+      "inform": 0.154,
+      "turn": 0.077,
+      "shift": 0.154
+    },
+    "shift": {
+      "advance": 0.2,
+      "inform": 0.2,
+      "reveal": 0.2,
+      "bond": 0.2,
+      "resolve": 0.2
+    },
+    "expand": {
+      "advance": 0.5,
+      "turn": 0.167,
+      "inform": 0.167,
+      "breathe": 0.167
+    },
+    "foreshadow": {
+      "resolve": 0.25,
+      "advance": 0.5,
+      "expand": 0.25
+    },
+    "resolve": {
+      "breathe": 0.5,
+      "inform": 0.25,
+      "reveal": 0.25
+    }
+  },
+  "sampleAnchors": [
+    "Two households, both alike in dignity",
+    "A dog of the house of Montague moves me.",
+    "Do you bite your thumb at us, sir?",
+    "I hate the word As I hate hell, all Montagues, and thee: Have at thee, coward.",
+    "If ever you disturb our streets again, Your lives shall pay the forfeit of the peace.",
+    "Away from light steals home my heavy son, And private in his chamber pens himself, Shuts up his windows, locks fair daylight out And makes himself an artificial night.",
+    "O brawling love! O loving hate! O anything, of nothing first create! O heavy lightness! serious vanity!",
+    "she’ll not be hit With Cupid’s arrow, she hath Dian’s wit; And in strong proof of chastity well arm’d, From love’s weak childish bow she lives uncharm’d.",
+    "I’ll pay that doctrine, or else die in debt.",
+    "My will to her consent is but a part;"
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "title": "Nineteen Eighty-Four",
+  "scenesAnalyzed": 10,
+  "totalBeats": 119,
+  "avgBeatsPerKWord": 13.4,
+  "beatDistribution": {
+    "breathe": 0.176,
+    "inform": 0.202,
+    "advance": 0.252,
+    "bond": 0.017,
+    "turn": 0.042,
+    "reveal": 0.092,
+    "shift": 0.017,
+    "expand": 0.134,
+    "foreshadow": 0.042,
+    "resolve": 0.025
+  },
+  "mechanismDistribution": {
+    "dialogue": 0.067,
+    "thought": 0.193,
+    "action": 0.269,
+    "environment": 0.235,
+    "narration": 0.202,
+    "memory": 0.017,
+    "document": 0.017
+  },
+  "markovTransitions": {
+    "breathe": {
+      "breathe": 0.1,
+      "inform": 0.5,
+      "expand": 0.05,
+      "advance": 0.15,
+      "resolve": 0.05,
+      "turn": 0.05,
+      "bond": 0.05,
+      "reveal": 0.05
+    },
+    "inform": {
+      "inform": 0.087,
+      "breathe": 0.13,
+      "reveal": 0.13,
+      "shift": 0.043,
+      "advance": 0.391,
+      "resolve": 0.043,
+      "expand": 0.13,
+      "turn": 0.043
+    },
+    "advance": {
+      "inform": 0.115,
+      "turn": 0.115,
+      "expand": 0.154,
+      "bond": 0.038,
+      "advance": 0.308,
+      "breathe": 0.115,
+      "reveal": 0.077,
+      "shift": 0.038,
+      "foreshadow": 0.038
+    },
+    "bond": {
+      "resolve": 0.5,
+      "inform": 0.5
+    },
+    "turn": {
+      "inform": 0.2,
+      "reveal": 0.2,
+      "advance": 0.6
+    },
+    "reveal": {
+      "expand": 0.2,
+      "advance": 0.4,
+      "breathe": 0.1,
+      "inform": 0.3
+    },
+    "shift": {
+      "breathe": 0.5,
+      "reveal": 0.5
+    },
+    "expand": {
+      "inform": 0.188,
+      "expand": 0.25,
+      "foreshadow": 0.25,
+      "advance": 0.063,
+      "reveal": 0.188,
+      "breathe": 0.063
+    },
+    "foreshadow": {
+      "advance": 0.5,
+      "expand": 0.25,
+      "inform": 0.25
+    },
+    "resolve": {
+      "expand": 1
+    }
+  },
+  "sampleAnchors": [
+    "It was a bright cold day in April, and the clocks were striking thirteen.",
+    "BIG BROTHER IS WATCHING YOU, the caption beneath it ran.",
+    "The instrument (the telescreen, it was called) could be dimmed, but there was no way of shutting it off completely.",
+    "You had to live--did live, from habit that became instinct--in the assumption that every sound you made was overheard, and, except in darkness, every movement scrutinized.",
+    "WAR IS PEACE\n  FREEDOM IS SLAVERY\n  IGNORANCE IS STRENGTH",
+    "The stuff was like nitric acid",
+    "a thick, quarto-sized blank book with a red back and a marbled cover",
+    "a shallow alcove in which Winston was now sitting",
+    "punished by death, or at least by twenty-five years in a forced-labour camp",
+    "April 4th, 1984."
+  ]
+}

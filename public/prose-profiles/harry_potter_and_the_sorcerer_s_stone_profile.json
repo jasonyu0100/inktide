@@ -1,0 +1,114 @@
+{
+  "title": "Harry Potter and the Sorcerer's Stone",
+  "scenesAnalyzed": 10,
+  "totalBeats": 146,
+  "avgBeatsPerKWord": 13.7,
+  "beatDistribution": {
+    "breathe": 0.164,
+    "inform": 0.192,
+    "advance": 0.295,
+    "bond": 0.082,
+    "turn": 0.055,
+    "reveal": 0.075,
+    "shift": 0.027,
+    "expand": 0.021,
+    "foreshadow": 0.055,
+    "resolve": 0.034
+  },
+  "mechanismDistribution": {
+    "dialogue": 0.288,
+    "thought": 0.062,
+    "action": 0.349,
+    "environment": 0.164,
+    "narration": 0.123,
+    "memory": 0.007,
+    "document": 0.007
+  },
+  "markovTransitions": {
+    "breathe": {
+      "breathe": 0.05,
+      "inform": 0.5,
+      "advance": 0.3,
+      "resolve": 0.1,
+      "bond": 0.05
+    },
+    "inform": {
+      "advance": 0.464,
+      "bond": 0.107,
+      "inform": 0.071,
+      "reveal": 0.214,
+      "resolve": 0.036,
+      "turn": 0.036,
+      "breathe": 0.071
+    },
+    "advance": {
+      "breathe": 0.098,
+      "turn": 0.098,
+      "inform": 0.146,
+      "bond": 0.098,
+      "advance": 0.317,
+      "foreshadow": 0.049,
+      "shift": 0.049,
+      "resolve": 0.049,
+      "reveal": 0.073,
+      "expand": 0.024
+    },
+    "bond": {
+      "foreshadow": 0.417,
+      "inform": 0.25,
+      "reveal": 0.083,
+      "shift": 0.083,
+      "bond": 0.083,
+      "breathe": 0.083
+    },
+    "turn": {
+      "advance": 0.375,
+      "bond": 0.25,
+      "inform": 0.125,
+      "expand": 0.125,
+      "turn": 0.125
+    },
+    "reveal": {
+      "inform": 0.364,
+      "advance": 0.273,
+      "expand": 0.091,
+      "turn": 0.091,
+      "breathe": 0.091,
+      "shift": 0.091
+    },
+    "shift": {
+      "advance": 0.25,
+      "reveal": 0.25,
+      "turn": 0.25,
+      "breathe": 0.25
+    },
+    "expand": {
+      "advance": 0.5,
+      "breathe": 0.5
+    },
+    "foreshadow": {
+      "breathe": 0.333,
+      "inform": 0.167,
+      "bond": 0.167,
+      "advance": 0.333
+    },
+    "resolve": {
+      "inform": 0.25,
+      "advance": 0.25,
+      "foreshadow": 0.25,
+      "breathe": 0.25
+    }
+  },
+  "sampleAnchors": [
+    "Mr. and Mrs. Dursley, of number four, Privet Drive, were proud to say that they were perfectly normal, thank you very much.",
+    "It was on the corner of the street that he noticed the first sign of something peculiar — a cat reading a map.",
+    "“The Potters, that’s right, that’s what I heard —” “— yes, their son, Harry —”",
+    "“Don’t be sorry, my dear sir, for nothing could upset me today! Rejoice, for You-Know-Who has gone at last! Even Muggles like yourself should be celebrating, this happy, happy day!”",
+    "A man appeared on the corner the cat had been watching, appeared so suddenly and silently you’d have thought he’d just popped out of the ground.",
+    "Twelve times he clicked the Put-Outer, until the only lights left on the whole street were two tiny pinpricks in the distance, which were the eyes of the cat watching him.",
+    "“My dear Professor, I’ve never seen a cat sit so stiffly.”",
+    "“All this ‘You-Know-Who’ nonsense — for eleven years I have been trying to persuade people to call him by his proper name: Voldemort.”",
+    "“What they’re saying, ” she pressed on, “is that last night Voldemort turned up in Godric’s Hollow. He went to find the Potters. The rumor is that Lily and James Potter are — are — that they’re — dead. ”",
+    "— and a huge motorcycle fell out of the air and landed on the road in front of them."
+  ]
+}

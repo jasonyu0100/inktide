@@ -1,0 +1,103 @@
+{
+  "title": "Alice's Adventures in Wonderland",
+  "scenesAnalyzed": 10,
+  "totalBeats": 160,
+  "avgBeatsPerKWord": 12.8,
+  "beatDistribution": {
+    "breathe": 0.125,
+    "inform": 0.194,
+    "advance": 0.388,
+    "bond": 0.031,
+    "turn": 0.075,
+    "reveal": 0.069,
+    "shift": 0.031,
+    "expand": 0.025,
+    "foreshadow": 0.019,
+    "resolve": 0.044
+  },
+  "mechanismDistribution": {
+    "dialogue": 0.313,
+    "thought": 0.2,
+    "action": 0.375,
+    "environment": 0.113
+  },
+  "markovTransitions": {
+    "breathe": {
+      "inform": 0.5,
+      "advance": 0.35,
+      "expand": 0.05,
+      "breathe": 0.1
+    },
+    "inform": {
+      "breathe": 0.033,
+      "advance": 0.567,
+      "turn": 0.067,
+      "reveal": 0.067,
+      "inform": 0.167,
+      "bond": 0.033,
+      "shift": 0.033,
+      "expand": 0.033
+    },
+    "advance": {
+      "advance": 0.322,
+      "turn": 0.136,
+      "breathe": 0.068,
+      "reveal": 0.119,
+      "inform": 0.136,
+      "resolve": 0.085,
+      "expand": 0.017,
+      "bond": 0.068,
+      "shift": 0.034,
+      "foreshadow": 0.017
+    },
+    "bond": {
+      "advance": 0.4,
+      "breathe": 0.2,
+      "shift": 0.2,
+      "resolve": 0.2
+    },
+    "turn": {
+      "advance": 0.333,
+      "breathe": 0.167,
+      "reveal": 0.167,
+      "resolve": 0.083,
+      "inform": 0.167,
+      "expand": 0.083
+    },
+    "reveal": {
+      "inform": 0.333,
+      "advance": 0.556,
+      "shift": 0.111
+    },
+    "shift": {
+      "advance": 0.6,
+      "inform": 0.2,
+      "turn": 0.2
+    },
+    "expand": {
+      "advance": 1
+    },
+    "foreshadow": {
+      "advance": 0.5,
+      "turn": 0.5
+    },
+    "resolve": {
+      "inform": 0.2,
+      "advance": 0.2,
+      "foreshadow": 0.4,
+      "breathe": 0.2
+    }
+  },
+  "sampleAnchors": [
+    "Alice was beginning to get very tired of sitting by her sister on the bank",
+    "suddenly a White Rabbit with pink eyes ran close by her.",
+    "when the Rabbit actually _took a watch out of its waistcoat-pocket_",
+    "In another moment down went Alice after it, never once considering how in the world she was to get out again.",
+    "she found herself falling down a very deep well.",
+    "Down, down, down.",
+    "“Oh my ears and whiskers, how late it’s getting!”",
+    "“DRINK ME,” beautifully printed on it in large letters.",
+    "“What a curious feeling!” said Alice; “I must be shutting up like a telescope.”",
+    "“EAT ME” were beautifully marked in currants."
+  ]
+}

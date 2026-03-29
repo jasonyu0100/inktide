@@ -1,0 +1,115 @@
+{
+  "title": "The Great Gatsby",
+  "scenesAnalyzed": 10,
+  "totalBeats": 146,
+  "avgBeatsPerKWord": 12.8,
+  "beatDistribution": {
+    "breathe": 0.192,
+    "inform": 0.212,
+    "advance": 0.205,
+    "bond": 0.096,
+    "turn": 0.048,
+    "reveal": 0.103,
+    "shift": 0.027,
+    "expand": 0.034,
+    "foreshadow": 0.048,
+    "resolve": 0.034
+  },
+  "mechanismDistribution": {
+    "dialogue": 0.377,
+    "thought": 0.041,
+    "action": 0.233,
+    "environment": 0.171,
+    "narration": 0.171,
+    "memory": 0.007
+  },
+  "markovTransitions": {
+    "breathe": {
+      "inform": 0.5,
+      "bond": 0.077,
+      "breathe": 0.038,
+      "reveal": 0.077,
+      "expand": 0.115,
+      "advance": 0.192
+    },
+    "inform": {
+      "reveal": 0.161,
+      "advance": 0.387,
+      "expand": 0.032,
+      "bond": 0.161,
+      "inform": 0.065,
+      "breathe": 0.065,
+      "shift": 0.032,
+      "foreshadow": 0.065,
+      "turn": 0.032
+    },
+    "advance": {
+      "bond": 0.138,
+      "breathe": 0.345,
+      "reveal": 0.034,
+      "advance": 0.138,
+      "resolve": 0.034,
+      "inform": 0.207,
+      "turn": 0.069,
+      "shift": 0.034
+    },
+    "bond": {
+      "breathe": 0.143,
+      "resolve": 0.071,
+      "inform": 0.214,
+      "turn": 0.143,
+      "reveal": 0.214,
+      "advance": 0.214
+    },
+    "turn": {
+      "foreshadow": 0.143,
+      "bond": 0.286,
+      "advance": 0.143,
+      "inform": 0.143,
+      "resolve": 0.143,
+      "reveal": 0.143
+    },
+    "reveal": {
+      "turn": 0.143,
+      "foreshadow": 0.143,
+      "inform": 0.214,
+      "shift": 0.143,
+      "advance": 0.214,
+      "resolve": 0.071,
+      "reveal": 0.071
+    },
+    "shift": {
+      "breathe": 0.25,
+      "advance": 0.25,
+      "reveal": 0.25,
+      "resolve": 0.25
+    },
+    "expand": {
+      "breathe": 0.4,
+      "advance": 0.2,
+      "inform": 0.2,
+      "bond": 0.2
+    },
+    "foreshadow": {
+      "reveal": 0.25,
+      "breathe": 0.25,
+      "inform": 0.25,
+      "expand": 0.25
+    },
+    "resolve": {
+      "foreshadow": 1
+    }
+  },
+  "sampleAnchors": [
+    "“Whenever you feel like criticizing anyone,” he told me, “just remember that all the people in this world haven’t had the advantages that you’ve had.”",
+    "Only Gatsby, the man who gives his name to this book, was exempt from my reaction",
+    "it was an extraordinary gift for hope, a romantic readiness such as I have never found in any other person",
+    "Instead of being the warm centre of the world, the Middle West now seemed like the ragged edge of the universe—so I decided to go East and learn the bond business.",
+    "I had that familiar conviction that life was beginning over again with the summer.",
+    "I bought a dozen volumes on banking and credit and investment securities",
+    "Twenty miles from the city a pair of enormous eggs",
+    "My house was at the very tip of the egg, only fifty yards from the Sound",
+    "It was Gatsby’s mansion.",
+    "My own house was an eyesore, but it was a small eyesore"
+  ]
+}

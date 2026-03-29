@@ -1,0 +1,100 @@
+{
+  "title": "Harry Potter and the Prisoner of Azkaban",
+  "scenesAnalyzed": 10,
+  "totalBeats": 136,
+  "avgBeatsPerKWord": 18.2,
+  "beatDistribution": {
+    "breathe": 0.169,
+    "inform": 0.221,
+    "advance": 0.301,
+    "bond": 0.037,
+    "turn": 0.066,
+    "reveal": 0.11,
+    "shift": 0.022,
+    "expand": 0.029,
+    "foreshadow": 0.015,
+    "resolve": 0.029
+  },
+  "mechanismDistribution": {
+    "dialogue": 0.338,
+    "thought": 0.125,
+    "action": 0.301,
+    "environment": 0.118,
+    "narration": 0.059,
+    "document": 0.059
+  },
+  "markovTransitions": {
+    "breathe": {
+      "inform": 0.429,
+      "expand": 0.048,
+      "reveal": 0.238,
+      "advance": 0.286
+    },
+    "inform": {
+      "breathe": 0.133,
+      "advance": 0.4,
+      "inform": 0.2,
+      "turn": 0.067,
+      "expand": 0.067,
+      "shift": 0.033,
+      "reveal": 0.067,
+      "resolve": 0.033
+    },
+    "advance": {
+      "advance": 0.325,
+      "breathe": 0.15,
+      "inform": 0.15,
+      "bond": 0.125,
+      "reveal": 0.15,
+      "expand": 0.025,
+      "turn": 0.075
+    },
+    "bond": {
+      "inform": 0.25,
+      "shift": 0.25,
+      "advance": 0.25,
+      "breathe": 0.25
+    },
+    "turn": {
+      "inform": 0.429,
+      "resolve": 0.286,
+      "reveal": 0.143,
+      "advance": 0.143
+    },
+    "reveal": {
+      "turn": 0.2,
+      "inform": 0.2,
+      "reveal": 0.067,
+      "advance": 0.333,
+      "resolve": 0.067,
+      "breathe": 0.133
+    },
+    "shift": {
+      "advance": 1
+    },
+    "expand": {
+      "inform": 0.25,
+      "foreshadow": 0.5,
+      "turn": 0.25
+    },
+    "foreshadow": {
+      "shift": 1
+    },
+    "resolve": {
+      "advance": 0.5,
+      "breathe": 0.5
+    }
+  },
+  "sampleAnchors": [
+    "It was nearly midnight, and he was lying on his stomach in bed, the blankets drawn right over his head like a tent, a flashlight in one hand and a large leather-bound book (A History of Magic by Bathilda Bagshot) propped open against the pillow.",
+    "HELLO? HELLO? CAN YOU HEAR ME? I — WANT — TO — TALK — TO — HARRY — POTTER!",
+    "It was one o’clock in the morning. Harry’s stomach gave a funny jolt. He had been thirteen years old, without realizing it, for a whole hour.",
+    "Through the window soared three owls, two of them holding up the third, which appeared to be unconscious.",
+    "And out fell — a book. Harry just had time to register its handsome green cover, emblazoned with the golden title The Monster Book of Monsters, before it flipped onto its edge and scuttled sideways along the bed like some weird crab.",
+    "Harry went down to breakfast the next morning to find the three Dursleys already sitting around the kitchen table.",
+    "Far from wishing Harry a happy birthday, none of the Dursleys made any sign that they had noticed Harry enter the room",
+    "“. . . The public is warned that Black is armed and extremely dangerous.",
+    "“Look at the state of him, the filthy layabout! Look at his hair!”",
+    "He shot a nasty look sideways at Harry, whose untidy hair had always been a source of great annoyance to Uncle Vernon."
+  ]
+}

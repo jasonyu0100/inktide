@@ -131,6 +131,88 @@ export type WorldSystem = {
   interactions: string[];
 };
 
+// ── Prose Profile & Beat Plans ───────────────────────────────────────────────
+
+/** Beat function — what the beat DOES in the scene's structure */
+export type BeatFn =
+  | 'breathe'     // Pacing, atmosphere, sensory grounding, scene establishment
+  | 'inform'      // Knowledge delivery — character or reader learns something now
+  | 'advance'     // Forward momentum — plot moves, goals pursued, tension rises
+  | 'bond'        // Relationship shifts between characters
+  | 'turn'        // Scene pivots — revelation, reversal, interruption
+  | 'reveal'      // Character nature exposed through action or choice
+  | 'shift'       // Power dynamic inverts
+  | 'expand'      // World-building — new rules, systems, geography
+  | 'foreshadow'  // Plants information that pays off later
+  | 'resolve';    // Tension releases — question answered, conflict settles
+
+/** Mechanism — HOW the beat is delivered as prose */
+export type BeatMechanism =
+  | 'dialogue'     // Characters speaking
+  | 'thought'      // Internal monologue
+  | 'action'       // Physical movement, gesture, body in space
+  | 'environment'  // Setting, weather, arrivals, sensory details
+  | 'narration'    // Narrator addresses reader, authorial commentary, rhetoric
+  | 'memory'       // Flashback triggered by association
+  | 'document'     // Embedded text: letter, newspaper, cited poetry
+  | 'comic';       // Humor — physical comedy, ironic observation, absurdity
+
+/** A single beat in a scene plan */
+export type Beat = {
+  fn: BeatFn;
+  mechanism: BeatMechanism;
+  /** One sentence: the concrete action or event */
+  what: string;
+  /** The one sensory detail that makes this beat physical */
+  anchor: string;
+};
+
+/** Structured scene plan — JSON replacement for the plain-text plan */
+export type BeatPlan = {
+  beats: Beat[];
+  /** Exact memorable lines that must survive into the prose — 0-5 iconic phrases */
+  anchors: string[];
+};
+
+/** Markov transition matrix — probability of transitioning from one beat fn to another */
+export type BeatTransitionMatrix = Partial<Record<BeatFn, Partial<Record<BeatFn, number>>>>;
+
+/** Authorial prose profile — derived from analyzing published prose.
+ *  Captures the stable voice characteristics of an author/series.
+ *  Applied globally to all prose generation, not per-scene. */
+export type ProseProfile = {
+  id: string;
+  /** Display name — author or series name */
+  name: string;
+  /** Source work(s) this profile was derived from */
+  source: string;
+  /** Number of scenes analyzed to build this profile */
+  scenesAnalyzed: number;
+  /** Total beats analyzed */
+  totalBeats: number;
+  /** Average beats per 1000 words of prose */
+  beatsPerKWord: number;
+  /** Narrative register — the emotional tone of the narration */
+  register: 'conversational' | 'clinical' | 'literary' | 'sardonic' | 'raw' | 'lyrical';
+  /** Narrator's distance from the character */
+  stance: 'close_third' | 'intimate_first_person' | 'omniscient_ironic' | 'detached_observer';
+  /** Rhetorical devices the author uses */
+  devices: string[];
+  /** Show-don't-tell constraints — apply to ALL scenes */
+  rules: string[];
+  /** Beat function distribution — how often each fn appears */
+  beatDistribution: Partial<Record<BeatFn, number>>;
+  /** Mechanism distribution — how often each mechanism appears */
+  mechanismDistribution: Partial<Record<BeatMechanism, number>>;
+  /** Markov chain transition probabilities between beat functions */
+  markov: BeatTransitionMatrix;
+  /** Whether this is a built-in profile from analyzed works */
+  builtIn: boolean;
+};
+
+export const BEAT_FN_LIST: BeatFn[] = ['breathe', 'inform', 'advance', 'bond', 'turn', 'reveal', 'shift', 'expand', 'foreshadow', 'resolve'];
+export const BEAT_MECHANISM_LIST: BeatMechanism[] = ['dialogue', 'thought', 'action', 'environment', 'narration', 'memory', 'document', 'comic'];
+
 // ── World Knowledge Graph ───────────────────────────────────────────────────
 
 /** Node types define the abstraction level of world knowledge:
@@ -282,8 +364,8 @@ export type Scene = {
   worldKnowledgeMutations?: WorldKnowledgeMutation;
   /** Artifact ownership changes — objects changing hands between characters/locations */
   ownershipMutations?: OwnershipMutation[];
-  /** Delivery-by-delivery scene blueprint — generated before prose to detail HOW mutations unfold */
-  plan?: string;
+  /** Structured beat plan — delivery-by-delivery scene blueprint detailing HOW mutations unfold */
+  plan?: BeatPlan;
   prose?: string;
   /** Prose quality score from the last rewrite pass */
   proseScore?: ProseScore;
@@ -462,6 +544,8 @@ export type NarrativeState = {
   rules: string[];
   /** Structured world systems — layered mechanics that define how the world works */
   worldSystems?: WorldSystem[];
+  /** Authorial prose profile — voice, rhythm, and beat transition patterns for prose generation */
+  proseProfile?: ProseProfile;
   coverImageUrl?: string;
   /** Style directive appended to all image generation prompts for visual consistency */
   imageStyle?: string;
@@ -577,6 +661,10 @@ export type StorySettings = {
   generationMode: GenerationMode;
   /** Reasoning effort — how much thinking the model does before responding. Higher = better structural decisions, slower generation. */
   reasoningLevel: ReasoningLevel;
+  /** Beat profile preset key — selects a published work's Markov chain for plan generation. Empty = AI-optimal (no chain). */
+  beatProfilePreset: string;
+  /** Whether to use the prose profile for plan and prose generation. When false, AI picks optimal beats without profile constraints. */
+  useProseProfile: boolean;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -598,6 +686,8 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   expansionStrategy: 'dynamic',
   generationMode: 'batch',
   reasoningLevel: 'low',
+  beatProfilePreset: '',
+  useProseProfile: true,
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────

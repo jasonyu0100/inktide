@@ -1,0 +1,88 @@
+{
+  "title": "The Wealth Of Nations",
+  "scenesAnalyzed": 10,
+  "totalBeats": 138,
+  "avgBeatsPerKWord": 12.7,
+  "beatDistribution": {
+    "breathe": 0.094,
+    "inform": 0.406,
+    "advance": 0.159,
+    "bond": 0.007,
+    "turn": 0.036,
+    "reveal": 0.029,
+    "shift": 0.014,
+    "expand": 0.138,
+    "foreshadow": 0.029,
+    "resolve": 0.087
+  },
+  "mechanismDistribution": {
+    "action": 0.007,
+    "environment": 0.014,
+    "narration": 0.957,
+    "document": 0.022
+  },
+  "markovTransitions": {
+    "breathe": {
+      "inform": 0.923,
+      "bond": 0.077
+    },
+    "inform": {
+      "expand": 0.161,
+      "advance": 0.304,
+      "resolve": 0.054,
+      "inform": 0.268,
+      "breathe": 0.054,
+      "reveal": 0.054,
+      "turn": 0.071,
+      "foreshadow": 0.036
+    },
+    "advance": {
+      "expand": 0.286,
+      "foreshadow": 0.048,
+      "inform": 0.619,
+      "turn": 0.048
+    },
+    "turn": {
+      "inform": 0.4,
+      "resolve": 0.6
+    },
+    "reveal": {
+      "inform": 0.5,
+      "resolve": 0.25,
+      "shift": 0.25
+    },
+    "shift": {
+      "resolve": 1
+    },
+    "expand": {
+      "inform": 0.529,
+      "expand": 0.059,
+      "resolve": 0.176,
+      "advance": 0.176,
+      "reveal": 0.059
+    },
+    "foreshadow": {
+      "inform": 0.75,
+      "advance": 0.25
+    },
+    "resolve": {
+      "expand": 0.429,
+      "shift": 0.143,
+      "foreshadow": 0.143,
+      "resolve": 0.143,
+      "advance": 0.143
+    }
+  },
+  "sampleAnchors": [
+    "The greatest improvements in the productive powers of labour... seem to have been the effects of the division of labour.",
+    "One man draws out the wire; another straights it; a third cuts it...",
+    "Those ten persons, therefore, could make among them upwards of forty-eight thousand pins in a day.",
+    "The nature of agriculture, indeed, does not admit of so many subdivisions of labour...",
+    "This great increase in the quantity of work... is owing to three different circumstances",
+    "First, the improvement of the dexterity of the workmen, necessarily increases the quantity of the work he can perform",
+    "One of those boys...observed that, by tying a string from the handle of the valve...the valve would open and shut without his assistance, and leave him at liberty to divert himself with his play-fellows.",
+    "It is the great multiplication of the productions of all the different arts, in consequence of the division of labour, which occasions...that universal opulence which extends itself to the lowest ranks of the people.",
+    "Observe the accommodation of the most common artificer or daylabourer in a civilized and thriving country, and you will perceive that the number of people, of whose industry a part...has been employed in procuring him this accommodation, exceeds all computation.",
+    "the accommodation of an European prince does not always so much exceed that of an industrious and frugal peasant, as the accommodation of the latter exceeds that of many an African king"
+  ]
+}

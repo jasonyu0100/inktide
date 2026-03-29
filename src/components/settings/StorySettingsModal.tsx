@@ -9,12 +9,10 @@ import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
 
-type Tab = 'direction' | 'guidance' | 'constraints' | 'pacing' | 'pov' | 'other';
+type Tab = 'direction' | 'pacing' | 'pov' | 'other';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'Direction', value: 'direction' },
-  { label: 'Constraints', value: 'constraints' },
-  { label: 'Guidance', value: 'guidance' },
   { label: 'Pacing', value: 'pacing' },
   { label: 'POV', value: 'pov' },
   { label: 'Other', value: 'other' },
@@ -235,34 +233,10 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   High-level guidance for where the story should go. Steers every arc.
                 </p>
               </div>
-            </>
-          )}
 
-          {tab === 'guidance' && (
-            <>
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Narrative Guidance
-                </label>
-                <textarea
-                  value={settings.narrativeGuidance}
-                  onChange={(e) => update({ narrativeGuidance: e.target.value })}
-                  placeholder={"e.g. \"Keep the opening scope local — academy, village, immediate survival. Don't sprawl into multi-faction politics until the first arc has paid off.\n\nReveal only what is locally actionable. Keep the larger world latent.\n\nThe protagonist wins through knowledge and shamelessness, not hidden power.\n\nPolitics should appear as differential access, not speeches and coups.\n\nInheritances are strategic exploit nodes, not dungeon crawls.\""}
-                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-48"
-                />
-                <p className="text-[9px] text-text-dim/50 mt-1">
-                  Editorial principles that govern how the story is told — scope discipline, reveal pacing, tonal rules, structural philosophy. Paste feedback from another AI or write your own. These override default generation instincts.
-                </p>
-              </div>
-
-            </>
-          )}
-
-          {tab === 'constraints' && (
-            <>
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Story Constraints
+                  Constraints
                 </label>
                 <textarea
                   value={settings.storyConstraints}
@@ -272,6 +246,21 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 />
                 <p className="text-[9px] text-text-dim/50 mt-1">
                   What the AI should avoid. Negative guardrails that steer generation away from unwanted directions.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Narrative Guidance
+                </label>
+                <textarea
+                  value={settings.narrativeGuidance}
+                  onChange={(e) => update({ narrativeGuidance: e.target.value })}
+                  placeholder={"e.g. \"Keep the opening scope local — academy, village, immediate survival. Don't sprawl into multi-faction politics until the first arc has paid off.\n\nThe protagonist wins through knowledge and shamelessness, not hidden power.\""}
+                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-blue-500/40 resize-none h-32"
+                />
+                <p className="text-[9px] text-text-dim/50 mt-1">
+                  Editorial principles — scope discipline, reveal pacing, tonal rules. These override default generation instincts.
                 </p>
               </div>
             </>
@@ -409,6 +398,8 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                       </button>
                     )}
                     {[
+                      { key: 'action', label: 'Action', desc: 'Fast pacing, high advance/turn — thrillers, xianxia, action sequences' },
+                      { key: 'introspective', label: 'Introspective', desc: 'Slow pacing, thought-heavy — literary fiction, character studies' },
                       { key: 'harry_potter', label: 'Harry Potter', desc: 'Conversational, comic escalation, close third' },
                       { key: 'reverend_insanity', label: 'Reverend Insanity', desc: 'Raw, strategic introspection, dramatic irony' },
                       { key: 'nineteen_eighty_four', label: '1984', desc: 'Clinical, internal surveillance, ironic understatement' },

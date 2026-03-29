@@ -11,7 +11,6 @@
  */
 
 import type { BeatFn, BeatMechanism, BeatTransitionMatrix, ProseProfile, NarrativeState } from '@/types/narrative';
-import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from '@/types/narrative';
 
 // ── Default Beat Transition Matrix ──────────────────────────────────────────
 // "Storyteller" equivalent for beats — balanced fiction profile.
@@ -79,6 +78,84 @@ export type BeatProfilePreset = {
   profile: ProseProfile;
 };
 
+// ── Tuned Profiles for Common Use Cases ──────────────────────────────────────
+
+/** Action-driven: fast pacing, high advance/turn density, dialogue-heavy.
+ *  Best for: thrillers, xianxia, action sequences, chase scenes.
+ *  Derived from HP + RI with boosted advance/turn transitions. */
+export const ACTION_PROFILE: ProseProfile = {
+  id: 'action',
+  name: 'Action',
+  source: 'Tuned from HP + Reverend Insanity',
+  scenesAnalyzed: 243,
+  totalBeats: 3929,
+  beatsPerKWord: 16,
+  register: 'raw',
+  stance: 'close_third',
+  devices: ['dramatic_irony', 'comic_escalation'],
+  rules: ['Show urgency through short sentences and physical reactions', 'Never pause for internal monologue during action — show through body'],
+  beatDistribution: {
+    advance: 0.30, inform: 0.18, breathe: 0.12, turn: 0.10,
+    reveal: 0.08, bond: 0.05, expand: 0.04, resolve: 0.05,
+    foreshadow: 0.04, shift: 0.04,
+  },
+  mechanismDistribution: {
+    action: 0.35, dialogue: 0.30, thought: 0.10, environment: 0.12,
+    narration: 0.05, memory: 0.03, document: 0.02, comic: 0.03,
+  },
+  markov: {
+    breathe:    { inform: 0.40, advance: 0.30, turn: 0.08, reveal: 0.06, bond: 0.04, expand: 0.04, foreshadow: 0.03, resolve: 0.02, shift: 0.02, breathe: 0.01 },
+    inform:     { advance: 0.50, turn: 0.12, breathe: 0.08, inform: 0.08, bond: 0.05, reveal: 0.05, expand: 0.03, foreshadow: 0.04, resolve: 0.03, shift: 0.02 },
+    advance:    { advance: 0.30, inform: 0.15, turn: 0.15, breathe: 0.08, reveal: 0.08, bond: 0.06, shift: 0.06, resolve: 0.05, expand: 0.04, foreshadow: 0.03 },
+    bond:       { advance: 0.30, inform: 0.20, turn: 0.12, breathe: 0.10, reveal: 0.08, bond: 0.06, shift: 0.05, resolve: 0.04, expand: 0.03, foreshadow: 0.02 },
+    turn:       { advance: 0.35, resolve: 0.20, inform: 0.15, shift: 0.08, breathe: 0.06, reveal: 0.06, bond: 0.04, expand: 0.03, foreshadow: 0.02, turn: 0.01 },
+    reveal:     { advance: 0.35, turn: 0.15, inform: 0.15, bond: 0.10, breathe: 0.08, shift: 0.05, resolve: 0.05, expand: 0.03, foreshadow: 0.03, reveal: 0.01 },
+    shift:      { advance: 0.40, turn: 0.15, resolve: 0.15, inform: 0.10, breathe: 0.05, bond: 0.05, foreshadow: 0.04, reveal: 0.03, expand: 0.02, shift: 0.01 },
+    expand:     { advance: 0.35, inform: 0.25, breathe: 0.10, turn: 0.08, reveal: 0.06, bond: 0.05, expand: 0.04, foreshadow: 0.04, resolve: 0.02, shift: 0.01 },
+    foreshadow: { advance: 0.30, turn: 0.20, inform: 0.15, breathe: 0.10, resolve: 0.08, bond: 0.05, reveal: 0.04, expand: 0.04, shift: 0.03, foreshadow: 0.01 },
+    resolve:    { advance: 0.35, breathe: 0.20, foreshadow: 0.15, inform: 0.10, bond: 0.05, expand: 0.05, turn: 0.04, reveal: 0.03, shift: 0.02, resolve: 0.01 },
+  },
+  builtIn: true,
+};
+
+/** Introspective: slow pacing, high breathe/inform density, thought-heavy.
+ *  Best for: literary fiction, character studies, psychological drama, mystery.
+ *  Derived from Gatsby + 1984 + Dickens with boosted breathe/inform. */
+export const INTROSPECTIVE_PROFILE: ProseProfile = {
+  id: 'introspective',
+  name: 'Introspective',
+  source: 'Tuned from Gatsby + 1984 + Dickens',
+  scenesAnalyzed: 216,
+  totalBeats: 3161,
+  beatsPerKWord: 12,
+  register: 'literary',
+  stance: 'close_third',
+  devices: ['free_indirect_discourse', 'ironic_understatement', 'extended_metaphor'],
+  rules: ['Emotions through landscape and object — the world reflects inner state', 'Let observations accumulate before any character acts'],
+  beatDistribution: {
+    breathe: 0.25, inform: 0.28, advance: 0.14, reveal: 0.08,
+    bond: 0.07, turn: 0.05, expand: 0.05, foreshadow: 0.04,
+    resolve: 0.03, shift: 0.01,
+  },
+  mechanismDistribution: {
+    thought: 0.30, narration: 0.22, dialogue: 0.20, environment: 0.15,
+    action: 0.08, memory: 0.03, document: 0.01, comic: 0.01,
+  },
+  markov: {
+    breathe:    { inform: 0.55, breathe: 0.10, advance: 0.10, reveal: 0.06, bond: 0.05, expand: 0.05, foreshadow: 0.04, turn: 0.03, resolve: 0.01, shift: 0.01 },
+    inform:     { breathe: 0.25, inform: 0.18, advance: 0.15, bond: 0.10, reveal: 0.08, turn: 0.06, expand: 0.06, foreshadow: 0.05, resolve: 0.04, shift: 0.03 },
+    advance:    { breathe: 0.25, inform: 0.25, advance: 0.12, bond: 0.10, turn: 0.08, reveal: 0.06, expand: 0.05, foreshadow: 0.04, resolve: 0.03, shift: 0.02 },
+    bond:       { breathe: 0.20, inform: 0.25, bond: 0.15, advance: 0.10, reveal: 0.10, turn: 0.06, foreshadow: 0.05, expand: 0.04, resolve: 0.03, shift: 0.02 },
+    turn:       { breathe: 0.20, inform: 0.20, resolve: 0.20, advance: 0.15, reveal: 0.08, bond: 0.06, expand: 0.04, foreshadow: 0.04, shift: 0.02, turn: 0.01 },
+    reveal:     { breathe: 0.25, inform: 0.20, bond: 0.15, advance: 0.12, turn: 0.08, reveal: 0.05, expand: 0.05, foreshadow: 0.04, resolve: 0.04, shift: 0.02 },
+    shift:      { breathe: 0.20, inform: 0.15, resolve: 0.20, advance: 0.15, bond: 0.08, turn: 0.08, foreshadow: 0.05, reveal: 0.04, expand: 0.03, shift: 0.02 },
+    expand:     { breathe: 0.25, inform: 0.25, advance: 0.15, bond: 0.08, turn: 0.07, reveal: 0.06, expand: 0.05, foreshadow: 0.04, resolve: 0.03, shift: 0.02 },
+    foreshadow: { breathe: 0.20, inform: 0.20, advance: 0.15, turn: 0.12, resolve: 0.10, bond: 0.07, reveal: 0.05, expand: 0.04, foreshadow: 0.04, shift: 0.03 },
+    resolve:    { breathe: 0.40, inform: 0.15, foreshadow: 0.15, advance: 0.10, bond: 0.05, expand: 0.05, reveal: 0.04, turn: 0.03, shift: 0.02, resolve: 0.01 },
+  },
+  builtIn: true,
+};
+
 /** Mutable preset list — populated at runtime from analysed works. */
 export let BEAT_PROFILE_PRESETS: BeatProfilePreset[] = [];
 
@@ -86,6 +163,8 @@ export let BEAT_PROFILE_PRESETS: BeatProfilePreset[] = [];
 export function initBeatProfilePresets(works: { key: string; name: string; narrative: NarrativeState }[]) {
   const presets: BeatProfilePreset[] = [
     { key: 'storyteller', name: 'Storyteller', description: 'Balanced fiction — derived from 10 published works', profile: DEFAULT_PROSE_PROFILE },
+    { key: 'action', name: 'Action', description: 'Fast pacing, high advance/turn — thrillers, xianxia, action', profile: ACTION_PROFILE },
+    { key: 'introspective', name: 'Introspective', description: 'Slow pacing, thought-heavy — literary fiction, character studies', profile: INTROSPECTIVE_PROFILE },
   ];
 
   for (const { key, name, narrative } of works) {

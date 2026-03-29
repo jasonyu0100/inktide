@@ -524,10 +524,11 @@ export type GenerationMode = 'batch' | 'stepwise';
  *  Higher levels produce better structural decisions (causality, agency, convergence)
  *  at the cost of slower generation and higher token usage.
  *  Maps to OpenRouter's `reasoning.max_tokens` parameter. */
-export type ReasoningLevel = 'low' | 'medium' | 'high';
+export type ReasoningLevel = 'none' | 'low' | 'medium' | 'high';
 
 /** Max thinking tokens per reasoning level */
 export const REASONING_BUDGETS: Record<ReasoningLevel, number> = {
+  none: 0,
   low: 2048,
   medium: 8192,
   high: 24576,

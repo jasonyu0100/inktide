@@ -698,7 +698,7 @@ For each system, provide:
 
 The goal is to make the world feel like a coherent machine where systems interlock. Great worlds have systems that create emergent behavior — institutions that arise from mechanics, conflicts that emerge from scarcity, power that requires trade-offs.`;
 
-  const reasoningBudget = REASONING_BUDGETS[reasoningLevel ?? 'low'] || undefined;
+  const reasoningBudget = REASONING_BUDGETS[reasoningLevel ?? 'medium'] || undefined;
   const useStream = !!(onToken || onReasoning);
   const raw = useStream
     ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget, onReasoning)

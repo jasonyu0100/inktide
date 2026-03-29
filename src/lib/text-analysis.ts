@@ -205,7 +205,7 @@ async function callAnalysis(prompt: string, systemPrompt: string, onToken?: (tok
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, maxTokens: MAX_TOKENS_DEFAULT, stream: useStream, model: ANALYSIS_MODEL, temperature: ANALYSIS_TEMPERATURE }),
+      body: JSON.stringify({ prompt, systemPrompt, maxTokens: MAX_TOKENS_DEFAULT, stream: useStream, model: ANALYSIS_MODEL, temperature: ANALYSIS_TEMPERATURE, reasoningBudget: 0 }),
     });
     if (!res.ok) {
       const err = await res.json();

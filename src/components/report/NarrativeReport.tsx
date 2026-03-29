@@ -8,6 +8,7 @@ import { NARRATIVE_CUBE } from '@/types/narrative';
 import { computeSlidesData, type SlidesData } from '@/lib/slides-data';
 import { detectCubeCorner } from '@/lib/narrative-utils';
 import { generateReportAnalysis, type ReportAnalysis } from '@/lib/ai/report';
+import { MOMENT_SPARKLINE_WINDOW } from '@/lib/constants';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -245,8 +246,8 @@ function ArcScoreChart({ data }: { data: SlidesData }) {
     svg.selectAll('*').remove();
     if (!svgRef.current || data.arcGrades.length < 2) return;
     const { width } = svgRef.current.getBoundingClientRect();
-    const height = 90;
-    const margin = { top: 6, right: 8, bottom: 14, left: 20 };
+    const height = 200;
+    const margin = { top: 8, right: 8, bottom: 20, left: 24 };
     const w = width - margin.left - margin.right;
     const h = height - margin.top - margin.bottom;
     svg.attr('viewBox', `0 0 ${width} ${height}`);
@@ -254,12 +255,77 @@ function ArcScoreChart({ data }: { data: SlidesData }) {
     const scores = data.arcGrades.map((a) => a.grades.overall);
     const x = d3.scaleBand<number>().domain(scores.map((_, i) => i)).range([0, w]).padding(0.2);
     const y = d3.scaleLinear().domain([0, 100]).range([h, 0]);
+    // Grid lines
+    for (const tick of [25, 50, 75, 100]) {
+      g.append('line').attr('x1', 0).attr('y1', y(tick)).attr('x2', w).attr('y2', y(tick)).attr('stroke', 'white').attr('stroke-opacity', 0.04);
+      g.append('text').attr('x', -6).attr('y', y(tick) + 3).attr('text-anchor', 'end').attr('fill', 'white').attr('fill-opacity', 0.15).attr('font-size', 8).attr('font-family', 'monospace').text(tick);
+    }
     scores.forEach((s, i) => {
-      g.append('rect').attr('x', x(i)!).attr('y', y(s)).attr('width', x.bandwidth()).attr('height', h - y(s)).attr('fill', gradeColor(s)).attr('fill-opacity', 0.5).attr('rx', 1.5);
+      g.append('rect').attr('x', x(i)!).attr('y', y(s)).attr('width', x.bandwidth()).attr('height', h - y(s)).attr('fill', gradeColor(s)).attr('fill-opacity', 0.5).attr('rx', 2);
+      g.append('text').attr('x', x(i)! + x.bandwidth() / 2).attr('y', y(s) - 5).attr('text-anchor', 'middle').attr('fill', 'white').attr('fill-opacity', 0.3).attr('font-size', 9).attr('font-family', 'monospace').text(s);
     });
   }, [data]);
   if (data.arcGrades.length < 2) return null;
-  return <svg ref={svgRef} className="w-full" style={{ height: 90 }} />;
+  return <svg ref={svgRef} className="w-full" style={{ height: 200 }} />;
+}
+
+// ── Moment Sparkline ─────────────────────────────────────────────────────
+
+function MomentSparkline({ data, sceneIdx, isPeak }: { data: SlidesData; sceneIdx: number; isPeak: boolean }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    const svg = d3.select(svgRef.current);
+    svg.selectAll('*').remove();
+    if (!svgRef.current) return;
+    const { width } = svgRef.current.getBoundingClientRect();
+    const height = 48;
+    const margin = { top: 4, right: 8, bottom: 4, left: 8 };
+    const w = width - margin.left - margin.right;
+    const h = height - margin.top - margin.bottom;
+    svg.attr('viewBox', `0 0 ${width} ${height}`);
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const full = data.deliveryCurve;
+    // Window: 50 scenes centered on the moment
+    const half = Math.floor(MOMENT_SPARKLINE_WINDOW / 2);
+    let winStart = Math.max(0, sceneIdx - half);
+    let winEnd = Math.min(full.length - 1, sceneIdx + half);
+    // Clamp to keep window size consistent
+    if (winEnd - winStart < MOMENT_SPARKLINE_WINDOW - 1) {
+      if (winStart === 0) winEnd = Math.min(full.length - 1, MOMENT_SPARKLINE_WINDOW - 1);
+      else winStart = Math.max(0, winEnd - MOMENT_SPARKLINE_WINDOW + 1);
+    }
+    const eng = full.slice(winStart, winEnd + 1);
+
+    const x = d3.scaleLinear().domain([winStart, winEnd]).range([0, w]);
+    const maxAbs = Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
+    const y = d3.scaleLinear().domain([-maxAbs, maxAbs]).range([h, 0]);
+    const zeroY = y(0);
+
+    g.append('line').attr('x1', 0).attr('y1', zeroY).attr('x2', w).attr('y2', zeroY).attr('stroke', 'white').attr('stroke-opacity', 0.04);
+
+    // Windowed curve (dim)
+    const line = d3.line<typeof full[0]>().x((d) => x(d.index)).y((d) => y(d.smoothed)).curve(d3.curveMonotoneX);
+    g.append('path').datum(eng).attr('d', line).attr('fill', 'none').attr('stroke', 'white').attr('stroke-opacity', 0.1).attr('stroke-width', 1);
+
+    // Highlighted region around the moment
+    const pad = Math.max(3, Math.floor(eng.length * 0.12));
+    const regionStart = Math.max(winStart, sceneIdx - pad);
+    const regionEnd = Math.min(winEnd, sceneIdx + pad);
+    const regionData = full.slice(regionStart, regionEnd + 1);
+    const color = isPeak ? '#F59E0B' : '#60A5FA';
+    const area = d3.area<typeof full[0]>().x((d) => x(d.index)).y0(zeroY).y1((d) => y(d.smoothed)).curve(d3.curveMonotoneX);
+    g.append('path').datum(regionData).attr('d', area).attr('fill', color).attr('fill-opacity', 0.06);
+    g.append('path').datum(regionData).attr('d', line).attr('fill', 'none').attr('stroke', color).attr('stroke-width', 1.5).attr('stroke-opacity', 0.5);
+
+    // Current scene marker
+    g.append('circle').attr('cx', x(sceneIdx)).attr('cy', y(full[sceneIdx]?.smoothed ?? 0)).attr('r', 3).attr('fill', color).attr('stroke', 'white').attr('stroke-width', 1);
+
+    // Other peaks/valleys within window (dim)
+    for (const e of eng.filter((e) => e.isPeak && e.index !== sceneIdx)) g.append('path').attr('d', d3.symbol().type(d3.symbolTriangle).size(12)()).attr('transform', `translate(${x(e.index)},${y(e.smoothed) - 3})`).attr('fill', '#FCD34D').attr('opacity', 0.15);
+    for (const e of eng.filter((e) => e.isValley && e.index !== sceneIdx)) g.append('path').attr('d', d3.symbol().type(d3.symbolTriangle).size(12)()).attr('transform', `translate(${x(e.index)},${y(e.smoothed) + 3}) rotate(180)`).attr('fill', '#93C5FD').attr('opacity', 0.15);
+  }, [data, sceneIdx, isPeak]);
+  return <svg ref={svgRef} className="w-full" style={{ height: 48 }} />;
 }
 
 // ── State Machine Graph ──────────────────────────────────────────────────
@@ -290,14 +356,15 @@ function StateMachineGraph({ data }: { data: SlidesData }) {
   }, [data.forceSnapshots]);
 
   const maxVisits = Math.max(...Object.values(visitCounts), 1);
+  const currentMode = data.forceSnapshots.length > 0 ? detectCubeCorner(data.forceSnapshots[data.forceSnapshots.length - 1]).key : null;
 
-  const GW = 480;
-  const GH = 360;
+  const GW = 520;
+  const GH = 440;
   const gcx = GW / 2;
   const gcy = GH / 2;
-  const gr = GW * 0.32;
-  const baseR = 18;
-  const maxExtraR = 8;
+  const gr = GW * 0.34;
+  const baseR = 22;
+  const maxExtraR = 10;
 
   const positions = useMemo(() => {
     const p = {} as Record<CubeCornerKey, { x: number; y: number }>;
@@ -309,10 +376,10 @@ function StateMachineGraph({ data }: { data: SlidesData }) {
   }, []);
 
   return (
-    <svg viewBox={`0 0 ${GW} ${GH}`} className="w-full" style={{ height: 320 }}>
+    <svg viewBox={`0 0 ${GW} ${GH}`} className="w-full" style={{ height: 400 }}>
       <defs>
-        <marker id="rpt-arrow" viewBox="0 0 10 6" refX="9" refY="3" markerWidth="7" markerHeight="5" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 3 L 0 6 z" fill="rgba(255,255,255,0.2)" />
+        <marker id="rpt-arrow" viewBox="0 0 10 6" refX="9" refY="3" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 3 L 0 6 z" fill="rgba(52, 211, 153, 0.7)" />
         </marker>
       </defs>
 
@@ -329,15 +396,15 @@ function StateMachineGraph({ data }: { data: SlidesData }) {
           const ny = dx / len;
           const toR = baseR + (visitCounts[to] / maxVisits) * maxExtraR;
           const fromR = baseR + (visitCounts[from] / maxVisits) * maxExtraR;
-          const sx = p1.x + dx * Math.min(1, (fromR + 6) / len) + 4 * nx;
-          const sy = p1.y + dy * Math.min(1, (fromR + 6) / len) + 4 * ny;
-          const ex = p1.x + dx * Math.max(0, (len - toR - 6) / len) + 4 * nx;
-          const ey = p1.y + dy * Math.max(0, (len - toR - 6) / len) + 4 * ny;
-          const opacity = 0.06 + 0.4 * (count / maxCount);
+          const sx = p1.x + dx * Math.min(1, (fromR + 8) / len) + 5 * nx;
+          const sy = p1.y + dy * Math.min(1, (fromR + 8) / len) + 5 * ny;
+          const ex = p1.x + dx * Math.max(0, (len - toR - 8) / len) + 5 * nx;
+          const ey = p1.y + dy * Math.max(0, (len - toR - 8) / len) + 5 * ny;
+          const opacity = 0.08 + 0.7 * (count / maxCount);
           return (
             <line key={`${from}-${to}`}
               x1={sx} y1={sy} x2={ex} y2={ey}
-              stroke="rgba(255,255,255,1)" strokeWidth={0.8 + 2 * (count / maxCount)}
+              stroke="rgba(52, 211, 153, 1)" strokeWidth={1 + 3 * (count / maxCount)}
               opacity={opacity} markerEnd="url(#rpt-arrow)"
             />
           );
@@ -350,16 +417,21 @@ function StateMachineGraph({ data }: { data: SlidesData }) {
         const visits = visitCounts[c];
         const r = baseR + (visits / maxVisits) * maxExtraR;
         const hasVisits = visits > 0;
+        const isCurrent = currentMode === c;
         return (
-          <g key={c} opacity={hasVisits ? 1 : 0.25}>
-            <circle cx={pos.x} cy={pos.y} r={r} fill={CORNER_COLORS[c]} opacity={hasVisits ? 0.6 : 0.15} />
-            <text x={pos.x} y={pos.y + 0.5} fill="#fff" fontSize="9.5" fontWeight="600"
-              textAnchor="middle" dominantBaseline="middle" opacity={hasVisits ? 0.9 : 0.3}>
+          <g key={c} opacity={hasVisits ? 1 : 0.2}>
+            {isCurrent && (
+              <circle cx={pos.x} cy={pos.y} r={r + 6} fill="none" stroke={CORNER_COLORS[c]} strokeWidth={1.5} opacity={0.3} />
+            )}
+            <circle cx={pos.x} cy={pos.y} r={r} fill={CORNER_COLORS[c]} opacity={hasVisits ? 0.85 : 0.15} />
+            <text x={pos.x} y={pos.y + 1} fill="#fff" fontSize="11" fontWeight="600"
+              textAnchor="middle" dominantBaseline="middle" className="select-none"
+              opacity={hasVisits ? 0.95 : 0.3}>
               {NARRATIVE_CUBE[c].name}
             </text>
-            <text x={pos.x} y={pos.y + r + 12} fill="#fff" fontSize="9" fontFamily="monospace"
-              textAnchor="middle" opacity={0.2}>
-              {visits > 0 ? `${visits}\u00d7` : ''}
+            <text x={pos.x} y={pos.y + r + 14} fill="#9ca3af" fontSize="10" fontFamily="monospace"
+              textAnchor="middle" className="select-none">
+              {visits > 0 ? `${visits}\u00d7` : '\u2014'}
             </text>
           </g>
         );
@@ -684,7 +756,10 @@ export function NarrativeReport({
                               <span className="text-[10px] text-white/20">{locName}</span>
                               <span className={`text-[10px] font-mono ${isPeak ? 'text-amber-400/50' : 'text-blue-300/50'}`}>{delivery.delivery.toFixed(2)}</span>
                             </div>
-                            <div className="px-4 py-3">
+                            <div className="px-4 pt-1 pb-0">
+                              <MomentSparkline data={data} sceneIdx={m.sceneIdx} isPeak={isPeak} />
+                            </div>
+                            <div className="px-4 pb-3">
                               <p className="text-[12px] text-white/45 leading-relaxed">{scene.summary}</p>
                               {!isPeak && m.trough && (
                                 <div className="flex items-center gap-3 mt-2 text-[10px] text-white/20">

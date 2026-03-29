@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
 import type { SlidesData } from '@/lib/slides-data';
+import { MOMENT_SPARKLINE_WINDOW } from '@/lib/constants';
 
 const FORCE_COLORS: Record<string, string> = {
   payoff: '#EF4444',
@@ -27,8 +28,19 @@ function DeliveryCurve({ data, sceneIdx, isPeak }: { data: SlidesData; sceneIdx:
     svg.attr('viewBox', `0 0 ${width} ${height}`);
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const eng = data.deliveryCurve;
-    const x = d3.scaleLinear().domain([0, eng.length - 1]).range([0, w]);
+    const full = data.deliveryCurve;
+
+    // Window: MOMENT_SPARKLINE_WINDOW scenes centered on the moment
+    const half = Math.floor(MOMENT_SPARKLINE_WINDOW / 2);
+    let winStart = Math.max(0, sceneIdx - half);
+    let winEnd = Math.min(full.length - 1, sceneIdx + half);
+    if (winEnd - winStart < MOMENT_SPARKLINE_WINDOW - 1) {
+      if (winStart === 0) winEnd = Math.min(full.length - 1, MOMENT_SPARKLINE_WINDOW - 1);
+      else winStart = Math.max(0, winEnd - MOMENT_SPARKLINE_WINDOW + 1);
+    }
+    const eng = full.slice(winStart, winEnd + 1);
+
+    const x = d3.scaleLinear().domain([winStart, winEnd]).range([0, w]);
     const maxAbs = Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
     const y = d3.scaleLinear().domain([-maxAbs, maxAbs]).range([h, 0]);
     const zeroY = y(0);
@@ -37,20 +49,20 @@ function DeliveryCurve({ data, sceneIdx, isPeak }: { data: SlidesData; sceneIdx:
     g.append('line').attr('x1', 0).attr('y1', zeroY).attr('x2', w).attr('y2', zeroY)
       .attr('stroke', 'white').attr('stroke-opacity', 0.06);
 
-    // Full curve (dim)
-    const line = d3.line<typeof eng[0]>()
+    // Windowed curve (dim)
+    const line = d3.line<typeof full[0]>()
       .x((d) => x(d.index)).y((d) => y(d.smoothed)).curve(d3.curveMonotoneX);
     g.append('path').datum(eng).attr('d', line)
       .attr('fill', 'none').attr('stroke', 'white').attr('stroke-opacity', 0.12).attr('stroke-width', 1);
 
     // Highlight area around current scene
-    const pad = Math.max(3, Math.floor(eng.length * 0.08));
-    const regionStart = Math.max(0, sceneIdx - pad);
-    const regionEnd = Math.min(eng.length - 1, sceneIdx + pad);
-    const regionData = eng.slice(regionStart, regionEnd + 1);
+    const pad = Math.max(3, Math.floor(eng.length * 0.12));
+    const regionStart = Math.max(winStart, sceneIdx - pad);
+    const regionEnd = Math.min(winEnd, sceneIdx + pad);
+    const regionData = full.slice(regionStart, regionEnd + 1);
 
     const color = isPeak ? '#F59E0B' : '#60A5FA';
-    const area = d3.area<typeof eng[0]>()
+    const area = d3.area<typeof full[0]>()
       .x((d) => x(d.index)).y0(zeroY).y1((d) => y(d.smoothed)).curve(d3.curveMonotoneX);
     g.append('path').datum(regionData).attr('d', area)
       .attr('fill', color).attr('fill-opacity', 0.08);
@@ -59,11 +71,11 @@ function DeliveryCurve({ data, sceneIdx, isPeak }: { data: SlidesData; sceneIdx:
 
     // Current scene marker
     const cx = x(sceneIdx);
-    const cy = y(eng[sceneIdx]?.smoothed ?? 0);
+    const cy = y(full[sceneIdx]?.smoothed ?? 0);
     g.append('circle').attr('cx', cx).attr('cy', cy).attr('r', 4)
       .attr('fill', color).attr('stroke', 'white').attr('stroke-width', 1.5);
 
-    // Peak/valley markers (dim, for context)
+    // Peak/valley markers within window (dim)
     for (const e of eng.filter((e) => e.isPeak && e.index !== sceneIdx)) {
       g.append('path').attr('d', d3.symbol().type(d3.symbolTriangle).size(16)())
         .attr('transform', `translate(${x(e.index)},${y(e.smoothed) - 4})`).attr('fill', '#FCD34D').attr('opacity', 0.25);

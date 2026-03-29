@@ -14,6 +14,7 @@ import ArtifactDetail from './ArtifactDetail';
 import ChatPanel from '@/components/sidebar/ChatPanel';
 import NotesPanel from '@/components/sidebar/NotesPanel';
 import BranchEval from '@/components/timeline/BranchEval';
+import ProseEval from '@/components/timeline/ProseEval';
 import { isScene, type TimelineEntry } from '@/types/narrative';
 
 type Tab = 'inspector' | 'chat' | 'notes' | 'eval';
@@ -83,6 +84,7 @@ export default function SidePanel() {
   const { state } = useStore();
   const ctx = state.inspectorContext ?? getDefaultContext(state);
   const [tab, setTab] = useState<Tab>('inspector');
+  const [evalMode, setEvalMode] = useState<'branch' | 'prose'>('branch');
 
   function renderInspector() {
     if (!ctx) return <EmptyState />;
@@ -149,8 +151,21 @@ export default function SidePanel() {
           </div>
         )}
         {tab === 'eval' && (
-          <div className="flex-1 min-h-0">
-            <BranchEval />
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="shrink-0 flex border-b border-white/5">
+              {(['branch', 'prose'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setEvalMode(m)}
+                  className={`flex-1 text-[10px] py-1.5 font-medium transition-colors ${evalMode === m ? 'text-text-primary border-b border-accent' : 'text-text-dim hover:text-text-secondary'}`}
+                >
+                  {m === 'branch' ? 'Structure' : 'Prose'}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 min-h-0">
+              {evalMode === 'branch' ? <BranchEval /> : <ProseEval />}
+            </div>
           </div>
         )}
       </div>

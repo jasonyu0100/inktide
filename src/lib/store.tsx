@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, BranchEvaluation, WorldSystem, ProseProfile, BeatProfilePreset } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, BranchEvaluation, ProseEvaluation, WorldSystem, ProseProfile, BeatProfilePreset } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
@@ -326,6 +326,7 @@ export type Action =
   | { type: 'RENAME_BRANCH'; branchId: string; name: string }
   | { type: 'REMOVE_BRANCH_ENTRY'; entryId: string; branchId: string }
   | { type: 'SET_BRANCH_EVALUATION'; branchId: string; evaluation: BranchEvaluation }
+  | { type: 'SET_PROSE_EVALUATION'; branchId: string; evaluation: ProseEvaluation }
   // Bulk AI-generated content
   | { type: 'BULK_ADD_SCENES'; scenes: Scene[]; arc: Arc; branchId: string }
   | { type: 'EXPAND_WORLD'; worldBuildId: string; characters: Character[]; locations: Location[]; threads: Thread[]; relationships: RelationshipEdge[]; branchId: string; worldKnowledgeMutations?: WorldKnowledgeMutation; artifacts?: Artifact[] }
@@ -679,6 +680,12 @@ function reducer(state: AppState, action: Action): AppState {
       return updateNarrative(state, (n) => ({
         ...n,
         branchEvaluations: { ...n.branchEvaluations, [action.branchId]: action.evaluation },
+      }));
+
+    case 'SET_PROSE_EVALUATION':
+      return updateNarrative(state, (n) => ({
+        ...n,
+        proseEvaluations: { ...n.proseEvaluations, [action.branchId]: action.evaluation },
       }));
 
     // ── Bulk: AI-generated scenes ─────────────────────────────────────────

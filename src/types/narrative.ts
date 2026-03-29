@@ -474,6 +474,29 @@ export type BranchEvaluation = {
   thematicQuestion: string;
 };
 
+// ── Prose Evaluation ─────────────────────────────────────────────────────────
+
+export type ProseVerdict = 'ok' | 'edit';
+
+export type ProseSceneEval = {
+  sceneId: string;
+  verdict: ProseVerdict;
+  /** Specific issues found in the prose — actionable edit instructions */
+  issues: string[];
+};
+
+export type ProseEvaluation = {
+  id: string;
+  branchId: string;
+  createdAt: string;
+  /** High-level prose quality analysis */
+  overall: string;
+  /** Per-scene prose verdicts */
+  sceneEvals: ProseSceneEval[];
+  /** Recurring prose issues across scenes */
+  patterns: string[];
+};
+
 /** A timeline entry is either a narrative scene or a world build */
 export type TimelineEntry = Scene | WorldBuild;
 
@@ -554,6 +577,8 @@ export type NarrativeState = {
   notes?: Record<string, Note>;
   /** Branch evaluations keyed by branch ID — most recent eval per branch */
   branchEvaluations?: Record<string, BranchEvaluation>;
+  /** Prose evaluations keyed by branch ID — most recent prose eval per branch */
+  proseEvaluations?: Record<string, ProseEvaluation>;
   createdAt: number;
   updatedAt: number;
 };

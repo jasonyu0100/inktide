@@ -1,4 +1,4 @@
-import type { NarrativeState, BranchEvaluation, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
+import type { NarrativeState, BranchEvaluation, ProseEvaluation, ProseSceneEval, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
 import { resolveEntry, isScene, REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
@@ -177,6 +177,132 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.${guid
       sceneEvals: sceneSummaries.map((s) => ({ sceneId: s.id, verdict: 'ok' as const, reason: 'Parse failed — defaulted' })),
       repetitions: [],
       thematicQuestion: '',
+    };
+  }
+}
+
+// ── Prose Quality Evaluation ─────────────────────────────────────────────────
+
+export async function evaluateProseQuality(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  branchId: string,
+  guidance?: string,
+): Promise<ProseEvaluation> {
+  // Collect scenes that have prose
+  const scenesWithProse: { id: string; pov: string; location: string; summary: string; prose: string; wordCount: number }[] = [];
+  for (const key of resolvedKeys) {
+    const entry = resolveEntry(narrative, key);
+    if (!entry || !isScene(entry)) continue;
+    const scene = entry as Scene;
+    if (!scene.prose) continue;
+    scenesWithProse.push({
+      id: scene.id,
+      pov: narrative.characters[scene.povId]?.name ?? scene.povId,
+      location: narrative.locations[scene.locationId]?.name ?? scene.locationId,
+      summary: scene.summary,
+      prose: scene.prose,
+      wordCount: scene.prose.split(/\s+/).length,
+    });
+  }
+
+  if (scenesWithProse.length === 0) {
+    return {
+      id: `PEVAL-${Date.now().toString(36)}`,
+      branchId,
+      createdAt: new Date().toISOString(),
+      overall: 'No scenes with prose to evaluate.',
+      sceneEvals: [],
+      patterns: [],
+    };
+  }
+
+  // Build prose profile context
+  const profile = narrative.proseProfile;
+  const profileBlock = profile
+    ? `PROSE PROFILE (the prose should conform to this voice):
+Register: ${profile.register} | Stance: ${profile.stance}${profile.tense ? ` | Tense: ${profile.tense}` : ''}${profile.sentenceRhythm ? ` | Rhythm: ${profile.sentenceRhythm}` : ''}${profile.interiority ? ` | Interiority: ${profile.interiority}` : ''}${profile.dialogueWeight ? ` | Dialogue: ${profile.dialogueWeight}` : ''}
+${profile.devices?.length ? `Devices: ${profile.devices.join(', ')}` : ''}
+${profile.rules?.length ? `Rules:\n${profile.rules.map((r) => `  - ${r}`).join('\n')}` : ''}`
+    : '';
+
+  const guidanceBlock = guidance?.trim()
+    ? `\nPRIORITY GUIDANCE FROM THE AUTHOR — You MUST address every point below. For each issue raised, identify the specific scenes affected and flag them as "edit".\n\n${guidance.trim()}`
+    : '';
+
+  // Build scene blocks with prose
+  const sceneBlocks = scenesWithProse.map((s) =>
+    `[${s.id}] POV: ${s.pov} | Loc: ${s.location} | ${s.wordCount} words\nSummary: ${s.summary}\n---\n${s.prose}\n---`
+  ).join('\n\n');
+
+  const prompt = `You are a prose editor reviewing the actual written prose of a serialized narrative. You have both summaries and full prose text. Evaluate prose QUALITY — not plot structure.
+${guidanceBlock}
+${profileBlock ? `\n${profileBlock}\n` : ''}
+TITLE: "${narrative.title}"
+
+SCENES WITH PROSE (${scenesWithProse.length} scenes):
+${sceneBlocks}
+
+Evaluate the prose on these dimensions:
+
+1. **VOICE CONSISTENCY** — Does the prose match the prose profile? Is the register, rhythm, and interiority consistent?
+2. **CRAFT** — Sentence quality, word choice, show-don't-tell, dialogue naturalism, sensory grounding
+3. **PACING** — Within-scene pacing. Are beats rushed or drawn out? Does the prose breathe?
+4. **CONTINUITY** — Does the prose contradict established facts, character positions, or knowledge?
+5. **REPETITION** — Repeated phrases, images, sentence structures, or verbal tics across scenes
+6. **PROFILE COMPLIANCE** — If a prose profile is provided, does the prose follow its rules?
+
+For EACH scene, assign a verdict:
+- "ok" — prose is strong, no changes needed
+- "edit" — prose needs revision. List specific, actionable issues.
+
+Be specific in your issues. Not "dialogue feels off" but "Fang Yuan speaks in elaborate metaphors in lines 3-5, violating the 'plain, forgettable language' rule."
+
+Return JSON:
+{
+  "overall": "2-4 paragraph prose quality critique. Name specific scenes and quote specific lines.",
+  "sceneEvals": [
+    { "sceneId": "S-001", "verdict": "ok|edit", "issues": ["specific issue 1", "specific issue 2"] }
+  ],
+  "patterns": ["recurring prose issue 1", "recurring prose issue 2"]
+}
+
+Every scene with prose must appear in sceneEvals. Use the exact scene IDs.${guidance?.trim() ? `\n\nREMINDER — The author specifically asked you to address: "${guidance.trim()}". Your overall critique and scene verdicts MUST reflect this.` : ''}`;
+
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'evaluateProseQuality', ANALYSIS_MODEL, reasoningBudget);
+
+  try {
+    const parsed = parseJson(raw, 'evaluateProseQuality') as {
+      overall?: string;
+      sceneEvals?: { sceneId?: string; verdict?: string; issues?: string[] }[];
+      patterns?: string[];
+    };
+
+    const sceneEvals: ProseSceneEval[] = (parsed.sceneEvals ?? [])
+      .filter((e) => e.sceneId && scenesWithProse.some((s) => s.id === e.sceneId))
+      .map((e) => ({
+        sceneId: e.sceneId!,
+        verdict: (e.verdict === 'edit' ? 'edit' : 'ok') as ProseSceneEval['verdict'],
+        issues: Array.isArray(e.issues) ? e.issues.filter((i): i is string => typeof i === 'string') : [],
+      }));
+
+    return {
+      id: `PEVAL-${Date.now().toString(36)}`,
+      branchId,
+      createdAt: new Date().toISOString(),
+      overall: parsed.overall ?? 'Evaluation failed to produce analysis.',
+      sceneEvals,
+      patterns: parsed.patterns ?? [],
+    };
+  } catch {
+    return {
+      id: `PEVAL-${Date.now().toString(36)}`,
+      branchId,
+      createdAt: new Date().toISOString(),
+      overall: 'Prose evaluation parse failed. Raw response logged.',
+      sceneEvals: scenesWithProse.map((s) => ({ sceneId: s.id, verdict: 'ok' as const, issues: ['Parse failed — defaulted'] })),
+      patterns: [],
     };
   }
 }

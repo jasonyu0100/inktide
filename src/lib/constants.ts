@@ -57,11 +57,17 @@ export const ANALYSIS_TEMPERATURE = 0.1;
 
 // ── AI Token Limits ─────────────────────────────────────────────────────────
 
+/** Max output tokens for massive structured output (full branch evaluation, multi-scene generation) */
+export const MAX_TOKENS_XLARGE = 128000;
+
 /** Max output tokens for large structured generation (scenes, narratives, analysis) */
 export const MAX_TOKENS_LARGE = 64000;
 
 /** Max output tokens for the /api/generate route when no explicit limit is passed */
 export const MAX_TOKENS_DEFAULT = 32000;
+
+/** Max output tokens for small focused output (single scene plan, rewrite, profile extraction) */
+export const MAX_TOKENS_SMALL = 16000;
 
 // ── AI Reasoning ────────────────────────────────────────────────────────────
 

@@ -541,7 +541,7 @@ ${movementLines.length > 0 ? `\n<movements>\n${movementLines.join('\n')}\n</move
 
 /** Estimate scene complexity to drive dynamic length guidance.
  *  Returns { prose: { min, max, tokens }, plan: { words } } */
-export function sceneScale(scene: Scene): { estWords: number; proseTokens: number; planWords: string } {
+export function sceneScale(scene: Scene): { estWords: number; planWords: string } {
   const mutations = scene.threadMutations.length + scene.continuityMutations.length + scene.relationshipMutations.length;
   const events = scene.events.length;
   const movements = scene.characterMovements ? Object.keys(scene.characterMovements).length : 0;
@@ -556,14 +556,10 @@ export function sceneScale(scene: Scene): { estWords: number; proseTokens: numbe
   // Formula: words ≈ 12 * complexity + 822, floored at 600.
   const estWords = Math.max(600, Math.round(12 * complexity + 822));
 
-  // Token budget: generous ceiling so the LLM can write longer when warranted.
-  // ~1.5 tokens per word, with headroom above the estimate.
-  const proseTokens = Math.ceil(estWords * 2.5);
-
   // Plan word guidance for prompts
   const planWords = `${Math.round(estWords * 0.3)}-${Math.round(estWords * 0.5)}`;
 
-  return { estWords, proseTokens, planWords };
+  return { estWords, planWords };
 }
 
 /**

@@ -54,9 +54,6 @@ function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void
       <div className="flex items-center gap-4 px-4 py-2 border-b border-white/5 text-[10px] text-text-dim shrink-0">
         <span>Prompt: ~{(entry.promptTokens ?? 0).toLocaleString()} tokens</span>
         {entry.responseTokens != null && <span>Response: ~{entry.responseTokens.toLocaleString()} tokens</span>}
-        {entry.reasoningTokens != null && entry.reasoningTokens > 0 && (
-          <span className="text-purple-400">Reasoning: ~{entry.reasoningTokens.toLocaleString()} tokens</span>
-        )}
         <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
       </div>
 
@@ -161,9 +158,6 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
                           <span className={`text-[9px] font-mono ${entry.model.startsWith('replicate/') ? 'text-pink-400' : 'text-text-dim'}`}>
                             {entry.model.split('/').pop()}
                           </span>
-                        )}
-                        {entry.reasoningTokens != null && entry.reasoningTokens > 0 && (
-                          <span className="text-[9px] text-purple-400 font-mono">~{entry.reasoningTokens.toLocaleString()} thinking</span>
                         )}
                         {entry.model?.startsWith('replicate/') ? (
                           <span className="text-[10px] text-pink-400/60">$0.04</span>

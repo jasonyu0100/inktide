@@ -2,7 +2,7 @@ import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, BeatPlan } 
 import { resolveEntry, DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
 import { parseJson } from './json';
 import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_CHARACTER_ARCS, PROMPT_THREAD_COLLISION, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
@@ -402,11 +402,9 @@ ${logicBlock}
 Generate a structured beat plan for this scene.${recentProseBlock ? ' Opening beats must continue from the physical/emotional state in the recent prose.' : ''}`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  // ~150 tokens per beat (fn, mechanism, what, anchor with verbose descriptions) + 800 for anchors/overhead
-  const planTokens = Math.max(8192, targetBeats * 150 + 800);
   const raw = onReasoning
-    ? await callGenerateStream(prompt, systemPrompt, () => {}, planTokens, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, systemPrompt, planTokens, 'generateScenePlan', GENERATE_MODEL, reasoningBudget);
+    ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget);
 
   const parsed = parseJson(raw, 'generateScenePlan') as { beats?: unknown[]; anchors?: string[] };
   const beats = (parsed.beats ?? []).map((b: unknown) => {
@@ -438,7 +436,6 @@ export async function rewriteScenePlan(
   analysis: string,
 ): Promise<BeatPlan> {
   const sceneBlock = sceneContext(narrative, scene);
-  const scale = sceneScale(scene);
 
   const currentPlanText = currentPlan.beats.map((b, i) =>
     `${i + 1}. [${b.fn}:${b.mechanism}] ${b.what} | anchor: ${b.anchor}`
@@ -465,7 +462,7 @@ ${analysis}
 Revise the beat plan to address the feedback. Ensure all scene mutations are still covered.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, systemPrompt, Math.ceil(scale.proseTokens * 0.6), 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'rewriteScenePlan') as { beats?: unknown[]; anchors?: string[] };
 
   const beats = (parsed.beats ?? []).map((b: unknown) => {
@@ -587,8 +584,6 @@ ${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must
     nextProseOpening ? `NEXT SCENE OPENING (your ending should flow naturally into this):\n"""${nextProseOpening}"""` : '',
   ].filter(Boolean).join('\n\n');
 
-  const scale = sceneScale(scene);
-
   const instruction = scene.plan
     ? `Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism tells you HOW to write each beat (dialogue = conversation, thought = internal monologue, action = physical movement, etc). The anchor is the sensory detail that grounds the beat.
 
@@ -614,9 +609,9 @@ ${instruction}`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   if (onToken) {
-    return await callGenerateStream(prompt, systemPrompt, onToken, scale.proseTokens, 'generateSceneProse', WRITING_MODEL, reasoningBudget);
+    return await callGenerateStream(prompt, systemPrompt, onToken, MAX_TOKENS_DEFAULT, 'generateSceneProse', WRITING_MODEL, reasoningBudget);
   }
-  return await callGenerate(prompt, systemPrompt, scale.proseTokens, 'generateSceneProse', WRITING_MODEL, reasoningBudget);
+  return await callGenerate(prompt, systemPrompt, MAX_TOKENS_DEFAULT, 'generateSceneProse', WRITING_MODEL, reasoningBudget);
 }
 
 // ── Shared Helpers ───────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 import type { NarrativeState, Scene } from '@/types/narrative';
 import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 import { parseJson } from './json';
-import { sceneContext, deriveLogicRules, sceneScale } from './context';
+import { sceneContext, deriveLogicRules } from './context';
 
 
 
@@ -134,19 +134,18 @@ ${analysis}
 
 Rewrite the prose to FULLY ADDRESS every point in the analysis above. The analysis describes specific changes that MUST be implemented — do not merely acknowledge them cosmetically. If the analysis says a character should leave, they must leave in the prose. If it says an event should be removed, remove it entirely. If it says a detail should be added, add it concretely. The rewrite is not a polish pass — it is a structural edit guided by the analysis.
 
-Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Target ~${sceneScale(scene).estWords} words — scenes that come in significantly under feel rushed and underdeveloped. Never pad with filler, but do not cut scenes short either.${hasExpandedContext ? '\n\nYou have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.' : ''}
+Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Let the scene be as long or short as its content demands — say more in fewer words rather than padding to reach a length.${hasExpandedContext ? '\n\nYou have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.' : ''}
 
 ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, no commentary. Start with the first word of the scene.' : 'Return JSON:\n{\n  "prose": "the full rewritten prose text"\n}'}`;
 
-  const scale = sceneScale(scene);
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   let prose: string;
   if (onToken) {
-    const rawStream = await callGenerateStream(prompt, systemPrompt, onToken, scale.proseTokens, 'rewriteSceneProse', WRITING_MODEL, reasoningBudget);
+    const rawStream = await callGenerateStream(prompt, systemPrompt, onToken, MAX_TOKENS_DEFAULT, 'rewriteSceneProse', WRITING_MODEL, reasoningBudget);
     // LLM may ignore "no JSON" instruction — extract prose if it returned JSON
     prose = rawStream;
   } else {
-    const raw = await callGenerate(prompt, systemPrompt, scale.proseTokens + 500, 'rewriteSceneProse', WRITING_MODEL, reasoningBudget);
+    const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_DEFAULT, 'rewriteSceneProse', WRITING_MODEL, reasoningBudget);
     const parsed = parseJson(raw, 'rewriteSceneProse') as { prose: string };
     prose = parsed.prose;
   }

@@ -726,8 +726,18 @@ export default function TopBar() {
             { label: 'Beat Profile', onClick: () => setBeatProfileOpen(true), disabled: !hasNarrative },
             { separator: true },
             { label: 'Formulas', onClick: () => setFormulaOpen(true) },
-            { label: 'Rules', onClick: () => window.dispatchEvent(new Event('open-rules-panel')), disabled: !hasNarrative },
+          ]}
+        />
+
+        <MenuDropdown
+          label="Config"
+          menuKey="config"
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+          anyMenuOpen={openMenu !== null}
+          items={[
             { label: 'Systems', onClick: () => window.dispatchEvent(new Event('open-world-systems-panel')), disabled: !hasNarrative },
+            { label: 'Rules', onClick: () => window.dispatchEvent(new Event('open-rules-panel')), disabled: !hasNarrative },
             { label: 'Profile', onClick: () => window.dispatchEvent(new Event('open-prose-profile')), disabled: !hasNarrative },
           ]}
         />

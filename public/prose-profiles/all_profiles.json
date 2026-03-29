@@ -1,538 +1,765 @@
 [
   {
     "title": "Harry Potter and the Prisoner of Azkaban",
-    "scenesAnalyzed": 10,
-    "totalBeats": 136,
-    "avgBeatsPerKWord": 18.2,
+    "scenesAnalyzed": 110,
+    "totalBeats": 1643,
+    "avgBeatsPerKWord": 16,
     "beatDistribution": {
-      "breathe": 0.169,
-      "inform": 0.221,
-      "advance": 0.301,
-      "bond": 0.037,
-      "turn": 0.066,
-      "reveal": 0.11,
-      "shift": 0.022,
-      "expand": 0.029,
-      "foreshadow": 0.015,
-      "resolve": 0.029
+      "breathe": 0.157,
+      "inform": 0.219,
+      "advance": 0.288,
+      "bond": 0.065,
+      "turn": 0.06,
+      "reveal": 0.075,
+      "shift": 0.031,
+      "expand": 0.026,
+      "foreshadow": 0.037,
+      "resolve": 0.043
     },
     "mechanismDistribution": {
-      "dialogue": 0.338,
-      "thought": 0.125,
-      "action": 0.301,
-      "environment": 0.118,
-      "narration": 0.059,
-      "document": 0.059
+      "dialogue": 0.45,
+      "thought": 0.058,
+      "action": 0.285,
+      "environment": 0.145,
+      "narration": 0.045,
+      "memory": 0.005,
+      "document": 0.011,
+      "comic": 0.001
     },
     "markovTransitions": {
       "breathe": {
-        "inform": 0.429,
-        "expand": 0.048,
-        "reveal": 0.238,
-        "advance": 0.286
+        "inform": 0.523,
+        "expand": 0.012,
+        "advance": 0.247,
+        "bond": 0.062,
+        "breathe": 0.062,
+        "turn": 0.033,
+        "foreshadow": 0.033,
+        "reveal": 0.021,
+        "resolve": 0.008
       },
       "inform": {
-        "breathe": 0.133,
-        "advance": 0.4,
-        "inform": 0.2,
-        "turn": 0.067,
-        "expand": 0.067,
-        "shift": 0.033,
-        "reveal": 0.067,
-        "resolve": 0.033
+        "advance": 0.423,
+        "reveal": 0.14,
+        "bond": 0.066,
+        "turn": 0.069,
+        "breathe": 0.06,
+        "inform": 0.1,
+        "expand": 0.049,
+        "resolve": 0.023,
+        "foreshadow": 0.031,
+        "shift": 0.04
       },
       "advance": {
-        "advance": 0.325,
-        "breathe": 0.15,
-        "inform": 0.15,
-        "bond": 0.125,
-        "reveal": 0.15,
-        "expand": 0.025,
-        "turn": 0.075
+        "expand": 0.018,
+        "breathe": 0.139,
+        "turn": 0.097,
+        "advance": 0.264,
+        "inform": 0.218,
+        "reveal": 0.068,
+        "bond": 0.075,
+        "shift": 0.042,
+        "resolve": 0.046,
+        "foreshadow": 0.033
       },
       "bond": {
-        "inform": 0.25,
-        "shift": 0.25,
-        "advance": 0.25,
-        "breathe": 0.25
+        "inform": 0.181,
+        "reveal": 0.152,
+        "breathe": 0.124,
+        "resolve": 0.048,
+        "advance": 0.324,
+        "shift": 0.038,
+        "turn": 0.048,
+        "foreshadow": 0.038,
+        "bond": 0.019,
+        "expand": 0.029
       },
       "turn": {
-        "inform": 0.429,
-        "resolve": 0.286,
-        "reveal": 0.143,
-        "advance": 0.143
+        "inform": 0.239,
+        "resolve": 0.13,
+        "foreshadow": 0.054,
+        "advance": 0.315,
+        "expand": 0.022,
+        "reveal": 0.054,
+        "shift": 0.065,
+        "bond": 0.076,
+        "breathe": 0.043
       },
       "reveal": {
-        "turn": 0.2,
-        "inform": 0.2,
-        "reveal": 0.067,
-        "advance": 0.333,
-        "resolve": 0.067,
-        "breathe": 0.133
+        "foreshadow": 0.05,
+        "shift": 0.067,
+        "reveal": 0.025,
+        "turn": 0.092,
+        "inform": 0.225,
+        "breathe": 0.117,
+        "advance": 0.2,
+        "expand": 0.05,
+        "bond": 0.075,
+        "resolve": 0.1
       },
       "shift": {
-        "advance": 1
+        "advance": 0.396,
+        "resolve": 0.042,
+        "breathe": 0.063,
+        "foreshadow": 0.063,
+        "expand": 0.042,
+        "bond": 0.104,
+        "inform": 0.063,
+        "reveal": 0.208,
+        "turn": 0.021
       },
       "expand": {
-        "inform": 0.25,
-        "foreshadow": 0.5,
-        "turn": 0.25
+        "inform": 0.263,
+        "advance": 0.316,
+        "foreshadow": 0.079,
+        "breathe": 0.184,
+        "bond": 0.105,
+        "reveal": 0.053
       },
       "foreshadow": {
-        "shift": 1
+        "advance": 0.405,
+        "resolve": 0.143,
+        "bond": 0.071,
+        "breathe": 0.095,
+        "expand": 0.024,
+        "inform": 0.095,
+        "turn": 0.143,
+        "reveal": 0.024
       },
       "resolve": {
-        "advance": 0.5,
-        "breathe": 0.5
+        "reveal": 0.049,
+        "inform": 0.098,
+        "foreshadow": 0.122,
+        "advance": 0.22,
+        "breathe": 0.341,
+        "bond": 0.122,
+        "resolve": 0.049
       }
     },
     "sampleAnchors": [
-      "It was nearly midnight, and he was lying on his stomach in bed, the blankets drawn right over his head like a tent, a flashlight in one hand and a large leather-bound book (A History of Magic by Bathilda Bagshot) propped open against the pillow.",
-      "HELLO? HELLO? CAN YOU HEAR ME? I — WANT — TO — TALK — TO — HARRY — POTTER!",
-      "It was one o’clock in the morning. Harry’s stomach gave a funny jolt. He had been thirteen years old, without realizing it, for a whole hour.",
+      "HARRY POTTER WAS A HIGHLY UNUSUAL BOY IN MANY WAYS.",
+      "WHAT SCHOOL YOU’RE TALKING ABOUT! NEVER CONTACT ME AGAIN! DON’T YOU COME NEAR MY FAMILY!”",
+      "He had been thirteen years old, without realizing it, for a whole hour.",
       "Through the window soared three owls, two of them holding up the third, which appeared to be unconscious.",
-      "And out fell — a book. Harry just had time to register its handsome green cover, emblazoned with the golden title The Monster Book of Monsters, before it flipped onto its edge and scuttled sideways along the bed like some weird crab.",
+      "It struck Harry as ominous that Hagrid thought a biting book would come in useful",
       "Harry went down to breakfast the next morning to find the three Dursleys already sitting around the kitchen table.",
-      "Far from wishing Harry a happy birthday, none of the Dursleys made any sign that they had noticed Harry enter the room",
-      "“. . . The public is warned that Black is armed and extremely dangerous.",
-      "“Look at the state of him, the filthy layabout! Look at his hair!”",
-      "He shot a nasty look sideways at Harry, whose untidy hair had always been a source of great annoyance to Uncle Vernon."
-    ]
+      "The public is warned that Black is armed and extremely dangerous.",
+      "No need to tell us he’s no good,” snorted Uncle Vernon",
+      "Look at his hair!” He shot a nasty look sideways at Harry",
+      "“When will they learn,” said Uncle Vernon, pounding the table with his large purple fist, “that hanging’s the only way to deal with these people?”"
+    ],
+    "id": "harry_potter_and_the_prisoner_of_azkaban",
+    "builtIn": true
   },
   {
     "title": "Harry Potter and the Chamber of Secrets",
-    "scenesAnalyzed": 10,
-    "totalBeats": 137,
-    "avgBeatsPerKWord": 13.7,
+    "scenesAnalyzed": 88,
+    "totalBeats": 1282,
+    "avgBeatsPerKWord": 15.8,
     "beatDistribution": {
-      "breathe": 0.175,
-      "inform": 0.204,
-      "advance": 0.241,
-      "bond": 0.08,
-      "turn": 0.073,
-      "reveal": 0.058,
-      "shift": 0.036,
-      "expand": 0.058,
-      "foreshadow": 0.044,
-      "resolve": 0.029
-    },
-    "mechanismDistribution": {
-      "dialogue": 0.431,
-      "thought": 0.073,
-      "action": 0.234,
-      "environment": 0.182,
-      "narration": 0.058,
-      "memory": 0.007,
-      "document": 0.015
-    },
-    "markovTransitions": {
-      "breathe": {
-        "inform": 0.5,
-        "advance": 0.167,
-        "reveal": 0.083,
-        "foreshadow": 0.042,
-        "bond": 0.083,
-        "breathe": 0.083,
-        "expand": 0.042
-      },
-      "inform": {
-        "advance": 0.462,
-        "expand": 0.154,
-        "breathe": 0.115,
-        "bond": 0.077,
-        "reveal": 0.077,
-        "shift": 0.038,
-        "foreshadow": 0.038,
-        "inform": 0.038
-      },
-      "advance": {
-        "bond": 0.188,
-        "inform": 0.063,
-        "shift": 0.094,
-        "resolve": 0.094,
-        "reveal": 0.031,
-        "turn": 0.125,
-        "foreshadow": 0.063,
-        "advance": 0.188,
-        "breathe": 0.156
-      },
-      "bond": {
-        "turn": 0.182,
-        "advance": 0.182,
-        "reveal": 0.091,
-        "inform": 0.273,
-        "breathe": 0.182,
-        "expand": 0.091
-      },
-      "turn": {
-        "advance": 0.375,
-        "inform": 0.5,
-        "shift": 0.125
-      },
-      "reveal": {
-        "inform": 0.125,
-        "foreshadow": 0.125,
-        "breathe": 0.25,
-        "expand": 0.125,
-        "turn": 0.125,
-        "advance": 0.125,
-        "resolve": 0.125
-      },
-      "shift": {
-        "advance": 0.75,
-        "inform": 0.25
-      },
-      "expand": {
-        "reveal": 0.286,
-        "bond": 0.143,
-        "advance": 0.143,
-        "inform": 0.143,
-        "turn": 0.143,
-        "breathe": 0.143
-      },
-      "foreshadow": {
-        "turn": 0.4,
-        "inform": 0.2,
-        "expand": 0.2,
-        "breathe": 0.2
-      },
-      "resolve": {
-        "foreshadow": 0.5,
-        "breathe": 0.5
-      }
-    },
-    "sampleAnchors": [
-      "“If you can’t control that owl, it’ll have to go!”",
-      "“You’ve forgotten the magic word,” said Harry irritably.",
-      "“WHAT HAVE I TOLD YOU,” thundered his uncle, spraying spit over the table, “ABOUT SAYING THE ‘M’ WORD IN OUR HOUSE?”",
-      "Harry Potter was a wizard — a wizard fresh from his first year at Hogwarts School of Witchcraft and Wizardry.",
-      "“I’ll be in my bedroom, making no noise and pretending I’m not there,” said Harry tonelessly.",
-      "“I’ll be in my room, making no noise and pretending I’m not there,” he said.",
-      "“Happy birthday to me . . happy birthday to me . . .”",
-      "Two enormous green eyes had appeared among the leaves.",
-      "“MUUUUUUM!” howled Dudley, tripping over his feet as he dashed back toward the house.",
-      "The trouble was, there was already someone sitting on it."
-    ]
-  },
-  {
-    "title": "Harry Potter and the Sorcerer's Stone",
-    "scenesAnalyzed": 10,
-    "totalBeats": 146,
-    "avgBeatsPerKWord": 13.7,
-    "beatDistribution": {
-      "breathe": 0.164,
-      "inform": 0.192,
-      "advance": 0.295,
-      "bond": 0.082,
-      "turn": 0.055,
-      "reveal": 0.075,
-      "shift": 0.027,
-      "expand": 0.021,
-      "foreshadow": 0.055,
+      "breathe": 0.165,
+      "inform": 0.213,
+      "advance": 0.271,
+      "bond": 0.074,
+      "turn": 0.066,
+      "reveal": 0.074,
+      "shift": 0.038,
+      "expand": 0.028,
+      "foreshadow": 0.037,
       "resolve": 0.034
     },
     "mechanismDistribution": {
-      "dialogue": 0.288,
-      "thought": 0.062,
-      "action": 0.349,
-      "environment": 0.164,
-      "narration": 0.123,
-      "memory": 0.007,
-      "document": 0.007
+      "dialogue": 0.44,
+      "thought": 0.04,
+      "action": 0.296,
+      "environment": 0.165,
+      "narration": 0.047,
+      "memory": 0.002,
+      "document": 0.011
     },
     "markovTransitions": {
       "breathe": {
-        "breathe": 0.05,
-        "inform": 0.5,
-        "advance": 0.3,
-        "resolve": 0.1,
-        "bond": 0.05
+        "advance": 0.289,
+        "inform": 0.48,
+        "turn": 0.034,
+        "reveal": 0.025,
+        "breathe": 0.059,
+        "bond": 0.078,
+        "expand": 0.02,
+        "foreshadow": 0.01,
+        "resolve": 0.005
       },
       "inform": {
-        "advance": 0.464,
-        "bond": 0.107,
-        "inform": 0.071,
-        "reveal": 0.214,
-        "resolve": 0.036,
-        "turn": 0.036,
-        "breathe": 0.071
+        "turn": 0.034,
+        "foreshadow": 0.064,
+        "expand": 0.057,
+        "advance": 0.383,
+        "reveal": 0.121,
+        "shift": 0.023,
+        "inform": 0.125,
+        "bond": 0.068,
+        "breathe": 0.114,
+        "resolve": 0.011
       },
       "advance": {
-        "breathe": 0.098,
-        "turn": 0.098,
-        "inform": 0.146,
-        "bond": 0.098,
-        "advance": 0.317,
-        "foreshadow": 0.049,
-        "shift": 0.049,
-        "resolve": 0.049,
-        "reveal": 0.073,
-        "expand": 0.024
+        "inform": 0.215,
+        "turn": 0.13,
+        "reveal": 0.076,
+        "resolve": 0.051,
+        "shift": 0.063,
+        "breathe": 0.151,
+        "foreshadow": 0.045,
+        "advance": 0.181,
+        "bond": 0.076,
+        "expand": 0.012
       },
       "bond": {
-        "foreshadow": 0.417,
-        "inform": 0.25,
-        "reveal": 0.083,
-        "shift": 0.083,
-        "bond": 0.083,
-        "breathe": 0.083
+        "advance": 0.281,
+        "inform": 0.191,
+        "breathe": 0.112,
+        "turn": 0.034,
+        "resolve": 0.101,
+        "reveal": 0.112,
+        "shift": 0.09,
+        "expand": 0.022,
+        "foreshadow": 0.034,
+        "bond": 0.022
       },
       "turn": {
-        "advance": 0.375,
-        "bond": 0.25,
-        "inform": 0.125,
-        "expand": 0.125,
-        "turn": 0.125
+        "advance": 0.403,
+        "bond": 0.091,
+        "inform": 0.195,
+        "reveal": 0.065,
+        "shift": 0.104,
+        "foreshadow": 0.013,
+        "breathe": 0.104,
+        "turn": 0.013,
+        "resolve": 0.013
       },
       "reveal": {
-        "inform": 0.364,
-        "advance": 0.273,
-        "expand": 0.091,
-        "turn": 0.091,
-        "breathe": 0.091,
-        "shift": 0.091
+        "expand": 0.069,
+        "advance": 0.322,
+        "breathe": 0.08,
+        "turn": 0.092,
+        "inform": 0.195,
+        "bond": 0.103,
+        "shift": 0.023,
+        "foreshadow": 0.046,
+        "resolve": 0.046,
+        "reveal": 0.023
       },
       "shift": {
-        "advance": 0.25,
-        "reveal": 0.25,
-        "turn": 0.25,
-        "breathe": 0.25
+        "reveal": 0.14,
+        "breathe": 0.14,
+        "advance": 0.349,
+        "foreshadow": 0.07,
+        "turn": 0.07,
+        "bond": 0.093,
+        "shift": 0.023,
+        "resolve": 0.07,
+        "inform": 0.047
       },
       "expand": {
-        "advance": 0.5,
-        "breathe": 0.5
+        "inform": 0.161,
+        "turn": 0.097,
+        "bond": 0.194,
+        "advance": 0.161,
+        "reveal": 0.226,
+        "breathe": 0.032,
+        "shift": 0.065,
+        "foreshadow": 0.032,
+        "resolve": 0.032
       },
       "foreshadow": {
-        "breathe": 0.333,
-        "inform": 0.167,
-        "bond": 0.167,
-        "advance": 0.333
+        "advance": 0.41,
+        "expand": 0.103,
+        "breathe": 0.154,
+        "bond": 0.026,
+        "turn": 0.154,
+        "resolve": 0.077,
+        "inform": 0.026,
+        "reveal": 0.051
       },
       "resolve": {
-        "inform": 0.25,
-        "advance": 0.25,
-        "foreshadow": 0.25,
-        "breathe": 0.25
+        "inform": 0.207,
+        "turn": 0.069,
+        "bond": 0.241,
+        "advance": 0.172,
+        "shift": 0.034,
+        "reveal": 0.034,
+        "foreshadow": 0.069,
+        "expand": 0.034,
+        "breathe": 0.103,
+        "resolve": 0.034
+      }
+    },
+    "sampleAnchors": [
+      "If you can’t control that owl, it’ll have to go!",
+      "You’ve forgotten the magic word",
+      "WHAT HAVE I TOLD YOU ABOUT SAYING THE ‘M’ WORD IN OUR HOUSE?",
+      "I’ll be in my bedroom, making no noise and pretending I’m not there",
+      "Happy birthday to me . . happy birthday to me . .",
+      "“I’ll be in my room, making no noise and pretending I’m not there,” he said.",
+      "No cards, no presents, and he would be spending the evening pretending not to exist.",
+      "Two enormous green eyes had appeared among the leaves.",
+      "“Today’s your birthday ,” sneered Dudley. “How come you haven’t got any cards?",
+      "The trouble was, there was already someone sitting on it."
+    ],
+    "id": "harry_potter_and_the_chamber_of_secrets",
+    "builtIn": true
+  },
+  {
+    "title": "Harry Potter and the Sorcerer's Stone",
+    "scenesAnalyzed": 91,
+    "totalBeats": 1254,
+    "avgBeatsPerKWord": 16.9,
+    "beatDistribution": {
+      "breathe": 0.163,
+      "inform": 0.203,
+      "advance": 0.262,
+      "bond": 0.077,
+      "turn": 0.066,
+      "reveal": 0.065,
+      "shift": 0.035,
+      "expand": 0.038,
+      "foreshadow": 0.038,
+      "resolve": 0.052
+    },
+    "mechanismDistribution": {
+      "dialogue": 0.419,
+      "thought": 0.058,
+      "action": 0.288,
+      "environment": 0.162,
+      "narration": 0.053,
+      "memory": 0.003,
+      "document": 0.014,
+      "comic": 0.002
+    },
+    "markovTransitions": {
+      "breathe": {
+        "breathe": 0.081,
+        "advance": 0.284,
+        "inform": 0.416,
+        "expand": 0.03,
+        "foreshadow": 0.03,
+        "shift": 0.005,
+        "resolve": 0.025,
+        "reveal": 0.02,
+        "bond": 0.036,
+        "turn": 0.071
+      },
+      "inform": {
+        "breathe": 0.1,
+        "bond": 0.108,
+        "reveal": 0.092,
+        "expand": 0.08,
+        "inform": 0.092,
+        "advance": 0.392,
+        "shift": 0.036,
+        "foreshadow": 0.028,
+        "resolve": 0.02,
+        "turn": 0.052
+      },
+      "advance": {
+        "inform": 0.209,
+        "reveal": 0.073,
+        "foreshadow": 0.028,
+        "bond": 0.098,
+        "breathe": 0.133,
+        "resolve": 0.092,
+        "turn": 0.12,
+        "advance": 0.184,
+        "expand": 0.028,
+        "shift": 0.035
+      },
+      "bond": {
+        "reveal": 0.12,
+        "inform": 0.196,
+        "shift": 0.076,
+        "advance": 0.283,
+        "turn": 0.054,
+        "bond": 0.033,
+        "breathe": 0.12,
+        "expand": 0.054,
+        "foreshadow": 0.033,
+        "resolve": 0.033
+      },
+      "turn": {
+        "advance": 0.329,
+        "reveal": 0.038,
+        "foreshadow": 0.076,
+        "inform": 0.266,
+        "breathe": 0.063,
+        "resolve": 0.038,
+        "bond": 0.051,
+        "shift": 0.101,
+        "expand": 0.038
+      },
+      "reveal": {
+        "advance": 0.308,
+        "foreshadow": 0.051,
+        "inform": 0.205,
+        "bond": 0.167,
+        "breathe": 0.026,
+        "turn": 0.051,
+        "shift": 0.038,
+        "resolve": 0.128,
+        "expand": 0.013,
+        "reveal": 0.013
+      },
+      "shift": {
+        "turn": 0.075,
+        "advance": 0.225,
+        "breathe": 0.075,
+        "bond": 0.075,
+        "reveal": 0.2,
+        "foreshadow": 0.1,
+        "inform": 0.1,
+        "resolve": 0.125,
+        "expand": 0.025
+      },
+      "expand": {
+        "advance": 0.39,
+        "reveal": 0.098,
+        "inform": 0.22,
+        "breathe": 0.122,
+        "bond": 0.049,
+        "foreshadow": 0.073,
+        "expand": 0.024,
+        "shift": 0.024
+      },
+      "foreshadow": {
+        "inform": 0.129,
+        "resolve": 0.161,
+        "advance": 0.226,
+        "turn": 0.097,
+        "breathe": 0.323,
+        "expand": 0.032,
+        "reveal": 0.032
+      },
+      "resolve": {
+        "turn": 0.077,
+        "foreshadow": 0.154,
+        "advance": 0.205,
+        "reveal": 0.077,
+        "bond": 0.128,
+        "inform": 0.077,
+        "breathe": 0.154,
+        "shift": 0.103,
+        "expand": 0.026
       }
     },
     "sampleAnchors": [
       "Mr. and Mrs. Dursley, of number four, Privet Drive, were proud to say that they were perfectly normal, thank you very much.",
-      "It was on the corner of the street that he noticed the first sign of something peculiar — a cat reading a map.",
+      "a cat reading a map.",
       "“The Potters, that’s right, that’s what I heard —” “— yes, their son, Harry —”",
-      "“Don’t be sorry, my dear sir, for nothing could upset me today! Rejoice, for You-Know-Who has gone at last! Even Muggles like yourself should be celebrating, this happy, happy day!”",
-      "A man appeared on the corner the cat had been watching, appeared so suddenly and silently you’d have thought he’d just popped out of the ground.",
+      "And the old man hugged Mr. Dursley around the middle and walked off.",
+      "A man appeared on the corner the cat had been watching",
       "Twelve times he clicked the Put-Outer, until the only lights left on the whole street were two tiny pinpricks in the distance, which were the eyes of the cat watching him.",
-      "“My dear Professor, I’ve never seen a cat sit so stiffly.”",
-      "“All this ‘You-Know-Who’ nonsense — for eleven years I have been trying to persuade people to call him by his proper name: Voldemort.”",
-      "“What they’re saying, ” she pressed on, “is that last night Voldemort turned up in Godric’s Hollow. He went to find the Potters. The rumor is that Lily and James Potter are — are — that they’re — dead. ”",
-      "— and a huge motorcycle fell out of the air and landed on the road in front of them."
-    ]
+      "“Fancy seeing you here, Professor McGonagall.”",
+      "“My dear Professor, surely a sensible person like yourself can call him by his name? All this ‘You-Know-Who’ nonsense — for eleven years I have been trying to persuade people to call him by his proper name: Voldemort.”",
+      "“What they’re saying,” she pressed on, “is that last night Voldemort turned up in Godric’s Hollow. He went to find the Potters. The rumor is that Lily and James Potter are — are — that they’re — dead.”",
+      "A low rumbling sound had broken the silence around them. It grew steadily louder as they looked up and down the street for some sign of a headlight; it swelled to a roar as they both looked up at the sky — and a huge motorcycle fell out of the air and landed on the road in front of them."
+    ],
+    "id": "harry_potter_and_the_sorcerer_s_stone",
+    "builtIn": true
   },
   {
     "title": "Reverend Insanity",
-    "scenesAnalyzed": 10,
-    "totalBeats": 149,
-    "avgBeatsPerKWord": 708,
+    "scenesAnalyzed": 133,
+    "totalBeats": 2286,
+    "avgBeatsPerKWord": 70.5,
     "beatDistribution": {
-      "breathe": 0.161,
-      "inform": 0.235,
-      "advance": 0.195,
-      "bond": 0.101,
-      "turn": 0.074,
-      "reveal": 0.074,
-      "shift": 0.02,
-      "expand": 0.047,
-      "foreshadow": 0.047,
-      "resolve": 0.047
+      "breathe": 0.137,
+      "inform": 0.218,
+      "advance": 0.25,
+      "bond": 0.06,
+      "turn": 0.057,
+      "reveal": 0.094,
+      "shift": 0.045,
+      "expand": 0.048,
+      "foreshadow": 0.034,
+      "resolve": 0.057
     },
     "mechanismDistribution": {
-      "dialogue": 0.248,
-      "thought": 0.268,
-      "action": 0.228,
-      "environment": 0.181,
-      "narration": 0.074
+      "dialogue": 0.283,
+      "thought": 0.229,
+      "action": 0.234,
+      "environment": 0.141,
+      "narration": 0.108,
+      "memory": 0.003,
+      "document": 0.002
     },
     "markovTransitions": {
       "breathe": {
-        "inform": 0.583,
-        "advance": 0.083,
-        "turn": 0.083,
-        "expand": 0.083,
-        "bond": 0.042,
-        "breathe": 0.083,
-        "resolve": 0.042
+        "inform": 0.564,
+        "reveal": 0.02,
+        "advance": 0.201,
+        "expand": 0.04,
+        "turn": 0.034,
+        "breathe": 0.067,
+        "resolve": 0.03,
+        "bond": 0.037,
+        "shift": 0.003,
+        "foreshadow": 0.003
       },
       "inform": {
-        "advance": 0.4,
-        "expand": 0.057,
-        "reveal": 0.086,
-        "resolve": 0.057,
-        "foreshadow": 0.029,
-        "breathe": 0.029,
-        "inform": 0.143,
-        "bond": 0.114,
-        "turn": 0.057,
-        "shift": 0.029
+        "breathe": 0.067,
+        "foreshadow": 0.032,
+        "advance": 0.371,
+        "reveal": 0.116,
+        "expand": 0.085,
+        "inform": 0.13,
+        "bond": 0.057,
+        "turn": 0.049,
+        "shift": 0.055,
+        "resolve": 0.039
       },
       "advance": {
-        "breathe": 0.172,
-        "reveal": 0.069,
-        "expand": 0.034,
-        "advance": 0.207,
-        "inform": 0.276,
-        "bond": 0.138,
-        "foreshadow": 0.069,
-        "shift": 0.034
+        "advance": 0.187,
+        "reveal": 0.131,
+        "turn": 0.094,
+        "bond": 0.077,
+        "expand": 0.04,
+        "breathe": 0.09,
+        "resolve": 0.07,
+        "inform": 0.234,
+        "foreshadow": 0.04,
+        "shift": 0.038
       },
       "bond": {
-        "turn": 0.143,
-        "breathe": 0.071,
-        "reveal": 0.357,
-        "inform": 0.286,
-        "expand": 0.071,
-        "bond": 0.071
+        "breathe": 0.066,
+        "reveal": 0.191,
+        "inform": 0.176,
+        "shift": 0.088,
+        "foreshadow": 0.044,
+        "turn": 0.059,
+        "advance": 0.243,
+        "resolve": 0.103,
+        "bond": 0.015,
+        "expand": 0.015
       },
       "turn": {
-        "resolve": 0.25,
-        "inform": 0.375,
-        "advance": 0.25,
-        "foreshadow": 0.125
+        "breathe": 0.043,
+        "resolve": 0.077,
+        "inform": 0.197,
+        "bond": 0.094,
+        "shift": 0.128,
+        "advance": 0.256,
+        "expand": 0.034,
+        "reveal": 0.145,
+        "foreshadow": 0.026
       },
       "reveal": {
-        "advance": 0.273,
-        "resolve": 0.182,
-        "breathe": 0.182,
-        "foreshadow": 0.091,
-        "reveal": 0.091,
-        "bond": 0.091,
-        "turn": 0.091
+        "breathe": 0.053,
+        "advance": 0.32,
+        "shift": 0.068,
+        "bond": 0.102,
+        "resolve": 0.097,
+        "foreshadow": 0.049,
+        "turn": 0.063,
+        "expand": 0.058,
+        "inform": 0.184,
+        "reveal": 0.005
       },
       "shift": {
-        "bond": 0.5,
-        "expand": 0.5
+        "breathe": 0.111,
+        "turn": 0.111,
+        "reveal": 0.091,
+        "advance": 0.343,
+        "resolve": 0.091,
+        "inform": 0.081,
+        "bond": 0.101,
+        "shift": 0.01,
+        "expand": 0.051,
+        "foreshadow": 0.01
       },
       "expand": {
-        "foreshadow": 0.286,
-        "inform": 0.143,
-        "breathe": 0.143,
-        "advance": 0.143,
-        "bond": 0.286
+        "inform": 0.311,
+        "foreshadow": 0.107,
+        "reveal": 0.087,
+        "bond": 0.068,
+        "advance": 0.252,
+        "shift": 0.039,
+        "turn": 0.019,
+        "resolve": 0.039,
+        "breathe": 0.068,
+        "expand": 0.01
       },
       "foreshadow": {
-        "bond": 0.167,
-        "shift": 0.167,
-        "turn": 0.667
+        "shift": 0.078,
+        "breathe": 0.219,
+        "turn": 0.063,
+        "advance": 0.328,
+        "reveal": 0.078,
+        "resolve": 0.109,
+        "expand": 0.063,
+        "inform": 0.047,
+        "bond": 0.016
       },
       "resolve": {
-        "breathe": 0.667,
-        "advance": 0.333
+        "bond": 0.037,
+        "inform": 0.099,
+        "foreshadow": 0.086,
+        "advance": 0.173,
+        "turn": 0.086,
+        "breathe": 0.272,
+        "reveal": 0.136,
+        "expand": 0.062,
+        "shift": 0.049
       }
     },
     "sampleAnchors": [
-      "Fang Yuan, you damned demon. In order to cultivate the Spring and Autumn Cicada, you've taken the lives of millions.",
-      "His gaze was faint, like a deep well, bottomless as always.",
-      "right at this time, with a loud explosion, Fang Yuan self-detonated.",
-      "The spring rain continued, quietly nourishing Qing Mao Mountain.",
-      "The Spring Autumn Cicada really worked … ",
-      "Fang Yuan, obediently hand over the Spring and Autumn Cicada, and I'll give you a quick death!",
-      "The setting sun on the green mountain, the autumn moon and the spring breeze.",
+      "\"Fang Yuan, obediently hand over the Spring and Autumn Cicada, and I'll give you a quick death!\"",
+      "Bright red blood gushed out from the hundreds of wounds on his body.",
+      "\"The setting sun on the green mountain, the autumn moon and the spring breeze.",
+      "\"If the newly refined Spring and Autumn Cicada is effective, I will still be an evil spirit in my next life!\"",
+      "\"Guyue village, this is five hundred years ago?!\"",
+      "Qing Mao Mountain was not dark. From the mountainside to the foot of the mountain, there were many glimmers of light, as if it was draped in a brilliant belt of light.",
       "Ancestors bless us, I hope that in this Awakening Ceremony, there will be many talented youths, to add new blood and hope to the family!",
+      "Our Guyue Village has not had such a genius in three years.",
       "Especially the Bai clan's Bai Ning Bing, his talent is really terrifying.",
-      "If this child is tested to have A grade aptitude, with proper training, he may be able to compete with Bai Ning Bing."
-    ]
+      "The fight must be open and aboveboard, and must not use underhanded methods to harm the unity of the clan."
+    ],
+    "id": "reverend_insanity",
+    "builtIn": true
   },
   {
     "title": "Nineteen Eighty-Four",
-    "scenesAnalyzed": 10,
-    "totalBeats": 119,
-    "avgBeatsPerKWord": 13.4,
+    "scenesAnalyzed": 70,
+    "totalBeats": 1000,
+    "avgBeatsPerKWord": 13.2,
     "beatDistribution": {
-      "breathe": 0.176,
-      "inform": 0.202,
-      "advance": 0.252,
-      "bond": 0.017,
-      "turn": 0.042,
-      "reveal": 0.092,
-      "shift": 0.017,
-      "expand": 0.134,
-      "foreshadow": 0.042,
-      "resolve": 0.025
+      "breathe": 0.163,
+      "inform": 0.214,
+      "advance": 0.223,
+      "bond": 0.053,
+      "turn": 0.058,
+      "reveal": 0.109,
+      "shift": 0.022,
+      "expand": 0.077,
+      "foreshadow": 0.037,
+      "resolve": 0.044
     },
     "mechanismDistribution": {
-      "dialogue": 0.067,
-      "thought": 0.193,
-      "action": 0.269,
-      "environment": 0.235,
-      "narration": 0.202,
-      "memory": 0.017,
-      "document": 0.017
+      "dialogue": 0.243,
+      "thought": 0.205,
+      "action": 0.21,
+      "environment": 0.147,
+      "narration": 0.157,
+      "memory": 0.019,
+      "document": 0.018,
+      "comic": 0.001
     },
     "markovTransitions": {
       "breathe": {
-        "breathe": 0.1,
-        "inform": 0.5,
-        "expand": 0.05,
-        "advance": 0.15,
-        "resolve": 0.05,
-        "turn": 0.05,
-        "bond": 0.05,
-        "reveal": 0.05
+        "breathe": 0.101,
+        "advance": 0.234,
+        "reveal": 0.076,
+        "inform": 0.405,
+        "resolve": 0.013,
+        "expand": 0.038,
+        "turn": 0.051,
+        "foreshadow": 0.025,
+        "bond": 0.051,
+        "shift": 0.006
       },
       "inform": {
-        "inform": 0.087,
-        "breathe": 0.13,
-        "reveal": 0.13,
-        "shift": 0.043,
-        "advance": 0.391,
-        "resolve": 0.043,
-        "expand": 0.13,
-        "turn": 0.043
+        "breathe": 0.095,
+        "reveal": 0.176,
+        "expand": 0.129,
+        "advance": 0.333,
+        "turn": 0.024,
+        "inform": 0.086,
+        "shift": 0.033,
+        "bond": 0.043,
+        "foreshadow": 0.052,
+        "resolve": 0.029
       },
       "advance": {
-        "inform": 0.115,
-        "turn": 0.115,
-        "expand": 0.154,
-        "bond": 0.038,
-        "advance": 0.308,
-        "breathe": 0.115,
-        "reveal": 0.077,
-        "shift": 0.038,
-        "foreshadow": 0.038
+        "inform": 0.199,
+        "turn": 0.128,
+        "reveal": 0.137,
+        "bond": 0.057,
+        "advance": 0.18,
+        "expand": 0.071,
+        "breathe": 0.109,
+        "resolve": 0.062,
+        "shift": 0.024,
+        "foreshadow": 0.033
       },
       "bond": {
-        "resolve": 0.5,
-        "inform": 0.5
+        "resolve": 0.14,
+        "inform": 0.22,
+        "expand": 0.12,
+        "advance": 0.12,
+        "breathe": 0.1,
+        "reveal": 0.14,
+        "bond": 0.06,
+        "turn": 0.06,
+        "shift": 0.04
       },
       "turn": {
-        "inform": 0.2,
-        "reveal": 0.2,
-        "advance": 0.6
+        "advance": 0.333,
+        "breathe": 0.074,
+        "inform": 0.148,
+        "resolve": 0.074,
+        "reveal": 0.148,
+        "bond": 0.093,
+        "expand": 0.056,
+        "shift": 0.037,
+        "foreshadow": 0.037
       },
       "reveal": {
-        "expand": 0.2,
-        "advance": 0.4,
-        "breathe": 0.1,
-        "inform": 0.3
+        "breathe": 0.07,
+        "expand": 0.07,
+        "inform": 0.27,
+        "advance": 0.25,
+        "turn": 0.07,
+        "bond": 0.1,
+        "resolve": 0.08,
+        "shift": 0.03,
+        "foreshadow": 0.03,
+        "reveal": 0.03
       },
       "shift": {
-        "breathe": 0.5,
-        "reveal": 0.5
+        "advance": 0.421,
+        "expand": 0.053,
+        "breathe": 0.053,
+        "turn": 0.105,
+        "bond": 0.053,
+        "inform": 0.263,
+        "reveal": 0.053
       },
       "expand": {
-        "inform": 0.188,
-        "expand": 0.25,
-        "foreshadow": 0.25,
-        "advance": 0.063,
-        "reveal": 0.188,
-        "breathe": 0.063
+        "foreshadow": 0.12,
+        "expand": 0.107,
+        "advance": 0.133,
+        "reveal": 0.107,
+        "inform": 0.36,
+        "breathe": 0.107,
+        "bond": 0.04,
+        "resolve": 0.027
       },
       "foreshadow": {
-        "advance": 0.5,
-        "expand": 0.25,
-        "inform": 0.25
+        "expand": 0.063,
+        "inform": 0.125,
+        "breathe": 0.125,
+        "advance": 0.25,
+        "turn": 0.188,
+        "reveal": 0.094,
+        "shift": 0.031,
+        "bond": 0.063,
+        "resolve": 0.063
       },
       "resolve": {
-        "expand": 1
+        "shift": 0.048,
+        "advance": 0.095,
+        "breathe": 0.476,
+        "expand": 0.095,
+        "inform": 0.19,
+        "reveal": 0.048,
+        "foreshadow": 0.048
       }
     },
     "sampleAnchors": [
@@ -540,553 +767,734 @@
       "BIG BROTHER IS WATCHING YOU, the caption beneath it ran.",
       "The instrument (the telescreen, it was called) could be dimmed, but there was no way of shutting it off completely.",
       "You had to live--did live, from habit that became instinct--in the assumption that every sound you made was overheard, and, except in darkness, every movement scrutinized.",
-      "WAR IS PEACE\n  FREEDOM IS SLAVERY\n  IGNORANCE IS STRENGTH",
+      "The Ministry of Love was the really frightening one.",
       "The stuff was like nitric acid",
-      "a thick, quarto-sized blank book with a red back and a marbled cover",
-      "a shallow alcove in which Winston was now sitting",
-      "punished by death, or at least by twenty-five years in a forced-labour camp",
-      "April 4th, 1984."
-    ]
+      "a peculiarly beautiful book",
+      "if detected it was reasonably certain that it would be punished by death",
+      "To mark the paper was the decisive act.",
+      "The telescreen had changed over to strident military music."
+    ],
+    "id": "nineteen_eighty_four",
+    "builtIn": true
   },
   {
     "title": "The Great Gatsby",
-    "scenesAnalyzed": 10,
-    "totalBeats": 146,
-    "avgBeatsPerKWord": 12.8,
+    "scenesAnalyzed": 43,
+    "totalBeats": 631,
+    "avgBeatsPerKWord": 15.1,
     "beatDistribution": {
-      "breathe": 0.192,
-      "inform": 0.212,
-      "advance": 0.205,
-      "bond": 0.096,
-      "turn": 0.048,
-      "reveal": 0.103,
-      "shift": 0.027,
-      "expand": 0.034,
-      "foreshadow": 0.048,
-      "resolve": 0.034
+      "breathe": 0.171,
+      "inform": 0.173,
+      "advance": 0.225,
+      "bond": 0.086,
+      "turn": 0.052,
+      "reveal": 0.128,
+      "shift": 0.051,
+      "expand": 0.035,
+      "foreshadow": 0.038,
+      "resolve": 0.041
     },
     "mechanismDistribution": {
-      "dialogue": 0.377,
-      "thought": 0.041,
-      "action": 0.233,
-      "environment": 0.171,
-      "narration": 0.171,
-      "memory": 0.007
+      "dialogue": 0.393,
+      "thought": 0.06,
+      "action": 0.206,
+      "environment": 0.16,
+      "narration": 0.176,
+      "memory": 0.002,
+      "document": 0.003
     },
     "markovTransitions": {
       "breathe": {
-        "inform": 0.5,
-        "bond": 0.077,
-        "breathe": 0.038,
-        "reveal": 0.077,
-        "expand": 0.115,
-        "advance": 0.192
+        "inform": 0.429,
+        "breathe": 0.086,
+        "advance": 0.238,
+        "reveal": 0.076,
+        "foreshadow": 0.029,
+        "expand": 0.029,
+        "turn": 0.038,
+        "bond": 0.048,
+        "resolve": 0.019,
+        "shift": 0.01
       },
       "inform": {
-        "reveal": 0.161,
-        "advance": 0.387,
-        "expand": 0.032,
-        "bond": 0.161,
-        "inform": 0.065,
-        "breathe": 0.065,
-        "shift": 0.032,
-        "foreshadow": 0.065,
-        "turn": 0.032
+        "reveal": 0.211,
+        "expand": 0.055,
+        "inform": 0.073,
+        "bond": 0.128,
+        "advance": 0.275,
+        "shift": 0.028,
+        "breathe": 0.128,
+        "foreshadow": 0.028,
+        "turn": 0.055,
+        "resolve": 0.018
       },
       "advance": {
-        "bond": 0.138,
-        "breathe": 0.345,
-        "reveal": 0.034,
-        "advance": 0.138,
-        "resolve": 0.034,
-        "inform": 0.207,
-        "turn": 0.069,
-        "shift": 0.034
+        "advance": 0.156,
+        "turn": 0.081,
+        "resolve": 0.067,
+        "bond": 0.111,
+        "breathe": 0.111,
+        "expand": 0.03,
+        "shift": 0.104,
+        "reveal": 0.126,
+        "inform": 0.178,
+        "foreshadow": 0.037
       },
       "bond": {
-        "breathe": 0.143,
-        "resolve": 0.071,
-        "inform": 0.214,
-        "turn": 0.143,
-        "reveal": 0.214,
-        "advance": 0.214
+        "breathe": 0.113,
+        "inform": 0.132,
+        "reveal": 0.226,
+        "advance": 0.321,
+        "shift": 0.038,
+        "bond": 0.038,
+        "foreshadow": 0.038,
+        "turn": 0.038,
+        "expand": 0.038,
+        "resolve": 0.019
       },
       "turn": {
-        "foreshadow": 0.143,
-        "bond": 0.286,
-        "advance": 0.143,
-        "inform": 0.143,
-        "resolve": 0.143,
-        "reveal": 0.143
+        "foreshadow": 0.031,
+        "advance": 0.219,
+        "shift": 0.188,
+        "resolve": 0.094,
+        "breathe": 0.094,
+        "reveal": 0.219,
+        "inform": 0.063,
+        "bond": 0.094
       },
       "reveal": {
-        "turn": 0.143,
-        "foreshadow": 0.143,
-        "inform": 0.214,
-        "shift": 0.143,
-        "advance": 0.214,
-        "resolve": 0.071,
-        "reveal": 0.071
+        "turn": 0.052,
+        "foreshadow": 0.052,
+        "advance": 0.325,
+        "inform": 0.169,
+        "reveal": 0.026,
+        "breathe": 0.104,
+        "shift": 0.052,
+        "expand": 0.039,
+        "bond": 0.13,
+        "resolve": 0.052
       },
       "shift": {
-        "breathe": 0.25,
-        "advance": 0.25,
-        "reveal": 0.25,
-        "resolve": 0.25
+        "bond": 0.138,
+        "inform": 0.069,
+        "advance": 0.172,
+        "reveal": 0.172,
+        "expand": 0.034,
+        "resolve": 0.069,
+        "breathe": 0.207,
+        "foreshadow": 0.034,
+        "turn": 0.103
       },
       "expand": {
-        "breathe": 0.4,
-        "advance": 0.2,
-        "inform": 0.2,
-        "bond": 0.2
+        "advance": 0.182,
+        "breathe": 0.136,
+        "inform": 0.091,
+        "bond": 0.045,
+        "reveal": 0.227,
+        "expand": 0.045,
+        "foreshadow": 0.136,
+        "resolve": 0.045,
+        "turn": 0.045,
+        "shift": 0.045
       },
       "foreshadow": {
-        "reveal": 0.25,
-        "breathe": 0.25,
-        "inform": 0.25,
-        "expand": 0.25
+        "reveal": 0.071,
+        "expand": 0.071,
+        "advance": 0.429,
+        "inform": 0.071,
+        "resolve": 0.143,
+        "breathe": 0.143,
+        "turn": 0.071
       },
       "resolve": {
-        "foreshadow": 1
+        "breathe": 0.25,
+        "foreshadow": 0.167,
+        "turn": 0.083,
+        "inform": 0.083,
+        "advance": 0.167,
+        "shift": 0.083,
+        "reveal": 0.083,
+        "expand": 0.083
       }
     },
     "sampleAnchors": [
       "“Whenever you feel like criticizing anyone,” he told me, “just remember that all the people in this world haven’t had the advantages that you’ve had.”",
-      "Only Gatsby, the man who gives his name to this book, was exempt from my reaction",
-      "it was an extraordinary gift for hope, a romantic readiness such as I have never found in any other person",
+      "Only Gatsby, the man who gives his name to this book, was exempt from my reaction—Gatsby, who represented everything for which I have an unaffected scorn.",
+      "No—Gatsby turned out all right at the end; it is what preyed on Gatsby, what foul dust floated in the wake of his dreams that temporarily closed out my interest in the abortive sorrows and short-winded elations of men.",
       "Instead of being the warm centre of the world, the Middle West now seemed like the ragged edge of the universe—so I decided to go East and learn the bond business.",
       "I had that familiar conviction that life was beginning over again with the summer.",
       "I bought a dozen volumes on banking and credit and investment securities",
-      "Twenty miles from the city a pair of enormous eggs",
-      "My house was at the very tip of the egg, only fifty yards from the Sound",
-      "It was Gatsby’s mansion.",
+      "a pair of enormous eggs, identical in contour and separated only by a courtesy bay",
+      "I lived at West Egg, the—well, the less fashionable of the two",
+      "The one on my right was a colossal affair by any standard",
       "My own house was an eyesore, but it was a small eyesore"
-    ]
+    ],
+    "id": "the_great_gatsby",
+    "builtIn": true
   },
   {
     "title": "A Tale of Two Cities",
-    "scenesAnalyzed": 10,
-    "totalBeats": 159,
-    "avgBeatsPerKWord": 13.1,
+    "scenesAnalyzed": 97,
+    "totalBeats": 1530,
+    "avgBeatsPerKWord": 16.8,
     "beatDistribution": {
-      "breathe": 0.208,
-      "inform": 0.189,
-      "advance": 0.201,
-      "bond": 0.094,
-      "turn": 0.031,
-      "reveal": 0.063,
+      "breathe": 0.171,
+      "inform": 0.192,
+      "advance": 0.256,
+      "bond": 0.085,
+      "turn": 0.039,
+      "reveal": 0.088,
       "shift": 0.031,
-      "expand": 0.088,
-      "foreshadow": 0.057,
-      "resolve": 0.038
+      "expand": 0.041,
+      "foreshadow": 0.046,
+      "resolve": 0.052
     },
     "mechanismDistribution": {
-      "dialogue": 0.308,
-      "thought": 0.119,
+      "dialogue": 0.405,
+      "thought": 0.059,
       "action": 0.226,
-      "environment": 0.157,
-      "narration": 0.189
+      "environment": 0.164,
+      "narration": 0.132,
+      "memory": 0.003,
+      "document": 0.008,
+      "comic": 0.002
     },
     "markovTransitions": {
       "breathe": {
-        "inform": 0.323,
-        "advance": 0.29,
-        "expand": 0.097,
-        "reveal": 0.097,
+        "inform": 0.397,
+        "advance": 0.271,
+        "reveal": 0.045,
+        "breathe": 0.097,
+        "turn": 0.024,
+        "foreshadow": 0.028,
+        "expand": 0.073,
+        "shift": 0.012,
         "resolve": 0.032,
-        "breathe": 0.032,
-        "foreshadow": 0.032,
-        "bond": 0.032,
-        "shift": 0.065
+        "bond": 0.02
       },
       "inform": {
-        "expand": 0.172,
-        "inform": 0.103,
-        "foreshadow": 0.034,
-        "advance": 0.276,
-        "reveal": 0.034,
-        "resolve": 0.069,
-        "breathe": 0.069,
-        "bond": 0.207,
-        "turn": 0.034
+        "expand": 0.042,
+        "foreshadow": 0.042,
+        "resolve": 0.024,
+        "reveal": 0.143,
+        "breathe": 0.108,
+        "advance": 0.369,
+        "bond": 0.091,
+        "inform": 0.108,
+        "turn": 0.049,
+        "shift": 0.024
       },
       "advance": {
-        "breathe": 0.3,
-        "turn": 0.067,
-        "inform": 0.2,
-        "advance": 0.2,
-        "reveal": 0.067,
-        "foreshadow": 0.033,
-        "bond": 0.067,
-        "expand": 0.033,
-        "shift": 0.033
+        "inform": 0.211,
+        "breathe": 0.148,
+        "shift": 0.053,
+        "advance": 0.211,
+        "reveal": 0.082,
+        "resolve": 0.061,
+        "bond": 0.108,
+        "expand": 0.024,
+        "foreshadow": 0.047,
+        "turn": 0.055
       },
       "bond": {
-        "advance": 0.267,
-        "inform": 0.2,
-        "bond": 0.2,
-        "shift": 0.067,
-        "resolve": 0.067,
-        "breathe": 0.067,
-        "reveal": 0.067,
-        "expand": 0.067
+        "breathe": 0.079,
+        "advance": 0.244,
+        "inform": 0.197,
+        "bond": 0.031,
+        "turn": 0.055,
+        "reveal": 0.197,
+        "resolve": 0.102,
+        "foreshadow": 0.055,
+        "shift": 0.039
       },
       "turn": {
-        "advance": 0.4,
-        "reveal": 0.4,
-        "resolve": 0.2
+        "advance": 0.368,
+        "inform": 0.14,
+        "breathe": 0.053,
+        "bond": 0.105,
+        "reveal": 0.211,
+        "shift": 0.053,
+        "resolve": 0.07
       },
       "reveal": {
+        "expand": 0.054,
+        "inform": 0.131,
+        "breathe": 0.092,
+        "advance": 0.254,
+        "turn": 0.054,
+        "resolve": 0.069,
+        "shift": 0.054,
+        "foreshadow": 0.085,
         "bond": 0.2,
-        "breathe": 0.2,
-        "advance": 0.2,
-        "inform": 0.3,
-        "turn": 0.1
+        "reveal": 0.008
       },
       "shift": {
-        "bond": 0.25,
-        "reveal": 0.25,
-        "foreshadow": 0.25,
-        "inform": 0.25
+        "inform": 0.128,
+        "advance": 0.468,
+        "bond": 0.128,
+        "reveal": 0.128,
+        "breathe": 0.043,
+        "resolve": 0.064,
+        "foreshadow": 0.043
       },
       "expand": {
-        "inform": 0.231,
-        "resolve": 0.077,
-        "foreshadow": 0.231,
-        "breathe": 0.231,
-        "advance": 0.077,
-        "turn": 0.077,
-        "expand": 0.077
+        "foreshadow": 0.069,
+        "inform": 0.259,
+        "bond": 0.069,
+        "breathe": 0.19,
+        "expand": 0.172,
+        "advance": 0.155,
+        "reveal": 0.017,
+        "resolve": 0.052,
+        "shift": 0.017
       },
       "foreshadow": {
-        "expand": 0.375,
-        "breathe": 0.5,
-        "foreshadow": 0.125
+        "inform": 0.096,
+        "expand": 0.096,
+        "breathe": 0.288,
+        "resolve": 0.115,
+        "shift": 0.038,
+        "foreshadow": 0.038,
+        "bond": 0.038,
+        "reveal": 0.058,
+        "advance": 0.192,
+        "turn": 0.038
       },
       "resolve": {
-        "breathe": 0.5,
-        "foreshadow": 0.25,
-        "shift": 0.25
+        "breathe": 0.265,
+        "reveal": 0.061,
+        "bond": 0.143,
+        "advance": 0.245,
+        "turn": 0.041,
+        "resolve": 0.061,
+        "foreshadow": 0.143,
+        "inform": 0.02,
+        "expand": 0.02
       }
     },
     "sampleAnchors": [
       "It was the best of times, it was the worst of times",
+      "a king with a large jaw and a queen with a plain face",
       "It was the year of Our Lord one thousand seven hundred and seventy-five.",
-      "already marked by the Woodman, Fate, to come down and be sawn into boards, to make a certain movable framework with a sack and a knife in it, terrible in history.",
-      "Daring burglaries by armed men, and highway robberies, took place in the capital itself every night",
-      "It was the Dover road that lay, on a Friday night late in November",
-      "It was the best of times, it was the worst of times",
-      "It was the year of Our Lord one thousand seven hundred and seventy-five.",
-      "the Woodman, Fate, to come down and be sawn into boards, to make a certain movable framework with a sack and a knife in it, terrible in history.",
-      "There was a steaming mist in all the hollows, and it had roamed in its forlornness up the hill, like an evil spirit",
-      "RECALLED TO LIFE."
-    ]
+      "sentencing a youth to have his hands cut off, his tongue torn out with pincers, and his body burned alive",
+      "a certain movable framework with a sack and a knife in it, terrible in history.",
+      "'Recalled to life.' That’s a Blazing strange message.",
+      "You’d be in a Blazing bad way, if recalling to life was to come into fashion, Jerry!",
+      "every human creature is constituted to be that profound secret and mystery to every other.",
+      "eyes that assorted very well with that decoration, being of a surface black, with no depth in the colour or form, and much too near together",
+      "It wouldn’t suit _your_ line of business! Recalled--!"
+    ],
+    "id": "a_tale_of_two_cities",
+    "builtIn": true
   },
   {
     "title": "Romeo and Juliet",
-    "scenesAnalyzed": 10,
-    "totalBeats": 158,
-    "avgBeatsPerKWord": 12.1,
+    "scenesAnalyzed": 24,
+    "totalBeats": 397,
+    "avgBeatsPerKWord": 13.6,
     "beatDistribution": {
-      "breathe": 0.127,
-      "inform": 0.196,
-      "advance": 0.272,
-      "bond": 0.108,
-      "turn": 0.063,
-      "reveal": 0.082,
-      "shift": 0.032,
-      "expand": 0.044,
-      "foreshadow": 0.032,
-      "resolve": 0.044
+      "breathe": 0.126,
+      "inform": 0.207,
+      "advance": 0.28,
+      "bond": 0.083,
+      "turn": 0.068,
+      "reveal": 0.096,
+      "shift": 0.02,
+      "expand": 0.023,
+      "foreshadow": 0.043,
+      "resolve": 0.055
     },
     "mechanismDistribution": {
-      "dialogue": 0.696,
-      "thought": 0.057,
-      "action": 0.101,
-      "environment": 0.114,
-      "narration": 0.032
+      "dialogue": 0.637,
+      "thought": 0.088,
+      "action": 0.139,
+      "environment": 0.103,
+      "narration": 0.03,
+      "comic": 0.003
     },
     "markovTransitions": {
       "breathe": {
-        "breathe": 0.235,
-        "inform": 0.471,
-        "advance": 0.118,
-        "bond": 0.059,
-        "turn": 0.059,
-        "reveal": 0.059
+        "foreshadow": 0.021,
+        "inform": 0.458,
+        "advance": 0.229,
+        "breathe": 0.083,
+        "turn": 0.021,
+        "bond": 0.104,
+        "expand": 0.021,
+        "shift": 0.021,
+        "reveal": 0.042
       },
       "inform": {
-        "advance": 0.452,
-        "inform": 0.129,
-        "reveal": 0.161,
-        "expand": 0.097,
-        "bond": 0.065,
-        "resolve": 0.032,
-        "breathe": 0.032,
-        "foreshadow": 0.032
+        "reveal": 0.073,
+        "advance": 0.378,
+        "resolve": 0.037,
+        "inform": 0.232,
+        "expand": 0.049,
+        "foreshadow": 0.061,
+        "bond": 0.061,
+        "breathe": 0.049,
+        "turn": 0.049,
+        "shift": 0.012
       },
       "advance": {
-        "advance": 0.317,
-        "shift": 0.049,
-        "turn": 0.122,
-        "expand": 0.049,
-        "inform": 0.195,
-        "foreshadow": 0.073,
-        "resolve": 0.024,
-        "bond": 0.098,
-        "reveal": 0.073
+        "advance": 0.229,
+        "inform": 0.2,
+        "turn": 0.095,
+        "bond": 0.105,
+        "resolve": 0.048,
+        "expand": 0.01,
+        "reveal": 0.143,
+        "breathe": 0.086,
+        "foreshadow": 0.067,
+        "shift": 0.019
       },
       "bond": {
-        "inform": 0.294,
-        "advance": 0.294,
-        "reveal": 0.118,
-        "turn": 0.118,
-        "bond": 0.059,
-        "resolve": 0.059,
-        "expand": 0.059
+        "inform": 0.061,
+        "reveal": 0.212,
+        "advance": 0.333,
+        "shift": 0.091,
+        "turn": 0.121,
+        "bond": 0.091,
+        "expand": 0.03,
+        "resolve": 0.061
       },
       "turn": {
-        "advance": 0.1,
-        "resolve": 0.2,
-        "bond": 0.2,
-        "foreshadow": 0.1,
-        "shift": 0.1,
-        "breathe": 0.2,
-        "inform": 0.1
+        "reveal": 0.154,
+        "inform": 0.269,
+        "resolve": 0.192,
+        "bond": 0.077,
+        "advance": 0.308
       },
       "reveal": {
-        "bond": 0.462,
-        "advance": 0.154,
-        "inform": 0.154,
-        "turn": 0.077,
-        "shift": 0.154
+        "advance": 0.25,
+        "bond": 0.167,
+        "inform": 0.167,
+        "foreshadow": 0.056,
+        "resolve": 0.056,
+        "turn": 0.167,
+        "breathe": 0.083,
+        "shift": 0.028,
+        "reveal": 0.028
       },
       "shift": {
-        "advance": 0.2,
-        "inform": 0.2,
-        "reveal": 0.2,
-        "bond": 0.2,
-        "resolve": 0.2
+        "foreshadow": 0.125,
+        "advance": 0.375,
+        "inform": 0.125,
+        "reveal": 0.125,
+        "resolve": 0.25
       },
       "expand": {
-        "advance": 0.5,
-        "turn": 0.167,
-        "inform": 0.167,
-        "breathe": 0.167
+        "inform": 0.222,
+        "advance": 0.111,
+        "resolve": 0.222,
+        "reveal": 0.222,
+        "foreshadow": 0.111,
+        "breathe": 0.111
       },
       "foreshadow": {
-        "resolve": 0.25,
-        "advance": 0.5,
-        "expand": 0.25
+        "breathe": 0.25,
+        "advance": 0.375,
+        "inform": 0.063,
+        "expand": 0.125,
+        "bond": 0.063,
+        "turn": 0.063,
+        "resolve": 0.063
       },
       "resolve": {
-        "breathe": 0.5,
-        "inform": 0.25,
-        "reveal": 0.25
+        "breathe": 0.2,
+        "turn": 0.1,
+        "advance": 0.7
       }
     },
     "sampleAnchors": [
       "Two households, both alike in dignity",
       "A dog of the house of Montague moves me.",
-      "Do you bite your thumb at us, sir?",
-      "I hate the word As I hate hell, all Montagues, and thee: Have at thee, coward.",
-      "If ever you disturb our streets again, Your lives shall pay the forfeit of the peace.",
-      "Away from light steals home my heavy son, And private in his chamber pens himself, Shuts up his windows, locks fair daylight out And makes himself an artificial night.",
-      "O brawling love! O loving hate! O anything, of nothing first create! O heavy lightness! serious vanity!",
-      "she’ll not be hit With Cupid’s arrow, she hath Dian’s wit; And in strong proof of chastity well arm’d, From love’s weak childish bow she lives uncharm’d.",
-      "I’ll pay that doctrine, or else die in debt.",
-      "My will to her consent is but a part;"
-    ]
+      "I will bite my thumb at them",
+      "I hate the word As I hate hell, all Montagues, and thee",
+      "Your lives shall pay the forfeit of the peace.",
+      "Rebellious subjects, enemies to peace, Profaners of this neighbour-stained steel,—",
+      "Towards him I made, but he was ware of me, And stole into the covert of the wood.",
+      "Ay me, sad hours seem long.",
+      "Here’s much to do with hate, but more with love: Why, then, O brawling love! O loving hate!",
+      "Be rul’d by me, forget to think of her."
+    ],
+    "id": "romeo_and_juliet",
+    "builtIn": true
   },
   {
     "title": "Alice's Adventures in Wonderland",
-    "scenesAnalyzed": 10,
-    "totalBeats": 160,
-    "avgBeatsPerKWord": 12.8,
+    "scenesAnalyzed": 21,
+    "totalBeats": 357,
+    "avgBeatsPerKWord": 14.5,
     "beatDistribution": {
-      "breathe": 0.125,
-      "inform": 0.194,
-      "advance": 0.388,
-      "bond": 0.031,
-      "turn": 0.075,
-      "reveal": 0.069,
-      "shift": 0.031,
-      "expand": 0.025,
-      "foreshadow": 0.019,
-      "resolve": 0.044
+      "breathe": 0.129,
+      "inform": 0.196,
+      "advance": 0.331,
+      "bond": 0.045,
+      "turn": 0.081,
+      "reveal": 0.064,
+      "shift": 0.036,
+      "expand": 0.05,
+      "foreshadow": 0.028,
+      "resolve": 0.039
     },
     "mechanismDistribution": {
-      "dialogue": 0.313,
-      "thought": 0.2,
-      "action": 0.375,
-      "environment": 0.113
+      "dialogue": 0.454,
+      "thought": 0.151,
+      "action": 0.277,
+      "environment": 0.101,
+      "narration": 0.006,
+      "memory": 0.003,
+      "document": 0.008
     },
     "markovTransitions": {
       "breathe": {
-        "inform": 0.5,
-        "advance": 0.35,
-        "expand": 0.05,
-        "breathe": 0.1
+        "inform": 0.413,
+        "advance": 0.37,
+        "expand": 0.022,
+        "breathe": 0.087,
+        "foreshadow": 0.022,
+        "turn": 0.065,
+        "reveal": 0.022
       },
       "inform": {
-        "breathe": 0.033,
-        "advance": 0.567,
-        "turn": 0.067,
-        "reveal": 0.067,
-        "inform": 0.167,
-        "bond": 0.033,
-        "shift": 0.033,
-        "expand": 0.033
+        "turn": 0.045,
+        "expand": 0.09,
+        "breathe": 0.075,
+        "advance": 0.418,
+        "reveal": 0.119,
+        "resolve": 0.03,
+        "inform": 0.119,
+        "shift": 0.06,
+        "foreshadow": 0.015,
+        "bond": 0.03
       },
       "advance": {
-        "advance": 0.322,
-        "turn": 0.136,
-        "breathe": 0.068,
-        "reveal": 0.119,
-        "inform": 0.136,
-        "resolve": 0.085,
-        "expand": 0.017,
-        "bond": 0.068,
-        "shift": 0.034,
-        "foreshadow": 0.017
+        "advance": 0.302,
+        "breathe": 0.103,
+        "reveal": 0.078,
+        "inform": 0.19,
+        "expand": 0.034,
+        "shift": 0.052,
+        "turn": 0.147,
+        "bond": 0.043,
+        "resolve": 0.043,
+        "foreshadow": 0.009
       },
       "bond": {
-        "advance": 0.4,
-        "breathe": 0.2,
-        "shift": 0.2,
-        "resolve": 0.2
+        "advance": 0.438,
+        "bond": 0.063,
+        "turn": 0.063,
+        "expand": 0.125,
+        "reveal": 0.125,
+        "inform": 0.188
       },
       "turn": {
         "advance": 0.333,
-        "breathe": 0.167,
-        "reveal": 0.167,
-        "resolve": 0.083,
-        "inform": 0.167,
-        "expand": 0.083
+        "reveal": 0.074,
+        "breathe": 0.111,
+        "resolve": 0.074,
+        "bond": 0.111,
+        "inform": 0.185,
+        "shift": 0.074,
+        "foreshadow": 0.037
       },
       "reveal": {
-        "inform": 0.333,
-        "advance": 0.556,
-        "shift": 0.111
+        "inform": 0.273,
+        "advance": 0.409,
+        "bond": 0.091,
+        "foreshadow": 0.045,
+        "expand": 0.045,
+        "shift": 0.045,
+        "turn": 0.045,
+        "resolve": 0.045
       },
       "shift": {
-        "advance": 0.6,
-        "inform": 0.2,
-        "turn": 0.2
+        "foreshadow": 0.077,
+        "advance": 0.462,
+        "turn": 0.154,
+        "resolve": 0.154,
+        "inform": 0.077,
+        "expand": 0.077
       },
       "expand": {
-        "advance": 1
+        "inform": 0.267,
+        "advance": 0.267,
+        "bond": 0.133,
+        "reveal": 0.067,
+        "expand": 0.133,
+        "foreshadow": 0.067,
+        "breathe": 0.067
       },
       "foreshadow": {
-        "advance": 0.5,
-        "turn": 0.5
+        "turn": 0.286,
+        "advance": 0.286,
+        "bond": 0.143,
+        "expand": 0.143,
+        "resolve": 0.143
       },
       "resolve": {
-        "inform": 0.2,
-        "advance": 0.2,
-        "foreshadow": 0.4,
-        "breathe": 0.2
+        "advance": 0.143,
+        "foreshadow": 0.429,
+        "breathe": 0.429
       }
     },
     "sampleAnchors": [
-      "Alice was beginning to get very tired of sitting by her sister on the bank",
-      "suddenly a White Rabbit with pink eyes ran close by her.",
-      "when the Rabbit actually _took a watch out of its waistcoat-pocket_",
-      "In another moment down went Alice after it, never once considering how in the world she was to get out again.",
-      "she found herself falling down a very deep well.",
+      "“and what is the use of a book,” thought Alice “without pictures or conversations?”",
+      "“Oh dear! Oh dear! I shall be late!”",
+      "the Rabbit actually _took a watch out of its waistcoat-pocket_",
+      "never once considering how in the world she was to get out again.",
+      "“ORANGE MARMALADE”",
       "Down, down, down.",
-      "“Oh my ears and whiskers, how late it’s getting!”",
-      "“DRINK ME,” beautifully printed on it in large letters.",
-      "“What a curious feeling!” said Alice; “I must be shutting up like a telescope.”",
-      "“EAT ME” were beautifully marked in currants."
-    ]
+      "Oh my ears and whiskers, how late it’s getting!",
+      "It was all very well to say “Drink me,” but the wise little Alice was not going to do _that_ in a hurry.",
+      "What a curious feeling! I must be shutting up like a telescope.",
+      "Come, there’s no use in crying like that!"
+    ],
+    "id": "alice_s_adventures_in_wonderland",
+    "builtIn": true
   },
   {
     "title": "The Wealth Of Nations",
-    "scenesAnalyzed": 10,
-    "totalBeats": 138,
-    "avgBeatsPerKWord": 12.7,
+    "scenesAnalyzed": 101,
+    "totalBeats": 1794,
+    "avgBeatsPerKWord": 11.2,
     "beatDistribution": {
-      "breathe": 0.094,
-      "inform": 0.406,
-      "advance": 0.159,
-      "bond": 0.007,
-      "turn": 0.036,
-      "reveal": 0.029,
-      "shift": 0.014,
-      "expand": 0.138,
-      "foreshadow": 0.029,
-      "resolve": 0.087
+      "breathe": 0.066,
+      "inform": 0.443,
+      "advance": 0.137,
+      "bond": 0.009,
+      "turn": 0.034,
+      "reveal": 0.05,
+      "shift": 0.03,
+      "expand": 0.131,
+      "foreshadow": 0.032,
+      "resolve": 0.069
     },
     "mechanismDistribution": {
-      "action": 0.007,
-      "environment": 0.014,
-      "narration": 0.957,
-      "document": 0.022
+      "dialogue": 0.001,
+      "thought": 0.004,
+      "action": 0.001,
+      "environment": 0.008,
+      "narration": 0.963,
+      "memory": 0.004,
+      "document": 0.02
     },
     "markovTransitions": {
       "breathe": {
-        "inform": 0.923,
-        "bond": 0.077
+        "inform": 0.932,
+        "expand": 0.051,
+        "advance": 0.008,
+        "reveal": 0.008
       },
       "inform": {
-        "expand": 0.161,
-        "advance": 0.304,
-        "resolve": 0.054,
-        "inform": 0.268,
-        "breathe": 0.054,
-        "reveal": 0.054,
-        "turn": 0.071,
-        "foreshadow": 0.036
+        "expand": 0.186,
+        "advance": 0.202,
+        "inform": 0.361,
+        "breathe": 0.009,
+        "resolve": 0.07,
+        "reveal": 0.061,
+        "foreshadow": 0.027,
+        "turn": 0.042,
+        "shift": 0.033,
+        "bond": 0.009
       },
       "advance": {
-        "expand": 0.286,
-        "foreshadow": 0.048,
-        "inform": 0.619,
-        "turn": 0.048
-      },
-      "turn": {
-        "inform": 0.4,
-        "resolve": 0.6
-      },
-      "reveal": {
         "inform": 0.5,
-        "resolve": 0.25,
-        "shift": 0.25
+        "expand": 0.124,
+        "advance": 0.087,
+        "reveal": 0.058,
+        "resolve": 0.099,
+        "turn": 0.045,
+        "shift": 0.05,
+        "foreshadow": 0.017,
+        "breathe": 0.008,
+        "bond": 0.012
       },
-      "shift": {
-        "resolve": 1
-      },
-      "expand": {
+      "bond": {
         "inform": 0.529,
-        "expand": 0.059,
         "resolve": 0.176,
         "advance": 0.176,
-        "reveal": 0.059
+        "reveal": 0.059,
+        "shift": 0.059
+      },
+      "turn": {
+        "resolve": 0.148,
+        "inform": 0.426,
+        "foreshadow": 0.115,
+        "advance": 0.164,
+        "expand": 0.082,
+        "reveal": 0.066
+      },
+      "reveal": {
+        "advance": 0.116,
+        "inform": 0.419,
+        "reveal": 0.058,
+        "expand": 0.128,
+        "foreshadow": 0.035,
+        "resolve": 0.105,
+        "turn": 0.047,
+        "shift": 0.058,
+        "bond": 0.035
+      },
+      "shift": {
+        "inform": 0.412,
+        "reveal": 0.118,
+        "expand": 0.118,
+        "advance": 0.137,
+        "foreshadow": 0.059,
+        "bond": 0.02,
+        "resolve": 0.098,
+        "breathe": 0.02,
+        "turn": 0.02
+      },
+      "expand": {
+        "inform": 0.621,
+        "expand": 0.066,
+        "resolve": 0.048,
+        "bond": 0.013,
+        "foreshadow": 0.057,
+        "shift": 0.022,
+        "turn": 0.022,
+        "breathe": 0.022,
+        "advance": 0.097,
+        "reveal": 0.031
       },
       "foreshadow": {
-        "inform": 0.75,
-        "advance": 0.25
+        "expand": 0.136,
+        "inform": 0.455,
+        "advance": 0.136,
+        "shift": 0.091,
+        "breathe": 0.023,
+        "resolve": 0.114,
+        "reveal": 0.023,
+        "turn": 0.023
       },
       "resolve": {
-        "expand": 0.429,
-        "shift": 0.143,
-        "foreshadow": 0.143,
-        "resolve": 0.143,
-        "advance": 0.143
+        "breathe": 0.066,
+        "shift": 0.016,
+        "inform": 0.393,
+        "resolve": 0.033,
+        "foreshadow": 0.098,
+        "turn": 0.098,
+        "expand": 0.164,
+        "advance": 0.098,
+        "reveal": 0.033
       }
     },
     "sampleAnchors": [
-      "The greatest improvements in the productive powers of labour... seem to have been the effects of the division of labour.",
-      "One man draws out the wire; another straights it; a third cuts it...",
+      "The greatest improvements in the productive powers of labour, and the greater part of the skill, dexterity, and judgment, with which it is anywhere directed, or applied, seem to have been the effects of the division of labour.",
+      "One man draws out the wire; another straights it; a third cuts it; a fourth points it; a fifth grinds it at the top for receiving the head...",
       "Those ten persons, therefore, could make among them upwards of forty-eight thousand pins in a day.",
-      "The nature of agriculture, indeed, does not admit of so many subdivisions of labour...",
-      "This great increase in the quantity of work... is owing to three different circumstances",
+      "The nature of agriculture, indeed, does not admit of so many subdivisions of labour, nor of so complete a separation of one business from another, as manufactures.",
+      "This great increase in the quantity of work...is owing to three different circumstances; first, to the increase of dexterity in every particular workman; secondly, to the saving of the time...and, lastly, to the invention of a great number of machines which facilitate and abridge labour, and enable one man to do the work of many.",
       "First, the improvement of the dexterity of the workmen, necessarily increases the quantity of the work he can perform",
-      "One of those boys...observed that, by tying a string from the handle of the valve...the valve would open and shut without his assistance, and leave him at liberty to divert himself with his play-fellows.",
-      "It is the great multiplication of the productions of all the different arts, in consequence of the division of labour, which occasions...that universal opulence which extends itself to the lowest ranks of the people.",
-      "Observe the accommodation of the most common artificer or daylabourer in a civilized and thriving country, and you will perceive that the number of people, of whose industry a part...has been employed in procuring him this accommodation, exceeds all computation.",
-      "the accommodation of an European prince does not always so much exceed that of an industrious and frugal peasant, as the accommodation of the latter exceeds that of many an African king"
-    ]
+      "A common smith, who, though accustomed to handle the hammer, has never been used to make nails... will scarce... be able to make above two or three hundred nails in a day, and those, too, very bad ones.",
+      "One of those boys... observed that, by tying a string from the handle of the valve... the valve would open and shut without his assistance, and leave him at liberty to divert himself with his play-fellows.",
+      "It is the great multiplication of the productions of all the different arts, in consequence of the division of labour, which occasions... that universal opulence which extends itself to the lowest ranks of the people.",
+      "without the assistance and co-operation of many thousands, the very meanest person in a civilized country could not be provided"
+    ],
+    "id": "the_wealth_of_nations",
+    "builtIn": true
   }
 ]

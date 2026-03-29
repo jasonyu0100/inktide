@@ -259,13 +259,18 @@ async function main() {
       console.log(`  Extracting plans for ${toProcess.length} scenes (concurrency: ${CONCURRENCY})...`);
       const plans = await extractPlans(work, scenesPerWork > 0 ? scenesPerWork : 99999);
 
-      // Write plans back into the work JSON
+      // Write plans back into the work JSON and lock all scenes
       let written = 0;
       for (const p of plans) {
         if (p.plan && p.plan.beats?.length > 0 && work.scenes[p.sceneId]) {
           work.scenes[p.sceneId].plan = p.plan;
+          work.scenes[p.sceneId].locked = true;
           written++;
         }
+      }
+      // Lock all scenes with prose (even those that already had plans)
+      for (const scene of Object.values(work.scenes)) {
+        if (scene.prose) scene.locked = true;
       }
 
       if (written > 0) {

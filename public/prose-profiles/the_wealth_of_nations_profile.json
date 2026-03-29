@@ -1,88 +1,143 @@
 {
   "title": "The Wealth Of Nations",
-  "scenesAnalyzed": 10,
-  "totalBeats": 138,
-  "avgBeatsPerKWord": 12.7,
+  "scenesAnalyzed": 101,
+  "totalBeats": 1794,
+  "avgBeatsPerKWord": 11.2,
   "beatDistribution": {
-    "breathe": 0.094,
-    "inform": 0.406,
-    "advance": 0.159,
-    "bond": 0.007,
-    "turn": 0.036,
-    "reveal": 0.029,
-    "shift": 0.014,
-    "expand": 0.138,
-    "foreshadow": 0.029,
-    "resolve": 0.087
+    "breathe": 0.066,
+    "inform": 0.443,
+    "advance": 0.137,
+    "bond": 0.009,
+    "turn": 0.034,
+    "reveal": 0.05,
+    "shift": 0.03,
+    "expand": 0.131,
+    "foreshadow": 0.032,
+    "resolve": 0.069
   },
   "mechanismDistribution": {
-    "action": 0.007,
-    "environment": 0.014,
-    "narration": 0.957,
-    "document": 0.022
+    "dialogue": 0.001,
+    "thought": 0.004,
+    "action": 0.001,
+    "environment": 0.008,
+    "narration": 0.963,
+    "memory": 0.004,
+    "document": 0.02
   },
   "markovTransitions": {
     "breathe": {
-      "inform": 0.923,
-      "bond": 0.077
+      "inform": 0.932,
+      "expand": 0.051,
+      "advance": 0.008,
+      "reveal": 0.008
     },
     "inform": {
-      "expand": 0.161,
-      "advance": 0.304,
-      "resolve": 0.054,
-      "inform": 0.268,
-      "breathe": 0.054,
-      "reveal": 0.054,
-      "turn": 0.071,
-      "foreshadow": 0.036
+      "expand": 0.186,
+      "advance": 0.202,
+      "inform": 0.361,
+      "breathe": 0.009,
+      "resolve": 0.07,
+      "reveal": 0.061,
+      "foreshadow": 0.027,
+      "turn": 0.042,
+      "shift": 0.033,
+      "bond": 0.009
     },
     "advance": {
-      "expand": 0.286,
-      "foreshadow": 0.048,
-      "inform": 0.619,
-      "turn": 0.048
-    },
-    "turn": {
-      "inform": 0.4,
-      "resolve": 0.6
-    },
-    "reveal": {
       "inform": 0.5,
-      "resolve": 0.25,
-      "shift": 0.25
+      "expand": 0.124,
+      "advance": 0.087,
+      "reveal": 0.058,
+      "resolve": 0.099,
+      "turn": 0.045,
+      "shift": 0.05,
+      "foreshadow": 0.017,
+      "breathe": 0.008,
+      "bond": 0.012
     },
-    "shift": {
-      "resolve": 1
-    },
-    "expand": {
+    "bond": {
       "inform": 0.529,
-      "expand": 0.059,
       "resolve": 0.176,
       "advance": 0.176,
-      "reveal": 0.059
+      "reveal": 0.059,
+      "shift": 0.059
+    },
+    "turn": {
+      "resolve": 0.148,
+      "inform": 0.426,
+      "foreshadow": 0.115,
+      "advance": 0.164,
+      "expand": 0.082,
+      "reveal": 0.066
+    },
+    "reveal": {
+      "advance": 0.116,
+      "inform": 0.419,
+      "reveal": 0.058,
+      "expand": 0.128,
+      "foreshadow": 0.035,
+      "resolve": 0.105,
+      "turn": 0.047,
+      "shift": 0.058,
+      "bond": 0.035
+    },
+    "shift": {
+      "inform": 0.412,
+      "reveal": 0.118,
+      "expand": 0.118,
+      "advance": 0.137,
+      "foreshadow": 0.059,
+      "bond": 0.02,
+      "resolve": 0.098,
+      "breathe": 0.02,
+      "turn": 0.02
+    },
+    "expand": {
+      "inform": 0.621,
+      "expand": 0.066,
+      "resolve": 0.048,
+      "bond": 0.013,
+      "foreshadow": 0.057,
+      "shift": 0.022,
+      "turn": 0.022,
+      "breathe": 0.022,
+      "advance": 0.097,
+      "reveal": 0.031
     },
     "foreshadow": {
-      "inform": 0.75,
-      "advance": 0.25
+      "expand": 0.136,
+      "inform": 0.455,
+      "advance": 0.136,
+      "shift": 0.091,
+      "breathe": 0.023,
+      "resolve": 0.114,
+      "reveal": 0.023,
+      "turn": 0.023
     },
     "resolve": {
-      "expand": 0.429,
-      "shift": 0.143,
-      "foreshadow": 0.143,
-      "resolve": 0.143,
-      "advance": 0.143
+      "breathe": 0.066,
+      "shift": 0.016,
+      "inform": 0.393,
+      "resolve": 0.033,
+      "foreshadow": 0.098,
+      "turn": 0.098,
+      "expand": 0.164,
+      "advance": 0.098,
+      "reveal": 0.033
     }
   },
   "sampleAnchors": [
-    "The greatest improvements in the productive powers of labour... seem to have been the effects of the division of labour.",
-    "One man draws out the wire; another straights it; a third cuts it...",
+    "The greatest improvements in the productive powers of labour, and the greater part of the skill, dexterity, and judgment, with which it is anywhere directed, or applied, seem to have been the effects of the division of labour.",
+    "One man draws out the wire; another straights it; a third cuts it; a fourth points it; a fifth grinds it at the top for receiving the head...",
     "Those ten persons, therefore, could make among them upwards of forty-eight thousand pins in a day.",
-    "The nature of agriculture, indeed, does not admit of so many subdivisions of labour...",
-    "This great increase in the quantity of work... is owing to three different circumstances",
+    "The nature of agriculture, indeed, does not admit of so many subdivisions of labour, nor of so complete a separation of one business from another, as manufactures.",
+    "This great increase in the quantity of work...is owing to three different circumstances; first, to the increase of dexterity in every particular workman; secondly, to the saving of the time...and, lastly, to the invention of a great number of machines which facilitate and abridge labour, and enable one man to do the work of many.",
     "First, the improvement of the dexterity of the workmen, necessarily increases the quantity of the work he can perform",
-    "One of those boys...observed that, by tying a string from the handle of the valve...the valve would open and shut without his assistance, and leave him at liberty to divert himself with his play-fellows.",
-    "It is the great multiplication of the productions of all the different arts, in consequence of the division of labour, which occasions...that universal opulence which extends itself to the lowest ranks of the people.",
-    "Observe the accommodation of the most common artificer or daylabourer in a civilized and thriving country, and you will perceive that the number of people, of whose industry a part...has been employed in procuring him this accommodation, exceeds all computation.",
-    "the accommodation of an European prince does not always so much exceed that of an industrious and frugal peasant, as the accommodation of the latter exceeds that of many an African king"
-  ]
+    "A common smith, who, though accustomed to handle the hammer, has never been used to make nails... will scarce... be able to make above two or three hundred nails in a day, and those, too, very bad ones.",
+    "One of those boys... observed that, by tying a string from the handle of the valve... the valve would open and shut without his assistance, and leave him at liberty to divert himself with his play-fellows.",
+    "It is the great multiplication of the productions of all the different arts, in consequence of the division of labour, which occasions... that universal opulence which extends itself to the lowest ranks of the people.",
+    "without the assistance and co-operation of many thousands, the very meanest person in a civilized country could not be provided"
+  ],
+  "id": "the_wealth_of_nations",
+  "builtIn": true
 }

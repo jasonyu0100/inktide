@@ -1,116 +1,134 @@
 {
   "title": "Romeo and Juliet",
-  "scenesAnalyzed": 10,
-  "totalBeats": 158,
-  "avgBeatsPerKWord": 12.1,
+  "scenesAnalyzed": 24,
+  "totalBeats": 397,
+  "avgBeatsPerKWord": 13.6,
   "beatDistribution": {
-    "breathe": 0.127,
-    "inform": 0.196,
-    "advance": 0.272,
-    "bond": 0.108,
-    "turn": 0.063,
-    "reveal": 0.082,
-    "shift": 0.032,
-    "expand": 0.044,
-    "foreshadow": 0.032,
-    "resolve": 0.044
+    "breathe": 0.126,
+    "inform": 0.207,
+    "advance": 0.28,
+    "bond": 0.083,
+    "turn": 0.068,
+    "reveal": 0.096,
+    "shift": 0.02,
+    "expand": 0.023,
+    "foreshadow": 0.043,
+    "resolve": 0.055
   },
   "mechanismDistribution": {
-    "dialogue": 0.696,
-    "thought": 0.057,
-    "action": 0.101,
-    "environment": 0.114,
-    "narration": 0.032
+    "dialogue": 0.637,
+    "thought": 0.088,
+    "action": 0.139,
+    "environment": 0.103,
+    "narration": 0.03,
+    "comic": 0.003
   },
   "markovTransitions": {
     "breathe": {
-      "breathe": 0.235,
-      "inform": 0.471,
-      "advance": 0.118,
-      "bond": 0.059,
-      "turn": 0.059,
-      "reveal": 0.059
+      "foreshadow": 0.021,
+      "inform": 0.458,
+      "advance": 0.229,
+      "breathe": 0.083,
+      "turn": 0.021,
+      "bond": 0.104,
+      "expand": 0.021,
+      "shift": 0.021,
+      "reveal": 0.042
     },
     "inform": {
-      "advance": 0.452,
-      "inform": 0.129,
-      "reveal": 0.161,
-      "expand": 0.097,
-      "bond": 0.065,
-      "resolve": 0.032,
-      "breathe": 0.032,
-      "foreshadow": 0.032
+      "reveal": 0.073,
+      "advance": 0.378,
+      "resolve": 0.037,
+      "inform": 0.232,
+      "expand": 0.049,
+      "foreshadow": 0.061,
+      "bond": 0.061,
+      "breathe": 0.049,
+      "turn": 0.049,
+      "shift": 0.012
     },
     "advance": {
-      "advance": 0.317,
-      "shift": 0.049,
-      "turn": 0.122,
-      "expand": 0.049,
-      "inform": 0.195,
-      "foreshadow": 0.073,
-      "resolve": 0.024,
-      "bond": 0.098,
-      "reveal": 0.073
+      "advance": 0.229,
+      "inform": 0.2,
+      "turn": 0.095,
+      "bond": 0.105,
+      "resolve": 0.048,
+      "expand": 0.01,
+      "reveal": 0.143,
+      "breathe": 0.086,
+      "foreshadow": 0.067,
+      "shift": 0.019
     },
     "bond": {
-      "inform": 0.294,
-      "advance": 0.294,
-      "reveal": 0.118,
-      "turn": 0.118,
-      "bond": 0.059,
-      "resolve": 0.059,
-      "expand": 0.059
+      "inform": 0.061,
+      "reveal": 0.212,
+      "advance": 0.333,
+      "shift": 0.091,
+      "turn": 0.121,
+      "bond": 0.091,
+      "expand": 0.03,
+      "resolve": 0.061
     },
     "turn": {
-      "advance": 0.1,
-      "resolve": 0.2,
-      "bond": 0.2,
-      "foreshadow": 0.1,
-      "shift": 0.1,
-      "breathe": 0.2,
-      "inform": 0.1
+      "reveal": 0.154,
+      "inform": 0.269,
+      "resolve": 0.192,
+      "bond": 0.077,
+      "advance": 0.308
     },
     "reveal": {
-      "bond": 0.462,
-      "advance": 0.154,
-      "inform": 0.154,
-      "turn": 0.077,
-      "shift": 0.154
+      "advance": 0.25,
+      "bond": 0.167,
+      "inform": 0.167,
+      "foreshadow": 0.056,
+      "resolve": 0.056,
+      "turn": 0.167,
+      "breathe": 0.083,
+      "shift": 0.028,
+      "reveal": 0.028
     },
     "shift": {
-      "advance": 0.2,
-      "inform": 0.2,
-      "reveal": 0.2,
-      "bond": 0.2,
-      "resolve": 0.2
+      "foreshadow": 0.125,
+      "advance": 0.375,
+      "inform": 0.125,
+      "reveal": 0.125,
+      "resolve": 0.25
     },
     "expand": {
-      "advance": 0.5,
-      "turn": 0.167,
-      "inform": 0.167,
-      "breathe": 0.167
+      "inform": 0.222,
+      "advance": 0.111,
+      "resolve": 0.222,
+      "reveal": 0.222,
+      "foreshadow": 0.111,
+      "breathe": 0.111
     },
     "foreshadow": {
-      "resolve": 0.25,
-      "advance": 0.5,
-      "expand": 0.25
+      "breathe": 0.25,
+      "advance": 0.375,
+      "inform": 0.063,
+      "expand": 0.125,
+      "bond": 0.063,
+      "turn": 0.063,
+      "resolve": 0.063
     },
     "resolve": {
-      "breathe": 0.5,
-      "inform": 0.25,
-      "reveal": 0.25
+      "breathe": 0.2,
+      "turn": 0.1,
+      "advance": 0.7
     }
   },
   "sampleAnchors": [
     "Two households, both alike in dignity",
     "A dog of the house of Montague moves me.",
-    "Do you bite your thumb at us, sir?",
-    "I hate the word As I hate hell, all Montagues, and thee: Have at thee, coward.",
-    "If ever you disturb our streets again, Your lives shall pay the forfeit of the peace.",
-    "Away from light steals home my heavy son, And private in his chamber pens himself, Shuts up his windows, locks fair daylight out And makes himself an artificial night.",
-    "O brawling love! O loving hate! O anything, of nothing first create! O heavy lightness! serious vanity!",
-    "she’ll not be hit With Cupid’s arrow, she hath Dian’s wit; And in strong proof of chastity well arm’d, From love’s weak childish bow she lives uncharm’d.",
-    "I’ll pay that doctrine, or else die in debt.",
-    "My will to her consent is but a part;"
-  ]
+    "I will bite my thumb at them",
+    "I hate the word As I hate hell, all Montagues, and thee",
+    "Your lives shall pay the forfeit of the peace.",
+    "Rebellious subjects, enemies to peace, Profaners of this neighbour-stained steel,—",
+    "Towards him I made, but he was ware of me, And stole into the covert of the wood.",
+    "Ay me, sad hours seem long.",
+    "Here’s much to do with hate, but more with love: Why, then, O brawling love! O loving hate!",
+    "Be rul’d by me, forget to think of her."
+  ],
+  "id": "romeo_and_juliet",
+  "builtIn": true
 }

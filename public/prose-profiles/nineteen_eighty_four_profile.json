@@ -1,95 +1,139 @@
 {
   "title": "Nineteen Eighty-Four",
-  "scenesAnalyzed": 10,
-  "totalBeats": 119,
-  "avgBeatsPerKWord": 13.4,
+  "scenesAnalyzed": 70,
+  "totalBeats": 1000,
+  "avgBeatsPerKWord": 13.2,
   "beatDistribution": {
-    "breathe": 0.176,
-    "inform": 0.202,
-    "advance": 0.252,
-    "bond": 0.017,
-    "turn": 0.042,
-    "reveal": 0.092,
-    "shift": 0.017,
-    "expand": 0.134,
-    "foreshadow": 0.042,
-    "resolve": 0.025
+    "breathe": 0.163,
+    "inform": 0.214,
+    "advance": 0.223,
+    "bond": 0.053,
+    "turn": 0.058,
+    "reveal": 0.109,
+    "shift": 0.022,
+    "expand": 0.077,
+    "foreshadow": 0.037,
+    "resolve": 0.044
   },
   "mechanismDistribution": {
-    "dialogue": 0.067,
-    "thought": 0.193,
-    "action": 0.269,
-    "environment": 0.235,
-    "narration": 0.202,
-    "memory": 0.017,
-    "document": 0.017
+    "dialogue": 0.243,
+    "thought": 0.205,
+    "action": 0.21,
+    "environment": 0.147,
+    "narration": 0.157,
+    "memory": 0.019,
+    "document": 0.018,
+    "comic": 0.001
   },
   "markovTransitions": {
     "breathe": {
-      "breathe": 0.1,
-      "inform": 0.5,
-      "expand": 0.05,
-      "advance": 0.15,
-      "resolve": 0.05,
-      "turn": 0.05,
-      "bond": 0.05,
-      "reveal": 0.05
+      "breathe": 0.101,
+      "advance": 0.234,
+      "reveal": 0.076,
+      "inform": 0.405,
+      "resolve": 0.013,
+      "expand": 0.038,
+      "turn": 0.051,
+      "foreshadow": 0.025,
+      "bond": 0.051,
+      "shift": 0.006
     },
     "inform": {
-      "inform": 0.087,
-      "breathe": 0.13,
-      "reveal": 0.13,
-      "shift": 0.043,
-      "advance": 0.391,
-      "resolve": 0.043,
-      "expand": 0.13,
-      "turn": 0.043
+      "breathe": 0.095,
+      "reveal": 0.176,
+      "expand": 0.129,
+      "advance": 0.333,
+      "turn": 0.024,
+      "inform": 0.086,
+      "shift": 0.033,
+      "bond": 0.043,
+      "foreshadow": 0.052,
+      "resolve": 0.029
     },
     "advance": {
-      "inform": 0.115,
-      "turn": 0.115,
-      "expand": 0.154,
-      "bond": 0.038,
-      "advance": 0.308,
-      "breathe": 0.115,
-      "reveal": 0.077,
-      "shift": 0.038,
-      "foreshadow": 0.038
+      "inform": 0.199,
+      "turn": 0.128,
+      "reveal": 0.137,
+      "bond": 0.057,
+      "advance": 0.18,
+      "expand": 0.071,
+      "breathe": 0.109,
+      "resolve": 0.062,
+      "shift": 0.024,
+      "foreshadow": 0.033
     },
     "bond": {
-      "resolve": 0.5,
-      "inform": 0.5
+      "resolve": 0.14,
+      "inform": 0.22,
+      "expand": 0.12,
+      "advance": 0.12,
+      "breathe": 0.1,
+      "reveal": 0.14,
+      "bond": 0.06,
+      "turn": 0.06,
+      "shift": 0.04
     },
     "turn": {
-      "inform": 0.2,
-      "reveal": 0.2,
-      "advance": 0.6
+      "advance": 0.333,
+      "breathe": 0.074,
+      "inform": 0.148,
+      "resolve": 0.074,
+      "reveal": 0.148,
+      "bond": 0.093,
+      "expand": 0.056,
+      "shift": 0.037,
+      "foreshadow": 0.037
     },
     "reveal": {
-      "expand": 0.2,
-      "advance": 0.4,
-      "breathe": 0.1,
-      "inform": 0.3
+      "breathe": 0.07,
+      "expand": 0.07,
+      "inform": 0.27,
+      "advance": 0.25,
+      "turn": 0.07,
+      "bond": 0.1,
+      "resolve": 0.08,
+      "shift": 0.03,
+      "foreshadow": 0.03,
+      "reveal": 0.03
     },
     "shift": {
-      "breathe": 0.5,
-      "reveal": 0.5
+      "advance": 0.421,
+      "expand": 0.053,
+      "breathe": 0.053,
+      "turn": 0.105,
+      "bond": 0.053,
+      "inform": 0.263,
+      "reveal": 0.053
     },
     "expand": {
-      "inform": 0.188,
-      "expand": 0.25,
-      "foreshadow": 0.25,
-      "advance": 0.063,
-      "reveal": 0.188,
-      "breathe": 0.063
+      "foreshadow": 0.12,
+      "expand": 0.107,
+      "advance": 0.133,
+      "reveal": 0.107,
+      "inform": 0.36,
+      "breathe": 0.107,
+      "bond": 0.04,
+      "resolve": 0.027
     },
     "foreshadow": {
-      "advance": 0.5,
-      "expand": 0.25,
-      "inform": 0.25
+      "expand": 0.063,
+      "inform": 0.125,
+      "breathe": 0.125,
+      "advance": 0.25,
+      "turn": 0.188,
+      "reveal": 0.094,
+      "shift": 0.031,
+      "bond": 0.063,
+      "resolve": 0.063
     },
     "resolve": {
-      "expand": 1
+      "shift": 0.048,
+      "advance": 0.095,
+      "breathe": 0.476,
+      "expand": 0.095,
+      "inform": 0.19,
+      "reveal": 0.048,
+      "foreshadow": 0.048
     }
   },
   "sampleAnchors": [
@@ -97,11 +141,13 @@
     "BIG BROTHER IS WATCHING YOU, the caption beneath it ran.",
     "The instrument (the telescreen, it was called) could be dimmed, but there was no way of shutting it off completely.",
     "You had to live--did live, from habit that became instinct--in the assumption that every sound you made was overheard, and, except in darkness, every movement scrutinized.",
-    "WAR IS PEACE\n  FREEDOM IS SLAVERY\n  IGNORANCE IS STRENGTH",
+    "The Ministry of Love was the really frightening one.",
     "The stuff was like nitric acid",
-    "a thick, quarto-sized blank book with a red back and a marbled cover",
-    "a shallow alcove in which Winston was now sitting",
-    "punished by death, or at least by twenty-five years in a forced-labour camp",
-    "April 4th, 1984."
-  ]
+    "a peculiarly beautiful book",
+    "if detected it was reasonably certain that it would be punished by death",
+    "To mark the paper was the decisive act.",
+    "The telescreen had changed over to strident military music."
+  ],
+  "id": "nineteen_eighty_four",
+  "builtIn": true
 }

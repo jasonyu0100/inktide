@@ -24,6 +24,7 @@ import { ForceAnalytics } from '@/components/analytics/ForceAnalytics';
 import { CastAnalytics } from '@/components/analytics/CastAnalytics';
 import RulesPanel from '@/components/layout/RulesPanel';
 import WorldSystemsPanel from '@/components/layout/WorldSystemsPanel';
+import ProseProfilePanel from '@/components/layout/ProseProfilePanel';
 import { MCTSPanel } from '@/components/mcts/MCTSPanel';
 import { MCTSControlBar } from '@/components/mcts/MCTSControlBar';
 import { useMCTS } from '@/hooks/useMCTS';
@@ -58,6 +59,7 @@ export default function SeriesPage() {
   const [castAnalyticsOpen, setCastAnalyticsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [worldSystemsOpen, setWorldSystemsOpen] = useState(false);
+  const [proseProfileOpen, setProseProfileOpen] = useState(false);
   const [mctsOpen, setMctsOpen] = useState(false);
   const [storySettingsOpen, setStorySettingsOpen] = useState(false);
   const [planningQueueOpen, setPlanningQueueOpen] = useState(false);
@@ -89,6 +91,7 @@ export default function SeriesPage() {
     function handleOpenCastAnalytics() { setCastAnalyticsOpen(true); }
     function handleOpenRules() { setRulesOpen(true); }
     function handleOpenWorldSystems() { setWorldSystemsOpen(true); }
+    function handleOpenProseProfile() { setProseProfileOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
     function handleOpenStorySettings() { setStorySettingsOpen(true); }
     function handleOpenPlanningQueue() { setPlanningQueueOpen(true); }
@@ -100,6 +103,7 @@ export default function SeriesPage() {
     window.addEventListener('open-cast-analytics', handleOpenCastAnalytics);
     window.addEventListener('open-rules-panel', handleOpenRules);
     window.addEventListener('open-world-systems-panel', handleOpenWorldSystems);
+    window.addEventListener('open-prose-profile', handleOpenProseProfile);
     window.addEventListener('open-mcts-panel', handleOpenMcts);
     window.addEventListener('open-story-settings', handleOpenStorySettings);
     window.addEventListener('open-planning-queue', handleOpenPlanningQueue);
@@ -112,6 +116,7 @@ export default function SeriesPage() {
       window.removeEventListener('open-cast-analytics', handleOpenCastAnalytics);
       window.removeEventListener('open-rules-panel', handleOpenRules);
       window.removeEventListener('open-world-systems-panel', handleOpenWorldSystems);
+      window.removeEventListener('open-prose-profile', handleOpenProseProfile);
       window.removeEventListener('open-mcts-panel', handleOpenMcts);
       window.removeEventListener('open-story-settings', handleOpenStorySettings);
       window.removeEventListener('open-planning-queue', handleOpenPlanningQueue);
@@ -197,6 +202,7 @@ export default function SeriesPage() {
       {castAnalyticsOpen && <CastAnalytics onClose={() => setCastAnalyticsOpen(false)} />}
       {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
       {worldSystemsOpen && <WorldSystemsPanel onClose={() => setWorldSystemsOpen(false)} />}
+      {proseProfileOpen && <ProseProfilePanel onClose={() => setProseProfileOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}
       {planningQueueOpen && (
         <PlanningQueueEditor

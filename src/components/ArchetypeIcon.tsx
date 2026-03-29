@@ -7,11 +7,11 @@ import React from 'react';
  * Maps force-dominance profiles to visually distinctive icons.
  */
 
-export type ArchetypeKey = 'masterwork' | 'epic' | 'chronicle' | 'saga' | 'classic' | 'anthology' | 'tome' | 'emerging';
+export type ArchetypeKey = 'opus' | 'tempest' | 'chronicle' | 'mosaic' | 'classic' | 'anthology' | 'tome' | 'emerging';
 
 export const ARCHETYPE_COLORS: Record<ArchetypeKey, string> = {
-  masterwork: '#f59e0b', epic: '#ef4444', chronicle: '#3b82f6',
-  saga: '#8b5cf6', classic: '#10b981', anthology: '#ec4899',
+  opus: '#f59e0b', tempest: '#ef4444', chronicle: '#3b82f6',
+  mosaic: '#8b5cf6', classic: '#10b981', anthology: '#ec4899',
   tome: '#06b6d4', emerging: '#6b7280',
 };
 
@@ -43,8 +43,8 @@ export function ArchetypeIcon({ archetypeKey, size = 20, color, className }: Arc
 }
 
 const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React.ReactNode> = {
-  // Masterwork: concentric rings — convergence
-  masterwork: (half, s, c) => (
+  // Opus: concentric rings — convergence
+  opus: (half, s, c) => (
     <>
       <circle cx={half} cy={half} r={s * 0.38} stroke={c} strokeWidth={1} />
       <circle cx={half} cy={half} r={s * 0.22} stroke={c} strokeWidth={1} />
@@ -52,8 +52,8 @@ const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React
     </>
   ),
 
-  // Epic: upward chevron — ascent
-  epic: (half, s, c) => (
+  // Tempest: upward chevron — ascent
+  tempest: (half, s, c) => (
     <>
       <polyline points={`${s * 0.18},${s * 0.58} ${half},${s * 0.22} ${s * 0.82},${s * 0.58}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
       <polyline points={`${s * 0.18},${s * 0.76} ${half},${s * 0.40} ${s * 0.82},${s * 0.76}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.4} />
@@ -69,8 +69,8 @@ const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React
     </>
   ),
 
-  // Saga: expanding arc — outward sweep
-  saga: (half, s, c) => (
+  // Mosaic: expanding arc — outward sweep
+  mosaic: (half, s, c) => (
     <>
       <path d={`M ${s * 0.22} ${s * 0.7} A ${s * 0.35} ${s * 0.35} 0 0 1 ${s * 0.78} ${s * 0.7}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" fill="none" />
       <path d={`M ${s * 0.3} ${s * 0.48} A ${s * 0.24} ${s * 0.24} 0 0 1 ${s * 0.7} ${s * 0.48}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" fill="none" />

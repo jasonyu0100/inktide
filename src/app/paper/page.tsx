@@ -99,20 +99,108 @@ function ShapeCurve({
   );
 }
 
+const ARC_BREAKDOWN_ROWS = [
+  { call: "generateScenes", count: "1", input: "~40K", output: "~4K", reasoning: "~2K", cost: "$0.027" },
+  { call: "generateScenePlan", count: "5", input: "~28K", output: "~250", reasoning: "~2K", cost: "$0.070" },
+  { call: "generateSceneProse", count: "5", input: "~35K", output: "~4K", reasoning: "~2K", cost: "$0.128" },
+  { call: "refreshDirection", count: "1", input: "~32K", output: "~300", reasoning: "~2K", cost: "$0.015" },
+  { call: "Other", count: "3", input: "~25K", output: "~250", reasoning: "~2K", cost: "$0.039" },
+];
+
+function CostEstimates() {
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  return (
+    <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/[0.03] border border-white/6">
+      <span className="text-[10px] uppercase tracking-wider text-white/20 block mb-3 font-mono">
+        End-to-End Estimates (~5 scenes/arc, ~1K words/scene)
+      </span>
+      <div className="space-y-2 text-[11px] text-white/45">
+        {[
+          { scale: "Short (~2 arcs, ~10 scenes, ~10K words)", cost: "~$0.56" },
+          { scale: "Story (~7 arcs, ~35 scenes, ~35K words)", cost: "~$1.96" },
+          { scale: "Novel (~17 arcs, ~85 scenes, ~85K words)", cost: "~$4.76" },
+          { scale: "Epic (~40 arcs, ~200 scenes, ~200K words)", cost: "~$11.20" },
+          { scale: "Serial (~100 arcs, ~500 scenes, ~500K words)", cost: "~$28.00" },
+          { scale: "Analysis of existing 100K-word novel (no reasoning)", cost: "~$1.00" },
+        ].map(({ scale, cost }, i) => (
+          <div key={scale} className={`flex justify-between${i > 0 ? ' border-t border-white/5 pt-2' : ''}`}>
+            <span>{scale}</span>
+            <span className="font-mono text-white/60">{cost}</span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-white/25 mt-3">
+        Gemini 2.5 Flash at $0.30/M input, $2.50/M output, $2.50/M reasoning. Low reasoning (~2K tokens/call).
+        Cost per arc is constant once the story exceeds the 50-scene time horizon.
+      </p>
+
+      <button
+        onClick={() => setShowBreakdown(!showBreakdown)}
+        className="mt-3 flex items-center gap-1.5 text-[10px] text-white/25 hover:text-white/40 transition-colors cursor-pointer"
+      >
+        <svg
+          width="10" height="10" viewBox="0 0 12 12"
+          className={`transition-transform duration-200 ${showBreakdown ? 'rotate-180' : ''}`}
+        >
+          <path d="M3 4.5L6 7.5L9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span>Per-arc breakdown (15 calls &middot; $0.28/arc)</span>
+      </button>
+
+      {showBreakdown && (
+        <div className="overflow-x-auto mt-3 pt-3 border-t border-white/5">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="text-white/30 text-left">
+                <th className="pb-2 font-mono font-normal">Call</th>
+                <th className="pb-2 font-mono font-normal text-right">Count</th>
+                <th className="pb-2 font-mono font-normal text-right">Avg Input</th>
+                <th className="pb-2 font-mono font-normal text-right">Avg Output</th>
+                <th className="pb-2 font-mono font-normal text-right">Avg Reasoning</th>
+                <th className="pb-2 font-mono font-normal text-right">Cost</th>
+              </tr>
+            </thead>
+            <tbody className="text-white/45">
+              {ARC_BREAKDOWN_ROWS.map(({ call, count, input, output, reasoning, cost }) => (
+                <tr key={call} className="border-t border-white/5">
+                  <td className="py-1.5 text-white/50 font-mono">{call}</td>
+                  <td className="py-1.5 text-right font-mono">{count}</td>
+                  <td className="py-1.5 text-right font-mono">{input}</td>
+                  <td className="py-1.5 text-right font-mono">{output}</td>
+                  <td className="py-1.5 text-right font-mono">{reasoning}</td>
+                  <td className="py-1.5 text-right font-mono">{cost}</td>
+                </tr>
+              ))}
+              <tr className="border-t border-white/10">
+                <td className="py-1.5 text-white/60 font-medium">Total per arc</td>
+                <td className="py-1.5 text-right font-mono text-white/60">15</td>
+                <td className="py-1.5 text-right font-mono text-white/60">~470K</td>
+                <td className="py-1.5 text-right font-mono text-white/60">~28K</td>
+                <td className="py-1.5 text-right font-mono text-white/60">~30K</td>
+                <td className="py-1.5 text-right font-mono text-white/60">$0.28</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Data ────────────────────────────────────────────────────────────────── */
 
 const ARCHETYPES = [
   {
-    key: "masterwork" as const,
-    name: "Masterwork",
+    key: "opus" as const,
+    name: "Opus",
     desc: "All three balanced",
-    color: ARCHETYPE_COLORS.masterwork,
+    color: ARCHETYPE_COLORS.opus,
   },
   {
-    key: "epic" as const,
-    name: "Epic",
+    key: "tempest" as const,
+    name: "Tempest",
     desc: "Payoff + Change",
-    color: ARCHETYPE_COLORS.epic,
+    color: ARCHETYPE_COLORS.tempest,
   },
   {
     key: "chronicle" as const,
@@ -121,10 +209,10 @@ const ARCHETYPES = [
     color: ARCHETYPE_COLORS.chronicle,
   },
   {
-    key: "saga" as const,
-    name: "Saga",
+    key: "mosaic" as const,
+    name: "Mosaic",
     desc: "Change + Knowledge",
-    color: ARCHETYPE_COLORS.saga,
+    color: ARCHETYPE_COLORS.mosaic,
   },
   {
     key: "classic" as const,
@@ -228,6 +316,22 @@ const SHAPES = [
       [1, 0.5],
     ] as [number, number][],
   },
+] as const;
+
+const SCALE_TIERS = [
+  { key: 'short',  name: 'Short',  desc: '< 20 scenes', color: '#22D3EE' },
+  { key: 'story',  name: 'Story',  desc: '20–50 scenes', color: '#22D3EE' },
+  { key: 'novel',  name: 'Novel',  desc: '50–120 scenes', color: '#22D3EE' },
+  { key: 'epic',   name: 'Epic',   desc: '120–300 scenes', color: '#22D3EE' },
+  { key: 'serial', name: 'Serial', desc: '300+ scenes', color: '#22D3EE' },
+] as const;
+
+const DENSITY_TIERS = [
+  { key: 'sparse',    name: 'Sparse',    desc: '< 0.5 entities/scene', color: '#34D399' },
+  { key: 'focused',   name: 'Focused',   desc: '0.5–1.5 entities/scene', color: '#34D399' },
+  { key: 'developed', name: 'Developed', desc: '1.5–2.5 entities/scene', color: '#34D399' },
+  { key: 'rich',      name: 'Rich',      desc: '2.5–4.0 entities/scene', color: '#34D399' },
+  { key: 'sprawling', name: 'Sprawling', desc: '4.0+ entities/scene', color: '#34D399' },
 ] as const;
 
 /* ── Navigation items ────────────────────────────────────────────────────── */
@@ -1805,93 +1909,83 @@ export default function PaperPage() {
                 </div>
               ))}
             </div>
+
+            <h3 className="text-sm font-semibold text-white/60 mt-6 mb-1">Scale</h3>
+            <P>
+              Scale classifies a narrative by its structural length — the number
+              of scenes across all arcs. Thresholds are calibrated from analysed
+              works: Romeo &amp; Juliet (24 scenes, Story), Harry Potter volumes
+              (89–110, Novel), and Reverend Insanity (133+, Epic).
+            </P>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-2 text-[11px]">
+              {SCALE_TIERS.map(({ key, name, desc, color }, i) => (
+                <div
+                  key={key}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-white/6 bg-white/2"
+                >
+                  <svg width="16" height="16" viewBox="0 0 18 18" className="shrink-0">
+                    {[0, 1, 2, 3, 4].map((j) => (
+                      <rect key={j} x={2 + j * 3} y={14 - (j + 1) * 2.4} width={2} height={(j + 1) * 2.4} rx={0.5} fill={j <= i ? color : '#ffffff10'} />
+                    ))}
+                  </svg>
+                  <div>
+                    <span className="font-medium" style={{ color }}>{name}</span>
+                    <p className="text-white/35 mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <h3 className="text-sm font-semibold text-white/60 mt-6 mb-1">World Density</h3>
+            <P>
+              World density measures the richness of the narrative world relative
+              to its length: (characters + locations + threads + world knowledge
+              nodes) / scenes. A 24-scene story with 77 entities (3.2/scene) is
+              denser than a 100-scene story with 173 entities (1.7/scene).
+            </P>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-2 text-[11px]">
+              {DENSITY_TIERS.map(({ key, name, desc, color }, i) => (
+                <div
+                  key={key}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-white/6 bg-white/2"
+                >
+                  <svg width="16" height="16" viewBox="0 0 18 18" className="shrink-0">
+                    {[0, 1, 2, 3, 4].map((j) => (
+                      <circle key={j} cx={9} cy={9} r={2 + j * 1.8} fill="none" stroke={j <= i ? color : '#ffffff10'} strokeWidth={1} />
+                    ))}
+                  </svg>
+                  <div>
+                    <span className="font-medium" style={{ color }}>{name}</span>
+                    <p className="text-white/35 mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </Section>
 
           {/* ── Economics ──────────────────────────────────────────────── */}
           <Section id="economics" label="Economics">
             <P>
-              The entire pipeline runs on <B>Gemini 2.5 Flash</B> at{" "}
-              <B>$0.30/M input</B> and <B>$2.50/M output tokens</B>.
-              Input dominates cost (70%) because every call sends
-              the full narrative context and generates a comparatively
-              small structured response. Context is capped by the branch
-              time horizon (default 50 scenes, ~49K tokens), so cost per
-              arc plateaus — arc 10 costs the same as arc 100.
+              A short story costs under a dollar; a full novel under five;
+              an open-ended serial under thirty. The pipeline runs on{" "}
+              <B>Gemini 2.5 Flash</B> (<B>$0.30/M input</B>,{" "}
+              <B>$2.50/M output &amp; reasoning</B>). Input tokens dominate
+              because every call sends the full narrative context, but
+              context is capped by the branch time horizon (~50 scenes),
+              so cost per arc is constant — arc 10 costs the same as
+              arc 100. Reasoning is configurable per story from none
+              (analysis) through low (~2K tokens/call, default) to
+              high (~24K).
             </P>
 
-            <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/[0.03] border border-white/6">
-              <span className="text-[10px] uppercase tracking-wider text-white/20 block mb-3 font-mono">
-                Arc Generation Breakdown (measured, 5-scene arc)
-              </span>
-              <div className="overflow-x-auto">
-                <table className="w-full text-[11px]">
-                  <thead>
-                    <tr className="text-white/30 text-left">
-                      <th className="pb-2 font-mono font-normal">Call</th>
-                      <th className="pb-2 font-mono font-normal text-right">Count</th>
-                      <th className="pb-2 font-mono font-normal text-right">Avg Input</th>
-                      <th className="pb-2 font-mono font-normal text-right">Avg Output</th>
-                      <th className="pb-2 font-mono font-normal text-right">Cost</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-white/45">
-                    {[
-                      { call: "generateScenes", count: "1", input: "~40K", output: "~4K", cost: "$0.022" },
-                      { call: "generateScenePlan", count: "5", input: "~28K", output: "~230", cost: "$0.045" },
-                      { call: "generateSceneProse", count: "5", input: "~35K", output: "~3.8K", cost: "$0.100" },
-                      { call: "refreshDirection", count: "1", input: "~32K", output: "~300", cost: "$0.010" },
-                      { call: "Other", count: "3", input: "~25K", output: "~250", cost: "$0.024" },
-                    ].map(({ call, count, input, output, cost }) => (
-                      <tr key={call} className="border-t border-white/5">
-                        <td className="py-1.5 text-white/50 font-mono">{call}</td>
-                        <td className="py-1.5 text-right font-mono">{count}</td>
-                        <td className="py-1.5 text-right font-mono">{input}</td>
-                        <td className="py-1.5 text-right font-mono">{output}</td>
-                        <td className="py-1.5 text-right font-mono">{cost}</td>
-                      </tr>
-                    ))}
-                    <tr className="border-t border-white/10">
-                      <td className="py-1.5 text-white/60 font-medium">Total per arc</td>
-                      <td className="py-1.5 text-right font-mono text-white/60">15</td>
-                      <td className="py-1.5 text-right font-mono text-white/60">~468K</td>
-                      <td className="py-1.5 text-right font-mono text-white/60">~28K</td>
-                      <td className="py-1.5 text-right font-mono text-white/60">$0.21</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/[0.03] border border-white/6">
-              <span className="text-[10px] uppercase tracking-wider text-white/20 block mb-3 font-mono">
-                End-to-End Estimates (~5 scenes/arc, ~1K words/scene)
-              </span>
-              <div className="space-y-2 text-[11px] text-white/45">
-                {[
-                  { scale: "Short story (3 arcs, ~15 scenes, ~15K words)", cost: "~$0.63" },
-                  { scale: "Novella (10 arcs, ~50 scenes, ~51K words)", cost: "~$2.10" },
-                  { scale: "Novel (30 arcs, ~150 scenes, ~150K words)", cost: "~$6.30" },
-                  { scale: "Web serial (100 arcs, ~500 scenes, ~500K words)", cost: "~$21.00" },
-                  { scale: "Analysis of existing 100K-word novel", cost: "~$1.00" },
-                ].map(({ scale, cost }, i) => (
-                  <div key={scale} className={`flex justify-between${i > 0 ? ' border-t border-white/5 pt-2' : ''}`}>
-                    <span>{scale}</span>
-                    <span className="font-mono text-white/60">{cost}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-white/25 mt-3">
-                Gemini 2.5 Flash at $0.30/M input, $2.50/M output.
-                Cost per arc is constant once the story exceeds the 50-scene time horizon.
-              </p>
-            </div>
+            <CostEstimates />
 
             <P>
               A human ghostwriter charges $10,000–$50,000 for a novel. A
               developmental editor charges $2,000–$5,000 for structural
               feedback. InkTide generates the structure, evaluates it against
               force targets, course-corrects after every arc, and produces
-              full prose — for under three dollars at novella scale. The
+              full prose — for under five dollars at novel scale with low reasoning. The
               economics make iterative experimentation practical: generate,
               evaluate, discard, try again.
             </P>

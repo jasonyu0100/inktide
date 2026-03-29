@@ -244,6 +244,22 @@ function SeedCard({
                   size={isLg ? 11 : 11}
                 />
               )}
+              {entry.scaleKey && (
+                <svg width="11" height="11" viewBox="0 0 18 18" className="shrink-0 opacity-70">
+                  {[0, 1, 2, 3, 4].map((j) => {
+                    const scaleIdx = ['short', 'story', 'novel', 'epic', 'serial'].indexOf(entry.scaleKey!);
+                    return <rect key={j} x={2 + j * 3} y={14 - (j + 1) * 2.4} width={2} height={(j + 1) * 2.4} rx={0.5} fill={j <= scaleIdx ? '#22D3EE' : '#ffffff10'} />;
+                  })}
+                </svg>
+              )}
+              {entry.densityKey && (
+                <svg width="11" height="11" viewBox="0 0 18 18" className="shrink-0 opacity-70">
+                  {[0, 1, 2, 3, 4].map((j) => {
+                    const densityIdx = ['sparse', 'focused', 'developed', 'rich', 'sprawling'].indexOf(entry.densityKey!);
+                    return <circle key={j} cx={9} cy={9} r={2 + j * 1.8} fill="none" stroke={j <= densityIdx ? '#34D399' : '#ffffff10'} strokeWidth={0.8} />;
+                  })}
+                </svg>
+              )}
               {entry.overallScore !== undefined && (
                 <span
                   className="text-[10px] font-mono font-semibold"

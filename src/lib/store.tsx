@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, BranchEvaluation, WorldSystem } from '@/types/narrative';
-import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/markov';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs } from '@/lib/persistence';
@@ -167,6 +167,24 @@ function narrativeToEntry(n: NarrativeState): NarrativeEntry {
   let archetypeKey: string | undefined;
   let archetypeName: string | undefined;
   let overallScore: number | undefined;
+  let scaleKey: string | undefined;
+  let scaleName: string | undefined;
+  let densityKey: string | undefined;
+  let densityName: string | undefined;
+
+  // Scale and density can be computed with any scene count
+  const scale = classifyScale(allScenes.length);
+  scaleKey = scale.key;
+  scaleName = scale.name;
+  const density = classifyWorldDensity(
+    allScenes.length,
+    Object.keys(n.characters).length,
+    Object.keys(n.locations).length,
+    Object.keys(n.threads).length,
+    Object.keys(n.worldKnowledge?.nodes ?? {}).length,
+  );
+  densityKey = density.key;
+  densityName = density.name;
 
   if (allScenes.length >= 3) {
     const raw = computeRawForceTotals(allScenes);
@@ -203,6 +221,8 @@ function narrativeToEntry(n: NarrativeState): NarrativeEntry {
     shapeKey, shapeName, shapeCurve,
     archetypeKey, archetypeName,
     overallScore,
+    scaleKey, scaleName,
+    densityKey, densityName,
   };
 }
 

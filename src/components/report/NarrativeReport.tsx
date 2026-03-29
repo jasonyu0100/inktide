@@ -556,11 +556,11 @@ export function NarrativeReport({
               <p className="text-[10px] uppercase tracking-[0.3em] text-white/20 mb-6">Structural Analysis Report</p>
               <h1 className="text-[28px] font-light text-white/90 leading-tight tracking-tight mb-5">{data.title}</h1>
               <p className="text-[15px] text-white/40 italic max-w-lg mx-auto leading-relaxed">
-                {'\u201C'}A <span className="text-amber-400/80 font-medium">{data.shape.name}</span>{' '}
-                <span className="text-violet-400/80 font-medium">{data.archetype.name}</span>
-                {' that is '}
-                <span className="font-medium" style={{ color: FORCE_COLORS[dominant] + 'CC' }}>{FORCE_LABELS[dominant]}</span>
-                {' driven.'}{'\u201D'}
+                {'\u201C'}A <span className="text-emerald-400/80 font-medium">{data.density.name}</span>
+                {', '}<span className="text-amber-400/80 font-medium">{data.shape.name}</span>
+                {' '}<span className="text-cyan-400/80 font-medium">{data.scale.name}</span>
+                {' of '}<span className="text-violet-400/80 font-medium">{data.archetype.name}</span>
+                {' archetype.'}{'\u201D'}
               </p>
               <div className="w-12 h-px bg-white/10 mx-auto mt-6" />
             </div>
@@ -590,8 +590,10 @@ export function NarrativeReport({
 
             {/* Tags */}
             <div className="flex items-center justify-center gap-2 mt-8">
+              <span className="text-[10px] px-2.5 py-1 rounded border border-white/[0.06] text-cyan-400/40">{data.scale.name}</span>
               <span className="text-[10px] px-2.5 py-1 rounded border border-white/[0.06] text-white/35">{data.shape.name}</span>
               <span className="text-[10px] px-2.5 py-1 rounded border border-white/[0.06] text-white/35">{data.archetype.name}</span>
+              <span className="text-[10px] px-2.5 py-1 rounded border border-white/[0.06] text-emerald-400/40">{data.density.name}</span>
             </div>
             <div className="flex items-center justify-center gap-4 mt-4 text-[10px] text-white/20 font-mono">
               <span>{n} scenes</span><span>{data.arcCount} arcs</span><span>{data.characterCount} characters</span><span>{data.threadCount} threads</span>
@@ -629,6 +631,8 @@ export function NarrativeReport({
               { label: 'Peaks', value: String(data.peaks.length), accent: 'text-amber-400/70' },
               { label: 'Valleys', value: String(data.troughs.length), accent: 'text-blue-300/70' },
               { label: 'Shape', value: data.shape.name, accent: 'text-white/60' },
+              { label: 'Scale', value: data.scale.name, accent: 'text-cyan-400/70' },
+              { label: 'Density', value: `${data.density.name} (${data.density.density}/s)`, accent: 'text-emerald-400/70' },
             ]} />
             {prose('delivery')}
           </Section>

@@ -775,13 +775,13 @@ export interface NarrativeArchetype {
 }
 
 const ARCHETYPES = {
-  masterwork:  { key: 'masterwork',  name: 'Masterwork',  description: 'All three forces in concert — payoffs land, characters transform, and the world deepens together', dominant: ['payoff', 'change', 'knowledge'] as const },
-  epic:        { key: 'epic',        name: 'Epic',        description: 'High-stakes payoffs across a sprawling cast — consequences are real and far-reaching', dominant: ['payoff', 'change'] as const },
+  opus:        { key: 'opus',        name: 'Opus',        description: 'All three forces in concert — payoffs land, characters transform, and the world deepens together', dominant: ['payoff', 'change', 'knowledge'] as const },
+  tempest:     { key: 'tempest',     name: 'Tempest',     description: 'Violent forces that leave nothing unchanged — consequences land and characters are reshaped by them', dominant: ['payoff', 'change'] as const },
   chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Resolutions deepen the world — each payoff reveals how things work', dominant: ['payoff', 'knowledge'] as const },
-  saga:        { key: 'saga',        name: 'Saga',        description: 'A rich world explored through many lives — expansive in both cast and ideas', dominant: ['change', 'knowledge'] as const },
+  mosaic:      { key: 'mosaic',      name: 'Mosaic',      description: 'Many lives composing a larger picture — characters transform within a deepening world', dominant: ['change', 'knowledge'] as const },
   classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['payoff'] as const },
   anthology:   { key: 'anthology',   name: 'Anthology',   description: 'Many lives touched — the story weaves across a wide cast of characters', dominant: ['change'] as const },
-  tome:       { key: 'tome',       name: 'Tome',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['knowledge'] as const },
+  tome:        { key: 'tome',        name: 'Tome',        description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['knowledge'] as const },
   emerging:    { key: 'emerging',    name: 'Emerging',    description: 'No single force has reached its potential yet — the story is still finding its voice', dominant: [] as const },
 } satisfies Record<string, NarrativeArchetype>;
 
@@ -807,14 +807,86 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   const cDom = c >= floor && c >= max - gap;
   const kDom = k >= floor && k >= max - gap;
 
-  if (pDom && cDom && kDom) return ARCHETYPES.masterwork;
-  if (pDom && cDom)         return ARCHETYPES.epic;
+  if (pDom && cDom && kDom) return ARCHETYPES.opus;
+  if (pDom && cDom)         return ARCHETYPES.tempest;
   if (pDom && kDom)         return ARCHETYPES.chronicle;
-  if (cDom && kDom)         return ARCHETYPES.saga;
+  if (cDom && kDom)         return ARCHETYPES.mosaic;
   if (pDom)                 return ARCHETYPES.classic;
   if (cDom)                 return ARCHETYPES.anthology;
   if (kDom)                 return ARCHETYPES.tome;
   return ARCHETYPES.emerging;
+}
+
+// ── Narrative Scale Classification ────────────────────────────────────────────
+// Calibrated from analysed works:
+//   Sketch:    < 20 scenes  (short story, one-act)
+//   Novella:   20–50 scenes (Romeo & Juliet 24, Great Gatsby 44)
+//   Novel:     50–120 scenes (1984 75, HP books 89–110, Tale of Two Cities 100)
+//   Epic:      120–300 scenes (Reverend Insanity 133 — partial, first volume)
+//   Serial:    300+ scenes (full web serials, multi-volume sagas)
+
+export interface NarrativeScale {
+  key: string;
+  name: string;
+  description: string;
+}
+
+const SCALES: Record<string, NarrativeScale> = {
+  short:  { key: 'short',  name: 'Short',  description: 'A contained vignette — one conflict, one resolution' },
+  story:  { key: 'story',  name: 'Story',  description: 'A focused narrative with room for subplot and development' },
+  novel:  { key: 'novel',  name: 'Novel',  description: 'Full-length narrative with multiple arcs and cast depth' },
+  epic:   { key: 'epic',   name: 'Epic',   description: 'Extended narrative with sprawling cast and world scope' },
+  serial: { key: 'serial', name: 'Serial', description: 'Long-running multi-volume narrative with evolving world' },
+};
+
+export function classifyScale(sceneCount: number): NarrativeScale {
+  if (sceneCount < 20)  return SCALES.short;
+  if (sceneCount < 50)  return SCALES.story;
+  if (sceneCount < 120) return SCALES.novel;
+  if (sceneCount < 300) return SCALES.epic;
+  return SCALES.serial;
+}
+
+// ── World Density Classification ─────────────────────────────────────────────
+// Measures richness of the world relative to story length.
+// Density = (characters + locations + threads + worldKnowledgeNodes) / scenes
+// Calibrated from analysed works:
+//   Two Cities:     (73+48+32+20)/100  = 1.7
+//   HP Azkaban:     (86+74+34+39)/110  = 2.1
+//   HP Chamber:     (75+56+50+62)/89   = 2.7
+//   Romeo & Juliet: (27+10+14+26)/24   = 3.2
+//   AI-generated (early): 15-30 entities / 5-10 scenes = 3-6+
+
+export interface WorldDensity {
+  key: string;
+  name: string;
+  description: string;
+  density: number;
+}
+
+const DENSITIES: Record<string, Omit<WorldDensity, 'density'>> = {
+  sparse:    { key: 'sparse',    name: 'Sparse',    description: 'Minimal world scaffolding — story over setting' },
+  focused:   { key: 'focused',   name: 'Focused',   description: 'Lean world built to serve specific narrative needs' },
+  developed: { key: 'developed', name: 'Developed', description: 'Substantial world with layered characters and tensions' },
+  rich:      { key: 'rich',      name: 'Rich',      description: 'Dense world where every scene touches multiple systems' },
+  sprawling: { key: 'sprawling', name: 'Sprawling', description: 'Deeply interconnected world — every corner holds detail' },
+};
+
+export function classifyWorldDensity(
+  sceneCount: number,
+  characterCount: number,
+  locationCount: number,
+  threadCount: number,
+  worldKnowledgeNodeCount: number,
+): WorldDensity {
+  if (sceneCount === 0) return { ...DENSITIES.sparse, density: 0 };
+  const density = (characterCount + locationCount + threadCount + worldKnowledgeNodeCount) / sceneCount;
+  const base = density < 0.5 ? DENSITIES.sparse
+    : density < 1.5 ? DENSITIES.focused
+    : density < 2.5 ? DENSITIES.developed
+    : density < 4.0 ? DENSITIES.rich
+    : DENSITIES.sprawling;
+  return { ...base, density: Math.round(density * 100) / 100 };
 }
 
 // ── Local Position Classification ─────────────────────────────────────────────

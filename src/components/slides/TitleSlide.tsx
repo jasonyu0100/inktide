@@ -94,11 +94,11 @@ export function TitleSlide({ data }: { data: SlidesData }) {
       {/* Verdict */}
       <div className="text-center mb-6 relative">
         <p className="text-lg text-text-secondary leading-relaxed max-w-2xl italic">
-          &ldquo;A <span className="text-amber-400 font-semibold">{data.shape.name}</span>{' '}
-          <span className="text-violet-400 font-semibold inline-flex items-center gap-1">{data.archetype.name}</span>
-          {' that is '}
-          <span className="font-semibold" style={{ color: colors[dominant] }}>{names[dominant]}</span>
-          {' driven'}.&rdquo;
+          {'\u201C'}A <span className="text-emerald-400 font-semibold">{data.density.name}</span>
+          {', '}<span className="text-amber-400 font-semibold">{data.shape.name}</span>
+          {' '}<span className="text-cyan-400 font-semibold">{data.scale.name}</span>
+          {' of '}<span className="text-violet-400 font-semibold inline-flex items-center gap-1">{data.archetype.name}</span>
+          {' archetype.\u201D'}
         </p>
       </div>
 

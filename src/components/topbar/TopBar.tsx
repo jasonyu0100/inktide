@@ -6,7 +6,7 @@ import { useStore, ANALYSIS_NARRATIVE_IDS, PLAYGROUND_NARRATIVE_IDS } from '@/li
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import type { NarrativeState, Branch } from '@/types/narrative';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, gradeForces, FORCE_REFERENCE_MEANS, resolveEntrySequence } from '@/lib/narrative-utils';
+import { computeRawForceTotals, computeSwingMagnitudes, computeForceSnapshots, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, FORCE_REFERENCE_MEANS, resolveEntrySequence } from '@/lib/narrative-utils';
 import { ApiLogsModal } from '@/components/topbar/ApiLogsModal';
 import { StoryReader } from '@/components/story/StoryReader';
 import ApiKeyModal from '@/components/topbar/ApiKeyModal';
@@ -433,6 +433,13 @@ export default function TopBar() {
 
     const archetype = classifyArchetype(seriesGrades);
 
+    const scale = classifyScale(n);
+    const charCount = Object.keys(narrative.characters).length;
+    const locCount = Object.keys(narrative.locations).length;
+    const threadCount = Object.keys(narrative.threads).length;
+    const wkNodeCount = Object.keys(narrative.worldKnowledge?.nodes ?? {}).length;
+    const density = classifyWorldDensity(n, charCount, locCount, threadCount, wkNodeCount);
+
     return {
       title: narrative.title,
       scenes: n,
@@ -440,6 +447,8 @@ export default function TopBar() {
       ...stats,
       grades: seriesGrades,
       archetype,
+      scale,
+      density,
       perArc,
       shape,
       deliveryPoints,
@@ -863,7 +872,7 @@ export default function TopBar() {
                 })}
               </div>
 
-              {/* Shape + Archetype detail */}
+              {/* Shape + Archetype + Scale + Density */}
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <div className="px-2 py-2 border border-white/5 rounded flex flex-col gap-1">
                   <span className="text-[9px] uppercase tracking-widest text-text-dim">Shape</span>
@@ -889,8 +898,48 @@ export default function TopBar() {
                   <div className="flex items-center gap-2">
                     <ArchetypeIcon archetypeKey={scorecard.archetype.key} size={18} />
                     <span className="text-[11px] font-medium text-violet-400">{scorecard.archetype.name}</span>
+                    {scorecard.archetype.dominant.length > 0 && (
+                      <span className="flex items-center gap-0.5">
+                        {scorecard.archetype.dominant.map((f) => (
+                          <span key={f} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: f === 'payoff' ? 'var(--color-payoff)' : f === 'change' ? 'var(--color-change)' : 'var(--color-knowledge)' }} title={f} />
+                        ))}
+                      </span>
+                    )}
                   </div>
                   <span className="text-[9px] text-text-dim leading-snug">{scorecard.archetype.description}</span>
+                </div>
+                <div className="px-2 py-2 border border-white/5 rounded flex flex-col gap-1">
+                  <span className="text-[9px] uppercase tracking-widest text-text-dim">Scale</span>
+                  <div className="flex items-center gap-2">
+                    {/* Scale icon: stacked bars — more bars = larger scale */}
+                    <svg width="18" height="18" viewBox="0 0 18 18" className="shrink-0">
+                      {[0, 1, 2, 3, 4].map((i) => {
+                        const scaleIdx = ['short', 'story', 'novel', 'epic', 'serial'].indexOf(scorecard.scale.key);
+                        const active = i <= scaleIdx;
+                        return <rect key={i} x={2 + i * 3} y={14 - (i + 1) * 2.4} width={2} height={(i + 1) * 2.4} rx={0.5} fill={active ? '#22D3EE' : '#ffffff10'} />;
+                      })}
+                    </svg>
+                    <span className="text-[11px] font-medium text-cyan-400">{scorecard.scale.name}</span>
+                    <span className="text-[9px] text-text-dim font-mono">{scorecard.scenes}s / {scorecard.arcs}a</span>
+                  </div>
+                  <span className="text-[9px] text-text-dim leading-snug">{scorecard.scale.description}</span>
+                </div>
+                <div className="px-2 py-2 border border-white/5 rounded flex flex-col gap-1">
+                  <span className="text-[9px] uppercase tracking-widest text-text-dim">World Density</span>
+                  <div className="flex items-center gap-2">
+                    {/* Density icon: concentric circles — more rings = denser */}
+                    <svg width="18" height="18" viewBox="0 0 18 18" className="shrink-0">
+                      {[0, 1, 2, 3, 4].map((i) => {
+                        const densityIdx = ['sparse', 'focused', 'developed', 'rich', 'sprawling'].indexOf(scorecard.density.key);
+                        const active = i <= densityIdx;
+                        const r = 2 + i * 1.8;
+                        return <circle key={i} cx={9} cy={9} r={r} fill="none" stroke={active ? '#34D399' : '#ffffff10'} strokeWidth={1} />;
+                      })}
+                    </svg>
+                    <span className="text-[11px] font-medium text-emerald-400">{scorecard.density.name}</span>
+                    <span className="text-[9px] text-text-dim font-mono">{scorecard.density.density}/scene</span>
+                  </div>
+                  <span className="text-[9px] text-text-dim leading-snug">{scorecard.density.description}</span>
                 </div>
               </div>
 

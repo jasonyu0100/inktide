@@ -503,6 +503,14 @@ export type NarrativeEntry = {
   archetypeName?: string;
   /** Overall force grade (0-100) */
   overallScore?: number;
+  /** Narrative scale classification key */
+  scaleKey?: string;
+  /** Narrative scale name for display */
+  scaleName?: string;
+  /** World density classification key */
+  densityKey?: string;
+  /** World density name for display */
+  densityName?: string;
 };
 
 // ── Story Settings ──────────────────────────────────────────────────────────

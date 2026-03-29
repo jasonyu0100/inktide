@@ -10,6 +10,8 @@ import {
   computeSwingMagnitudes,
   classifyNarrativeShape,
   classifyArchetype,
+  classifyScale,
+  classifyWorldDensity,
   detectCubeCorner,
   gradeForces,
   FORCE_REFERENCE_MEANS,
@@ -115,6 +117,8 @@ export type SlidesData = {
 
   overallGrades: ForceGrades;
   archetype: import('@/lib/narrative-utils').NarrativeArchetype;
+  scale: import('@/lib/narrative-utils').NarrativeScale;
+  density: import('@/lib/narrative-utils').WorldDensity;
   arcGrades: ArcGrade[];
   avgProseScore: ProseScore | null;
 
@@ -343,6 +347,14 @@ export function computeSlidesData(
     topLocations,
     overallGrades: overallGrades,
     archetype: classifyArchetype(overallGrades),
+    scale: classifyScale(scenes.length),
+    density: classifyWorldDensity(
+      scenes.length,
+      Object.keys(narrative.characters).length,
+      Object.keys(narrative.locations).length,
+      Object.keys(narrative.threads).length,
+      Object.keys(narrative.worldKnowledge?.nodes ?? {}).length,
+    ),
     arcGrades,
     avgProseScore,
     characterNames: Object.fromEntries(Object.entries(narrative.characters).map(([id, c]) => [id, c.name])),

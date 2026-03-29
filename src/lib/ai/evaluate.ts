@@ -63,14 +63,13 @@ export async function evaluateBranch(
   const guidanceBlock = guidance?.trim()
     ? `
 
-EXTERNAL GUIDANCE — The author or another reviewer has provided the following observations. You MUST incorporate these into your evaluation. Validate each point against the scene summaries. If the guidance identifies specific scenes as problematic, those scenes should be flagged as "edit" or "rewrite" unless you can specifically justify why they are fine. Add your own analysis on top — the guidance is additive, not a replacement for your own judgment.
+PRIORITY GUIDANCE FROM THE AUTHOR — These are specific issues the author has identified. You MUST address every point below. For each issue raised, identify the specific scenes affected and flag them as "edit" or "rewrite". Your overall critique MUST discuss these issues. Do not ignore any of them.
 
----
-${guidance.trim()}
----`
+${guidance.trim()}`
     : '';
 
   const prompt = `You are a story editor reviewing a complete branch of a serialized narrative. You have ONLY scene summaries — no prose. Your job is to evaluate structural quality.
+${guidanceBlock}
 
 TITLE: "${narrative.title}"
 DESCRIPTION: ${narrative.description}
@@ -80,8 +79,6 @@ ${threadBlock}
 
 SCENE SUMMARIES (${sceneSummaries.length} scenes):
 ${sceneBlock}
-
-${guidanceBlock}
 
 Evaluate this branch on these dimensions:
 
@@ -120,7 +117,7 @@ Return JSON:
   "thematicQuestion": "The human question underneath the plot"
 }
 
-Every scene must appear in sceneEvals. Use the exact scene IDs from above.`;
+Every scene must appear in sceneEvals. Use the exact scene IDs from above.${guidance?.trim() ? `\n\nREMINDER — The author specifically asked you to address: "${guidance.trim()}". Your overall critique and scene verdicts MUST reflect this. Any scene affected by this guidance MUST NOT be marked "ok".` : ''}`;
 
   const maxTokens = MAX_TOKENS_DEFAULT;
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;

@@ -201,7 +201,7 @@ export default function BranchEval() {
     } finally {
       setLoading(false);
     }
-  }, [narrative, resolvedKeys, branchId]);
+  }, [narrative, resolvedKeys, branchId, guidance, dispatch]);
 
   const runReconstruction = useCallback(async () => {
     if (!narrative || !branchId || !evaluation) return;

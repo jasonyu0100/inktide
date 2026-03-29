@@ -1009,36 +1009,66 @@ export function StoryReader({
                   </div>
                 )}
 
-                {hasPlan && !isPlanLoading && !hasPlanError && activePlan && (
-                  <div className="space-y-2">
-                    {activePlan.beats.length > 0 && (
-                      <div className="space-y-1.5">
-                        <h4 className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Beats</h4>
-                        {activePlan.beats.map((beat, i) => (
-                          <div key={i} className="flex gap-2 px-3 py-2 rounded border border-white/5">
-                            <span className="text-[10px] font-mono text-sky-400 w-16 shrink-0">{beat.fn}</span>
-                            <span className="text-[10px] font-mono text-text-dim w-16 shrink-0">{beat.mechanism}</span>
-                            <div>
-                              <p className="text-[11px] text-text-secondary">{beat.what}</p>
-                              <p className="text-[10px] text-text-dim">{beat.anchor}</p>
+                {hasPlan && !isPlanLoading && !hasPlanError && activePlan && (() => {
+                  const FN_COLORS: Record<string, string> = {
+                    breathe: '#6b7280', inform: '#3b82f6', advance: '#22c55e', bond: '#ec4899',
+                    turn: '#f59e0b', reveal: '#a855f7', shift: '#ef4444', expand: '#06b6d4',
+                    foreshadow: '#84cc16', resolve: '#14b8a6',
+                  };
+                  const MECH_ICONS: Record<string, string> = {
+                    dialogue: '💬', thought: '💭', action: '⚡', environment: '🌍',
+                    narration: '📖', memory: '🔙', document: '📄', comic: '😄',
+                  };
+                  return (
+                    <div className="space-y-3">
+                      {/* Beat timeline */}
+                      {activePlan.beats.length > 0 && (
+                        <div className="space-y-0">
+                          {activePlan.beats.map((beat, i) => (
+                            <div key={i} className="group relative flex gap-3 py-2.5 px-1 hover:bg-white/2 rounded-lg transition-colors">
+                              {/* Timeline connector */}
+                              <div className="flex flex-col items-center shrink-0 w-6">
+                                <div className="w-2.5 h-2.5 rounded-full border-2 shrink-0" style={{ borderColor: FN_COLORS[beat.fn] ?? '#666', backgroundColor: `${FN_COLORS[beat.fn] ?? '#666'}33` }} />
+                                {i < activePlan.beats.length - 1 && <div className="flex-1 w-px bg-white/8 mt-0.5" />}
+                              </div>
+
+                              {/* Beat content */}
+                              <div className="flex-1 min-w-0 -mt-0.5">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: FN_COLORS[beat.fn] ?? '#666' }}>{beat.fn}</span>
+                                  <span className="text-[9px] text-text-dim/50">{MECH_ICONS[beat.mechanism] ?? '•'} {beat.mechanism}</span>
+                                  <span className="text-[8px] text-text-dim/30 font-mono ml-auto opacity-0 group-hover:opacity-100 transition-opacity">{i + 1}/{activePlan.beats.length}</span>
+                                </div>
+                                <p className="text-[11px] text-text-secondary leading-relaxed">{beat.what}</p>
+                                {beat.anchor && (
+                                  <p className="text-[10px] text-text-dim/60 mt-0.5 italic">{beat.anchor}</p>
+                                )}
+                              </div>
                             </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Anchors */}
+                      {activePlan.anchors.length > 0 && (
+                        <div className="mt-2 pt-3 border-t border-white/5">
+                          <h4 className="text-[9px] uppercase tracking-widest text-amber-400/50 mb-2">Anchor Lines</h4>
+                          <div className="space-y-2">
+                            {activePlan.anchors.map((a, i) => (
+                              <div key={i} className="pl-3 border-l-2 border-amber-400/30">
+                                <p className="text-[11px] text-amber-300/80 leading-relaxed italic">&ldquo;{a}&rdquo;</p>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    {activePlan.anchors.length > 0 && (
-                      <div className="mt-4">
-                        <h4 className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Anchors</h4>
-                        {activePlan.anchors.map((a, i) => (
-                          <p key={i} className="text-[11px] text-amber-400/70 italic">&ldquo;{a}&rdquo;</p>
-                        ))}
-                      </div>
-                    )}
-                    {activePlan.beats.length === 0 && activePlan.anchors.length === 0 && (
-                      <p className="text-[11px] text-text-dim py-8 text-center">Plan is empty.</p>
-                    )}
-                  </div>
-                )}
+                        </div>
+                      )}
+
+                      {activePlan.beats.length === 0 && activePlan.anchors.length === 0 && (
+                        <p className="text-[11px] text-text-dim py-8 text-center">Plan is empty.</p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {!hasPlan && !isPlanLoading && !hasPlanError && (
                   <div className="flex flex-col items-center justify-center py-20 gap-4">

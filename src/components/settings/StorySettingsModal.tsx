@@ -8,7 +8,7 @@ import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS 
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, type TransitionMatrix } from '@/lib/markov';
-import { DEFAULT_PROSE_PROFILE, ACTION_PROFILE, INTROSPECTIVE_PROFILE } from '@/lib/beat-profiles';
+import { DEFAULT_PROSE_PROFILE, ACTION_PROFILE, INTROSPECTIVE_PROFILE, BEAT_PROFILE_PRESETS } from '@/lib/beat-profiles';
 
 type Tab = 'direction' | 'style' | 'pov' | 'other';
 
@@ -413,12 +413,13 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
 
                       {/* Beat transition matrix + mechanism distribution */}
                       {(() => {
-                        // Resolve the active beat profile
+                        // Resolve the active beat profile from presets
                         const presetKey = settings.beatProfilePreset || '';
+                        const runtimePreset = BEAT_PROFILE_PRESETS.find((p) => p.key === presetKey);
                         const activeProfile = presetKey === 'self' ? narrative?.proseProfile
                           : presetKey === 'action' ? ACTION_PROFILE
                           : presetKey === 'introspective' ? INTROSPECTIVE_PROFILE
-                          : presetKey && narrative?.proseProfile ? narrative.proseProfile
+                          : runtimePreset ? runtimePreset.profile
                           : DEFAULT_PROSE_PROFILE;
                         const markov = (activeProfile?.markov ?? {}) as Record<string, Record<string, number>>;
                         const mechDist = activeProfile?.mechanismDistribution ?? {};

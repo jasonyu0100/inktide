@@ -432,26 +432,50 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
 
-                {/* Prose Profile Toggle */}
-                <div className="mt-4">
+                {/* Markov Chain Toggles */}
+                <div className="mt-6 space-y-3">
+                  <label className="text-[10px] text-text-dim uppercase tracking-wider block">
+                    Markov Chains
+                  </label>
                   <label className="flex items-center justify-between cursor-pointer">
                     <div>
-                      <span className="text-[11px] text-text-secondary">Use Prose Profile</span>
+                      <span className="text-[11px] text-text-secondary">Pacing Chain</span>
                       <p className="text-[9px] text-text-dim/50 mt-0.5">
-                        When enabled, plans and prose use the selected beat profile&apos;s voice, rules, and Markov transitions.
+                        Scene generation uses cube corner transition probabilities for pacing rhythm.
                       </p>
                     </div>
                     <button
                       type="button"
                       role="switch"
-                      aria-checked={settings.useProseProfile}
-                      onClick={() => update({ useProseProfile: !settings.useProseProfile })}
+                      aria-checked={settings.usePacingChain}
+                      onClick={() => update({ usePacingChain: !settings.usePacingChain })}
                       className={`w-7 h-4 rounded-full transition-colors relative ${
-                        settings.useProseProfile ? 'bg-white/25' : 'bg-white/8'
+                        settings.usePacingChain ? 'bg-white/25' : 'bg-white/8'
                       }`}
                     >
                       <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
-                        settings.useProseProfile ? 'left-3.5' : 'left-0.5'
+                        settings.usePacingChain ? 'left-3.5' : 'left-0.5'
+                      }`} />
+                    </button>
+                  </label>
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <span className="text-[11px] text-text-secondary">Beat Chain</span>
+                      <p className="text-[9px] text-text-dim/50 mt-0.5">
+                        Plan generation uses beat function transition probabilities from the selected profile.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={settings.useBeatChain}
+                      onClick={() => update({ useBeatChain: !settings.useBeatChain })}
+                      className={`w-7 h-4 rounded-full transition-colors relative ${
+                        settings.useBeatChain ? 'bg-white/25' : 'bg-white/8'
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
+                        settings.useBeatChain ? 'left-3.5' : 'left-0.5'
                       }`} />
                     </button>
                   </label>

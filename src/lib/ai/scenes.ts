@@ -1,5 +1,5 @@
 import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, BeatPlan } from '@/types/narrative';
-import { resolveEntry, DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST } from '@/types/narrative';
+import { resolveEntry, DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
@@ -40,19 +40,21 @@ export async function generateScenes(
   // Unique seed to ensure divergent narrative directions across parallel generations
   const seed = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
 
-  // ── Pacing sequence: always on — auto-sample if not provided ──
-  // Floor at 3 scenes — arcs shorter than 3 lack enough structure for pacing
+  // ── Pacing sequence: sample from Markov chain when enabled ──
   const sceneCount = count > 0 ? Math.max(3, count) : targetLen;
-  let sequence: PacingSequence;
-  if (pacingSequence) {
-    sequence = pacingSequence;
-  } else {
-    const currentMode = detectCurrentMode(narrative, resolvedKeys);
-    const matrix = MATRIX_PRESETS.find((p) => p.key === storySettings.rhythmPreset)?.matrix
-      ?? DEFAULT_TRANSITION_MATRIX;
-    sequence = samplePacingSequence(currentMode, sceneCount, matrix);
+  let sequencePrompt = '';
+  let sequence: PacingSequence | null = null;
+  if (storySettings.usePacingChain !== false) {
+    if (pacingSequence) {
+      sequence = pacingSequence;
+    } else {
+      const currentMode = detectCurrentMode(narrative, resolvedKeys);
+      const matrix = MATRIX_PRESETS.find((p) => p.key === storySettings.rhythmPreset)?.matrix
+        ?? DEFAULT_TRANSITION_MATRIX;
+      sequence = samplePacingSequence(currentMode, sceneCount, matrix);
+    }
+    sequencePrompt = buildSequencePrompt(sequence);
   }
-  const sequencePrompt = buildSequencePrompt(sequence);
 
   const prompt = `${ctx}
 
@@ -306,7 +308,7 @@ export async function generateScenePlan(
 
   // Prose profile context
   const profile = narrative.proseProfile;
-  const profileBlock = profile && narrative.storySettings?.useProseProfile !== false
+  const profileBlock = profile
     ? `\nPROSE PROFILE (${profile.name}):
   Register: ${profile.register} | Stance: ${profile.stance}
   Devices: ${profile.devices.join(', ')}
@@ -518,7 +520,7 @@ Strict output rules:
     : '')
   + (() => {
     const profile = narrative.proseProfile;
-    if (!profile || narrative.storySettings?.useProseProfile === false) return '';
+    if (!profile) return '';
     return `\n\nPROSE PROFILE — ${profile.name}:
 Register: ${profile.register} | Stance: ${profile.stance}
 Devices: ${profile.devices.join(', ')}
@@ -898,9 +900,15 @@ export async function generateArcStepwise(
   const targetLen = storySettings.targetArcLength;
   const sceneCount = count > 0 ? Math.max(3, count) : targetLen;
 
-  // Sample pacing sequence
+  // Sample pacing sequence (when enabled)
   let sequence: PacingSequence;
-  if (pacingSequence) {
+  if (storySettings.usePacingChain === false) {
+    // No Markov chain — repeat current mode for all scenes (no pacing constraints)
+    const currentMode = detectCurrentMode(narrative, resolvedKeys);
+    const corner = NARRATIVE_CUBE[currentMode];
+    const neutralStep: ModeStep = { mode: currentMode, name: corner.name, description: corner.description, forces: { payoff: [-2, 2], change: [-2, 2], knowledge: [-2, 2] } };
+    sequence = { steps: Array.from({ length: sceneCount }, () => neutralStep), pacingDescription: 'AI Optimal — no pacing chain constraints' };
+  } else if (pacingSequence) {
     sequence = pacingSequence;
   } else {
     const currentMode = detectCurrentMode(narrative, resolvedKeys);

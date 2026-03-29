@@ -661,10 +661,12 @@ export type StorySettings = {
   generationMode: GenerationMode;
   /** Reasoning effort — how much thinking the model does before responding. Higher = better structural decisions, slower generation. */
   reasoningLevel: ReasoningLevel;
-  /** Beat profile preset key — selects a published work's Markov chain for plan generation. Empty = AI-optimal (no chain). */
+  /** Beat profile preset key — selects a published work's beat/prose profile. Empty = default profile. */
   beatProfilePreset: string;
-  /** Whether to use the prose profile for plan and prose generation. When false, AI picks optimal beats without profile constraints. */
-  useProseProfile: boolean;
+  /** Whether to use the pacing Markov chain (cube corners) for scene generation. */
+  usePacingChain: boolean;
+  /** Whether to use the beat profile Markov chain for plan generation. */
+  useBeatChain: boolean;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -687,7 +689,8 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   generationMode: 'batch',
   reasoningLevel: 'low',
   beatProfilePreset: '',
-  useProseProfile: true,
+  usePacingChain: true,
+  useBeatChain: true,
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────

@@ -69,8 +69,24 @@ export async function reconstructBranch(
 ): Promise<{ branchId: string; branch: Branch; scenes: Scene[]; arcs: Record<string, Arc>; deferredBeats: string[] }> {
   // Build verdict lookup
   const verdictMap = new Map<string, SceneEval>();
+  const insertEvals: SceneEval[] = [];
   for (const ev of evaluation.sceneEvals) {
-    verdictMap.set(ev.sceneId, ev);
+    if (ev.verdict === 'insert') {
+      insertEvals.push(ev);
+    } else {
+      verdictMap.set(ev.sceneId, ev);
+    }
+  }
+
+  // Build insert-after lookup: sceneId → list of inserts that follow it
+  const insertAfterMap = new Map<string, SceneEval[]>();
+  for (const ins of insertEvals) {
+    const afterId = ins.insertAfter;
+    if (afterId) {
+      const list = insertAfterMap.get(afterId) ?? [];
+      list.push(ins);
+      insertAfterMap.set(afterId, list);
+    }
   }
 
   // Walk the full resolved timeline preserving world commits in order.
@@ -134,6 +150,39 @@ export async function reconstructBranch(
       };
       items.push(item);
       sceneEntries.push(item);
+
+      // Inject any inserts that follow this scene
+      const inserts = insertAfterMap.get(entry.id);
+      if (inserts) {
+        for (const ins of inserts) {
+          const insertId = nextId('S', [...allExistingSceneIds, ...usedNewIds], 3);
+          usedNewIds.add(insertId);
+          // Create a placeholder scene that will be generated
+          const placeholder: Scene = {
+            kind: 'scene',
+            id: insertId,
+            arcId: entry.arcId,
+            locationId: entry.locationId,
+            povId: entry.povId,
+            participantIds: [],
+            events: [],
+            threadMutations: [],
+            continuityMutations: [],
+            relationshipMutations: [],
+            summary: ins.reason,
+          };
+          const insertItem: Extract<TimelineItem, { type: 'scene' }> = {
+            type: 'scene',
+            index: sceneEntries.length,
+            scene: placeholder,
+            verdict: 'insert',
+            reason: ins.reason,
+            newId: insertId,
+          };
+          items.push(insertItem);
+          sceneEntries.push(insertItem);
+        }
+      }
     }
   }
 
@@ -150,9 +199,9 @@ export async function reconstructBranch(
       status: 'done' as const,
     })),
   ];
-  // Total work = merge targets + edit scenes (not merge targets) — matches the actual work items
+  // Total work = merge targets + edit scenes + insert scenes
   const mergeTargetIds = new Set(mergeTargetSources.keys());
-  const total = sceneEntries.filter((s) => mergeTargetIds.has(s.scene.id) || (s.verdict === 'edit' && !mergeTargetIds.has(s.scene.id))).length;
+  const total = sceneEntries.filter((s) => mergeTargetIds.has(s.scene.id) || s.verdict === 'insert' || (s.verdict === 'edit' && !mergeTargetIds.has(s.scene.id))).length;
   let completed = 0;
 
   // Create new branch
@@ -223,6 +272,7 @@ export async function reconstructBranch(
 
   const mergeItems = sceneEntries.filter((s) => mergeTargetSources.has(s.scene.id));
   const editItems = sceneEntries.filter((s) => s.verdict === 'edit' && !mergeTargetSources.has(s.scene.id));
+  const insertItems = sceneEntries.filter((s) => s.verdict === 'insert');
 
   // Process merges first
   await parallelBatch(mergeItems, PROSE_CONCURRENCY, async (item) => {
@@ -264,6 +314,29 @@ export async function reconstructBranch(
       callbacks.onSceneReady(newScenes[item.index], 'edited');
     } catch (err) {
       console.warn(`[reconstruct] edit failed for ${item.scene.id}:`, err);
+    }
+
+    if (step) step.status = 'done';
+    completed++;
+    callbacks.onProgress({ ...progress, completed, steps: [...steps] });
+  }, cancelledRef);
+
+  // ── Phase 2c: Process inserts in parallel ──
+  await parallelBatch(insertItems, PROSE_CONCURRENCY, async (item) => {
+    if (cancelledRef.current) return;
+    const step = steps.find((s) => s.sceneId === item.scene.id);
+    if (step) step.status = 'running';
+    callbacks.onProgress({ ...progress, completed, steps: [...steps] });
+
+    try {
+      const inserted = await insertScene(
+        narrative, resolvedKeys, item.reason, evaluation,
+        item.index, sceneEntries,
+      );
+      newScenes[item.index] = { ...inserted, id: item.newId, arcId: item.scene.arcId };
+      callbacks.onSceneReady(newScenes[item.index], 'edited');
+    } catch (err) {
+      console.warn(`[reconstruct] insert failed for ${item.scene.id}:`, err);
     }
 
     if (step) step.status = 'done';
@@ -474,5 +547,79 @@ Return JSON:
     prose: undefined,
     plan: undefined,
     proseScore: undefined,
+  };
+}
+
+// ── Scene insert (generate new scene from scratch) ──────────────────────────
+
+/**
+ * Generate a new scene from a brief. Used for "insert" verdicts where the
+ * evaluator identified a missing beat, transition, or thread setup.
+ */
+async function insertScene(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  brief: string,
+  evaluation: BranchEvaluation,
+  timelineIndex: number,
+  timeline: { scene: Scene; verdict: SceneVerdict; reason: string }[],
+): Promise<Scene> {
+  const contextIndex = Math.min(timelineIndex, resolvedKeys.length - 1);
+  const ctx = branchContext(narrative, resolvedKeys, contextIndex);
+
+  const prevScene = timelineIndex > 0 ? timeline[timelineIndex - 1].scene : null;
+  const nextScene = timelineIndex < timeline.length - 1 ? timeline[timelineIndex + 1].scene : null;
+
+  const surroundingContext = [
+    prevScene ? `PREVIOUS SCENE (${prevScene.id}): ${prevScene.summary}` : '',
+    nextScene ? `NEXT SCENE (${nextScene.id}): ${nextScene.summary}` : '',
+  ].filter(Boolean).join('\n');
+
+  const prompt = `${ctx}
+
+You are generating a NEW scene as part of a branch reconstruction. The evaluator identified a gap in the narrative that needs filling.
+
+GENERATION BRIEF: ${brief}
+${evaluation.thematicQuestion ? `THEMATIC QUESTION: "${evaluation.thematicQuestion}"` : ''}
+${evaluation.repetitions.length > 0 ? `PATTERNS TO AVOID: ${evaluation.repetitions.join('; ')}` : ''}
+
+${surroundingContext}
+
+Generate a complete scene that fits between the previous and next scenes above. The scene must:
+- Address the generation brief directly
+- Maintain continuity with surrounding scenes
+- Use only existing character, location, and thread IDs from the context
+- Advance at least one thread with a status transition
+
+Return JSON:
+{
+  "locationId": "L-XX",
+  "povId": "C-XX",
+  "participantIds": ["C-XX"],
+  "events": ["event_tag"],
+  "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
+  "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-NEW-001", "action": "added", "content": "what they learned", "nodeType": "type"}],
+  "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
+  "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
+  "summary": "3-5 RICH sentences — named character + physical action + concrete consequence. No emotions/realizations as endings."
+}`;
+
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'insertScene', GENERATE_MODEL, reasoningBudget);
+  const parsed = parseJson(raw, 'insertScene') as Partial<Scene>;
+
+  return {
+    kind: 'scene',
+    id: '', // caller sets this
+    arcId: '', // caller sets this
+    locationId: parsed.locationId ?? (prevScene?.locationId ?? ''),
+    povId: parsed.povId ?? (prevScene?.povId ?? ''),
+    participantIds: parsed.participantIds ?? [],
+    events: parsed.events ?? [],
+    threadMutations: parsed.threadMutations ?? [],
+    continuityMutations: parsed.continuityMutations ?? [],
+    relationshipMutations: parsed.relationshipMutations ?? [],
+    worldKnowledgeMutations: parsed.worldKnowledgeMutations,
+    summary: parsed.summary ?? brief,
   };
 }

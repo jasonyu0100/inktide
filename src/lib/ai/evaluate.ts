@@ -95,13 +95,16 @@ For EACH scene, assign a verdict. These map to concrete operations:
 - "merge" — this scene covers the same beat as another and should be ABSORBED into the stronger one. You MUST specify "mergeInto" with the target scene ID. The two become one denser scene. Use when two scenes advance the same thread with similar dramatic shape.
 - "cut" — scene is redundant and adds nothing. The story is tighter without it.
 - "defer" — good beat, wrong timing. This scene should be removed from the current arc and carried forward as a priority for the next arc. You MUST specify "deferredBeat" describing what should happen later. Use when a scene introduces something that would land better after other events have played out.
+- "insert" — a new scene should be CREATED at this position to fill a pacing gap, advance a stalled thread, or add a missing beat. You MUST specify "insertAfter" with the scene ID it follows. The "reason" field is the generation brief: describe what happens, who is involved, the location, which threads advance, and any specific beats. The "sceneId" should be a placeholder like "INSERT-1", "INSERT-2", etc.
 
 STRUCTURAL OPERATIONS GUIDE:
 - If 5 scenes cover the same beat: keep the strongest as "ok", merge 1-2 into it, cut the rest.
 - If a thread has 8 scenes but only 3 distinct beats: merge within each beat, cut the remainder.
 - If a scene is fine but premature: defer it so the next arc can execute it with proper setup.
+- If there is a missing transition, an unearned payoff, or a thread that needs setup before it pays off: insert a new scene at the right position.
 - "mergeInto" must reference a scene that is NOT itself cut/merged/deferred.
 - Prefer merge over cut when the weaker scene has unique content worth absorbing.
+- Use insert sparingly — only when the gap is structural, not cosmetic.
 
 CONTINUITY IS PARAMOUNT. Scenes that contradict established knowledge, misplace characters, or leak information must be flagged — never "ok".
 
@@ -125,7 +128,7 @@ Return JSON:
 {
   "overall": "3-5 paragraph critique. Name scenes, characters, patterns. End with the thematic question.",
   "sceneEvals": [
-    { "sceneId": "SC-001", "verdict": "ok|edit|merge|cut|defer", "reason": "For edit: 1-3 sentences that fully instruct the rewriter — include what other scenes are changing if relevant (e.g. 'Note: SC-009 is being edited to remove X, adjust accordingly'). For merge/cut/defer: one sentence.", "mergeInto": "SC-XXX (merge only)", "deferredBeat": "description (defer only)" }
+    { "sceneId": "SC-001", "verdict": "ok|edit|merge|cut|defer|insert", "reason": "For edit: 1-3 sentences instructing the rewriter. For insert: full generation brief — what happens, who, where, which threads. For merge/cut/defer: one sentence.", "mergeInto": "SC-XXX (merge only)", "deferredBeat": "description (defer only)", "insertAfter": "SC-XXX (insert only)" }
   ],
   "repetitions": ["pattern 1", "pattern 2"],
   "thematicQuestion": "The human question underneath the plot"
@@ -140,14 +143,14 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.${guid
   try {
     const parsed = parseJson(raw, 'evaluateBranch') as {
       overall?: string;
-      sceneEvals?: { sceneId?: string; verdict?: string; reason?: string; mergeInto?: string; deferredBeat?: string }[];
+      sceneEvals?: { sceneId?: string; verdict?: string; reason?: string; mergeInto?: string; deferredBeat?: string; insertAfter?: string }[];
       repetitions?: string[];
       thematicQuestion?: string;
     };
 
-    const validVerdicts = new Set<SceneVerdict>(['ok', 'edit', 'merge', 'cut', 'defer']);
+    const validVerdicts = new Set<SceneVerdict>(['ok', 'edit', 'merge', 'cut', 'defer', 'insert']);
     const sceneEvals: SceneEval[] = (parsed.sceneEvals ?? [])
-      .filter((e) => e.sceneId && narrative.scenes[e.sceneId])
+      .filter((e) => e.sceneId && (narrative.scenes[e.sceneId] || e.verdict === 'insert'))
       .map((e) => {
         // Accept 'rewrite' from older models and map to 'edit'
         let rawVerdict = e.verdict as string;
@@ -169,6 +172,9 @@ Every scene must appear in sceneEvals. Use the exact scene IDs from above.${guid
         }
         if (verdict === 'defer') {
           eval_.deferredBeat = e.deferredBeat ?? eval_.reason;
+        }
+        if (verdict === 'insert') {
+          eval_.insertAfter = e.insertAfter;
         }
         return eval_;
       });

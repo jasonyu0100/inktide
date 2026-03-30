@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store';
 import { evaluateBranch } from '@/lib/ai/evaluate';
 import { reconstructBranch, type ReconstructionProgress } from '@/lib/ai/reconstruct';
 import { resolveEntry, isScene } from '@/types/narrative';
-import type { BranchEvaluation, SceneVerdict, Scene, Arc } from '@/types/narrative';
+import type { BranchEvaluation, SceneEval, SceneVerdict, Scene, Arc } from '@/types/narrative';
 
 // ── Verdict visuals ──────────────────────────────────────────────────────────
 
@@ -15,6 +15,7 @@ const VERDICT_CONFIG: Record<SceneVerdict, { icon: string; color: string; bg: st
   merge:   { icon: '⊕', color: 'text-blue-400',    bg: 'bg-blue-500/15',    label: 'Merge' },
   cut:     { icon: '✕', color: 'text-white/30',    bg: 'bg-white/5',        label: 'Cut' },
   defer:   { icon: '→', color: 'text-purple-400',  bg: 'bg-purple-500/15',  label: 'Defer' },
+  insert:  { icon: '+', color: 'text-cyan-400',    bg: 'bg-cyan-500/15',    label: 'Insert' },
 };
 
 const STEP_STATUS_ICON: Record<string, string> = {
@@ -34,6 +35,7 @@ function SceneNode({
   isLast,
   reconStatus,
   onClick,
+  onOverride,
 }: {
   scene: Scene;
   arc?: Arc;
@@ -42,6 +44,7 @@ function SceneNode({
   isLast: boolean;
   reconStatus?: 'pending' | 'running' | 'done' | 'skipped';
   onClick: () => void;
+  onOverride?: (newVerdict: SceneVerdict) => void;
 }) {
   const cfg = VERDICT_CONFIG[verdict];
   const [expanded, setExpanded] = useState(false);
@@ -61,42 +64,54 @@ function SceneNode({
       </div>
 
       {/* Scene content */}
-      <button
-        onClick={() => { setExpanded((e) => !e); onClick(); }}
-        className="text-left flex-1 pb-2 pl-1.5 min-w-0"
-      >
-        {/* Top line: scene ID + verdict badge */}
-        <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[10px] bg-white/6 text-text-secondary px-1.5 py-0.5 rounded shrink-0">
-            {scene.id}
-          </span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
-            {cfg.label}
-          </span>
-          {reconStatus && reconStatus !== 'skipped' && (
-            <span className={`text-[9px] font-mono ${reconStatus === 'done' ? 'text-emerald-400/60' : reconStatus === 'running' ? 'text-white/50 animate-pulse' : 'text-white/20'}`}>
-              {STEP_STATUS_ICON[reconStatus]}
+      <div className="flex-1 pb-2 pl-1.5 min-w-0">
+        <button
+          onClick={() => { setExpanded((e) => !e); onClick(); }}
+          className="text-left w-full"
+        >
+          {/* Top line: scene ID + verdict badge */}
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] bg-white/6 text-text-secondary px-1.5 py-0.5 rounded shrink-0">
+              {scene.id}
             </span>
-          )}
-          {arc && (
-            <span className="text-[10px] text-text-dim truncate">
-              {arc.name}
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
+              {cfg.label}
             </span>
-          )}
-        </div>
+            {reconStatus && reconStatus !== 'skipped' && (
+              <span className={`text-[9px] font-mono ${reconStatus === 'done' ? 'text-emerald-400/60' : reconStatus === 'running' ? 'text-white/50 animate-pulse' : 'text-white/20'}`}>
+                {STEP_STATUS_ICON[reconStatus]}
+              </span>
+            )}
+            {arc && (
+              <span className="text-[10px] text-text-dim truncate">
+                {arc.name}
+              </span>
+            )}
+          </div>
 
-        {/* Summary */}
-        <p className={`text-xs mt-0.5 leading-snug ${verdict === 'cut' ? 'text-text-dim line-through' : 'text-text-secondary'}`}>
-          {scene.summary}
-        </p>
-
-        {/* Reason (expandable) */}
-        {expanded && reason && (
-          <p className={`text-[11px] mt-1 leading-snug ${cfg.color} opacity-80`}>
-            {reason}
+          {/* Summary */}
+          <p className={`text-xs mt-0.5 leading-snug ${verdict === 'cut' ? 'text-text-dim line-through' : 'text-text-secondary'}`}>
+            {scene.summary}
           </p>
+
+          {/* Reason (expandable) */}
+          {expanded && reason && (
+            <p className={`text-[11px] mt-1 leading-snug ${cfg.color} opacity-80`}>
+              {reason}
+            </p>
+          )}
+        </button>
+
+        {/* Override to ok — shown when expanded, verdict is not already ok, and not reconstructing */}
+        {expanded && onOverride && verdict !== 'ok' && (
+          <button
+            onClick={() => onOverride('ok')}
+            className="text-[9px] mt-1.5 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 hover:brightness-125 transition-all"
+          >
+            ✓ Keep
+          </button>
         )}
-      </button>
+      </div>
     </div>
   );
 }
@@ -104,21 +119,16 @@ function SceneNode({
 // ── Stats bar ────────────────────────────────────────────────────────────────
 
 function StatsBar({ sceneEvals }: { sceneEvals: BranchEvaluation['sceneEvals'] }) {
-  const counts: Record<SceneVerdict, number> = { ok: 0, edit: 0, merge: 0, cut: 0, defer: 0 };
+  const counts: Record<SceneVerdict, number> = { ok: 0, edit: 0, merge: 0, cut: 0, defer: 0, insert: 0 };
   for (const e of sceneEvals) counts[e.verdict]++;
-  const total = sceneEvals.length || 1;
-
   return (
-    <div className="flex items-center gap-3 text-[10px] font-mono">
-      {(['ok', 'edit', 'merge', 'cut', 'defer'] as SceneVerdict[]).map((v) => {
+    <div className="flex items-center gap-2 text-[10px] font-mono">
+      {(['ok', 'edit', 'merge', 'cut', 'defer', 'insert'] as SceneVerdict[]).filter((v) => counts[v] > 0).map((v) => {
         const cfg = VERDICT_CONFIG[v];
-        const pct = Math.round((counts[v] / total) * 100);
         return (
-          <span key={v} className={`${cfg.color} flex items-center gap-1`}>
-            <span className={`w-4 h-4 rounded-full flex items-center justify-center ${cfg.bg} text-[9px] font-bold`}>
-              {cfg.icon}
-            </span>
-            {counts[v]} ({pct}%)
+          <span key={v} className={`${cfg.color} flex items-center gap-0.5`}>
+            <span className="text-[9px]">{cfg.icon}</span>
+            {counts[v]}
           </span>
         );
       })}
@@ -270,8 +280,19 @@ export default function BranchEval() {
     }
   }
 
-  // Resolve scenes in timeline order
+  // Resolve scenes in timeline order, injecting insert placeholders
   const scenes: { scene: Scene; arc?: Arc }[] = [];
+  // Build insert-after lookup from evaluation
+  const insertAfterLookup = new Map<string, SceneEval[]>();
+  if (evaluation) {
+    for (const ev of evaluation.sceneEvals) {
+      if (ev.verdict === 'insert' && ev.insertAfter) {
+        const list = insertAfterLookup.get(ev.insertAfter) ?? [];
+        list.push(ev);
+        insertAfterLookup.set(ev.insertAfter, list);
+      }
+    }
+  }
   if (narrative) {
     for (const key of resolvedKeys) {
       const entry = resolveEntry(narrative, key);
@@ -280,6 +301,15 @@ export default function BranchEval() {
           scene: entry,
           arc: narrative.arcs[entry.arcId],
         });
+        // Inject any inserts that follow this scene
+        const inserts = insertAfterLookup.get(entry.id);
+        if (inserts) {
+          for (const ins of inserts) {
+            scenes.push({
+              scene: { kind: 'scene', id: ins.sceneId, arcId: entry.arcId, locationId: '', povId: '', participantIds: [], events: [], threadMutations: [], continuityMutations: [], relationshipMutations: [], summary: ins.reason },
+            });
+          }
+        }
       }
     }
   }
@@ -432,6 +462,22 @@ export default function BranchEval() {
                       dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId: scene.id } });
                     }
                   }}
+                  onOverride={!reconstructing ? (newVerdict) => {
+                    if (!evaluation || !branchId) return;
+                    const updated = { ...evaluation, sceneEvals: evaluation.sceneEvals.map((e) => {
+                      if (e.sceneId === scene.id) {
+                        return { ...e, verdict: newVerdict, mergeInto: undefined, deferredBeat: undefined };
+                      }
+                      // If this scene was a merge target and the source is being overridden, leave it alone
+                      // If this scene merges INTO the overridden scene, convert to ok
+                      if (e.verdict === 'merge' && e.mergeInto === scene.id && newVerdict === 'cut') {
+                        return { ...e, verdict: 'ok' as SceneVerdict, mergeInto: undefined };
+                      }
+                      return e;
+                    })};
+                    setEvaluation(updated);
+                    dispatch({ type: 'SET_BRANCH_EVALUATION', branchId, evaluation: updated });
+                  } : undefined}
                 />
               );
             })}

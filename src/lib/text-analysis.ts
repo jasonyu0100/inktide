@@ -943,6 +943,92 @@ function deduplicateBy<T>(items: T[], key: (item: T) => string, merge: (existing
   return [...map.values()];
 }
 
+// ── Meta-context sampling ────────────────────────────────────────────────────
+// Builds a representative snapshot of the corpus for rules/systems/profile
+// extraction. Samples evenly across chunks within a ~4000 char budget so it
+// scales from 5 chunks to 500 without blowing up prompt size.
+
+function buildMetaContext(
+  results: AnalysisChunkResult[],
+  characters: Record<string, Character>,
+  threads: Record<string, Thread>,
+  locations: Record<string, Location>,
+  scenes: Record<string, Scene>,
+  worldSummary: string,
+): string {
+  const lines: string[] = [];
+
+  // ── World summary (cap at 2000 chars) ──
+  lines.push(`WORLD SUMMARY: ${worldSummary.slice(0, 2000)}`);
+
+  // ── Characters ──
+  lines.push(`\nCHARACTERS: ${Object.values(characters).map((c) => `${c.name} (${c.role})`).join(', ')}`);
+
+  // ── Threads ──
+  lines.push(`\nTHREADS: ${Object.values(threads).map((t) => `"${t.description}" [${t.status}]`).join(', ')}`);
+
+  // ── Locations ──
+  lines.push(`\nLOCATIONS: ${Object.values(locations).map((l) => l.name).join(', ')}`);
+
+  // ── Scene summaries — evenly sampled across the full corpus ──
+  const allScenes = Object.values(scenes);
+  const SUMMARY_BUDGET = 8;  // target sample count
+  const summaryStep = Math.max(1, Math.floor(allScenes.length / SUMMARY_BUDGET));
+  const sampledSummaries: string[] = [];
+  for (let i = 0; i < allScenes.length && sampledSummaries.length < SUMMARY_BUDGET; i += summaryStep) {
+    const s = allScenes[i];
+    const pov = Object.values(characters).find((c) => c.id === s.povId)?.name ?? s.povId;
+    sampledSummaries.push(`- [${pov}] ${s.summary.slice(0, 150)}`);
+  }
+  if (sampledSummaries.length > 0) {
+    lines.push(`\nSCENE SUMMARIES (${sampledSummaries.length} evenly sampled from ${allScenes.length}):\n${sampledSummaries.join('\n')}`);
+  }
+
+  // ── World knowledge concepts — deduplicated, capped ──
+  const concepts = new Set<string>();
+  for (const r of results) {
+    for (const sc of r.scenes) {
+      for (const n of sc.worldKnowledgeMutations?.addedNodes ?? []) {
+        if (n.concept) concepts.add(`${n.concept} (${n.type})`);
+      }
+    }
+  }
+  if (concepts.size > 0) {
+    const sampled = [...concepts].slice(0, 25);
+    lines.push(`\nWORLD KNOWLEDGE CONCEPTS (${sampled.length} of ${concepts.size}):\n${sampled.join(', ')}`);
+  }
+
+  // ── Prose excerpts — sampled from early, middle, late for voice range ──
+  const chunksWithProse: { chunkIdx: number; prose: string }[] = [];
+  for (let ci = 0; ci < results.length; ci++) {
+    for (const sc of results[ci].scenes) {
+      if (sc.prose) {
+        chunksWithProse.push({ chunkIdx: ci, prose: sc.prose });
+        break; // one per chunk is enough
+      }
+    }
+  }
+
+  if (chunksWithProse.length > 0) {
+    // Pick up to 4 excerpts: first, ~33%, ~66%, last
+    const indices = chunksWithProse.length <= 4
+      ? chunksWithProse.map((_, i) => i)
+      : [
+          0,
+          Math.floor(chunksWithProse.length * 0.33),
+          Math.floor(chunksWithProse.length * 0.66),
+          chunksWithProse.length - 1,
+        ];
+    const unique = [...new Set(indices)];
+    const excerpts = unique.map((i) => chunksWithProse[i].prose.slice(0, 400));
+    lines.push(`\nPROSE EXCERPTS (${excerpts.length} sampled from early/mid/late for voice range):\n${excerpts.map((e) => `---\n${e}\n---`).join('\n')}`);
+  } else {
+    lines.push('\n(no prose available — infer voice from summaries and world tone)');
+  }
+
+  return lines.join('\n');
+}
+
 // ── Assemble Narrative ───────────────────────────────────────────────────────
 
 export async function assembleNarrative(
@@ -1428,13 +1514,7 @@ export async function assembleNarrative(
 
 5. PLAN GUIDANCE: 2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? Be specific to this work's voice.
 
-WORLD SUMMARY: ${worldSummary.slice(0, 2000)}
-
-CHARACTERS: ${Object.values(characters).map((c) => `${c.name} (${c.role})`).join(', ')}
-
-THREADS: ${Object.values(threads).map((t) => `"${t.description}" [${t.status}]`).join(', ')}
-
-LOCATIONS: ${Object.values(locations).map((l) => l.name).join(', ')}
+${buildMetaContext(results, characters, threads, locations, scenes, worldSummary)}
 
 Return JSON:
 {

@@ -618,17 +618,17 @@ Return JSON with this exact structure:
     {"id": "WS-01", "name": "System Name", "description": "One-line summary of what this system is", "principles": ["How it works"], "constraints": ["Hard limits and costs"], "interactions": ["How it connects to other systems"]}
   ],
   "proseProfile": {
-    "register": "the tonal register that best fits this world's voice (conversational/literary/raw/clinical/sardonic/lyrical/mythic/journalistic or other)",
+    "register": "the tonal register (conversational/literary/raw/clinical/sardonic/lyrical/mythic/journalistic or other)",
     "stance": "narrative stance (close_third/intimate_first_person/omniscient_ironic/detached_observer/unreliable_first or other)",
     "tense": "past or present",
     "sentenceRhythm": "terse/varied/flowing/staccato/periodic or other",
     "interiority": "surface/moderate/deep/embedded",
     "dialogueWeight": "sparse/moderate/heavy/almost_none",
     "devices": ["2-4 literary devices that suit this world's tone"],
-    "rules": ["2-3 prose rules that capture the ideal authorial voice — imperatives, e.g. 'Ground every revelation in a physical gesture'"],
-    "antiPatterns": ["2-3 specific prose failures this voice must avoid — things that would break immersion for this genre. e.g. 'Do not explain system mechanics after demonstrating them', 'No strategic summaries in internal monologue — show calculation through action', 'Do not follow a revelation with a sentence restating its significance'"]
+    "rules": ["3-6 SPECIFIC prose rules as imperatives — these must be concrete enough to apply sentence-by-sentence. BAD: 'Write well'. GOOD: 'Show emotion through physical reaction, never name it' / 'No figurative language — just plain statements of fact' / 'Terse does not mean monotone — vary between clipped fragments and occasional longer compound sentences'"],
+    "antiPatterns": ["3-5 SPECIFIC prose failures to avoid — concrete patterns that break this voice. BAD: 'Don't be boring'. GOOD: 'NEVER use \"This was a [Name]\" to introduce a mechanic — show what it does, not what it is called' / 'No strategic summaries in internal monologue (\"He calculated that...\") — show calculation through action' / 'Do not follow a system reveal with a sentence restating its significance' / 'Do not write narrator summaries of what the character already achieved on-page'"]
   },
-  "planGuidance": "1-3 sentences of guidance for how scene beat plans should be structured for this story. What should beat plans emphasise? e.g. 'Prioritise action and dialogue beats over narration. System mechanics should be revealed through usage, never through expository narration beats. Internal monologue should be tactical and clipped, not reflective.'"
+  "planGuidance": "2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? EXAMPLE: 'Prioritise action and dialogue beats over narration. System mechanics revealed through usage, never expository narration beats. Internal monologue should be tactical and clipped. Plans should never include a beat whose purpose is to explain a concept that was already demonstrated in a prior beat.'"
 }
 
 HARD MINIMUMS — the world MUST contain at least these counts. Generating fewer is a failure:

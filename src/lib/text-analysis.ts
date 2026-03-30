@@ -1416,17 +1416,17 @@ export async function assembleNarrative(
 3. IMAGE STYLE: A short (1-2 sentence) visual style description for consistent imagery.
 
 4. PROSE PROFILE: Infer the author's distinctive voice and style from the text. Use your own words — choose values that accurately describe this specific work, not generic labels.
-   - register: the tonal register of the narration (choose a single descriptive word or short phrase)
-   - stance: the narrative perspective and distance
-   - tense: grammatical tense
-   - sentenceRhythm: the structural cadence of the prose
-   - interiority: how deeply the narrator enters character interiority
-   - dialogueWeight: the role and proportion of dialogue
+   - register: tonal register (conversational/literary/raw/clinical/sardonic/lyrical/mythic/journalistic or other)
+   - stance: narrative stance (close_third/intimate_first_person/omniscient_ironic/detached_observer/unreliable_first or other)
+   - tense: grammatical tense (past/present)
+   - sentenceRhythm: structural cadence (terse/varied/flowing/staccato/periodic or other)
+   - interiority: depth of character thought access (surface/moderate/deep/embedded)
+   - dialogueWeight: proportion of dialogue (sparse/moderate/heavy/almost_none)
    - devices: 2-5 literary devices this author characteristically employs (specific, not generic)
-   - rules: 2-4 prose rules that capture this author's constraints as imperatives (e.g. "Characters never say what they mean directly")
-   - antiPatterns: 2-3 specific prose failures that would break this author's voice — things to AVOID. Derive these from what the author does NOT do. e.g. "Do not explain system mechanics after demonstrating them", "No internal monologue that reads like a textbook", "Never summarise a character's strategic reasoning — show it through their actions"
+   - rules: 3-6 SPECIFIC prose rules as imperatives — concrete enough to apply sentence-by-sentence. Derive these from what the author DOES. BAD: "Write well". GOOD: "Show emotion through physical reaction, never name it" / "No figurative language — just plain statements of fact" / "Exposition delivered only through discovery and dialogue" / "Terse does not mean monotone — vary between clipped fragments and occasional longer compound sentences"
+   - antiPatterns: 3-5 SPECIFIC prose failures to avoid — concrete patterns that would break this author's voice. Derive from what the author does NOT do. BAD: "Don't be boring". GOOD: "NEVER use 'This was a [Name]' to introduce a mechanic — show what it does" / "No strategic summaries in internal monologue ('He calculated that...') — show calculation through action" / "Do not follow a reveal with a sentence restating its significance" / "Do not write narrator summaries of what the character already achieved on-page"
 
-5. PLAN GUIDANCE: 1-3 sentences describing how scene beat plans should be structured for this work. What should beat plans emphasise? What mechanisms should dominate? How should exposition be handled?
+5. PLAN GUIDANCE: 2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? Be specific to this work's voice.
 
 WORLD SUMMARY: ${worldSummary.slice(0, 2000)}
 

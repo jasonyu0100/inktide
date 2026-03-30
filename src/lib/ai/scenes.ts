@@ -336,8 +336,8 @@ ${sampledFns.map((fn, i) => `  ${i + 1}. ${fn}`).join('\n')}\n`;
   if (profile.interiority)    planProfileLines.push(`Interiority: ${profile.interiority}`);
   if (profile.dialogueWeight) planProfileLines.push(`Dialogue weight: ${profile.dialogueWeight}`);
   if (profile.devices?.length) planProfileLines.push(`Devices: ${profile.devices.join(', ')}`);
-  if (profile.rules?.length)   planProfileLines.push(`Rules: ${profile.rules.slice(0, 3).join('; ')}`);
-  if (profile.antiPatterns?.length) planProfileLines.push(`Anti-patterns: ${profile.antiPatterns.slice(0, 3).join('; ')}`);
+  if (profile.rules?.length)   planProfileLines.push(`Rules:\n${profile.rules.map((r) => `    • ${r}`).join('\n')}`);
+  if (profile.antiPatterns?.length) planProfileLines.push(`Anti-patterns:\n${profile.antiPatterns.map((a) => `    ✗ ${a}`).join('\n')}`);
 
   const profileBlock = `\nPROSE PROFILE (use these settings when choosing mechanisms and structuring beats):
 ${planProfileLines.map((l) => `  ${l}`).join('\n')}

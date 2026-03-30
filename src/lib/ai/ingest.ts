@@ -124,8 +124,8 @@ For each field, extract the most accurate single value:
 - interiority: How deep the narrator goes into character thought. Examples: surface, moderate, deep, stream_of_consciousness
 - dialogueWeight: Proportion of prose given to dialogue. Examples: heavy, moderate, sparse, minimal, none
 - devices: Rhetorical and narrative devices the author uses. Examples: free_indirect_discourse, dramatic_irony, unreliable_narrator, extended_metaphor, ironic_understatement, comic_escalation, epistolary_fragments, stream_of_consciousness, second_person_address, pathetic_fallacy
-- rules: Show-don't-tell craft constraints — imperative sentences that guide prose generation. These should be specific, actionable style rules derived from the text. Examples: "Show emotion through physical reaction, never name it", "Every scene must ground the reader in one sensory detail before dialogue begins", "Interior thought only through free indirect discourse, never italicised monologue"
-- antiPatterns: Specific prose failures that would break this voice — things to AVOID. Derive from what the author does NOT do, or from explicit critique in the text. Examples: "Do not explain system mechanics after demonstrating them", "No internal monologue that reads like a textbook", "Never follow an action with a sentence restating its significance"
+- rules: 3-6 SPECIFIC prose rules as imperatives — concrete enough to apply sentence-by-sentence. Derive from what this author DOES. BAD: "Write well" or "Be descriptive". GOOD: "Show emotion through physical reaction, never name it" / "No figurative language — just plain statements of fact" / "Terse does not mean monotone — vary between clipped fragments and occasional longer compound sentences" / "Exposition delivered only through discovery and dialogue"
+- antiPatterns: 3-5 SPECIFIC prose failures to avoid — concrete patterns that would break this voice. Derive from what the author does NOT do. BAD: "Don't be boring". GOOD: "NEVER use 'This was a [Name]' to introduce a mechanic — show what it does" / "No strategic summaries in internal monologue ('He calculated that...') — show through action" / "Do not follow a reveal with a sentence restating its significance" / "Do not write narrator summaries of what the character already achieved on-page"
 
 ${existingBlock}
 TEXT TO ANALYZE:
@@ -144,7 +144,7 @@ Return JSON:
   "antiPatterns": ["...", "..."]
 }
 
-Extract 2-6 devices, 2-8 rules, and 2-4 anti-patterns depending on how much the text reveals. Only extract what is clearly stated or strongly implied — don't invent. If a field cannot be determined from the text, use a reasonable default. Use snake_case for multi-word values (e.g., "close_third", not "close third").`;
+Extract 2-6 devices, 3-6 rules, and 3-5 anti-patterns depending on how much the text reveals. Rules and anti-patterns must be SPECIFIC and ACTIONABLE — each should describe a concrete sentence-level pattern to follow or avoid. Only extract what is clearly stated or strongly implied — don't invent. Use snake_case for multi-word values (e.g., "close_third", not "close third").`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'ingestProseProfile', GENERATE_MODEL);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -238,8 +238,14 @@ Analyze the story's genre, tone, subject matter, and existing prose (if any) to 
 - What sentence rhythm matches the story's pacing?
 - How deep should interiority go given the POV and character complexity?
 - What rhetorical devices would serve this story?
-- What craft rules should guide prose generation?
-- What specific prose failures would break this voice? (anti-patterns)
+- What craft rules should guide prose generation? (SPECIFIC imperatives, not generic advice)
+- What specific prose failures would break this voice? (concrete anti-patterns)
+
+QUALITY BAR for rules and anti-patterns:
+- BAD rule: "Write well" / "Be descriptive" / "Show don't tell"
+- GOOD rule: "Show emotion through physical reaction, never name it" / "No figurative language — just plain statements of fact" / "Terse does not mean monotone — vary between clipped fragments and occasional longer compound sentences"
+- BAD anti-pattern: "Don't be boring" / "Avoid bad prose"
+- GOOD anti-pattern: "NEVER use 'This was a [Name]' to introduce a mechanic — show what it does" / "No strategic summaries in internal monologue ('He calculated that...') — show through action" / "Do not follow a reveal with a sentence restating its significance"
 
 Return JSON:
 {
@@ -254,7 +260,7 @@ Return JSON:
   "antiPatterns": ["...", "..."]
 }
 
-Extract 2-6 devices, 3-8 rules, and 2-4 anti-patterns. Rules should be specific, actionable style directives — not generic advice. Anti-patterns should be concrete failures to avoid — things that would break immersion for this genre ("Do not explain mechanics after showing them", "No strategic summaries in internal monologue"). Use snake_case for multi-word values (e.g., "close_third").`;
+Extract 2-6 devices, 3-6 rules, and 3-5 anti-patterns. Every rule and anti-pattern must describe a concrete sentence-level pattern. Use snake_case for multi-word values (e.g., "close_third").`;
 
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'deriveProseProfile', GENERATE_MODEL);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

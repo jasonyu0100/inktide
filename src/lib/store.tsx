@@ -253,7 +253,7 @@ function updateNarrative(
     ...state,
     activeNarrative: updated,
     narratives: state.narratives.map((e) =>
-      e.id === updated.id ? narrativeToEntry(updated) : e,
+      e.id === updated.id ? narrativeToEntry(withDerivedEntities(updated, state.resolvedEntryKeys)) : e,
     ),
   };
 }

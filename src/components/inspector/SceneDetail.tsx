@@ -487,7 +487,7 @@ export default function SceneDetail({ sceneId }: Props) {
             };
             return (
               <div key={`wk-edge-${edge.from}-${edge.to}-${i}`} className="text-xs pl-3 text-text-dim">
-                {shortName(fromNode?.concept ?? edge.from)} <span className="italic text-text-dim">{edge.relation}</span> {shortName(toNode?.concept ?? edge.to)}
+                {shortName(fromNode?.concept ?? edge.from ?? '')} <span className="italic text-text-dim">{edge.relation}</span> {shortName(toNode?.concept ?? edge.to ?? '')}
               </div>
             );
           })}

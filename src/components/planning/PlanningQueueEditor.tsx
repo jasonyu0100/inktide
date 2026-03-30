@@ -317,8 +317,8 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
               <div className="flex items-center gap-0 rounded-lg bg-white/4 p-0.5 mb-5">
                 {([
                   { mode: 'templates' as const, label: 'Templates' },
-                  { mode: 'ai' as const, label: 'AI Generate' },
-                  { mode: 'custom' as const, label: 'Custom' },
+                  { mode: 'ai' as const, label: 'Auto' },
+                  { mode: 'custom' as const, label: 'Plan Document' },
                 ]).map(({ mode, label }) => (
                   <button
                     key={mode}
@@ -367,7 +367,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                 </div>
               )}
 
-              {/* AI Generate */}
+              {/* Auto */}
               {createMode === 'ai' && (
                 <div className="flex flex-col items-center justify-center py-8 gap-4">
                   <div className="text-center max-w-sm">
@@ -387,25 +387,30 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                 </div>
               )}
 
-              {/* Custom */}
+              {/* Plan Document */}
               {createMode === 'custom' && (
                 <div className="flex flex-col gap-3">
-                  <p className="text-[11px] text-text-dim">
-                    Describe your story structure — plot outline, character arcs, key events, pacing preferences.
+                  <p className="text-[11px] text-text-dim leading-relaxed">
+                    Paste a structured plan document — arc treatments, story bibles, chapter outlines. The AI will map each section to a phase and derive scene allocations from chapter counts.
                   </p>
                   <textarea
                     value={planDocument}
                     onChange={(e) => setPlanDocument(e.target.value)}
-                    placeholder="e.g. Three acts: Act 1 establishes the world and central conflict over 10 scenes. Act 2 escalates through betrayal and discovery over 15 scenes. Act 3 resolves everything in a climactic 8-scene finale."
-                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2.5 text-[11px] text-text-primary w-full h-28 resize-none outline-none placeholder:text-text-dim focus:border-white/16 transition"
+                    placeholder={"# Arc One: The Mountain and the Flower\n\n## Part One: The Weight of Five Hundred Years\n### Chapters 1-3 — The Stage, Set Small\n...\n\n## Part Two: The Flower in Another Garden\n### Chapters 4-5 — What Feng Jin Huang Inherited\n..."}
+                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2.5 text-[11px] text-text-primary font-mono w-full h-64 resize-y outline-none placeholder:text-text-dim/50 focus:border-white/16 transition"
                   />
-                  <button
-                    onClick={() => generateFromDocument(planDocument)}
-                    disabled={!planDocument.trim() || generating}
-                    className="self-start px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
-                  >
-                    {generating ? 'Generating...' : 'Generate Plan'}
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-text-dim">
+                      {planDocument.trim() ? `${planDocument.split(/\n/).length} lines · ${Math.round(planDocument.length / 4)} tokens est.` : 'Supports full arc treatments and story bibles'}
+                    </span>
+                    <button
+                      onClick={() => generateFromDocument(planDocument)}
+                      disabled={!planDocument.trim() || generating}
+                      className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
+                    >
+                      {generating ? 'Parsing plan...' : 'Generate Queue'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

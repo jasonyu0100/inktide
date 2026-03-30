@@ -209,6 +209,8 @@ export function CreationWizard() {
         wd.title, buildEnhancedPremise(), wd.rules, wd.worldSystems,
         undefined,
         (reasoning) => setStreamText((prev) => prev + reasoning),
+        undefined,
+        wd.worldOnly ?? false,
       );
       dispatch({ type: 'ADD_NARRATIVE', narrative });
       router.push(`/series/${narrative.id}`);
@@ -553,6 +555,20 @@ export function CreationWizard() {
                 )}
               </div>
             </div>
+
+            {/* World-only toggle */}
+            <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
+              <input
+                type="checkbox"
+                checked={wd.worldOnly ?? false}
+                onChange={(e) => update({ worldOnly: e.target.checked })}
+                className="accent-emerald-400 w-3.5 h-3.5"
+              />
+              <span className="text-xs text-text-dim">
+                World only — skip introduction arc
+                <span className="ml-1 text-text-dim/60">(use premise as story plan, generate entities only)</span>
+              </span>
+            </label>
 
             {/* Navigation */}
             <div className="flex items-center justify-between pt-1">

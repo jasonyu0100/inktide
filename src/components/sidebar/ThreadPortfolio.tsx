@@ -250,13 +250,13 @@ export default function ThreadPortfolio() {
     const visibleKeys = new Set(state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1));
     const allThreads = Object.values(narrative.threads);
 
-    const sceneKeys = new Set(
-      state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1).filter((k) => narrative.scenes[k])
-    );
     const mutatedThreadIds = new Set(
-      Array.from(sceneKeys).flatMap((k) => {
+      Array.from(visibleKeys).flatMap((k) => {
         const scene = narrative.scenes[k];
-        return scene ? scene.threadMutations.map((tm) => tm.threadId) : [];
+        if (scene) return scene.threadMutations.map((tm) => tm.threadId);
+        const wb = narrative.worldBuilds[k];
+        if (wb) return wb.expansionManifest.threads.map((t) => t.id);
+        return [];
       })
     );
 
@@ -265,7 +265,7 @@ export default function ThreadPortfolio() {
     const unopenedThreads: ThreadWithStatus[] = [];
 
     for (const t of allThreads) {
-      const isVisible = mutatedThreadIds.has(t.id) || (visibleKeys.has(t.openedAt) && !!narrative.scenes[t.openedAt]);
+      const isVisible = mutatedThreadIds.has(t.id) || (visibleKeys.has(t.openedAt) && !!(narrative.scenes[t.openedAt] || narrative.worldBuilds[t.openedAt]));
       const status = (isVisible ? (currentStatuses[t.id] ?? t.status) : t.status) as ThreadStatus;
       const entry = { ...t, currentStatus: status };
 

@@ -41,7 +41,7 @@ export default function SceneDetail({ sceneId }: Props) {
         <p className="text-xs text-text-secondary leading-relaxed">{entry.summary || 'No summary available.'}</p>
 
         <div className="flex flex-col gap-1.5">
-          {m.characters.length === 0 && m.locations.length === 0 && m.threads.length === 0 && (m.artifacts?.length ?? 0) === 0 && (m.relationships?.length ?? 0) === 0 && (
+          {m.characters.length === 0 && m.locations.length === 0 && m.threads.length === 0 && (m.artifacts?.length ?? 0) === 0 && (m.relationships?.length ?? 0) === 0 && (m.worldKnowledge?.addedNodes?.length ?? 0) === 0 && (
             <p className="text-[10px] text-text-dim italic">This expansion updated existing entities (continuity, relationships, or artifact lore).</p>
           )}
           {m.characters.length > 0 && (
@@ -123,12 +123,30 @@ export default function SceneDetail({ sceneId }: Props) {
                       key={ma.id}
                       type="button"
                       onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'artifact', artifactId: ma.id } })}
-                      className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-400 transition-colors hover:bg-amber-400/20"
+                      className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-text-primary transition-colors hover:bg-white/12"
                     >
                       {art?.name ?? ma.name}
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          )}
+          {(m.worldKnowledge?.addedNodes?.length ?? 0) > 0 && (
+            <div className="flex flex-col gap-1">
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World Knowledge</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {m.worldKnowledge.addedNodes.map((node) => (
+                  <button
+                    key={node.id}
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'codex' })}
+                    className="rounded bg-white/6 px-1.5 py-0.5 text-[10px] text-text-primary transition-colors hover:bg-white/12"
+                  >
+                    {node.concept}
+                    <span className="text-text-dim ml-1">({node.type})</span>
+                  </button>
+                ))}
               </div>
             </div>
           )}

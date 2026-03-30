@@ -2,7 +2,7 @@ import type { NarrativeState, PlanningQueue, PlanningPhase } from '@/types/narra
 import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, SYSTEM_PROMPT } from './ai/api';
 import { branchContext } from './ai/context';
-import { MAX_TOKENS_SMALL } from '@/lib/constants';
+import { MAX_TOKENS_SMALL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 
 /**
  * Generate a completion report for a phase that has finished its scene allocation.
@@ -129,42 +129,49 @@ export async function generateCustomPlan(
 
   const prompt = `${ctx}
 
-TASK: Generate a narrative superstructure (planning queue) from the user's plan document below. This superstructure will guide book-length story generation phase by phase.
+TASK: Convert the following story plan document into a narrative generation queue (planning phases). This queue will guide automated scene-by-scene generation phase by phase.
 
 USER'S PLAN DOCUMENT:
 ${planDocument}
 
-Analyse the plan document alongside the current narrative state. The superstructure is a RHYTHM FOR WORLD EXPANSION AND STORYTELLING — each phase says "expand the world this way, then tell stories in it." Phases are advisory, not scripts.
+CRITICAL RULES:
 
-Produce a sequence of phases that:
-1. Break the plan into 4-8 narrative phases
-2. Each phase describes the FEEL and TRAJECTORY — what kind of energy, what the reader should experience, which threads are ripe for movement. Advisory, not prescriptive.
-3. Scene allocations are 6-9 scenes per phase
-4. Constraints protect threads and reveals that belong to later phases — absolute prohibitions only
-5. Structural rules define mechanical requirements for each phase — convergence density (how many threads must collide per arc), payoff density (ratio of setup vs irreversible consequence), scene function variety (what beat types are required/banned), and protagonist gravity (how often the primary character must appear and dominate). These are enforceable rules, not vibes.
-6. World expansion hints describe what NEW elements the world needs for this phase — characters, locations, systems, lore. The world grows phase by phase; each expansion fuels the storytelling that follows.
-7. Respect what already exists — don't re-establish what's built
-8. Leave room for emergent storytelling. The AI will make specific scene-level decisions. Phases guide the current, not the individual waves.
+1. FOLLOW THE DOCUMENT'S OWN STRUCTURE. Each major section, part, or act in the document becomes exactly one phase. Do NOT collapse multiple sections into one phase, and do NOT invent phases not grounded in the document. If the document has 6 parts, you emit 6 phases. If it has 3 acts, 3 phases.
 
-Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
+2. DERIVE SCENE ALLOCATIONS FROM CHAPTER COUNT. The document may reference chapters explicitly ("Chapters 1-3", "Chapter 12") or implicitly (a montage chapter, a prologue). Count the chapters per section and compute:
+   - sceneAllocation = chapter_count × 2 (each chapter generates ~2 scenes)
+   - Prologues and single chapters: 2 scenes minimum
+   - Montage / timeskip sections: 3 scenes
+   - Large chapter blocks (6+): cap at 12 scenes
+   - Minimum per phase: 2 scenes
+
+3. PHASES ARE ADVISORY, NOT SCRIPTS. Each phase describes the FEEL and TRAJECTORY — which threads are ready to move, what the reader should experience, what energy is required. The AI makes specific scene decisions; phases guide the current, not the individual waves.
+
+4. STRUCTURAL RULES are mechanical requirements — convergence density (how many threads must collide per arc), payoff density (setup-to-payoff ratio), scene function variety (required/banned beat types), protagonist gravity (appearance frequency). Be specific and enforceable.
+
+5. WORLD EXPANSION HINTS: identify what new characters, locations, or systems the world needs before this phase can be told. The world grows phase by phase. If a section introduces a new setting (e.g. Central Plains), flag the entities that must be expanded into the world first.
+
+6. CONSTRAINTS protect threads and reveals belonging to later phases — absolute prohibitions only. One sentence.
+
+7. Use character NAMES, location NAMES, and thread DESCRIPTIONS — never raw IDs.
 
 Return JSON:
 {
   "name": "A short name for this superstructure (2-5 words)",
   "phases": [
     {
-      "name": "Phase name (2-4 words, like a chapter title)",
-      "objective": "Advisory objective (2-4 sentences). The feel of this phase, which threads are ready to develop, what the reader should experience. Not a plot outline — a compass heading.",
-      "sceneAllocation": 7,
+      "name": "Phase name matching the document section title (2-6 words)",
+      "objective": "Advisory objective (2-4 sentences). The feel of this phase, which threads are ready to develop, what the reader should experience. Reference specific characters and locations by name. Not a plot outline — a compass heading.",
+      "sceneAllocation": 4,
       "constraints": "What must NOT happen yet (1 sentence). Protect later phases.",
       "structuralRules": "Mechanical requirements across 4 dimensions: CONVERGENCE (how many threads must collide per arc, causal vs spatial), PAYOFF DENSITY (thread transitions per arc, setup-to-payoff ratio), SCENE FUNCTION VARIETY (required/banned beat types, max consecutive same-function scenes), PROTAGONIST GRAVITY (appearance frequency, causal centrality). Be specific and enforceable.",
-      "worldExpansionHints": "New characters, locations, or world systems needed for this phase. Empty string if existing world is sufficient."
+      "worldExpansionHints": "New characters, locations, or world systems needed for this phase that don't yet exist in the world. Empty string if existing world is sufficient."
     }
   ]
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'generateCustomPlan', undefined, reasoningBudget);
+  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_DEFAULT, 'generateCustomPlan', undefined, reasoningBudget);
 
   try {
     const match = raw.match(/\{[\s\S]*\}/);
@@ -175,7 +182,7 @@ Return JSON:
         phases: (parsed.phases ?? []).map((p: Record<string, unknown>) => ({
           name: String(p.name ?? 'Untitled Phase'),
           objective: String(p.objective ?? ''),
-          sceneAllocation: Number(p.sceneAllocation) || 15,
+          sceneAllocation: Number(p.sceneAllocation) || 4,
           constraints: String(p.constraints ?? ''),
           structuralRules: p.structuralRules ? String(p.structuralRules) : undefined,
           worldExpansionHints: String(p.worldExpansionHints ?? ''),

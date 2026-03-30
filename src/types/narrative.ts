@@ -1002,6 +1002,8 @@ export type WizardData = {
   rules: string[];
   worldSystems: WorldSystemSketch[];
   proseProfile?: ProseProfile;
+  /** When true: generate world entities only — no introduction arc or scenes. Premise is treated as the full world plan document. */
+  worldOnly?: boolean;
 };
 
 export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex' | 'pulse' | 'threads';

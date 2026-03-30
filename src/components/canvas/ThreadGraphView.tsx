@@ -117,14 +117,21 @@ export default function ThreadGraphView({
   const { mutationCounts, sceneMutatedThreads } = useMemo(() => {
     const counts = new Map<string, number>();
     const sceneMuts = new Set<string>();
-    const scenes: Scene[] = resolvedKeys
-      .map((k) => resolveEntry(narrative, k))
-      .filter((e): e is Scene => !!e && e.kind === 'scene');
 
-    for (let i = 0; i < scenes.length; i++) {
-      for (const tm of scenes[i].threadMutations) {
-        counts.set(tm.threadId, (counts.get(tm.threadId) ?? 0) + 1);
-        if (i === currentIndex) sceneMuts.add(tm.threadId);
+    for (let i = 0; i <= currentIndex && i < resolvedKeys.length; i++) {
+      const key = resolvedKeys[i];
+      const entry = resolveEntry(narrative, key);
+      if (!entry) continue;
+      if (entry.kind === 'scene') {
+        for (const tm of entry.threadMutations) {
+          counts.set(tm.threadId, (counts.get(tm.threadId) ?? 0) + 1);
+          if (i === currentIndex) sceneMuts.add(tm.threadId);
+        }
+      } else if (entry.kind === 'world_build') {
+        for (const t of entry.expansionManifest.threads) {
+          counts.set(t.id, (counts.get(t.id) ?? 0) + 1);
+          if (i === currentIndex) sceneMuts.add(t.id);
+        }
       }
     }
     return { mutationCounts: counts, sceneMutatedThreads: sceneMuts };

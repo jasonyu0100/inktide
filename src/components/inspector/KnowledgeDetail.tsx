@@ -115,10 +115,13 @@ export default function KnowledgeDetail({ nodeId }: Props) {
     for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
       const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
-      if (!scene?.worldKnowledgeMutations) continue;
-      const added = scene.worldKnowledgeMutations.addedNodes ?? [];
+      const wb = narrative.worldBuilds?.[key];
+      const wkm = scene?.worldKnowledgeMutations ?? wb?.expansionManifest.worldKnowledge;
+      if (!wkm) continue;
+      const added = wkm.addedNodes ?? [];
       if (added.some((n) => n.id === nodeId)) {
-        scenes.push({ sceneId: key, sceneTitle: scene.events?.[0]?.slice(0, 60) ?? key });
+        const title = scene?.events?.[0]?.slice(0, 60) ?? wb?.summary?.slice(0, 60) ?? key;
+        scenes.push({ sceneId: key, sceneTitle: title });
       }
     }
     return scenes;

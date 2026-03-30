@@ -52,8 +52,14 @@ export default function NarrativePanel() {
           )}
           {(m.artifacts?.length ?? 0) > 0 && (
             <div className="text-xs text-text-secondary">
-              <span className="text-amber-400/70 uppercase text-[10px] tracking-wider mr-2">Artifacts</span>
+              <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">Artifacts</span>
               {m.artifacts!.map((a) => narrative.artifacts?.[a.id]?.name ?? a.name).join(', ')}
+            </div>
+          )}
+          {(m.worldKnowledge?.addedNodes?.length ?? 0) > 0 && (
+            <div className="text-xs text-text-secondary">
+              <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">World Knowledge</span>
+              {m.worldKnowledge.addedNodes.map((n) => n.concept).join(', ')}
             </div>
           )}
         </div>

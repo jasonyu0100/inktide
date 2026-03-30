@@ -571,10 +571,15 @@ export async function generateNarrative(
   onToken?: (token: string) => void,
   onReasoning?: (token: string) => void,
   reasoningLevel?: ReasoningLevel,
+  /** When true: generate world entities only — no introduction arc or scenes.
+   *  The premise is treated as a full story plan / world bible to seed from. */
+  worldOnly = false,
 ): Promise<NarrativeState> {
-  const prompt = `Create a complete narrative world for:
+  const prompt = `${worldOnly
+    ? 'Extract and build a complete narrative world from the following story plan. Do NOT generate scenes or arcs — output world entities only (characters, locations, threads, relationships, artifacts, rules, systems, prose profile).'
+    : 'Create a complete narrative world for:'}
 Title: "${title}"
-Premise: ${premise}
+${worldOnly ? 'Story plan' : 'Premise'}: ${premise}
 
 Return JSON with this exact structure:
 {
@@ -594,7 +599,8 @@ Return JSON with this exact structure:
   ],
   "artifacts": [
     {"id": "A-01", "name": "string", "significance": "key|notable|minor", "parentId": "character or location ID", "continuity": {"nodes": [{"id": "AK-01", "type": "specific_type", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
-  ],
+  ],${worldOnly ? `
+  "worldKnowledge": {"addedNodes": [{"id": "WK-01", "concept": "name of a world concept, rule, system, or structure", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-01", "to": "WK-02", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},` : `
   "scenes": [
     {
       "id": "S-001",
@@ -612,7 +618,7 @@ Return JSON with this exact structure:
   ],
   "arcs": [
     {"id": "ARC-01", "name": "string", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
-  ],
+  ],`}
   "rules": ["World rule 1", "World rule 2"],
   "worldSystems": [
     {"id": "WS-01", "name": "System Name", "description": "One-line summary of what this system is", "principles": ["How it works"], "constraints": ["Hard limits and costs"], "interactions": ["How it connects to other systems"]}
@@ -637,8 +643,8 @@ HARD MINIMUMS — the world MUST contain at least these counts. Generating fewer
 - EXACTLY 6 threads (interlocking — at least 3 must share participants)
 - EXACTLY 20 relationships (asymmetric, at least 3 hostile)
 - EXACTLY 3 artifacts (at least 1 key, 1 notable, 1 minor)
-- EXACTLY 10 world knowledge nodes with 6 edges
-- EXACTLY 8 scenes in 1 arc
+- EXACTLY 10 world knowledge nodes with 6 edges${worldOnly ? '' : `
+- EXACTLY 8 scenes in 1 arc`}
 
 CHARACTER DEPTH BY ROLE:
 - Anchors (3): 6-8 knowledge nodes each — secrets, goals, fears, contradictions
@@ -681,7 +687,7 @@ ARTIFACTS:
 - Minor artifact (1): a small object with narrative potential — a token, a letter, a trinket. 1-2 continuity nodes. Can be at a location.
 - Artifacts must feel integral to the world — not bolted on. The key artifact should connect to at least one thread.
 
-Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
+${worldOnly ? '' : `Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
 
 ${buildSequencePrompt(buildIntroductionSequence())}
 
@@ -690,7 +696,7 @@ ${PROMPT_FORCE_STANDARDS}
 ${PROMPT_PACING}
 ${PROMPT_MUTATIONS}
 ${PROMPT_CONTINUITY}
-${PROMPT_SUMMARY_REQUIREMENT}
+${PROMPT_SUMMARY_REQUIREMENT}`}
 
 WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}
 
@@ -736,10 +742,14 @@ The goal is to make the world feel like a coherent machine where systems interlo
   }
 
   const scenes: NarrativeState['scenes'] = {};
-  for (const s of parsed.scenes) scenes[s.id] = { ...s, kind: 'scene', summary: s.summary || `Scene ${s.id}` };
+  if (!worldOnly) {
+    for (const s of (parsed.scenes ?? [])) scenes[s.id] = { ...s, kind: 'scene', summary: s.summary || `Scene ${s.id}` };
+  }
 
   const arcs: NarrativeState['arcs'] = {};
-  for (const a of parsed.arcs) arcs[a.id] = a;
+  if (!worldOnly) {
+    for (const a of (parsed.arcs ?? [])) arcs[a.id] = a;
+  }
 
   const branchId = `B-${now}`;
   const branches: NarrativeState['branches'] = {
@@ -755,13 +765,15 @@ The goal is to make the world feel like a coherent machine where systems interlo
 
   // Sanitize and re-ID world knowledge mutations, then build cumulative graph
   const sceneList = Object.values(scenes);
-  const totalWKNodes = sceneList.reduce((sum, s) => sum + (s.worldKnowledgeMutations?.addedNodes?.length ?? 0), 0);
-  const wkIds = nextIds('WK', [], totalWKNodes);
-  let wkIdx = 0;
-  const wkIdMap: Record<string, string> = {};
-  const worldKnowledgeNodes: Record<string, WorldKnowledgeNode> = {};
-  const worldKnowledgeEdges: WorldKnowledgeEdge[] = [];
 
+  // Collect all WK mutations — from scenes normally, or from top-level worldKnowledge in worldOnly mode
+  const allWKMutations: WorldKnowledgeMutation[] = [];
+  if (worldOnly && parsed.worldKnowledge) {
+    allWKMutations.push({
+      addedNodes: parsed.worldKnowledge.addedNodes ?? [],
+      addedEdges: parsed.worldKnowledge.addedEdges ?? [],
+    });
+  }
   for (const scene of sceneList) {
     if (!scene.worldKnowledgeMutations) {
       scene.worldKnowledgeMutations = { addedNodes: [], addedEdges: [] };
@@ -769,9 +781,19 @@ The goal is to make the world feel like a coherent machine where systems interlo
     }
     scene.worldKnowledgeMutations.addedNodes = scene.worldKnowledgeMutations.addedNodes ?? [];
     scene.worldKnowledgeMutations.addedEdges = scene.worldKnowledgeMutations.addedEdges ?? [];
+    allWKMutations.push(scene.worldKnowledgeMutations);
+  }
 
+  const totalWKNodes = allWKMutations.reduce((sum, m) => sum + m.addedNodes.length, 0);
+  const wkIds = nextIds('WK', [], totalWKNodes);
+  let wkIdx = 0;
+  const wkIdMap: Record<string, string> = {};
+  const worldKnowledgeNodes: Record<string, WorldKnowledgeNode> = {};
+  const worldKnowledgeEdges: WorldKnowledgeEdge[] = [];
+
+  for (const mutation of allWKMutations) {
     // Assign real IDs to new nodes
-    for (const node of scene.worldKnowledgeMutations.addedNodes) {
+    for (const node of mutation.addedNodes) {
       const oldId = node.id;
       node.id = wkIds[wkIdx++];
       wkIdMap[oldId] = node.id;
@@ -780,7 +802,7 @@ The goal is to make the world feel like a coherent machine where systems interlo
 
     // Remap edge references and accumulate
     const validWKIds = new Set(Object.keys(worldKnowledgeNodes));
-    scene.worldKnowledgeMutations.addedEdges = scene.worldKnowledgeMutations.addedEdges
+    mutation.addedEdges = mutation.addedEdges
       .map((edge) => ({
         from: wkIdMap[edge.from] ?? edge.from,
         to: wkIdMap[edge.to] ?? edge.to,
@@ -788,7 +810,7 @@ The goal is to make the world feel like a coherent machine where systems interlo
       }))
       .filter((edge) => validWKIds.has(edge.from) && validWKIds.has(edge.to));
 
-    for (const edge of scene.worldKnowledgeMutations.addedEdges) {
+    for (const edge of mutation.addedEdges) {
       if (!worldKnowledgeEdges.some((e) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
         worldKnowledgeEdges.push({ from: edge.from, to: edge.to, relation: edge.relation });
       }

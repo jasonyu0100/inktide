@@ -465,6 +465,10 @@ function reducer(state: AppState, action: Action): AppState {
         if (allThreads.length > 0) parts.push(`${allThreads.length} thread${allThreads.length > 1 ? 's' : ''}`);
         if (n.relationships.length > 0) parts.push(`${n.relationships.length} relationship${n.relationships.length > 1 ? 's' : ''}`);
 
+        const allArtifacts = Object.values(n.artifacts ?? {});
+        const wkNodeCount = Object.keys(n.worldKnowledge?.nodes ?? {}).length;
+        if (allArtifacts.length > 0) parts.push(`${allArtifacts.length} artifact${allArtifacts.length > 1 ? 's' : ''}`);
+        if (wkNodeCount > 0) parts.push(`${wkNodeCount} knowledge node${wkNodeCount > 1 ? 's' : ''}`);
         const worldBuild: WorldBuild = {
           kind: 'world_build',
           id: worldBuildId,
@@ -474,7 +478,11 @@ function reducer(state: AppState, action: Action): AppState {
             locations: allLocs,
             threads: allThreads,
             relationships: n.relationships,
-            worldKnowledge: { addedNodes: [], addedEdges: [] },
+            worldKnowledge: {
+              addedNodes: Object.values(n.worldKnowledge?.nodes ?? {}).map((node) => ({ id: node.id, concept: node.concept, type: node.type })),
+              addedEdges: (n.worldKnowledge?.edges ?? []).map((edge) => ({ from: edge.from, to: edge.to, relation: edge.relation })),
+            },
+            artifacts: allArtifacts.length > 0 ? allArtifacts : undefined,
           },
         };
 

@@ -100,11 +100,11 @@ function ShapeCurve({
 }
 
 const ARC_BREAKDOWN_ROWS = [
-  { call: "generateScenes", count: "1", input: "~40K", output: "~4K", reasoning: "~2K", cost: "$0.027" },
-  { call: "generateScenePlan", count: "5", input: "~28K", output: "~250", reasoning: "~2K", cost: "$0.070" },
-  { call: "generateSceneProse", count: "5", input: "~35K", output: "~4K", reasoning: "~2K", cost: "$0.128" },
-  { call: "refreshDirection", count: "1", input: "~32K", output: "~300", reasoning: "~2K", cost: "$0.015" },
-  { call: "Other", count: "3", input: "~25K", output: "~250", reasoning: "~2K", cost: "$0.039" },
+  { call: "generateScenes", count: "1", input: "~40K", output: "~4K", reasoning: "~2K", cost: "$0.027", model: "2.5 Flash" },
+  { call: "generateScenePlan", count: "5", input: "~28K", output: "~250", reasoning: "~2K", cost: "$0.104", model: "3 Flash" },
+  { call: "generateSceneProse", count: "5", input: "~35K", output: "~4K", reasoning: "~2K", cost: "$0.177", model: "3 Flash" },
+  { call: "refreshDirection", count: "1", input: "~32K", output: "~300", reasoning: "~2K", cost: "$0.015", model: "2.5 Flash" },
+  { call: "Other", count: "3", input: "~25K", output: "~250", reasoning: "~2K", cost: "$0.039", model: "2.5 Flash" },
 ];
 
 function CostEstimates() {
@@ -116,12 +116,14 @@ function CostEstimates() {
       </span>
       <div className="space-y-2 text-[11px] text-white/45">
         {[
-          { scale: "Short (~2 arcs, ~10 scenes, ~10K words)", cost: "~$0.56" },
-          { scale: "Story (~7 arcs, ~35 scenes, ~35K words)", cost: "~$1.96" },
-          { scale: "Novel (~17 arcs, ~85 scenes, ~85K words)", cost: "~$4.76" },
-          { scale: "Epic (~40 arcs, ~200 scenes, ~200K words)", cost: "~$11.20" },
-          { scale: "Serial (~100 arcs, ~500 scenes, ~500K words)", cost: "~$28.00" },
-          { scale: "Analysis of existing 100K-word novel (no reasoning)", cost: "~$1.00" },
+          { scale: "Short (~2 arcs, ~10 scenes, ~10K words)", cost: "~$0.73" },
+          { scale: "Story (~7 arcs, ~35 scenes, ~35K words)", cost: "~$2.54" },
+          { scale: "Novel (~17 arcs, ~85 scenes, ~85K words)", cost: "~$6.17" },
+          { scale: "Epic (~40 arcs, ~200 scenes, ~200K words)", cost: "~$14.52" },
+          { scale: "Serial (~100 arcs, ~500 scenes, ~500K words)", cost: "~$36.30" },
+          { scale: "Analysis of existing 100K-word novel (no reasoning)", cost: "~$0.24" },
+          { scale: "Analysis of existing 500K-word series (no reasoning)", cost: "~$1.12" },
+          { scale: "Evaluation — structure + prose (per branch)", cost: "~$0.05" },
         ].map(({ scale, cost }, i) => (
           <div key={scale} className={`flex justify-between${i > 0 ? ' border-t border-white/5 pt-2' : ''}`}>
             <span>{scale}</span>
@@ -130,8 +132,9 @@ function CostEstimates() {
         ))}
       </div>
       <p className="text-[10px] text-white/25 mt-3">
-        Gemini 2.5 Flash at $0.30/M input, $2.50/M output, $2.50/M reasoning. Low reasoning (~2K tokens/call).
-        Cost per arc is constant once the story exceeds the 50-scene time horizon.
+        Structure &amp; analysis: Gemini 2.5 Flash ($0.30/M input, $2.50/M output &amp; reasoning).
+        Plans &amp; prose: Gemini 3 Flash ($0.50/M input, $3.00/M output &amp; reasoning).
+        Low reasoning (~2K tokens/call). Cost per arc is constant once the story exceeds the 50-scene time horizon.
       </p>
 
       <button
@@ -144,7 +147,7 @@ function CostEstimates() {
         >
           <path d="M3 4.5L6 7.5L9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span>Per-arc breakdown (15 calls &middot; $0.28/arc)</span>
+        <span>Per-arc breakdown (15 calls &middot; $0.36/arc)</span>
       </button>
 
       {showBreakdown && (
@@ -174,10 +177,10 @@ function CostEstimates() {
               <tr className="border-t border-white/10">
                 <td className="py-1.5 text-white/60 font-medium">Total per arc</td>
                 <td className="py-1.5 text-right font-mono text-white/60">15</td>
-                <td className="py-1.5 text-right font-mono text-white/60">~470K</td>
-                <td className="py-1.5 text-right font-mono text-white/60">~28K</td>
+                <td className="py-1.5 text-right font-mono text-white/60">~462K</td>
+                <td className="py-1.5 text-right font-mono text-white/60">~26K</td>
                 <td className="py-1.5 text-right font-mono text-white/60">~30K</td>
-                <td className="py-1.5 text-right font-mono text-white/60">$0.28</td>
+                <td className="py-1.5 text-right font-mono text-white/60">$0.36</td>
               </tr>
             </tbody>
           </table>
@@ -1974,10 +1977,13 @@ export default function PaperPage() {
           {/* ── Economics ──────────────────────────────────────────────── */}
           <Section id="economics" label="Economics">
             <P>
-              A short story costs under a dollar; a full novel under five;
-              an open-ended serial under thirty. The pipeline runs on{" "}
-              <B>Gemini 2.5 Flash</B> (<B>$0.30/M input</B>,{" "}
-              <B>$2.50/M output &amp; reasoning</B>). Input tokens dominate
+              A short story costs under a dollar; a full novel under seven;
+              an open-ended serial under forty. The pipeline splits across
+              two model tiers: <B>Gemini 2.5 Flash</B> (<B>$0.30/M input</B>,{" "}
+              <B>$2.50/M output</B>) handles structure generation, analysis,
+              and evaluation, while <B>Gemini 3 Flash</B> (<B>$0.50/M input</B>,{" "}
+              <B>$3.00/M output</B>) handles beat plans and prose — the
+              tasks where prose quality matters most. Input tokens dominate
               because every call sends the full narrative context, but
               context is capped by the branch time horizon (~50 scenes),
               so cost per arc is constant — arc 10 costs the same as
@@ -1989,11 +1995,20 @@ export default function PaperPage() {
             <CostEstimates />
 
             <P>
+              Analysing an existing 100K-word novel into a full narrative
+              state costs under twenty-five cents — parallel chunk extraction
+              with no reasoning. A 500K-word series runs about a dollar.
+              Evaluating a branch (structure + prose quality) costs five
+              cents. This makes the full generate-evaluate-revise loop
+              economical at any scale.
+            </P>
+
+            <P>
               A human ghostwriter charges $10,000–$50,000 for a novel. A
               developmental editor charges $2,000–$5,000 for structural
               feedback. InkTide generates the structure, evaluates it against
               force targets, course-corrects after every arc, and produces
-              full prose — for under five dollars at novel scale with low reasoning. The
+              full prose — for under seven dollars at novel scale with low reasoning. The
               economics make iterative experimentation practical: generate,
               evaluate, discard, try again.
             </P>

@@ -205,21 +205,6 @@ function CostEstimates() {
         ))}
       </div>
 
-      {/* Analysis + revision estimates */}
-      <div className="mt-3 pt-3 border-t border-white/8 space-y-2 text-[11px] text-white/35">
-        {[
-          { scale: "Analyze existing 100K-word novel",          cost: "~$0.24"  },
-          { scale: "Analyze existing 500K-word series",         cost: "~$1.12"  },
-          { scale: "Evaluate + reconstruct (per branch)",       cost: "~$0.10"  },
-          { scale: "Prose quality loop (per scene)",            cost: "~$0.04"  },
-        ].map(({ scale, cost }, i) => (
-          <div key={scale} className={`flex justify-between${i > 0 ? ' border-t border-white/5 pt-2' : ''}`}>
-            <span>{scale}</span>
-            <span className="font-mono text-white/50">{cost}</span>
-          </div>
-        ))}
-      </div>
-
       <p className="text-[10px] text-white/25 mt-3">
         Structure, planning &amp; analysis: <span className="text-emerald-500/40">Gemini 2.5 Flash</span> ($0.30/M in · $2.50/M out+reasoning).
         Prose only: <span className="text-amber-500/40">Gemini 3 Flash</span> ($0.50/M in · $3.00/M out+reasoning).

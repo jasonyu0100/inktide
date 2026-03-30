@@ -432,6 +432,7 @@ Generate a structured beat plan for this scene.${recentProseBlock ? ' Opening be
 export async function reverseEngineerScenePlan(
   prose: string,
   summary: string,
+  onToken?: (token: string, accumulated: string) => void,
 ): Promise<BeatPlan> {
   const systemPrompt = `You are a beat analyst. Given existing prose, identify its structural beat sequence — what each beat does, how it's delivered, and the key sensory anchor.
 
@@ -464,7 +465,10 @@ ${prose}
 
 Identify the beat structure of this scene.`;
 
-  const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL);
+  let accumulated = '';
+  const raw = onToken
+    ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL)
+    : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL);
   const parsed = parseJson(raw, 'reverseEngineerScenePlan') as { beats?: unknown[]; anchors?: string[] };
   const beats = (parsed.beats ?? []).map((b: unknown) => {
     const beat = b as Record<string, unknown>;

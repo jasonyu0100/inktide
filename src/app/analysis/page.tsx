@@ -25,6 +25,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const [chunkStreamTexts, setChunkStreamTexts] = useState<Map<number, string>>(new Map());
   const [viewingChunkStream, setViewingChunkStream] = useState<number | null>(null);
   const [assembling, setAssembling] = useState(false);
+  const [selectedPlanKey, setSelectedPlanKey] = useState<string | null>(null);
+  const [planInFlightKeys, setPlanInFlightKeys] = useState<string[]>(() => analysisRunner.getPlanInFlightKeys(job.id));
+  const [planStreamTexts, setPlanStreamTexts] = useState<Map<string, string>>(new Map());
 
   const liveJob = state.analysisJobs.find((j) => j.id === job.id) ?? job;
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
@@ -58,6 +61,27 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   }, [job.id]);
 
   const inFlightSet = useMemo(() => new Set(inFlightIndices), [inFlightIndices]);
+
+  // Subscribe to plan in-flight + stream events
+  useEffect(() => {
+    return analysisRunner.onPlanInFlightChange((id, keys) => {
+      if (id === job.id) setPlanInFlightKeys(keys);
+    });
+  }, [job.id]);
+
+  useEffect(() => {
+    return analysisRunner.onPlanStream((id, key, text) => {
+      if (id === job.id) {
+        setPlanStreamTexts((prev) => {
+          const next = new Map(prev);
+          next.set(key, text);
+          return next;
+        });
+      }
+    });
+  }, [job.id]);
+
+  const planInFlightSet = useMemo(() => new Set(planInFlightKeys), [planInFlightKeys]);
 
   // Build word map from completed results
   const wordNodes = useMemo(() => {
@@ -149,11 +173,12 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const completedChunks = liveJob.results.filter((r) => r !== null).length;
   const totalChunks = liveJob.chunks.length;
   const isReconciling = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Reconcil');
-  const isAssembling = completedChunks === totalChunks && liveJob.status === 'running' && !isReconciling;
+  const isPlanExtracting = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Phase 2');
+  const isAssembling = completedChunks === totalChunks && liveJob.status === 'running' && !liveJob.narrativeId && streamText.includes('Assembl');
 
   const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
-  const assembledNarrative = liveJob.narrativeId
-    ? (state.narratives as { id: string; narrative?: import('@/types/narrative').NarrativeState }[]).find((e) => e.id === liveJob.narrativeId)?.narrative ?? null
+  const assembledNarrative = liveJob.narrativeId && state.activeNarrative?.id === liveJob.narrativeId
+    ? state.activeNarrative
     : null;
   const beatStats = useMemo(() => {
     const fnCounts: Record<string, number> = {};
@@ -192,6 +217,17 @@ function JobDetail({ job }: { job: AnalysisJob }) {
 
   // Current chunk stream text for viewing
   const activeChunkStream = viewingChunkStream !== null ? (chunkStreamTexts.get(viewingChunkStream) ?? '') : '';
+
+  // All scenes extracted so far (for Plans phase display)
+  const allExtractedScenes = useMemo(() =>
+    completed.flatMap((r, ci) =>
+      (r.scenes ?? []).map((s, si) => ({
+        key: `${ci}-${si}`, chunkIdx: ci, sceneIdx: si,
+        summary: s.summary, povName: s.povName, plan: s.plan,
+      }))
+    ), [completed]);
+
+  const activePlanStream = selectedPlanKey !== null ? (planStreamTexts.get(selectedPlanKey) ?? '') : '';
 
   const renderNode = (node: WordNode) => {
     const ratio = node.count / maxCount;
@@ -236,6 +272,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
             <span className="text-[9px] text-white/20 font-mono shrink-0">
               {isAssembling ? 'assembling...'
                 : isReconciling ? 'reconciling...'
+                : isPlanExtracting ? `plans ${beatStats.planCount}/${sceneCount}`
                 : liveJob.status === 'completed' ? 'complete'
                 : liveJob.status === 'failed' ? 'failed'
                 : liveJob.status === 'paused' ? 'paused'
@@ -254,7 +291,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               { value: threadCount, color: 'text-sky-400/50', dot: 'bg-sky-400/30', label: 'thr' },
               { value: knowledgeCount, color: 'text-violet-400/60', dot: 'bg-violet-400/40', label: 'wk' },
               { value: artifactCount, color: 'text-orange-400/60', dot: 'bg-orange-400/40', label: 'art' },
-              ...(beatStats.planCount > 0 ? [{ value: beatStats.planCount, color: 'text-pink-400/60', dot: 'bg-pink-400/40', label: 'pln' }] : []),
+              ...(beatStats.planCount > 0 ? [{ value: beatStats.planCount, color: 'text-indigo-400/60', dot: 'bg-indigo-400/40', label: 'pln' }] : []),
             ].map((s) => (
               <div key={s.label} className="flex items-center gap-1.5">
                 <div className={`w-1 h-1 rounded-full ${s.dot}`} />
@@ -427,36 +464,45 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               )}
 
               {/* Beat Distribution */}
-              {beatStats.planCount > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-pink-400/50" />
-                    <span className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-mono">
-                      Beat Structure — {beatStats.totalBeats} beats across {beatStats.planCount} scenes
-                    </span>
+              {beatStats.planCount > 0 && (() => {
+                const maxBeatCount = Math.max(1, ...BEAT_FN_LIST.map((fn) => beatStats.fnCounts[fn]));
+                return (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/50" />
+                      <span className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-mono">
+                        Beat Structure — {beatStats.totalBeats} beats · {beatStats.planCount} scenes
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1.5">
+                      {BEAT_FN_LIST.filter((fn) => beatStats.fnCounts[fn] > 0).map((fn) => {
+                        const ratio = beatStats.fnCounts[fn] / maxBeatCount;
+                        const fontSize = Math.round(12 + ratio * 20);
+                        const opacity = 0.35 + ratio * 0.65;
+                        const isHighFreq = ratio > 0.5;
+                        const color = BEAT_FN_COLORS[fn];
+                        return (
+                          <span
+                            key={fn}
+                            className="inline-block transition-all duration-500 cursor-default"
+                            style={{
+                              fontSize: `${fontSize}px`,
+                              opacity,
+                              fontWeight: ratio > 0.3 ? 600 : 400,
+                              color,
+                              textShadow: isHighFreq ? `0 0 20px ${color}55, 0 0 40px ${color}33` : undefined,
+                              lineHeight: 1.4,
+                            }}
+                            title={`${fn}: ${beatStats.fnCounts[fn]}`}
+                          >
+                            {fn}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
-                  {/* Proportional stacked bar */}
-                  <div className="h-2 rounded-full overflow-hidden flex mb-3">
-                    {BEAT_FN_LIST.filter((fn) => beatStats.fnCounts[fn] > 0).map((fn) => (
-                      <div
-                        key={fn}
-                        style={{ width: `${(beatStats.fnCounts[fn] / beatStats.totalBeats) * 100}%`, backgroundColor: BEAT_FN_COLORS[fn] }}
-                        title={`${fn}: ${beatStats.fnCounts[fn]}`}
-                      />
-                    ))}
-                  </div>
-                  {/* Legend */}
-                  <div className="flex flex-wrap gap-x-5 gap-y-1.5">
-                    {BEAT_FN_LIST.filter((fn) => beatStats.fnCounts[fn] > 0).map((fn) => (
-                      <div key={fn} className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BEAT_FN_COLORS[fn] }} />
-                        <span className="text-[10px] text-white/40">{fn}</span>
-                        <span className="text-[10px] text-white/20 tabular-nums">{beatStats.fnCounts[fn]}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
         </div>
@@ -466,17 +512,84 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
             {/* Header */}
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
-              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isAssembling ? 'bg-amber-400' : 'bg-change'} animate-pulse`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isAssembling ? 'bg-amber-400' : isPlanExtracting ? 'bg-indigo-400' : 'bg-change'} animate-pulse`} />
               <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">
-                {isReconciling ? 'Reconciliation' : isAssembling ? 'Assembly' : `Extraction`}
+                {isReconciling ? 'Reconciliation' : isAssembling ? 'Assembly' : isPlanExtracting ? 'Beat Plans' : 'Extraction'}
               </span>
-              {!isReconciling && !isAssembling && (
+              {isPlanExtracting && (
+                <span className="text-[9px] text-indigo-400/40 font-mono ml-auto">{beatStats.planCount}/{sceneCount}</span>
+              )}
+              {!isReconciling && !isAssembling && !isPlanExtracting && (
                 <span className="text-[9px] text-white/10 font-mono ml-auto">{completedChunks}/{totalChunks}</span>
               )}
             </div>
 
-            {/* Extraction phase: chunk stream tabs + stream viewer */}
-            {!isReconciling && !isAssembling ? (
+            {/* Plans phase: scene list, or stream for selected scene */}
+            {isPlanExtracting ? (
+              <div className="flex-1 flex flex-col min-h-0">
+                {selectedPlanKey !== null && activePlanStream ? (
+                  <>
+                    <div className="shrink-0 px-2 py-1.5 border-b border-white/4 flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedPlanKey(null)}
+                        className="text-[9px] text-white/25 hover:text-white/50 transition font-mono"
+                      >
+                        ← scenes
+                      </button>
+                    </div>
+                    <pre
+                      ref={streamRef}
+                      className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
+                      style={{ scrollbarWidth: 'thin' }}
+                    >
+                      {activePlanStream}
+                    </pre>
+                  </>
+                ) : (
+                  <div className="flex-1 overflow-y-auto py-1" style={{ scrollbarWidth: 'thin' }}>
+                    {allExtractedScenes.map((scene, si) => {
+                      const isInFlight = planInFlightSet.has(scene.key);
+                      const hasPlan = !!scene.plan;
+                      return (
+                        <button
+                          key={scene.key}
+                          onClick={() => setSelectedPlanKey(selectedPlanKey === scene.key ? null : scene.key)}
+                          disabled={!hasPlan && !isInFlight}
+                          className={`w-full text-left px-3 py-2 transition-all flex items-start gap-2 border-b border-white/3 last:border-0 ${
+                            hasPlan ? 'hover:bg-indigo-500/8 cursor-pointer'
+                            : isInFlight ? 'bg-indigo-400/4 cursor-pointer'
+                            : 'opacity-40 cursor-default'
+                          }`}
+                        >
+                          {isInFlight ? (
+                            <svg className="w-2.5 h-2.5 text-indigo-400/50 animate-spin shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
+                              <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                            </svg>
+                          ) : hasPlan ? (
+                            <div className="w-2 h-2 rounded-full bg-indigo-400/40 shrink-0 mt-1" />
+                          ) : (
+                            <div className="w-2 h-2 rounded-full border border-white/10 shrink-0 mt-1" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className={`text-[10px] font-medium truncate ${hasPlan ? 'text-white/50' : isInFlight ? 'text-indigo-400/40' : 'text-white/15'}`}>
+                              {si + 1}. {scene.povName || `Scene ${si + 1}`}
+                            </div>
+                            {scene.summary && (
+                              <div className="text-[9px] text-white/18 leading-snug mt-0.5 line-clamp-2">{scene.summary}</div>
+                            )}
+                            {hasPlan && (
+                              <div className="text-[8px] text-indigo-400/30 font-mono mt-0.5">{scene.plan!.beats.length} beats</div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : !isReconciling && !isAssembling ? (
+              /* Extraction phase: chunk stream tabs + stream viewer */
               <div className="flex-1 flex flex-col min-h-0">
                 {/* Chunk tabs — scrollable row of in-flight + recently completed */}
                 {inFlightIndices.length > 0 && (
@@ -568,8 +681,86 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         )}
       </div>
 
+      {/* ── Plan detail panel — shown when a scene is selected during plan phase ── */}
+      {selectedPlanKey !== null && (() => {
+        const scene = allExtractedScenes.find((s) => s.key === selectedPlanKey);
+        if (!scene?.plan) return null;
+        const { beats, anchors } = scene.plan;
+        return (
+          <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${chunkPanelHeight}vh` }}>
+            <div
+              className="h-2 cursor-ns-resize flex items-center justify-center hover:bg-white/4 transition-colors shrink-0"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startY = e.clientY;
+                const startH = chunkPanelHeight;
+                const onMove = (ev: MouseEvent) => {
+                  const delta = startY - ev.clientY;
+                  setChunkPanelHeight(Math.max(15, Math.min(80, startH + (delta / window.innerHeight) * 100)));
+                };
+                const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              }}
+            >
+              <div className="w-10 h-0.5 rounded-full bg-white/15" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ scrollbarWidth: 'thin' }}>
+              <div className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-text-primary">{scene.povName}</span>
+                  <span className="text-[10px] text-indigo-400/50 font-mono">{beats.length} beats</span>
+                </div>
+                <button onClick={() => setSelectedPlanKey(null)} className="text-xs text-text-dim hover:text-text-secondary transition px-2 py-1 rounded hover:bg-white/5">&times;</button>
+              </div>
+              {scene.summary && (
+                <p className="text-[11px] text-text-secondary leading-relaxed mb-4 italic">{scene.summary}</p>
+              )}
+              <div className="grid grid-cols-2 gap-6">
+                {/* Beat list */}
+                <div>
+                  <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-3">Beat Sequence</div>
+                  <div className="space-y-2">
+                    {beats.map((beat, bi) => (
+                      <div key={bi} className="flex items-start gap-3">
+                        <span
+                          className="text-[9px] font-mono font-semibold shrink-0 mt-0.5 w-16 text-right"
+                          style={{ color: BEAT_FN_COLORS[beat.fn] ?? '#ffffff44' }}
+                        >
+                          {beat.fn}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] text-text-secondary leading-snug">{beat.what}</div>
+                          {beat.mechanism && (
+                            <div className="text-[9px] text-text-dim font-mono mt-0.5 opacity-60">{beat.mechanism}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Anchors */}
+                {anchors.length > 0 && (
+                  <div>
+                    <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-3">Anchors</div>
+                    <div className="space-y-1.5">
+                      {anchors.map((a, ai) => (
+                        <div key={ai} className="text-[10px] text-text-secondary leading-snug flex items-start gap-2">
+                          <span className="text-indigo-400/30 shrink-0 mt-0.5">—</span>
+                          <span>{a}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Chunk detail panel — resizable ── */}
-      {selectedChunk !== null && (() => {
+      {selectedChunk !== null && !isPlanExtracting && (() => {
         const result = liveJob.results[selectedChunk] as AnalysisChunkResult | null;
         if (!result) return null;
         const wkNodes = (result.scenes ?? []).flatMap((s) => s.worldKnowledgeMutations?.addedNodes ?? []);
@@ -722,8 +913,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         {isRunning && (
           <div className="flex items-center gap-3 mb-2.5">
             {[
-              { label: 'Extract', active: !isReconciling && !isAssembling, done: completedChunks === totalChunks, color: 'bg-change' },
-              { label: 'Reconcile', active: isReconciling, done: isAssembling, color: 'bg-sky-400' },
+              { label: 'Extract', active: !isPlanExtracting && !isReconciling && !isAssembling, done: completedChunks === totalChunks, color: 'bg-change' },
+              ...(liveJob.extractPlans ? [{ label: 'Plans', active: isPlanExtracting, done: isReconciling || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' }] : []),
+              { label: 'Reconcile', active: isReconciling, done: isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
               { label: 'Assemble', active: isAssembling, done: liveJob.status === 'completed', color: 'bg-amber-400' },
             ].map((phase, pi) => (
               <div key={phase.label} className="flex items-center gap-1.5">
@@ -740,54 +932,140 @@ function JobDetail({ job }: { job: AnalysisJob }) {
             ))}
           </div>
         )}
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Chunks</span>
-          <span className="text-[9px] text-white/10 font-mono">{completedChunks} / {totalChunks}</span>
+        <div className="flex items-center gap-4 mb-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1 h-1 rounded-full bg-change/50" />
+            <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Chunks</span>
+            <span className="text-[9px] text-white/10 font-mono">{completedChunks} / {totalChunks}</span>
+          </div>
+          {liveJob.extractPlans && beatStats.planCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1 h-1 rounded-full ${isPlanExtracting ? 'bg-indigo-400/70 animate-pulse' : 'bg-indigo-400/40'}`} />
+              <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Plans</span>
+              <span className="text-[9px] text-indigo-400/30 font-mono">{beatStats.planCount} / {sceneCount}</span>
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
-          <div className="flex items-center gap-1">
-            {liveJob.chunks.map((_, i) => {
-              const done = liveJob.results[i] !== null;
-              const isInFlight = inFlightSet.has(i);
-              const isSelected = selectedChunk === i;
-              const result = liveJob.results[i] as AnalysisChunkResult | null;
-              return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (done) setSelectedChunk(isSelected ? null : i);
-                    else if (isInFlight) setViewingChunkStream(i);
-                  }}
-                  disabled={!done && !isInFlight}
-                  className={`relative w-10 min-w-[2.5rem] h-9 rounded transition-all duration-300 group shrink-0 ${
-                    isSelected
-                      ? 'bg-white/15 ring-1 ring-white/30 scale-[1.08]'
-                      : done
-                        ? 'bg-emerald-500/20 hover:bg-emerald-500/35'
-                        : isInFlight
-                          ? 'bg-change/10 ring-1 ring-change/20 cursor-pointer hover:bg-change/15'
-                          : 'bg-white/3'
-                  } ${done || isInFlight ? 'cursor-pointer' : 'cursor-default'}`}
-                  title={result
-                    ? `Chunk ${i + 1}: ${result.characters?.length ?? 0} chars, ${result.scenes?.length ?? 0} scenes, ${result.threads?.length ?? 0} threads`
-                    : isInFlight ? `Chunk ${i + 1}: extracting... (click to view stream)` : `Chunk ${i + 1}: pending`}
-                >
-                  {isInFlight ? (
-                    <svg className="absolute inset-0 m-auto w-4 h-4 text-change/60 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.2" />
-                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  ) : (
-                    <span className={`text-[10px] font-mono absolute inset-0 flex items-center justify-center transition ${
-                      isSelected ? 'text-white/80 font-semibold' : done ? 'text-emerald-400/50 group-hover:text-emerald-400/80' : 'text-white/8'
-                    }`}>
-                      {i + 1}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {isPlanExtracting ? (
+            /* Plans phase — scene tiles */
+            <div className="flex items-center gap-1">
+              {allExtractedScenes.map((scene, si) => {
+                const isInFlight = planInFlightSet.has(scene.key);
+                const hasPlan = !!scene.plan;
+                const isSelected = selectedPlanKey === scene.key;
+                return (
+                  <button
+                    key={scene.key}
+                    onClick={() => setSelectedPlanKey(isSelected ? null : scene.key)}
+                    disabled={!hasPlan && !isInFlight}
+                    className={`relative w-10 min-w-10 h-10 rounded transition-all duration-300 group shrink-0 ${
+                      isSelected
+                        ? 'bg-white/15 ring-1 ring-white/30 scale-[1.08]'
+                        : hasPlan
+                          ? 'bg-indigo-500/15 ring-1 ring-indigo-400/20 hover:bg-indigo-500/25'
+                          : isInFlight
+                            ? 'bg-indigo-400/8 ring-1 ring-indigo-400/15'
+                            : 'bg-white/3'
+                    } ${hasPlan || isInFlight ? 'cursor-pointer' : 'cursor-default'}`}
+                    title={scene.povName ? `${scene.povName}${scene.summary ? ': ' + scene.summary.slice(0, 60) : ''}` : `Scene ${si + 1}`}
+                  >
+                    {isInFlight ? (
+                      <svg className="absolute inset-0 m-auto w-4 h-4 text-indigo-400/50 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.2" />
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <span className={`text-[9px] font-mono absolute top-1.5 inset-x-0 flex items-center justify-center transition ${
+                        isSelected ? 'text-white/80 font-semibold'
+                        : hasPlan ? 'text-indigo-400/60 group-hover:text-indigo-400/80'
+                        : 'text-white/12'
+                      }`}>
+                        {si + 1}
+                      </span>
+                    )}
+                    {!isInFlight && (
+                      <div className="absolute bottom-1.5 inset-x-0 flex items-center justify-center">
+                        <div className={`w-1 h-1 rounded-full transition-all duration-500 ${hasPlan ? 'bg-indigo-400/60' : 'bg-white/8'}`} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            /* Extract phase — chunk tiles */
+            <div className="flex items-center gap-1">
+              {liveJob.chunks.map((_, i) => {
+                const extracted = liveJob.results[i] !== null;
+                const isInFlight = inFlightSet.has(i);
+                const isSelected = selectedChunk === i;
+                const result = liveJob.results[i] as AnalysisChunkResult | null;
+                const proseScenesCount = result?.scenes?.filter((s) => s.prose).length ?? 0;
+                const plannedCount = result?.scenes?.filter((s) => s.plan).length ?? 0;
+                const allPlanned = extracted && (proseScenesCount === 0 || plannedCount >= proseScenesCount);
+                const partiallyPlanned = extracted && plannedCount > 0 && !allPlanned;
+                const awaitingPlans = isPlanExtracting && extracted && plannedCount === 0;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      if (extracted) setSelectedChunk(isSelected ? null : i);
+                      else if (isInFlight) setViewingChunkStream(i);
+                    }}
+                    disabled={!extracted && !isInFlight}
+                    className={`relative w-10 min-w-10 h-10 rounded transition-all duration-300 group shrink-0 ${
+                      isSelected
+                        ? 'bg-white/15 ring-1 ring-white/30 scale-[1.08]'
+                        : allPlanned
+                          ? 'bg-emerald-500/20 ring-1 ring-indigo-400/20 hover:bg-emerald-500/30'
+                          : partiallyPlanned
+                            ? 'bg-emerald-500/15 ring-1 ring-indigo-400/10'
+                            : awaitingPlans
+                              ? 'bg-emerald-500/10'
+                              : extracted
+                                ? 'bg-emerald-500/12 hover:bg-emerald-500/20'
+                                : isInFlight
+                                  ? 'bg-change/10 ring-1 ring-change/20'
+                                  : 'bg-white/3'
+                    } ${extracted || isInFlight ? 'cursor-pointer' : 'cursor-default'}`}
+                    title={result
+                      ? `Chunk ${i + 1}: ${result.characters?.length ?? 0} chars, ${result.scenes?.length ?? 0} scenes${plannedCount > 0 ? `, ${plannedCount} plans` : ''}`
+                      : isInFlight ? `Chunk ${i + 1}: extracting...` : `Chunk ${i + 1}: pending`}
+                  >
+                    {isInFlight ? (
+                      <svg className="absolute inset-0 m-auto w-4 h-4 text-change/60 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.2" />
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <span className={`text-[10px] font-mono absolute top-1.5 inset-x-0 flex items-center justify-center transition ${
+                        isSelected ? 'text-white/80 font-semibold'
+                        : allPlanned ? 'text-emerald-400/70 group-hover:text-emerald-400/90'
+                        : extracted ? 'text-emerald-400/40 group-hover:text-emerald-400/60'
+                        : 'text-white/8'
+                      }`}>
+                        {i + 1}
+                      </span>
+                    )}
+                    {!isInFlight && (
+                      <div className="absolute bottom-1.5 inset-x-0 flex items-center justify-center gap-1">
+                        <div className={`w-1 h-1 rounded-full transition-all duration-500 ${extracted ? 'bg-emerald-400/60' : 'bg-white/8'}`} />
+                        {liveJob.extractPlans && (
+                          <div className={`w-1 h-1 rounded-full transition-all duration-500 ${
+                            allPlanned ? 'bg-indigo-400/70'
+                            : partiallyPlanned ? 'bg-indigo-400/35'
+                            : awaitingPlans ? 'bg-indigo-400/15 animate-pulse'
+                            : 'bg-white/5'
+                          }`} />
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -830,6 +1108,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
   const { dispatch } = useStore();
   const [title, setTitle] = useState('');
   const [detecting, setDetecting] = useState(true);
+  const [extractPlans, setExtractPlans] = useState(false);
 
   const chunks = splitCorpusIntoChunks(sourceText);
 
@@ -857,6 +1136,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
       results: new Array(chunks.length).fill(null),
       status: 'pending',
       currentChunkIndex: 0,
+      extractPlans,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -908,8 +1188,26 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
           />
         </div>
 
-        <div className="text-[11px] text-white/25 leading-relaxed">
-          The text will be split into {chunks.length} chunks and analyzed in parallel. Each chunk independently extracts characters, locations, threads, scenes, and relationships, then a reconciliation pass merges duplicates and stitches thread continuity.
+        {/* Beat plan toggle */}
+        <button
+          onClick={() => setExtractPlans((v) => !v)}
+          className="flex items-center gap-3 w-full text-left group py-0.5"
+        >
+          <div className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${extractPlans ? 'bg-indigo-500/40' : 'bg-white/8 group-hover:bg-white/12'}`}>
+            <div className={`absolute top-0.5 bottom-0.5 aspect-square rounded-full transition-all duration-200 ${extractPlans ? 'bg-indigo-400 left-[calc(100%-1.125rem)]' : 'bg-white/25 left-0.5'}`} />
+          </div>
+          <div className="min-w-0">
+            <div className={`text-[11px] font-medium transition ${extractPlans ? 'text-indigo-300' : 'text-white/40 group-hover:text-white/60'}`}>
+              Extract beat plans
+            </div>
+            <div className="text-[10px] text-white/20 leading-snug mt-0.5">
+              Reverse-engineer structural beat sequences from each scene's prose — one extra LLM call per scene
+            </div>
+          </div>
+        </button>
+
+        <div className="text-[11px] text-white/20 leading-relaxed">
+          {chunks.length} chunks analyzed in parallel — extracts characters, locations, threads, scenes, and world knowledge, then reconciles and assembles.{extractPlans ? ' Beat plan extraction runs as a second pass after structural analysis.' : ''}
         </div>
 
         <div className="flex gap-2">

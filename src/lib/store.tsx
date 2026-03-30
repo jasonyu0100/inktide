@@ -1043,8 +1043,12 @@ function reducer(state: AppState, action: Action): AppState {
     case 'DELETE_ANALYSIS_JOB':
       return { ...state, analysisJobs: state.analysisJobs.filter((j) => j.id !== action.id) };
 
-    case 'HYDRATE_ANALYSIS_JOBS':
-      return { ...state, analysisJobs: action.jobs };
+    case 'HYDRATE_ANALYSIS_JOBS': {
+      // Merge: keep any in-memory jobs created before hydration completed (race condition guard)
+      const hydratedIds = new Set(action.jobs.map((j) => j.id));
+      const inMemoryOnly = state.analysisJobs.filter((j) => !hydratedIds.has(j.id));
+      return { ...state, analysisJobs: [...action.jobs, ...inMemoryOnly] };
+    }
 
     // ── Chat threads ──────────────────────────────────────────────────────
     case 'CREATE_CHAT_THREAD': {

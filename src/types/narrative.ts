@@ -910,6 +910,8 @@ export type AnalysisJob = {
   status: 'pending' | 'running' | 'paused' | 'completed' | 'failed';
   currentChunkIndex: number;
   error?: string;
+  /** Whether to run Phase 2 beat-plan extraction (opt-in, adds one LLM call per scene) */
+  extractPlans?: boolean;
   /** The assembled narrative ID once complete */
   narrativeId?: string;
   createdAt: number;

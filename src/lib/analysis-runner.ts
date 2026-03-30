@@ -18,11 +18,15 @@ type Dispatch = (action: Action) => void;
 type StreamListener = (jobId: string, text: string) => void;
 type ChunkStreamListener = (jobId: string, chunkIndex: number, text: string) => void;
 type InFlightListener = (jobId: string, indices: number[]) => void;
+type PlanStreamListener = (jobId: string, key: string, text: string) => void;
+type PlanInFlightListener = (jobId: string, keys: string[]) => void;
 
 type RunningJob = {
   cancelled: boolean;
   inFlightIndices: Set<number>;
   chunkStreams: Map<number, string>;
+  planInFlightKeys: Set<string>;
+  planStreams: Map<string, string>;
 };
 
 const MAX_CONCURRENCY = ANALYSIS_CONCURRENCY;
@@ -35,6 +39,8 @@ class AnalysisRunner {
   private streamListeners = new Set<StreamListener>();
   private chunkStreamListeners = new Set<ChunkStreamListener>();
   private inFlightListeners = new Set<InFlightListener>();
+  private planStreamListeners = new Set<PlanStreamListener>();
+  private planInFlightListeners = new Set<PlanInFlightListener>();
   private streamTexts = new Map<string, string>();
 
   /** Bind the store dispatch — called once from StoreProvider */
@@ -85,6 +91,29 @@ class AnalysisRunner {
     return entry ? [...entry.inFlightIndices] : [];
   }
 
+  /** Subscribe to per-scene plan stream text updates. Returns unsubscribe fn. */
+  onPlanStream(listener: PlanStreamListener): () => void {
+    this.planStreamListeners.add(listener);
+    return () => this.planStreamListeners.delete(listener);
+  }
+
+  /** Subscribe to plan in-flight key changes. Returns unsubscribe fn. */
+  onPlanInFlightChange(listener: PlanInFlightListener): () => void {
+    this.planInFlightListeners.add(listener);
+    return () => this.planInFlightListeners.delete(listener);
+  }
+
+  /** Get current plan stream text for a specific scene key ("chunkIdx-sceneIdx") */
+  getPlanStreamText(jobId: string, key: string): string {
+    return this.running.get(jobId)?.planStreams.get(key) ?? '';
+  }
+
+  /** Get currently in-flight plan scene keys for a job */
+  getPlanInFlightKeys(jobId: string): string[] {
+    const entry = this.running.get(jobId);
+    return entry ? [...entry.planInFlightKeys] : [];
+  }
+
   isRunning(jobId: string): boolean {
     return this.running.has(jobId);
   }
@@ -103,7 +132,7 @@ class AnalysisRunner {
 
     const d = await this.getDispatch();
 
-    const entry: RunningJob = { cancelled: false, inFlightIndices: new Set(), chunkStreams: new Map() };
+    const entry: RunningJob = { cancelled: false, inFlightIndices: new Set(), chunkStreams: new Map(), planInFlightKeys: new Set(), planStreams: new Map() };
     this.running.set(job.id, entry);
     this.streamTexts.set(job.id, '');
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running' } });
@@ -269,7 +298,7 @@ class AnalysisRunner {
       return;
     }
 
-    // ── Phase 1.5: Plan extraction ────────────────────────────────────────
+    // ── Phase 2: Plan extraction ──────────────────────────────────────────
     // Reverse-engineer beat plans from scene prose in parallel (non-fatal per scene)
     type ScenePlanTask = { chunkIdx: number; sceneIdx: number; prose: string; summary: string };
     const planTasks: ScenePlanTask[] = [];
@@ -278,12 +307,12 @@ class AnalysisRunner {
       if (!r) continue;
       for (let j = 0; j < (r.scenes ?? []).length; j++) {
         const s = r.scenes[j];
-        if (s.prose) planTasks.push({ chunkIdx: i, sceneIdx: j, prose: s.prose, summary: s.summary });
+        if (s.prose && !s.plan) planTasks.push({ chunkIdx: i, sceneIdx: j, prose: s.prose, summary: s.summary });
       }
     }
 
-    if (planTasks.length > 0) {
-      this.emitStream(job.id, `Phase 1.5: Extracting beat plans from ${planTasks.length} scenes...`);
+    if (job.extractPlans && planTasks.length > 0) {
+      this.emitStream(job.id, `Phase 2: Extracting beat plans from ${planTasks.length} scenes...`);
       let plansDone = 0;
       const planQueue = [...planTasks];
       let planActive = 0;
@@ -292,26 +321,35 @@ class AnalysisRunner {
 
       const launchPlan = (task: ScenePlanTask) => {
         planActive++;
-        reverseEngineerScenePlan(task.prose, task.summary)
+        const key = `${task.chunkIdx}-${task.sceneIdx}`;
+        entry.planInFlightKeys.add(key);
+        entry.planStreams.set(key, '');
+        this.emitPlanInFlight(job.id, [...entry.planInFlightKeys]);
+
+        reverseEngineerScenePlan(task.prose, task.summary, (_token, accumulated) => {
+          entry.planStreams.set(key, accumulated);
+          this.emitPlanStream(job.id, key, accumulated);
+        })
           .then((plan) => {
             const r = results[task.chunkIdx];
             if (r?.scenes[task.sceneIdx]) r.scenes[task.sceneIdx].plan = plan;
             plansDone++;
-            this.emitStream(job.id, `Phase 1.5: ${plansDone}/${planTasks.length} beat plans extracted`);
+            this.emitStream(job.id, `Phase 2: ${plansDone}/${planTasks.length} beat plans extracted`);
+            d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
           })
           .catch(() => { /* non-fatal — scene proceeds without plan */ })
           .finally(() => {
+            entry.planInFlightKeys.delete(key);
             planActive--;
+            this.emitPlanInFlight(job.id, [...entry.planInFlightKeys]);
             if (!entry.cancelled && planQueue.length > 0) launchPlan(planQueue.shift()!);
-            if (planActive === 0 && planQueue.length === 0) planResolve();
+            if (planActive === 0 && (planQueue.length === 0 || entry.cancelled)) planResolve();
           });
       };
 
       const planBatch = Math.min(MAX_CONCURRENCY, planQueue.length);
       for (let i = 0; i < planBatch; i++) launchPlan(planQueue.shift()!);
       await planDone;
-
-      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
     }
 
     if (entry.cancelled) {
@@ -320,8 +358,8 @@ class AnalysisRunner {
       return;
     }
 
-    // ── Phase 2: Reconciliation ───────────────────────────────────────────
-    this.emitStream(job.id, 'Phase 2: Reconciling entities across chunks...');
+    // ── Phase 3: Reconciliation ───────────────────────────────────────────
+    this.emitStream(job.id, 'Phase 3: Reconciling entities across chunks...');
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { currentChunkIndex: totalChunks } });
 
     try {
@@ -385,6 +423,18 @@ class AnalysisRunner {
   private emitInFlight(jobId: string, indices: number[]) {
     for (const listener of this.inFlightListeners) {
       listener(jobId, indices);
+    }
+  }
+
+  private emitPlanStream(jobId: string, key: string, text: string) {
+    for (const listener of this.planStreamListeners) {
+      listener(jobId, key, text);
+    }
+  }
+
+  private emitPlanInFlight(jobId: string, keys: string[]) {
+    for (const listener of this.planInFlightListeners) {
+      listener(jobId, keys);
     }
   }
 

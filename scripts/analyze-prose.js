@@ -109,6 +109,7 @@ Target ~8-15 beats per 1000 words. Opening beats should be 'breathe'. Return ONL
 // ── Main ────────────────────────────────────────────────────────────────────
 
 const WORK_FILES = [
+  'harry_potter_and_the_goblet_of_fire.json',
   'harry_potter_and_the_prisoner_of_azkaban.json',
   'harry_potter_and_the_chamber_of_secrets.json',
   'harry_potter_and_the_sorcerer_s_stone.json',

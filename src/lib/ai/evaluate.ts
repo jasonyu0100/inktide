@@ -107,11 +107,25 @@ CONTINUITY IS PARAMOUNT. Scenes that contradict established knowledge, misplace 
 
 COMPRESSION IS EXPECTED. Most branches benefit from losing 20-40% of their scenes through merges and cuts. Do not preserve scenes out of politeness.
 
+CROSS-SCENE CONSISTENCY — CRITICAL:
+All edits are applied in parallel. Each edited scene only sees its own reason — it does NOT see what other scenes are being changed. This means YOU must encode cross-scene continuity into each reason explicitly.
+
+Before writing reasons, mentally map the full set of changes you're proposing and identify causal chains:
+1. List every scene getting a non-"ok" verdict.
+2. For each such scene, ask: does this change affect something an upstream or downstream scene references? Does it resolve a contradiction that another edit also touches?
+3. Write reasons so that each edit is self-sufficient — the scene being edited can be rewritten correctly even without knowing what other scenes look like.
+
+RULES FOR EDIT REASONS:
+- If scene A's edit removes, adds, or changes a fact that scene B depends on, scene B's reason MUST say: "Note: [scene A] is being edited to [specific change] — this scene must be consistent with that."
+- If two scenes currently contradict each other, decide which edit is authoritative and make the other defer to it explicitly in its reason.
+- If a scene is being cut or merged, any surviving scene that referenced it must have a reason that accounts for its removal.
+- Edit reasons are instructions to a rewriter who cannot see the rest of the branch. Make them complete.
+
 Return JSON:
 {
   "overall": "3-5 paragraph critique. Name scenes, characters, patterns. End with the thematic question.",
   "sceneEvals": [
-    { "sceneId": "SC-001", "verdict": "ok|edit|merge|cut|defer", "reason": "one sentence", "mergeInto": "SC-XXX (merge only)", "deferredBeat": "description (defer only)" }
+    { "sceneId": "SC-001", "verdict": "ok|edit|merge|cut|defer", "reason": "For edit: 1-3 sentences that fully instruct the rewriter — include what other scenes are changing if relevant (e.g. 'Note: SC-009 is being edited to remove X, adjust accordingly'). For merge/cut/defer: one sentence.", "mergeInto": "SC-XXX (merge only)", "deferredBeat": "description (defer only)" }
   ],
   "repetitions": ["pattern 1", "pattern 2"],
   "thematicQuestion": "The human question underneath the plot"

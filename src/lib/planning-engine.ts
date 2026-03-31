@@ -13,39 +13,28 @@ function asString(v: unknown, fallback = ''): string {
 }
 
 /**
- * Generate a completion report for a phase that has finished its scene allocation.
- * Returns an AI summary of what was achieved vs. what was planned.
+ * Build a completion summary for a phase from its scene data.
+ * No LLM call — just collects the last N scene summaries into a readable block.
  */
-export async function generatePhaseCompletionReport(
+export function buildPhaseCompletionSummary(
   narrative: NarrativeState,
   resolvedKeys: string[],
   currentIndex: number,
   phase: PlanningPhase,
-): Promise<string> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+): string {
+  // Collect scene summaries from this phase
+  const sceneSummaries: string[] = [];
+  let count = 0;
+  for (let i = currentIndex; i >= 0 && count < phase.scenesCompleted; i--) {
+    const key = resolvedKeys[i];
+    const scene = key ? narrative.scenes[key] : null;
+    if (scene) {
+      sceneSummaries.unshift(scene.summary?.slice(0, 150) ?? '(no summary)');
+      count++;
+    }
+  }
 
-  const prompt = `${ctx}
-
-TASK: A planning phase has completed its allocated scenes. Analyse the narrative state and produce a completion report.
-
-PHASE: "${phase.name}"
-OBJECTIVE: ${phase.objective}
-SCENES ALLOCATED: ${phase.sceneAllocation}
-SCENES COMPLETED: ${phase.scenesCompleted}
-${phase.constraints ? `CONSTRAINTS: ${phase.constraints}` : ''}
-${phase.sourceText ? `\nSOURCE MATERIAL (the original plan for this phase):\n${phase.sourceText}` : ''}
-
-Produce a concise completion report covering:
-1. Was the objective met? (Yes/Partially/No)
-2. What was accomplished — key events, thread changes, character developments
-3. What remains open or unresolved from this phase's goals
-
-Keep the report to 3-5 sentences. Be specific — use character NAMES, location NAMES, and thread DESCRIPTIONS, never raw IDs.
-Return ONLY the report text, no JSON or markup.`;
-
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const report = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'planningEngine', undefined, reasoningBudget);
-  return report.trim();
+  return `${phase.scenesCompleted} scenes completed. ${sceneSummaries.join(' ')}`;
 }
 
 /**

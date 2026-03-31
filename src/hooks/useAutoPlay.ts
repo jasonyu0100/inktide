@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildActionDirective } from '@/lib/auto-engine';
+import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildOutlineDirective } from '@/lib/auto-engine';
 import { generateScenes, generateArcStepwise, expandWorld } from '@/lib/ai';
 import { refreshDirection } from '@/lib/ai/review';
 import { generatePhaseDirection } from '@/lib/planning-engine';
@@ -190,14 +190,13 @@ export function useAutoPlay() {
       cycleDirection = freshConfig.direction;
       cycleConstraints = freshConfig.narrativeConstraints;
 
-      // Generate arc directive
-      // When a planning queue phase has sourceText, the direction from refreshDirection/
-      // generatePhaseDirection already contains specific beat-by-beat instructions.
-      // Use it directly as the directive — cube-based framing would dilute or override it.
-      // Re-read queue from latest state — pq may be stale after first-phase init dispatch
+      // Build the directive that scene generation will follow.
+      // Plan mode: direction + constraints derived from plan source text are the
+      //   complete brief — passed directly, no outline directive needed.
+      // Outline mode: direction + constraints are combined with analytical signals
+      //   (thread maturity, force balance, vibrancy) into an outline directive that
+      //   gives scene generation creative freedom within the user's guidance.
       const freshPq = stateRef.current.activeNarrative?.branches[activeBranchId]?.planningQueue ?? pq;
-      // Plan mode: direction is the primary directive, bypass cube framing
-      // Outline mode: direction is secondary, cube framing drives narrative
       const isPlanMode = freshPq?.mode === 'plan';
       let directive: string;
       if (isPlanMode && freshConfig.direction) {
@@ -206,7 +205,7 @@ export function useAutoPlay() {
           directive += `\n\nCONSTRAINTS: ${freshConfig.narrativeConstraints}`;
         }
       } else {
-        directive = buildActionDirective(action, activeNarrative, freshConfig, directiveCtx);
+        directive = buildOutlineDirective(activeNarrative, freshConfig, directiveCtx);
       }
 
       let sceneCount = pickArcLength(autoConfig, action);

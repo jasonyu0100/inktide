@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useStore } from '@/lib/store';
-import { generatePhaseCompletionReport, generatePhaseDirection } from '@/lib/planning-engine';
+import { buildPhaseCompletionSummary, generatePhaseDirection } from '@/lib/planning-engine';
 import { expandWorld } from '@/lib/ai';
 import { nextId } from '@/lib/narrative-utils';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
@@ -10,11 +10,12 @@ import type { PlanningQueue } from '@/types/narrative';
 
 /**
  * Reactive hook that watches the planning queue and triggers phase transitions
- * when a phase's scene allocation is met. Works regardless of generation mode
- * (manual, auto, MCTS).
+ * when a phase's scene allocation is met.
  *
- * In manual mode, sets `pendingCompletion` so the page can show the modal.
- * In auto mode, advances automatically.
+ * Phase transitions always happen automatically — the queue advances, a completion
+ * report is generated, and the next phase is activated. In auto mode, world expansion
+ * and direction generation also run automatically. In manual mode, the user can
+ * trigger world expansion and direction regeneration from the queue UI.
  */
 export function usePlanningQueue() {
   const { state, dispatch } = useStore();
@@ -23,12 +24,7 @@ export function usePlanningQueue() {
 
   const [transitioning, setTransitioning] = useState(false);
   const [transitionStep, setTransitionStep] = useState<string | null>(null);
-  const [pendingCompletion, setPendingCompletion] = useState<{
-    report: string;
-    queue: PlanningQueue;
-  } | null>(null);
   const transitioningRef = useRef(false);
-  // Track which phase index we last processed to avoid re-triggering
   const lastProcessedRef = useRef<string | null>(null);
 
   const branchId = state.activeBranchId;
@@ -42,8 +38,7 @@ export function usePlanningQueue() {
     && activePhase.status === 'active'
     && activePhase.scenesCompleted >= activePhase.sceneAllocation;
 
-  // Build a unique key for this completion event — include phase direction to
-  // distinguish re-runs after queue reset (same branchId/index/count but new direction)
+  // Unique key to prevent re-triggering the same completion
   const completionKey = phaseComplete && queue
     ? `${branchId}-${queue.activePhaseIndex}-${activePhase.scenesCompleted}-${activePhase.direction?.slice(0, 20) ?? ''}`
     : null;
@@ -54,52 +49,16 @@ export function usePlanningQueue() {
     if (completionKey === lastProcessedRef.current) return;
 
     lastProcessedRef.current = completionKey;
-
-    if (isAutoRunning) {
-      // Auto mode: advance to next phase
-      runTransition(queue, branchId);
-    } else {
-      // Manual / idle: generate report and wait for user decision
-      generateReport(queue, branchId);
-    }
+    runTransition(queue, branchId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completionKey, isAutoRunning]);
+  }, [completionKey]);
 
-  async function generateReport(q: PlanningQueue, bid: string) {
-    if (transitioningRef.current) return;
-    transitioningRef.current = true;
-    setTransitioning(true);
-    setTransitionStep('Generating completion report...');
-
-    try {
-      const { activeNarrative, resolvedEntryKeys, currentSceneIndex } = stateRef.current;
-      if (!activeNarrative) return;
-
-      const phase = q.phases[q.activePhaseIndex];
-      if (!phase) return;
-
-      const report = await generatePhaseCompletionReport(
-        activeNarrative, resolvedEntryKeys, currentSceneIndex, phase,
-      );
-
-      dispatch({
-        type: 'UPDATE_PLANNING_PHASE',
-        branchId: bid,
-        phaseIndex: q.activePhaseIndex,
-        updates: { completionReport: report },
-      });
-
-      setPendingCompletion({ report, queue: q });
-    } catch (err) {
-      console.error('[planning-queue] report generation failed:', err);
-    } finally {
-      transitioningRef.current = false;
-      setTransitioning(false);
-      setTransitionStep(null);
-    }
-  }
-
-  /** Run the full transition pipeline: report → world expansion → direction → advance */
+  /**
+   * Run the phase transition pipeline.
+   * Always: report → advance.
+   * Auto mode: + world expansion → direction generation.
+   * Manual mode: advance only, user controls world/direction from queue UI.
+   */
   const runTransition = useCallback(async (q: PlanningQueue, bid: string) => {
     if (transitioningRef.current) return;
     transitioningRef.current = true;
@@ -114,28 +73,31 @@ export function usePlanningQueue() {
       const phase = q.phases[phaseIdx];
       if (!phase) return;
 
-      // 1. Completion report
+      // 1. Completion summary (no LLM call — built from scene data)
       if (!phase.completionReport) {
-        setTransitionStep('Generating completion report...');
-        const report = await generatePhaseCompletionReport(
+        const summary = buildPhaseCompletionSummary(
           narrative, s.resolvedEntryKeys, s.currentSceneIndex, phase,
         );
         dispatch({
           type: 'UPDATE_PLANNING_PHASE',
           branchId: bid,
           phaseIndex: phaseIdx,
-          updates: { completionReport: report },
+          updates: { completionReport: summary },
         });
       }
+
+      // 2. Always advance the queue — don't block on user action
+      dispatch({ type: 'ADVANCE_PLANNING_PHASE', branchId: bid });
 
       const nextPhaseIdx = phaseIdx + 1;
       const nextPhase = q.phases[nextPhaseIdx];
 
-      if (nextPhase) {
-        // 2. World expansion
-        let worldExpanded = false;
+      // 3. In auto mode, run world expansion + direction for the next phase
+      if (nextPhase && isAutoRunning) {
         const freshState1 = stateRef.current;
         const freshNarrative1 = freshState1.activeNarrative ?? narrative;
+
+        // World expansion
         if (q.expandWorld !== false) {
           setTransitionStep('Expanding world...');
           const strategy = freshNarrative1.storySettings?.expansionStrategy ?? 'dynamic';
@@ -154,10 +116,9 @@ export function usePlanningQueue() {
             artifacts: expansion.artifacts,
             branchId: bid,
           });
-          worldExpanded = true;
         }
 
-        // 3. Generate direction and constraints
+        // Direction generation
         setTransitionStep('Generating direction...');
         const freshState2 = stateRef.current;
         const freshNarrative2 = freshState2.activeNarrative ?? freshNarrative1;
@@ -166,10 +127,6 @@ export function usePlanningQueue() {
           nextPhase, q,
         );
 
-        // 4. Advance the queue
-        dispatch({ type: 'ADVANCE_PLANNING_PHASE', branchId: bid });
-
-        // 5. Set direction on new active phase
         dispatch({
           type: 'UPDATE_PLANNING_PHASE',
           branchId: bid,
@@ -177,7 +134,6 @@ export function usePlanningQueue() {
           updates: { direction, constraints: constraints || nextPhase.constraints },
         });
 
-        // 6. Update story settings
         const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...freshNarrative2.storySettings };
         dispatch({
           type: 'SET_STORY_SETTINGS',
@@ -185,15 +141,10 @@ export function usePlanningQueue() {
             ...baseSettings,
             storyDirection: direction,
             storyConstraints: constraints || nextPhase.constraints || baseSettings.storyConstraints,
-            ...(worldExpanded ? { worldFocus: 'latest' as const } : {}),
+            worldFocus: 'latest' as const,
           },
         });
-      } else {
-        // Queue exhausted
-        dispatch({ type: 'ADVANCE_PLANNING_PHASE', branchId: bid });
       }
-
-      setPendingCompletion(null);
     } catch (err) {
       console.error('[planning-queue] transition failed:', err);
     } finally {
@@ -201,9 +152,9 @@ export function usePlanningQueue() {
       setTransitioning(false);
       setTransitionStep(null);
     }
-  }, [dispatch]);
+  }, [dispatch, isAutoRunning]);
 
-  /** User chose to extend the current phase (add more scenes) */
+  /** Extend the current phase with additional scenes */
   const extendPhase = useCallback((additionalScenes = 5) => {
     if (!branchId || !queue) return;
     const phase = queue.phases[queue.activePhaseIndex];
@@ -214,42 +165,14 @@ export function usePlanningQueue() {
       phaseIndex: queue.activePhaseIndex,
       updates: { sceneAllocation: phase.sceneAllocation + additionalScenes },
     });
-    setPendingCompletion(null);
-    lastProcessedRef.current = null; // Reset so it can re-trigger
+    lastProcessedRef.current = null;
   }, [branchId, queue, dispatch]);
-
-  /** User chose to advance to the next phase */
-  const advancePhase = useCallback((customWorldPrompt?: string) => {
-    if (!branchId || !queue) return;
-    // If custom world prompt, update the next phase's world hints before transitioning
-    const nextIdx = queue.activePhaseIndex + 1;
-    if (customWorldPrompt && nextIdx < queue.phases.length) {
-      dispatch({
-        type: 'UPDATE_PLANNING_PHASE',
-        branchId,
-        phaseIndex: nextIdx,
-        updates: { worldExpansionHints: customWorldPrompt },
-      });
-    }
-    // Re-read queue after dispatch
-    const freshQueue = stateRef.current.activeNarrative?.branches[branchId]?.planningQueue ?? queue;
-    runTransition(freshQueue, branchId);
-  }, [branchId, queue, dispatch, runTransition]);
-
-  /** Dismiss the completion modal without advancing — user can re-trigger later */
-  const dismissCompletion = useCallback(() => {
-    setPendingCompletion(null);
-    lastProcessedRef.current = null; // Allow re-detection if they reopen
-  }, []);
 
   return {
     queue,
     activePhase,
     transitioning,
     transitionStep,
-    pendingCompletion,
     extendPhase,
-    advancePhase,
-    dismissCompletion,
   };
 }

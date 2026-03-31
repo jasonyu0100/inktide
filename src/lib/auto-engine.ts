@@ -750,7 +750,7 @@ export function pickCubeGoal(
   return action;
 }
 
-/** Pre-computed analysis passed from evaluateNarrativeState to buildActionDirective */
+/** Pre-computed analysis passed from evaluateNarrativeState to buildOutlineDirective */
 export type DirectiveContext = {
   scenes: Scene[];
   stagnantThreads: Thread[];
@@ -763,58 +763,44 @@ export type DirectiveContext = {
 };
 
 /** Build the action-specific direction hint injected into AI prompts */
-export function buildActionDirective(
-  action: AutoAction,
+/**
+ * Build an outline directive for scene generation.
+ *
+ * Two modes exist for guiding story generation:
+ *
+ * **Plan mode** — an explicit plan document drives the story. Direction and constraints
+ * are derived from the plan's source text and passed directly to scene generation as
+ * the primary brief. No outline directive is needed — the direction IS the directive.
+ *
+ * **Outline mode** (this function) — no explicit plan. The outline provides trajectory
+ * and constraints, but the scene generator has creative freedom in beats, prose technique,
+ * and structural choices. This directive combines the user's direction with analytical
+ * signals from the narrative state (thread maturity, force balance, knowledge gaps,
+ * pacing vibrancy) to guide general-purpose storytelling and thread resolution.
+ *
+ * Markov chain pacing handles per-scene force targets independently of both modes.
+ */
+export function buildOutlineDirective(
   narrative: NarrativeState,
   config: AutoConfig,
   ctx: DirectiveContext,
 ): string {
-  const corner = NARRATIVE_CUBE[action];
-
   const toneClause = config.toneGuidance ? `\nTone: ${config.toneGuidance}` : '';
   const constraintClause = config.narrativeConstraints ? `\nConstraints: ${config.narrativeConstraints}` : '';
   const directionClause = config.direction
-    ? `\nSTORY DIRECTION (steer the narrative toward this): ${config.direction}`
+    ? `\nOUTLINE DIRECTION (the user's guidance for where the story should go — follow this, but you have creative freedom in how you get there):\n${config.direction}`
     : '';
 
-  // Direction and constraints are the primary guidance — no objective clause needed
-
-  // World build seed clause
+  // Analytical signals from narrative state
   const worldBuildSeed = buildWorldBuildSeedClause(narrative, ctx.scenes);
-
-  // Thread context for relevant corners
-  const threadContext = ctx.stagnantThreads.length > 0
-    ? `\nStagnant threads needing attention: ${ctx.stagnantThreads.map((t) => t.description).join(', ')}.`
-    : '';
-
-  // Thread maturity clause
-  const maturityClause = buildThreadMaturityClause(narrative, ctx.primedThreads, corner.forces.payoff > 0);
-
-  // Knowledge asymmetry clause
-  const asymmetryClause = buildKnowledgeAsymmetryClause(ctx.continuityOpportunities, corner.forces.knowledge > 0 || corner.forces.payoff > 0);
-
-  // Force balance clause — uses pre-computed saturation
+  const maturityClause = buildThreadMaturityClause(narrative, ctx.primedThreads);
+  const asymmetryClause = buildKnowledgeAsymmetryClause(ctx.continuityOpportunities);
   const balanceClause = buildForceBalanceClause(ctx.forceSaturation);
-
-  // Swing vibrancy clause
   const vibrancyClause = buildSwingClause(ctx.recentSwing);
 
-  // Story trajectory clause
-  const trajectoryClause = `\nSTORY TRAJECTORY: You are at ${Math.round(ctx.storyProgress * 100)}% of the story — phase: ${ctx.storyPhase.name.toUpperCase()}. ${ctx.storyPhase.description}`;
+  const trajectoryClause = `STORY TRAJECTORY: You are at ${Math.round(ctx.storyProgress * 100)}% of the story — phase: ${ctx.storyPhase.name.toUpperCase()}. ${ctx.storyPhase.description}`;
 
-  // Corner-specific directives
-  const cornerDirectives: Record<CubeCornerKey, string> = {
-    HHH: `CONVERGENCE — ${corner.description} Push all forces to maximum. Multiple threads should collide simultaneously. This is the most intense, chaotic moment of the narrative. Pack scenes with consequences — thread escalations, secrets revealed under pressure, alliances shattering. Characters are learning and changing rapidly.${threadContext}`,
-    HHL: `CLIMAX — ${corner.description} Drive toward a decisive payoff. High stakes and rapid pace, but the situation is clear and focused. This is the moment of maximum reader investment. Threads should advance decisively, characters face truths they can't unsee, relationships are tested to breaking point.${threadContext}`,
-    HLH: `TWIST — ${corner.description} A revelation or twist that pays off threads but characters haven't caught up yet. New elements reshape the landscape before anyone can react. Shocking discoveries, unexpected faces, unfamiliar ground. Use new/rare locations and characters.${threadContext}`,
-    HLL: `CLOSURE — ${corner.description} Threads wrap up quietly among familiar faces. Tying loose ends, resolving what was left hanging. The aftermath of climactic events. Characters reflect on what happened, relationships settle into new configurations, threads reach terminal statuses.${threadContext}`,
-    LHH: `DISCOVERY — ${corner.description} Characters grow and change while exploring new territory. No payoffs yet but high energy and surprise. World-building, early adventure, open possibility space. Characters discover new places, form first impressions, and build alliances. Use new locations and underused characters.`,
-    LHL: `GROWTH — ${corner.description} Characters develop among familiar faces without plot advancement. Training, bonding, processing events. Internal change without external payoff. Personal insights, skills learned, trust deepening, rivalries softening.`,
-    LLH: `WANDERING — ${corner.description} Contemplative and transitional. Characters in unfamiliar conditions without clear direction. Plant seeds, explore the unknown quietly. Observations, memories surfacing, subtle shifts in how characters see each other. Use new/rare locations.`,
-    LLL: `REST — ${corner.description} Breathing room after intensity. Focus on recovery, character relationships, and subtle foreshadowing. Plant seeds for future conflict. Quiet realizations, overheard details, gentle relationship shifts.`,
-  };
-
-  return `${cornerDirectives[action]}${trajectoryClause}${vibrancyClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${toneClause}${constraintClause}${directionClause}`;
+  return `${trajectoryClause}${vibrancyClause}${balanceClause}${maturityClause}${asymmetryClause}${worldBuildSeed}${toneClause}${constraintClause}${directionClause}`.trim();
 }
 
 /** Build LLM correction text from pre-computed saturation results */
@@ -861,34 +847,30 @@ function buildSwingClause(recentSwing: number): string {
 function buildThreadMaturityClause(
   narrative: NarrativeState,
   primedThreads: ThreadMaturity[],
-  isHighPayoffCorner: boolean,
 ): string {
-  if (!isHighPayoffCorner || primedThreads.length === 0) return '';
-
+  if (primedThreads.length === 0) return '';
 
   const lines = primedThreads.slice(0, 3).map((m) => {
     const participants = m.thread.participants
       .map((a) => a.type === 'character' ? narrative.characters[a.id]?.name : narrative.locations[a.id]?.name)
       .filter(Boolean)
       .join(', ');
-    return `- "${m.thread.description}" [${m.thread.status}, maturity: ${(m.score * 100).toFixed(0)}%] — participants: ${participants || 'unknown'}`;
+    return `- "${m.thread.description}" [${m.thread.status}, maturity: ${(m.score * 100).toFixed(0)}%] — ${participants || 'unknown'}`;
   });
-  return `\nTHREAD RESOLUTION PRIORITY — these threads have been building for a long time and are narratively ripe. Write scenes that bring them to a decisive conclusion. Use threadMutations to transition them to a terminal status ("resolved", "subverted", or "abandoned"):\n${lines.join('\n')}`;
+  return `\nRIPE THREADS — these have been building and are ready for resolution or escalation:\n${lines.join('\n')}`;
 }
 
 /** Build a clause surfacing dramatic knowledge gaps between characters */
 function buildKnowledgeAsymmetryClause(
   opportunities: KnowledgeOpportunity[],
-  isRelevantCorner: boolean,
 ): string {
-  if (!isRelevantCorner) return '';
   const top = opportunities.filter((o) => o.dramaticWeight > 0.3).slice(0, 3);
   if (top.length === 0) return '';
 
   const lines = top.map(
-    (o) => `- ${o.holderName} knows "${o.content}" but ${o.ignorantName} does not — write a scene where this gap drives conflict, confrontation, or revelation`,
+    (o) => `- ${o.holderName} knows "${o.content}" but ${o.ignorantName} does not`,
   );
-  return `\nKNOWLEDGE ASYMMETRIES — these information gaps create dramatic opportunities. Use them to generate scenes where characters discover hidden truths, confront deceptions, or act on incomplete information:\n${lines.join('\n')}`;
+  return `\nKNOWLEDGE GAPS — information asymmetries that can drive conflict or revelation:\n${lines.join('\n')}`;
 }
 
 /** Build a clause that references unused world-build elements to weave into arcs */

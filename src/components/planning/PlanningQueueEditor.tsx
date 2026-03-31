@@ -30,6 +30,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
   const [generating, setGenerating] = useState(false);
   const [generatingReasoning, setGeneratingReasoning] = useState('');
   const [regenerating, setRegenerating] = useState<'world' | 'direction' | null>(null);
+  const [regeneratingReasoning, setRegeneratingReasoning] = useState('');
   const [createMode, setCreateMode] = useState<CreateMode>('templates');
 
   // ── Actions ─────────────────────────────────────────────────────────────
@@ -107,52 +108,49 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     }
   }
 
-  async function regenerateWorld(phaseIndex: number) {
+  async function regenerateForActivePhase(mode: 'world' | 'direction' | 'both') {
     const narrative = state.activeNarrative;
     if (!narrative || !branchId || !queue) return;
+    const phaseIndex = queue.activePhaseIndex;
     const phase = queue.phases[phaseIndex];
-    if (!phase?.worldExpansionHints) return;
-    setRegenerating('world');
-    try {
-      const expansion = await expandWorld(
-        narrative, state.resolvedEntryKeys, state.currentSceneIndex,
-        phase.worldExpansionHints, 'medium', undefined, phase.sourceText,
-      );
-      dispatch({
-        type: 'EXPAND_WORLD',
-        worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
-        characters: expansion.characters,
-        locations: expansion.locations,
-        threads: expansion.threads,
-        relationships: expansion.relationships,
-        worldKnowledgeMutations: expansion.worldKnowledgeMutations,
-        artifacts: expansion.artifacts,
-        branchId,
-      });
-      const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-      dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, worldFocus: 'latest' } });
-    } catch (err) {
-      console.error('[planning-queue] regenerate world failed:', err);
-    } finally {
-      setRegenerating(null);
-    }
-  }
+    if (!phase || phase.status !== 'active') return;
 
-  async function regenerateDirection(phaseIndex: number) {
-    const narrative = state.activeNarrative;
-    if (!narrative || !branchId || !queue) return;
-    const phase = queue.phases[phaseIndex];
-    if (!phase) return;
-    setRegenerating('direction');
+    setRegenerating(mode === 'both' ? 'world' : mode);
+    setRegeneratingReasoning('');
     try {
-      const { direction, constraints } = await generatePhaseDirection(
-        narrative, state.resolvedEntryKeys, state.currentSceneIndex, phase, queue,
-      );
-      dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId, phaseIndex, updates: { direction, constraints: constraints || phase.constraints } });
-      const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-      dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || phase.constraints || baseSettings.storyConstraints } });
+      // World expansion first
+      if (mode === 'world' || mode === 'both') {
+        const expansion = await expandWorld(
+          narrative, state.resolvedEntryKeys, state.currentSceneIndex,
+          phase.worldExpansionHints || '', 'medium', undefined, phase.sourceText,
+          (token) => setRegeneratingReasoning((prev) => prev + token),
+        );
+        dispatch({
+          type: 'EXPAND_WORLD',
+          worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
+          characters: expansion.characters, locations: expansion.locations,
+          threads: expansion.threads, relationships: expansion.relationships,
+          worldKnowledgeMutations: expansion.worldKnowledgeMutations,
+          artifacts: expansion.artifacts, branchId,
+        });
+        const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
+        dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, worldFocus: 'latest' } });
+      }
+
+      // Direction generation (uses fresh state after world expansion)
+      if (mode === 'direction' || mode === 'both') {
+        if (mode === 'both') { setRegenerating('direction'); setRegeneratingReasoning(''); }
+        const freshNarrative = state.activeNarrative ?? narrative;
+        const { direction, constraints } = await generatePhaseDirection(
+          freshNarrative, state.resolvedEntryKeys, state.currentSceneIndex, phase, queue,
+          (token) => setRegeneratingReasoning((prev) => prev + token),
+        );
+        dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId, phaseIndex, updates: { direction, constraints: constraints || phase.constraints } });
+        const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...freshNarrative.storySettings };
+        dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || phase.constraints || baseSettings.storyConstraints } });
+      }
     } catch (err) {
-      console.error('[planning-queue] regenerate direction failed:', err);
+      console.error('[planning-queue] regenerate failed:', err);
     } finally {
       setRegenerating(null);
     }
@@ -288,6 +286,12 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
   if (activating) {
     return <PlanningLoadingModal step={activatingStep ?? 'Initializing...'} subtitle="Preparing the first phase" reasoning={activatingReasoning || undefined} />;
+  }
+
+  if (regenerating) {
+    const stepLabel = regenerating === 'world' ? 'Expanding world...' : 'Generating direction...';
+    const activePhaseForRegen = queue?.phases[queue.activePhaseIndex];
+    return <PlanningLoadingModal step={stepLabel} subtitle={activePhaseForRegen ? `Phase: ${activePhaseForRegen.name}` : undefined} reasoning={regeneratingReasoning || undefined} />;
   }
 
   if (showModeChoice) {
@@ -741,19 +745,6 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                             </details>
                           )}
 
-                          {/* Actions for active phase */}
-                          {isActive && existingQueue && (
-                            <div className="flex gap-2 pt-1">
-                              <button onClick={() => regenerateWorld(i)} disabled={regenerating !== null}
-                                className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/8 transition-colors disabled:opacity-30">
-                                {regenerating === 'world' ? 'Expanding...' : 'Re-expand World'}
-                              </button>
-                              <button onClick={() => regenerateDirection(i)} disabled={regenerating !== null}
-                                className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/8 transition-colors disabled:opacity-30">
-                                {regenerating === 'direction' ? 'Generating...' : 'Re-generate Direction'}
-                              </button>
-                            </div>
-                          )}
                         </div>
                       </details>
                     </div>
@@ -784,6 +775,22 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
           </>
         )}
         <div className="flex-1" />
+        {existingQueue && queue?.phases.some((p) => p.status === 'active') && (
+          <div className="flex items-center">
+            <button onClick={() => regenerateForActivePhase('world')} disabled={regenerating !== null}
+              className="px-3 text-[10px] font-medium py-1.5 rounded-l-lg border border-r-0 border-white/10 text-text-dim hover:text-text-primary hover:bg-white/8 transition-colors disabled:opacity-30">
+              {regenerating === 'world' ? 'Expanding...' : 'World'}
+            </button>
+            <button onClick={() => regenerateForActivePhase('direction')} disabled={regenerating !== null}
+              className="px-3 text-[10px] font-medium py-1.5 border border-r-0 border-white/10 text-text-dim hover:text-text-primary hover:bg-white/8 transition-colors disabled:opacity-30">
+              {regenerating === 'direction' ? 'Generating...' : 'Direction'}
+            </button>
+            <button onClick={() => regenerateForActivePhase('both')} disabled={regenerating !== null}
+              className="px-3 text-[10px] font-medium py-1.5 rounded-r-lg border border-white/10 bg-white/6 text-text-secondary hover:text-text-primary hover:bg-white/12 transition-colors disabled:opacity-30">
+              {regenerating ? 'Working...' : 'Both'}
+            </button>
+          </div>
+        )}
         {queue && (!existingQueue || (existingQueue.activePhaseIndex === -1 && existingQueue.phases.every((p) => p.status === 'pending'))) && (
           <button
             onClick={handleSave}

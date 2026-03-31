@@ -1292,7 +1292,7 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                   <div>
                     <span className="text-[10px] text-text-secondary block mb-1.5">Branching factor</span>
                     <div className="flex gap-1.5">
-                      {[1, 2, 4, 6, 8].map((v) => (
+                      {[1, 2, 4, 6, 8, 10, 12].map((v) => (
                         <button
                           key={v}
                           onClick={() => setConfig((c) => ({ ...c, branchingFactor: v }))}

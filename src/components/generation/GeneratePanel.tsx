@@ -405,18 +405,17 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
                 {/* Scene Count */}
                 <div className="flex items-center gap-3">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim">Scenes</label>
-                  <div className="flex gap-1.5">
-                    {[1, 2, 3, 5, 8].map((n) => (
-                      <button key={n} onClick={() => setCount(n)}
-                        className={`w-8 h-8 rounded-lg text-xs font-medium transition ${
-                          count === n ? 'bg-white/12 text-text-primary' : 'bg-white/4 text-text-dim hover:bg-white/8'
-                        }`}
-                      >{n}</button>
-                    ))}
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim shrink-0">Scenes</label>
+                  <div className="flex items-center gap-2 flex-1">
+                    <input
+                      type="range" min={1} max={16} value={count}
+                      onChange={(e) => setCount(Number(e.target.value))}
+                      className="flex-1 h-1 appearance-none bg-white/10 rounded-full accent-white/60 cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/80 [&::-webkit-slider-thumb]:appearance-none"
+                    />
+                    <span className="text-xs font-medium text-text-primary w-5 text-center tabular-nums">{count}</span>
                   </div>
                   {/* Current mode pill */}
-                  <div className="ml-auto flex items-center gap-1.5 text-[10px] text-text-dim">
+                  <div className="flex items-center gap-1.5 text-[10px] text-text-dim shrink-0">
                     <CubeBadge mode={currentMode} />
                     <span style={{ color: CORNER_COLORS[currentMode] }}>{NARRATIVE_CUBE[currentMode].name}</span>
                   </div>

@@ -31,7 +31,6 @@ import { useMCTS } from '@/hooks/useMCTS';
 import { StorySettingsModal } from '@/components/settings/StorySettingsModal';
 import { PlanningIndicator } from '@/components/planning/PlanningIndicator';
 import { PlanningQueueEditor } from '@/components/planning/PlanningQueueEditor';
-import { PhaseCompletionModal } from '@/components/planning/PhaseCompletionModal';
 import { usePlanningQueue } from '@/hooks/usePlanningQueue';
 
 function useIsMobile(breakpoint = 768) {
@@ -215,17 +214,6 @@ export default function SeriesPage() {
             });
             autoPlay.start();
           }}
-        />
-      )}
-      {planning.pendingCompletion && planning.queue && (
-        <PhaseCompletionModal
-          queue={planning.queue}
-          completionReport={planning.pendingCompletion.report}
-          transitioning={planning.transitioning}
-          transitionStep={planning.transitionStep}
-          onExtend={() => planning.extendPhase()}
-          onAdvance={(customWorldPrompt) => planning.advancePhase(customWorldPrompt)}
-          onClose={() => planning.dismissCompletion()}
         />
       )}
       <MCTSPanel isOpen={mctsOpen} onClose={() => setMctsOpen(false)} mcts={mcts} />

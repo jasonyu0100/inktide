@@ -128,6 +128,32 @@ export async function reconstructBranch(
 
   const sourceBranch = narrative.branches[evaluation.branchId];
 
+  // Helper to inject moved scenes after a given original scene ID, recursively.
+  // Handles swap/chain scenarios where a moved scene is itself a moveAfter target.
+  const injectMovesAfter = (afterId: string) => {
+    const movedHere = moveAfterMap.get(afterId);
+    if (!movedHere) return;
+    for (const moveEv of movedHere) {
+      const movedScene = narrative.scenes[moveEv.sceneId];
+      if (!movedScene) continue;
+      const movedId = nextId('S', [...allExistingSceneIds, ...usedNewIds], 3);
+      usedNewIds.add(movedId);
+      const movedItem: Extract<TimelineItem, { type: 'scene' }> = {
+        type: 'scene',
+        index: sceneEntries.length,
+        scene: movedScene,
+        verdict: 'move',
+        reason: moveEv.reason,
+        newId: movedId,
+      };
+      items.push(movedItem);
+      sceneEntries.push(movedItem);
+      injectInsertsAfter(moveEv.sceneId);
+      // Recursively inject any scenes that want to move after this moved scene
+      injectMovesAfter(moveEv.sceneId);
+    }
+  };
+
   // Helper to inject inserts after a given ID, following chains recursively.
   // Uses lastArcScene to inherit arcId/locationId/povId for placeholders.
   let lastSceneEntry: Scene | null = null;
@@ -205,27 +231,8 @@ export async function reconstructBranch(
       items.push(item);
       sceneEntries.push(item);
 
-      // Inject any moved scenes that should land after this scene
-      const movedHere = moveAfterMap.get(entry.id);
-      if (movedHere) {
-        for (const moveEv of movedHere) {
-          const movedScene = narrative.scenes[moveEv.sceneId];
-          if (!movedScene) continue;
-          const movedId = nextId('S', [...allExistingSceneIds, ...usedNewIds], 3);
-          usedNewIds.add(movedId);
-          const movedItem: Extract<TimelineItem, { type: 'scene' }> = {
-            type: 'scene',
-            index: sceneEntries.length,
-            scene: movedScene,
-            verdict: 'move',
-            reason: moveEv.reason,
-            newId: movedId,
-          };
-          items.push(movedItem);
-          sceneEntries.push(movedItem);
-          injectInsertsAfter(moveEv.sceneId);
-        }
-      }
+      // Inject any moved scenes that should land after this scene (recursive for chained moves)
+      injectMovesAfter(entry.id);
 
       injectInsertsAfter(entry.id);
     }

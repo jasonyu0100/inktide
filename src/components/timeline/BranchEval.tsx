@@ -286,10 +286,11 @@ export default function BranchEval() {
     }
   }
 
-  // Resolve scenes in timeline order, injecting insert placeholders
+  // Resolve scenes in timeline order, injecting insert and move placeholders
   const scenes: { scene: Scene; arc?: Arc }[] = [];
-  // Build insert-after lookup from evaluation
+  // Build insert-after and move-after lookups from evaluation
   const insertAfterLookup = new Map<string, SceneEval[]>();
+  const moveAfterLookup = new Map<string, SceneEval[]>();
   if (evaluation) {
     for (const ev of evaluation.sceneEvals) {
       if (ev.verdict === 'insert' && ev.insertAfter) {
@@ -297,29 +298,50 @@ export default function BranchEval() {
         list.push(ev);
         insertAfterLookup.set(ev.insertAfter, list);
       }
+      if (ev.verdict === 'move' && ev.moveAfter) {
+        const list = moveAfterLookup.get(ev.moveAfter) ?? [];
+        list.push(ev);
+        moveAfterLookup.set(ev.moveAfter, list);
+      }
     }
   }
   if (narrative) {
+    const movedSceneIds = new Set(
+      evaluation?.sceneEvals.filter((e) => e.verdict === 'move').map((e) => e.sceneId) ?? []
+    );
+
+    const injectInserts = (afterId: string, arcId: string) => {
+      const inserts = insertAfterLookup.get(afterId);
+      if (!inserts) return;
+      for (const ins of inserts) {
+        scenes.push({
+          scene: { kind: 'scene', id: ins.sceneId, arcId, locationId: '', povId: '', participantIds: [], events: [], threadMutations: [], continuityMutations: [], relationshipMutations: [], summary: ins.reason },
+        });
+        injectInserts(ins.sceneId, arcId);
+      }
+    };
+
+    const injectMoves = (afterId: string) => {
+      const moves = moveAfterLookup.get(afterId);
+      if (!moves) return;
+      for (const mv of moves) {
+        const movedScene = narrative.scenes[mv.sceneId];
+        if (!movedScene) continue;
+        scenes.push({ scene: movedScene, arc: narrative.arcs[movedScene.arcId] });
+        injectInserts(mv.sceneId, movedScene.arcId);
+        // Recursively inject any scenes that want to move after this moved scene
+        injectMoves(mv.sceneId);
+      }
+    };
+
     for (const key of resolvedKeys) {
       const entry = resolveEntry(narrative, key);
       if (entry && isScene(entry)) {
-        scenes.push({
-          scene: entry,
-          arc: narrative.arcs[entry.arcId],
-        });
-        // Inject any inserts that follow this scene, including chained inserts
-        const injectInserts = (afterId: string) => {
-          const inserts = insertAfterLookup.get(afterId);
-          if (!inserts) return;
-          for (const ins of inserts) {
-            scenes.push({
-              scene: { kind: 'scene', id: ins.sceneId, arcId: entry.arcId, locationId: '', povId: '', participantIds: [], events: [], threadMutations: [], continuityMutations: [], relationshipMutations: [], summary: ins.reason },
-            });
-            // Follow chain: INSERT-2 → insertAfter: "INSERT-1", etc.
-            injectInserts(ins.sceneId);
-          }
-        };
-        injectInserts(entry.id);
+        // Skip moved scenes at their original position — they appear at their target
+        if (movedSceneIds.has(entry.id)) continue;
+        scenes.push({ scene: entry, arc: narrative.arcs[entry.arcId] });
+        injectMoves(entry.id);
+        injectInserts(entry.id, entry.arcId);
       }
     }
   }

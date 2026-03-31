@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 const OPENROUTER_KEY = 'ne_openrouter_key';
 const REPLICATE_KEY = 'ne_replicate_key';
+const ELEVENLABS_KEY = 'ne_elevenlabs_key';
 const KEYS_CHANGED_EVENT = 'ne-api-keys-changed';
 
 export type FeatureAccess = {
@@ -11,10 +12,13 @@ export type FeatureAccess = {
   userApiKeys: boolean;
   hasOpenRouterKey: boolean;
   hasReplicateKey: boolean;
+  hasElevenLabsKey: boolean;
   openRouterKey: string;
   replicateKey: string;
+  elevenLabsKey: string;
   setOpenRouterKey: (key: string) => void;
   setReplicateKey: (key: string) => void;
+  setElevenLabsKey: (key: string) => void;
   clearKeys: () => void;
 };
 
@@ -22,6 +26,7 @@ function readKeys() {
   return {
     openRouterKey: localStorage.getItem(OPENROUTER_KEY) ?? '',
     replicateKey: localStorage.getItem(REPLICATE_KEY) ?? '',
+    elevenLabsKey: localStorage.getItem(ELEVENLABS_KEY) ?? '',
   };
 }
 
@@ -34,6 +39,7 @@ export function useFeatureAccess(): FeatureAccess {
 
   const [openRouterKey, setOpenRouterKeyState] = useState('');
   const [replicateKey, setReplicateKeyState] = useState('');
+  const [elevenLabsKey, setElevenLabsKeyState] = useState('');
 
   // Read from localStorage on mount + sync across hook instances
   useEffect(() => {
@@ -43,6 +49,7 @@ export function useFeatureAccess(): FeatureAccess {
       const keys = readKeys();
       setOpenRouterKeyState(keys.openRouterKey);
       setReplicateKeyState(keys.replicateKey);
+      setElevenLabsKeyState(keys.elevenLabsKey);
     };
 
     sync();
@@ -62,26 +69,38 @@ export function useFeatureAccess(): FeatureAccess {
     notifyChange();
   }, []);
 
+  const setElevenLabsKey = useCallback((key: string) => {
+    localStorage.setItem(ELEVENLABS_KEY, key);
+    setElevenLabsKeyState(key);
+    notifyChange();
+  }, []);
+
   const clearKeys = useCallback(() => {
     localStorage.removeItem(OPENROUTER_KEY);
     localStorage.removeItem(REPLICATE_KEY);
+    localStorage.removeItem(ELEVENLABS_KEY);
     setOpenRouterKeyState('');
     setReplicateKeyState('');
+    setElevenLabsKeyState('');
     notifyChange();
   }, []);
 
   // If not in user-keys mode, server keys are assumed present
   const hasOpenRouterKey = userApiKeys ? !!openRouterKey : true;
   const hasReplicateKey = userApiKeys ? !!replicateKey : true;
+  const hasElevenLabsKey = userApiKeys ? !!elevenLabsKey : true;
 
   return {
     userApiKeys,
     hasOpenRouterKey,
     hasReplicateKey,
+    hasElevenLabsKey,
     openRouterKey,
     replicateKey,
+    elevenLabsKey,
     setOpenRouterKey,
     setReplicateKey,
+    setElevenLabsKey,
     clearKeys,
   };
 }

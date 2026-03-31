@@ -7,9 +7,9 @@ import { generateScenePlan, generateSceneProse, rewriteSceneProse } from '@/lib/
 import { useStore } from '@/lib/store';
 import { exportEpub } from '@/lib/epub-export';
 import { IconDocument, IconBook, IconSettings, IconLocationPin, IconEye, IconPeople, IconPlus, IconClose, IconChevronLeft, IconChevronRight } from '@/components/icons';
-import { IconDot } from '@/components/icons/EvalIcons';
 import { PROSE_CONCURRENCY, PLAN_CONCURRENCY } from '@/lib/constants';
 import { sceneScale } from '@/lib/ai/context';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 
 type ContentCache = Record<string, { text: string; status: 'loading' | 'ready' | 'error'; error?: string }>;
 type BulkState = { running: boolean; completed: number; total: number; errors: number } | null;
@@ -33,6 +33,7 @@ export function StoryReader({
   onClose: () => void;
 }) {
   const { dispatch } = useStore();
+  const access = useFeatureAccess();
   const scenes = resolvedKeys
     .map((k) => resolveEntry(narrative, k))
     .filter((e): e is Scene => !!e && isScene(e));
@@ -45,7 +46,7 @@ export function StoryReader({
   })();
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [viewMode, setViewMode] = useState<'summary' | 'plan' | 'prose'>('summary');
+  const [viewMode, setViewMode] = useState<'summary' | 'plan' | 'prose' | 'audio'>('summary');
   const [proseCache, setProseCache] = useState<ContentCache>({});
   const [planCache, setPlanCache] = useState<Record<string, { plan: BeatPlan | null; status: 'loading' | 'ready' | 'error'; error?: string }>>({});
   const [planReasoning, setPlanReasoning] = useState<Record<string, string>>({});
@@ -66,6 +67,12 @@ export function StoryReader({
     ...narrative.storySettings,
   });
   const [settingsTab, setSettingsTab] = useState<'prose' | 'plan'>('prose');
+
+  // ── Audio state ──────────────────────────────────────────────────────
+  const [audioCache, setAudioCache] = useState<Record<string, { url: string; status: 'loading' | 'ready' | 'error'; error?: string }>>({});
+  const [audioBulk, setAudioBulk] = useState<BulkState>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
 
   const scene = scenes[currentIndex];
   const arc = scene ? Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id)) : null;
@@ -192,10 +199,79 @@ export function StoryReader({
   }, [scenes, planCache, proseCache, resolvedKeys, generateProse, runBulk]);
 
 
+  // ── Audio generation ─────────────────────────────────────────────────
+  const generateAudio = useCallback(async (s: Scene) => {
+    const prose = proseCache[s.id]?.status === 'ready' ? proseCache[s.id].text : s.prose;
+    if (!prose) return;
+    const voiceId = narrative.storySettings?.audioVoiceId;
+    if (!voiceId) return;
+
+    // Guard: require ElevenLabs key
+    if (access.userApiKeys && !access.hasElevenLabsKey) {
+      window.dispatchEvent(new Event('open-api-keys'));
+      return;
+    }
+
+    setAudioCache((prev) => ({ ...prev, [s.id]: { url: '', status: 'loading' } }));
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (access.userApiKeys && access.elevenLabsKey) {
+        headers['x-elevenlabs-key'] = access.elevenLabsKey;
+      }
+      const res = await fetch('/api/generate-audio', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'generate', voiceId, text: prose }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'TTS failed' }));
+        throw new Error(err.error || `TTS failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const reader = new FileReader();
+      const audioUrl: string = await new Promise((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+      dispatch({ type: 'SET_SCENE_AUDIO', sceneId: s.id, audioUrl });
+      setAudioCache((prev) => ({ ...prev, [s.id]: { url: audioUrl, status: 'ready' } }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setAudioCache((prev) => ({ ...prev, [s.id]: { url: '', status: 'error', error: message } }));
+    }
+  }, [narrative, proseCache, access]);
+
+  const bulkAudio = useCallback(() => {
+    const withProse = scenes.filter((s) =>
+      (s.prose || proseCache[s.id]?.status === 'ready') &&
+      audioCache[s.id]?.status !== 'ready'
+    );
+    runBulk(withProse, 2, (s) => generateAudio(s), setAudioBulk);
+  }, [scenes, proseCache, audioCache, generateAudio, runBulk]);
+
+  const playAudio = useCallback((sceneId: string) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (playingAudioId === sceneId) {
+      setPlayingAudioId(null);
+      return;
+    }
+    const cached = audioCache[sceneId];
+    if (!cached || cached.status !== 'ready') return;
+    const audio = new Audio(cached.url);
+    audio.onended = () => setPlayingAudioId(null);
+    audio.play();
+    audioRef.current = audio;
+    setPlayingAudioId(sceneId);
+  }, [playingAudioId, audioCache]);
+
   const cancelBulk = useCallback(() => {
     bulkCancelledRef.current = true;
     setProseBulk((prev) => prev ? { ...prev, running: false } : null);
     setPlanBulk((prev) => prev ? { ...prev, running: false } : null);
+    setAudioBulk((prev) => prev ? { ...prev, running: false } : null);
   }, []);
 
   // ── Sync cached plan/prose from scene data ───────────────────────────
@@ -207,7 +283,10 @@ export function StoryReader({
     if (scene.plan && !planCache[scene.id]) {
       setPlanCache((prev) => ({ ...prev, [scene.id]: { plan: scene.plan!, status: 'ready' as const } }));
     }
-  }, [scene, proseCache, planCache]);
+    if (scene.audioUrl && !audioCache[scene.id]) {
+      setAudioCache((prev) => ({ ...prev, [scene.id]: { url: scene.audioUrl!, status: 'ready' } }));
+    }
+  }, [scene, proseCache, planCache, audioCache]);
 
   // Reset state when changing scenes
   useEffect(() => { setShowRewrite(false); setRewriteAnalysis(''); }, [currentIndex]);
@@ -254,8 +333,8 @@ export function StoryReader({
   const hasProseError = proseCached?.status === 'error';
   const hasPlanError = planCached?.status === 'error';
 
-  const isAnyBulkRunning = !!(proseBulk?.running || planBulk?.running);
-  const activeBulk = proseBulk?.running ? proseBulk : planBulk?.running ? planBulk : null;
+  const isAnyBulkRunning = !!(proseBulk?.running || planBulk?.running || audioBulk?.running);
+  const activeBulk = proseBulk?.running ? proseBulk : planBulk?.running ? planBulk : audioBulk?.running ? audioBulk : null;
 
   const rawPlan = planCached?.plan ?? scene?.plan ?? null;
   const activePlan: BeatPlan | null = rawPlan && Array.isArray(rawPlan.beats) ? rawPlan : null;
@@ -317,6 +396,22 @@ export function StoryReader({
                   <button onClick={bulkProse} className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-text-secondary hover:border-white/15 transition flex items-center gap-1.5" title={`Generate prose for ${missingProse} scenes`}>
                     <IconBook size={12} />
                     Write All ({missingProse})
+                  </button>
+                );
+              })()}
+
+              {/* Audio All — only available when voice is configured and scenes have prose */}
+              {(() => {
+                if (!narrative.storySettings?.audioVoiceId) return null;
+                const missingAudio = scenes.filter((s) =>
+                  (s.prose || proseCache[s.id]?.status === 'ready') &&
+                  audioCache[s.id]?.status !== 'ready'
+                ).length;
+                if (missingAudio === 0) return null;
+                return (
+                  <button onClick={bulkAudio} className="text-[10px] px-2.5 py-1 rounded-full border border-white/10 text-text-dim hover:text-violet-400 hover:border-violet-400/20 transition flex items-center gap-1.5" title={`Generate audio for ${missingAudio} scenes`}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                    Audio All ({missingAudio})
                   </button>
                 );
               })()}
@@ -391,6 +486,36 @@ export function StoryReader({
                     EPUB
                   </button>
                 ) : null;
+              })()}
+
+              {/* Audiobook export */}
+              {(() => {
+                const audioScenes = scenes.filter((s) => audioCache[s.id]?.status === 'ready');
+                if (audioScenes.length === 0) return null;
+                return (
+                  <button
+                    onClick={async () => {
+                      const chunks: Blob[] = [];
+                      for (const s of scenes) {
+                        const cached = audioCache[s.id];
+                        if (cached?.status === 'ready' && cached.url) {
+                          const r = await fetch(cached.url);
+                          chunks.push(await r.blob());
+                        }
+                      }
+                      const combined = new Blob(chunks, { type: 'audio/mpeg' });
+                      const url = URL.createObjectURL(combined);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${narrative.title || 'audiobook'}.mp3`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="text-[10px] px-2.5 py-1 rounded-full border border-violet-500/20 text-violet-400/80 hover:text-violet-400 hover:border-violet-500/30 transition"
+                  >
+                    Audiobook ({audioScenes.length})
+                  </button>
+                );
               })()}
 
               {/* Clear All */}
@@ -484,8 +609,9 @@ export function StoryReader({
                 <div className="flex items-center gap-2 mt-0.5 ml-5">
                   {sArc && <span className="text-[9px] text-text-dim">{sArc.name}</span>}
                   {isGen && <div className="w-2.5 h-2.5 border border-white/30 border-t-white/70 rounded-full animate-spin shrink-0" />}
-                  {!isGen && hasPlanDot && <IconDot size={6} className="text-sky-400/60" />}
-                  {!isGen && hasProseDot && <IconDot size={6} className="text-emerald-400/60" />}
+                  {!isGen && hasPlanDot && <span className="w-1.5 h-1.5 rounded-full bg-sky-400/60 shrink-0" />}
+                  {!isGen && hasProseDot && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/60 shrink-0" />}
+                  {!isGen && audioCache[s.id]?.status === 'ready' && <span className="w-1.5 h-1.5 rounded-full bg-violet-400/60 shrink-0" />}
                   {score && typeof score.overall === 'number' && <span className={`text-[9px] font-mono ${scoreColor(score.overall)}`}>{score.overall}</span>}
                   {s.locked && (
                     <span className="text-[8px] text-text-dim/40" title="Locked — skipped by bulk operations">&#128274;</span>
@@ -512,9 +638,9 @@ export function StoryReader({
 
             {/* ── Tab bar ────────────────────────────────────────────── */}
             <div className="flex items-center border-b border-white/5 mb-8">
-              {(['summary', 'plan', 'prose'] as const).map((tab) => {
+              {(['summary', 'plan', 'prose', 'audio'] as const).map((tab) => {
                 const isActive = viewMode === tab;
-                const hasContent = tab === 'summary' || (tab === 'plan' && hasPlan) || (tab === 'prose' && hasProse);
+                const hasContent = tab === 'summary' || (tab === 'plan' && hasPlan) || (tab === 'prose' && hasProse) || (tab === 'audio' && audioCache[scene.id]?.status === 'ready');
                 return (
                   <button
                     key={tab}
@@ -530,7 +656,7 @@ export function StoryReader({
                     {tab.charAt(0).toUpperCase() + tab.slice(1)}
                     {isActive && <span className="absolute bottom-0 left-4 right-4 h-px bg-text-primary" />}
                     {!isActive && hasContent && tab !== 'summary' && (
-                      <span className={`ml-1.5 inline-block w-1 h-1 rounded-full ${tab === 'plan' ? 'bg-sky-400/60' : 'bg-emerald-400/60'}`} />
+                      <span className={`ml-1.5 inline-block w-1 h-1 rounded-full ${tab === 'plan' ? 'bg-sky-400/60' : tab === 'prose' ? 'bg-emerald-400/60' : 'bg-violet-400/60'}`} />
                     )}
                   </button>
                 );
@@ -1111,6 +1237,114 @@ export function StoryReader({
                     )}
                   </div>
                 )}
+              </>
+            )}
+
+            {/* ── AUDIO VIEW ────────────────────────────────────────── */}
+            {viewMode === 'audio' && (
+              <>
+                {(() => {
+                  const cached = audioCache[scene.id];
+                  const hasProse = !!(proseCache[scene.id]?.status === 'ready' ? proseCache[scene.id].text : scene.prose);
+                  const hasVoice = !!narrative.storySettings?.audioVoiceId;
+                  const isLoading = cached?.status === 'loading';
+                  const isReady = cached?.status === 'ready';
+                  const hasError = cached?.status === 'error';
+
+                  if (!hasVoice) {
+                    return (
+                      <div className="text-center py-16 space-y-3 text-text-dim">
+                        <svg className="mx-auto w-8 h-8 text-text-dim/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                        <p className="text-[11px]">No voice configured yet.</p>
+                        <p className="text-[10px] text-text-dim/60">Go to Story Settings &rarr; Audio tab to describe and sample a voice.</p>
+                      </div>
+                    );
+                  }
+
+                  if (!hasProse) {
+                    return (
+                      <div className="text-center py-16 space-y-3 text-text-dim">
+                        <p className="text-[11px]">Generate prose first, then create audio.</p>
+                        <button onClick={() => setViewMode('prose')} className="text-[11px] text-sky-400/80 hover:text-sky-400 transition">
+                          Go to Prose &rarr;
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Audio player */}
+                      {isReady && cached.url && (
+                        <div className="flex flex-col items-center gap-3 py-6">
+                          <button
+                            onClick={() => playAudio(scene.id)}
+                            className={`w-14 h-14 rounded-full flex items-center justify-center transition ${
+                              playingAudioId === scene.id
+                                ? 'bg-violet-500/30 text-violet-300 ring-2 ring-violet-500/30'
+                                : 'bg-white/10 text-text-primary hover:bg-white/15'
+                            }`}
+                          >
+                            {playingAudioId === scene.id ? (
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+                            ) : (
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="ml-1"><polygon points="6,3 20,12 6,21" /></svg>
+                            )}
+                          </button>
+                          <span className="text-[10px] text-text-dim">
+                            {playingAudioId === scene.id ? 'Playing...' : 'Click to play'}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Loading */}
+                      {isLoading && (
+                        <div className="flex items-center justify-center gap-2 py-12">
+                          <div className="w-4 h-4 border-2 border-violet-500/20 border-t-violet-400 rounded-full animate-spin" />
+                          <span className="text-[11px] text-text-dim">Generating audio...</span>
+                        </div>
+                      )}
+
+                      {/* Error */}
+                      {hasError && (
+                        <div className="text-center py-6">
+                          <p className="text-[10px] text-red-400 mb-2">{cached.error}</p>
+                          <button
+                            onClick={() => generateAudio(scene)}
+                            className="text-[10px] px-3 py-1.5 rounded-md bg-white/8 text-text-secondary hover:text-text-primary transition"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Generate button */}
+                      {!isReady && !isLoading && (
+                        <div className="text-center py-12 space-y-3">
+                          <button
+                            onClick={() => generateAudio(scene)}
+                            className="text-[11px] px-5 py-2 rounded-full bg-violet-500/15 border border-violet-500/20 text-violet-300 hover:bg-violet-500/25 transition"
+                          >
+                            Generate Audio
+                          </button>
+                          <p className="text-[10px] text-text-dim/50">Uses ElevenLabs TTS with your configured voice.</p>
+                        </div>
+                      )}
+
+                      {/* Regenerate if already ready */}
+                      {isReady && (
+                        <div className="text-center">
+                          <button
+                            onClick={() => generateAudio(scene)}
+                            className="text-[10px] text-text-dim hover:text-text-secondary transition"
+                          >
+                            Regenerate audio
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </>
             )}
           </div>

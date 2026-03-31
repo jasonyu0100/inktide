@@ -12,11 +12,13 @@ type Props = {
 export default function ApiKeyModal({ access, onClose }: Props) {
   const [orKey, setOrKey] = useState(access.openRouterKey);
   const [repKey, setRepKey] = useState(access.replicateKey);
-  const [showAdvanced, setShowAdvanced] = useState(!!access.replicateKey);
+  const [elKey, setElKey] = useState(access.elevenLabsKey);
+  const [showAdvanced, setShowAdvanced] = useState(!!access.replicateKey || !!access.elevenLabsKey);
 
   function handleSave() {
     access.setOpenRouterKey(orKey.trim());
     access.setReplicateKey(repKey.trim());
+    access.setElevenLabsKey(elKey.trim());
     onClose();
   }
 
@@ -69,15 +71,27 @@ export default function ApiKeyModal({ access, onClose }: Props) {
                 className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
               />
               <p className="text-[9px] text-text-dim mt-0.5">Image generation</p>
+
+              <label className="block text-[10px] font-medium text-text-secondary mb-1 mt-3">
+                ElevenLabs <span className="text-text-dim/60">optional</span>
+              </label>
+              <input
+                type="password"
+                value={elKey}
+                onChange={(e) => setElKey(e.target.value)}
+                placeholder="sk_..."
+                className="w-full bg-white/5 border border-border rounded px-3 py-2 text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-white/20 transition-colors"
+              />
+              <p className="text-[9px] text-text-dim mt-0.5">Audiobook TTS</p>
             </div>
           )}
         </div>
 
       </ModalBody>
       <ModalFooter>
-        {(access.hasOpenRouterKey || access.hasReplicateKey) && (
+        {(access.hasOpenRouterKey || access.hasReplicateKey || access.hasElevenLabsKey) && (
           <button
-            onClick={() => { access.clearKeys(); setOrKey(''); setRepKey(''); }}
+            onClick={() => { access.clearKeys(); setOrKey(''); setRepKey(''); setElKey(''); }}
             className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors mr-auto"
           >
             Clear

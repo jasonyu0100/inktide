@@ -370,6 +370,7 @@ export type Scene = {
   proseScore?: ProseScore;
   summary: string;
   imageUrl?: string;
+  audioUrl?: string;
   /** When true, alignment and fix operations skip this scene */
   locked?: boolean;
 };
@@ -718,6 +719,10 @@ export type StorySettings = {
   usePacingChain: boolean;
   /** Whether to use the beat profile Markov chain for plan generation. */
   useBeatChain: boolean;
+  /** Voice description for audiobook TTS — describes the narrator's voice style */
+  audioVoiceDescription: string;
+  /** Generated voice ID from ElevenLabs voice design (set after sampling) */
+  audioVoiceId: string;
 };
 
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
@@ -742,6 +747,8 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   beatProfilePreset: '',
   usePacingChain: true,
   useBeatChain: true,
+  audioVoiceDescription: 'A warm, expressive narrator with a rich timbre. Clear diction, measured pacing, and a storytelling quality that draws listeners in.',
+  audioVoiceId: '',
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────

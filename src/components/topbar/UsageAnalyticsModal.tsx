@@ -57,49 +57,90 @@ function formatCost(v: number): string {
   return `$${v.toFixed(4)}`;
 }
 
-/** Group entries by day */
+/** Group entries by day — fills gaps so every day between first and last is shown */
 function bucketByDay(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
+  const success = logs.filter((l) => l.status === 'success');
+  if (success.length === 0) return [];
   const map = new Map<string, ApiLogEntry[]>();
-  for (const log of logs) {
-    if (log.status !== 'success') continue;
+  for (const log of success) {
     const d = new Date(log.timestamp);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(log);
   }
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([label, entries]) => ({ label, shortLabel: label.slice(5), entries }));
+  // Fill gaps between first and last day
+  const sorted = Array.from(map.keys()).sort();
+  const result: { label: string; shortLabel: string; entries: ApiLogEntry[] }[] = [];
+  const cursor = new Date(sorted[0] + 'T00:00:00');
+  const end = new Date(sorted[sorted.length - 1] + 'T00:00:00');
+  while (cursor <= end) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+    result.push({ label: key, shortLabel: key.slice(5), entries: map.get(key) ?? [] });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return result;
 }
 
-/** Group entries by hour */
+/** Group entries by hour — fills gaps so every hour between first and last is shown */
 function bucketByHour(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
+  const success = logs.filter((l) => l.status === 'success');
+  if (success.length === 0) return [];
   const map = new Map<string, ApiLogEntry[]>();
-  for (const log of logs) {
-    if (log.status !== 'success') continue;
+  for (const log of success) {
     const d = new Date(log.timestamp);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:00`;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(log);
   }
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([label, entries]) => ({ label, shortLabel: label.slice(5), entries }));
+  const sorted = Array.from(map.keys()).sort();
+  const result: { label: string; shortLabel: string; entries: ApiLogEntry[] }[] = [];
+  const cursor = new Date(sorted[0].replace(' ', 'T') + ':00');
+  const end = new Date(sorted[sorted.length - 1].replace(' ', 'T') + ':00');
+  while (cursor <= end) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')} ${String(cursor.getHours()).padStart(2, '0')}:00`;
+    result.push({ label: key, shortLabel: key.slice(5), entries: map.get(key) ?? [] });
+    cursor.setTime(cursor.getTime() + 3600_000);
+  }
+  return result;
 }
 
-/** Group entries by minute */
+/** Group entries by minute — fills gaps so every minute between first and last is shown */
 function bucketByMinute(logs: ApiLogEntry[]): { label: string; shortLabel: string; entries: ApiLogEntry[] }[] {
+  const success = logs.filter((l) => l.status === 'success');
+  if (success.length === 0) return [];
   const map = new Map<string, ApiLogEntry[]>();
-  for (const log of logs) {
-    if (log.status !== 'success') continue;
+  let minTs = Infinity, maxTs = -Infinity;
+  for (const log of success) {
     const d = new Date(log.timestamp);
     const key = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(log);
+    if (log.timestamp < minTs) minTs = log.timestamp;
+    if (log.timestamp > maxTs) maxTs = log.timestamp;
   }
-  return [...map.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([label, entries]) => ({ label, shortLabel: label, entries }));
+  // Fill minute-by-minute from first to last timestamp
+  const result: { label: string; shortLabel: string; entries: ApiLogEntry[] }[] = [];
+  const cursor = new Date(minTs);
+  cursor.setSeconds(0, 0);
+  const end = new Date(maxTs);
+  end.setSeconds(0, 0);
+  while (cursor <= end) {
+    const key = `${String(cursor.getHours()).padStart(2, '0')}:${String(cursor.getMinutes()).padStart(2, '0')}`;
+    result.push({ label: key, shortLabel: key, entries: map.get(key) ?? [] });
+    cursor.setTime(cursor.getTime() + 60_000);
+  }
+  return result;
+}
+
+/** Compute average tokens/sec for entries in a bucket */
+function bucketTokensPerSec(entries: ApiLogEntry[]): number {
+  let totalTokens = 0, totalMs = 0;
+  for (const e of entries) {
+    if (isImageGenCall(e) || !e.durationMs || e.durationMs <= 0) continue;
+    totalTokens += (e.responseTokens ?? 0) + (e.reasoningTokens ?? 0);
+    totalMs += e.durationMs;
+  }
+  return totalMs > 0 ? (totalTokens / totalMs) * 1000 : 0;
 }
 
 // ── SVG Bar Chart ────────────────────────────────────────────────────────────
@@ -117,6 +158,7 @@ function BarChart({
   label3,
   label4,
   formatValue,
+  hideCumulative = false,
 }: {
   data: BarDatum[];
   color1: string;
@@ -128,6 +170,7 @@ function BarChart({
   label3: string;
   label4: string;
   formatValue: (v: number) => string;
+  hideCumulative?: boolean;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const W = 520;
@@ -174,10 +217,12 @@ function BarChart({
             {label4}
           </span>
         )}
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-0.5 rounded" style={{ background: '#EF4444' }} />
-          Cumulative
-        </span>
+        {!hideCumulative && (
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-0.5 rounded" style={{ background: '#EF4444' }} />
+            Cumulative
+          </span>
+        )}
       </div>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
         {ticks.map((v, i) => {
@@ -240,7 +285,7 @@ function BarChart({
           );
         })}
         {/* Cumulative line overlay */}
-        {data.length > 1 && (() => {
+        {!hideCumulative && data.length > 1 && (() => {
           const cumulative: number[] = [];
           let running = 0;
           for (const d of data) { running += d.v1 + d.v2 + d.v3 + d.v4; cumulative.push(running); }
@@ -277,13 +322,14 @@ function BarChart({
 // ── Dropdown Panel ───────────────────────────────────────────────────────────
 
 export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
-  const [view, setView] = useState<'cost' | 'tokens' | 'calls'>('cost');
+  const [view, setView] = useState<'cost' | 'tokens' | 'calls' | 'speed'>('cost');
   const [granularity, setGranularity] = useState<'minute' | 'hour' | 'day'>('day');
 
   const successLogs = useMemo(() => logs.filter((l) => l.status === 'success'), [logs]);
 
   const totals = useMemo(() => {
     let inputTokens = 0, outputTokens = 0, reasoningTokens = 0, inputCost = 0, outputCost = 0, reasoningCost = 0, imageCost = 0, imageCount = 0;
+    let speedTokens = 0, speedMs = 0;
     for (const log of successLogs) {
       const c = costForEntry(log);
       if (isImageGenCall(log)) {
@@ -297,8 +343,13 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
       inputCost += c.input;
       outputCost += c.output;
       reasoningCost += c.reasoning;
+      if (log.durationMs && log.durationMs > 0) {
+        speedTokens += (log.responseTokens ?? 0) + (log.reasoningTokens ?? 0);
+        speedMs += log.durationMs;
+      }
     }
-    return { inputTokens, outputTokens, reasoningTokens, inputCost, outputCost, reasoningCost, imageCost, imageCount, totalCost: inputCost + outputCost + reasoningCost + imageCost, calls: successLogs.length };
+    const avgSpeed = speedMs > 0 ? (speedTokens / speedMs) * 1000 : 0;
+    return { inputTokens, outputTokens, reasoningTokens, inputCost, outputCost, reasoningCost, imageCost, imageCount, totalCost: inputCost + outputCost + reasoningCost + imageCost, calls: successLogs.length, avgSpeed };
   }, [successLogs]);
 
   const modelBreakdown = useMemo(() => {
@@ -331,6 +382,8 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
         let v1 = 0, v2 = 0, v3 = 0, v4 = 0;
         for (const e of b.entries) { const c = costForEntry(e); if (isImageGenCall(e)) { v4 += c.output; } else { v1 += c.input; v2 += c.output; v3 += c.reasoning; } }
         return { label: b.label, shortLabel: b.shortLabel, v1, v2, v3, v4 };
+      } else if (view === 'speed') {
+        return { label: b.label, shortLabel: b.shortLabel, v1: bucketTokensPerSec(b.entries), v2: 0, v3: 0, v4: 0 };
       } else {
         return { label: b.label, shortLabel: b.shortLabel, v1: b.entries.length, v2: 0, v3: 0, v4: 0 };
       }
@@ -341,6 +394,8 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
     ? formatCost
     : view === 'tokens'
     ? (v: number) => formatTokens(v)
+    : view === 'speed'
+    ? (v: number) => v >= 1 ? `${Math.round(v)} t/s` : v > 0 ? `${v.toFixed(1)} t/s` : '0'
     : (v: number) => String(Math.round(v));
 
   return (
@@ -354,6 +409,9 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
         {totals.reasoningTokens > 0 && (
           <MiniCard label="Reasoning" value={formatTokens(totals.reasoningTokens)} color="#c084fc" />
         )}
+        {totals.avgSpeed > 0 && (
+          <MiniCard label="Avg Speed" value={`${Math.round(totals.avgSpeed)} t/s`} color="#f97316" />
+        )}
         {totals.imageCount > 0 && (
           <MiniCard label="Images" value={`${totals.imageCount} (${formatCost(totals.imageCost)})`} color="#f472b6" />
         )}
@@ -362,7 +420,7 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
       {/* Controls */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center rounded border border-white/8 overflow-hidden">
-          {(['cost', 'tokens', 'calls'] as const).map((v) => (
+          {(['cost', 'tokens', 'calls', 'speed'] as const).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -392,15 +450,16 @@ export function UsageDropdown({ logs }: { logs: ApiLogEntry[] }) {
       {/* Chart */}
       <BarChart
         data={chartData}
-        color1={view === 'cost' ? '#3B82F6' : view === 'tokens' ? '#3B82F6' : '#facc15'}
+        color1={view === 'cost' ? '#3B82F6' : view === 'tokens' ? '#3B82F6' : view === 'speed' ? '#f97316' : '#facc15'}
         color2={view === 'cost' ? '#22C55E' : view === 'tokens' ? '#22C55E' : ''}
         color3={view === 'cost' ? '#c084fc' : view === 'tokens' ? '#c084fc' : ''}
         color4={view === 'cost' ? '#f472b6' : ''}
-        label1={view === 'cost' ? 'Input' : view === 'tokens' ? 'Input' : 'Calls'}
+        label1={view === 'cost' ? 'Input' : view === 'tokens' ? 'Input' : view === 'speed' ? 'Tokens/sec' : 'Calls'}
         label2={view === 'cost' ? 'Output' : view === 'tokens' ? 'Output' : ''}
         label3={view === 'cost' ? 'Reasoning' : view === 'tokens' ? 'Reasoning' : ''}
         label4={view === 'cost' ? 'Images' : ''}
         formatValue={formatFn}
+        hideCumulative={view === 'speed'}
       />
 
       {/* Model breakdown */}

@@ -7,6 +7,53 @@ import { parseJson } from './json';
 import { MAX_TOKENS_SMALL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 
 /**
+ * Build a phase progress block that tells the LLM exactly where we are
+ * in the source material — what's been covered, what hasn't.
+ * Frames it as a cursor position, not a diff exercise.
+ */
+function buildPhaseProgressBlock(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+  phase: PlanningPhase,
+): string {
+  if (phase.scenesCompleted <= 0) return '';
+
+  // Collect scene summaries from this phase (most recent N scene keys)
+  const phaseSceneKeys: string[] = [];
+  let count = 0;
+  for (let i = currentIndex; i >= 0 && count < phase.scenesCompleted; i--) {
+    const key = resolvedKeys[i];
+    if (key && narrative.scenes[key]) {
+      phaseSceneKeys.unshift(key);
+      count++;
+    }
+  }
+
+  if (phaseSceneKeys.length === 0) return '';
+
+  const lines: string[] = [
+    `PHASE PROGRESS — ${phase.scenesCompleted} of ${phase.sceneAllocation} scenes generated.`,
+    'The following beats have ALREADY BEEN WRITTEN in this phase. This is where the story currently IS:',
+  ];
+  phaseSceneKeys.forEach((key, idx) => {
+    const scene = narrative.scenes[key];
+    if (!scene) return;
+    const summary = scene.summary?.slice(0, 200) ?? '(no summary)';
+    const events = scene.events?.slice(0, 4).join('; ') ?? '';
+    const threadChanges = scene.threadMutations
+      ?.filter((tm) => tm.from !== tm.to)
+      .map((tm) => `${tm.threadId}: ${tm.from}→${tm.to}`)
+      .join(', ') ?? '';
+    lines.push(`  ${idx + 1}. ${summary}${events ? ` [${events}]` : ''}${threadChanges ? ` {${threadChanges}}` : ''}`);
+  });
+  lines.push('');
+  lines.push('^^^ This is the CURRENT POSITION. The next arc starts AFTER scene ' + phaseSceneKeys.length + '. Everything above is SPENT — writing directions that re-cover any of these beats is a critical error.');
+
+  return lines.join('\n');
+}
+
+/**
  * Course-correct direction and constraints after each arc.
  *
  * This is the storytelling equivalent of a showrunner watching dailies
@@ -32,6 +79,8 @@ export async function refreshDirection(
   const ctx = branchContext(narrative, resolvedKeys, currentIndex);
 
   const scenesRemaining = phase.sceneAllocation - phase.scenesCompleted;
+  const avgArcSize = 4; // typical arc length
+  const estimatedArcsRemaining = Math.max(1, Math.ceil(scenesRemaining / avgArcSize));
   const speed = narrative.storySettings?.threadResolutionSpeed ?? DEFAULT_STORY_SETTINGS.threadResolutionSpeed;
   const threadHealthBlock = buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, speed);
 
@@ -57,7 +106,69 @@ export async function refreshDirection(
 - Name threads that are ripe for their next phase and what would make the transition feel organic.`,
   };
 
-  const prompt = `${ctx}
+  const phaseProgressBlock = phase.sourceText ? buildPhaseProgressBlock(narrative, resolvedKeys, currentIndex, phase) : '';
+
+  // Source-text mode: prioritize sequential source material tracking
+  // Non-source mode: full analytical review with 9 lenses
+  const prompt = phase.sourceText
+    ? `${ctx}
+
+An arc just wrapped. You have ${scenesRemaining} scenes left in this phase.
+
+PHASE: "${phase.name}"
+PHASE OBJECTIVE: ${phase.objective}
+PROGRESS: ${phase.scenesCompleted} / ${phase.sceneAllocation} scenes
+${phase.constraints ? `PHASE CONSTRAINTS: ${phase.constraints}` : ''}
+${phase.structuralRules ? `STRUCTURAL RULES:\n${phase.structuralRules}` : ''}
+
+SOURCE MATERIAL (the beat sheet for this phase — your primary reference, but not a rigid script):
+${phase.sourceText}
+
+${phaseProgressBlock}
+
+${threadHealthBlock}
+
+${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
+
+Your job: figure out where we are in the source material, then write direction for the next arc that ADVANCES through it while addressing any issues in the story so far.
+
+Step 1 — LOCATE THE CURSOR. Read the PHASE PROGRESS scenes above. Identify the LAST source material beat that has been covered. State it explicitly: "The story has reached: [specific source beat]."
+
+Step 2 — GAUGE PACING. There are ${scenesRemaining} scenes left and approximately ${estimatedArcsRemaining} arc(s) remaining in this phase. Your direction covers ONE arc (~${Math.min(scenesRemaining, avgArcSize)} scenes, approximately ${Math.round(100 / estimatedArcsRemaining)}% of remaining source material). Do NOT try to cover everything — leave later beats for the next course correction.
+  • If the source has clear chapter/section breaks, one chapter = one arc is a good heuristic.
+  • If this is the LAST arc (${estimatedArcsRemaining === 1 ? 'IT IS' : 'it is not'}), cover ALL remaining source material.
+
+Step 3 — IDENTIFY THE NEXT KEY BEATS. Starting AFTER the cursor, select ONLY the next arc's worth of source beats IN SOURCE ORDER. This should be 2-4 key beats, not more. These are what the next arc must hit.
+
+Step 4 — ASSESS THE STORY. Review thread health, character development, and pacing from the scenes so far. Note any issues: stagnant threads, underdeveloped character arcs, missing setup for upcoming beats, or pacing problems. The direction should address these alongside the source beats.
+
+Step 5 — Write the direction, constraints, and scene budget.
+
+RULES:
+- The direction REPLACES the current direction entirely. It is a fresh, standalone brief.
+- The source material's KEY BEATS must happen in source order. Do not skip or reorder them.
+- Between key beats, you have creative flexibility for connective tissue.
+- Any beat in PHASE PROGRESS is done. Move forward.
+- QUOTE THE SOURCE. The direction is the last thing scene generation sees — it won't see the source text. So copy across anything scene generation needs: prose samples, dialogue snippets, structural techniques (montage, vignettes, timeskip), tone guidance, internal monologue style. If the source says "short titled vignettes, each 200-400 words, covering thirteen months," write that verbatim into the direction.
+- Use imperative voice. Use thread IDs alongside character names.
+
+OUTPUT:
+
+- Direction: Write it as if scene generation will ONLY see this text and nothing else. Include the source's own words for any prose style, format, technique, or dialogue guidance. One paragraph per beat, naming POV character, location, participants, and thread transitions.
+
+- Constraints: What MUST NOT happen. Ban re-staging any beat from PHASE PROGRESS. Ban confirmation scenes. Protect threads meant for later phases. Do not contradict the source material.
+
+- Scene budget: For each active thread, how many scenes it should appear in during the next arc.
+
+All three fields MUST be plain strings in the JSON.
+
+Return JSON:
+{
+  "direction": "prose string — beat-specific scene blueprint for this arc's portion",
+  "constraints": "prose string — 3-5 sentences with specific prohibitions",
+  "sceneBudget": {"T-XX": 2, "T-YY+T-ZZ": 1}
+}`
+    : `${ctx}
 
 You are a showrunner reviewing dailies. An arc just wrapped. You have ${scenesRemaining} scenes left in this phase. Your job is to write the updated direction and constraints for the NEXT arc — building on what works, correcting what doesn't.
 
@@ -66,7 +177,6 @@ PHASE OBJECTIVE: ${phase.objective}
 PROGRESS: ${phase.scenesCompleted} / ${phase.sceneAllocation} scenes
 ${phase.constraints ? `PHASE CONSTRAINTS: ${phase.constraints}` : ''}
 ${phase.structuralRules ? `STRUCTURAL RULES (mechanical requirements — audit compliance and enforce in next direction):\n${phase.structuralRules}` : ''}
-${phase.sourceText ? `\nSOURCE MATERIAL (verbatim from plan document — this is the AUTHORITATIVE reference for what should happen in this phase. Your direction MUST serve the plot beats, character actions, and structural guidance described here. Quote specific details from it.):\n${phase.sourceText}` : ''}
 CURRENT DIRECTION: ${currentDirection || '(none set)'}
 CURRENT CONSTRAINTS: ${currentConstraints || '(none set)'}
 
@@ -105,26 +215,15 @@ Review the scene history and thread velocity report through these lenses:
 CRITICAL OUTPUT RULES:
 - The direction you write REPLACES the current direction entirely. It is NOT appended. Write it as a fresh, standalone brief.
 - Do NOT restate the previous direction. If the previous direction asked for something and it HAPPENED, move on. If it didn't happen, escalate the ask — don't repeat it.
-${phase.sourceText ? `- SOURCE MATERIAL ANCHOR: The SOURCE MATERIAL above is your PRIMARY reference — more authoritative than the phase objective. Your process:
-  1. Read the SOURCE MATERIAL carefully. List every distinct plot beat, character action, and structural moment it describes.
-  2. Compare against the completed scene summaries in the branch context above. Mark each source beat as COVERED or UNCOVERED.
-  3. Your direction MUST target the NEXT UNCOVERED beats — quote or closely paraphrase them. Do not abstract or summarise — use the source's own language, character names, locations, and specific actions.
-  4. If the source includes prose samples, dialogue, internal monologue style, or pacing guidance, reference these explicitly in your direction (e.g. "Fang Yuan's internal monologue should catalogue each person in the room — their ambitions, expiry dates, usefulness — as black comedy").
-  5. Do NOT invent constraints that contradict the source material. If the source says a character goes somewhere or meets someone, do not constrain them from doing so.
-- PHASE OBJECTIVE ANCHOR: The phase objective is your secondary compass. Every direction you write must serve that objective, but the source material provides the specific beats that fulfil it.` : `- PHASE OBJECTIVE ANCHOR: The phase objective above is your north star. Every direction you write must serve that objective. If the objective says "establish the alliance," every arc's direction must either build toward establishing it, deal with obstacles to it, or pay it off. You may adjust tactics (different characters, different mechanisms) but you must NOT drift away from the objective. If the objective is partially achieved, the direction must address the remaining parts.`}
+- PHASE OBJECTIVE ANCHOR: The phase objective above is your north star. Every direction you write must serve that objective. If the objective says "establish the alliance," every arc's direction must either build toward establishing it, deal with obstacles to it, or pay it off. You may adjust tactics (different characters, different mechanisms) but you must NOT drift away from the objective. If the objective is partially achieved, the direction must address the remaining parts.
 - Do NOT be analytical or explanatory. This is a directive, not a report. Use imperative voice: "Fang Yuan diverts the grain. Mo Bei Liu calls an emergency session."
 - Use thread IDs and target statuses alongside character names — technical precision helps. e.g. "Fang Yuan diverts the grain, pushing T-41 to critical."
 
 Write direction, constraints, and scene budget:
 
-${phase.sourceText ? `- Direction: A BEAT-SPECIFIC prose blueprint for the next arc, drawn from the SOURCE MATERIAL. For each scene the arc should produce, write a paragraph that:
-  • Quotes or closely paraphrases the specific source beat being realized
-  • Names the POV character, location, and participants
-  • References prose style or internal monologue guidance from the source if applicable
-  • Specifies thread transitions (e.g. T-XX dormant → active)
-  Be as detailed as the source material warrants — if 5 distinct beats remain, describe all 5 as separate paragraphs.` : `- Direction (3-5 sentences): Imperative orders for the next arc. Each sentence: [Character] [does specific thing] [at specific place] [causing specific consequence] [thread target]. At least one sentence must describe a COLLISION — two threads forced into the same scene.`}
+- Direction (3-5 sentences): Imperative orders for the next arc. Each sentence: [Character] [does specific thing] [at specific place] [causing specific consequence] [thread target]. At least one sentence must describe a COLLISION — two threads forced into the same scene.
 
-- Constraints (3-5 sentences): What MUST NOT happen. Ban re-staging or re-confirming any beat already delivered. Ban confirmation scenes. Ban stale patterns. Protect threads meant for later phases. Each constraint must name a specific thread, character, or beat.${phase.sourceText ? ' Do NOT invent constraints that contradict the source material.' : ''}
+- Constraints (3-5 sentences): What MUST NOT happen. Ban re-staging or re-confirming any beat already delivered. Ban confirmation scenes. Ban stale patterns. Protect threads meant for later phases. Each constraint must name a specific thread, character, or beat.
 
 - Scene budget (object): For each active thread, how many scenes it should appear in during the next arc. Threads that collide share a budget slot.
 
@@ -132,7 +231,7 @@ All three fields MUST be plain strings in the JSON — never arrays or objects. 
 
 Return JSON:
 {
-  "direction": "prose string — ${phase.sourceText ? 'beat-specific scene blueprint, as long as needed' : '3-5 imperative sentences'}",
+  "direction": "prose string — 3-5 imperative sentences",
   "constraints": "prose string — 3-5 sentences with specific prohibitions",
   "sceneBudget": {"T-XX": 2, "T-YY+T-ZZ": 1}
 }`;

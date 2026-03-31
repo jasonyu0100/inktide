@@ -134,48 +134,6 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     }
   }
 
-  function removePhase(index: number) {
-    if (!queue) return;
-    const phases = queue.phases.filter((_, i) => i !== index);
-    const updated = { ...queue, phases, activePhaseIndex: Math.min(queue.activePhaseIndex, phases.length - 1) };
-    setQueue(updated);
-    if (existingQueue && branchId) {
-      dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: updated });
-    }
-  }
-
-  function addPhase() {
-    if (!queue) return;
-    const newPhase: PlanningPhase = {
-      id: `phase-${queue.phases.length}`,
-      name: 'New Phase',
-      objective: '',
-      sceneAllocation: 4,
-      scenesCompleted: 0,
-      status: 'pending',
-      constraints: '',
-      direction: '',
-      worldExpansionHints: '',
-    };
-    const updated = { ...queue, phases: [...queue.phases, newPhase] };
-    setQueue(updated);
-    if (existingQueue && branchId) {
-      dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: updated });
-    }
-  }
-
-  function movePhase(index: number, dir: -1 | 1) {
-    if (!queue) return;
-    const target = index + dir;
-    if (target < 0 || target >= queue.phases.length) return;
-    const phases = [...queue.phases];
-    [phases[index], phases[target]] = [phases[target], phases[index]];
-    const updated = { ...queue, phases };
-    setQueue(updated);
-    if (existingQueue && branchId) {
-      dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: updated });
-    }
-  }
 
   const [activating, setActivating] = useState(false);
   const [activatingStep, setActivatingStep] = useState<string | null>(null);
@@ -202,10 +160,10 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
       const resolvedKeys = state.resolvedEntryKeys;
       const currentIndex = state.currentSceneIndex;
 
-      if (firstPhase.worldExpansionHints) {
+      if (queue.expandWorld !== false) {
         setActivatingStep('Expanding world...');
         const strategy = narrative.storySettings?.expansionStrategy ?? 'dynamic';
-        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints, 'medium', strategy, firstPhase.sourceText);
+        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints || '', 'medium', strategy, firstPhase.sourceText);
         dispatch({
           type: 'EXPAND_WORLD',
           worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
@@ -217,7 +175,14 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
       setActivatingStep('Generating direction...');
       const { direction, constraints } = await generatePhaseDirection(narrative, resolvedKeys, currentIndex, firstPhase, queue);
-      dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId, phaseIndex: 0, updates: { direction, constraints: constraints || firstPhase.constraints } });
+      // Activate the first phase: set status, direction, and activePhaseIndex
+      const activatedQueue: PlanningQueue = {
+        ...queue,
+        activePhaseIndex: 0,
+        phases: queue.phases.map((p, i) => i === 0 ? { ...p, status: 'active' as const, direction, constraints: constraints || p.constraints } : p),
+      };
+      dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: activatedQueue });
+      setQueue(activatedQueue);
       const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
       dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || firstPhase.constraints || baseSettings.storyConstraints, worldFocus: 'latest' } });
     } catch (err) {
@@ -247,6 +212,30 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: undefined });
     setQueue(null);
     setSelectedProfileId(null);
+  }
+
+  function handleReset() {
+    if (!branchId || !existingQueue) return;
+    const resetQueue: PlanningQueue = {
+      ...existingQueue,
+      activePhaseIndex: -1,
+      phases: existingQueue.phases.map((p) => ({
+        ...p,
+        status: 'pending' as const,
+        scenesCompleted: 0,
+        direction: '',
+        completionReport: undefined,
+        worldBuildId: undefined,
+      })),
+    };
+    dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: resetQueue });
+    // Clear direction/constraints that were set by the queue
+    const narrative = state.activeNarrative;
+    if (narrative) {
+      const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
+      dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: '', storyConstraints: '' } });
+    }
+    setQueue(resetQueue);
   }
 
   const totalScenes = queue?.phases.reduce((sum, p) => sum + p.sceneAllocation, 0) ?? 0;
@@ -455,118 +444,134 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
             </div>
           )}
 
-          {/* ── Phase editor ─────────────────────────────────────────── */}
+          {/* ── Phase list ──────────────────────────────────────────── */}
           {queue && (
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-[10px] uppercase tracking-widest text-text-dim">Phases</label>
-                <button onClick={addPhase} className="text-[10px] text-text-secondary hover:text-text-primary transition-colors uppercase tracking-wider">+ Add Phase</button>
+            <div className="p-4">
+              {/* Queue settings */}
+              <div className="flex items-center gap-4 mb-3 px-1">
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={queue.expandWorld !== false}
+                    onChange={(e) => {
+                      const updated = { ...queue, expandWorld: e.target.checked };
+                      setQueue(updated);
+                      if (existingQueue && branchId) {
+                        dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: updated });
+                      }
+                    }}
+                    className="accent-white/60 w-3 h-3"
+                  />
+                  <span className="text-[10px] text-text-dim">Expand world at phase boundaries</span>
+                </label>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 {queue.phases.map((phase, i) => {
                   const isActive = phase.status === 'active';
                   const isCompleted = phase.status === 'completed';
-                  const isPending = phase.status === 'pending';
+
+                  const progress = isActive ? phase.scenesCompleted / phase.sceneAllocation : isCompleted ? 1 : 0;
 
                   return (
                     <div
                       key={phase.id}
-                      className={`rounded-lg border p-3 ${
-                        isActive ? 'bg-amber-500/5 border-amber-500/20'
-                          : isCompleted ? 'bg-green-500/5 border-green-500/20 opacity-60'
-                          : 'bg-bg-elevated border-border'
+                      className={`rounded-lg border transition-colors ${
+                        isActive ? 'bg-amber-500/5 border-amber-500/15'
+                          : isCompleted ? 'bg-white/2 border-white/6 opacity-50'
+                          : 'bg-white/2 border-white/6'
                       }`}
                     >
-                      <div className="flex items-start gap-2">
-                        <span className="text-[10px] text-text-dim font-mono mt-1 shrink-0 w-4">{i + 1}</span>
+                      {/* Compact header — always visible */}
+                      <div className="flex items-center gap-2.5 px-3 py-2">
+                        <span className={`text-[10px] font-mono shrink-0 w-4 text-center ${isActive ? 'text-amber-400' : 'text-text-dim'}`}>{i + 1}</span>
                         <div className="flex-1 min-w-0">
-                          {/* Header: name + scenes */}
                           <div className="flex items-center gap-2">
-                            <input
-                              value={phase.name}
-                              onChange={(e) => updatePhase(i, { name: e.target.value })}
-                              className="bg-transparent text-xs text-text-primary font-medium flex-1 outline-none border-b border-transparent focus:border-white/20 pb-0.5"
-                              disabled={isCompleted}
-                            />
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <input
-                                type="number" min={1} max={50}
-                                value={phase.sceneAllocation}
-                                onChange={(e) => updatePhase(i, { sceneAllocation: Math.max(1, Number(e.target.value)) })}
-                                className="bg-bg-overlay border border-border rounded px-1.5 py-0.5 text-[10px] text-text-primary w-10 outline-none text-center"
-                                disabled={isCompleted}
-                                title="Scene allocation"
-                              />
-                              {isActive && <span className="text-[10px] text-amber-400 font-medium">{phase.scenesCompleted}/{phase.sceneAllocation}</span>}
-                              {isCompleted && <span className="text-[10px] text-green-400 font-medium">Done</span>}
+                            <span className={`text-[11px] font-medium truncate ${isActive ? 'text-text-primary' : 'text-text-secondary'}`}>{phase.name}</span>
+                            <span className="text-[10px] text-text-dim shrink-0">
+                              {isActive ? `${phase.scenesCompleted}/${phase.sceneAllocation}` : isCompleted ? 'done' : `${phase.sceneAllocation} scenes`}
+                            </span>
+                          </div>
+                          {/* Progress bar for active phase */}
+                          {isActive && (
+                            <div className="mt-1 h-0.5 bg-white/6 rounded-full overflow-hidden">
+                              <div className="h-full bg-amber-400/50 rounded-full transition-all" style={{ width: `${progress * 100}%` }} />
                             </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Expandable detail — objective, direction, settings */}
+                      <details className="group">
+                        <summary className="px-3 pb-1.5 text-[10px] text-text-dim cursor-pointer hover:text-text-secondary select-none -mt-0.5">
+                          {phase.objective.slice(0, 80)}{phase.objective.length > 80 ? '...' : ''}
+                        </summary>
+                        <div className="px-3 pb-3 pt-1 border-t border-white/4 space-y-2.5">
+                          {/* Objective */}
+                          <div>
+                            <p className="text-[10px] text-text-secondary leading-relaxed">{phase.objective}</p>
                           </div>
 
-                          {/* Objective */}
-                          <textarea
-                            value={phase.objective}
-                            onChange={(e) => updatePhase(i, { objective: e.target.value })}
-                            placeholder="What should this phase achieve?"
-                            className="bg-transparent text-[11px] text-text-secondary w-full outline-none resize-none mt-1 placeholder:text-text-dim leading-relaxed"
-                            rows={2}
-                            disabled={isCompleted}
-                          />
-
-                          {/* Active phase: direction + actions */}
+                          {/* Direction — active phase only */}
                           {isActive && phase.direction && existingQueue && (
-                            <details className="mt-2" open>
-                              <summary className="text-[9px] text-amber-400/70 uppercase tracking-wider cursor-pointer hover:text-amber-400">Direction</summary>
-                              <p className="mt-1 text-[10px] text-text-secondary leading-relaxed">{phase.direction}</p>
+                            <div>
+                              <label className="text-[9px] text-amber-400/60 uppercase tracking-wider block mb-0.5">Direction</label>
+                              <p className="text-[10px] text-text-secondary leading-relaxed">{phase.direction}</p>
+                            </div>
+                          )}
+
+                          {/* Completion report — completed phase */}
+                          {isCompleted && phase.completionReport && (
+                            <div>
+                              <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Report</label>
+                              <p className="text-[10px] text-text-dim leading-relaxed italic">{phase.completionReport}</p>
+                            </div>
+                          )}
+
+                          {/* Source text */}
+                          {phase.sourceText && (
+                            <details>
+                              <summary className="text-[9px] text-text-dim cursor-pointer hover:text-text-secondary select-none">
+                                Source text · {Math.round(phase.sourceText.length / 4)}t
+                              </summary>
+                              <textarea
+                                value={phase.sourceText}
+                                onChange={(e) => updatePhase(i, { sourceText: e.target.value })}
+                                className="mt-1 bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary font-mono w-full outline-none resize-y leading-relaxed"
+                                rows={6}
+                              />
                             </details>
                           )}
 
-                          {/* Expandable fields — only for non-completed */}
+                          {/* Constraints + expansion + rules — collapsed */}
                           {!isCompleted && (
-                            <details className="mt-2" open={isActive && !phase.direction}>
-                              <summary className="text-[10px] text-text-dim cursor-pointer hover:text-text-secondary select-none">
-                                {phase.sourceText ? `Source · ${Math.round(phase.sourceText.length / 4)}t` : 'Settings'}
+                            <details>
+                              <summary className="text-[9px] text-text-dim cursor-pointer hover:text-text-secondary select-none">
+                                Settings
                                 {phase.constraints ? ' · constraints' : ''}
-                                {phase.worldExpansionHints ? ' · expansion' : ''}
+                                {phase.worldExpansionHints ? ' · expansion hints' : ''}
                               </summary>
-                              <div className="mt-1.5 flex flex-col gap-2">
-                                {/* Source text — prominent when present */}
-                                {phase.sourceText && (
-                                  <div>
-                                    <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Source Text</label>
-                                    <textarea
-                                      value={phase.sourceText}
-                                      onChange={(e) => updatePhase(i, { sourceText: e.target.value })}
-                                      className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary font-mono w-full outline-none resize-y leading-relaxed"
-                                      rows={8}
-                                    />
-                                  </div>
-                                )}
-
-                                {/* Constraints */}
+                              <div className="mt-1.5 space-y-2">
                                 <div>
                                   <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Constraints</label>
                                   <textarea
                                     value={phase.constraints}
                                     onChange={(e) => updatePhase(i, { constraints: e.target.value })}
-                                    placeholder="What must NOT happen in this phase..."
+                                    placeholder="What must NOT happen..."
                                     className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
                                     rows={2}
                                   />
                                 </div>
-
-                                {/* World expansion + structural rules — single row */}
                                 <div>
-                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">World Expansion</label>
+                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">World Expansion Hints</label>
                                   <textarea
                                     value={phase.worldExpansionHints}
                                     onChange={(e) => updatePhase(i, { worldExpansionHints: e.target.value })}
-                                    placeholder="New characters, locations, or systems to add..."
+                                    placeholder="Characters, locations, or systems to introduce..."
                                     className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
                                     rows={1}
                                   />
                                 </div>
-
                                 {phase.structuralRules && (
                                   <div>
                                     <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Structural Rules</label>
@@ -578,39 +583,34 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                                     />
                                   </div>
                                 )}
-
-                                {/* Actions for active phase */}
-                                {isActive && existingQueue && (
-                                  <div className="flex gap-2">
-                                    <button onClick={() => regenerateWorld(i)} disabled={regenerating !== null || !phase.worldExpansionHints}
-                                      className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors disabled:opacity-30">
-                                      {regenerating === 'world' ? 'Expanding...' : 'Re-expand World'}
-                                    </button>
-                                    <button onClick={() => regenerateDirection(i)} disabled={regenerating !== null}
-                                      className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/10 transition-colors disabled:opacity-30">
-                                      {regenerating === 'direction' ? 'Generating...' : 'Re-generate Direction'}
-                                    </button>
-                                  </div>
-                                )}
+                                <div>
+                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Scene Allocation</label>
+                                  <input
+                                    type="number" min={1} max={50}
+                                    value={phase.sceneAllocation}
+                                    onChange={(e) => updatePhase(i, { sceneAllocation: Math.max(1, Number(e.target.value)) })}
+                                    className="bg-bg-overlay border border-border rounded px-2 py-1 text-[10px] text-text-primary w-16 outline-none"
+                                  />
+                                </div>
                               </div>
                             </details>
                           )}
 
-                          {/* Completed phase: completion report */}
-                          {isCompleted && phase.completionReport && (
-                            <p className="text-[10px] text-text-dim mt-1 leading-relaxed italic">{phase.completionReport}</p>
+                          {/* Actions for active phase */}
+                          {isActive && existingQueue && (
+                            <div className="flex gap-2 pt-1">
+                              <button onClick={() => regenerateWorld(i)} disabled={regenerating !== null}
+                                className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/8 transition-colors disabled:opacity-30">
+                                {regenerating === 'world' ? 'Expanding...' : 'Re-expand World'}
+                              </button>
+                              <button onClick={() => regenerateDirection(i)} disabled={regenerating !== null}
+                                className="text-[10px] px-2 py-1 rounded bg-white/5 text-text-dim hover:text-text-secondary hover:bg-white/8 transition-colors disabled:opacity-30">
+                                {regenerating === 'direction' ? 'Generating...' : 'Re-generate Direction'}
+                              </button>
+                            </div>
                           )}
                         </div>
-
-                        {/* Reorder / remove controls */}
-                        {isPending && (
-                          <div className="flex flex-col gap-0.5 shrink-0">
-                            <button onClick={() => movePhase(i, -1)} disabled={i === 0} className="text-text-dim hover:text-text-primary disabled:opacity-20 text-[10px]">&#9650;</button>
-                            <button onClick={() => movePhase(i, 1)} disabled={i === queue.phases.length - 1} className="text-text-dim hover:text-text-primary disabled:opacity-20 text-[10px]">&#9660;</button>
-                            <button onClick={() => removePhase(i)} className="text-text-dim hover:text-payoff text-[10px] mt-1" title="Remove phase">&times;</button>
-                          </div>
-                        )}
-                      </div>
+                      </details>
                     </div>
                   );
                 })}
@@ -627,13 +627,19 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
           </button>
         )}
         {existingQueue && (
-          <button onClick={handleClear}
-            className="px-4 text-xs font-medium py-2 rounded-lg text-payoff hover:bg-white/6 transition-colors">
-            Remove Queue
-          </button>
+          <>
+            <button onClick={handleReset}
+              className="px-4 text-xs font-medium py-2 rounded-lg text-text-dim hover:text-text-secondary hover:bg-white/6 transition-colors">
+              Reset Progress
+            </button>
+            <button onClick={handleClear}
+              className="px-4 text-xs font-medium py-2 rounded-lg text-payoff hover:bg-white/6 transition-colors">
+              Remove Queue
+            </button>
+          </>
         )}
         <div className="flex-1" />
-        {queue && !existingQueue && (
+        {queue && (!existingQueue || (existingQueue.activePhaseIndex === -1 && existingQueue.phases.every((p) => p.status === 'pending'))) && (
           <button
             onClick={handleSave}
             disabled={queue.phases.length === 0 || activating}

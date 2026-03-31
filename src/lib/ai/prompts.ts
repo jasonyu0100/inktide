@@ -187,21 +187,19 @@ THREAD LIFECYCLE:
 
 export const PROMPT_SUMMARY_REQUIREMENT = `
 SUMMARY RULES:
-- Write 3-5 RICH, DETAILED sentences. Every sentence: [Named Character] + [physical action verb] + [concrete consequence].
-- SCALE TO THE SCENE'S WEIGHT. A pivotal confrontation deserves 5 rich sentences with specific details — names, objects, locations, dialogue snippets, physical consequences. A quiet transition needs 3. Never write thin, generic summaries.
-- Include SPECIFICS: what object is handed over, what words are spoken, what physical thing breaks or changes, what the character does with their body. Vague summaries ("he triggered a formation") fail — specific summaries ("he pressed three primeval stones into the east-facing slots of the Monk's formation, causing the central pillar to split and reveal a jade scroll") succeed.
-- EXAMPLE OF GOOD RICHNESS: "Michael Corleone sits across from Sollozzo and McCluskey at the small Italian restaurant in the Bronx, listening to terms he has no intention of accepting. He excuses himself to the bathroom where a pistol has been planted behind the toilet tank. He returns to the table and shoots both men — Sollozzo first between the eyes, then McCluskey through the throat as wine sprays across the white tablecloth. The gun clatters to the floor as Michael walks out in a daze to a waiting car. The killing severs him permanently from his civilian life and hands the Tattaglia family a casus belli they have wanted for months."
+A summary is the prose writer's only brief. It must encode everything that shapes how the scene is written — not just what happens, but the context that makes it land. 3-6 sentences, scaled to the scene's weight.
+
+A good summary includes:
+- CHARACTER NAMES and LOCATION NAMES — never raw IDs. Write "Fang Yuan" not "C-01", write "Qing Mao Mountain" not "L-03". Summaries are prose, not data.
+- SPECIFICS: names, objects, locations, dialogue snippets, physical consequences. Vague summaries fail.
+- CONTEXT that changes how prose is written: time span covered ("Over three months..."), narrative technique ("told as a series of monthly vignettes"), tone or register shifts ("the prose shifts to formal, layered Central Plains diction"), POV approach ("cold internal monologue cataloguing everyone's usefulness"). If the scene covers a week, a month, a year — say so. If it's a montage, a flashback, an intercut — say so. This is not optional decoration, it is essential information that determines what the prose writer produces.
+- EXAMPLE: "Michael Corleone sits across from Sollozzo and McCluskey at the small Italian restaurant in the Bronx, listening to terms he has no intention of accepting. He excuses himself to the bathroom where a pistol has been planted behind the toilet tank. He returns to the table and shoots both men — Sollozzo first between the eyes, then McCluskey through the throat as wine sprays across the white tablecloth. The gun clatters to the floor as Michael walks out in a daze to a waiting car. The killing severs him permanently from his civilian life and hands the Tattaglia family a casus belli they have wanted for months."
 
 QUALITY RULES:
-1. BANNED main verbs: realizes, recognizes, confirms, understands, senses, feels, suspects, observes, watches, notes, decides (internally), resolved (to act). If a character realizes something, write what they DO next — not the realization itself.
-2. BANNED sentence endings: emotions, internal states, abstract consequences, future intentions. These all fail:
-   × "...confirming her suspicions of his ambition" — write what she DOES with the suspicion
-   × "...solidifying the shift in political power" — write the concrete result (who now controls what)
-   × "...she resolved to seek out further discrepancies" — write her SEEKING them, not resolving to
-   × "...recalculating her plans" — write the NEW plan, not the act of recalculating
-   × "...a growing unease settled in his chest" — write the action the unease produces
+1. BANNED main verbs: realizes, recognizes, confirms, understands, senses, feels, suspects, observes, watches, notes, decides (internally), resolved (to act). Write what they DO, not what they think.
+2. BANNED sentence endings: emotions, internal states, abstract consequences, future intentions. End with concrete actions or consequences.
 3. BANNED modifiers: "face etched with...", "expression unreadable", "eyes gleaming with...", "emboldened by...", "a testament to...", "a reminder of...". Show emotion through action.
-4. NO DUPLICATE ACTIONS across scenes. An action in scene 3 cannot repeat in scene 11.
+4. NO DUPLICATE ACTIONS across scenes.
 `;
 
 // ── Character Arc Discipline ─────────────────────────────────────────────────

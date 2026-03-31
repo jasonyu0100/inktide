@@ -59,10 +59,13 @@ export async function generateScenes(
   const prompt = `${ctx}
 
 NARRATIVE SEED: ${seed}
-Use this seed to differentiate your choices from other generations at this branch point. Each seed should produce a distinct narrative direction — different character focus, different thread priorities, different locations, different emotional register. Avoid converging on the same "obvious" next step.
 
 ${arcInstruction}
-${direction.trim() ? `DIRECTION (this takes priority over any patterns in the scene history below):\n${direction}` : 'DIRECTION: Use your own judgment — analyze the branch context above and choose the most compelling next development based on unresolved threads, character tensions, and narrative momentum.'}
+${direction.trim() ? `DIRECTION — THIS IS YOUR PRIMARY BRIEF. Every scene you generate must execute the beats described here. Do not invent scenes that ignore, skip, or contradict these instructions.
+
+The direction may include prose-level guidance: how to write, not just what happens. Time compression, structural techniques, tone shifts, POV style, internal monologue approach, dialogue register, pacing rhythm — any of these can appear in the direction. When they do, they must flow through into your scene summaries. The summary is the last thing the prose writer sees — anything not in the summary is lost. If the direction says "montage of monthly vignettes," the summary must read as compressed monthly snapshots. If it says "black comedy through internal monologue," the summary must set up that register. If it says "formal, layered prose for the Central Plains," the summary must signal that shift.
+
+${direction}` : 'DIRECTION: Use your own judgment — analyze the branch context above and choose the most compelling next development based on unresolved threads, character tensions, and narrative momentum.'}
 ${worldBuildFocus ? (() => {
   const wb = worldBuildFocus;
   const chars = wb.expansionManifest.characters.map((c) => `${c.name} (${c.role})`);
@@ -113,7 +116,7 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST �
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
       "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "world concept name", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "enables|requires|governs|opposes|extends|etc."}]},
       "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
-      "summary": "REQUIRED: 3-5 RICH sentences with specific details — names, objects, locations, dialogue snippets, physical consequences. Each sentence: named character + physical action verb + concrete consequence. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations. Example quality: 'Kael slams the forged treaty onto the table, forcing Mira to deny her signature or admit the alliance was a trap. She chooses silence — which tells every councillor in the room more than any denial could. Lord Hagen rises, overturns his chair, and walks out without a word, taking the northern delegation with him.'"
+      "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES — never raw IDs (no C-01, T-XX, L-03, WK-GEN, A-01 etc). Write as if for a reader: 'Fang Yuan acquires the Liquor worm' not 'C-01 acquires A-05'. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations."
     }
   ]
 }
@@ -871,9 +874,9 @@ async function generateArcPlan(
 
   const prompt = `${ctx}
 
-${direction.trim() ? `DIRECTION:\n${direction}` : 'DIRECTION: Use your judgment — choose the most compelling next development.'}
+${direction.trim() ? `DIRECTION — THIS IS YOUR PRIMARY BRIEF. Your arc plan must execute the beats described here. The direction may include prose-level guidance (time compression, tone shifts, structural techniques, dialogue register) — carry these through into your scene descriptions so the prose writer receives them.\n${direction}` : 'DIRECTION: Use your judgment — choose the most compelling next development.'}
 
-Plan a ${count}-scene arc. For each scene, write ONE sentence describing the key action and which threads it advances. Scenes that collide 2+ threads are preferred.
+Plan a ${count}-scene arc that faithfully executes the direction above. For each scene, write ONE sentence describing the key action and which threads it advances. Include any prose-level guidance from the direction that applies to that scene. Scenes that collide 2+ threads are preferred.
 
 ${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, speed)}
 ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
@@ -943,7 +946,7 @@ async function generateSingleScene(
   const prompt = `${ctx}
 
 ARC: "${arcPlan.arcName}" — ${arcPlan.directionVector}
-${direction.trim() ? `DIRECTION:\n${direction}` : ''}
+${direction.trim() ? `DIRECTION (follow these beats faithfully):\n${direction}` : ''}
 
 ARC PLAN (you are generating the scene marked with →):
 ${planContext}

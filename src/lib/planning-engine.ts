@@ -89,11 +89,19 @@ ${phase.sourceText ? `\nSOURCE MATERIAL (verbatim from plan document — this is
 ${completedSummary ? `COMPLETED PHASES:\n${completedSummary}\n` : ''}
 ${remaining ? `UPCOMING PHASES:\n${remaining}\n` : ''}
 
-${phase.sourceText ? `Generate a BEAT-SPECIFIC direction that translates the SOURCE MATERIAL into concrete scene instructions.
+${phase.sourceText ? `The SOURCE MATERIAL is your primary reference. Follow its SEQUENTIAL ORDER — start from the FIRST beat and work forward. The source's key beats (major plot points, character moments, reveals) are anchors that must happen in order. Between them, you have creative flexibility to add setup, character development, or pacing.
 
-The direction is a SINGLE STRING containing a scene-by-scene blueprint drawn from the source material. Write it as prose paragraphs — one paragraph per scene beat. For each beat: quote or paraphrase the specific source moment, name the POV character and location, reference prose style or dialogue guidance from the source, and note which threads advance.
+PACING: This phase has ${phase.sceneAllocation} scenes total. An arc is typically 3-4 scenes. Your initial direction covers the FIRST ARC ONLY — approximately ${Math.min(4, phase.sceneAllocation)} scenes. That means you should cover roughly ${Math.round(Math.min(4, phase.sceneAllocation) / phase.sceneAllocation * 100)}% of the source material's beats. Do NOT try to cover everything — leave the majority of beats for subsequent arcs. Course correction after each arc will advance the cursor forward through the source material. If the source has chapter breaks, one chapter = one arc is a good heuristic.
 
-The constraints should protect later phases — draw prohibitions from the source material's own structure (e.g. if the source says "she does not yet know," that's a constraint). Do NOT invent constraints that contradict the source material.` : `Generate:
+Write a direction covering the FIRST ARC's beats. The direction is the LAST THING scene generation will see — it won't have access to the source text. So QUOTE the source directly: copy prose samples, dialogue snippets, structural techniques (montage, vignettes, timeskip), tone guidance, and internal monologue style verbatim into the direction. Each beat gets one paragraph that:
+  • Quotes or closely paraphrases the source beat with the source's own character names, locations, actions
+  • Names the POV character and location
+  • Includes any prose style, format, or technique guidance from the source in the source's own words
+  • Notes which threads advance
+
+This is a SINGLE STRING of prose paragraphs. Do not use arrays or numbered lists.
+
+The constraints should protect later phases and LATER BEATS within this phase that are not yet being covered — draw prohibitions from the source material's own structure (e.g. if the source says "she does not yet know," that's a constraint). Do NOT invent constraints that contradict the source material.` : `Generate:
 1. A DIRECTION prompt (2-4 sentences) — advisory guidance, not a script. Describe the FEEL and TRAJECTORY of this phase: what kind of energy it should have, which threads are ripe for development, what the reader should experience. Name characters and threads that are ready to move, but leave room for emergent storytelling. If artifacts already exist in the world, note which ones are ripe — who should acquire, use, or lose them. The world will be expanded before generation — the direction should guide how the new and existing elements interact. The direction must be compatible with the STRUCTURAL RULES above — if the rules demand convergence density or protagonist gravity, the direction must create conditions for those mechanics to fire.
 2. A CONSTRAINTS prompt (1-2 sentences) — what must NOT happen yet. Protect threads, reveals, and artifact transfers that belong to later phases. Keep it to absolute prohibitions, not creative restrictions.`}
 

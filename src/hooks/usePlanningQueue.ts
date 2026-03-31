@@ -42,9 +42,10 @@ export function usePlanningQueue() {
     && activePhase.status === 'active'
     && activePhase.scenesCompleted >= activePhase.sceneAllocation;
 
-  // Build a unique key for this completion event
+  // Build a unique key for this completion event — include phase direction to
+  // distinguish re-runs after queue reset (same branchId/index/count but new direction)
   const completionKey = phaseComplete && queue
-    ? `${branchId}-${queue.activePhaseIndex}-${activePhase.scenesCompleted}`
+    ? `${branchId}-${queue.activePhaseIndex}-${activePhase.scenesCompleted}-${activePhase.direction?.slice(0, 20) ?? ''}`
     : null;
 
   useEffect(() => {
@@ -135,12 +136,12 @@ export function usePlanningQueue() {
         let worldExpanded = false;
         const freshState1 = stateRef.current;
         const freshNarrative1 = freshState1.activeNarrative ?? narrative;
-        if (nextPhase.worldExpansionHints) {
+        if (q.expandWorld !== false) {
           setTransitionStep('Expanding world...');
           const strategy = freshNarrative1.storySettings?.expansionStrategy ?? 'dynamic';
           const expansion = await expandWorld(
             freshNarrative1, freshState1.resolvedEntryKeys, freshState1.currentSceneIndex,
-            nextPhase.worldExpansionHints, 'medium', strategy, nextPhase.sourceText,
+            nextPhase.worldExpansionHints || '', 'medium', strategy, nextPhase.sourceText,
           );
           dispatch({
             type: 'EXPAND_WORLD',

@@ -806,6 +806,8 @@ export type PlanningQueue = {
   phases: PlanningPhase[];
   /** Index of the currently active phase (-1 if none active yet) */
   activePhaseIndex: number;
+  /** Whether to expand the world at phase boundaries using worldExpansionHints (default true) */
+  expandWorld?: boolean;
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluateBranch } from '@/lib/ai/evaluate';
 import { reconstructBranch, type ReconstructionProgress } from '@/lib/ai/reconstruct';
@@ -27,29 +27,45 @@ const STEP_STATUS_ICON: Record<string, string> = {
 
 // ── Scene node in the vertical tree ──────────────────────────────────────────
 
+/** Per-scene override: user can change verdict and/or reason text */
+type SceneOverride = { verdict?: SceneVerdict; reason?: string };
+
 function SceneNode({
   scene,
   arc,
   verdict,
+  originalVerdict,
   reason,
+  isOverridden,
   moveAfter,
   isLast,
   reconStatus,
   onClick,
-  onOverride,
+  onOverrideVerdict,
+  onOverrideReason,
+  onReset,
 }: {
   scene: Scene;
   arc?: Arc;
   verdict: SceneVerdict;
+  originalVerdict: SceneVerdict;
   reason: string;
+  isOverridden: boolean;
   moveAfter?: string;
   isLast: boolean;
   reconStatus?: 'pending' | 'running' | 'done' | 'skipped';
   onClick: () => void;
-  onOverride?: (newVerdict: SceneVerdict) => void;
+  onOverrideVerdict?: (newVerdict: SceneVerdict) => void;
+  onOverrideReason?: (newReason: string) => void;
+  onReset?: () => void;
 }) {
   const cfg = VERDICT_CONFIG[verdict];
   const [expanded, setExpanded] = useState(false);
+  const [editingReason, setEditingReason] = useState(false);
+  const [reasonDraft, setReasonDraft] = useState(reason);
+
+  // Available verdicts: ok, edit, cut — plus the original if it's something else (merge, move, insert)
+  const verdictOptions = [...new Set(['ok', 'edit', 'cut', originalVerdict])] as SceneVerdict[];
 
   return (
     <div className="flex gap-0 min-h-0">
@@ -79,6 +95,9 @@ function SceneNode({
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
               {cfg.label}
             </span>
+            {isOverridden && (
+              <span className="text-[9px] text-violet-400/50">overridden</span>
+            )}
             {verdict === 'move' && moveAfter && (
               <span className="text-[10px] font-mono text-blue-400/70 flex items-center gap-0.5 shrink-0">
                 → after <span className="bg-blue-500/15 px-1 py-0.5 rounded">{moveAfter}</span>
@@ -101,22 +120,79 @@ function SceneNode({
             {scene.summary}
           </p>
 
-          {/* Reason (expandable) */}
-          {expanded && reason && (
+          {/* Reason — always visible when present */}
+          {reason && (
             <p className={`text-[11px] mt-1 leading-snug ${cfg.color} opacity-80`}>
               {reason}
             </p>
           )}
         </button>
 
-        {/* Override to ok — shown when expanded, verdict is not already ok, and not reconstructing */}
-        {expanded && onOverride && verdict !== 'ok' && (
-          <button
-            onClick={() => onOverride('ok')}
-            className="text-[9px] mt-1.5 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 hover:brightness-125 transition-all"
-          >
-            ✓ Keep
-          </button>
+        {/* Expanded: verdict controls + editable reason */}
+        {expanded && onOverrideVerdict && (
+          <div className="mt-1.5 pt-1.5 border-t border-white/5 space-y-1.5">
+            {/* Editable reason */}
+            {onOverrideReason && (
+              editingReason ? (
+                <div className="space-y-1">
+                  <textarea
+                    value={reasonDraft}
+                    onChange={(e) => setReasonDraft(e.target.value)}
+                    className="w-full h-16 bg-white/4 border border-white/10 rounded px-2 py-1 text-[11px] text-text-secondary resize-y focus:outline-none focus:border-violet-500/30"
+                    autoFocus
+                  />
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => { onOverrideReason(reasonDraft); setEditingReason(false); }}
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 hover:brightness-125"
+                    >
+                      Save reason
+                    </button>
+                    <button
+                      onClick={() => { setReasonDraft(reason); setEditingReason(false); }}
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setReasonDraft(reason); setEditingReason(true); }}
+                  className="text-[9px] text-text-dim hover:text-text-secondary transition-colors"
+                >
+                  Edit reason...
+                </button>
+              )
+            )}
+
+            {/* Change verdict */}
+            <div className="space-y-0.5">
+              <span className="text-[9px] text-text-dim uppercase tracking-wider">Change verdict</span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {verdictOptions.filter((v) => v !== verdict).map((v) => {
+                  const c = VERDICT_CONFIG[v];
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => onOverrideVerdict(v)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded ${c.bg} ${c.color} hover:brightness-125 transition-all`}
+                    >
+                      {c.icon} {c.label}
+                    </button>
+                  );
+                })}
+                {isOverridden && onReset && (
+                  <button
+                    onClick={onReset}
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-violet-400/70 hover:text-violet-400 transition-all ml-auto"
+                  >
+                    ↺ Reset to original
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -127,10 +203,7 @@ function SceneNode({
 
 function StatsBar({ sceneEvals }: { sceneEvals: BranchEvaluation['sceneEvals'] }) {
   const counts: Record<SceneVerdict, number> = { ok: 0, edit: 0, merge: 0, cut: 0, insert: 0, move: 0 };
-  // Count merge targets (unique scenes doing absorb work), not merge sources
-  const mergeTargets = new Set(sceneEvals.filter((e) => e.verdict === 'merge' && e.mergeInto).map((e) => e.mergeInto!));
   for (const e of sceneEvals) counts[e.verdict]++;
-  counts.merge = mergeTargets.size;
   return (
     <div className="flex items-center gap-2 text-[10px] font-mono">
       {(['ok', 'edit', 'merge', 'cut', 'insert', 'move'] as SceneVerdict[]).filter((v) => counts[v] > 0).map((v) => {
@@ -182,9 +255,11 @@ export default function BranchEval() {
   const resolvedKeys = state.resolvedEntryKeys;
   const branchId = state.activeBranchId;
 
-  // Load persisted evaluation for current branch
+  // Load persisted evaluation for current branch — this is the immutable LLM result
   const persisted = branchId ? narrative?.branchEvaluations?.[branchId] ?? null : null;
-  const [evaluation, setEvaluation] = useState<BranchEvaluation | null>(persisted);
+  const [baseEvaluation, setBaseEvaluation] = useState<BranchEvaluation | null>(persisted);
+  // User overrides layer: sceneId → partial overrides (verdict, reason)
+  const [overrides, setOverrides] = useState<Map<string, SceneOverride>>(new Map());
   const [loading, setLoading] = useState(false);
   const [reconstructing, setReconstructing] = useState(false);
   const [reconProgress, setReconProgress] = useState<ReconstructionProgress | null>(null);
@@ -193,11 +268,35 @@ export default function BranchEval() {
   const [showGuidance, setShowGuidance] = useState(false);
   const cancelledRef = useRef(false);
 
+  // Merge base evaluation + overrides into effective evaluation for display and reconstruction
+  const evaluation = useMemo<BranchEvaluation | null>(() => {
+    if (!baseEvaluation) return null;
+    if (overrides.size === 0) return baseEvaluation;
+    return {
+      ...baseEvaluation,
+      sceneEvals: baseEvaluation.sceneEvals.map((e) => {
+        const ov = overrides.get(e.sceneId);
+        if (!ov) return e;
+        return {
+          ...e,
+          verdict: ov.verdict ?? e.verdict,
+          reason: ov.reason ?? e.reason,
+          // Clear verdict-specific fields when verdict changes
+          mergeInto: (ov.verdict ?? e.verdict) === 'merge' ? e.mergeInto : undefined,
+          moveAfter: (ov.verdict ?? e.verdict) === 'move' ? e.moveAfter : undefined,
+          insertAfter: (ov.verdict ?? e.verdict) === 'insert' ? e.insertAfter : undefined,
+        };
+      }),
+    };
+  }, [baseEvaluation, overrides]);
+
   // Sync from store when branch changes
   const lastBranchRef = useRef(branchId);
   if (branchId !== lastBranchRef.current) {
     lastBranchRef.current = branchId;
-    setEvaluation(branchId ? narrative?.branchEvaluations?.[branchId] ?? null : null);
+    const restored = branchId ? narrative?.branchEvaluations?.[branchId] ?? null : null;
+    setBaseEvaluation(restored);
+    setOverrides(new Map());
     setReconProgress(null);
     setError(null);
   }
@@ -211,7 +310,8 @@ export default function BranchEval() {
     try {
       const result = await evaluateBranch(narrative, resolvedKeys, branchId, guidance || undefined);
       if (!cancelledRef.current) {
-        setEvaluation(result);
+        setBaseEvaluation(result);
+        setOverrides(new Map());
         dispatch({ type: 'SET_BRANCH_EVALUATION', branchId, evaluation: result });
       }
     } catch (err) {
@@ -437,8 +537,16 @@ export default function BranchEval() {
         )}
 
         {evaluation && !busy && (
-          <div className="mt-1.5">
+          <div className="mt-1.5 flex items-center justify-between">
             <StatsBar sceneEvals={evaluation.sceneEvals} />
+            {overrides.size > 0 && (
+              <button
+                onClick={() => setOverrides(new Map())}
+                className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
+              >
+                Reset {overrides.size} edit{overrides.size > 1 ? 's' : ''}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -478,13 +586,18 @@ export default function BranchEval() {
           <div className="flex flex-col">
             {scenes.map(({ scene, arc }, i) => {
               const ev = verdictMap.get(scene.id);
+              const baseEv = baseEvaluation?.sceneEvals.find((e: SceneEval) => e.sceneId === scene.id);
+              const originalVerdict = baseEv?.verdict ?? 'ok';
+              const hasOverride = overrides.has(scene.id);
               return (
                 <SceneNode
                   key={scene.id}
                   scene={scene}
                   arc={arc}
                   verdict={ev?.verdict ?? 'ok'}
+                  originalVerdict={originalVerdict}
                   reason={ev?.reason ?? ''}
+                  isOverridden={hasOverride}
                   moveAfter={ev?.moveAfter}
                   isLast={i === scenes.length - 1}
                   reconStatus={reconStatusMap.get(scene.id)}
@@ -495,21 +608,28 @@ export default function BranchEval() {
                       dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId: scene.id } });
                     }
                   }}
-                  onOverride={!reconstructing ? (newVerdict) => {
-                    if (!evaluation || !branchId) return;
-                    const updated = { ...evaluation, sceneEvals: evaluation.sceneEvals.map((e) => {
-                      if (e.sceneId === scene.id) {
-                        return { ...e, verdict: newVerdict, mergeInto: undefined };
-                      }
-                      // If this scene was a merge target and the source is being overridden, leave it alone
-                      // If this scene merges INTO the overridden scene, convert to ok
-                      if (e.verdict === 'merge' && e.mergeInto === scene.id && newVerdict === 'cut') {
-                        return { ...e, verdict: 'ok' as SceneVerdict, mergeInto: undefined };
-                      }
-                      return e;
-                    })};
-                    setEvaluation(updated);
-                    dispatch({ type: 'SET_BRANCH_EVALUATION', branchId, evaluation: updated });
+                  onOverrideVerdict={!reconstructing ? (newVerdict: SceneVerdict) => {
+                    setOverrides((prev) => {
+                      const next = new Map(prev);
+                      const existing = next.get(scene.id) ?? {};
+                      next.set(scene.id, { ...existing, verdict: newVerdict });
+                      return next;
+                    });
+                  } : undefined}
+                  onOverrideReason={!reconstructing ? (newReason: string) => {
+                    setOverrides((prev) => {
+                      const next = new Map(prev);
+                      const existing = next.get(scene.id) ?? {};
+                      next.set(scene.id, { ...existing, reason: newReason });
+                      return next;
+                    });
+                  } : undefined}
+                  onReset={!reconstructing && hasOverride ? () => {
+                    setOverrides((prev) => {
+                      const next = new Map(prev);
+                      next.delete(scene.id);
+                      return next;
+                    });
                   } : undefined}
                 />
               );

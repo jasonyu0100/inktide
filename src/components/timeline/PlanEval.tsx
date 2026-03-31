@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluatePlanQuality } from '@/lib/ai/evaluate';
 import { generateScenePlan } from '@/lib/ai/scenes';
 import { resolveEntry, isScene } from '@/types/narrative';
-import type { PlanEvaluation, PlanVerdict, Scene, Arc } from '@/types/narrative';
+import type { PlanEvaluation, PlanSceneEval, PlanVerdict, Scene, Arc } from '@/types/narrative';
 import { PLAN_CONCURRENCY } from '@/lib/constants';
 
 // ── Verdict visuals ──────────────────────────────────────────────────────────
@@ -15,24 +15,34 @@ const VERDICT_CONFIG: Record<PlanVerdict, { icon: string; color: string; bg: str
   edit: { icon: '~', color: 'text-amber-400',   bg: 'bg-amber-500/15',  label: 'Edit' },
 };
 
+type PlanOverride = { verdict?: PlanVerdict; issues?: string[] };
+
 // ── Scene node ───────────────────────────────────────────────────────────────
 
 function PlanNode({
   scene,
   arc,
   verdict,
+  originalVerdict,
   issues,
+  isOverridden,
   isLast,
   replanStatus,
   onClick,
+  onOverrideVerdict,
+  onReset,
 }: {
   scene: Scene;
   arc?: Arc;
   verdict: PlanVerdict;
+  originalVerdict: PlanVerdict;
   issues: string[];
+  isOverridden: boolean;
   isLast: boolean;
   replanStatus?: 'pending' | 'running' | 'done' | 'error';
   onClick: () => void;
+  onOverrideVerdict?: (v: PlanVerdict) => void;
+  onReset?: () => void;
 }) {
   const cfg = VERDICT_CONFIG[verdict];
   const [expanded, setExpanded] = useState(false);
@@ -48,42 +58,79 @@ function PlanNode({
         {!isLast && <div className="w-px flex-1 bg-white/10 min-h-3" />}
       </div>
 
-      <button
-        onClick={() => { setExpanded((e) => !e); onClick(); }}
-        className="text-left flex-1 pb-2 pl-1.5 min-w-0"
-      >
-        <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[10px] bg-white/6 text-text-secondary px-1.5 py-0.5 rounded shrink-0">
-            {scene.id}
-          </span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
-            {cfg.label}
-          </span>
-          {replanStatus && replanStatus !== 'pending' && (
-            <span className={`text-[9px] font-mono ${replanStatus === 'done' ? 'text-emerald-400/60' : replanStatus === 'running' ? 'text-white/50 animate-pulse' : replanStatus === 'error' ? 'text-red-400/60' : 'text-white/20'}`}>
-              {replanStatus === 'done' ? '✓' : replanStatus === 'running' ? '◎' : replanStatus === 'error' ? '✕' : '·'}
+      <div className="flex-1 pb-2 pl-1.5 min-w-0">
+        <button
+          onClick={() => { setExpanded((e) => !e); onClick(); }}
+          className="text-left w-full"
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] bg-white/6 text-text-secondary px-1.5 py-0.5 rounded shrink-0">
+              {scene.id}
             </span>
-          )}
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
+              {cfg.label}
+            </span>
+            {isOverridden && (
+              <span className="text-[9px] text-violet-400/50">overridden</span>
+            )}
+            {replanStatus && replanStatus !== 'pending' && (
+              <span className={`text-[9px] font-mono ${replanStatus === 'done' ? 'text-emerald-400/60' : replanStatus === 'running' ? 'text-white/50 animate-pulse' : replanStatus === 'error' ? 'text-red-400/60' : 'text-white/20'}`}>
+                {replanStatus === 'done' ? '✓' : replanStatus === 'running' ? '◎' : replanStatus === 'error' ? '✕' : '·'}
+              </span>
+            )}
+            {issues.length > 0 && (
+              <span className="text-[9px] text-amber-400/50">{issues.length} issue{issues.length !== 1 ? 's' : ''}</span>
+            )}
+            {arc && <span className="text-[10px] text-text-dim truncate">{arc.name}</span>}
+          </div>
+
+          <p className="text-xs mt-0.5 leading-snug text-text-secondary truncate">
+            {scene.summary}
+          </p>
+
+          {/* Issues — always visible */}
           {issues.length > 0 && (
-            <span className="text-[9px] text-amber-400/50">{issues.length} issue{issues.length !== 1 ? 's' : ''}</span>
+            <ul className="mt-1 space-y-0.5">
+              {issues.map((issue, i) => (
+                <li key={i} className="text-[10px] text-amber-400/80 leading-snug pl-2 before:content-['·'] before:mr-1 before:text-amber-400/40">
+                  {issue}
+                </li>
+              ))}
+            </ul>
           )}
-          {arc && <span className="text-[10px] text-text-dim truncate">{arc.name}</span>}
-        </div>
+        </button>
 
-        <p className="text-xs mt-0.5 leading-snug text-text-secondary truncate">
-          {scene.summary}
-        </p>
-
-        {expanded && issues.length > 0 && (
-          <ul className="mt-1 space-y-0.5">
-            {issues.map((issue, i) => (
-              <li key={i} className="text-[10px] text-amber-400/80 leading-snug pl-2 before:content-['·'] before:mr-1 before:text-amber-400/40">
-                {issue}
-              </li>
-            ))}
-          </ul>
+        {/* Expanded: verdict controls */}
+        {expanded && onOverrideVerdict && (
+          <div className="mt-1.5 pt-1.5 border-t border-white/5">
+            <div className="space-y-0.5">
+              <span className="text-[9px] text-text-dim uppercase tracking-wider">Change verdict</span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {(['ok', 'edit'] as PlanVerdict[]).filter((v) => v !== verdict).map((v) => {
+                  const c = VERDICT_CONFIG[v];
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => onOverrideVerdict(v)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded ${c.bg} ${c.color} hover:brightness-125 transition-all`}
+                    >
+                      {c.icon} {c.label}
+                    </button>
+                  );
+                })}
+                {isOverridden && onReset && (
+                  <button
+                    onClick={onReset}
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-violet-400/70 hover:text-violet-400 transition-all ml-auto"
+                  >
+                    ↺ Reset to original
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         )}
-      </button>
+      </div>
     </div>
   );
 }
@@ -97,7 +144,8 @@ export default function PlanEval() {
   const branchId = state.activeBranchId;
 
   const persisted = branchId ? narrative?.planEvaluations?.[branchId] ?? null : null;
-  const [evaluation, setEvaluation] = useState<PlanEvaluation | null>(persisted);
+  const [baseEvaluation, setBaseEvaluation] = useState<PlanEvaluation | null>(persisted);
+  const [overrides, setOverrides] = useState<Map<string, PlanOverride>>(new Map());
   const [loading, setLoading] = useState(false);
   const [replanning, setReplanning] = useState(false);
   const [replanStatuses, setReplanStatuses] = useState<Record<string, 'pending' | 'running' | 'done' | 'error'>>({});
@@ -107,10 +155,25 @@ export default function PlanEval() {
   const [showGuidance, setShowGuidance] = useState(false);
   const cancelledRef = useRef(false);
 
+  // Merge base + overrides
+  const evaluation = useMemo<PlanEvaluation | null>(() => {
+    if (!baseEvaluation) return null;
+    if (overrides.size === 0) return baseEvaluation;
+    return {
+      ...baseEvaluation,
+      sceneEvals: baseEvaluation.sceneEvals.map((e) => {
+        const ov = overrides.get(e.sceneId);
+        if (!ov) return e;
+        return { ...e, verdict: ov.verdict ?? e.verdict, issues: ov.issues ?? e.issues };
+      }),
+    };
+  }, [baseEvaluation, overrides]);
+
   const lastBranchRef = useRef(branchId);
   if (branchId !== lastBranchRef.current) {
     lastBranchRef.current = branchId;
-    setEvaluation(branchId ? narrative?.planEvaluations?.[branchId] ?? null : null);
+    setBaseEvaluation(branchId ? narrative?.planEvaluations?.[branchId] ?? null : null);
+    setOverrides(new Map());
     setReplanStatuses({});
     setReplanProgress(null);
     setError(null);
@@ -125,7 +188,8 @@ export default function PlanEval() {
     try {
       const result = await evaluatePlanQuality(narrative, resolvedKeys, branchId, guidance || undefined);
       if (!cancelledRef.current) {
-        setEvaluation(result);
+        setBaseEvaluation(result);
+        setOverrides(new Map());
         dispatch({ type: 'SET_PLAN_EVALUATION', branchId, evaluation: result });
       }
     } catch (err) {
@@ -310,17 +374,27 @@ export default function PlanEval() {
         {error && <p className="mt-1 text-[10px] text-red-400">{error}</p>}
 
         {evaluation && !busy && (
-          <div className="mt-1.5 flex items-center gap-2 text-[10px] font-mono">
-            {(() => {
-              const ok = evaluation.sceneEvals.filter((e) => e.verdict === 'ok').length;
-              const edit = evaluation.sceneEvals.filter((e) => e.verdict === 'edit').length;
-              return (
-                <>
-                  {ok > 0 && <span className="text-emerald-400 flex items-center gap-0.5"><span className="text-[9px]">✓</span>{ok}</span>}
-                  {edit > 0 && <span className="text-amber-400 flex items-center gap-0.5"><span className="text-[9px]">~</span>{edit}</span>}
-                </>
-              );
-            })()}
+          <div className="mt-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[10px] font-mono">
+              {(() => {
+                const ok = evaluation.sceneEvals.filter((e) => e.verdict === 'ok').length;
+                const edit = evaluation.sceneEvals.filter((e) => e.verdict === 'edit').length;
+                return (
+                  <>
+                    {ok > 0 && <span className="text-emerald-400 flex items-center gap-0.5"><span className="text-[9px]">✓</span>{ok}</span>}
+                    {edit > 0 && <span className="text-amber-400 flex items-center gap-0.5"><span className="text-[9px]">~</span>{edit}</span>}
+                  </>
+                );
+              })()}
+            </div>
+            {overrides.size > 0 && (
+              <button
+                onClick={() => setOverrides(new Map())}
+                className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
+              >
+                Reset {overrides.size} edit{overrides.size > 1 ? 's' : ''}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -337,7 +411,7 @@ export default function PlanEval() {
               <div className="mt-2">
                 <span className="text-[10px] text-amber-400 font-medium">Recurring issues:</span>
                 <ul className="mt-0.5 space-y-0.5">
-                  {evaluation.patterns.map((r, i) => (
+                  {evaluation.patterns.map((r: string, i: number) => (
                     <li key={i} className="text-[10px] text-text-dim pl-2 before:content-['·'] before:mr-1 before:text-amber-400/50">
                       {r}
                     </li>
@@ -352,13 +426,16 @@ export default function PlanEval() {
           <div className="flex flex-col">
             {scenes.map(({ scene, arc }, i) => {
               const ev = verdictMap.get(scene.id);
+              const baseEv = baseEvaluation?.sceneEvals.find((e: PlanSceneEval) => e.sceneId === scene.id);
               return (
                 <PlanNode
                   key={scene.id}
                   scene={scene}
                   arc={arc}
                   verdict={ev?.verdict ?? 'ok'}
+                  originalVerdict={baseEv?.verdict ?? 'ok'}
                   issues={ev?.issues ?? []}
+                  isOverridden={overrides.has(scene.id)}
                   isLast={i === scenes.length - 1}
                   replanStatus={replanStatuses[scene.id]}
                   onClick={() => {
@@ -368,6 +445,20 @@ export default function PlanEval() {
                       dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId: scene.id } });
                     }
                   }}
+                  onOverrideVerdict={!replanning ? (v: PlanVerdict) => {
+                    setOverrides((prev) => {
+                      const next = new Map(prev);
+                      next.set(scene.id, { ...next.get(scene.id), verdict: v });
+                      return next;
+                    });
+                  } : undefined}
+                  onReset={!replanning && overrides.has(scene.id) ? () => {
+                    setOverrides((prev) => {
+                      const next = new Map(prev);
+                      next.delete(scene.id);
+                      return next;
+                    });
+                  } : undefined}
                 />
               );
             })}

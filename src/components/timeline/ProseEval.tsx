@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { evaluateProseQuality } from '@/lib/ai/evaluate';
 import { rewriteSceneProse } from '@/lib/ai';
 import { resolveEntry, isScene } from '@/types/narrative';
-import type { ProseEvaluation, ProseVerdict, Scene, Arc } from '@/types/narrative';
+import type { ProseEvaluation, ProseSceneEval, ProseVerdict, Scene, Arc } from '@/types/narrative';
 import { PROSE_CONCURRENCY } from '@/lib/constants';
 
 // ── Verdict visuals ──────────────────────────────────────────────────────────
@@ -15,24 +15,34 @@ const VERDICT_CONFIG: Record<ProseVerdict, { icon: string; color: string; bg: st
   edit: { icon: '✎', color: 'text-amber-400',   bg: 'bg-amber-500/15',  label: 'Edit' },
 };
 
+type ProseOverride = { verdict?: ProseVerdict; issues?: string[] };
+
 // ── Scene node ───────────────────────────────────────────────────────────────
 
 function ProseNode({
   scene,
   arc,
   verdict,
+  originalVerdict,
   issues,
+  isOverridden,
   isLast,
   rewriteStatus,
   onClick,
+  onOverrideVerdict,
+  onReset,
 }: {
   scene: Scene;
   arc?: Arc;
   verdict: ProseVerdict;
+  originalVerdict: ProseVerdict;
   issues: string[];
+  isOverridden: boolean;
   isLast: boolean;
   rewriteStatus?: 'pending' | 'running' | 'done' | 'error';
   onClick: () => void;
+  onOverrideVerdict?: (v: ProseVerdict) => void;
+  onReset?: () => void;
 }) {
   const cfg = VERDICT_CONFIG[verdict];
   const [expanded, setExpanded] = useState(false);
@@ -48,42 +58,79 @@ function ProseNode({
         {!isLast && <div className="w-px flex-1 bg-white/10 min-h-3" />}
       </div>
 
-      <button
-        onClick={() => { setExpanded((e) => !e); onClick(); }}
-        className="text-left flex-1 pb-2 pl-1.5 min-w-0"
-      >
-        <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[10px] bg-white/6 text-text-secondary px-1.5 py-0.5 rounded shrink-0">
-            {scene.id}
-          </span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
-            {cfg.label}
-          </span>
-          {rewriteStatus && rewriteStatus !== 'pending' && (
-            <span className={`text-[9px] font-mono ${rewriteStatus === 'done' ? 'text-emerald-400/60' : rewriteStatus === 'running' ? 'text-white/50 animate-pulse' : rewriteStatus === 'error' ? 'text-red-400/60' : 'text-white/20'}`}>
-              {rewriteStatus === 'done' ? '✓' : rewriteStatus === 'running' ? '◎' : rewriteStatus === 'error' ? '✕' : '·'}
+      <div className="flex-1 pb-2 pl-1.5 min-w-0">
+        <button
+          onClick={() => { setExpanded((e) => !e); onClick(); }}
+          className="text-left w-full"
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] bg-white/6 text-text-secondary px-1.5 py-0.5 rounded shrink-0">
+              {scene.id}
             </span>
-          )}
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
+              {cfg.label}
+            </span>
+            {isOverridden && (
+              <span className="text-[9px] text-violet-400/50">overridden</span>
+            )}
+            {rewriteStatus && rewriteStatus !== 'pending' && (
+              <span className={`text-[9px] font-mono ${rewriteStatus === 'done' ? 'text-emerald-400/60' : rewriteStatus === 'running' ? 'text-white/50 animate-pulse' : rewriteStatus === 'error' ? 'text-red-400/60' : 'text-white/20'}`}>
+                {rewriteStatus === 'done' ? '✓' : rewriteStatus === 'running' ? '◎' : rewriteStatus === 'error' ? '✕' : '·'}
+              </span>
+            )}
+            {issues.length > 0 && (
+              <span className="text-[9px] text-amber-400/50">{issues.length} issue{issues.length !== 1 ? 's' : ''}</span>
+            )}
+            {arc && <span className="text-[10px] text-text-dim truncate">{arc.name}</span>}
+          </div>
+
+          <p className="text-xs mt-0.5 leading-snug text-text-secondary truncate">
+            {scene.summary}
+          </p>
+
+          {/* Issues — always visible */}
           {issues.length > 0 && (
-            <span className="text-[9px] text-amber-400/50">{issues.length} issue{issues.length !== 1 ? 's' : ''}</span>
+            <ul className="mt-1 space-y-0.5">
+              {issues.map((issue, i) => (
+                <li key={i} className="text-[10px] text-amber-400/80 leading-snug pl-2 before:content-['·'] before:mr-1 before:text-amber-400/40">
+                  {issue}
+                </li>
+              ))}
+            </ul>
           )}
-          {arc && <span className="text-[10px] text-text-dim truncate">{arc.name}</span>}
-        </div>
+        </button>
 
-        <p className="text-xs mt-0.5 leading-snug text-text-secondary truncate">
-          {scene.summary}
-        </p>
-
-        {expanded && issues.length > 0 && (
-          <ul className="mt-1 space-y-0.5">
-            {issues.map((issue, i) => (
-              <li key={i} className="text-[10px] text-amber-400/80 leading-snug pl-2 before:content-['·'] before:mr-1 before:text-amber-400/40">
-                {issue}
-              </li>
-            ))}
-          </ul>
+        {/* Expanded: verdict controls */}
+        {expanded && onOverrideVerdict && (
+          <div className="mt-1.5 pt-1.5 border-t border-white/5">
+            <div className="space-y-0.5">
+              <span className="text-[9px] text-text-dim uppercase tracking-wider">Change verdict</span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {(['ok', 'edit'] as ProseVerdict[]).filter((v) => v !== verdict).map((v) => {
+                  const c = VERDICT_CONFIG[v];
+                  return (
+                    <button
+                      key={v}
+                      onClick={() => onOverrideVerdict(v)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded ${c.bg} ${c.color} hover:brightness-125 transition-all`}
+                    >
+                      {c.icon} {c.label}
+                    </button>
+                  );
+                })}
+                {isOverridden && onReset && (
+                  <button
+                    onClick={onReset}
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-violet-400/70 hover:text-violet-400 transition-all ml-auto"
+                  >
+                    ↺ Reset to original
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         )}
-      </button>
+      </div>
     </div>
   );
 }
@@ -118,7 +165,8 @@ export default function ProseEval() {
   const branchId = state.activeBranchId;
 
   const persisted = branchId ? narrative?.proseEvaluations?.[branchId] ?? null : null;
-  const [evaluation, setEvaluation] = useState<ProseEvaluation | null>(persisted);
+  const [baseEvaluation, setBaseEvaluation] = useState<ProseEvaluation | null>(persisted);
+  const [overrides, setOverrides] = useState<Map<string, ProseOverride>>(new Map());
   const [loading, setLoading] = useState(false);
   const [rewriting, setRewriting] = useState(false);
   const [rewriteStatuses, setRewriteStatuses] = useState<Record<string, 'pending' | 'running' | 'done' | 'error'>>({});
@@ -128,11 +176,26 @@ export default function ProseEval() {
   const [showGuidance, setShowGuidance] = useState(false);
   const cancelledRef = useRef(false);
 
+  // Merge base + overrides
+  const evaluation = useMemo<ProseEvaluation | null>(() => {
+    if (!baseEvaluation) return null;
+    if (overrides.size === 0) return baseEvaluation;
+    return {
+      ...baseEvaluation,
+      sceneEvals: baseEvaluation.sceneEvals.map((e) => {
+        const ov = overrides.get(e.sceneId);
+        if (!ov) return e;
+        return { ...e, verdict: ov.verdict ?? e.verdict, issues: ov.issues ?? e.issues };
+      }),
+    };
+  }, [baseEvaluation, overrides]);
+
   // Sync from store when branch changes
   const lastBranchRef = useRef(branchId);
   if (branchId !== lastBranchRef.current) {
     lastBranchRef.current = branchId;
-    setEvaluation(branchId ? narrative?.proseEvaluations?.[branchId] ?? null : null);
+    setBaseEvaluation(branchId ? narrative?.proseEvaluations?.[branchId] ?? null : null);
+    setOverrides(new Map());
     setRewriteStatuses({});
     setRewriteProgress(null);
     setError(null);
@@ -147,7 +210,8 @@ export default function ProseEval() {
     try {
       const result = await evaluateProseQuality(narrative, resolvedKeys, branchId, guidance || undefined);
       if (!cancelledRef.current) {
-        setEvaluation(result);
+        setBaseEvaluation(result);
+        setOverrides(new Map());
         dispatch({ type: 'SET_PROSE_EVALUATION', branchId, evaluation: result });
       }
     } catch (err) {
@@ -168,7 +232,6 @@ export default function ProseEval() {
     setError(null);
     cancelledRef.current = false;
 
-    // Initialize statuses
     const statuses: Record<string, 'pending' | 'running' | 'done' | 'error'> = {};
     for (const e of edits) statuses[e.sceneId] = 'pending';
     setRewriteStatuses({ ...statuses });
@@ -338,8 +401,16 @@ export default function ProseEval() {
         {error && <p className="mt-1 text-[10px] text-red-400">{error}</p>}
 
         {evaluation && !busy && (
-          <div className="mt-1.5">
+          <div className="mt-1.5 flex items-center justify-between">
             <ProseStatsBar sceneEvals={evaluation.sceneEvals} />
+            {overrides.size > 0 && (
+              <button
+                onClick={() => setOverrides(new Map())}
+                className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
+              >
+                Reset {overrides.size} edit{overrides.size > 1 ? 's' : ''}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -356,7 +427,7 @@ export default function ProseEval() {
               <div className="mt-2">
                 <span className="text-[10px] text-amber-400 font-medium">Recurring issues:</span>
                 <ul className="mt-0.5 space-y-0.5">
-                  {evaluation.patterns.map((r, i) => (
+                  {evaluation.patterns.map((r: string, i: number) => (
                     <li key={i} className="text-[10px] text-text-dim pl-2 before:content-['·'] before:mr-1 before:text-amber-400/50">
                       {r}
                     </li>
@@ -371,13 +442,16 @@ export default function ProseEval() {
           <div className="flex flex-col">
             {scenes.map(({ scene, arc }, i) => {
               const ev = verdictMap.get(scene.id);
+              const baseEv = baseEvaluation?.sceneEvals.find((e: ProseSceneEval) => e.sceneId === scene.id);
               return (
                 <ProseNode
                   key={scene.id}
                   scene={scene}
                   arc={arc}
                   verdict={ev?.verdict ?? 'ok'}
+                  originalVerdict={baseEv?.verdict ?? 'ok'}
                   issues={ev?.issues ?? []}
+                  isOverridden={overrides.has(scene.id)}
                   isLast={i === scenes.length - 1}
                   rewriteStatus={rewriteStatuses[scene.id]}
                   onClick={() => {
@@ -387,6 +461,20 @@ export default function ProseEval() {
                       dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId: scene.id } });
                     }
                   }}
+                  onOverrideVerdict={!rewriting ? (v: ProseVerdict) => {
+                    setOverrides((prev) => {
+                      const next = new Map(prev);
+                      next.set(scene.id, { ...next.get(scene.id), verdict: v });
+                      return next;
+                    });
+                  } : undefined}
+                  onReset={!rewriting && overrides.has(scene.id) ? () => {
+                    setOverrides((prev) => {
+                      const next = new Map(prev);
+                      next.delete(scene.id);
+                      return next;
+                    });
+                  } : undefined}
                 />
               );
             })}

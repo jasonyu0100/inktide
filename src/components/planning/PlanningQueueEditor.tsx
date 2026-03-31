@@ -354,59 +354,63 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
         <div className="overflow-y-auto">
           {/* ── Create view ──────────────────────────────────────────── */}
           {!queue && (
-            <div className="p-6">
-              {/* Paradigm selector */}
-              <div className="grid grid-cols-2 gap-3 mb-5">
-                {/* Outlines */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] uppercase tracking-widest text-text-dim font-mono">Outlines</span>
-                    <span className="text-[9px] text-text-dim leading-snug">Dynamic guidelines with creative freedom</span>
-                  </div>
-                  {([
-                    { mode: 'templates' as const, label: 'Templates', desc: 'Story structure archetypes' },
-                    { mode: 'ai-outline' as const, label: 'AI Outline', desc: 'Generated from story state' },
-                    { mode: 'custom-outline' as const, label: 'Custom Outline', desc: 'Write your own outline' },
-                  ]).map(({ mode, label, desc }) => (
-                    <button
-                      key={mode}
-                      onClick={() => setCreateMode(mode)}
-                      className={`w-full text-left rounded-lg border px-3 py-2 transition ${
-                        createMode === mode
-                          ? 'border-white/20 bg-white/8'
-                          : 'border-white/6 bg-white/2 hover:border-white/12 hover:bg-white/4'
-                      }`}
-                    >
-                      <span className="text-[11px] font-medium text-text-primary block">{label}</span>
-                      <span className="text-[9px] text-text-dim">{desc}</span>
-                    </button>
-                  ))}
-                </div>
-                {/* Plans */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] uppercase tracking-widest text-text-dim font-mono">Plans</span>
-                    <span className="text-[9px] text-text-dim leading-snug">Explicit instructions trickled into scenes</span>
-                  </div>
-                  {([
-                    { mode: 'ai-plan' as const, label: 'AI Plan', desc: 'Full treatment from story state' },
-                    { mode: 'custom-plan' as const, label: 'Custom Plan', desc: 'Paste a story bible or treatment' },
-                  ]).map(({ mode, label, desc }) => (
-                    <button
-                      key={mode}
-                      onClick={() => setCreateMode(mode)}
-                      className={`w-full text-left rounded-lg border px-3 py-2 transition ${
-                        createMode === mode
-                          ? 'border-white/20 bg-white/8'
-                          : 'border-white/6 bg-white/2 hover:border-white/12 hover:bg-white/4'
-                      }`}
-                    >
-                      <span className="text-[11px] font-medium text-text-primary block">{label}</span>
-                      <span className="text-[9px] text-text-dim">{desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div className="p-5">
+              {/* Mode tabs — outline vs plan */}
+              {(() => {
+                const isOutline = createMode === 'templates' || createMode === 'ai-outline' || createMode === 'custom-outline';
+                const isPlan = createMode === 'ai-plan' || createMode === 'custom-plan';
+                return (
+                  <>
+                    <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4">
+                      <button
+                        onClick={() => setCreateMode('templates')}
+                        className={`flex-1 py-2 text-[11px] font-medium rounded-md transition-colors ${isOutline ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'}`}
+                      >
+                        Outline
+                      </button>
+                      <button
+                        onClick={() => setCreateMode('ai-plan')}
+                        className={`flex-1 py-2 text-[11px] font-medium rounded-md transition-colors ${isPlan ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'}`}
+                      >
+                        Plan
+                      </button>
+                    </div>
+
+                    {/* Sub-options within the selected mode */}
+                    <div className="flex gap-1.5 mb-5">
+                      {isOutline && ([
+                        { mode: 'templates' as CreateMode, label: 'Templates' },
+                        { mode: 'ai-outline' as CreateMode, label: 'AI Generated' },
+                        { mode: 'custom-outline' as CreateMode, label: 'Custom' },
+                      ]).map(({ mode, label }) => (
+                        <button
+                          key={mode}
+                          onClick={() => setCreateMode(mode)}
+                          className={`text-[10px] font-medium px-3 py-1.5 rounded-lg transition ${
+                            createMode === mode ? 'bg-white/12 text-text-primary' : 'text-text-dim hover:text-text-secondary hover:bg-white/6'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      {isPlan && ([
+                        { mode: 'ai-plan' as CreateMode, label: 'AI Generated' },
+                        { mode: 'custom-plan' as CreateMode, label: 'Custom' },
+                      ]).map(({ mode, label }) => (
+                        <button
+                          key={mode}
+                          onClick={() => setCreateMode(mode)}
+                          className={`text-[10px] font-medium px-3 py-1.5 rounded-lg transition ${
+                            createMode === mode ? 'bg-white/12 text-text-primary' : 'text-text-dim hover:text-text-secondary hover:bg-white/6'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
 
               {/* Templates */}
               {createMode === 'templates' && (

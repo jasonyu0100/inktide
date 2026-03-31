@@ -415,7 +415,7 @@ export function StoryReader({
 
               {/* Audio All — only available when voice is configured and scenes have prose */}
               {(() => {
-                if (!narrative.storySettings?.audioVoiceId) return null;
+                if (!narrative.storySettings?.audioVoice) return null;
                 const missingAudio = scenes.filter((s) =>
                   (s.prose || proseCache[s.id]?.status === 'ready') &&
                   audioCache[s.id]?.status !== 'ready'

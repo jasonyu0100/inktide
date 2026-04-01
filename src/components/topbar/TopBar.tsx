@@ -474,6 +474,14 @@ export default function TopBar() {
       .filter((e): e is Scene => !!e && isScene(e));
   }, [narrative, state.resolvedEntryKeys]);
 
+  // Export availability flags
+  const exportAvailability = useMemo(() => ({
+    hasProse: allScenes.some((s) => s.prose),
+    hasPlans: allScenes.some((s) => s.plan),
+    hasSummaries: allScenes.some((s) => s.summary),
+    hasAudio: allScenes.some((s) => s.audioUrl),
+  }), [allScenes]);
+
   const scorecard = useMemo(() => {
     if (allScenes.length === 0 || !narrative) return null;
     const raw = computeRawForceTotals(allScenes);
@@ -1207,15 +1215,15 @@ export default function TopBar() {
                   <div className="px-3 pt-1.5 pb-1">
                     <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Copy to Clipboard</span>
                   </div>
-                  <button onClick={() => copyAllText('prose')} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                  <button onClick={() => copyAllText('prose')} disabled={!exportAvailability.hasProse} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasProse ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                     All Prose
                   </button>
-                  <button onClick={() => copyAllText('plan')} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                  <button onClick={() => copyAllText('plan')} disabled={!exportAvailability.hasPlans} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasPlans ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                     All Plans
                   </button>
-                  <button onClick={() => copyAllText('summary')} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                  <button onClick={() => copyAllText('summary')} disabled={!exportAvailability.hasSummaries} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasSummaries ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                     All Summaries
                   </button>
@@ -1223,11 +1231,11 @@ export default function TopBar() {
                   <div className="px-3 pt-1.5 pb-1">
                     <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Export</span>
                   </div>
-                  <button onClick={handleExportEpub} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                  <button onClick={handleExportEpub} disabled={!exportAvailability.hasProse} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasProse ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <IconBook size={14} className="text-text-dim shrink-0" />
                     EPUB
                   </button>
-                  <button onClick={handleExportAudio} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                  <button onClick={handleExportAudio} disabled={!exportAvailability.hasAudio} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasAudio ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
                     Audio
                   </button>

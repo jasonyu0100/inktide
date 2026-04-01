@@ -366,6 +366,7 @@ export default function WorldGraph() {
 
     svg.call(zoom);
     zoomRef.current = zoom;
+    svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.9));
 
     // Click on empty canvas → revert inspector to current scene
     svg.on('click', (event: MouseEvent) => {
@@ -409,7 +410,9 @@ export default function WorldGraph() {
           .distance(160),
       )
       .force('charge', d3.forceManyBody<GraphNode>().strength(-400))
-      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('center', d3.forceCenter(0, 0))
+      .force('x', d3.forceX(0).strength(0.05))
+      .force('y', d3.forceY(0).strength(0.05))
       .force(
         'collide',
         d3.forceCollide<GraphNode>().radius((d) => {

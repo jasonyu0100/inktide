@@ -152,6 +152,8 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       .force('link', d3.forceLink<WKNode, WKLink>([]).id((d) => d.id).distance(140))
       .force('charge', d3.forceManyBody().strength(-500))
       .force('center', d3.forceCenter(0, 0))
+      .force('x', d3.forceX(0).strength(0.05))
+      .force('y', d3.forceY(0).strength(0.05))
       .force('collide', d3.forceCollide<WKNode>().radius(40));
     simRef.current = sim;
 

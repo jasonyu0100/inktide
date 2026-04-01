@@ -128,9 +128,14 @@ export default function ThreadGraphView({
     const allThreads = Object.values(narrative.threads);
     const ACTIVE_STATUSES = new Set(['active', 'escalating', 'critical']);
 
+    // Only show threads that have been introduced by the current scene index
+    const visibleKeys = new Set(resolvedKeys.slice(0, currentIndex + 1));
+
     const visibleThreads = mode === 'pulse'
       ? allThreads.filter(t => sceneMutatedThreads.has(t.id))
-      : allThreads;
+      : allThreads.filter(t =>
+          mutationCounts.has(t.id) || visibleKeys.has(t.openedAt)
+        );
 
     const nodeIds = new Set(visibleThreads.map(t => t.id));
 
@@ -152,7 +157,7 @@ export default function ThreadGraphView({
     const links = buildLinks(narrative, nodeIds);
 
     return { nodes, links };
-  }, [narrative, mode, statuses, mutationCounts, sceneMutatedThreads]);
+  }, [narrative, resolvedKeys, currentIndex, mode, statuses, mutationCounts, sceneMutatedThreads]);
 
   // ── Initial SVG setup (once) ──
   useEffect(() => {
@@ -197,6 +202,8 @@ export default function ThreadGraphView({
       .force('link', d3.forceLink<TNode, TLink>([]).id((d) => d.id).distance(160))
       .force('charge', d3.forceManyBody().strength(-400))
       .force('center', d3.forceCenter(0, 0))
+      .force('x', d3.forceX(0).strength(0.05))
+      .force('y', d3.forceY(0).strength(0.05))
       .force('collide', d3.forceCollide<TNode>().radius(50));
     simRef.current = sim;
 

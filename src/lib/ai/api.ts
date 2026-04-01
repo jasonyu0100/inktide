@@ -1,5 +1,5 @@
 import { apiHeaders } from '@/lib/api-headers';
-import { DEFAULT_MODEL, DEFAULT_REASONING_BUDGET } from '@/lib/constants';
+import { DEFAULT_MODEL, DEFAULT_REASONING_BUDGET, API_TIMEOUT_MS, API_STREAM_TIMEOUT_MS } from '@/lib/constants';
 
 export async function callGenerateStream(
   prompt: string,
@@ -16,11 +16,16 @@ export async function callGenerateStream(
   const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel);
   const start = performance.now();
 
+  // Set up abort controller with timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_STREAM_TIMEOUT_MS);
+
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
       body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET }),
+      signal: controller.signal,
     });
     if (!res.ok) {
       const err = await res.json();
@@ -68,6 +73,7 @@ export async function callGenerateStream(
       }
     }
 
+    clearTimeout(timeoutId);
     updateApiLog(logId, {
       status: 'success',
       durationMs: Math.round(performance.now() - start),
@@ -77,9 +83,11 @@ export async function callGenerateStream(
     });
     return full;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    clearTimeout(timeoutId);
+    const isAbort = err instanceof Error && err.name === 'AbortError';
+    const message = isAbort ? 'Request timed out' : (err instanceof Error ? err.message : String(err));
     updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
-    throw err;
+    throw isAbort ? new Error('Request timed out') : err;
   }
 }
 
@@ -89,11 +97,16 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
   const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel);
   const start = performance.now();
 
+  // Set up abort controller with timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
       body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET, ...(jsonMode ? { jsonMode: true } : {}) }),
+      signal: controller.signal,
     });
     if (!res.ok) {
       const err = await res.json();
@@ -103,6 +116,7 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
     }
     const data = await res.json();
     const content = data.content;
+    clearTimeout(timeoutId);
     updateApiLog(logId, {
       status: 'success',
       durationMs: Math.round(performance.now() - start),
@@ -113,9 +127,11 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
     });
     return content;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    clearTimeout(timeoutId);
+    const isAbort = err instanceof Error && err.name === 'AbortError';
+    const message = isAbort ? 'Request timed out' : (err instanceof Error ? err.message : String(err));
     updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
-    throw err;
+    throw isAbort ? new Error('Request timed out') : err;
   }
 }
 

@@ -8,6 +8,7 @@ import { initBeatProfilePresets } from '@/lib/beat-profiles';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs } from '@/lib/persistence';
 import { analysisRunner as analysisRunnerRef } from '@/lib/analysis-runner';
+import { API_LOG_STALE_THRESHOLD_MS } from '@/lib/constants';
 
 // Bundled narratives loaded at runtime from /public manifests
 const bundledNarratives = new Map<string, NarrativeState>();
@@ -1483,6 +1484,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
     }, 2000);
   }, [state.apiLogs, state.activeNarrativeId]);
+
+  // Cleanup stale pending API logs — mark as timed out after threshold
+  useEffect(() => {
+    const CLEANUP_INTERVAL_MS = 60 * 1000; // Check every minute
+
+    const cleanup = () => {
+      const now = Date.now();
+      const staleLogs = state.apiLogs.filter(
+        (log) => log.status === 'pending' && (now - log.timestamp) > API_LOG_STALE_THRESHOLD_MS
+      );
+      for (const log of staleLogs) {
+        dispatch({
+          type: 'UPDATE_API_LOG',
+          id: log.id,
+          updates: {
+            status: 'error',
+            error: 'Request timed out (stale)',
+            durationMs: Math.round(now - log.timestamp),
+          },
+        });
+      }
+    };
+
+    // Run cleanup immediately on mount and then periodically
+    cleanup();
+    const intervalId = setInterval(cleanup, CLEANUP_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, [state.apiLogs]);
 
   // Keyboard shortcuts
   useEffect(() => {

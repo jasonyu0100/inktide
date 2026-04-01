@@ -69,6 +69,17 @@ export const MAX_TOKENS_DEFAULT = 32000;
 /** Max output tokens for small focused output (single scene plan, rewrite, profile extraction) */
 export const MAX_TOKENS_SMALL = 16000;
 
+// ── AI Timeouts ─────────────────────────────────────────────────────────────
+
+/** Timeout for non-streaming API calls (ms) — 8 minutes */
+export const API_TIMEOUT_MS = 8 * 60 * 1000;
+
+/** Timeout for streaming API calls (ms) — 15 minutes (longer for prose generation) */
+export const API_STREAM_TIMEOUT_MS = 15 * 60 * 1000;
+
+/** Age threshold (ms) for marking stale pending API logs as timed out — 20 minutes */
+export const API_LOG_STALE_THRESHOLD_MS = 20 * 60 * 1000;
+
 // ── AI Reasoning ────────────────────────────────────────────────────────────
 
 /** Default reasoning budget (thinking tokens) applied to all LLM calls.

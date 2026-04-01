@@ -133,7 +133,7 @@ export default function FloatingPalette() {
   }, [narrative, state.activeBranchId, state.resolvedEntryKeys, state.currentSceneIndex, isHead, dispatch]);
 
   const graphViewMode = state.graphViewMode;
-  const isEditingMode = graphViewMode === 'plan' || graphViewMode === 'prose';
+  const isEditingMode = graphViewMode === 'plan' || graphViewMode === 'prose' || graphViewMode === 'audio';
 
   // Current scene — for checking if rewrite is available
   const currentScene = useMemo(() => {
@@ -143,6 +143,7 @@ export default function FloatingPalette() {
   }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
   const hasPlan = !!currentScene?.plan;
   const hasProse = !!currentScene?.prose;
+  const hasAudio = !!currentScene?.audioUrl;
   const wrapperClasses = isActive ? '' : 'opacity-30 pointer-events-none';
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [proseModalOpen, setProseModalOpen] = useState(false);
@@ -320,8 +321,9 @@ export default function FloatingPalette() {
           {graphViewMode === 'prose' && (
             <>
               <button type="button"
-                className="text-xs font-semibold text-change bg-change/10 px-2 py-1 rounded-md hover:bg-change/20 transition-colors uppercase tracking-wider"
-                onClick={() => setProseModalOpen(true)}>
+                className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${hasPlan ? 'text-change bg-change/10 hover:bg-change/20' : 'text-text-dim/30 bg-white/3 cursor-not-allowed'}`}
+                onClick={() => hasPlan && setProseModalOpen(true)}
+                title={hasPlan ? undefined : 'Generate a plan first'}>
                 Generate
               </button>
               {hasProse && (
@@ -345,6 +347,26 @@ export default function FloatingPalette() {
                   className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
                   onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-prose'))}
                   title="Clear prose">
+                  <IconClose size={14} />
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Audio palette actions */}
+          {graphViewMode === 'audio' && (
+            <>
+              <button type="button"
+                className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${hasProse ? 'text-change bg-change/10 hover:bg-change/20' : 'text-text-dim/30 bg-white/3 cursor-not-allowed'}`}
+                onClick={() => hasProse && window.dispatchEvent(new CustomEvent('canvas:generate-audio'))}
+                title={hasProse ? undefined : 'Generate prose first'}>
+                Generate
+              </button>
+              {hasAudio && (
+                <button type="button"
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+                  onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-audio'))}
+                  title="Clear audio">
                   <IconClose size={14} />
                 </button>
               )}
@@ -375,7 +397,6 @@ export default function FloatingPalette() {
       {proseModalOpen && (
         <ProseGenerateModal
           onClose={() => setProseModalOpen(false)}
-          hasPlan={hasPlan}
           onGenerate={(config: ProseGenerateConfig) => {
             window.dispatchEvent(new CustomEvent('canvas:generate-prose', { detail: config }));
           }}

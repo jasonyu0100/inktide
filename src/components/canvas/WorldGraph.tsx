@@ -16,6 +16,7 @@ import KnowledgeGraphView, { FullscreenButton } from './KnowledgeGraphView';
 import ThreadGraphView from './ThreadGraphView';
 import { ScenePlanView } from './ScenePlanView';
 import { SceneProseView } from './SceneProseView';
+import { SceneAudioView } from './SceneAudioView';
 import {
   type GraphNode,
   type GraphLink,
@@ -1151,6 +1152,14 @@ export default function WorldGraph() {
       ) : graphViewMode === 'prose' ? (
         currentScene ? (
           <SceneProseView narrative={narrative} scene={currentScene} resolvedKeys={resolvedEntryKeys} />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-text-dim text-sm italic">No scene selected.</p>
+          </div>
+        )
+      ) : graphViewMode === 'audio' ? (
+        currentScene ? (
+          <SceneAudioView narrative={narrative} scene={currentScene} />
         ) : (
           <div className="flex items-center justify-center h-full">
             <p className="text-text-dim text-sm italic">No scene selected.</p>

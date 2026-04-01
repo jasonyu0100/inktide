@@ -22,11 +22,12 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 
 const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose';
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio';
 
 function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'plan') return 'plan';
   if (graphViewMode === 'prose') return 'prose';
+  if (graphViewMode === 'audio') return 'audio';
   return 'graph';
 }
 
@@ -138,8 +139,7 @@ export function CanvasTopBar() {
 
   const switchMode = useCallback((mode: CanvasMode) => {
     if (mode === 'graph') dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: lastGraphModeRef.current });
-    else if (mode === 'plan') dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'plan' });
-    else dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'prose' });
+    else dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode });
   }, [dispatch]);
 
   const inputClass = "w-8 bg-white/5 text-center text-[10px] font-mono text-text-primary rounded px-1 py-0.5 outline-none border border-white/15 focus:border-white/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
@@ -242,6 +242,17 @@ export function CanvasTopBar() {
         </div>
       )}
 
+      {canvasMode === 'audio' && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-violet-400/60">Audio</span>
+          {currentScene?.audioUrl
+            ? <span className="text-[9px] text-text-dim/50">Ready</span>
+            : currentScene?.prose
+              ? <span className="text-[9px] text-text-dim/30">Not generated</span>
+              : <span className="text-[9px] text-text-dim/30">No prose</span>}
+        </div>
+      )}
+
       {canvasMode === 'prose' && (
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-emerald-400/60">Prose</span>
@@ -258,12 +269,13 @@ export function CanvasTopBar() {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Right — Mode toggle: Graph / Plan / Prose */}
+      {/* Right — Mode toggle: Graph / Plan / Prose / Audio */}
       <div className="flex items-center rounded bg-white/4 p-0.5">
-        {(['graph', 'plan', 'prose'] as CanvasMode[]).map((mode) => {
+        {(['graph', 'plan', 'prose', 'audio'] as CanvasMode[]).map((mode) => {
           const isActive = canvasMode === mode;
           const color = mode === 'plan' ? (isActive ? 'text-sky-400 bg-sky-500/15' : '')
             : mode === 'prose' ? (isActive ? 'text-emerald-400 bg-emerald-500/15' : '')
+            : mode === 'audio' ? (isActive ? 'text-violet-400 bg-violet-500/15' : '')
             : (isActive ? 'text-text-primary bg-white/10' : '');
           return (
             <button key={mode}

@@ -178,10 +178,7 @@ type MenuItem = {
   shortcut?: string;
   onClick: () => void;
   disabled?: boolean;
-  separator?: false;
   indicator?: React.ReactNode;
-} | {
-  separator: true;
 };
 
 function MenuDropdown({
@@ -234,36 +231,30 @@ function MenuDropdown({
             boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)',
           }}
         >
-          {items.map((item, i) => {
-            if ('separator' in item && item.separator) {
-              return <div key={i} className="my-1 border-t border-white/8" />;
-            }
-            const mi = item as Exclude<MenuItem, { separator: true }>;
-            return (
-              <button
-                key={i}
-                onClick={() => {
-                  if (mi.disabled) return;
-                  mi.onClick();
-                  setOpenMenu(null);
-                }}
-                disabled={mi.disabled}
-                className={`w-full flex items-center justify-between px-3 py-1.5 text-[12px] transition-colors ${
-                  mi.disabled
-                    ? 'text-text-dim/40 cursor-default'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  {mi.label}
-                  {mi.indicator}
-                </span>
-                {mi.shortcut && (
-                  <span className="text-[10px] text-text-dim/50 ml-4 font-mono">{mi.shortcut}</span>
-                )}
-              </button>
-            );
-          })}
+          {items.map((item, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                if (item.disabled) return;
+                item.onClick();
+                setOpenMenu(null);
+              }}
+              disabled={item.disabled}
+              className={`w-full flex items-center justify-between px-3 py-1.5 text-[12px] transition-colors ${
+                item.disabled
+                  ? 'text-text-dim/40 cursor-default'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                {item.label}
+                {item.indicator}
+              </span>
+              {item.shortcut && (
+                <span className="text-[10px] text-text-dim/50 ml-4 font-mono">{item.shortcut}</span>
+              )}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -600,8 +591,6 @@ export default function TopBar() {
   }, [dispatch, router]);
 
   const hasNarrative = !!narrative;
-  const hasPendingLogs = state.apiLogs.some((l) => l.status === 'pending');
-  const hasErrorLogs = state.apiLogs.some((l) => l.status === 'error');
 
   return (
     <div className="flex items-center justify-between h-11 glass-panel border-b border-border px-3">
@@ -804,13 +793,9 @@ export default function TopBar() {
           setOpenMenu={setOpenMenu}
           anyMenuOpen={openMenu !== null}
           items={[
-
             { label: 'Slides', onClick: () => setSlidesOpen(true), disabled: !hasNarrative },
-            { separator: true },
             { label: 'Scorecard', onClick: () => setScorecardOpen((v) => !v), disabled: !hasNarrative },
-            { label: 'Force Analytics', onClick: () => window.dispatchEvent(new Event('open-force-analytics')), disabled: !hasNarrative },
             { label: 'Cast & Locations', onClick: () => window.dispatchEvent(new Event('open-cast-analytics')), disabled: !hasNarrative },
-            { label: 'Narrative Cube', onClick: () => window.dispatchEvent(new CustomEvent('open-cube-viewer')), disabled: !hasNarrative },
           ]}
         />
 
@@ -821,12 +806,12 @@ export default function TopBar() {
           setOpenMenu={setOpenMenu}
           anyMenuOpen={openMenu !== null}
           items={[
+            { label: 'Force Analytics', onClick: () => window.dispatchEvent(new Event('open-force-analytics')), disabled: !hasNarrative },
             { label: 'Narrative Cube', onClick: () => window.dispatchEvent(new CustomEvent('open-cube-viewer')), disabled: !hasNarrative },
             { label: 'Thread Graph', onClick: () => setThreadGraphOpen(true), disabled: !hasNarrative },
             { label: 'Cube Explorer', onClick: () => setCubeExplorerOpen(true), disabled: !hasNarrative },
             { label: 'Pacing Profile', onClick: () => setMarkovOpen(true), disabled: !hasNarrative },
             { label: 'Beat Profile', onClick: () => setBeatProfileOpen(true), disabled: !hasNarrative },
-            { separator: true },
             { label: 'Formulas', onClick: () => setFormulaOpen(true) },
           ]}
         />
@@ -852,17 +837,9 @@ export default function TopBar() {
           anyMenuOpen={openMenu !== null}
           items={[
             { label: 'LLM Context', onClick: () => setBranchContextOpen(true), disabled: !hasNarrative },
-            {
-              label: 'API Logs',
-              onClick: () => setLogsOpen(true),
-              indicator: hasPendingLogs
-                ? <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                : hasErrorLogs
-                ? <span className="w-2 h-2 rounded-full bg-red-400" />
-                : undefined,
-            },
+            { label: 'API Logs', onClick: () => setLogsOpen(true) },
             ...(process.env.NEXT_PUBLIC_USER_API_KEYS === 'true'
-              ? [{ separator: true } as MenuItem, { label: 'API Keys', onClick: () => setApiKeysOpen(true) } as Exclude<MenuItem, { separator: true }>]
+              ? [{ label: 'API Keys', onClick: () => setApiKeysOpen(true) }]
               : []),
           ]}
         />

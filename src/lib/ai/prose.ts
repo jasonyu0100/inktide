@@ -105,7 +105,7 @@ export async function rewriteSceneProse(
 
   const hasVoiceOverride = !!narrative.storySettings?.proseVoice?.trim();
 
-  const systemPrompt = `You are a literary editor and prose writer. Your task is to REWRITE prose based on the provided analysis. You return ONLY valid JSON — no markdown, no commentary.
+  const systemPrompt = `You are a literary editor and prose writer. Your task is to REWRITE prose based on the provided analysis.${onToken ? '' : ' You return ONLY valid JSON — no markdown, no commentary.'}
 ${hasVoiceOverride
     ? `\nAUTHOR VOICE (this is the PRIMARY creative direction — all style defaults below are subordinate to this voice):
 ${narrative.storySettings!.proseVoice!.trim()}

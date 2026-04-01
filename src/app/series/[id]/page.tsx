@@ -18,17 +18,17 @@ import { GeneratePanel } from '@/components/generation/GeneratePanel';
 import { BranchModal } from '@/components/generation/BranchModal';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
-import { AutoControlBar } from '@/components/auto/AutoControlBar';
 import { AutoLogModal } from '@/components/auto/AutoLogModal';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
+import { useBulkGenerate } from '@/hooks/useBulkGenerate';
 import { ForceAnalytics } from '@/components/analytics/ForceAnalytics';
 import { CastAnalytics } from '@/components/analytics/CastAnalytics';
 import RulesPanel from '@/components/layout/RulesPanel';
 import WorldSystemsPanel from '@/components/layout/WorldSystemsPanel';
 import ProseProfilePanel from '@/components/layout/ProseProfilePanel';
 import { MCTSPanel } from '@/components/mcts/MCTSPanel';
-import { MCTSControlBar } from '@/components/mcts/MCTSControlBar';
+import { ModeControlBar } from '@/components/generation/ModeControlBar';
 import { useMCTS } from '@/hooks/useMCTS';
 import { StorySettingsModal } from '@/components/settings/StorySettingsModal';
 import { PlanningIndicator } from '@/components/planning/PlanningIndicator';
@@ -67,6 +67,7 @@ export default function SeriesPage() {
   const autoPlay = useAutoPlay();
   const mcts = useMCTS();
   const planning = usePlanningQueue();
+  const bulk = useBulkGenerate();
   const id = params.id as string;
 
   // Activate narrative from URL param
@@ -124,6 +125,18 @@ export default function SeriesPage() {
     };
   }, []);
 
+  // Bulk generation event listeners
+  useEffect(() => {
+    function handleBulkPlan() { bulk.start('plan'); }
+    function handleBulkProse() { bulk.start('prose'); }
+    window.addEventListener('canvas:bulk-plan', handleBulkPlan);
+    window.addEventListener('canvas:bulk-prose', handleBulkProse);
+    return () => {
+      window.removeEventListener('canvas:bulk-plan', handleBulkPlan);
+      window.removeEventListener('canvas:bulk-prose', handleBulkProse);
+    };
+  }, [bulk]);
+
   if (!state.activeNarrative) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -134,6 +147,7 @@ export default function SeriesPage() {
 
   const showAutoBar = state.autoRunState && (state.autoRunState.isRunning || state.autoRunState.isPaused || state.autoRunState.log.length > 0);
   const showMctsBar = mcts.runState.status !== 'idle' || Object.keys(mcts.runState.tree.nodes).length > 0;
+  const showBulkBar = bulk.runState !== null;
 
   return (
     <AudioPlayerProvider>
@@ -146,8 +160,32 @@ export default function SeriesPage() {
           <CanvasTopBar />
           <div className="flex-1 relative overflow-hidden">
             <WorldGraph />
-            {showAutoBar && !showMctsBar && (
-              <AutoControlBar
+            {/* Mode control bars - prioritize: bulk > mcts > auto */}
+            {showBulkBar && bulk.runState && (
+              <ModeControlBar
+                mode={bulk.runState.mode === 'plan' ? 'bulk-plan' : 'bulk-prose'}
+                isRunning={bulk.runState.isRunning}
+                isPaused={bulk.runState.isPaused}
+                progress={bulk.runState.progress}
+                statusMessage={bulk.runState.statusMessage}
+                onPause={bulk.pause}
+                onResume={bulk.resume}
+                onStop={bulk.stop}
+              />
+            )}
+            {!showBulkBar && showMctsBar && (
+              <ModeControlBar
+                mode="mcts"
+                runState={mcts.runState}
+                onPause={mcts.pause}
+                onResume={mcts.resume}
+                onStop={mcts.stop}
+                onOpenPanel={() => setMctsOpen(true)}
+              />
+            )}
+            {!showBulkBar && !showMctsBar && showAutoBar && (
+              <ModeControlBar
+                mode="auto"
                 isRunning={autoPlay.isRunning}
                 isPaused={autoPlay.isPaused}
                 currentCycle={autoPlay.currentCycle}
@@ -159,15 +197,6 @@ export default function SeriesPage() {
                 onStop={autoPlay.stop}
                 onOpenSettings={() => setAutoSettingsOpen(true)}
                 onOpenLog={() => setAutoLogOpen(true)}
-              />
-            )}
-            {showMctsBar && (
-              <MCTSControlBar
-                runState={mcts.runState}
-                onPause={mcts.pause}
-                onResume={mcts.resume}
-                onStop={mcts.stop}
-                onOpenPanel={() => setMctsOpen(true)}
               />
             )}
 

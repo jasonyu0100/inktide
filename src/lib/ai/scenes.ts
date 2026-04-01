@@ -5,7 +5,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_CHARACTER_ARCS, PROMPT_THREAD_COLLISION, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
+import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/markov';
 
 export type GenerateScenesOptions = {
@@ -84,12 +84,6 @@ The scenes must continue from the current point in the story (after scene index 
 
 ${sequencePrompt}
 
-THE FOUR RULES THAT MATTER MOST (violating any of these is a critical failure):
-1. NO EVENT MAY HAPPEN TWICE. If a character discovers something in scene 3, that discovery cannot happen again in scene 11. If a leader is deposed in scene 19, they cannot be deposed again in scene 22. Before writing each scene, check every previous scene — if the event already occurred, skip it.
-2. NO SCENE STRUCTURE MAY REPEAT. If "A confronts B, B deflects" happened in scene 2, scenes 6/9/11 cannot be "A confronts B, B deflects again." The NEXT scene between A and B must have a fundamentally different shape: B capitulates, A loses leverage, a third party intervenes, or one takes an irreversible action. Similarly, "investigator finds clue, adversary retreats" can happen ONCE — not five times.
-3. EVERY SCENE MUST CHANGE STATE. If you cannot write a different BEFORE and AFTER for a scene, it is filler. Delete it and reduce the scene count. Fewer, denser scenes are always better than more, thinner ones.
-4. COLLIDE THREADS. At least half your scenes must advance 2+ threads simultaneously. Characters from different subplots share locations and resources. Single-thread scenes are a last resort, not the default.
-
 Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST — plan the arc structure before writing any scenes. The outline commits you to a specific beat sequence and collision plan. Then write scenes that execute the outline exactly.
 {
   "arcName": "Short, evocative arc name (2-4 words). Must be UNIQUE. Bad: 'Continuation', 'New Beginnings'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths'.",
@@ -126,23 +120,16 @@ Rules:
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
 - World knowledge node IDs for NEW concepts must be unique: WK-GEN-001, WK-GEN-002, etc. Reused nodes should keep their original ID.
+${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_SUMMARY_REQUIREMENT}
 ${PROMPT_FORCE_STANDARDS}
-${PROMPT_PACING}
 ${PROMPT_MUTATIONS}
 ${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
 ${PROMPT_POV}
 ${PROMPT_CONTINUITY}
-${PROMPT_CHARACTER_ARCS}
-${PROMPT_THREAD_COLLISION}
 ${promptThreadLifecycle()}
 ${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex, storySettings.threadResolutionSpeed ?? 'moderate')}
-${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}
-CRITICAL ID CONSTRAINT (re-stated for emphasis):
-You MUST use ONLY these exact IDs. Do NOT invent new character, location, or thread IDs.
-  Characters: ${Object.entries(narrative.characters).map(([id, c]) => `${c.name} (${id})`).join(', ')}
-  Locations: ${Object.entries(narrative.locations).map(([id, l]) => `${l.name} (${id})`).join(', ')}
-  Threads: ${Object.entries(narrative.threads).map(([id, t]) => `${t.description.slice(0, 40)} (${id})`).join(', ')}${Object.keys(narrative.artifacts ?? {}).length > 0 ? `\n  Artifacts: ${Object.entries(narrative.artifacts).map(([id, a]) => `${a.name} (${id})`).join(', ')}` : ''}`;
+${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
 
   // Retry on JSON parse failures (truncation, malformed output)
   const MAX_RETRIES = 2;

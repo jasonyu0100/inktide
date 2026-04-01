@@ -368,6 +368,13 @@ export default function FloatingPalette() {
                   <IconClose size={14} />
                 </button>
               )}
+              <div className="w-px h-4 bg-white/12 mx-0.5" />
+              <button type="button"
+                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-sky-400/80 bg-sky-500/10 hover:bg-sky-500/20"
+                onClick={() => window.dispatchEvent(new CustomEvent('canvas:bulk-plan'))}
+                title="Bulk generate all missing plans">
+                <IconAutoLoop size={14} />
+              </button>
             </>
           )}
 
@@ -404,6 +411,13 @@ export default function FloatingPalette() {
                   <IconClose size={14} />
                 </button>
               )}
+              <div className="w-px h-4 bg-white/12 mx-0.5" />
+              <button type="button"
+                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-emerald-400/80 bg-emerald-500/10 hover:bg-emerald-500/20"
+                onClick={() => window.dispatchEvent(new CustomEvent('canvas:bulk-prose'))}
+                title="Bulk generate all missing prose (requires plans)">
+                <IconAutoLoop size={14} />
+              </button>
             </>
           )}
 

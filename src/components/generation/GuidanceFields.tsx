@@ -69,7 +69,9 @@ export function GuidanceFields({
     if (!narrative) return;
     setSuggestingDir(true);
     try {
-      const result = await suggestAutoDirection(narrative, state.resolvedEntryKeys, state.currentSceneIndex);
+      // Always use head index for generation operations
+      const headIndex = state.resolvedEntryKeys.length - 1;
+      const result = await suggestAutoDirection(narrative, state.resolvedEntryKeys, headIndex);
       onDirectionChange(result);
       setUseStoryDir(false);
     } catch (err) {
@@ -77,7 +79,7 @@ export function GuidanceFields({
     } finally {
       setSuggestingDir(false);
     }
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex, onDirectionChange]);
+  }, [narrative, state.resolvedEntryKeys, onDirectionChange]);
 
   return (
     <div className="flex flex-col gap-3">

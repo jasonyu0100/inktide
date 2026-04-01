@@ -75,9 +75,11 @@ export function usePlanningQueue() {
       if (!phase) return;
 
       // 1. Completion summary (no LLM call — built from scene data)
+      // Always use the head index (end of story) for generation operations
+      const headIndex = s.resolvedEntryKeys.length - 1;
       if (!phase.completionReport) {
         const summary = buildPhaseCompletionSummary(
-          narrative, s.resolvedEntryKeys, s.currentSceneIndex, phase,
+          narrative, s.resolvedEntryKeys, headIndex, phase,
         );
         dispatch({
           type: 'UPDATE_PLANNING_PHASE',
@@ -107,12 +109,13 @@ export function usePlanningQueue() {
         const freshState1 = stateRef.current;
         const freshNarrative1 = freshState1.activeNarrative ?? narrative;
 
-        // World expansion
+        // World expansion - always from the head of the story
         if (q.expandWorld !== false) {
           setTransitionStep('Expanding world...');
           const strategy = freshNarrative1.storySettings?.expansionStrategy ?? 'dynamic';
+          const freshHeadIndex1 = freshState1.resolvedEntryKeys.length - 1;
           const expansion = await expandWorld(
-            freshNarrative1, freshState1.resolvedEntryKeys, freshState1.currentSceneIndex,
+            freshNarrative1, freshState1.resolvedEntryKeys, freshHeadIndex1,
             nextPhase.worldExpansionHints || '', 'medium', strategy, nextPhase.sourceText,
           );
           dispatch({
@@ -128,12 +131,13 @@ export function usePlanningQueue() {
           });
         }
 
-        // Direction generation
+        // Direction generation - always from the head of the story
         setTransitionStep('Generating direction...');
         const freshState2 = stateRef.current;
         const freshNarrative2 = freshState2.activeNarrative ?? freshNarrative1;
+        const freshHeadIndex2 = freshState2.resolvedEntryKeys.length - 1;
         const { direction, constraints } = await generatePhaseDirection(
-          freshNarrative2, freshState2.resolvedEntryKeys, freshState2.currentSceneIndex,
+          freshNarrative2, freshState2.resolvedEntryKeys, freshHeadIndex2,
           nextPhase, q,
         );
 

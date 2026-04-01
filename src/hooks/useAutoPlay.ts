@@ -19,8 +19,11 @@ export function useAutoPlay() {
   stateRef.current = state;
 
   const runCycle = useCallback(async () => {
-    const { activeNarrative, resolvedEntryKeys, currentSceneIndex, activeBranchId, autoConfig, autoRunState } = stateRef.current;
+    const { activeNarrative, resolvedEntryKeys, activeBranchId, autoConfig, autoRunState } = stateRef.current;
     if (!activeNarrative || !activeBranchId || !autoRunState) return;
+
+    // Always generate from the HEAD of the story (end of the resolved entries)
+    const headIndex = resolvedEntryKeys.length - 1;
 
     // Wait if a planning phase just completed — the planning queue hook needs time to
     // run the transition (world expansion + direction generation) before we generate more scenes
@@ -83,7 +86,7 @@ export function useAutoPlay() {
           if (pq.expandWorld !== false) {
             dispatch({ type: 'SET_AUTO_STATUS', message: 'Expanding world...' });
             const strategy = activeNarrative.storySettings?.expansionStrategy ?? 'dynamic';
-            const expansion = await expandWorld(activeNarrative, resolvedEntryKeys, currentSceneIndex, ap.worldExpansionHints || '', 'medium', strategy);
+            const expansion = await expandWorld(activeNarrative, resolvedEntryKeys, headIndex, ap.worldExpansionHints || '', 'medium', strategy);
             dispatch({
               type: 'EXPAND_WORLD',
               worldBuildId: nextId('WB', Object.keys(activeNarrative.worldBuilds), 3),
@@ -95,7 +98,7 @@ export function useAutoPlay() {
           }
           dispatch({ type: 'SET_AUTO_STATUS', message: 'Generating direction...' });
           const freshNarrative = stateRef.current.activeNarrative ?? activeNarrative;
-          const { direction, constraints } = await generatePhaseDirection(freshNarrative, resolvedEntryKeys, currentSceneIndex, ap, pq);
+          const { direction, constraints } = await generatePhaseDirection(freshNarrative, resolvedEntryKeys, headIndex, ap, pq);
           dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId: activeBranchId, phaseIndex: activeIdx, updates: { direction, constraints: constraints || ap.constraints } });
           const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...freshNarrative.storySettings };
           dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || ap.constraints || baseSettings.storyConstraints, worldFocus: 'latest' as const } });
@@ -146,7 +149,7 @@ export function useAutoPlay() {
     const { weights, directiveCtx } = evaluateNarrativeState(
       activeNarrative,
       resolvedEntryKeys,
-      currentSceneIndex,
+      headIndex,
       autoConfig,
       autoRunState.startingSceneCount,
       autoRunState.startingArcCount,
@@ -235,10 +238,13 @@ export function useAutoPlay() {
       let scenes: Awaited<ReturnType<typeof generateScenes>>['scenes'];
       let arc: Awaited<ReturnType<typeof generateScenes>>['arc'];
 
+      // Always generate from the HEAD of the story (end), not from the cursor position
+      const headIndex = resolvedEntryKeys.length - 1;
+
       if (genMode === 'stepwise') {
         dispatch({ type: 'SET_AUTO_STATUS', message: `Writing ${sceneCount} scenes...` });
         const result = await generateArcStepwise(
-          activeNarrative, resolvedEntryKeys, currentSceneIndex, sceneCount, directive,
+          activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive,
           {
             worldBuildFocus,
             shouldStop: () => cancelledRef.current,
@@ -253,7 +259,7 @@ export function useAutoPlay() {
       } else {
         dispatch({ type: 'SET_AUTO_STATUS', message: `Writing ${sceneCount} scenes...` });
         const result = await generateScenes(
-          activeNarrative, resolvedEntryKeys, currentSceneIndex, sceneCount, directive, { worldBuildFocus },
+          activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive, { worldBuildFocus },
         );
         scenes = result.scenes;
         arc = result.arc;
@@ -287,8 +293,9 @@ export function useAutoPlay() {
             const patchedPhase = { ...freshPhase, scenesCompleted: knownCompleted };
             const currentDir = freshNarrative.storySettings?.storyDirection?.trim() ?? '';
             const currentCon = freshNarrative.storySettings?.storyConstraints?.trim() ?? '';
+            const freshHeadIndex = freshState.resolvedEntryKeys.length - 1;
             const { direction: newDir, constraints: newCon } = await refreshDirection(
-              freshNarrative, freshState.resolvedEntryKeys, freshState.currentSceneIndex, patchedPhase, currentDir, currentCon,
+              freshNarrative, freshState.resolvedEntryKeys, freshHeadIndex, patchedPhase, currentDir, currentCon,
             );
             if (newDir !== currentDir || newCon !== currentCon) {
               courseCorrection = { direction: newDir, constraints: newCon };

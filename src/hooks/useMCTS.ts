@@ -45,8 +45,9 @@ export function useMCTS() {
 
   const [runState, setRunState] = useState<MCTSRunState>(() => {
     const narrative = state.activeNarrative;
+    const headIndex = state.resolvedEntryKeys.length - 1;
     const tree = narrative
-      ? createTree(narrative, state.resolvedEntryKeys, state.currentSceneIndex)
+      ? createTree(narrative, state.resolvedEntryKeys, headIndex)
       : { nodes: {}, rootNarrative: {} as NarrativeState, rootResolvedKeys: [], rootCurrentIndex: -1, rootChildIds: [] };
     return {
       status: 'idle' as const,
@@ -205,10 +206,12 @@ export function useMCTS() {
   // ── Main loop ──────────────────────────────────────────────────────────────
 
   const runLoop = useCallback(async (config: MCTSConfig) => {
-    const { activeNarrative, resolvedEntryKeys, currentSceneIndex, activeBranchId } = state;
+    const { activeNarrative, resolvedEntryKeys, activeBranchId } = state;
     if (!activeNarrative || !activeBranchId) return;
 
-    let tree = retainedTreeRef.current ?? createTree(activeNarrative, resolvedEntryKeys, currentSceneIndex);
+    // Always continue from the head of the branch, not the user's cursor position
+    const headIndex = resolvedEntryKeys.length - 1;
+    let tree = retainedTreeRef.current ?? createTree(activeNarrative, resolvedEntryKeys, headIndex);
     retainedTreeRef.current = null;
     const worldBuildFocus = config.worldBuildFocusId
       ? activeNarrative.worldBuilds[config.worldBuildFocusId]
@@ -857,6 +860,7 @@ export function useMCTS() {
     runningRef.current = false;
     retainedTreeRef.current = null;
     const narrative = state.activeNarrative;
+    const headIndex = state.resolvedEntryKeys.length - 1;
     setRunState((prev) => ({
       ...prev,
       status: 'idle',
@@ -869,7 +873,7 @@ export function useMCTS() {
       startedAt: null,
       effectiveBaseline: null,
       tree: narrative
-        ? createTree(narrative, state.resolvedEntryKeys, state.currentSceneIndex)
+        ? createTree(narrative, state.resolvedEntryKeys, headIndex)
         : { nodes: {}, rootNarrative: {} as NarrativeState, rootResolvedKeys: [], rootCurrentIndex: -1, rootChildIds: [] },
     }));
   }, [state]);
@@ -1041,7 +1045,7 @@ export function useMCTS() {
       bestPath: null,
       startedAt: null,
       effectiveBaseline: null,
-      tree: pruned ?? createTree(state.activeNarrative!, state.resolvedEntryKeys, state.currentSceneIndex),
+      tree: pruned ?? createTree(state.activeNarrative!, state.resolvedEntryKeys, state.resolvedEntryKeys.length - 1),
     }));
   }, [runState, state, dispatch]);
 

@@ -160,13 +160,20 @@ export function ModeControlBar(props: Props) {
         {/* Mode-specific metrics */}
         {props.mode === 'auto' && (
           <>
-            <span className="text-[10px] text-text-dim font-mono tabular-nums">
-              {props.currentCycle}
-            </span>
-            <span className="text-[9px] text-text-dim/50">/</span>
+            {/* Show cycle number - add 1 when running first cycle to show "Arc 1" */}
+            <span className="text-[9px] text-text-dim">Arc</span>
             <span className="text-[10px] text-text-secondary font-mono tabular-nums">
-              {props.totalScenes}
+              {isRunning && props.currentCycle === 0 ? 1 : props.currentCycle}
             </span>
+            {props.totalScenes > 0 && (
+              <>
+                <div className="w-px h-3 bg-white/10" />
+                <span className="text-[10px] text-text-dim font-mono tabular-nums">
+                  {props.totalScenes}
+                </span>
+                <span className="text-[9px] text-text-dim/50">scenes</span>
+              </>
+            )}
             {lastEntry && (
               <>
                 <div className="w-px h-3 bg-white/10" />

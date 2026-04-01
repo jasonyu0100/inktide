@@ -348,13 +348,13 @@ export default function FloatingPalette() {
           {graphViewMode === 'plan' && (
             <>
               <button type="button"
-                className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${generateOpen ? 'text-sky-400 bg-sky-500/15' : 'text-change bg-change/10 hover:bg-change/20'}`}
+                className="text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider text-change bg-change/10 hover:bg-change/20"
                 onClick={() => { setGenerateOpen((v) => !v); setRewriteOpen(false); }}>
                 Generate
               </button>
               {hasPlan && (
                 <button type="button"
-                  className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${rewriteOpen ? 'text-amber-400 bg-amber-500/15' : 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'}`}
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-sky-400 bg-sky-500/10 hover:bg-sky-500/20"
                   onClick={() => { setRewriteOpen((v) => !v); setGenerateOpen(false); }}
                   title="Rewrite with guidance">
                   <IconRefresh size={14} />
@@ -370,7 +370,7 @@ export default function FloatingPalette() {
               )}
               <div className="w-px h-4 bg-white/12 mx-0.5" />
               <button type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-sky-400/80 bg-sky-500/10 hover:bg-sky-500/20"
+                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
                 onClick={() => window.dispatchEvent(new CustomEvent('canvas:bulk-plan'))}
                 title="Bulk generate all missing plans">
                 <IconAutoLoop size={14} />
@@ -382,14 +382,14 @@ export default function FloatingPalette() {
           {graphViewMode === 'prose' && (
             <>
               <button type="button"
-                className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${!hasPlan ? 'text-text-dim/30 bg-white/3 cursor-not-allowed' : generateOpen ? 'text-emerald-400 bg-emerald-500/15' : 'text-change bg-change/10 hover:bg-change/20'}`}
+                className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${!hasPlan ? 'text-text-dim/30 bg-white/3 cursor-not-allowed' : 'text-change bg-change/10 hover:bg-change/20'}`}
                 onClick={() => { if (hasPlan) { setGenerateOpen((v) => !v); setRewriteOpen(false); } }}
                 title={hasPlan ? undefined : 'Generate a plan first'}>
                 Generate
               </button>
               {hasProse && (
                 <button type="button"
-                  className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${rewriteOpen ? 'text-amber-400 bg-amber-500/15' : 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'}`}
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20"
                   onClick={() => { setRewriteOpen((v) => !v); setGenerateOpen(false); }}
                   title="Rewrite with guidance">
                   <IconRefresh size={14} />
@@ -413,7 +413,7 @@ export default function FloatingPalette() {
               )}
               <div className="w-px h-4 bg-white/12 mx-0.5" />
               <button type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-emerald-400/80 bg-emerald-500/10 hover:bg-emerald-500/20"
+                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
                 onClick={() => window.dispatchEvent(new CustomEvent('canvas:bulk-prose'))}
                 title="Bulk generate all missing prose (requires plans)">
                 <IconAutoLoop size={14} />

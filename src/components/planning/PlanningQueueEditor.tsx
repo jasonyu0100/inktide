@@ -41,8 +41,10 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     setGenerating(true);
     setGeneratingReasoning('');
     try {
+      // Always use head index for generation operations
+      const headIndex = state.resolvedEntryKeys.length - 1;
       const result = await generateCustomPlan(
-        narrative, state.resolvedEntryKeys, state.currentSceneIndex, doc,
+        narrative, state.resolvedEntryKeys, headIndex, doc,
         (token) => setGeneratingReasoning((prev) => prev + token),
       );
       const hasSourceText = result.phases.some((p) => p.sourceText);
@@ -79,8 +81,10 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     setGenerating(true);
     setGeneratingReasoning('');
     try {
+      // Always use head index for generation operations
+      const headIndex = state.resolvedEntryKeys.length - 1;
       const result = await generateOutline(
-        narrative, state.resolvedEntryKeys, state.currentSceneIndex,
+        narrative, state.resolvedEntryKeys, headIndex,
         (token) => setGeneratingReasoning((prev) => prev + token),
       );
       const newQueue: PlanningQueue = {
@@ -115,13 +119,16 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     const phase = queue.phases[phaseIndex];
     if (!phase || phase.status !== 'active') return;
 
+    // Always use head index for generation operations
+    const headIndex = state.resolvedEntryKeys.length - 1;
+
     setRegenerating(mode === 'both' ? 'world' : mode);
     setRegeneratingReasoning('');
     try {
       // World expansion first
       if (mode === 'world' || mode === 'both') {
         const expansion = await expandWorld(
-          narrative, state.resolvedEntryKeys, state.currentSceneIndex,
+          narrative, state.resolvedEntryKeys, headIndex,
           phase.worldExpansionHints || '', 'medium', undefined, phase.sourceText,
           (token) => setRegeneratingReasoning((prev) => prev + token),
         );
@@ -142,7 +149,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
         if (mode === 'both') { setRegenerating('direction'); setRegeneratingReasoning(''); }
         const freshNarrative = state.activeNarrative ?? narrative;
         const { direction, constraints } = await generatePhaseDirection(
-          freshNarrative, state.resolvedEntryKeys, state.currentSceneIndex, phase, queue,
+          freshNarrative, state.resolvedEntryKeys, headIndex, phase, queue,
           (token) => setRegeneratingReasoning((prev) => prev + token),
         );
         dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId, phaseIndex, updates: { direction, constraints: constraints || phase.constraints } });
@@ -198,13 +205,14 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     setActivatingReasoning('');
     try {
       const resolvedKeys = state.resolvedEntryKeys;
-      const currentIndex = state.currentSceneIndex;
+      // Always use head index for generation operations
+      const headIndex = resolvedKeys.length - 1;
       const onReasoning = (token: string) => setActivatingReasoning((prev) => prev + token);
 
       if (queue.expandWorld !== false) {
         setActivatingStep('Expanding world...');
         const strategy = narrative.storySettings?.expansionStrategy ?? 'dynamic';
-        const expansion = await expandWorld(narrative, resolvedKeys, currentIndex, firstPhase.worldExpansionHints || '', 'medium', strategy, firstPhase.sourceText, onReasoning);
+        const expansion = await expandWorld(narrative, resolvedKeys, headIndex, firstPhase.worldExpansionHints || '', 'medium', strategy, firstPhase.sourceText, onReasoning);
         dispatch({
           type: 'EXPAND_WORLD',
           worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
@@ -216,7 +224,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
       setActivatingStep('Generating direction...');
       setActivatingReasoning('');
-      const { direction, constraints } = await generatePhaseDirection(narrative, resolvedKeys, currentIndex, firstPhase, queue, onReasoning);
+      const { direction, constraints } = await generatePhaseDirection(narrative, resolvedKeys, headIndex, firstPhase, queue, onReasoning);
       // Activate the first phase: set status, direction, and activePhaseIndex
       const activatedQueue: PlanningQueue = {
         ...queue,
@@ -512,8 +520,10 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                         setGenerating(true);
                         setGeneratingReasoning('');
                         try {
+                          // Always use head index for generation operations
+                          const headIndex = state.resolvedEntryKeys.length - 1;
                           const doc = await generatePlanDocument(
-                            narrative, state.resolvedEntryKeys, state.currentSceneIndex,
+                            narrative, state.resolvedEntryKeys, headIndex,
                             (token) => setGeneratingReasoning((prev) => prev + token),
                           );
                           setPlanDocument(doc);

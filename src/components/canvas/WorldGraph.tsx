@@ -14,6 +14,8 @@ import type {
 import EvalBar from '@/components/timeline/EvalBar';
 import KnowledgeGraphView, { FullscreenButton } from './KnowledgeGraphView';
 import ThreadGraphView from './ThreadGraphView';
+import { ScenePlanView } from './ScenePlanView';
+import { SceneProseView } from './SceneProseView';
 import {
   type GraphNode,
   type GraphLink,
@@ -1101,140 +1103,59 @@ export default function WorldGraph() {
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
-      {/* Controls (top-left) — contextual per graph view mode */}
-      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
-        <div className="flex items-center gap-0">
-          <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showEdgeLabels}
-              onChange={() => setShowEdgeLabels((v) => !v)}
-              className="accent-accent-cta w-3 h-3"
-            />
-            Labels
-          </label>
-          <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showHeatmap}
-              onChange={() => setShowHeatmap((v) => !v)}
-              className="accent-accent-cta w-3 h-3"
-            />
-            Heat
-          </label>
-          <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showEval}
-              onChange={() => setShowEval((v) => !v)}
-              className="accent-accent-cta w-3 h-3"
-            />
-            Eval
-          </label>
-          {graphViewMode === 'spatial' && (
-            <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={sceneFocus}
-                onChange={() => setSceneFocus((v) => !v)}
-                className="accent-accent-cta w-3 h-3"
-              />
-              Focus
-            </label>
-          )}
-          <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showItems}
-              onChange={() => setShowItems((v) => !v)}
-              className="accent-accent-cta w-3 h-3"
-            />
-            Items
-          </label>
-        </div>
-      </div>}
-      {showEval && (graphViewMode === 'spatial' || graphViewMode === 'overview') && <EvalBar />}
-      {/* Graph view mode toggle (top-right) */}
-      <div className="absolute top-2 right-2 z-30 flex flex-col items-end gap-1">
-        {/* Domain selector */}
-        <div className="flex items-center gap-1 text-[11px] leading-none">
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      {/* Legend strip — only for spatial/overview graph modes */}
+      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && (
+        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60">
           {([
-            { domain: 'world' as const, label: 'World', local: 'spatial' as const, global: 'overview' as const },
-            { domain: 'knowledge' as const, label: 'Knowledge', local: 'spark' as const, global: 'codex' as const },
-            { domain: 'threads' as const, label: 'Threads', local: 'pulse' as const, global: 'threads' as const },
-          ]).map(({ domain, label, local, global }) => {
-            const isActive = graphViewMode === local || graphViewMode === global;
-            return (
-              <button
-                key={domain}
-                className={`px-2.5 py-1.5 rounded transition-colors ${
-                  isActive ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'
-                }`}
-                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: isActive ? (graphViewMode === local ? global : local) : local })}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Scope + Prose row */}
-        {(() => {
-          const pairs: Record<string, { local: string; global: string }> = {
-            spatial: { local: 'spatial', global: 'overview' },
-            overview: { local: 'spatial', global: 'overview' },
-            spark: { local: 'spark', global: 'codex' },
-            codex: { local: 'spark', global: 'codex' },
-            pulse: { local: 'pulse', global: 'threads' },
-            threads: { local: 'pulse', global: 'threads' },
-          };
-          const pair = graphViewMode !== 'prose' ? pairs[graphViewMode] : null;
-          const isLocal = pair ? graphViewMode === pair.local : false;
-          return (
-            <div className="flex items-center gap-1 text-[10px] leading-none">
-              {pair && (
-                <>
-                  <button
-                    className={`px-2 py-1 rounded transition-colors ${isLocal ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'}`}
-                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: pair.local as GraphViewMode })}
-                  >
-                    Local
-                  </button>
-                  <button
-                    className={`px-2 py-1 rounded transition-colors ${!isLocal ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'}`}
-                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: pair.global as GraphViewMode })}
-                  >
-                    Global
-                  </button>
-                </>
-              )}
-              <button
-                className={`px-2 py-1 rounded transition-colors ${
-                  graphViewMode === 'prose' ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-default hover:bg-white/4'
-                }`}
-                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: graphViewMode === 'prose' ? 'spatial' : 'prose' })}
-              >
-                Prose
-              </button>
-            </div>
-          );
-        })()}
-      </div>
-      {graphViewMode === 'prose' ? (
-        <div className="absolute inset-0 z-20 overflow-y-auto flex justify-center" style={{ scrollbarWidth: 'thin' }}>
-          <div className="max-w-xl w-full">
-            {currentScene?.prose ? (
-              <div className="text-[15px] py-24 text-text-secondary/90 leading-[1.9] whitespace-pre-wrap font-serif">
-                {currentScene.prose}
+            { key: 'labels', label: 'Labels', checked: showEdgeLabels, toggle: () => setShowEdgeLabels((v) => !v) },
+            { key: 'heat', label: 'Heat', checked: showHeatmap, toggle: () => setShowHeatmap((v) => !v) },
+            { key: 'eval', label: 'Eval', checked: showEval, toggle: () => setShowEval((v) => !v) },
+            ...(graphViewMode === 'spatial' ? [{ key: 'focus', label: 'Focus', checked: sceneFocus, toggle: () => setSceneFocus((v: boolean) => !v) }] : []),
+            { key: 'items', label: 'Items', checked: showItems, toggle: () => setShowItems((v) => !v) },
+          ] as { key: string; label: string; checked: boolean; toggle: () => void }[]).map(({ key, label, checked, toggle }) => (
+            <button
+              key={key}
+              onClick={toggle}
+              className={`text-[9px] px-2 py-1 rounded transition-colors select-none ${
+                checked ? 'text-text-secondary' : 'text-text-dim/40 hover:text-text-dim'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          {showHeatmap && (
+            <>
+              <div className="w-px h-3 bg-border mx-1" />
+              <div className="flex items-center gap-1">
+                <span className="text-[8px] text-text-dim/40">Low</span>
+                <div className="h-1.5 w-12 rounded-full" style={{ background: 'linear-gradient(to right, #3B82F6, #22C55E, #EF4444)' }} />
+                <span className="text-[8px] text-text-dim/40">High</span>
               </div>
-            ) : (
-              <p className="text-text-dim text-sm italic">
-                {currentScene ? 'No prose available for this scene.' : 'No scene selected.'}
-              </p>
-            )}
-          </div>
+            </>
+          )}
         </div>
+      )}
+
+      {/* Canvas area */}
+      <div className="relative flex-1 overflow-hidden">
+      {showEval && (graphViewMode === 'spatial' || graphViewMode === 'overview') && <EvalBar />}
+      {graphViewMode === 'plan' ? (
+        currentScene ? (
+          <ScenePlanView narrative={narrative} scene={currentScene} resolvedKeys={resolvedEntryKeys} />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-text-dim text-sm italic">No scene selected.</p>
+          </div>
+        )
+      ) : graphViewMode === 'prose' ? (
+        currentScene ? (
+          <SceneProseView narrative={narrative} scene={currentScene} resolvedKeys={resolvedEntryKeys} />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-text-dim text-sm italic">No scene selected.</p>
+          </div>
+        )
       ) : graphViewMode === 'pulse' || graphViewMode === 'threads' ? (
         <ThreadGraphView
           narrative={narrative!}
@@ -1242,6 +1163,7 @@ export default function WorldGraph() {
           currentIndex={state.currentSceneIndex}
           mode={graphViewMode as 'pulse' | 'threads'}
           onSelectThread={(id) => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } })}
+          hideControls hideLegend
         />
       ) : graphViewMode === 'spark' || graphViewMode === 'codex' ? (
         <KnowledgeGraphView
@@ -1249,6 +1171,7 @@ export default function WorldGraph() {
           resolvedKeys={state.resolvedEntryKeys}
           currentIndex={state.currentSceneIndex}
           mode={graphViewMode}
+          hideControls hideLegend
         />
       ) : (
         <svg
@@ -1257,22 +1180,9 @@ export default function WorldGraph() {
           style={{ background: 'transparent' }}
         />
       )}
-      {/* Legend + Group navigation (bottom-left) */}
-      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && (
-        <div className="absolute bottom-4 left-2 z-10 flex flex-col gap-1 items-start">
-        {showHeatmap && (
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
-            <span>Low</span>
-            <div
-              className="h-2 w-20 rounded-sm"
-              style={{
-                background: 'linear-gradient(to right, #3B82F6, #22C55E, #EF4444)',
-              }}
-            />
-            <span>High</span>
-          </div>
-        )}
-        {groups.length > 1 && (
+      {/* Group navigation (bottom-left) */}
+      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && groups.length > 1 && (
+        <div className="absolute bottom-4 left-2 z-10">
         <div className="flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
           <button
             className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
@@ -1306,7 +1216,6 @@ export default function WorldGraph() {
             </>
           )}
         </div>
-        )}
       </div>
       )}
       {/* Fullscreen toggle */}
@@ -1324,6 +1233,7 @@ export default function WorldGraph() {
           <div className="flex justify-center"><div className="w-2.5 h-2.5 bg-bg-elevated border-r border-b border-border rotate-45 -mt-1.5" /></div>
         </div>
       )}
+      </div>
     </div>
   );
 }

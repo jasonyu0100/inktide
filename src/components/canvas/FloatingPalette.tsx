@@ -4,7 +4,9 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { IconChevronLeft, IconChevronRight, IconSearch, IconFlask, IconAutoLoop, IconList, IconSettings, IconTrash } from '@/components/icons';
+import { IconChevronLeft, IconChevronRight, IconSearch, IconFlask, IconAutoLoop, IconList, IconSettings, IconTrash, IconRefresh, IconEdit, IconClose } from '@/components/icons';
+import { PlanGenerateModal, type PlanGenerateConfig } from './PlanGenerateModal';
+import { ProseGenerateModal, type ProseGenerateConfig } from './ProseGenerateModal';
 
 /** Highlight all occurrences of `query` within `text` */
 function HighlightText({ text, query }: { text: string; query: string }) {
@@ -130,7 +132,258 @@ export default function FloatingPalette() {
     setDeleteConfirm(false);
   }, [narrative, state.activeBranchId, state.resolvedEntryKeys, state.currentSceneIndex, isHead, dispatch]);
 
+  const graphViewMode = state.graphViewMode;
+  const isEditingMode = graphViewMode === 'plan' || graphViewMode === 'prose';
+
+  // Current scene — for checking if rewrite is available
+  const currentScene = useMemo(() => {
+    if (!narrative) return null;
+    const key = state.resolvedEntryKeys[state.currentSceneIndex];
+    return key ? (narrative.scenes[key] ?? null) : null;
+  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+  const hasPlan = !!currentScene?.plan;
+  const hasProse = !!currentScene?.prose;
   const wrapperClasses = isActive ? '' : 'opacity-30 pointer-events-none';
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [proseModalOpen, setProseModalOpen] = useState(false);
+  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [rewriteText, setRewriteText] = useState('');
+  const rewriteInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (rewriteOpen) setTimeout(() => rewriteInputRef.current?.focus(), 50);
+    else setRewriteText('');
+  }, [rewriteOpen]);
+
+  const submitRewrite = useCallback(() => {
+    if (!rewriteText.trim()) return;
+    const event = graphViewMode === 'plan' ? 'canvas:rewrite-plan' : 'canvas:rewrite-prose';
+    window.dispatchEvent(new CustomEvent(event, { detail: { guidance: rewriteText.trim() } }));
+    setRewriteOpen(false);
+    setRewriteText('');
+  }, [rewriteText, graphViewMode]);
+
+  // ── Editing mode palette (plan / prose) ───────────────────────────────
+  if (isEditingMode) {
+    return (
+    <>
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
+        {/* Rewrite guidance overlay */}
+        {rewriteOpen && (
+          <div
+            className="w-96 flex flex-col rounded-xl border border-white/10 overflow-hidden"
+            style={{ background: '#1a1a1a', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+          >
+            <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
+              <span className={`text-[10px] uppercase tracking-wider ${graphViewMode === 'plan' ? 'text-sky-400/70' : 'text-emerald-400/70'}`}>
+                Rewrite {graphViewMode === 'plan' ? 'Plan' : 'Prose'}
+              </span>
+              <button onClick={() => setRewriteOpen(false)} className="text-[10px] text-text-dim/40 hover:text-text-dim transition">&times;</button>
+            </div>
+            <div className="p-3">
+              <textarea
+                ref={rewriteInputRef}
+                value={rewriteText}
+                onChange={(e) => setRewriteText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setRewriteOpen(false);
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitRewrite();
+                }}
+                placeholder={graphViewMode === 'plan'
+                  ? 'Describe what to change... e.g. "add more tension before the reveal" or "swap the dialogue beat for inner monologue"'
+                  : 'Describe what to change... e.g. "make the opening more visceral" or "tighten the pacing in the middle section"'}
+                className="w-full h-20 bg-black/20 border border-white/5 rounded text-[11px] text-text-secondary p-2 resize-none outline-none focus:border-white/15 placeholder:text-text-dim/30"
+              />
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[9px] text-text-dim/30">&#x2318;Enter to submit</span>
+                <button
+                  onClick={submitRewrite}
+                  disabled={!rewriteText.trim()}
+                  className={`text-[10px] px-3 py-1 rounded transition disabled:opacity-30 disabled:cursor-not-allowed ${
+                    graphViewMode === 'plan'
+                      ? 'bg-sky-500/10 border border-sky-500/20 text-sky-400 hover:bg-sky-500/15'
+                      : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/15'
+                  }`}
+                >
+                  Rewrite
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {searchOpen && (
+          <div
+            className="w-80 max-h-[50vh] flex flex-col rounded-xl border border-white/10 overflow-hidden"
+            style={{ background: '#1a1a1a', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+          >
+            <div className="px-3 py-2.5 border-b border-white/5 flex items-center gap-2 shrink-0">
+              <IconSearch size={14} className="text-text-dim shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setSearchOpen(false);
+                  if (e.key === 'Enter' && searchResults.length > 0) {
+                    dispatch({ type: 'SET_SCENE_INDEX', index: searchResults[0].timelineIndex });
+                    setSearchOpen(false);
+                  }
+                }}
+                placeholder="Search scenes..."
+                className="flex-1 bg-transparent text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none"
+              />
+              {searchQuery && (
+                <span className="text-[9px] text-text-dim font-mono shrink-0">{searchResults.length} found</span>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {searchQuery.trim() && searchResults.length === 0 ? (
+                <div className="py-8 text-center text-[11px] text-text-dim">No scenes match</div>
+              ) : (
+                searchResults.map((r) => (
+                  <button
+                    key={r.sceneId}
+                    onClick={() => {
+                      dispatch({ type: 'SET_SCENE_INDEX', index: r.timelineIndex });
+                      setSearchOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors border-b border-white/3 last:border-0"
+                  >
+                    <p className="text-[11px] text-text-secondary leading-snug line-clamp-2">
+                      <HighlightText text={r.summary} query={searchQuery} />
+                    </p>
+                    {r.matchSnippet && (
+                      <p className="text-[10px] text-text-dim leading-snug mt-1 line-clamp-1">
+                        <HighlightText text={r.matchSnippet} query={searchQuery} />
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {r.arcName && <span className="text-[9px] text-text-dim">{r.arcName}</span>}
+                      {r.locationName && (
+                        <>
+                          <span className="text-[9px] text-text-dim/30">&middot;</span>
+                          <span className="text-[9px] text-text-dim">{r.locationName}</span>
+                        </>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className={`glass-pill px-3 py-1.5 flex items-center gap-2 ${wrapperClasses}`}>
+          {/* Scene nav */}
+          <button type="button" className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors" onClick={() => dispatch({ type: 'PREV_SCENE' })} aria-label="Previous scene">
+            <IconChevronLeft size={14} />
+          </button>
+          <button type="button" className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${searchOpen ? 'text-text-primary bg-white/10' : 'text-text-secondary hover:text-text-primary hover:bg-white/6'}`} onClick={() => setSearchOpen((v) => !v)} aria-label="Search scenes">
+            <IconSearch size={12} />
+          </button>
+          <button type="button" className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors" onClick={() => dispatch({ type: 'NEXT_SCENE' })} aria-label="Next scene">
+            <IconChevronRight size={14} />
+          </button>
+
+          <div className="w-px h-4 bg-white/12 mx-1" />
+
+          {/* Plan palette actions */}
+          {graphViewMode === 'plan' && (
+            <>
+              <button type="button"
+                className="text-xs font-semibold text-change bg-change/10 px-2 py-1 rounded-md hover:bg-change/20 transition-colors uppercase tracking-wider"
+                onClick={() => setPlanModalOpen(true)}>
+                Generate
+              </button>
+              {hasPlan && (
+                <button type="button"
+                  className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${rewriteOpen ? 'text-amber-400 bg-amber-500/15' : 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'}`}
+                  onClick={() => setRewriteOpen((v) => !v)}
+                  title="Rewrite with guidance">
+                  <IconRefresh size={14} />
+                </button>
+              )}
+              {hasPlan && (
+                <button type="button"
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+                  onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-plan'))}
+                  title="Clear plan">
+                  <IconClose size={14} />
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Prose palette actions */}
+          {graphViewMode === 'prose' && (
+            <>
+              <button type="button"
+                className="text-xs font-semibold text-change bg-change/10 px-2 py-1 rounded-md hover:bg-change/20 transition-colors uppercase tracking-wider"
+                onClick={() => setProseModalOpen(true)}>
+                Generate
+              </button>
+              {hasProse && (
+                <button type="button"
+                  className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${rewriteOpen ? 'text-amber-400 bg-amber-500/15' : 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'}`}
+                  onClick={() => setRewriteOpen((v) => !v)}
+                  title="Rewrite with guidance">
+                  <IconRefresh size={14} />
+                </button>
+              )}
+              {hasProse && (
+                <button type="button"
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20"
+                  onClick={() => window.dispatchEvent(new CustomEvent('canvas:edit-prose'))}
+                  title="Edit prose">
+                  <IconEdit size={14} />
+                </button>
+              )}
+              {hasProse && (
+                <button type="button"
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+                  onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-prose'))}
+                  title="Clear prose">
+                  <IconClose size={14} />
+                </button>
+              )}
+            </>
+          )}
+
+          <div className="w-px h-4 bg-white/12 mx-1" />
+
+          {/* Story Settings — always visible */}
+          <button type="button"
+            className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-story-settings'))}
+            title="Story settings">
+            <IconSettings size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Generate config modals — rendered outside positioned container */}
+      {planModalOpen && (
+        <PlanGenerateModal
+          onClose={() => setPlanModalOpen(false)}
+          onGenerate={(config: PlanGenerateConfig) => {
+            window.dispatchEvent(new CustomEvent('canvas:generate-plan', { detail: config }));
+          }}
+        />
+      )}
+      {proseModalOpen && (
+        <ProseGenerateModal
+          onClose={() => setProseModalOpen(false)}
+          hasPlan={hasPlan}
+          onGenerate={(config: ProseGenerateConfig) => {
+            window.dispatchEvent(new CustomEvent('canvas:generate-prose', { detail: config }));
+          }}
+        />
+      )}
+    </>
+    );
+  }
 
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
@@ -240,7 +493,7 @@ export default function FloatingPalette() {
             </button>
 
             {/* Divider */}
-            <div className="w-px h-4 bg-white/[0.12] mx-1" />
+            <div className="w-px h-4 bg-white/12 mx-1" />
 
             {/* Generate */}
             <button
@@ -290,7 +543,7 @@ export default function FloatingPalette() {
             </button>
 
             {/* Divider */}
-            <div className="w-px h-4 bg-white/[0.12] mx-1" />
+            <div className="w-px h-4 bg-white/12 mx-1" />
           </>
         )}
 

@@ -7,10 +7,11 @@ import { THREAD_TERMINAL_STATUSES, resolveEntry } from '@/types/narrative';
 import { computeThreadStatuses } from '@/lib/narrative-utils';
 import { computeGroups } from './graph-utils';
 import { IconChevronLeft, IconChevronRight, IconRefresh } from '@/components/icons';
+import EvalBar from '@/components/timeline/EvalBar';
 
 // ── Status colors & glow ────────────────────────────────────────────────────
 
-const STATUS_COLORS: Record<string, string> = {
+export const STATUS_COLORS: Record<string, string> = {
   dormant:    '#475569',
   active:     '#38BDF8',
   escalating: '#FBBF24',
@@ -88,12 +89,16 @@ export default function ThreadGraphView({
   currentIndex,
   mode,
   onSelectThread,
+  hideControls,
+  hideLegend,
 }: {
   narrative: NarrativeState;
   resolvedKeys: string[];
   currentIndex: number;
   mode: 'pulse' | 'threads';
   onSelectThread: (threadId: string) => void;
+  hideControls?: boolean;
+  hideLegend?: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const simRef = useRef<d3.Simulation<TNode, TLink> | null>(null);
@@ -104,6 +109,7 @@ export default function ThreadGraphView({
   const [showLabels, setShowLabels] = useState(true);
   const [showRelations, setShowRelations] = useState(false);
   const [showTypes, setShowTypes] = useState(true);
+  const [showEval, setShowEval] = useState(true);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; description: string; status: string; participants: string[]; activity: number } | null>(null);
   const [groups, setGroups] = useState<TNode[][]>([]);
   const [focusedGroup, setFocusedGroup] = useState<number | null>(null);
@@ -428,11 +434,42 @@ export default function ThreadGraphView({
     [groups],
   );
 
+  const legendStripItems = [
+    { key: 'labels', label: 'Labels', checked: showLabels, toggle: () => setShowLabels((v) => !v) },
+    { key: 'relations', label: 'Relations', checked: showRelations, toggle: () => setShowRelations((v) => !v) },
+    { key: 'types', label: 'Types', checked: showTypes, toggle: () => setShowTypes((v) => !v) },
+    { key: 'eval', label: 'Eval', checked: showEval, toggle: () => setShowEval((v) => !v) },
+  ];
+
   return (
-    <div className="absolute inset-0 z-20">
+    <div className={hideControls ? 'flex flex-col absolute inset-0 z-20' : 'absolute inset-0 z-20'}>
+      {/* Legend strip — replaces floating controls */}
+      {hideControls && (
+        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60 z-30">
+          {legendStripItems.map(({ key, label, checked, toggle }) => (
+            <button key={key} onClick={toggle}
+              className={`text-[9px] px-2 py-1 rounded transition-colors select-none ${checked ? 'text-text-secondary' : 'text-text-dim/40 hover:text-text-dim'}`}>
+              {label}
+            </button>
+          ))}
+          {showTypes && (
+            <>
+              <div className="w-px h-3 bg-border mx-1" />
+              {Object.entries(STATUS_COLORS).map(([status, color]) => (
+                <span key={status} className="flex items-center gap-1 px-1">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                  <span className="text-[8px] text-text-dim/50 capitalize">{status}</span>
+                </span>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+      <div className={hideControls ? 'relative flex-1 overflow-hidden' : 'h-full w-full'}>
       <svg ref={svgRef} className="h-full w-full" style={{ background: 'transparent' }} />
 
-      {/* Controls (top-left) */}
+      {/* Floating controls fallback */}
+      {!hideControls && (
       <div className="absolute top-2 left-2 z-30 flex items-center gap-0">
         <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
           <input type="checkbox" checked={showLabels} onChange={() => setShowLabels(v => !v)} className="accent-accent-cta w-3 h-3" />
@@ -446,7 +483,13 @@ export default function ThreadGraphView({
           <input type="checkbox" checked={showTypes} onChange={() => setShowTypes(v => !v)} className="accent-accent-cta w-3 h-3" />
           Types
         </label>
+        <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
+          <input type="checkbox" checked={showEval} onChange={() => setShowEval(v => !v)} className="accent-accent-cta w-3 h-3" />
+          Eval
+        </label>
       </div>
+      )}
+      {showEval && <EvalBar />}
 
       {/* Tooltip */}
       {tooltip && (
@@ -474,8 +517,9 @@ export default function ThreadGraphView({
         </div>
       )}
 
-      {/* Legend + Group navigation (bottom-left) */}
+      {/* Group navigation (bottom-left) */}
       <div className="absolute bottom-4 left-2 z-30 flex flex-col gap-1 items-start">
+        {!hideLegend && (
         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
           {Object.entries(STATUS_COLORS).map(([status, color]) => (
             <span key={status} className="flex items-center gap-1">
@@ -484,6 +528,7 @@ export default function ThreadGraphView({
             </span>
           ))}
         </div>
+        )}
         {groups.length > 1 && (
         <div className="flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
           <button
@@ -519,6 +564,7 @@ export default function ThreadGraphView({
           )}
         </div>
         )}
+      </div>
       </div>
     </div>
   );

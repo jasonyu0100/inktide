@@ -1040,7 +1040,7 @@ export type WizardData = {
   worldOnly?: boolean;
 };
 
-export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'spark' | 'codex' | 'pulse' | 'threads';
+export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'plan' | 'spark' | 'codex' | 'pulse' | 'threads';
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {

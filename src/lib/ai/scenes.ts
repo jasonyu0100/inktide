@@ -265,6 +265,8 @@ export async function generateScenePlan(
   resolvedKeys: string[],
   onReasoning?: (token: string) => void,
   onMeta?: (meta: { targetBeats: number; estWords: number }) => void,
+  /** Per-scene direction that supplements storySettings.planGuidance */
+  guidance?: string,
 ): Promise<BeatPlan> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
@@ -395,9 +397,10 @@ RULES:
 - Be specific: "She asks about the missing shipment; he deflects" not "A tense exchange."
 - ANCHORS: Write 1-3 polished, publication-ready sentences that would define this scene if quoted. These are the lines a reader highlights — a striking image, a defining utterance, a metaphor that crystallizes meaning. The prose writer will include these VERBATIM. Quiet scenes may have 0 anchors. Climactic scenes may have 3. Write them as finished prose, not summaries.
 - Return ONLY valid JSON.`
-  + (narrative.storySettings?.planGuidance?.trim()
-    ? `\n\nPLAN GUIDANCE:\n${narrative.storySettings.planGuidance.trim()}`
-    : '');
+  + (() => {
+    const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
+    return parts.length > 0 ? `\n\nPLAN GUIDANCE:\n${parts.join('\n')}` : '';
+  })();
 
   const prompt = `${profileBlock}BRANCH CONTEXT:\n${fullContext}
 ${recentProseBlock ? `\n${recentProseBlock}\n` : ''}
@@ -623,6 +626,8 @@ export async function generateSceneProse(
   scene: Scene,
   resolvedKeys: string[],
   onToken?: (token: string) => void,
+  /** Per-scene prose direction appended to the system prompt */
+  guidance?: string,
 ): Promise<string> {
 
   // Branch context up to this scene — history without future details leaking in
@@ -713,7 +718,9 @@ Strict output rules:
 - Use straight quotes (" and '), never smart/curly quotes or other typographic substitutions.
 - Do not begin with a character name as the first word.${!hasVoiceOverride ? `
 - CRITICAL: Do NOT open with weather, atmosphere, air quality, scent, or environmental description. Instead: mid-dialogue, a character's body in motion, a close-up on an object, an internal thought, a sound, a tactile sensation.
-- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. End with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture.` : ''}`;
+- Do NOT end with philosophical musings, rhetorical questions, or atmospheric fade-outs. End with: a character leaving, a sharp line of dialogue, a decision made in silence, an interruption, a physical gesture.` : ''}${
+    guidance?.trim() ? `\n\nSCENE DIRECTION:\n${guidance.trim()}` : ''
+  }`;
 
   const sceneBlock = sceneContext(narrative, scene);
 

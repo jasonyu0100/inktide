@@ -8,7 +8,7 @@ import Sidebar from '@/components/sidebar/Sidebar';
 import SidePanel from '@/components/inspector/SidePanel';
 import WorldGraph from '@/components/canvas/WorldGraph';
 import FloatingPalette from '@/components/canvas/FloatingPalette';
-import SceneInfoBar from '@/components/canvas/SceneInfoBar';
+import { CanvasTopBar } from '@/components/canvas/CanvasTopBar';
 import TimelineStrip from '@/components/timeline/TimelineStrip';
 import ForceCharts from '@/components/timeline/ForceCharts';
 import NarrativePanel from '@/components/narrative/NarrativePanel';
@@ -141,6 +141,7 @@ export default function SeriesPage() {
         sidepanel={<SidePanel />}
       >
         <div className="relative flex flex-col h-full min-h-0">
+          <CanvasTopBar />
           <div className="flex-1 relative overflow-hidden">
             <WorldGraph />
             {showAutoBar && !showMctsBar && (
@@ -167,7 +168,7 @@ export default function SeriesPage() {
                 onOpenPanel={() => setMctsOpen(true)}
               />
             )}
-            {!showAutoBar && !showMctsBar && <SceneInfoBar />}
+
             <FloatingPalette />
             {planning.queue && (
               <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">

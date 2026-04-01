@@ -55,11 +55,13 @@ export function FullscreenButton() {
 
 // ── Knowledge Graph Views (Insight + Nexus) ─────────────────────────────────
 
-export default function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode }: {
+export default function KnowledgeGraphView({ narrative, resolvedKeys, currentIndex, mode, hideControls, hideLegend }: {
   narrative: NarrativeState;
   resolvedKeys: string[];
   currentIndex: number;
   mode: 'spark' | 'codex';
+  hideControls?: boolean;
+  hideLegend?: boolean;
 }) {
   const { dispatch } = useStore();
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -402,10 +404,41 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
     return () => window.removeEventListener('focus-knowledge-node', handler);
   }, []);
 
+  const legendStripItems = [
+    { key: 'labels', label: 'Labels', checked: showLabels, toggle: () => setShowLabels((v) => !v) },
+    { key: 'relations', label: 'Relations', checked: showRelations, toggle: () => setShowRelations((v) => !v) },
+    { key: 'types', label: 'Types', checked: showTypes, toggle: () => setShowTypes((v) => !v) },
+    { key: 'eval', label: 'Eval', checked: showEval, toggle: () => setShowEval((v) => !v) },
+  ];
+
   return (
-    <div className="absolute inset-0 z-20">
+    <div className={hideControls ? 'flex flex-col absolute inset-0 z-20' : 'absolute inset-0 z-20'}>
+      {/* Legend strip — replaces floating controls */}
+      {hideControls && (
+        <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60 z-30">
+          {legendStripItems.map(({ key, label, checked, toggle }) => (
+            <button key={key} onClick={toggle}
+              className={`text-[9px] px-2 py-1 rounded transition-colors select-none ${checked ? 'text-text-secondary' : 'text-text-dim/40 hover:text-text-dim'}`}>
+              {label}
+            </button>
+          ))}
+          {showTypes && (
+            <>
+              <div className="w-px h-3 bg-border mx-1" />
+              {Object.entries(WK_TYPE_COLORS).map(([type, color]) => (
+                <span key={type} className="flex items-center gap-1 px-1">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                  <span className="text-[8px] text-text-dim/50 capitalize">{type}</span>
+                </span>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+      <div className={hideControls ? 'relative flex-1 overflow-hidden' : 'h-full w-full'}>
       <svg ref={svgRef} className="h-full w-full" style={{ background: 'transparent' }} />
-      {/* Controls (top-left) */}
+      {/* Floating controls fallback — only when not using legend strip */}
+      {!hideControls && (
       <div className="absolute top-2 left-2 z-30 flex items-center gap-0">
         <label className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-bg-surface text-[11px] leading-none text-text-dim hover:text-text-default cursor-pointer select-none">
           <input type="checkbox" checked={showLabels} onChange={() => setShowLabels((v) => !v)} className="accent-accent-cta w-3 h-3" />
@@ -424,6 +457,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
           Eval
         </label>
       </div>
+      )}
       {showEval && <EvalBar />}
       {/* Tooltip */}
       {tooltip && (
@@ -446,6 +480,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       )}
       {/* Legend + Group navigation (bottom-left) */}
       <div className="absolute bottom-4 left-2 z-30 flex flex-col gap-1 items-start">
+        {!hideLegend && (
         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
           {Object.entries(WK_TYPE_COLORS).map(([type, color]) => (
             <span key={type} className="flex items-center gap-1">
@@ -454,6 +489,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
             </span>
           ))}
         </div>
+        )}
         {wkGroups.length > 1 && (
         <div className="flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
           <button
@@ -489,6 +525,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
           )}
         </div>
         )}
+      </div>
       </div>
     </div>
   );

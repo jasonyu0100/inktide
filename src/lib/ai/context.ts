@@ -361,7 +361,7 @@ export function narrativeContext(
     const participants = s.participantIds.map((pid) => n.characters[pid]?.name ?? pid).join(', ');
     const threadChanges = s.threadMutations.map((tm) => {
       const thr = n.threads[tm.threadId];
-      const desc = thr ? thr.description.slice(0, 40) : tm.threadId;
+      const desc = thr ? thr.description : tm.threadId;
       return `${desc}: ${tm.from}->${tm.to}`;
     }).join('; ');
     const continuityChanges = s.continuityMutations.map((km) => {
@@ -388,7 +388,7 @@ export function narrativeContext(
   const arcs = Object.values(n.arcs)
     .filter((a) => !hasHistory || a.sceneIds.some((sid) => branchSceneIds.has(sid)))
     .map((a) => {
-      const developsNames = a.develops.map((tid) => n.threads[tid]?.description?.slice(0, 40) ?? tid).join(', ');
+      const developsNames = a.develops.map((tid) => n.threads[tid]?.description ?? tid).join(', ');
       return `<arc id="${a.id}" name="${a.name}" scenes="${a.sceneIds.length}">${developsNames}</arc>`;
     })
     .join('\n');
@@ -750,14 +750,14 @@ function buildDramaticIronyBlock(n: NarrativeState, resolvedKeys: string[]): str
 }
 
 /** Deterministically derive logical rules from the scene graph — no LLM needed.
- *  Returns plain-text rules the prose must obey (spatial, POV, knowledge, relationships, threads). */
+ *  Returns structured XML string with categorized constraints the prose must obey. */
 export function deriveLogicRules(
   narrative: NarrativeState,
   scene: Scene,
   resolvedKeys?: string[],
   currentIndex?: number,
-): string[] {
-  const rules: string[] = [];
+): string {
+  const sections: string[] = [];
 
   // Get timeline-scoped state when resolvedKeys and currentIndex are provided
   const timelineState = resolvedKeys && currentIndex !== undefined
@@ -775,147 +775,194 @@ export function deriveLogicRules(
 
   const participantNames = scene.participantIds
     .map((pid) => narrative.characters[pid]?.name)
-    .filter(Boolean);
+    .filter(Boolean) as string[];
   const participantIdSet = new Set(scene.participantIds);
   const location = narrative.locations[scene.locationId];
   const pov = narrative.characters[scene.povId];
 
-  // Spatial: only participants can appear
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SPATIAL CONSTRAINTS
+  // ═══════════════════════════════════════════════════════════════════════════
   if (participantNames.length > 0 && location) {
-    const absentNames = Object.values(narrative.characters)
-      .filter((c) => !participantIdSet.has(c.id))
-      .map((c) => c.name)
-      .slice(0, 3);
-    if (absentNames.length > 0) {
-      rules.push(`Only these characters are present at ${location.name}: ${participantNames.join(', ')}. No other characters (e.g. ${absentNames.join(', ')}) may physically appear, speak, or interact.`);
-    }
+    sections.push(`<spatial location="${location.name}" present="${participantNames.join(', ')}">
+  Only the listed characters may physically appear, speak, or interact in this scene.
+</spatial>`);
   }
 
-  // POV constraint
+  // ═══════════════════════════════════════════════════════════════════════════
+  // POV LOCK
+  // ═══════════════════════════════════════════════════════════════════════════
   if (pov) {
     const otherParticipants = scene.participantIds
       .filter((pid) => pid !== scene.povId)
       .map((pid) => narrative.characters[pid]?.name)
       .filter(Boolean);
     if (otherParticipants.length > 0) {
-      rules.push(`POV is locked to ${pov.name}. Do not reveal the internal thoughts, feelings, or private knowledge of ${otherParticipants.join(', ')} — only what ${pov.name} can observe, hear, or infer.`);
+      sections.push(`<pov-lock character="${pov.name}" others="${otherParticipants.join(', ')}">
+  Third-person limited to ${pov.name}'s senses and interiority. Do not reveal internal thoughts, feelings, or private knowledge of other characters — only what ${pov.name} can observe, hear, or infer.
+</pov-lock>`);
     }
   }
 
-  // ── POV knowledge boundary ──────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KNOWLEDGE STATE (POV's knowledge at scene start vs. what they learn)
+  // ═══════════════════════════════════════════════════════════════════════════
   if (pov) {
-    // Use timeline-scoped knowledge
+    const povKnowledge = getCharacterKnowledge(pov.id);
+    // Knowledge being added to POV this scene — they don't have it at the START
+    const povLearnsThisScene = scene.continuityMutations
+      .filter((km) => km.characterId === pov.id && km.action === 'added');
+    const povLearnsNodeIds = new Set(povLearnsThisScene.map((km) => km.nodeId));
+    // POV's knowledge at scene START = timeline-scoped graph - things learned this scene
+    const povStartKnowledge = povKnowledge.filter((kn) => !povLearnsNodeIds.has(kn.id));
+
+    const knowledgeLines: string[] = [];
+    if (povStartKnowledge.length > 0) {
+      const items = povStartKnowledge.map((kn) => kn.content);
+      knowledgeLines.push(`  <knows-at-start count="${povStartKnowledge.length}">${items.join(' | ')}</knows-at-start>`);
+    }
+    if (povLearnsThisScene.length > 0) {
+      for (const km of povLearnsThisScene) {
+        knowledgeLines.push(`  <learns-during-scene>${km.content}</learns-during-scene>`);
+      }
+    }
+    if (knowledgeLines.length > 0) {
+      sections.push(`<knowledge-state character="${pov.name}" role="pov">
+${knowledgeLines.join('\n')}
+  <constraint>Narration is limited to knowledge the POV possesses. Before any "learns-during-scene" moment, do not reference that information. Show genuine discovery, not dramatic irony from the narrator.</constraint>
+</knowledge-state>`);
+    }
+
+    // Other participants learning this scene (non-POV)
+    const othersLearning = scene.continuityMutations
+      .filter((km) => km.characterId !== pov.id && km.action === 'added');
+    if (othersLearning.length > 0) {
+      const grouped = new Map<string, string[]>();
+      for (const km of othersLearning) {
+        const char = narrative.characters[km.characterId];
+        if (!char) continue;
+        const list = grouped.get(char.name) ?? [];
+        list.push(km.content);
+        grouped.set(char.name, list);
+      }
+      for (const [charName, items] of grouped) {
+        sections.push(`<knowledge-state character="${charName}" role="participant">
+  ${items.map((i) => `<learns-during-scene>${i}</learns-during-scene>`).join('\n  ')}
+  <constraint>Show ${charName}'s discovery only through observable reaction (expression, body language, dialogue) — not internal thoughts.</constraint>
+</knowledge-state>`);
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KNOWLEDGE ASYMMETRY (what others know that POV doesn't)
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (pov) {
     const povKnowledge = getCharacterKnowledge(pov.id);
     const povKnowledgeIds = new Set(povKnowledge.map((kn) => kn.id));
-    // Knowledge being added to POV this scene — they don't have it at the START
-    const povLearnsThisScene = new Set(
+    const povLearnsNodeIds = new Set(
       scene.continuityMutations
         .filter((km) => km.characterId === pov.id && km.action === 'added')
         .map((km) => km.nodeId),
     );
-    // POV's knowledge at scene START = timeline-scoped graph - things learned this scene
-    const povStartKnowledge = povKnowledge.filter(
-      (kn) => !povLearnsThisScene.has(kn.id),
-    );
 
-    // Summarize what POV knows at scene start (cap to avoid bloat)
-    if (povStartKnowledge.length > 0) {
-      rules.push(`${pov.name}'s knowledge at scene start (narration is limited to this): ${povStartKnowledge.map((kn) => `"${kn.content}"`).join(', ')}. The narrator must NOT reference, explain, or frame events using information outside this set.`);
-    }
+    const asymmetryLines: string[] = [];
 
-    // Flag knowledge that other participants have but POV does NOT
+    // Per-participant asymmetry
     for (const pid of scene.participantIds) {
       if (pid === pov.id) continue;
       const other = narrative.characters[pid];
       if (!other) continue;
       const otherKnowledge = getCharacterKnowledge(pid);
       const otherExclusive = otherKnowledge.filter(
-        (kn) => !povKnowledgeIds.has(kn.id) && !povLearnsThisScene.has(kn.id),
+        (kn) => !povKnowledgeIds.has(kn.id) && !povLearnsNodeIds.has(kn.id),
       );
       if (otherExclusive.length > 0) {
-        const examples = otherExclusive.slice(-3).map((kn) => `"${kn.content}"`).join(', ');
-        rules.push(`${other.name} knows things ${pov.name} does NOT: ${examples}${otherExclusive.length > 3 ? ` (and ${otherExclusive.length - 3} more)` : ''}. The narrator must NOT reveal, hint at, or frame ${other.name}'s actions using this hidden knowledge. ${pov.name} can only observe ${other.name}'s external behaviour and draw their own (possibly wrong) conclusions.`);
+        const examples = otherExclusive.map((kn) => kn.content);
+        asymmetryLines.push(`  <hidden-from-pov holder="${other.name}">${examples.join(' | ')}</hidden-from-pov>`);
       }
     }
 
-    // Reader ↔ POV dramatic irony: things the reader saw in earlier scenes that the POV missed
-    // This creates the Hitchcock bomb-under-the-table effect
-    const readerExclusive: string[] = [];
+    // Dramatic irony: things the reader knows that POV doesn't (from other scenes)
+    const dramaticIronyItems: string[] = [];
     for (const [, char] of Object.entries(narrative.characters)) {
       if (char.id === pov.id) continue;
       const charKnowledge = getCharacterKnowledge(char.id);
       for (const kn of charKnowledge) {
-        if (!povKnowledgeIds.has(kn.id) && !povLearnsThisScene.has(kn.id)) {
-          // Check if any other participant in THIS scene also knows it — if so, the tension is live
+        if (!povKnowledgeIds.has(kn.id) && !povLearnsNodeIds.has(kn.id)) {
           const anyParticipantKnows = scene.participantIds.some((pid) => {
             if (pid === pov.id) return false;
             const pKnowledge = getCharacterKnowledge(pid);
             return pKnowledge.some((n) => n.id === kn.id);
           });
           if (anyParticipantKnows) {
-            readerExclusive.push(`"${kn.content}" (known to ${char.name})`);
+            dramaticIronyItems.push(`${kn.content} (${char.name})`);
           }
         }
       }
     }
-    if (readerExclusive.length > 0) {
-      const examples = readerExclusive.slice(0, 3).join('; ');
-      rules.push(`DRAMATIC IRONY: The reader knows ${examples} — but ${pov.name} does not. Use this gap: ${pov.name} should act on their incomplete understanding while the reader sees the danger or irony. Show ${pov.name}'s confidence, obliviousness, or wrong conclusions — the tension comes from the gap between what the reader knows and what the character believes.`);
+
+    if (asymmetryLines.length > 0 || dramaticIronyItems.length > 0) {
+      const ironyBlock = dramaticIronyItems.length > 0
+        ? `\n  <dramatic-irony hint="Reader knows these, POV does not — show POV acting on incomplete information">${dramaticIronyItems.join(' | ')}</dramatic-irony>`
+        : '';
+      sections.push(`<knowledge-asymmetry pov="${pov.name}">
+${asymmetryLines.join('\n')}${ironyBlock}
+  <constraint>Do not reveal hidden knowledge through narration. ${pov.name} can only observe external behaviour and draw their own (possibly wrong) conclusions.</constraint>
+</knowledge-asymmetry>`);
     }
   }
 
-  // Knowledge mutations — temporal ordering within this scene
-  for (const km of scene.continuityMutations) {
-    if (km.action !== 'added') continue;
-    const char = narrative.characters[km.characterId];
-    if (!char) continue;
-    if (km.characterId === scene.povId) {
-      rules.push(`${char.name} (POV) does NOT know "${km.content}" at scene start — they learn it during the scene. Before the discovery moment, the narrator must not reference this information even obliquely. Show genuine surprise/realisation, not dramatic irony.`);
-    } else {
-      rules.push(`${char.name} does NOT know "${km.content}" at scene start — they learn it during the scene. Since POV is ${pov?.name ?? 'another character'}, show this discovery only through ${char.name}'s observable reaction (expression, body language, dialogue), not through their inner thoughts.`);
-    }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // THREAD TRANSITIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (scene.threadMutations.length > 0) {
+    const threadLines = scene.threadMutations.map((tm) => {
+      const thread = narrative.threads[tm.threadId];
+      const desc = thread?.description ?? tm.threadId;
+      return `  <thread name="${desc}" from="${tm.from}" to="${tm.to}" />`;
+    });
+    sections.push(`<threads hint="Each thread begins in its 'from' state and must transition to its 'to' state during the scene">
+${threadLines.join('\n')}
+</threads>`);
   }
 
-  // Relationship valence consistency — compute PRE-scene valence by subtracting this scene's deltas
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RELATIONSHIPS (static state + mutations)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const baseRelationships = timelineState?.relationships ?? narrative.relationships;
+  const participantRelationships = baseRelationships.filter(
+    (r) => participantIdSet.has(r.from) && participantIdSet.has(r.to),
+  );
+
+  // Compute pre-scene valence by subtracting this scene's deltas
   const mutationDeltaMap = new Map<string, number>();
   for (const rm of scene.relationshipMutations) {
     const key = `${rm.from}->${rm.to}`;
     mutationDeltaMap.set(key, (mutationDeltaMap.get(key) ?? 0) + rm.valenceDelta);
   }
 
-  // Use timeline-scoped relationships when available
-  const baseRelationships = timelineState?.relationships ?? narrative.relationships;
-  const participantRelationships = baseRelationships.filter(
-    (r) => participantIdSet.has(r.from) && participantIdSet.has(r.to),
-  );
+  const relationshipLines: string[] = [];
+
+  // Static relationships (no mutation this scene) that are notably negative
   for (const r of participantRelationships) {
     const fromName = narrative.characters[r.from]?.name;
     const toName = narrative.characters[r.to]?.name;
     if (!fromName || !toName) continue;
 
-    // Pre-scene valence = current valence minus any deltas applied by this scene
     const key = `${r.from}->${r.to}`;
     const delta = mutationDeltaMap.get(key) ?? 0;
+    if (delta !== 0) continue; // handled below in shifts
+
     const preSceneValence = Math.round((r.valence - delta) * 100) / 100;
-
-    // Skip edges that have mutations — the relationship mutation rules below handle those
-    if (delta !== 0) continue;
-
     if (preSceneValence <= -0.5) {
-      rules.push(`${fromName} → ${toName} relationship is hostile (valence ${preSceneValence}). Their interaction must reflect animosity, distrust, or conflict — no friendly or warm exchanges.`);
+      relationshipLines.push(`  <state from="${fromName}" to="${toName}" valence="${preSceneValence}" tone="hostile">${r.type}</state>`);
     } else if (preSceneValence <= -0.1) {
-      rules.push(`${fromName} → ${toName} relationship is tense (valence ${preSceneValence}). Their interaction should carry friction, wariness, or unease.`);
+      relationshipLines.push(`  <state from="${fromName}" to="${toName}" valence="${preSceneValence}" tone="tense">${r.type}</state>`);
     }
   }
 
-  // Thread temporal ordering
-  for (const tm of scene.threadMutations) {
-    const thread = narrative.threads[tm.threadId];
-    if (!thread) continue;
-    rules.push(`Thread "${thread.description}" is "${tm.from}" at scene start and must transition to "${tm.to}" during the scene. Do not begin with the thread already in its end state.`);
-  }
-
-  // Relationship mutations — include pre-scene valence for context
+  // Relationship mutations
   for (const rm of scene.relationshipMutations) {
     const fromName = narrative.characters[rm.from]?.name;
     const toName = narrative.characters[rm.to]?.name;
@@ -924,37 +971,55 @@ export function deriveLogicRules(
     const postValence = edge?.valence ?? 0;
     const preValence = Math.round((postValence - rm.valenceDelta) * 100) / 100;
     const delta = Math.round(rm.valenceDelta * 100) / 100;
-    rules.push(`${fromName} → ${toName} starts at valence ${preValence} and shifts by ${delta >= 0 ? '+' : ''}${delta} (${rm.type}) to end at ${Math.round(postValence * 100) / 100}. The prose must dramatise this change — show the relationship starting at its initial state and the shift happening through behaviour, dialogue, or action.`);
+    relationshipLines.push(`  <shift from="${fromName}" to="${toName}" start="${preValence}" delta="${delta >= 0 ? '+' : ''}${delta}" end="${Math.round(postValence * 100) / 100}" reason="${rm.type}" />`);
   }
 
-  // Events
-  for (const event of scene.events) {
-    rules.push(`The event "${event}" must occur in this scene.`);
+  if (relationshipLines.length > 0) {
+    sections.push(`<relationships hint="Interactions must reflect these valences. Shifts must be dramatised through behaviour, dialogue, or action.">
+${relationshipLines.join('\n')}
+</relationships>`);
   }
 
-  // World knowledge logic — new concepts vs established concepts
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REQUIRED EVENTS
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (scene.events.length > 0) {
+    const eventLines = scene.events.map((e) => `  <event>${e}</event>`);
+    sections.push(`<events hint="All listed events must occur in this scene">
+${eventLines.join('\n')}
+</events>`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WORLD KNOWLEDGE (reveals + connections + established references)
+  // ═══════════════════════════════════════════════════════════════════════════
   if (scene.worldKnowledgeMutations) {
-    const newNodeIds = new Set((scene.worldKnowledgeMutations.addedNodes ?? []).map((n) => n.id));
-    // New concepts: must be revealed during the scene
-    for (const addedNode of scene.worldKnowledgeMutations.addedNodes ?? []) {
+    const wkm = scene.worldKnowledgeMutations;
+    const newNodeIds = new Set((wkm.addedNodes ?? []).map((n) => n.id));
+    const worldLines: string[] = [];
+
+    // New concepts being revealed
+    for (const addedNode of wkm.addedNodes ?? []) {
       if (!addedNode.concept) continue;
       const shortConcept = addedNode.concept.includes(' — ') ? addedNode.concept.split(' — ')[0] : addedNode.concept;
-      rules.push(`WORLD KNOWLEDGE REVEAL: "${shortConcept}" (${addedNode.type}) has NOT been established yet at scene start — it must be revealed through demonstration, consequence, or character action. Do not explain it after showing it. Do not reference it as pre-existing before its revelation moment.`);
+      worldLines.push(`  <reveal concept="${shortConcept}" type="${addedNode.type}" status="new">Show through demonstration or consequence, not exposition. Do not reference before revelation.</reveal>`);
     }
-    // New edges: dramatise the connection
-    for (const edge of scene.worldKnowledgeMutations.addedEdges ?? []) {
+
+    // New connections
+    for (const edge of wkm.addedEdges ?? []) {
       if (!edge.from || !edge.to) continue;
-      const fromNode = narrative.worldKnowledge?.nodes[edge.from] ?? scene.worldKnowledgeMutations.addedNodes?.find((n) => n.id === edge.from);
-      const toNode = narrative.worldKnowledge?.nodes[edge.to] ?? scene.worldKnowledgeMutations.addedNodes?.find((n) => n.id === edge.to);
+      const fromNode = narrative.worldKnowledge?.nodes[edge.from] ?? wkm.addedNodes?.find((n) => n.id === edge.from);
+      const toNode = narrative.worldKnowledge?.nodes[edge.to] ?? wkm.addedNodes?.find((n) => n.id === edge.to);
       if (fromNode?.concept && toNode?.concept) {
         const fromShort = fromNode.concept.includes(' — ') ? fromNode.concept.split(' — ')[0] : fromNode.concept;
         const toShort = toNode.concept.includes(' — ') ? toNode.concept.split(' — ')[0] : toNode.concept;
-        rules.push(`WORLD KNOWLEDGE CONNECTION: "${fromShort}" ${edge.relation} "${toShort}" — show through action, dialogue, or consequence. Do not explain the connection; let it emerge from what happens.`);
+        worldLines.push(`  <connection from="${fromShort}" relation="${edge.relation}" to="${toShort}">Show through action, dialogue, or consequence.</connection>`);
       }
     }
-    // Existing concepts referenced by edges: these ARE established and can be used freely
+
+    // Existing concepts referenced
     const referencedExistingIds = new Set<string>();
-    for (const edge of scene.worldKnowledgeMutations.addedEdges ?? []) {
+    for (const edge of wkm.addedEdges ?? []) {
       if (!edge.from || !edge.to) continue;
       if (!newNodeIds.has(edge.from) && narrative.worldKnowledge?.nodes[edge.from]) referencedExistingIds.add(edge.from);
       if (!newNodeIds.has(edge.to) && narrative.worldKnowledge?.nodes[edge.to]) referencedExistingIds.add(edge.to);
@@ -964,22 +1029,36 @@ export function deriveLogicRules(
         const node = narrative.worldKnowledge.nodes[id];
         return node?.concept ? (node.concept.includes(' — ') ? node.concept.split(' — ')[0] : node.concept) : id;
       });
-      rules.push(`ESTABLISHED WORLD KNOWLEDGE (can be referenced freely): ${established.join(', ')}.`);
+      worldLines.push(`  <established hint="Can be referenced freely">${established.join(', ')}</established>`);
+    }
+
+    if (worldLines.length > 0) {
+      sections.push(`<world-reveals>
+${worldLines.join('\n')}
+</world-reveals>`);
     }
   }
 
-  // Character movement
-  if (scene.characterMovements) {
-    for (const [charId, mv] of Object.entries(scene.characterMovements)) {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CHARACTER MOVEMENTS
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (scene.characterMovements && Object.keys(scene.characterMovements).length > 0) {
+    const movementLines = Object.entries(scene.characterMovements).map(([charId, mv]) => {
       const char = narrative.characters[charId];
       const newLoc = narrative.locations[mv.locationId];
-      if (!char || !newLoc) continue;
-      rules.push(`${char.name} moves to ${newLoc.name} during this scene (${mv.transition}). They start at ${location?.name ?? 'the current location'} — show the transition, not them already at ${newLoc.name}.`);
+      if (!char || !newLoc) return null;
+      return `  <movement character="${char.name}" from="${location?.name ?? 'current'}" to="${newLoc.name}" transition="${mv.transition}" />`;
+    }).filter(Boolean);
+    if (movementLines.length > 0) {
+      sections.push(`<movements hint="Characters start at scene location and transition during the scene — do not show them already at destination">
+${movementLines.join('\n')}
+</movements>`);
     }
   }
 
-  // Artifact ownership — who has what, and transfers this scene
-  // Use timeline-scoped ownership when available (not final state)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ARTIFACTS (possessions + location items + transfers)
+  // ═══════════════════════════════════════════════════════════════════════════
   const artifacts = narrative.artifacts ?? {};
   const getArtifactOwner = (a: { id: string; parentId: string }) =>
     timelineState?.artifactOwnership[a.id] ?? a.parentId;
@@ -990,36 +1069,68 @@ export function deriveLogicRules(
     return nodes.map((n) => n.content).join('; ');
   };
 
+  const artifactLines: string[] = [];
+
+  // Participant possessions
   for (const pid of scene.participantIds) {
     const char = narrative.characters[pid];
     if (!char) continue;
     const owned = Object.values(artifacts).filter((a) => getArtifactOwner(a) === pid);
     if (owned.length > 0) {
-      const items = owned.map((a) => {
+      for (const a of owned) {
         const capabilities = getArtifactCapabilities(a);
-        return `"${a.name}" (${capabilities || 'no known properties'})`;
-      });
-      rules.push(`${char.name} possesses: ${items.join(', ')}. These artifacts and their capabilities are available for ${char.name} to use in this scene.`);
+        artifactLines.push(`  <possession owner="${char.name}" artifact="${a.name}"${capabilities ? ` capabilities="${capabilities}"` : ''} />`);
+      }
     }
   }
-  // Artifacts at this location
+
+  // Artifacts at location
   if (location) {
     const atLocation = Object.values(artifacts).filter((a) => getArtifactOwner(a) === scene.locationId);
-    if (atLocation.length > 0) {
-      const items = atLocation.map((a) => `"${a.name}"`);
-      rules.push(`Artifacts present at ${location.name}: ${items.join(', ')}. Characters visiting this location can discover and acquire them.`);
+    for (const a of atLocation) {
+      artifactLines.push(`  <at-location artifact="${a.name}" location="${location.name}">Can be discovered and acquired.</at-location>`);
     }
   }
-  // Ownership transfers this scene
+
+  // Ownership transfers
   for (const om of scene.ownershipMutations ?? []) {
     const art = artifacts[om.artifactId];
     if (!art) continue;
     const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
     const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
-    rules.push(`ARTIFACT TRANSFER: "${art.name}" passes from ${fromName} to ${toName} during this scene. Show how this happens — discovery, gift, theft, trade, seizure. The transfer must be dramatised, not mentioned in passing.`);
+    artifactLines.push(`  <transfer artifact="${art.name}" from="${fromName}" to="${toName}">Dramatise: discovery, gift, theft, trade, or seizure.</transfer>`);
   }
 
-  return rules;
+  if (artifactLines.length > 0) {
+    sections.push(`<artifacts>
+${artifactLines.join('\n')}
+</artifacts>`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ASSEMBLE FINAL OUTPUT
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (sections.length === 0) return '';
+
+  const povName = pov?.name ?? scene.povId;
+  const locName = location?.name ?? scene.locationId;
+
+  return `<logic-context scene="${scene.id}" pov="${povName}" location="${locName}">
+${sections.join('\n\n')}
+</logic-context>`;
+}
+
+/**
+ * Formatted logic context for LLM prompts — delegates to deriveLogicRules which returns structured XML.
+ * Returns empty string if no rules apply.
+ */
+export function logicContext(
+  narrative: NarrativeState,
+  scene: Scene,
+  resolvedKeys: string[],
+  currentIndex: number,
+): string {
+  return deriveLogicRules(narrative, scene, resolvedKeys, currentIndex);
 }
 
 /**
@@ -1074,7 +1185,7 @@ export function outlineContext(
     const threadChanges = entry.threadMutations
       .map((tm) => {
         const t = n.threads[tm.threadId];
-        return t ? `${t.description.slice(0, 30)}: ${tm.from}→${tm.to}` : '';
+        return t ? `${t.description}: ${tm.from}→${tm.to}` : '';
       })
       .filter(Boolean)
       .join('; ');

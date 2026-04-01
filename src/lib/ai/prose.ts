@@ -3,10 +3,16 @@ import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { parseJson } from './json';
-import { sceneContext, deriveLogicRules } from './context';
+import { sceneContext } from './context';
 
 
 
+/**
+ * Rewrite scene prose guided by analysis/critique.
+ *
+ * Lightweight: no logic context — focused on addressing the analysis feedback.
+ * Neighboring prose provides continuity without full narrative context.
+ */
 export async function rewriteSceneProse(
   narrative: NarrativeState,
   scene: Scene,
@@ -25,7 +31,6 @@ export async function rewriteSceneProse(
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
-  const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
 
   // Get neighboring prose for continuity
   let prevEnding: string | null = null;
@@ -100,10 +105,6 @@ export async function rewriteSceneProse(
     }
   }
 
-  const logicBlock = logicRules.length > 0
-    ? `\nLOGICAL CONSTRAINTS (all must be satisfied):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
-    : '';
-
   const hasVoiceOverride = !!narrative.storySettings?.proseVoice?.trim();
 
   const systemPrompt = `You are a literary editor and prose writer. Your task is to REWRITE prose based on the provided analysis.${onToken ? '' : ' You return ONLY valid JSON — no markdown, no commentary.'}
@@ -134,7 +135,7 @@ Sentence rhythm:
 
   const prompt = `SCENE CONTEXT:
 ${sceneBlock}
-${logicBlock}${neighborBlock}
+${neighborBlock}
 
 CURRENT PROSE:
 ${currentProse}

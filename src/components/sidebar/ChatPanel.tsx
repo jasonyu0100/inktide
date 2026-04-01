@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { narrativeContext, sceneContext, outlineContext, worldContext } from '@/lib/ai';
+import { narrativeContext, sceneContext, outlineContext, worldContext, logicContext } from '@/lib/ai';
 import { resolveEntry } from '@/types/narrative';
 import { apiHeaders } from '@/lib/api-headers';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
@@ -15,7 +15,7 @@ export default function ChatPanel() {
   const access = useFeatureAccess();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [contextMode, setContextMode] = useState<'scene' | 'outline' | 'narrative' | 'world'>('scene');
+  const [contextMode, setContextMode] = useState<'scene' | 'outline' | 'narrative' | 'world' | 'logic'>('scene');
   const [threadPickerOpen, setThreadPickerOpen] = useState(false);
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -113,6 +113,16 @@ ${sceneAnchor}
 Answer questions about the world's characters, locations, threads, and lore. Explain what was introduced when, identify gaps or contradictions, or discuss how the world has evolved. Be concise and specific.
 
 ${ctx}`;
+    }
+
+    if (contextMode === 'logic' && currentScene) {
+      const ctx = logicContext(n, currentScene, state.resolvedEntryKeys, contextSceneIndex);
+      return `You are a narrative consultant for the story "${n.title}". You have access to the logical constraints that prose for this scene must satisfy.
+${sceneAnchor}
+
+These constraints are derived from the scene's structure: POV restrictions, knowledge boundaries, relationship states, thread transitions, artifact ownership, and temporal ordering. Answer questions about what the prose can and cannot do, identify potential violations, or explain why certain rules exist. Be concise and specific.
+
+${ctx || 'No logical constraints for this scene.'}`;
     }
 
     const ctx = narrativeContext(n, state.resolvedEntryKeys, contextSceneIndex);
@@ -402,7 +412,7 @@ ${ctx}`;
         {/* Context mode toggle row */}
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-medium">
-            {(['scene', 'outline', 'narrative', 'world'] as const).map((mode, idx) => (
+            {(['scene', 'outline', 'narrative', 'world', 'logic'] as const).map((mode, idx) => (
               <button
                 key={mode}
                 onClick={() => setContextMode(mode)}

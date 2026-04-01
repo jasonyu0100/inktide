@@ -4,7 +4,7 @@ import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
 import { parseJson } from './json';
-import { branchContext, sceneContext, deriveLogicRules, sceneScale } from './context';
+import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_CHARACTER_ARCS, PROMPT_THREAD_COLLISION, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/markov';
 
@@ -27,7 +27,7 @@ export async function generateScenes(
   options: GenerateScenesOptions = {},
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
   const { existingArc, pacingSequence, worldBuildFocus, onToken, onReasoning } = options;
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
   const targetLen = storySettings.targetArcLength;
@@ -270,12 +270,10 @@ export async function generateScenePlan(
 ): Promise<BeatPlan> {
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
-  const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
+  const fullContext = narrativeContext(narrative, resolvedKeys, contextIndex);
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
   const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
-  const logicBlock = logicRules.length > 0
-    ? `\nLOGICAL CONSTRAINTS (the plan must satisfy all of these):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
-    : '';
+  const logicBlock = logicRules ? `\n${logicRules}\n` : '';
 
   // Recent scene prose for continuity
   const recentProseBlocks: string[] = [];
@@ -434,6 +432,8 @@ Generate a structured beat plan for this scene.${recentProseBlock ? ' Opening be
  * Edit an existing beat plan to address specific issues from plan evaluation.
  * Unlike generateScenePlan, this receives the current plan + issues and returns
  * a surgically modified plan — only the beats with problems are changed.
+ *
+ * Lightweight: no full narrative context, no logic context — focused on fixing specific issues.
  */
 export async function editScenePlan(
   narrative: NarrativeState,
@@ -444,9 +444,9 @@ export async function editScenePlan(
   const plan = scene.plan;
   if (!plan) throw new Error('Scene has no plan to edit');
 
+  // Edit functions are lightweight — scene context only, no logic bias
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
-  const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
 
   const currentPlanJson = JSON.stringify({
@@ -456,9 +456,7 @@ export async function editScenePlan(
 
   const issueBlock = issues.map((iss, i) => `${i + 1}. ${iss}`).join('\n');
 
-  const prompt = `${fullContext}
-
-${sceneBlock}
+  const prompt = `${sceneBlock}
 
 CURRENT BEAT PLAN:
 ${currentPlanJson}
@@ -565,8 +563,9 @@ Identify the beat structure of this scene.`;
 
 /**
  * Rewrite a scene plan guided by user-provided analysis/critique.
- * Preserves the plan structure (OPENING STATE, DELIVERIES, DIALOGUE SEEDS,
- * CLOSING STATE) but revises content based on the feedback.
+ * Preserves the plan structure but revises content based on the feedback.
+ *
+ * Lightweight: no full narrative context, no logic context — focused on feedback.
  */
 export async function rewriteScenePlan(
   narrative: NarrativeState,
@@ -635,7 +634,7 @@ export async function generateSceneProse(
   // Branch context up to this scene — history without future details leaking in
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
-  const fullContext = branchContext(narrative, resolvedKeys, contextIndex);
+  const fullContext = narrativeContext(narrative, resolvedKeys, contextIndex);
 
   // Adjacent scene prose for seamless transitions
   const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
@@ -735,9 +734,7 @@ ${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must
 
   // Derive logical constraints from the scene graph — these are hard rules the prose must obey
   const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
-  const logicBlock = logicRules.length > 0
-    ? `\nLOGICAL REQUIREMENTS (these are hard constraints derived from the scene graph — violating any is a failure):\n${logicRules.map((r) => `  - ${r}`).join('\n')}\n`
-    : '';
+  const logicBlock = logicRules ? `\n${logicRules}\n` : '';
 
   // Adjacent prose edges for transition continuity
   const adjacentProseBlock = [
@@ -948,7 +945,7 @@ async function generateArcPlan(
   direction: string,
   sequence: PacingSequence,
 ): Promise<ArcPlan> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
   const speed = storySettings.threadResolutionSpeed ?? 'moderate';
 
@@ -1002,7 +999,7 @@ async function generateSingleScene(
   onToken?: (token: string) => void,
   onReasoning?: (token: string) => void,
 ): Promise<Scene> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
   const speed = storySettings.threadResolutionSpeed ?? 'moderate';
   const stepPrompt = buildSingleStepPrompt(pacingStep, sceneIndex, totalScenes);
 

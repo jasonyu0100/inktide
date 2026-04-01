@@ -773,36 +773,14 @@ export function deriveLogicRules(
       : char.continuity.nodes;
   };
 
-  const participantNames = scene.participantIds
-    .map((pid) => narrative.characters[pid]?.name)
-    .filter(Boolean) as string[];
   const participantIdSet = new Set(scene.participantIds);
   const location = narrative.locations[scene.locationId];
   const pov = narrative.characters[scene.povId];
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SPATIAL CONSTRAINTS
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (participantNames.length > 0 && location) {
-    sections.push(`<spatial location="${location.name}" present="${participantNames.join(', ')}">
-  Only the listed characters may physically appear, speak, or interact in this scene.
-</spatial>`);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // POV LOCK
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (pov) {
-    const otherParticipants = scene.participantIds
-      .filter((pid) => pid !== scene.povId)
-      .map((pid) => narrative.characters[pid]?.name)
-      .filter(Boolean);
-    if (otherParticipants.length > 0) {
-      sections.push(`<pov-lock character="${pov.name}" others="${otherParticipants.join(', ')}">
-  Third-person limited to ${pov.name}'s senses and interiority. Do not reveal internal thoughts, feelings, or private knowledge of other characters — only what ${pov.name} can observe, hear, or infer.
-</pov-lock>`);
-    }
-  }
+  // NOTE: Spatial constraints and POV-lock are NOT included here because:
+  // - sceneContext already provides location, pov, and participants
+  // - proseProfile's "stance" setting already establishes POV rules (close_third, etc.)
+  // Logic context focuses on scene-specific knowledge boundaries and mutations.
 
   // ═══════════════════════════════════════════════════════════════════════════
   // KNOWLEDGE STATE (POV's knowledge at scene start vs. what they learn)

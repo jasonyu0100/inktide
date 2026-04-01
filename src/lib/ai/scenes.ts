@@ -1,8 +1,8 @@
 import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, BeatPlan } from '@/types/narrative';
-import { resolveEntry, DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, PLAN_PROSE_LOOKBACK } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_CHARACTER_ARCS, PROMPT_THREAD_COLLISION, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
@@ -275,40 +275,14 @@ export async function generateScenePlan(
   const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
   const logicBlock = logicRules ? `\n${logicRules}\n` : '';
 
-  // Recent scene prose for continuity
-  const recentProseBlocks: string[] = [];
-  for (let i = 1; i <= PLAN_PROSE_LOOKBACK; i++) {
-    const pIdx = sceneIdx - i;
-    if (pIdx < 0) break;
-    const pKey = resolvedKeys[pIdx];
-    const pScene = pKey ? narrative.scenes[pKey] : null;
-    if (!pScene?.prose) continue;
-    const pov = narrative.characters[pScene.povId]?.name ?? pScene.povId;
-    const loc = narrative.locations[pScene.locationId]?.name ?? pScene.locationId;
-    recentProseBlocks.unshift(`--- SCENE ${pIdx + 1} (POV: ${pov}, @${loc}) ---\n${pScene.summary}\n\n${pScene.prose}`);
-  }
-  const recentProseBlock = recentProseBlocks.length > 0
-    ? `RECENT PROSE (read carefully for character state, injuries, emotional beats, spatial positions):\n\n${recentProseBlocks.join('\n\n')}`
-    : '';
-
-  // Adjacent beat plans for flow continuity
+  // Previous scene's beat plan for flow continuity
   const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
   const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
   const prevPlan = prevScene?.plan;
-  const nextSceneKey = sceneIdx < resolvedKeys.length - 1 ? resolvedKeys[sceneIdx + 1] : null;
-  const nextScene = nextSceneKey ? narrative.scenes[nextSceneKey] : null;
-  const nextPlan = nextScene?.plan;
 
-  const adjacentLines: string[] = [];
-  if (prevPlan) {
-    const lastBeats = prevPlan.beats.slice(-3).map((b) => `[${b.fn}:${b.mechanism}] ${b.what}`).join(', ');
-    adjacentLines.push(`PREVIOUS SCENE ends with: ${lastBeats}`);
-  }
-  if (nextPlan) {
-    const firstBeats = nextPlan.beats.slice(0, 3).map((b) => `[${b.fn}:${b.mechanism}] ${b.what}`).join(', ');
-    adjacentLines.push(`NEXT SCENE opens with: ${firstBeats}`);
-  }
-  const adjacentBlock = adjacentLines.join('\n');
+  const adjacentBlock = prevPlan
+    ? `PREVIOUS SCENE ends with: ${prevPlan.beats.slice(-3).map((b) => `[${b.fn}:${b.mechanism}] ${b.what}`).join(', ')}`
+    : '';
 
   // Prose profile context + optional Markov beat sequence
   const { resolveProfile, resolveSampler, sampleBeatSequence } = await import('@/lib/beat-profiles');
@@ -401,10 +375,9 @@ RULES:
   })();
 
   const prompt = `${profileBlock}BRANCH CONTEXT:\n${fullContext}
-${recentProseBlock ? `\n${recentProseBlock}\n` : ''}
 ${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
 ${logicBlock}
-Generate a structured beat plan for this scene.${recentProseBlock ? ' Opening beats must continue from the physical/emotional state in the recent prose.' : ''}`;
+Generate a structured beat plan for this scene.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = onReasoning
@@ -631,37 +604,16 @@ export async function generateSceneProse(
   guidance?: string,
 ): Promise<string> {
 
-  // Branch context up to this scene — history without future details leaking in
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
-  const fullContext = narrativeContext(narrative, resolvedKeys, contextIndex);
 
-  // Adjacent scene prose for seamless transitions
+  // Previous scene prose ending for transition continuity
   const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
   const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
   const prevProse = prevScene?.prose;
   const prevProseEnding = prevProse
     ? prevProse.split('\n').filter((l) => l.trim()).slice(-3).join('\n')
     : '';
-
-  const nextSceneKey = sceneIdx < resolvedKeys.length - 1 ? resolvedKeys[sceneIdx + 1] : null;
-  const nextScene = nextSceneKey ? narrative.scenes[nextSceneKey] : null;
-  const nextProse = nextScene?.prose;
-  const nextProseOpening = nextProse
-    ? nextProse.split('\n').filter((l) => l.trim()).slice(0, 3).join('\n')
-    : '';
-
-  // Future scene summaries for foreshadowing (lightweight — summaries only, no prose)
-  const futureKeys = resolvedKeys.slice(contextIndex + 1);
-  const futureSummaries = futureKeys.length > 0
-    ? futureKeys.map((k, i) => {
-        const s = resolveEntry(narrative, k);
-        if (!s || s.kind !== 'scene') return null;
-        return `[+${i + 1}] ${s.summary}`;
-      }).filter(Boolean).join('\n')
-    : '';
-
-
 
   const proseProfile = narrative.proseProfile;
 
@@ -736,11 +688,10 @@ ${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must
   const logicRules = deriveLogicRules(narrative, scene, resolvedKeys, contextIndex);
   const logicBlock = logicRules ? `\n${logicRules}\n` : '';
 
-  // Adjacent prose edges for transition continuity
-  const adjacentProseBlock = [
-    prevProseEnding ? `PREVIOUS SCENE ENDING (match tone, avoid repeating imagery or phrasing):\n"""${prevProseEnding}"""` : '',
-    nextProseOpening ? `NEXT SCENE OPENING (your ending should flow naturally into this):\n"""${nextProseOpening}"""` : '',
-  ].filter(Boolean).join('\n\n');
+  // Previous prose edge for transition continuity
+  const adjacentProseBlock = prevProseEnding
+    ? `PREVIOUS SCENE ENDING (match tone, avoid repeating imagery or phrasing):\n"""${prevProseEnding}"""`
+    : '';
 
   const instruction = scene.plan
     ? `Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism tells you HOW to write each beat (dialogue = conversation, thought = internal monologue, action = physical movement, etc). The anchor is the sensory detail that grounds the beat.
@@ -758,10 +709,7 @@ Every thread shift, continuity change, relationship mutation, and world knowledg
 
 Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.`;
 
-  const prompt = `BRANCH CONTEXT (for continuity — do not summarise or repeat this):
-${fullContext}
-${futureSummaries ? `\nFUTURE SCENES (for foreshadowing only — plant subtle seeds, never spoil or reference directly):\n${futureSummaries}\n` : ''}
-${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${planBlock}${sceneBlock}
+  const prompt = `${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${planBlock}${sceneBlock}
 ${logicBlock}
 ${instruction}`;
 

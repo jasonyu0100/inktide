@@ -81,9 +81,6 @@ export const DEFAULT_REASONING_BUDGET = 2048;
 /** Rolling window size for force computation & normalization */
 export const FORCE_WINDOW_SIZE = 10;
 
-/** Number of past scenes whose full prose is included in plan generation context */
-export const PLAN_PROSE_LOOKBACK = 5;
-
 // ── Generation ───────────────────────────────────────────────────────────────
 
 /** Concurrent scene plan generation slots (Story modal bulk plan) */

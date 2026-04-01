@@ -24,7 +24,12 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   );
 }
 
-export default function FloatingPalette() {
+type FloatingPaletteProps = {
+  isBulkActive?: boolean;
+  isMctsActive?: boolean;
+};
+
+export default function FloatingPalette({ isBulkActive = false, isMctsActive = false }: FloatingPaletteProps) {
   const { state, dispatch } = useStore();
   const access = useFeatureAccess();
   const narrative = state.activeNarrative;
@@ -46,6 +51,7 @@ export default function FloatingPalette() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isAutoActive = !!(state.autoRunState?.isRunning || state.autoRunState?.isPaused);
+  const isAnyModeActive = isAutoActive || isBulkActive || isMctsActive;
 
   // Scene search results
   const searchResults = useMemo(() => {
@@ -342,101 +348,106 @@ export default function FloatingPalette() {
             <IconChevronRight size={14} />
           </button>
 
-          <div className="w-px h-4 bg-white/12 mx-1" />
-
-          {/* Plan palette actions */}
-          {graphViewMode === 'plan' && (
+          {/* Plan/Prose/Audio palette actions — hidden during auto/MCTS/bulk */}
+          {!isAnyModeActive && (
             <>
-              <button type="button"
-                className="text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider text-change bg-change/10 hover:bg-change/20"
-                onClick={() => { setGenerateOpen((v) => !v); setRewriteOpen(false); }}>
-                Generate
-              </button>
-              {hasPlan && (
-                <button type="button"
-                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-sky-400 bg-sky-500/10 hover:bg-sky-500/20"
-                  onClick={() => { setRewriteOpen((v) => !v); setGenerateOpen(false); }}
-                  title="Rewrite with guidance">
-                  <IconRefresh size={14} />
-                </button>
-              )}
-              {hasPlan && (
-                <button type="button"
-                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
-                  onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-plan'))}
-                  title="Clear plan">
-                  <IconClose size={14} />
-                </button>
-              )}
-              <div className="w-px h-4 bg-white/12 mx-0.5" />
-              <button type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
-                onClick={() => window.dispatchEvent(new CustomEvent('canvas:bulk-plan'))}
-                title="Bulk generate all missing plans">
-                <IconAutoLoop size={14} />
-              </button>
-            </>
-          )}
+              <div className="w-px h-4 bg-white/12 mx-1" />
 
-          {/* Prose palette actions */}
-          {graphViewMode === 'prose' && (
-            <>
-              <button type="button"
-                className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${!hasPlan ? 'text-text-dim/30 bg-white/3 cursor-not-allowed' : 'text-change bg-change/10 hover:bg-change/20'}`}
-                onClick={() => { if (hasPlan) { setGenerateOpen((v) => !v); setRewriteOpen(false); } }}
-                title={hasPlan ? undefined : 'Generate a plan first'}>
-                Generate
-              </button>
-              {hasProse && (
-                <button type="button"
-                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20"
-                  onClick={() => { setRewriteOpen((v) => !v); setGenerateOpen(false); }}
-                  title="Rewrite with guidance">
-                  <IconRefresh size={14} />
-                </button>
+              {/* Plan palette actions */}
+              {graphViewMode === 'plan' && (
+                <>
+                  <button type="button"
+                    className="text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider text-change bg-change/10 hover:bg-change/20"
+                    onClick={() => { setGenerateOpen((v) => !v); setRewriteOpen(false); }}>
+                    Generate
+                  </button>
+                  {hasPlan && (
+                    <button type="button"
+                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-sky-400 bg-sky-500/10 hover:bg-sky-500/20"
+                      onClick={() => { setRewriteOpen((v) => !v); setGenerateOpen(false); }}
+                      title="Rewrite with guidance">
+                      <IconRefresh size={14} />
+                    </button>
+                  )}
+                  {hasPlan && (
+                    <button type="button"
+                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+                      onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-plan'))}
+                      title="Clear plan">
+                      <IconClose size={14} />
+                    </button>
+                  )}
+                  <div className="w-px h-4 bg-white/12 mx-0.5" />
+                  <button type="button"
+                    className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                    onClick={() => window.dispatchEvent(new CustomEvent('canvas:bulk-plan'))}
+                    title="Bulk generate all missing plans">
+                    <IconAutoLoop size={14} />
+                  </button>
+                </>
               )}
-              {hasProse && (
-                <button type="button"
-                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20"
-                  onClick={() => window.dispatchEvent(new CustomEvent('canvas:edit-prose'))}
-                  title="Edit prose">
-                  <IconEdit size={14} />
-                </button>
-              )}
-              {hasProse && (
-                <button type="button"
-                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
-                  onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-prose'))}
-                  title="Clear prose">
-                  <IconClose size={14} />
-                </button>
-              )}
-              <div className="w-px h-4 bg-white/12 mx-0.5" />
-              <button type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
-                onClick={() => window.dispatchEvent(new CustomEvent('canvas:bulk-prose'))}
-                title="Bulk generate all missing prose (requires plans)">
-                <IconAutoLoop size={14} />
-              </button>
-            </>
-          )}
 
-          {/* Audio palette actions */}
-          {graphViewMode === 'audio' && (
-            <>
-              <button type="button"
-                className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${hasProse ? 'text-change bg-change/10 hover:bg-change/20' : 'text-text-dim/30 bg-white/3 cursor-not-allowed'}`}
-                onClick={() => hasProse && window.dispatchEvent(new CustomEvent('canvas:generate-audio'))}
-                title={hasProse ? undefined : 'Generate prose first'}>
-                Generate
-              </button>
-              {hasAudio && (
-                <button type="button"
-                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
-                  onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-audio'))}
-                  title="Clear audio">
-                  <IconClose size={14} />
-                </button>
+              {/* Prose palette actions */}
+              {graphViewMode === 'prose' && (
+                <>
+                  <button type="button"
+                    className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${!hasPlan ? 'text-text-dim/30 bg-white/3 cursor-not-allowed' : 'text-change bg-change/10 hover:bg-change/20'}`}
+                    onClick={() => { if (hasPlan) { setGenerateOpen((v) => !v); setRewriteOpen(false); } }}
+                    title={hasPlan ? undefined : 'Generate a plan first'}>
+                    Generate
+                  </button>
+                  {hasProse && (
+                    <button type="button"
+                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20"
+                      onClick={() => { setRewriteOpen((v) => !v); setGenerateOpen(false); }}
+                      title="Rewrite with guidance">
+                      <IconRefresh size={14} />
+                    </button>
+                  )}
+                  {hasProse && (
+                    <button type="button"
+                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20"
+                      onClick={() => window.dispatchEvent(new CustomEvent('canvas:edit-prose'))}
+                      title="Edit prose">
+                      <IconEdit size={14} />
+                    </button>
+                  )}
+                  {hasProse && (
+                    <button type="button"
+                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+                      onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-prose'))}
+                      title="Clear prose">
+                      <IconClose size={14} />
+                    </button>
+                  )}
+                  <div className="w-px h-4 bg-white/12 mx-0.5" />
+                  <button type="button"
+                    className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                    onClick={() => window.dispatchEvent(new CustomEvent('canvas:bulk-prose'))}
+                    title="Bulk generate all missing prose (requires plans)">
+                    <IconAutoLoop size={14} />
+                  </button>
+                </>
+              )}
+
+              {/* Audio palette actions */}
+              {graphViewMode === 'audio' && (
+                <>
+                  <button type="button"
+                    className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${hasProse ? 'text-change bg-change/10 hover:bg-change/20' : 'text-text-dim/30 bg-white/3 cursor-not-allowed'}`}
+                    onClick={() => hasProse && window.dispatchEvent(new CustomEvent('canvas:generate-audio'))}
+                    title={hasProse ? undefined : 'Generate prose first'}>
+                    Generate
+                  </button>
+                  {hasAudio && (
+                    <button type="button"
+                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+                      onClick={() => window.dispatchEvent(new CustomEvent('canvas:clear-audio'))}
+                      title="Clear audio">
+                      <IconClose size={14} />
+                    </button>
+                  )}
+                </>
               )}
             </>
           )}
@@ -526,44 +537,44 @@ export default function FloatingPalette() {
       {/* Palette row: bar + delete button side by side */}
       <div className="flex items-center gap-2">
       <div className={`glass-pill px-3 py-1.5 flex items-center gap-2 ${wrapperClasses}`}>
-        {/* Scene navigation — hidden during auto/MCTS */}
-        {!isAutoActive && (
+        {/* Scene navigation — always visible */}
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+          onClick={() => dispatch({ type: 'PREV_SCENE' })}
+          aria-label="Previous scene"
+        >
+          <IconChevronLeft size={14} />
+        </button>
+
+        {/* Search */}
+        <button
+          type="button"
+          className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
+            searchOpen
+              ? 'text-text-primary bg-white/10'
+              : 'text-text-secondary hover:text-text-primary hover:bg-white/6'
+          }`}
+          onClick={() => setSearchOpen((v) => !v)}
+          aria-label="Search scenes"
+          title="Search scenes"
+        >
+          <IconSearch size={12} />
+        </button>
+
+        {/* Next */}
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
+          onClick={() => dispatch({ type: 'NEXT_SCENE' })}
+          aria-label="Next scene"
+        >
+          <IconChevronRight size={14} />
+        </button>
+
+        {/* Action buttons — hidden during auto/MCTS/bulk */}
+        {!isAnyModeActive && (
           <>
-            {/* Prev */}
-            <button
-              type="button"
-              className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
-              onClick={() => dispatch({ type: 'PREV_SCENE' })}
-              aria-label="Previous scene"
-            >
-              <IconChevronLeft size={14} />
-            </button>
-
-            {/* Search */}
-            <button
-              type="button"
-              className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
-                searchOpen
-                  ? 'text-text-primary bg-white/10'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-white/6'
-              }`}
-              onClick={() => setSearchOpen((v) => !v)}
-              aria-label="Search scenes"
-              title="Search scenes"
-            >
-              <IconSearch size={12} />
-            </button>
-
-            {/* Next */}
-            <button
-              type="button"
-              className="w-7 h-7 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/6 rounded-md transition-colors"
-              onClick={() => dispatch({ type: 'NEXT_SCENE' })}
-              aria-label="Next scene"
-            >
-              <IconChevronRight size={14} />
-            </button>
-
             {/* Divider */}
             <div className="w-px h-4 bg-white/12 mx-1" />
 

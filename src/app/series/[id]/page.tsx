@@ -200,7 +200,10 @@ export default function SeriesPage() {
               />
             )}
 
-            <FloatingPalette />
+            <FloatingPalette
+              isBulkActive={!!(bulk.runState?.isRunning || bulk.runState?.isPaused)}
+              isMctsActive={mcts.runState.status === 'running' || mcts.runState.status === 'paused'}
+            />
             {planning.queue && (
               <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">
                 <PlanningIndicator queue={planning.queue} onClick={() => setPlanningQueueOpen(true)} />

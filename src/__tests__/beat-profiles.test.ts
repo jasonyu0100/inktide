@@ -15,6 +15,7 @@ import {
   BEAT_PROFILE_PRESETS,
 } from '@/lib/beat-profiles';
 import type { Scene, NarrativeState, BeatSampler, BeatFn, BeatMechanism } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
@@ -56,9 +57,9 @@ function createSceneWithPlan(
   prose?: string
 ): Scene {
   return {
+    kind: 'scene',
     id,
     arcId: 'arc-1',
-    index: 0,
     povId: 'char-1',
     locationId: 'loc-1',
     participantIds: [],
@@ -67,7 +68,7 @@ function createSceneWithPlan(
     threadMutations: [],
     continuityMutations: [],
     relationshipMutations: [],
-    characterMovements: [],
+    characterMovements: {},
     plan: {
       beats: beats.map((b, i) => ({
         index: i,
@@ -77,7 +78,10 @@ function createSceneWithPlan(
         characterId: 'char-1',
         characterName: 'Test Character',
         locationShift: null,
+        what: `Beat ${i} action`,
+        anchor: '',
       })),
+      anchors: [],
     },
     prose,
   };
@@ -116,7 +120,7 @@ describe('DEFAULT exports', () => {
     expect(DEFAULT_PROSE_PROFILE.stance).toBe('close_third');
     expect(DEFAULT_PROSE_PROFILE.devices).toContain('free_indirect_discourse');
     expect(DEFAULT_PROSE_PROFILE.rules.length).toBeGreaterThan(0);
-    expect(DEFAULT_PROSE_PROFILE.antiPatterns.length).toBeGreaterThan(0);
+    expect(DEFAULT_PROSE_PROFILE.antiPatterns!.length).toBeGreaterThan(0);
   });
 
   it('ACTION_PROFILE favors action mechanisms', () => {
@@ -298,7 +302,7 @@ describe('initBeatProfilePresets', () => {
 
     const preset = presets.find((p) => p.key === 'with-scenes');
     expect(preset).toBeDefined();
-    expect(preset!.sampler.markov.breathe?.inform).toBe(1);
+    expect(preset!.sampler!.markov.breathe?.inform).toBe(1);
   });
 
   it('updates BEAT_PROFILE_PRESETS module variable', () => {
@@ -461,7 +465,7 @@ describe('resolveProfile', () => {
 
   it('returns preset profile when preset key matches', () => {
     const narrative = createMinimalNarrative({
-      storySettings: { beatProfilePreset: 'action' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'action' },
     });
     const profile = resolveProfile(narrative);
     expect(profile).toBe(ACTION_PROFILE);
@@ -477,7 +481,7 @@ describe('resolveProfile', () => {
     };
     const narrative = createMinimalNarrative({
       proseProfile: customProfile,
-      storySettings: { beatProfilePreset: 'self' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'self' },
     });
     const profile = resolveProfile(narrative);
     expect(profile).toBe(customProfile);
@@ -485,7 +489,7 @@ describe('resolveProfile', () => {
 
   it('falls back to DEFAULT_PROSE_PROFILE when preset not found', () => {
     const narrative = createMinimalNarrative({
-      storySettings: { beatProfilePreset: 'nonexistent' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'nonexistent' },
     });
     const profile = resolveProfile(narrative);
     expect(profile).toBe(DEFAULT_PROSE_PROFILE);
@@ -501,7 +505,7 @@ describe('resolveProfile', () => {
     };
     const narrative = createMinimalNarrative({
       proseProfile: customProfile,
-      storySettings: { beatProfilePreset: 'nonexistent' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'nonexistent' },
     });
     const profile = resolveProfile(narrative);
     expect(profile).toBe(customProfile);
@@ -523,7 +527,7 @@ describe('resolveSampler', () => {
 
   it('returns preset sampler when preset key matches', () => {
     const narrative = createMinimalNarrative({
-      storySettings: { beatProfilePreset: 'action' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'action' },
     });
     const sampler = resolveSampler(narrative);
     // ACTION sampler has beatsPerKWord of 16
@@ -546,7 +550,7 @@ describe('resolveSampler', () => {
 
   it('falls back to DEFAULT_BEAT_SAMPLER when preset not found and no scenes', () => {
     const narrative = createMinimalNarrative({
-      storySettings: { beatProfilePreset: 'nonexistent' },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, beatProfilePreset: 'nonexistent' },
     });
     const sampler = resolveSampler(narrative);
     expect(sampler).toBe(DEFAULT_BEAT_SAMPLER);

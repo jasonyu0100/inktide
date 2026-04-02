@@ -44,23 +44,20 @@ function createCharacter(id: string): Character {
   return {
     id,
     name: `Character ${id}`,
-    role: 'protagonist',
-    summary: 'Test character',
+    role: 'anchor',
     continuity: { nodes: [] },
-    cost: 0,
+    threadIds: [],
   };
 }
 
 function createThread(id: string): Thread {
   return {
     id,
-    name: `Thread ${id}`,
     description: 'Test thread',
     status: 'dormant',
-    type: 'external',
-    priority: 'major',
-    dependencies: [],
-    introducedSceneId: 'S-001',
+    participants: [],
+    dependents: [],
+    openedAt: 'S-001',
   };
 }
 
@@ -85,9 +82,11 @@ function createArc(id: string, sceneIds: string[] = []): Arc {
   return {
     id,
     name: `Arc ${id}`,
-    summary: 'Test arc',
     sceneIds,
-    status: 'active',
+    develops: [],
+    locationIds: [],
+    activeCharacterIds: [],
+    initialCharacterLocations: {},
   };
 }
 
@@ -527,11 +526,17 @@ describe('extractOrderedScenes', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes['S-001'] = createScene('S-001');
     narrative.worldBuilds['WB-001'] = {
+      kind: 'world_build',
       id: 'WB-001',
-      createdAt: Date.now(),
-      expandedCharacters: [],
-      expandedLocations: [],
-      expandedThreads: [],
+      summary: 'Test world expansion',
+      expansionManifest: {
+        characters: [],
+        locations: [],
+        threads: [],
+        relationships: [],
+        worldKnowledge: { addedNodes: [], addedEdges: [] },
+        artifacts: [],
+      },
     };
 
     const scenes = extractOrderedScenes(narrative, ['S-001', 'WB-001']);

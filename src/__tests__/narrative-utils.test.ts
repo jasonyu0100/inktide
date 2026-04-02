@@ -31,7 +31,9 @@ import type { Branch, Scene, NarrativeState, ForceSnapshot, WorldKnowledgeGraph 
 
 function createScene(overrides: Partial<Scene> = {}): Scene {
   return {
+    kind: 'scene',
     id: overrides.id ?? 'S-001',
+    arcId: 'ARC-01',
     povId: 'C-01',
     locationId: 'L-01',
     participantIds: ['C-01'],
@@ -39,7 +41,8 @@ function createScene(overrides: Partial<Scene> = {}): Scene {
     threadMutations: [],
     continuityMutations: [],
     relationshipMutations: [],
-    characterMovements: [],
+    characterMovements: {},
+    summary: 'Test scene',
     ...overrides,
   };
 }
@@ -48,6 +51,7 @@ function createNarrative(overrides: Partial<NarrativeState> = {}): NarrativeStat
   return {
     id: 'test-narrative',
     title: 'Test',
+    description: 'Test narrative',
     characters: {},
     locations: {},
     threads: {},
@@ -58,11 +62,19 @@ function createNarrative(overrides: Partial<NarrativeState> = {}): NarrativeStat
       main: {
         id: 'main',
         name: 'Main',
+        parentBranchId: null,
+        forkEntryId: null,
         entryIds: [],
         createdAt: Date.now(),
       },
     },
+    artifacts: {},
+    relationships: [],
     worldKnowledge: { nodes: {}, edges: [] },
+    worldSummary: '',
+    rules: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
     ...overrides,
   };
 }
@@ -114,14 +126,14 @@ describe('resolveEntrySequence', () => {
 
   it('returns own entries for root branch', () => {
     const branches: Record<string, Branch> = {
-      main: { id: 'main', name: 'Main', entryIds: ['S-001', 'S-002'], createdAt: 0 },
+      main: { id: 'main', name: 'Main', parentBranchId: null, forkEntryId: null, entryIds: ['S-001', 'S-002'], createdAt: 0 },
     };
     expect(resolveEntrySequence(branches, 'main')).toEqual(['S-001', 'S-002']);
   });
 
   it('includes parent entries up to fork point', () => {
     const branches: Record<string, Branch> = {
-      main: { id: 'main', name: 'Main', entryIds: ['S-001', 'S-002', 'S-003'], createdAt: 0 },
+      main: { id: 'main', name: 'Main', parentBranchId: null, forkEntryId: null, entryIds: ['S-001', 'S-002', 'S-003'], createdAt: 0 },
       child: {
         id: 'child',
         name: 'Child',
@@ -136,7 +148,7 @@ describe('resolveEntrySequence', () => {
 
   it('handles deeply nested branches', () => {
     const branches: Record<string, Branch> = {
-      main: { id: 'main', name: 'Main', entryIds: ['S-001', 'S-002'], createdAt: 0 },
+      main: { id: 'main', name: 'Main', parentBranchId: null, forkEntryId: null, entryIds: ['S-001', 'S-002'], createdAt: 0 },
       child: {
         id: 'child',
         name: 'Child',
@@ -164,8 +176,8 @@ describe('computeThreadStatuses', () => {
   it('returns base statuses when no scenes', () => {
     const narrative = createNarrative({
       threads: {
-        'T-01': { id: 'T-01', name: 'Thread 1', status: 'dormant', description: '' },
-        'T-02': { id: 'T-02', name: 'Thread 2', status: 'active', description: '' },
+        'T-01': { id: 'T-01', status: 'dormant', description: 'Thread 1', participants: [], dependents: [], openedAt: 'S-000' },
+        'T-02': { id: 'T-02', status: 'active', description: 'Thread 2', participants: [], dependents: [], openedAt: 'S-000' },
       },
     });
     const statuses = computeThreadStatuses(narrative, 0);
@@ -176,7 +188,7 @@ describe('computeThreadStatuses', () => {
   it('applies thread mutations from scenes', () => {
     const narrative = createNarrative({
       threads: {
-        'T-01': { id: 'T-01', name: 'Thread', status: 'dormant', description: '' },
+        'T-01': { id: 'T-01', status: 'dormant', description: 'Thread', participants: [], dependents: [], openedAt: 'S-000' },
       },
       scenes: {
         'S-001': createScene({
@@ -316,7 +328,7 @@ describe('computeForceSnapshots', () => {
       createScene({
         id: 'S-002',
         threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical' }],
-        continuityMutations: [{ characterId: 'C-01', nodeId: 'K-01', action: 'learns', content: 'secret', nodeType: 'fact' }],
+        continuityMutations: [{ characterId: 'C-01', nodeId: 'K-01', action: 'added', content: 'secret', nodeType: 'knowledge' }],
         events: ['event1', 'event2'],
       }),
     ];
@@ -562,7 +574,7 @@ describe('rankWorldKnowledgeNodes', () => {
     const graph: WorldKnowledgeGraph = {
       nodes: {
         'K-01': { id: 'K-01', concept: 'Magic', type: 'system' },
-        'K-02': { id: 'K-02', concept: 'Wands', type: 'artifact' },
+        'K-02': { id: 'K-02', concept: 'Wands', type: 'system' },
         'K-03': { id: 'K-03', concept: 'Spells', type: 'concept' },
       },
       edges: [
@@ -590,7 +602,7 @@ describe('buildCumulativeWorldKnowledge', () => {
       'S-002': createScene({
         id: 'S-002',
         worldKnowledgeMutations: {
-          addedNodes: [{ id: 'K-02', concept: 'Wands', type: 'artifact' }],
+          addedNodes: [{ id: 'K-02', concept: 'Wands', type: 'system' }],
           addedEdges: [{ from: 'K-01', to: 'K-02', relation: 'enables' }],
         },
       }),

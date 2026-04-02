@@ -75,8 +75,10 @@ function createMinimalNarrative(): NarrativeState {
 
 function createPlanningPhase(overrides: Partial<PlanningPhase> = {}): PlanningPhase {
   return {
+    id: 'phase-1',
     name: 'Test Phase',
     objective: 'Test objective',
+    direction: '',
     status: 'active',
     sceneAllocation: 5,
     scenesCompleted: 0,
@@ -88,6 +90,7 @@ function createPlanningPhase(overrides: Partial<PlanningPhase> = {}): PlanningPh
 
 function createPlanningQueue(overrides: Partial<PlanningQueue> = {}): PlanningQueue {
   return {
+    profileId: null,
     activePhaseIndex: 0,
     phases: [createPlanningPhase()],
     expandWorld: true,

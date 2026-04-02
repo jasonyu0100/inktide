@@ -24,20 +24,21 @@ function createMinimalNarrative(): NarrativeState {
   return {
     id: 'test-narrative',
     title: 'Test Story',
+    description: 'A test story',
     worldSummary: 'A test world.',
     characters: {
-      'C-01': { id: 'C-01', name: 'Hero', description: 'Protagonist', goals: [], relationships: [], knowledge: [], status: { alive: true, introduced: true } },
-      'C-02': { id: 'C-02', name: 'Mentor', description: 'Guide', goals: [], relationships: [], knowledge: [], status: { alive: true, introduced: true } },
+      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
+      'C-02': { id: 'C-02', name: 'Mentor', role: 'recurring', continuity: { nodes: [] }, threadIds: [] },
     },
     locations: {
-      'L-01': { id: 'L-01', name: 'Village', description: 'A village', childIds: [] },
-      'L-02': { id: 'L-02', name: 'Forest', description: 'A forest', childIds: [] },
+      'L-01': { id: 'L-01', name: 'Village', parentId: null, continuity: { nodes: [] }, threadIds: [] },
+      'L-02': { id: 'L-02', name: 'Forest', parentId: null, continuity: { nodes: [] }, threadIds: [] },
     },
     threads: {
-      'T-01': { id: 'T-01', title: 'Quest', description: 'Main quest', status: 'active', history: [] },
+      'T-01': { id: 'T-01', description: 'Main quest', status: 'active', participants: [], dependents: [], openedAt: 'S-01' },
     },
     arcs: {
-      'ARC-01': { id: 'ARC-01', title: 'Beginning', sceneIds: ['S-01', 'S-02', 'S-03'] },
+      'ARC-01': { id: 'ARC-01', name: 'Beginning', sceneIds: ['S-01', 'S-02', 'S-03'], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
     },
     scenes: {
       'S-01': {
@@ -91,9 +92,12 @@ function createMinimalNarrative(): NarrativeState {
       },
     },
     worldBuilds: {},
-    currentBranchId: 'BR-01',
-    defaultBranchId: 'BR-01',
-    worldKnowledge: { nodes: [], edges: [] },
+    worldKnowledge: { nodes: {}, edges: [] },
+    relationships: [],
+    artifacts: {},
+    rules: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   };
 }
 
@@ -120,6 +124,8 @@ describe('reconstructBranch', () => {
   it('passes through ok scenes unchanged', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: 'Good scene' },
@@ -128,7 +134,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -152,6 +158,8 @@ describe('reconstructBranch', () => {
   it('removes cut scenes from timeline', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -160,7 +168,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -194,6 +202,8 @@ describe('reconstructBranch', () => {
 
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -202,7 +212,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -238,6 +248,8 @@ describe('reconstructBranch', () => {
 
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -247,7 +259,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -268,6 +280,8 @@ describe('reconstructBranch', () => {
   it('moves scenes to new positions', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -276,7 +290,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -310,6 +324,8 @@ describe('reconstructBranch', () => {
 
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -318,7 +334,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -340,6 +356,8 @@ describe('reconstructBranch', () => {
   it('creates branch with version suffix', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -348,7 +366,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -370,17 +388,23 @@ describe('reconstructBranch', () => {
     const worldBuild: WorldBuild = {
       id: 'WB-01',
       kind: 'world_build',
-      name: 'World expansion',
-      characters: [],
-      locations: [],
-      threads: [],
-      createdAt: Date.now(),
+      summary: 'World expansion',
+      expansionManifest: {
+        characters: [],
+        locations: [],
+        threads: [],
+        artifacts: [],
+        relationships: [],
+        worldKnowledge: { addedNodes: [], addedEdges: [] },
+      },
     };
     narrative.worldBuilds['WB-01'] = worldBuild;
     // World build appears between S-01 and S-02
     narrative.branches['BR-01'].entryIds = ['S-01', 'WB-01', 'S-02', 'S-03'];
 
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -389,7 +413,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -409,6 +433,8 @@ describe('reconstructBranch', () => {
   it('invokes progress callbacks', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -417,7 +443,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -452,6 +478,8 @@ describe('reconstructBranch', () => {
 
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'INSERT-1', verdict: 'insert', reason: 'Need an opening', insertAfter: 'START' },
@@ -461,7 +489,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -486,6 +514,8 @@ describe('reconstructBranch', () => {
 
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'edit', reason: 'Fix' },
@@ -494,7 +524,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -521,6 +551,8 @@ describe('reconstructBranch', () => {
 
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -529,7 +561,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -551,6 +583,8 @@ describe('reconstructBranch', () => {
   it('updates arc sceneIds after reconstruction', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -559,7 +593,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -588,6 +622,8 @@ describe('reconstructBranch', () => {
     };
 
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -596,7 +632,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -619,6 +655,8 @@ describe('reconstructBranch', () => {
 
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -627,7 +665,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: ['Hero always wins', 'Mentor gives advice'],
       thematicQuestion: 'What defines true courage?',
-      overallCritique: 'Story lacks tension',
+      overall: 'Story lacks tension',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
@@ -655,6 +693,8 @@ describe('reconstructBranch', () => {
 
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
       branchId: 'BR-01',
       sceneEvals: [
         { sceneId: 'S-01', verdict: 'ok', reason: '' },
@@ -665,7 +705,7 @@ describe('reconstructBranch', () => {
       ],
       repetitions: [],
       thematicQuestion: '',
-      overallCritique: '',
+      overall: '',
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };

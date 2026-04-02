@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { NarrativeState, Scene, PlanningPhase, Thread, Character, Location } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 
 // Mock the AI module
 vi.mock('@/lib/ai/api', () => ({
@@ -46,7 +47,9 @@ function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
     id,
     description: `Thread ${id} description`,
     status: 'active',
-    stakes: 'medium',
+    participants: [],
+    dependents: [],
+    openedAt: 's1',
     ...overrides,
   };
 }
@@ -56,9 +59,8 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     id,
     name: `Character ${id}`,
     role: 'recurring',
-    description: 'Test character',
+    continuity: { nodes: [] },
     threadIds: [],
-    backstory: '',
     ...overrides,
   };
 }
@@ -67,7 +69,8 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
   return {
     id,
     name: `Location ${id}`,
-    description: 'Test location',
+    parentId: null,
+    continuity: { nodes: [] },
     threadIds: [],
     ...overrides,
   };
@@ -112,6 +115,7 @@ function createMinimalNarrative(): NarrativeState {
 
 function createPlanningPhase(overrides: Partial<PlanningPhase> = {}): PlanningPhase {
   return {
+    id: 'phase-1',
     name: 'Test Phase',
     objective: 'Test objective',
     status: 'active',
@@ -119,6 +123,7 @@ function createPlanningPhase(overrides: Partial<PlanningPhase> = {}): PlanningPh
     scenesCompleted: 4,
     constraints: 'No deaths',
     worldExpansionHints: '',
+    direction: '',
     ...overrides,
   };
 }
@@ -260,7 +265,7 @@ describe('refreshDirection', () => {
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
     const narrative = createMinimalNarrative();
-    narrative.storySettings = { threadResolutionSpeed: 'fast' };
+    narrative.storySettings = { ...DEFAULT_STORY_SETTINGS, threadResolutionSpeed: 'fast' };
     const phase = createPlanningPhase();
 
     await refreshDirection(
@@ -300,7 +305,7 @@ describe('refreshDirection', () => {
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
     const narrative = createMinimalNarrative();
-    narrative.storySettings = { threadResolutionSpeed: 'slow' };
+    narrative.storySettings = { ...DEFAULT_STORY_SETTINGS, threadResolutionSpeed: 'slow' };
     const phase = createPlanningPhase();
 
     await refreshDirection(

@@ -92,9 +92,7 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     id,
     name: `Character ${id}`,
     role: 'recurring',
-    description: 'Test character',
     threadIds: [],
-    backstory: '',
     continuity: { nodes: [] },
     ...overrides,
   };
@@ -104,7 +102,7 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
   return {
     id,
     name: `Location ${id}`,
-    description: 'Test location',
+    parentId: null,
     threadIds: [],
     continuity: { nodes: [] },
     ...overrides,
@@ -116,7 +114,9 @@ function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
     id,
     description: `Thread ${id} description`,
     status: 'active',
-    stakes: 'medium',
+    participants: [],
+    dependents: [],
+    openedAt: 's1',
     ...overrides,
   };
 }

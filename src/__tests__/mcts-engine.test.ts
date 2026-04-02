@@ -69,19 +69,25 @@ function createMinimalArc(id: string): Arc {
   return {
     id,
     name: 'Test Arc',
-    summary: 'Test arc summary',
     sceneIds: [],
-    status: 'active',
+    develops: [],
+    locationIds: [],
+    activeCharacterIds: [],
+    initialCharacterLocations: {},
   };
 }
 
 function createMCTSConfig(overrides: Partial<MCTSConfig> = {}): MCTSConfig {
   return {
+    moveType: 'scene',
     searchMode: 'freedom',
     directionMode: 'cube',
     branchingFactor: 4,
     parallelism: 2,
-    arcLength: 4,
+    maxNodes: 100,
+    stopMode: 'iterations',
+    timeLimitSeconds: 60,
+    baselineScore: 70,
     pathStrategy: 'best_score',
     randomDirections: false,
     ...overrides,

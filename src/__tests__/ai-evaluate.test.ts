@@ -38,11 +38,12 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
 function createArc(id: string, overrides: Partial<Arc> = {}): Arc {
   return {
     id,
-    title: `Arc ${id}`,
-    description: 'Test arc',
-    sceneIds: [],
-    initialCharacterLocations: {},
     name: `Arc ${id}`,
+    sceneIds: [],
+    develops: [],
+    locationIds: [],
+    activeCharacterIds: [],
+    initialCharacterLocations: {},
     ...overrides,
   };
 }
@@ -52,7 +53,9 @@ function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
     id,
     description: `Thread ${id} description`,
     status: 'active',
-    stakes: 'medium',
+    participants: [],
+    dependents: [],
+    openedAt: 's1',
     ...overrides,
   };
 }
@@ -62,9 +65,8 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     id,
     name: `Character ${id}`,
     role: 'recurring',
-    description: 'Test character',
+    continuity: { nodes: [] },
     threadIds: [],
-    backstory: '',
     ...overrides,
   };
 }
@@ -73,7 +75,8 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
   return {
     id,
     name: `Location ${id}`,
-    description: 'Test location',
+    parentId: null,
+    continuity: { nodes: [] },
     threadIds: [],
     ...overrides,
   };
@@ -511,15 +514,17 @@ describe('evaluatePlanQuality', () => {
     narrative.scenes = {
       'S-001': createScene('S-001', {
         plan: {
+          anchors: [],
           beats: [
-            { fn: 'setup', mechanism: 'establish', what: 'Intro scene', anchor: 'The door opens' },
+            { fn: 'breathe', mechanism: 'environment', what: 'Intro scene', anchor: 'The door opens' },
           ],
         },
       }),
       'S-002': createScene('S-002', {
         plan: {
+          anchors: [],
           beats: [
-            { fn: 'develop', mechanism: 'reveal', what: 'Discovery', anchor: 'She finds the letter' },
+            { fn: 'advance', mechanism: 'action', what: 'Discovery', anchor: 'She finds the letter' },
           ],
         },
       }),
@@ -541,7 +546,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { beats: [{ fn: 'setup', mechanism: 'establish', what: 'Test', anchor: 'Anchor' }] },
+        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'Anchor' }] },
       }),
     };
 
@@ -571,7 +576,7 @@ describe('evaluatePlanQuality', () => {
     });
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { beats: [{ fn: 'setup', mechanism: 'establish', what: 'Test', anchor: 'A' }] },
+        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
       }),
     };
 
@@ -593,7 +598,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { beats: [{ fn: 'setup', mechanism: 'establish', what: 'Test', anchor: 'A' }] },
+        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
       }),
     };
     const onReasoning = vi.fn();
@@ -613,7 +618,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { beats: [{ fn: 'setup', mechanism: 'establish', what: 'Test', anchor: 'A' }] },
+        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
       }),
     };
 
@@ -631,9 +636,9 @@ describe('evaluatePlanQuality', () => {
 
     const narrative = createMinimalNarrative();
     narrative.scenes = {
-      'S-001': createScene('S-001', { plan: { beats: [] } }), // Empty beats
+      'S-001': createScene('S-001', { plan: { anchors: [], beats: [] } }), // Empty beats
       'S-002': createScene('S-002', {
-        plan: { beats: [{ fn: 'setup', mechanism: 'establish', what: 'Test', anchor: 'A' }] },
+        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
       }),
     };
 
@@ -653,7 +658,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { beats: [{ fn: 'setup', mechanism: 'establish', what: 'Test', anchor: 'A' }] },
+        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
       }),
     };
 

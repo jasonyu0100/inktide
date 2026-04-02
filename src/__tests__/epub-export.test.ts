@@ -7,7 +7,7 @@ let capturedBlob: Blob | null = null;
 let capturedFilename: string | null = null;
 
 // Mock browser APIs
-const mockCreateObjectURL = vi.fn(() => 'blob:mock-url');
+const mockCreateObjectURL = vi.fn((_blob: Blob) => 'blob:mock-url');
 const mockRevokeObjectURL = vi.fn();
 const mockAppendChild = vi.fn();
 const mockRemoveChild = vi.fn();
@@ -83,8 +83,11 @@ function createMinimalNarrative(): NarrativeState {
   const arc: Arc = {
     id: 'ARC-01',
     name: 'Chapter One',
-    title: 'Chapter One',
     sceneIds: ['S-01', 'S-02'],
+    develops: [],
+    locationIds: [],
+    activeCharacterIds: [],
+    initialCharacterLocations: {},
   };
 
   return {
@@ -92,10 +95,10 @@ function createMinimalNarrative(): NarrativeState {
     title: 'Test Story',
     worldSummary: 'A test world.',
     characters: {
-      'C-01': { id: 'C-01', name: 'Hero', description: 'Protagonist', goals: [], relationships: [], knowledge: [], status: { alive: true, introduced: true } },
+      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
     },
     locations: {
-      'L-01': { id: 'L-01', name: 'Village', description: 'A village', childIds: [] },
+      'L-01': { id: 'L-01', name: 'Village', parentId: null, continuity: { nodes: [] }, threadIds: [] },
     },
     threads: {},
     arcs: { 'ARC-01': arc },
@@ -140,9 +143,13 @@ function createMinimalNarrative(): NarrativeState {
       },
     },
     worldBuilds: {},
-    currentBranchId: 'BR-01',
-    defaultBranchId: 'BR-01',
-    worldKnowledge: { nodes: [], edges: [] },
+    worldKnowledge: { nodes: {}, edges: [] },
+    artifacts: {},
+    relationships: [],
+    rules: [],
+    description: 'Test description',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   };
 }
 
@@ -200,8 +207,11 @@ describe('exportEpub', () => {
     narrative.arcs['ARC-02'] = {
       id: 'ARC-02',
       name: 'Chapter Two',
-      title: 'Chapter Two',
       sceneIds: ['S-03'],
+      develops: [],
+      locationIds: [],
+      activeCharacterIds: [],
+      initialCharacterLocations: {},
     };
     narrative.scenes['S-03'] = {
       kind: 'scene',

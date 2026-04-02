@@ -38,8 +38,9 @@ function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
     id,
     description: `Thread ${id} description`,
     status: 'active',
-    stakes: 'medium',
     participants: [],
+    dependents: [],
+    openedAt: 's1',
     ...overrides,
   };
 }
@@ -49,10 +50,8 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     id,
     name: `Character ${id}`,
     role: 'recurring',
-    description: 'Test character',
     threadIds: [],
-    backstory: '',
-    continuity: { nodes: [], relationships: [] },
+    continuity: { nodes: [] },
     ...overrides,
   };
 }
@@ -61,8 +60,9 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
   return {
     id,
     name: `Location ${id}`,
-    description: 'Test location',
+    parentId: null,
     threadIds: [],
+    continuity: { nodes: [] },
     ...overrides,
   };
 }
@@ -112,6 +112,8 @@ function createAutoConfig(overrides: Partial<AutoConfig> = {}): AutoConfig {
     maxArcLength: 8,
     maxActiveThreads: 5,
     threadStagnationThreshold: 3,
+    toneGuidance: '',
+    narrativeConstraints: '',
     characterRotationEnabled: true,
     minScenesBetweenCharacterFocus: 5,
     ...overrides,
@@ -156,9 +158,9 @@ describe('computeStoryProgress', () => {
   it('uses arc_count condition', () => {
     const narrative = createMinimalNarrative();
     narrative.arcs = {
-      'arc-1': { id: 'arc-1', name: 'Arc 1', worldBuildId: undefined },
-      'arc-2': { id: 'arc-2', name: 'Arc 2', worldBuildId: undefined },
-      'arc-3': { id: 'arc-3', name: 'Arc 3', worldBuildId: undefined },
+      'arc-1': { id: 'arc-1', name: 'Arc 1', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
+      'arc-2': { id: 'arc-2', name: 'Arc 2', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
+      'arc-3': { id: 'arc-3', name: 'Arc 3', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
     };
     const config = createAutoConfig({
       endConditions: [{ type: 'arc_count', target: 6 }],
@@ -171,9 +173,9 @@ describe('computeStoryProgress', () => {
   it('accounts for startingArcCount', () => {
     const narrative = createMinimalNarrative();
     narrative.arcs = {
-      'arc-1': { id: 'arc-1', name: 'Arc 1', worldBuildId: undefined },
-      'arc-2': { id: 'arc-2', name: 'Arc 2', worldBuildId: undefined },
-      'arc-3': { id: 'arc-3', name: 'Arc 3', worldBuildId: undefined },
+      'arc-1': { id: 'arc-1', name: 'Arc 1', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
+      'arc-2': { id: 'arc-2', name: 'Arc 2', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
+      'arc-3': { id: 'arc-3', name: 'Arc 3', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
     };
     const config = createAutoConfig({
       endConditions: [{ type: 'arc_count', target: 4 }],
@@ -187,7 +189,7 @@ describe('computeStoryProgress', () => {
   it('uses max progress when multiple conditions exist', () => {
     const narrative = createMinimalNarrative();
     narrative.arcs = {
-      'arc-1': { id: 'arc-1', name: 'Arc 1', worldBuildId: undefined },
+      'arc-1': { id: 'arc-1', name: 'Arc 1', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
     };
     const config = createAutoConfig({
       endConditions: [
@@ -205,7 +207,7 @@ describe('computeStoryProgress', () => {
     const narrative = createMinimalNarrative();
     // Create arcs to test cycling
     for (let i = 0; i < AUTO_STOP_CYCLE_LENGTH + 5; i++) {
-      narrative.arcs[`arc-${i}`] = { id: `arc-${i}`, name: `Arc ${i}`, worldBuildId: undefined };
+      narrative.arcs[`arc-${i}`] = { id: `arc-${i}`, name: `Arc ${i}`, sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} };
     }
     const config = createAutoConfig({
       endConditions: [{ type: 'manual_stop' }],
@@ -219,8 +221,8 @@ describe('computeStoryProgress', () => {
   it('returns cyclic progress when no end conditions', () => {
     const narrative = createMinimalNarrative();
     narrative.arcs = {
-      'arc-1': { id: 'arc-1', name: 'Arc 1', worldBuildId: undefined },
-      'arc-2': { id: 'arc-2', name: 'Arc 2', worldBuildId: undefined },
+      'arc-1': { id: 'arc-1', name: 'Arc 1', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
+      'arc-2': { id: 'arc-2', name: 'Arc 2', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
     };
     const config = createAutoConfig({
       endConditions: [],
@@ -327,8 +329,8 @@ describe('checkEndConditions', () => {
   it('returns arc_count condition when met', () => {
     const narrative = createMinimalNarrative();
     narrative.arcs = {
-      'arc-1': { id: 'arc-1', name: 'Arc 1', worldBuildId: undefined },
-      'arc-2': { id: 'arc-2', name: 'Arc 2', worldBuildId: undefined },
+      'arc-1': { id: 'arc-1', name: 'Arc 1', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
+      'arc-2': { id: 'arc-2', name: 'Arc 2', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
     };
     const config = createAutoConfig({
       endConditions: [{ type: 'arc_count', target: 2 }],
@@ -341,8 +343,8 @@ describe('checkEndConditions', () => {
   it('accounts for startingArcCount', () => {
     const narrative = createMinimalNarrative();
     narrative.arcs = {
-      'arc-1': { id: 'arc-1', name: 'Arc 1', worldBuildId: undefined },
-      'arc-2': { id: 'arc-2', name: 'Arc 2', worldBuildId: undefined },
+      'arc-1': { id: 'arc-1', name: 'Arc 1', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
+      'arc-2': { id: 'arc-2', name: 'Arc 2', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
     };
     const config = createAutoConfig({
       endConditions: [{ type: 'arc_count', target: 3 }],
@@ -395,9 +397,11 @@ describe('checkEndConditions', () => {
   it('returns planning_complete when all phases done', () => {
     const narrative = createMinimalNarrative();
     narrative.branches.main.planningQueue = {
+      profileId: 'test',
+      activePhaseIndex: 1,
       phases: [
-        { name: 'Phase 1', objective: 'Test', status: 'completed', sceneAllocation: 5, scenesCompleted: 5 },
-        { name: 'Phase 2', objective: 'Test', status: 'completed', sceneAllocation: 5, scenesCompleted: 5 },
+        { id: 'p1', name: 'Phase 1', objective: 'Test', status: 'completed', sceneAllocation: 5, scenesCompleted: 5, constraints: '', direction: '', worldExpansionHints: '' },
+        { id: 'p2', name: 'Phase 2', objective: 'Test', status: 'completed', sceneAllocation: 5, scenesCompleted: 5, constraints: '', direction: '', worldExpansionHints: '' },
       ],
     };
     const config = createAutoConfig({
@@ -411,9 +415,11 @@ describe('checkEndConditions', () => {
   it('returns null for planning_complete when phases incomplete', () => {
     const narrative = createMinimalNarrative();
     narrative.branches.main.planningQueue = {
+      profileId: 'test',
+      activePhaseIndex: 1,
       phases: [
-        { name: 'Phase 1', objective: 'Test', status: 'completed', sceneAllocation: 5, scenesCompleted: 5 },
-        { name: 'Phase 2', objective: 'Test', status: 'active', sceneAllocation: 5, scenesCompleted: 2 },
+        { id: 'p1', name: 'Phase 1', objective: 'Test', status: 'completed', sceneAllocation: 5, scenesCompleted: 5, constraints: '', direction: '', worldExpansionHints: '' },
+        { id: 'p2', name: 'Phase 2', objective: 'Test', status: 'active', sceneAllocation: 5, scenesCompleted: 2, constraints: '', direction: '', worldExpansionHints: '' },
       ],
     };
     const config = createAutoConfig({
@@ -837,12 +843,15 @@ describe('buildOutlineDirective', () => {
     narrative.worldBuilds = {
       'wb-1': {
         id: 'wb-1',
-        name: 'World Build 1',
+        kind: 'world_build',
         summary: 'test',
         expansionManifest: {
-          characters: [{ id: 'char-unused', name: 'Unused Char', role: 'recurring' }],
-          locations: [{ id: 'loc-unused', name: 'Unused Location' }],
-          threads: [{ id: 'T-unused', description: 'Unused thread' }],
+          characters: [{ id: 'char-unused', name: 'Unused Char', role: 'recurring', continuity: { nodes: [] }, threadIds: [] }],
+          locations: [{ id: 'loc-unused', name: 'Unused Location', parentId: null, continuity: { nodes: [] }, threadIds: [] }],
+          threads: [{ id: 'T-unused', description: 'Unused thread', participants: [], status: 'dormant', openedAt: 's1', dependents: [] }],
+          artifacts: [],
+          relationships: [],
+          worldKnowledge: { addedNodes: [], addedEdges: [] },
         },
       },
     };
@@ -863,12 +872,15 @@ describe('buildOutlineDirective', () => {
     narrative.worldBuilds = {
       'wb-1': {
         id: 'wb-1',
-        name: 'World Build 1',
+        kind: 'world_build',
         summary: 'test',
         expansionManifest: {
-          characters: [{ id: 'char-1', name: 'Alice', role: 'recurring' }],
-          locations: [{ id: 'loc-1', name: 'Castle' }],
+          characters: [{ id: 'char-1', name: 'Alice', role: 'recurring', continuity: { nodes: [] }, threadIds: [] }],
+          locations: [{ id: 'loc-1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] }],
           threads: [],
+          artifacts: [],
+          relationships: [],
+          worldKnowledge: { addedNodes: [], addedEdges: [] },
         },
       },
     };
@@ -939,7 +951,7 @@ describe('auto-engine edge cases', () => {
   it('computes progress correctly with combined scene and arc conditions', () => {
     const narrative = createMinimalNarrative();
     narrative.arcs = {
-      'arc-1': { id: 'arc-1', name: 'Arc 1', worldBuildId: undefined },
+      'arc-1': { id: 'arc-1', name: 'Arc 1', sceneIds: [], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
     };
     const config = createAutoConfig({
       endConditions: [

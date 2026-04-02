@@ -74,6 +74,7 @@ function createThread(id: string, description: string, status: string = 'dormant
     status,
     participants: [],
     dependents: [],
+    openedAt: 's1',
   };
 }
 

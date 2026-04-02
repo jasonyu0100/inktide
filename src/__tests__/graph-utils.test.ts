@@ -32,9 +32,8 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     id,
     name: `Character ${id}`,
     role: 'recurring',
-    description: 'Test character',
+    continuity: { nodes: [] },
     threadIds: [],
-    backstory: '',
     ...overrides,
   };
 }
@@ -43,7 +42,8 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
   return {
     id,
     name: `Location ${id}`,
-    description: 'Test location',
+    parentId: null,
+    continuity: { nodes: [] },
     threadIds: [],
     ...overrides,
   };
@@ -54,8 +54,8 @@ function createArtifact(id: string, parentId: string, overrides: Partial<Artifac
     id,
     parentId,
     name: `Artifact ${id}`,
-    description: 'Test artifact',
     significance: 'minor',
+    continuity: { nodes: [] },
     ...overrides,
   };
 }
@@ -81,9 +81,11 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
 function createArc(id: string, overrides: Partial<Arc> = {}): Arc {
   return {
     id,
-    title: `Arc ${id}`,
-    description: 'Test arc',
+    name: `Arc ${id}`,
     sceneIds: [],
+    develops: [],
+    locationIds: [],
+    activeCharacterIds: [],
     initialCharacterLocations: {},
     ...overrides,
   };
@@ -277,10 +279,10 @@ describe('computeCharacterPositions', () => {
   it('updates positions based on scene movements', () => {
     const scenes: Record<string, Scene> = {
       'scene-1': createScene('scene-1', {
-        characterMovements: { 'char-1': { locationId: 'loc-2' } },
+        characterMovements: { 'char-1': { locationId: 'loc-2', transition: 'walks to' } },
       }),
       'scene-2': createScene('scene-2', {
-        characterMovements: { 'char-1': { locationId: 'loc-3' } },
+        characterMovements: { 'char-1': { locationId: 'loc-3', transition: 'travels to' } },
       }),
     };
     const arc = createArc('arc-1', {
@@ -301,10 +303,10 @@ describe('computeCharacterPositions', () => {
   it('stops at current scene index', () => {
     const scenes: Record<string, Scene> = {
       'scene-1': createScene('scene-1', {
-        characterMovements: { 'char-1': { locationId: 'loc-2' } },
+        characterMovements: { 'char-1': { locationId: 'loc-2', transition: 'walks to' } },
       }),
       'scene-2': createScene('scene-2', {
-        characterMovements: { 'char-1': { locationId: 'loc-3' } },
+        characterMovements: { 'char-1': { locationId: 'loc-3', transition: 'travels to' } },
       }),
     };
     const arc = createArc('arc-1', {
@@ -322,7 +324,7 @@ describe('computeCharacterPositions', () => {
     const scenes: Record<string, Scene> = {
       'scene-0': createScene('scene-0'),
       'scene-1': createScene('scene-1', {
-        characterMovements: { 'char-1': { locationId: 'loc-2' } },
+        characterMovements: { 'char-1': { locationId: 'loc-2', transition: 'walks to' } },
       }),
     };
     const arc = createArc('arc-1', {
@@ -545,16 +547,15 @@ describe('buildOverviewGraphData', () => {
       'wb-1': {
         kind: 'world_build',
         id: 'wb-1',
-        description: 'Expansion',
+        summary: 'Expansion',
         expansionManifest: {
-          characters: [{ id: 'char-1', name: 'Alice', role: 'recurring', description: '', threadIds: [], backstory: '' }],
+          characters: [{ id: 'char-1', name: 'Alice', role: 'recurring', continuity: { nodes: [] }, threadIds: [] }],
           locations: [],
           threads: [],
           relationships: [],
-          worldKnowledgeMutations: { nodes: [], edges: [] },
+          worldKnowledge: { addedNodes: [], addedEdges: [] },
           artifacts: [],
         },
-        timestamp: Date.now(),
       },
     };
     const { nodes } = buildOverviewGraphData(

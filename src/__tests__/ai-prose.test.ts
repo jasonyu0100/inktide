@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { rewriteSceneProse, generateChartAnnotations } from '@/lib/ai/prose';
 import type { NarrativeState, Scene } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 
 // Mock all AI dependencies
 vi.mock('@/lib/ai/api', () => ({
@@ -26,23 +27,25 @@ function createMinimalNarrative(): NarrativeState {
   return {
     id: 'test-narrative',
     title: 'Test Story',
+    description: 'A test story',
     worldSummary: 'A test world with magic and adventure.',
     characters: {
-      'C-01': { id: 'C-01', name: 'Hero', description: 'The protagonist', goals: [], relationships: [], knowledge: [], status: { alive: true, introduced: true } },
-      'C-02': { id: 'C-02', name: 'Mentor', description: 'A wise guide', goals: [], relationships: [], knowledge: [], status: { alive: true, introduced: true } },
+      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
+      'C-02': { id: 'C-02', name: 'Mentor', role: 'recurring', continuity: { nodes: [] }, threadIds: [] },
     },
     locations: {
-      'L-01': { id: 'L-01', name: 'Village', description: 'A small village', childIds: [] },
-      'L-02': { id: 'L-02', name: 'Forest', description: 'A dark forest', childIds: [] },
+      'L-01': { id: 'L-01', name: 'Village', parentId: null, continuity: { nodes: [] }, threadIds: [] },
+      'L-02': { id: 'L-02', name: 'Forest', parentId: null, continuity: { nodes: [] }, threadIds: [] },
     },
     threads: {
-      'T-01': { id: 'T-01', title: 'Main Quest', description: 'Save the kingdom', status: 'active', history: [] },
+      'T-01': { id: 'T-01', description: 'Save the kingdom', status: 'active', participants: [], dependents: [], openedAt: 'S-01' },
     },
     arcs: {
-      'ARC-01': { id: 'ARC-01', title: 'Beginning', sceneIds: ['S-01', 'S-02', 'S-03'] },
+      'ARC-01': { id: 'ARC-01', name: 'Beginning', sceneIds: ['S-01', 'S-02', 'S-03'], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
     },
     scenes: {
       'S-01': {
+        kind: 'scene',
         id: 'S-01',
         arcId: 'ARC-01',
         locationId: 'L-01',
@@ -56,6 +59,7 @@ function createMinimalNarrative(): NarrativeState {
         prose: 'The morning sun crept through the window. Hero stretched and yawned, ready for adventure.',
       },
       'S-02': {
+        kind: 'scene',
         id: 'S-02',
         arcId: 'ARC-01',
         locationId: 'L-01',
@@ -69,6 +73,7 @@ function createMinimalNarrative(): NarrativeState {
         prose: 'Mentor appeared at the door. "Your journey begins today," he said.',
       },
       'S-03': {
+        kind: 'scene',
         id: 'S-03',
         arcId: 'ARC-01',
         locationId: 'L-02',
@@ -84,9 +89,12 @@ function createMinimalNarrative(): NarrativeState {
     },
     branches: {},
     worldBuilds: {},
-    currentBranchId: null,
-    defaultBranchId: null,
-    worldKnowledge: { nodes: [], edges: [] },
+    worldKnowledge: { nodes: {}, edges: [] },
+    relationships: [],
+    artifacts: {},
+    rules: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
   };
 }
 
@@ -259,7 +267,7 @@ describe('rewriteSceneProse', () => {
       .mockReturnValueOnce({ changelog: '' });
 
     const narrative = createMinimalNarrative();
-    narrative.storySettings = { proseVoice: 'Write in a lyrical, poetic style with rich metaphors.' };
+    narrative.storySettings = { ...DEFAULT_STORY_SETTINGS, proseVoice: 'Write in a lyrical, poetic style with rich metaphors.' };
     const scene = narrative.scenes['S-02']!;
     await rewriteSceneProse(
       narrative,
@@ -355,6 +363,7 @@ describe('rewriteSceneProse', () => {
 
     const narrative = createMinimalNarrative();
     const orphanScene: Scene = {
+      kind: 'scene',
       id: 'S-ORPHAN',
       arcId: 'ARC-01',
       locationId: 'L-01',

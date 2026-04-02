@@ -17,17 +17,16 @@ function createWorldBuild(
   artifacts: { id: string }[] = [],
 ): WorldBuild {
   return {
+    kind: 'world_build',
     id,
-    createdAt: Date.now(),
     summary: `World build ${id}`,
-    expandedCharacters: characters.map((c) => c.id),
-    expandedLocations: locations.map((l) => l.id),
-    expandedThreads: threads.map((t) => t.id),
     expansionManifest: {
-      characters: characters.map((c) => ({ id: c.id, name: `Char ${c.id}`, role: 'protagonist', summary: '' })),
-      locations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, description: '' })),
-      threads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, type: 'external', priority: 'major' })),
-      artifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key', parentId: 'C-01' })),
+      characters: characters.map((c) => ({ id: c.id, name: `Char ${c.id}`, role: 'anchor' as const, continuity: { nodes: [] }, threadIds: [] })),
+      locations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, parentId: null, continuity: { nodes: [] }, threadIds: [] })),
+      threads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, status: 'dormant' as const, participants: [], dependents: [], openedAt: 'S-001' })),
+      artifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key' as const, parentId: 'C-01', continuity: { nodes: [] } })),
+      relationships: [],
+      worldKnowledge: { addedNodes: [], addedEdges: [] },
     },
   };
 }
@@ -306,29 +305,19 @@ describe('getThreadIdsAtScene', () => {
     const threads: Record<string, Thread> = {
       'T-01': {
         id: 'T-01',
-        name: 'Thread 1',
         description: 'Desc 1',
         status: 'active',
-        type: 'external',
-        priority: 'major',
         openedAt: 'WB-01',
-        dependencies: [],
         dependents: [],
         participants: [],
-        introducedSceneId: 'S-001',
       },
       'T-02': {
         id: 'T-02',
-        name: 'Thread 2',
         description: 'Desc 2',
         status: 'dormant',
-        type: 'external',
-        priority: 'major',
         openedAt: 'S-002',
-        dependencies: [],
         dependents: [],
         participants: [],
-        introducedSceneId: 'S-002',
       },
     };
     const resolvedKeys = ['WB-01', 'S-001', 'S-002'];
@@ -346,16 +335,11 @@ describe('getThreadIdsAtScene', () => {
     const threads: Record<string, Thread> = {
       'T-01': {
         id: 'T-01',
-        name: 'Thread 1',
         description: 'Desc 1',
         status: 'active',
-        type: 'external',
-        priority: 'major',
         openedAt: 'UNKNOWN-KEY',
-        dependencies: [],
         dependents: [],
         participants: [],
-        introducedSceneId: 'S-001',
       },
     };
     const resolvedKeys = ['WB-01', 'S-001'];

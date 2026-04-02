@@ -72,15 +72,15 @@ describe('computeSlidesData', () => {
   it('counts entities correctly', () => {
     const n = createMinimalNarrative({
       characters: {
-        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] } },
-        c2: { id: 'c2', name: 'Sidekick', role: 'supporting', continuity: { nodes: [] } },
+        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
+        c2: { id: 'c2', name: 'Sidekick', role: 'recurring', continuity: { nodes: [] }, threadIds: [] },
       },
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] } },
+        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] },
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [] },
-        t2: { id: 't2', description: 'Romance', status: 'dormant', participants: [], dependents: [] },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
+        t2: { id: 't2', description: 'Romance', status: 'dormant', participants: [], dependents: [], openedAt: 's1' },
       },
     });
     const data = computeSlidesData(n, []);
@@ -93,13 +93,13 @@ describe('computeSlidesData', () => {
   it('processes scenes and computes force snapshots', () => {
     const n = createMinimalNarrative({
       characters: {
-        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] } },
+        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
       },
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] } },
+        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] },
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [] },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
       },
       scenes: {
         s1: createScene('s1', {
@@ -115,7 +115,7 @@ describe('computeSlidesData', () => {
         }),
       },
       arcs: {
-        'arc-1': { id: 'arc-1', name: 'Act I', sceneIds: ['s1', 's2'], develops: ['t1'], direction: '', constraints: '' },
+        'arc-1': { id: 'arc-1', name: 'Act I', sceneIds: ['s1', 's2'], develops: ['t1'], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
       },
     });
 
@@ -131,7 +131,7 @@ describe('computeSlidesData', () => {
   it('computes thread lifecycles', () => {
     const n = createMinimalNarrative({
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [] },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
       },
       scenes: {
         s1: createScene('s1', {
@@ -153,8 +153,8 @@ describe('computeSlidesData', () => {
   it('computes thread convergences', () => {
     const n = createMinimalNarrative({
       threads: {
-        t1: { id: 't1', description: 'Main Quest', status: 'active', participants: [], dependents: ['t2'] },
-        t2: { id: 't2', description: 'Sub Quest', status: 'active', participants: [], dependents: [] },
+        t1: { id: 't1', description: 'Main Quest', status: 'active', participants: [], dependents: ['t2'], openedAt: 's1' },
+        t2: { id: 't2', description: 'Sub Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
       },
     });
 
@@ -167,8 +167,8 @@ describe('computeSlidesData', () => {
   it('computes top characters by participation', () => {
     const n = createMinimalNarrative({
       characters: {
-        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] } },
-        c2: { id: 'c2', name: 'Mentor', role: 'supporting', continuity: { nodes: [] } },
+        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
+        c2: { id: 'c2', name: 'Mentor', role: 'recurring', continuity: { nodes: [] }, threadIds: [] },
       },
       scenes: {
         s1: createScene('s1', { participantIds: ['c1', 'c2'] }),
@@ -189,8 +189,8 @@ describe('computeSlidesData', () => {
   it('computes top locations by usage', () => {
     const n = createMinimalNarrative({
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] } },
-        loc2: { id: 'loc2', name: 'Forest', parentId: null, continuity: { nodes: [] } },
+        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] },
+        loc2: { id: 'loc2', name: 'Forest', parentId: null, continuity: { nodes: [] }, threadIds: [] },
       },
       scenes: {
         s1: createScene('s1', { locationId: 'loc1' }),
@@ -222,7 +222,7 @@ describe('computeSlidesData', () => {
         }),
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [] },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
       },
     });
 
@@ -238,13 +238,13 @@ describe('computeSlidesData', () => {
   it('builds name lookup maps', () => {
     const n = createMinimalNarrative({
       characters: {
-        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] } },
+        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
       },
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] } },
+        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] },
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [] },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
       },
     });
 
@@ -276,10 +276,10 @@ describe('computeSlidesData', () => {
         }),
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [] },
+        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
       },
       arcs: {
-        'arc-1': { id: 'arc-1', name: 'Act I', sceneIds: ['s1', 's2'], develops: ['t1'], direction: '', constraints: '' },
+        'arc-1': { id: 'arc-1', name: 'Act I', sceneIds: ['s1', 's2'], develops: ['t1'], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
       },
     });
 

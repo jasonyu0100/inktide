@@ -4,6 +4,7 @@ import Image from "next/image";
 import ApiKeyModal from "@/components/topbar/ApiKeyModal";
 import { StoryCard } from "@/components/cards/StoryCard";
 import { CreationWizard } from "@/components/wizard/CreationWizard";
+import { InkBlot } from "@/components/effects/InkBlot";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import {
   ANALYSIS_NARRATIVE_IDS,
@@ -294,6 +295,11 @@ export default function HomePage() {
       <div className="min-h-screen bg-bg-base flex flex-col">
         {/* Cinematic background — aurora effect */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          {/* Ink blot effect across entire page */}
+          <div className="absolute inset-0">
+            <InkBlot />
+          </div>
+          {/* Aurora at bottom */}
           <div className="aurora-container absolute bottom-0 left-0 right-0 h-[75%]">
             <div className="aurora-curtain aurora-curtain-1" />
             <div className="aurora-curtain aurora-curtain-2" />

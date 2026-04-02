@@ -179,10 +179,12 @@ export function SlidesPlayer({
     <div ref={containerRef} className="fixed inset-0 z-100 bg-bg-base flex flex-col outline-none" tabIndex={0}>
       {/* Aurora background */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-1/3 -left-1/4 w-2/3 h-2/3 rounded-full bg-red-500/[0.04] blur-[120px] animate-[aurora-drift_25s_ease-in-out_infinite]" />
-        <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 rounded-full bg-blue-500/[0.04] blur-[120px] animate-[aurora-drift_30s_ease-in-out_infinite_reverse]" />
-        <div className="absolute top-1/3 left-1/3 w-1/3 h-1/3 rounded-full bg-green-500/[0.03] blur-[100px] animate-[aurora-drift_20s_ease-in-out_infinite_2s]" />
-        <div className="absolute bottom-1/3 right-1/3 w-1/4 h-1/4 rounded-full bg-amber-500/[0.03] blur-[100px] animate-[aurora-drift_22s_ease-in-out_infinite_reverse_4s]" />
+        <div className="aurora-container absolute bottom-0 left-0 right-0 h-[75%]">
+          <div className="aurora-curtain aurora-curtain-1" />
+          <div className="aurora-curtain aurora-curtain-2" />
+          <div className="aurora-curtain aurora-curtain-3" />
+          <div className="aurora-glow" />
+        </div>
       </div>
       {/* Top bar */}
       <div className="flex items-center justify-between h-10 px-4 shrink-0 relative z-10">

@@ -21,10 +21,11 @@ import { ThreadGraphModal } from '@/components/topbar/ThreadGraphModal';
 import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
 import { UsageDropdown, computeTotalCost } from '@/components/topbar/UsageAnalyticsModal';
 import type { NarrativeEntry } from '@/types/narrative';
-import { IconHome, IconChevronDown, IconChevronRight, IconPlus, IconImport, IconSettings, IconDownload, IconFork, IconDocument, IconDollar, IconScorecard, IconBook } from '@/components/icons';
+import { IconChevronDown, IconChevronRight, IconPlus, IconImport, IconSettings, IconDownload, IconFork, IconDocument, IconDollar, IconScorecard, IconBook } from '@/components/icons';
 import { NowPlayingPill } from '@/components/canvas/AudioMiniPlayer';
 import { exportEpub } from '@/lib/epub-export';
 import { idbGet, AUDIO_STORE } from '@/lib/idb';
+import Image from 'next/image';
 
 
 function downloadJson(data: object, filename: string) {
@@ -596,13 +597,13 @@ export default function TopBar() {
     <div className="flex items-center justify-between h-11 glass-panel border-b border-border px-3">
       {/* Left: home + title + menus */}
       <div className="flex items-center gap-0.5 text-sm min-w-0">
-        {/* Home button */}
+        {/* Home button with logo */}
         <button
           onClick={() => router.push('/')}
-          className="px-2 py-1 rounded hover:bg-bg-elevated transition-colors text-text-dim hover:text-text-primary"
+          className="px-1.5 py-1 rounded hover:bg-bg-elevated transition-colors"
           title="All series"
         >
-          <IconHome size={16} />
+          <Image src="/logo.svg" alt="InkTide" width={20} height={20} />
         </button>
 
         {/* Narrative selector */}

@@ -162,36 +162,24 @@ button, [role="button"] {
   will-change: transform, opacity;
 }
 
-/* ── Aurora curtains — green/purple/cyan flow ───────────────────────────────── */
-/* W1: Deep emerald green */
-.aurora-curtain-w1 {
-  left: -10%; width: 35%;
+/* ── Aurora curtains — green/cyan duotone ───────────────────────────────── */
+/* Curtain 1: Emerald green */
+.aurora-curtain-1 {
+  left: -5%; width: 50%;
   background: linear-gradient(to bottom, transparent 0%, rgba(34,197,94,0.5) 15%, rgba(16,185,129,0.35) 40%, rgba(74,222,128,0.15) 70%, transparent 100%);
   animation: curtain-sway-1 14s ease-in-out infinite, curtain-shimmer 9s ease-in-out infinite;
 }
-/* W2: Indigo (green-purple transition) */
-.aurora-curtain-w2 {
-  left: 15%; width: 30%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(99,102,241,0.45) 15%, rgba(129,140,248,0.32) 40%, rgba(167,139,250,0.12) 70%, transparent 100%);
+/* Curtain 2: Teal (green-cyan blend) */
+.aurora-curtain-2 {
+  left: 25%; width: 50%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(45,212,191,0.45) 15%, rgba(20,184,166,0.32) 40%, rgba(13,148,136,0.12) 70%, transparent 100%);
   animation: curtain-sway-2 16s ease-in-out infinite, curtain-shimmer 10s ease-in-out 1s infinite;
 }
-/* W3: Violet/purple */
-.aurora-curtain-w3 {
-  left: 35%; width: 28%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(167,139,250,0.5) 15%, rgba(139,92,246,0.35) 40%, rgba(124,58,237,0.14) 70%, transparent 100%);
-  animation: curtain-sway-3 18s ease-in-out infinite, curtain-shimmer 11s ease-in-out 2s infinite;
-}
-/* W4: Blue-violet (purple-cyan transition) */
-.aurora-curtain-w4 {
-  left: 55%; width: 30%;
-  background: linear-gradient(to bottom, transparent 0%, rgba(129,140,248,0.4) 15%, rgba(99,179,237,0.28) 40%, rgba(56,189,248,0.12) 70%, transparent 100%);
-  animation: curtain-sway-4 15s ease-in-out infinite, curtain-shimmer 8s ease-in-out 1.5s infinite;
-}
-/* W5: Bright cyan */
-.aurora-curtain-w5 {
-  left: 75%; width: 35%;
+/* Curtain 3: Bright cyan */
+.aurora-curtain-3 {
+  left: 55%; width: 50%;
   background: linear-gradient(to bottom, transparent 0%, rgba(34,211,238,0.45) 15%, rgba(56,189,248,0.32) 40%, rgba(14,165,233,0.12) 70%, transparent 100%);
-  animation: curtain-sway-5 17s ease-in-out infinite, curtain-shimmer 12s ease-in-out 2.5s infinite;
+  animation: curtain-sway-3 18s ease-in-out infinite, curtain-shimmer 11s ease-in-out 2s infinite;
 }
 
 /* Soft glow at the base */
@@ -227,19 +215,6 @@ button, [role="button"] {
   55%      { transform: skewX(1deg) translateX(2%); }
   75%      { transform: skewX(-2deg) translateX(-1%); }
   90%      { transform: skewX(1deg) translateX(1%); }
-}
-@keyframes curtain-sway-4 {
-  0%, 100% { transform: skewX(0deg) translateX(0%); }
-  30%      { transform: skewX(-2deg) translateX(-2%); }
-  60%      { transform: skewX(4deg) translateX(3%); }
-  85%      { transform: skewX(-1deg) translateX(-1%); }
-}
-@keyframes curtain-sway-5 {
-  0%, 100% { transform: skewX(0deg) translateX(0%); }
-  20%      { transform: skewX(3deg) translateX(-2%); }
-  45%      { transform: skewX(-2deg) translateX(2%); }
-  70%      { transform: skewX(2deg) translateX(-1%); }
-  90%      { transform: skewX(-1deg) translateX(1%); }
 }
 
 /* Shimmer — slow breathing */

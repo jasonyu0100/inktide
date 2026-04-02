@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Home', mobileOnly: false },
@@ -18,12 +19,8 @@ export function LandingTopbar() {
   return (
     <nav className="relative z-30 flex items-center justify-center pt-8 pb-6">
       <div className="flex items-center gap-0.5 rounded-full border border-white/8 bg-white/3 backdrop-blur-sm px-1 py-1">
-        <Link href="/" className="flex items-center px-3 py-1.5 text-white/35 hover:text-white/60 transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
-            <path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
-            <path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
-          </svg>
+        <Link href="/" className="flex items-center px-2 py-1.5">
+          <Image src="/logo.svg" alt="InkTide" width={18} height={18} />
         </Link>
         <div className="w-px h-4 bg-white/8 mr-2" />
         {NAV_ITEMS.map(({ href, label, mobileOnly }) => {

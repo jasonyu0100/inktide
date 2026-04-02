@@ -484,19 +484,19 @@ export default function SceneDetail({ sceneId }: Props) {
       )}
 
       {/* World Knowledge Mutations */}
-      {scene.worldKnowledgeMutations && (scene.worldKnowledgeMutations.addedNodes.length > 0 || scene.worldKnowledgeMutations.addedEdges.length > 0) && (
+      {scene.worldKnowledgeMutations && ((scene.worldKnowledgeMutations.addedNodes?.length ?? 0) > 0 || (scene.worldKnowledgeMutations.addedEdges?.length ?? 0) > 0) && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             World Knowledge
           </h3>
-          {scene.worldKnowledgeMutations.addedNodes.map((node, i) => (
+          {(scene.worldKnowledgeMutations.addedNodes ?? []).map((node, i) => (
             <div key={`wk-node-${node.id}-${i}`} className="flex items-center gap-1.5 text-xs">
               <span className="text-change">+</span>
               <span className="text-text-primary">{node.concept}</span>
               <span className="text-[10px] text-text-dim">({node.type})</span>
             </div>
           ))}
-          {scene.worldKnowledgeMutations.addedEdges.map((edge, i) => {
+          {(scene.worldKnowledgeMutations.addedEdges ?? []).map((edge, i) => {
             const fromNode = narrative.worldKnowledge.nodes[edge.from];
             const toNode = narrative.worldKnowledge.nodes[edge.to];
             const shortName = (concept: string) => {

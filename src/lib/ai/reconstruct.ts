@@ -542,7 +542,10 @@ Return JSON:
     threadMutations: parsed.threadMutations ?? scene.threadMutations,
     continuityMutations: parsed.continuityMutations ?? scene.continuityMutations,
     relationshipMutations: parsed.relationshipMutations ?? scene.relationshipMutations,
-    worldKnowledgeMutations: parsed.worldKnowledgeMutations ?? scene.worldKnowledgeMutations,
+    worldKnowledgeMutations: {
+      addedNodes: (parsed.worldKnowledgeMutations ?? scene.worldKnowledgeMutations)?.addedNodes ?? [],
+      addedEdges: (parsed.worldKnowledgeMutations ?? scene.worldKnowledgeMutations)?.addedEdges ?? [],
+    },
     summary: parsed.summary ?? scene.summary,
     prose: undefined,
     plan: undefined,
@@ -643,7 +646,10 @@ Return JSON:
     threadMutations: parsed.threadMutations ?? targetScene.threadMutations,
     continuityMutations: parsed.continuityMutations ?? targetScene.continuityMutations,
     relationshipMutations: parsed.relationshipMutations ?? targetScene.relationshipMutations,
-    worldKnowledgeMutations: parsed.worldKnowledgeMutations ?? targetScene.worldKnowledgeMutations,
+    worldKnowledgeMutations: {
+      addedNodes: (parsed.worldKnowledgeMutations ?? targetScene.worldKnowledgeMutations)?.addedNodes ?? [],
+      addedEdges: (parsed.worldKnowledgeMutations ?? targetScene.worldKnowledgeMutations)?.addedEdges ?? [],
+    },
     summary: parsed.summary ?? targetScene.summary,
     prose: undefined,
     plan: undefined,
@@ -707,7 +713,10 @@ Return JSON:
     threadMutations: parsed.threadMutations ?? [],
     continuityMutations: parsed.continuityMutations ?? [],
     relationshipMutations: parsed.relationshipMutations ?? [],
-    worldKnowledgeMutations: parsed.worldKnowledgeMutations,
+    worldKnowledgeMutations: {
+      addedNodes: parsed.worldKnowledgeMutations?.addedNodes ?? [],
+      addedEdges: parsed.worldKnowledgeMutations?.addedEdges ?? [],
+    },
     summary: parsed.summary ?? brief,
   };
 }

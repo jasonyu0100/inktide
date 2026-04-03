@@ -52,7 +52,7 @@ function stationaryDist(matrix: TransitionMatrix): Record<CubeCornerKey, number>
 export function PacingProfileSlide({ data }: { data: SlidesData }) {
   const [hovered, setHovered] = useState<CubeCornerKey | null>(null);
 
-  const { matrix, sequence, visitCounts, stationary, metrics } = useMemo(() => {
+  const { matrix, visitCounts, stationary, metrics } = useMemo(() => {
     const snaps = data.forceSnapshots;
     const m = buildMatrix(snaps);
     const seq = snaps.map((s) => detectCubeCorner(s).key);
@@ -96,7 +96,7 @@ export function PacingProfileSlide({ data }: { data: SlidesData }) {
     }
 
     return {
-      matrix: m, sequence: seq, visitCounts: visits, stationary: stat,
+      matrix: m, visitCounts: visits, stationary: stat,
       metrics: { entropy, maxEntropy: Math.log2(8), selfLoopRate, payoffFrac, buildupFrac: 1 - payoffFrac, observations, oscillationPairs: oscPairs.slice(0, 3) },
     };
   }, [data.forceSnapshots]);
@@ -108,7 +108,6 @@ export function PacingProfileSlide({ data }: { data: SlidesData }) {
   }, [matrix]);
 
   const maxVisits = Math.max(...Object.values(visitCounts), 1);
-  const currentMode = sequence.length > 0 ? sequence[sequence.length - 1] : null;
 
   // Graph layout
   const GW = 420;
@@ -130,7 +129,7 @@ export function PacingProfileSlide({ data }: { data: SlidesData }) {
 
   return (
     <div className="flex flex-col h-full px-10 py-6 overflow-y-auto">
-      <div className="flex gap-6 items-start flex-1 min-h-0">
+      <div className="flex gap-6 items-center flex-1 min-h-0">
       {/* Graph */}
       <div className="shrink-0">
         <svg width={GW} height={GH} className="select-none">
@@ -176,18 +175,11 @@ export function PacingProfileSlide({ data }: { data: SlidesData }) {
             const visits = visitCounts[c];
             const r = baseR + (visits / maxVisits) * maxExtraR;
             const isHigh = hovered === c || hovered === null;
-            const isCurrent = currentMode === c;
             return (
               <g key={c} opacity={isHigh ? 1 : 0.2}
                 onMouseEnter={() => setHovered(c)} onMouseLeave={() => setHovered(null)}
                 className="cursor-pointer"
               >
-                {isCurrent && (
-                  <circle cx={pos.x} cy={pos.y} r={r + 8} fill="none" stroke={CORNER_COLORS[c]} strokeWidth={2} opacity={0.4}>
-                    <animate attributeName="r" values={`${r + 6};${r + 12};${r + 6}`} dur="2s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite" />
-                  </circle>
-                )}
                 <circle cx={pos.x} cy={pos.y} r={r} fill={CORNER_COLORS[c]} opacity={0.9}
                   stroke={hovered === c ? '#fff' : 'transparent'} strokeWidth={2}
                 />
@@ -301,33 +293,6 @@ export function PacingProfileSlide({ data }: { data: SlidesData }) {
           </div>
         </div>
 
-        {/* Next from current */}
-        {currentMode && (
-          <div>
-            <span className="text-[10px] text-text-dim uppercase tracking-wider block mb-1">
-              Next from {NARRATIVE_CUBE[currentMode].name}
-            </span>
-            <div className="flex flex-col gap-1">
-              {CORNERS
-                .filter((c) => normalizeRow(matrix[currentMode])[c] > 0.05)
-                .sort((a, b) => normalizeRow(matrix[currentMode])[b] - normalizeRow(matrix[currentMode])[a])
-                .slice(0, 4)
-                .map((c) => {
-                  const prob = normalizeRow(matrix[currentMode])[c];
-                  return (
-                    <div key={c} className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CORNER_COLORS[c] }} />
-                      <span className="text-[11px] text-text-secondary w-20">{NARRATIVE_CUBE[c].name}</span>
-                      <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${prob * 100}%`, backgroundColor: CORNER_COLORS[c] }} />
-                      </div>
-                      <span className="text-[10px] text-text-dim font-mono w-8 text-right">{(prob * 100).toFixed(0)}%</span>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        )}
       </div>
       </div>
 

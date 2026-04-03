@@ -12,6 +12,7 @@ import { IconClose, IconPause, IconPlay, IconChevronLeft, IconChevronRight } fro
 import { ForceDecompositionSlide } from './ForceDecompositionSlide';
 import { PacingProfileSlide } from './PacingProfileSlide';
 import { BeatProfileSlide } from './BeatProfileSlide';
+import { MechanismSlide } from './MechanismSlide';
 import { ThreadLifecycleSlide } from './ThreadLifecycleSlide';
 import { SwingAnalysisSlide } from './SwingAnalysisSlide';
 import { ReportCardSlide } from './ReportCardSlide';
@@ -28,6 +29,7 @@ type SlideSpec =
   | { type: 'decomposition' }
   | { type: 'pacing-profile' }
   | { type: 'beat-profile' }
+  | { type: 'mechanism' }
   | { type: 'threads' }
   | { type: 'swing' }
   | { type: 'report' }
@@ -63,6 +65,10 @@ function buildSlideList(data: SlidesData): SlideSpec[] {
     slides.push({ type: 'beat-profile' });
   }
 
+  if (data.beatSampler?.mechanismDistribution && Object.keys(data.beatSampler.mechanismDistribution).length > 0) {
+    slides.push({ type: 'mechanism' });
+  }
+
   if (data.threadLifecycles.length > 0) {
     slides.push({ type: 'threads' });
   }
@@ -83,10 +89,12 @@ function slideLabel(spec: SlideSpec): string {
     case 'decomposition': return 'Decomposition';
     case 'pacing-profile': return 'Pacing Profile';
     case 'beat-profile': return 'Beat Profile';
+    case 'mechanism': return 'Mechanisms';
     case 'threads': return 'Threads';
     case 'swing': return 'Swing';
     case 'report': return 'Report Card';
     case 'closing': return 'Closing';
+    default: return '';
   }
 }
 
@@ -333,6 +341,8 @@ function renderSlide(spec: SlideSpec, data: SlidesData, onClose: () => void): Re
       return <PacingProfileSlide data={data} />;
     case 'beat-profile':
       return <BeatProfileSlide data={data} />;
+    case 'mechanism':
+      return <MechanismSlide data={data} />;
     case 'threads':
       return <ThreadLifecycleSlide data={data} />;
     case 'swing':
@@ -341,5 +351,7 @@ function renderSlide(spec: SlideSpec, data: SlidesData, onClose: () => void): Re
       return <ReportCardSlide data={data} />;
     case 'closing':
       return <ClosingSlide data={data} onClose={onClose} />;
+    default:
+      return null;
   }
 }

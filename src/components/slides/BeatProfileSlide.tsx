@@ -11,11 +11,6 @@ const FN_COLORS: Record<BeatFn, string> = {
   foreshadow: '#84cc16', resolve: '#14b8a6',
 };
 
-const MECH_COLORS: Record<string, string> = {
-  dialogue: '#3b82f6', thought: '#a855f7', action: '#22c55e', environment: '#06b6d4',
-  narration: '#f59e0b', memory: '#ec4899', document: '#84cc16', comic: '#ef4444',
-};
-
 type BeatMatrix = Record<BeatFn, Record<BeatFn, number>>;
 
 function buildMatrix(sequence: string[]): BeatMatrix {
@@ -55,12 +50,11 @@ function stationaryDist(matrix: BeatMatrix): Record<BeatFn, number> {
 
 /** Categorise beat functions into structural roles */
 const SETUP_FNS: BeatFn[] = ['breathe', 'inform', 'expand', 'foreshadow', 'bond'];
-const PAYOFF_FNS: BeatFn[] = ['advance', 'turn', 'reveal', 'shift', 'resolve'];
 
 export function BeatProfileSlide({ data }: { data: SlidesData }) {
   const [hovered, setHovered] = useState<BeatFn | null>(null);
 
-  const { matrix, sequence, visitCounts, stationary, metrics, mechDist } = useMemo(() => {
+  const { matrix, sequence, visitCounts, stationary, metrics } = useMemo(() => {
     const seq = data.beatSequence;
     const m = buildMatrix(seq);
     const visits = {} as Record<BeatFn, number>;
@@ -101,9 +95,6 @@ export function BeatProfileSlide({ data }: { data: SlidesData }) {
       observations.push(`${p.a} \u21C4 ${p.b} oscillation (${p.strength}\u00D7).`);
     }
 
-    // Mechanism distribution
-    const md = data.beatSampler?.mechanismDistribution ?? {};
-
     return {
       matrix: m, sequence: seq, visitCounts: visits, stationary: stat,
       metrics: {
@@ -112,7 +103,6 @@ export function BeatProfileSlide({ data }: { data: SlidesData }) {
         observations, oscillationPairs: oscPairs.slice(0, 3),
         density: data.beatSampler?.beatsPerKWord ?? 0,
       },
-      mechDist: md,
     };
   }, [data.beatSequence, data.beatSampler]);
 
@@ -123,7 +113,6 @@ export function BeatProfileSlide({ data }: { data: SlidesData }) {
   }, [matrix]);
 
   const maxVisits = Math.max(...Object.values(visitCounts), 1);
-  const currentFn = sequence.length > 0 ? sequence[sequence.length - 1] as BeatFn : null;
 
   // Graph layout — circular for 10 nodes
   const GW = 420;
@@ -154,7 +143,7 @@ export function BeatProfileSlide({ data }: { data: SlidesData }) {
 
   return (
     <div className="flex flex-col h-full px-10 py-6 overflow-y-auto">
-      <div className="flex gap-6 items-start flex-1 min-h-0">
+      <div className="flex gap-6 items-center flex-1 min-h-0">
       {/* Graph */}
       <div className="shrink-0">
         <svg width={GW} height={GH} className="select-none">
@@ -200,18 +189,11 @@ export function BeatProfileSlide({ data }: { data: SlidesData }) {
             const visits = visitCounts[c];
             const r = baseR + (visits / maxVisits) * maxExtraR;
             const isHigh = hovered === c || hovered === null;
-            const isCurrent = currentFn === c;
             return (
               <g key={c} opacity={isHigh ? 1 : 0.2}
                 onMouseEnter={() => setHovered(c)} onMouseLeave={() => setHovered(null)}
                 className="cursor-pointer"
               >
-                {isCurrent && (
-                  <circle cx={pos.x} cy={pos.y} r={r + 8} fill="none" stroke={FN_COLORS[c]} strokeWidth={2} opacity={0.4}>
-                    <animate attributeName="r" values={`${r + 6};${r + 12};${r + 6}`} dur="2s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite" />
-                  </circle>
-                )}
                 <circle cx={pos.x} cy={pos.y} r={r} fill={FN_COLORS[c]} opacity={0.9}
                   stroke={hovered === c ? '#fff' : 'transparent'} strokeWidth={2}
                 />
@@ -326,54 +308,6 @@ export function BeatProfileSlide({ data }: { data: SlidesData }) {
           </div>
         </div>
 
-        {/* Mechanism distribution */}
-        {Object.keys(mechDist).length > 0 && (
-          <div>
-            <span className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Mechanisms</span>
-            <div className="flex flex-col gap-1">
-              {Object.entries(mechDist)
-                .filter(([, v]) => v && v > 0)
-                .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
-                .map(([mech, pct]) => (
-                  <div key={mech} className="flex items-center gap-2">
-                    <span className="text-[9px] font-mono w-16 shrink-0" style={{ color: MECH_COLORS[mech] || '#888' }}>{mech}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${(pct ?? 0) * 100}%`, backgroundColor: MECH_COLORS[mech] || '#888', opacity: 0.7 }} />
-                    </div>
-                    <span className="text-[9px] text-text-dim font-mono w-8 text-right">{Math.round((pct ?? 0) * 100)}%</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* Next from current */}
-        {currentFn && (
-          <div>
-            <span className="text-[10px] text-text-dim uppercase tracking-wider block mb-1">
-              Next from {currentFn}
-            </span>
-            <div className="flex flex-col gap-1">
-              {BEAT_FN_LIST
-                .filter((c) => normalizeRow(matrix[currentFn])[c] > 0.05)
-                .sort((a, b) => normalizeRow(matrix[currentFn])[b] - normalizeRow(matrix[currentFn])[a])
-                .slice(0, 5)
-                .map((c) => {
-                  const prob = normalizeRow(matrix[currentFn])[c];
-                  return (
-                    <div key={c} className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: FN_COLORS[c] }} />
-                      <span className="text-[11px] text-text-secondary w-20">{c}</span>
-                      <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${prob * 100}%`, backgroundColor: FN_COLORS[c] }} />
-                      </div>
-                      <span className="text-[10px] text-text-dim font-mono w-8 text-right">{(prob * 100).toFixed(0)}%</span>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        )}
       </div>
       </div>
 

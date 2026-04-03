@@ -573,7 +573,7 @@ export interface NarrativeShape {
   curve: [number, number][];
 }
 
-const SHAPES = {
+export const SHAPES = {
   climactic: {
     key: 'climactic',
     name: 'Climactic',

@@ -13,6 +13,7 @@ import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { CubeExplorer } from '@/components/topbar/CubeExplorer';
 import { BranchContextModal } from '@/components/topbar/BranchContextModal';
 import { FormulaModal } from '@/components/topbar/FormulaModal';
+import { DefinitionsModal } from '@/components/topbar/DefinitionsModal';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
 import { NarrativeReport } from '@/components/report/NarrativeReport';
 import { MarkovChainModal } from '@/components/topbar/MarkovChainModal';
@@ -284,6 +285,7 @@ export default function TopBar() {
   const [cubeExplorerOpen, setCubeExplorerOpen] = useState(false);
   const [branchContextOpen, setBranchContextOpen] = useState(false);
   const [formulaOpen, setFormulaOpen] = useState(false);
+  const [definitionsOpen, setDefinitionsOpen] = useState(false);
   const [slidesOpen, setSlidesOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [markovOpen, setMarkovOpen] = useState(false);
@@ -814,6 +816,7 @@ export default function TopBar() {
             { label: 'Pacing Profile', onClick: () => setMarkovOpen(true), disabled: !hasNarrative },
             { label: 'Beat Profile', onClick: () => setBeatProfileOpen(true), disabled: !hasNarrative },
             { label: 'Formulas', onClick: () => setFormulaOpen(true) },
+            { label: 'Definitions', onClick: () => setDefinitionsOpen(true) },
           ]}
         />
 
@@ -1258,6 +1261,7 @@ export default function TopBar() {
         />
       )}
       {formulaOpen && <FormulaModal onClose={() => setFormulaOpen(false)} />}
+      {definitionsOpen && <DefinitionsModal onClose={() => setDefinitionsOpen(false)} />}
       {threadGraphOpen && narrative && (
         <ThreadGraphModal
           narrative={narrative}

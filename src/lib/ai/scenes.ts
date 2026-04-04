@@ -396,17 +396,29 @@ RULES:
 
 PROPOSITIONS:
 
-Propositions are ATOMIC CLAIMS — the logical building blocks from which the prose can be FULLY reconstructed.
-The test: given ONLY these propositions, could someone rebuild ALL the semantic content? If any factual claim, number, definition, formula, comparison, or example from the prose is missing, you have under-extracted.
+Propositions are KEY FACTS established by this beat.
 
-DENSITY GUIDELINES (per beat):
-- Light fiction (atmospheric, whimsical): 1-3
-- Standard fiction (dialogue, action): 2-5
-- Dense fiction (world-building, magic systems): 4-8
-- Technical/academic prose: 15-40+ (EXHAUSTIVE — capture EVERY claim)
+DENSITY GUIDELINES (per beat, ~100 words) — FOLLOW THESE STRICTLY:
+- Light fiction (atmospheric, whimsical, children's lit): 1-2 propositions MAX
+- Standard fiction (dialogue, action): 2-4 propositions
+- Dense fiction (world-building, magic systems): 4-6 propositions
+- Technical/academic prose: 8-15 propositions MAX (exhaustive but capped at 15)
 
-CRITICAL FOR TECHNICAL/ACADEMIC PROSE:
-The goal is EXHAUSTIVE extraction. You must capture:
+FICTION EXTRACTION (Alice in Wonderland, Harry Potter, etc.):
+Extract ONLY core narrative facts:
+- Concrete events that happen ("Alice falls down the rabbit hole")
+- Physical states ("The White Rabbit wears a waistcoat")
+- Character beliefs/goals ("Alice wants to follow the rabbit")
+- World rules ("The Cheshire Cat can disappear")
+
+DO NOT extract from fiction:
+- How something is described ("The rabbit hole was dark and deep" → NO)
+- Atmospheric details ("mist clung to the village" → NO)
+- Literary devices, metaphors, descriptions
+- The texture of the prose itself
+
+TECHNICAL/ACADEMIC PROSE EXTRACTION:
+The goal is EXHAUSTIVE extraction, capped at 15 propositions per beat. Capture:
 - EVERY formula, equation, or mathematical expression (exactly as written)
 - EVERY numerical value, statistic, score, or parameter
 - EVERY definition of a term or concept
@@ -416,6 +428,8 @@ The goal is EXHAUSTIVE extraction. You must capture:
 - EVERY cause-effect relationship stated
 - EVERY constraint, rule, or requirement
 - EVERY claim about what something does, is, or means
+
+If a beat has more than 15 atomic facts, prioritize the most important ones.
 
 DO NOT summarize multiple claims into one. Each atomic fact gets its own proposition.
 
@@ -639,17 +653,29 @@ RULES:
 
 PROPOSITIONS:
 
-Propositions are ATOMIC CLAIMS — the logical building blocks from which the prose can be FULLY reconstructed.
-The test: given ONLY these propositions, could someone rebuild ALL the semantic content? If any factual claim, number, definition, formula, comparison, or example from the prose is missing, you have under-extracted.
+Propositions are KEY FACTS established by this beat.
 
-DENSITY GUIDELINES (per beat):
-- Light fiction (atmospheric, whimsical): 1-3
-- Standard fiction (dialogue, action): 2-5
-- Dense fiction (world-building, magic systems): 4-8
-- Technical/academic prose: 15-40+ (EXHAUSTIVE — capture EVERY claim)
+DENSITY GUIDELINES (per beat, ~100 words) — FOLLOW THESE STRICTLY:
+- Light fiction (atmospheric, whimsical, children's lit): 1-2 propositions MAX
+- Standard fiction (dialogue, action): 2-4 propositions
+- Dense fiction (world-building, magic systems): 4-6 propositions
+- Technical/academic prose: 8-15 propositions MAX (exhaustive but capped at 15)
 
-CRITICAL FOR TECHNICAL/ACADEMIC PROSE:
-The goal is EXHAUSTIVE extraction. You must capture:
+FICTION EXTRACTION (Alice in Wonderland, Harry Potter, etc.):
+Extract ONLY core narrative facts:
+- Concrete events that happen ("Alice falls down the rabbit hole")
+- Physical states ("The White Rabbit wears a waistcoat")
+- Character beliefs/goals ("Alice wants to follow the rabbit")
+- World rules ("The Cheshire Cat can disappear")
+
+DO NOT extract from fiction:
+- How something is described ("The rabbit hole was dark and deep" → NO)
+- Atmospheric details ("mist clung to the village" → NO)
+- Literary devices, metaphors, descriptions
+- The texture of the prose itself
+
+TECHNICAL/ACADEMIC PROSE EXTRACTION:
+The goal is EXHAUSTIVE extraction, capped at 15 propositions per beat. Capture:
 - EVERY formula, equation, or mathematical expression (exactly as written)
 - EVERY numerical value, statistic, score, or parameter
 - EVERY definition of a term or concept
@@ -659,6 +685,8 @@ The goal is EXHAUSTIVE extraction. You must capture:
 - EVERY cause-effect relationship stated
 - EVERY constraint, rule, or requirement
 - EVERY claim about what something does, is, or means
+
+If a beat has more than 15 atomic facts, prioritize the most important ones.
 
 If the prose says "Published works score 85–95, while unguided AI output achieves 65–78", you need:
 • {"content": "Published works score 85-95", "type": "evidence"}
@@ -706,7 +734,7 @@ INVALID: craft goals, pacing instructions, meta-commentary.
 PROSE:
 ${prose}
 
-Identify the beat structure of this scene. Focus on exhaustive proposition extraction.`;
+Identify the beat structure of this scene. Extract propositions according to the density guidelines - light fiction gets 1-2 props/beat, technical prose gets exhaustive extraction.`;
 
   let accumulated = '';
   const raw = onToken

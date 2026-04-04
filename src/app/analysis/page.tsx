@@ -1108,6 +1108,8 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
   const { dispatch } = useStore();
   const [title, setTitle] = useState('');
   const [detecting, setDetecting] = useState(true);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   const chunks = splitCorpusIntoChunks(sourceText);
 
@@ -1126,7 +1128,11 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
   const tooLarge = wordCount > ANALYSIS_MAX_CORPUS_WORDS;
 
   const handleStart = () => {
-    if (!title.trim() || tooLarge) return;
+    if (!title.trim() || tooLarge || starting) return;
+
+    setStarting(true);
+    setStartError(null);
+
     const job: AnalysisJob = {
       id: `AJ-${Date.now().toString(36)}`,
       title: title.trim(),
@@ -1138,12 +1144,21 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
+
+    // Add to store first
     dispatch({ type: 'ADD_ANALYSIS_JOB', job });
-    onCreated(job.id);
-    // Auto-start the analysis runner immediately
-    analysisRunner.start(job).catch((err) => {
-      console.error('[analysis] auto-start failed:', err);
-    });
+
+    // Schedule the start and view switch
+    // The delay ensures the job is in the store and dispatch is available to analysisRunner
+    setTimeout(() => {
+      // Start the analysis (fire-and-forget - JobDetail will show the live status)
+      analysisRunner.start(job).catch((err) => {
+        console.error('[analysis] Failed to start:', err);
+      });
+
+      // Switch to the job view - it will show the job status updating live
+      onCreated(job.id);
+    }, 150);
   };
 
   return (
@@ -1190,19 +1205,31 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
           {chunks.length} chunks analyzed in parallel — extracts characters, locations, threads, scenes, world knowledge, and beat plans, then reconciles and assembles.
         </div>
 
+        {startError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3">
+            <p className="text-[11px] text-red-400/80 leading-relaxed">
+              Failed to start analysis: {startError}
+            </p>
+          </div>
+        )}
+
         <div className="flex gap-2">
           <button
             onClick={() => window.history.back()}
-            className="text-xs text-white/30 hover:text-white/60 px-4 py-2.5 transition"
+            disabled={starting}
+            className="text-xs text-white/30 hover:text-white/60 px-4 py-2.5 transition disabled:opacity-30 disabled:pointer-events-none"
           >
             Back
           </button>
           <button
             onClick={handleStart}
-            disabled={!title.trim() || tooLarge}
-            className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold px-5 py-2.5 rounded-lg transition disabled:opacity-30 disabled:pointer-events-none"
+            disabled={!title.trim() || tooLarge || starting}
+            className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold px-5 py-2.5 rounded-lg transition disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-2"
           >
-            Start Analysis
+            {starting && (
+              <div className="w-3 h-3 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+            )}
+            {starting ? 'Starting...' : 'Start Analysis'}
           </button>
         </div>
       </div>

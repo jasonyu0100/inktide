@@ -311,6 +311,7 @@ class AnalysisRunner {
 
     // ── Phase 2: Plan extraction ──────────────────────────────────────────
     // Reverse-engineer beat plans from scene prose in parallel (non-fatal per scene)
+    // Also extract beatProseMap if missing (for analyses run before that feature was added)
     type ScenePlanTask = { chunkIdx: number; sceneIdx: number; prose: string; summary: string };
     const planTasks: ScenePlanTask[] = [];
     for (let i = 0; i < results.length; i++) {
@@ -318,7 +319,10 @@ class AnalysisRunner {
       if (!r) continue;
       for (let j = 0; j < (r.scenes ?? []).length; j++) {
         const s = r.scenes[j];
-        if (s.prose && !s.plan) planTasks.push({ chunkIdx: i, sceneIdx: j, prose: s.prose, summary: s.summary });
+        // Extract plan if missing, OR if beatProseMap is missing (backfill for old analyses)
+        if (s.prose && (!s.plan || !s.beatProseMap)) {
+          planTasks.push({ chunkIdx: i, sceneIdx: j, prose: s.prose, summary: s.summary });
+        }
       }
     }
 

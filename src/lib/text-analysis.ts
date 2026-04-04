@@ -1335,6 +1335,7 @@ export async function assembleNarrative(
         })(),
         prose: s.prose || undefined,
         plan: s.plan || undefined,
+        beatProseMap: s.beatProseMap || undefined,
         summary: s.summary ?? '',
         locked: !!s.prose,
       };

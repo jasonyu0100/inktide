@@ -2,7 +2,7 @@ import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatP
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
@@ -767,30 +767,53 @@ function splitProseIntoChunks(prose: string, targetChunks: number): string[] {
   // Split into sentences (handle common abbreviations and edge cases)
   const sentences = prose.split(/(?<=[.!?])\s+(?=[A-Z])/).filter(s => s.trim());
   if (sentences.length === 0) return [prose];
-  if (sentences.length <= targetChunks) return sentences;
 
-  // Group sentences into roughly equal chunks
-  const totalWords = prose.split(/\s+/).length;
-  const wordsPerChunk = Math.ceil(totalWords / targetChunks);
-  const chunks: string[] = [];
-  let currentChunk: string[] = [];
-  let currentWords = 0;
+  // If we have enough sentences, distribute them into chunks
+  if (sentences.length >= targetChunks) {
+    const totalWords = prose.split(/\s+/).length;
+    const wordsPerChunk = Math.ceil(totalWords / targetChunks);
+    const chunks: string[] = [];
+    let currentChunk: string[] = [];
+    let currentWords = 0;
 
-  for (const sentence of sentences) {
-    const sentenceWords = sentence.split(/\s+/).length;
-    currentChunk.push(sentence);
-    currentWords += sentenceWords;
+    for (const sentence of sentences) {
+      const sentenceWords = sentence.split(/\s+/).length;
+      currentChunk.push(sentence);
+      currentWords += sentenceWords;
 
-    if (currentWords >= wordsPerChunk && chunks.length < targetChunks - 1) {
-      chunks.push(currentChunk.join(' '));
-      currentChunk = [];
-      currentWords = 0;
+      if (currentWords >= wordsPerChunk && chunks.length < targetChunks - 1) {
+        chunks.push(currentChunk.join(' '));
+        currentChunk = [];
+        currentWords = 0;
+      }
     }
+
+    // Add remaining sentences to last chunk
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk.join(' '));
+    }
+
+    return chunks.length > 0 ? chunks : [prose];
   }
 
-  // Add remaining sentences to last chunk
-  if (currentChunk.length > 0) {
-    chunks.push(currentChunk.join(' '));
+  // NOT ENOUGH SENTENCES: split by words to guarantee targetChunks
+  const allWords = prose.split(/\s+/).filter(w => w.trim());
+  if (allWords.length < targetChunks) {
+    // Extremely short prose - return one word per chunk (edge case)
+    return allWords.length > 0 ? allWords : [prose];
+  }
+
+  // Distribute words evenly across targetChunks
+  const chunks: string[] = [];
+  const wordsPerChunk = allWords.length / targetChunks;
+
+  for (let i = 0; i < targetChunks; i++) {
+    const start = Math.floor(i * wordsPerChunk);
+    const end = i === targetChunks - 1 ? allWords.length : Math.floor((i + 1) * wordsPerChunk);
+    const chunkWords = allWords.slice(start, end);
+    if (chunkWords.length > 0) {
+      chunks.push(chunkWords.join(' '));
+    }
   }
 
   return chunks.length > 0 ? chunks : [prose];
@@ -811,25 +834,31 @@ export async function mapBeatsToProseRanges(
 ): Promise<BeatProseMap | null> {
   if (!prose.trim() || beats.length === 0) return null;
 
-  // Try natural paragraph splits first
-  let chunks = prose.split(/\n\s*\n/).filter(p => p.trim());
-
-  // If too few chunks for beats, split by sentences into word-balanced chunks
-  if (chunks.length < beats.length) {
-    chunks = splitProseIntoChunks(prose, beats.length);
-  }
+  // Use consistent sentence-based splitting to ensure enough granularity
+  const targetChunks = Math.max(beats.length, Math.ceil(beats.length * 1.5));
+  const chunks = splitProseIntoChunks(prose, targetChunks);
 
   if (chunks.length === 0) return null;
 
-  const systemPrompt = `You are a prose-to-structure alignment expert. Given prose chunks and a beat sequence, map each beat to the chunk range it corresponds to.
+  const systemPrompt = `You are a prose-to-structure alignment expert. Map beats to prose chunks with perfect accuracy.
 
-CRITICAL REQUIREMENTS:
-1. Every chunk must be assigned to exactly one beat (100% coverage)
-2. Ranges must be sequential and non-overlapping
-3. First beat starts at chunk 0
-4. Last beat ends at chunk ${chunks.length - 1}
+CRITICAL REQUIREMENTS (validation before responding):
+1. EVERY chunk [0-${chunks.length - 1}] must be assigned to EXACTLY ONE beat
+2. Ranges MUST be sequential with NO GAPS: if beat N ends at X, beat N+1 MUST start at X+1
+3. Beat 0 MUST start at chunk 0
+4. Beat ${beats.length - 1} MUST end at chunk ${chunks.length - 1}
+5. NO overlapping ranges
+6. ALL ${chunks.length} chunks must be covered
 
-Return ONLY valid JSON:
+VALIDATION CHECKLIST (verify before responding):
+☐ All ${chunks.length} chunks assigned?
+☐ No gaps in ranges (beat N ends at X, beat N+1 starts at X+1)?
+☐ No overlaps?
+☐ First beat starts at 0?
+☐ Last beat ends at ${chunks.length - 1}?
+☐ All beatIndex values from 0 to ${beats.length - 1} present?
+
+Return ONLY valid JSON in this exact format:
 {
   "mappings": [
     {"beatIndex": 0, "startPara": 0, "endPara": 2},
@@ -838,13 +867,12 @@ Return ONLY valid JSON:
 }
 
 Rules:
-- beatIndex is 0-indexed, matching the beat sequence order
-- startPara and endPara are inclusive chunk indices
-- Adjacent beats must have consecutive ranges (beat N ends at X, beat N+1 starts at X+1)
-- All ${chunks.length} chunks must be covered`;
+- beatIndex: 0-indexed, matching beat sequence order
+- startPara, endPara: inclusive chunk indices [0, ${chunks.length - 1}]
+- Adjacent beats must have consecutive ranges (no gaps, no overlaps)`;
 
   const beatSummaries = beats.map((b, i) => `[${i}] ${b.fn}: ${b.what}`).join('\n');
-  const chunksWithIndices = chunks.map((c, i) => `[${i}] ${c}`).join('\n\n');
+  const chunksWithIndices = chunks.map((c, i) => `[${i}] ${c.substring(0, 200)}${c.length > 200 ? '...' : ''}`).join('\n\n');
 
   const prompt = `BEATS (${beats.length}):
 ${beatSummaries}
@@ -852,12 +880,12 @@ ${beatSummaries}
 PROSE CHUNKS (${chunks.length}):
 ${chunksWithIndices}
 
-Map each beat to its corresponding chunk range. Ensure all ${chunks.length} chunks are covered.`;
+Map each beat to its corresponding chunk range. Verify all ${chunks.length} chunks are covered sequentially.`;
 
   let accumulated = '';
   const raw = onToken
-    ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, 4096, 'mapBeatsToProseRanges', GENERATE_MODEL)
-    : await callGenerate(prompt, systemPrompt, 4096, 'mapBeatsToProseRanges', GENERATE_MODEL);
+    ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, 4096, 'mapBeatsToProseRanges', GENERATE_MODEL, undefined, undefined, ANALYSIS_TEMPERATURE)
+    : await callGenerate(prompt, systemPrompt, 4096, 'mapBeatsToProseRanges', GENERATE_MODEL, undefined, true, ANALYSIS_TEMPERATURE);
 
   type Mapping = { beatIndex: number; startPara: number; endPara: number };
   const parsed = parseJson(raw, 'mapBeatsToProseRanges') as { mappings?: Mapping[] };
@@ -955,12 +983,22 @@ function tryBuildFromRanges(
     return null;
   }
 
+  // Detect duplicate prose chunks (critical: prevents alignment errors)
+  const proseSet = new Set<string>();
+  for (let i = 0; i < chunks.length; i++) {
+    if (proseSet.has(chunks[i].prose)) {
+      console.warn(`[tryBuildFromRanges] Duplicate prose detected at beat ${i}, rejecting mapping`);
+      return null;
+    }
+    proseSet.add(chunks[i].prose);
+  }
+
   return chunks;
 }
 
 /**
- * Fallback: segment prose by distributing paragraphs proportionally to beat count.
- * Handles both cases: more paragraphs than beats, and more beats than paragraphs.
+ * Fallback: segment prose by word count distribution.
+ * If not enough paragraphs, splits them into finer chunks to avoid duplicates.
  * Stores prose strings directly.
  */
 function buildHeuristicSegmentation(
@@ -969,26 +1007,34 @@ function buildHeuristicSegmentation(
 ): BeatProse[] | null {
   if (beatCount === 0 || paragraphs.length === 0) return null;
 
-  const chunks: BeatProse[] = [];
+  // If paragraphs < beats, we need to split further to avoid duplicates
+  let segments = paragraphs;
+  if (paragraphs.length < beatCount) {
+    // Combine and re-split by sentences to get more granular chunks
+    const fullText = paragraphs.join('\n\n');
+    segments = splitProseIntoChunks(fullText, beatCount);
+  }
 
-  if (beatCount <= paragraphs.length) {
-    // More paragraphs than beats: distribute paragraphs among beats
-    const parasPerBeat = paragraphs.length / beatCount;
-    for (let i = 0; i < beatCount; i++) {
-      const startPara = Math.floor(i * parasPerBeat);
-      const endPara = i === beatCount - 1 ? paragraphs.length - 1 : Math.floor((i + 1) * parasPerBeat) - 1;
-      const prose = paragraphs.slice(startPara, endPara + 1).join('\n\n');
-      chunks.push({ beatIndex: i, prose });
+  if (segments.length === 0) return null;
+
+  const chunks: BeatProse[] = [];
+  const segmentsPerBeat = segments.length / beatCount;
+
+  for (let i = 0; i < beatCount; i++) {
+    const startIdx = Math.floor(i * segmentsPerBeat);
+    const endIdx = i === beatCount - 1 ? segments.length - 1 : Math.floor((i + 1) * segmentsPerBeat) - 1;
+    const prose = segments.slice(startIdx, endIdx + 1).join('\n\n');
+    chunks.push({ beatIndex: i, prose });
+  }
+
+  // Verify no duplicates (should never happen with proper splitting, but validate)
+  const proseSet = new Set<string>();
+  for (let i = 0; i < chunks.length; i++) {
+    if (proseSet.has(chunks[i].prose)) {
+      console.error(`[buildHeuristicSegmentation] Unexpected duplicate at beat ${i}, heuristic failed`);
+      return null;
     }
-  } else {
-    // More beats than paragraphs: distribute beats among paragraphs
-    // Each beat gets assigned to one paragraph, multiple beats can share same paragraph
-    const beatsPerPara = beatCount / paragraphs.length;
-    for (let i = 0; i < beatCount; i++) {
-      const paraIdx = Math.min(Math.floor(i / beatsPerPara), paragraphs.length - 1);
-      const prose = paragraphs[paraIdx];
-      chunks.push({ beatIndex: i, prose });
-    }
+    proseSet.add(chunks[i].prose);
   }
 
   return chunks.length === beatCount ? chunks : null;

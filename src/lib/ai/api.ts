@@ -10,6 +10,7 @@ export async function callGenerateStream(
   model?: string,
   reasoningBudget?: number,
   onReasoning?: (token: string) => void,
+  temperature?: number,
 ): Promise<string> {
   const resolvedModel = model ?? DEFAULT_MODEL;
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
@@ -24,7 +25,7 @@ export async function callGenerateStream(
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET }),
+      body: JSON.stringify({ prompt, systemPrompt, stream: true, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET, ...(temperature !== undefined ? { temperature } : {}) }),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -91,7 +92,7 @@ export async function callGenerateStream(
   }
 }
 
-export async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate', model?: string, reasoningBudget?: number, jsonMode = true): Promise<string> {
+export async function callGenerate(prompt: string, systemPrompt: string, maxTokens?: number, caller = 'callGenerate', model?: string, reasoningBudget?: number, jsonMode = true, temperature?: number): Promise<string> {
   const resolvedModel = model ?? DEFAULT_MODEL;
   const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
   const logId = logApiCall(caller, prompt.length + (systemPrompt?.length ?? 0), prompt, resolvedModel, systemPrompt);
@@ -105,7 +106,7 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET, ...(jsonMode ? { jsonMode: true } : {}) }),
+      body: JSON.stringify({ prompt, systemPrompt, ...(maxTokens ? { maxTokens } : {}), ...(model ? { model } : {}), reasoningBudget: reasoningBudget ?? DEFAULT_REASONING_BUDGET, ...(jsonMode ? { jsonMode: true } : {}), ...(temperature !== undefined ? { temperature } : {}) }),
       signal: controller.signal,
     });
     if (!res.ok) {

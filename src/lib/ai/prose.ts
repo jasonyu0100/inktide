@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene, ProseFormat } from '@/types/narrative';
 import { REASONING_BUDGETS } from '@/types/narrative';
-import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, ANALYSIS_TEMPERATURE } from '@/lib/constants';
+import { callGenerate, callGenerateStream } from './api';
+import { WRITING_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 import { parseJson } from './json';
 import { sceneContext } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
@@ -228,62 +228,4 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
   }
 
   return { prose: prose, changelog };
-}
-
-export type ChartAnnotation = {
-  sceneIndex: number;
-  force: 'payoff' | 'change' | 'knowledge';
-  label: string;
-};
-
-export async function generateChartAnnotations(
-  narrative: NarrativeState,
-  forceData: { sceneIndex: number; sceneId: string; arcName: string; forces: { payoff: number; change: number; knowledge: number }; corner: string; summary: string; threadChanges: string[]; location: string; participants: string[] }[],
-): Promise<ChartAnnotation[]> {
-  const trajectoryLines = forceData.map((d) => {
-    const tc = d.threadChanges.length > 0 ? ` | ${d.threadChanges.join('; ')}` : '';
-    return `[${d.sceneIndex + 1}] ${d.arcName} | ${d.corner} | P:${d.forces.payoff.toFixed(2)} C:${d.forces.change.toFixed(2)} K:${d.forces.knowledge.toFixed(2)} | @${d.location} | ${d.participants.join(', ')} | "${d.summary.slice(0, 80)}"${tc}`;
-  }).join('\n');
-
-  const systemPrompt = `You are a narrative analyst annotating force trajectory charts. Return ONLY valid JSON — no markdown, no code fences, no commentary.`;
-
-  const prompt = `Analyze this narrative's force trajectory and generate annotations for notable moments.
-
-NARRATIVE: "${narrative.title}" (${forceData.length} scenes)
-
-SCENE-BY-SCENE DATA:
-${trajectoryLines}
-
-Annotate ONLY the peaks (local maxima) and troughs (local minima) of each force line. Look at the P/C/K values — find where each force hits its highest and lowest points, then label those.
-
-Rules:
-- ONLY peaks and troughs — nothing in between. If the value is rising or falling but hasn't reached an extremum, skip it.
-- Include annotations for ALL THREE forces — payoff, change, AND knowledge
-- ~4-6 annotations per force (the clearest peaks and troughs only)
-- Labels: 2-5 words, specific to the story. Use character names, places, events.
-- Never use generic labels like "high tension" or "calm period"
-- Payoff peaks: danger, threats, betrayals. Troughs: safety, calm
-- Change peaks: action bursts, dense reveals. Troughs: breathing room, reflection
-- Knowledge peaks: new locations or characters (check @location and participants for first appearances). Troughs: same familiar cast/setting recurring
-
-Return a JSON array:
-[{"sceneIndex": 0, "force": "payoff", "label": "short annotation"}, ...]
-
-sceneIndex is 0-based. force is one of: "payoff", "change", "knowledge".`;
-
-  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'generateChartAnnotations', ANALYSIS_MODEL, reasoningBudget, true, ANALYSIS_TEMPERATURE);
-
-  // Parse JSON from response, handling potential markdown fences
-  const cleaned = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-  const parsed = JSON.parse(cleaned);
-  if (!Array.isArray(parsed)) return [];
-  return parsed.filter(
-    (a: unknown): a is ChartAnnotation =>
-      typeof a === 'object' && a !== null &&
-      'sceneIndex' in a && 'force' in a && 'label' in a &&
-      typeof (a as ChartAnnotation).sceneIndex === 'number' &&
-      ['payoff', 'change', 'knowledge'].includes((a as ChartAnnotation).force) &&
-      typeof (a as ChartAnnotation).label === 'string'
-  );
 }

@@ -10,8 +10,7 @@ export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expan
 export type { WorldExpansion, WorldExpansionSize, WorldExpansionStrategy, WorldMetrics, DirectionSuggestion } from './world';
 
 // Prose rewriting
-export { rewriteSceneProse, generateChartAnnotations } from './prose';
-export type { ChartAnnotation } from './prose';
+export { rewriteSceneProse } from './prose';
 
 // Prose alignment
 export { runAlignment, buildContinuityPlan, buildFixAnalysis, runFixWindows } from './alignment';

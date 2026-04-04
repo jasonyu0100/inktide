@@ -179,7 +179,6 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   // Use explicit phase field for reliable phase detection
   const isExtracting = liveJob.phase === 'extraction';
   const isPlanExtracting = liveJob.phase === 'plans';
-  const isMapping = liveJob.phase === 'mapping';
   const isReconciling = liveJob.phase === 'reconciliation';
   const isFinalizing = liveJob.phase === 'finalization';
   const isAssembling = liveJob.phase === 'assembly';
@@ -284,7 +283,6 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               {isAssembling ? 'assembling...'
                 : isFinalizing ? 'finalizing...'
                 : isReconciling ? 'reconciling...'
-                : isMapping ? 'mapping...'
                 : isPlanExtracting ? `plans ${beatStats.planCount}/${sceneCount}`
                 : liveJob.status === 'completed' ? 'complete'
                 : liveJob.status === 'failed' ? 'failed'
@@ -526,9 +524,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
             {/* Header */}
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
-              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isMapping ? 'bg-cyan-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
               <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">
-                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isMapping ? 'Mapping' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
+                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
               </span>
               {isPlanExtracting && (
                 <span className="text-[9px] text-indigo-400/40 font-mono ml-auto">{beatStats.planCount}/{sceneCount}</span>
@@ -609,55 +607,6 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       })}
                     </div>
                   </div>
-                )}
-              </div>
-            ) : isMapping ? (
-              /* Mapping phase — show scene tiles with beatProseMap status */
-              <div className="flex-1 flex flex-col min-h-0">
-                <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'thin' }}>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {allExtractedScenes.map((scene, si) => {
-                      const result = completed.find((_, ci) => scene.chunkIdx === ci);
-                      const sceneData = result?.scenes?.[scene.sceneIdx];
-                      const hasBeatProseMap = !!sceneData?.beatProseMap;
-                      const hasPlan = !!scene.plan;
-                      const isPending = hasPlan && !hasBeatProseMap;
-                      return (
-                        <div
-                          key={scene.key}
-                          className={`flex items-center gap-2 px-2 py-1.5 rounded text-[10px] font-mono transition-all ${
-                            hasBeatProseMap ? 'bg-cyan-500/10' : isPending ? 'bg-cyan-400/5' : 'bg-white/2'
-                          }`}
-                        >
-                          {hasBeatProseMap ? (
-                            <IconCheck size={12} className="text-cyan-400/50 shrink-0" />
-                          ) : isPending ? (
-                            <IconSpinner size={12} className="text-cyan-400/40 animate-spin shrink-0" />
-                          ) : (
-                            <div className="w-3 h-3 rounded-full border border-white/8 shrink-0" />
-                          )}
-                          <span className={hasBeatProseMap ? 'text-cyan-400/50' : isPending ? 'text-cyan-400/30' : 'text-white/10'}>
-                            {si + 1}
-                          </span>
-                          {hasBeatProseMap && sceneData?.beatProseMap && (
-                            <span className="text-white/15 ml-auto text-[8px]">
-                              {sceneData.beatProseMap.chunks.length}b
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                {/* Stream output */}
-                {streamText && (
-                  <pre
-                    ref={streamRef}
-                    className="shrink-0 max-h-24 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all border-t border-white/4"
-                    style={{ scrollbarWidth: 'thin' }}
-                  >
-                    {streamText}
-                  </pre>
                 )}
               </div>
             ) : isExtracting ? (
@@ -1016,9 +965,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         {isRunning && (
           <div className="flex items-center gap-3 mb-2.5">
             {[
-              { label: 'Extract', active: isExtracting, done: isPlanExtracting || isMapping || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
-              { label: 'Plans', active: isPlanExtracting, done: isMapping || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
-              { label: 'Map', active: isMapping, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-cyan-400' },
+              { label: 'Extract', active: isExtracting, done: isPlanExtracting  || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
+              { label: 'Plans', active: isPlanExtracting, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
               { label: 'Reconcile', active: isReconciling, done: isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
               { label: 'Finalize', active: isFinalizing, done: isAssembling || liveJob.status === 'completed', color: 'bg-purple-400' },
               { label: 'Assemble', active: isAssembling, done: liveJob.status === 'completed', color: 'bg-amber-400' },
@@ -1052,7 +1000,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           )}
           {beatStats.mappedCount > 0 && (
             <div className="flex items-center gap-1.5">
-              <div className={`w-1 h-1 rounded-full ${isMapping ? 'bg-cyan-400/70 animate-pulse' : 'bg-cyan-400/40'}`} />
+              <div className={`w-1 h-1 rounded-full ${'bg-cyan-400/40'}`} />
               <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Mapped</span>
               <span className="text-[9px] text-cyan-400/30 font-mono">{beatStats.mappedCount} / {beatStats.planCount}</span>
             </div>
@@ -1099,45 +1047,6 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       </div>
                     )}
                   </button>
-                );
-              })}
-            </div>
-          ) : isMapping ? (
-            /* Mapping phase — scene tiles with beatProseMap status */
-            <div className="flex items-center gap-1">
-              {allExtractedScenes.map((scene, si) => {
-                const result = completed[scene.chunkIdx];
-                const sceneData = result?.scenes?.[scene.sceneIdx];
-                const hasBeatProseMap = !!sceneData?.beatProseMap;
-                const hasPlan = !!scene.plan;
-                const isPending = hasPlan && !hasBeatProseMap;
-                return (
-                  <div
-                    key={scene.key}
-                    className={`relative w-10 min-w-10 h-10 rounded transition-all duration-300 shrink-0 ${
-                      hasBeatProseMap
-                        ? 'bg-cyan-500/15 ring-1 ring-cyan-400/20'
-                        : isPending
-                          ? 'bg-cyan-400/8 ring-1 ring-cyan-400/15'
-                          : 'bg-white/3'
-                    }`}
-                    title={scene.povName ? `${scene.povName}${scene.summary ? ': ' + scene.summary.slice(0, 60) : ''}` : `Scene ${si + 1}`}
-                  >
-                    {isPending ? (
-                      <IconSpinner size={16} className="absolute inset-0 m-auto text-cyan-400/40 animate-spin" />
-                    ) : (
-                      <span className={`text-[9px] font-mono absolute top-1.5 inset-x-0 flex items-center justify-center transition ${
-                        hasBeatProseMap ? 'text-cyan-400/60' : 'text-white/12'
-                      }`}>
-                        {si + 1}
-                      </span>
-                    )}
-                    {!isPending && (
-                      <div className="absolute bottom-1.5 inset-x-0 flex items-center justify-center">
-                        <div className={`w-1 h-1 rounded-full transition-all duration-500 ${hasBeatProseMap ? 'bg-cyan-400/60' : 'bg-white/8'}`} />
-                      </div>
-                    )}
-                  </div>
                 );
               })}
             </div>

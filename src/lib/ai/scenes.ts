@@ -2,7 +2,7 @@ import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatP
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
+import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT, WORDS_PER_BEAT_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
@@ -582,6 +582,59 @@ Return the COMPLETE plan (all beats, not just changed ones) as JSON:
  *
  * Returns the plan with beats and propositions.
  */
+/**
+ * Split prose into evenly-sized chunks by sentence/paragraph boundaries.
+ * Ensures consistent granularity for beat extraction.
+ */
+function splitProseEvenly(prose: string, targetChunks: number): string[] {
+  // First try natural paragraph splits
+  const paragraphs = prose.split(/\n\s*\n/).filter(p => p.trim());
+
+  // If we have enough paragraphs, distribute them evenly
+  if (paragraphs.length >= targetChunks) {
+    const chunks: string[] = [];
+    const parasPerChunk = paragraphs.length / targetChunks;
+
+    for (let i = 0; i < targetChunks; i++) {
+      const start = Math.floor(i * parasPerChunk);
+      const end = i === targetChunks - 1 ? paragraphs.length : Math.floor((i + 1) * parasPerChunk);
+      chunks.push(paragraphs.slice(start, end).join('\n\n'));
+    }
+
+    return chunks;
+  }
+
+  // Not enough paragraphs - split by sentences
+  const sentences = prose.split(/(?<=[.!?])\s+(?=[A-Z])/).filter(s => s.trim());
+  if (sentences.length >= targetChunks) {
+    const chunks: string[] = [];
+    const sentencesPerChunk = sentences.length / targetChunks;
+
+    for (let i = 0; i < targetChunks; i++) {
+      const start = Math.floor(i * sentencesPerChunk);
+      const end = i === targetChunks - 1 ? sentences.length : Math.floor((i + 1) * sentencesPerChunk);
+      chunks.push(sentences.slice(start, end).join(' '));
+    }
+
+    return chunks;
+  }
+
+  // Very short prose - split by words
+  const words = prose.split(/\s+/).filter(w => w.trim());
+  const chunks: string[] = [];
+  const wordsPerChunk = Math.ceil(words.length / targetChunks);
+
+  for (let i = 0; i < targetChunks; i++) {
+    const start = i * wordsPerChunk;
+    const end = Math.min((i + 1) * wordsPerChunk, words.length);
+    if (start < words.length) {
+      chunks.push(words.slice(start, end).join(' '));
+    }
+  }
+
+  return chunks.length > 0 ? chunks : [prose];
+}
+
 export async function reverseEngineerScenePlan(
   prose: string,
   summary: string,
@@ -737,8 +790,13 @@ INVALID: craft goals, pacing instructions, meta-commentary.
 
 - Return ONLY valid JSON.`;
 
-  // Split prose into numbered paragraphs for LLM reference
-  const paragraphs = prose.split(/\n\s*\n/).filter(p => p.trim());
+  // Estimate target beats based on word count and beat density constants
+  const wordCount = prose.split(/\s+/).length;
+  const estimatedBeats = Math.max(Math.round(wordCount / WORDS_PER_BEAT_DEFAULT), 3);
+
+  // Split prose into target chunks (2x estimated beats for granularity)
+  const targetChunks = estimatedBeats * 2;
+  const paragraphs = splitProseEvenly(prose, targetChunks);
   const numberedProse = paragraphs.map((p, i) => `[${i}] ${p}`).join('\n\n');
 
   const prompt = `SCENE SUMMARY: ${summary}

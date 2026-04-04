@@ -328,7 +328,11 @@ export default function FloatingPalette({
             >
               <div className="px-3 py-2 border-b border-white/5 flex items-center justify-between">
                 <span
-                  className={`text-[10px] uppercase tracking-wider text-emerald-400/70`}
+                  className={`text-[10px] uppercase tracking-wider ${
+                    graphViewMode === "plan"
+                      ? "text-sky-400"
+                      : "text-emerald-400"
+                  }`}
                 >
                   Rewrite {graphViewMode === "plan" ? "Plan" : "Prose"}
                 </span>

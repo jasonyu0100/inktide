@@ -322,7 +322,7 @@ class AnalysisRunner {
       }
     }
 
-    if (job.extractPlans && planTasks.length > 0) {
+    if (planTasks.length > 0) {
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'plans' } });
       this.emitStream(job.id, `Phase 2: Extracting beat plans from ${planTasks.length} scenes...`);
       let plansDone = 0;
@@ -342,9 +342,12 @@ class AnalysisRunner {
           entry.planStreams.set(key, accumulated);
           this.emitPlanStream(job.id, key, accumulated);
         })
-          .then((plan) => {
+          .then(({ plan, beatProseMap }) => {
             const r = results[task.chunkIdx];
-            if (r?.scenes[task.sceneIdx]) r.scenes[task.sceneIdx].plan = plan;
+            if (r?.scenes[task.sceneIdx]) {
+              r.scenes[task.sceneIdx].plan = plan;
+              r.scenes[task.sceneIdx].beatProseMap = beatProseMap;
+            }
             plansDone++;
             this.emitStream(job.id, `Phase 2: ${plansDone}/${planTasks.length} beat plans extracted`);
             d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });

@@ -412,11 +412,11 @@ describe('generateScenePlan', () => {
   it('returns parsed beat plan from LLM response', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Fog rolls across the field', anchor: 'The grey mist' },
-        { fn: 'advance', mechanism: 'action', what: 'Alice draws her sword', anchor: 'Steel singing' },
-        { fn: 'turn', mechanism: 'dialogue', what: 'Bob reveals the betrayal', anchor: '"You never knew"' },
+        { fn: 'breathe', mechanism: 'environment', what: 'Fog rolls across the field', propositions: [{ content: 'The grey mist' }] },
+        { fn: 'advance', mechanism: 'action', what: 'Alice draws her sword', propositions: [{ content: 'Steel singing' }] },
+        { fn: 'turn', mechanism: 'dialogue', what: 'Bob reveals the betrayal', propositions: [{ content: '"You never knew"' }] },
       ],
-      anchors: ['The fog tasted of ash and old promises.'],
+      propositions: [{ content: 'The fog tasted of ash and old promises.' }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -428,16 +428,16 @@ describe('generateScenePlan', () => {
     expect(result.beats).toHaveLength(3);
     expect(result.beats[0].fn).toBe('breathe');
     expect(result.beats[0].mechanism).toBe('environment');
-    expect(result.anchors).toHaveLength(1);
+    expect(result.propositions).toHaveLength(1);
   });
 
   it('validates beat function values', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'invalid_fn', mechanism: 'action', what: 'Something happens', anchor: 'detail' },
-        { fn: 'advance', mechanism: 'action', what: 'Valid beat', anchor: 'anchor' },
+        { fn: 'invalid_fn', mechanism: 'action', what: 'Something happens', propositions: [{ content: 'detail' }] },
+        { fn: 'advance', mechanism: 'action', what: 'Valid beat', propositions: [{ content: 'anchor' }] },
       ],
-      anchors: [],
+      propositions: [],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -454,9 +454,9 @@ describe('generateScenePlan', () => {
   it('validates mechanism values', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'breathe', mechanism: 'invalid_mechanism', what: 'Something', anchor: 'detail' },
+        { fn: 'breathe', mechanism: 'invalid_mechanism', what: 'Something', propositions: [{ content: 'detail' }] },
       ],
-      anchors: [],
+      propositions: [],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -471,8 +471,8 @@ describe('generateScenePlan', () => {
 
   it('filters non-string anchors', async () => {
     const mockResponse = JSON.stringify({
-      beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'anchor' }],
-      anchors: ['Valid anchor', 123, null, 'Another valid'],
+      beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'anchor' }] }],
+      propositions: [{ content: 'Valid anchor' }, { content: 'Another valid' }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -481,7 +481,7 @@ describe('generateScenePlan', () => {
 
     const result = await generateScenePlan(narrative, scene, []);
 
-    expect(result.anchors).toEqual(['Valid anchor', 'Another valid']);
+    expect(result.propositions).toEqual([{ content: 'Valid anchor' }, { content: 'Another valid' }]);
   });
 });
 
@@ -491,10 +491,10 @@ describe('editScenePlan', () => {
   it('returns edited beat plan based on issues', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Revised opening', anchor: 'new anchor' },
-        { fn: 'reveal', mechanism: 'dialogue', what: 'Character secret exposed', anchor: 'gasp' },
+        { fn: 'breathe', mechanism: 'environment', what: 'Revised opening', propositions: [{ content: 'new anchor' }] },
+        { fn: 'reveal', mechanism: 'dialogue', what: 'Character secret exposed', propositions: [{ content: 'gasp' }] },
       ],
-      anchors: ['The truth hung between them.'],
+      propositions: [{ content: 'The truth hung between them.' }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -502,9 +502,9 @@ describe('editScenePlan', () => {
     const scene = createScene('S-001', {
       plan: {
         beats: [
-          { fn: 'breathe', mechanism: 'environment', what: 'Original opening', anchor: 'old anchor' },
+          { fn: 'breathe', mechanism: 'environment', what: 'Original opening', propositions: [{ content: 'old anchor' }] },
         ],
-        anchors: [],
+        propositions: [],
       },
     });
 
@@ -526,29 +526,146 @@ describe('editScenePlan', () => {
 // ── reverseEngineerScenePlan Tests ───────────────────────────────────────────
 
 describe('reverseEngineerScenePlan', () => {
-  it('extracts beat structure from prose', async () => {
+  it('extracts beat structure from prose and returns both plan and beatProseMap', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Morning light', anchor: 'golden rays' },
-        { fn: 'bond', mechanism: 'dialogue', what: 'Characters reconnect', anchor: 'warm smile' },
+        { fn: 'breathe', mechanism: 'environment', what: 'Morning light', propositions: [{ content: 'golden rays' }], startPara: 0, endPara: 0 },
+        { fn: 'bond', mechanism: 'dialogue', what: 'Characters reconnect', propositions: [{ content: 'warm smile' }], startPara: 1, endPara: 1 },
       ],
-      anchors: ['The morning light fell like honey.'],
+      propositions: [{ content: 'The morning light fell like honey.' }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
-    const prose = 'The morning light fell like honey across the chamber. "I missed you," she said with a warm smile.';
+    const prose = 'The morning light fell like honey across the chamber.\n\n"I missed you," she said with a warm smile.';
     const summary = 'Characters reunite at dawn';
 
     const result = await reverseEngineerScenePlan(prose, summary);
 
-    expect(result.beats).toHaveLength(2);
-    expect(result.anchors[0]).toContain('morning light');
+    expect(result.plan.beats).toHaveLength(2);
+    expect(result.plan.propositions?.[0]?.content).toContain('morning light');
+    expect(result.beatProseMap).toBeDefined();
+    expect(result.beatProseMap?.chunks).toHaveLength(2);
+    expect(result.beatProseMap?.chunks[0].beatIndex).toBe(0);
+    expect(result.beatProseMap?.chunks[0].prose).toContain('morning light');
+    expect(result.beatProseMap?.chunks[1].beatIndex).toBe(1);
+    expect(result.beatProseMap?.chunks[1].prose).toContain('missed you');
+  });
+
+  it('creates beatProseMap with valid sequential paragraph ranges', async () => {
+    const mockResponse = JSON.stringify({
+      beats: [
+        { fn: 'breathe', mechanism: 'environment', what: 'Setup', propositions: [{ content: 'fact 1' }], startPara: 0, endPara: 1 },
+        { fn: 'advance', mechanism: 'action', what: 'Action', propositions: [{ content: 'fact 2' }], startPara: 2, endPara: 3 },
+        { fn: 'resolve', mechanism: 'dialogue', what: 'Resolution', propositions: [{ content: 'fact 3' }], startPara: 4, endPara: 4 },
+      ],
+      propositions: [],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const prose = 'Para 1.\n\nPara 2.\n\nPara 3.\n\nPara 4.\n\nPara 5.';
+    const result = await reverseEngineerScenePlan(prose, 'Test');
+
+    expect(result.beatProseMap).toBeDefined();
+    expect(result.beatProseMap?.chunks).toHaveLength(3);
+    expect(result.beatProseMap?.chunks[0].prose).toBe('Para 1.\n\nPara 2.');
+    expect(result.beatProseMap?.chunks[1].prose).toBe('Para 3.\n\nPara 4.');
+    expect(result.beatProseMap?.chunks[2].prose).toBe('Para 5.');
+  });
+
+  it('falls back to heuristic segmentation when LLM ranges are invalid', async () => {
+    const mockResponse = JSON.stringify({
+      beats: [
+        { fn: 'breathe', mechanism: 'environment', what: 'Beat 1', propositions: [{ content: 'fact 1' }] }, // Missing ranges
+        { fn: 'advance', mechanism: 'action', what: 'Beat 2', propositions: [{ content: 'fact 2' }] },
+      ],
+      propositions: [],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const prose = 'Para 1.\n\nPara 2.\n\nPara 3.\n\nPara 4.';
+    const result = await reverseEngineerScenePlan(prose, 'Test');
+
+    // Should fall back to heuristic segmentation
+    expect(result.beatProseMap).toBeDefined();
+    expect(result.beatProseMap?.chunks).toHaveLength(2);
+    // Heuristic distributes paragraphs proportionally
+    expect(result.beatProseMap?.chunks[0].beatIndex).toBe(0);
+    expect(result.beatProseMap?.chunks[1].beatIndex).toBe(1);
+  });
+
+  it('returns null beatProseMap when ranges have gaps', async () => {
+    const mockResponse = JSON.stringify({
+      beats: [
+        { fn: 'breathe', mechanism: 'environment', what: 'Beat 1', propositions: [{ content: 'fact 1' }], startPara: 0, endPara: 0 },
+        { fn: 'advance', mechanism: 'action', what: 'Beat 2', propositions: [{ content: 'fact 2' }], startPara: 2, endPara: 2 }, // Gap! Missing para 1
+      ],
+      propositions: [],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const prose = 'Para 1.\n\nPara 2.\n\nPara 3.';
+    const result = await reverseEngineerScenePlan(prose, 'Test');
+
+    // Invalid ranges should fall back to heuristic
+    expect(result.beatProseMap).toBeDefined();
+    expect(result.beatProseMap?.chunks).toHaveLength(2);
+  });
+
+  it('validates beat functions and mechanisms to prevent invalid values', async () => {
+    const mockResponse = JSON.stringify({
+      beats: [
+        { fn: 'INVALID_FN', mechanism: 'INVALID_MECH', what: 'Test', propositions: [{ content: 'fact' }], startPara: 0, endPara: 0 },
+      ],
+      propositions: [],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const prose = 'Single paragraph.';
+    const result = await reverseEngineerScenePlan(prose, 'Test');
+
+    // Should default invalid values
+    expect(result.plan.beats[0].fn).toBe('advance'); // Default fn
+    expect(result.plan.beats[0].mechanism).toBe('action'); // Default mechanism
+  });
+
+  it('filters out invalid propositions without content', async () => {
+    const mockResponse = JSON.stringify({
+      beats: [
+        {
+          fn: 'breathe',
+          mechanism: 'environment',
+          what: 'Setup',
+          propositions: [
+            { content: 'Valid proposition' },
+            { content: '' }, // Empty
+            { notContent: 'wrong key' }, // Wrong structure
+            { content: 'Another valid one' },
+          ],
+          startPara: 0,
+          endPara: 0,
+        },
+      ],
+      propositions: [
+        { content: 'Valid scene prop' },
+        { content: '' }, // Empty
+      ],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const prose = 'Test prose.';
+    const result = await reverseEngineerScenePlan(prose, 'Test');
+
+    expect(result.plan.beats[0].propositions).toHaveLength(2);
+    expect(result.plan.beats[0].propositions[0].content).toBe('Valid proposition');
+    expect(result.plan.beats[0].propositions[1].content).toBe('Another valid one');
+    expect(result.plan.propositions).toHaveLength(1);
+    expect(result.plan.propositions?.[0].content).toBe('Valid scene prop');
   });
 
   it('handles streaming with onToken callback', async () => {
     const mockResponse = JSON.stringify({
-      beats: [{ fn: 'advance', mechanism: 'action', what: 'Action beat', anchor: 'detail' }],
-      anchors: [],
+      beats: [{ fn: 'advance', mechanism: 'action', what: 'Action beat', propositions: [{ content: 'detail' }], startPara: 0, endPara: 0 }],
+      propositions: [],
     });
     vi.mocked(callGenerateStream).mockResolvedValue(mockResponse);
 
@@ -559,8 +676,21 @@ describe('reverseEngineerScenePlan', () => {
       (token) => tokens.push(token),
     );
 
-    expect(result.beats).toHaveLength(1);
+    expect(result.plan.beats).toHaveLength(1);
     expect(vi.mocked(callGenerateStream)).toHaveBeenCalled();
+  });
+
+  it('returns beatProseMap undefined when prose has no paragraphs', async () => {
+    const mockResponse = JSON.stringify({
+      beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Empty', propositions: [], startPara: 0, endPara: 0 }],
+      propositions: [],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const prose = '';
+    const result = await reverseEngineerScenePlan(prose, 'Test');
+
+    expect(result.beatProseMap).toBeUndefined();
   });
 });
 
@@ -570,10 +700,10 @@ describe('rewriteScenePlan', () => {
   it('rewrites plan based on editorial feedback', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'turn', mechanism: 'action', what: 'Dramatic reversal', anchor: 'twist moment' },
-        { fn: 'resolve', mechanism: 'dialogue', what: 'Conflict settles', anchor: 'final words' },
+        { fn: 'turn', mechanism: 'action', what: 'Dramatic reversal', propositions: [{ content: 'twist moment' }] },
+        { fn: 'resolve', mechanism: 'dialogue', what: 'Conflict settles', propositions: [{ content: 'final words' }] },
       ],
-      anchors: ['Everything changed in that instant.'],
+      propositions: [{ content: 'Everything changed in that instant.' }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -581,9 +711,9 @@ describe('rewriteScenePlan', () => {
     const scene = createScene('S-001');
     const currentPlan: BeatPlan = {
       beats: [
-        { fn: 'advance', mechanism: 'action', what: 'Original beat', anchor: 'anchor' },
+        { fn: 'advance', mechanism: 'action', what: 'Original beat', propositions: [{ content: 'anchor' }] },
       ],
-      anchors: [],
+      propositions: [],
     };
 
     const result = await rewriteScenePlan(
@@ -596,13 +726,13 @@ describe('rewriteScenePlan', () => {
 
     expect(result.beats).toHaveLength(2);
     expect(result.beats[0].fn).toBe('turn');
-    expect(result.anchors).toHaveLength(1);
+    expect(result.propositions).toHaveLength(1);
   });
 
   it('falls back to current plan if LLM returns empty beats', async () => {
     const mockResponse = JSON.stringify({
       beats: [],
-      anchors: ['New anchor'],
+      propositions: [{ content: 'New anchor' }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -610,9 +740,9 @@ describe('rewriteScenePlan', () => {
     const scene = createScene('S-001');
     const currentPlan: BeatPlan = {
       beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Original', anchor: 'original' },
+        { fn: 'breathe', mechanism: 'environment', what: 'Original', propositions: [{ content: 'original' }] },
       ],
-      anchors: ['Old anchor'],
+      propositions: [{ content: 'Old anchor' }],
     };
 
     const result = await rewriteScenePlan(narrative, scene, [], currentPlan, 'Feedback');
@@ -620,8 +750,8 @@ describe('rewriteScenePlan', () => {
     // Should fall back to current plan's beats
     expect(result.beats).toHaveLength(1);
     expect(result.beats[0].fn).toBe('breathe');
-    // But use new anchors
-    expect(result.anchors).toEqual(['New anchor']);
+    // But use new propositions
+    expect(result.propositions).toEqual([{ content: 'New anchor' }]);
   });
 });
 
@@ -639,7 +769,7 @@ describe('generateSceneProse', () => {
 
     const result = await generateSceneProse(narrative, scene, []);
 
-    expect(result).toBe(mockProse);
+    expect(result.prose).toBe(mockProse);
   });
 
   it('includes beat plan in prompt when available', async () => {
@@ -650,9 +780,9 @@ describe('generateSceneProse', () => {
     const scene = createScene('S-001', {
       plan: {
         beats: [
-          { fn: 'breathe', mechanism: 'environment', what: 'Opening atmosphere', anchor: 'grey sky' },
+          { fn: 'breathe', mechanism: 'environment', what: 'Opening atmosphere', propositions: [{ content: 'grey sky' }] },
         ],
-        anchors: ['The sky was the color of old iron.'],
+        propositions: [{ content: 'The sky was the color of old iron.' }],
       },
     });
 
@@ -661,7 +791,7 @@ describe('generateSceneProse', () => {
     const callArgs = vi.mocked(callGenerate).mock.calls[0];
     expect(callArgs[0]).toContain('BEAT PLAN');
     expect(callArgs[0]).toContain('breathe:environment');
-    expect(callArgs[0]).toContain('ANCHOR LINES');
+    expect(callArgs[0]).toContain('PROPOSITIONS');
     expect(callArgs[0]).toContain('old iron');
   });
 
@@ -675,7 +805,7 @@ describe('generateSceneProse', () => {
 
     const result = await generateSceneProse(narrative, scene, [], (token) => tokens.push(token));
 
-    expect(result).toBe(mockProse);
+    expect(result.prose).toBe(mockProse);
     expect(vi.mocked(callGenerateStream)).toHaveBeenCalled();
   });
 

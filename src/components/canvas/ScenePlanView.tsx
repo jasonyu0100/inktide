@@ -206,7 +206,7 @@ export function ScenePlanView({
         fn: "advance",
         mechanism: "action",
         what: "",
-        anchor: "",
+        propositions: [],
       };
       const newBeats = [...activePlan.beats];
       newBeats.splice(afterIdx + 1, 0, newBeat);
@@ -221,13 +221,15 @@ export function ScenePlanView({
     [activePlan, scene.id, dispatch],
   );
 
-  const updateAnchor = useCallback(
-    (anchorIdx: number, value: string) => {
+  const addBeatProposition = useCallback(
+    (beatIdx: number) => {
       if (!activePlan) return;
-      const newAnchors = activePlan.anchors.map((a, i) =>
-        i === anchorIdx ? value : a,
+      const newBeats = activePlan.beats.map((b, i) =>
+        i === beatIdx
+          ? { ...b, propositions: [...b.propositions, { content: "" }] }
+          : b,
       );
-      const newPlan: BeatPlan = { ...activePlan, anchors: newAnchors };
+      const newPlan: BeatPlan = { ...activePlan, beats: newBeats };
       setPlanCache({ plan: newPlan, status: "ready" });
       dispatch({
         type: "UPDATE_SCENE",
@@ -238,11 +240,20 @@ export function ScenePlanView({
     [activePlan, scene.id, dispatch],
   );
 
-  const deleteAnchor = useCallback(
-    (anchorIdx: number) => {
+  const updateBeatProposition = useCallback(
+    (beatIdx: number, propIdx: number, content: string) => {
       if (!activePlan) return;
-      const newAnchors = activePlan.anchors.filter((_, i) => i !== anchorIdx);
-      const newPlan: BeatPlan = { ...activePlan, anchors: newAnchors };
+      const newBeats = activePlan.beats.map((b, i) =>
+        i === beatIdx
+          ? {
+              ...b,
+              propositions: b.propositions.map((p, j) =>
+                j === propIdx ? { ...p, content } : p,
+              ),
+            }
+          : b,
+      );
+      const newPlan: BeatPlan = { ...activePlan, beats: newBeats };
       setPlanCache({ plan: newPlan, status: "ready" });
       dispatch({
         type: "UPDATE_SCENE",
@@ -253,11 +264,31 @@ export function ScenePlanView({
     [activePlan, scene.id, dispatch],
   );
 
-  const addAnchor = useCallback(() => {
+  const deleteBeatProposition = useCallback(
+    (beatIdx: number, propIdx: number) => {
+      if (!activePlan) return;
+      const newBeats = activePlan.beats.map((b, i) =>
+        i === beatIdx
+          ? { ...b, propositions: b.propositions.filter((_, j) => j !== propIdx) }
+          : b,
+      );
+      const newPlan: BeatPlan = { ...activePlan, beats: newBeats };
+      setPlanCache({ plan: newPlan, status: "ready" });
+      dispatch({
+        type: "UPDATE_SCENE",
+        sceneId: scene.id,
+        updates: { plan: newPlan },
+      });
+    },
+    [activePlan, scene.id, dispatch],
+  );
+
+  const addSceneProposition = useCallback(() => {
     if (!activePlan) return;
+    const currentProps = activePlan.propositions ?? [];
     const newPlan: BeatPlan = {
       ...activePlan,
-      anchors: [...activePlan.anchors, ""],
+      propositions: [...currentProps, { content: "" }],
     };
     setPlanCache({ plan: newPlan, status: "ready" });
     dispatch({
@@ -266,6 +297,43 @@ export function ScenePlanView({
       updates: { plan: newPlan },
     });
   }, [activePlan, scene.id, dispatch]);
+
+  const updateSceneProposition = useCallback(
+    (propIdx: number, content: string) => {
+      if (!activePlan) return;
+      const currentProps = activePlan.propositions ?? [];
+      const newProps = currentProps.map((p, i) =>
+        i === propIdx ? { ...p, content } : p,
+      );
+      const newPlan: BeatPlan = { ...activePlan, propositions: newProps };
+      setPlanCache({ plan: newPlan, status: "ready" });
+      dispatch({
+        type: "UPDATE_SCENE",
+        sceneId: scene.id,
+        updates: { plan: newPlan },
+      });
+    },
+    [activePlan, scene.id, dispatch],
+  );
+
+  const deleteSceneProposition = useCallback(
+    (propIdx: number) => {
+      if (!activePlan) return;
+      const currentProps = activePlan.propositions ?? [];
+      const newProps = currentProps.filter((_, i) => i !== propIdx);
+      const newPlan: BeatPlan = {
+        ...activePlan,
+        propositions: newProps.length > 0 ? newProps : undefined,
+      };
+      setPlanCache({ plan: newPlan, status: "ready" });
+      dispatch({
+        type: "UPDATE_SCENE",
+        sceneId: scene.id,
+        updates: { plan: newPlan },
+      });
+    },
+    [activePlan, scene.id, dispatch],
+  );
 
   const isLoading = planCache.status === "loading";
   const hasError = planCache.status === "error";
@@ -322,12 +390,15 @@ export function ScenePlanView({
                   >
                     <div className="flex flex-col items-center shrink-0 w-6">
                       <div
-                        className="w-2.5 h-2.5 rounded-full border-2 shrink-0"
+                        className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center text-[9px] font-semibold"
                         style={{
                           borderColor: FN_COLORS[beat.fn] ?? "#666",
-                          backgroundColor: `${FN_COLORS[beat.fn] ?? "#666"}33`,
+                          backgroundColor: `${FN_COLORS[beat.fn] ?? "#666"}18`,
+                          color: FN_COLORS[beat.fn] ?? "#666",
                         }}
-                      />
+                      >
+                        {i + 1}
+                      </div>
                       {i < activePlan.beats.length - 1 && (
                         <div className="flex-1 w-px bg-white/8 mt-0.5" />
                       )}
@@ -402,18 +473,40 @@ export function ScenePlanView({
                       >
                         {beat.what}
                       </p>
-                      <p
-                        contentEditable
-                        suppressContentEditableWarning
-                        className="text-[10px] text-text-dim/60 mt-0.5 italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
-                        onBlur={(e) => {
-                          const text = e.currentTarget.textContent ?? "";
-                          if (text !== beat.anchor)
-                            updateBeat(i, { anchor: text });
-                        }}
-                      >
-                        {beat.anchor}
-                      </p>
+                      {/* Propositions for this beat */}
+                      <div className="mt-1 space-y-1">
+                        {beat.propositions.map((prop, j) => (
+                          <div
+                            key={j}
+                            className="group/prop flex items-start gap-1"
+                          >
+                            <p
+                              contentEditable
+                              suppressContentEditableWarning
+                              className="flex-1 text-[10px] text-text-dim/60 italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
+                              onBlur={(e) => {
+                                const text = e.currentTarget.textContent ?? "";
+                                if (text !== prop.content)
+                                  updateBeatProposition(i, j, text);
+                              }}
+                            >
+                              {prop.content}
+                            </p>
+                            <button
+                              onClick={() => deleteBeatProposition(i, j)}
+                              className="text-[9px] text-text-dim/20 hover:text-red-400 opacity-0 group-hover/prop:opacity-100 transition-all shrink-0 mt-0.5"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => addBeatProposition(i)}
+                          className="text-[9px] text-text-dim/30 hover:text-emerald-400/50 transition-colors"
+                        >
+                          + proposition
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -427,16 +520,16 @@ export function ScenePlanView({
               + Add beat
             </button>
 
-            {/* Anchor lines */}
+            {/* Scene-level propositions */}
             <div className="mt-2 pt-3 border-t border-white/5">
               <h4 className="text-[9px] uppercase tracking-widest text-amber-400/50 mb-2">
-                Anchor Lines
+                Scene Propositions
               </h4>
               <div className="space-y-2">
-                {activePlan.anchors?.map((a, i) => (
+                {activePlan.propositions?.map((p, i) => (
                   <div
                     key={i}
-                    className="group/anchor pl-3 border-l-2 border-amber-400/30 flex items-start gap-1"
+                    className="group/sceneprop pl-3 border-l-2 border-amber-400/30 flex items-start gap-1"
                   >
                     <p
                       contentEditable
@@ -444,30 +537,30 @@ export function ScenePlanView({
                       className="flex-1 text-[11px] text-amber-300/80 leading-relaxed italic outline-none focus:bg-white/3 rounded px-1 -mx-1"
                       onBlur={(e) => {
                         const text = e.currentTarget.textContent ?? "";
-                        if (text !== a) updateAnchor(i, text);
+                        if (text !== p.content) updateSceneProposition(i, text);
                       }}
                     >
-                      {a}
+                      {p.content}
                     </p>
                     <button
-                      onClick={() => deleteAnchor(i)}
-                      className="text-[9px] text-text-dim/20 hover:text-red-400 opacity-0 group-hover/anchor:opacity-100 transition-all shrink-0 mt-0.5"
+                      onClick={() => deleteSceneProposition(i)}
+                      className="text-[9px] text-text-dim/20 hover:text-red-400 opacity-0 group-hover/sceneprop:opacity-100 transition-all shrink-0 mt-0.5"
                     >
                       ✕
                     </button>
                   </div>
                 ))}
                 <button
-                  onClick={addAnchor}
+                  onClick={addSceneProposition}
                   className="text-[9px] text-amber-400/30 hover:text-amber-400/60 transition-colors"
                 >
-                  + Add anchor line
+                  + Add scene proposition
                 </button>
               </div>
             </div>
 
             {activePlan.beats.length === 0 &&
-              activePlan.anchors.length === 0 && (
+              (!activePlan.propositions || activePlan.propositions.length === 0) && (
                 <p className="text-[11px] text-text-dim py-8 text-center">
                   Plan is empty.
                 </p>

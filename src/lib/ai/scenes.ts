@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, BeatPlan } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
@@ -312,7 +312,7 @@ ${planProfileLines.map((l) => `  ${l}`).join('\n')}
 
   const systemPrompt = `You are a scene architect. Given a scene's structural data (summary, mutations, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
 
-The scene context includes a PROSE PROFILE with rules and anti-patterns. Anchors and scene-level anchor lines MUST conform to the profile's style. If the profile forbids figurative language, anchors must be plain factual statements. If the profile allows poetic language, anchors can be evocative. Read the profile rules carefully.
+The scene context includes a PROSE PROFILE with rules and anti-patterns. Propositions MUST conform to the profile's style. If the profile forbids figurative language, propositions must be plain factual statements. If the profile allows poetic language, propositions can be evocative. Read the profile rules carefully.
 
 Return ONLY valid JSON matching this schema:
 {
@@ -321,10 +321,12 @@ Return ONLY valid JSON matching this schema:
       "fn": "${BEAT_FN_LIST.join('|')}",
       "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
       "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
-      "anchor": "A sensory detail grounding this beat — MUST match the prose profile's style"
+      "propositions": [
+        {"content": "atomic story world fact"}
+      ]
     }
   ],
-  "anchors": ["0-5 lines the prose writer includes verbatim. MUST match the prose profile's style. Not every scene needs anchors."]
+  "propositions": [{"content": "atomic story world fact"}]
 }
 
 BEAT FUNCTIONS (10):
@@ -382,8 +384,31 @@ RULES:
   • narration: Authorial voice MUST comment. Choose for time compression, exposition, thematic statements.
   The prose writer cannot deviate — dialogue beats WILL contain quoted speech, thought beats WILL contain internal monologue.
   CRITICAL: If the beat describes overhearing sounds or ambient noise, use environment. If the beat describes the POV character's private reasoning, use thought. Only use dialogue when characters are actually speaking to be heard.
-- ANCHORS (per-beat): Each beat's anchor is a sensory phrase that MUST appear in the prose. Write anchors as concrete details. CHECK THE PROSE PROFILE: if it forbids figurative language, anchors must be plain facts ("boots on stone", "smoke from cooking fires", "the boy's empty jar"). If figurative language is allowed, anchors can be evocative ("the metallic taste of fear", "her knuckles white on the hilt").
-- ANCHORS (scene-level): Write 0-3 polished sentences that would define this scene. The prose writer includes these VERBATIM. These MUST match the prose profile's style — if no figurative language is allowed, these lines must be plain factual prose.
+- PROPOSITIONS (per-beat): Each beat has 1-5 propositions — ATOMIC STORY WORLD FACTS the reader must come to believe are true. A proposition is the smallest unit of prose that, when received, changes what the reader believes to be true about the story world. Propositions are NOT craft instructions. They are NOT prose snippets to copy verbatim. They are claims about what is true in the fiction.
+
+  VALID PROPOSITIONS (atomic world facts):
+  • "Mist covers the village at dawn" — environmental state
+  • "Fang Yuan has 500 years of future knowledge" — character knowledge state
+  • "No one is watching the path" — social/spatial configuration
+  • "The Spring Autumn Cicada survived the time reversal" — object persistence
+  • "Fang Yuan views other people as tools or obstacles" — character belief/disposition
+  • "The awakening ceremony will happen today" — temporal/event fact
+  • "Gu worms require regular feeding to survive" — world system rule
+  • "The mountain clan elders control academy access" — power structure fact
+
+  INVALID PROPOSITIONS (craft instructions, not world facts):
+  • "Establish eerie atmosphere" — NOT a world fact, this is a craft goal
+  • "Build mounting dread" — reader experience goal, not atomic claim
+  • "Show protagonist's determination" — meta-level instruction, not world fact
+  • "Tension peaks here" — pacing instruction, not atomic claim
+  • "Foreshadow the betrayal" — structural instruction, not world fact (the betrayal itself is a fact, foreshadowing is craft)
+
+  HOW TO WRITE PROPOSITIONS:
+  - State what IS true in the story world, not what the prose should DO
+  - Make propositions atomic — one belief-state change per proposition
+  - "Fang Yuan is calm AND has 500 years of memory" is TWO propositions, split them
+  - CHECK THE PROSE PROFILE: if it forbids figurative language, write propositions as plain factual statements ("Smoke rises from cooking fires" not "Smoke dances like spirits")
+- PROPOSITIONS (scene-level): 0-5 propositions that span the whole scene (not tied to a single beat). These are story world facts that must be established across the entire scene, not localized to a single beat.
 - Return ONLY valid JSON.`
   + (() => {
     const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
@@ -395,27 +420,43 @@ ${adjacentBlock ? `${adjacentBlock}\n\n` : ''}${sceneBlock}
 ${logicBlock}
 Generate a structured beat plan for this scene.
 
-REMINDER: All anchors (per-beat and scene-level) MUST conform to the PROSE PROFILE above. If the profile forbids figurative language, write plain factual anchors only.`;
+REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE PROFILE above. If the profile forbids figurative language, write plain factual propositions only.`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = onReasoning
     ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
     : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget);
 
-  const parsed = parseJson(raw, 'generateScenePlan') as { beats?: unknown[]; anchors?: string[] };
+  const parsed = parseJson(raw, 'generateScenePlan') as { beats?: unknown[]; propositions?: unknown[] };
   const beats = (parsed.beats ?? []).map((b: unknown) => {
     const beat = b as Record<string, unknown>;
+    const rawProps = Array.isArray(beat.propositions) ? beat.propositions : [];
+    const propositions = rawProps
+      .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+      .map((p) => ({
+        content: String(p.content ?? ''),
+      }))
+      .filter((p) => p.content.length > 0);
+
     return {
       fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
       mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
       what: String(beat.what ?? ''),
-      anchor: String(beat.anchor ?? ''),
+      propositions,
     };
   });
 
+  const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
+  const scenePropositions = rawSceneProps
+    .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+    .map((p) => ({
+      content: String(p.content ?? ''),
+    }))
+    .filter((p) => p.content.length > 0);
+
   return {
     beats,
-    anchors: (parsed.anchors ?? []).filter((a): a is string => typeof a === 'string'),
+    propositions: scenePropositions.length > 0 ? scenePropositions : undefined,
   };
 }
 
@@ -441,8 +482,8 @@ export async function editScenePlan(
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
 
   const currentPlanJson = JSON.stringify({
-    beats: plan.beats.map((b, i) => ({ idx: i + 1, fn: b.fn, mechanism: b.mechanism, what: b.what, anchor: b.anchor })),
-    anchors: plan.anchors,
+    beats: plan.beats.map((b, i) => ({ idx: i + 1, fn: b.fn, mechanism: b.mechanism, what: b.what, propositions: b.propositions })),
+    propositions: plan.propositions,
   }, null, 2);
 
   const issueBlock = issues.map((iss, i) => `${i + 1}. ${iss}`).join('\n');
@@ -456,7 +497,7 @@ ISSUES TO FIX:
 ${issueBlock}
 
 Edit the beat plan to address every issue above. You may:
-- Modify a beat's fn, mechanism, what, or anchor
+- Modify a beat's fn, mechanism, what, or propositions
 - Add new beats (to fill gaps or add missing setups)
 - Remove beats (if redundant or contradictory)
 - Reorder beats (if sequencing is wrong)
@@ -472,42 +513,64 @@ Keep beats that have NO issues exactly as they are — do not rewrite beats that
 Return the COMPLETE plan (all beats, not just changed ones) as JSON:
 {
   "beats": [
-    { "fn": "${BEAT_FN_LIST.join('|')}", "mechanism": "${BEAT_MECHANISM_LIST.join('|')}", "what": "...", "anchor": "..." }
+    { "fn": "${BEAT_FN_LIST.join('|')}", "mechanism": "${BEAT_MECHANISM_LIST.join('|')}", "what": "...", "propositions": [{"content": "..."}] }
   ],
-  "anchors": ["..."]
+  "propositions": [{"content": "..."}]
 }`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'editScenePlan', GENERATE_MODEL, reasoningBudget);
 
-  const parsed = parseJson(raw, 'editScenePlan') as { beats?: unknown[]; anchors?: string[] };
+  const parsed = parseJson(raw, 'editScenePlan') as { beats?: unknown[]; propositions?: unknown[] };
   const beats = (parsed.beats ?? []).map((b: unknown) => {
     const beat = b as Record<string, unknown>;
+    const rawProps = Array.isArray(beat.propositions) ? beat.propositions : [];
+    const propositions = rawProps
+      .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+      .map((p) => ({
+        content: String(p.content ?? ''),
+      }))
+      .filter((p) => p.content.length > 0);
+
     return {
       fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
       mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
       what: String(beat.what ?? ''),
-      anchor: String(beat.anchor ?? ''),
+      propositions,
     };
   });
 
+  const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
+  const scenePropositions = rawSceneProps
+    .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+    .map((p) => ({
+      content: String(p.content ?? ''),
+    }))
+    .filter((p) => p.content.length > 0);
+
   return {
     beats,
-    anchors: (parsed.anchors ?? []).filter((a): a is string => typeof a === 'string'),
+    propositions: scenePropositions.length > 0 ? scenePropositions : undefined,
   };
 }
 
 /**
- * Reverse-engineer a beat plan from existing prose.
+ * Reverse-engineer a beat plan from existing prose WITH beat-to-prose mapping.
+ * Used for analysis — extracts structural beats and creates side-by-side display mapping.
  * Lighter than generateScenePlan — no branch context or profile needed,
  * just reads the prose structure and maps it to the beat taxonomy.
+ *
+ * Returns both the plan and (optionally) a beatProseMap for side-by-side display.
  */
 export async function reverseEngineerScenePlan(
   prose: string,
   summary: string,
   onToken?: (token: string, accumulated: string) => void,
-): Promise<BeatPlan> {
-  const systemPrompt = `You are a beat analyst. Given existing prose, identify its structural beat sequence — what each beat does, how it's delivered, and the key sensory anchor.
+): Promise<{ plan: BeatPlan; beatProseMap?: BeatProseMap }> {
+  // Split prose into paragraphs for range tracking
+  const paragraphs = prose.split(/\n\s*\n/).filter(p => p.trim());
+
+  const systemPrompt = `You are a beat analyst. Given existing prose, identify its structural beat sequence — what each beat does, how it's delivered, the propositions it establishes, AND which prose paragraphs each beat corresponds to.
 
 Return ONLY valid JSON matching this schema:
 {
@@ -516,16 +579,48 @@ Return ONLY valid JSON matching this schema:
       "fn": "${BEAT_FN_LIST.join('|')}",
       "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
       "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
-      "anchor": "The one sensory detail that makes this beat physical"
+      "propositions": [
+        {"content": "atomic story world fact"}
+      ],
+      "startPara": 0,
+      "endPara": 2
     }
   ],
-  "anchors": ["0-5 standout lines from the prose — verbatim or near-verbatim lines a reader would highlight or remember"]
+  "propositions": [{"content": "atomic story world fact"}]
 }
 
-Beat functions: ${BEAT_FN_LIST.join(', ')}
-Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}
+The prose has ${paragraphs.length} paragraphs (0-indexed). Each beat must specify which paragraphs it spans via startPara/endPara (inclusive ranges).
 
-Rules:
+BEAT FUNCTIONS (10):
+  breathe    — Pacing, atmosphere, sensory grounding, scene establishment.
+  inform     — Knowledge delivery. Character or reader learns something NOW.
+  advance    — Forward momentum. Plot moves, goals pursued, tension rises.
+  bond       — Relationship shifts between characters.
+  turn       — Scene pivots. Revelation, reversal, interruption.
+  reveal     — Character nature exposed through action or choice.
+  shift      — Power dynamic inverts.
+  expand     — World-building. New rule, system, geography introduced.
+  foreshadow — Plants information that pays off LATER.
+  resolve    — Tension releases. Question answered, conflict settles.
+
+MECHANISMS (8) — the mechanism determines how prose is written, not what happens:
+  dialogue    — Characters SPEAKING to each other or aloud. Requires quoted speech ("...").
+  thought     — POV character's INTERNAL monologue. Private reasoning, not spoken.
+  action      — PHYSICAL movement, gesture, body in space. Visible and concrete.
+  environment — Setting, weather, SOUNDS, spatial context. Sensory details of the world.
+  narration   — Narrator's voice commenting. Rhetoric, time compression, exposition.
+  memory      — Flashback triggered by association. Temporal shift to the past.
+  document    — Embedded text shown literally. Letter, sign, newspaper excerpt.
+  comic       — Humor, irony, absurdity. The beat must be funny.
+
+MECHANISM EDGE CASES (important):
+  - Overhearing sounds (children shouting, distant calls) = environment, NOT dialogue
+  - POV character thinking to themselves = thought, NOT dialogue
+  - Character muttering alone = thought (unless another character hears it)
+  - Describing what someone said without quoting = narration, NOT dialogue
+  - Environmental sounds with voices in them = environment (the setting includes sound)
+
+RULES:
 - Identify one beat per meaningful unit of action, dialogue, or shift. Target ~${BEAT_DENSITY_MIN}-${BEAT_DENSITY_MAX} beats per 1000 words.
 - Every beat must map to a specific moment in the prose.
 - STRUCTURAL SUMMARIES ONLY: The 'what' field describes WHAT HAPPENS, not how it reads as prose.
@@ -533,36 +628,210 @@ Rules:
   • DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose
   • DO: "Elders debate whether to proceed with the ceremony" — action summary
   • DON'T: "Her voice cut through the murmur of the crowd" — literary description
-  Extract the structural action, not the prose style. What happened, not how it was written.
-- anchors: Pick 0-5 lines that define the scene. Quote them exactly from the prose.
+  • DO: "Mist covers the village at dawn" — simple fact
+  • DON'T: "Mist clung to the village, blurring the distinction between homes and mountain" — literary prose
+  • DO: "Child shouts about losing a Gu worm" — event
+  • DON'T: "A child's shout echoed, its tone frantic" — prose-style adverbs/adjectives
+  Strip adjectives, adverbs, and literary embellishments. State the event, not its texture.
+- MECHANISM CHOICE must match how the prose was actually written:
+  • dialogue: Prose contains quoted speech — characters speaking to be heard.
+  • thought: Prose contains internal monologue — POV character's private reasoning.
+  • action: Prose describes physical movement, gesture, body in space.
+  • environment: Prose describes setting, weather, sounds, sensory context.
+  • narration: Prose has authorial voice, time compression, exposition.
+  CRITICAL: If the prose shows overhearing sounds or ambient noise, use environment. If the prose shows the POV character's private reasoning, use thought. Only use dialogue when characters are actually speaking to be heard.
+- PROPOSITIONS (per-beat): Each beat has 1-5 propositions — ATOMIC STORY WORLD FACTS the reader must come to believe are true. A proposition is the smallest unit of prose that, when received, changes what the reader believes to be true about the story world. Propositions are NOT craft instructions. They are NOT prose snippets to copy verbatim. They are claims about what is true in the fiction.
+
+  VALID PROPOSITIONS (atomic world facts):
+  • "Mist covers the village at dawn" — environmental state
+  • "Fang Yuan has 500 years of future knowledge" — character knowledge state
+  • "No one is watching the path" — social/spatial configuration
+  • "The Spring Autumn Cicada survived the time reversal" — object persistence
+  • "Fang Yuan views other people as tools or obstacles" — character belief/disposition
+  • "The awakening ceremony will happen today" — temporal/event fact
+  • "Gu worms require regular feeding to survive" — world system rule
+  • "The mountain clan elders control academy access" — power structure fact
+
+  INVALID PROPOSITIONS (craft instructions, not world facts):
+  • "Establish eerie atmosphere" — NOT a world fact, this is a craft goal
+  • "Build mounting dread" — reader experience goal, not atomic claim
+  • "Show protagonist's determination" — meta-level instruction, not world fact
+  • "Tension peaks here" — pacing instruction, not atomic claim
+  • "Foreshadow the betrayal" — structural instruction, not world fact (the betrayal itself is a fact, foreshadowing is craft)
+  • "The prose uses vivid imagery" — craft observation, not a story fact
+  • "Tension builds through silence" — technique, not content
+  • "Show vulnerability through body language" — instruction, not a fact
+  • "Establish mood" — craft goal, not a world claim
+
+  HOW TO WRITE PROPOSITIONS:
+  - State what IS true in the story world, not what the prose should DO
+  - Make propositions atomic — one belief-state change per proposition
+  - "Fang Yuan is calm AND has 500 years of memory" is TWO propositions, split them
+- PROPOSITIONS (scene-level): 0-5 propositions that span the whole scene (not tied to a single beat). These are story world facts established across the entire scene, not localized to a single beat.
 - Return ONLY valid JSON.`;
 
   const prompt = `SCENE SUMMARY: ${summary}
 
-PROSE:
-${prose}
+PROSE (${paragraphs.length} paragraphs):
+${paragraphs.map((p, i) => `[${i}] ${p.slice(0, 200)}...`).join('\n\n')}
 
-Identify the beat structure of this scene.`;
+Identify the beat structure of this scene, including which paragraphs each beat spans.`;
 
   let accumulated = '';
   const raw = onToken
     ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL)
     : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL);
-  const parsed = parseJson(raw, 'reverseEngineerScenePlan') as { beats?: unknown[]; anchors?: string[] };
-  const beats = (parsed.beats ?? []).map((b: unknown) => {
-    const beat = b as Record<string, unknown>;
+  type BeatWithRange = { fn: string; mechanism: string; what: string; propositions: unknown[]; startPara?: number; endPara?: number };
+  const parsed = parseJson(raw, 'reverseEngineerScenePlan') as { beats?: unknown[]; propositions?: unknown[] };
+
+  const beatsWithRanges: { beat: Beat; startPara?: number; endPara?: number }[] = (parsed.beats ?? []).map((b: unknown) => {
+    const beatData = b as BeatWithRange;
+    const rawProps = Array.isArray(beatData.propositions) ? beatData.propositions : [];
+    const propositions = rawProps
+      .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+      .map((p) => ({
+        content: String(p.content ?? ''),
+      }))
+      .filter((p) => p.content.length > 0);
+
     return {
-      fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
-      mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
-      what: String(beat.what ?? ''),
-      anchor: String(beat.anchor ?? ''),
+      beat: {
+        fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beatData.fn)) ? beatData.fn : 'advance') as Beat['fn'],
+        mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beatData.mechanism)) ? beatData.mechanism : 'action') as Beat['mechanism'],
+        what: String(beatData.what ?? ''),
+        propositions,
+      },
+      startPara: typeof beatData.startPara === 'number' ? beatData.startPara : undefined,
+      endPara: typeof beatData.endPara === 'number' ? beatData.endPara : undefined,
     };
   });
 
-  return {
+  const beats = beatsWithRanges.map(b => b.beat);
+
+  const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
+  const scenePropositions = rawSceneProps
+    .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+    .map((p) => ({
+      content: String(p.content ?? ''),
+    }))
+    .filter((p) => p.content.length > 0);
+
+  const plan: BeatPlan = {
     beats,
-    anchors: (parsed.anchors ?? []).filter((a): a is string => typeof a === 'string'),
+    propositions: scenePropositions.length > 0 ? scenePropositions : undefined,
   };
+
+  // Build beatProseMap from extracted paragraph ranges with validation fallback
+  const beatProseMap = buildBeatProseMap(paragraphs, beatsWithRanges);
+
+  return {
+    plan,
+    beatProseMap: beatProseMap ?? undefined,
+  };
+}
+
+/**
+ * Build BeatProseMap from paragraph ranges with proposition-based validation.
+ * Falls back to heuristic segmentation if LLM ranges are invalid.
+ */
+function buildBeatProseMap(
+  paragraphs: string[],
+  beatsWithRanges: Array<{ beat: Beat; startPara?: number; endPara?: number }>
+): BeatProseMap | null {
+  if (paragraphs.length === 0 || beatsWithRanges.length === 0) return null;
+
+  // Primary: Use LLM-extracted ranges if valid
+  const chunks = tryBuildFromRanges(paragraphs, beatsWithRanges);
+  if (chunks) {
+    console.log('[buildBeatProseMap] Using LLM-extracted paragraph ranges');
+    return { chunks, createdAt: Date.now() };
+  }
+
+  // Fallback: Heuristic segmentation by word count
+  console.warn('[buildBeatProseMap] LLM ranges invalid, falling back to heuristic segmentation');
+  const fallbackChunks = buildHeuristicSegmentation(paragraphs, beatsWithRanges.length);
+  if (fallbackChunks) {
+    return { chunks: fallbackChunks, createdAt: Date.now() };
+  }
+
+  return null;
+}
+
+/**
+ * Attempt to build chunks from LLM-provided paragraph ranges.
+ * Validates ranges are sequential, non-overlapping, and cover full prose.
+ */
+function tryBuildFromRanges(
+  paragraphs: string[],
+  beatsWithRanges: Array<{ beat: Beat; startPara?: number; endPara?: number }>
+): BeatProse[] | null {
+  const chunks: BeatProse[] = [];
+  let lastEndPara = -1;
+
+  for (let i = 0; i < beatsWithRanges.length; i++) {
+    const { startPara, endPara } = beatsWithRanges[i];
+
+    // Check if ranges exist
+    if (typeof startPara !== 'number' || typeof endPara !== 'number') {
+      console.warn(`[tryBuildFromRanges] Beat ${i} missing paragraph range`);
+      return null;
+    }
+
+    // Validate sequential (no gaps or overlaps)
+    if (startPara !== lastEndPara + 1) {
+      console.warn(`[tryBuildFromRanges] Beat ${i} range [${startPara}, ${endPara}] not sequential (last ended at ${lastEndPara})`);
+      return null;
+    }
+
+    // Validate bounds
+    if (startPara < 0 || endPara >= paragraphs.length || startPara > endPara) {
+      console.warn(`[tryBuildFromRanges] Beat ${i} has invalid range [${startPara}, ${endPara}]`);
+      return null;
+    }
+
+    const proseChunk = paragraphs.slice(startPara, endPara + 1).join('\n\n').trim();
+    if (!proseChunk) {
+      console.warn(`[tryBuildFromRanges] Beat ${i} has empty prose chunk`);
+      return null;
+    }
+
+    chunks.push({ beatIndex: i, prose: proseChunk });
+    lastEndPara = endPara;
+  }
+
+  // Verify full coverage (all paragraphs assigned)
+  if (lastEndPara !== paragraphs.length - 1) {
+    console.warn(`[tryBuildFromRanges] Incomplete coverage: ends at para ${lastEndPara}, prose has ${paragraphs.length} paras`);
+    return null;
+  }
+
+  return chunks;
+}
+
+/**
+ * Fallback: segment prose by distributing paragraphs proportionally to beat count.
+ * Simple but reliable when LLM ranges fail.
+ */
+function buildHeuristicSegmentation(
+  paragraphs: string[],
+  beatCount: number
+): BeatProse[] | null {
+  if (beatCount === 0) return null;
+
+  const parasPerBeat = paragraphs.length / beatCount;
+  const chunks: BeatProse[] = [];
+
+  for (let i = 0; i < beatCount; i++) {
+    const startPara = Math.floor(i * parasPerBeat);
+    const endPara = i === beatCount - 1 ? paragraphs.length - 1 : Math.floor((i + 1) * parasPerBeat) - 1;
+
+    const proseChunk = paragraphs.slice(startPara, endPara + 1).join('\n\n').trim();
+    if (proseChunk) {
+      chunks.push({ beatIndex: i, prose: proseChunk });
+    }
+  }
+
+  return chunks.length === beatCount ? chunks : null;
 }
 
 /**
@@ -583,15 +852,15 @@ export async function rewriteScenePlan(
   const sceneBlock = sceneContext(narrative, scene, resolvedKeys, contextIndex);
 
   const currentPlanText = currentPlan.beats.map((b, i) =>
-    `${i + 1}. [${b.fn}:${b.mechanism}] ${b.what} | anchor: ${b.anchor}`
+    `${i + 1}. [${b.fn}:${b.mechanism}] ${b.what}\n   Propositions: ${b.propositions.map(p => `"${p.content}"`).join('; ')}`
   ).join('\n');
-  const currentAnchors = currentPlan.anchors.length > 0
-    ? `\nAnchors: ${currentPlan.anchors.map((a) => `"${a}"`).join(', ')}`
+  const currentProps = currentPlan.propositions && currentPlan.propositions.length > 0
+    ? `\nScene Propositions: ${currentPlan.propositions.map((p) => `"${p.content}"`).join(', ')}`
     : '';
 
   const systemPrompt = `You are a dramaturg revising a scene plan for "${narrative.title}". You receive the current beat plan and editorial feedback. Return an improved beat plan as JSON.
 
-Return ONLY valid JSON: { "beats": [{ "fn": "...", "mechanism": "...", "what": "...", "anchor": "..." }], "anchors": ["..."] }
+Return ONLY valid JSON: { "beats": [{ "fn": "...", "mechanism": "...", "what": "...", "propositions": [{"content": "..."}] }], "propositions": [{"content": "..."}] }
 
 Beat functions: ${BEAT_FN_LIST.join(', ')}
 Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}`;
@@ -599,7 +868,7 @@ Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}`;
   const prompt = `${sceneBlock}
 
 CURRENT PLAN:
-${currentPlanText}${currentAnchors}
+${currentPlanText}${currentProps}
 
 EDITORIAL FEEDBACK:
 ${analysis}
@@ -615,22 +884,101 @@ Strip adjectives, adverbs, literary embellishments. State the event, not its tex
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'rewriteScenePlan', GENERATE_MODEL, reasoningBudget);
-  const parsed = parseJson(raw, 'rewriteScenePlan') as { beats?: unknown[]; anchors?: string[] };
+  const parsed = parseJson(raw, 'rewriteScenePlan') as { beats?: unknown[]; propositions?: unknown[] };
 
   const beats = (parsed.beats ?? []).map((b: unknown) => {
     const beat = b as Record<string, unknown>;
+    const rawProps = Array.isArray(beat.propositions) ? beat.propositions : [];
+    const propositions = rawProps
+      .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+      .map((p) => ({
+        content: String(p.content ?? ''),
+      }))
+      .filter((p) => p.content.length > 0);
+
     return {
       fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
       mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
       what: String(beat.what ?? ''),
-      anchor: String(beat.anchor ?? ''),
+      propositions,
     };
   });
 
+  const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
+  const scenePropositions = rawSceneProps
+    .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+    .map((p) => ({
+      content: String(p.content ?? ''),
+    }))
+    .filter((p) => p.content.length > 0);
+
   return {
     beats: beats.length > 0 ? beats : currentPlan.beats,
-    anchors: (parsed.anchors ?? currentPlan.anchors).filter((a): a is string => typeof a === 'string'),
+    propositions: scenePropositions.length > 0 ? scenePropositions : currentPlan.propositions,
   };
+}
+
+/**
+ * Parse beat-aligned prose from LLM output with [BEAT_END:N] markers.
+ * Returns clean prose + beatProseMap if markers are valid, otherwise prose only.
+ */
+function parseBeatProseMap(
+  rawProse: string,
+  beatCount: number,
+): { prose: string; beatProseMap?: BeatProseMap } {
+  // If no markers, return prose as-is
+  if (!rawProse.includes('[BEAT_END:')) {
+    return { prose: rawProse };
+  }
+
+  const chunks: BeatProse[] = [];
+  const lines = rawProse.split('\n');
+  let currentBeatIndex = 0;
+  let currentProse: string[] = [];
+
+  for (const line of lines) {
+    const match = line.match(/^\[BEAT_END:(\d+)\]$/);
+    if (match) {
+      const beatIndex = parseInt(match[1], 10);
+      if (!isNaN(beatIndex) && beatIndex === currentBeatIndex) {
+        // Save current beat prose
+        const proseText = currentProse.join('\n').trim();
+        if (proseText) {
+          chunks.push({ beatIndex, prose: proseText });
+        }
+        currentProse = [];
+        currentBeatIndex++;
+      }
+    } else {
+      currentProse.push(line);
+    }
+  }
+
+  // Handle final beat (no marker after last beat)
+  const finalProse = currentProse.join('\n').trim();
+  if (finalProse) {
+    chunks.push({ beatIndex: currentBeatIndex, prose: finalProse });
+  }
+
+  // Reconstruct clean prose (no markers)
+  const prose = chunks.map((c) => c.prose).join('\n\n');
+
+  // Only return map if we got expected number of beats
+  if (chunks.length === beatCount && chunks.every((c, i) => c.beatIndex === i)) {
+    return {
+      prose,
+      beatProseMap: {
+        chunks,
+        createdAt: Date.now(),
+      },
+    };
+  }
+
+  // Fallback: LLM didn't follow instructions, return prose without mapping
+  console.warn(
+    `Beat prose parsing incomplete: expected ${beatCount} beats, got ${chunks.length} chunks`,
+  );
+  return { prose: rawProse.replace(/\[BEAT_END:\d+\]\n?/g, '').trim() };
 }
 
 export async function generateSceneProse(
@@ -640,7 +988,7 @@ export async function generateSceneProse(
   onToken?: (token: string) => void,
   /** Per-scene prose direction appended to the system prompt */
   guidance?: string,
-): Promise<string> {
+): Promise<{ prose: string; beatProseMap?: BeatProseMap }> {
 
   const sceneIdx = resolvedKeys.indexOf(scene.id);
   const contextIndex = sceneIdx >= 0 ? sceneIdx : resolvedKeys.length - 1;
@@ -700,10 +1048,28 @@ ${formatInstructions.formatRules}${
   // Scene plan — when available, this is the primary creative direction
   const planBlock = scene.plan
     ? `\nBEAT PLAN (follow this beat sequence — each beat maps to a passage of prose):
-${scene.plan.beats.map((b, i) => `  ${i + 1}. [${b.fn}:${b.mechanism}] ${b.what} | anchor: "${b.anchor}"`).join('\n')}
+${scene.plan.beats.map((b, i) =>
+  `  ${i + 1}. [${b.fn}:${b.mechanism}] ${b.what}
+     Propositions: ${b.propositions.map(p => `"${p.content}"`).join('; ')}`
+).join('\n')}
 
-ANCHOR ADHERENCE: Each beat has an anchor — a sensory detail that MUST appear in the prose for that beat. Include the anchor phrase verbatim or near-verbatim. Missing anchors are a structural failure.
-${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must appear in your prose):\n${scene.plan.anchors.map((a) => `  "${a}"`).join('\n')}` : ''}\n`
+PROPOSITIONS ARE STORY WORLD FACTS TO TRANSMIT — atomic claims the reader must come to believe are true. Your job is to transmit these beliefs through prose craft. NEVER copy propositions verbatim. NEVER state them as flat declarations. Transmit them through demonstration, implication, sensory detail, action, and atmosphere.
+
+HOW TO TRANSMIT PROPOSITIONS:
+Given proposition: "Mist covers the village at dawn"
+  • Direct sensory: "He couldn't see past ten paces. Dampness clung to his skin."
+  • Through action: "Houses materialized from whiteness as he walked."
+  • Environmental: "The mountain disappeared into grey nothing above the rooftops."
+All three methods transmit the same world fact. Choose your method based on the beat's mechanism and the prose profile's voice.
+
+Given proposition: "Fang Yuan views other people as tools"
+  • Through thought: His gaze swept over the crowd. Resources. Obstacles. Nothing between.
+  • Through action: He stepped around the old woman without breaking stride.
+  • Through dialogue: "They'll serve. Or they won't." He didn't look back.
+The proposition is a belief-state to establish. HOW you establish it is craft.
+
+CRITICAL: If a proposition contains figurative language and the prose profile forbids figures of speech, REWRITE the proposition as literal fact, then transmit that. "Smoke dances like spirits" becomes "Smoke rises in twisted columns" if metaphor is forbidden.
+${scene.plan.propositions && scene.plan.propositions.length > 0 ? `\nSCENE PROPOSITIONS (story world facts spanning the whole scene):\n${scene.plan.propositions.map((p) => `  "${p.content}"`).join('\n')}` : ''}\n`
     : '';
 
   // Derive logical constraints from the scene graph — these are hard rules the prose must obey
@@ -716,46 +1082,104 @@ ${scene.plan.anchors.length > 0 ? `\nANCHOR LINES (these exact formulations must
     : '';
 
   const instruction = scene.plan
-    ? `Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism tells you HOW to write each beat. The anchor is the sensory detail that grounds the beat.
+    ? `Follow the beat plan sequence — each beat maps to a passage of prose. The mechanism defines the delivery MODE (dialogue, thought, action, etc). The propositions define STORY WORLD FACTS TO TRANSMIT (what the reader must come to believe is true). Your job is to weave both into compelling, voiced prose.
 
-MECHANISM FIDELITY (non-negotiable — the prose structure MUST match the mechanism):
-- dialogue: The passage MUST contain quoted speech ("...") with characters speaking. Not narration about speaking.
-- thought: Internal monologue — the POV character's private reasoning, not observed externally.
-- action: Physical movement, gesture, or interaction with objects. Concrete and visible.
-- environment: Setting, weather, lighting, sensory details of the space. No character action.
-- narration: Authorial commentary, rhetoric, time compression. The narrator's voice, not a character's.
-- memory: A flashback triggered by association — marked temporal shift to the past.
-- document: Embedded text appears literally — a letter, sign, poem, excerpt shown on the page.
-- comic: Humor, irony, absurdity, bathos — the beat must be funny or undercut expectations.
+BEAT BOUNDARY MARKERS:
+After completing the prose for each beat, insert a marker line on its own:
+[BEAT_END:0]
+[BEAT_END:1]
+[BEAT_END:2]
+...and so on for each beat in the plan (0-indexed).
 
-When a beat is marked [fn:dialogue], the prose for that beat MUST include actual quoted dialogue. When marked [fn:thought], the prose MUST be internal monologue. Violating mechanism is a structural failure.
+These markers help track which prose came from which beat and will be removed from the final prose. Place them BETWEEN beats, not within paragraphs. Do NOT include a marker after the final beat.
+
+Example structure for a 3-beat scene:
+[Prose for beat 0...]
+
+[BEAT_END:0]
+
+[Prose for beat 1...]
+
+[BEAT_END:1]
+
+[Prose for beat 2...]
+
+MECHANISMS define delivery mode:
+- dialogue → quoted speech between characters
+- thought → internal monologue, POV character's private reasoning
+- action → physical movement, gesture, interaction with objects
+- environment → setting, weather, sensory details of the space
+- narration → authorial voice, rhetoric, time compression
+- memory → flashback triggered by association
+- document → embedded text (letter, sign, excerpt) shown literally
+- comic → humor, irony, absurdity, undercut expectations
+
+PROPOSITIONS are story world facts — transmit them through prose craft, NEVER copy verbatim:
+- Proposition: "Mist covers the village" → Transmit via sensory detail (dampness on skin, visibility reduced), action (houses emerge from whiteness), or environment description — but NEVER write "Mist covers the village"
+- Proposition: "Fang Yuan has 500 years of future knowledge" → Transmit via thought (he remembers events not yet happened), action (he navigates with impossible certainty), or dialogue (he predicts with unnatural precision) — but NEVER write "Fang Yuan has 500 years of future knowledge"
+- Proposition: "No one is watching the path" → Transmit via observation (empty path stretches ahead, no movement in periphery), environment (silence, absence of voices), or action (he relaxes his guard) — but NEVER write "No one is watching the path"
+The reader must come to believe these facts are true. HOW you transmit them is craft.
+
+RHYTHM & VOICE (critical — prose must breathe):
+- Vary sentence length: short for impact, long for flow, fragments for urgency
+- Use the register and stance from PROSE PROFILE above — if it says "terse", be terse; if it says "lyrical", be lyrical
+- Avoid repetitive subject-verb-object patterns — front-load clauses, use appositives, embed dependent clauses
+- Never write like technical documentation or a wikipedia article — this is fiction, not exposition
+
+SHOW, DON'T TELL (non-negotiable):
+- NO info-dumping: never explain systems, concepts, or backstory in prose paragraphs
+- NO explicit emotion naming: show fear through trembling hands, not "He felt fear"
+- NO thematic statements: demonstrate themes through events, don't declare them
+- World knowledge reveals must emerge through demonstration, dialogue discovery, or consequence — never narrator explanation
 
 THREE PILLARS — the prose must honour all three:
-1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
-2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
-3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, consequence, or character action. Never explain a concept after showing it — let the demonstration speak. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
+1. CONTINUITY: POV character perceives only what their senses and existing knowledge allow. New continuity mutations discovered through specific mechanisms, never referenced before revelation.
+2. THREADS: Every thread shift lands at a dramatic moment through action, not narration.
+3. KNOWLEDGE: New world concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal must appear in the prose. You MUST satisfy every logical requirement. Anchor lines must appear VERBATIM — but if an anchor contains figurative language and the prose profile forbids it, rewrite the anchor to remove the figure while preserving the sensory detail. Fill around the beats with dialogue, internal monologue, physical action, and sensory detail. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.
+You must satisfy every logical requirement and achieve every proposition — but achieve them through craft, implication, and demonstration. Write at least ~${sceneScale(scene).estWords} words. If the scene demands more, write more.
 
-STYLE COMPLIANCE IS MANDATORY: Re-read the PROSE PROFILE above. Every sentence you write must conform to those rules. If the profile says "no figurative language", that means NO metaphors, NO similes, NO personification — not even one.`
-    : `THREE PILLARS — the prose must honour all three:
-1. CONTINUITY: POV character can only perceive what their senses and existing knowledge allow. New continuity mutations must be discovered through specific mechanisms — never referenced before their revelation moment.
-2. THREADS: Every thread shift must land at a specific dramatic moment. Show the status change through action, not narration.
-3. KNOWLEDGE: World concepts being revealed in this scene (marked in the logical requirements) must feel EARNED — discovered through demonstration, consequence, or character action. Never explain a concept after showing it — let the demonstration speak. Established world knowledge can be referenced freely. New knowledge cannot be treated as pre-existing.
+PROSE PROFILE COMPLIANCE IS MANDATORY: Every sentence must conform to the voice, register, devices, and rules specified above. If profile forbids figurative language, use ZERO figures of speech. If profile demands specific devices, use them. The profile defines your authorial voice — match it exactly.`
+    : `RHYTHM & VOICE (critical — prose must breathe):
+- Vary sentence length: short for impact, long for flow, fragments for urgency
+- Use the register and stance from PROSE PROFILE above — match the authorial voice exactly
+- Avoid repetitive patterns — front-load clauses, use appositives, vary structure
+- This is fiction, not exposition — never write like documentation
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal listed above must be dramatised — these are the structural deliveries of this scene. You MUST satisfy every logical requirement. Foreshadow future events through subtle imagery, offhand remarks, and environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words — this is the minimum bar, not a target to pad toward. You are free to write more if the scene demands it.
+SHOW, DON'T TELL (non-negotiable):
+- NO info-dumping or system explanations in prose paragraphs
+- NO explicit emotion naming — show through body language, action, dialogue subtext
+- NO thematic statements — demonstrate through events and contrasts
+- World knowledge reveals through demonstration, discovery, consequence — never narrator explanation
 
-STYLE COMPLIANCE IS MANDATORY: Re-read the PROSE PROFILE above. Every sentence you write must conform to those rules. If the profile says "no figurative language", that means NO metaphors, NO similes, NO personification — not even one.`;
+THREE PILLARS — the prose must honour all three:
+1. CONTINUITY: POV character perceives only what senses and existing knowledge allow. New continuity mutations discovered through specific moments, never referenced before revelation.
+2. THREADS: Every thread shift lands at a dramatic moment through action, not narration.
+3. KNOWLEDGE: New world concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
+
+Every thread shift, continuity change, relationship mutation, and world knowledge reveal must be dramatised through action and scene. Foreshadow through imagery, subtext, environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words, more if the scene demands it.
+
+PROSE PROFILE COMPLIANCE IS MANDATORY: Every sentence must conform to the voice, register, devices, and rules specified above. Match the profile exactly — if it forbids figures of speech, use ZERO. If it demands specific devices, use them.`;
 
   const prompt = `${profileSection ? `${profileSection}\n\n` : ''}${adjacentProseBlock ? `${adjacentProseBlock}\n\n` : ''}${planBlock}${sceneBlock}
 ${logicBlock}
 ${instruction}`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+
+  let rawProse: string;
   if (onToken) {
-    return await callGenerateStream(prompt, systemPrompt, onToken, MAX_TOKENS_DEFAULT, 'generateSceneProse', WRITING_MODEL, reasoningBudget);
+    rawProse = await callGenerateStream(prompt, systemPrompt, onToken, MAX_TOKENS_DEFAULT, 'generateSceneProse', WRITING_MODEL, reasoningBudget);
+  } else {
+    rawProse = await callGenerate(prompt, systemPrompt, MAX_TOKENS_DEFAULT, 'generateSceneProse', WRITING_MODEL, reasoningBudget, false);
   }
-  return await callGenerate(prompt, systemPrompt, MAX_TOKENS_DEFAULT, 'generateSceneProse', WRITING_MODEL, reasoningBudget, false);
+
+  // Parse beat boundaries if scene has a plan
+  const result = scene.plan
+    ? parseBeatProseMap(rawProse, scene.plan.beats.length)
+    : { prose: rawProse };
+
+  return result;
 }
 
 // ── Shared Helpers ───────────────────────────────────────────────────────────

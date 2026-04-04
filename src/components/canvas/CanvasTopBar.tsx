@@ -24,6 +24,45 @@ const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'cod
 
 type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio';
 
+function BeatPlanToggle() {
+  const [isOn, setIsOn] = useState(false);
+
+  const handleClick = () => {
+    setIsOn(!isOn);
+    window.dispatchEvent(new CustomEvent('canvas:toggle-beat-plan'));
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className="relative inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all duration-200"
+      style={{
+        backgroundColor: isOn ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: isOn ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.08)',
+      }}
+    >
+      {/* Toggle indicator */}
+      <div
+        className="w-3 h-3 rounded-full transition-all duration-200"
+        style={{
+          backgroundColor: isOn ? 'rgb(251, 191, 36)' : 'rgba(255, 255, 255, 0.2)',
+          boxShadow: isOn ? '0 0 8px rgba(251, 191, 36, 0.4)' : 'none',
+        }}
+      />
+      <span
+        className="text-[10px] font-medium transition-colors duration-200"
+        style={{
+          color: isOn ? 'rgb(251, 191, 36)' : 'rgba(255, 255, 255, 0.4)',
+        }}
+      >
+        Linked
+      </span>
+    </button>
+  );
+}
+
 function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'plan') return 'plan';
   if (graphViewMode === 'prose') return 'prose';
@@ -60,8 +99,12 @@ export function CanvasTopBar() {
   const planStats = useMemo(() => {
     if (!currentScene?.plan?.beats) return null;
     const beats = currentScene.plan.beats.length;
-    const anchors = currentScene.plan.anchors?.length ?? 0;
-    return { beats, anchors };
+    const propositions =
+      currentScene.plan.beats.reduce(
+        (sum, b) => sum + (b.propositions?.length ?? 0),
+        0,
+      ) + (currentScene.plan.propositions?.length ?? 0);
+    return { beats, propositions };
   }, [currentScene]);
 
   const proseStats = useMemo(() => {
@@ -235,7 +278,7 @@ export function CanvasTopBar() {
           <span className="text-[10px] text-sky-400/60">Plan</span>
           {planStats && (
             <span className="text-[9px] text-text-dim/50 font-mono tabular-nums">
-              {planStats.beats} beats{planStats.anchors > 0 && <> &middot; {planStats.anchors} anchors</>}
+              {planStats.beats} beats{planStats.propositions > 0 && <> &middot; {planStats.propositions} props</>}
             </span>
           )}
           {!planStats && <span className="text-[9px] text-text-dim/30">No plan</span>}
@@ -270,23 +313,31 @@ export function CanvasTopBar() {
       <div className="flex-1" />
 
       {/* Right — Mode toggle: Graph / Plan / Prose / Audio */}
-      <div className="flex items-center rounded bg-white/4 p-0.5">
-        {(['graph', 'plan', 'prose', 'audio'] as CanvasMode[]).map((mode) => {
-          const isActive = canvasMode === mode;
-          const color = mode === 'plan' ? (isActive ? 'text-sky-400 bg-sky-500/15' : '')
-            : mode === 'prose' ? (isActive ? 'text-emerald-400 bg-emerald-500/15' : '')
-            : mode === 'audio' ? (isActive ? 'text-violet-400 bg-violet-500/15' : '')
-            : (isActive ? 'text-text-primary bg-white/10' : '');
-          return (
-            <button key={mode}
-              className={`text-[10px] px-2 py-0.5 rounded capitalize transition-colors ${
-                isActive ? color : 'text-text-dim hover:text-text-secondary'
-              }`}
-              onClick={() => switchMode(mode)}>
-              {mode}
-            </button>
-          );
-        })}
+      <div className="flex items-center gap-2">
+        {/* Beat plan toggle (only in prose mode with beat mapping) - to the LEFT */}
+        {canvasMode === 'prose' && currentScene?.plan && currentScene?.beatProseMap &&
+         currentScene.beatProseMap.chunks.length === currentScene.plan.beats.length && (
+          <BeatPlanToggle />
+        )}
+
+        <div className="flex items-center rounded bg-white/4 p-0.5">
+          {(['graph', 'plan', 'prose', 'audio'] as CanvasMode[]).map((mode) => {
+            const isActive = canvasMode === mode;
+            const color = mode === 'plan' ? (isActive ? 'text-sky-400 bg-sky-500/15' : '')
+              : mode === 'prose' ? (isActive ? 'text-emerald-400 bg-emerald-500/15' : '')
+              : mode === 'audio' ? (isActive ? 'text-violet-400 bg-violet-500/15' : '')
+              : (isActive ? 'text-text-primary bg-white/10' : '');
+            return (
+              <button key={mode}
+                className={`text-[10px] px-2 py-0.5 rounded capitalize transition-colors ${
+                  isActive ? color : 'text-text-dim hover:text-text-secondary'
+                }`}
+                onClick={() => switchMode(mode)}>
+                {mode}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

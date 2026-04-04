@@ -78,9 +78,9 @@ function createSceneWithPlan(
         characterName: 'Test Character',
         locationShift: null,
         what: `Beat ${i} action`,
-        anchor: '',
+        propositions: [{ content: '' }],
       })),
-      anchors: [],
+      propositions: [],
     },
     prose,
   };

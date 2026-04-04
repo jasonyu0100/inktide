@@ -375,7 +375,10 @@ export default function TopBar() {
         if (text) parts.push(text);
       } else if (mode === 'plan') {
         if (scene.plan) {
-          const beats = scene.plan.beats.map((b) => `[${b.fn}/${b.mechanism}] ${b.what} — ${b.anchor}`).join('\n');
+          const beats = scene.plan.beats.map((b) => {
+            const props = b.propositions.map(p => p.content).join('; ');
+            return `[${b.fn}/${b.mechanism}] ${b.what}${props ? ` — ${props}` : ''}`;
+          }).join('\n');
           parts.push(`Scene: ${scene.summary}\n${beats}`);
         }
       } else {

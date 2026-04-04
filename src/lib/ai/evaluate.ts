@@ -359,7 +359,7 @@ export async function evaluatePlanQuality(
       id: scene.id,
       pov: narrative.characters[scene.povId]?.name ?? scene.povId,
       location: narrative.locations[scene.locationId]?.name ?? scene.locationId,
-      beats: scene.plan.beats.map((b, j) => `  ${j + 1}. [${b.fn}:${b.mechanism}] ${b.what} — anchor: "${b.anchor}"`).join('\n'),
+      beats: scene.plan.beats.map((b, j) => `  ${j + 1}. [${b.fn}:${b.mechanism}] ${b.what}\n     Props: ${b.propositions.map(p => `"${p.content}"`).join('; ')}`).join('\n'),
     });
   }
 

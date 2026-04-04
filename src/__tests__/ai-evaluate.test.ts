@@ -514,17 +514,17 @@ describe('evaluatePlanQuality', () => {
     narrative.scenes = {
       'S-001': createScene('S-001', {
         plan: {
-          anchors: [],
+          propositions: [],
           beats: [
-            { fn: 'breathe', mechanism: 'environment', what: 'Intro scene', anchor: 'The door opens' },
+            { fn: 'breathe', mechanism: 'environment', what: 'Intro scene', propositions: [{ content: 'The door opens' }] },
           ],
         },
       }),
       'S-002': createScene('S-002', {
         plan: {
-          anchors: [],
+          propositions: [],
           beats: [
-            { fn: 'advance', mechanism: 'action', what: 'Discovery', anchor: 'She finds the letter' },
+            { fn: 'advance', mechanism: 'action', what: 'Discovery', propositions: [{ content: 'She finds the letter' }] },
           ],
         },
       }),
@@ -546,7 +546,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'Anchor' }] },
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'Anchor' }] }] },
       }),
     };
 
@@ -576,7 +576,7 @@ describe('evaluatePlanQuality', () => {
     });
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
 
@@ -598,7 +598,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
     const onReasoning = vi.fn();
@@ -618,7 +618,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
 
@@ -636,9 +636,9 @@ describe('evaluatePlanQuality', () => {
 
     const narrative = createMinimalNarrative();
     narrative.scenes = {
-      'S-001': createScene('S-001', { plan: { anchors: [], beats: [] } }), // Empty beats
+      'S-001': createScene('S-001', { plan: { propositions: [], beats: [] } }), // Empty beats
       'S-002': createScene('S-002', {
-        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
 
@@ -658,7 +658,7 @@ describe('evaluatePlanQuality', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', {
-        plan: { anchors: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', anchor: 'A' }] },
+        plan: { propositions: [], beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'A' }] }] },
       }),
     };
 

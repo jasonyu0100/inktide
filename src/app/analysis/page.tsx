@@ -692,7 +692,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       {selectedPlanKey !== null && (() => {
         const scene = allExtractedScenes.find((s) => s.key === selectedPlanKey);
         if (!scene?.plan) return null;
-        const { beats, anchors } = scene.plan;
+        const { beats, propositions } = scene.plan;
         return (
           <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${chunkPanelHeight}vh` }}>
             <div
@@ -746,15 +746,15 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     ))}
                   </div>
                 </div>
-                {/* Anchors */}
-                {anchors.length > 0 && (
+                {/* Propositions */}
+                {propositions && propositions.length > 0 && (
                   <div>
-                    <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-3">Anchors</div>
+                    <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-3">Propositions</div>
                     <div className="space-y-1.5">
-                      {anchors.map((a, ai) => (
-                        <div key={ai} className="text-[10px] text-text-secondary leading-snug flex items-start gap-2">
+                      {propositions.map((p, pi) => (
+                        <div key={pi} className="text-[10px] text-text-secondary leading-snug flex items-start gap-2">
                           <span className="text-indigo-400/30 shrink-0 mt-0.5">—</span>
-                          <span>{a}</span>
+                          <span>{p.content}</span>
                         </div>
                       ))}
                     </div>
@@ -921,7 +921,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           <div className="flex items-center gap-3 mb-2.5">
             {[
               { label: 'Extract', active: isExtracting, done: isPlanExtracting || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
-              ...(liveJob.extractPlans ? [{ label: 'Plans', active: isPlanExtracting, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' }] : []),
+              { label: 'Plans', active: isPlanExtracting, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
               { label: 'Reconcile', active: isReconciling, done: isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
               { label: 'Finalize', active: isFinalizing, done: isAssembling || liveJob.status === 'completed', color: 'bg-purple-400' },
               { label: 'Assemble', active: isAssembling, done: liveJob.status === 'completed', color: 'bg-amber-400' },
@@ -946,7 +946,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
             <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Chunks</span>
             <span className="text-[9px] text-white/10 font-mono">{completedChunks} / {totalChunks}</span>
           </div>
-          {liveJob.extractPlans && beatStats.planCount > 0 && (
+          {beatStats.planCount > 0 && (
             <div className="flex items-center gap-1.5">
               <div className={`w-1 h-1 rounded-full ${isPlanExtracting ? 'bg-indigo-400/70 animate-pulse' : 'bg-indigo-400/40'}`} />
               <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Plans</span>
@@ -1053,14 +1053,12 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     {!isInFlight && (
                       <div className="absolute bottom-1.5 inset-x-0 flex items-center justify-center gap-1">
                         <div className={`w-1 h-1 rounded-full transition-all duration-500 ${extracted ? 'bg-emerald-400/60' : 'bg-white/8'}`} />
-                        {liveJob.extractPlans && (
-                          <div className={`w-1 h-1 rounded-full transition-all duration-500 ${
-                            allPlanned ? 'bg-indigo-400/70'
-                            : partiallyPlanned ? 'bg-indigo-400/35'
-                            : awaitingPlans ? 'bg-indigo-400/15 animate-pulse'
-                            : 'bg-white/5'
-                          }`} />
-                        )}
+                        <div className={`w-1 h-1 rounded-full transition-all duration-500 ${
+                          allPlanned ? 'bg-indigo-400/70'
+                          : partiallyPlanned ? 'bg-indigo-400/35'
+                          : awaitingPlans ? 'bg-indigo-400/15 animate-pulse'
+                          : 'bg-white/5'
+                        }`} />
                       </div>
                     )}
                   </button>
@@ -1110,7 +1108,6 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
   const { dispatch } = useStore();
   const [title, setTitle] = useState('');
   const [detecting, setDetecting] = useState(true);
-  const [extractPlans, setExtractPlans] = useState(false);
 
   const chunks = splitCorpusIntoChunks(sourceText);
 
@@ -1138,7 +1135,6 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
       results: new Array(chunks.length).fill(null),
       status: 'pending',
       currentChunkIndex: 0,
-      extractPlans,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -1190,25 +1186,8 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
           />
         </div>
 
-        {/* Beat plan toggle */}
-        <label className="flex items-center gap-2.5 cursor-pointer group">
-          <div
-            onClick={() => setExtractPlans((v) => !v)}
-            className={`w-3.5 h-3.5 rounded-sm border transition shrink-0 flex items-center justify-center ${
-              extractPlans ? 'bg-indigo-500/50 border-indigo-400/60' : 'bg-white/4 border-white/15 group-hover:border-white/25'
-            }`}
-          >
-            {extractPlans && (
-              <IconCheck size={10} className="text-indigo-300" />
-            )}
-          </div>
-          <span className={`text-[11px] transition select-none ${extractPlans ? 'text-white/60' : 'text-white/30 group-hover:text-white/45'}`}>
-            Extract beat plans <span className="text-white/20">· +1 LLM call per scene</span>
-          </span>
-        </label>
-
         <div className="text-[11px] text-white/20 leading-relaxed">
-          {chunks.length} chunks analyzed in parallel — extracts characters, locations, threads, scenes, and world knowledge, then reconciles and assembles.
+          {chunks.length} chunks analyzed in parallel — extracts characters, locations, threads, scenes, world knowledge, and beat plans, then reconciles and assembles.
         </div>
 
         <div className="flex gap-2">

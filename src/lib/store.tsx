@@ -321,7 +321,7 @@ export type Action =
   | { type: 'SET_GRAPH_VIEW_MODE'; mode: GraphViewMode }
   | { type: 'SWITCH_BRANCH'; branchId: string }
   // Scene mutations
-  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'plan' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId' | 'locked'>> }
+  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'plan' | 'beatProseMap' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId' | 'locked'>> }
   | { type: 'DELETE_SCENE'; sceneId: string; branchId: string }
   // Branch management
   | { type: 'CREATE_BRANCH'; branch: Branch }

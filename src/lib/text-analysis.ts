@@ -666,7 +666,8 @@ CONTINUITY MUTATIONS:
   return parsed;
 }
 
-// ── Reconciliation (Phase 2) ─────────────────────────────────────────────────
+// ── Reconciliation (Phase 3) ─────────────────────────────────────────────────
+// Phase 2 (beat plan extraction) is handled by analysis-runner.ts directly
 
 type CharacterNameMap = Record<string, string>; // variant → canonical
 
@@ -908,7 +909,7 @@ If no duplicates for a category, return empty object {}`;
 }
 
 /**
- * Phase 2b: Analyze thread dependencies on canonical (post-merge) thread list.
+ * Phase 4a: Analyze thread dependencies on canonical (post-merge) thread list.
  * Runs after reconciliation to identify causal relationships between distinct threads.
  */
 export async function analyzeThreading(

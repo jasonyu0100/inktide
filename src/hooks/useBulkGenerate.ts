@@ -77,8 +77,8 @@ export function useBulkGenerate() {
           const plan = await generateScenePlan(activeNarrative, scene, resolvedEntryKeys);
           dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { plan } });
         } else {
-          const prose = await generateSceneProse(activeNarrative, scene, resolvedEntryKeys);
-          dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose } });
+          const { prose, beatProseMap } = await generateSceneProse(activeNarrative, scene, resolvedEntryKeys);
+          dispatch({ type: 'UPDATE_SCENE', sceneId, updates: { prose, beatProseMap } });
         }
       } catch (err) {
         console.error(`[bulk-generate] Failed to generate ${mode} for scene ${sceneId}:`, err);

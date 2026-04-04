@@ -157,21 +157,43 @@ export type BeatMechanism =
   | 'document'     // Embedded text: letter, newspaper, cited poetry
   | 'comic';       // Humor — physical comedy, ironic observation, absurdity
 
+/** A proposition — an atomic story world fact the reader must come to believe is true */
+export type Proposition = {
+  /** The atomic story world fact */
+  content: string;
+};
+
 /** A single beat in a scene plan */
 export type Beat = {
   fn: BeatFn;
   mechanism: BeatMechanism;
   /** One sentence: the concrete action or event */
   what: string;
-  /** The one sensory detail that makes this beat physical */
-  anchor: string;
+  /** Multiple propositions — constraints the prose must satisfy */
+  propositions: Proposition[];
 };
 
 /** Structured scene plan — JSON replacement for the plain-text plan */
 export type BeatPlan = {
   beats: Beat[];
-  /** Exact memorable lines that must survive into the prose — 0-5 iconic phrases */
-  anchors: string[];
+  /** Scene-level propositions that span the whole scene (not tied to a single beat) */
+  propositions?: Proposition[];
+};
+
+/** Beat-aligned prose chunk — links prose to its generating beat */
+export type BeatProse = {
+  /** Index of the beat in the scene's BeatPlan.beats array */
+  beatIndex: number;
+  /** The prose generated for this beat */
+  prose: string;
+};
+
+/** Beat-to-prose mapping stored in Scene */
+export type BeatProseMap = {
+  /** Array of beat-aligned prose chunks */
+  chunks: BeatProse[];
+  /** Timestamp when this mapping was created */
+  createdAt: number;
 };
 
 /** Markov transition matrix — probability of transitioning from one beat fn to another */
@@ -359,6 +381,8 @@ export type Scene = {
   /** Structured beat plan — delivery-by-delivery scene blueprint detailing HOW mutations unfold */
   plan?: BeatPlan;
   prose?: string;
+  /** Beat-to-prose mapping (only present if scene was generated with beat tracking) */
+  beatProseMap?: BeatProseMap;
   summary: string;
   imageUrl?: string;
   audioUrl?: string;
@@ -943,6 +967,7 @@ export type AnalysisChunkResult = {
       addedEdges: { fromConcept: string; toConcept: string; relation: string }[];
     };
     plan?: BeatPlan;
+    beatProseMap?: BeatProseMap;
   }[];
   relationships: { from: string; to: string; type: string; valence: number }[];
 };
@@ -963,8 +988,6 @@ export type AnalysisJob = {
   phase?: AnalysisPhase;
   currentChunkIndex: number;
   error?: string;
-  /** Whether to run Phase 2 beat-plan extraction (opt-in, adds one LLM call per scene) */
-  extractPlans?: boolean;
   /** The assembled narrative ID once complete */
   narrativeId?: string;
   createdAt: number;

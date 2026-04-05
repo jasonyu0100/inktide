@@ -80,7 +80,7 @@ Archetypes classify stories by **force dominance** — which of the three forces
 | **Mosaic** | C + K | Many lives composing a larger picture — characters transform within a deepening world |
 | **Classic** | P | Driven by resolution — threads pay off and relationships shift decisively |
 | **Saga** | C | People-driven — characters transform and their journeys are the heart of the story |
-| **Tome** | K | Dense with ideas and systems — the depth of the world itself is the draw |
+| **Paper** | K | Dense with ideas and systems — the depth of the world itself is the draw |
 | **Emerging** | — | No single force has reached its potential yet — the story is still finding its voice |
 
 **Thresholds:**

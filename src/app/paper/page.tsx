@@ -305,10 +305,10 @@ const ARCHETYPES = [
     color: ARCHETYPE_COLORS.saga,
   },
   {
-    key: "tome" as const,
-    name: "Tome",
+    key: "paper" as const,
+    name: "Paper",
     desc: "Knowledge-driven",
-    color: ARCHETYPE_COLORS.tome,
+    color: ARCHETYPE_COLORS.paper,
   },
   {
     key: "emerging" as const,

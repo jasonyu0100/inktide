@@ -7,12 +7,12 @@ import React from 'react';
  * Maps force-dominance profiles to visually distinctive icons.
  */
 
-export type ArchetypeKey = 'opus' | 'tempest' | 'chronicle' | 'mosaic' | 'classic' | 'saga' | 'tome' | 'emerging';
+export type ArchetypeKey = 'opus' | 'tempest' | 'chronicle' | 'mosaic' | 'classic' | 'saga' | 'paper' | 'emerging';
 
 export const ARCHETYPE_COLORS: Record<ArchetypeKey, string> = {
   opus: '#f59e0b', tempest: '#ef4444', chronicle: '#3b82f6',
   mosaic: '#8b5cf6', classic: '#10b981', saga: '#ec4899',
-  tome: '#06b6d4', emerging: '#6b7280',
+  paper: '#06b6d4', emerging: '#6b7280',
 };
 
 interface ArchetypeIconProps {
@@ -107,8 +107,8 @@ const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React
     );
   },
 
-  // tome: single hexagon — structure
-  tome: (half, s, c) => {
+  // paper: single hexagon — structure
+  paper: (half, s, c) => {
     const r = s * 0.36;
     const pts = Array.from({ length: 6 }, (_, i) => {
       const a = (Math.PI / 3) * i - Math.PI / 2;

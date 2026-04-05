@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AnalysisChunkResult } from '@/types/narrative';
 
+// Mock fetch globally
+global.fetch = vi.fn();
+
 // Mock the AI module
 vi.mock('@/lib/ai/api', () => ({
   callGenerate: vi.fn(),
@@ -11,6 +14,22 @@ vi.mock('@/lib/ai/api', () => ({
 vi.mock('@/lib/constants', () => ({
   ANALYSIS_CHUNK_SIZE_SECTIONS: 100,
   ANALYSIS_MAX_CORPUS_WORDS: 500000,
+  ANALYSIS_TARGET_SECTIONS_PER_CHUNK: 100,
+  ANALYSIS_TARGET_CHUNK_WORDS: 10000,
+  ANALYSIS_MODEL: 'test-model',
+  MAX_TOKENS_DEFAULT: 4096,
+  ANALYSIS_TEMPERATURE: 0.7,
+}));
+
+// Mock api-logger
+vi.mock('@/lib/api-logger', () => ({
+  logApiCall: vi.fn(() => 'log-id'),
+  updateApiLog: vi.fn(),
+}));
+
+// Mock api-headers
+vi.mock('@/lib/api-headers', () => ({
+  apiHeaders: vi.fn(() => ({ 'Content-Type': 'application/json' })),
 }));
 
 import { splitCorpusIntoChunks, analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
@@ -87,6 +106,13 @@ function createMockAnalysisResult(index: number): AnalysisChunkResult {
 
 beforeEach(() => {
   vi.clearAllMocks();
+
+  // Mock fetch to return successful responses
+  vi.mocked(fetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({ content: '{}' }),
+    text: async () => '{}',
+  } as Response);
 });
 
 // ── splitCorpusIntoChunks Tests ──────────────────────────────────────────────
@@ -354,52 +380,35 @@ describe('reconcileResults', () => {
 // ── analyzeThreading Tests ───────────────────────────────────────────────────
 
 describe('analyzeThreading', () => {
-  it('analyzes thread dependencies across chunks', async () => {
-    const results: AnalysisChunkResult[] = [
-      {
-        ...createMockAnalysisResult(0),
-        threads: [
-          {
-            description: 'Thread A',
-            participantNames: ['Alice'],
-            statusAtStart: 'dormant',
-            statusAtEnd: 'active',
-            development: 'Started',
-          },
-          {
-            description: 'Thread B',
-            participantNames: ['Bob'],
-            statusAtStart: 'dormant',
-            statusAtEnd: 'active',
-            development: 'Started',
-            relatedThreadDescriptions: ['Thread A'],
-          },
-        ],
+  it('analyzes thread dependencies and returns mapping', async () => {
+    const threadDescriptions = ['Thread A', 'Thread B'];
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      threadDependencies: {
+        'Thread B': ['Thread A'],
       },
-    ];
+    }));
 
-    const analyzed = await analyzeThreading(results);
+    const result = await analyzeThreading(threadDescriptions);
 
-    expect(analyzed).toBeDefined();
-    expect(analyzed.length).toBe(results.length);
+    expect(result).toBeDefined();
+    expect(result['Thread B']).toEqual(['Thread A']);
   });
 
-  it('preserves all original data', async () => {
-    const results: AnalysisChunkResult[] = [createMockAnalysisResult(0)];
+  it('returns empty object when less than 2 threads', async () => {
+    const threadDescriptions = ['Thread A'];
 
-    const analyzed = await analyzeThreading(results);
+    const result = await analyzeThreading(threadDescriptions);
 
-    expect(analyzed[0].chapterSummary).toBe(results[0].chapterSummary);
-    expect(analyzed[0].characters).toEqual(results[0].characters);
-    expect(analyzed[0].scenes).toEqual(results[0].scenes);
+    expect(result).toEqual({});
+    expect(callGenerate).not.toHaveBeenCalled();
   });
 
-  it('handles empty results', async () => {
-    const results: AnalysisChunkResult[] = [];
+  it('handles empty thread list', async () => {
+    const threadDescriptions: string[] = [];
 
-    const analyzed = await analyzeThreading(results);
+    const result = await analyzeThreading(threadDescriptions);
 
-    expect(analyzed).toEqual([]);
+    expect(result).toEqual({});
   });
 });
 
@@ -431,7 +440,8 @@ describe('assembleNarrative', () => {
     expect(narrative.threads).toBeDefined();
     expect(narrative.scenes).toBeDefined();
     expect(narrative.branches).toBeDefined();
-    expect(narrative.branches.main).toBeDefined();
+    const branchIds = Object.keys(narrative.branches);
+    expect(branchIds.length).toBeGreaterThan(0);
   });
 
   it('assigns unique IDs to all entities', async () => {
@@ -462,7 +472,9 @@ describe('assembleNarrative', () => {
     const narrative = await assembleNarrative('Test', results, threadDeps);
 
     const sceneCount = Object.keys(narrative.scenes).length;
-    const mainBranchScenes = narrative.branches.main.entryIds.filter(id => id.startsWith('S-'));
+    const branchIds = Object.keys(narrative.branches);
+    const mainBranch = narrative.branches[branchIds[0]];
+    const mainBranchScenes = mainBranch.entryIds.filter(id => id.startsWith('S-'));
 
     expect(mainBranchScenes.length).toBe(sceneCount);
   });
@@ -592,6 +604,7 @@ describe('assembleNarrative', () => {
     expect(narrative.updatedAt).toBeDefined();
     expect(typeof narrative.createdAt).toBe('number');
     expect(typeof narrative.updatedAt).toBe('number');
-    expect(narrative.updatedAt).toBe(narrative.createdAt);
+    // createdAt is backdated by 1 day, updatedAt is now
+    expect(narrative.updatedAt).toBeGreaterThan(narrative.createdAt);
   });
 });

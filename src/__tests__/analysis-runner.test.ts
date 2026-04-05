@@ -22,18 +22,13 @@ vi.mock('@/lib/constants', () => ({
 
 import { analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
 import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
+import { analysisRunner } from '@/lib/analysis-runner';
 
-// Import the AnalysisRunner class (we'll need to export it for testing or create a fresh instance)
-// For now, we'll test through its public API via the singleton
-// Create a mock module that allows us to reset the singleton
-let AnalysisRunner: any;
+// Use the singleton instance for testing
+const AnalysisRunner = analysisRunner;
 
-beforeEach(async () => {
+beforeEach(() => {
   vi.clearAllMocks();
-
-  // Dynamically import to get a fresh instance each time
-  const module = await import('@/lib/analysis-runner');
-  AnalysisRunner = module.default;
 });
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────

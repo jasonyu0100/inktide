@@ -423,6 +423,7 @@ const NAV = [
   { id: "validation", label: "Validation" },
   { id: "grading", label: "Grading" },
   { id: "markov", label: "Markov Chains" },
+  { id: "prose-profiles", label: "Prose Profiles" },
   { id: "mcts", label: "MCTS" },
   { id: "planning", label: "Planning" },
   { id: "revision", label: "Revision" },
@@ -531,9 +532,11 @@ export default function PaperPage() {
             A computational framework for measuring narrative impact through
             structural graph mutations.
           </p>
-          <p className="text-[11px] text-white/20 font-mono mt-3">
-            ~11 min read
-          </p>
+          <div className="mt-3">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/5 border border-white/10 text-white/40">
+              ~15 min read
+            </span>
+          </div>
         </div>
 
         <div className="space-y-16">
@@ -1908,25 +1911,66 @@ export default function PaperPage() {
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
-              Prose Profiles
+              Combining the Chains
             </h3>
             <P>
-              The beat chain and mechanism distribution, combined with voice
-              parameters (register, stance, tense, rhetorical devices, show-don&apos;t-tell
-              rules), form a complete <strong>prose profile</strong> — a
-              statistical fingerprint of how an author writes at the paragraph
-              level. During generation, the engine can sample beat sequences from
-              any work&apos;s Markov chain: a story using Harry Potter&apos;s
-              profile will open scenes with grounding beats that launch into
-              dialogue-driven information, while one using Orwell&apos;s will
-              sustain introspective thought before sudden reveals.
+              This separates <em>what happens</em> (scene mutations, generated
+              by LLM from narrative logic) from <em>how intensely</em> (pacing
+              chain, sampled from an 8-state Markov process) from{" "}
+              <em>how it reads</em> (beat chain, sampled from a 10-state Markov
+              process). Two independent Markov chains, both derived from
+              empirical analysis of published works, controlling orthogonal
+              dimensions of the output.
             </P>
+          </Section>
+
+          {/* ── Prose Profiles ────────────────────────────────────────── */}
+          <Section id="prose-profiles" label="Prose Profiles">
             <P>
-              This separates <em>what happens</em> (scene mutations) from{" "}
-              <em>how intensely</em> (pacing chain) from{" "}
-              <em>how it reads</em> (beat chain). Three independent Markov
-              processes, each derived from empirical analysis, each controlling a
-              different layer of the output.
+              Prose generation separates <B>content</B> (what is written) from{" "}
+              <B>accent</B> (how it is written). Content derives from beat
+              plans — structured blueprints specifying the narrative work each
+              paragraph must perform (function, mechanism, propositions). Accent
+              derives from prose profiles — statistical fingerprints of
+              authorial voice reverse-engineered from published works.
+            </P>
+
+            <P>
+              A <B>prose profile</B> comprises three components:{" "}
+              <Tex>{"(1)"}</Tex> a beat Markov chain{" "}
+              <Tex>{"B \\in \\mathbb{R}^{10 \\times 10}"}</Tex> over beat
+              functions (e.g., Rowling favors{" "}
+              <em>breathe → inform → advance</em>, Orwell loops on{" "}
+              <em>reveal → reveal</em>); <Tex>{"(2)"}</Tex> a mechanism
+              distribution over the 8 delivery types (Harry Potter: 42%
+              dialogue, 29% action; Nineteen Eighty-Four: balanced at 24%/21%/21%
+              dialogue/action/thought); <Tex>{"(3)"}</Tex> voice parameters —
+              qualitative rules about register, stance, tense, and rhetorical
+              devices extracted via LLM analysis of the corpus.
+            </P>
+
+            <P>
+              Profiles are extracted empirically: an LLM decomposes each scene
+              into beats classified against the 10-function / 8-mechanism
+              taxonomy, consecutive transitions are tallied and normalized to
+              produce the Markov matrix, and mechanism counts become a
+              probability distribution. During generation, beat function
+              sequences can be sampled from <Tex>{"B"}</Tex> (if chaining is
+              enabled) or chosen freely by the LLM; mechanisms are always
+              sampled from the distribution; voice parameters constrain
+              stylistic choices within each beat.
+            </P>
+
+            <P>
+              This separation enables <B>structural control without stylistic
+              constraint</B>. Beat plans specify exact narrative scaffolding
+              (this beat introduces a rule, this escalates conflict), while
+              profiles provide empirically-grounded style (write like Rowling,
+              like Orwell, like your own past work). The same mutations and
+              force profile can be rendered in different authorial accents by
+              swapping profiles — a thriller in Orwell&apos;s introspective
+              voice produces psychological tension; the same story in
+              Rowling&apos;s dialogue-driven style produces kinetic urgency.
             </P>
           </Section>
 

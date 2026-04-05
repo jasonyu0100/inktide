@@ -15,7 +15,7 @@ import { analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarra
 import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
-import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES } from '@/lib/constants';
+import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS, ANALYSIS_MAX_CHUNK_RETRIES, ANALYSIS_PLAN_BACKOFF_ENABLED } from '@/lib/constants';
 import { logError, logWarning } from '@/lib/error-logger';
 
 type Dispatch = (action: Action) => void;
@@ -39,40 +39,12 @@ const STAGGER_DELAY_MS = ANALYSIS_STAGGER_DELAY_MS;
 
 class AnalysisRunner {
   private running = new Map<string, RunningJob>();
-  private dispatch: Dispatch | null = null;
-  private dispatchResolvers: Array<(d: Dispatch) => void> = [];
   private streamListeners = new Set<StreamListener>();
   private chunkStreamListeners = new Set<ChunkStreamListener>();
   private inFlightListeners = new Set<InFlightListener>();
   private planStreamListeners = new Set<PlanStreamListener>();
   private planInFlightListeners = new Set<PlanInFlightListener>();
   private streamTexts = new Map<string, string>();
-
-  /** Bind the store dispatch — called once from StoreProvider */
-  setDispatch(dispatch: Dispatch) {
-    this.dispatch = dispatch;
-    // Resolve any pending waiters
-    for (const resolve of this.dispatchResolvers) resolve(dispatch);
-    this.dispatchResolvers = [];
-  }
-
-  /** Wait for dispatch to be available (handles race with StoreProvider mount) */
-  private getDispatch(timeoutMs = 5000): Promise<Dispatch> {
-    if (this.dispatch) return Promise.resolve(this.dispatch);
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        // Remove from resolvers list
-        const idx = this.dispatchResolvers.indexOf(resolve);
-        if (idx >= 0) this.dispatchResolvers.splice(idx, 1);
-        reject(new Error('Dispatch not available after timeout - StoreProvider may not be mounted'));
-      }, timeoutMs);
-
-      this.dispatchResolvers.push((d) => {
-        clearTimeout(timeout);
-        resolve(d);
-      });
-    });
-  }
 
   /** Subscribe to job-level stream text updates. Returns unsubscribe fn. */
   onStream(listener: StreamListener): () => void {
@@ -141,23 +113,21 @@ class AnalysisRunner {
   }
 
   /** Start or resume analysis for a job — uses parallel pipeline */
-  async start(job: AnalysisJob) {
+  async start(job: AnalysisJob, dispatch: Dispatch) {
     if (this.running.has(job.id)) {
       console.warn('[AnalysisRunner] Job already running:', job.id);
       return;
     }
 
     // Mark as running SYNCHRONOUSLY before any await, so isRunning() returns true immediately.
-    // This prevents race conditions where the UI switches views before start() has awaited dispatch.
     const entry: RunningJob = { cancelled: false, inFlightIndices: new Set(), chunkStreams: new Map(), planInFlightKeys: new Set(), planStreams: new Map() };
     this.running.set(job.id, entry);
     this.streamTexts.set(job.id, '');
 
     try {
-      const d = await this.getDispatch();
-      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running', phase: 'extraction' } });
+      dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running', phase: 'extraction' } });
 
-      await this.runPipeline(job, entry, d);
+      await this.runPipeline(job, entry, dispatch);
     } catch (err) {
       console.error('[AnalysisRunner] Unexpected error:', err);
       logError(
@@ -173,10 +143,8 @@ class AnalysisRunner {
           },
         }
       );
-      // Try to update status if dispatch is available
-      if (this.dispatch) {
-        this.dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: err instanceof Error ? err.message : String(err) } });
-      }
+      // Update status to failed
+      dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'failed', error: err instanceof Error ? err.message : String(err) } });
     } finally {
       this.cleanup(job.id);
     }
@@ -393,8 +361,8 @@ class AnalysisRunner {
         planActive++;
         task.attempts = (task.attempts ?? 0) + 1;
 
-        // Exponential backoff for retries: 2s, 4s, 8s
-        if (task.attempts > 1) {
+        // Exponential backoff for retries: 2s, 4s, 8s (disabled in tests)
+        if (task.attempts > 1 && ANALYSIS_PLAN_BACKOFF_ENABLED) {
           const delayMs = Math.min(2000 * Math.pow(2, task.attempts - 2), 8000);
           await new Promise(resolve => setTimeout(resolve, delayMs));
         }

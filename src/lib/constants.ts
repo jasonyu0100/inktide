@@ -14,6 +14,9 @@ export const ANALYSIS_STAGGER_DELAY_MS = 200;
 /** Max auto-retries for parse/type errors during chunk analysis */
 export const ANALYSIS_MAX_CHUNK_RETRIES = 3;
 
+/** Enable exponential backoff delays for plan extraction retries (disabled in tests for speed) */
+export const ANALYSIS_PLAN_BACKOFF_ENABLED = true;
+
 /** Target number of sections per analysis chunk */
 export const ANALYSIS_TARGET_SECTIONS_PER_CHUNK = 12;
 

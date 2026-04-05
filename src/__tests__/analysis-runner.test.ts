@@ -17,6 +17,7 @@ vi.mock('@/lib/constants', () => ({
   ANALYSIS_CONCURRENCY: 3,
   ANALYSIS_STAGGER_DELAY_MS: 10,
   ANALYSIS_MAX_CHUNK_RETRIES: 2,
+  ANALYSIS_PLAN_BACKOFF_ENABLED: false, // Disable backoff in tests for speed
 }));
 
 vi.mock('@/lib/error-logger', () => ({
@@ -142,23 +143,7 @@ describe('AnalysisRunner Lifecycle', () => {
     dispatchMock = vi.fn();
   });
 
-  it('requires dispatch to be set before running jobs', async () => {
-    const job = createMockJob();
-
-    // Start without setting dispatch
-    const runPromise = AnalysisRunner.start(job);
-
-    // Set dispatch after a delay
-    setTimeout(() => AnalysisRunner.setDispatch(dispatchMock as any), 50);
-
-    // Should wait for dispatch
-    await runPromise;
-
-    expect(dispatchMock).toHaveBeenCalled();
-  });
-
   it('emits stream updates to registered listeners', async () => {
-    AnalysisRunner.setDispatch(dispatchMock as any);
 
     const streamListener = vi.fn();
     const unsubscribe = AnalysisRunner.onStream(streamListener);
@@ -166,7 +151,8 @@ describe('AnalysisRunner Lifecycle', () => {
     vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
 
     const job = createMockJob({ chunks: [{ index: 0, text: 'Test', sectionCount: 1 }], results: [null] });
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     expect(streamListener).toHaveBeenCalled();
 
@@ -174,7 +160,6 @@ describe('AnalysisRunner Lifecycle', () => {
   });
 
   it('tracks in-flight chunks during Phase 1 extraction', async () => {
-    AnalysisRunner.setDispatch(dispatchMock as any);
 
     const inFlightListener = vi.fn();
     AnalysisRunner.onInFlightChange(inFlightListener);
@@ -185,7 +170,7 @@ describe('AnalysisRunner Lifecycle', () => {
     );
 
     const job = createMockJob();
-    const runPromise = AnalysisRunner.start(job);
+    const runPromise = AnalysisRunner.start(job, dispatchMock as any);
 
     // Wait a bit for chunks to be in flight
     await new Promise(resolve => setTimeout(resolve, 20));
@@ -197,14 +182,13 @@ describe('AnalysisRunner Lifecycle', () => {
   });
 
   it('allows cancelling a running job', async () => {
-    AnalysisRunner.setDispatch(dispatchMock as any);
 
     vi.mocked(analyzeChunkParallel).mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(createMockChunkResult(0)), 200))
     );
 
     const job = createMockJob();
-    const runPromise = AnalysisRunner.start(job);
+    const runPromise = AnalysisRunner.start(job, dispatchMock as any);
 
     // Cancel after starting
     setTimeout(() => AnalysisRunner.pause(job.id), 50);
@@ -229,7 +213,6 @@ describe('Phase 1: Parallel Extraction', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
   it('processes all chunks in parallel up to MAX_CONCURRENCY', async () => {
@@ -245,7 +228,8 @@ describe('Phase 1: Parallel Extraction', () => {
 
     vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     expect(analyzeChunkParallel).toHaveBeenCalledTimes(4);
   });
@@ -266,7 +250,8 @@ describe('Phase 1: Parallel Extraction', () => {
       return Promise.resolve(createMockChunkResult(0));
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     // Should have been called 3 times (initial + 2 retries)
     expect(analyzeChunkParallel).toHaveBeenCalledTimes(3);
@@ -288,7 +273,8 @@ describe('Phase 1: Parallel Extraction', () => {
 
     vi.mocked(analyzeChunkParallel).mockRejectedValue(new Error('Persistent failure'));
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     expect(dispatchMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -312,7 +298,8 @@ describe('Phase 1: Parallel Extraction', () => {
 
     vi.mocked(analyzeChunkParallel).mockResolvedValue(createMockChunkResult(0));
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     const updateCalls = dispatchMock.mock.calls.filter(
       (call: any[]) => call[0].type === 'UPDATE_ANALYSIS_JOB' && call[0].updates.currentChunkIndex !== undefined
@@ -329,7 +316,6 @@ describe('Phase 2: Beat Plan Extraction', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
   it('extracts beat plans from all scenes with prose', async () => {
@@ -363,7 +349,8 @@ describe('Phase 2: Beat Plan Extraction', () => {
       results: [null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     // Should only extract plan for scene with prose
     expect(reverseEngineerScenePlan).toHaveBeenCalledTimes(1);
@@ -397,7 +384,8 @@ describe('Phase 2: Beat Plan Extraction', () => {
       results: [null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     // Check that results were updated with both plan and beatProseMap
     const updateCall = dispatchMock.mock.calls.find(
@@ -427,7 +415,8 @@ describe('Phase 2: Beat Plan Extraction', () => {
     });
 
     // Set longer timeout due to retry delays
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     // Job should still complete successfully
     expect(dispatchMock).toHaveBeenCalledWith(
@@ -463,7 +452,8 @@ describe('Phase 2: Beat Plan Extraction', () => {
       results: [null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     expect(planStreamListener).toHaveBeenCalled();
   });
@@ -476,7 +466,6 @@ describe('Phase 3: Reconciliation', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
   it('calls reconcileResults with all chunk results', async () => {
@@ -496,7 +485,8 @@ describe('Phase 3: Reconciliation', () => {
       results: [null, null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     // Verify reconcileResults was called with array of 2 results
     // (results may have been augmented by Phase 2 plan extraction)
@@ -525,7 +515,8 @@ describe('Phase 3: Reconciliation', () => {
       results: [null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     const phaseUpdate = dispatchMock.mock.calls.find(
       (call: any[]) => call[0].updates?.phase === 'reconciliation'
@@ -542,7 +533,6 @@ describe('Phase 4: Finalization', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
   it('calls analyzeThreading with canonical thread descriptions', async () => {
@@ -563,7 +553,8 @@ describe('Phase 4: Finalization', () => {
       results: [null, null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     // Should be called with array of thread descriptions and callback
     expect(analyzeThreading).toHaveBeenCalledWith(
@@ -582,7 +573,8 @@ describe('Phase 4: Finalization', () => {
       results: [null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     const phaseUpdate = dispatchMock.mock.calls.find(
       (call: any[]) => call[0].updates?.phase === 'finalization'
@@ -599,7 +591,6 @@ describe('Phase 5: Assembly', () => {
 
   beforeEach(() => {
     dispatchMock = vi.fn();
-    AnalysisRunner.setDispatch(dispatchMock as any);
   });
 
   it('calls assembleNarrative with finalized results', async () => {
@@ -615,7 +606,8 @@ describe('Phase 5: Assembly', () => {
       results: [null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     expect(assembleNarrative).toHaveBeenCalledWith(
       job.title,
@@ -638,7 +630,8 @@ describe('Phase 5: Assembly', () => {
       results: [null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     // Should create narrative
     expect(dispatchMock).toHaveBeenCalledWith(
@@ -671,7 +664,8 @@ describe('Phase 5: Assembly', () => {
       results: [null],
     });
 
-    await AnalysisRunner.start(job);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await AnalysisRunner.start(job, dispatchMock as any);
 
     const phaseUpdate = dispatchMock.mock.calls.find(
       (call: any[]) => call[0].updates?.phase === 'assembly'

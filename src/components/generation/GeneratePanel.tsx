@@ -142,6 +142,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setStreamText('');
     setError('');
+    const genMode = narrative.storySettings?.generationMode ?? 'batch';
     try {
       // Apply direction/constraints to story settings so branchContext picks them up
       const currentSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
@@ -154,7 +155,6 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
       const existingArc = !newArc ? currentArc ?? undefined : undefined;
       const worldBuildFocus = worldBuildFocusId ? narrative.worldBuilds[worldBuildFocusId] : undefined;
-      const genMode = narrative.storySettings?.generationMode ?? 'batch';
 
       if (genMode === 'stepwise') {
         await generateArcStepwise(

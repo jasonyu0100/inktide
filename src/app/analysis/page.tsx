@@ -160,9 +160,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
 
   const handlePause = useCallback(() => { analysisRunner.pause(job.id); }, [job.id]);
   const handleStart = useCallback((j: AnalysisJob) => {
-    // Ensure dispatch is available before starting
-    analysisRunner.setDispatch(dispatch);
-    analysisRunner.start(j).catch((err) => {
+    analysisRunner.start(j, dispatch).catch((err) => {
       console.error('[analysis] start failed:', err);
     });
   }, [dispatch]);
@@ -1199,16 +1197,12 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         updatedAt: Date.now(),
       };
 
-      // Ensure dispatch is available in the analysis runner before proceeding
-      // This prevents the "Dispatch not available" error
-      analysisRunner.setDispatch(dispatch);
-
       // Add to store and switch to job view immediately
       dispatch({ type: 'ADD_ANALYSIS_JOB', job });
       onCreated(job.id);
 
       // Start the analysis in background - errors will be reflected in job status
-      await analysisRunner.start(job);
+      await analysisRunner.start(job, dispatch);
     } catch (err) {
       console.error('[analysis] Failed to start:', err);
       setStartError(err instanceof Error ? err.message : String(err));

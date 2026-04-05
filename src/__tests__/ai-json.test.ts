@@ -21,8 +21,8 @@ describe('cleanJson', () => {
 
     it('handles multiple code fences', () => {
       const input = '```json\n{"a": 1}```\n```{"b": 2}```';
-      // Code fences and their newlines are removed, resulting in concatenated JSON
-      expect(cleanJson(input)).toBe('{"a": 1}{"b": 2}');
+      // Extracts only the first complete JSON object
+      expect(cleanJson(input)).toBe('{"a": 1}');
     });
   });
 

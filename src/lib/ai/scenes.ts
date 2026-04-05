@@ -65,23 +65,42 @@ function splitIntoSentences(text: string): string[] {
           const isQuoteBeforeCapital = (nextChar === '"' || nextChar === "'") && k + 1 < text.length && /[A-Z]/.test(text[k + 1]);
 
           if (isCapital || isQuoteBeforeCapital) {
-            // Check if this is an abbreviation
-            if (char === '.') {
-              // Extract the word before the period
-              const beforePeriod = currentSentence.slice(0, -1).trim();
-              const words = beforePeriod.split(/\s+/);
-              const lastWord = words[words.length - 1] || '';
+            // Check for abbreviations and decimals
+            const words = currentSentence.trim().split(/\s+/);
+            const lastWord = words[words.length - 1];
+            const wordWithoutPunct = lastWord.replace(/[.!?]+$/, '');
 
-              // Check for common abbreviation patterns
-              const isAbbreviation = abbreviations.has(lastWord) ||
-                                      /^[A-Z]$/.test(lastWord) || // Single capital letter
-                                      /^\d+\.\d+$/.test(lastWord + '.'); // Decimal number
+            // Check if it's a decimal number like "1.2"
+            const isDecimal = /^\d+\.\d*$/.test(lastWord);
+            if (isDecimal) {
+              // Don't split on decimal numbers
+            } else if (abbreviations.has(wordWithoutPunct)) {
+              // It's an abbreviation, but check if it's truly the end of a sentence
+              // by looking at the next word
+              let nextWordStart = k;
+              if (nextChar === '"' || nextChar === "'") {
+                nextWordStart = k + 1;
+              }
+              // Extract the next word
+              let nextWordEnd = nextWordStart;
+              while (nextWordEnd < text.length && /[A-Za-z]/.test(text[nextWordEnd])) {
+                nextWordEnd++;
+              }
+              const nextWord = text.substring(nextWordStart, nextWordEnd);
 
-              if (!isAbbreviation) {
+              // Common sentence starters that indicate a new sentence despite abbreviation
+              const sentenceStarters = new Set([
+                'The', 'A', 'An', 'He', 'She', 'It', 'They', 'We', 'I', 'You',
+                'This', 'That', 'These', 'Those', 'His', 'Her', 'Their', 'My', 'Our',
+                'But', 'And', 'Or', 'So', 'Yet', 'For', 'Nor', 'As', 'If', 'When',
+                'Where', 'Why', 'How', 'What', 'Who', 'Which'
+              ]);
+
+              if (sentenceStarters.has(nextWord)) {
                 isSentenceBoundary = true;
               }
             } else {
-              // ! or ? are almost always sentence boundaries
+              // Not an abbreviation or decimal, so it's a sentence boundary
               isSentenceBoundary = true;
             }
           }

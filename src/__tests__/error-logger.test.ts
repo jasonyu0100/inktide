@@ -2,13 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { logError, logWarning, onErrorLog, setErrorLoggerNarrativeId, type ErrorContext } from '@/lib/error-logger';
 
 describe('error-logger', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset module state
     onErrorLog(() => {});
     setErrorLoggerNarrativeId(null);
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   describe('logError', () => {
@@ -70,7 +73,7 @@ describe('error-logger', () => {
       const listener = vi.fn();
       onErrorLog(listener);
 
-      logError('Test', new Error('Validation failed'), { source: 'other' });
+      logError('Test', new Error('validation failed'), { source: 'other' });
       expect(listener).toHaveBeenCalledWith(expect.objectContaining({ category: 'validation' }));
     });
 
@@ -124,13 +127,12 @@ describe('error-logger', () => {
 
     it('logs to console.error for error severity', () => {
       onErrorLog(() => {});
-      const consoleSpy = vi.spyOn(console, 'error');
 
-      logError('Test message', new Error('Test error'), { source: 'auto-play', operation: 'test' });
+      logError('Test message', new Error('Test error'), { source: 'auto-play', operation: 'test', details: { foo: 'bar' } });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('[ERROR] [auto-play/test] Test message'),
-        expect.anything()
+        { foo: 'bar' }
       );
     });
 
@@ -169,13 +171,12 @@ describe('error-logger', () => {
 
     it('logs to console.warn for warning severity', () => {
       onErrorLog(() => {});
-      const consoleSpy = vi.spyOn(console, 'warn');
 
-      logWarning('Test warning', 'Warning details', { source: 'other' });
+      logWarning('Test warning', 'Warning details', { source: 'other', details: { test: true } });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('[WARNING]'),
-        expect.anything()
+        { test: true }
       );
     });
   });

@@ -125,7 +125,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
           <button
             onClick={left.toggle}
             title={left.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-25 hover:opacity-100 transition-opacity cursor-pointer"
+            className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
           >
             {left.collapsed ? <IconChevronRight size={6} /> : <IconChevronLeft size={6} />}
           </button>
@@ -139,7 +139,7 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
           <button
             onClick={right.toggle}
             title={right.collapsed ? 'Expand inspector' : 'Collapse inspector'}
-            className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-25 hover:opacity-100 transition-opacity cursor-pointer"
+            className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
           >
             {right.collapsed ? <IconChevronLeft size={6} /> : <IconChevronRight size={6} />}
           </button>

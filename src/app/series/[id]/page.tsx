@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { IconChevronDown } from '@/components/icons';
 import AppShell from '@/components/layout/AppShell';
 import Sidebar from '@/components/sidebar/Sidebar';
 import SidePanel from '@/components/inspector/SidePanel';
@@ -65,6 +66,7 @@ export default function SeriesPage() {
   const [mctsOpen, setMctsOpen] = useState(false);
   const [storySettingsOpen, setStorySettingsOpen] = useState(false);
   const [planningQueueOpen, setPlanningQueueOpen] = useState(false);
+  const [bottomPanelCollapsed, setBottomPanelCollapsed] = useState(false);
   const autoPlay = useAutoPlay();
   const mcts = useMCTS();
   const planning = usePlanningQueue();
@@ -231,9 +233,29 @@ export default function SeriesPage() {
               </div>
             )}
           </div>
-          <NarrativePanel />
-          <TimelineStrip />
-          <ForceCharts />
+
+          {/* Bottom panel with toggle */}
+          <div className="relative shrink-0">
+            {/* Bottom panel toggle */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+              <button
+                onClick={() => setBottomPanelCollapsed(!bottomPanelCollapsed)}
+                title={bottomPanelCollapsed ? 'Expand timeline' : 'Collapse timeline'}
+                className="pointer-events-auto flex items-center justify-center w-9 h-5 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-60 hover:opacity-100 transition-all cursor-pointer"
+                style={{ transform: 'translateY(-50%)' }}
+              >
+                <IconChevronDown size={6} style={{ transform: bottomPanelCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
+            </div>
+
+            {!bottomPanelCollapsed && (
+              <>
+                <NarrativePanel />
+                <TimelineStrip />
+                <ForceCharts />
+              </>
+            )}
+          </div>
         </div>
       </AppShell>
       {state.wizardOpen && <CreationWizard />}

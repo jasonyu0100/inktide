@@ -558,6 +558,22 @@ export default function FloatingPalette({
                     <div className="w-px h-4 bg-white/12 mx-0.5" />
                     <button
                       type="button"
+                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("canvas:open-tournament"),
+                        )
+                      }
+                      title="Generate multiple candidate plans and rank by semantic similarity"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                        <line x1="12" y1="22.08" x2="12" y2="12" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
                       className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
                       onClick={() =>
                         window.dispatchEvent(

@@ -48,7 +48,8 @@ export function computeFnMechanismDist(scenes: Scene[]): FnMechanismDistribution
   let totalBeats = 0;
 
   for (const scene of scenes) {
-    const beats = scene.plan?.beats;
+    const plan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
+    const beats = plan?.beats;
     if (!beats || beats.length === 0) continue;
     for (const beat of beats) {
       totalBeats++;

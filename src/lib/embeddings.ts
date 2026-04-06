@@ -1,0 +1,235 @@
+/**
+ * Embedding utilities for semantic search
+ * Uses OpenAI text-embedding-3-small model via /api/embeddings
+ *
+ * Supports two storage modes:
+ * 1. Inline (legacy): Embeddings stored as number[] in narrative JSON
+ * 2. Decoupled (new): Embeddings stored in IndexedDB, narrative stores only ID references
+ */
+
+import { logInfo, logError } from '@/lib/system-logger';
+import { EMBEDDING_BATCH_SIZE } from '@/lib/constants';
+import { assetManager } from '@/lib/asset-manager';
+import type { EmbeddingRef } from '@/types/narrative';
+
+// ── Storage Mode Control ─────────────────────────────────────────────────────
+/**
+ * Asset storage is always enabled for decoupled storage via AssetManager
+ * Embeddings are always stored in IndexedDB and narratives contain only references
+ */
+const useAssetStorage = true;
+
+/**
+ * Generate embeddings for an array of texts
+ * @param texts Array of text strings to embed
+ * @param narrativeId Optional narrative ID for logging context
+ * @returns Array of embedding vectors (1536 dims each)
+ */
+export async function generateEmbeddings(
+  texts: string[],
+  narrativeId?: string
+): Promise<number[][]> {
+  const response = await fetch('/api/embeddings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ texts }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Embedding API error: ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  logInfo('Generated embeddings', {
+    source: 'other',
+    operation: 'generate',
+    details: { count: texts.length, model: data.model, usage: data.usage },
+  });
+
+  return data.embeddings;
+}
+
+/**
+ * Generate embeddings in batches with progress tracking
+ * @param texts Array of text strings to embed
+ * @param narrativeId Optional narrative ID for logging context
+ * @param onProgress Optional progress callback (completed, total)
+ * @returns Array of embedding vectors
+ */
+export async function generateEmbeddingsBatch(
+  texts: string[],
+  narrativeId?: string,
+  onProgress?: (completed: number, total: number) => void
+): Promise<number[][]> {
+  const results: number[][] = [];
+  let completed = 0;
+
+  for (let i = 0; i < texts.length; i += EMBEDDING_BATCH_SIZE) {
+    const batch = texts.slice(i, i + EMBEDDING_BATCH_SIZE);
+    try {
+      const embeddings = await generateEmbeddings(batch, narrativeId);
+      results.push(...embeddings);
+      completed += batch.length;
+      onProgress?.(completed, texts.length);
+    } catch (error) {
+      logError('Failed to generate embedding batch', error, {
+        source: 'other',
+        operation: 'batch-generate',
+        details: { batchStart: i, batchSize: batch.length, total: texts.length },
+      });
+      throw error;
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Compute cosine similarity between two embedding vectors
+ * @param a First embedding vector
+ * @param b Second embedding vector
+ * @returns Similarity score (0-1, higher = more similar)
+ */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    throw new Error(`Vector dimensions must match: ${a.length} vs ${b.length}`);
+  }
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  return denominator === 0 ? 0 : dotProduct / denominator;
+}
+
+/**
+ * Compute centroid (average) of multiple embedding vectors
+ * @param embeddings Array of embedding vectors
+ * @returns Centroid vector (same dimensions as input)
+ */
+export function computeCentroid(embeddings: number[][]): number[] {
+  if (embeddings.length === 0) return [];
+
+  const dimensions = embeddings[0].length;
+  const centroid = new Array(dimensions).fill(0);
+
+  for (const embedding of embeddings) {
+    for (let i = 0; i < dimensions; i++) {
+      centroid[i] += embedding[i];
+    }
+  }
+
+  for (let i = 0; i < dimensions; i++) {
+    centroid[i] /= embeddings.length;
+  }
+
+  return centroid;
+}
+
+/**
+ * Resolve an embedding reference to its vector array
+ * Handles both inline arrays (legacy) and asset references (new)
+ * @param embeddingRef Reference ID or inline array
+ * @returns Embedding vector array, or null if not found
+ */
+export async function resolveEmbedding(embeddingRef: EmbeddingRef | undefined): Promise<number[] | null> {
+  if (!embeddingRef) return null;
+
+  // If it's already an array, return it
+  if (Array.isArray(embeddingRef)) {
+    return embeddingRef;
+  }
+
+  // Otherwise, it's a reference ID - fetch from asset manager
+  return await assetManager.getEmbedding(embeddingRef);
+}
+
+/**
+ * Resolve multiple embedding references in batch
+ * @param refs Array of embedding references
+ * @returns Map of reference → vector array (only successful resolutions)
+ */
+export async function resolveEmbeddingsBatch(refs: (EmbeddingRef | undefined)[]): Promise<Map<number, number[]>> {
+  const results = new Map<number, number[]>();
+
+  // Separate inline arrays from references
+  const inlineIndices: number[] = [];
+  const refIds: string[] = [];
+  const refIndices: number[] = [];
+
+  refs.forEach((ref, i) => {
+    if (!ref) return;
+    if (Array.isArray(ref)) {
+      inlineIndices.push(i);
+      results.set(i, ref);
+    } else {
+      refIds.push(ref);
+      refIndices.push(i);
+    }
+  });
+
+  // Batch fetch all references
+  if (refIds.length > 0) {
+    const batchResults = await assetManager.getEmbeddingsBatch(refIds);
+    refIds.forEach((id, batchIdx) => {
+      const vector = batchResults.get(id);
+      if (vector) {
+        results.set(refIndices[batchIdx], vector);
+      }
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Embed propositions and add metadata
+ * Supports both inline and decoupled storage modes
+ * @param propositions Array of propositions to embed
+ * @param narrativeId Optional narrative ID for logging context
+ * @returns Propositions with embeddings and metadata added
+ */
+export async function embedPropositions(
+  propositions: Array<{ content: string; type?: string }>,
+  narrativeId?: string
+): Promise<Array<{
+  content: string;
+  type?: string;
+  embedding: EmbeddingRef;
+  embeddedAt: number;
+  embeddingModel: string;
+}>> {
+  const texts = propositions.map(p => p.content);
+  const embeddings = await generateEmbeddingsBatch(texts, narrativeId);
+  const timestamp = Date.now();
+
+  // If asset storage is enabled, store in IndexedDB and return references
+  if (useAssetStorage) {
+    return await Promise.all(propositions.map(async (prop, i) => {
+      const embeddingId = await assetManager.storeEmbedding(embeddings[i], 'text-embedding-3-small');
+      return {
+        ...prop,
+        embedding: embeddingId,  // Reference ID, not array
+        embeddedAt: timestamp,
+        embeddingModel: 'text-embedding-3-small',
+      };
+    }));
+  }
+
+  // Legacy mode: store inline
+  return propositions.map((prop, i) => ({
+    ...prop,
+    embedding: embeddings[i],  // Inline array
+    embeddedAt: timestamp,
+    embeddingModel: 'text-embedding-3-small',
+  }));
+}

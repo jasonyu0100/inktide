@@ -623,8 +623,6 @@ Return JSON:
     relationshipMutations: parsed.relationshipMutations ?? scene.relationshipMutations,
     worldKnowledgeMutations: normalizeWorldKnowledgeMutations(parsed.worldKnowledgeMutations, scene.worldKnowledgeMutations),
     summary: parsed.summary ?? scene.summary,
-    prose: undefined,
-    plan: undefined,
     audioUrl: undefined,
   };
 }
@@ -724,8 +722,6 @@ Return JSON:
     relationshipMutations: parsed.relationshipMutations ?? targetScene.relationshipMutations,
     worldKnowledgeMutations: normalizeWorldKnowledgeMutations(parsed.worldKnowledgeMutations, targetScene.worldKnowledgeMutations),
     summary: parsed.summary ?? targetScene.summary,
-    prose: undefined,
-    plan: undefined,
     audioUrl: undefined,
   };
 }

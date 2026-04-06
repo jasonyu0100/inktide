@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/store';
+import { useImageUrl } from '@/hooks/useAssetUrl';
 import {
   getContinuityNodesAtScene,
   getRelationshipsAtScene,
@@ -71,6 +72,8 @@ export default function CharacterDetail({ characterId }: Props) {
   const character = narrative.characters[characterId];
   if (!character) return null;
 
+  const imageUrl = useImageUrl(character.imageUrl);
+
   const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
 
   // Knowledge filtered to current scene
@@ -136,9 +139,9 @@ export default function CharacterDetail({ characterId }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {/* Portrait */}
-      {character.imageUrl && (
+      {imageUrl && (
         <img
-          src={character.imageUrl}
+          src={imageUrl}
           alt={character.name}
           className="w-full aspect-3/4 object-cover rounded-lg border border-border"
         />

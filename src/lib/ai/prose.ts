@@ -5,7 +5,7 @@ import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constan
 import { parseJson } from './json';
 import { sceneContext } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
-import { logInfo } from '@/lib/system-logger';
+import { logInfo, logError } from '@/lib/system-logger';
 
 // ── Format-Specific Instructions ─────────────────────────────────────────────
 
@@ -56,7 +56,7 @@ export async function rewriteSceneProse(
   referenceSceneIds?: string[],
   /** Stream prose tokens as they arrive */
   onToken?: (token: string) => void,
-): Promise<{ prose: string; changelog: string }> {
+): Promise<{ prose: string; changelog: string; proseEmbedding?: number[] }> {
   logInfo('Starting prose rewrite', {
     source: 'prose-generation',
     operation: 'rewrite-prose',
@@ -90,10 +90,11 @@ export async function rewriteSceneProse(
       if (pIdx < 0) break;
       const pId = resolvedKeys[pIdx];
       const pScene = pId ? narrative.scenes[pId] : null;
-      if (pScene?.prose) {
+      const latestProse = pScene?.proseVersions?.[pScene.proseVersions.length - 1]?.prose;
+      if (latestProse) {
         const pov = narrative.characters[pScene.povId]?.name ?? pScene.povId;
         const loc = narrative.locations[pScene.locationId]?.name ?? pScene.locationId;
-        prevScenes.unshift(`--- SCENE ${pIdx + 1} (POV: ${pov}, @${loc}) ---\n${pScene.summary}\n\n${pScene.prose}`);
+        prevScenes.unshift(`--- SCENE ${pIdx + 1} (POV: ${pov}, @${loc}) ---\n${pScene.summary}\n\n${latestProse}`);
       }
     }
     if (prevScenes.length > 0) {
@@ -109,10 +110,11 @@ export async function rewriteSceneProse(
       if (nIdx >= resolvedKeys.length) break;
       const nId = resolvedKeys[nIdx];
       const nScene = nId ? narrative.scenes[nId] : null;
-      if (nScene?.prose) {
+      const latestProse = nScene?.proseVersions?.[nScene.proseVersions.length - 1]?.prose;
+      if (latestProse) {
         const pov = narrative.characters[nScene.povId]?.name ?? nScene.povId;
         const loc = narrative.locations[nScene.locationId]?.name ?? nScene.locationId;
-        nextScenes.push(`--- SCENE ${nIdx + 1} (POV: ${pov}, @${loc}) ---\n${nScene.summary}\n\n${nScene.prose}`);
+        nextScenes.push(`--- SCENE ${nIdx + 1} (POV: ${pov}, @${loc}) ---\n${nScene.summary}\n\n${latestProse}`);
       }
     }
     if (nextScenes.length > 0) {
@@ -124,8 +126,10 @@ export async function rewriteSceneProse(
   if (!hasExpandedContext) {
     const prevId = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
     const nextId = sceneIdx < resolvedKeys.length - 1 ? resolvedKeys[sceneIdx + 1] : null;
-    const prevProse = prevId ? narrative.scenes[prevId]?.prose : null;
-    const nextProse = nextId ? narrative.scenes[nextId]?.prose : null;
+    const prevScene = prevId ? narrative.scenes[prevId] : null;
+    const nextScene = nextId ? narrative.scenes[nextId] : null;
+    const prevProse = prevScene?.proseVersions?.[prevScene.proseVersions.length - 1]?.prose;
+    const nextProse = nextScene?.proseVersions?.[nextScene.proseVersions.length - 1]?.prose;
     prevEnding = prevProse ? prevProse.split(/\n\n+/).slice(-1)[0]?.slice(-300) : null;
     nextOpening = nextProse ? nextProse.split(/\n\n+/)[0]?.slice(0, 300) : null;
   }
@@ -136,11 +140,12 @@ export async function rewriteSceneProse(
       .filter((id) => id !== scene.id)
       .map((id) => {
         const refScene = narrative.scenes[id];
-        if (!refScene?.prose) return null;
+        const refProse = refScene?.proseVersions?.[refScene.proseVersions.length - 1]?.prose;
+        if (!refProse) return null;
         const idx = resolvedKeys.indexOf(id);
         const pov = narrative.characters[refScene.povId]?.name ?? refScene.povId;
         const loc = narrative.locations[refScene.locationId]?.name ?? refScene.locationId;
-        return `--- SCENE ${idx + 1} [pinned reference] (POV: ${pov}, @${loc}) ---\n${refScene.summary}\n\n${refScene.prose}`;
+        return `--- SCENE ${idx + 1} [pinned reference] (POV: ${pov}, @${loc}) ---\n${refScene.summary}\n\n${refProse}`;
       })
       .filter(Boolean);
     if (refBlocks.length > 0) {
@@ -253,5 +258,23 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
     },
   });
 
-  return { prose: prose, changelog };
+  // ── Generate prose embedding ─────────────────────────────────────────────
+  const { generateEmbeddings } = await import('@/lib/embeddings');
+
+  let proseEmbedding: number[] | undefined;
+  if (prose && prose.length > 0) {
+    try {
+      const embeddings = await generateEmbeddings([prose], narrative.id);
+      proseEmbedding = embeddings[0];
+    } catch (error) {
+      // Log error but don't fail prose rewrite if embedding fails
+      logError('Failed to generate prose embedding', error, {
+        source: 'prose-generation',
+        operation: 'embed-rewritten-prose',
+        details: { narrativeId: narrative.id, sceneId: scene.id },
+      });
+    }
+  }
+
+  return { prose, changelog, proseEmbedding };
 }

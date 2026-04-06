@@ -1,41 +1,34 @@
 /**
- * Audio blob storage — stores audio as binary blobs in IndexedDB
- * for instant playback via URL.createObjectURL().
+ * Audio blob storage — uses inktide-assets IndexedDB for binary storage.
  *
- * Scene.audioUrl stores a key like "idb:sceneId" to reference the blob.
+ * Scene.audioUrl stores asset IDs like "audio_xyz789" to reference the blob.
  */
 
-import { idbGet, idbPut, idbDelete, AUDIO_STORE } from './idb';
+import { assetManager } from './asset-manager';
 
-const IDB_PREFIX = 'idb:';
-
-/** Get the marker stored on Scene.audioUrl */
-export function audioMarker(sceneId: string): string {
-  return `${IDB_PREFIX}${sceneId}`;
-}
-
-/** Save audio blob to IndexedDB. Returns the marker to store on the scene. */
-export async function saveAudioBlob(sceneId: string, blob: Blob): Promise<string> {
-  await idbPut(AUDIO_STORE, sceneId, blob);
-  return audioMarker(sceneId);
+/** Save audio blob to asset manager. Returns the asset ID to store on the scene. */
+export async function saveAudioBlob(blob: Blob, narrativeId: string = 'global'): Promise<string> {
+  await assetManager.init();
+  return assetManager.storeAudio(blob, blob.type, undefined, narrativeId);
 }
 
 /** Load audio blob and return an object URL for instant playback. Returns null if not found. */
-export async function resolveAudioUrl(audioUrl: string, sceneId: string): Promise<string | null> {
-  if (!audioUrl || !audioUrl.startsWith(IDB_PREFIX)) return null;
+export async function resolveAudioUrl(audioUrl: string): Promise<string | null> {
+  if (!audioUrl || !audioUrl.startsWith('audio_')) return null;
   try {
-    const blob = await idbGet<Blob>(AUDIO_STORE, sceneId);
-    if (!blob) return null;
-    return URL.createObjectURL(blob);
+    await assetManager.init();
+    return assetManager.getAudioUrl(audioUrl);
   } catch {
     return null;
   }
 }
 
-/** Delete audio blob from IndexedDB */
-export async function deleteAudioBlob(sceneId: string): Promise<void> {
+/** Delete audio blob from asset manager */
+export async function deleteAudioBlob(audioId: string): Promise<void> {
+  if (!audioId || !audioId.startsWith('audio_')) return;
   try {
-    await idbDelete(AUDIO_STORE, sceneId);
+    await assetManager.init();
+    await assetManager.deleteAudio(audioId);
   } catch {
     // ignore
   }

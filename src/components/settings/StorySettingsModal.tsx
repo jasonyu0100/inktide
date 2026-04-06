@@ -214,8 +214,9 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
     const fallback = 'The morning light crept through the shutters, casting long shadows across the floor.';
     let text = fallback;
     if (narrative) {
-      const prose = Object.values(narrative.scenes).find((s) => s.prose)?.prose;
-      if (prose) {
+      const sceneWithProse = Object.values(narrative.scenes).find((s) => s.proseVersions && s.proseVersions.length > 0);
+      if (sceneWithProse?.proseVersions) {
+        const prose = sceneWithProse.proseVersions[sceneWithProse.proseVersions.length - 1].prose;
         const sentences = prose.match(/[^.!?]+[.!?]+/g);
         text = sentences ? sentences.slice(0, 2).join(' ').trim() : prose.slice(0, 200);
       }
@@ -356,7 +357,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
               : false;
             // Beat: derive sampler from scene plans
             const selfBeatHasData = Object.values(narrative?.scenes ?? {}).filter(
-              (s) => state.resolvedEntryKeys.includes(s.id) && s.plan?.beats?.length,
+              (s) => state.resolvedEntryKeys.includes(s.id) && s.planVersions && s.planVersions.length > 0 && s.planVersions[s.planVersions.length - 1]?.plan?.beats?.length,
             ).length >= 3;
 
             // ── Build preset arrays: [Storyteller, This Story?, ...works] ──

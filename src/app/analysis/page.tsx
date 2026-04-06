@@ -187,6 +187,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   // Use explicit phase field for reliable phase detection
   const isExtracting = liveJob.phase === 'extraction';
   const isPlanExtracting = liveJob.phase === 'plans';
+  const isEmbedding = liveJob.phase === 'embeddings';
   const isReconciling = liveJob.phase === 'reconciliation';
   const isFinalizing = liveJob.phase === 'finalization';
   const isAssembling = liveJob.phase === 'assembly';
@@ -203,12 +204,14 @@ function JobDetail({ job }: { job: AnalysisJob }) {
 
     // Prefer assembled narrative scenes (covers pre-existing works + post-assembly plans)
     const narrativeScenes = assembledNarrative ? Object.values(assembledNarrative.scenes) : [];
-    if (narrativeScenes.some((s) => s.plan)) {
+    if (narrativeScenes.some((s) => s.planVersions && s.planVersions.length > 0)) {
       for (const s of narrativeScenes) {
-        if (!s.plan) continue;
+        const plan = s.planVersions?.[s.planVersions.length - 1]?.plan;
+        if (!plan) continue;
         planCount++;
-        if (s.beatProseMap) mappedCount++;
-        for (const b of s.plan.beats) fnCounts[b.fn] = (fnCounts[b.fn] ?? 0) + 1;
+        const beatProseMap = s.proseVersions?.[s.proseVersions.length - 1]?.beatProseMap;
+        if (beatProseMap) mappedCount++;
+        for (const b of plan.beats) fnCounts[b.fn] = (fnCounts[b.fn] ?? 0) + 1;
       }
     } else {
       // Fall back to chunk results (mid-run or pre-assembly)
@@ -291,6 +294,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               {isAssembling ? 'assembling...'
                 : isFinalizing ? 'finalizing...'
                 : isReconciling ? 'reconciling...'
+                : isEmbedding ? 'embedding...'
                 : isPlanExtracting ? `plans ${beatStats.planCount}/${sceneCount}`
                 : liveJob.status === 'completed' ? 'complete'
                 : liveJob.status === 'failed' ? 'failed'
@@ -415,9 +419,10 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     <p className="text-white/20 text-[11px] leading-relaxed">
                       The text has been split into {totalChunks} chunk{totalChunks !== 1 ? 's' : ''} that will be analyzed in parallel. Each chunk independently extracts characters, locations, threads, and scenes. A reconciliation pass then merges duplicates and stitches continuity across chunks.
                     </p>
-                    <div className="grid grid-cols-4 gap-2 pt-1">
+                    <div className="grid grid-cols-5 gap-2 pt-1">
                       {[
                         { label: 'Extract', desc: 'Parse entities from each chunk' },
+                        { label: 'Embed', desc: 'Generate semantic embeddings' },
                         { label: 'Reconcile', desc: 'Merge duplicates across chunks' },
                         { label: 'Finalize', desc: 'Analyze thread dependencies' },
                         { label: 'Assemble', desc: 'Build the narrative structure' },
@@ -549,9 +554,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
             {/* Header */}
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
-              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isEmbedding ? 'bg-violet-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
               <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">
-                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
+                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isEmbedding ? 'Embeddings' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
               </span>
               {isPlanExtracting && (
                 <span className="text-[9px] text-indigo-400/40 font-mono ml-auto">{beatStats.planCount}/{sceneCount}</span>
@@ -990,8 +995,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         {isRunning && (
           <div className="flex items-center gap-3 mb-2.5">
             {[
-              { label: 'Extract', active: isExtracting, done: isPlanExtracting  || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
-              { label: 'Plans', active: isPlanExtracting, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
+              { label: 'Extract', active: isExtracting, done: isPlanExtracting || isEmbedding || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
+              { label: 'Plans', active: isPlanExtracting, done: isEmbedding || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
+              { label: 'Embed', active: isEmbedding, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-violet-400' },
               { label: 'Reconcile', active: isReconciling, done: isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
               { label: 'Finalize', active: isFinalizing, done: isAssembling || liveJob.status === 'completed', color: 'bg-purple-400' },
               { label: 'Assemble', active: isAssembling, done: liveJob.status === 'completed', color: 'bg-amber-400' },

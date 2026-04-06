@@ -80,8 +80,8 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
   let totalBeats = 0;
 
   for (const scene of scenes) {
-    // Get plan from either versioned format (first version) or legacy field
-    const plan = scene.planVersions?.[0]?.plan ?? scene.plan;
+    // Get plan from version array (use first version for historical analysis)
+    const plan = scene.planVersions?.[0]?.plan;
     const beats = plan?.beats;
     if (!beats || beats.length === 0) continue;
     for (let i = 0; i < beats.length; i++) {
@@ -124,17 +124,17 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
 
   // Density: beats per 1k words — computed from scenes that have plans
   const scenesWithPlans = scenes.filter((s) => {
-    const plan = s.planVersions?.[0]?.plan ?? s.plan;
+    const plan = s.planVersions?.[0]?.plan;
     return plan?.beats?.length;
   });
   let avgWordsPerScene = 800;
   const withProse = scenesWithPlans.filter((s) => {
-    const prose = s.proseVersions?.[0]?.prose ?? s.prose;
+    const prose = s.proseVersions?.[0]?.prose;
     return !!prose;
   });
   if (withProse.length > 0) {
     avgWordsPerScene = Math.round(withProse.reduce((sum, s) => {
-      const prose = s.proseVersions?.[0]?.prose ?? s.prose;
+      const prose = s.proseVersions?.[0]?.prose;
       return sum + (prose?.split(/\s+/).length ?? 0);
     }, 0) / withProse.length);
   }

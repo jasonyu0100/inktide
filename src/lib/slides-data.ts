@@ -321,8 +321,9 @@ export function computeSlidesData(
   const beatSampler = computeSamplerFromPlans(scenes);
   const beatSequence: string[] = [];
   for (const s of scenes) {
-    if (s.plan?.beats) {
-      for (const b of s.plan.beats) beatSequence.push(b.fn);
+    const latestPlan = s.planVersions?.[s.planVersions.length - 1]?.plan;
+    if (latestPlan?.beats) {
+      for (const b of latestPlan.beats) beatSequence.push(b.fn);
     }
   }
 

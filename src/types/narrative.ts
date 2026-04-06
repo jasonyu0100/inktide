@@ -50,7 +50,7 @@ export type Character = {
   threadIds: string[];
   /** AI-generated visual description used as image prompt seed */
   imagePrompt?: string;
-  imageUrl?: string;
+  imageUrl?: ImageRef;
 };
 
 // ── Location ─────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ export type Location = {
   continuity: Continuity;
   /** AI-generated visual description used as image prompt seed */
   imagePrompt?: string;
-  imageUrl?: string;
+  imageUrl?: ImageRef;
 };
 
 export type RelationshipEdge = {
@@ -85,7 +85,7 @@ export type Artifact = {
   /** Current owner — a character or location ID (like Location.parentId) */
   parentId: string;
   imagePrompt?: string;
-  imageUrl?: string;
+  imageUrl?: ImageRef;
 };
 
 export type OwnershipMutation = {
@@ -157,6 +157,35 @@ export type BeatMechanism =
   | 'document'     // Embedded text: letter, newspaper, cited poetry
   | 'comic';       // Humor — physical comedy, ironic observation, absurdity
 
+// ── Asset References (Decoupled Storage) ────────────────────────────────────
+
+/**
+ * Embedding reference - supports both inline (legacy) and decoupled (new) storage
+ * - string: Asset ID reference like "emb_abc123" (stored in IndexedDB)
+ * - number[]: Legacy inline array (for backward compatibility)
+ */
+export type EmbeddingRef = string | number[];
+
+/**
+ * Image reference - decoupled storage
+ * - "img_abc123": Asset reference (stored in IndexedDB as Blob)
+ * - "https://...": External URL (e.g., Replicate-generated images, not stored locally)
+ * - undefined: No image
+ *
+ * Usage: Character images, location images, artifact images, scene images, cover images
+ */
+export type ImageRef = string | undefined;
+
+/**
+ * Audio reference - decoupled storage
+ * - "audio_xyz789": Asset reference (stored in IndexedDB as Blob)
+ * - undefined: No audio
+ *
+ * Note: Audio is always generated locally (ElevenLabs, etc.), so always uses asset references.
+ * External audio URLs are not supported.
+ */
+export type AudioRef = string | undefined;
+
 /**
  * A proposition — an atomic claim the reader must come to believe is true.
  * Works for both fiction (story world facts) and non-fiction (domain facts).
@@ -173,6 +202,12 @@ export type Proposition = {
    * But any descriptive label works (e.g., "character_belief", "causal_mechanism", "constraint")
    */
   type?: string;
+  /** 1536-dim embedding - can be reference ID or inline array (legacy) */
+  embedding?: EmbeddingRef;
+  /** Timestamp when embedding was generated */
+  embeddedAt?: number;
+  /** Model used for embedding (e.g., 'text-embedding-3-small') */
+  embeddingModel?: string;
 };
 
 /** A single beat in a scene plan */
@@ -183,6 +218,8 @@ export type Beat = {
   what: string;
   /** Multiple propositions — constraints the prose must satisfy */
   propositions: Proposition[];
+  /** Centroid of proposition embeddings for beat-level semantic search */
+  embeddingCentroid?: EmbeddingRef;
 };
 
 /** Structured scene plan — JSON replacement for the plain-text plan */
@@ -440,20 +477,19 @@ export type Scene = {
   worldKnowledgeMutations?: WorldKnowledgeMutation;
   /** Artifact ownership changes — objects changing hands between characters/locations */
   ownershipMutations?: OwnershipMutation[];
-  /** Structured beat plan — delivery-by-delivery scene blueprint detailing HOW mutations unfold */
-  plan?: BeatPlan;
-  prose?: string;
-  /** Beat-to-prose mapping (only present if scene was generated with beat tracking) */
-  beatProseMap?: BeatProseMap;
-  /** Prose score from evaluation */
-  proseScore?: ProseScore;
   /** Version history for prose — enables branch isolation. Resolution uses branch lineage + fork time. */
   proseVersions?: ProseVersion[];
   /** Version history for plan — enables branch isolation. Resolution uses branch lineage + fork time. */
   planVersions?: PlanVersion[];
   summary: string;
-  imageUrl?: string;
-  audioUrl?: string;
+  imageUrl?: ImageRef;
+  audioUrl?: AudioRef;
+  /** Embedding of scene summary for semantic search (reference or inline) */
+  summaryEmbedding?: EmbeddingRef;
+  /** Centroid of all beat centroids in the plan (reference or inline) */
+  planEmbeddingCentroid?: EmbeddingRef;
+  /** Embedding of full prose text for semantic search (reference or inline) */
+  proseEmbedding?: EmbeddingRef;
 };
 
 export type WorldBuild = {
@@ -623,7 +659,7 @@ export type NarrativeState = {
   worldSystems?: WorldSystem[];
   /** Authorial prose profile — voice, rhythm, and beat transition patterns for prose generation */
   proseProfile?: ProseProfile;
-  coverImageUrl?: string;
+  coverImageUrl?: ImageRef;
   /** Style directive appended to all image generation prompts for visual consistency */
   imageStyle?: string;
   /** Story-level settings that guide generation (POV, tone, pacing, etc.) */
@@ -655,7 +691,7 @@ export type NarrativeEntry = {
   updatedAt: number;
   sceneCount: number;
   coverThread: string;
-  coverImageUrl?: string;
+  coverImageUrl?: ImageRef;
   /** Narrative shape classification key */
   shapeKey?: string;
   /** Narrative shape name for display */
@@ -1018,7 +1054,7 @@ export type AnalysisChunkResult = {
 };
 
 /** Analysis pipeline phases */
-export type AnalysisPhase = 'extraction' | 'plans' | 'reconciliation' | 'finalization' | 'assembly';
+export type AnalysisPhase = 'extraction' | 'plans' | 'embeddings' | 'reconciliation' | 'finalization' | 'assembly';
 
 export type AnalysisJob = {
   id: string;
@@ -1127,7 +1163,7 @@ export type WizardData = {
   worldOnly?: boolean;
 };
 
-export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'plan' | 'audio' | 'spark' | 'codex' | 'pulse' | 'threads';
+export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'plan' | 'audio' | 'spark' | 'codex' | 'pulse' | 'threads' | 'search';
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {
@@ -1191,4 +1227,45 @@ export type MechanismProfilePreset = {
   name: string;
   description: string;
   distribution: Partial<Record<BeatMechanism, number>>;
+};
+
+// ─── Plan Tournament Types ──────────────────────────────────────────
+
+export type PlanCandidate = {
+  id: string;
+  plan: BeatPlan;
+  centroid: number[];
+  similarityScore: number;
+  beatScores: { beatIndex: number; score: number }[];
+  timestamp: number;
+};
+
+export type PlanTournament = {
+  sceneId: string;
+  candidates: PlanCandidate[];
+  winner: string;
+  createdAt: number;
+};
+
+// ─── Semantic Search Types ──────────────────────────────────────────
+
+export type SearchResult = {
+  type: 'proposition' | 'beat' | 'scene';
+  id: string;
+  sceneId: string;
+  beatIndex?: number;
+  propIndex?: number;
+  content: string;
+  similarity: number;
+  context: string;
+};
+
+export type SearchQuery = {
+  query: string;
+  embedding: number[];
+  results: SearchResult[];
+  timeline: { sceneIndex: number; maxSimilarity: number }[];
+  topArc: { arcId: string; avgSimilarity: number } | null;
+  topScene: { sceneId: string; similarity: number } | null;
+  topBeat: { sceneId: string; beatIndex: number; similarity: number } | null;
 };

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
+import { useImageUrl } from '@/hooks/useAssetUrl';
 import { resolveEntry } from '@/types/narrative';
 import { apiHeaders } from '@/lib/api-headers';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
@@ -9,7 +10,7 @@ import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import MediaPreview from '@/components/sidebar/MediaPreview';
 import { IconSpinner, IconImage, IconSettings, IconRefresh } from '@/components/icons';
 import type { MediaItem } from '@/components/sidebar/MediaPreview';
-import type { Scene, Character, Location, Artifact } from '@/types/narrative';
+import type { Scene, Character, Location, Artifact, ImageRef } from '@/types/narrative';
 
 type AssetTab = 'characters' | 'locations' | 'artifacts' | 'scenes';
 
@@ -69,6 +70,18 @@ function GenerateButton({ onClick, disabled, generating }: { onClick: () => void
       )}
     </button>
   );
+}
+
+function ThumbnailImage({ imageRef, alt, className }: { imageRef: ImageRef; alt: string; className: string }) {
+  const resolvedUrl = useImageUrl(imageRef);
+  if (!resolvedUrl) return null;
+  return <img src={resolvedUrl} alt={alt} className={className} />;
+}
+
+function SceneImage({ imageRef, alt, className }: { imageRef: ImageRef; alt: string; className: string }) {
+  const resolvedUrl = useImageUrl(imageRef);
+  if (!resolvedUrl) return null;
+  return <img src={resolvedUrl} alt={alt} className={className} />;
 }
 
 export default function MediaDrive() {
@@ -392,7 +405,7 @@ export default function MediaDrive() {
           <div key={char.id} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-bg-elevated transition-colors">
             {char.imageUrl ? (
               <button onClick={() => openPreview(char.id)} className="shrink-0">
-                <img src={char.imageUrl} alt={char.name} className="w-8 h-8 rounded-full object-cover border border-border hover:border-accent/50 transition-colors" />
+                <ThumbnailImage imageRef={char.imageUrl} alt={char.name} className="w-8 h-8 rounded-full object-cover border border-border hover:border-accent/50 transition-colors" />
               </button>
             ) : (
               <div className="w-8 h-8 rounded-full bg-white/6 shrink-0 flex items-center justify-center border border-border border-dashed">
@@ -415,7 +428,7 @@ export default function MediaDrive() {
           <div key={loc.id} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-bg-elevated transition-colors">
             {loc.imageUrl ? (
               <button onClick={() => openPreview(loc.id)} className="shrink-0">
-                <img src={loc.imageUrl} alt={loc.name} className="w-8 h-8 rounded object-cover border border-border hover:border-accent/50 transition-colors" />
+                <ThumbnailImage imageRef={loc.imageUrl} alt={loc.name} className="w-8 h-8 rounded object-cover border border-border hover:border-accent/50 transition-colors" />
               </button>
             ) : (
               <div className="w-8 h-8 rounded bg-white/6 shrink-0 flex items-center justify-center border border-border border-dashed">
@@ -440,7 +453,7 @@ export default function MediaDrive() {
           <div key={artifact.id} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-bg-elevated transition-colors">
             {artifact.imageUrl ? (
               <button onClick={() => openPreview(artifact.id)} className="shrink-0">
-                <img src={artifact.imageUrl} alt={artifact.name} className="w-8 h-8 rounded object-cover border border-border hover:border-accent/50 transition-colors" />
+                <ThumbnailImage imageRef={artifact.imageUrl} alt={artifact.name} className="w-8 h-8 rounded object-cover border border-border hover:border-accent/50 transition-colors" />
               </button>
             ) : (
               <div className="w-8 h-8 rounded bg-white/6 shrink-0 flex items-center justify-center border border-border border-dashed">
@@ -467,7 +480,7 @@ export default function MediaDrive() {
                   onClick={() => openPreview(scene.id)}
                   className="w-full"
                 >
-                  <img src={scene.imageUrl} alt={scene.summary} className="w-full aspect-2/3 object-cover" />
+                  <SceneImage imageRef={scene.imageUrl} alt={scene.summary} className="w-full aspect-2/3 object-cover" />
                   <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent px-2 py-1.5">
                     <p className="text-[10px] text-white/70 leading-tight truncate">
                       <span className="text-white/40 font-mono mr-1">{scene.id}</span>

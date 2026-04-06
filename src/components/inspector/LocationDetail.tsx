@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
+import { useImageUrl } from '@/hooks/useAssetUrl';
 import { getContinuityNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
 import type { ContinuityNodeType } from '@/types/narrative';
 import { CollapsibleSection } from './CollapsibleSection';
@@ -59,6 +60,8 @@ export default function LocationDetail({ locationId }: Props) {
   const location = narrative.locations[locationId];
   if (!location) return null;
 
+  const imageUrl = useImageUrl(location.imageUrl);
+
   const parent = location.parentId ? narrative.locations[location.parentId] : null;
 
   const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
@@ -101,9 +104,9 @@ export default function LocationDetail({ locationId }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {/* Establishing shot */}
-      {location.imageUrl && (
+      {imageUrl && (
         <img
-          src={location.imageUrl}
+          src={imageUrl}
           alt={location.name}
           className="w-full aspect-video object-cover rounded-lg border border-border"
         />

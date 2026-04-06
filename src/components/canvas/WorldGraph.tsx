@@ -17,6 +17,7 @@ import ThreadGraphView from './ThreadGraphView';
 import { ScenePlanView } from './ScenePlanView';
 import { SceneProseView } from './SceneProseView';
 import { SceneAudioView } from './SceneAudioView';
+import { SearchView } from './SearchView';
 import {
   type GraphNode,
   type GraphLink,
@@ -1177,6 +1178,8 @@ export default function WorldGraph() {
           onSelectThread={(id) => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } })}
           hideControls hideLegend
         />
+      ) : graphViewMode === 'search' ? (
+        <SearchView />
       ) : graphViewMode === 'spark' || graphViewMode === 'codex' ? (
         <KnowledgeGraphView
           narrative={narrative!}

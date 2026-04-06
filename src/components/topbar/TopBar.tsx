@@ -22,11 +22,14 @@ import { BeatProfileModal } from '@/components/topbar/BeatProfileModal';
 import { ThreadGraphModal } from '@/components/topbar/ThreadGraphModal';
 import { NarrativeEditModal } from '@/components/topbar/NarrativeEditModal';
 import { UsageDropdown, computeTotalCost } from '@/components/topbar/UsageAnalyticsModal';
+import { RegenerateEmbeddingsModal } from '@/components/topbar/RegenerateEmbeddingsModal';
+import { ExportPackageModal } from '@/components/topbar/ExportPackageModal';
+import { ImportPackageModal } from '@/components/topbar/ImportPackageModal';
 import type { NarrativeEntry } from '@/types/narrative';
 import { IconChevronDown, IconChevronRight, IconPlus, IconImport, IconSettings, IconDownload, IconFork, IconDocument, IconDollar, IconScorecard, IconBook } from '@/components/icons';
 import { NowPlayingPill } from '@/components/canvas/AudioMiniPlayer';
 import { exportEpub } from '@/lib/epub-export';
-import { idbGet, AUDIO_STORE } from '@/lib/idb';
+import { assetManager } from '@/lib/asset-manager';
 import Image from 'next/image';
 
 
@@ -296,6 +299,8 @@ export default function TopBar() {
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [exportPackageOpen, setExportPackageOpen] = useState(false);
+  const [importPackageOpen, setImportPackageOpen] = useState(false);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<'arcs' | 'delivery'>('arcs');
@@ -418,11 +423,13 @@ export default function TopBar() {
       return;
     }
 
+    await assetManager.init();
     const blobs: { name: string; blob: Blob }[] = [];
     for (let i = 0; i < scenes.length; i++) {
       const scene = scenes[i];
+      if (!scene.audioUrl) continue;
       try {
-        const blob = await idbGet<Blob>(AUDIO_STORE, scene.id);
+        const blob = await assetManager.getAudio(scene.audioUrl);
         if (blob) {
           const arcName = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id))?.name ?? 'Untitled';
           blobs.push({ name: `${String(i + 1).padStart(3, '0')}_${arcName.replace(/[^a-z0-9]/gi, '_')}.mp3`, blob });
@@ -507,6 +514,143 @@ export default function TopBar() {
       setCopyToast('Failed to copy');
     }
   }, [narrative, state.inspectorContext, state.resolvedEntryKeys]);
+
+  const handleCopyFullJson = useCallback(async () => {
+    if (!narrative) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(narrative, null, 2));
+      setExportOpen(false);
+      setCopyToast('Story JSON copied');
+    } catch (err) {
+      setCopyToast('Failed to copy');
+    }
+  }, [narrative]);
+
+  const handleCopyBranchJson = useCallback(async () => {
+    if (!narrative || !state.activeBranchId) return;
+    const resolvedKeys = resolveEntrySequence(narrative.branches, state.activeBranchId);
+    const resolvedSet = new Set(resolvedKeys);
+
+    // Collect only scenes and world builds on this branch's timeline
+    const scenes: NarrativeState['scenes'] = {};
+    const worldBuilds: NarrativeState['worldBuilds'] = {};
+    const referencedCharIds = new Set<string>();
+    const referencedLocIds = new Set<string>();
+    const referencedThreadIds = new Set<string>();
+    const referencedArcIds = new Set<string>();
+    const referencedArtifactIds = new Set<string>();
+
+    for (const key of resolvedKeys) {
+      const scene = narrative.scenes[key];
+      if (scene) {
+        scenes[key] = scene;
+        referencedCharIds.add(scene.povId);
+        for (const pid of scene.participantIds) referencedCharIds.add(pid);
+        referencedLocIds.add(scene.locationId);
+        for (const tm of scene.threadMutations) referencedThreadIds.add(tm.threadId);
+        for (const cm of scene.continuityMutations) referencedCharIds.add(cm.characterId);
+        for (const rm of scene.relationshipMutations) { referencedCharIds.add(rm.from); referencedCharIds.add(rm.to); }
+        if (scene.characterMovements) {
+          for (const [cid, mv] of Object.entries(scene.characterMovements)) {
+            referencedCharIds.add(cid);
+            referencedLocIds.add(mv.locationId);
+          }
+        }
+        for (const om of scene.ownershipMutations ?? []) referencedArtifactIds.add(om.artifactId);
+        for (const [arcId, arc] of Object.entries(narrative.arcs)) {
+          if (arc.sceneIds.includes(key)) referencedArcIds.add(arcId);
+        }
+      }
+      const wb = narrative.worldBuilds[key];
+      if (wb) worldBuilds[key] = wb;
+    }
+
+    for (const wb of Object.values(worldBuilds)) {
+      const m = wb.expansionManifest;
+      if (m) {
+        for (const c of m.characters ?? []) referencedCharIds.add(c.id);
+        for (const l of m.locations ?? []) referencedLocIds.add(l.id);
+        for (const t of m.threads ?? []) referencedThreadIds.add(t.id);
+        for (const a of m.artifacts ?? []) referencedArtifactIds.add(a.id);
+      }
+    }
+
+    for (const locId of [...referencedLocIds]) {
+      let current = narrative.locations[locId];
+      while (current?.parentId && !referencedLocIds.has(current.parentId)) {
+        referencedLocIds.add(current.parentId);
+        current = narrative.locations[current.parentId];
+      }
+    }
+
+    const characters: NarrativeState['characters'] = {};
+    for (const id of referencedCharIds) if (narrative.characters[id]) characters[id] = narrative.characters[id];
+
+    const locations: NarrativeState['locations'] = {};
+    for (const id of referencedLocIds) if (narrative.locations[id]) locations[id] = narrative.locations[id];
+
+    const threads: NarrativeState['threads'] = {};
+    for (const id of referencedThreadIds) if (narrative.threads[id]) threads[id] = narrative.threads[id];
+
+    const artifacts: NarrativeState['artifacts'] = {};
+    for (const id of referencedArtifactIds) if (narrative.artifacts?.[id]) artifacts[id] = narrative.artifacts[id];
+
+    const arcs: NarrativeState['arcs'] = {};
+    for (const id of referencedArcIds) if (narrative.arcs[id]) arcs[id] = narrative.arcs[id];
+
+    const relationships = narrative.relationships.filter(
+      (r) => referencedCharIds.has(r.from) && referencedCharIds.has(r.to)
+    );
+
+    const branch = narrative.branches[state.activeBranchId];
+    const branches: NarrativeState['branches'] = {};
+
+    const exportBranchObj: Branch = {
+      id: state.activeBranchId,
+      name: branch?.name ?? 'main',
+      parentBranchId: null,
+      forkEntryId: null,
+      entryIds: resolvedKeys,
+      planningQueue: branch?.planningQueue,
+      createdAt: branch?.createdAt ?? Date.now(),
+    };
+    branches[state.activeBranchId] = exportBranchObj;
+
+    const exported: NarrativeState = {
+      id: narrative.id,
+      title: narrative.title,
+      description: narrative.description,
+      characters,
+      locations,
+      threads,
+      artifacts,
+      arcs,
+      scenes,
+      worldBuilds,
+      branches,
+      relationships,
+      worldKnowledge: narrative.worldKnowledge,
+      worldSummary: narrative.worldSummary,
+      rules: narrative.rules,
+      worldSystems: narrative.worldSystems,
+      storySettings: narrative.storySettings,
+      imageStyle: narrative.imageStyle,
+      coverImageUrl: narrative.coverImageUrl,
+      structureReviews: narrative.structureReviews?.[state.activeBranchId]
+        ? { [state.activeBranchId]: narrative.structureReviews[state.activeBranchId] }
+        : undefined,
+      createdAt: narrative.createdAt,
+      updatedAt: narrative.updatedAt,
+    };
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(exported, null, 2));
+      setExportOpen(false);
+      setCopyToast('Branch JSON copied');
+    } catch (err) {
+      setCopyToast('Failed to copy');
+    }
+  }, [narrative, state.activeBranchId]);
 
   const narrativeLogs = useMemo(() =>
     state.activeNarrativeId
@@ -812,27 +956,23 @@ export default function TopBar() {
                     <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Export</span>
                   </div>
                   <button
-                    onClick={() => { exportNarrative(narrative); setSelectorOpen(false); }}
+                    onClick={() => { setExportPackageOpen(true); setSelectorOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
                   >
                     <IconDownload size={12} className="text-text-dim shrink-0" />
-                    Full JSON
+                    Story Package (.inktide)
                   </button>
-                  {state.activeBranchId && (
-                    <button
-                      onClick={() => { exportBranch(narrative, state.activeBranchId!); setSelectorOpen(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                    >
-                      <IconFork size={12} className="text-text-dim shrink-0" />
-                      Branch JSON
-                    </button>
-                  )}
+
+                  {/* Import group */}
+                  <div className="px-3 pt-2 pb-1">
+                    <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Import</span>
+                  </div>
                   <button
-                    onClick={() => { setReportOpen(true); setSelectorOpen(false); }}
+                    onClick={() => { setImportPackageOpen(true); setSelectorOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
                   >
-                    <IconDocument size={12} className="text-text-dim shrink-0" />
-                    Analysis Report
+                    <IconImport size={12} className="text-text-dim shrink-0" />
+                    Story Package (.inktide)
                   </button>
                 </div>
               )}
@@ -1262,20 +1402,36 @@ export default function TopBar() {
                   </div>
                   <button onClick={() => copyAllText('prose')} disabled={!exportAvailability.hasProse} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasProse ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                    All Prose
+                    Prose
                   </button>
                   <button onClick={() => copyAllText('plan')} disabled={!exportAvailability.hasPlans} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasPlans ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                    All Plans
+                    Plans
                   </button>
                   <button onClick={() => copyAllText('summary')} disabled={!exportAvailability.hasSummaries} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasSummaries ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                    All Summaries
+                    Summaries
+                  </button>
+                  <button onClick={handleCopyCurrentEntryJson} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors text-text-secondary hover:text-text-primary hover:bg-white/5">
+                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    {state.inspectorContext?.type === 'scene' ? 'Scene' : 'World Commit'}
+                  </button>
+                  <button onClick={handleCopyFullJson} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors text-text-secondary hover:text-text-primary hover:bg-white/5">
+                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    Story
+                  </button>
+                  <button onClick={handleCopyBranchJson} disabled={!state.activeBranchId} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${state.activeBranchId ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
+                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    Branch
                   </button>
                   <div className="my-1 border-t border-white/8" />
                   <div className="px-3 pt-1.5 pb-1">
                     <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Export</span>
                   </div>
+                  <button onClick={() => { setReportOpen(true); setExportOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors text-text-secondary hover:text-text-primary hover:bg-white/5">
+                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                    Analysis Report
+                  </button>
                   <button onClick={handleExportEpub} disabled={!exportAvailability.hasProse} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasProse ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <IconBook size={14} className="text-text-dim shrink-0" />
                     EPUB
@@ -1283,11 +1439,6 @@ export default function TopBar() {
                   <button onClick={handleExportAudio} disabled={!exportAvailability.hasAudio} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${exportAvailability.hasAudio ? 'text-text-secondary hover:text-text-primary hover:bg-white/5' : 'text-text-dim/50 cursor-not-allowed'}`}>
                     <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
                     Audio
-                  </button>
-                  <div className="my-1 border-t border-white/8" />
-                  <button onClick={handleCopyCurrentEntryJson} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors text-text-secondary hover:text-text-primary hover:bg-white/5">
-                    <svg className="w-3.5 h-3.5 text-text-dim shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                    {state.inspectorContext?.type === 'scene' ? 'Current Scene JSON' : 'Current World Commit JSON'}
                   </button>
                 </div>
               )}
@@ -1352,10 +1503,11 @@ export default function TopBar() {
           onClose={() => setMarkovOpen(false)}
         />
       )}
-      {beatProfileOpen && narrative && (
+      {beatProfileOpen && narrative && state.activeBranchId && (
         <BeatProfileModal
           narrative={narrative}
           resolvedKeys={state.resolvedEntryKeys}
+          branchId={state.activeBranchId}
           onClose={() => setBeatProfileOpen(false)}
         />
       )}
@@ -1383,6 +1535,12 @@ export default function TopBar() {
       )}
       {editingEntry && (
         <NarrativeEditModal entry={editingEntry} onClose={() => setEditingEntry(null)} />
+      )}
+      {exportPackageOpen && narrative && (
+        <ExportPackageModal narrative={narrative} onClose={() => setExportPackageOpen(false)} />
+      )}
+      {importPackageOpen && (
+        <ImportPackageModal onClose={() => setImportPackageOpen(false)} />
       )}
     </div>
   );

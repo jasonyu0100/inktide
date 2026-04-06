@@ -156,3 +156,26 @@ export const BEAT_DENSITY_DEFAULT = 11;
 export const WORDS_PER_BEAT_MIN = Math.round(1000 / BEAT_DENSITY_MAX);     // ~71
 export const WORDS_PER_BEAT_MAX = Math.round(1000 / BEAT_DENSITY_MIN);     // ~125
 export const WORDS_PER_BEAT_DEFAULT = Math.round(1000 / BEAT_DENSITY_DEFAULT); // ~91
+
+// ── Embeddings & Semantic Search ─────────────────────────────────────────────
+
+/** OpenAI embedding model for semantic search */
+export const EMBEDDING_MODEL = 'text-embedding-3-small';
+
+/** Embedding vector dimensions (OpenAI text-embedding-3-small) */
+export const EMBEDDING_DIMENSIONS = 1536;
+
+/** Batch size for embedding API calls (texts per request) */
+export const EMBEDDING_BATCH_SIZE = 50;
+
+/** Concurrent embedding generation batches */
+export const EMBEDDING_CONCURRENCY = 10;
+
+/** Number of top results to return in search */
+export const SEARCH_TOP_K = 20;
+
+/** Minimum cosine similarity threshold for search results (0-1) */
+export const SEARCH_SIMILARITY_THRESHOLD = 0.5;
+
+/** Number of candidate plans to generate in plan tournament */
+export const PLAN_TOURNAMENT_CANDIDATES = 5;

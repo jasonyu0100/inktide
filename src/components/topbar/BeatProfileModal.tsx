@@ -5,6 +5,7 @@ import type { NarrativeState, BeatFn, BeatMechanism, Scene } from '@/types/narra
 import { BEAT_FN_LIST, resolveEntry, isScene } from '@/types/narrative';
 import { computeSamplerFromPlans } from '@/lib/beat-profiles';
 import { flattenFnMechDist } from '@/lib/mechanism-profiles';
+import { resolvePlanForBranch } from '@/lib/narrative-utils';
 import { Modal, ModalHeader } from '@/components/Modal';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -15,6 +16,7 @@ type BeatRow = Record<BeatFn, number>;
 type Props = {
   narrative: NarrativeState;
   resolvedKeys: string[];
+  branchId: string;
   onClose: () => void;
 };
 
@@ -292,7 +294,7 @@ function BeatTransitionGraph({
 
 // ── Main Modal ───────────────────────────────────────────────────────────────
 
-export function BeatProfileModal({ narrative, resolvedKeys, onClose }: Props) {
+export function BeatProfileModal({ narrative, resolvedKeys, branchId, onClose }: Props) {
   const [focusedFn, setFocusedFn] = useState<BeatFn | null>(null);
   const graphRef = useRef<HTMLDivElement>(null);
   const [graphSize, setGraphSize] = useState({ width: 600, height: 500 });
@@ -314,10 +316,12 @@ export function BeatProfileModal({ narrative, resolvedKeys, onClose }: Props) {
       .map((k) => resolveEntry(narrative, k))
       .filter((e): e is Scene => !!e && isScene(e));
 
+    const branches = narrative.branches;
     const seq: BeatFn[] = [];
     for (const s of scenes) {
-      if (s.plan?.beats) {
-        for (const b of s.plan.beats) seq.push(b.fn);
+      const plan = resolvePlanForBranch(s, branchId, branches);
+      if (plan?.beats) {
+        for (const b of plan.beats) seq.push(b.fn);
       }
     }
 

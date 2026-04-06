@@ -412,6 +412,39 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
     },
   });
 
+  // ── Generate embeddings for scene summaries ──────────────────────────────
+  const { generateEmbeddingsBatch, computeCentroid } = await import('@/lib/embeddings');
+
+  if (scenes.length > 0) {
+    try {
+      // Batch 1: Embed scene summaries
+      const sceneSummaries = scenes.map(s => s.summary);
+      const summaryEmbeddings = await generateEmbeddingsBatch(sceneSummaries, narrative.id);
+
+      scenes.forEach((scene, i) => {
+        scene.summaryEmbedding = summaryEmbeddings[i];
+
+        // If scene has plan (in version array), compute plan centroid from beat centroids
+        const latestPlan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
+        if (latestPlan) {
+          const allBeatCentroids = latestPlan.beats
+            .map(b => b.embeddingCentroid)
+            .filter((e): e is number[] => Array.isArray(e));
+          if (allBeatCentroids.length > 0) {
+            scene.planEmbeddingCentroid = computeCentroid(allBeatCentroids);
+          }
+        }
+      });
+    } catch (error) {
+      // Log error but don't fail scene generation if embedding fails
+      logError('Failed to generate embeddings for scenes', error, {
+        source: 'manual-generation',
+        operation: 'embed-summaries',
+        details: { narrativeId: narrative.id, arcId, sceneCount: scenes.length },
+      });
+    }
+  }
+
   return { scenes, arc };
 }
 
@@ -444,7 +477,7 @@ export async function generateScenePlan(
   // Previous scene's beat plan for flow continuity
   const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
   const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
-  const prevPlan = prevScene?.plan;
+  const prevPlan = prevScene?.planVersions?.[prevScene.planVersions.length - 1]?.plan;
 
   const adjacentBlock = prevPlan
     ? `PREVIOUS SCENE ends with: ${prevPlan.beats.slice(-3).map((b) => `[${b.fn}:${b.mechanism}] ${b.what}`).join(', ')}`
@@ -652,6 +685,7 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
       mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
       what: String(beat.what ?? ''),
       propositions: parsePropositions(rawProps),
+      embeddingCentroid: undefined as number[] | undefined,
     };
   });
 
@@ -662,6 +696,54 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
     beats,
     propositions: scenePropositions.length > 0 ? scenePropositions : undefined,
   };
+
+  // ── Generate embeddings for all propositions ─────────────────────────────
+  const { embedPropositions, computeCentroid } = await import('@/lib/embeddings');
+
+  // Collect all propositions from beats and scene-level
+  const allPropositions: Array<{ content: string; type?: string }> = [];
+  if (result.propositions) {
+    allPropositions.push(...result.propositions);
+  }
+  result.beats.forEach(beat => {
+    allPropositions.push(...beat.propositions);
+  });
+
+  // Embed all propositions in batch
+  if (allPropositions.length > 0) {
+    try {
+      const embeddedProps = await embedPropositions(allPropositions, narrative.id);
+
+      // Map embeddings back to plan
+      let embeddedIndex = 0;
+      if (result.propositions) {
+        for (let i = 0; i < result.propositions.length; i++) {
+          result.propositions[i] = embeddedProps[embeddedIndex++];
+        }
+      }
+
+      for (const beat of result.beats) {
+        for (let i = 0; i < beat.propositions.length; i++) {
+          beat.propositions[i] = embeddedProps[embeddedIndex++];
+        }
+
+        // Compute beat centroid from proposition embeddings
+        const beatEmbeddings = beat.propositions
+          .map(p => p.embedding)
+          .filter((e): e is number[] => Array.isArray(e));
+        if (beatEmbeddings.length > 0) {
+          beat.embeddingCentroid = computeCentroid(beatEmbeddings);
+        }
+      }
+    } catch (error) {
+      // Log error but don't fail plan generation if embedding fails
+      logError('Failed to generate embeddings for plan', error, {
+        source: 'plan-generation',
+        operation: 'embed-propositions',
+        details: { narrativeId: narrative.id, sceneId: scene.id },
+      });
+    }
+  }
 
   logInfo('Completed beat plan generation', {
     source: 'plan-generation',
@@ -1514,9 +1596,9 @@ export async function generateSceneProse(
   guidance?: string,
   /** Resolved plan to use (overrides scene.plan for versioned scenes) */
   plan?: BeatPlan,
-): Promise<{ prose: string; beatProseMap?: BeatProseMap }> {
-  // Use provided plan or fall back to scene.plan (for backward compatibility)
-  const activePlan = plan ?? scene.plan;
+): Promise<{ prose: string; beatProseMap?: BeatProseMap; proseEmbedding?: number[] }> {
+  // Use provided plan (required for prose generation)
+  const activePlan = plan ?? scene.planVersions?.[scene.planVersions.length - 1]?.plan;
 
   logInfo('Starting prose generation', {
     source: 'prose-generation',
@@ -1536,7 +1618,7 @@ export async function generateSceneProse(
   // Previous scene prose ending for transition continuity
   const prevSceneKey = sceneIdx > 0 ? resolvedKeys[sceneIdx - 1] : null;
   const prevScene = prevSceneKey ? narrative.scenes[prevSceneKey] : null;
-  const prevProse = prevScene?.prose;
+  const prevProse = prevScene?.proseVersions?.[prevScene.proseVersions.length - 1]?.prose;
   const prevProseEnding = prevProse
     ? prevProse.split('\n').filter((l) => l.trim()).slice(-3).join('\n')
     : '';
@@ -1766,7 +1848,25 @@ ${instruction}`;
     },
   });
 
-  return result;
+  // ── Generate prose embedding ─────────────────────────────────────────────
+  const { generateEmbeddings } = await import('@/lib/embeddings');
+
+  let proseEmbedding: number[] | undefined;
+  if (result.prose && result.prose.length > 0) {
+    try {
+      const embeddings = await generateEmbeddings([result.prose], narrative.id);
+      proseEmbedding = embeddings[0];
+    } catch (error) {
+      // Log error but don't fail prose generation if embedding fails
+      logError('Failed to generate prose embedding', error, {
+        source: 'prose-generation',
+        operation: 'embed-prose',
+        details: { narrativeId: narrative.id, sceneId: scene.id },
+      });
+    }
+  }
+
+  return { ...result, proseEmbedding };
 }
 
 // ── Shared Helpers ───────────────────────────────────────────────────────────

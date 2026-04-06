@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useImageUrl } from '@/hooks/useAssetUrl';
 import { IconClose, IconChevronLeft, IconChevronRight } from '@/components/icons';
 
 export type MediaItem = {
@@ -21,6 +22,7 @@ type Props = {
 
 export default function MediaPreview({ items, currentIndex, onNavigate, onClose }: Props) {
   const item = items[currentIndex];
+  const resolvedUrl = useImageUrl(item?.imageUrl);
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < items.length - 1;
 
@@ -63,11 +65,13 @@ export default function MediaPreview({ items, currentIndex, onNavigate, onClose 
         </button>
 
         {/* Image */}
-        <img
-          src={item.imageUrl}
-          alt={item.label}
-          className="rounded-xl object-contain max-h-[75vh] max-w-[85vw] border border-white/10 shadow-2xl"
-        />
+        {resolvedUrl && (
+          <img
+            src={resolvedUrl}
+            alt={item.label}
+            className="rounded-xl object-contain max-h-[75vh] max-w-[85vw] border border-white/10 shadow-2xl"
+          />
+        )}
 
         {/* Caption */}
         <div className="mt-3 text-center">

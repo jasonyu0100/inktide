@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
+import { useImageUrl } from '@/hooks/useAssetUrl';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { computeForceSnapshots, detectCubeCorner } from '@/lib/narrative-utils';
 
@@ -158,6 +159,7 @@ export default function SceneDetail({ sceneId }: Props) {
 
   // ── Scene Commit view ───────────────────────────────────────────────────
   const scene = entry;
+  const imageUrl = useImageUrl(scene.imageUrl);
   const location = narrative.locations[scene.locationId];
   const effectivePovId = scene.povId || scene.participantIds[0];
   const povCharacter = effectivePovId ? narrative.characters[effectivePovId] : null;
@@ -172,9 +174,9 @@ export default function SceneDetail({ sceneId }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {/* Scene still */}
-      {scene.imageUrl && (
+      {imageUrl && (
         <img
-          src={scene.imageUrl}
+          src={imageUrl}
           alt={scene.summary}
           className="w-full aspect-video object-cover rounded-lg border border-border"
         />

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, ProseVersion, PlanVersion } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, BeatPlan, BeatProseMap, ProseScore } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
@@ -322,7 +322,7 @@ export type Action =
   | { type: 'SET_GRAPH_VIEW_MODE'; mode: GraphViewMode }
   | { type: 'SWITCH_BRANCH'; branchId: string }
   // Scene mutations
-  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'prose' | 'plan' | 'beatProseMap' | 'proseScore' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId'>>; versionType?: 'generate' | 'rewrite' | 'edit'; sourcePlanVersion?: string }
+  | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId' | 'proseEmbedding' | 'summaryEmbedding' | 'planEmbeddingCentroid'>> & { prose?: string; plan?: BeatPlan; beatProseMap?: BeatProseMap; proseScore?: ProseScore }; versionType?: 'generate' | 'rewrite' | 'edit'; sourcePlanVersion?: string }
   | { type: 'DELETE_SCENE'; sceneId: string; branchId: string }
   // Branch management
   | { type: 'CREATE_BRANCH'; branch: Branch }
@@ -962,44 +962,8 @@ function reducer(state: AppState, action: Action): AppState {
     case 'BULK_ADD_SCENES': {
       const newState = updateNarrative(state, (n) => {
         const newScenes = { ...n.scenes };
-        const timestamp = Date.now();
         for (const scene of action.scenes) {
-          // Convert legacy prose/plan to versions
-          const updatedScene = { ...scene };
-
-          // If scene has prose, convert to V1 ProseVersion
-          if (scene.prose) {
-            const proseVersion: ProseVersion = {
-              prose: scene.prose,
-              beatProseMap: scene.beatProseMap,
-              proseScore: scene.proseScore,
-              branchId: action.branchId,
-              timestamp,
-              version: '1',
-              versionType: 'generate',
-            };
-            updatedScene.proseVersions = [proseVersion];
-            // Clear legacy fields
-            delete updatedScene.prose;
-            delete updatedScene.beatProseMap;
-            delete updatedScene.proseScore;
-          }
-
-          // If scene has plan, convert to V1 PlanVersion
-          if (scene.plan) {
-            const planVersion: PlanVersion = {
-              plan: scene.plan,
-              branchId: action.branchId,
-              timestamp,
-              version: '1',
-              versionType: 'generate',
-            };
-            updatedScene.planVersions = [planVersion];
-            // Clear legacy field
-            delete updatedScene.plan;
-          }
-
-          newScenes[scene.id] = updatedScene;
+          newScenes[scene.id] = scene;
         }
 
         const newSceneIds = action.scenes.map((s) => s.id);
@@ -1859,6 +1823,70 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const intervalId = setInterval(cleanup, CLEANUP_INTERVAL_MS);
     return () => clearInterval(intervalId);
   }, [state.apiLogs]);
+
+  // Generate prose embeddings for manual prose edits
+  const proseEmbeddingQueueRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const narrative = state.activeNarrative;
+    const branchId = state.activeBranchId;
+    if (!narrative || !branchId) return;
+
+    // Check all scenes for prose that needs embedding
+    const scenesToEmbed: Array<{ sceneId: string; prose: string; version: string }> = [];
+
+    for (const [sceneId, scene] of Object.entries(narrative.scenes)) {
+      if (!scene.proseVersions || scene.proseVersions.length === 0) continue;
+
+      // Get the latest prose version for this branch
+      const latestVersion = scene.proseVersions[scene.proseVersions.length - 1];
+      if (!latestVersion || !latestVersion.prose) continue;
+
+      // Skip if already queued or already has embedding
+      const queueKey = `${sceneId}-${latestVersion.version}`;
+      if (proseEmbeddingQueueRef.current.has(queueKey)) continue;
+      if (scene.proseEmbedding) continue; // Scene already has embedding
+
+      scenesToEmbed.push({
+        sceneId,
+        prose: latestVersion.prose,
+        version: latestVersion.version,
+      });
+    }
+
+    // Generate embeddings for all pending prose
+    if (scenesToEmbed.length > 0) {
+      for (const { sceneId, prose, version } of scenesToEmbed) {
+        const queueKey = `${sceneId}-${version}`;
+        proseEmbeddingQueueRef.current.add(queueKey);
+
+        (async () => {
+          try {
+            const { generateEmbeddings } = await import('@/lib/embeddings');
+            const embeddings = await generateEmbeddings([prose], narrative.id);
+            const proseEmbedding = embeddings[0];
+
+            // Update scene with embedding (non-versioned update)
+            dispatch({
+              type: 'UPDATE_SCENE',
+              sceneId,
+              updates: { proseEmbedding },
+            });
+
+            // Remove from queue
+            proseEmbeddingQueueRef.current.delete(queueKey);
+          } catch (err) {
+            // Log error but don't fail - embedding is non-critical
+            logError('Failed to generate prose embedding', err, {
+              source: 'prose-generation',
+              operation: 'embed-prose-manual',
+              details: { sceneId, narrativeId: narrative.id },
+            });
+            proseEmbeddingQueueRef.current.delete(queueKey);
+          }
+        })();
+      }
+    }
+  }, [state.activeNarrative, state.activeBranchId]);
 
   // Keyboard shortcuts
   useEffect(() => {

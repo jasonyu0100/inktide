@@ -51,6 +51,11 @@ function createSceneWithPlan(
   id: string,
   beats: Array<{ fn: string; mechanism: BeatMechanism }>,
 ): Scene {
+  const plan = beats.length > 0 ? {
+    beats: beats.map((b) => ({ fn: b.fn as any, mechanism: b.mechanism, what: 'test beat', propositions: [{ content: 'test anchor' }] })),
+    propositions: [],
+  } : undefined;
+
   return {
     kind: 'scene',
     id,
@@ -64,10 +69,13 @@ function createSceneWithPlan(
     relationshipMutations: [],
     characterMovements: {},
     summary: 'Test scene',
-    plan: {
-      beats: beats.map((b) => ({ fn: b.fn as any, mechanism: b.mechanism, what: 'test beat', propositions: [{ content: 'test anchor' }] })),
-      propositions: [],
-    },
+    planVersions: plan ? [{
+      plan,
+      branchId: 'main',
+      timestamp: Date.now(),
+      version: '1',
+      versionType: 'generate' as const,
+    }] : undefined,
   };
 }
 
@@ -121,10 +129,7 @@ describe('computeMechanismDist', () => {
       createSceneWithPlan('s1', [
         { fn: 'breathe', mechanism: 'dialogue' },
       ]),
-      {
-        ...createSceneWithPlan('s2', []),
-        plan: undefined,
-      },
+      createSceneWithPlan('s2', []), // Empty beats array creates scene without plan
     ];
     const dist = computeMechanismDist(scenes);
     expect(dist).toBeDefined();

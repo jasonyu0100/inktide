@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useImageUrl } from '@/hooks/useAssetUrl';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import { scoreColor, timeAgo } from '@/lib/ui-utils';
 import type { NarrativeEntry } from '@/types/narrative';
@@ -40,6 +41,7 @@ export function StoryCard({
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
+  const coverUrl = useImageUrl(entry.coverImageUrl);
   const isLg = size === 'lg';
   const svgSize = isLg ? 22 : 20;
   const svgHeight = isLg ? 10 : 9;
@@ -53,10 +55,10 @@ export function StoryCard({
       <div
         className={`relative rounded-xl overflow-hidden border border-white/6 bg-transparent transition-all duration-300 group-hover:border-white/15 group-hover:-translate-y-1 group-hover:shadow-[0_8px_30px_-10px_rgba(80,200,160,0.2)] ${isLg ? 'h-96' : 'h-80'}`}
       >
-        {entry.coverImageUrl && (
+        {coverUrl && (
           <div className="absolute inset-0">
             <img
-              src={entry.coverImageUrl}
+              src={coverUrl}
               alt=""
               className="w-full h-full object-cover"
             />

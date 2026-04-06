@@ -217,11 +217,12 @@ export async function deriveProseProfile(narrative: NarrativeState): Promise<Pro
   }
 
   // Sample prose excerpts (first few scenes that have prose)
-  const withProse = scenes.filter((s) => s.prose);
+  const withProse = scenes.filter((s) => s.proseVersions && s.proseVersions.length > 0);
   if (withProse.length > 0) {
     lines.push(`\nPROSE EXCERPTS:`);
     for (const s of withProse.slice(0, 3)) {
-      const excerpt = s.prose!.slice(0, 2000);
+      const latestProse = s.proseVersions![s.proseVersions!.length - 1].prose;
+      const excerpt = latestProse.slice(0, 2000);
       lines.push(`---\n${excerpt}\n---`);
     }
   }

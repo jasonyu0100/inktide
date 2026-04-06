@@ -90,8 +90,8 @@ export function useBulkAudioGenerate() {
         }
 
         const blob = await res.blob();
-        const marker = await saveAudioBlob(sceneId, blob);
-        dispatch({ type: 'SET_SCENE_AUDIO', sceneId, audioUrl: marker });
+        const audioId = await saveAudioBlob(blob, activeNarrative.id);
+        dispatch({ type: 'SET_SCENE_AUDIO', sceneId, audioUrl: audioId });
       } catch (err) {
         logError('Failed to generate audio for scene', err, {
           source: 'other',

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
-import { resolveAudioUrl, saveAudioBlob, deleteAudioBlob } from '@/lib/audio-store';
+import { assetManager } from '@/lib/asset-manager';
 import { useStore } from '@/lib/store';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { apiHeaders } from '@/lib/api-headers';
@@ -74,7 +74,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     setPlayerState((s) => ({ ...s, sceneId, playing: false, currentTime: 0, duration: 0 }));
 
-    const url = await resolveAudioUrl(audioUrl, sceneId);
+    // Resolve audio URL - audioUrl is an AudioRef (asset ID like "audio_xyz")
+    const url = await assetManager.getAudioUrl(audioUrl);
     if (!url) return;
 
     const audio = new Audio(url);
@@ -142,17 +143,18 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         throw new Error(err.error || `TTS failed (${res.status})`);
       }
       const blob = await res.blob();
-      const marker = await saveAudioBlob(sceneId, blob);
-      dispatch({ type: 'SET_SCENE_AUDIO', sceneId, audioUrl: marker });
+      // Save to asset manager and get the asset reference (e.g., "audio_xyz")
+      const audioRef = await assetManager.storeAudio(blob, 'audio/mpeg', sceneId);
+      dispatch({ type: 'SET_SCENE_AUDIO', sceneId, audioUrl: audioRef });
       setPlayerState((s) => ({ ...s, loading: false }));
     } catch {
       setPlayerState((s) => ({ ...s, loading: false }));
     }
   }, [narrative, access, dispatch]);
 
-  const clear = useCallback((sceneId: string) => {
+  const clear = useCallback(async (sceneId: string) => {
     if (playerState.sceneId === sceneId) stop();
-    deleteAudioBlob(sceneId);
+    await assetManager.deleteAudio(sceneId);
     dispatch({ type: 'CLEAR_SCENE_AUDIO', sceneId });
   }, [playerState.sceneId, stop, dispatch]);
 

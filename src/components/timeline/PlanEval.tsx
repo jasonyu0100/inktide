@@ -146,6 +146,7 @@ export default function PlanEval({ sceneRange, onRangeChange }: { sceneRange?: S
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
   const branchId = state.activeBranchId;
+  const branches = narrative?.branches ?? {};
 
   const filteredKeys = useMemo(
     () => filterKeysBySceneRange(resolvedKeys, narrative, sceneRange ?? null),
@@ -289,14 +290,18 @@ export default function PlanEval({ sceneRange, onRangeChange }: { sceneRange?: S
 
   // Resolve scenes with plans
   const scenes: { scene: Scene; arc?: Arc }[] = [];
-  if (narrative) {
+  if (narrative && branchId) {
     for (const key of filteredKeys) {
       const entry = resolveEntry(narrative, key);
-      if (entry && isScene(entry) && (entry as Scene).plan?.beats?.length) {
-        scenes.push({
-          scene: entry as Scene,
-          arc: narrative.arcs[(entry as Scene).arcId],
-        });
+      if (entry && isScene(entry)) {
+        const scene = entry as Scene;
+        const plan = resolvePlanForBranch(scene, branchId, branches);
+        if (plan?.beats?.length) {
+          scenes.push({
+            scene,
+            arc: narrative.arcs[scene.arcId],
+          });
+        }
       }
     }
   }

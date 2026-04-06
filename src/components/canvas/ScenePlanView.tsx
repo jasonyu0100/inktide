@@ -11,9 +11,11 @@ import type {
   BeatPlan,
   NarrativeState,
   Scene,
+  PlanTournament,
 } from "@/types/narrative";
 import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from "@/types/narrative";
 import { useCallback, useEffect, useState } from "react";
+import { PlanTournamentModal } from "./PlanTournamentModal";
 
 const FN_COLORS: Record<string, string> = {
   breathe: "#6b7280",
@@ -66,6 +68,7 @@ export function ScenePlanView({
     targetBeats: number;
     estWords: number;
   } | null>(null);
+  const [showTournament, setShowTournament] = useState(false);
 
   // Sync when scene or resolved plan changes
   useEffect(() => {
@@ -77,6 +80,13 @@ export function ScenePlanView({
     setReasoning("");
     setMeta(null);
   }, [scene.id, resolvedPlan]);
+
+  // Listen for tournament open event from FloatingPalette
+  useEffect(() => {
+    const handleOpenTournament = () => setShowTournament(true);
+    window.addEventListener("canvas:open-tournament", handleOpenTournament);
+    return () => window.removeEventListener("canvas:open-tournament", handleOpenTournament);
+  }, []);
 
   const generatePlan = useCallback(
     async (guidance?: string) => {
@@ -353,6 +363,23 @@ export function ScenePlanView({
     [activePlan, scene.id, dispatch],
   );
 
+  const handleSelectPlan = useCallback(
+    (tournament: PlanTournament, candidateId: string) => {
+      const candidate = tournament.candidates.find(c => c.id === candidateId);
+      if (!candidate) return;
+
+      const selectedPlan = candidate.plan;
+      setPlanCache({ plan: selectedPlan, status: "ready" });
+      dispatch({
+        type: "UPDATE_SCENE",
+        sceneId: scene.id,
+        updates: { plan: selectedPlan },
+        versionType: 'generate', // Tournament selection is like generation
+      });
+    },
+    [scene.id, dispatch],
+  );
+
   const isLoading = planCache.status === "loading";
   const hasError = planCache.status === "error";
 
@@ -624,6 +651,17 @@ export function ScenePlanView({
           </div>
         )}
       </div>
+
+      {/* Plan Tournament Modal */}
+      {showTournament && (
+        <PlanTournamentModal
+          narrative={narrative}
+          scene={scene}
+          resolvedKeys={resolvedKeys}
+          onClose={() => setShowTournament(false)}
+          onSelectPlan={handleSelectPlan}
+        />
+      )}
     </div>
   );
 }

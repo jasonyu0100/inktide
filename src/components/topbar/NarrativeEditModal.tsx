@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { apiHeaders } from '@/lib/api-headers';
+import { assetManager } from '@/lib/asset-manager';
+import { useImageUrl } from '@/hooks/useAssetUrl';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import type { NarrativeEntry } from '@/types/narrative';
 
@@ -15,7 +17,8 @@ export function NarrativeEditModal({ entry, onClose }: { entry: NarrativeEntry; 
   const [coverPrompt, setCoverPrompt] = useState('');
   const [coverGenerating, setCoverGenerating] = useState(false);
   const [coverError, setCoverError] = useState('');
-  const coverUrl = narrative?.coverImageUrl ?? entry.coverImageUrl;
+  const coverImageRef = narrative?.coverImageUrl ?? entry.coverImageUrl;
+  const coverUrl = useImageUrl(coverImageRef);
 
   function handleSave() {
     dispatch({
@@ -45,7 +48,19 @@ export function NarrativeEditModal({ entry, onClose }: { entry: NarrativeEntry; 
         throw new Error(err.error || 'Cover generation failed');
       }
       const { imageUrl } = await res.json();
-      dispatch({ type: 'SET_COVER_IMAGE', narrativeId: entry.id, imageUrl });
+
+      // If it's a data URL, convert to blob and store in AssetManager
+      let finalImageUrl = imageUrl;
+      if (imageUrl.startsWith('data:')) {
+        // Convert data URL to blob
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+
+        // Store in AssetManager and get reference ID
+        finalImageUrl = await assetManager.storeImage(blob, blob.type);
+      }
+
+      dispatch({ type: 'SET_COVER_IMAGE', narrativeId: entry.id, imageUrl: finalImageUrl });
     } catch (err) {
       setCoverError(err instanceof Error ? err.message : String(err));
     } finally {

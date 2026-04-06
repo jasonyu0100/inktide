@@ -4,16 +4,63 @@
  * Used by persistence.ts for all app storage.
  */
 
-import { logError } from '@/lib/system-logger';
+import { logError, logWarning } from '@/lib/system-logger';
 
-const DB_NAME = 'narrative-engine';
-const DB_VERSION = 4;
+const DB_NAME = 'inktide-main';
+const DB_VERSION = 1;
 const NARRATIVES_STORE = 'narratives';
 const META_STORE = 'meta';
 const API_LOGS_STORE = 'apiLogs';
-const AUDIO_STORE = 'audio';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+
+// ── Error Types ──────────────────────────────────────────────────────────────
+
+export class IndexedDBUnavailableError extends Error {
+  constructor(reason: string) {
+    super(`IndexedDB unavailable: ${reason}`);
+    this.name = 'IndexedDBUnavailableError';
+  }
+}
+
+export class IndexedDBQuotaExceededError extends Error {
+  constructor(operation: string) {
+    super(`Storage quota exceeded during: ${operation}`);
+    this.name = 'IndexedDBQuotaExceededError';
+  }
+}
+
+// ── Availability Check ───────────────────────────────────────────────────────
+
+/**
+ * Check if IndexedDB is available and usable
+ * Returns object with availability status and reason if unavailable
+ */
+export function checkIndexedDBAvailability(): { available: boolean; reason?: string } {
+  // Server-side
+  if (typeof window === 'undefined') {
+    return { available: false, reason: 'Running on server (SSR)' };
+  }
+
+  // No IndexedDB API
+  if (!window.indexedDB) {
+    return { available: false, reason: 'Browser does not support IndexedDB' };
+  }
+
+  // Check for private/incognito mode (best effort detection)
+  // Some browsers block IndexedDB in private mode
+  try {
+    // Firefox throws in private mode when checking localStorage
+    if ('storage' in navigator && 'estimate' in navigator.storage) {
+      // Modern browsers - we can proceed, will fail gracefully if blocked
+      return { available: true };
+    }
+  } catch (err) {
+    return { available: false, reason: 'Private/incognito mode detected' };
+  }
+
+  return { available: true };
+}
 
 export function openDB(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
@@ -33,9 +80,7 @@ export function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(API_LOGS_STORE)) {
         db.createObjectStore(API_LOGS_STORE);
       }
-      if (!db.objectStoreNames.contains(AUDIO_STORE)) {
-        db.createObjectStore(AUDIO_STORE);
-      }
+      // Audio storage migrated to inktide-assets database (asset-manager.ts)
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => {
@@ -125,4 +170,4 @@ export async function idbDeleteByPrefix(storeName: string, prefix: string): Prom
 
 // ── Store name constants ─────────────────────────────────────────────────────
 
-export { NARRATIVES_STORE, META_STORE, API_LOGS_STORE, AUDIO_STORE };
+export { NARRATIVES_STORE, META_STORE, API_LOGS_STORE };

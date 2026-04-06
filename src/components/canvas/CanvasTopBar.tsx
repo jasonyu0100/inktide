@@ -4,13 +4,15 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ProseVersion, type PlanVersion } from '@/types/narrative';
 import type { GraphViewMode } from '@/types/narrative';
-import { getResolvedProseVersion, getResolvedPlanVersion } from '@/lib/narrative-utils';
+import { getResolvedProseVersion, getResolvedPlanVersion, resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
 import { VersionHistoryTree } from './VersionHistoryTree';
+import { RegenerateEmbeddingsModal } from '@/components/topbar/RegenerateEmbeddingsModal';
 
 const GRAPH_DOMAINS = [
   { label: 'World',     local: 'spatial' as GraphViewMode, global: 'overview' as GraphViewMode },
   { label: 'Knowledge', local: 'spark'   as GraphViewMode, global: 'codex'    as GraphViewMode },
   { label: 'Threads',   local: 'pulse'   as GraphViewMode, global: 'threads'  as GraphViewMode },
+  { label: 'Search',    local: 'search'  as GraphViewMode, global: 'search'   as GraphViewMode },
 ];
 
 const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode }> = {
@@ -20,9 +22,10 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
   codex:    { local: 'spark',   global: 'codex'    },
   pulse:    { local: 'pulse',   global: 'threads'  },
   threads:  { local: 'pulse',   global: 'threads'  },
+  search:   { local: 'search',  global: 'search'   },
 };
 
-const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
+const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads', 'search']);
 
 type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio';
 
@@ -286,23 +289,35 @@ export function CanvasTopBar() {
 
   // ── Mode-specific stats ───────────────────────────────────────────────
   const planStats = useMemo(() => {
-    if (!currentScene?.plan?.beats) return null;
-    const beats = currentScene.plan.beats.length;
+    if (!currentScene || !branchId) return null;
+    const plan = resolvePlanForBranch(currentScene, branchId, branches);
+    if (!plan?.beats) return null;
+    const beats = plan.beats.length;
     const propositions =
-      currentScene.plan.beats.reduce(
+      plan.beats.reduce(
         (sum, b) => sum + (b.propositions?.length ?? 0),
         0,
-      ) + (currentScene.plan.propositions?.length ?? 0);
+      ) + (plan.propositions?.length ?? 0);
     return { beats, propositions };
-  }, [currentScene]);
+  }, [currentScene, branchId, branches]);
 
   const proseStats = useMemo(() => {
-    if (!currentScene?.prose) return null;
-    const text = currentScene.prose;
+    if (!currentScene || !branchId) return null;
+    const resolved = resolveProseForBranch(currentScene, branchId, branches);
+    if (!resolved.prose) return null;
+    const text = resolved.prose;
     const words = text.split(/\s+/).filter(Boolean).length;
     const paragraphs = text.split(/\n\n+/).filter((p) => p.trim()).length;
     return { words, paragraphs };
-  }, [currentScene]);
+  }, [currentScene, branchId, branches]);
+
+  // Check if beat plan toggle should show
+  const showBeatPlanToggle = useMemo(() => {
+    if (!currentScene || !branchId) return false;
+    const plan = resolvePlanForBranch(currentScene, branchId, branches);
+    const prose = resolveProseForBranch(currentScene, branchId, branches);
+    return !!(plan && prose.beatProseMap && prose.beatProseMap.chunks.length === plan.beats.length);
+  }, [currentScene, branchId, branches]);
 
   // ── ARC navigation ────────────────────────────────────────────────────
   const arcNav = useMemo(() => {
@@ -345,6 +360,9 @@ export function CanvasTopBar() {
   const [editField, setEditField] = useState<'scene' | 'arc' | null>(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── Regenerate Embeddings modal ────────────────────────────────────────
+  const [showEmbeddingsModal, setShowEmbeddingsModal] = useState(false);
 
   useEffect(() => {
     if (editField) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 30);
@@ -481,6 +499,23 @@ export function CanvasTopBar() {
             </span>
           )}
           {!planStats && <span className="text-[9px] text-text-dim/30">No plan</span>}
+
+          {/* Regenerate Embeddings button (plan mode only) */}
+          {narrative && (
+            <>
+              <div className="w-px h-3 bg-border ml-1" />
+              <button
+                onClick={() => setShowEmbeddingsModal(true)}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-text-dim/60 hover:text-text-dim transition-colors"
+                title="Regenerate Embeddings"
+              >
+                <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+                <span>Refresh</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -489,7 +524,7 @@ export function CanvasTopBar() {
           <span className="text-[10px] text-violet-400/60">Audio</span>
           {currentScene?.audioUrl
             ? <span className="text-[9px] text-text-dim/50">Ready</span>
-            : currentScene?.prose
+            : proseStats
               ? <span className="text-[9px] text-text-dim/30">Not generated</span>
               : <span className="text-[9px] text-text-dim/30">No prose</span>}
         </div>
@@ -525,8 +560,7 @@ export function CanvasTopBar() {
       {/* Right — Mode toggle: Graph / Plan / Prose / Audio */}
       <div className="flex items-center gap-2">
         {/* Beat plan toggle (only in prose mode with beat mapping) - to the LEFT */}
-        {canvasMode === 'prose' && currentScene?.plan && currentScene?.beatProseMap &&
-         currentScene.beatProseMap.chunks.length === currentScene.plan.beats.length && (
+        {canvasMode === 'prose' && showBeatPlanToggle && (
           <BeatPlanToggle />
         )}
 
@@ -549,6 +583,11 @@ export function CanvasTopBar() {
           })}
         </div>
       </div>
+
+      {/* Regenerate Embeddings Modal */}
+      {showEmbeddingsModal && (
+        <RegenerateEmbeddingsModal onClose={() => setShowEmbeddingsModal(false)} />
+      )}
     </div>
   );
 }

@@ -69,7 +69,8 @@ import { callGenerate, callGenerateStream } from '@/lib/ai/api';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
-function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
+function createScene(id: string, overrides: Partial<Scene> & { plan?: BeatPlan } = {}): Scene {
+  const { plan, ...rest } = overrides;
   return {
     kind: 'scene',
     id,
@@ -83,7 +84,16 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     continuityMutations: [],
     relationshipMutations: [],
     characterMovements: {},
-    ...overrides,
+    ...rest,
+    ...(plan ? {
+      planVersions: [{
+        plan,
+        branchId: 'main',
+        timestamp: Date.now(),
+        version: '1',
+        versionType: 'generate' as const,
+      }]
+    } : {}),
   };
 }
 
@@ -508,7 +518,7 @@ describe('editScenePlan', () => {
       },
     });
 
-    const currentPlan = scene.plan!;
+    const currentPlan = scene.planVersions![0].plan;
     const result = await editScenePlan(narrative, scene, [], ['Opening is too slow', 'Missing character reveal'], currentPlan);
 
     expect(result.beats).toHaveLength(2);

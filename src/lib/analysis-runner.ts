@@ -517,6 +517,185 @@ class AnalysisRunner {
       return;
     }
 
+    // ── Phase 3.5: Generate embeddings ────────────────────────────────────
+    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'embeddings' } });
+
+    // Collect all scenes from all chunks (using analysis chunk scene type)
+    const allScenes: AnalysisChunkResult['scenes'] = [];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (!r?.scenes) continue;
+      allScenes.push(...r.scenes);
+    }
+
+    if (allScenes.length > 0) {
+      const { generateEmbeddingsBatch, embedPropositions, computeCentroid } = await import('@/lib/embeddings');
+      const { assetManager } = await import('@/lib/asset-manager');
+
+      this.emitStream(job.id, `Phase 3.5: Generating embeddings for ${allScenes.length} scenes...`);
+
+      try {
+        // Batch 1: Embed scene summaries
+        const sceneSummaries = allScenes.map(s => s.summary);
+        const summaryEmbeddings = await generateEmbeddingsBatch(
+          sceneSummaries,
+          job.id,
+          (completed, total) => {
+            this.emitStream(job.id, `Embedding summaries: ${completed}/${total}`);
+          }
+        );
+
+        // Store embeddings in AssetManager and use references
+        for (let i = 0; i < allScenes.length; i++) {
+          const embeddingId = await assetManager.storeEmbedding(summaryEmbeddings[i], 'text-embedding-3-small');
+          (allScenes[i] as any).summaryEmbedding = embeddingId;
+        }
+
+        // Batch 2: Embed all propositions in plans
+        const allPropositions: Array<{
+          content: string;
+          type?: string;
+          sceneIndex: number;
+          beatIndex: number;
+          propIndex: number
+        }> = [];
+
+        allScenes.forEach((scene, sceneIndex) => {
+          if (!scene.plan) return;
+
+          // Scene-level propositions
+          if (scene.plan.propositions) {
+            scene.plan.propositions.forEach((prop, propIndex) => {
+              allPropositions.push({ ...prop, sceneIndex, beatIndex: -1, propIndex });
+            });
+          }
+
+          // Beat-level propositions
+          scene.plan.beats.forEach((beat, beatIndex) => {
+            beat.propositions.forEach((prop, propIndex) => {
+              allPropositions.push({ ...prop, sceneIndex, beatIndex, propIndex });
+            });
+          });
+        });
+
+        if (allPropositions.length > 0) {
+          this.emitStream(job.id, `Embedding ${allPropositions.length} propositions...`);
+
+          const embeddedProps = await embedPropositions(
+            allPropositions.map(p => ({ content: p.content, type: p.type })),
+            job.id
+          );
+
+          // Map embeddings back to scenes
+          allPropositions.forEach((prop, embeddedIndex) => {
+            const scene = allScenes[prop.sceneIndex];
+            if (!scene.plan) return;
+
+            const embeddedProp = embeddedProps[embeddedIndex];
+
+            if (prop.beatIndex === -1) {
+              // Scene-level proposition
+              if (scene.plan.propositions) {
+                scene.plan.propositions[prop.propIndex] = embeddedProp;
+              }
+            } else {
+              // Beat-level proposition
+              scene.plan.beats[prop.beatIndex].propositions[prop.propIndex] = embeddedProp;
+            }
+          });
+
+          // Compute beat centroids (resolve references to vectors)
+          for (const scene of allScenes) {
+            if (!scene.plan) continue;
+
+            for (const beat of scene.plan.beats) {
+              const embeddingRefs = beat.propositions
+                .filter(p => p.embedding)
+                .map(p => p.embedding!);
+
+              if (embeddingRefs.length > 0) {
+                // Resolve all references to actual vectors
+                const vectors: number[][] = [];
+                for (const ref of embeddingRefs) {
+                  if (typeof ref === 'string') {
+                    const vector = await assetManager.getEmbedding(ref);
+                    if (vector) vectors.push(vector);
+                  } else {
+                    vectors.push(ref);
+                  }
+                }
+
+                if (vectors.length > 0) {
+                  const centroid = computeCentroid(vectors);
+                  const centroidId = await assetManager.storeEmbedding(centroid, 'text-embedding-3-small');
+                  beat.embeddingCentroid = centroidId;
+                }
+              }
+            }
+
+            // Compute plan centroid from beat centroids
+            const beatCentroidRefs = scene.plan.beats
+              .filter(b => b.embeddingCentroid)
+              .map(b => b.embeddingCentroid!);
+
+            if (beatCentroidRefs.length > 0) {
+              const vectors: number[][] = [];
+              for (const ref of beatCentroidRefs) {
+                if (typeof ref === 'string') {
+                  const vector = await assetManager.getEmbedding(ref);
+                  if (vector) vectors.push(vector);
+                } else {
+                  vectors.push(ref);
+                }
+              }
+
+              if (vectors.length > 0) {
+                const centroid = computeCentroid(vectors);
+                const centroidId = await assetManager.storeEmbedding(centroid, 'text-embedding-3-small');
+                (scene as any).planEmbeddingCentroid = centroidId;
+              }
+            }
+          }
+        }
+
+        // Batch 3: Embed prose if available
+        const scenesWithProse = allScenes.filter(s => s.prose && s.prose.length > 0);
+        if (scenesWithProse.length > 0) {
+          this.emitStream(job.id, `Embedding prose for ${scenesWithProse.length} scenes...`);
+
+          const proseTexts = scenesWithProse.map(s => s.prose!);
+          const proseEmbeddings = await generateEmbeddingsBatch(
+            proseTexts,
+            job.id,
+            (completed, total) => {
+              this.emitStream(job.id, `Embedding prose: ${completed}/${total}`);
+            }
+          );
+
+          // Store prose embeddings in AssetManager and use references
+          for (let i = 0; i < scenesWithProse.length; i++) {
+            const embeddingId = await assetManager.storeEmbedding(proseEmbeddings[i], 'text-embedding-3-small');
+            (scenesWithProse[i] as any).proseEmbedding = embeddingId;
+          }
+        }
+
+        this.emitStream(job.id, `✓ Embeddings generated for ${allScenes.length} scenes`);
+      } catch (error) {
+        // Log error but don't fail analysis if embedding fails
+        logError('Failed to generate embeddings during analysis', error, {
+          source: 'analysis',
+          operation: 'phase-3.5-embeddings',
+          details: { jobId: job.id, sceneCount: allScenes.length },
+        });
+        this.emitStream(job.id, '⚠ Embedding generation failed (continuing analysis without embeddings)');
+      }
+    }
+
+    if (entry.cancelled) {
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } });
+      return;
+    }
+
     // ── Phase 3: Reconciliation ───────────────────────────────────────────
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'reconciliation', currentChunkIndex: totalChunks } });
     this.emitStream(job.id, 'Phase 3: Reconciling entities...');

@@ -10,7 +10,7 @@
 import type {
   NarrativeState, AnalysisChunkResult, AnalysisJob,
   Character, Location, Thread, Arc, Scene, RelationshipEdge, Artifact,
-  WorldBuild, Branch, ProseProfile,
+  WorldBuild, Branch, ProseProfile, SceneVersionPointers,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
@@ -1586,8 +1586,28 @@ export async function assembleNarrative(
     entryIds.push(sceneId);
   }
 
-  // Branch
+  // Branch — build version pointers for analyzed scenes
   const branchId = `B-${PREFIX}-MAIN`;
+  const versionPointers: Record<string, SceneVersionPointers> = {};
+
+  // Set explicit version pointers for all scenes with version arrays
+  for (const sceneId of Object.keys(scenes)) {
+    const scene = scenes[sceneId];
+    const pointers: SceneVersionPointers = {};
+
+    if (scene.proseVersions && scene.proseVersions.length > 0) {
+      pointers.proseVersion = scene.proseVersions[0].version;
+    }
+
+    if (scene.planVersions && scene.planVersions.length > 0) {
+      pointers.planVersion = scene.planVersions[0].version;
+    }
+
+    if (pointers.proseVersion || pointers.planVersion) {
+      versionPointers[sceneId] = pointers;
+    }
+  }
+
   const branches: Record<string, Branch> = {
     [branchId]: {
       id: branchId,
@@ -1595,6 +1615,7 @@ export async function assembleNarrative(
       parentBranchId: null,
       forkEntryId: null,
       entryIds,
+      versionPointers,
       createdAt: Date.now() - 86400000,
     },
   };

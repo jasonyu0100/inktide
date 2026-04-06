@@ -666,4 +666,60 @@ describe('assembleNarrative', () => {
     // createdAt is backdated by 1 day, updatedAt is now
     expect(narrative.updatedAt).toBeGreaterThan(narrative.createdAt);
   });
+
+  it('creates version pointers on main branch for analyzed scenes', async () => {
+    const mockPlan = {
+      beats: [{ fn: 'breathe' as const, mechanism: 'environment' as const, what: 'Setup', propositions: [] }],
+    };
+    const mockBeatProseMap = {
+      chunks: [{ beatIndex: 0, prose: 'Prose chunk' }],
+      createdAt: Date.now(),
+    };
+
+    const results: AnalysisChunkResult[] = [
+      {
+        ...createMockAnalysisResult(0),
+        scenes: [{
+          locationName: 'Castle',
+          povName: 'Alice',
+          participantNames: ['Alice'],
+          events: [],
+          summary: 'Test scene',
+          sections: [0],
+          prose: 'Scene prose',
+          threadMutations: [],
+          continuityMutations: [],
+          relationshipMutations: [],
+          plan: mockPlan,
+          beatProseMap: mockBeatProseMap,
+        }],
+      },
+    ];
+    const threadDeps = {};
+
+    const narrative = await assembleNarrative('Test', results, threadDeps);
+
+    // Get the main branch
+    const branchIds = Object.keys(narrative.branches);
+    expect(branchIds.length).toBeGreaterThan(0);
+    const mainBranch = narrative.branches[branchIds[0]];
+
+    // Get the first scene
+    const sceneIds = Object.keys(narrative.scenes);
+    expect(sceneIds.length).toBeGreaterThan(0);
+    const sceneId = sceneIds[0];
+    const scene = narrative.scenes[sceneId];
+
+    // Verify scene has version arrays
+    expect(scene.proseVersions).toBeDefined();
+    expect(scene.proseVersions!.length).toBeGreaterThan(0);
+    expect(scene.planVersions).toBeDefined();
+    expect(scene.planVersions!.length).toBeGreaterThan(0);
+
+    // Verify branch has version pointers
+    expect(mainBranch.versionPointers).toBeDefined();
+    expect(mainBranch.versionPointers![sceneId]).toBeDefined();
+    expect(mainBranch.versionPointers![sceneId].proseVersion).toBe('1');
+    expect(mainBranch.versionPointers![sceneId].planVersion).toBe('1');
+  });
 });

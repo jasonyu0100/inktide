@@ -1248,7 +1248,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   const hasDrawings = Object.values(drawLines).some((lines) => lines.length > 0);
 
   return (
-    <div className="fixed inset-0 bg-bg-base z-50 flex flex-col">
+    <div className="fixed inset-0 bg-bg-base z-60 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-6 border-b border-white/5 shrink-0" style={{ height: headerHeight }}>
         <div className="flex items-center gap-4">

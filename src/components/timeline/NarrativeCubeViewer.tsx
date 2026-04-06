@@ -631,7 +631,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
 
 
   return (
-    <div className="fixed inset-0 bg-[#0a0a0f] z-50 flex flex-col">
+    <div className="fixed inset-0 bg-[#0a0a0f] z-60 flex flex-col">
       {/* Header */}
       <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
         <div className="flex items-baseline gap-3">

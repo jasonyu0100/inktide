@@ -69,6 +69,20 @@ export function SearchView() {
     loadPersistedSearch();
   }, []);
 
+  // Listen for clear search event from top bar
+  useEffect(() => {
+    const handleClear = async () => {
+      setQuery('');
+      setResponse(null);
+      setStreamingAnswer('');
+      setErrorMessage(null);
+      await saveSearchState(null);
+    };
+
+    window.addEventListener('search:clear', handleClear);
+    return () => window.removeEventListener('search:clear', handleClear);
+  }, []);
+
   const handleQuery = useCallback(async (question: string) => {
     const narrative = state.activeNarrative;
     const resolvedKeys = state.resolvedEntryKeys;

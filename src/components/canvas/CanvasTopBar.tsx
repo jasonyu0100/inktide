@@ -622,6 +622,19 @@ export function CanvasTopBar() {
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-amber-400/60">Search</span>
 
+          {/* Clear Search button */}
+          <div className="w-px h-3 bg-border" />
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('search:clear'))}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-text-dim/60 hover:text-text-dim transition-colors"
+            title="Clear Search"
+          >
+            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+            <span>Clear</span>
+          </button>
+
           {/* Regenerate Embeddings button */}
           {narrative && (
             <>

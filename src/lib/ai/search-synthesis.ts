@@ -104,7 +104,8 @@ You are a narrative analysis assistant. The user has searched for: "${query}"
 Based on the search results above, provide a concise 2-3 paragraph synthesis that directly answers the user's search query.
 
 **Guidelines:**
-- Use inline citations like [1], [2], [3] when referencing specific results
+- Only cite the most relevant results using inline citations like [1], [2], [3]
+- You don't need to reference every result—focus on the strongest matches
 - Write in a clear, informative style (similar to a Google AI Overview)
 - Focus on narrative patterns and connections, not just listing matches
 - Identify which arcs and scenes are most relevant

@@ -1,15 +1,16 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
-import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, BeatPlan, BeatProseMap, ProseScore } from '@/types/narrative';
+import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, BeatPlan, BeatProseMap, ProseScore, SearchQuery } from '@/types/narrative';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
 import { initMechanismProfilePresets } from '@/lib/mechanism-profiles';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs } from '@/lib/persistence';
+import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs, saveSearchState, loadSearchState } from '@/lib/persistence';
 import { API_LOG_STALE_THRESHOLD_MS } from '@/lib/constants';
 import { logError, logWarning } from '@/lib/system-logger';
+import { assetManager } from '@/lib/asset-manager';
 
 // Bundled narratives loaded at runtime from /public manifests
 const bundledNarratives = new Map<string, NarrativeState>();
@@ -279,7 +280,10 @@ const initialState: AppState = {
   wizardStep: 'form',
   wizardData: { title: '', premise: '', characters: [], locations: [], threads: [], rules: [], worldSystems: [] },
   selectedKnowledgeEntity: null,
-  graphViewMode: 'spatial',
+  graphViewMode: 'search',
+  currentSearchQuery: null,
+  currentResultIndex: 0,
+  searchFocusMode: false,
   autoConfig: {
     endConditions: [{ type: 'scene_count', target: 50 }],
     minArcLength: 2,
@@ -320,6 +324,11 @@ export type Action =
   | { type: 'DELETE_NARRATIVE'; id: string }
   | { type: 'SELECT_KNOWLEDGE_ENTITY'; entityId: string | null }
   | { type: 'SET_GRAPH_VIEW_MODE'; mode: GraphViewMode }
+  // Search
+  | { type: 'SET_SEARCH_QUERY'; query: SearchQuery }
+  | { type: 'SET_SEARCH_RESULT_INDEX'; index: number }
+  | { type: 'CLEAR_SEARCH' }
+  | { type: 'TOGGLE_SEARCH_FOCUS' }
   | { type: 'SWITCH_BRANCH'; branchId: string }
   // Scene mutations
   | { type: 'UPDATE_SCENE'; sceneId: string; updates: Partial<Pick<Scene, 'summary' | 'events' | 'locationId' | 'participantIds' | 'povId' | 'threadMutations' | 'continuityMutations' | 'relationshipMutations' | 'worldKnowledgeMutations' | 'characterMovements' | 'arcId' | 'proseEmbedding' | 'summaryEmbedding' | 'planEmbeddingCentroid'>> & { prose?: string; plan?: BeatPlan; beatProseMap?: BeatProseMap; proseScore?: ProseScore }; versionType?: 'generate' | 'rewrite' | 'edit'; sourcePlanVersion?: string }
@@ -543,6 +552,16 @@ function reducer(state: AppState, action: Action): AppState {
           details: { narrativeId: action.id }
         });
       });
+      // Delete associated assets (audio, embeddings, images)
+      assetManager.init()
+        .then(() => assetManager.deleteNarrativeAssets(action.id))
+        .catch((err) => {
+          logError('Failed to delete narrative assets', err, {
+            source: 'other',
+            operation: 'delete-narrative-assets',
+            details: { narrativeId: action.id }
+          });
+        });
 
       if (isSeed) {
         // Reset seed to original bundled data instead of removing it
@@ -568,6 +587,35 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, selectedKnowledgeEntity: action.entityId };
     case 'SET_GRAPH_VIEW_MODE':
       return { ...state, graphViewMode: action.mode };
+
+    case 'SET_SEARCH_QUERY':
+      return {
+        ...state,
+        currentSearchQuery: action.query,
+        currentResultIndex: 0,
+        searchFocusMode: true,
+      };
+
+    case 'SET_SEARCH_RESULT_INDEX':
+      return {
+        ...state,
+        currentResultIndex: action.index,
+      };
+
+    case 'CLEAR_SEARCH':
+      return {
+        ...state,
+        currentSearchQuery: null,
+        currentResultIndex: 0,
+        searchFocusMode: false,
+      };
+
+    case 'TOGGLE_SEARCH_FOCUS':
+      return {
+        ...state,
+        searchFocusMode: !state.searchFocusMode,
+      };
+
     case 'SWITCH_BRANCH': {
       if (!state.activeNarrative) return state;
       const resolved = getResolvedKeys(state.activeNarrative, action.branchId);
@@ -1759,6 +1807,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
     });
   }, [state.analysisJobs]);
+
+  // Load search state from IndexedDB on mount
+  useEffect(() => {
+    loadSearchState().then((query) => {
+      if (query) {
+        dispatch({ type: 'SET_SEARCH_QUERY', query });
+      }
+    }).catch(() => {
+      // Silently fail for search state loading
+    });
+  }, []);
+
+  // Persist search state whenever it changes
+  const prevSearchQueryRef = useRef(state.currentSearchQuery);
+  useEffect(() => {
+    if (state.currentSearchQuery === prevSearchQueryRef.current) return;
+    prevSearchQueryRef.current = state.currentSearchQuery;
+    saveSearchState(state.currentSearchQuery).catch(() => {
+      // Silently fail for search state persistence
+    });
+  }, [state.currentSearchQuery]);
 
   // Load API logs from IndexedDB when the active narrative changes
   useEffect(() => {

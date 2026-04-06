@@ -93,15 +93,18 @@ class AssetManager {
 
     this.db = await openDB<AssetDB>(this.dbName, this.dbVersion, {
       upgrade(db) {
-        // Create stores if they don't exist
+        // Create stores with narrativeId indexes
         if (!db.objectStoreNames.contains('embeddings')) {
-          db.createObjectStore('embeddings', { keyPath: 'id' });
+          const embStore = db.createObjectStore('embeddings', { keyPath: 'id' });
+          embStore.createIndex('by-narrative', 'narrativeId');
         }
         if (!db.objectStoreNames.contains('audio')) {
-          db.createObjectStore('audio', { keyPath: 'id' });
+          const audioStore = db.createObjectStore('audio', { keyPath: 'id' });
+          audioStore.createIndex('by-narrative', 'narrativeId');
         }
         if (!db.objectStoreNames.contains('images')) {
-          db.createObjectStore('images', { keyPath: 'id' });
+          const imgStore = db.createObjectStore('images', { keyPath: 'id' });
+          imgStore.createIndex('by-narrative', 'narrativeId');
         }
       },
     });
@@ -409,6 +412,42 @@ class AssetManager {
       db.clear('images'),
     ]);
     this.revokeBlobUrls();
+  }
+
+  /**
+   * Delete all assets for a specific narrative
+   * @param narrativeId - The narrative ID to delete assets for
+   * @returns Count of deleted assets
+   */
+  async deleteNarrativeAssets(narrativeId: string): Promise<{ embeddingCount: number; audioCount: number; imageCount: number }> {
+    const db = this.ensureInitialized();
+
+    let embeddingCount = 0;
+    let audioCount = 0;
+    let imageCount = 0;
+
+    // Delete embeddings for this narrative
+    const embeddingIds = await db.getAllKeysFromIndex('embeddings', 'by-narrative', narrativeId);
+    for (const id of embeddingIds) {
+      await this.deleteEmbedding(id as string);
+      embeddingCount++;
+    }
+
+    // Delete audio for this narrative
+    const audioIds = await db.getAllKeysFromIndex('audio', 'by-narrative', narrativeId);
+    for (const id of audioIds) {
+      await this.deleteAudio(id as string);
+      audioCount++;
+    }
+
+    // Delete images for this narrative
+    const imageIds = await db.getAllKeysFromIndex('images', 'by-narrative', narrativeId);
+    for (const id of imageIds) {
+      await this.deleteImage(id as string);
+      imageCount++;
+    }
+
+    return { embeddingCount, audioCount, imageCount };
   }
 
   // ── Private Helpers ─────────────────────────────────────────────────────────

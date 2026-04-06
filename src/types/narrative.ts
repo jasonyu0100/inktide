@@ -1291,7 +1291,10 @@ export type SearchQuery = {
   sceneResults: SearchResult[];
   /** Detail-level results (propositions and beats, specific facts) */
   detailResults: SearchResult[];
-  timeline: { sceneIndex: number; maxSimilarity: number }[];
+  /** Timeline showing scene summary activation (direct similarity values) */
+  sceneTimeline: { sceneIndex: number; similarity: number }[];
+  /** Timeline showing detail fact activation (max similarity across beats/propositions per scene) */
+  detailTimeline: { sceneIndex: number; maxSimilarity: number }[];
   topArc: { arcId: string; avgSimilarity: number } | null;
   topScene: { sceneId: string; similarity: number } | null;
   topBeat: { sceneId: string; beatIndex: number; similarity: number } | null;

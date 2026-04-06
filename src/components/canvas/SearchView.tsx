@@ -1,11 +1,14 @@
-'use client';
+"use client";
 
-import { useStore } from '@/lib/store';
-import { useState, useCallback, useEffect } from 'react';
-import { searchNarrative } from '@/lib/search';
-import { synthesizeSearchResults } from '@/lib/ai/search-synthesis';
-import Image from 'next/image';
-import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
+import { synthesizeSearchResults } from "@/lib/ai/search-synthesis";
+import {
+  resolvePlanForBranch,
+  resolveProseForBranch,
+} from "@/lib/narrative-utils";
+import { searchNarrative } from "@/lib/search";
+import { useStore } from "@/lib/store";
+import Image from "next/image";
+import { useCallback, useEffect, useState } from "react";
 
 type QueryResponse = {
   question: string;
@@ -17,25 +20,7 @@ type QueryResponse = {
     propIndex?: number;
     content: string;
     similarity: number;
-    type: 'scene' | 'beat' | 'proposition';
-  }>;
-  sceneCitations: Array<{
-    id: number;
-    sceneId: string;
-    beatIndex?: number;
-    propIndex?: number;
-    content: string;
-    similarity: number;
-    type: 'scene' | 'beat' | 'proposition';
-  }>;
-  detailCitations: Array<{
-    id: number;
-    sceneId: string;
-    beatIndex?: number;
-    propIndex?: number;
-    content: string;
-    similarity: number;
-    type: 'scene' | 'beat' | 'proposition';
+    type: "scene" | "beat" | "proposition";
   }>;
 };
 
@@ -50,21 +35,21 @@ const SUGGESTED_QUERIES = [
 
 export function SearchView() {
   const { state, dispatch } = useStore();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchStage, setSearchStage] = useState<string>('');
+  const [searchStage, setSearchStage] = useState<string>("");
   const [response, setResponse] = useState<QueryResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [streamingAnswer, setStreamingAnswer] = useState('');
+  const [streamingAnswer, setStreamingAnswer] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
-  const [resultView, setResultView] = useState<'all' | 'scenes' | 'details'>('all');
+  const [showDetailTimeline, setShowDetailTimeline] = useState(false);
 
   // Load search state from store when narrative changes
   useEffect(() => {
     if (!state.activeNarrative?.id) {
-      setQuery('');
+      setQuery("");
       setResponse(null);
-      setStreamingAnswer('');
+      setStreamingAnswer("");
       setErrorMessage(null);
       setIsLoaded(true);
       return;
@@ -74,49 +59,34 @@ export function SearchView() {
     if (savedSearch && savedSearch.synthesis) {
       setQuery(savedSearch.query);
 
-      // Map saved results to QueryResponse format
-      const allResults = savedSearch.results.slice(0, 10).map((res, idx) => ({
-        id: idx + 1,
-        sceneId: res.sceneId,
-        beatIndex: res.beatIndex,
-        propIndex: res.propIndex,
-        content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
-        similarity: res.similarity,
-        type: res.type,
-      }));
-
-      const sceneResults = savedSearch.sceneResults.map((res, idx) => ({
-        id: idx + 1,
-        sceneId: res.sceneId,
-        beatIndex: res.beatIndex,
-        propIndex: res.propIndex,
-        content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
-        similarity: res.similarity,
-        type: res.type,
-      }));
-
-      const detailResults = savedSearch.detailResults.map((res, idx) => ({
-        id: idx + 1,
-        sceneId: res.sceneId,
-        beatIndex: res.beatIndex,
-        propIndex: res.propIndex,
-        content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
-        similarity: res.similarity,
-        type: res.type,
-      }));
+      // Guaranteed representation: top 5 from each pool, then sort by similarity
+      const topScenes = savedSearch.sceneResults.slice(0, 5);
+      const topDetails = savedSearch.detailResults.slice(0, 5);
+      const combined = [...topScenes, ...topDetails]
+        .sort((a, b) => b.similarity - a.similarity)
+        .map((res, idx) => ({
+          id: idx + 1,
+          sceneId: res.sceneId,
+          beatIndex: res.beatIndex,
+          propIndex: res.propIndex,
+          content:
+            res.content.length > 200
+              ? res.content.substring(0, 197) + "..."
+              : res.content,
+          similarity: res.similarity,
+          type: res.type,
+        }));
 
       setResponse({
         question: savedSearch.query,
         answer: savedSearch.synthesis.overview,
-        citations: allResults,
-        sceneCitations: sceneResults,
-        detailCitations: detailResults,
+        citations: combined,
       });
     } else {
       // Clear local state if no saved search
-      setQuery('');
+      setQuery("");
       setResponse(null);
-      setStreamingAnswer('');
+      setStreamingAnswer("");
       setErrorMessage(null);
     }
     setIsLoaded(true);
@@ -125,210 +95,244 @@ export function SearchView() {
   // Listen for clear search event from top bar
   useEffect(() => {
     const handleClear = () => {
-      setQuery('');
+      setQuery("");
       setResponse(null);
-      setStreamingAnswer('');
+      setStreamingAnswer("");
       setErrorMessage(null);
-      dispatch({ type: 'CLEAR_SEARCH' });
+      dispatch({ type: "CLEAR_SEARCH" });
     };
 
-    window.addEventListener('search:clear', handleClear);
-    return () => window.removeEventListener('search:clear', handleClear);
+    window.addEventListener("search:clear", handleClear);
+    return () => window.removeEventListener("search:clear", handleClear);
   }, [dispatch]);
 
-  const handleQuery = useCallback(async (question: string) => {
-    const narrative = state.activeNarrative;
-    const resolvedKeys = state.resolvedEntryKeys;
+  const handleQuery = useCallback(
+    async (question: string) => {
+      const narrative = state.activeNarrative;
+      const resolvedKeys = state.resolvedEntryKeys;
 
-    if (!narrative || !resolvedKeys || question.trim().length === 0) return;
+      if (!narrative || !resolvedKeys || question.trim().length === 0) return;
 
-    setIsSearching(true);
-    setSearchStage('Embedding query');
-    setErrorMessage(null);
-    setResponse(null);
-    setStreamingAnswer('');
+      setIsSearching(true);
+      setSearchStage("Embedding query");
+      setErrorMessage(null);
+      setResponse(null);
+      setStreamingAnswer("");
 
-    try {
-      const sceneCount = resolvedKeys.length;
+      try {
+        const sceneCount = resolvedKeys.length;
 
-      // Stage 1: Searching
-      setSearchStage(`Searching ${sceneCount} scene${sceneCount !== 1 ? 's' : ''}`);
-      const result = await searchNarrative(narrative, resolvedKeys, question.trim());
-
-      if (result.results.length > 0) {
-        // Stage 2: Found results, generating AI summary
-        setSearchStage(`Found ${result.results.length} results — generating summary`);
-
-        const synthesis = await synthesizeSearchResults(
+        // Stage 1: Searching
+        setSearchStage(
+          `Searching ${sceneCount} scene${sceneCount !== 1 ? "s" : ""}`,
+        );
+        const result = await searchNarrative(
           narrative,
+          resolvedKeys,
           question.trim(),
-          result.results,
-          result.topArc,
-          result.topScene,
-          result.timeline,
-          (token) => {
-            // Update immediately for responsive streaming
-            setStreamingAnswer(prev => {
-              if (prev.length === 0) {
-                // First token received, we're streaming now
-                setSearchStage('');
-              }
-              return prev + token;
-            });
-          }
         );
 
-        // Map all search results (top 10) for display, not just cited ones
-        const allResults = result.results.slice(0, 10).map((res, idx) => ({
-          id: idx + 1,
-          sceneId: res.sceneId,
-          beatIndex: res.beatIndex,
-          propIndex: res.propIndex,
-          content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
-          similarity: res.similarity,
-          type: res.type,
-        }));
+        if (result.results.length > 0) {
+          // Stage 2: Found results, generating AI summary
+          setSearchStage(
+            `Found ${result.results.length} results — generating summary`,
+          );
 
-        const sceneResults = result.sceneResults.map((res, idx) => ({
-          id: idx + 1,
-          sceneId: res.sceneId,
-          beatIndex: res.beatIndex,
-          propIndex: res.propIndex,
-          content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
-          similarity: res.similarity,
-          type: res.type,
-        }));
+          const synthesis = await synthesizeSearchResults(
+            narrative,
+            question.trim(),
+            result.sceneResults,
+            result.detailResults,
+            result.topArc,
+            result.topScene,
+            result.detailTimeline,
+            (token) => {
+              // Update immediately for responsive streaming
+              setStreamingAnswer((prev) => {
+                if (prev.length === 0) {
+                  // First token received, we're streaming now
+                  setSearchStage("");
+                }
+                return prev + token;
+              });
+            },
+          );
 
-        const detailResults = result.detailResults.map((res, idx) => ({
-          id: idx + 1,
-          sceneId: res.sceneId,
-          beatIndex: res.beatIndex,
-          propIndex: res.propIndex,
-          content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
-          similarity: res.similarity,
-          type: res.type,
-        }));
+          // Guaranteed representation: top 5 from each pool, then sort by similarity
+          const topScenes = result.sceneResults.slice(0, 5);
+          const topDetails = result.detailResults.slice(0, 5);
+          const combined = [...topScenes, ...topDetails]
+            .sort((a, b) => b.similarity - a.similarity)
+            .map((res, idx) => ({
+              id: idx + 1,
+              sceneId: res.sceneId,
+              beatIndex: res.beatIndex,
+              propIndex: res.propIndex,
+              content:
+                res.content.length > 200
+                  ? res.content.substring(0, 197) + "..."
+                  : res.content,
+              similarity: res.similarity,
+              type: res.type,
+            }));
 
-        const responseData = {
-          question: question.trim(),
-          answer: synthesis.overview,
-          citations: allResults,
-          sceneCitations: sceneResults,
-          detailCitations: detailResults,
-        };
-        setResponse(responseData);
+          const responseData = {
+            question: question.trim(),
+            answer: synthesis.overview,
+            citations: combined,
+          };
+          setResponse(responseData);
 
-        // Save search state to store
-        dispatch({
-          type: 'SET_SEARCH_QUERY',
-          query: {
-            query: question.trim(),
-            embedding: result.embedding,
-            synthesis,
-            results: result.results,
-            sceneResults: result.sceneResults,
-            detailResults: result.detailResults,
-            timeline: result.timeline,
-            topArc: result.topArc,
-            topScene: result.topScene,
-            topBeat: result.topBeat,
-          },
-        });
-      } else {
-        setErrorMessage('No relevant content found. Try a different question or generate embeddings.');
+          // Save search state to store
+          dispatch({
+            type: "SET_SEARCH_QUERY",
+            query: {
+              query: question.trim(),
+              embedding: result.embedding,
+              synthesis,
+              results: result.results,
+              sceneResults: result.sceneResults,
+              detailResults: result.detailResults,
+              sceneTimeline: result.sceneTimeline,
+              detailTimeline: result.detailTimeline,
+              topArc: result.topArc,
+              topScene: result.topScene,
+              topBeat: result.topBeat,
+            },
+          });
+        } else {
+          setErrorMessage(
+            "No relevant content found. Try a different question or generate embeddings.",
+          );
+        }
+      } catch (err) {
+        setErrorMessage("Query failed. Please try again.");
+      } finally {
+        setIsSearching(false);
+        setSearchStage("");
       }
-    } catch (err) {
-      setErrorMessage('Query failed. Please try again.');
-    } finally {
-      setIsSearching(false);
-      setSearchStage('');
-    }
-  }, [state.activeNarrative, state.resolvedEntryKeys, dispatch]);
+    },
+    [state.activeNarrative, state.resolvedEntryKeys, dispatch],
+  );
 
-  const getSceneInfo = useCallback((sceneId: string, beatIndex?: number) => {
-    const narrative = state.activeNarrative;
-    if (!narrative || !state.activeBranchId) return null;
+  const getSceneInfo = useCallback(
+    (sceneId: string, beatIndex?: number) => {
+      const narrative = state.activeNarrative;
+      if (!narrative || !state.activeBranchId) return null;
 
-    const scene = narrative.scenes[sceneId];
-    if (!scene) return null;
+      const scene = narrative.scenes[sceneId];
+      if (!scene) return null;
 
-    const proseData = resolveProseForBranch(scene, state.activeBranchId, narrative.branches);
-    const planData = resolvePlanForBranch(scene, state.activeBranchId, narrative.branches);
+      const proseData = resolveProseForBranch(
+        scene,
+        state.activeBranchId,
+        narrative.branches,
+      );
+      const planData = resolvePlanForBranch(
+        scene,
+        state.activeBranchId,
+        narrative.branches,
+      );
 
-    let beatProse: string | null = null;
-    if (beatIndex !== undefined && proseData?.beatProseMap) {
-      const beatChunk = proseData.beatProseMap.chunks.find(c => c.beatIndex === beatIndex);
-      beatProse = beatChunk?.prose || null;
-    }
+      let beatProse: string | null = null;
+      if (beatIndex !== undefined && proseData?.beatProseMap) {
+        const beatChunk = proseData.beatProseMap.chunks.find(
+          (c) => c.beatIndex === beatIndex,
+        );
+        beatProse = beatChunk?.prose || null;
+      }
 
-    // Get arc index (1-based)
-    const arc = scene.arcId ? narrative.arcs[scene.arcId] : null;
-    const arcIndex = arc ? Object.keys(narrative.arcs).indexOf(scene.arcId!) + 1 : null;
+      // Get arc index (1-based)
+      const arc = scene.arcId ? narrative.arcs[scene.arcId] : null;
+      const arcIndex = arc
+        ? Object.keys(narrative.arcs).indexOf(scene.arcId!) + 1
+        : null;
 
-    // Get scene index (1-based) from resolved keys
-    const sceneIndex = state.resolvedEntryKeys.indexOf(sceneId) + 1;
+      // Get scene index (1-based) from resolved keys
+      const sceneIndex = state.resolvedEntryKeys.indexOf(sceneId) + 1;
 
-    return {
-      scene,
-      prose: proseData?.prose || null,
-      beatProse,
-      plan: planData?.beats || null,
-      arc,
-      arcIndex,
-      sceneIndex: sceneIndex > 0 ? sceneIndex : null,
-    };
-  }, [state.activeNarrative, state.activeBranchId, state.resolvedEntryKeys]);
+      return {
+        scene,
+        prose: proseData?.prose || null,
+        beatProse,
+        plan: planData?.beats || null,
+        arc,
+        arcIndex,
+        sceneIndex: sceneIndex > 0 ? sceneIndex : null,
+      };
+    },
+    [state.activeNarrative, state.activeBranchId, state.resolvedEntryKeys],
+  );
 
-  const navigateToCitation = useCallback((citation: QueryResponse['citations'][0]) => {
-    const sceneIndex = state.resolvedEntryKeys.indexOf(citation.sceneId);
-    if (sceneIndex < 0) return;
+  const navigateToCitation = useCallback(
+    (citation: QueryResponse["citations"][0]) => {
+      const sceneIndex = state.resolvedEntryKeys.indexOf(citation.sceneId);
+      if (sceneIndex < 0) return;
 
-    const sceneInfo = getSceneInfo(citation.sceneId, citation.beatIndex);
-    const hasProse = sceneInfo?.prose || sceneInfo?.beatProse;
+      const sceneInfo = getSceneInfo(citation.sceneId, citation.beatIndex);
+      const hasProse = sceneInfo?.prose || sceneInfo?.beatProse;
 
-    // Step 1: Set scene index
-    dispatch({ type: 'SET_SCENE_INDEX', index: sceneIndex });
+      // Step 1: Set scene index
+      dispatch({ type: "SET_SCENE_INDEX", index: sceneIndex });
 
-    if (hasProse) {
-      // Step 2: Switch to prose view
-      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'prose' });
+      if (hasProse) {
+        // Step 2: Switch to prose view
+        dispatch({ type: "SET_GRAPH_VIEW_MODE", mode: "prose" });
 
-      // Step 3: Toggle beat plan side-by-side after view mode changes
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('canvas:toggle-beat-plan', { detail: { enabled: true } }));
+        // Step 3: Toggle beat plan side-by-side after view mode changes
+        setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("canvas:toggle-beat-plan", {
+              detail: { enabled: true },
+            }),
+          );
 
-        // Step 4: Scroll to beat after side-by-side view is enabled
+          // Step 4: Scroll to beat after side-by-side view is enabled
+          if (citation.beatIndex !== undefined) {
+            setTimeout(() => {
+              window.dispatchEvent(
+                new CustomEvent("prose:scroll-to-beat", {
+                  detail: {
+                    beatIndex: citation.beatIndex,
+                    propIndex: citation.propIndex,
+                  },
+                }),
+              );
+            }, 200);
+          }
+        }, 100);
+      } else {
+        // Fallback to plan view if no prose available
+        dispatch({ type: "SET_GRAPH_VIEW_MODE", mode: "plan" });
+
         if (citation.beatIndex !== undefined) {
           setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('prose:scroll-to-beat', {
-              detail: { beatIndex: citation.beatIndex, propIndex: citation.propIndex },
-            }));
+            window.dispatchEvent(
+              new CustomEvent("plan:scroll-to-beat", {
+                detail: { beatIndex: citation.beatIndex },
+              }),
+            );
           }, 200);
         }
-      }, 100);
-    } else {
-      // Fallback to plan view if no prose available
-      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'plan' });
-
-      if (citation.beatIndex !== undefined) {
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('plan:scroll-to-beat', {
-            detail: { beatIndex: citation.beatIndex },
-          }));
-        }, 200);
       }
-    }
-  }, [state.resolvedEntryKeys, dispatch, getSceneInfo]);
+    },
+    [state.resolvedEntryKeys, dispatch, getSceneInfo],
+  );
 
-  const handleSuggestedQuery = useCallback((suggestedQuery: string) => {
-    setQuery(suggestedQuery);
-    handleQuery(suggestedQuery);
-  }, [handleQuery]);
+  const handleSuggestedQuery = useCallback(
+    (suggestedQuery: string) => {
+      setQuery(suggestedQuery);
+      handleQuery(suggestedQuery);
+    },
+    [handleQuery],
+  );
 
   return (
     <div className="flex flex-col items-center h-full overflow-y-auto">
       {/* Hero Section */}
-      <div className={`w-full flex flex-col items-center transition-all duration-500 ${response || isSearching ? 'pt-8 pb-6' : 'pt-32'}`}>
+      <div
+        className={`w-full flex flex-col items-center transition-all duration-500 ${response || isSearching ? "pt-8 pb-6" : "pt-32"}`}
+      >
         {/* Logo - Only show when no results */}
         {!response && !isSearching && isLoaded && (
           <div className="w-full flex justify-center mb-16">
@@ -359,7 +363,7 @@ export function SearchView() {
                   if (errorMessage) setErrorMessage(null);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !isSearching) {
+                  if (e.key === "Enter" && !isSearching) {
                     handleQuery(query);
                   }
                 }}
@@ -369,7 +373,9 @@ export function SearchView() {
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 {isSearching && searchStage && (
-                  <span className="text-xs text-text-dim mr-2">{searchStage}</span>
+                  <span className="text-xs text-text-dim mr-2">
+                    {searchStage}
+                  </span>
                 )}
                 {isSearching && (
                   <div className="w-4 h-4 border-2 border-sky-500/20 border-t-sky-500 rounded-full animate-spin" />
@@ -409,7 +415,9 @@ export function SearchView() {
         <div className="w-full max-w-3xl px-8 pb-16 space-y-8">
           {/* AI Overview */}
           <div className="bg-bg-elevated/50 border-l-2 border-sky-500 pl-6 pr-4 py-5 rounded-r-lg">
-            <div className="text-xs text-sky-400 mb-3 font-medium">AI Overview</div>
+            <div className="text-xs text-sky-400 mb-3 font-medium">
+              AI Overview
+            </div>
             <div className="text-sm leading-relaxed text-text-primary">
               {response ? response.answer : streamingAnswer}
               {!response && streamingAnswer && (
@@ -421,49 +429,172 @@ export function SearchView() {
           {/* Search Results */}
           {response && response.citations.length > 0 && (
             <div>
-              {/* Result view toggle */}
+              {/* Timeline heat curve */}
+              {state.currentSearchQuery &&
+                (() => {
+                  const timeline = showDetailTimeline
+                    ? state.currentSearchQuery.detailTimeline
+                    : state.currentSearchQuery.sceneTimeline;
+
+                  if (!timeline || timeline.length === 0) return null;
+
+                  // Filter out world commits for visualization (only render scenes)
+                  const sceneTimeline = timeline.filter((point) => {
+                    const entryId = state.resolvedEntryKeys[point.sceneIndex];
+                    return !!state.activeNarrative?.scenes[entryId];
+                  });
+
+                  if (sceneTimeline.length === 0) return null;
+
+                  return (
+                    <div className="mb-8">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-xs text-text-dim">
+                          Activation Timeline
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setShowDetailTimeline(false)}
+                            className={`text-[10px] px-2 py-1 rounded transition-colors ${
+                              !showDetailTimeline
+                                ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
+                                : "bg-bg-elevated text-text-dim hover:text-text-secondary border border-border"
+                            }`}
+                          >
+                            Scenes
+                          </button>
+                          <button
+                            onClick={() => setShowDetailTimeline(true)}
+                            className={`text-[10px] px-2 py-1 rounded transition-colors ${
+                              showDetailTimeline
+                                ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
+                                : "bg-bg-elevated text-text-dim hover:text-text-secondary border border-border"
+                            }`}
+                          >
+                            Details
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Heat curve visualization */}
+                      <div className="relative h-16 group/timeline">
+                        <div className="absolute inset-0 bg-bg-elevated/30 rounded-lg border border-border">
+                          <div className="absolute inset-0 flex items-end">
+                            {sceneTimeline.map((point) => {
+                              const similarity =
+                                "similarity" in point
+                                  ? point.similarity
+                                  : point.maxSimilarity;
+
+                              // Get scene info for tooltip
+                              const sceneId =
+                                state.resolvedEntryKeys[point.sceneIndex];
+                              const scene =
+                                state.activeNarrative?.scenes[sceneId];
+                              const sceneSummary = scene?.summary || "";
+
+                              // Get actual scene number (count only scenes up to this point in resolvedKeys)
+                              const sceneNumber = state.resolvedEntryKeys
+                                .slice(0, point.sceneIndex + 1)
+                                .filter(
+                                  (id) => state.activeNarrative?.scenes[id],
+                                ).length;
+
+                              // Find min/max for normalization (amplify differences)
+                              const allSimilarities = sceneTimeline.map((p) =>
+                                "similarity" in p
+                                  ? p.similarity
+                                  : p.maxSimilarity,
+                              );
+                              const maxSim = Math.max(...allSimilarities);
+                              const minSim = Math.min(
+                                ...allSimilarities.filter((s) => s > 0),
+                              );
+
+                              // Normalize to 0-1 range within actual data range
+                              const normalized =
+                                maxSim > minSim && similarity > 0
+                                  ? (similarity - minSim) / (maxSim - minSim)
+                                  : similarity > 0
+                                    ? 1
+                                    : 0;
+
+                              // Apply exponential scaling (power of 2.5 amplifies differences dramatically)
+                              const amplified = Math.pow(normalized, 2.5);
+
+                              // Convert to percentage height (scale to 85% max to leave room at top)
+                              const height =
+                                similarity > 0
+                                  ? Math.max(3, amplified * 85)
+                                  : 0;
+
+                              const isHigh = similarity > 0.7;
+                              const isMedium =
+                                similarity > 0.4 && similarity <= 0.7;
+
+                              return (
+                                <div
+                                  key={point.sceneIndex}
+                                  className="flex-1 h-full flex items-end justify-center px-px relative group/bar"
+                                >
+                                  <div
+                                    className={`w-full rounded-sm transition-all ${
+                                      isHigh
+                                        ? "bg-sky-400"
+                                        : isMedium
+                                          ? "bg-sky-500/70"
+                                          : "bg-sky-500/50"
+                                    } group-hover/bar:brightness-125`}
+                                    style={{ height: `${height}%` }}
+                                  />
+                                  {/* Enhanced hover tooltip */}
+                                  {similarity > 0 && (
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/bar:opacity-100 pointer-events-none transition-opacity z-50">
+                                      <div className="bg-bg-elevated border border-border rounded-lg px-2.5 py-1.5 shadow-xl w-xs">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-[10px] font-semibold text-text-primary whitespace-nowrap">
+                                            Scene {sceneNumber}
+                                          </span>
+                                          <span
+                                            className={`text-[10px] font-medium ${
+                                              isHigh
+                                                ? "text-sky-400"
+                                                : isMedium
+                                                  ? "text-sky-500"
+                                                  : "text-sky-600"
+                                            }`}
+                                          >
+                                            {(similarity * 100).toFixed(0)}%
+                                          </span>
+                                        </div>
+                                        {sceneSummary && (
+                                          <div className="text-[9px] text-text-secondary leading-snug mt-1">
+                                            {sceneSummary}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+              {/* Result count */}
               <div className="flex items-center justify-between mb-4">
                 <div className="text-xs text-text-dim">
-                  {resultView === 'all' && `${response.citations.length} result${response.citations.length !== 1 ? 's' : ''}`}
-                  {resultView === 'scenes' && `${response.sceneCitations.length} scene${response.sceneCitations.length !== 1 ? 's' : ''}`}
-                  {resultView === 'details' && `${response.detailCitations.length} detail${response.detailCitations.length !== 1 ? 's' : ''}`}
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setResultView('all')}
-                    className={`px-3 py-1 rounded text-[10px] uppercase tracking-wider transition-all ${
-                      resultView === 'all'
-                        ? 'bg-sky-500/20 border border-sky-500/30 text-sky-300'
-                        : 'bg-white/5 border border-white/10 text-text-dim hover:text-text-secondary'
-                    }`}
-                  >
-                    All ({response.citations.length})
-                  </button>
-                  <button
-                    onClick={() => setResultView('scenes')}
-                    className={`px-3 py-1 rounded text-[10px] uppercase tracking-wider transition-all ${
-                      resultView === 'scenes'
-                        ? 'bg-sky-500/20 border border-sky-500/30 text-sky-300'
-                        : 'bg-white/5 border border-white/10 text-text-dim hover:text-text-secondary'
-                    }`}
-                  >
-                    Scenes ({response.sceneCitations.length})
-                  </button>
-                  <button
-                    onClick={() => setResultView('details')}
-                    className={`px-3 py-1 rounded text-[10px] uppercase tracking-wider transition-all ${
-                      resultView === 'details'
-                        ? 'bg-sky-500/20 border border-sky-500/30 text-sky-300'
-                        : 'bg-white/5 border border-white/10 text-text-dim hover:text-text-secondary'
-                    }`}
-                  >
-                    Details ({response.detailCitations.length})
-                  </button>
+                  {response.citations.length} result
+                  {response.citations.length !== 1 ? "s" : ""}
                 </div>
               </div>
 
               <div className="space-y-4">
-                {(resultView === 'all' ? response.citations : resultView === 'scenes' ? response.sceneCitations : response.detailCitations).map((cit) => {
+                {response.citations.map((cit) => {
                   const sceneInfo = getSceneInfo(cit.sceneId, cit.beatIndex);
                   const beatPlan = sceneInfo?.plan?.[cit.beatIndex ?? 0];
 
@@ -480,8 +611,13 @@ export function SearchView() {
                         </div>
 
                         <div className="flex-1 min-w-0">
+                          {/* Result content */}
+                          <div className="text-sm text-text-primary leading-relaxed group-hover:text-sky-300 transition-colors mb-2">
+                            {cit.content}
+                          </div>
+
                           {/* Context breadcrumb */}
-                          <div className="flex items-center gap-2 text-xs mb-2 text-text-dim">
+                          <div className="flex items-center gap-2 text-[10px] text-text-dim/70">
                             {sceneInfo?.arcIndex && (
                               <>
                                 <span>Arc {sceneInfo.arcIndex}</span>
@@ -491,23 +627,24 @@ export function SearchView() {
                             {sceneInfo?.sceneIndex && (
                               <>
                                 <span>Scene {sceneInfo.sceneIndex}</span>
-                                <span className="opacity-40">›</span>
+                                {cit.type !== "scene" && (
+                                  <span className="opacity-40">›</span>
+                                )}
                               </>
                             )}
-                            {beatPlan && (
+                            {cit.type !== "scene" && beatPlan && (
                               <>
                                 <span>Beat {(cit.beatIndex ?? 0) + 1}</span>
                                 <span className="opacity-40">·</span>
-                                <span className="opacity-70">{beatPlan.fn}</span>
+                                <span className="opacity-70">
+                                  {beatPlan.fn}
+                                </span>
                               </>
                             )}
                             <span className="opacity-40">·</span>
-                            <span className="text-sky-500/90">{(cit.similarity * 100).toFixed(0)}%</span>
-                          </div>
-
-                          {/* Result content */}
-                          <div className="text-sm text-text-primary leading-relaxed group-hover:text-sky-300 transition-colors">
-                            {cit.content}
+                            <span className="text-sky-500/80">
+                              {(cit.similarity * 100).toFixed(0)}%
+                            </span>
                           </div>
 
                           {/* Beat prose if available */}
@@ -520,7 +657,14 @@ export function SearchView() {
 
                         {/* Navigate icon */}
                         <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <svg className="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <svg
+                            className="w-4 h-4 text-sky-400"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          >
                             <path d="M5 12h14m-7-7l7 7-7 7" />
                           </svg>
                         </div>

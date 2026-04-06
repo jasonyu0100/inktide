@@ -81,7 +81,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   // Wait for any pending operations to complete and prevent state leakage between tests
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise(resolve => setTimeout(resolve, 10));
 });
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
@@ -168,6 +168,7 @@ describe('AnalysisRunner Lifecycle', () => {
   });
 
   it('tracks in-flight chunks during Phase 1 extraction', async () => {
+    vi.useFakeTimers();
 
     const inFlightListener = vi.fn();
     AnalysisRunner.onInFlightChange(inFlightListener);
@@ -181,15 +182,20 @@ describe('AnalysisRunner Lifecycle', () => {
     const runPromise = AnalysisRunner.start(job, dispatchMock as any);
 
     // Wait a bit for chunks to be in flight
-    await new Promise(resolve => setTimeout(resolve, 20));
+    await vi.advanceTimersByTimeAsync(20);
 
     const inFlight = AnalysisRunner.getInFlightIndices(job.id);
     expect(inFlight.length).toBeGreaterThan(0);
 
+    // Complete the test
+    await vi.advanceTimersByTimeAsync(100);
     await runPromise;
+
+    vi.useRealTimers();
   });
 
   it('allows cancelling a running job', async () => {
+    vi.useFakeTimers();
 
     vi.mocked(analyzeChunkParallel).mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(createMockChunkResult(0)), 200))
@@ -198,10 +204,16 @@ describe('AnalysisRunner Lifecycle', () => {
     const job = createMockJob();
     const runPromise = AnalysisRunner.start(job, dispatchMock as any);
 
-    // Cancel after starting
-    setTimeout(() => AnalysisRunner.pause(job.id), 50);
+    // Cancel after starting (advance 50ms then pause)
+    await vi.advanceTimersByTimeAsync(50);
+    AnalysisRunner.pause(job.id);
+
+    // Advance remaining time to complete
+    await vi.advanceTimersByTimeAsync(200);
 
     await runPromise;
+
+    vi.useRealTimers();
 
     // Should have dispatched pause status
     expect(dispatchMock).toHaveBeenCalledWith(

@@ -174,11 +174,11 @@ export const EMBEDDING_CONCURRENCY = 10;
 /** Number of top results to return in search (total, legacy) */
 export const SEARCH_TOP_K = 20;
 
-/** Number of top scene-level results (thematic, high-level context) - fewer because scenes are less numerous */
+/** Number of top scene-level results (thematic, high-level context) to retrieve before combining */
 export const SEARCH_TOP_K_SCENES = 5;
 
-/** Number of top detail-level results (propositions and beats, specific facts) */
-export const SEARCH_TOP_K_DETAILS = 10;
+/** Number of top detail-level results (propositions and beats, specific facts) to retrieve before combining */
+export const SEARCH_TOP_K_DETAILS = 5;
 
 /** Minimum cosine similarity threshold for search results (0-1) */
 export const SEARCH_SIMILARITY_THRESHOLD = 0.3;

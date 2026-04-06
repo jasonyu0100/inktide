@@ -10,12 +10,12 @@ vi.mock('@/lib/ai/api', () => ({
   callGenerateStream: vi.fn(),
 }));
 
-// Mock constants
+// Mock constants with smaller chunk sizes for faster tests
 vi.mock('@/lib/constants', () => ({
-  ANALYSIS_CHUNK_SIZE_SECTIONS: 100,
-  ANALYSIS_MAX_CORPUS_WORDS: 500000,
-  ANALYSIS_TARGET_SECTIONS_PER_CHUNK: 100,
-  ANALYSIS_TARGET_CHUNK_WORDS: 10000,
+  ANALYSIS_CHUNK_SIZE_SECTIONS: 10,
+  ANALYSIS_MAX_CORPUS_WORDS: 50000,
+  ANALYSIS_TARGET_SECTIONS_PER_CHUNK: 10,
+  ANALYSIS_TARGET_CHUNK_WORDS: 500, // Much smaller for faster tests
   ANALYSIS_MODEL: 'test-model',
   MAX_TOKENS_DEFAULT: 4096,
   ANALYSIS_TEMPERATURE: 0.7,
@@ -128,8 +128,8 @@ beforeEach(() => {
 
 describe('splitCorpusIntoChunks', () => {
   it('splits text into chunks by word count', () => {
-    // Create text with more than 10000 words (mocked ANALYSIS_TARGET_CHUNK_WORDS)
-    const words = Array(15000).fill('word').join(' '); // 15000 words
+    // Create text with more than 500 words (mocked ANALYSIS_TARGET_CHUNK_WORDS)
+    const words = Array(600).fill('word').join(' '); // 600 words - just over threshold
     const text = words;
     const chunks = splitCorpusIntoChunks(text);
 
@@ -147,8 +147,9 @@ describe('splitCorpusIntoChunks', () => {
   });
 
   it('assigns sequential indices to chunks', () => {
+    // Create ~1200 words (12 paragraphs * 100 words) to get 2-3 chunks (mocked threshold is 500 words)
     const paragraph = Array(100).fill('word').join(' ');
-    const text = Array(150).fill(paragraph).join('\n\n');
+    const text = Array(12).fill(paragraph).join('\n\n');
     const chunks = splitCorpusIntoChunks(text);
 
     chunks.forEach((chunk, i) => {
@@ -157,13 +158,14 @@ describe('splitCorpusIntoChunks', () => {
   });
 
   it('preserves all text across chunks', () => {
+    // Create ~1200 words (12 paragraphs * 100 words) to get 2-3 chunks (mocked threshold is 500 words)
     const paragraph = Array(100).fill('word').join(' ');
-    const text = Array(150).fill(paragraph).join('\n\n');
+    const text = Array(12).fill(paragraph).join('\n\n');
     const chunks = splitCorpusIntoChunks(text);
 
     const reconstructed = chunks.map(c => c.text).join(' ');
     // Verify total word count is preserved
-    expect(reconstructed.split(/\s+/).filter(Boolean).length).toBe(15000);
+    expect(reconstructed.split(/\s+/).filter(Boolean).length).toBe(1200);
   });
 
   it('counts sections correctly', () => {

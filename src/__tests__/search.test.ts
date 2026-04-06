@@ -245,7 +245,7 @@ describe('searchNarrative', () => {
     expect(result.results).toBeDefined();
     expect(Array.isArray(result.results)).toBe(true);
     expect(result.embedding).toBeDefined();
-    expect(result.timeline).toBeDefined();
+    expect(result.detailTimeline).toBeDefined();
   });
 
   it('should limit results to SEARCH_TOP_K', async () => {
@@ -274,11 +274,11 @@ describe('searchNarrative', () => {
 
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
 
-    expect(result.timeline).toBeDefined();
-    expect(Array.isArray(result.timeline)).toBe(true);
+    expect(result.detailTimeline).toBeDefined();
+    expect(Array.isArray(result.detailTimeline)).toBe(true);
 
     // Verify timeline structure
-    result.timeline.forEach(point => {
+    result.detailTimeline.forEach(point => {
       expect(point).toHaveProperty('sceneIndex');
       expect(point).toHaveProperty('maxSimilarity');
       expect(typeof point.sceneIndex).toBe('number');
@@ -333,7 +333,7 @@ describe('searchNarrative', () => {
     const result = await searchNarrative(emptyNarrative, [], 'test');
 
     expect(result.results.length).toBe(0);
-    expect(result.timeline.length).toBe(0);
+    expect(result.detailTimeline.length).toBe(0);
     expect(result.topArc).toBeNull();
     expect(result.topScene).toBeNull();
     expect(result.topBeat).toBeNull();

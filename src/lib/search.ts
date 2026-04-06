@@ -45,8 +45,8 @@ export async function searchNarrative(
     context: string;
   }> = [];
 
-  let sceneIndex = 0;
-  for (const key of resolvedKeys) {
+  for (let entryIndex = 0; entryIndex < resolvedKeys.length; entryIndex++) {
+    const key = resolvedKeys[entryIndex];
     const entry = resolveEntry(narrative, key);
     if (!entry || !isScene(entry)) continue;
 
@@ -57,7 +57,7 @@ export async function searchNarrative(
       itemsWithRefs.push({
         type: 'scene',
         sceneId: scene.id,
-        sceneIndex,
+        sceneIndex: entryIndex,  // Use position in resolvedKeys, not scene count
         arcId: scene.arcId,
         content: scene.summary,
         embeddingRef: scene.summaryEmbedding,
@@ -76,7 +76,7 @@ export async function searchNarrative(
           itemsWithRefs.push({
             type: 'beat',
             sceneId: scene.id,
-            sceneIndex,
+            sceneIndex: entryIndex,  // Use position in resolvedKeys
             arcId: scene.arcId,
             beatIndex,
             content: beat.what,
@@ -92,7 +92,7 @@ export async function searchNarrative(
             itemsWithRefs.push({
               type: 'proposition',
               sceneId: scene.id,
-              sceneIndex,
+              sceneIndex: entryIndex,  // Use position in resolvedKeys
               arcId: scene.arcId,
               beatIndex,
               propIndex,
@@ -104,8 +104,6 @@ export async function searchNarrative(
         }
       }
     }
-
-    sceneIndex++;
   }
 
   // Resolve all embedding references (batch operation)
@@ -190,18 +188,33 @@ export async function searchNarrative(
       context,
     }));
 
-  // Build timeline heatmap (max similarity per scene)
-  const sceneMaxSimilarity = new Map<number, number>();
-  for (const item of scored) {
-    const current = sceneMaxSimilarity.get(item.sceneIndex) ?? 0;
+  // Build scene summary timeline (direct similarity values from scene embeddings)
+  // Include ALL entries (scenes and world commits) to preserve timeline structure
+  // World commits will have 0 similarity
+  const sceneSimilarityMap = new Map<number, number>();
+  for (const item of scoredScenes) {
+    sceneSimilarityMap.set(item.sceneIndex, item.similarity);
+  }
+
+  const sceneTimeline = Array.from({ length: resolvedKeys.length }, (_, i) => ({
+    sceneIndex: i,
+    similarity: sceneSimilarityMap.get(i) ?? 0,
+  }));
+
+  // Build detail timeline (max similarity from beats/propositions per scene)
+  // Include ALL entries to preserve timeline structure
+  const detailMaxSimilarity = new Map<number, number>();
+  for (const item of scoredDetails) {
+    const current = detailMaxSimilarity.get(item.sceneIndex) ?? 0;
     if (item.similarity > current) {
-      sceneMaxSimilarity.set(item.sceneIndex, item.similarity);
+      detailMaxSimilarity.set(item.sceneIndex, item.similarity);
     }
   }
 
-  const timeline = Array.from(sceneMaxSimilarity.entries())
-    .map(([sceneIndex, maxSimilarity]) => ({ sceneIndex, maxSimilarity }))
-    .sort((a, b) => a.sceneIndex - b.sceneIndex);
+  const detailTimeline = Array.from({ length: resolvedKeys.length }, (_, i) => ({
+    sceneIndex: i,
+    maxSimilarity: detailMaxSimilarity.get(i) ?? 0,
+  }));
 
   // Find top arc (highest average similarity)
   const arcSimilarities = new Map<string, { sum: number; count: number }>();
@@ -258,7 +271,8 @@ export async function searchNarrative(
     results,
     sceneResults,
     detailResults,
-    timeline,
+    sceneTimeline,
+    detailTimeline,
     topArc,
     topScene,
     topBeat,

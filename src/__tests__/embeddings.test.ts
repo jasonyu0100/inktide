@@ -496,12 +496,12 @@ describe('Semantic Search', () => {
     const query = 'powerful magic';
     const results = await searchNarrative(narrative, scenes.map(s => s.id), query);
 
-    expect(results.timeline).toBeDefined();
-    expect(results.timeline.length).toBeGreaterThan(0);
+    expect(results.sceneTimeline).toBeDefined();
+    expect(results.sceneTimeline.length).toBeGreaterThan(0);
 
     // Timeline should be sorted by scene index
-    for (let i = 1; i < results.timeline.length; i++) {
-      expect(results.timeline[i].sceneIndex).toBeGreaterThan(results.timeline[i - 1].sceneIndex);
+    for (let i = 1; i < results.sceneTimeline.length; i++) {
+      expect(results.sceneTimeline[i].sceneIndex).toBeGreaterThan(results.sceneTimeline[i - 1].sceneIndex);
     }
   });
 });

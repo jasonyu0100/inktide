@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { validateBeatPlan, validateBeatProseMap, validateExtractionResult, validateWorldKnowledge, retryWithValidation } from '@/lib/ai/validation';
 import type { BeatPlan } from '@/types/narrative';
 
@@ -469,6 +469,11 @@ describe('ai-validation', () => {
   describe('retryWithValidation', () => {
     beforeEach(() => {
       vi.clearAllMocks();
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
     });
 
     it('succeeds on first attempt when validation passes', async () => {
@@ -497,13 +502,18 @@ describe('ai-validation', () => {
         .mockReturnValueOnce({ valid: false, errors: ['Empty beats'] })
         .mockReturnValueOnce({ valid: true, errors: [] });
 
-      const result = await retryWithValidation(
+      const promise = retryWithValidation(
         operationFn,
         validateFn,
         'test-operation',
         3,
         'manual-generation'
       );
+
+      // Advance through the 1s backoff delay
+      await vi.advanceTimersByTimeAsync(1000);
+
+      const result = await promise;
 
       expect(result).toEqual({ beats: [{ fn: 'advance', mechanism: 'action', what: 'Something happens' }] });
       expect(operationFn).toHaveBeenCalledTimes(2);
@@ -514,16 +524,21 @@ describe('ai-validation', () => {
       const operationFn = vi.fn().mockResolvedValue({ beats: [] });
       const validateFn = vi.fn().mockReturnValue({ valid: false, errors: ['Empty beats'] });
 
-      await expect(
-        retryWithValidation(
-          operationFn,
-          validateFn,
-          'test-operation',
-          3,
-          'manual-generation'
-        )
-      ).rejects.toThrow('test-operation validation failed after 3 attempts');
+      let caughtError: Error | null = null;
+      const promise = retryWithValidation(
+        operationFn,
+        validateFn,
+        'test-operation',
+        3,
+        'manual-generation'
+      ).catch(e => { caughtError = e; });
 
+      // Advance through backoff delays: 1s + 2s = 3s total
+      await vi.advanceTimersByTimeAsync(3000);
+      await promise;
+
+      expect(caughtError).not.toBeNull();
+      expect(caughtError!.message).toContain('test-operation validation failed after 3 attempts');
       expect(operationFn).toHaveBeenCalledTimes(3);
       expect(validateFn).toHaveBeenCalledTimes(3);
     });
@@ -532,34 +547,43 @@ describe('ai-validation', () => {
       const operationFn = vi.fn().mockResolvedValue({ beats: [] });
       const validateFn = vi.fn().mockReturnValue({ valid: false, errors: ['Error 1', 'Error 2'] });
 
-      try {
-        await retryWithValidation(
-          operationFn,
-          validateFn,
-          'test-operation',
-          2,
-          'manual-generation'
-        );
-        throw new Error('Should have thrown');
-      } catch (err: any) {
-        expect(err.message).toContain('Error 1');
-        expect(err.message).toContain('Error 2');
-      }
+      let caughtError: Error | null = null;
+      const promise = retryWithValidation(
+        operationFn,
+        validateFn,
+        'test-operation',
+        2,
+        'manual-generation'
+      ).catch(e => { caughtError = e; });
+
+      // Advance through 1s backoff delay
+      await vi.advanceTimersByTimeAsync(1000);
+      await promise;
+
+      expect(caughtError).not.toBeNull();
+      expect(caughtError!.message).toContain('Error 1');
+      expect(caughtError!.message).toContain('Error 2');
     });
 
     it('propagates operation errors after retries', async () => {
       const operationFn = vi.fn().mockRejectedValue(new Error('Network failure'));
       const validateFn = vi.fn();
 
-      await expect(
-        retryWithValidation(
-          operationFn,
-          validateFn,
-          'test-operation',
-          3,
-          'manual-generation'
-        )
-      ).rejects.toThrow('test-operation failed after 3 attempts. Last error: Network failure');
+      let caughtError: Error | null = null;
+      const promise = retryWithValidation(
+        operationFn,
+        validateFn,
+        'test-operation',
+        3,
+        'manual-generation'
+      ).catch(e => { caughtError = e; });
+
+      // Advance through backoff delays: 1s + 2s = 3s total
+      await vi.advanceTimersByTimeAsync(3000);
+      await promise;
+
+      expect(caughtError).not.toBeNull();
+      expect(caughtError!.message).toContain('test-operation failed after 3 attempts. Last error: Network failure');
 
       // Retries even on thrown errors
       expect(operationFn).toHaveBeenCalledTimes(3);
@@ -575,18 +599,24 @@ describe('ai-validation', () => {
         .mockReturnValueOnce({ valid: false, errors: ['Invalid'] })
         .mockReturnValueOnce({ valid: true, errors: [] });
 
-      const startTime = Date.now();
-      await retryWithValidation(
+      const promise = retryWithValidation(
         operationFn,
         validateFn,
         'test-operation',
         3,
         'manual-generation'
       );
-      const endTime = Date.now();
 
-      // Should have at least 1 second delay (first retry backoff)
-      expect(endTime - startTime).toBeGreaterThanOrEqual(1000);
+      // Verify that the promise is pending (backoff delay is waiting)
+      expect(operationFn).toHaveBeenCalledTimes(1);
+
+      // Advance through the 1s backoff delay
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await promise;
+
+      // Should have retried after the backoff
+      expect(operationFn).toHaveBeenCalledTimes(2);
     });
   });
 });

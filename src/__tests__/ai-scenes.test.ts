@@ -889,4 +889,43 @@ Fixed prose 3.`);
     expect(result.beatProseMap).toBeDefined();
     expect(result.beatProseMap?.chunks).toHaveLength(3);
   });
+
+  it('correctly handles all beats marked with no prose after last marker', async () => {
+    // This tests the fix for the case where LLM correctly places all markers
+    // (e.g., [BEAT_END:0] through [BEAT_END:8] for 9 beats) with no trailing prose
+    const mockProse = `First beat prose.
+
+[BEAT_END:0]
+
+Second beat prose.
+
+[BEAT_END:1]
+
+Third beat prose.
+
+[BEAT_END:2]`;
+
+    vi.mocked(callGenerate).mockResolvedValue(mockProse);
+
+    const narrative = createMinimalNarrative();
+    const scene = createScene('S-001', {
+      plan: {
+        beats: [
+          { fn: 'breathe', mechanism: 'environment', what: 'Beat 1', propositions: [] },
+          { fn: 'advance', mechanism: 'action', what: 'Beat 2', propositions: [] },
+          { fn: 'turn', mechanism: 'dialogue', what: 'Beat 3', propositions: [] },
+        ],
+      },
+    });
+
+    const result = await generateSceneProse(narrative, scene, []);
+
+    // Should successfully parse without adding an extra beat
+    expect(result.beatProseMap).toBeDefined();
+    expect(result.beatProseMap?.chunks).toHaveLength(3);
+    expect(result.beatProseMap?.chunks[0].beatIndex).toBe(0);
+    expect(result.beatProseMap?.chunks[1].beatIndex).toBe(1);
+    expect(result.beatProseMap?.chunks[2].beatIndex).toBe(2);
+    expect(result.prose).not.toContain('[BEAT_END:');
+  });
 });

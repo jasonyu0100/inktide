@@ -1457,10 +1457,13 @@ function parseBeatProseMap(
     }
   }
 
-  // Handle final beat (no marker after last beat)
+  // Handle final beat: only add if there's prose after the last marker OR we're missing beats
   const finalProse = currentProse.join('\n').trim();
-  // Always add final beat to maintain count
-  beatTexts.push({ beatIndex: currentBeatIndex, text: finalProse });
+  const needsFinalBeat = finalProse.length > 0 || currentBeatIndex < beatCount;
+
+  if (needsFinalBeat) {
+    beatTexts.push({ beatIndex: currentBeatIndex, text: finalProse });
+  }
 
   // Reconstruct clean prose (no markers)
   const prose = beatTexts.map((b) => b.text).join('\n\n');
@@ -1470,7 +1473,12 @@ function parseBeatProseMap(
     logWarning('Beat count mismatch in generated prose', `Expected ${beatCount} beats, got ${beatTexts.length}`, {
       source: 'prose-generation',
       operation: 'parse-beat-markers',
-      details: { expected: beatCount, actual: beatTexts.length }
+      details: {
+        expected: beatCount,
+        actual: beatTexts.length,
+        finalProseLength: finalProse.length,
+        lastBeatIndex: currentBeatIndex - 1,
+      }
     });
     return { prose: rawProse.replace(/\[BEAT_END:\d+\]\n?/g, '').trim(), markersFailed: true };
   }

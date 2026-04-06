@@ -360,7 +360,7 @@ Every scene with prose must appear in sceneEvals. Use the exact scene IDs.${guid
         issues: Array.isArray(e.issues) ? e.issues.filter((i): i is string => typeof i === 'string') : [],
       }));
 
-    return {
+    const result = {
       id: `PEVAL-${Date.now().toString(36)}`,
       branchId,
       createdAt: new Date().toISOString(),
@@ -368,6 +368,22 @@ Every scene with prose must appear in sceneEvals. Use the exact scene IDs.${guid
       sceneEvals,
       patterns: parsed.patterns ?? [],
     };
+
+    logInfo('Completed prose quality evaluation', {
+      source: 'analysis',
+      operation: 'evaluate-prose-complete',
+      details: {
+        narrativeId: narrative.id,
+        branchId,
+        evaluationId: result.id,
+        scenesEvaluated: sceneEvals.length,
+        verdictOk: sceneEvals.filter(e => e.verdict === 'ok').length,
+        verdictEdit: sceneEvals.filter(e => e.verdict === 'edit').length,
+        patternsFound: result.patterns.length,
+      },
+    });
+
+    return result;
   } catch {
     return {
       id: `PEVAL-${Date.now().toString(36)}`,
@@ -495,7 +511,7 @@ Every scene with a plan must appear.${guidance?.trim() ? `\n\nREMINDER — The a
         issues: Array.isArray(e.issues) ? e.issues.filter((i): i is string => typeof i === 'string') : [],
       }));
 
-    return {
+    const result = {
       id: `PLEVAL-${Date.now().toString(36)}`,
       branchId,
       createdAt: new Date().toISOString(),
@@ -503,6 +519,22 @@ Every scene with a plan must appear.${guidance?.trim() ? `\n\nREMINDER — The a
       sceneEvals,
       patterns: parsed.patterns ?? [],
     };
+
+    logInfo('Completed plan quality evaluation', {
+      source: 'analysis',
+      operation: 'evaluate-plan-complete',
+      details: {
+        narrativeId: narrative.id,
+        branchId,
+        evaluationId: result.id,
+        scenesEvaluated: sceneEvals.length,
+        verdictOk: sceneEvals.filter(e => e.verdict === 'ok').length,
+        verdictEdit: sceneEvals.filter(e => e.verdict === 'edit').length,
+        patternsFound: result.patterns.length,
+      },
+    });
+
+    return result;
   } catch {
     return {
       id: `PLEVAL-${Date.now().toString(36)}`,
@@ -716,6 +748,20 @@ Return JSON:
         .join('\n');
       direction += `\n\nSCENE BUDGET (each thread gets this many scenes — no more):\n${budgetLines}`;
     }
+
+    logInfo('Completed course correction', {
+      source: 'auto-play',
+      operation: 'refresh-direction-complete',
+      details: {
+        narrativeId: narrative.id,
+        phaseName: phase.name,
+        scenesRemaining,
+        threadsInBudget: Object.keys(parsed.sceneBudget ?? {}).length,
+        directionUpdated: !!parsed.direction,
+        constraintsUpdated: !!parsed.constraints,
+      },
+    });
+
     return {
       direction,
       constraints: parsed.constraints ? String(parsed.constraints) : currentConstraints,

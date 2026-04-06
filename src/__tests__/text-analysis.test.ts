@@ -623,8 +623,12 @@ describe('assembleNarrative', () => {
     const narrative = await assembleNarrative('Test', results, threadDeps);
 
     const scene = Object.values(narrative.scenes)[0];
-    expect(scene.plan).toEqual(mockPlan);
-    expect(scene.beatProseMap).toEqual(mockBeatProseMap);
+    // Plan is now stored in planVersions, not directly on scene
+    expect(scene.planVersions).toBeDefined();
+    expect(scene.planVersions![0].plan).toEqual(mockPlan);
+    // beatProseMap is stored in proseVersions
+    expect(scene.proseVersions).toBeDefined();
+    expect(scene.proseVersions![0].beatProseMap).toEqual(mockBeatProseMap);
   });
 
   it('creates relationship entries from analysis', async () => {

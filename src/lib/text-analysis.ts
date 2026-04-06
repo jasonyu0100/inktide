@@ -1365,10 +1365,28 @@ export async function assembleNarrative(
           if (addedNodes.length === 0 && addedEdges.length === 0) return undefined;
           return { addedNodes, addedEdges };
         })(),
-        prose: s.prose || undefined,
-        plan: s.plan || undefined,
-        beatProseMap: s.beatProseMap || undefined,
         summary: s.summary ?? '',
+        // Create version arrays for analyzed scenes
+        proseVersions: (s.prose || s.beatProseMap) ? [{
+          prose: s.prose ?? '',
+          beatProseMap: s.beatProseMap,
+          branchId: 'main',
+          timestamp: Date.now(),
+          version: '1',
+          versionType: 'generate' as const,
+          ...(s.plan ? { sourcePlanVersion: '1' } : {}),
+        }] : undefined,
+        planVersions: s.plan ? [{
+          plan: s.plan,
+          branchId: 'main',
+          timestamp: Date.now(),
+          version: '1',
+          versionType: 'generate' as const,
+        }] : undefined,
+        // Preserve embeddings from analysis pipeline
+        summaryEmbedding: (s as any).summaryEmbedding,
+        proseEmbedding: (s as any).proseEmbedding,
+        planEmbeddingCentroid: (s as any).planEmbeddingCentroid,
       };
 
       scenes[sceneId] = scene;

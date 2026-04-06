@@ -530,8 +530,8 @@ export default function PaperPage() {
             Quantifying Narrative Force
           </h1>
           <p className="text-[15px] text-white/40 leading-relaxed max-w-xl">
-            A computational framework for measuring structural impact in
-            long-form text through knowledge graph mutations.
+            Measuring, querying, and generating structural
+            intelligence from long-form text.
           </p>
           <div className="mt-3">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/5 border border-white/10 text-white/40">
@@ -545,60 +545,55 @@ export default function PaperPage() {
           <Section id="abstract" label="Abstract">
             <P>
               Structured text exhibits measurable regularities, yet existing
-              metrics fail to quantify the mechanisms that drive reader engagement.
-              This paper introduces a computational framework that renders textual
-              structure <B>quantifiable and optimizable</B>. We model long-form text
-              as knowledge graphs mutating across three independent layers: thread
-              lifecycle transitions, continuity shifts, and world
-              knowledge expansion. Three forces (Payoff, Change, Knowledge) derive
-              from these mutations via deterministic, z-score normalized formulas.
+              metrics fail to quantify the mechanisms that make writing work.
+              This paper introduces a framework that makes textual
+              structure <B>measurable, searchable, and generative</B>. We model
+              long-form text as knowledge graphs mutating across three layers —
+              thread lifecycle transitions, continuity shifts, and world
+              knowledge expansion — then run multiple layers of analysis: force
+              scoring, semantic embeddings, pacing rhythm extraction, world
+              density grading, and dynamic contrast measurement.
               Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the
-              delivery curve autonomously identifies dramatic peaks at chapter
-              boundaries corresponding to the Sorting Hat, troll confrontation,
-              and Quirrell climax — without human annotation. While fiction is our
-              primary domain, the same structural model applies wherever threads
-              develop, knowledge builds, and arguments transform — from academic
-              papers to long-form non-fiction.
+              system autonomously identifies the Sorting Hat, troll confrontation,
+              and Quirrell climax as structural peaks — without human annotation.
+              The same model applies wherever threads develop, knowledge builds,
+              and arguments transform.
             </P>
             <P>
-              These metrics enable both <B>measurement</B> and <B>synthesis</B>.
-              For generation, we deploy Markov-chain pacing, MCTS search, and
-              adaptive planning. For revision, iterative evaluation and reconstruction.
-              Empirical validation shows published fiction scoring 85–95 on a composite
-              delivery metric, while unguided AI output scores 65–78. This
-              quantifiable gap exposes structural deficiencies: weak thread lifecycle
-              complexity, shallow continuity graphs, sparse world-building connectivity.
-              The framework provides algorithmic tools to systematically address them.
-              All components are open source and configurable.
+              The primary contribution is <B>analysis and querying</B>. Every
+              proposition is embedded for meaning-based retrieval with
+              AI-synthesized overviews and inline citations. Each analyzed work
+              contributes its pacing transition matrix and prose profile to
+              a growing corpus network across fiction and non-fiction.
+              Empirical validation: published works score 85–95 on a composite
+              delivery metric; unguided AI output scores 65–78. The same
+              metrics drive generation — pacing from published transition
+              matrices, branching search scored by force grading, and iterative
+              structural revision. All components are open source.
             </P>
           </Section>
 
           {/* ── The Problem ───────────────────────────────────────────── */}
           <Section id="problem" label="The Problem">
             <P>
-              Computational text generation faces a structural deficiency that
-              existing metrics fail to quantify. Sentiment analysis measures affective
-              valence; topic models measure lexical distribution. Neither distinguishes
-              progressive thread escalation from cyclical repetition, persistent
-              knowledge accumulation from transient variation,
-              or hierarchical depth from lateral enumeration. LLMs
-              generate syntactically fluent prose yet produce structurally shallow
-              output: dramatic tensions recur without advancing through lifecycle
-              states, subjects experience development without accumulating constraining
-              knowledge, systems expand through listing rather than
-              interconnection.
+              We lack the tools to answer a basic question: why does one text
+              compel while another meanders? Sentiment analysis measures tone;
+              topic models measure word distribution. Neither can tell you whether
+              threads are advancing or spinning in circles, whether knowledge is
+              accumulating or just being listed, whether depth is building or the
+              writing is just getting longer. Without structural metrics, we
+              can&apos;t diagnose these problems — and we can&apos;t search a text
+              for meaning across its full timeline.
             </P>
             <P>
-              These deficiencies share a root cause. Readers perceive structural
-              regularities — thread lifecycle progression, continuity graph density,
-              knowledge interconnection — that no established computational framework
-              captures. Textual coherence emerges from systematic mutations across
-              three independent graph layers. Applying mutation-derived formulas to
-              published works versus AI-generated text makes this gap empirically
-              measurable. Published literature scores 85–95 on composite delivery;
-              unguided AI output scores 65–78. This 15–20 point disparity reflects
-              structural density differences: weaker thread lifecycle complexity,
-              shallower continuity graphs, and sparser world-knowledge connectivity.
+              Readers feel these structural regularities — threads that progress,
+              worlds that deepen, ideas that interconnect — but no established
+              framework measures them. When we apply mutation-derived formulas to
+              published works versus AI-generated text, the gap becomes empirically
+              visible. Published literature scores 85–95 on composite delivery;
+              unguided AI output scores 65–78. The 15–20 point disparity traces
+              to specific structural weaknesses: threads that cycle without
+              advancing, shallow continuity, sparse world-knowledge connectivity.
             </P>
 
             {/* ── Human vs AI gradient bar ──────────────────────────── */}

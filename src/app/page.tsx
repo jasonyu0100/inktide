@@ -332,16 +332,16 @@ export default function HomePage() {
 
           <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160 sm:whitespace-nowrap">
             <span className="text-white">Text that </span>
-            <span className="glitch-wrapper text-white italic" data-text="breathes...">
-              <MorphText text="breathes" />
+            <span className="glitch-wrapper text-white italic" data-text="breathe...">
+              <MorphText text="breathe" />
               ...
             </span>
           </h1>
 
           <p className="animate-fade-up-delay-2 text-[15px] text-white/40 mt-6 max-w-lg text-center leading-relaxed">
-            An open source engine built on knowledge graphs.
+            Paste any text. See its structure.
             <br />
-            Narrative intelligence for the AI age.
+            Search it by meaning. Generate from what you find.
           </p>
 
           {/* ── Analyze Corpus ─────────────────────────────────────────── */}
@@ -361,7 +361,7 @@ export default function HomePage() {
                     onChange={(e) => setAnalysisText(e.target.value)}
                     rows={5}
                     className="w-full bg-transparent text-white text-sm px-4 pt-4 pb-2 resize-none focus:outline-none placeholder:text-white/25"
-                    placeholder="Paste a book, screenplay, or any long-form text to analyze into a narrative..."
+                    placeholder="Paste a book, paper, screenplay, or any long-form text to analyze..."
                   />
                   <div className="flex items-center justify-between px-3 pb-3">
                     <span className="text-[10px] text-white/20 font-mono">
@@ -417,9 +417,9 @@ export default function HomePage() {
                 <div className="flex-1 h-px bg-white/6" />
               </div>
               <p className="text-[13px] text-white/40 leading-relaxed mb-8 max-w-lg">
-                We ran the formulas on the books that shaped a generation. See
-                where the tension actually peaks — and whether it matches what
-                you remember feeling.
+                Each analyzed work adds its pacing rhythm and prose
+                patterns to the system. Explore the structure underneath
+                books that shaped a generation.
               </p>
               <SeedCarousel seeds={analysisSeeds} openSlides />
             </div>
@@ -437,9 +437,9 @@ export default function HomePage() {
                 <div className="flex-1 h-px bg-white/6" />
               </div>
               <p className="text-[13px] text-white/40 leading-relaxed mb-5 max-w-lg">
-                What if the story went differently? These are AI-generated
-                alternate realities — same worlds, different paths. Branch
-                timelines, stress-test arcs, and watch the force curves shift.
+                AI-generated alternate paths from the same starting point.
+                Branch the timeline, compare force curves, see how different
+                structural choices reshape the same world.
               </p>
               <SeedCarousel seeds={playgrounds} />
             </div>
@@ -459,31 +459,31 @@ export default function HomePage() {
               {[
                 {
                   q: "What can I do with this?",
-                  a: "Create stories with a knowledge graph underneath. The engine tracks your characters, threads, relationships, and world-building as structured data — then uses that graph to generate scenes, grade pacing, and find the strongest story paths. You can also paste in existing text (novels, screenplays, fanfiction) and the analysis pipeline will extract the graph and show you where the peaks and valleys land.",
+                  a: "Paste any text — a novel, a research paper, a screenplay — and InkTide builds a knowledge graph of its threads, relationships, and ideas. You get force scores, pacing analysis, world density metrics, and semantic embeddings across the full timeline. Search by meaning, get AI-synthesized answers with citations, and generate new content from the same graph.",
                 },
                 {
-                  q: "How do I start a story?",
-                  a: 'Click "New Story" and describe your premise. The engine builds out an initial cast, locations, threads, and world knowledge. From there you can generate scenes, edit anything by hand, branch into alternate timelines, or let the auto-engine run and build arcs for you. Everything is editable — the AI proposes, you decide.',
+                  q: "What does the analysis measure?",
+                  a: "Thread development and resolution (Payoff). Transformation intensity — how much shifts per section (Change). New information entering the text (Knowledge). Pacing rhythm — how the author transitions between fast and slow sections. World density — how interconnected the knowledge graph is. Dynamic contrast — whether the text varies its intensity or flatlines. Each layer is a different lens on the same underlying structure.",
                 },
                 {
-                  q: "What is the commit tree?",
-                  a: "Your story has a git-like timeline. Every scene is a commit. You can fork at any point to explore a different path — what if the villain won? What if two characters never met? Branches share history up to the fork, then diverge. You can compare them side by side, keep the best, or merge ideas across branches.",
+                  q: "How does search work?",
+                  a: "Every proposition in the text is embedded as a vector. You search by meaning, not keywords — \"betrayal\" finds scenes of broken trust even when the word never appears. Results include AI-synthesized overviews that trace patterns across the timeline, with inline citations linking to specific passages.",
                 },
                 {
-                  q: "What do the force charts show me?",
-                  a: "Three scores per scene: Payoff (did threads resolve?), Change (how much happened?), and Knowledge (did the world get richer?). The delivery curve combines them into a single line — peaks are your big moments, valleys are your buildup. If the curve is flat, your story might need more contrast between quiet scenes and dramatic ones.",
+                  q: "What do the charts show?",
+                  a: "Force curves trace the shape of the text through time. Peaks are where threads resolve, worlds deepen, or transformations land. Valleys are buildup. A flat curve means the text lacks contrast. An all-peaks curve means it never lets the reader settle. The scores are computed from knowledge graph mutations, not from the prose directly.",
                 },
                 {
-                  q: "What does MCTS do?",
-                  a: "It searches for the best next arc. The engine generates multiple possible directions, scores each one, and expands the most promising branches — like a chess engine, but for story paths. You pick a rhythm profile (pacing inspired by a published work) and MCTS finds scenes that hit those beats. The result is a set of candidate arcs ranked by narrative force.",
+                  q: "What happens with each work I analyze?",
+                  a: "Its pacing rhythm becomes a reusable transition matrix. Its prose patterns become a profile you can apply to generation. Each work joins a growing open network of structural data from published fiction and non-fiction — the more works analyzed, the richer the system's understanding of how different authors structure text.",
                 },
                 {
-                  q: "Can I analyse existing books?",
-                  a: "Yes. Go to the analysis page and paste in any text — up to 500K words. The engine chunks it, extracts characters, threads, and world knowledge, then computes force curves and a grade. You can see exactly where a novel peaks, what archetype it fits, and how its pacing compares to other works in the system.",
+                  q: "Can it generate?",
+                  a: "Yes. From a knowledge graph — built by analysis or from a premise — the engine generates scenes paced by transition matrices from published works, explores branching paths scored by the same force metrics, and revises its own output through structural evaluation. Generation uses the analysis layers, not a separate system.",
                 },
                 {
                   q: "What does it cost?",
-                  a: "InkTide is free and open source. You bring your own API key (OpenRouter) which gives you access to any LLM — Gemini, GPT, Claude, Llama, and others. You pay only for the tokens you use at the provider's rates. No subscription, no platform fee.",
+                  a: "InkTide is free and open source. You just need an OpenRouter API key to get started — that covers all analysis, search, and generation. Optionally add an OpenAI key for embeddings or a Replicate key for image generation. You pay only for the tokens you use. No subscription, no platform fee.",
                 },
               ].map(({ q, a }, i) => (
                 <details key={i} className="group">

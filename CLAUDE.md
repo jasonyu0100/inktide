@@ -1,18 +1,29 @@
 # InkTide
 
-Knowledge-graph-based text analysis, generation, and revision platform. Primarily built for fiction, but the structural framework applies to any long-form writing — academic papers, non-fiction, technical documents. Derives **payoff**, **change**, and **knowledge** forces from scene-level mutations. Next.js 16 + React 19 + TypeScript.
+Knowledge-graph-based text analysis, querying, and generation platform. Primary flow: **analyze → query → generate**. Runs multiple layers of structural analysis over any long-form text — fiction, academic papers, non-fiction. Builds toward a connected network of text corpuses where each analyzed work enriches the system. Next.js 16 + React 19 + TypeScript.
 
 ## Core Concept
 
-Text is modelled as a **knowledge graph** that mutates section by section. An LLM records structural mutations (threads, knowledge, relationships) at each section, and static analysis formulas compute **narrative forces** from those mutations. Fiction remains the primary use case, but the same force model captures structural quality in any text where threads develop, knowledge builds, and ideas transform. This enables:
+Text is modelled as a **knowledge graph** that mutates section by section. An LLM records structural mutations (threads, knowledge, relationships) at each section, and multiple analysis layers extract structural intelligence from those mutations. Each analyzed work contributes to a growing network — pacing patterns become reusable, prose profiles capture authorial rhythm, and propositions are embedded for cross-corpus search. This enables:
 
-- **Markov chain pacing** — transition matrices derived from published works shape scene-by-scene rhythm
-- **MCTS search** — explores branching narrative paths, each expansion guided by a fresh Markov pacing sequence
-- **Planning with course correction** — direction vectors rewritten after each arc based on thread tension, character cost, rhythm, freshness, momentum
-- **Iterative revision** — evaluate branches by summary → per-scene verdicts (ok/edit/merge/insert/cut) → reconstruct versioned branches
-- **Analysis engine** — compiles existing text into arcs and scenes via chunked window-function processing
-- **Pacing presets** — curated cube position sequences that bypass Markov sampling for targeted arcs
-- **Prose profiles** — reverse-engineer published prose into beat plans, build authorial Markov chains over a 10-function / 8-mechanism taxonomy
+### Analysis
+- **Force analysis** — Payoff, Change, Knowledge derived from graph mutations via deterministic z-score normalised formulas
+- **Embedding analysis** — vector embeddings over every beat and proposition for meaning-based search and propositional logic
+- **Pacing analysis** — Markov transition matrices on scene-level cube modes and beat-level prose rhythm, derived from published works
+- **Scale & density** — story scale metrics and world knowledge interconnection depth
+- **Swing** — dynamic contrast between consecutive sections (breathing vs flatline)
+
+### Querying
+- **Semantic search** — meaning-based retrieval with AI-synthesized overviews and inline citations
+- **Propositional analysis** — logical analysis of embedded propositions to surface hidden connections
+
+### Generation
+- **Markov chain pacing** — transition matrices from analyzed works shape scene-by-scene rhythm
+- **MCTS search** — explores branching narrative paths, each expansion guided by a fresh pacing sequence
+- **Planning with course correction** — direction vectors rewritten after each arc
+- **Iterative revision** — evaluate → verdict (ok/edit/merge/insert/cut) → reconstruct versioned branches
+- **Prose profiles** — beat plans with authorial Markov chains over a 10-function / 8-mechanism taxonomy
+- **Pacing presets** — curated sequences that bypass Markov sampling for targeted arcs
 
 ## Quick Reference
 

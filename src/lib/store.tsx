@@ -1658,11 +1658,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           for (const result of results) {
             if (result.status !== 'fulfilled' || !result.value) continue;
             const narrative = result.value;
+            const saved = persistedById.get(narrative.id);
+
+            // If this narrative already exists in IndexedDB, skip loading the bundled version
+            // to avoid overwriting user modifications
+            if (saved) {
+              entries.push(narrativeToEntry(saved));
+              SEED_IDS.add(narrative.id);
+              idSet.add(narrative.id);
+              continue;
+            }
+
+            // Only load bundled narrative if it doesn't exist in IndexedDB
             bundledNarratives.set(narrative.id, narrative);
             SEED_IDS.add(narrative.id);
             idSet.add(narrative.id);
-            const saved = persistedById.get(narrative.id);
-            entries.push(narrativeToEntry(saved ?? narrative));
+            entries.push(narrativeToEntry(narrative));
           }
           return entries;
         } catch (err) {

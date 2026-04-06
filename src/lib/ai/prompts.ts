@@ -253,7 +253,7 @@ export function buildThreadHealthPrompt(
     const phaseIdx = PHASE_INDEX[t.status] ?? 0;
     const velocityLabel = t.velocity > 0 ? (t.velocity * 10).toFixed(1) + '/10 scenes' : 'no transitions';
     const sinceLabel = t.m.scenesSinceLastTransition > standard.benchmark
-      ? `⚠ ${t.m.scenesSinceLastTransition} since last (>${standard.benchmark})`
+      ? `[!] ${t.m.scenesSinceLastTransition} since last (>${standard.benchmark})`
       : `${t.m.scenesSinceLastTransition} since last`;
     const history = t.m.transitionHistory.length > 0
       ? t.m.transitionHistory.join(' → ')
@@ -262,7 +262,7 @@ export function buildThreadHealthPrompt(
     // Pulse ratio warning
     let pulseWarning = '';
     if (t.m.totalMutations >= 3 && t.m.pulses / t.m.totalMutations > 0.8) {
-      pulseWarning = ' ⚠ HIGH PULSE RATIO — next mention MUST transition';
+      pulseWarning = ' [!] HIGH PULSE RATIO — next mention MUST transition';
     }
 
     lines.push(`"${t.description}" [${t.id}] ${t.status} (phase ${phaseIdx}/4)`);

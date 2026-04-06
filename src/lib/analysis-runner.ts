@@ -691,7 +691,7 @@ class AnalysisRunner {
           }
         }
 
-        this.emitStream(job.id, `✓ Embeddings generated for ${allScenes.length} scenes`);
+        this.emitStream(job.id, `[OK] Embeddings generated for ${allScenes.length} scenes`);
         d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { embeddingProgress: undefined } });
       } catch (error) {
         // Log error but don't fail analysis if embedding fails
@@ -700,7 +700,7 @@ class AnalysisRunner {
           operation: 'phase-3.5-embeddings',
           details: { jobId: job.id, sceneCount: allScenes.length },
         });
-        this.emitStream(job.id, '⚠ Embedding generation failed (continuing analysis without embeddings)');
+        this.emitStream(job.id, '[WARN] Embedding generation failed (continuing analysis without embeddings)');
       }
     }
 

@@ -305,7 +305,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               {isAssembling ? 'assembling...'
                 : isFinalizing ? 'finalizing...'
                 : isReconciling ? 'reconciling...'
-                : isEmbedding ? 'embedding...'
+                : isEmbedding ? (liveJob.embeddingProgress ? `embeddings ${liveJob.embeddingProgress.completed}/${liveJob.embeddingProgress.total}` : 'embedding...')
                 : isPlanExtracting ? `plans ${beatStats.planCount}/${sceneCount}`
                 : liveJob.status === 'completed' ? 'complete'
                 : liveJob.status === 'failed' ? 'failed'
@@ -574,6 +574,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               )}
               {isExtracting && (
                 <span className="text-[9px] text-white/10 font-mono ml-auto">{completedChunks}/{totalChunks}</span>
+              )}
+              {isEmbedding && liveJob.embeddingProgress && (
+                <span className="text-[9px] text-violet-400/40 font-mono ml-auto">{liveJob.embeddingProgress.completed}/{liveJob.embeddingProgress.total}</span>
               )}
             </div>
 

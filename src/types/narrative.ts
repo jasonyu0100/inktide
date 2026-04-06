@@ -1071,6 +1071,8 @@ export type AnalysisJob = {
   error?: string;
   /** The assembled narrative ID once complete */
   narrativeId?: string;
+  /** Embedding progress tracking */
+  embeddingProgress?: { completed: number; total: number };
   createdAt: number;
   updatedAt: number;
 };

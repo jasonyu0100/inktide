@@ -535,12 +535,18 @@ class AnalysisRunner {
       this.emitStream(job.id, `Phase 3.5: Generating embeddings for ${allScenes.length} scenes...`);
 
       try {
+        // Count total items to embed for progress tracking
+        let totalItemsToEmbed = allScenes.length; // Summaries
+        let completedItems = 0;
+
         // Batch 1: Embed scene summaries
         const sceneSummaries = allScenes.map(s => s.summary);
         const summaryEmbeddings = await generateEmbeddingsBatch(
           sceneSummaries,
           job.id,
           (completed, total) => {
+            completedItems = completed;
+            d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { embeddingProgress: { completed: completedItems, total: totalItemsToEmbed } } });
             this.emitStream(job.id, `Embedding summaries: ${completed}/${total}`);
           }
         );
@@ -661,6 +667,10 @@ class AnalysisRunner {
         // Batch 3: Embed prose if available
         const scenesWithProse = allScenes.filter(s => s.prose && s.prose.length > 0);
         if (scenesWithProse.length > 0) {
+          // Update total to include prose
+          const summariesComplete = completedItems;
+          totalItemsToEmbed = allScenes.length + scenesWithProse.length;
+
           this.emitStream(job.id, `Embedding prose for ${scenesWithProse.length} scenes...`);
 
           const proseTexts = scenesWithProse.map(s => s.prose!);
@@ -668,6 +678,8 @@ class AnalysisRunner {
             proseTexts,
             job.id,
             (completed, total) => {
+              completedItems = summariesComplete + completed;
+              d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { embeddingProgress: { completed: completedItems, total: totalItemsToEmbed } } });
               this.emitStream(job.id, `Embedding prose: ${completed}/${total}`);
             }
           );
@@ -680,6 +692,7 @@ class AnalysisRunner {
         }
 
         this.emitStream(job.id, `✓ Embeddings generated for ${allScenes.length} scenes`);
+        d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { embeddingProgress: undefined } });
       } catch (error) {
         // Log error but don't fail analysis if embedding fails
         logError('Failed to generate embeddings during analysis', error, {

@@ -12,7 +12,6 @@ const GRAPH_DOMAINS = [
   { label: 'World',     local: 'spatial' as GraphViewMode, global: 'overview' as GraphViewMode },
   { label: 'Knowledge', local: 'spark'   as GraphViewMode, global: 'codex'    as GraphViewMode },
   { label: 'Threads',   local: 'pulse'   as GraphViewMode, global: 'threads'  as GraphViewMode },
-  { label: 'Search',    local: 'search'  as GraphViewMode, global: 'search'   as GraphViewMode },
 ];
 
 const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode }> = {
@@ -22,12 +21,11 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
   codex:    { local: 'spark',   global: 'codex'    },
   pulse:    { local: 'pulse',   global: 'threads'  },
   threads:  { local: 'pulse',   global: 'threads'  },
-  search:   { local: 'search',  global: 'search'   },
 };
 
-const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads', 'search']);
+const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio';
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'search';
 
 // Module-level state shared with SceneProseView
 let beatPlanLinkedModeGlobal = false;
@@ -108,6 +106,12 @@ const VERSION_TYPE_COLORS = {
   edit: 'text-amber-400',
 };
 
+const VERSION_TYPE_BG_COLORS = {
+  generate: 'bg-emerald-400',
+  rewrite: 'bg-sky-400',
+  edit: 'bg-amber-400',
+};
+
 function VersionSelector({
   versions,
   currentVersion,
@@ -156,19 +160,34 @@ function VersionSelector({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono transition-colors hover:bg-white/10 ${
+        className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-mono transition-all hover:bg-white/10 ${
           pinnedVersion ? 'ring-1 ring-inset ring-amber-400/40' : ''
         }`}
       >
-        <span className={VERSION_TYPE_COLORS[versionType]}>
-          V{currentVersion ?? '0'}
-        </span>
-        {pinnedVersion && <span className="text-amber-400">{"\u25C9"}</span>}
-        <span className="text-text-dim/40">{"\u25BC"}</span>
+        <div className="flex items-center gap-1">
+          <span className={`w-1 h-1 rounded-full ${VERSION_TYPE_BG_COLORS[versionType]}`} />
+          <span className="text-text-primary font-medium">
+            V{currentVersion ?? '0'}
+          </span>
+        </div>
+        {pinnedVersion && (
+          <div className="w-1 h-1 rounded-full bg-amber-400" />
+        )}
+        <svg
+          className={`w-2.5 h-2.5 text-text-dim/40 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          viewBox="0 0 8 8"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M1 2.5 L4 5.5 L7 2.5" />
+        </svg>
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-bg-secondary border border-border rounded-lg shadow-xl min-w-[240px] max-h-[320px] overflow-hidden">
+        <div className="absolute top-full left-0 mt-1.5 z-[100] bg-bg-secondary/95 backdrop-blur-sm border border-border rounded-lg shadow-xl min-w-[240px] max-h-[320px] overflow-hidden">
           <VersionHistoryTree
             versions={versions}
             currentVersion={currentVersion}
@@ -191,6 +210,7 @@ function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'plan') return 'plan';
   if (graphViewMode === 'prose') return 'prose';
   if (graphViewMode === 'audio') return 'audio';
+  if (graphViewMode === 'search') return 'search';
   return 'graph';
 }
 
@@ -551,6 +571,14 @@ export function CanvasTopBar() {
           )}
           {!proseStats && planStats && <span className="text-[9px] text-text-dim/30">Not written</span>}
           {!proseStats && !planStats && <span className="text-[9px] text-text-dim/30">No plan</span>}
+
+          {/* Beat plan toggle (only when beat mapping exists) */}
+          {showBeatPlanToggle && (
+            <>
+              <div className="w-px h-3 bg-border ml-1" />
+              <BeatPlanToggle />
+            </>
+          )}
         </div>
       )}
 
@@ -559,11 +587,6 @@ export function CanvasTopBar() {
 
       {/* Right — Mode toggle: Graph / Plan / Prose / Audio */}
       <div className="flex items-center gap-2">
-        {/* Beat plan toggle (only in prose mode with beat mapping) - to the LEFT */}
-        {canvasMode === 'prose' && showBeatPlanToggle && (
-          <BeatPlanToggle />
-        )}
-
         <div className="flex items-center rounded bg-white/4 p-0.5">
           {(['graph', 'plan', 'prose', 'audio'] as CanvasMode[]).map((mode) => {
             const isActive = canvasMode === mode;

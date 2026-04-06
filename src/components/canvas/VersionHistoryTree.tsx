@@ -146,10 +146,6 @@ function VersionNode({
   const hasChildren = node.children.length > 0;
 
   const date = new Date(node.timestamp);
-  const timeStr = date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
   const dateStr = date.toLocaleDateString([], {
     month: "short",
     day: "numeric",
@@ -162,69 +158,86 @@ function VersionNode({
   return (
     <div className="select-none">
       <div
-        className={`group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors ${
+        className={`group relative flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer transition-all ${
           isActive
-            ? "bg-white/10 text-text-primary"
+            ? "bg-white/8 text-text-primary shadow-sm"
             : isPinned
-              ? "bg-white/5 text-text-secondary ring-1 ring-inset ring-white/20"
-              : "hover:bg-white/5 text-text-secondary"
+              ? "bg-amber-400/5 text-text-secondary"
+              : "hover:bg-white/4 text-text-secondary"
         }`}
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        style={{ paddingLeft: `${depth * 12 + 10}px` }}
         onClick={() => onSelect(node.version)}
       >
+        {/* Expand/collapse indicator */}
         {hasChildren ? (
           <button
             onClick={(e) => {
               e.stopPropagation();
               setExpanded(!expanded);
             }}
-            className="w-4 h-4 flex items-center justify-center text-text-dim hover:text-text-secondary text-[8px]"
+            className="w-3 h-3 flex items-center justify-center text-text-dim/50 hover:text-text-secondary transition-colors"
           >
-            {expanded ? "\u25BC" : "\u25B6"}
+            <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 8 8">
+              <path d={expanded ? "M1 2.5 L4 5.5 L7 2.5" : "M2.5 1 L5.5 4 L2.5 7"} strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
         ) : (
-          <span className="w-4" />
+          <span className="w-3" />
         )}
 
-        <span
-          className={`text-[11px] font-mono font-semibold ${VERSION_TYPE_COLORS[node.versionType]}`}
-        >
-          V{node.version}
-        </span>
+        {/* Version number with color indicator */}
+        <div className="flex items-center gap-1.5">
+          <span className={`w-1 h-1 rounded-full ${VERSION_TYPE_BG_COLORS[node.versionType]}`} />
+          <span className="text-[10px] font-mono font-medium text-text-primary">
+            V{node.version}
+          </span>
+        </div>
 
-        <span className="text-[9px] text-text-dim/60">
+        {/* Type label - more subtle */}
+        <span className="text-[8px] text-text-dim/40 uppercase tracking-wide">
           {VERSION_TYPE_LABELS[node.versionType]}
         </span>
 
+        {/* Source plan reference */}
         {sourcePlanVersion && (
-          <span className="text-[8px] text-text-dim/40" title={`Generated from Plan V${sourcePlanVersion}`}>
-            {"\u2190"} P{sourcePlanVersion}
+          <span className="text-[8px] text-text-dim/30 font-mono" title={`Generated from Plan V${sourcePlanVersion}`}>
+            P{sourcePlanVersion}
           </span>
         )}
 
-        <span className="ml-auto text-[9px] text-text-dim/40">
-          {dateStr} {timeStr}
+        <div className="flex-1" />
+
+        {/* Timestamp - cleaner format */}
+        <span className="text-[8px] text-text-dim/30 font-mono tabular-nums">
+          {dateStr}
         </span>
 
-        {/* Pin/Unpin button */}
+        {/* Pin indicator - minimal */}
+        {isPinned && (
+          <div className="w-1 h-1 rounded-full bg-amber-400" title="Pinned" />
+        )}
+
+        {/* Pin button - only on hover */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             onPin(isPinned ? undefined : node.version);
           }}
-          className={`w-5 h-5 flex items-center justify-center rounded transition-all ${
+          className={`w-4 h-4 flex items-center justify-center rounded transition-all ${
             isPinned
-              ? "text-amber-400 bg-amber-400/10"
-              : "text-text-dim/30 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-white/5"
+              ? "text-amber-400/60"
+              : "text-text-dim/20 opacity-0 group-hover:opacity-100 hover:text-amber-400/80"
           }`}
-          title={isPinned ? "Unpin version" : "Pin this version for current branch"}
+          title={isPinned ? "Unpin version" : "Pin version"}
         >
-          {"\u25C9"}
+          <svg className="w-3 h-3" viewBox="0 0 12 12" fill={isPinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
+            <circle cx="6" cy="6" r="4" />
+          </svg>
         </button>
       </div>
 
       {expanded && hasChildren && (
-        <div>
+        <div className="mt-0.5">
           {node.children.map((child) => (
             <VersionNode
               key={child.version}
@@ -276,19 +289,22 @@ export function VersionHistoryTree({
 
   return (
     <div className="py-2">
+      {/* Header */}
       <div className="flex items-center gap-2 px-3 mb-2">
-        <span className="text-[10px] uppercase tracking-wider text-text-dim/60">
+        <span className="text-[9px] uppercase tracking-wider text-text-dim/50 font-medium">
           {type === "prose" ? "Prose" : "Plan"} Versions
         </span>
-        <span className="text-[9px] text-text-dim/40">({versions.length})</span>
+        <span className="text-[8px] text-text-dim/30 font-mono">({versions.length})</span>
         {pinnedVersion && (
-          <span className="text-[9px] text-amber-400/60 ml-auto">
-            Pinned: V{pinnedVersion}
-          </span>
+          <div className="flex items-center gap-1 ml-auto">
+            <div className="w-1 h-1 rounded-full bg-amber-400" />
+            <span className="text-[8px] text-amber-400/60 font-mono">V{pinnedVersion}</span>
+          </div>
         )}
       </div>
 
-      <div className="space-y-0.5 max-h-64 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+      {/* Version list */}
+      <div className="space-y-0.5 max-h-80 overflow-y-auto px-1" style={{ scrollbarWidth: "thin" }}>
         {tree.map((node) => (
           <VersionNode
             key={node.version}
@@ -304,18 +320,19 @@ export function VersionHistoryTree({
         ))}
       </div>
 
-      <div className="flex items-center gap-3 mt-3 px-3 pt-2 border-t border-white/5">
-        <div className="flex items-center gap-1">
-          <span className={`w-2 h-2 rounded-full ${VERSION_TYPE_BG_COLORS.generate}`} />
-          <span className="text-[9px] text-text-dim/60">Generate</span>
+      {/* Legend - minimal */}
+      <div className="flex items-center gap-3 mt-3 px-3 pt-2.5 border-t border-white/5">
+        <div className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${VERSION_TYPE_BG_COLORS.generate}`} />
+          <span className="text-[8px] text-text-dim/50">Gen</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className={`w-2 h-2 rounded-full ${VERSION_TYPE_BG_COLORS.rewrite}`} />
-          <span className="text-[9px] text-text-dim/60">Rewrite</span>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${VERSION_TYPE_BG_COLORS.rewrite}`} />
+          <span className="text-[8px] text-text-dim/50">Rewrite</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className={`w-2 h-2 rounded-full ${VERSION_TYPE_BG_COLORS.edit}`} />
-          <span className="text-[9px] text-text-dim/60">Edit</span>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${VERSION_TYPE_BG_COLORS.edit}`} />
+          <span className="text-[8px] text-text-dim/50">Edit</span>
         </div>
       </div>
     </div>

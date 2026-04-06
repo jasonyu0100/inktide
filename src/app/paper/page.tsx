@@ -556,8 +556,9 @@ export default function PaperPage() {
               Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the
               system autonomously identifies the Sorting Hat, troll confrontation,
               and Quirrell climax as structural peaks — without human annotation.
-              The same model applies wherever threads develop, knowledge builds,
-              and arguments transform.
+              The model is validated on fiction; the structural primitives
+              (threads, knowledge accumulation, continuity shifts) are
+              domain-general, but non-fiction application remains untested.
             </P>
             <P>
               The primary contribution is <B>analysis and querying</B>. Every
@@ -1165,9 +1166,38 @@ export default function PaperPage() {
               </svg>
             </div>
 
-            <P>
-              <B>Narrative</B> — Global container for all entities, threads, and world knowledge. Persists across all scenes as a growing knowledge graph. <B>Arcs</B> — Thematic groupings of 5–8 scenes with directional objectives. Direction vectors recompute after each arc based on thread lifecycle tension and narrative momentum. <B>Scenes</B> — Atomic units of structural mutation. Each scene generates thread transitions, continuity mutations, and knowledge graph additions. Forces derive directly from these mutations, not from prose. <B>Beats</B> — Functional prose segments with typed roles (breathe, inform, advance, turn, reveal, etc.) and delivery mechanisms (dialogue, thought, action, etc.). Generated as architectural blueprints before any prose is written. <B>Propositions</B> — Atomic prose units (20–60 words) that execute beat intentions. Ephemeral rendering artifacts with no persistent type structure.
-            </P>
+            <div className="mt-4 space-y-4">
+              <P>
+                <B>Narrative</B> — The full knowledge graph: all characters, locations, threads, relationships, and world knowledge. Persists and grows across the entire timeline.
+                <span className="block text-white/25 text-[11px] mt-1 italic">
+                  HP: Harry, Hogwarts, the Philosopher&apos;s Stone quest, Snape&apos;s ambiguous loyalty, the rules of wand magic — all as graph nodes and edges.
+                </span>
+              </P>
+              <P>
+                <B>Arcs</B> — Thematic groupings of 5–8 scenes with directional objectives. Direction vectors recompute after each arc based on thread tension and momentum.
+                <span className="block text-white/25 text-[11px] mt-1 italic">
+                  HP: &ldquo;Arrival at Hogwarts&rdquo; (Sorting Hat through first classes) — establishing threads, expanding the world, seeding rivalries.
+                </span>
+              </P>
+              <P>
+                <B>Scenes</B> — Atomic units of structural mutation. Each scene records thread transitions, continuity mutations, and knowledge graph additions. Forces derive from these mutations, not from prose.
+                <span className="block text-white/25 text-[11px] mt-1 italic">
+                  HP: The troll fight — &ldquo;friendship with Hermione&rdquo; thread jumps dormant → active, relationship mutation between Harry/Ron/Hermione, knowledge node for troll vulnerability.
+                </span>
+              </P>
+              <P>
+                <B>Beats</B> — Typed prose segments with a function (breathe, inform, advance, turn, reveal, etc.) and delivery mechanism (dialogue, thought, action, etc.). Generated as blueprints before prose is written.
+                <span className="block text-white/25 text-[11px] mt-1 italic">
+                  HP troll scene: breathe:environment (bathroom, troll stench) → advance:action (Ron levitates the club) → bond:dialogue (&ldquo;There are some things you can&apos;t share&rdquo;).
+                </span>
+              </P>
+              <P>
+                <B>Propositions</B> — Atomic prose units (20–60 words) that execute beat intentions. The smallest embeddable unit for semantic search.
+                <span className="block text-white/25 text-[11px] mt-1 italic">
+                  &ldquo;The troll&apos;s club clattered to the floor. In the silence, Ron was still holding his wand in the air.&rdquo;
+                </span>
+              </P>
+            </div>
 
             <P>
               This hierarchy enforces <B>separation of concerns</B>. Structure generation (scenes with mutations) runs independently of prose generation (beats and propositions). An LLM generates scene structures, then beat plans in parallel, then prose in parallel. Forces are computed from mutation graphs without examining prose. Revision edits beats without modifying scene structure. The architecture maximizes parallelism and makes every layer auditable.
@@ -1270,9 +1300,13 @@ export default function PaperPage() {
                 <Tex>{"\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)"}</Tex>{" "}
                 where <Tex>{"T_i = C_i + K_i - P_i"}</Tex> rewards
                 tension-release patterns: the bigger the drop from buildup to
-                payoff, the stronger the delivery. Calibrated against{" "}
+                payoff, the stronger the delivery. Constants{" "}
+                (<Tex>{"w{=}0.3,\\; \\alpha{=}1.5,\\; \\gamma{=}0.2"}</Tex>)
+                were hand-tuned against{" "}
                 <em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>,{" "}
-                <em>The Great Gatsby</em>, and <em>Reverend Insanity</em>.
+                <em>The Great Gatsby</em>, and <em>Reverend Insanity</em>{" "}
+                until peaks aligned with known dramatic moments — reasonable
+                starting points, not formally optimized.
               </P>
             </div>
           </Section>
@@ -1477,13 +1511,16 @@ export default function PaperPage() {
                 deterministic formulas applied to structural mutations recover
                 the dramatic shape of a narrative without reading the prose
               </B>
-              . The mutations are extracted by an LLM, so the inputs are
-              approximate — but the formulas themselves are deterministic and
-              auditable. The approximation is useful enough to act on. When
-              applied to AI-generated narratives, the same formulas produce
-              flatter delivery curves: mutations are structurally valid but
-              uniformly dense, lacking the contrast that creates memorable
-              moments.
+              . The mutations are extracted by an LLM at low temperature to
+              maximize determinism, so the inputs are approximate — but the
+              formulas themselves are deterministic and auditable. Extraction
+              is the pipeline&apos;s most vulnerable point: inter-run
+              agreement and score sensitivity to extraction variance remain
+              unmeasured. In practice, rankings are stable — published works
+              reliably outscore AI output. When applied to AI-generated
+              narratives, the same formulas produce flatter delivery curves:
+              mutations are structurally valid but uniformly dense, lacking
+              the contrast that creates memorable moments.
             </P>
           </Section>
 
@@ -1493,10 +1530,8 @@ export default function PaperPage() {
               Each story receives a score out of 100, with 25 points allocated
               to each of the three forces plus <B>swing</B> — the Euclidean
               distance between consecutive force snapshots, measuring pacing
-              dynamism. The grading curve is exponential, calibrated against
-              reference works including <em>Harry Potter</em>,{" "}
-              <em>The Great Gatsby</em>, <em>Crime and Punishment</em>, and{" "}
-              <em>Coiling Dragon</em>.
+              dynamism. The grading curve is exponential (steepness = 2),
+              hand-tuned so reference works land in the 85–92 range.
             </P>
             <Eq tex="g(\tilde{x}) = 25\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
@@ -1714,7 +1749,9 @@ export default function PaperPage() {
               <em>rhythm profile</em> derived from a published work: a story
               using Harry Potter&apos;s matrix will pivot constantly between
               peaks, while one using Orwell&apos;s will sustain pressure then
-              erupt.
+              erupt. Whether Markov-guided generation produces
+              higher-scoring output than unguided generation is a testable
+              claim we have not yet tested in controlled experiment.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
@@ -1975,6 +2012,11 @@ export default function PaperPage() {
 
           {/* ── MCTS ──────────────────────────────────────────────────── */}
           <Section id="mcts" label="MCTS">
+            <P>
+              <em>This section describes implemented architecture, not
+              validated results. No controlled comparison against simpler
+              baselines (greedy, random) has been run.</em>
+            </P>
             <P>
               Monte Carlo Tree Search adapts the game-playing algorithm to
               narrative space. Nodes are narrative states — the full knowledge
@@ -2590,9 +2632,14 @@ export default function PaperPage() {
               Archetypes
             </h3>
             <P>
-              Each story is classified by which forces dominate its profile. A
-              force is considered &ldquo;dominant&rdquo; if it scores &ge; 21
-              and falls within 5 points of the maximum.
+              Classification answers a practical question: when comparing
+              or generating texts, what kind of structural emphasis does this
+              work have? A &ldquo;Chronicle&rdquo; (Payoff + Knowledge) and a
+              &ldquo;Saga&rdquo; (Change-driven) require different pacing
+              strategies, different thread management, and different revision
+              priorities. Each text is classified by which forces dominate
+              its profile — a force is &ldquo;dominant&rdquo; if it scores
+              &ge; 21 and falls within 5 points of the maximum.
             </P>
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
               {ARCHETYPES.map(({ key, name, desc, color }) => (
@@ -2667,6 +2714,10 @@ export default function PaperPage() {
               to its length: (characters + locations + threads + world knowledge
               nodes) / scenes. A 24-scene story with 77 entities (3.2/scene) is
               denser than a 100-scene story with 173 entities (1.7/scene).
+              Tier thresholds are heuristic, calibrated by inspection of
+              analysed works rather than derived from a formal distribution —
+              they provide useful comparative labels but should not be treated
+              as hard boundaries.
             </P>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-2 text-[11px]">
               {DENSITY_TIERS.map(({ key, name, desc, color }, i) => (

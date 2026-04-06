@@ -110,9 +110,28 @@ This is document-style version history. You can edit the original text while kee
 
 **Structural Branching** — Beneath both versioning systems, scenes themselves are structurally immutable (POV, location, participants, mutations fixed). Branches reference shared scenes — only structurally different scenes create new objects. Descendants dynamically resolve their view through parent lineage, enabling git-like cloning with minimal storage. `src/lib/narrative-utils.ts` `src/lib/store.tsx`
 
+### 7. Semantic Search & Embeddings
+
+Every narrative element — propositions, beats, scenes — is embedded as a 1536-dimensional vector using OpenAI's `text-embedding-3-small` model. These embeddings capture **meaning**, not keywords. Searching for "betrayal" surfaces scenes of broken trust even when that word never appears.
+
+```
+Query: "character motivations"
+  ↓ embed → cosine similarity → rank all content
+Result: [Scene 6 Beat 7 · inform · 92% match]
+        [Scene 3 Beat 2 · reveal · 87% match]
+```
+
+**Continuity validation** becomes tractable. When a scene references "the promise made at the river", semantic search retrieves all prior content close to that concept and verifies it exists. Knowledge asymmetries (what each character knows vs. the reader) can be tracked: if Character A acts on information they shouldn't have, the system surfaces when that information was revealed and who was present.
+
+**Intelligent RAG (Retrieval-Augmented Generation)** grounds the LLM in actual narrative state. When generating a new scene, the system retrieves semantically relevant prior content — not just recent scenes, but thematically connected moments from anywhere in the timeline. This enables callbacks, foreshadowing validation, and thematic coherence.
+
+**Search synthesis** produces Google-style AI overviews over retrieved results. Rather than listing matches, the system identifies patterns, arc relevance, and timeline clusters. Inline citations `[1] [2] [3]` link claims to specific beats. Results persist in IndexedDB — navigate away, come back, research continues. `src/lib/search.ts` `src/lib/ai/search-synthesis.ts`
+
+The embedding layer turns the knowledge graph into a **semantic space** where narrative distance is measurable. Thread convergence, character arc parallels, thematic echoes — all queryable through cosine similarity rather than explicit graph edges. Future capabilities: plot hole detection (missing causal links), tone drift analysis (semantic clustering), automated continuity checks.
+
 ## Tech
 
-Next.js 16 · React 19 · TypeScript · Tailwind v4 · D3.js · OpenRouter (Gemini 2.5/3 Flash) · Replicate (Seedream 4.5)
+Next.js 16 · React 19 · TypeScript · Tailwind v4 · D3.js · OpenRouter (Gemini 2.5/3 Flash) · OpenAI (Embeddings) · Replicate (Seedream 4.5)
 
 ## License
 

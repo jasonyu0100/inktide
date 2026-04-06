@@ -2567,6 +2567,25 @@ export default function PaperPage() {
             </P>
           </Section>
 
+          {/* ── Semantic Search & Embeddings ──────────────────────────────── */}
+          <Section id="semantic-search" label="Semantic Search & Embeddings">
+            <P>
+              Every scene, beat, and proposition is embedded as a 1536-dimensional vector (OpenAI text-embedding-3-small). Embeddings capture <B>meaning, not keywords</B> — searching &quot;betrayal&quot; surfaces scenes of broken trust even when that word never appears. Each embedding carries context: arc name, scene summary, beat function, surrounding prose.
+            </P>
+            <P>
+              <B>Semantic search</B> ranks content by cosine similarity to the query vector, then synthesizes a Google-style AI overview with inline citations. Results persist across navigation. Embeddings are cached in IndexedDB and regenerated only when narrative content changes.
+            </P>
+            <P>
+              <B>Continuity validation</B> becomes tractable. When a scene references &quot;the promise made at the river&quot;, the system retrieves all prior content semantically close to that concept and verifies it exists. Knowledge asymmetries are trackable: if Character A acts on information they shouldn&apos;t have, semantic search surfaces when that information was revealed and who was present.
+            </P>
+            <P>
+              <B>Intelligent RAG</B> grounds generation in actual narrative state. The system retrieves semantically relevant prior content — not just recent scenes, but thematically connected moments from anywhere in the timeline. This enables callbacks, foreshadowing validation, and thematic coherence without keyword matching.
+            </P>
+            <P>
+              The embedding layer transforms the knowledge graph into a semantic space where narrative distance is measurable. Thread convergence, character parallels, thematic echoes — all queryable through cosine similarity. Future capabilities: plot hole detection (missing causal links), tone drift analysis (semantic clustering), automated continuity checks.
+            </P>
+          </Section>
+
           {/* ── Classification ──────────────────────────────────────── */}
           <Section id="classification" label="Classification">
             <h3 className="text-[15px] font-semibold text-white/80 mb-3">

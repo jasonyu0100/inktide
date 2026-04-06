@@ -26,9 +26,10 @@ npm run lint     # ESLint
 
 - **Frontend:** Next.js App Router, React 19, Tailwind CSS v4, D3.js
 - **AI:** OpenRouter API (streaming) — raw HTTP, no SDK. Models: Gemini 2.5 Flash (default/analysis/generation), Gemini 3 Flash Preview (writing)
+- **Embeddings:** OpenAI API (text-embedding-3-small, 1536 dimensions) — semantic search over scenes, beats, propositions
 - **Images:** Replicate API (Seedream 4.5) via `/api/generate-image`, `/api/generate-cover`
 - **State:** React Context + useReducer in `src/lib/store.tsx`
-- **Persistence:** localStorage via `src/lib/persistence.ts`
+- **Persistence:** IndexedDB (narratives, embeddings) + localStorage (meta) via `src/lib/persistence.ts`, `src/lib/idb.ts`
 - **Types:** Domain model in `src/types/narrative.ts`, MCTS types in `src/types/mcts.ts`, config in `src/lib/constants.ts`
 
 ## Key Directories
@@ -76,7 +77,10 @@ src/
 │   ├── mcts-state.ts       # MCTS state management
 │   ├── slides-data.ts      # Slide generation logic
 │   ├── constants.ts        # All tunable config values
-│   ├── persistence.ts      # localStorage read/write
+│   ├── persistence.ts      # IndexedDB + localStorage read/write
+│   ├── idb.ts              # IndexedDB wrapper with stores for narratives, embeddings, API logs
+│   ├── search.ts           # Semantic search via cosine similarity over embeddings
+│   ├── embeddings.ts       # Embedding generation, storage, retrieval via OpenAI API
 │   ├── epub-export.ts      # EPUB export
 │   └── api-logger.ts       # API call logging & token tracking
 ├── types/
@@ -95,6 +99,29 @@ src/
 - **StructureEvaluation** — per-scene verdicts (ok/edit/merge/insert/cut), overall critique, repetition patterns, thematic question
 - **Arc** — world-building arcs that group scenes and expand the narrative world
 - **CubeCorner** — one of 8 narrative modes defined by high/low combinations of the three forces
+
+## Semantic Search & Embeddings
+
+Every scene, beat, and proposition is embedded as a **1536-dimensional vector** using OpenAI's `text-embedding-3-small` model. These embeddings capture **meaning, not keywords** — searching for "betrayal" surfaces scenes of broken trust even when that exact word never appears.
+
+### How It Works
+
+1. **Hierarchical embedding**: Propositions (narrative claims), beats (prose sections), and full scenes are embedded with context (arc name, scene summary, beat function, surrounding prose)
+2. **Cosine similarity search**: User queries are embedded and ranked against all stored embeddings
+3. **AI synthesis**: Top results feed an LLM that produces a Google-style overview with inline citations `[1] [2] [3]`
+4. **Persistent state**: Results cached in IndexedDB, persist across navigation
+5. **Incremental updates**: Embeddings regenerated only when narrative content changes
+
+### Applications
+
+- **Continuity validation** — When a scene references "the promise made at the river", semantic search retrieves all prior content close to that concept and verifies it exists
+- **Knowledge asymmetry tracking** — If Character A acts on information they shouldn't have, search surfaces when that information was revealed and who was present
+- **Intelligent RAG** — Generation retrieves semantically relevant prior content from anywhere in the timeline, enabling callbacks, foreshadowing validation, thematic coherence
+- **Semantic space** — Thread convergence, character parallels, thematic echoes become queryable through cosine similarity
+
+Future capabilities: plot hole detection (missing causal links), tone drift analysis (semantic clustering), automated continuity checks.
+
+Files: `src/lib/search.ts`, `src/lib/embeddings.ts`, `src/lib/ai/search-synthesis.ts`, `src/components/canvas/SearchView.tsx`
 
 ## Scene Mutations
 

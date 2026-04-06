@@ -118,7 +118,6 @@ export default function FloatingPalette({
 
   const hasAudio = !!currentScene?.audioUrl;
   const wrapperClasses = isActive ? "" : "opacity-30 pointer-events-none";
-  const [searchOpen, setSearchOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [generateText, setGenerateText] = useState("");
   const generateInputRef = useRef<HTMLTextAreaElement>(null);
@@ -295,9 +294,10 @@ export default function FloatingPalette({
             </button>
             <button
               type="button"
-              className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${searchOpen ? "text-text-primary bg-white/10" : "text-text-secondary hover:text-text-primary hover:bg-white/6"}`}
-              onClick={() => setSearchOpen((v) => !v)}
-              aria-label="Search scenes"
+              className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${state.graphViewMode === 'search' ? "text-text-primary bg-white/10" : "text-text-secondary hover:text-text-primary hover:bg-white/6"}`}
+              onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'search' })}
+              aria-label="Search narrative"
+              title="Search narrative"
             >
               <IconSearch size={12} />
             </button>

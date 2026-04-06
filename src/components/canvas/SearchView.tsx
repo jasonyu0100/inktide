@@ -1,7 +1,7 @@
 'use client';
 
 import { useStore } from '@/lib/store';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { searchNarrative } from '@/lib/search';
 import { synthesizeSearchResults } from '@/lib/ai/search-synthesis';
 import { loadSearchState, saveSearchState } from '@/lib/persistence';
@@ -39,6 +39,8 @@ export function SearchView() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
+  const streamingBufferRef = useRef('');
+  const streamingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load persisted search state on mount
   useEffect(() => {
@@ -69,6 +71,15 @@ export function SearchView() {
     loadPersistedSearch();
   }, []);
 
+  // Cleanup streaming timer on unmount
+  useEffect(() => {
+    return () => {
+      if (streamingTimerRef.current) {
+        clearTimeout(streamingTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleQuery = useCallback(async (question: string) => {
     const narrative = state.activeNarrative;
     const resolvedKeys = state.resolvedEntryKeys;
@@ -80,6 +91,13 @@ export function SearchView() {
     setErrorMessage(null);
     setResponse(null);
     setStreamingAnswer('');
+    streamingBufferRef.current = '';
+
+    // Clear any existing streaming timer
+    if (streamingTimerRef.current) {
+      clearTimeout(streamingTimerRef.current);
+      streamingTimerRef.current = null;
+    }
 
     try {
       const sceneCount = resolvedKeys.length;
@@ -100,15 +118,38 @@ export function SearchView() {
           result.topScene,
           result.timeline,
           (token) => {
-            setStreamingAnswer(prev => {
-              if (prev.length === 0) {
-                // First token received, we're streaming now
-                setSearchStage('');
-              }
-              return prev + token;
-            });
+            // Accumulate tokens in buffer
+            streamingBufferRef.current += token;
+
+            // Clear any existing timer
+            if (streamingTimerRef.current) {
+              clearTimeout(streamingTimerRef.current);
+            }
+
+            // Throttle updates to make streaming visible (every 50ms)
+            streamingTimerRef.current = setTimeout(() => {
+              const accumulated = streamingBufferRef.current;
+              setStreamingAnswer(prev => {
+                if (prev.length === 0) {
+                  // First token received, we're streaming now
+                  setSearchStage('');
+                }
+                return prev + accumulated;
+              });
+              streamingBufferRef.current = '';
+            }, 50);
           }
         );
+
+        // Flush any remaining buffered content
+        if (streamingTimerRef.current) {
+          clearTimeout(streamingTimerRef.current);
+          streamingTimerRef.current = null;
+        }
+        if (streamingBufferRef.current) {
+          setStreamingAnswer(prev => prev + streamingBufferRef.current);
+          streamingBufferRef.current = '';
+        }
 
         // Map all search results (top 10) for display, not just cited ones
         const allResults = result.results.slice(0, 10).map((res, idx) => ({

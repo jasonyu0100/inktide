@@ -4,7 +4,6 @@ import { useStore } from '@/lib/store';
 import { useState, useCallback, useEffect } from 'react';
 import { searchNarrative } from '@/lib/search';
 import { synthesizeSearchResults } from '@/lib/ai/search-synthesis';
-import { loadSearchState, saveSearchState } from '@/lib/persistence';
 import Image from 'next/image';
 import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
 
@@ -40,48 +39,59 @@ export function SearchView() {
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load persisted search state on mount
+  // Load search state from store when narrative changes
   useEffect(() => {
-    const loadPersistedSearch = async () => {
-      const savedSearch = await loadSearchState();
-      if (savedSearch && savedSearch.synthesis) {
-        setQuery(savedSearch.query);
-
-        // Map saved results to QueryResponse format
-        const allResults = savedSearch.results.slice(0, 10).map((res, idx) => ({
-          id: idx + 1,
-          sceneId: res.sceneId,
-          beatIndex: res.beatIndex,
-          propIndex: res.propIndex,
-          content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
-          similarity: res.similarity,
-        }));
-
-        setResponse({
-          question: savedSearch.query,
-          answer: savedSearch.synthesis.overview,
-          citations: allResults,
-        });
-      }
-      setIsLoaded(true);
-    };
-
-    loadPersistedSearch();
-  }, []);
-
-  // Listen for clear search event from top bar
-  useEffect(() => {
-    const handleClear = async () => {
+    if (!state.activeNarrative?.id) {
       setQuery('');
       setResponse(null);
       setStreamingAnswer('');
       setErrorMessage(null);
-      await saveSearchState(null);
+      setIsLoaded(true);
+      return;
+    }
+
+    const savedSearch = state.currentSearchQuery;
+    if (savedSearch && savedSearch.synthesis) {
+      setQuery(savedSearch.query);
+
+      // Map saved results to QueryResponse format
+      const allResults = savedSearch.results.slice(0, 10).map((res, idx) => ({
+        id: idx + 1,
+        sceneId: res.sceneId,
+        beatIndex: res.beatIndex,
+        propIndex: res.propIndex,
+        content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
+        similarity: res.similarity,
+      }));
+
+      setResponse({
+        question: savedSearch.query,
+        answer: savedSearch.synthesis.overview,
+        citations: allResults,
+      });
+    } else {
+      // Clear local state if no saved search
+      setQuery('');
+      setResponse(null);
+      setStreamingAnswer('');
+      setErrorMessage(null);
+    }
+    setIsLoaded(true);
+  }, [state.activeNarrative?.id, state.currentSearchQuery]);
+
+  // Listen for clear search event from top bar
+  useEffect(() => {
+    const handleClear = () => {
+      setQuery('');
+      setResponse(null);
+      setStreamingAnswer('');
+      setErrorMessage(null);
+      dispatch({ type: 'CLEAR_SEARCH' });
     };
 
     window.addEventListener('search:clear', handleClear);
     return () => window.removeEventListener('search:clear', handleClear);
-  }, []);
+  }, [dispatch]);
 
   const handleQuery = useCallback(async (question: string) => {
     const narrative = state.activeNarrative;
@@ -142,16 +152,19 @@ export function SearchView() {
         };
         setResponse(responseData);
 
-        // Persist search state
-        await saveSearchState({
-          query: question.trim(),
-          embedding: result.embedding,
-          synthesis,
-          results: result.results,
-          timeline: result.timeline,
-          topArc: result.topArc,
-          topScene: result.topScene,
-          topBeat: result.topBeat,
+        // Save search state to store
+        dispatch({
+          type: 'SET_SEARCH_QUERY',
+          query: {
+            query: question.trim(),
+            embedding: result.embedding,
+            synthesis,
+            results: result.results,
+            timeline: result.timeline,
+            topArc: result.topArc,
+            topScene: result.topScene,
+            topBeat: result.topBeat,
+          },
         });
       } else {
         setErrorMessage('No relevant content found. Try a different question or generate embeddings.');
@@ -162,7 +175,7 @@ export function SearchView() {
       setIsSearching(false);
       setSearchStage('');
     }
-  }, [state.activeNarrative, state.resolvedEntryKeys]);
+  }, [state.activeNarrative, state.resolvedEntryKeys, dispatch]);
 
   const getSceneInfo = useCallback((sceneId: string, beatIndex?: number) => {
     const narrative = state.activeNarrative;

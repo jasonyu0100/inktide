@@ -11,6 +11,7 @@ import { ANALYSIS_MAX_CORPUS_WORDS, DEFAULT_MODEL } from '@/lib/constants';
 import { IconSpinner, IconChevronLeft, IconDollar } from '@/components/icons';
 import { IconCheck } from '@/components/icons/EvalIcons';
 import { calculateTotalCost, calculateApiCost } from '@/lib/api-logger';
+import { loadAnalysisApiLogs } from '@/lib/persistence';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 
 /* ── Word Node type ─────────────────────────────────────────────────────── */
@@ -33,15 +34,25 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const [planInFlightKeys, setPlanInFlightKeys] = useState<string[]>(() => analysisRunner.getPlanInFlightKeys(job.id));
   const [planStreamTexts, setPlanStreamTexts] = useState<Map<string, string>>(new Map());
   const [showApiLogs, setShowApiLogs] = useState(false);
+  const [persistedLogs, setPersistedLogs] = useState<typeof state.apiLogs>([]);
 
   const liveJob = state.analysisJobs.find((j) => j.id === job.id) ?? job;
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
 
-  // Filter API logs for this analysis
-  const jobApiLogs = useMemo(
-    () => state.apiLogs.filter((log) => log.analysisId === job.id),
-    [state.apiLogs, job.id]
-  );
+  // Load persisted analysis logs on mount (for when returning to a completed job)
+  useEffect(() => {
+    loadAnalysisApiLogs(job.id).then((logs) => {
+      if (logs.length > 0) setPersistedLogs(logs);
+    });
+  }, [job.id]);
+
+  // Combine live logs with persisted logs, deduped by id
+  const jobApiLogs = useMemo(() => {
+    const liveLogs = state.apiLogs.filter((log) => log.analysisId === job.id);
+    const liveIds = new Set(liveLogs.map((l) => l.id));
+    const uniquePersisted = persistedLogs.filter((l) => !liveIds.has(l.id));
+    return [...liveLogs, ...uniquePersisted];
+  }, [state.apiLogs, job.id, persistedLogs]);
   const totalCost = useMemo(() => calculateTotalCost(jobApiLogs), [jobApiLogs]);
   const error = liveJob.error ?? '';
 

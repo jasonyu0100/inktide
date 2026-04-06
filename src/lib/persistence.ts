@@ -145,6 +145,41 @@ export async function deleteApiLogs(narrativeId: string): Promise<void> {
   }
 }
 
+// ── API Logs (per analysis job) ───────────────────────────────────────────────
+
+function analysisLogsKey(analysisId: string): string {
+  return `analysis:${analysisId}`;
+}
+
+/** Load all API logs for a given analysis job */
+export async function loadAnalysisApiLogs(analysisId: string): Promise<ApiLogEntry[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const logs = await idbGet<ApiLogEntry[]>(API_LOGS_STORE, analysisLogsKey(analysisId));
+    return logs ?? [];
+  } catch (err) {
+    return [];
+  }
+}
+
+/** Save all API logs for a given analysis job */
+export async function saveAnalysisApiLogs(analysisId: string, logs: ApiLogEntry[]): Promise<void> {
+  try {
+    await idbPut(API_LOGS_STORE, analysisLogsKey(analysisId), logs);
+  } catch (err) {
+    // Errors logged at caller level
+  }
+}
+
+/** Delete API logs for an analysis job (used when deleting an analysis job) */
+export async function deleteAnalysisApiLogs(analysisId: string): Promise<void> {
+  try {
+    await idbDelete(API_LOGS_STORE, analysisLogsKey(analysisId));
+  } catch (err) {
+    // Errors logged at caller level
+  }
+}
+
 // ── Discovery Inquiries ──────────────────────────────────────────────────────
 
 const DISCOVERY_KEY = 'discoveryInquiries';
@@ -232,21 +267,23 @@ export async function migrateFromLocalStorage(): Promise<void> {
 
 // ── Search State ─────────────────────────────────────────────────────────────
 
-const SEARCH_STATE_KEY = 'currentSearch';
+function getSearchStateKey(narrativeId: string): string {
+  return `search:${narrativeId}`;
+}
 
-export async function saveSearchState(query: SearchQuery | null): Promise<void> {
+export async function saveSearchState(narrativeId: string, query: SearchQuery | null): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await idbPut(META_STORE, SEARCH_STATE_KEY, query);
+    await idbPut(META_STORE, getSearchStateKey(narrativeId), query);
   } catch (err) {
     // Silently fail for search state persistence
   }
 }
 
-export async function loadSearchState(): Promise<SearchQuery | null> {
+export async function loadSearchState(narrativeId: string): Promise<SearchQuery | null> {
   if (typeof window === 'undefined') return null;
   try {
-    return (await idbGet<SearchQuery | null>(META_STORE, SEARCH_STATE_KEY)) ?? null;
+    return (await idbGet<SearchQuery | null>(META_STORE, getSearchStateKey(narrativeId))) ?? null;
   } catch (err) {
     return null;
   }

@@ -125,7 +125,7 @@ Result: [Scene 6 Beat 7 · inform · 92% match]
 
 **Intelligent RAG (Retrieval-Augmented Generation)** grounds the LLM in actual narrative state. When generating a new scene, the system retrieves semantically relevant prior content — not just recent scenes, but thematically connected moments from anywhere in the timeline. This enables callbacks, foreshadowing validation, and thematic coherence.
 
-**Search synthesis** produces Google-style AI overviews over retrieved results. Rather than listing matches, the system identifies patterns, arc relevance, and timeline clusters. Inline citations `[1] [2] [3]` link claims to specific beats. Results persist in IndexedDB — navigate away, come back, research continues. `src/lib/search.ts` `src/lib/ai/search-synthesis.ts`
+**Search synthesis** produces Google-style AI overviews over retrieved results. Rather than listing matches, the system identifies patterns, arc relevance, and timeline clusters. Inline citations `[1] [2] [3]` link claims to specific beats. Results persist in app state per narrative — switch stories, search state clears automatically. `src/lib/search.ts` `src/lib/ai/search-synthesis.ts`
 
 The embedding layer turns the knowledge graph into a **semantic space** where narrative distance is measurable. Thread convergence, character arc parallels, thematic echoes — all queryable through cosine similarity rather than explicit graph edges. Future capabilities: plot hole detection (missing causal links), tone drift analysis (semantic clustering), automated continuity checks.
 

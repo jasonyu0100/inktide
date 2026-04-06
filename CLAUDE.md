@@ -109,7 +109,7 @@ Every scene, beat, and proposition is embedded as a **1536-dimensional vector** 
 1. **Hierarchical embedding**: Propositions (narrative claims), beats (prose sections), and full scenes are embedded with context (arc name, scene summary, beat function, surrounding prose)
 2. **Cosine similarity search**: User queries are embedded and ranked against all stored embeddings
 3. **AI synthesis**: Top results feed an LLM that produces a Google-style overview with inline citations `[1] [2] [3]`
-4. **Persistent state**: Results cached in IndexedDB, persist across navigation
+4. **Narrative-scoped state**: Search results stored in app state per narrative, automatically clear when switching stories
 5. **Incremental updates**: Embeddings regenerated only when narrative content changes
 
 ### Applications

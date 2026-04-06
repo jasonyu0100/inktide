@@ -7,7 +7,7 @@ import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
 import { initMechanismProfilePresets } from '@/lib/mechanism-profiles';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs, saveSearchState, loadSearchState } from '@/lib/persistence';
+import { loadNarratives, saveNarrative as persistNarrative, deleteNarrative as deletePersisted, loadNarrative, saveActiveNarrativeId, loadActiveNarrativeId, saveActiveBranchId, loadActiveBranchId, migrateFromLocalStorage, loadAnalysisJobs, saveAnalysisJobs, loadApiLogs, saveApiLogs, deleteApiLogs, saveAnalysisApiLogs, deleteAnalysisApiLogs, saveSearchState, loadSearchState } from '@/lib/persistence';
 import { API_LOG_STALE_THRESHOLD_MS } from '@/lib/constants';
 import { logError, logWarning } from '@/lib/system-logger';
 import { assetManager } from '@/lib/asset-manager';
@@ -417,6 +417,9 @@ function reducer(state: AppState, action: Action): AppState {
         selectedKnowledgeEntity: null,
         activeChatThreadId: null,
         activeNoteId: null,
+        currentSearchQuery: null, // Clear search when switching narratives
+        currentResultIndex: 0,
+        searchFocusMode: false,
       };
     }
     case 'LOADED_NARRATIVE': {
@@ -1794,11 +1797,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Persist analysis jobs whenever they change
+  // Persist analysis jobs whenever they change + clean up deleted job API logs
   const prevAnalysisJobsRef = useRef(state.analysisJobs);
   useEffect(() => {
     if (state.analysisJobs === prevAnalysisJobsRef.current) return;
+    const prevJobs = prevAnalysisJobsRef.current;
     prevAnalysisJobsRef.current = state.analysisJobs;
+
+    // Detect deleted jobs and clean up their API logs
+    const currentIds = new Set(state.analysisJobs.map((j) => j.id));
+    const deletedJobs = prevJobs.filter((j) => !currentIds.has(j.id));
+    for (const job of deletedJobs) {
+      deleteAnalysisApiLogs(job.id).catch((err) => {
+        logError('Failed to delete analysis API logs', err, {
+          source: 'analysis',
+          operation: 'delete-analysis-api-logs',
+          details: { analysisId: job.id }
+        });
+      });
+    }
+
     saveAnalysisJobs(state.analysisJobs).catch((err) => {
       logError('Failed to persist analysis jobs to storage', err, {
         source: 'analysis',
@@ -1808,26 +1826,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, [state.analysisJobs]);
 
-  // Load search state from IndexedDB on mount
+  // Load search state from IndexedDB when active narrative changes
   useEffect(() => {
-    loadSearchState().then((query) => {
+    const narrativeId = state.activeNarrativeId;
+    if (!narrativeId) return;
+
+    loadSearchState(narrativeId).then((query) => {
       if (query) {
         dispatch({ type: 'SET_SEARCH_QUERY', query });
       }
     }).catch(() => {
       // Silently fail for search state loading
     });
-  }, []);
+  }, [state.activeNarrativeId]);
 
   // Persist search state whenever it changes
   const prevSearchQueryRef = useRef(state.currentSearchQuery);
   useEffect(() => {
+    const narrativeId = state.activeNarrativeId;
+    if (!narrativeId) return;
     if (state.currentSearchQuery === prevSearchQueryRef.current) return;
     prevSearchQueryRef.current = state.currentSearchQuery;
-    saveSearchState(state.currentSearchQuery).catch(() => {
+    saveSearchState(narrativeId, state.currentSearchQuery).catch(() => {
       // Silently fail for search state persistence
     });
-  }, [state.currentSearchQuery]);
+  }, [state.currentSearchQuery, state.activeNarrativeId]);
 
   // Load API logs from IndexedDB when the active narrative changes
   useEffect(() => {
@@ -1845,23 +1868,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [state.activeNarrativeId]);
 
   // Persist API logs to IndexedDB whenever they change (debounced)
+  // Handles both narrative-specific logs and analysis-specific logs
   const prevApiLogsRef = useRef(state.apiLogs);
   const apiLogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (state.apiLogs === prevApiLogsRef.current) return;
     prevApiLogsRef.current = state.apiLogs;
-    const id = state.activeNarrativeId;
-    if (!id) return;
+
     // Debounce writes — API logs can update rapidly during generation
     if (apiLogTimerRef.current) clearTimeout(apiLogTimerRef.current);
     apiLogTimerRef.current = setTimeout(() => {
-      saveApiLogs(id, state.apiLogs).catch((err) => {
-        logError('Failed to persist API logs to storage', err, {
-          source: 'other',
-          operation: 'persist-api-logs',
-          details: { narrativeId: id, logCount: state.apiLogs.length }
+      // Save narrative-specific logs
+      const narrativeId = state.activeNarrativeId;
+      if (narrativeId) {
+        const narrativeLogs = state.apiLogs.filter((l) => l.narrativeId === narrativeId || (!l.analysisId && !l.discoveryId));
+        saveApiLogs(narrativeId, narrativeLogs).catch((err) => {
+          logError('Failed to persist API logs to storage', err, {
+            source: 'other',
+            operation: 'persist-api-logs',
+            details: { narrativeId, logCount: narrativeLogs.length }
+          });
         });
-      });
+      }
+
+      // Save analysis-specific logs (grouped by analysisId)
+      const analysisLogsByJob = new Map<string, ApiLogEntry[]>();
+      for (const log of state.apiLogs) {
+        if (log.analysisId) {
+          const existing = analysisLogsByJob.get(log.analysisId) ?? [];
+          existing.push(log);
+          analysisLogsByJob.set(log.analysisId, existing);
+        }
+      }
+      for (const [analysisId, logs] of analysisLogsByJob) {
+        saveAnalysisApiLogs(analysisId, logs).catch((err) => {
+          logError('Failed to persist analysis API logs to storage', err, {
+            source: 'other',
+            operation: 'persist-analysis-api-logs',
+            details: { analysisId, logCount: logs.length }
+          });
+        });
+      }
     }, 2000);
   }, [state.apiLogs, state.activeNarrativeId]);
 

@@ -49,18 +49,14 @@ export function NarrativeEditModal({ entry, onClose }: { entry: NarrativeEntry; 
       }
       const { imageUrl } = await res.json();
 
-      // If it's a data URL, convert to blob and store in AssetManager
-      let finalImageUrl = imageUrl;
-      if (imageUrl.startsWith('data:')) {
-        // Convert data URL to blob
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
+      // Download image and store in AssetManager
+      const imgRes = await fetch(imageUrl);
+      if (!imgRes.ok) throw new Error('Failed to download cover image');
 
-        // Store in AssetManager and get reference ID
-        finalImageUrl = await assetManager.storeImage(blob, blob.type);
-      }
+      const blob = await imgRes.blob();
+      const assetId = await assetManager.storeImage(blob, blob.type, undefined, entry.id);
 
-      dispatch({ type: 'SET_COVER_IMAGE', narrativeId: entry.id, imageUrl: finalImageUrl });
+      dispatch({ type: 'SET_COVER_IMAGE', narrativeId: entry.id, imageUrl: assetId });
     } catch (err) {
       setCoverError(err instanceof Error ? err.message : String(err));
     } finally {

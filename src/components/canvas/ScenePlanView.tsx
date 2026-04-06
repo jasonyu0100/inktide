@@ -14,7 +14,7 @@ import type {
   PlanTournament,
 } from "@/types/narrative";
 import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from "@/types/narrative";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PlanTournamentModal } from "./PlanTournamentModal";
 
 const FN_COLORS: Record<string, string> = {
@@ -69,6 +69,7 @@ export function ScenePlanView({
     estWords: number;
   } | null>(null);
   const [showTournament, setShowTournament] = useState(false);
+  const beatRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Sync when scene or resolved plan changes
   useEffect(() => {
@@ -86,6 +87,25 @@ export function ScenePlanView({
     const handleOpenTournament = () => setShowTournament(true);
     window.addEventListener("canvas:open-tournament", handleOpenTournament);
     return () => window.removeEventListener("canvas:open-tournament", handleOpenTournament);
+  }, []);
+
+  // Listen for scroll-to-beat event from search
+  useEffect(() => {
+    const handleScrollToBeat = (e: Event) => {
+      const { beatIndex } = (e as CustomEvent).detail;
+      const element = beatRefs.current.get(beatIndex);
+
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('ring-2', 'ring-amber-400/50');
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-amber-400/50');
+        }, 1500);
+      }
+    };
+
+    window.addEventListener('prose:scroll-to-beat', handleScrollToBeat);
+    return () => window.removeEventListener('prose:scroll-to-beat', handleScrollToBeat);
   }, []);
 
   const generatePlan = useCallback(
@@ -430,6 +450,9 @@ export function ScenePlanView({
               <div className="space-y-0">
                 {activePlan.beats.map((beat, i) => (
                   <div
+                    ref={(el) => {
+                      if (el) beatRefs.current.set(i, el);
+                    }}
                     key={i}
                     className="group relative flex gap-3 py-2.5 px-1 hover:bg-white/2 rounded-lg transition-colors"
                   >

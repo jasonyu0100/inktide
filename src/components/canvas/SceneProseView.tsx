@@ -85,6 +85,7 @@ export function SceneProseView({
   const [isEditing, setIsEditing] = useState(false);
   const [showBeatPlan, setShowBeatPlan] = usePersistedState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const beatRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Sync beat plan toggle state to CanvasTopBar (after render, not during)
   useEffect(() => {
@@ -223,20 +224,49 @@ export function SceneProseView({
       const detail = (e as CustomEvent).detail;
       if (detail?.guidance) rewriteProse(detail.guidance);
     }
-    function onToggleBeatPlan() {
-      setShowBeatPlan((prev) => !prev);
+    function onToggleBeatPlan(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      // If detail.enabled is provided, use that; otherwise toggle
+      if (detail?.enabled !== undefined) {
+        setShowBeatPlan(detail.enabled);
+      } else {
+        setShowBeatPlan((prev) => !prev);
+      }
+    }
+    function onScrollToBeat(e: Event) {
+      const { beatIndex, propIndex } = (e as CustomEvent).detail;
+      const element = beatRefs.current.get(beatIndex);
+
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('ring-2', 'ring-amber-400/50');
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-amber-400/50');
+        }, 1500);
+
+        // If targeting specific proposition, highlight it further
+        if (propIndex !== undefined) {
+          const propElement = element.querySelector(`[data-prop-index="${propIndex}"]`);
+          if (propElement) {
+            propElement.classList.add('bg-amber-500/20');
+            setTimeout(() => propElement.classList.remove('bg-amber-500/20'), 2000);
+          }
+        }
+      }
     }
     window.addEventListener("canvas:generate-prose", onGenerate);
     window.addEventListener("canvas:clear-prose", onClear);
     window.addEventListener("canvas:edit-prose", onEdit);
     window.addEventListener("canvas:rewrite-prose", onRewrite);
     window.addEventListener("canvas:toggle-beat-plan", onToggleBeatPlan);
+    window.addEventListener("prose:scroll-to-beat", onScrollToBeat);
     return () => {
       window.removeEventListener("canvas:generate-prose", onGenerate);
       window.removeEventListener("canvas:clear-prose", onClear);
       window.removeEventListener("canvas:edit-prose", onEdit);
       window.removeEventListener("canvas:rewrite-prose", onRewrite);
       window.removeEventListener("canvas:toggle-beat-plan", onToggleBeatPlan);
+      window.removeEventListener("prose:scroll-to-beat", onScrollToBeat);
     };
   }, [generateProse, rewriteProse, isEditing, saveEdit, scene.id, dispatch, setShowBeatPlan]);
 
@@ -289,6 +319,9 @@ export function SceneProseView({
               }
               return (
                 <div
+                  ref={(el) => {
+                    if (el) beatRefs.current.set(chunk.beatIndex, el);
+                  }}
                   key={chunk.beatIndex}
                   className="group relative flex gap-3 py-3 hover:bg-white/2 rounded-lg transition-colors"
                 >
@@ -328,7 +361,7 @@ export function SceneProseView({
                     {beat.propositions && beat.propositions.length > 0 && (
                       <div className="mt-2 space-y-1.5">
                         {beat.propositions.map((prop, j) => (
-                          <div key={j} className="flex items-start gap-1.5">
+                          <div key={j} className="flex items-start gap-1.5 transition-colors" data-prop-index={j}>
                             <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-text-secondary/80 font-mono min-w-[2ch]">
                               {prop.type || "·"}
                             </span>

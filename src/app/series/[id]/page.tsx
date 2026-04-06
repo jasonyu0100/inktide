@@ -218,11 +218,13 @@ export default function SeriesPage() {
               />
             )}
 
-            <FloatingPalette
-              isBulkActive={!!(bulk.runState?.isRunning || bulk.runState?.isPaused)}
-              isBulkAudioActive={!!(bulkAudio.runState?.isRunning || bulkAudio.runState?.isPaused)}
-              isMctsActive={mcts.runState.status === 'running' || mcts.runState.status === 'paused'}
-            />
+            {state.graphViewMode !== 'search' && (
+              <FloatingPalette
+                isBulkActive={!!(bulk.runState?.isRunning || bulk.runState?.isPaused)}
+                isBulkAudioActive={!!(bulkAudio.runState?.isRunning || bulkAudio.runState?.isPaused)}
+                isMctsActive={mcts.runState.status === 'running' || mcts.runState.status === 'paused'}
+              />
+            )}
             {planning.queue && (
               <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">
                 <PlanningIndicator queue={planning.queue} onClick={() => setPlanningQueueOpen(true)} />

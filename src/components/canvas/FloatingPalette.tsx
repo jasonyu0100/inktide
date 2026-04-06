@@ -15,35 +15,8 @@ import {
 } from "@/components/icons";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useStore } from "@/lib/store";
-import { isScene, resolveEntry, type Scene } from "@/types/narrative";
 import { resolvePlanForBranch, resolveProseForBranch } from "@/lib/narrative-utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-/** Highlight all occurrences of `query` within `text` */
-function HighlightText({ text, query }: { text: string; query: string }) {
-  if (!query.trim()) return <>{text}</>;
-  const regex = new RegExp(
-    `(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-    "gi",
-  );
-  const parts = text.split(regex);
-  return (
-    <>
-      {parts.map((part, i) =>
-        regex.test(part) ? (
-          <mark
-            key={i}
-            className="bg-yellow-400/30 text-text-primary rounded-sm px-0.5"
-          >
-            {part}
-          </mark>
-        ) : (
-          <span key={i}>{part}</span>
-        ),
-      )}
-    </>
-  );
-}
 
 type FloatingPaletteProps = {
   isBulkActive?: boolean;
@@ -78,102 +51,11 @@ export default function FloatingPalette({
       )
     : false;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const isAutoActive = !!(
     state.autoRunState?.isRunning || state.autoRunState?.isPaused
   );
   const isAnyModeActive =
     isAutoActive || isBulkActive || isBulkAudioActive || isMctsActive;
-
-  const branchId = state.activeBranchId;
-  const branches = useMemo(() => narrative?.branches ?? {}, [narrative?.branches]);
-
-  // Scene search results
-  const searchResults = useMemo(() => {
-    if (!searchOpen || !searchQuery.trim() || !narrative || !branchId) return [];
-    const normalize = (s: string) =>
-      s
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") // strip diacritics: naïve → naive
-        .replace(/\s+/g, " ") // collapse whitespace
-        .replace(/[\u2018\u2019\u201A\u201B\u0060\u00B4]/g, "'") // curly/backtick/acute → straight apostrophe
-        .replace(/[\u201C\u201D\u201E\u201F]/g, '"') // curly → straight quotes
-        .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, "-") // all Unicode hyphens/dashes → ASCII hyphen
-        .replace(/\u2026/g, "...") // ellipsis → three dots
-        .toLowerCase();
-    const q = normalize(searchQuery.trim());
-    const results: {
-      sceneId: string;
-      timelineIndex: number;
-      summary: string;
-      arcName: string;
-      locationName: string;
-      matchSnippet: string | null;
-    }[] = [];
-    for (let i = 0; i < state.resolvedEntryKeys.length; i++) {
-      const entry = resolveEntry(narrative, state.resolvedEntryKeys[i]);
-      if (!entry || !isScene(entry)) continue;
-      const scene = entry as Scene;
-      const arc = Object.values(narrative.arcs).find((a) =>
-        a.sceneIds.includes(scene.id),
-      );
-      const location = narrative.locations[scene.locationId];
-      const participants = scene.participantIds
-        .map((pid) => narrative.characters[pid]?.name ?? "")
-        .join(" ");
-      const events = scene.events.join(" ");
-      const { prose: resolvedProse } = resolveProseForBranch(scene, branchId, branches);
-      const haystack = normalize(
-        `${scene.summary} ${arc?.name ?? ""} ${location?.name ?? ""} ${participants} ${events} ${resolvedProse ?? ""}`,
-      );
-      if (haystack.includes(q)) {
-        // Find a snippet around the match — prefer non-summary sources so the user sees *why* it matched
-        let matchSnippet: string | null = null;
-        const sources = [
-          ...scene.events,
-          participants,
-          arc?.name ?? "",
-          location?.name ?? "",
-          resolvedProse ?? "",
-        ];
-        for (const rawSrc of sources) {
-          const src = rawSrc.replace(/\s+/g, " ");
-          const idx = normalize(src).indexOf(q);
-          if (idx >= 0 && src.trim()) {
-            const snippetStart = Math.max(0, idx - 40);
-            const snippetEnd = Math.min(src.length, idx + q.length + 40);
-            matchSnippet =
-              (snippetStart > 0 ? "…" : "") +
-              src.slice(snippetStart, snippetEnd).trim() +
-              (snippetEnd < src.length ? "…" : "");
-            break;
-          }
-        }
-        // If match is only in summary, no extra snippet needed
-        results.push({
-          sceneId: scene.id,
-          timelineIndex: i,
-          summary: scene.summary,
-          arcName: arc?.name ?? "",
-          locationName: location?.name ?? "",
-          matchSnippet,
-        });
-      }
-      if (results.length >= 50) break;
-    }
-    return results;
-  }, [searchOpen, searchQuery, narrative, state.resolvedEntryKeys, branchId, branches]);
-
-  // Focus search input when opened
-  useEffect(() => {
-    if (searchOpen) {
-      setTimeout(() => searchInputRef.current?.focus(), 50);
-    } else {
-      setSearchQuery("");
-    }
-  }, [searchOpen]);
 
   const handleDeleteHead = useCallback(() => {
     if (!narrative || !state.activeBranchId || !isHead) return;
@@ -213,6 +95,10 @@ export default function FloatingPalette({
     graphViewMode === "prose" ||
     graphViewMode === "audio";
 
+  // Branch context for version resolution
+  const branchId = state.activeBranchId;
+  const branches = useMemo(() => narrative?.branches ?? {}, [narrative?.branches]);
+
   // Current scene — for checking if rewrite is available
   const currentScene = useMemo(() => {
     if (!narrative) return null;
@@ -232,6 +118,7 @@ export default function FloatingPalette({
 
   const hasAudio = !!currentScene?.audioUrl;
   const wrapperClasses = isActive ? "" : "opacity-30 pointer-events-none";
+  const [searchOpen, setSearchOpen] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [generateText, setGenerateText] = useState("");
   const generateInputRef = useRef<HTMLTextAreaElement>(null);
@@ -390,93 +277,6 @@ export default function FloatingPalette({
                     Rewrite
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {searchOpen && (
-            <div
-              className="w-80 max-h-[50vh] flex flex-col rounded-xl border border-white/10 overflow-hidden"
-              style={{
-                background: "#1a1a1a",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-              }}
-            >
-              <div className="px-3 py-2.5 border-b border-white/5 flex items-center gap-2 shrink-0">
-                <IconSearch size={14} className="text-text-dim shrink-0" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") setSearchOpen(false);
-                    if (e.key === "Enter" && searchResults.length > 0) {
-                      dispatch({
-                        type: "SET_SCENE_INDEX",
-                        index: searchResults[0].timelineIndex,
-                      });
-                      setSearchOpen(false);
-                    }
-                  }}
-                  placeholder="Search scenes..."
-                  className="flex-1 bg-transparent text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none"
-                />
-                {searchQuery && (
-                  <span className="text-[9px] text-text-dim font-mono shrink-0">
-                    {searchResults.length} found
-                  </span>
-                )}
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                {searchQuery.trim() && searchResults.length === 0 ? (
-                  <div className="py-8 text-center text-[11px] text-text-dim">
-                    No scenes match
-                  </div>
-                ) : (
-                  searchResults.map((r) => (
-                    <button
-                      key={r.sceneId}
-                      onClick={() => {
-                        dispatch({
-                          type: "SET_SCENE_INDEX",
-                          index: r.timelineIndex,
-                        });
-                        setSearchOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors border-b border-white/3 last:border-0"
-                    >
-                      <p className="text-[11px] text-text-secondary leading-snug line-clamp-2">
-                        <HighlightText text={r.summary} query={searchQuery} />
-                      </p>
-                      {r.matchSnippet && (
-                        <p className="text-[10px] text-text-dim leading-snug mt-1 line-clamp-1">
-                          <HighlightText
-                            text={r.matchSnippet}
-                            query={searchQuery}
-                          />
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2 mt-1">
-                        {r.arcName && (
-                          <span className="text-[9px] text-text-dim">
-                            {r.arcName}
-                          </span>
-                        )}
-                        {r.locationName && (
-                          <>
-                            <span className="text-[9px] text-text-dim/30">
-                              &middot;
-                            </span>
-                            <span className="text-[9px] text-text-dim">
-                              {r.locationName}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </button>
-                  ))
-                )}
               </div>
             </div>
           )}
@@ -729,94 +529,6 @@ export default function FloatingPalette({
 
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
-      {/* Scene search overlay — above palette */}
-      {searchOpen && (
-        <div
-          className="w-80 max-h-[50vh] flex flex-col rounded-xl border border-white/10 overflow-hidden"
-          style={{
-            background: "#1a1a1a",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-          }}
-        >
-          <div className="px-3 py-2.5 border-b border-white/5 flex items-center gap-2 shrink-0">
-            <IconSearch size={14} className="text-text-dim shrink-0" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setSearchOpen(false);
-                if (e.key === "Enter" && searchResults.length > 0) {
-                  dispatch({
-                    type: "SET_SCENE_INDEX",
-                    index: searchResults[0].timelineIndex,
-                  });
-                  setSearchOpen(false);
-                }
-              }}
-              placeholder="Search scenes..."
-              className="flex-1 bg-transparent text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none"
-            />
-            {searchQuery && (
-              <span className="text-[9px] text-text-dim font-mono shrink-0">
-                {searchResults.length} found
-              </span>
-            )}
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {searchQuery.trim() && searchResults.length === 0 ? (
-              <div className="py-8 text-center text-[11px] text-text-dim">
-                No scenes match
-              </div>
-            ) : (
-              searchResults.map((r) => (
-                <button
-                  key={r.sceneId}
-                  onClick={() => {
-                    dispatch({
-                      type: "SET_SCENE_INDEX",
-                      index: r.timelineIndex,
-                    });
-                    setSearchOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors border-b border-white/3 last:border-0"
-                >
-                  <p className="text-[11px] text-text-secondary leading-snug line-clamp-2">
-                    <HighlightText text={r.summary} query={searchQuery} />
-                  </p>
-                  {r.matchSnippet && (
-                    <p className="text-[10px] text-text-dim leading-snug mt-1 line-clamp-1">
-                      <HighlightText
-                        text={r.matchSnippet}
-                        query={searchQuery}
-                      />
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1">
-                    {r.arcName && (
-                      <span className="text-[9px] text-text-dim">
-                        {r.arcName}
-                      </span>
-                    )}
-                    {r.locationName && (
-                      <>
-                        <span className="text-[9px] text-text-dim/30">
-                          &middot;
-                        </span>
-                        <span className="text-[9px] text-text-dim">
-                          {r.locationName}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Palette row: bar + delete button side by side */}
       <div className="flex items-center gap-2">
         <div
@@ -836,13 +548,13 @@ export default function FloatingPalette({
           <button
             type="button"
             className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
-              searchOpen
+              state.graphViewMode === 'search'
                 ? "text-text-primary bg-white/10"
                 : "text-text-secondary hover:text-text-primary hover:bg-white/6"
             }`}
-            onClick={() => setSearchOpen((v) => !v)}
-            aria-label="Search scenes"
-            title="Search scenes"
+            onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'search' })}
+            aria-label="Search narrative"
+            title="Search narrative"
           >
             <IconSearch size={12} />
           </button>

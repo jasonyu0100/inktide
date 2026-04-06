@@ -5,7 +5,7 @@
 
 import { generateEmbeddings, cosineSimilarity, resolveEmbedding } from './embeddings';
 import type { NarrativeState, SearchQuery, SearchResult, EmbeddingRef } from '@/types/narrative';
-import { SEARCH_TOP_K, SEARCH_SIMILARITY_THRESHOLD } from './constants';
+import { SEARCH_TOP_K } from './constants';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { logInfo, logError } from './system-logger';
 
@@ -142,9 +142,8 @@ export async function searchNarrative(
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
-  // Filter by threshold and sort by similarity
+  // Sort by similarity and take top K (no threshold filtering)
   const results: SearchResult[] = scored
-    .filter(item => item.similarity >= SEARCH_SIMILARITY_THRESHOLD)
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, SEARCH_TOP_K)
     .map(({ type, sceneId, beatIndex, propIndex, content, similarity, context }) => ({

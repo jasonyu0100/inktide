@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { exportAsPackage, estimateExportSize, type ExportOptions } from '@/lib/package-export';
+import { useState, useEffect } from 'react';
+import { exportAsPackage, calculateExactExportSize, type ExportOptions } from '@/lib/package-export';
 import { formatBytes } from '@/lib/package-import';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import type { NarrativeState } from '@/types/narrative';
@@ -9,6 +9,14 @@ import type { NarrativeState } from '@/types/narrative';
 type Props = {
   narrative: NarrativeState;
   onClose: () => void;
+};
+
+type SizeEstimate = {
+  narrative: number;
+  embeddings: number;
+  audio: number;
+  images: number;
+  total: number;
 };
 
 export function ExportPackageModal({ narrative, onClose }: Props) {
@@ -22,8 +30,41 @@ export function ExportPackageModal({ narrative, onClose }: Props) {
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState({ status: '', percent: 0 });
   const [error, setError] = useState('');
+  const [estimate, setEstimate] = useState<SizeEstimate>({
+    narrative: 0,
+    embeddings: 0,
+    audio: 0,
+    images: 0,
+    total: 0,
+  });
+  const [calculating, setCalculating] = useState(false);
 
-  const estimate = estimateExportSize(narrative, options);
+  // Calculate exact sizes when options change
+  useEffect(() => {
+    let cancelled = false;
+
+    async function calculate() {
+      setCalculating(true);
+      try {
+        const sizes = await calculateExactExportSize(narrative, options);
+        if (!cancelled) {
+          setEstimate(sizes);
+        }
+      } catch (err) {
+        console.error('Failed to calculate export size:', err);
+      } finally {
+        if (!cancelled) {
+          setCalculating(false);
+        }
+      }
+    }
+
+    calculate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [narrative, options]);
 
   async function handleExport() {
     setExporting(true);

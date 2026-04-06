@@ -1203,6 +1203,12 @@ export type AppState = {
   wizardData: WizardData;
   selectedKnowledgeEntity: string | null;
   graphViewMode: GraphViewMode;
+  /** Current search query and results (persisted) */
+  currentSearchQuery: SearchQuery | null;
+  /** Index of currently focused search result (0-based) */
+  currentResultIndex: number;
+  /** Whether search UI is active/visible */
+  searchFocusMode: boolean;
   autoConfig: AutoConfig;
   autoRunState: AutoRunState | null;
   apiLogs: ApiLogEntry[];
@@ -1260,9 +1266,23 @@ export type SearchResult = {
   context: string;
 };
 
+export type SearchSynthesis = {
+  /** AI-synthesized overview text with inline citations */
+  overview: string;
+  /** Inline citation metadata linking to results */
+  citations: Array<{
+    id: number;
+    sceneId: string;
+    type: 'arc' | 'scene' | 'beat' | 'proposition';
+    title: string;
+    similarity: number;
+  }>;
+};
+
 export type SearchQuery = {
   query: string;
   embedding: number[];
+  synthesis?: SearchSynthesis;
   results: SearchResult[];
   timeline: { sceneIndex: number; maxSimilarity: number }[];
   topArc: { arcId: string; avgSimilarity: number } | null;

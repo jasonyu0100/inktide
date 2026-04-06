@@ -458,8 +458,6 @@ export function CanvasTopBar() {
         <span className="text-[10px] text-text-dim/40">No scenes</span>
       )}
 
-      <div className="w-px h-3.5 bg-border" />
-
       {/* Contextual controls per mode */}
       {canvasMode === 'graph' && (
         <>
@@ -582,17 +580,41 @@ export function CanvasTopBar() {
         </div>
       )}
 
+      {canvasMode === 'search' && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-amber-400/60">Search</span>
+
+          {/* Regenerate Embeddings button */}
+          {narrative && (
+            <>
+              <div className="w-px h-3 bg-border" />
+              <button
+                onClick={() => setShowEmbeddingsModal(true)}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-text-dim/60 hover:text-text-dim transition-colors"
+                title="Regenerate Embeddings"
+              >
+                <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+                <span>Generate Embeddings</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Right — Mode toggle: Graph / Plan / Prose / Audio */}
+      {/* Right — Mode toggle: Graph / Plan / Prose / Audio / Search */}
       <div className="flex items-center gap-2">
         <div className="flex items-center rounded bg-white/4 p-0.5">
-          {(['graph', 'plan', 'prose', 'audio'] as CanvasMode[]).map((mode) => {
+          {(['graph', 'plan', 'prose', 'audio', 'search'] as CanvasMode[]).map((mode) => {
             const isActive = canvasMode === mode;
             const color = mode === 'plan' ? (isActive ? 'text-sky-400 bg-sky-500/15' : '')
               : mode === 'prose' ? (isActive ? 'text-emerald-400 bg-emerald-500/15' : '')
               : mode === 'audio' ? (isActive ? 'text-violet-400 bg-violet-500/15' : '')
+              : mode === 'search' ? (isActive ? 'text-amber-400 bg-amber-500/15' : '')
               : (isActive ? 'text-text-primary bg-white/10' : '');
             return (
               <button key={mode}

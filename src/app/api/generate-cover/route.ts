@@ -26,13 +26,12 @@ export async function POST(req: NextRequest) {
       imagePrompt = `${styleDirective}. ${title}. ${context}. Dramatic lighting, rich atmosphere, high detail, no text, no letters, no words, no watermarks.`;
     }
 
-    // Call Replicate Seedream 4.5 with sync mode
+    // Call Replicate Seedream 4.5 (create prediction)
     const response = await fetch('https://api.replicate.com/v1/models/bytedance/seedream-4.5/predictions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiToken}`,
-        'Prefer': 'wait',
       },
       body: JSON.stringify({
         input: {
@@ -51,24 +50,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Replicate error: ${errorText}` }, { status: response.status });
     }
 
-    const data = await response.json();
+    const prediction = await response.json();
 
-    // Replicate returns output as an array of URLs
-    const replicateUrl = Array.isArray(data.output) ? data.output[0] : data.output;
+    // Poll for completion (max 60 seconds)
+    let pollUrl = prediction.urls?.get || `https://api.replicate.com/v1/predictions/${prediction.id}`;
+    let attempts = 0;
+    const maxAttempts = 60;
+    let completedPrediction = prediction;
 
-    if (!replicateUrl) {
-      return NextResponse.json({ error: 'No image generated' }, { status: 500 });
+    while (attempts < maxAttempts) {
+      if (completedPrediction.status === 'succeeded') break;
+      if (completedPrediction.status === 'failed' || completedPrediction.status === 'canceled') {
+        return NextResponse.json({
+          error: `Cover generation ${completedPrediction.status}: ${completedPrediction.error || 'Unknown error'}`
+        }, { status: 500 });
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      attempts++;
+
+      const pollRes = await fetch(pollUrl, {
+        headers: { 'Authorization': `Bearer ${apiToken}` },
+      });
+
+      if (!pollRes.ok) {
+        return NextResponse.json({ error: 'Failed to poll prediction status' }, { status: 500 });
+      }
+
+      completedPrediction = await pollRes.json();
     }
 
-    // Fetch the image and convert to base64 data URL so it persists in localStorage
-    const imgRes = await fetch(replicateUrl);
-    if (!imgRes.ok) return NextResponse.json({ error: 'Failed to fetch generated image' }, { status: 500 });
-    const imgBuffer = await imgRes.arrayBuffer();
-    const contentType = imgRes.headers.get('content-type') || 'image/webp';
-    const base64 = Buffer.from(imgBuffer).toString('base64');
-    const imageUrl = `data:${contentType};base64,${base64}`;
+    if (completedPrediction.status !== 'succeeded') {
+      return NextResponse.json({ error: 'Cover generation timed out' }, { status: 500 });
+    }
 
-    return NextResponse.json({ imageUrl });
+    const replicateUrl = Array.isArray(completedPrediction.output) ? completedPrediction.output[0] : completedPrediction.output;
+
+    if (!replicateUrl) {
+      console.error('[generate-cover] Empty output from Replicate:', completedPrediction);
+      return NextResponse.json({ error: 'No image URL in completed prediction' }, { status: 500 });
+    }
+
+    // Return the Replicate URL directly - client will download and store in IndexedDB
+    return NextResponse.json({ imageUrl: replicateUrl });
   } catch (err) {
     console.error('[generate-cover] Error:', err);
     return NextResponse.json({ error: String(err) }, { status: 500 });

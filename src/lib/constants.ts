@@ -175,7 +175,7 @@ export const EMBEDDING_CONCURRENCY = 10;
 export const SEARCH_TOP_K = 20;
 
 /** Minimum cosine similarity threshold for search results (0-1) */
-export const SEARCH_SIMILARITY_THRESHOLD = 0.5;
+export const SEARCH_SIMILARITY_THRESHOLD = 0.3;
 
 /** Number of candidate plans to generate in plan tournament */
 export const PLAN_TOURNAMENT_CANDIDATES = 5;

@@ -22,9 +22,11 @@ export default function SceneDetail({ sceneId }: Props) {
     return forceMap[sceneId] ?? { payoff: 0, change: 0, knowledge: 0 };
   }, [narrative, state.resolvedEntryKeys, sceneId]);
 
-  if (!narrative) return null;
+  // Resolve entry early to determine imageUrl for hook
+  const entry = narrative ? resolveEntry(narrative, sceneId) : null;
+  const imageUrl = useImageUrl(entry && isScene(entry) ? entry.imageUrl : undefined);
 
-  const entry = resolveEntry(narrative, sceneId);
+  if (!narrative) return null;
   if (!entry) return null;
 
   // ── World Build Commit view ─────────────────────────────────────────────
@@ -159,7 +161,6 @@ export default function SceneDetail({ sceneId }: Props) {
 
   // ── Scene Commit view ───────────────────────────────────────────────────
   const scene = entry;
-  const imageUrl = useImageUrl(scene.imageUrl);
   const location = narrative.locations[scene.locationId];
   const effectivePovId = scene.povId || scene.participantIds[0];
   const povCharacter = effectivePovId ? narrative.characters[effectivePovId] : null;

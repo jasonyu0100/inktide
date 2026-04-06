@@ -1,204 +1,310 @@
 'use client';
 
-import { useState } from 'react';
 import { useStore } from '@/lib/store';
+import { useState, useCallback } from 'react';
 import { searchNarrative } from '@/lib/search';
-import type { SearchQuery } from '@/types/narrative';
+import { synthesizeSearchResults } from '@/lib/ai/search-synthesis';
+import Image from 'next/image';
+import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
+
+type QueryResponse = {
+  question: string;
+  answer: string;
+  citations: Array<{
+    id: number;
+    sceneId: string;
+    beatIndex?: number;
+    propIndex?: number;
+    content: string;
+    similarity: number;
+  }>;
+};
+
+const SUGGESTED_QUERIES = [
+  "What are the main conflicts?",
+  "Character relationships and dynamics",
+  "Key plot turning points",
+  "Thematic patterns across scenes",
+  "World-building details and rules",
+  "Character motivations and goals",
+];
 
 export function SearchView() {
   const { state, dispatch } = useStore();
   const [query, setQuery] = useState('');
-  const [searchResult, setSearchResult] = useState<SearchQuery | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [searchStage, setSearchStage] = useState<string>('');
+  const [response, setResponse] = useState<QueryResponse | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [streamingAnswer, setStreamingAnswer] = useState('');
 
-  const narrative = state.activeNarrative;
-  const resolvedKeys = state.resolvedEntryKeys;
+  const handleQuery = useCallback(async (question: string) => {
+    const narrative = state.activeNarrative;
+    const resolvedKeys = state.resolvedEntryKeys;
 
-  const handleSearch = async () => {
-    if (!narrative || !resolvedKeys || query.trim().length === 0) return;
+    if (!narrative || !resolvedKeys || question.trim().length === 0) return;
 
     setIsSearching(true);
-    setError(null);
+    setSearchStage('Searching...');
+    setErrorMessage(null);
+    setResponse(null);
+    setStreamingAnswer('');
 
     try {
-      const result = await searchNarrative(narrative, resolvedKeys, query.trim());
-      setSearchResult(result);
+      const sceneCount = resolvedKeys.length;
+      setSearchStage(`Searching ${sceneCount} scene${sceneCount !== 1 ? 's' : ''}...`);
+
+      const result = await searchNarrative(narrative, resolvedKeys, question.trim());
+
+      if (result.results.length > 0) {
+        setSearchStage('');
+
+        const synthesis = await synthesizeSearchResults(
+          narrative,
+          question.trim(),
+          result.results,
+          result.topArc,
+          result.topScene,
+          result.timeline,
+          (token) => {
+            setStreamingAnswer(prev => prev + token);
+            setSearchStage('');
+          }
+        );
+
+        const citations = synthesis.citations.map((cit, idx) => ({
+          id: idx + 1,
+          sceneId: cit.sceneId,
+          beatIndex: result.results[idx]?.beatIndex,
+          propIndex: result.results[idx]?.propIndex,
+          content: cit.title,
+          similarity: cit.similarity,
+        }));
+
+        setResponse({
+          question: question.trim(),
+          answer: synthesis.overview,
+          citations,
+        });
+      } else {
+        setErrorMessage('No relevant content found. Try a different question or generate embeddings.');
+      }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Search failed';
-      setError(errorMsg);
+      setErrorMessage('Query failed. Please try again.');
     } finally {
       setIsSearching(false);
+      setSearchStage('');
     }
-  };
+  }, [state.activeNarrative, state.resolvedEntryKeys]);
 
-  const handleResultClick = (sceneId: string) => {
-    const sceneIndex = resolvedKeys.indexOf(sceneId);
-    if (sceneIndex >= 0) {
-      dispatch({ type: 'SET_SCENE_INDEX', index: sceneIndex });
+  const navigateToCitation = useCallback((citation: QueryResponse['citations'][0]) => {
+    const sceneIndex = state.resolvedEntryKeys.indexOf(citation.sceneId);
+    if (sceneIndex < 0) return;
+
+    dispatch({ type: 'SET_SCENE_INDEX', index: sceneIndex });
+
+    if (citation.beatIndex !== undefined) {
+      window.dispatchEvent(new CustomEvent('canvas:toggle-beat-plan', { detail: { enabled: true } }));
+      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'prose' });
+
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('prose:scroll-to-beat', {
+          detail: { beatIndex: citation.beatIndex, propIndex: citation.propIndex },
+        }));
+      }, 150);
+    } else {
+      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'prose' });
     }
-  };
+  }, [state.resolvedEntryKeys, dispatch]);
 
-  const formatSimilarity = (score: number) => {
-    return `${(score * 100).toFixed(1)}%`;
-  };
+  const getSceneInfo = useCallback((sceneId: string, beatIndex?: number) => {
+    const narrative = state.activeNarrative;
+    if (!narrative || !state.activeBranchId) return null;
+
+    const scene = narrative.scenes[sceneId];
+    if (!scene) return null;
+
+    const proseData = resolveProseForBranch(scene, state.activeBranchId, narrative.branches);
+    const planData = resolvePlanForBranch(scene, state.activeBranchId, narrative.branches);
+
+    let beatProse: string | null = null;
+    if (beatIndex !== undefined && proseData?.beatProseMap) {
+      const beatChunk = proseData.beatProseMap.chunks.find(c => c.beatIndex === beatIndex);
+      beatProse = beatChunk?.prose || null;
+    }
+
+    return {
+      scene,
+      prose: proseData?.prose || null,
+      beatProse,
+      plan: planData?.beats || null,
+      arc: scene.arcId ? narrative.arcs[scene.arcId] : null,
+    };
+  }, [state.activeNarrative, state.activeBranchId]);
+
+  const handleSuggestedQuery = useCallback((suggestedQuery: string) => {
+    setQuery(suggestedQuery);
+    handleQuery(suggestedQuery);
+  }, [handleQuery]);
 
   return (
-    <div className="flex flex-col h-full bg-bg-base">
-      {/* Search Input */}
-      <div className="px-4 py-3 border-b border-border bg-bg-surface/40">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !isSearching) handleSearch();
-            }}
-            placeholder="Search propositions, beats, and scenes..."
-            className="flex-1 px-3 py-2 bg-bg-base border border-border rounded text-sm text-text-default placeholder:text-text-dim focus:outline-none focus:ring-1 focus:ring-accent"
-            disabled={isSearching}
-          />
-          <button
-            onClick={handleSearch}
-            disabled={isSearching || query.trim().length === 0}
-            className="px-4 py-2 bg-accent text-white rounded text-sm font-medium hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isSearching ? 'Searching...' : 'Search'}
-          </button>
+    <div className="flex flex-col items-center h-full overflow-y-auto bg-bg-base">
+      {/* Hero Section */}
+      <div className={`w-full flex flex-col items-center transition-all duration-500 ${response || isSearching ? 'pt-8 pb-6' : 'pt-32'}`}>
+        {/* Logo - Only show when no results */}
+        {!response && !isSearching && (
+          <div className="w-full flex justify-center mb-16">
+            <div className="flex items-center gap-4">
+              <Image
+                src="/logo.svg"
+                alt="InkTide"
+                width={64}
+                height={64}
+                className="opacity-70"
+              />
+              <h1 className="text-3xl uppercase tracking-[0.3em] text-text-secondary font-light">
+                Search
+              </h1>
+            </div>
+          </div>
+        )}
+
+        {/* Search Bar */}
+        <div className="w-full flex justify-center px-8">
+          <div className="w-full max-w-2xl">
+            <div className="relative">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isSearching) {
+                    handleQuery(query);
+                  }
+                }}
+                placeholder="Search your narrative..."
+                className="w-full px-6 py-3.5 bg-bg-elevated border border-border rounded-full text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-sky-500/50 transition-all shadow-sm"
+                disabled={isSearching}
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                {isSearching && searchStage && (
+                  <span className="text-xs text-text-dim mr-2">{searchStage}</span>
+                )}
+                {isSearching && (
+                  <div className="w-4 h-4 border-2 border-sky-500/20 border-t-sky-500 rounded-full animate-spin" />
+                )}
+              </div>
+            </div>
+
+            {errorMessage && (
+              <div className="mt-3 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-400 text-center">
+                {errorMessage}
+              </div>
+            )}
+          </div>
         </div>
-        {error && (
-          <p className="mt-2 text-xs text-red-400">{error}</p>
+
+        {/* Suggested Queries - Only show when no results */}
+        {!response && !isSearching && !errorMessage && (
+          <div className="w-full max-w-2xl px-8 mt-8">
+            <div className="text-xs text-text-dim mb-3">Try searching for:</div>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTED_QUERIES.map((suggested) => (
+                <button
+                  key={suggested}
+                  onClick={() => handleSuggestedQuery(suggested)}
+                  className="px-4 py-2 bg-bg-elevated border border-border rounded-full text-xs text-text-secondary hover:border-sky-500/50 hover:bg-bg-elevated/80 transition-all"
+                >
+                  {suggested}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Results */}
-      {searchResult && (
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Top Results Cards */}
-          {(searchResult.topArc || searchResult.topScene || searchResult.topBeat) && (
-            <div className="grid grid-cols-3 gap-3">
-              {searchResult.topArc && narrative && (
-                <div className="p-3 bg-bg-surface border border-border rounded">
-                  <div className="text-[10px] uppercase tracking-wide text-text-dim mb-1">Top Arc</div>
-                  <div className="text-sm font-medium text-text-default mb-1">
-                    {narrative.arcs[searchResult.topArc.arcId]?.name ?? 'Unknown Arc'}
-                  </div>
-                  <div className="text-xs text-accent">
-                    {formatSimilarity(searchResult.topArc.avgSimilarity)} match
-                  </div>
-                </div>
-              )}
-              {searchResult.topScene && narrative && (
-                <button
-                  onClick={() => handleResultClick(searchResult.topScene!.sceneId)}
-                  className="p-3 bg-bg-surface border border-border rounded text-left hover:border-accent/50 transition-colors"
-                >
-                  <div className="text-[10px] uppercase tracking-wide text-text-dim mb-1">Top Scene</div>
-                  <div className="text-sm font-medium text-text-default mb-1 line-clamp-2">
-                    {narrative.scenes[searchResult.topScene.sceneId]?.summary ?? 'Unknown Scene'}
-                  </div>
-                  <div className="text-xs text-accent">
-                    {formatSimilarity(searchResult.topScene.similarity)} match
-                  </div>
-                </button>
-              )}
-              {searchResult.topBeat && narrative && (
-                <button
-                  onClick={() => handleResultClick(searchResult.topBeat!.sceneId)}
-                  className="p-3 bg-bg-surface border border-border rounded text-left hover:border-accent/50 transition-colors"
-                >
-                  <div className="text-[10px] uppercase tracking-wide text-text-dim mb-1">Top Beat</div>
-                  <div className="text-sm font-medium text-text-default mb-1">
-                    Beat {searchResult.topBeat.beatIndex + 1} in Scene
-                  </div>
-                  <div className="text-xs text-accent">
-                    {formatSimilarity(searchResult.topBeat.similarity)} match
-                  </div>
-                </button>
+      {/* Results Section */}
+      {(response || streamingAnswer) && (
+        <div className="w-full max-w-3xl px-8 pb-16 space-y-8">
+          {/* AI Overview */}
+          <div className="bg-bg-elevated/50 border-l-2 border-sky-500 pl-6 pr-4 py-5 rounded-r-lg">
+            <div className="text-xs text-sky-400 mb-3 font-medium">AI Overview</div>
+            <div className="text-sm leading-relaxed text-text-primary">
+              {response ? response.answer : streamingAnswer}
+              {!response && streamingAnswer && (
+                <span className="inline-block w-0.5 h-4 ml-1 bg-sky-400 animate-pulse" />
               )}
             </div>
-          )}
+          </div>
 
-          {/* Timeline Heatmap */}
-          {searchResult.timeline.length > 0 && (
-            <div className="p-4 bg-bg-surface border border-border rounded">
-              <div className="text-xs font-medium text-text-dim uppercase tracking-wide mb-3">
-                Timeline Heatmap
+          {/* Search Results */}
+          {response && response.citations.length > 0 && (
+            <div>
+              <div className="text-xs text-text-dim mb-4">
+                {response.citations.length} result{response.citations.length !== 1 ? 's' : ''}
               </div>
-              <div className="flex items-end gap-[2px] h-20">
-                {searchResult.timeline.map((point, i) => {
-                  const height = Math.max(4, point.maxSimilarity * 100);
-                  const opacity = 0.3 + point.maxSimilarity * 0.7;
+
+              <div className="space-y-4">
+                {response.citations.map((cit) => {
+                  const sceneInfo = getSceneInfo(cit.sceneId, cit.beatIndex);
+                  const beatPlan = sceneInfo?.plan?.[cit.beatIndex ?? 0];
+
                   return (
-                    <button
-                      key={i}
-                      onClick={() => handleResultClick(resolvedKeys[point.sceneIndex])}
-                      className="flex-1 bg-accent hover:bg-accent/80 transition-all rounded-sm"
-                      style={{
-                        height: `${height}%`,
-                        opacity,
-                      }}
-                      title={`Scene ${point.sceneIndex + 1}: ${formatSimilarity(point.maxSimilarity)}`}
-                    />
+                    <div
+                      key={cit.id}
+                      className="group cursor-pointer"
+                      onClick={() => navigateToCitation(cit)}
+                    >
+                      <div className="flex items-start gap-4 py-3 px-1 hover:bg-bg-elevated/30 rounded-lg transition-colors">
+                        <div className="flex-1 min-w-0">
+                          {/* Context breadcrumb */}
+                          <div className="flex items-center gap-2 text-xs text-text-dim mb-1">
+                            {sceneInfo?.arc && (
+                              <>
+                                <span>{sceneInfo.arc.name}</span>
+                                <span>›</span>
+                              </>
+                            )}
+                            {beatPlan && (
+                              <>
+                                <span>Beat {(cit.beatIndex ?? 0) + 1}</span>
+                                <span className="text-text-dim/50">·</span>
+                                <span className="text-emerald-400/70">{beatPlan.fn}</span>
+                              </>
+                            )}
+                            <span className="text-text-dim/50">·</span>
+                            <span className="text-sky-400/70">{(cit.similarity * 100).toFixed(0)}% match</span>
+                          </div>
+
+                          {/* Result content */}
+                          <div className="text-sm text-text-primary leading-relaxed group-hover:text-sky-300 transition-colors">
+                            {cit.content}
+                          </div>
+
+                          {/* Beat prose if available */}
+                          {sceneInfo?.beatProse && (
+                            <div className="mt-2 text-xs text-text-secondary/60 leading-relaxed line-clamp-2">
+                              {sceneInfo.beatProse}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Navigate icon */}
+                        <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <svg className="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <path d="M5 12h14m-7-7l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
             </div>
           )}
-
-          {/* Results List */}
-          {searchResult.results.length > 0 ? (
-            <div>
-              <div className="text-xs font-medium text-text-dim uppercase tracking-wide mb-2">
-                Results ({searchResult.results.length})
-              </div>
-              <div className="space-y-2">
-                {searchResult.results.map((result) => (
-                  <button
-                    key={result.id}
-                    onClick={() => handleResultClick(result.sceneId)}
-                    className="w-full p-3 bg-bg-surface border border-border rounded text-left hover:border-accent/50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-wide rounded bg-accent/10 text-accent font-medium">
-                        {result.type}
-                      </span>
-                      <span className="text-xs text-accent font-mono">
-                        {formatSimilarity(result.similarity)}
-                      </span>
-                    </div>
-                    <div className="text-sm text-text-default mb-1">
-                      {result.content}
-                    </div>
-                    <div className="text-xs text-text-dim">
-                      {result.context}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-sm text-text-dim italic">
-                No results found. Try a different search query.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!searchResult && !isSearching && (
-        <div className="flex-1 flex flex-col items-center justify-center p-8">
-          <svg className="w-16 h-16 text-text-dim/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-          <p className="text-sm text-text-dim mb-2">Semantic Search</p>
-          <p className="text-xs text-text-dim/60 text-center max-w-xs">
-            Search your narrative using natural language. Find propositions, beats, and scenes by meaning, not just keywords.
-          </p>
         </div>
       )}
     </div>

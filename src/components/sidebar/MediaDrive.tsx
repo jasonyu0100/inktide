@@ -7,6 +7,7 @@ import { resolveEntry } from '@/types/narrative';
 import { apiHeaders } from '@/lib/api-headers';
 import { logApiCall, updateApiLog } from '@/lib/api-logger';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { assetManager } from '@/lib/asset-manager';
 import MediaPreview from '@/components/sidebar/MediaPreview';
 import { IconSpinner, IconImage, IconSettings, IconRefresh } from '@/components/icons';
 import type { MediaItem } from '@/components/sidebar/MediaPreview';
@@ -24,6 +25,7 @@ type SceneReadiness = {
 async function generateImage(
   type: 'character' | 'location' | 'scene',
   payload: Record<string, unknown>,
+  narrativeId: string,
 ): Promise<{ imageUrl: string }> {
   const body = JSON.stringify({ type, ...payload });
   const logId = logApiCall(`MediaDrive.generateImage(${type})`, body.length, body, 'replicate/seedream-4.5');
@@ -42,8 +44,17 @@ async function generateImage(
       throw new Error(message);
     }
     const data = await res.json();
-    updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responsePreview: `image generated (${type})` });
-    return data;
+
+    // Download the image from Replicate and store in IndexedDB
+    const replicateUrl = data.imageUrl;
+    const imgRes = await fetch(replicateUrl);
+    if (!imgRes.ok) throw new Error('Failed to download generated image');
+
+    const blob = await imgRes.blob();
+    const assetId = await assetManager.storeImage(blob, blob.type, undefined, narrativeId);
+
+    updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responsePreview: `image stored (${assetId})` });
+    return { imageUrl: assetId };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
@@ -201,7 +212,7 @@ export default function MediaDrive() {
         continuityHints: hints.slice(0, 5),
         imagePrompt: char.imagePrompt,
         imageStyle: narrative.imageStyle,
-      });
+      }, narrative.id);
       dispatch({ type: 'SET_CHARACTER_IMAGE', characterId: char.id, imageUrl });
     } catch (err) {
       console.error('Failed to generate character image:', err);
@@ -223,7 +234,7 @@ export default function MediaDrive() {
         continuityHints: hints.slice(0, 5),
         imagePrompt: loc.imagePrompt,
         imageStyle: narrative.imageStyle,
-      });
+      }, narrative.id);
       dispatch({ type: 'SET_LOCATION_IMAGE', locationId: loc.id, imageUrl });
     } catch (err) {
       console.error('Failed to generate location image:', err);
@@ -247,7 +258,7 @@ export default function MediaDrive() {
         continuityHints: [`Owner: ${ownerName ?? 'unknown'}`, ...hints.slice(0, 4)],
         imagePrompt: artifact.imagePrompt,
         imageStyle: narrative.imageStyle,
-      });
+      }, narrative.id);
       dispatch({ type: 'SET_ARTIFACT_IMAGE', artifactId: artifact.id, imageUrl });
     } catch (err) {
       console.error('Failed to generate artifact image:', err);
@@ -276,7 +287,7 @@ export default function MediaDrive() {
               continuityHints: char.continuity.nodes.map((n) => `${n.type}: ${n.content}`).slice(0, 5),
               imagePrompt: char.imagePrompt,
               imageStyle: narrative.imageStyle,
-            })
+            }, narrative.id)
               .then(({ imageUrl }) => { dispatch({ type: 'SET_CHARACTER_IMAGE', characterId: char.id, imageUrl }); })
           ).catch((err) => { console.error(`Failed to generate portrait for ${char.name}:`, err); }),
         );
@@ -296,7 +307,7 @@ export default function MediaDrive() {
               continuityHints: loc.continuity.nodes.map((n) => `${n.type}: ${n.content}`).slice(0, 5),
               imagePrompt: loc.imagePrompt,
               imageStyle: narrative.imageStyle,
-            })
+            }, narrative.id)
               .then(({ imageUrl }) => { dispatch({ type: 'SET_LOCATION_IMAGE', locationId: loc.id, imageUrl }); })
           ).catch((err) => { console.error(`Failed to generate location ${loc.name}:`, err); }),
         );
@@ -320,7 +331,7 @@ export default function MediaDrive() {
         characterDescriptions: charDescs,
         worldSummary: narrative.worldSummary,
         imageStyle: narrative.imageStyle,
-      });
+      }, narrative.id);
       dispatch({ type: 'SET_SCENE_IMAGE', sceneId: readiness.scene.id, imageUrl });
     } catch (err) {
       console.error('Failed to generate scene image:', err);

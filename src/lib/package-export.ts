@@ -393,7 +393,7 @@ export async function exportAsPackage(
 }
 
 /**
- * Get estimated export size (for preview)
+ * Get estimated export size (for preview) - uses rough averages for speed
  */
 export function estimateExportSize(narrative: NarrativeState, options: ExportOptions): {
   narrative: number;
@@ -409,6 +409,68 @@ export function estimateExportSize(narrative: NarrativeState, options: ExportOpt
   const embeddingsSize = options.includeEmbeddings ? assetRefs.embeddings.size * 6144 : 0;  // 6KB per embedding
   const audioSize = options.includeAudio ? assetRefs.audio.size * 2.5 * 1024 * 1024 : 0;   // 2.5MB avg per audio
   const imagesSize = options.includeImages ? assetRefs.images.size * 200 * 1024 : 0;        // 200KB avg per image
+
+  const total = narrativeSize + embeddingsSize + audioSize + imagesSize;
+
+  return {
+    narrative: narrativeSize,
+    embeddings: embeddingsSize,
+    audio: audioSize,
+    images: imagesSize,
+    total,
+  };
+}
+
+/**
+ * Get exact export size by reading actual blob sizes from IndexedDB
+ * Slower than estimateExportSize but 100% accurate
+ */
+export async function calculateExactExportSize(narrative: NarrativeState, options: ExportOptions): Promise<{
+  narrative: number;
+  embeddings: number;
+  audio: number;
+  images: number;
+  total: number;
+}> {
+  const assetRefs = collectAssetReferences(narrative);
+
+  // Narrative JSON size (exact)
+  const narrativeSize = JSON.stringify(narrative).length;
+
+  let embeddingsSize = 0;
+  let audioSize = 0;
+  let imagesSize = 0;
+
+  // Calculate exact embedding sizes
+  if (options.includeEmbeddings) {
+    for (const embId of assetRefs.embeddings) {
+      const vector = await assetManager.getEmbedding(embId);
+      if (vector) {
+        // Float32Array in ZIP: 1536 dimensions * 4 bytes
+        embeddingsSize += vector.length * 4;
+      }
+    }
+  }
+
+  // Calculate exact audio sizes
+  if (options.includeAudio) {
+    for (const audioId of assetRefs.audio) {
+      const blob = await assetManager.getAudio(audioId);
+      if (blob) {
+        audioSize += blob.size;
+      }
+    }
+  }
+
+  // Calculate exact image sizes
+  if (options.includeImages) {
+    for (const imgId of assetRefs.images) {
+      const blob = await assetManager.getImage(imgId);
+      if (blob) {
+        imagesSize += blob.size;
+      }
+    }
+  }
 
   const total = narrativeSize + embeddingsSize + audioSize + imagesSize;
 

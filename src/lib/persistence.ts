@@ -1,4 +1,4 @@
-import type { NarrativeState, AnalysisJob, ApiLogEntry, DiscoveryInquiry } from '@/types/narrative';
+import type { NarrativeState, AnalysisJob, ApiLogEntry, DiscoveryInquiry, SearchQuery } from '@/types/narrative';
 import { idbGet, idbPut, idbDelete, idbGetAll, NARRATIVES_STORE, META_STORE, API_LOGS_STORE } from '@/lib/idb';
 import { logInfo, logError } from '@/lib/system-logger';
 
@@ -227,5 +227,27 @@ export async function migrateFromLocalStorage(): Promise<void> {
       source: 'other',
       operation: 'migrate-storage'
     });
+  }
+}
+
+// ── Search State ─────────────────────────────────────────────────────────────
+
+const SEARCH_STATE_KEY = 'currentSearch';
+
+export async function saveSearchState(query: SearchQuery | null): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await idbPut(META_STORE, SEARCH_STATE_KEY, query);
+  } catch (err) {
+    // Silently fail for search state persistence
+  }
+}
+
+export async function loadSearchState(): Promise<SearchQuery | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    return (await idbGet<SearchQuery | null>(META_STORE, SEARCH_STATE_KEY)) ?? null;
+  } catch (err) {
+    return null;
   }
 }

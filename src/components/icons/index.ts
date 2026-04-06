@@ -3,4 +3,4 @@ export { IconChevronLeft, IconChevronRight, IconChevronDown, IconHome, IconExpan
 export { IconEdit, IconTrash, IconClose, IconSend, IconRefresh, IconFork, IconImport, IconDownload, IconShare, IconPlus, IconUndo, IconPencilDraw } from './ActionIcons';
 export { IconPlay, IconPause, IconStop } from './MediaIcons';
 export { IconSpinner, IconWarning, IconCheckCircle } from './StatusIcons';
-export { IconDocument, IconBook, IconNotepad, IconImage, IconEye, IconLocationPin, IconPeople, IconQuestion, IconDollar, IconSettings, IconDice, IconScorecard, IconSearch, IconList, IconFlask, IconAutoLoop, IconLineChart } from './ContentIcons';
+export { IconDocument, IconBook, IconNotepad, IconImage, IconEye, IconLocationPin, IconPeople, IconQuestion, IconDollar, IconSettings, IconDice, IconScorecard, IconSearch, IconList, IconFlask, IconAutoLoop, IconLineChart, IconGlobe, IconThread, IconNetwork, IconWaveform, IconLightbulb } from './ContentIcons';

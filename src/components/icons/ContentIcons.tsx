@@ -171,3 +171,49 @@ export function IconLineChart({ size, ...rest }: P) {
     </svg>
   );
 }
+
+export function IconGlobe({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+      <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconThread({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M12 2v20M6 6l6 6 6-6M6 18l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconNetwork({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      <circle cx="6" cy="6" r="2" fill="currentColor" />
+      <circle cx="18" cy="6" r="2" fill="currentColor" />
+      <circle cx="6" cy="18" r="2" fill="currentColor" />
+      <circle cx="18" cy="18" r="2" fill="currentColor" />
+      <path d="M10.5 10.5L7.5 7.5M13.5 10.5L16.5 7.5M10.5 13.5L7.5 16.5M13.5 13.5L16.5 16.5" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+export function IconWaveform({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M3 12h2l2-8 4 16 4-12 2 4h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
+export function IconLightbulb({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M9 18h6M10 22h4M12 2a6 6 0 014 10.5V16a1 1 0 01-1 1H9a1 1 0 01-1-1v-3.5A6 6 0 0112 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

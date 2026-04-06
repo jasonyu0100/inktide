@@ -7,11 +7,30 @@ import type { GraphViewMode } from '@/types/narrative';
 import { getResolvedProseVersion, getResolvedPlanVersion, resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
 import { VersionHistoryTree } from './VersionHistoryTree';
 import { RegenerateEmbeddingsModal } from '@/components/topbar/RegenerateEmbeddingsModal';
+import { IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch } from '@/components/icons';
 
 const GRAPH_DOMAINS = [
-  { label: 'World',     local: 'spatial' as GraphViewMode, global: 'overview' as GraphViewMode },
-  { label: 'Knowledge', local: 'spark'   as GraphViewMode, global: 'codex'    as GraphViewMode },
-  { label: 'Threads',   local: 'pulse'   as GraphViewMode, global: 'threads'  as GraphViewMode },
+  {
+    label: 'World',
+    local: 'spatial' as GraphViewMode,
+    global: 'overview' as GraphViewMode,
+    Icon: IconGlobe,
+    description: 'Characters & locations',
+  },
+  {
+    label: 'Knowledge',
+    local: 'spark' as GraphViewMode,
+    global: 'codex' as GraphViewMode,
+    Icon: IconLightbulb,
+    description: 'Character knowledge & world systems',
+  },
+  {
+    label: 'Threads',
+    local: 'pulse' as GraphViewMode,
+    global: 'threads' as GraphViewMode,
+    Icon: IconThread,
+    description: 'Narrative threads & tensions',
+  },
 ];
 
 const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode }> = {
@@ -462,19 +481,25 @@ export function CanvasTopBar() {
       {canvasMode === 'graph' && (
         <>
           {/* Graph domain tabs */}
-          <div className="flex items-center gap-0.5">
-            {GRAPH_DOMAINS.map(({ label, local, global: globalMode }) => {
+          <div className="flex items-center gap-0.5 rounded bg-white/4 p-0.5">
+            {GRAPH_DOMAINS.map(({ label, local, global: globalMode, Icon, description }) => {
               const isActive = graphViewMode === local || graphViewMode === globalMode;
               return (
-                <button key={label}
-                  className={`text-[10px] px-2 py-1 rounded transition-colors ${
-                    isActive ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
+                <button
+                  key={label}
+                  className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded transition-all ${
+                    isActive
+                      ? 'bg-white/15 text-text-primary shadow-sm'
+                      : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
                   }`}
                   onClick={() => dispatch({
                     type: 'SET_GRAPH_VIEW_MODE',
                     mode: isActive ? (graphViewMode === local ? globalMode : local) : local,
-                  })}>
-                  {label}
+                  })}
+                  title={description}
+                >
+                  <Icon size={12} />
+                  <span className="font-medium">{label}</span>
                 </button>
               );
             })}
@@ -482,15 +507,28 @@ export function CanvasTopBar() {
 
           {/* Scope toggle */}
           {scopePair && (
-            <div className="flex items-center rounded bg-white/4 p-0.5">
+            <div className="flex items-center rounded bg-white/4 border border-white/10 overflow-hidden">
               <button
-                className={`text-[9px] px-1.5 py-0.5 rounded transition-colors ${isLocal ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'}`}
-                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.local })}>
+                className={`text-[9px] px-2.5 py-1 font-medium transition-all ${
+                  isLocal
+                    ? 'bg-white/15 text-text-primary shadow-sm'
+                    : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
+                }`}
+                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.local })}
+                title="Show current scene view"
+              >
                 Local
               </button>
+              <div className="w-px h-3 bg-white/10" />
               <button
-                className={`text-[9px] px-1.5 py-0.5 rounded transition-colors ${!isLocal ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'}`}
-                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.global })}>
+                className={`text-[9px] px-2.5 py-1 font-medium transition-all ${
+                  !isLocal
+                    ? 'bg-white/15 text-text-primary shadow-sm'
+                    : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
+                }`}
+                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.global })}
+                title="Show full narrative view"
+              >
                 Global
               </button>
             </div>
@@ -608,22 +646,35 @@ export function CanvasTopBar() {
 
       {/* Right — Mode toggle: Graph / Plan / Prose / Audio / Search */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center rounded bg-white/4 p-0.5">
-          {(['graph', 'plan', 'prose', 'audio', 'search'] as CanvasMode[]).map((mode) => {
+        <div className="flex items-center rounded bg-white/4 border border-white/10 overflow-hidden">
+          {[
+            { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', description: 'Interactive knowledge graph' },
+            { mode: 'plan' as CanvasMode, Icon: IconNotepad, label: 'Plan', description: 'Beat-by-beat scene plan' },
+            { mode: 'prose' as CanvasMode, Icon: IconDocument, label: 'Prose', description: 'Written scene prose' },
+            { mode: 'audio' as CanvasMode, Icon: IconWaveform, label: 'Audio', description: 'Scene audio narration' },
+            { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', description: 'AI-powered semantic search' },
+          ].map(({ mode, Icon, label, description }, idx) => {
             const isActive = canvasMode === mode;
-            const color = mode === 'plan' ? (isActive ? 'text-sky-400 bg-sky-500/15' : '')
-              : mode === 'prose' ? (isActive ? 'text-emerald-400 bg-emerald-500/15' : '')
-              : mode === 'audio' ? (isActive ? 'text-violet-400 bg-violet-500/15' : '')
-              : mode === 'search' ? (isActive ? 'text-amber-400 bg-amber-500/15' : '')
-              : (isActive ? 'text-text-primary bg-white/10' : '');
+            const color = mode === 'plan' ? (isActive ? 'text-sky-400 bg-sky-500/20 border-sky-500/30' : '')
+              : mode === 'prose' ? (isActive ? 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' : '')
+              : mode === 'audio' ? (isActive ? 'text-violet-400 bg-violet-500/20 border-violet-500/30' : '')
+              : mode === 'search' ? (isActive ? 'text-amber-400 bg-amber-500/20 border-amber-500/30' : '')
+              : (isActive ? 'text-text-primary bg-white/15' : '');
+
             return (
-              <button key={mode}
-                className={`text-[10px] px-2 py-0.5 rounded capitalize transition-colors ${
-                  isActive ? color : 'text-text-dim hover:text-text-secondary'
-                }`}
-                onClick={() => switchMode(mode)}>
-                {mode}
-              </button>
+              <div key={mode} className="flex items-center">
+                {idx > 0 && <div className="w-px h-3 bg-white/10" />}
+                <button
+                  className={`flex items-center gap-1 text-[10px] px-2.5 py-1 font-medium transition-all ${
+                    isActive ? `${color} shadow-sm` : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
+                  }`}
+                  onClick={() => switchMode(mode)}
+                  title={description}
+                >
+                  <Icon size={12} />
+                  <span>{label}</span>
+                </button>
+              </div>
             );
           })}
         </div>

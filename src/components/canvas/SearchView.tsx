@@ -1,7 +1,7 @@
 'use client';
 
 import { useStore } from '@/lib/store';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { searchNarrative } from '@/lib/search';
 import { synthesizeSearchResults } from '@/lib/ai/search-synthesis';
 import { loadSearchState, saveSearchState } from '@/lib/persistence';
@@ -39,8 +39,6 @@ export function SearchView() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
-  const streamingBufferRef = useRef('');
-  const streamingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load persisted search state on mount
   useEffect(() => {
@@ -71,15 +69,6 @@ export function SearchView() {
     loadPersistedSearch();
   }, []);
 
-  // Cleanup streaming timer on unmount
-  useEffect(() => {
-    return () => {
-      if (streamingTimerRef.current) {
-        clearTimeout(streamingTimerRef.current);
-      }
-    };
-  }, []);
-
   const handleQuery = useCallback(async (question: string) => {
     const narrative = state.activeNarrative;
     const resolvedKeys = state.resolvedEntryKeys;
@@ -91,13 +80,6 @@ export function SearchView() {
     setErrorMessage(null);
     setResponse(null);
     setStreamingAnswer('');
-    streamingBufferRef.current = '';
-
-    // Clear any existing streaming timer
-    if (streamingTimerRef.current) {
-      clearTimeout(streamingTimerRef.current);
-      streamingTimerRef.current = null;
-    }
 
     try {
       const sceneCount = resolvedKeys.length;
@@ -118,38 +100,16 @@ export function SearchView() {
           result.topScene,
           result.timeline,
           (token) => {
-            // Accumulate tokens in buffer
-            streamingBufferRef.current += token;
-
-            // Clear any existing timer
-            if (streamingTimerRef.current) {
-              clearTimeout(streamingTimerRef.current);
-            }
-
-            // Throttle updates to make streaming visible (every 50ms)
-            streamingTimerRef.current = setTimeout(() => {
-              const accumulated = streamingBufferRef.current;
-              setStreamingAnswer(prev => {
-                if (prev.length === 0) {
-                  // First token received, we're streaming now
-                  setSearchStage('');
-                }
-                return prev + accumulated;
-              });
-              streamingBufferRef.current = '';
-            }, 50);
+            // Update immediately for responsive streaming
+            setStreamingAnswer(prev => {
+              if (prev.length === 0) {
+                // First token received, we're streaming now
+                setSearchStage('');
+              }
+              return prev + token;
+            });
           }
         );
-
-        // Flush any remaining buffered content
-        if (streamingTimerRef.current) {
-          clearTimeout(streamingTimerRef.current);
-          streamingTimerRef.current = null;
-        }
-        if (streamingBufferRef.current) {
-          setStreamingAnswer(prev => prev + streamingBufferRef.current);
-          streamingBufferRef.current = '';
-        }
 
         // Map all search results (top 10) for display, not just cited ones
         const allResults = result.results.slice(0, 10).map((res, idx) => ({
@@ -206,14 +166,23 @@ export function SearchView() {
       beatProse = beatChunk?.prose || null;
     }
 
+    // Get arc index (1-based)
+    const arc = scene.arcId ? narrative.arcs[scene.arcId] : null;
+    const arcIndex = arc ? Object.keys(narrative.arcs).indexOf(scene.arcId!) + 1 : null;
+
+    // Get scene index (1-based) from resolved keys
+    const sceneIndex = state.resolvedEntryKeys.indexOf(sceneId) + 1;
+
     return {
       scene,
       prose: proseData?.prose || null,
       beatProse,
       plan: planData?.beats || null,
-      arc: scene.arcId ? narrative.arcs[scene.arcId] : null,
+      arc,
+      arcIndex,
+      sceneIndex: sceneIndex > 0 ? sceneIndex : null,
     };
-  }, [state.activeNarrative, state.activeBranchId]);
+  }, [state.activeNarrative, state.activeBranchId, state.resolvedEntryKeys]);
 
   const navigateToCitation = useCallback((citation: QueryResponse['citations'][0]) => {
     const sceneIndex = state.resolvedEntryKeys.indexOf(citation.sceneId);
@@ -369,28 +338,28 @@ export function SearchView() {
                       <div className="flex items-start gap-4 py-3 px-1 hover:bg-bg-elevated/30 rounded-lg transition-colors">
                         <div className="flex-1 min-w-0">
                           {/* Context breadcrumb */}
-                          <div className="flex items-center gap-2 text-xs text-text-dim mb-1">
-                            {sceneInfo?.arc && (
+                          <div className="flex items-center gap-2 text-xs mb-2 text-text-dim">
+                            {sceneInfo?.arcIndex && (
                               <>
-                                <span>{sceneInfo.arc.name}</span>
-                                <span>›</span>
+                                <span>Arc {sceneInfo.arcIndex}</span>
+                                <span className="opacity-40">›</span>
                               </>
                             )}
-                            {sceneInfo?.scene && (
+                            {sceneInfo?.sceneIndex && (
                               <>
-                                <span>{sceneInfo.scene.summary || 'Untitled Scene'}</span>
-                                <span>›</span>
+                                <span>Scene {sceneInfo.sceneIndex}</span>
+                                <span className="opacity-40">›</span>
                               </>
                             )}
                             {beatPlan && (
                               <>
                                 <span>Beat {(cit.beatIndex ?? 0) + 1}</span>
-                                <span className="text-text-dim/50">·</span>
-                                <span className="text-emerald-400/70">{beatPlan.fn}</span>
+                                <span className="opacity-40">·</span>
+                                <span className="opacity-70">{beatPlan.fn}</span>
                               </>
                             )}
-                            <span className="text-text-dim/50">·</span>
-                            <span className="text-sky-400/70">{(cit.similarity * 100).toFixed(0)}% match</span>
+                            <span className="opacity-40">·</span>
+                            <span className="text-sky-500/90">{(cit.similarity * 100).toFixed(0)}%</span>
                           </div>
 
                           {/* Result content */}

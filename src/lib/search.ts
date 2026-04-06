@@ -5,7 +5,7 @@
 
 import { generateEmbeddings, cosineSimilarity, resolveEmbedding } from './embeddings';
 import type { NarrativeState, SearchQuery, SearchResult, EmbeddingRef } from '@/types/narrative';
-import { SEARCH_TOP_K } from './constants';
+import { SEARCH_TOP_K, SEARCH_TOP_K_SCENES, SEARCH_TOP_K_DETAILS } from './constants';
 import { resolveEntry, isScene } from '@/types/narrative';
 import { logInfo, logError } from './system-logger';
 
@@ -142,7 +142,40 @@ export async function searchNarrative(
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
-  // Sort by similarity and take top K (no threshold filtering)
+  // Split results into scene-level and detail-level pools
+  const scoredScenes = scored.filter(item => item.type === 'scene');
+  const scoredDetails = scored.filter(item => item.type === 'proposition' || item.type === 'beat');
+
+  // Get top K for each pool
+  const sceneResults: SearchResult[] = scoredScenes
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, SEARCH_TOP_K_SCENES)
+    .map(({ type, sceneId, beatIndex, propIndex, content, similarity, context }) => ({
+      type,
+      id: `${sceneId}-${beatIndex ?? 'scene'}-${propIndex ?? ''}`,
+      sceneId,
+      beatIndex,
+      propIndex,
+      content,
+      similarity,
+      context,
+    }));
+
+  const detailResults: SearchResult[] = scoredDetails
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, SEARCH_TOP_K_DETAILS)
+    .map(({ type, sceneId, beatIndex, propIndex, content, similarity, context }) => ({
+      type,
+      id: `${sceneId}-${beatIndex ?? 'scene'}-${propIndex ?? ''}`,
+      sceneId,
+      beatIndex,
+      propIndex,
+      content,
+      similarity,
+      context,
+    }));
+
+  // Combined results for backwards compatibility (legacy)
   const results: SearchResult[] = scored
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, SEARCH_TOP_K)
@@ -223,6 +256,8 @@ export async function searchNarrative(
     query,
     embedding: queryEmbedding,
     results,
+    sceneResults,
+    detailResults,
     timeline,
     topArc,
     topScene,

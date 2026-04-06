@@ -1285,7 +1285,12 @@ export type SearchQuery = {
   query: string;
   embedding: number[];
   synthesis?: SearchSynthesis;
+  /** Combined results (legacy, for backwards compatibility) */
   results: SearchResult[];
+  /** Scene-level results (thematic, high-level context) */
+  sceneResults: SearchResult[];
+  /** Detail-level results (propositions and beats, specific facts) */
+  detailResults: SearchResult[];
   timeline: { sceneIndex: number; maxSimilarity: number }[];
   topArc: { arcId: string; avgSimilarity: number } | null;
   topScene: { sceneId: string; similarity: number } | null;

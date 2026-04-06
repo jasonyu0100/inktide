@@ -414,6 +414,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
 
   // ── Generate embeddings for scene summaries ──────────────────────────────
   const { generateEmbeddingsBatch, computeCentroid } = await import('@/lib/embeddings');
+  const { assetManager } = await import('@/lib/asset-manager');
 
   if (scenes.length > 0) {
     try {
@@ -421,8 +422,11 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
       const sceneSummaries = scenes.map(s => s.summary);
       const summaryEmbeddings = await generateEmbeddingsBatch(sceneSummaries, narrative.id);
 
-      scenes.forEach((scene, i) => {
-        scene.summaryEmbedding = summaryEmbeddings[i];
+      // Store embeddings in AssetManager and use references
+      for (let i = 0; i < scenes.length; i++) {
+        const scene = scenes[i];
+        const embeddingId = await assetManager.storeEmbedding(summaryEmbeddings[i], 'text-embedding-3-small');
+        scene.summaryEmbedding = embeddingId;
 
         // If scene has plan (in version array), compute plan centroid from beat centroids
         const latestPlan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
@@ -434,7 +438,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
             scene.planEmbeddingCentroid = computeCentroid(allBeatCentroids);
           }
         }
-      });
+      }
     } catch (error) {
       // Log error but don't fail scene generation if embedding fails
       logError('Failed to generate embeddings for scenes', error, {

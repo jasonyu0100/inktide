@@ -17,6 +17,25 @@ type QueryResponse = {
     propIndex?: number;
     content: string;
     similarity: number;
+    type: 'scene' | 'beat' | 'proposition';
+  }>;
+  sceneCitations: Array<{
+    id: number;
+    sceneId: string;
+    beatIndex?: number;
+    propIndex?: number;
+    content: string;
+    similarity: number;
+    type: 'scene' | 'beat' | 'proposition';
+  }>;
+  detailCitations: Array<{
+    id: number;
+    sceneId: string;
+    beatIndex?: number;
+    propIndex?: number;
+    content: string;
+    similarity: number;
+    type: 'scene' | 'beat' | 'proposition';
   }>;
 };
 
@@ -38,6 +57,7 @@ export function SearchView() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [resultView, setResultView] = useState<'all' | 'scenes' | 'details'>('all');
 
   // Load search state from store when narrative changes
   useEffect(() => {
@@ -62,12 +82,35 @@ export function SearchView() {
         propIndex: res.propIndex,
         content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
         similarity: res.similarity,
+        type: res.type,
+      }));
+
+      const sceneResults = savedSearch.sceneResults.map((res, idx) => ({
+        id: idx + 1,
+        sceneId: res.sceneId,
+        beatIndex: res.beatIndex,
+        propIndex: res.propIndex,
+        content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
+        similarity: res.similarity,
+        type: res.type,
+      }));
+
+      const detailResults = savedSearch.detailResults.map((res, idx) => ({
+        id: idx + 1,
+        sceneId: res.sceneId,
+        beatIndex: res.beatIndex,
+        propIndex: res.propIndex,
+        content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
+        similarity: res.similarity,
+        type: res.type,
       }));
 
       setResponse({
         question: savedSearch.query,
         answer: savedSearch.synthesis.overview,
         citations: allResults,
+        sceneCitations: sceneResults,
+        detailCitations: detailResults,
       });
     } else {
       // Clear local state if no saved search
@@ -143,12 +186,35 @@ export function SearchView() {
           propIndex: res.propIndex,
           content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
           similarity: res.similarity,
+          type: res.type,
+        }));
+
+        const sceneResults = result.sceneResults.map((res, idx) => ({
+          id: idx + 1,
+          sceneId: res.sceneId,
+          beatIndex: res.beatIndex,
+          propIndex: res.propIndex,
+          content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
+          similarity: res.similarity,
+          type: res.type,
+        }));
+
+        const detailResults = result.detailResults.map((res, idx) => ({
+          id: idx + 1,
+          sceneId: res.sceneId,
+          beatIndex: res.beatIndex,
+          propIndex: res.propIndex,
+          content: res.content.length > 200 ? res.content.substring(0, 197) + '...' : res.content,
+          similarity: res.similarity,
+          type: res.type,
         }));
 
         const responseData = {
           question: question.trim(),
           answer: synthesis.overview,
           citations: allResults,
+          sceneCitations: sceneResults,
+          detailCitations: detailResults,
         };
         setResponse(responseData);
 
@@ -160,6 +226,8 @@ export function SearchView() {
             embedding: result.embedding,
             synthesis,
             results: result.results,
+            sceneResults: result.sceneResults,
+            detailResults: result.detailResults,
             timeline: result.timeline,
             topArc: result.topArc,
             topScene: result.topScene,
@@ -353,12 +421,49 @@ export function SearchView() {
           {/* Search Results */}
           {response && response.citations.length > 0 && (
             <div>
-              <div className="text-xs text-text-dim mb-4">
-                {response.citations.length} result{response.citations.length !== 1 ? 's' : ''}
+              {/* Result view toggle */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-xs text-text-dim">
+                  {resultView === 'all' && `${response.citations.length} result${response.citations.length !== 1 ? 's' : ''}`}
+                  {resultView === 'scenes' && `${response.sceneCitations.length} scene${response.sceneCitations.length !== 1 ? 's' : ''}`}
+                  {resultView === 'details' && `${response.detailCitations.length} detail${response.detailCitations.length !== 1 ? 's' : ''}`}
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setResultView('all')}
+                    className={`px-3 py-1 rounded text-[10px] uppercase tracking-wider transition-all ${
+                      resultView === 'all'
+                        ? 'bg-sky-500/20 border border-sky-500/30 text-sky-300'
+                        : 'bg-white/5 border border-white/10 text-text-dim hover:text-text-secondary'
+                    }`}
+                  >
+                    All ({response.citations.length})
+                  </button>
+                  <button
+                    onClick={() => setResultView('scenes')}
+                    className={`px-3 py-1 rounded text-[10px] uppercase tracking-wider transition-all ${
+                      resultView === 'scenes'
+                        ? 'bg-sky-500/20 border border-sky-500/30 text-sky-300'
+                        : 'bg-white/5 border border-white/10 text-text-dim hover:text-text-secondary'
+                    }`}
+                  >
+                    Scenes ({response.sceneCitations.length})
+                  </button>
+                  <button
+                    onClick={() => setResultView('details')}
+                    className={`px-3 py-1 rounded text-[10px] uppercase tracking-wider transition-all ${
+                      resultView === 'details'
+                        ? 'bg-sky-500/20 border border-sky-500/30 text-sky-300'
+                        : 'bg-white/5 border border-white/10 text-text-dim hover:text-text-secondary'
+                    }`}
+                  >
+                    Details ({response.detailCitations.length})
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-4">
-                {response.citations.map((cit) => {
+                {(resultView === 'all' ? response.citations : resultView === 'scenes' ? response.sceneCitations : response.detailCitations).map((cit) => {
                   const sceneInfo = getSceneInfo(cit.sceneId, cit.beatIndex);
                   const beatPlan = sceneInfo?.plan?.[cit.beatIndex ?? 0];
 

@@ -83,7 +83,7 @@ export async function synthesizeSearchResults(
   query: string,
   results: SearchResult[],
   topArc: { arcId: string; avgSimilarity: number } | null,
-  topScene: { sceneId: string; similarity: number } | null,
+  _topScene: { sceneId: string; similarity: number } | null,
   timeline: Array<{ sceneIndex: number; maxSimilarity: number }>,
   onToken?: (token: string) => void,
 ): Promise<SearchSynthesis> {
@@ -96,6 +96,19 @@ export async function synthesizeSearchResults(
   // Build context from search results
   const context = buildSearchContext(query, results, topArc, timeline, narrative);
 
+  // Analyze result distribution to detect query type
+  const sceneResults = results.filter(r => r.type === 'scene');
+  const propResults = results.filter(r => r.type === 'proposition');
+  const beatResults = results.filter(r => r.type === 'beat');
+
+  // Count unique scenes in results
+  const uniqueScenes = new Set(results.map(r => r.sceneId)).size;
+  const totalResults = results.length;
+
+  // Detect if this is a thematic pattern query or specific content query
+  const isThematicQuery = sceneResults.length > propResults.length || uniqueScenes > totalResults * 0.6;
+  const isLocalizedContent = uniqueScenes <= 3 && propResults.length > sceneResults.length;
+
   // Create synthesis prompt - plain text with inline citations
   const prompt = `${context}
 
@@ -103,11 +116,30 @@ You are a narrative analysis assistant. The user has searched for: "${query}"
 
 Based on the search results above, provide a concise 2-3 paragraph synthesis that directly answers the user's search query.
 
+**Dual-Level Search Architecture:**
+The search returns two balanced result pools:
+- **Scene summaries** (top 5): High-level thematic context - what each scene is about
+- **Detail facts** (top 10): Specific propositions/beats - concrete moments and information
+
+**Result Pattern Analysis:**
+- Scene-level results: ${sceneResults.length} (thematic matches across scenes)
+- Beat-level results: ${beatResults.length} (structural moments)
+- Proposition-level results: ${propResults.length} (specific facts/details)
+- Unique scenes represented: ${uniqueScenes} out of ${totalResults} results
+${isThematicQuery ? '- Pattern detected: THEMATIC (results span multiple scenes, query is abstract)' : ''}
+${isLocalizedContent ? '- Pattern detected: LOCALIZED (results cluster in few scenes, query is specific)' : ''}
+
 **Guidelines:**
+- Synthesize BOTH high-level themes (scene summaries) AND specific details (propositions/beats)
+- Use scene-level results to identify thematic patterns across the narrative
+- Use detail-level results to ground claims with specific facts and moments
 - Only cite the most relevant results using inline citations like [1], [2], [3]
 - You don't need to reference every result—focus on the strongest matches
 - Write in a clear, informative style (similar to a Google AI Overview)
-- Focus on narrative patterns and connections, not just listing matches
+${isThematicQuery ? '- This appears to be a thematic query - emphasize patterns ACROSS scenes (prioritize scene summaries)' : ''}
+${isLocalizedContent ? '- This appears to be a specific content query - emphasize concrete details (prioritize proposition-level facts)' : ''}
+- If the query asks about patterns but results are localized, acknowledge that the content is concentrated rather than spanning the narrative
+- If the query asks for specific content but results are scattered, note which scenes are most relevant
 - Identify which arcs and scenes are most relevant
 - Note timeline patterns if applicable
 

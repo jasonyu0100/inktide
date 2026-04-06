@@ -11,6 +11,7 @@
 import { useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { generateEmbeddingsBatch, embedPropositions, computeCentroid } from '@/lib/embeddings';
+import { assetManager } from '@/lib/asset-manager';
 import { logInfo, logError } from '@/lib/system-logger';
 
 export type EmbedMode = 'summaries' | 'propositions' | 'prose';
@@ -151,14 +152,15 @@ export function useBulkEmbed() {
       }
     );
 
-    // Update scenes with embeddings
-    scenesToEmbed.forEach((scene, i) => {
+    // Store embeddings in AssetManager and update scenes with references
+    for (let i = 0; i < scenesToEmbed.length; i++) {
+      const embeddingId = await assetManager.storeEmbedding(embeddings[i], 'text-embedding-3-small');
       dispatch({
         type: 'UPDATE_SCENE',
-        sceneId: scene.id,
-        updates: { summaryEmbedding: embeddings[i] },
+        sceneId: scenesToEmbed[i].id,
+        updates: { summaryEmbedding: embeddingId },
       });
-    });
+    }
   };
 
   /**
@@ -305,14 +307,15 @@ export function useBulkEmbed() {
       }
     );
 
-    // Update scenes with embeddings
-    scenesWithProse.forEach((scene, i) => {
+    // Store embeddings in AssetManager and update scenes with references
+    for (let i = 0; i < scenesWithProse.length; i++) {
+      const embeddingId = await assetManager.storeEmbedding(embeddings[i], 'text-embedding-3-small');
       dispatch({
         type: 'UPDATE_SCENE',
-        sceneId: scene.id,
-        updates: { proseEmbedding: embeddings[i] },
+        sceneId: scenesWithProse[i].id,
+        updates: { proseEmbedding: embeddingId },
       });
-    });
+    }
   };
 
   return {

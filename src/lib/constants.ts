@@ -178,7 +178,7 @@ export const SEARCH_TOP_K = 20;
 export const SEARCH_TOP_K_SCENES = 5;
 
 /** Number of top detail-level results (propositions and beats, specific facts) to retrieve before combining */
-export const SEARCH_TOP_K_DETAILS = 5;
+export const SEARCH_TOP_K_DETAILS = 10;
 
 /** Minimum cosine similarity threshold for search results (0-1) */
 export const SEARCH_SIMILARITY_THRESHOLD = 0.3;

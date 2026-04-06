@@ -132,14 +132,9 @@ export function SearchView() {
           question.trim(),
         );
 
-        if (result.results.length > 0) {
+        if (result.sceneResults.length > 0 || result.detailResults.length > 0) {
           // Stage 2: Found results, generating AI summary
-          const summaryCount = Math.min(5, result.sceneResults.length);
-          const detailCount = Math.min(10, result.detailResults.length);
-          const totalUsed = summaryCount + detailCount;
-          setSearchStage(
-            `Found ${result.results.length} results — synthesizing top ${totalUsed}`,
-          );
+          setSearchStage("Weaving through scenes and details");
 
           const synthesis = await synthesizeSearchResults(
             narrative,

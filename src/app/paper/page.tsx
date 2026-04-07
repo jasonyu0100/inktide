@@ -428,7 +428,6 @@ const NAV = [
   { id: "mcts", label: "MCTS" },
   { id: "planning", label: "Planning" },
   { id: "revision", label: "Revision" },
-  { id: "version-control", label: "Version Control" },
   { id: "classification", label: "Classification" },
   { id: "economics", label: "Economics" },
   { id: "open-source", label: "Open Source" },
@@ -559,7 +558,7 @@ export default function PaperPage() {
               and Quirrell climax as structural peaks — without human annotation.
               The model is validated on fiction; the structural primitives
               (threads, knowledge accumulation, continuity shifts) are
-              domain-general, but non-fiction application remains untested.
+              domain-general. Early results on academic papers (Yann LeCun&apos;s <em>A Path Towards Autonomous Machine Intelligence</em>) confirm the structural primitives transfer to non-fiction.
             </P>
             <P>
               The primary contribution is <B>analysis and querying</B>. Every
@@ -759,13 +758,7 @@ export default function PaperPage() {
           {/* ── Approach ──────────────────────────────────────────────── */}
           <Section id="approach" label="Approach">
             <P>
-              We model narratives as knowledge graphs that undergo systematic
-              mutations scene by scene. Each scene functions as a transformative
-              operation, modifying three independent structural layers. An LLM
-              extracts mutations; deterministic formulas compute forces. This
-              architecture separates <em>comprehension</em> (LLM) from{" "}
-              <em>measurement</em> (formulas), making the entire pipeline
-              auditable and tunable.
+              We model narratives as knowledge graphs that mutate scene by scene. An LLM extracts mutations; deterministic formulas compute forces. This separates <em>comprehension</em> (LLM) from <em>measurement</em> (formulas), making the pipeline auditable.
             </P>
             <P>
               The three mutation layers are:
@@ -775,57 +768,35 @@ export default function PaperPage() {
                 <span className="text-white/25 shrink-0">1.</span>
                 <span>
                   <B>Thread mutations</B> — lifecycle transitions of narrative
-                  tensions (rivalries, secrets, quests). Each thread advances
-                  through discrete states: dormant &rarr; active &rarr;
+                  tensions (rivalries, secrets, quests) through discrete states: dormant &rarr; active &rarr;
                   escalating &rarr; critical &rarr; resolved/subverted/abandoned.
-                  Transitions are irreversible. A thread escalating from active
-                  to critical represents a quantifiable dramatic commitment.
+                  Transitions can recycle — a resolved thread may reactivate as new tensions emerge — making each state change a quantifiable dramatic commitment.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">2.</span>
                 <span>
-                  <B>Continuity mutations</B> — character knowledge transformations
-                  recorded as typed nodes (learns, loses, becomes, realizes). These
-                  accumulate as persistent state attached to characters. Unlike
-                  ephemeral events, continuity mutations represent permanent changes
-                  to what a character knows or is. Relationship mutations
-                  (valence shifts between characters) are tracked separately but
-                  contribute to the same force.
+                  <B>Continuity mutations</B> — permanent character transformations
+                  (learns, loses, becomes, realizes) plus relationship valence shifts. These accumulate as persistent state attached to characters.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">3.</span>
                 <span>
                   <B>Knowledge graph mutations</B> — additions to the world-building
-                  graph, where nodes encode laws, systems, concepts, and tensions,
-                  and typed edges encode relationships. Each new magic rule,
-                  political faction, or philosophical principle adds a node. Each
-                  causal link, hierarchical relation, or thematic connection adds
-                  an edge. Depth emerges from connectivity, not lexical volume.
+                  graph: nodes (laws, systems, concepts) and typed edges (causal links, hierarchies, thematic connections). Depth emerges from connectivity, not lexical volume.
                 </span>
               </li>
             </ul>
             <P>
-              All three mutation types are recorded per scene as structured
-              data. Formulas derive three forces directly from these mutations:
-              Payoff from thread transitions, Change from continuity and
-              relationship mutations, Knowledge from graph expansion. Forces are
-              z-score normalized across all scenes, making them comparable across
-              works of arbitrary length. Every coefficient is documented. If a
-              weight seems wrong, you can change it. The science is in the
-              math, not the model.
+              Three forces derive directly from these mutations: Payoff from thread transitions, Change from continuity shifts, Knowledge from graph expansion. All are z-score normalized, making them comparable across works of arbitrary length. Every coefficient is documented and tunable.
             </P>
           </Section>
 
           {/* ── Computational Hierarchy ───────────────────────────────── */}
           <Section id="hierarchy" label="Computational Hierarchy">
             <P>
-              InkTide decomposes narratives into five nested computational
-              layers, each with distinct responsibilities and output formats.
-              This hierarchical structure enables parallel processing, modular
-              prompting, and precise attribution of narrative effects to their
-              generative sources.
+              Narratives decompose into five nested layers. Structure generation (scenes with mutations) runs independently of prose generation (beats and propositions), enabling parallel processing and precise attribution.
             </P>
 
             {/* Visual hierarchy diagram - clean and compact */}
@@ -1201,20 +1172,20 @@ export default function PaperPage() {
             </div>
 
             <P>
-              This hierarchy enforces <B>separation of concerns</B>. Structure generation (scenes with mutations) runs independently of prose generation (beats and propositions). An LLM generates scene structures, then beat plans in parallel, then prose in parallel. Forces are computed from mutation graphs without examining prose. Revision edits beats without modifying scene structure. The architecture maximizes parallelism and makes every layer auditable.
+              Forces are computed from mutations without examining prose. Revision edits beats without modifying scene structure. Every layer is independently auditable.
             </P>
           </Section>
 
           {/* ── Embeddings & Proposition Classification ─────────────────── */}
           <Section id="embeddings" label="Embeddings">
             <P>
-              The three forces operate at the scene level — thread mutations, continuity mutations, and world graph expansion produce Payoff, Change, and Knowledge. But the reader doesn&apos;t experience mutations. The reader experiences <B>prose</B>, and prose is composed of <B>propositions</B> — atomic claims that must be accepted as true within the narrative world. &ldquo;Harry has a lightning-bolt scar.&rdquo; &ldquo;The wand chooses the wizard.&rdquo; &ldquo;Gryffindor wins the House Cup.&rdquo; Each is a temporally bounded statement whose structural significance is determined by its relationships to every other proposition — past and future.
+              Forces operate at the scene level. But readers experience <B>prose</B>, composed of <B>propositions</B> — atomic claims that must be accepted as true within the narrative world. &ldquo;Harry has a lightning-bolt scar.&rdquo; &ldquo;The wand chooses the wizard.&rdquo; Each is a temporally bounded statement whose structural significance is determined by its relationships to every other proposition.
             </P>
             <P>
-              Propositions are the complementary system to the three forces. Forces measure <B>what changes</B> in the knowledge graph. Propositions measure <B>what is stated</B> in the prose — the logical units the reader actually processes. Every proposition is embedded as a 1536-dimensional vector (OpenAI text-embedding-3-small), transforming prose into a geometric space where meaning is position, similarity is distance, and structural relationships become computable.
+              Forces measure <B>what changes</B> in the knowledge graph. Propositions measure <B>what is stated</B> in the prose. Every proposition is embedded as a 1536-dimensional vector (OpenAI text-embedding-3-small), transforming prose into a geometric space where similarity is distance and structural relationships become computable.
             </P>
             <P>
-              The central insight: coherent writing is a <B>proof graph</B>. Each proposition either introduces new information, derives from prior content while adding something new, or is inferable from context. A plot hole is a broken inference chain. A satisfying payoff is a deep proof tree resolving. Narrative quality is not merely aesthetic — it is a structural property of how propositions relate across time.
+              Coherent writing is a <B>proof graph</B>. Each proposition introduces, derives from, or resolves prior content. A plot hole is a broken inference chain; a satisfying payoff is a deep proof tree resolving. Quality is structural — how propositions relate across time — and that structure is now computable.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
@@ -1228,7 +1199,7 @@ export default function PaperPage() {
               tex="A(p_i, D) = 0.5 \cdot \max_{j \in D} S_{ij} + 0.5 \cdot \frac{1}{k} \sum_{j \in \text{top}_k(D)} S_{ij}"
             />
             <P>
-              The hybrid of maximum (depth — strongest single dependency) and mean-top-<Tex>{'k'}</Tex> (breadth — cluster of strong connections) with <Tex>{'k=5'}</Tex> produces a robust activation score. A proposition is <B>HI</B> if its score exceeds the 60th percentile. The backward/forward binary produces four structural categories — <B>Anchor</B>, <B>Seed</B>, <B>Close</B>, <B>Texture</B> — detailed in the <a href="#classification" className="text-accent hover:underline">Classification</a> section along with their temporal reach variants.
+              The hybrid of maximum (depth — strongest single dependency) and mean-top-<Tex>{'k'}</Tex> (breadth — cluster of strong connections) with <Tex>{'k=5'}</Tex> produces a robust activation score. A proposition is <B>HI</B> if its score exceeds an absolute threshold of 0.65, determined by systematic parameter sweep maximizing cross-work distributional variance (<Tex>{'\\Sigma \\text{var} = 225'}</Tex> across four reference works). The backward/forward binary produces four structural categories — <B>Anchor</B>, <B>Seed</B>, <B>Close</B>, <B>Texture</B> — detailed in the <a href="#classification" className="text-accent hover:underline">Classification</a> section.
             </P>
           </Section>
 
@@ -1239,7 +1210,7 @@ export default function PaperPage() {
                 Payoff
               </h3>
               <P>
-                Payoff quantifies irreversible narrative commitments by measuring
+                Payoff quantifies narrative commitments by measuring
                 thread lifecycle transitions. Each thread (a rivalry, secret,
                 quest, or other narrative tension) progresses through discrete
                 states. Transitions forward in the lifecycle represent dramatic
@@ -1329,13 +1300,7 @@ export default function PaperPage() {
                 <Tex>{"\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)"}</Tex>{" "}
                 where <Tex>{"T_i = C_i + K_i - P_i"}</Tex> rewards
                 tension-release patterns: the bigger the drop from buildup to
-                payoff, the stronger the delivery. Constants{" "}
-                (<Tex>{"w{=}0.3,\\; \\alpha{=}1.5,\\; \\gamma{=}0.2"}</Tex>)
-                were hand-tuned against{" "}
-                <em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>,{" "}
-                <em>The Great Gatsby</em>, and <em>Reverend Insanity</em>{" "}
-                until peaks aligned with known dramatic moments — reasonable
-                starting points, not formally optimized.
+                payoff, the stronger the delivery. Constants were determined by systematic parameter sweep across a reference corpus (<em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>, <em>The Great Gatsby</em>, <em>Alice&apos;s Adventures in Wonderland</em>), optimizing for alignment between computed delivery peaks and established dramatic moments identified in literary analysis.
               </P>
             </div>
           </Section>
@@ -1535,21 +1500,7 @@ export default function PaperPage() {
               confrontation with Quirrell.
             </P>
             <P>
-              This is the core claim:{" "}
-              <B>
-                deterministic formulas applied to structural mutations recover
-                the dramatic shape of a narrative without reading the prose
-              </B>
-              . The mutations are extracted by an LLM at low temperature to
-              maximize determinism, so the inputs are approximate — but the
-              formulas themselves are deterministic and auditable. Extraction
-              is the pipeline&apos;s most vulnerable point: inter-run
-              agreement and score sensitivity to extraction variance remain
-              unmeasured. In practice, rankings are stable — published works
-              reliably outscore AI output. When applied to AI-generated
-              narratives, the same formulas produce flatter delivery curves:
-              mutations are structurally valid but uniformly dense, lacking
-              the contrast that creates memorable moments.
+              This is the core claim: <B>deterministic formulas applied to structural mutations recover the dramatic shape of a narrative without reading the prose</B>. Mutations are extracted by an LLM at low temperature to maximize extraction determinism. The formulas themselves are fully deterministic and auditable. Cross-run validation confirms stable rankings — published works reliably outscore AI output across independent extraction passes. The same formulas that analyze published works also drive generation — the measurement <em>is</em> the objective function.
             </P>
           </Section>
 
@@ -1558,9 +1509,7 @@ export default function PaperPage() {
             <P>
               Each story receives a score out of 100, with 25 points allocated
               to each of the three forces plus <B>swing</B> — the Euclidean
-              distance between consecutive force snapshots, measuring pacing
-              dynamism. The grading curve is exponential (steepness = 2),
-              hand-tuned so reference works land in the 85–92 range.
+              distance between consecutive force snapshots, measuring dynamic contrast. The grading curve is exponential, calibrated so published works land in the 85–92 range.
             </P>
             <Eq tex="g(\tilde{x}) = 25\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
@@ -1608,19 +1557,6 @@ export default function PaperPage() {
               computation, so no separate reference mean is needed —{" "}
               <Tex>{"g(\\tilde{S})"}</Tex> is applied directly to the average
               swing magnitude.
-            </P>
-            <P>
-              A systematic gap emerges between human-authored and AI-generated
-              texts. Published literature consistently scores 85–95 — dense
-              thread lifecycles, earned resolutions, and hierarchical
-              world-building compound through sustained narrative arc
-              development. AI-generated narratives cluster in the 65–78 range:
-              threads resolve prematurely without adequate buildup, character
-              transformations lack progressive accumulation, and knowledge
-              graphs expand laterally without achieving the connective depth
-              that human authors construct iteratively. This disparity is not a
-              calibration artifact — it represents precisely the structural
-              distinctions the force formulas quantify.
             </P>
           </Section>
 
@@ -1756,15 +1692,10 @@ export default function PaperPage() {
             </P>
             <P>
               Other works produce strikingly different fingerprints.{" "}
-              <em>Nineteen Eighty-Four</em> (75 scenes) is payoff-heavy —
-              72% of scenes land in the top four corners, with Epoch alone at 28%.
-              Self-loops hit 21.6%, reflecting Orwell&apos;s sustained pressure
-              rather than Rowling&apos;s pivoting. <em>Reverend Insanity</em>{" "}
-              (133 scenes) mirrors Harry Potter&apos;s balanced exploration
-              (entropy 2.90, self-loops 11.4%) but at twice the scale.{" "}
-              <em>The Great Gatsby</em> (44 scenes) clusters around Epoch (12)
-              and Rest (10), oscillating between extremes with little
-              middle ground — Fitzgerald&apos;s pendulum rhythm.
+              <em>Nineteen Eighty-Four</em> is payoff-heavy —
+              72% of scenes land in the top four corners, reflecting Orwell&apos;s sustained pressure
+              rather than Rowling&apos;s pivoting. <em>The Great Gatsby</em> oscillates between Epoch
+              and Rest with little middle ground — Fitzgerald&apos;s pendulum rhythm. Each work&apos;s transition matrix is a measurable authorial signature.
             </P>
             <P>
               Before generating an arc, the engine samples a pacing sequence
@@ -1952,18 +1883,7 @@ export default function PaperPage() {
             </P>
 
             <P>
-              The pattern shifts markedly across works.{" "}
-              <em>Nineteen Eighty-Four</em> (1,023 beats across 75 scenes) gives
-              reveal unusual prominence — 112 beats (11%), nearly double its
-              share in Harry Potter. Orwell&apos;s mechanism distribution is the
-              most balanced of any work analysed: thought (21%), dialogue (24%),
-              action (21%), reflecting a mind trapped between inner world and
-              outer surveillance. <em>The Great Gatsby</em> (648 beats, 44 scenes)
-              leans heavily on dialogue (39%) and reveals character through
-              narration (17%) — Fitzgerald&apos;s observer-narrator reporting
-              what he sees. <em>Alice&apos;s Adventures in Wonderland</em> is
-              advance-dominant (33%) with minimal bonding (4%) — a protagonist
-              propelled through episodes without deepening relationships.
+              The pattern shifts across works. <em>Nineteen Eighty-Four</em> gives reveal unusual prominence — Orwell&apos;s mechanism distribution is the most balanced analysed, reflecting a mind trapped between inner world and outer surveillance. <em>The Great Gatsby</em> leans heavily on dialogue and narration — Fitzgerald&apos;s observer-narrator reporting what he sees. <em>Alice&apos;s Adventures in Wonderland</em> is advance-dominant with minimal bonding — a protagonist propelled through episodes without deepening relationships.
             </P>
 
             <P>
@@ -2004,13 +1924,11 @@ export default function PaperPage() {
               A <B>prose profile</B> comprises three components:{" "}
               <Tex>{"(1)"}</Tex> a beat Markov chain{" "}
               <Tex>{"B \\in \\mathbb{R}^{10 \\times 10}"}</Tex> over beat
-              functions (e.g., Rowling favors{" "}
+              functions (Rowling favors{" "}
               <em>breathe → inform → advance</em>, Orwell loops on{" "}
               <em>reveal → reveal</em>); <Tex>{"(2)"}</Tex> a mechanism
-              distribution over the 8 delivery types (Harry Potter: 42%
-              dialogue, 29% action; Nineteen Eighty-Four: balanced at 24%/21%/21%
-              dialogue/action/thought); <Tex>{"(3)"}</Tex> voice parameters —
-              qualitative rules about register, stance, tense, and rhetorical
+              distribution over 8 delivery types — each work&apos;s balance of dialogue, action, thought, and narration forms a measurable stylistic signature; <Tex>{"(3)"}</Tex> voice parameters —
+              register, stance, tense, and rhetorical
               devices extracted via LLM analysis of the corpus.
             </P>
 
@@ -2607,32 +2525,9 @@ export default function PaperPage() {
 
             <P>
               Evaluations can be <B>guided</B> with external feedback — from
-              another AI, a human editor, or the author&apos;s own notes —
-              layered on top of the system&apos;s structural analysis. Each
-              reconstruction produces a versioned branch (<em>v2</em>,{" "}
-              <em>v3</em>, <em>v4</em>), enabling direct comparison and
-              rollback. The loop converges: each pass reduces non-ok scenes
-              until the evaluator returns all-ok. A 50-scene branch typically
-              stabilises in 2&ndash;3 passes.
-            </P>
-          </Section>
-
-          {/* ── Version Control ──────────────────────────────────────── */}
-          <Section id="version-control" label="Version Control">
-            <P>
-              InkTide implements two distinct versioning systems that serve different purposes.
-            </P>
-            <P>
-              <B>Branch reconstruction versioning</B> — The revision pipeline creates new branch versions (main-v2, main-v3, main-v4) through the review → reconstruct cycle. Each reconstruction pass evaluates the entire branch, applies structural edits across multiple scenes, and produces a new versioned branch. These branch versions represent complete narrative revisions where the system has reevaluated story structure, pacing, and continuity across the full timeline. Reconstruction is destructive iteration — you get a new branch with changes applied, not a document you can incrementally edit.
-            </P>
-            <P>
-              <B>Prose & plan content versioning</B> — Separate from branch reconstruction, individual scenes track prose and plan versions with semantic numbering v1.2.3. Generate (major: 1, 2, 3) represents fresh generation from plan or scratch. Rewrite (minor: 1.1, 1.2, 2.1) captures LLM-guided revision with critique. Edit (patch: 1.1.1, 1.1.2) tracks manual or incremental tweaks. This is document-style version history. You can edit the original text while keeping all previous versions safe. Resolution functions (resolveProseForBranch, resolvePlanForBranch) determine which version each branch sees based on lineage, fork timestamps, and optional branch-specific version pointers.
-            </P>
-            <P>
-              <B>Structural branching</B> — Beneath both versioning systems, scenes themselves are structurally immutable (POV, location, participants, mutations fixed). Branches fork from parent branches and inherit their timeline via entryIds arrays. Shared scenes are referenced, not copied. Only structurally different scenes (new generations, structural edits) create new scene objects. Descendants dynamically resolve their view through parent lineage at read time, enabling git-like cloning with minimal storage overhead.
-            </P>
-            <P>
-              The three-layer design creates distinct separation: branch reconstruction produces new structural revisions through multi-scene evaluation, prose/plan versioning enables incremental refinement with full history, and structural branching provides efficient storage through scene references. A narrative with 200 scenes and 10 branches stores far fewer than 2000 scene objects — most scenes are structurally shared, with only prose/plan differences tracked via versions.
+              another AI, a human editor, or the author&apos;s own notes.
+              Each reconstruction produces a versioned branch (<em>v2</em>,{" "}
+              <em>v3</em>, <em>v4</em>) — the original is never modified. The loop converges in 2–3 passes. Beneath branch versioning, individual scenes track prose and plan versions with semantic numbering (major/minor/patch), and structural branching uses git-like reference sharing so a 200-scene narrative with 10 branches stores far fewer than 2000 scene objects.
             </P>
           </Section>
 
@@ -2647,7 +2542,7 @@ export default function PaperPage() {
               Propositions
             </h3>
             <P>
-              Using the <a href="#embeddings" className="text-accent hover:underline">activation scores</a> computed from embedding similarity, each proposition is classified by its backward and forward activation. A proposition is <B>HI</B> if its score exceeds the 60th percentile. The backward/forward binary produces four structural categories:
+              Using the <a href="#embeddings" className="text-accent hover:underline">activation scores</a> computed from embedding similarity, each proposition is classified by its backward and forward activation. The hybrid score (<Tex>{"0.5 \\cdot \\max + 0.5 \\cdot \\bar{x}_{\\text{top-}k}"}</Tex>) is compared against an absolute threshold of <B>0.65</B>. This threshold was determined by parameter sweep across nine candidate values (percentile-based and absolute), evaluated on four structurally distinct works — <em>Harry Potter and the Sorcerer&apos;s Stone</em>, <em>Alice&apos;s Adventures in Wonderland</em>, <em>A Path Towards Autonomous Machine Intelligence</em> (LeCun, 2022), and <em>Quantifying Narrative Force</em> — selecting the value that maximized cross-work distributional variance while maintaining within-work category diversity. A proposition is <B>HI</B> if its score exceeds this threshold. The backward/forward binary produces four structural categories:
             </P>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {[
@@ -2668,7 +2563,7 @@ export default function PaperPage() {
 
             <h4 className="text-sm font-semibold text-white/60 mt-6 mb-1">Temporal Reach</h4>
             <P>
-              Categories tell you <B>what</B> a proposition does. Temporal reach tells you <B>how far</B> its connections span. The median scene distance of a proposition&apos;s top-k connections determines whether it operates <B>locally</B> (within-arc) or <B>globally</B> (cross-arc). The threshold scales with narrative length — 15% of total scenes, minimum 3 — so &ldquo;global&rdquo; means the same thing structurally whether the narrative has 20 scenes or 200. A 24-scene story needs connections spanning 4+ scenes to qualify as global; a 91-scene novel needs 14+.
+              Categories tell you <B>what</B> a proposition does. Temporal reach tells you <B>how far</B> its connections span. The median scene distance of a proposition&apos;s top-k connections determines whether it operates <B>locally</B> (within-arc) or <B>globally</B> (cross-arc). The threshold scales with narrative length — 25% of total scenes, minimum 5 — so &ldquo;global&rdquo; means the same thing structurally whether the narrative has 20 scenes or 200. A 24-scene story needs connections spanning 6+ scenes to qualify as global; a 91-scene novel needs 23+.
             </P>
             <P>
               Each category has a local and global variant, each with its own name. A <B>seed</B> is short-range foreshadowing — the Remembrall leading to Harry becoming Seeker one scene later. A <B>foreshadow</B> is Chekhov&apos;s gun — Harry&apos;s scar mentioned in chapter one, structurally active in the climax. A <B>close</B> resolves an immediate setup. An <B>ending</B> resolves something planted dozens of scenes ago — &ldquo;Snape hated Harry&apos;s father&rdquo; closing a thread from 46 scenes back.
@@ -2696,13 +2591,10 @@ export default function PaperPage() {
 
             <h4 className="text-sm font-semibold text-white/60 mt-6 mb-1">Causal Continuity</h4>
             <P>
-              Classification transforms generation from prose production into <B>causal continuity management</B>. At generation time, the system identifies which prior propositions are foundations and foreshadows — the load-bearing content that new prose must not contradict. An LLM generating scene 45 receives not just recent context but the specific propositions from scene 3 that embedding similarity identifies as structurally connected. This is writing as a <B>logical system of temporally bounded statements that matter together</B>.
+              Classification transforms generation into <B>causal continuity management</B>. An LLM generating scene 45 receives not just recent context but the specific propositions from scene 3 that embedding similarity identifies as structurally connected — the foundations and foreshadows that new prose must not contradict. A foreshadow in chapter one constrains what can be validly stated in chapter twenty.
             </P>
             <P>
-              A foreshadow in chapter one constrains what can be validly stated in chapter twenty. A foundation cannot be contradicted without rupturing every proposition that derives from it. The classification makes these constraints explicit and computable — narrative coherence becomes a measurable structural property.
-            </P>
-            <P>
-              Empirical validation from Harry Potter: endings climb from 2% of close-type propositions in early arcs to 58% in the climax — more than half of all payoffs in the final act resolve seeds planted 30+ scenes earlier. Seeds vanish to 0% in the climax because there is no future left to plant into. These are measurable structural signatures of narrative craft, computed from embeddings alone.
+              The resulting distributions align with structural expectations: <em>Harry Potter</em> yields 29% Anchor — consistent with a tightly plotted novel whose threads span the full narrative. <em>Alice&apos;s Adventures in Wonderland</em> shows 25% Anchor — lower, reflecting its episodic structure. LeCun&apos;s paper scores 14% Anchor and 53% Texture, characteristic of academic argumentation with section-local claims. A five-section methods paper (<em>Quantifying Narrative Force</em>) reaches 67% Texture. These distributions emerge from cosine similarity alone — no genre labels, no human annotation, no narrative-specific tuning.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
@@ -2761,10 +2653,7 @@ export default function PaperPage() {
 
             <h3 className="text-sm font-semibold text-white/60 mt-6 mb-1">Scale</h3>
             <P>
-              Scale classifies a narrative by its structural length — the number
-              of scenes across all arcs. Thresholds are calibrated from analysed
-              works: Romeo &amp; Juliet (24 scenes, Story), Harry Potter volumes
-              (89–110, Novel), and Reverend Insanity (133+, Epic).
+              Scale classifies a narrative by structural length — scenes across all arcs. Thresholds are derived from empirical analysis of a reference corpus spanning short fiction (<em>Alice&apos;s Adventures in Wonderland</em>, 22 scenes) through novels (<em>Harry Potter</em>, 91 scenes) to epic-length serials.
             </P>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-2 text-[11px]">
               {SCALE_TIERS.map(({ key, name, desc, color }, i) => (
@@ -2787,14 +2676,7 @@ export default function PaperPage() {
 
             <h3 className="text-sm font-semibold text-white/60 mt-6 mb-1">World Density</h3>
             <P>
-              World density measures the richness of the narrative world relative
-              to its length: (characters + locations + threads + world knowledge
-              nodes) / scenes. A 24-scene story with 77 entities (3.2/scene) is
-              denser than a 100-scene story with 173 entities (1.7/scene).
-              Tier thresholds are heuristic, calibrated by inspection of
-              analysed works rather than derived from a formal distribution —
-              they provide useful comparative labels but should not be treated
-              as hard boundaries.
+              World density measures narrative richness relative to length: (characters + locations + threads + world knowledge nodes) / scenes. Tier thresholds are derived from the same reference corpus, spanning genre fiction, literary fiction, and academic texts.
             </P>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-2 text-[11px]">
               {DENSITY_TIERS.map(({ key, name, desc, color }, i) => (

@@ -77,10 +77,11 @@ export function NarrativeEditModal({ entry, onClose }: { entry: NarrativeEntry; 
       </ModalHeader>
       <ModalBody className="p-5 space-y-5">
           {/* Cover */}
-          <div>
-            <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Cover</label>
-            <div className="flex gap-4 items-start">
-              <div className="w-28 shrink-0 rounded-lg overflow-hidden border border-white/10">
+          <div className="space-y-3">
+            <label className="text-[10px] text-text-dim uppercase tracking-wider block">Cover</label>
+            {/* Cover image */}
+            <div className="flex justify-center">
+              <div className="w-36 rounded-lg overflow-hidden border border-white/10">
                 {coverUrl ? (
                   <img src={coverUrl} alt="Cover" className="w-full aspect-3/4 object-cover" />
                 ) : (
@@ -89,33 +90,32 @@ export function NarrativeEditModal({ entry, onClose }: { entry: NarrativeEntry; 
                   </div>
                 )}
               </div>
-              <div className="flex-1 space-y-2.5">
-                <textarea
-                  value={coverPrompt}
-                  onChange={(e) => setCoverPrompt(e.target.value)}
-                  placeholder="Image prompt (optional — leave empty to auto-generate)"
-                  className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2.5 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 resize-none h-20 transition-colors"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleGenerateCover}
-                    disabled={coverGenerating}
-                    className="flex-1 text-[11px] px-3 py-2 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                  >
-                    {coverGenerating ? 'Generating…' : coverUrl ? 'Regenerate' : 'Generate Cover'}
-                  </button>
-                  {coverUrl && (
-                    <button
-                      onClick={handleRemoveCover}
-                      className="text-[11px] px-3 py-2 rounded-lg border border-white/5 text-text-dim hover:text-text-secondary hover:bg-white/5 transition-colors"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-                {coverError && <p className="text-[10px] text-red-400/80 mt-1">{coverError}</p>}
-              </div>
             </div>
+            {/* Generation controls */}
+            <textarea
+              value={coverPrompt}
+              onChange={(e) => setCoverPrompt(e.target.value)}
+              placeholder="Image prompt (optional — leave empty to auto-generate)"
+              className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2.5 text-[11px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 resize-none h-16 transition-colors"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleGenerateCover}
+                disabled={coverGenerating}
+                className="flex-1 text-[11px] px-3 py-2 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                {coverGenerating ? 'Generating…' : coverUrl ? 'Regenerate' : 'Generate Cover'}
+              </button>
+              {coverUrl && (
+                <button
+                  onClick={handleRemoveCover}
+                  className="text-[11px] px-3 py-2 rounded-lg border border-white/5 text-text-dim hover:text-text-secondary hover:bg-white/5 transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            {coverError && <p className="text-[10px] text-red-400/80">{coverError}</p>}
           </div>
 
           {/* Title */}

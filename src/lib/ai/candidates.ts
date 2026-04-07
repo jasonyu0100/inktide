@@ -112,8 +112,16 @@ export async function runPlanCandidates(
       const { classifications, labels } = await classifyCandidatePlan(narrative, resolvedKeys, candidate.plan);
       candidate.propositionLabels = labels;
 
-      // Run continuity violation check on high-backward propositions
-      const violations = await checkContinuityViolations(classifications);
+      // Build content map for the batch prompt
+      const contents: Record<string, string> = {};
+      for (const beat of candidate.plan.beats) {
+        if (!beat.propositions) continue;
+        const bi = candidate.plan.beats.indexOf(beat);
+        for (let pi = 0; pi < beat.propositions.length; pi++) {
+          contents[`${bi}:${pi}`] = beat.propositions[pi].content;
+        }
+      }
+      const violations = await checkContinuityViolations(classifications, contents);
       if (violations.length > 0) {
         // Fill in candidate content from the plan
         for (const v of violations) {

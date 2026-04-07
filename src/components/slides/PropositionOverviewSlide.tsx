@@ -1,136 +1,180 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
-import * as d3 from 'd3';
+import React, { useMemo } from 'react';
 import type { SlidesData } from '@/lib/slides-data';
-import { BASE_COLORS } from '@/lib/proposition-classify';
+import { BASE_COLORS, BASE_COLORS_GLOBAL, classificationLabel, ALL_PROFILE_LABELS } from '@/lib/proposition-classify';
+import { usePropositionClassification } from '@/hooks/usePropositionClassification';
 import type { PropositionBaseCategory } from '@/types/narrative';
+import { resolveEntry, isScene } from '@/types/narrative';
 
 const BASE_ORDER: PropositionBaseCategory[] = ['Anchor', 'Seed', 'Close', 'Texture'];
 
 export function PropositionOverviewSlide({ data }: { data: SlidesData }) {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const { sceneProfiles, getClassification } = usePropositionClassification();
 
-  const totals = data.propositionTotals;
-  const total = data.propositionCount;
-  const hasData = total > 0 && Object.values(totals).some(v => v > 0);
+  const { totals, total, arcTrajectory, labelCounts } = useMemo(() => {
+    const t: Record<PropositionBaseCategory, number> = { Anchor: 0, Seed: 0, Close: 0, Texture: 0 };
+    let sum = 0;
 
-  useEffect(() => {
-    const svg = d3.select(svgRef.current);
-    svg.selectAll('*').remove();
-    if (!svgRef.current || !hasData) return;
+    if (sceneProfiles && sceneProfiles.size > 0) {
+      for (const dist of sceneProfiles.values()) {
+        for (const base of BASE_ORDER) {
+          const v = dist[base] ?? 0;
+          t[base] += v;
+          sum += v;
+        }
+      }
+    }
 
-    const size = 220;
-    const outerR = 90;
-    const innerR = 55;
+    if (sum === 0) sum = data.propositionCount;
 
-    svg.attr('viewBox', `0 0 ${size} ${size}`);
-    const g = svg.append('g').attr('transform', `translate(${size / 2},${size / 2})`);
+    // Compute per-arc trajectory from sceneProfiles + narrative arcs
+    const perCategory: Record<PropositionBaseCategory, number[]> = { Anchor: [], Seed: [], Close: [], Texture: [] };
+    let arcCount = 0;
 
-    const pie = d3.pie<{ key: PropositionBaseCategory; value: number }>()
-      .value(d => d.value)
-      .sort(null);
+    if (sceneProfiles && sceneProfiles.size > 0 && data.scenes.length > 0) {
+      // Group scenes by arcId
+      const arcMap = new Map<string, string[]>();
+      for (const scene of data.scenes) {
+        const arcId = scene.arcId ?? '_ungrouped';
+        if (!arcMap.has(arcId)) arcMap.set(arcId, []);
+        arcMap.get(arcId)!.push(scene.id);
+      }
 
-    const arc = d3.arc<d3.PieArcDatum<{ key: PropositionBaseCategory; value: number }>>()
-      .innerRadius(innerR)
-      .outerRadius(outerR)
-      .padAngle(0.02)
-      .cornerRadius(3);
+      for (const [, sceneIds] of arcMap) {
+        let arcTotal = 0;
+        const counts: Record<PropositionBaseCategory, number> = { Anchor: 0, Seed: 0, Close: 0, Texture: 0 };
+        for (const sid of sceneIds) {
+          const dist = sceneProfiles.get(sid);
+          if (!dist) continue;
+          for (const b of BASE_ORDER) { counts[b] += dist[b]; arcTotal += dist[b]; }
+        }
+        for (const b of BASE_ORDER) {
+          perCategory[b].push(arcTotal > 0 ? (counts[b] / arcTotal) * 100 : 0);
+        }
+        arcCount++;
+      }
+    }
 
-    const slices = BASE_ORDER.filter(k => totals[k] > 0).map(k => ({ key: k, value: totals[k] }));
-    const arcs = pie(slices);
+    // Count all 8 labels by scanning propositions
+    const lc: Record<string, number> = {};
+    for (const p of ALL_PROFILE_LABELS) lc[p.label] = 0;
 
-    // Animated arcs
-    g.selectAll('path')
-      .data(arcs)
-      .enter()
-      .append('path')
-      .attr('fill', d => BASE_COLORS[d.data.key])
-      .attr('opacity', 0.8)
-      .attr('d', arc as never)
-      .attr('stroke-dasharray', function() { return `${(this as SVGPathElement).getTotalLength()}`; })
-      .attr('stroke-dashoffset', function() { return `${(this as SVGPathElement).getTotalLength()}`; })
-      .transition()
-      .duration(800)
-      .ease(d3.easeCubicOut)
-      .attr('stroke-dashoffset', '0');
+    if (sceneProfiles && sceneProfiles.size > 0) {
+      for (const scene of data.scenes) {
+        const plan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
+        if (!plan?.beats) continue;
+        for (let bi = 0; bi < plan.beats.length; bi++) {
+          const beat = plan.beats[bi];
+          if (!beat.propositions) continue;
+          for (let pi = 0; pi < beat.propositions.length; pi++) {
+            const cls = getClassification(scene.id, bi, pi);
+            if (cls) {
+              const label = classificationLabel(cls.base, cls.reach);
+              lc[label] = (lc[label] ?? 0) + 1;
+            }
+          }
+        }
+      }
+    }
 
-    // Center count
-    g.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '-0.1em')
-      .attr('fill', 'rgba(255,255,255,0.7)')
-      .attr('font-size', '24px')
-      .attr('font-weight', '600')
-      .attr('font-family', 'ui-monospace, monospace')
-      .text(total.toLocaleString());
+    return { totals: t, total: sum, arcTrajectory: arcCount >= 2 ? perCategory : null, labelCounts: lc };
+  }, [sceneProfiles, data.propositionCount, data.scenes, getClassification]);
 
-    g.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '1.5em')
-      .attr('fill', 'rgba(255,255,255,0.3)')
-      .attr('font-size', '9px')
-      .attr('letter-spacing', '0.1em')
-      .text('PROPOSITIONS');
-  }, [totals, total, hasData]);
+  const hasClassified = Object.values(totals).some(v => v > 0);
 
-  if (!hasData) {
+  if (total === 0) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-white/30 text-sm">No proposition classification data available.</p>
+        <p className="text-white/30 text-sm">No propositions found.</p>
       </div>
     );
   }
 
-  const anchorRatio = total > 0 ? totals.Anchor / total : 0;
-
   return (
-    <div className="h-full flex flex-col items-center justify-center gap-8 px-12">
-      <h2 className="text-[10px] uppercase tracking-[0.25em] text-white/25 font-mono">
-        Proposition Structure
-      </h2>
+    <div className="h-full flex flex-col items-center justify-center gap-6 px-16">
+      <div className="flex items-center gap-3">
+        <h2 className="text-[10px] uppercase tracking-[0.25em] text-white/25 font-mono">
+          Propositions
+        </h2>
+        <span className="text-[12px] font-mono text-white/40">{total.toLocaleString()}</span>
+      </div>
 
-      <div className="flex items-center gap-12">
-        <svg ref={svgRef} className="w-56 h-56" />
-
-        <div className="space-y-3">
-          {BASE_ORDER.map(base => {
+      {hasClassified ? (
+        <>
+        <div className="grid grid-cols-2 gap-5 w-full max-w-[720px]">
+          {BASE_ORDER.map((base) => {
             const count = totals[base];
             const pct = total > 0 ? (count / total) * 100 : 0;
+            const values = arcTrajectory?.[base];
+            const maxVal = values ? Math.max(...values, 1) : 1;
+            const trend = values ? values[values.length - 1] - values[0] : 0;
+
             return (
-              <div key={base} className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: BASE_COLORS[base] }} />
-                <div className="w-24">
-                  <span className="text-[13px] font-semibold" style={{ color: BASE_COLORS[base] }}>{base}</span>
+              <div key={base} className="rounded-xl p-5 border border-white/5 bg-white/2">
+                {/* Header: name + percentage + count */}
+                <div className="flex items-baseline justify-between mb-3">
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-[28px] font-bold font-mono" style={{ color: BASE_COLORS[base] }}>
+                      {pct.toFixed(0)}%
+                    </span>
+                    <span className="text-[13px] font-medium lowercase" style={{ color: BASE_COLORS[base] }}>{base}</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-white/20">{count}</span>
                 </div>
-                <span className="text-[13px] font-mono text-white/50 w-12 text-right">{pct.toFixed(0)}%</span>
-                <span className="text-[11px] text-white/25 font-mono">{count}</span>
+
+                {/* Arc trajectory bars */}
+                {values && values.length >= 2 && (
+                  <>
+                    <div className="flex items-end gap-1 h-20">
+                      {values.map((v, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 rounded-t"
+                          style={{
+                            height: `${Math.max(6, (v / maxVal) * 100)}%`,
+                            backgroundColor: BASE_COLORS[base],
+                            opacity: 0.35 + (i / values.length) * 0.65,
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div className="text-[9px] font-mono text-white/25 mt-2">
+                      {trend >= 0 ? '\u2191' : '\u2193'} {Math.abs(trend).toFixed(1)}% across arcs
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
         </div>
-      </div>
 
-      <div className="flex gap-8 text-center">
-        <div>
-          <div className="text-[22px] font-bold font-mono" style={{ color: BASE_COLORS.Anchor }}>
-            {(anchorRatio * 100).toFixed(0)}%
+        {/* 8-label distribution — horizontal bars */}
+        {Object.values(labelCounts).some(v => v > 0) && (
+          <div className="w-full max-w-[720px] grid grid-cols-2 gap-x-6 gap-y-1">
+            {ALL_PROFILE_LABELS.map(({ label, color }) => {
+              const count = labelCounts[label] ?? 0;
+              const maxLabel = Math.max(...Object.values(labelCounts), 1);
+              const barPct = (count / maxLabel) * 100;
+              return (
+                <div key={label} className="flex items-center gap-2">
+                  <span className="text-[9px] w-20 text-right font-medium" style={{ color }}>{label}</span>
+                  <div className="flex-1 h-3 bg-white/3 rounded-sm overflow-hidden">
+                    <div className="h-full rounded-sm" style={{ width: `${barPct}%`, backgroundColor: color, opacity: 0.7 }} />
+                  </div>
+                  <span className="text-[8px] font-mono text-white/20 w-8">{count}</span>
+                </div>
+              );
+            })}
           </div>
-          <div className="text-[9px] text-white/30 uppercase tracking-wider mt-1">Anchor Ratio</div>
+        )}
+        </>
+      ) : (
+        <div className="text-center">
+          <div className="text-[28px] font-bold font-mono text-white/50">{total.toLocaleString()}</div>
+          <div className="text-[9px] text-white/25 mt-1">propositions (classification pending)</div>
         </div>
-        <div>
-          <div className="text-[22px] font-bold font-mono" style={{ color: BASE_COLORS.Seed }}>
-            {totals.Seed}
-          </div>
-          <div className="text-[9px] text-white/30 uppercase tracking-wider mt-1">Seeds</div>
-        </div>
-        <div>
-          <div className="text-[22px] font-bold font-mono" style={{ color: BASE_COLORS.Close }}>
-            {totals.Close}
-          </div>
-          <div className="text-[9px] text-white/30 uppercase tracking-wider mt-1">Closes</div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

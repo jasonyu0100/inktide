@@ -18,7 +18,6 @@ import { SwingAnalysisSlide } from './SwingAnalysisSlide';
 import { ReportCardSlide } from './ReportCardSlide';
 import { ClosingSlide } from './ClosingSlide';
 import { PropositionOverviewSlide } from './PropositionOverviewSlide';
-import { PropositionTimelineSlide } from './PropositionTimelineSlide';
 
 // ── Slide Spec ─────────────────────────────────────────────────────────────────
 
@@ -35,7 +34,6 @@ type SlideSpec =
   | { type: 'threads' }
   | { type: 'swing' }
   | { type: 'proposition-overview' }
-  | { type: 'proposition-timeline' }
   | { type: 'report' }
   | { type: 'closing' };
 
@@ -49,6 +47,11 @@ function buildSlideList(data: SlidesData): SlideSpec[] {
   }
 
   slides.push({ type: 'cast' });
+
+  if (data.propositionCount > 0) {
+    slides.push({ type: 'proposition-overview' });
+  }
+
   slides.push({ type: 'forces' });
 
   // Key moments — peaks and valleys in chronological order
@@ -75,11 +78,6 @@ function buildSlideList(data: SlidesData): SlideSpec[] {
 
   if (data.threadLifecycles.length > 0) {
     slides.push({ type: 'threads' });
-  }
-
-  if (data.propositionCount > 0) {
-    slides.push({ type: 'proposition-overview' });
-    slides.push({ type: 'proposition-timeline' });
   }
 
   slides.push({ type: 'report' });
@@ -358,8 +356,6 @@ function renderSlide(spec: SlideSpec, data: SlidesData, onClose: () => void): Re
       return <SwingAnalysisSlide data={data} />;
     case 'proposition-overview':
       return <PropositionOverviewSlide data={data} />;
-    case 'proposition-timeline':
-      return <PropositionTimelineSlide data={data} />;
     case 'report':
       return <ReportCardSlide data={data} />;
     case 'closing':

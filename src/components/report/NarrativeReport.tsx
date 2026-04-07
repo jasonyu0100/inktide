@@ -10,6 +10,9 @@ import { detectCubeCorner } from '@/lib/narrative-utils';
 import { generateReportAnalysis, type ReportAnalysis } from '@/lib/ai/report';
 import { MOMENT_SPARKLINE_WINDOW } from '@/lib/constants';
 import { IconClose, IconRefresh } from '@/components/icons';
+import { usePropositionClassification } from '@/hooks/usePropositionClassification';
+import { ALL_PROFILE_LABELS, BASE_COLORS, classificationLabel } from '@/lib/proposition-classify';
+import type { PropositionBaseCategory } from '@/types/narrative';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -441,6 +444,71 @@ function StateMachineGraph({ data }: { data: SlidesData }) {
   );
 }
 
+// ── Proposition Arc Trajectory ────────────────────────────────────────────────
+
+const PROP_BASE_ORDER: PropositionBaseCategory[] = ['Anchor', 'Seed', 'Close', 'Texture'];
+
+function ReportArcTrajectory({ data, sceneProfiles }: { data: SlidesData; sceneProfiles: Map<string, Record<PropositionBaseCategory, number>> | null }) {
+  if (!sceneProfiles || sceneProfiles.size === 0) return null;
+
+  // Group scenes by arc
+  const arcMap = new Map<string, string[]>();
+  for (const scene of data.scenes) {
+    const arcId = scene.arcId ?? '_ungrouped';
+    if (!arcMap.has(arcId)) arcMap.set(arcId, []);
+    arcMap.get(arcId)!.push(scene.id);
+  }
+
+  if (arcMap.size < 2) return null;
+
+  const perCategory: Record<PropositionBaseCategory, number[]> = { Anchor: [], Seed: [], Close: [], Texture: [] };
+
+  for (const [, sceneIds] of arcMap) {
+    let total = 0;
+    const counts: Record<PropositionBaseCategory, number> = { Anchor: 0, Seed: 0, Close: 0, Texture: 0 };
+    for (const sid of sceneIds) {
+      const dist = sceneProfiles.get(sid);
+      if (!dist) continue;
+      for (const b of PROP_BASE_ORDER) { counts[b] += dist[b]; total += dist[b]; }
+    }
+    for (const b of PROP_BASE_ORDER) {
+      perCategory[b].push(total > 0 ? (counts[b] / total) * 100 : 0);
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-4 gap-3 mb-6">
+      {PROP_BASE_ORDER.map((base) => {
+        const values = perCategory[base];
+        const maxVal = Math.max(...values, 1);
+        const trend = values[values.length - 1] - values[0];
+
+        return (
+          <div key={base} className="rounded-lg p-3 border border-white/6 bg-white/2">
+            <div className="text-[9px] font-medium mb-2 lowercase" style={{ color: BASE_COLORS[base] }}>{base}</div>
+            <div className="flex items-end gap-0.5 h-12">
+              {values.map((v, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-t-sm"
+                  style={{
+                    height: `${Math.max(4, (v / maxVal) * 100)}%`,
+                    backgroundColor: BASE_COLORS[base],
+                    opacity: 0.35 + (i / values.length) * 0.65,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="text-[8px] font-mono text-white/25 mt-1.5">
+              {trend >= 0 ? '\u2191' : '\u2193'} {Math.abs(trend).toFixed(1)}% across arcs
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main Report ──────────────────────────────────────────────────────────────
 
 export function NarrativeReport({
@@ -453,6 +521,27 @@ export function NarrativeReport({
   onClose: () => void;
 }) {
   const data = useMemo(() => computeSlidesData(narrative, resolvedKeys), [narrative, resolvedKeys]);
+  const { sceneProfiles, getClassification } = usePropositionClassification();
+
+  // Compute 8-label counts from classification
+  const labelCounts = useMemo(() => {
+    const lc: Record<string, number> = {};
+    for (const p of ALL_PROFILE_LABELS) lc[p.label] = 0;
+    if (!sceneProfiles) return lc;
+    for (const scene of data.scenes) {
+      const plan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
+      if (!plan?.beats) continue;
+      for (let bi = 0; bi < plan.beats.length; bi++) {
+        const beat = plan.beats[bi];
+        if (!beat.propositions) continue;
+        for (let pi = 0; pi < beat.propositions.length; pi++) {
+          const cls = getClassification(scene.id, bi, pi);
+          if (cls) lc[classificationLabel(cls.base, cls.reach)] = (lc[classificationLabel(cls.base, cls.reach)] ?? 0) + 1;
+        }
+      }
+    }
+    return lc;
+  }, [sceneProfiles, data.scenes, getClassification]);
 
   const [analysis, setAnalysis] = useState<ReportAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -690,7 +779,52 @@ export function NarrativeReport({
             {prose('forces_over_time')}
           </Section>
 
-          {/* ── 04 Swing Analysis ── */}
+          {/* ── Proposition Structure ── */}
+          {data.propositionCount > 0 && (
+            <Section title="Proposition Structure" number={++sec}>
+              {/* 4 base category cards */}
+              <div className="grid grid-cols-4 gap-3 mb-6">
+                {(['Anchor', 'Seed', 'Close', 'Texture'] as const).map(base => {
+                  const count = data.propositionTotals[base];
+                  const pct = data.propositionCount > 0 ? (count / data.propositionCount) * 100 : 0;
+                  return (
+                    <div key={base} className="text-center py-3 rounded-lg border border-white/6 bg-white/2">
+                      <div className="text-[18px] font-bold font-mono" style={{ color: BASE_COLORS[base] }}>{pct.toFixed(0)}%</div>
+                      <div className="text-[9px] font-medium mt-0.5 lowercase" style={{ color: BASE_COLORS[base] }}>{base}</div>
+                      <div className="text-[8px] text-white/20 mt-0.5">{count}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 8-label distribution bars */}
+              {Object.values(labelCounts).some(v => v > 0) && (
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mb-6">
+                  {ALL_PROFILE_LABELS.map(({ label, color }) => {
+                    const count = labelCounts[label] ?? 0;
+                    const maxLabel = Math.max(...Object.values(labelCounts), 1);
+                    const barPct = (count / maxLabel) * 100;
+                    return (
+                      <div key={label} className="flex items-center gap-2">
+                        <span className="text-[9px] w-20 text-right font-medium" style={{ color }}>{label}</span>
+                        <div className="flex-1 h-2.5 bg-white/3 rounded-sm overflow-hidden">
+                          <div className="h-full rounded-sm" style={{ width: `${barPct}%`, backgroundColor: color, opacity: 0.7 }} />
+                        </div>
+                        <span className="text-[8px] font-mono text-white/20 w-8">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Arc trajectory sparklines */}
+              <ReportArcTrajectory data={data} sceneProfiles={sceneProfiles} />
+
+              {prose('propositions')}
+            </Section>
+          )}
+
+          {/* ── Swing Analysis ── */}
           <Section title="Swing Analysis" number={++sec}>
             <Figure caption="Scene-to-scene volatility in force space. Dashed line shows moving average.">
               <SwingChart data={data} />
@@ -942,26 +1076,6 @@ export function NarrativeReport({
           )}
 
 
-          {/* ── Propositions ── */}
-          {data.propositionCount > 0 && (
-            <Section title="Proposition Structure" number={++sec}>
-              <div className="grid grid-cols-4 gap-3 mb-6">
-                {(['Anchor', 'Seed', 'Close', 'Texture'] as const).map(base => {
-                  const count = data.propositionTotals[base];
-                  const pct = data.propositionCount > 0 ? (count / data.propositionCount) * 100 : 0;
-                  const colors: Record<string, string> = { Anchor: '#6366f1', Seed: '#10b981', Close: '#f59e0b', Texture: '#6b7280' };
-                  return (
-                    <div key={base} className="text-center py-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                      <div className="text-[18px] font-bold font-mono" style={{ color: colors[base] }}>{pct.toFixed(0)}%</div>
-                      <div className="text-[9px] font-medium mt-0.5" style={{ color: colors[base] }}>{base}</div>
-                      <div className="text-[8px] text-white/20 mt-0.5">{count} props</div>
-                    </div>
-                  );
-                })}
-              </div>
-              {prose('propositions')}
-            </Section>
-          )}
 
           {/* ── Conclusion ── */}
           <Section title="Conclusion & Recommendations" number={++sec}>

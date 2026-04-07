@@ -1,159 +1,168 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import * as d3 from 'd3';
 import type { SlidesData } from '@/lib/slides-data';
 import { BASE_COLORS } from '@/lib/proposition-classify';
+import { usePropositionClassification } from '@/hooks/usePropositionClassification';
 import type { PropositionBaseCategory } from '@/types/narrative';
 
 const BASE_ORDER: PropositionBaseCategory[] = ['Anchor', 'Seed', 'Close', 'Texture'];
 
-export function PropositionTimelineSlide({ data }: { data: SlidesData }) {
-  const svgRef = useRef<SVGSVGElement>(null);
+const DESCRIPTIONS: Record<PropositionBaseCategory, string> = {
+  Anchor: 'structural spine',
+  Seed: 'planting forward',
+  Close: 'resolving chains',
+  Texture: 'atmosphere',
+};
 
-  const timeline = data.propositionTimeline;
-  const hasClassified = timeline.some(t => Object.values(t.totals).some(v => v > 0));
+function CategoryChart({ values, base, maxVal }: { values: number[]; base: PropositionBaseCategory; maxVal: number }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const color = BASE_COLORS[base];
+  const n = values.length;
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
-    if (!svgRef.current || timeline.length === 0) return;
+    if (!svgRef.current || n === 0) return;
 
-    const width = 700;
-    const height = 260;
-    const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+    const width = 280;
+    const height = 80;
+    const margin = { top: 4, right: 4, bottom: 4, left: 4 };
     const w = width - margin.left - margin.right;
     const h = height - margin.top - margin.bottom;
 
     svg.attr('viewBox', `0 0 ${width} ${height}`);
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const n = timeline.length;
     const x = d3.scaleLinear().domain([0, n - 1]).range([0, w]);
+    const y = d3.scaleLinear().domain([0, maxVal]).range([h, 0]);
+    const barW = Math.max(1, w / n - 0.5);
 
-    if (hasClassified) {
-      // Stacked area chart — 4 base categories as proportions
-      const stackData = timeline.map((t, i) => {
-        const total = t.total || 1;
-        return {
-          i,
-          Anchor: t.totals.Anchor / total,
-          Seed: t.totals.Seed / total,
-          Close: t.totals.Close / total,
-          Texture: t.totals.Texture / total,
-        };
-      });
+    // Background
+    g.append('rect')
+      .attr('width', w).attr('height', h)
+      .attr('fill', 'rgba(255,255,255,0.02)')
+      .attr('rx', 3);
 
-      const y = d3.scaleLinear().domain([0, 1]).range([h, 0]);
+    // Smooth area fill + line
+    const area = d3.area<number>()
+      .x((_, i) => x(i))
+      .y0(h)
+      .y1(d => y(d))
+      .curve(d3.curveMonotoneX);
 
-      const stack = d3.stack<typeof stackData[0]>()
-        .keys(BASE_ORDER)
-        .order(d3.stackOrderNone)
-        .offset(d3.stackOffsetNone);
+    const line = d3.line<number>()
+      .x((_, i) => x(i))
+      .y(d => y(d))
+      .curve(d3.curveMonotoneX);
 
-      const series = stack(stackData);
+    g.append('path')
+      .datum(values)
+      .attr('fill', color)
+      .attr('opacity', 0.15)
+      .attr('d', area);
 
-      const area = d3.area<d3.SeriesPoint<typeof stackData[0]>>()
-        .x((_, i) => x(i))
-        .y0(d => y(d[0]))
-        .y1(d => y(d[1]))
-        .curve(d3.curveMonotoneX);
+    g.append('path')
+      .datum(values)
+      .attr('fill', 'none')
+      .attr('stroke', color)
+      .attr('stroke-width', 1.5)
+      .attr('opacity', 0.8)
+      .attr('d', line);
+  }, [values, base, maxVal, n, color]);
 
-      // Draw stacked areas with animation
-      g.selectAll('.layer')
-        .data(series)
-        .enter()
-        .append('path')
-        .attr('class', 'layer')
-        .attr('fill', d => BASE_COLORS[d.key as PropositionBaseCategory])
-        .attr('opacity', 0)
-        .attr('d', area as never)
-        .transition()
-        .duration(800)
-        .delay((_, i) => i * 150)
-        .attr('opacity', 0.7);
+  return <svg ref={svgRef} className="w-full h-auto" />;
+}
 
-      // Y axis labels
-      g.append('text')
-        .attr('x', -8).attr('y', y(1)).attr('dy', '0.3em')
-        .attr('text-anchor', 'end').attr('font-size', '8px').attr('fill', 'rgba(255,255,255,0.25)')
-        .text('100%');
-      g.append('text')
-        .attr('x', -8).attr('y', y(0.5)).attr('dy', '0.3em')
-        .attr('text-anchor', 'end').attr('font-size', '8px').attr('fill', 'rgba(255,255,255,0.15)')
-        .text('50%');
-    } else {
-      // No classification yet — show proposition density as bar chart
-      const maxTotal = Math.max(...timeline.map(t => t.total), 1);
-      const y = d3.scaleLinear().domain([0, maxTotal]).range([h, 0]);
-      const barW = Math.max(1, w / n - 1);
+export function PropositionTimelineSlide({ data }: { data: SlidesData }) {
+  const { sceneProfiles } = usePropositionClassification();
 
-      g.selectAll('rect')
-        .data(timeline)
-        .enter()
-        .append('rect')
-        .attr('x', (_, i) => x(i) - barW / 2)
-        .attr('y', d => y(d.total))
-        .attr('width', barW)
-        .attr('height', d => h - y(d.total))
-        .attr('fill', 'rgba(255,255,255,0.15)')
-        .attr('rx', 1)
-        .attr('opacity', 0)
-        .transition()
-        .duration(600)
-        .delay((_, i) => i * 5)
-        .attr('opacity', 1);
+  const chartData = useMemo(() => {
+    // Try classification context first, fall back to SlidesData timeline
+    const perCategory: Record<PropositionBaseCategory, number[]> = {
+      Anchor: [], Seed: [], Close: [], Texture: [],
+    };
+    let hasClassified = false;
 
-      // Y axis
-      g.append('text')
-        .attr('x', -8).attr('y', y(maxTotal)).attr('dy', '0.3em')
-        .attr('text-anchor', 'end').attr('font-size', '8px').attr('fill', 'rgba(255,255,255,0.25)')
-        .text(maxTotal.toString());
+    if (sceneProfiles && sceneProfiles.size > 0) {
+      // Use classification results
+      for (const t of data.propositionTimeline) {
+        const dist = sceneProfiles.get(data.propositionTimeline[t.sceneIdx]
+          ? Object.keys(Object.fromEntries([...sceneProfiles]))[t.sceneIdx]
+          : '');
+        // Simpler: iterate the timeline and match by index
+        for (const base of BASE_ORDER) {
+          perCategory[base].push(0);
+        }
+      }
+      // Actually, iterate sceneProfiles in order matching propositionTimeline
+      const sceneIds = [...sceneProfiles.keys()];
+      for (const base of BASE_ORDER) perCategory[base] = [];
+      for (const sid of sceneIds) {
+        const dist = sceneProfiles.get(sid)!;
+        for (const base of BASE_ORDER) {
+          perCategory[base].push(dist[base] ?? 0);
+        }
+      }
+      hasClassified = sceneIds.length > 0 && BASE_ORDER.some(b => perCategory[b].some(v => v > 0));
     }
 
-    // X axis — scene numbers
-    const tickCount = Math.min(10, n);
-    const tickStep = Math.ceil(n / tickCount);
-    for (let i = 0; i < n; i += tickStep) {
-      g.append('text')
-        .attr('x', x(i)).attr('y', h + 16)
-        .attr('text-anchor', 'middle').attr('font-size', '8px').attr('fill', 'rgba(255,255,255,0.2)')
-        .text(i + 1);
+    if (!hasClassified) {
+      // Fall back to raw timeline totals (unclassified)
+      for (const base of BASE_ORDER) perCategory[base] = [];
+      for (const t of data.propositionTimeline) {
+        perCategory.Anchor.push(0);
+        perCategory.Seed.push(0);
+        perCategory.Close.push(0);
+        perCategory.Texture.push(t.total); // Show all as texture when unclassified
+      }
     }
 
-    // Axis line
-    g.append('line')
-      .attr('x1', 0).attr('y1', h).attr('x2', w).attr('y2', h)
-      .attr('stroke', 'rgba(255,255,255,0.1)');
+    return { perCategory, hasClassified };
+  }, [sceneProfiles, data.propositionTimeline]);
 
-  }, [timeline, hasClassified]);
+  if (data.propositionCount === 0) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-white/30 text-sm">No propositions found.</p>
+      </div>
+    );
+  }
+
+  // Global max across all categories for consistent scale comparison
+  const globalMax = Math.max(
+    ...BASE_ORDER.map(b => Math.max(...chartData.perCategory[b], 1))
+  );
 
   return (
-    <div className="h-full flex flex-col items-center justify-center gap-6 px-8">
+    <div className="h-full flex flex-col items-center justify-center gap-4 px-12">
       <h2 className="text-[10px] uppercase tracking-[0.25em] text-white/25 font-mono">
-        {hasClassified ? 'Proposition Classification Timeline' : 'Proposition Density'}
+        {chartData.hasClassified ? 'Proposition Timelines' : 'Proposition Density'}
       </h2>
 
-      <svg ref={svgRef} className="w-full max-w-[700px] h-auto" />
+      <div className="grid grid-cols-2 gap-3 w-full max-w-[620px]">
+        {BASE_ORDER.map((base) => {
+          const values = chartData.perCategory[base];
+          const total = values.reduce((s, v) => s + v, 0);
+          const show = chartData.hasClassified || base === 'Texture'; // Only show texture when unclassified
 
-      {/* Legend */}
-      {hasClassified && (
-        <div className="flex items-center gap-6">
-          {BASE_ORDER.map(base => (
-            <div key={base} className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: BASE_COLORS[base], opacity: 0.7 }} />
-              <span className="text-[10px]" style={{ color: BASE_COLORS[base] }}>{base}</span>
+          if (!show) return null;
+
+          return (
+            <div key={base} className="bg-white/[0.02] rounded-lg p-3 border border-white/[0.04]">
+              <div className="flex items-baseline justify-between mb-1">
+                <span className="text-[10px] font-medium lowercase" style={{ color: BASE_COLORS[base] }}>
+                  {base}
+                </span>
+                <span className="text-[8px] font-mono text-white/25">{total}</span>
+              </div>
+              <CategoryChart values={values} base={base} maxVal={globalMax} />
+              <div className="text-[7px] text-white/20 mt-0.5 text-center">{DESCRIPTIONS[base]}</div>
             </div>
-          ))}
-        </div>
-      )}
-
-      <p className="text-[10px] text-white/30 max-w-lg text-center leading-relaxed">
-        {hasClassified
-          ? 'Stacked proportions show how structural roles shift across the narrative. Watch for Seed compression toward the end and Close expansion in the climax.'
-          : 'Proposition density per scene. Classification data will appear once embeddings are processed.'
-        }
-      </p>
+          );
+        })}
+      </div>
     </div>
   );
 }

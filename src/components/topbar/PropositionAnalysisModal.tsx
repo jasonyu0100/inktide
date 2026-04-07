@@ -142,49 +142,89 @@ function DistributionTab({ narrative, resolvedKeys }: { narrative: NarrativeStat
         </div>
       </div>
 
-      {/* Structural health metrics */}
-      <div>
-        <h3 className="text-[10px] font-semibold text-text-primary uppercase tracking-widest mb-3 pb-1 border-b border-border/30">
-          Structural Metrics
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Metric
-            label="Anchor Ratio"
-            value={`${(stats.anchorRatio * 100).toFixed(1)}%`}
-            desc="Proportion of load-bearing propositions. 20-30% indicates strong narrative structure."
-            quality={stats.anchorRatio >= 0.15 && stats.anchorRatio <= 0.35 ? 'good' : stats.anchorRatio < 0.10 ? 'low' : 'high'}
-          />
-          <Metric
-            label="Global / Anchor"
-            value={`${(stats.globalAnchorRatio * 100).toFixed(0)}%`}
-            desc="How many anchors are global (thematic spine) vs local (arc tension)."
-            quality="neutral"
-          />
-          <Metric
-            label="Global / Seed"
-            value={`${(stats.globalSeedRatio * 100).toFixed(0)}%`}
-            desc="How many seeds are long-range (cross-arc) vs short-range (within-arc)."
-            quality="neutral"
-          />
-          <Metric
-            label="Global / Close"
-            value={`${(stats.globalCloseRatio * 100).toFixed(0)}%`}
-            desc="How many endings resolve distant setups. Rises through the narrative — high in climax."
-            quality="neutral"
-          />
-        </div>
-      </div>
+      {/* Arc trajectory sparklines */}
+      <ArcTrajectoryCharts narrative={narrative} resolvedKeys={resolvedKeys} />
     </div>
   );
 }
 
-function Metric({ label, value, desc, quality }: { label: string; value: string; desc: string; quality: 'good' | 'low' | 'high' | 'neutral' }) {
-  const qualityColor = quality === 'good' ? 'text-emerald-400' : quality === 'low' ? 'text-amber-400' : quality === 'high' ? 'text-amber-400' : 'text-text-secondary';
+// ── Arc Trajectory Charts ───────────────────────────────────────────────────
+
+function ArcTrajectoryCharts({ narrative, resolvedKeys }: { narrative: NarrativeState; resolvedKeys: string[] }) {
+  const { sceneProfiles } = usePropositionClassification();
+
+  const arcData = useMemo(() => {
+    if (!sceneProfiles) return null;
+
+    const arcMap = new Map<string, { name: string; sceneIds: string[]; order: number }>();
+    let idx = 0;
+    for (const key of resolvedKeys) {
+      const entry = resolveEntry(narrative, key);
+      if (!entry || !isScene(entry)) continue;
+      const arcId = entry.arcId ?? '_ungrouped';
+      if (!arcMap.has(arcId)) {
+        const arc = arcId !== '_ungrouped' ? narrative.arcs?.[arcId] : null;
+        arcMap.set(arcId, { name: arc?.name ?? `Arc ${arcMap.size + 1}`, sceneIds: [], order: idx });
+      }
+      arcMap.get(arcId)!.sceneIds.push(entry.id);
+      idx++;
+    }
+
+    const arcs = Array.from(arcMap.values()).sort((a, b) => a.order - b.order);
+    const perCategory: Record<PropositionBaseCategory, number[]> = { Anchor: [], Seed: [], Close: [], Texture: [] };
+
+    for (const arc of arcs) {
+      let total = 0;
+      const counts: Record<PropositionBaseCategory, number> = { Anchor: 0, Seed: 0, Close: 0, Texture: 0 };
+      for (const sid of arc.sceneIds) {
+        const dist = sceneProfiles.get(sid);
+        if (!dist) continue;
+        for (const b of BASE_ORDER) { counts[b] += dist[b]; total += dist[b]; }
+      }
+      for (const b of BASE_ORDER) {
+        perCategory[b].push(total > 0 ? (counts[b] / total) * 100 : 0);
+      }
+    }
+
+    return { perCategory, arcCount: arcs.length };
+  }, [narrative, resolvedKeys, sceneProfiles]);
+
+  if (!arcData || arcData.arcCount < 2) return null;
+
   return (
-    <div className="bg-bg-elevated/50 rounded-lg p-3 border border-border/20">
-      <div className="text-[9px] text-text-dim uppercase tracking-wider mb-1">{label}</div>
-      <div className={`text-[16px] font-bold font-mono ${qualityColor}`}>{value}</div>
-      <div className="text-[8px] text-text-dim leading-snug mt-1">{desc}</div>
+    <div>
+      <h3 className="text-[10px] font-semibold text-text-primary uppercase tracking-widest mb-3 pb-1 border-b border-border/30">
+        Arc Trajectory
+      </h3>
+      <div className="grid grid-cols-4 gap-2">
+        {BASE_ORDER.map((base) => {
+          const values = arcData.perCategory[base];
+          const maxVal = Math.max(...values, 1);
+          const trend = values[values.length - 1] - values[0];
+
+          return (
+            <div key={base} className="bg-bg-elevated/50 rounded-lg p-2.5 border border-border/20">
+              <div className="text-[9px] font-medium mb-1 lowercase" style={{ color: BASE_COLORS[base] }}>{base}</div>
+              <div className="flex items-end gap-0.5 h-10">
+                {values.map((v, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-t-sm"
+                    style={{
+                      height: `${Math.max(4, (v / maxVal) * 100)}%`,
+                      backgroundColor: BASE_COLORS[base],
+                      opacity: 0.4 + (i / values.length) * 0.6,
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="text-[8px] font-mono text-text-dim mt-1">
+                {trend >= 0 ? '\u2191' : '\u2193'} {Math.abs(trend).toFixed(1)}%
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

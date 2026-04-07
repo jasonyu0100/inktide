@@ -64,6 +64,66 @@ export function useImageUrl(imageRef: ImageRef): string | null {
  * @param audioRef Asset reference or undefined
  * @returns Blob URL or null
  */
+/**
+ * Batch resolve multiple ImageRefs to usable URLs
+ * Useful for D3 rendering where we need all URLs resolved before rendering
+ * @param imageRefs Array of asset references, external URLs, or undefined
+ * @returns Map of original ref → resolved URL (only includes resolved entries)
+ */
+export function useImageUrlMap(imageRefs: ImageRef[]): Map<string, string> {
+  const [urlMap, setUrlMap] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    // Filter to only refs that need resolution
+    const refsToResolve = imageRefs.filter((ref): ref is string => !!ref);
+    if (refsToResolve.length === 0) {
+      setUrlMap(new Map());
+      return;
+    }
+
+    let cancelled = false;
+
+    // Resolve all refs in parallel
+    Promise.all(
+      refsToResolve.map(async (ref) => {
+        // External URL - use as-is
+        if (ref.startsWith('http://') || ref.startsWith('https://')) {
+          return { ref, url: ref };
+        }
+        // Data URL - use as-is
+        if (ref.startsWith('data:')) {
+          return { ref, url: ref };
+        }
+        // Asset reference - resolve
+        try {
+          const url = await assetManager.getImageUrl(ref);
+          return { ref, url };
+        } catch {
+          return { ref, url: null };
+        }
+      })
+    ).then((results) => {
+      if (cancelled) return;
+      const newMap = new Map<string, string>();
+      for (const { ref, url } of results) {
+        if (url) newMap.set(ref, url);
+      }
+      setUrlMap(newMap);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageRefs.join(',')]); // Stable dependency using joined string
+
+  return urlMap;
+}
+
+/**
+ * Resolve an AudioRef to a usable URL
+ * @param audioRef Asset reference or undefined
+ * @returns Blob URL or null
+ */
 export function useAudioUrl(audioRef: AudioRef): string | null {
   const [url, setUrl] = useState<string | null>(null);
 

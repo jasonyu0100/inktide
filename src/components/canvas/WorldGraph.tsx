@@ -37,6 +37,7 @@ import {
   DEFAULT_CONTINUITY_FILL,
   DEFAULT_KNOWLEDGE_OPACITY,
 } from './graph-utils';
+import { useImageUrlMap } from '@/hooks/useAssetUrl';
 
 export default function WorldGraph() {
   const { state, dispatch } = useStore();
@@ -75,6 +76,25 @@ export default function WorldGraph() {
     if (!narrative || !currentSceneKey) return null;
     return narrative.scenes[currentSceneKey] ?? null;
   }, [narrative, currentSceneKey]);
+
+  // Collect all image refs from entities for batch resolution
+  const allImageRefs = useMemo(() => {
+    if (!narrative) return [];
+    const refs: string[] = [];
+    for (const char of Object.values(narrative.characters)) {
+      if (char.imageUrl) refs.push(char.imageUrl);
+    }
+    for (const loc of Object.values(narrative.locations)) {
+      if (loc.imageUrl) refs.push(loc.imageUrl);
+    }
+    for (const art of Object.values(narrative.artifacts ?? {})) {
+      if (art.imageUrl) refs.push(art.imageUrl);
+    }
+    return refs;
+  }, [narrative]);
+
+  // Resolve all image refs to blob URLs
+  const resolvedImageUrls = useImageUrlMap(allImageRefs);
 
   // Determine which node is selected for highlight
   const selectedNodeId = useMemo(() => {
@@ -570,8 +590,9 @@ export default function WorldGraph() {
       });
 
     // ── Node images (clip-masked portraits & location photos) ──────────
+    // Use resolved blob URLs from the map (asset IDs like "img_abc123" → blob URLs)
     nodeGroup
-      .filter((d) => d.kind === 'character' && !!d.imageUrl)
+      .filter((d) => d.kind === 'character' && !!d.imageUrl && resolvedImageUrls.has(d.imageUrl))
       .each(function (d) {
         const sel = d3.select(this);
         const r = scaleByUsage
@@ -581,7 +602,7 @@ export default function WorldGraph() {
         defs.append('clipPath').attr('id', clipId)
           .append('circle').attr('r', r);
         sel.append('image')
-          .attr('href', d.imageUrl!)
+          .attr('href', resolvedImageUrls.get(d.imageUrl!)!)
           .attr('x', -r).attr('y', -r)
           .attr('width', r * 2).attr('height', r * 2)
           .attr('preserveAspectRatio', 'xMidYMid slice')
@@ -589,7 +610,7 @@ export default function WorldGraph() {
       });
 
     nodeGroup
-      .filter((d) => d.kind === 'location' && !!d.imageUrl)
+      .filter((d) => d.kind === 'location' && !!d.imageUrl && resolvedImageUrls.has(d.imageUrl))
       .each(function (d) {
         const sel = d3.select(this);
         const scale = scaleByUsage
@@ -603,7 +624,7 @@ export default function WorldGraph() {
           .attr('width', size).attr('height', size)
           .attr('rx', LOCATION_RX);
         sel.append('image')
-          .attr('href', d.imageUrl!)
+          .attr('href', resolvedImageUrls.get(d.imageUrl!)!)
           .attr('x', -size / 2).attr('y', -size / 2)
           .attr('width', size).attr('height', size)
           .attr('preserveAspectRatio', 'xMidYMid slice')
@@ -699,7 +720,7 @@ export default function WorldGraph() {
       gRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap, sceneFocus, showItems, currentScene]);
+  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap, sceneFocus, showItems, currentScene, resolvedImageUrls.size]);
 
   // ── Lightweight: update selected node highlight + relationship edges ──
   useEffect(() => {

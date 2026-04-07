@@ -15,7 +15,7 @@ type ImageRequest =
 const COMPOSITION: Record<ImageRequest['type'], string> = {
   character: 'Single character portrait, head and shoulders, one subject only',
   location: 'Wide establishing shot, architectural or landscape composition',
-  scene: 'Manga page layout with multiple panels divided by black gutters, sequential storytelling, each panel captures a different beat of the scene, dramatic angles, speed lines, high contrast black and white ink with screentone shading',
+  scene: 'Coloured manga page layout with multiple panels divided by black gutters, sequential storytelling, each panel captures a different beat of the scene, dramatic angles, speed lines, vibrant colours, cel shading',
 };
 
 /** Aspect ratio per image type */
@@ -33,11 +33,11 @@ async function describeVisually(openrouterKey: string, request: ImageRequest): P
   }
 
   const styleDirective = request.imageStyle
-    ? `\nIMPORTANT: Match this visual style: ${request.imageStyle}`
+    ? `\nIMPORTANT: The primary visual style is: ${request.imageStyle}. The coloured manga format (panels, cel shading, sequential storytelling) augments this style.`
     : '';
 
   const systemPrompt = request.type === 'scene'
-    ? `You are a manga storyboard artist. Given a scene description, produce an image generation prompt for a full manga PAGE with multiple panels. Describe the panel layout, what each panel shows (camera angle, characters, action), and manga techniques (speed lines, dramatic shadows, reaction close-ups, establishing wide shots). The panels should tell the scene as sequential visual storytelling. Output ONLY the prompt, nothing else.${styleDirective}`
+    ? `You are a manga storyboard artist. Given a scene description, produce an image generation prompt for a full COLOURED manga PAGE with multiple panels. If a custom style is specified, that style takes precedence and the manga format (panels, cel shading, sequential storytelling) augments it. Describe the panel layout, what each panel shows (camera angle, characters, action), colour palette, and manga techniques (speed lines, dramatic lighting, reaction close-ups, establishing wide shots). Output ONLY the prompt, nothing else.${styleDirective}`
     : `You are a visual description specialist. Given narrative context, produce a single concise image generation prompt (2-3 sentences max). Focus on visual details: appearance, clothing, atmosphere, lighting, color palette. Never include text, words, or watermarks in the description. Output ONLY the prompt, nothing else.${styleDirective}
 
 COMPOSITION: ${COMPOSITION[request.type]}`;
@@ -52,9 +52,9 @@ COMPOSITION: ${COMPOSITION[request.type]}`;
     const charDescs = request.characterDescriptions
       .map((c) => `${c.name}: ${c.visualDescription}`)
       .join('. ');
-    userPrompt = `Create a manga page prompt for this scene: "${request.summary}". Location: ${request.locationName}. Characters: ${charDescs || 'none specified'}. World: ${request.worldSummary}.
+    userPrompt = `Create a coloured manga page prompt for this scene: "${request.summary}". Location: ${request.locationName}. Characters: ${charDescs || 'none specified'}. World: ${request.worldSummary}.
 
-Describe a manga PAGE with 3-5 panels arranged vertically. For each panel describe: the camera angle (close-up, wide shot, over-shoulder, bird's eye), what's shown, and the emotion. The panels should flow as sequential storytelling — each panel captures a different beat of the scene. Include manga techniques: speed lines for action, dramatic shadows, reaction shots, establishing shots.`;
+Describe a manga PAGE with 3-5 panels arranged vertically. For each panel describe: the camera angle (close-up, wide shot, over-shoulder, bird's eye), what's shown, the colour palette, and the emotion. The panels should flow as sequential storytelling — each panel captures a different beat of the scene. Include manga techniques: speed lines for action, dramatic lighting, reaction shots, establishing shots. Use vibrant colours with cel shading.`;
   }
 
   const res = await fetch(OPENROUTER_URL, {

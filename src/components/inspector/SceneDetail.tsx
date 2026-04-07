@@ -179,7 +179,7 @@ export default function SceneDetail({ sceneId }: Props) {
         <img
           src={imageUrl}
           alt={scene.summary}
-          className="w-full aspect-video object-cover rounded-lg border border-border"
+          className="w-full aspect-[2/3] object-cover rounded-lg border border-border"
         />
       )}
 

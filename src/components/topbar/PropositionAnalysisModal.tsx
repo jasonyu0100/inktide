@@ -5,8 +5,8 @@ import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 import { usePropositionClassification } from '@/hooks/usePropositionClassification';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene } from '@/types/narrative';
-import type { NarrativeState, PropositionBaseCategory } from '@/types/narrative';
-import { BASE_COLORS, classificationColor } from '@/lib/proposition-classify';
+import type { NarrativeState, PropositionBaseCategory, PropositionReach } from '@/types/narrative';
+import { BASE_COLORS, classificationColor, classificationLabel, ALL_PROFILE_LABELS } from '@/lib/proposition-classify';
 
 type Props = {
   narrative: NarrativeState;
@@ -16,7 +16,7 @@ type Props = {
 
 const BASE_ORDER: PropositionBaseCategory[] = ['Anchor', 'Seed', 'Close', 'Texture'];
 
-const tabs = ['Distribution', 'Arcs', 'Scenes'] as const;
+const tabs = ['Distribution', 'Top', 'Arcs', 'Scenes'] as const;
 type Tab = typeof tabs[number];
 
 // ── Distribution Tab ────────────────────────────────────────────────────────
@@ -490,6 +490,139 @@ function ScenesTab({ narrative, resolvedKeys }: { narrative: NarrativeState; res
   );
 }
 
+// ── Top Tab ────────────────────────────────────────────────────────────────
+
+type RankedProp = {
+  content: string;
+  sceneIndex: number;
+  sceneSummary: string;
+  strength: number;
+  base: PropositionBaseCategory;
+  reach: PropositionReach;
+};
+
+const INITIAL_SHOW = 5;
+const SHOW_MORE_INCREMENT = 10;
+
+function TopTab({ narrative, resolvedKeys }: { narrative: NarrativeState; resolvedKeys: string[] }) {
+  const { getClassification } = usePropositionClassification();
+  const [expanded, setExpanded] = useState<Record<string, number>>({});
+
+  const ranked = useMemo(() => {
+    const buckets = new Map<string, RankedProp[]>();
+    for (const profile of ALL_PROFILE_LABELS) {
+      buckets.set(`${profile.base}:${profile.reach}`, []);
+    }
+
+    let sceneIdx = 0;
+    for (const key of resolvedKeys) {
+      const entry = resolveEntry(narrative, key);
+      if (!entry || !isScene(entry)) continue;
+      sceneIdx++;
+      const plan = entry.planVersions?.[entry.planVersions.length - 1]?.plan;
+      if (!plan?.beats) continue;
+
+      for (let bi = 0; bi < plan.beats.length; bi++) {
+        const beat = plan.beats[bi];
+        if (!beat.propositions) continue;
+        for (let pi = 0; pi < beat.propositions.length; pi++) {
+          const cls = getClassification(entry.id, bi, pi);
+          if (!cls) continue;
+
+          // Strength metric depends on category
+          let strength: number;
+          if (cls.base === 'Anchor') strength = cls.backward + cls.forward;
+          else if (cls.base === 'Seed') strength = cls.forward;
+          else if (cls.base === 'Close') strength = cls.backward;
+          else strength = Math.max(cls.backward, cls.forward);
+
+          const bucketKey = `${cls.base}:${cls.reach}`;
+          const bucket = buckets.get(bucketKey)!;
+          bucket.push({
+            content: beat.propositions[pi].content,
+            sceneIndex: sceneIdx,
+            sceneSummary: (entry.summary ?? '').slice(0, 60),
+            strength,
+            base: cls.base,
+            reach: cls.reach,
+          });
+        }
+      }
+    }
+
+    // Sort each bucket by strength descending
+    const result = new Map<string, RankedProp[]>();
+    for (const [k, props] of buckets) {
+      props.sort((a, b) => b.strength - a.strength);
+      result.set(k, props);
+    }
+    return result;
+  }, [narrative, resolvedKeys, getClassification]);
+
+  if (ranked.size === 0) {
+    return <div className="text-[10px] text-text-dim py-8 text-center">Classification not yet computed.</div>;
+  }
+
+  return (
+    <div className="space-y-5">
+      {ALL_PROFILE_LABELS.map((profile) => {
+        const key = `${profile.base}:${profile.reach}`;
+        const allProps = ranked.get(key);
+        if (!allProps || allProps.length === 0) return null;
+
+        const limit = expanded[key] ?? INITIAL_SHOW;
+        const visible = allProps.slice(0, limit);
+        const remaining = allProps.length - limit;
+
+        return (
+          <div key={key}>
+            <h3 className="text-[10px] font-semibold uppercase tracking-widest mb-2 pb-1 border-b border-border/30 flex items-center gap-2">
+              <span style={{ color: profile.color }}>{profile.label}</span>
+              <span className="text-text-dim font-normal normal-case tracking-normal">
+                {profile.base} · {profile.reach} · {allProps.length}
+              </span>
+            </h3>
+            <div className="space-y-1.5">
+              {visible.map((p, i) => (
+                <div key={i} className="flex gap-2 items-start">
+                  <span className="text-[8px] font-mono text-text-dim w-3 text-right shrink-0 mt-0.5">{i + 1}</span>
+                  <div
+                    className="w-1 shrink-0 rounded-full mt-0.5"
+                    style={{ height: 12, backgroundColor: profile.color, opacity: Math.max(0.3, 0.8 - i * 0.03) }}
+                  />
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-text-primary leading-snug">{p.content}</div>
+                    <div className="text-[8px] text-text-dim font-mono mt-0.5">
+                      scene {p.sceneIndex} · {p.strength.toFixed(3)}
+                      {p.sceneSummary && <span className="ml-1 text-text-dim/60">— {p.sceneSummary}</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {remaining > 0 && (
+              <button
+                onClick={() => setExpanded(prev => ({ ...prev, [key]: limit + SHOW_MORE_INCREMENT }))}
+                className="text-[9px] text-text-dim hover:text-text-secondary mt-1.5 ml-5 transition-colors"
+              >
+                show {Math.min(remaining, SHOW_MORE_INCREMENT)} more ({remaining} remaining)
+              </button>
+            )}
+            {limit > INITIAL_SHOW && (
+              <button
+                onClick={() => setExpanded(prev => { const next = { ...prev }; delete next[key]; return next; })}
+                className="text-[9px] text-text-dim hover:text-text-secondary mt-1.5 ml-3 transition-colors"
+              >
+                collapse
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main Modal ──────────────────────────────────────────────────────────────
 
 export function PropositionAnalysisModal({ narrative, resolvedKeys, onClose }: Props) {
@@ -516,6 +649,7 @@ export function PropositionAnalysisModal({ narrative, resolvedKeys, onClose }: P
       </ModalHeader>
       <ModalBody className="px-5 py-4 max-h-[70vh] overflow-y-auto">
         {tab === 'Distribution' && <DistributionTab narrative={narrative} resolvedKeys={resolvedKeys} />}
+        {tab === 'Top' && <TopTab narrative={narrative} resolvedKeys={resolvedKeys} />}
         {tab === 'Arcs' && <PhasesTab narrative={narrative} resolvedKeys={resolvedKeys} />}
         {tab === 'Scenes' && <ScenesTab narrative={narrative} resolvedKeys={resolvedKeys} />}
       </ModalBody>

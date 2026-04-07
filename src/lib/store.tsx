@@ -157,7 +157,7 @@ export function withDerivedEntities(n: NarrativeState, resolvedKeys: string[]): 
 }
 
 
-function narrativeToEntry(n: NarrativeState): NarrativeEntry {
+export function narrativeToEntry(n: NarrativeState): NarrativeEntry {
   const threadValues = Object.values(n.threads);
 
   // Compute shape, archetype, and score from scenes

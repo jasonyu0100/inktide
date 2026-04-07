@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { importFromPackage, importFromDirectory, getPackageInfo, getDirectoryInfo, validatePackage, validateDirectory, formatBytes, type ImportOptions } from '@/lib/package-import';
 import type { PackageManifest } from '@/lib/package-export';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
-import { useStore } from '@/lib/store';
+import { useStore, narrativeToEntry } from '@/lib/store';
+import { saveNarrative } from '@/lib/persistence';
 
 type Props = {
   onClose: () => void;
@@ -121,10 +122,13 @@ export function ImportPackageModal({ onClose }: Props) {
       const newId = `N-IMP-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
       narrative.id = newId;
 
-      // Add to store
-      dispatch({ type: 'LOADED_NARRATIVE', narrative });
+      // Persist to IndexedDB so the page can load it
+      await saveNarrative(narrative);
 
-      // Navigate to story
+      // Add sidebar entry, set active, then navigate
+      dispatch({ type: 'ADD_NARRATIVE_ENTRY', entry: narrativeToEntry(narrative) });
+      dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: newId });
+
       router.push(`/series/${newId}`);
 
       onClose();

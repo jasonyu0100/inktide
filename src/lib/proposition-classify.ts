@@ -27,9 +27,17 @@ import type {
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const TOP_K = 5;
-const STRENGTH_PERCENTILE = 0.60;
-/** Global reach = connections spanning >15% of total scenes (min 3) */
-const REACH_RATIO = 0.15;
+/**
+ * Absolute cosine-similarity threshold for the hybrid score (0.5*max + 0.5*mean_topk).
+ * Benchmarked across 4 works (HP, Alice, AMI paper, QNF paper):
+ *   Work medians range 0.548–0.639. Threshold at 0.65 sits just above all medians,
+ *   producing Σ variance = 225 across works — good differentiation + diverse mix.
+ *   HP: 29%A/17%S/17%C/38%T, Alice: 25%A/19%S/19%C/38%T,
+ *   AMI: 14%A/16%S/17%C/53%T, QNF: 7%A/13%S/14%C/67%T.
+ */
+const STRENGTH_THRESHOLD = 0.65;
+/** Global reach = connections spanning >25% of total scenes (min 5) */
+const REACH_RATIO = 0.25;
 const REACH_MIN = 5;
 const DIMS = 1536;
 
@@ -105,22 +113,6 @@ export type NarrativeClassification = {
 
 export function propKey(sceneId: string, beatIndex: number, propIndex: number): string {
   return `${sceneId}:${beatIndex}:${propIndex}`;
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function percentile(arr: number[], p: number): number {
-  const sorted = [...arr].sort((a, b) => a - b);
-  const idx = p * (sorted.length - 1);
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  if (lo === hi) return sorted[lo];
-  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
-}
-
-function median(arr: number[]): number {
-  if (arr.length === 0) return 0;
-  return percentile(arr, 0.5);
 }
 
 // ── Classification ──────────────────────────────────────────────────────────
@@ -289,11 +281,9 @@ export async function classifyPropositions(
   const t3 = performance.now();
   console.log(`[PropClassify] Top-k extraction in ${(t3 - t2).toFixed(0)}ms`);
 
-  // 5. Thresholds
-  const validBackward = Array.from(backward).filter((_, i) => i > 0 && backward[i] > 0);
-  const validForward = Array.from(forward).filter((_, i) => i < n - 1 && forward[i] > 0);
-  const thB = validBackward.length > 0 ? percentile(validBackward, STRENGTH_PERCENTILE) : 0;
-  const thF = validForward.length > 0 ? percentile(validForward, STRENGTH_PERCENTILE) : 0;
+  // 5. Absolute threshold — benchmarked across fiction + academic works
+  const thB = STRENGTH_THRESHOLD;
+  const thF = STRENGTH_THRESHOLD;
 
   // 6. Classify
   const classifications = new Map<string, PropositionClassification>();

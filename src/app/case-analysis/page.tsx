@@ -16,7 +16,7 @@ export default function ExamplePage() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch('/works/Harry%20Potter%20and%20the%20Sorcerer%27s%20Stone.inktide');
+        const r = await fetch('/works/harry_potter_and_the_sorcerer_s_stone.inktide');
         if (!r.ok) throw new Error('Failed to load');
         const arrayBuffer = await r.arrayBuffer();
         const JSZip = (await import('jszip')).default;

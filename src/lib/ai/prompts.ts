@@ -78,13 +78,14 @@ threadMutations — lifecycle: dormant→active→escalating→critical→termin
 - Prefer real transitions over pulses. Each arc: multiple real transitions.
 - CONVERGENCE CASCADE: advancing a convergent thread should pressure linked threads (minimum pulse).
 
-continuityMutations — inner world changes for ANY entity (character, location, artifact). Feeds Change via √(ΔN + √ΔE).
+continuityMutations — first-person experiential changes for ANY entity (character, location, artifact). NOT omniscient narration — what the entity itself experienced, perceived, or became. Feeds Change via √(ΔN + √ΔE).
 - entityId can be a character, location, or artifact ID. Locations are kingdoms, organizations, factions. Artifacts are tools, AI, enchanted objects.
-- addedNodes: what the entity learned, became, or accumulated. Types: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
+- addedNodes: what the entity experienced from its own perspective. Types: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
+- Write from the entity's perspective: "Learned the king is a fraud" not "The king was revealed as a fraud". "Felt the ground crack beneath the battle" not "A battle damaged the courtyard".
 - Dense scenes: 2-3 nodes per entity. Normal: 0-1. Quiet: 0. Locations and artifacts accumulate as richly as characters.
-- Characters: beliefs shift, goals form, secrets are learned, weaknesses are exposed.
-- Locations: history accumulates (battles, rituals, transformations), states change, capabilities emerge, rules are imposed on characters.
-- Artifacts: provenance grows, capabilities are discovered, weaknesses are found, bonds form with wielders.
+- Characters: what they perceived, felt, decided, discovered, or became in this scene.
+- Locations: what happened to/within the place from its perspective — a throne room experiences an oath sworn, a battlefield absorbs the dead.
+- Artifacts: what the object underwent — was wielded, was broken, was discovered, changed hands, revealed a new property.
 
 relationshipMutations — valenceDelta: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
 - Include whenever characters interact meaningfully. Feeds Change via √Σ|valenceDelta|² (L2).

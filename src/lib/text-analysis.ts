@@ -437,14 +437,14 @@ RULES:
   * A quiet scene with no world context → none.
   * Let the prose guide you — extract what's there, don't invent what isn't.
 
-CONTINUITY MUTATIONS — inner world changes for characters, locations, and artifacts (mirrors worldKnowledgeMutations):
-- "entityName" is any character, location, or artifact name. All entities have inner worlds that accumulate knowledge.
+CONTINUITY MUTATIONS — first-person experiential changes, NOT omniscient narration. What the entity itself experienced, perceived, or became.
+- "entityName" is any character, location, or artifact name. All entities have inner worlds.
 - Nine types — use EXACTLY one of: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
-- Characters: beliefs, goals, secrets, traits, capabilities as revealed in prose.
-- Locations: history (battles, founding), state (ruined, thriving), capability (defensible, magical), belief (what people think of it).
-- Artifacts: history (provenance), capability (function), weakness (limitations), secret (hidden properties), trait (physical nature).
+- Write from the entity's perspective:
+  * Characters: what they perceived, felt, decided, discovered — "Learned the king is a fraud" not "The king was revealed".
+  * Locations: what happened to/within the place — "Witnessed an oath sworn in its halls" not "An oath was sworn". "Absorbed the blood of the fallen" not "A battle occurred".
+  * Artifacts: what the object underwent — "Was wielded against its creator" not "Someone used the sword". "Revealed a hidden inscription when heated" not "The inscription was found".
 - Dense scenes: 2-3 per entity. Normal: 0-1 total. Quiet: 0.
-- Locations and artifacts accumulate continuity as richly as characters. A kingdom has goals and weaknesses. A sword has history and secrets.
 
 FORCE SCORING — extract ONLY what the prose actually supports. Do NOT inflate:
 - PAYOFF: Only record thread transitions when the text clearly shows a shift in tension level. A scene where a thread is merely present is a pulse (same status), NOT a transition. Do not manufacture transitions.
@@ -472,9 +472,9 @@ THREAD LIFECYCLE:
 - Be aggressive about detecting transitions. Turning points, revelations, confrontations, and emotional shifts are triggers. If a chapter opens with simmering tension and ends with a confrontation, that's at least one status jump.
 - Each scene's threadMutations should touch threads meaningfully present in that scene, even if status doesn't change.
 
-CONTINUITY MUTATIONS:
-- Track INFORMATION ASYMMETRY — what one character knows that others don't
-- Each entry should pass the test: "Would the story change if this character didn't know this?"`;
+CONTINUITY MUTATIONS — write from the entity's first-person perspective:
+- Track what each entity EXPERIENCED, not what happened objectively
+- Each entry should pass the test: "Would the entity's inner world be different without this?"`;
 
   const raw = await callAnalysis(prompt, systemPrompt, onToken);
   const json = extractJSON(raw);
@@ -655,14 +655,14 @@ RULES:
 - REUSE existing node IDs when a scene reinforces or tests an already-established concept — don't create duplicates. Only create new IDs for genuinely new concepts. Re-adding existing edges reinforces those connections.
 - How much depends on the prose: scenes establishing social rules, institutional dynamics, cultural expectations → several nodes. Scenes reinforcing existing concepts → reuse existing IDs. Quiet scenes with no world context → none. Let the prose guide you.
 
-CONTINUITY MUTATIONS — inner world changes for characters, locations, and artifacts (mirrors worldKnowledgeMutations):
-- "entityName" is any character, location, or artifact name. All entities have inner worlds that accumulate knowledge.
+CONTINUITY MUTATIONS — first-person experiential changes, NOT omniscient narration. What the entity itself experienced, perceived, or became.
+- "entityName" is any character, location, or artifact name. All entities have inner worlds.
 - Nine types — use EXACTLY one of: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
-- Characters: beliefs, goals, secrets, traits, capabilities as revealed in prose.
-- Locations: history (battles, founding), state (ruined, thriving), capability (defensible, magical), belief (what people think of it).
-- Artifacts: history (provenance), capability (function), weakness (limitations), secret (hidden properties), trait (physical nature).
+- Write from the entity's perspective:
+  * Characters: what they perceived, felt, decided, discovered — "Learned the king is a fraud" not "The king was revealed".
+  * Locations: what happened to/within the place — "Witnessed an oath sworn in its halls" not "An oath was sworn". "Absorbed the blood of the fallen" not "A battle occurred".
+  * Artifacts: what the object underwent — "Was wielded against its creator" not "Someone used the sword". "Revealed a hidden inscription when heated" not "The inscription was found".
 - Dense scenes: 2-3 per entity. Normal: 0-1 total. Quiet: 0.
-- Locations and artifacts accumulate continuity as richly as characters. A kingdom has goals and weaknesses. A sword has history and secrets.
 
 FORCE SCORING — extract ONLY what the prose actually supports. Do NOT inflate:
 - PAYOFF: Only record thread transitions when the text clearly shows a shift in tension level. A scene where a thread is merely present is a pulse (same status), NOT a transition. Do not manufacture transitions.
@@ -678,9 +678,9 @@ THREAD LIFECYCLE:
 - Be aggressive about detecting transitions. Turning points, revelations, confrontations, and emotional shifts are triggers. If a chapter opens with simmering tension and ends with a confrontation, that's at least one status jump.
 - Each scene's threadMutations should touch threads meaningfully present in that scene, even if status doesn't change.
 
-CONTINUITY MUTATIONS:
-- Track INFORMATION ASYMMETRY — what one character knows that others don't
-- Each entry should pass the test: "Would the story change if this character didn't know this?"`;
+CONTINUITY MUTATIONS — write from the entity's first-person perspective:
+- Track what each entity EXPERIENCED, not what happened objectively
+- Each entry should pass the test: "Would the entity's inner world be different without this?"`;
 
   const raw = await callAnalysis(prompt, systemPrompt, onToken);
   const json = extractJSON(raw);

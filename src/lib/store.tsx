@@ -47,10 +47,10 @@ function computeDerivedEntities(
     const wb = worldBuilds[key];
     if (wb) {
       for (const c of wb.expansionManifest.characters) {
-        characters[c.id] = { ...c, continuity: EMPTY_CONTINUITY };
+        characters[c.id] = { ...c, continuity: { nodes: c.continuity?.nodes ?? {}, edges: c.continuity?.edges ?? [] } };
       }
       for (const l of wb.expansionManifest.locations) {
-        locations[l.id] = { ...l };
+        locations[l.id] = { ...l, continuity: { nodes: l.continuity?.nodes ?? {}, edges: l.continuity?.edges ?? [] } };
       }
       for (const t of wb.expansionManifest.threads) {
         threads[t.id] = { ...t };
@@ -63,16 +63,15 @@ function computeDerivedEntities(
       // Collect artifacts — merge continuity if artifact already exists
       for (const a of wb.expansionManifest.artifacts ?? []) {
         const existing = artifacts[a.id];
+        const aCont = { nodes: a.continuity?.nodes ?? {}, edges: a.continuity?.edges ?? [] };
         if (existing) {
-          const mergedNodes = { ...existing.continuity.nodes, ...a.continuity.nodes };
-          const mergedEdges = [...existing.continuity.edges, ...a.continuity.edges];
           artifacts[a.id] = {
             ...existing,
             ...a,
-            continuity: { nodes: mergedNodes, edges: mergedEdges },
+            continuity: { nodes: { ...existing.continuity.nodes, ...aCont.nodes }, edges: [...existing.continuity.edges, ...aCont.edges] },
           };
         } else {
-          artifacts[a.id] = { ...a };
+          artifacts[a.id] = { ...a, continuity: aCont };
         }
       }
       // Collect world knowledge

@@ -19,8 +19,8 @@ export const EMPTY_CONTINUITY: Continuity = { nodes: {}, edges: [] };
  * scene-level clusters. Any explicit edges from the mutation are also added.
  */
 export function applyContinuityMutation(graph: Continuity, mutation: ContinuityMutation): Continuity {
-  const nodes = { ...graph.nodes };
-  const edges = [...graph.edges];
+  const nodes = { ...(graph.nodes ?? {}) };
+  const edges = [...(graph.edges ?? [])];
 
   // Collect newly added node IDs (in order) for sequential chaining
   const newNodeIds: string[] = [];

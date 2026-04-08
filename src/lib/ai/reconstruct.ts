@@ -602,7 +602,7 @@ Return JSON:
   "participantIds": ["C-XX"],
   "events": ["event_tag"],
   "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
-  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "what they learned", "type": "belief|history|capability|secret|trait|state|relation|goal|weakness"}], "addedEdges": []}],
+  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "what they learned", "type": "belief|history|capability|secret|trait|state|relation|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
   "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."
@@ -701,7 +701,7 @@ Return JSON:
   "participantIds": ["C-XX"],
   "events": ["event_tag"],
   "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
-  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "what they learned", "type": "belief|history|capability|secret|trait|state|relation|goal|weakness"}], "addedEdges": []}],
+  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "what they learned", "type": "belief|history|capability|secret|trait|state|relation|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
   "summary": "Rich prose sentences using character NAMES (never IDs) combining the strongest elements from all merged scenes."
@@ -761,7 +761,7 @@ Return JSON:
   "participantIds": ["C-XX"],
   "events": ["event_tag"],
   "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
-  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "what they learned", "type": "belief|history|capability|secret|trait|state|relation|goal|weakness"}], "addedEdges": []}],
+  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "what they learned", "type": "belief|history|capability|secret|trait|state|relation|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
   "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."

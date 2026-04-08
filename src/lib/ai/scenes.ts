@@ -1934,10 +1934,10 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       if (!km.entityId) { stripped.push(`continuityMutation missing entityId in scene ${scene.id}`); return false; }
       // Sanitize addedNodes: filter out entries missing content
       km.addedNodes = (km.addedNodes ?? []).filter(n => n.content);
-      // Sanitize addedEdges: filter out entries missing required fields
-      km.addedEdges = (km.addedEdges ?? []).filter(e => e.from && e.to && e.relation);
-      if (km.addedNodes.length === 0 && km.addedEdges.length === 0) {
-        stripped.push(`continuityMutation empty (no nodes or edges) in scene ${scene.id}`);
+      // Edges are deterministic — clear any LLM-generated ones
+      km.addedEdges = [];
+      if (km.addedNodes.length === 0) {
+        stripped.push(`continuityMutation empty (no nodes) in scene ${scene.id}`);
         return false;
       }
       return true;

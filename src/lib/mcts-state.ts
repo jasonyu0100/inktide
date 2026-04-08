@@ -2,6 +2,7 @@ import type { NarrativeState, Scene } from '@/types/narrative';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { MCTSNode } from '@/types/mcts';
 import { computeRawForceTotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { applyContinuityMutation } from '@/lib/continuity-graph';
 
 /**
  * Apply scene mutations (relationship + knowledge + thread) to a narrative state.
@@ -10,6 +11,8 @@ import { computeRawForceTotals, computeSwingMagnitudes, gradeForces, FORCE_REFER
 function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState {
   let relationships = [...n.relationships];
   const characters = { ...n.characters };
+  const locations = { ...n.locations };
+  const artifacts = { ...n.artifacts };
   const threads = { ...n.threads };
   const worldKnowledge = { nodes: { ...n.worldKnowledge?.nodes }, edges: [...(n.worldKnowledge?.edges ?? [])] };
 
@@ -28,15 +31,12 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
       }
     }
     for (const km of scene.continuityMutations) {
-      const char = characters[km.characterId];
-      if (!char) continue;
-      if (km.action === 'added') {
-        if (!char.continuity.nodes.some((kn) => kn.id === km.nodeId)) {
-          characters[km.characterId] = { ...char, continuity: { ...char.continuity, nodes: [...char.continuity.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }] } };
-        }
-      } else if (km.action === 'removed') {
-        characters[km.characterId] = { ...char, continuity: { ...char.continuity, nodes: char.continuity.nodes.filter((kn) => kn.id !== km.nodeId) } };
-      }
+      const char = characters[km.entityId];
+      const loc = locations[km.entityId];
+      const art = artifacts[km.entityId];
+      if (char) characters[km.entityId] = { ...char, continuity: applyContinuityMutation(char.continuity, km) };
+      else if (loc) locations[km.entityId] = { ...loc, continuity: applyContinuityMutation(loc.continuity, km) };
+      else if (art) artifacts[km.entityId] = { ...art, continuity: applyContinuityMutation(art.continuity, km) };
     }
     for (const tm of scene.threadMutations) {
       const thread = threads[tm.threadId];
@@ -57,7 +57,7 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
     }
   }
 
-  return { ...n, relationships, characters, threads, worldKnowledge };
+  return { ...n, relationships, characters, locations, artifacts, threads, worldKnowledge };
 }
 
 // ── Virtual State Construction ───────────────────────────────────────────────

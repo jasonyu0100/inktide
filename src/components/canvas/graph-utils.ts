@@ -128,17 +128,27 @@ export function heatColor(t: number): string {
 }
 
 export const CONTINUITY_FILL: Record<string, string> = {
-  knows: '#FFFFFF',
-  believes: '#FFFFFF',
-  secret: '#F59E0B',
-  goal: '#3B82F6',
+  trait: '#A78BFA',      // violet
+  state: '#34D399',      // emerald
+  history: '#FBBF24',    // amber
+  capability: '#60A5FA', // blue
+  belief: '#F9A8D4',     // pink
+  relation: '#C084FC',   // purple
+  secret: '#F59E0B',     // orange-amber
+  goal: '#38BDF8',       // sky
+  weakness: '#F87171',   // red
 };
 
 export const KNOWLEDGE_OPACITY: Record<string, number> = {
-  knows: 1,
-  believes: 0.5,
+  trait: 1,
+  state: 1,
+  history: 0.9,
+  capability: 1,
+  belief: 0.7,
+  relation: 0.9,
   secret: 1,
   goal: 1,
+  weakness: 0.9,
 };
 
 export const DEFAULT_CONTINUITY_FILL = '#FFFFFF';
@@ -147,17 +157,27 @@ export const DEFAULT_KNOWLEDGE_OPACITY = 0.7;
 // ── World Knowledge type colors ─────────────────────────────────────────────
 
 export const WK_TYPE_COLORS: Record<string, string> = {
-  law: '#FBBF24',      // vivid gold
-  system: '#38BDF8',   // vivid sky blue
-  concept: '#A78BFA',  // vivid violet
-  tension: '#FB7185',  // vivid rose
+  principle: '#FBBF24',    // gold
+  system: '#38BDF8',       // sky blue
+  concept: '#A78BFA',      // violet
+  tension: '#FB7185',      // rose
+  event: '#FB923C',        // orange
+  structure: '#2DD4BF',    // teal
+  environment: '#34D399',  // emerald
+  convention: '#818CF8',   // indigo
+  constraint: '#F87171',   // red
 };
 
 export const WK_TYPE_GLOW: Record<string, string> = {
-  law: '0 0 12px #FBBF2480, 0 0 4px #FBBF2440',
+  principle: '0 0 12px #FBBF2480, 0 0 4px #FBBF2440',
   system: '0 0 12px #38BDF880, 0 0 4px #38BDF840',
   concept: '0 0 12px #A78BFA80, 0 0 4px #A78BFA40',
   tension: '0 0 12px #FB718580, 0 0 4px #FB718540',
+  event: '0 0 12px #FB923C80, 0 0 4px #FB923C40',
+  structure: '0 0 12px #2DD4BF80, 0 0 4px #2DD4BF40',
+  environment: '0 0 12px #34D39980, 0 0 4px #34D39940',
+  convention: '0 0 12px #818CF880, 0 0 4px #818CF840',
+  constraint: '0 0 12px #F8717180, 0 0 4px #F8717140',
 };
 
 // ── Helper: build graph data from narrative state ───────────────────────────

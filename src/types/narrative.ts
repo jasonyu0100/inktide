@@ -15,7 +15,7 @@ export const THREAD_STATUS_LABELS: Record<string, string> = {
 
 export type ThreadParticipant = {
   id: string;
-  type: 'character' | 'location';
+  type: 'character' | 'location' | 'artifact';
 };
 
 export type Thread = {
@@ -30,7 +30,20 @@ export type Thread = {
 // ── Character ────────────────────────────────────────────────────────────────
 export type CharacterRole = 'anchor' | 'recurring' | 'transient';
 
-export type ContinuityNodeType = string;
+/** Continuity node types — grounded in reality, facts, and entity-level truth.
+ *  Works across characters, locations, and artifacts. */
+export type ContinuityNodeType =
+  | 'trait'       // Inherent characteristic — personality, atmosphere, physical property
+  | 'state'       // Current condition — wounded, ruined, activated, contested
+  | 'history'     // Past experience — memory, founding event, provenance
+  | 'capability'  // What it can do — skill, strategic value, function
+  | 'belief'      // Subjective truth — opinion, legend, lore, contested claim
+  | 'relation'    // Connection to another entity — bond, sacred-to, bound-to
+  | 'secret'      // Hidden information — hidden knowledge, concealed origin
+  | 'goal'        // Orientation — ambition, purpose, intended use
+  | 'weakness';   // Vulnerability — fear, structural flaw, limitation
+
+export const CONTINUITY_NODE_TYPES: ContinuityNodeType[] = ['trait', 'state', 'history', 'capability', 'belief', 'relation', 'secret', 'goal', 'weakness'];
 
 export type ContinuityNode = {
   id: string;
@@ -38,8 +51,15 @@ export type ContinuityNode = {
   content: string;
 };
 
+export type ContinuityEdge = {
+  from: string;   // ContinuityNode id
+  to: string;     // ContinuityNode id
+  relation: string;
+};
+
 export type Continuity = {
-  nodes: ContinuityNode[];
+  nodes: Record<string, ContinuityNode>;
+  edges: ContinuityEdge[];
 };
 
 export type Character = {
@@ -54,9 +74,16 @@ export type Character = {
 };
 
 // ── Location ─────────────────────────────────────────────────────────────────
+/** Location narrative prominence — how much weight this place carries in the story.
+ *  - domain: center of gravity, where power and identity concentrate — a throne room, an empire, a kitchen
+ *  - area: known ground, recurring presence — a familiar tavern, a district, a battlefield
+ *  - margin: peripheral, minimal continuity — an alley, a border crossing, set dressing */
+export type LocationProminence = 'domain' | 'area' | 'margin';
+
 export type Location = {
   id: string;
   name: string;
+  prominence: LocationProminence;
   parentId: string | null;
   threadIds: string[];
   continuity: Continuity;
@@ -82,6 +109,7 @@ export type Artifact = {
   significance: ArtifactSignificance;
   /** Continuity graph — what is known about this artifact (lore, history, properties, state changes) */
   continuity: Continuity;
+  threadIds: string[];
   /** Current owner — a character or location ID (like Location.parentId) */
   parentId: string;
   imagePrompt?: string;
@@ -101,13 +129,12 @@ export type ThreadMutation = {
   to: string;
 };
 
+/** Additive continuity mutation — mirrors WorldKnowledgeMutation.
+ *  Changes to an entity's inner world are permanent (no removal actions). */
 export type ContinuityMutation = {
-  characterId: string;
-  nodeId: string;
-  action: 'added' | 'removed';
-  content: string;
-  /** LLM-suggested type describing this specific continuity (e.g. "tactical_insight", "betrayal_discovered") */
-  nodeType?: string;
+  entityId: string;
+  addedNodes: { id: string; content: string; type: ContinuityNodeType }[];
+  addedEdges: ContinuityEdge[];
 };
 
 export type RelationshipMutation = {
@@ -316,12 +343,20 @@ export const BEAT_MECHANISM_LIST: BeatMechanism[] = ['dialogue', 'thought', 'act
 
 // ── World Knowledge Graph ───────────────────────────────────────────────────
 
-/** Node types define the abstraction level of world knowledge:
- *  - law: A governing truth — something always true in this world. Creates consistency.
- *  - system: An organized process, institution, or mechanism. Creates reality.
- *  - concept: A named abstract idea, phenomenon, or category. Creates richness.
- *  - tension: A contradiction or unresolved force in the world's logic. Creates life. */
-export type WorldKnowledgeNodeType = 'law' | 'system' | 'concept' | 'tension';
+/** World knowledge node types — narrator's structural truth about the universe.
+ *  Works for fiction and non-fiction alike. */
+export type WorldKnowledgeNodeType =
+  | 'principle'    // Fundamental truth — physical law, economic axiom, magic rule
+  | 'system'       // Organized mechanism — governance, ecosystem, magic system, TCP/IP
+  | 'concept'      // Abstract idea — theory, framework, phenomenon, category
+  | 'tension'      // Contradiction — unresolved force, debate, opposing pressures
+  | 'event'        // Significant occurrence — war, discovery, founding, publication
+  | 'structure'    // Organization — institution, faction, hierarchy, research lab
+  | 'environment'  // Physical/spatial reality — geography, climate, infrastructure
+  | 'convention'   // Norm — custom, practice, etiquette, legal precedent
+  | 'constraint';  // Limitation — scarcity, cost, boundary, physical limit
+
+export const WORLD_KNOWLEDGE_NODE_TYPES: WorldKnowledgeNodeType[] = ['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'];
 
 export type WorldKnowledgeNode = {
   id: string;
@@ -1067,7 +1102,11 @@ export type AnalysisChunkResult = {
     locationName: string; povName: string; participantNames: string[]; events: string[];
     summary: string; sections: number[]; prose?: string;
     threadMutations: { threadDescription: string; from: string; to: string }[];
-    continuityMutations: { characterName: string; action: string; content: string; type: string }[];
+    continuityMutations: {
+      entityName: string;
+      addedNodes: { content: string; type: string }[];
+      addedEdges?: { fromContent: string; toContent: string; relation: string }[];
+    }[];
     relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
     ownershipMutations?: { artifactName: string; fromName: string; toName: string }[];
     characterMovements?: { characterName: string; locationName: string; transition: string }[];
@@ -1152,7 +1191,8 @@ export type InspectorContext =
   | { type: 'thread'; threadId: string }
   | { type: 'arc'; arcId: string }
   | { type: 'knowledge'; nodeId: string }
-  | { type: 'artifact'; artifactId: string };
+  | { type: 'artifact'; artifactId: string }
+  | { type: 'continuity'; entityId: string; nodeId: string };
 
 export type WizardStep = 'form' | 'details' | 'generate';
 
@@ -1228,6 +1268,7 @@ export type AppState = {
   /** Ordered timeline entry IDs (scenes + world builds) for the active branch, resolved across parent branches */
   resolvedEntryKeys: string[];
   inspectorContext: InspectorContext | null;
+  inspectorHistory: InspectorContext[];
   wizardOpen: boolean;
   wizardStep: WizardStep;
   wizardData: WizardData;

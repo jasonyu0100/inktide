@@ -74,16 +74,38 @@ export default function ArtifactDetail({ artifactId }: Props) {
       </p>
 
       {/* Continuity — lore, properties, history */}
-      {artifact.continuity.nodes.length > 0 && (
-        <CollapsibleSection title="Continuity" count={artifact.continuity.nodes.length} defaultOpen>
+      {Object.keys(artifact.continuity.nodes).length > 0 && (
+        <CollapsibleSection title="Continuity" count={Object.keys(artifact.continuity.nodes).length} defaultOpen>
           <ul className="flex flex-col gap-1">
-            {artifact.continuity.nodes.map((node, i) => (
+            {Object.values(artifact.continuity.nodes).map((node, i) => (
               <li key={`${node.id}-${i}`} className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-400/50" />
                 <div className="flex flex-col">
                   <span className="text-xs text-text-primary">{node.content}</span>
                   <span className="text-[10px] text-text-dim">{node.type}</span>
                 </div>
+              </li>
+            ))}
+          </ul>
+        </CollapsibleSection>
+      )}
+
+      {/* Threads */}
+      {artifact.threadIds && artifact.threadIds.length > 0 && (
+        <CollapsibleSection title="Threads" count={artifact.threadIds.length}>
+          <ul className="flex flex-col gap-1">
+            {artifact.threadIds.map((tid, i) => (
+              <li key={`${tid}-${i}`}>
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: tid } })}
+                  className="font-mono text-xs text-text-secondary transition-colors hover:text-text-primary"
+                >
+                  {tid}
+                  {narrative.threads[tid] && (
+                    <span className="ml-1.5 font-sans text-text-dim">{narrative.threads[tid].description}</span>
+                  )}
+                </button>
               </li>
             ))}
           </ul>

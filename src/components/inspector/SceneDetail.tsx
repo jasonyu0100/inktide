@@ -383,31 +383,30 @@ export default function SceneDetail({ sceneId }: Props) {
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Continuity Mutations
           </h3>
-          {scene.continuityMutations.map((km, i) => {
-            const charName = narrative.characters[km.characterId]?.name ?? km.characterId;
-            return (
-              <div key={`${km.characterId}-${km.nodeId}-${i}`} className="flex flex-col gap-0.5 text-xs">
+          {scene.continuityMutations.flatMap((km, kmIdx) => {
+            const entityName = narrative.characters[km.entityId]?.name ?? narrative.locations[km.entityId]?.name ?? narrative.artifacts[km.entityId]?.name ?? km.entityId;
+            const isChar = !!narrative.characters[km.entityId];
+            return (km.addedNodes ?? []).map((node, nIdx) => (
+              <div key={`${km.entityId}-${node.id}-${kmIdx}-${nIdx}`} className="flex flex-col gap-0.5 text-xs">
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() =>
-                      dispatch({
+                      isChar && dispatch({
                         type: 'SET_INSPECTOR',
-                        context: { type: 'character', characterId: km.characterId },
+                        context: { type: 'character', characterId: km.entityId },
                       })
                     }
                     className="text-text-primary transition-colors hover:underline"
                   >
-                    {charName}
+                    {entityName}
                   </button>
-                  <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
-                    {km.action === 'added' ? '+' : '\u2212'}
-                  </span>
-                  <span className="font-mono text-[10px] text-text-dim">{km.nodeId}</span>
+                  <span className="text-change">+</span>
+                  <span className="font-mono text-[10px] text-text-dim">{node.id}</span>
                 </div>
-                <span className="text-text-secondary pl-2">{km.content}</span>
+                <span className="text-text-secondary pl-2">{node.content}</span>
               </div>
-            );
+            ));
           })}
         </div>
       )}

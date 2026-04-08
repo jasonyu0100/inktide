@@ -36,7 +36,7 @@ const mockNarrative: NarrativeState = {
       id: 'char1',
       name: 'Alice',
       role: 'anchor',
-      continuity: { nodes: [] },
+      continuity: { nodes: {}, edges: [] },
       threadIds: ['thread1'],
     },
   },
@@ -46,7 +46,7 @@ const mockNarrative: NarrativeState = {
       name: 'Castle',
       parentId: null,
       threadIds: ['thread1'],
-      continuity: { nodes: [] },
+      continuity: { nodes: {}, edges: [] },
     },
   },
   threads: {

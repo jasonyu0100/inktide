@@ -546,7 +546,13 @@ function computeRawPayoff(scene: Scene): number {
  *  mutations that accompany them. */
 function rawChange(scene: Scene): number {
   const relIntensity = scene.relationshipMutations.reduce((sum, rm) => sum + rm.valenceDelta ** 2, 0);
-  return Math.sqrt(scene.continuityMutations.length)
+  // Continuity contribution uses a miniature Knowledge formula (ΔN + √ΔE)
+  // reflecting the recursive nature of inner-world density:
+  // nodes contribute linearly, edges use sqrt (same pattern as world knowledge).
+  const contNodes = scene.continuityMutations.reduce((sum, km) => sum + (km.addedNodes?.length ?? 0), 0);
+  const contEdges = scene.continuityMutations.reduce((sum, km) => sum + (km.addedEdges?.length ?? 0), 0);
+  const contDensity = contNodes + Math.sqrt(contEdges);
+  return Math.sqrt(contDensity)
     + Math.sqrt(scene.events.length)
     + Math.sqrt(relIntensity);
 }
@@ -1187,9 +1193,15 @@ export function classifyWorldDensity(
   locationCount: number,
   threadCount: number,
   worldKnowledgeNodeCount: number,
+  /** Total continuity nodes across all entities (characters + locations + artifacts) */
+  entityContinuityNodeCount?: number,
+  /** Total continuity edges across all entities */
+  entityContinuityEdgeCount?: number,
 ): WorldDensity {
   if (sceneCount === 0) return { ...DENSITIES.sparse, density: 0 };
-  const density = (characterCount + locationCount + threadCount + worldKnowledgeNodeCount) / sceneCount;
+  // Entity continuity contributes to density via the same ΔN + √ΔE pattern
+  const continuityContribution = (entityContinuityNodeCount ?? 0) + Math.sqrt(entityContinuityEdgeCount ?? 0);
+  const density = (characterCount + locationCount + threadCount + worldKnowledgeNodeCount + continuityContribution) / sceneCount;
   const base = density < 0.5 ? DENSITIES.sparse
     : density < 1.5 ? DENSITIES.focused
     : density < 2.5 ? DENSITIES.developed

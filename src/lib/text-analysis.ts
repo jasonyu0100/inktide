@@ -10,7 +10,7 @@
 import type {
   NarrativeState, AnalysisChunkResult, AnalysisJob,
   Character, Location, Thread, Arc, Scene, RelationshipEdge, Artifact,
-  WorldBuild, Branch, ProseProfile, SceneVersionPointers,
+  WorldBuild, Branch, ProseProfile, SceneVersionPointers, WorldKnowledgeNodeType, ContinuityNodeType,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
@@ -148,7 +148,7 @@ function buildCumulativeContext(priorResults: (AnalysisChunkResult | null)[]): s
     for (const scene of ch.scenes ?? []) {
       sceneCounter++;
       const threadChanges = (scene.threadMutations ?? []).map((tm) => `${tm.threadDescription?.slice(0, 50)}: ${tm.from}→${tm.to}`).join('; ');
-      const kChanges = (scene.continuityMutations ?? []).map((km) => `${km.characterName} learned [${km.type}]: ${km.content}`).join('; ');
+      const kChanges = (scene.continuityMutations ?? []).flatMap((km) => (km.addedNodes ?? []).map(n => `${km.entityName} [${n.type}]: ${n.content}`)).join('; ');
       sceneHistory.push(
         `[Chunk${chIdx + 1} S${sceneCounter}] @ ${scene.locationName} | POV: ${scene.povName} | ${scene.participantNames?.join(', ')}` +
         (threadChanges ? ` | Threads: ${threadChanges}` : '') +
@@ -390,7 +390,11 @@ Return a single JSON object with this exact structure:
         { "threadDescription": "exact thread description", "from": "status", "to": "status" }
       ],
       "continuityMutations": [
-        { "characterName": "Name", "action": "added", "content": "What they learned", "type": "specific_contextual_type" }
+        {
+          "entityName": "Character, Location, or Artifact name",
+          "addedNodes": [{"content": "what they learned, became, or experienced", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}],
+          "addedEdges": [{"fromContent": "content of source node", "toContent": "content of target node", "relation": "relationship type"}]
+        }
       ],
       "relationshipMutations": [
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
@@ -402,7 +406,7 @@ Return a single JSON object with this exact structure:
         { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
       ],
       "worldKnowledgeMutations": {
-        "addedNodes": [{"concept": "name of abstract world concept", "type": "law|system|concept|tension"}],
+        "addedNodes": [{"concept": "name of abstract world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}],
         "addedEdges": [{"fromConcept": "concept name", "toConcept": "concept name", "relation": "relationship type"}]
       }
     }
@@ -424,7 +428,7 @@ RULES:
   * Literary fiction: class structures, social norms, economic systems, cultural expectations
   * Historical: period customs, political systems, social hierarchies, era-specific tensions
   * Crime/thriller: legal systems, criminal hierarchies, institutional power structures
-- Four types: "law" (governing truths — social rules, physical laws, cultural expectations), "system" (institutions, processes, hierarchies — both formal and informal), "concept" (named ideas, phenomena, symbolic motifs, places-as-concepts), "tension" (contradictions, paradoxes, unresolved social forces).
+- Nine types: "principle" (fundamental truths, rules), "system" (institutions, processes, mechanisms), "concept" (abstract ideas, phenomena, theories), "tension" (contradictions, unresolved forces), "event" (world-level occurrences), "structure" (organizations, factions, hierarchies), "environment" (geography, climate, infrastructure), "convention" (customs, norms, practices), "constraint" (scarcities, limitations, costs).
 - Add nodes when a scene reveals, establishes, or names a world concept. Add edges (fromConcept/toConcept) when it connects concepts.
 - REUSING existing world knowledge nodes is encouraged. If a scene reinforces, deepens, or tests an existing concept, reference the existing node ID in addedNodes — this signals delivery with established world knowledge rather than inventing something new. Similarly, re-adding an existing edge reinforces that connection. Only create new IDs for genuinely new concepts.
 - How much to extract depends on the prose:
@@ -433,6 +437,15 @@ RULES:
   * A scene that reinforces or tests an already-established concept → reuse the existing node ID.
   * A quiet scene with no world context → none.
   * Let the prose guide you — extract what's there, don't invent what isn't.
+
+CONTINUITY MUTATIONS — inner world changes for characters, locations, and artifacts (mirrors worldKnowledgeMutations):
+- "entityName" is any character, location, or artifact name. All entities have inner worlds that accumulate knowledge.
+- Nine types — use EXACTLY one of: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
+- Characters: beliefs, goals, secrets, traits, capabilities as revealed in prose.
+- Locations: history (battles, founding), state (ruined, thriving), capability (defensible, magical), belief (what people think of it).
+- Artifacts: history (provenance), capability (function), weakness (limitations), secret (hidden properties), trait (physical nature).
+- Dense scenes: 2-3 per entity. Normal: 0-1 total. Quiet: 0.
+- Locations and artifacts accumulate continuity as richly as characters. A kingdom has goals and weaknesses. A sword has history and secrets.
 
 FORCE SCORING — extract ONLY what the prose actually supports. Do NOT inflate:
 - PAYOFF: Only record thread transitions when the text clearly shows a shift in tension level. A scene where a thread is merely present is a pulse (same status), NOT a transition. Do not manufacture transitions.
@@ -604,7 +617,11 @@ Return a single JSON object with this exact structure:
         { "threadDescription": "exact thread description", "from": "status", "to": "status" }
       ],
       "continuityMutations": [
-        { "characterName": "Name", "action": "added", "content": "What they learned", "type": "specific_contextual_type" }
+        {
+          "entityName": "Character, Location, or Artifact name",
+          "addedNodes": [{"content": "what they learned, became, or experienced", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}],
+          "addedEdges": [{"fromContent": "content of source node", "toContent": "content of target node", "relation": "relationship type"}]
+        }
       ],
       "relationshipMutations": [
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
@@ -616,7 +633,7 @@ Return a single JSON object with this exact structure:
         { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
       ],
       "worldKnowledgeMutations": {
-        "addedNodes": [{"concept": "name of abstract world concept", "type": "law|system|concept|tension"}],
+        "addedNodes": [{"concept": "name of abstract world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}],
         "addedEdges": [{"fromConcept": "concept name", "toConcept": "concept name", "relation": "relationship type"}]
       }
     }
@@ -639,6 +656,15 @@ RULES:
 - Add nodes when a scene reveals world concepts. Add edges when it connects them.
 - REUSE existing node IDs when a scene reinforces or tests an already-established concept — don't create duplicates. Only create new IDs for genuinely new concepts. Re-adding existing edges reinforces those connections.
 - How much depends on the prose: scenes establishing social rules, institutional dynamics, cultural expectations → several nodes. Scenes reinforcing existing concepts → reuse existing IDs. Quiet scenes with no world context → none. Let the prose guide you.
+
+CONTINUITY MUTATIONS — inner world changes for characters, locations, and artifacts (mirrors worldKnowledgeMutations):
+- "entityName" is any character, location, or artifact name. All entities have inner worlds that accumulate knowledge.
+- Nine types — use EXACTLY one of: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
+- Characters: beliefs, goals, secrets, traits, capabilities as revealed in prose.
+- Locations: history (battles, founding), state (ruined, thriving), capability (defensible, magical), belief (what people think of it).
+- Artifacts: history (provenance), capability (function), weakness (limitations), secret (hidden properties), trait (physical nature).
+- Dense scenes: 2-3 per entity. Normal: 0-1 total. Quiet: 0.
+- Locations and artifacts accumulate continuity as richly as characters. A kingdom has goals and weaknesses. A sword has history and secrets.
 
 FORCE SCORING — extract ONLY what the prose actually supports. Do NOT inflate:
 - PAYOFF: Only record thread transitions when the text clearly shows a shift in tension level. A scene where a thread is merely present is a pulse (same status), NOT a transition. Do not manufacture transitions.
@@ -870,7 +896,7 @@ If no duplicates for a category, return empty object {}`;
       ),
       continuityMutations: (s.continuityMutations ?? []).map((km) => ({
         ...km,
-        characterName: resolveChar(km.characterName),
+        entityName: resolveChar(km.entityName),
       })),
       relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
         ...rm,
@@ -1157,6 +1183,8 @@ export async function assembleNarrative(
   const getLocId = (name: string) => { if (!locNameToId[name]) locNameToId[name] = nextLocId(); return locNameToId[name]; };
   const getThreadId = (desc: string) => { if (!threadDescToId[desc]) threadDescToId[desc] = nextThreadId(); return threadDescToId[desc]; };
   const getArtifactId = (name: string) => { if (!artifactNameToId[name]) artifactNameToId[name] = nextArtifactIdFn(); return artifactNameToId[name]; };
+  /** Resolve an entity name to its ID — checks characters first, then locations, then artifacts. Falls back to character ID. */
+  const getEntityId = (name: string) => charNameToId[name] ?? locNameToId[name] ?? artifactNameToId[name] ?? getCharId(name);
 
   const characters: Record<string, Character> = {};
   const locations: Record<string, Location> = {};
@@ -1169,13 +1197,7 @@ export async function assembleNarrative(
   // Deferred knowledge: character/location knowledge extracted per-chunk will be
   // attributed to the first scene of that chunk so all knowledge flows through
   // scene mutations (enabling temporal filtering).
-  type DeferredKnowledge = { characterId: string; type: string; content: string };
-  type DeferredLore = { locationId: string; content: string };
-  const chunkDeferredKnowledge: DeferredKnowledge[][] = [];
-  const chunkDeferredLore: DeferredLore[][] = [];
-  // Track globally to deduplicate knowledge across chunks (same content for same entity)
-  const seenCharKnowledge = new Map<string, Set<string>>(); // characterId → set of content
-  const seenLocLore = new Map<string, Set<string>>(); // locationId → set of content
+  // No deferred knowledge — continuity is built directly on entities during creation
   // Track which chunk each entity was first introduced in (for per-batch world commits)
   const charFirstChunk = new Map<string, number>();
   const locFirstChunk = new Map<string, number>();
@@ -1185,16 +1207,13 @@ export async function assembleNarrative(
 
   for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
     const ch = results[chunkIdx];
-    const deferredK: DeferredKnowledge[] = [];
-    const deferredL: DeferredLore[] = [];
-
-    // Characters — create entities but defer knowledge to scene mutations
+    // Characters — create entities with continuity built directly
     for (const c of ch.characters ?? []) {
       const id = getCharId(c.name);
       if (!characters[id]) {
         characters[id] = {
           id, name: c.name, role: c.role as Character['role'], threadIds: [],
-          continuity: { nodes: [] },
+          continuity: { nodes: {}, edges: [] },
           ...(c.imagePrompt ? { imagePrompt: c.imagePrompt } : {}),
         };
         charFirstChunk.set(id, chunkIdx);
@@ -1205,13 +1224,12 @@ export async function assembleNarrative(
       if ((rank[c.role] ?? 0) > (rank[characters[id].role] ?? 0)) {
         characters[id].role = c.role as Character['role'];
       }
-      // Defer knowledge to first scene of this chunk (deduplicate across chunks)
-      if (!seenCharKnowledge.has(id)) seenCharKnowledge.set(id, new Set());
-      const charSeen = seenCharKnowledge.get(id)!;
+      // Build initial continuity directly on the entity (not deferred through scene mutations)
       for (const k of c.continuity ?? []) {
-        if (!charSeen.has(k.content)) {
-          deferredK.push({ characterId: id, type: k.type, content: k.content });
-          charSeen.add(k.content);
+        const existingContents = new Set(Object.values(characters[id].continuity.nodes).map(n => n.content));
+        if (!existingContents.has(k.content)) {
+          const nid = nextKId();
+          characters[id].continuity.nodes[nid] = { id: nid, type: (k.type || 'trait') as ContinuityNodeType, content: k.content };
         }
       }
     }
@@ -1222,20 +1240,20 @@ export async function assembleNarrative(
       if (!locations[id]) {
         const parentId = loc.parentName ? getLocId(loc.parentName) : null;
         locations[id] = {
-          id, name: loc.name, parentId, threadIds: [],
-          continuity: { nodes: [] },
+          id, name: loc.name, prominence: 'place' as Location['prominence'], parentId, threadIds: [],
+          continuity: { nodes: {}, edges: [] },
           ...(loc.imagePrompt ? { imagePrompt: loc.imagePrompt } : {}),
         };
         locFirstChunk.set(id, chunkIdx);
       } else if (loc.imagePrompt) {
         locations[id].imagePrompt = loc.imagePrompt;
       }
-      if (!seenLocLore.has(id)) seenLocLore.set(id, new Set());
-      const locSeen = seenLocLore.get(id)!;
+      // Build location continuity directly on the entity
       for (const lore of loc.lore ?? []) {
-        if (!locSeen.has(lore)) {
-          deferredL.push({ locationId: id, content: lore });
-          locSeen.add(lore);
+        const existingContents = new Set(Object.values(locations[id].continuity.nodes).map(n => n.content));
+        if (!existingContents.has(lore)) {
+          const nid = nextKId();
+          locations[id].continuity.nodes[nid] = { id: nid, type: 'history', content: lore };
         }
       }
     }
@@ -1249,23 +1267,25 @@ export async function assembleNarrative(
         artifactEntities[id] = {
           id, name: a.name,
           significance: (['key', 'notable', 'minor'].includes(a.significance) ? a.significance : 'notable') as Artifact['significance'],
-          continuity: { nodes: (a.continuity ?? []).map((k) => ({ id: nextKId(), type: k.type, content: k.content })) },
+          continuity: { nodes: Object.fromEntries((a.continuity ?? []).map((k) => { const id = nextKId(); return [id, { id, type: (k.type || 'trait') as ContinuityNodeType, content: k.content }]; })), edges: [] },
+          threadIds: [],
           parentId,
         };
         artifactFirstChunk.set(id, chunkIdx);
       } else {
         // Accumulate continuity from later chunks
         for (const k of a.continuity ?? []) {
-          if (!artifactEntities[id].continuity.nodes.some((n) => n.content === k.content)) {
-            artifactEntities[id].continuity.nodes.push({ id: nextKId(), type: k.type, content: k.content });
+          const existingContents = new Set(Object.values(artifactEntities[id].continuity.nodes).map(n => n.content));
+          if (!existingContents.has(k.content)) {
+            const nid = nextKId();
+            artifactEntities[id].continuity.nodes[nid] = { id: nid, type: (k.type || 'trait') as ContinuityNodeType, content: k.content };
           }
         }
         if (parentId) artifactEntities[id].parentId = parentId;
       }
     }
 
-    chunkDeferredKnowledge.push(deferredK);
-    chunkDeferredLore.push(deferredL);
+    // (continuity built directly on entities above — no deferred flush needed)
 
     // Threads
     for (const t of ch.threads ?? []) {
@@ -1314,13 +1334,27 @@ export async function assembleNarrative(
           from: tm.from,
           to: tm.to,
         })),
-        continuityMutations: (s.continuityMutations ?? []).map((km) => ({
-          characterId: getCharId(km.characterName),
-          nodeId: nextKId(),
-          action: (km.action === 'removed' ? 'removed' : 'added') as 'added' | 'removed',
-          content: km.content,
-          nodeType: km.type,
-        })),
+        continuityMutations: (s.continuityMutations ?? []).map((km) => {
+          const entityId = getEntityId(km.entityName);
+          // Assign IDs to nodes
+          const nodes = (km.addedNodes ?? []).map((n) => ({
+            id: nextKId(), content: n.content, type: (n.type || 'trait') as ContinuityNodeType,
+          }));
+          // Resolve content-based edge references to node IDs
+          const edges: { from: string; to: string; relation: string }[] = [];
+          for (const e of km.addedEdges ?? []) {
+            const from = nodes.find(n => n.content === e.fromContent);
+            const to = nodes.find(n => n.content === e.toContent);
+            if (from && to) edges.push({ from: from.id, to: to.id, relation: e.relation });
+          }
+          // Chain sequential nodes for connectivity
+          for (let i = 1; i < nodes.length; i++) {
+            if (!edges.some(e => e.from === nodes[i - 1].id && e.to === nodes[i].id)) {
+              edges.push({ from: nodes[i - 1].id, to: nodes[i].id, relation: 'follows' });
+            }
+          }
+          return { entityId, addedNodes: nodes, addedEdges: edges };
+        }),
         relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
           from: getCharId(rm.from),
           to: getCharId(rm.to),
@@ -1355,7 +1389,7 @@ export async function assembleNarrative(
           const addedNodes = (wkm.addedNodes ?? []).map((n) => ({
             id: getWkId(n.concept),
             concept: n.concept,
-            type: (['law', 'system', 'concept', 'tension'].includes(n.type) ? n.type : 'concept') as 'law' | 'system' | 'concept' | 'tension',
+            type: (['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'].includes(n.type) ? n.type : 'concept') as WorldKnowledgeNodeType,
           }));
           const addedEdges = (wkm.addedEdges ?? []).map((e) => ({
             from: getWkId(e.fromConcept),
@@ -1398,38 +1432,7 @@ export async function assembleNarrative(
     // Each knowledge node goes to the first scene where that character participates,
     // spreading mutations naturally instead of spiking the first scene.
     if (chScenes.length > 0) {
-      const allMutContents = new Set(chScenes.flatMap((s) => s.continuityMutations.map((km) => km.content)));
-
-      for (const dk of chunkDeferredKnowledge[chunkIdx]) {
-        if (allMutContents.has(dk.content)) continue;
-        // Find the first scene where this character participates
-        const target = chScenes.find((s) => s.participantIds.includes(dk.characterId)) ?? chScenes[0];
-        target.continuityMutations.push({
-          characterId: dk.characterId,
-          nodeId: nextKId(),
-          action: 'added',
-          content: dk.content,
-          nodeType: dk.type,
-        });
-        allMutContents.add(dk.content);
-      }
-
-      // Location lore → attributed to the POV of the first scene at that location
-      for (const dl of chunkDeferredLore[chunkIdx]) {
-        if (allMutContents.has(dl.content)) continue;
-        const target = chScenes.find((s) => s.locationId === dl.locationId) ?? chScenes[0];
-        const pov = target.povId || target.participantIds[0] || '';
-        if (pov) {
-          target.continuityMutations.push({
-            characterId: pov,
-            nodeId: nextKId(),
-            action: 'added',
-            content: dl.content,
-            nodeType: 'lore',
-          });
-          allMutContents.add(dl.content);
-        }
-      }
+      // Continuity is built directly on entities — no deferred flush needed
     }
 
     if (chScenes.length > 0) {
@@ -1493,39 +1496,48 @@ export async function assembleNarrative(
     }
   }
 
-  // Build character & location continuity graphs from scene mutations (forward replay)
-  // This ensures knowledge.nodes is the final accumulated state and enables temporal filtering.
+  // Build continuity graphs from scene mutations (forward replay, additive)
+  // This ensures continuity.nodes is the final accumulated state and enables temporal filtering.
   const allSceneKeys = Object.keys(scenes);
   for (const sKey of allSceneKeys) {
     const scene = scenes[sKey];
     for (const km of scene.continuityMutations) {
-      const char = characters[km.characterId];
-      if (!char) continue;
-      if (!char.continuity) char.continuity = { nodes: [] };
-      if (km.action === 'added') {
-        const exists = char.continuity.nodes.some((n) => n.id === km.nodeId);
-        if (!exists) {
-          char.continuity.nodes.push({ id: km.nodeId, type: km.nodeType ?? 'knowledge', content: km.content });
+      // Mutations can target characters, locations, or artifacts
+      const entity = characters[km.entityId] ?? locations[km.entityId] ?? artifactEntities[km.entityId];
+      if (!entity) continue;
+      if (!entity.continuity) entity.continuity = { nodes: {}, edges: [] };
+      for (const node of km.addedNodes ?? []) {
+        if (!entity.continuity.nodes[node.id]) {
+          entity.continuity.nodes[node.id] = { id: node.id, type: (node.type || 'trait') as ContinuityNodeType, content: node.content };
         }
-      } else if (km.action === 'removed') {
-        char.continuity.nodes = char.continuity.nodes.filter((n) => n.id !== km.nodeId);
+      }
+      for (const edge of km.addedEdges ?? []) {
+        if (!entity.continuity.edges.some(e => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
+          entity.continuity.edges.push(edge);
+        }
       }
     }
   }
 
-  // Also replay deferred lore onto locations (attributed to POV but stored on location too)
-  for (let ci = 0; ci < results.length; ci++) {
-    const existingLore = new Set<string>();
-    for (const loc of Object.values(locations)) {
-      for (const n of (loc.continuity?.nodes ?? [])) existingLore.add(n.content);
+  // Build continuity edges for all entities — sequential chain + same-type connections
+  const allEntities = [...Object.values(characters), ...Object.values(locations), ...Object.values(artifactEntities)];
+  for (const entity of allEntities) {
+    if (!entity.continuity || Object.keys(entity.continuity.nodes).length < 2) continue;
+    const nodeList = Object.values(entity.continuity.nodes);
+    // Sequential chain: each node connects to the next (temporal ordering from scene replay)
+    for (let i = 1; i < nodeList.length; i++) {
+      entity.continuity.edges.push({ from: nodeList[i - 1].id, to: nodeList[i].id, relation: 'follows' });
     }
-    for (const dl of chunkDeferredLore[ci]) {
-      const loc = locations[dl.locationId];
-      if (loc && !existingLore.has(dl.content)) {
-        if (!loc.continuity) loc.continuity = { nodes: [] };
-        loc.continuity.nodes.push({ id: nextKId(), type: 'lore', content: dl.content });
-        existingLore.add(dl.content);
-      }
+    // Same-type connections: nodes of the same type reinforce each other
+    const byType = new Map<string, typeof nodeList>();
+    for (const n of nodeList) {
+      if (!byType.has(n.type)) byType.set(n.type, []);
+      byType.get(n.type)!.push(n);
+    }
+    for (const [, group] of byType) {
+      if (group.length < 2) continue;
+      // Connect first to last of each type group (thematic arc)
+      entity.continuity.edges.push({ from: group[0].id, to: group[group.length - 1].id, relation: 'reinforces' });
     }
   }
 

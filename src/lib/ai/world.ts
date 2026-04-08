@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, Artifact, ReasoningLevel } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, WorldKnowledgeNodeType, Artifact, ReasoningLevel } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
@@ -172,7 +172,7 @@ export function computeWorldMetrics(
   const staleCharacters = Array.from(charScenes.values()).filter((c) => (totalScenes - 1 - c.last) > staleThreshold).length;
 
   const avgKnowledgePerCharacter = totalCharacters > 0
-    ? Object.values(narrative.characters).reduce((sum, c) => sum + (c.continuity?.nodes?.length ?? 0), 0) / totalCharacters
+    ? Object.values(narrative.characters).reduce((sum, c) => sum + Object.keys(c.continuity?.nodes ?? {}).length, 0) / totalCharacters
     : 0;
 
   // ── Location metrics ──────────────────────────────────────────────
@@ -367,8 +367,8 @@ export async function expandWorld(
   const nextThreadId = nextId('T', Object.keys(narrative.threads));
   const nextArtifactId = nextId('A', Object.keys(narrative.artifacts ?? {}));
   const existingKIds = [
-    ...Object.values(narrative.characters).flatMap((c) => (c.continuity?.nodes ?? []).map((n) => n.id)),
-    ...Object.values(narrative.locations).flatMap((l) => (l.continuity?.nodes ?? []).map((n) => n.id)),
+    ...Object.values(narrative.characters).flatMap((c) => Object.keys(c.continuity?.nodes ?? {})),
+    ...Object.values(narrative.locations).flatMap((l) => Object.keys(l.continuity?.nodes ?? {})),
   ];
   const nextKId = nextId('K', existingKIds);
 
@@ -473,7 +473,7 @@ Return JSON with this exact structure:
     }
   ],
   "worldKnowledgeMutations": {
-    "addedNodes": [{"id": "WK-GEN-001", "concept": "foundational world concept", "type": "law|system|concept|tension"}],
+    "addedNodes": [{"id": "WK-GEN-001", "concept": "foundational world concept", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}],
     "addedEdges": [{"from": "WK-GEN-001", "to": "existing-WK-ID", "relation": "relationship"}]
   }
 }
@@ -518,7 +518,7 @@ THREAD CONVERGENCE (critical for long-form narrative):
 
 WORLD KNOWLEDGE MUTATIONS:
 worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion establishes — the rules, systems, concepts, and tensions that the new characters, locations, and threads operate within. These are intentional world-building, not incidental discovery.
-- Use "law" for governing truths and hard constraints, "system" for institutions/processes, "concept" for named ideas/phenomena, "tension" for contradictions or unresolved forces.
+- Use "principle" for fundamental truths, "system" for mechanisms/institutions, "concept" for abstract ideas, "tension" for contradictions, "event" for world-level occurrences, "structure" for organizations/factions, "environment" for geography/climate, "convention" for customs/norms, "constraint" for scarcities/limitations.
 - Node IDs should be WK-GEN-001, WK-GEN-002, etc. (they will be re-mapped to real IDs).
 - Edges can reference both new WK-GEN-* IDs and existing world knowledge IDs already in the narrative.
 - Generate 3-8 world knowledge nodes depending on expansion size, with edges connecting related concepts.
@@ -557,7 +557,7 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
     const addedNodes = rawWKM.addedNodes.map((node: { id: string; concept: string; type: string }, i: number) => {
       const realId = realIds[i];
       wkIdMap[node.id] = realId;
-      return { id: realId, concept: node.concept, type: node.type as 'law' | 'system' | 'concept' | 'tension' };
+      return { id: realId, concept: node.concept, type: (node.type || 'concept') as WorldKnowledgeNodeType };
     });
 
     // Remap edge references — edges can point to new WK-GEN-* IDs or existing WK-XX IDs
@@ -636,18 +636,18 @@ Return JSON with this exact structure:
     {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence LITERAL physical description — concrete traits (hair colour, build, clothing). No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "K-01", "type": "specific_contextual_type", "content": "string"}]}}
   ],
   "locations": [
-    {"id": "L-01", "name": "string", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}]}}
+    {"id": "L-01", "name": "string", "prominence": "domain|place|margin", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "LK-01", "type": "specific_contextual_type", "content": "string"}]}}
   ],
   "threads": [
-    {"id": "T-01", "participants": [{"id": "C-01", "type": "character"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}
+    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "string", "status": "dormant", "openedAt": "S-001", "dependents": []}
   ],
   "relationships": [
     {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
   ],
   "artifacts": [
-    {"id": "A-01", "name": "string", "significance": "key|notable|minor", "parentId": "character or location ID", "continuity": {"nodes": [{"id": "AK-01", "type": "specific_type", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
+    {"id": "A-01", "name": "string", "significance": "key|notable|minor", "threadIds": [], "parentId": "character or location ID", "continuity": {"nodes": [{"id": "AK-01", "type": "specific_type", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
   ],${worldOnly ? `
-  "worldKnowledge": {"addedNodes": [{"id": "WK-01", "concept": "name of a world concept, rule, system, or structure", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-01", "to": "WK-02", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},` : `
+  "worldKnowledge": {"addedNodes": [{"id": "WK-01", "concept": "name of a world concept, rule, system, or structure", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-01", "to": "WK-02", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},` : `
   "scenes": [
     {
       "id": "S-001",
@@ -657,9 +657,9 @@ Return JSON with this exact structure:
       "participantIds": ["C-01"],
       "events": ["event_tag"],
       "threadMutations": [{"threadId": "T-01", "from": "dormant", "to": "active"}],
-      "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
+      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "what they learned or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": [{"from": "K-existing", "to": "K-GEN-001", "relation": "caused_by|motivated_by|contradicts|reinforces"}]}],
       "relationshipMutations": [],
-      "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-GEN-002", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},
+      "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "name of a world concept, rule, system, or structure", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-GEN-002", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics: actions, consequences, dialogue snippets. Include any context that shapes how the scene is written (time span, technique, tone). No sentences ending in emotions or realizations."
     }
   ],
@@ -687,16 +687,16 @@ Return JSON with this exact structure:
 HARD MINIMUMS — the world MUST contain at least these counts. Generating fewer is a failure:
 - EXACTLY 18 characters: 3 anchors + 5 recurring + 10 transient
 - EXACTLY 20 locations with parent/child hierarchy (at least 3 nesting levels)
-- EXACTLY 6 threads (interlocking — at least 3 must share participants)
+- EXACTLY 6 threads — 2 short-term (resolve within 1-2 arcs), 2 medium-term (3-5 arcs), 2 long-term (story-spanning). Threads are fate — they force entities into action. At least 3 must share participants. Participants can be characters, locations, or artifacts.
 - EXACTLY 20 relationships (asymmetric, at least 3 hostile)
 - EXACTLY 3 artifacts (at least 1 key, 1 notable, 1 minor)
 - EXACTLY 10 world knowledge nodes with 6 edges${worldOnly ? '' : `
 - EXACTLY 8 scenes in 1 arc`}
 
 CHARACTER DEPTH BY ROLE:
-- Anchors (3): 6-8 knowledge nodes each — secrets, goals, fears, contradictions
-- Recurring (5): 3-5 knowledge nodes each — a clear role, a relationship to an anchor, at least one hidden agenda
-- Transient (10): 1-2 knowledge nodes each — shopkeepers, guards, neighbours, lackeys, bystanders. These populate the world. Not every character needs to matter — some just need to exist.
+- Anchors (3): 6-8 continuity nodes each — use all types: traits, goals, beliefs, secrets, weaknesses, relations, capabilities. Build a real inner world with edges connecting them (goal motivated_by belief, weakness caused_by history).
+- Recurring (5): 3-5 continuity nodes each — a clear role, a relationship to an anchor, at least one hidden agenda. Include at least 1 goal and 1 belief.
+- Transient (10): 1-2 continuity nodes each — shopkeepers, guards, neighbours, lackeys, bystanders. A trait and a state is enough.
 
 SEED DATA vs. BARE PREMISE:
 The premise may include user-provided characters, locations, threads, rules, and systems. Handle both cases:
@@ -717,22 +717,27 @@ Name like a human novelist, not a fantasy name generator:
 - Thread/system names: concrete and specific. "The Tithe of Ash" not "The Power System". "The Lazar Compact" not "The Ancient Alliance".
 - Test: if a name could appear in 10 different fantasy novels interchangeably, it's too generic. If it could only belong to THIS world, it's right.
 
-LOCATION HIERARCHY:
+LOCATION HIERARCHY & AGENCY:
 - Build spatial nesting: Region → Settlement → District → Specific Place
 - A city with 5 sub-locations feels more real than 5 unconnected cities
 - Include contrasting environments: if the story starts safe, the world needs a dangerous frontier
-- Each location: 2-4 knowledge nodes (lore, dangers, who controls it)
+- Locations are living entities with their own continuity graphs. A kingdom has goals, beliefs, history, and weaknesses just like a character.
+- Prominence: "domain" locations are centers of power (a kingdom, a headquarters, a sacred temple), "place" locations are recurring settings, "margin" locations are transitional.
+- Domain locations: 4-6 continuity nodes (history, traits, capabilities, weaknesses, goals). They impose rules on characters — a sacred grove forbids violence, a kingdom demands fealty.
+- Place locations: 2-3 continuity nodes (history, state, trait).
+- Margin locations: 1 continuity node (trait or state).
 
 RELATIONSHIPS:
 - Connect anchors to MANY characters (6+ relationships per anchor)
 - Asymmetric descriptions: "A admires B" while "B suspects A"
 - At least 2 hidden relationships (known to reader, not to characters)
 
-ARTIFACTS:
-- Key artifact (1): a plot-altering object that characters will scheme to acquire, protect, or destroy. 4-5 continuity nodes covering what it is, what it does, its history, and its limitations. Must be owned by a character or placed at a location where it can be discovered.
-- Notable artifact (1): a tool that grants a specific capability — a weapon, a key, a document. 2-3 continuity nodes. Owned by a character who uses it.
-- Minor artifact (1): a small object with narrative potential — a token, a letter, a trinket. 1-2 continuity nodes. Can be at a location.
-- Artifacts must feel integral to the world — not bolted on. The key artifact should connect to at least one thread.
+ARTIFACTS & TOOLS:
+- Artifacts are entities with agency — enchanted tools, AI systems, cursed weapons, living books. They can force events and bind characters.
+- Key artifact (1): a plot-altering entity. 5-7 continuity nodes (traits, capabilities, history, weaknesses, secrets, goals). Must connect to at least 2 threads. Its inner world should rival a recurring character's.
+- Notable artifact (1): a tool that grants a specific capability. 3-4 continuity nodes (capability, history, relation, weakness). Owned by a character who uses it.
+- Minor artifact (1): a small object with narrative potential. 1-2 continuity nodes. Can be at a location.
+- Artifacts must feel integral to the world. Key artifacts should have continuity edges (capability motivated_by history, weakness caused_by trait).
 
 ${worldOnly ? '' : `Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
 

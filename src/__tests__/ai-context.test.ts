@@ -53,7 +53,7 @@ function createCharacter(id: string, name: string, role: string = 'recurring'): 
     id,
     name,
     role: role as 'anchor' | 'recurring' | 'transient',
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     threadIds: [],
   };
 }
@@ -63,7 +63,7 @@ function createLocation(id: string, name: string, parentId?: string): Location {
     id,
     name,
     parentId: parentId ?? null,
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     threadIds: [],
   };
 }
@@ -157,36 +157,33 @@ describe('getStateAtIndex', () => {
     expect(Object.keys(state.artifactOwnership).length).toBe(0);
   });
 
-  it('replays continuity mutations correctly', () => {
+  it('replays continuity mutations correctly (additive)', () => {
     const n = createMinimalNarrative({
       scenes: {
         's1': createScene('s1', {
           continuityMutations: [
-            { characterId: 'c1', nodeId: 'node-1', action: 'added', content: 'Knowledge 1', nodeType: 'knowledge' },
+            { entityId: 'c1', addedNodes: [{ id: 'node-1', content: 'Knowledge 1', type: 'belief' }], addedEdges: [] },
           ],
         }),
         's2': createScene('s2', {
           continuityMutations: [
-            { characterId: 'c1', nodeId: 'node-2', action: 'added', content: 'Knowledge 2', nodeType: 'knowledge' },
-          ],
-        }),
-        's3': createScene('s3', {
-          continuityMutations: [
-            { characterId: 'c1', nodeId: 'node-1', action: 'removed', content: 'Knowledge 1', nodeType: 'knowledge' },
+            { entityId: 'c1', addedNodes: [{ id: 'node-2', content: 'Knowledge 2', type: 'belief' }], addedEdges: [{ from: 'node-1', to: 'node-2', relation: 'caused_by' }] },
           ],
         }),
       },
     });
 
-    // At index 1 (after s1, s2), both nodes exist
+    // At index 0 (after s1), only node-1 exists
+    const stateAt0 = getStateAtIndex(n, ['s1', 's2'], 0);
+    expect(stateAt0.liveNodeIds.has('node-1')).toBe(true);
+    expect(stateAt0.liveNodeIds.has('node-2')).toBe(false);
+
+    // At index 1 (after s1, s2), both nodes and edge exist
     const stateAt1 = getStateAtIndex(n, ['s1', 's2'], 1);
     expect(stateAt1.liveNodeIds.has('node-1')).toBe(true);
     expect(stateAt1.liveNodeIds.has('node-2')).toBe(true);
-
-    // At index 2 (after s3), node-1 is removed
-    const stateAt2 = getStateAtIndex(n, ['s1', 's2', 's3'], 2);
-    expect(stateAt2.liveNodeIds.has('node-1')).toBe(false);
-    expect(stateAt2.liveNodeIds.has('node-2')).toBe(true);
+    expect(stateAt1.liveEdges).toHaveLength(1);
+    expect(stateAt1.liveEdges[0].relation).toBe('caused_by');
   });
 
   it('replays relationship mutations correctly', () => {
@@ -264,7 +261,7 @@ describe('getStateAtIndex', () => {
             characters: [],
             locations: [],
             threads: [],
-            artifacts: [{ id: 'art-1', name: 'Artifact', significance: 'minor' as const, continuity: { nodes: [] }, parentId: 'c1' }],
+            artifacts: [{ id: 'art-1', name: 'Artifact', significance: 'minor' as const, continuity: { nodes: {}, edges: [] }, parentId: 'c1' }],
             relationships: [],
             worldKnowledge: { addedNodes: [], addedEdges: [] },
           },
@@ -381,8 +378,8 @@ describe('sceneScale', () => {
         { threadId: 't2', from: 'active', to: 'escalating' },
       ],
       continuityMutations: [
-        { characterId: 'c1', nodeId: 'n1', action: 'added', content: 'Knowledge', nodeType: 'knowledge' },
-        { characterId: 'c2', nodeId: 'n2', action: 'added', content: 'Knowledge 2', nodeType: 'knowledge' },
+        { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'Knowledge', type: 'belief' }], addedEdges: [] },
+        { entityId: 'c2', addedNodes: [{ id: 'n2', content: 'Knowledge 2', type: 'belief' }], addedEdges: [] },
       ],
       relationshipMutations: [
         { from: 'c1', to: 'c2', type: 'ally', valenceDelta: 0.5 },

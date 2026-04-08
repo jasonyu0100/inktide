@@ -27,12 +27,12 @@ function createMinimalNarrative(): NarrativeState {
     description: 'A test story',
     worldSummary: 'A test world.',
     characters: {
-      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
-      'C-02': { id: 'C-02', name: 'Mentor', role: 'recurring', continuity: { nodes: [] }, threadIds: [] },
+      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
+      'C-02': { id: 'C-02', name: 'Mentor', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] },
     },
     locations: {
-      'L-01': { id: 'L-01', name: 'Village', parentId: null, continuity: { nodes: [] }, threadIds: [] },
-      'L-02': { id: 'L-02', name: 'Forest', parentId: null, continuity: { nodes: [] }, threadIds: [] },
+      'L-01': { id: 'L-01', name: 'Village', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
+      'L-02': { id: 'L-02', name: 'Forest', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
     },
     threads: {
       'T-01': { id: 'T-01', description: 'Main quest', status: 'active', participants: [], dependents: [], openedAt: 'S-01' },

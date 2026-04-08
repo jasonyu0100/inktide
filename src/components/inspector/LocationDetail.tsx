@@ -42,11 +42,16 @@ type Props = {
   locationId: string;
 };
 
-const continuityDotColors: Record<ContinuityNodeType, string> = {
-  lore: 'bg-white/40',
-  secret: 'bg-[#F59E0B]',
-  danger: 'bg-[#EF4444]',
-  resource: 'bg-[#3B82F6]',
+const continuityDotColors: Record<string, string> = {
+  trait: 'bg-violet-400',
+  state: 'bg-emerald-400',
+  history: 'bg-amber-400',
+  capability: 'bg-blue-400',
+  belief: 'bg-pink-300',
+  relation: 'bg-purple-400',
+  secret: 'bg-amber-500',
+  goal: 'bg-sky-400',
+  weakness: 'bg-red-400',
 };
 
 export default function LocationDetail({ locationId }: Props) {
@@ -93,9 +98,7 @@ export default function LocationDetail({ locationId }: Props) {
     .map((s) => ({
       sceneId: s.id,
       threadMuts: s.threadMutations.filter((tm) => locationThreadIds.has(tm.threadId)),
-      continuityMuts: s.continuityMutations.filter((km) =>
-        km.content.toLowerCase().includes(location.name.toLowerCase()),
-      ),
+      continuityMuts: s.continuityMutations.filter((km) => km.entityId === locationId),
       arrivals: Object.entries(s.characterMovements ?? {})
         .filter(([, mv]) => mv.locationId === locationId)
         .map(([charId]) => charId),
@@ -115,7 +118,12 @@ export default function LocationDetail({ locationId }: Props) {
       {/* Name + ID */}
       <div className="flex flex-col gap-0.5">
         <h2 className="text-sm font-semibold text-text-primary">{location.name}</h2>
-        <span className="font-mono text-[10px] text-text-dim">{locationId}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-text-dim">{locationId}</span>
+          {location.prominence && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-dim">{location.prominence}</span>
+          )}
+        </div>
       </div>
 
       {/* Parent location */}
@@ -231,17 +239,14 @@ export default function LocationDetail({ locationId }: Props) {
                         {tm.threadId}: {tm.from} &rarr; {tm.to}
                       </span>
                     ))}
-                    {continuityMuts.map((km, kmIdx) => {
-                      const charName = narrative.characters[km.characterId]?.name ?? km.characterId;
-                      return (
-                        <span key={`${km.characterId}-${km.nodeId}-${kmIdx}`} className="text-xs text-text-secondary">
-                          <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
-                            {km.action === 'added' ? '+' : '−'}
-                          </span>{' '}
-                          {charName}: {km.content}
+                    {continuityMuts.flatMap((km, kmIdx) =>
+                      (km.addedNodes ?? []).map((node, nIdx) => (
+                        <span key={`${km.entityId}-${node.id}-${kmIdx}-${nIdx}`} className="text-xs text-text-secondary">
+                          <span className="text-change">+</span>{' '}
+                          {node.content}
                         </span>
-                      );
-                    })}
+                      ))
+                    )}
                     {arrivals.map((charId, arrIdx) => (
                       <span key={`${charId}-${arrIdx}`} className="text-xs text-text-secondary">
                         &rarr; {narrative.characters[charId]?.name ?? charId} arrived

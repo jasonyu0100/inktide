@@ -90,10 +90,10 @@ function createMinimalNarrative(): NarrativeState {
     title: 'Test Story',
     worldSummary: 'A test world.',
     characters: {
-      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
+      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
     },
     locations: {
-      'L-01': { id: 'L-01', name: 'Village', parentId: null, continuity: { nodes: [] }, threadIds: [] },
+      'L-01': { id: 'L-01', name: 'Village', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
     },
     threads: {},
     arcs: { 'ARC-01': arc },

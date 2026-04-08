@@ -328,7 +328,7 @@ describe('computeForceSnapshots', () => {
       createScene({
         id: 'S-002',
         threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical' }],
-        continuityMutations: [{ characterId: 'C-01', nodeId: 'K-01', action: 'added', content: 'secret', nodeType: 'knowledge' }],
+        continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'secret', type: 'secret' }], addedEdges: [] }],
         events: ['event1', 'event2'],
       }),
     ];

@@ -51,17 +51,20 @@ function ForcesTab() {
         </p>
       </S>
 
-      <S title="Change" analogy="How intensely did this scene transform? A tight confrontation scores the same as an ensemble with equal total mutations.">
-        <Block tex={String.raw`C = \sqrt{\Delta M} \;+\; \sqrt{\Delta E} \;+\; \sqrt{\Delta R}`} />
+      <S title="Change" analogy="How intensely did this scene transform? Inner worlds deepen through connected knowledge, not just accumulation.">
+        <Block tex={String.raw`C = \sqrt{\Delta N_c + \sqrt{\Delta E_c}} \;+\; \sqrt{\Delta E} \;+\; \sqrt{\Delta R}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`\Delta M`}</Tex> = continuity mutations, <Tex>{String.raw`\Delta E`}</Tex> = events, <Tex>{String.raw`\Delta R = \sum |\Delta v|^2`}</Tex> = relationship valence intensity (L2). A betrayal (<Tex>{String.raw`|\Delta v|{=}0.5`}</Tex>) contributes 25× more than a polite exchange (<Tex>{String.raw`|\Delta v|{=}0.1`}</Tex>). Cast-blind.
+          <Tex>{String.raw`\Delta N_c`}</Tex> = continuity nodes added to entity inner worlds (traits, beliefs, goals, secrets).{' '}
+          <Tex>{String.raw`\Delta E_c`}</Tex> = continuity edges (causal connections between inner-world facts). The nested{' '}
+          <Tex>{String.raw`\Delta N_c + \sqrt{\Delta E_c}`}</Tex> mirrors the Knowledge formula — structural density matters.{' '}
+          <Tex>{String.raw`\Delta E`}</Tex> = events. <Tex>{String.raw`\Delta R = \sum |\Delta v|^2`}</Tex> = relationship valence intensity (L2).
         </p>
       </S>
 
-      <S title="Knowledge" analogy="Is the world growing richer? Revealing a new law of magic expands the world more than linking two known rules.">
+      <S title="Knowledge" analogy="Is the world growing richer? Revealing a new principle expands the world more than linking two known concepts.">
         <Block tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes (laws, systems, concepts, tensions).{' '}
+          <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes (principles, systems, concepts, tensions, events, structures).{' '}
           <Tex>{String.raw`\Delta E`}</Tex> = new edges between nodes (sqrt — first connections matter more than bulk linking). Fresh ideas outweigh new connections.
         </p>
       </S>

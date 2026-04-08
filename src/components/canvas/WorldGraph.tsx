@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { GRAPH_CONTINUITY_LIMIT } from '@/lib/constants';
-import { getContinuityNodesAtScene, getRelationshipsAtScene, getIntroducedIds } from '@/lib/scene-filter';
+import { getContinuityNodesAtScene, getContinuityEdgesAtScene, getRelationshipsAtScene, getIntroducedIds } from '@/lib/scene-filter';
 import type {
   Character,
   Location,
@@ -13,6 +13,7 @@ import type {
 } from '@/types/narrative';
 import EvalBar from '@/components/timeline/EvalBar';
 import KnowledgeGraphView, { FullscreenButton } from './KnowledgeGraphView';
+import ContinuityGraphView from './ContinuityGraphView';
 import ThreadGraphView from './ThreadGraphView';
 import { ScenePlanView } from './ScenePlanView';
 import { SceneProseView } from './SceneProseView';
@@ -111,6 +112,7 @@ export default function WorldGraph() {
 
   const handleCharacterClick = useCallback(
     (characterId: string) => {
+      setNodeTooltip(null);
       dispatch({
         type: 'SELECT_KNOWLEDGE_ENTITY',
         entityId: selectedKnowledgeEntity === characterId ? null : characterId,
@@ -126,6 +128,7 @@ export default function WorldGraph() {
 
   const handleLocationClick = useCallback(
     (locationId: string) => {
+      setNodeTooltip(null);
       dispatch({
         type: 'SELECT_KNOWLEDGE_ENTITY',
         entityId: selectedKnowledgeEntity === locationId ? null : locationId,
@@ -636,8 +639,8 @@ export default function WorldGraph() {
       .filter((d) => d.kind === 'knowledge')
       .append('circle')
       .attr('r', 8)
-      .attr('fill', (d) => CONTINUITY_FILL[d.continuityType ?? 'knows'] ?? DEFAULT_CONTINUITY_FILL)
-      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.continuityType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
+      .attr('fill', (d) => CONTINUITY_FILL[d.continuityType ?? 'trait'] ?? DEFAULT_CONTINUITY_FILL)
+      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.continuityType ?? 'trait'] ?? DEFAULT_KNOWLEDGE_OPACITY);
 
     // Artifact diamonds — sized by significance
     const ARTIFACT_SIZES: Record<string, number> = { key: 14, notable: 10, minor: 7 };
@@ -789,6 +792,11 @@ export default function WorldGraph() {
     const currentLinks = (simulation.force('link') as d3.ForceLink<GraphNode, GraphLink>).links();
     const baseLinks = currentLinks.filter((l) => (l as GraphLink).linkKind !== 'knowledge');
 
+    // Show/hide base world elements based on entity focus
+    g.selectAll('g.graph-node:not(.knowledge-node)').attr('visibility', selectedKnowledgeEntity ? 'hidden' : 'visible');
+    g.selectAll('line.graph-edge:not(.knowledge):not(.continuity-edge)').attr('visibility', selectedKnowledgeEntity ? 'hidden' : 'visible');
+    g.selectAll('text.edge-label').attr('visibility', selectedKnowledgeEntity ? 'hidden' : 'visible');
+
     if (!selectedKnowledgeEntity) {
       nodesRef.current = baseNodes;
       simulation.nodes(baseNodes);
@@ -798,7 +806,7 @@ export default function WorldGraph() {
       return;
     }
 
-    const entity = narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity];
+    const entity = narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity] ?? narrative.artifacts[selectedKnowledgeEntity];
     if (!entity) return;
 
     const eid = entity.id;
@@ -826,7 +834,8 @@ export default function WorldGraph() {
       y: (parentNode.y ?? 0) + (Math.random() - 0.5) * 60,
     }));
 
-    const allNodes = [...baseNodes, ...continuityNodes];
+    // Focused view: only show the parent entity + its knowledge nodes
+    const allNodes = [parentNode, ...continuityNodes];
     nodesRef.current = allNodes;
 
     // Create knowledge links — each node connects directly to its parent entity
@@ -844,8 +853,34 @@ export default function WorldGraph() {
       }
     }
 
-    // Add knowledge link elements
+    // Create continuity edge links between knowledge nodes (inner-world edges)
+    const visibleNodeIds = new Set(visibleContinuityNodes.map(n => n.id));
+    const continuityEdges = getContinuityEdgesAtScene(
+      entity.continuity.edges,
+      eid,
+      narrative.scenes,
+      resolvedEntryKeys,
+      state.currentSceneIndex,
+    );
+    const edgeLinks: (GraphLink & { edgeRelation?: string })[] = [];
+    for (const edge of continuityEdges) {
+      if (!visibleNodeIds.has(edge.from) || !visibleNodeIds.has(edge.to)) continue;
+      const source = continuityNodes.find(n => n.id === `k-${eid}-${edge.from}`);
+      const target = continuityNodes.find(n => n.id === `k-${eid}-${edge.to}`);
+      if (source && target) {
+        edgeLinks.push({
+          id: `kedge-${eid}-${edge.from}-${edge.to}-${edge.relation}`,
+          source,
+          target,
+          linkKind: 'knowledge',
+          edgeRelation: edge.relation,
+        });
+      }
+    }
+
+    // Add knowledge link elements (parent→node + node→node edges)
     const linksGroup = g.select<SVGGElement>('g.links');
+    const allContinuityLinks = [...continuityLinks, ...edgeLinks];
     const continuityLinkEls = linksGroup
       .selectAll<SVGLineElement, GraphLink>('line.continuity')
       .data(continuityLinks, (d) => d.id)
@@ -854,6 +889,27 @@ export default function WorldGraph() {
       .attr('stroke', 'rgba(255, 255, 255, 0.35)')
       .attr('stroke-opacity', 0.5)
       .attr('stroke-width', 1);
+
+    // Render continuity edges (node→node) with colored lines and optional labels
+    const edgeLinkEls = linksGroup
+      .selectAll<SVGLineElement, GraphLink>('line.continuity-edge')
+      .data(edgeLinks, (d) => d.id)
+      .join('line')
+      .attr('class', 'graph-edge continuity-edge')
+      .attr('stroke', 'rgba(168, 85, 247, 0.6)')
+      .attr('stroke-opacity', 0.7)
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '4 2');
+
+    // Edge relation labels
+    const edgeLabelEls = linksGroup
+      .selectAll<SVGTextElement, typeof edgeLinks[0]>('text.continuity-edge-label')
+      .data(showEdgeLabels ? edgeLinks : [], (d) => d.id)
+      .join('text')
+      .attr('class', 'continuity-edge-label')
+      .style('font-size', '7px')
+      .style('fill', 'rgba(168, 85, 247, 0.8)')
+      .text((d) => (d as { edgeRelation?: string }).edgeRelation ?? '');
 
     // Add knowledge node elements
     const nodesGroup = g.select<SVGGElement>('g.nodes');
@@ -866,8 +922,8 @@ export default function WorldGraph() {
     continuityNodeEls
       .append('circle')
       .attr('r', 8)
-      .attr('fill', (d) => CONTINUITY_FILL[d.continuityType ?? 'knows'] ?? DEFAULT_CONTINUITY_FILL)
-      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.continuityType ?? 'knows'] ?? DEFAULT_KNOWLEDGE_OPACITY);
+      .attr('fill', (d) => CONTINUITY_FILL[d.continuityType ?? 'trait'] ?? DEFAULT_CONTINUITY_FILL)
+      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.continuityType ?? 'trait'] ?? DEFAULT_KNOWLEDGE_OPACITY);
 
     continuityNodeEls
       .append('text')
@@ -963,10 +1019,10 @@ export default function WorldGraph() {
       }
     });
 
-    // Update simulation
+    // Update simulation — focused view uses only continuity links (no world links)
     simulation.nodes(allNodes);
     (simulation.force('link') as d3.ForceLink<GraphNode, GraphLink>)
-      .links([...baseLinks, ...continuityLinks]);
+      .links(allContinuityLinks);
     simulation.alpha(0.5).restart();
 
     // Tick handler for knowledge elements
@@ -976,6 +1032,16 @@ export default function WorldGraph() {
         .attr('y1', (d) => ((d.source as GraphNode).y ?? 0))
         .attr('x2', (d) => ((d.target as GraphNode).x ?? 0))
         .attr('y2', (d) => ((d.target as GraphNode).y ?? 0));
+
+      edgeLinkEls
+        .attr('x1', (d) => ((d.source as GraphNode).x ?? 0))
+        .attr('y1', (d) => ((d.source as GraphNode).y ?? 0))
+        .attr('x2', (d) => ((d.target as GraphNode).x ?? 0))
+        .attr('y2', (d) => ((d.target as GraphNode).y ?? 0));
+
+      edgeLabelEls
+        .attr('x', (d) => (((d.source as GraphNode).x ?? 0) + ((d.target as GraphNode).x ?? 0)) / 2)
+        .attr('y', (d) => (((d.source as GraphNode).y ?? 0) + ((d.target as GraphNode).y ?? 0)) / 2 - 3);
 
       continuityNodeEls.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
 
@@ -1130,8 +1196,8 @@ export default function WorldGraph() {
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
-      {/* Legend strip — only for spatial/overview graph modes */}
-      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && (
+      {/* Legend strip — only for spatial/overview when NOT viewing an entity's inner graph */}
+      {(graphViewMode === 'spatial' || graphViewMode === 'overview') && !selectedKnowledgeEntity && (
         <div className="shrink-0 flex items-center gap-0 px-2 h-7 border-b border-border bg-bg-base/60">
           {([
             { key: 'labels', label: 'Labels', checked: showEdgeLabels, toggle: () => setShowEdgeLabels((v) => !v) },
@@ -1209,6 +1275,15 @@ export default function WorldGraph() {
           mode={graphViewMode}
           hideControls hideLegend
         />
+      ) : selectedKnowledgeEntity ? (
+        <ContinuityGraphView
+          entityId={selectedKnowledgeEntity}
+          entityName={(narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity] ?? narrative.artifacts[selectedKnowledgeEntity])?.name ?? selectedKnowledgeEntity}
+          continuity={(narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity] ?? narrative.artifacts[selectedKnowledgeEntity])?.continuity ?? { nodes: {}, edges: [] }}
+          scenes={narrative.scenes}
+          resolvedKeys={resolvedEntryKeys}
+          currentIndex={state.currentSceneIndex}
+        />
       ) : (
         <svg
           ref={svgRef}
@@ -1256,8 +1331,8 @@ export default function WorldGraph() {
       )}
       {/* Fullscreen toggle */}
       <FullscreenButton />
-      {/* Character/location image prompt tooltip */}
-      {nodeTooltip && (
+      {/* Character/location image prompt tooltip — hidden when viewing entity inner graph */}
+      {nodeTooltip && !selectedKnowledgeEntity && (
         <div
           className="absolute z-40 pointer-events-none"
           style={{ left: nodeTooltip.x, top: nodeTooltip.y - 12, transform: 'translate(-50%, -100%)' }}

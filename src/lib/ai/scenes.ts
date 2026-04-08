@@ -11,6 +11,7 @@ import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-p
 import { FORMAT_INSTRUCTIONS } from './prose';
 import { logWarning, logError, logInfo } from '@/lib/system-logger';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
+import { applyContinuityMutation } from '@/lib/continuity-graph';
 
 /**
  * Split text into sentences, handling edge cases like abbreviations, decimals, and ellipsis.
@@ -257,9 +258,9 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST â€
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition: 'Rode horseback through the night', 'Slipped through the back gate at dawn'"}},
       "events": ["event_tag_1", "event_tag_2"],
       "threadMutations": [{"threadId": "T-XX", "from": "current_status", "to": "new_status"}],
-      "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what they learned", "nodeType": "a descriptive type for this knowledge"}],
+      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "what they learned or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": [{"from": "K-existing", "to": "K-GEN-001", "relation": "caused_by"}]}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-      "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "world concept name", "type": "law|system|concept|tension"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "enables|requires|governs|opposes|extends|etc."}]},
+      "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "world concept name", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "enables|requires|governs|opposes|extends|etc."}]},
       "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES â€” never raw IDs (no C-01, T-XX, L-03, WK-GEN, A-01 etc). Write as if for a reader: 'Fang Yuan acquires the Liquor worm' not 'C-01 acquires A-05'. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations."
     }
@@ -322,17 +323,20 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
 
   sanitizeScenes(scenes, narrative, 'generateScenes');
 
-  // Fix knowledge mutation IDs to be unique and sequential
+  // Fix continuity node IDs to be unique and sequential
   const existingKIds = [
-    ...Object.values(narrative.characters).flatMap((c) => c.continuity.nodes.map((n) => n.id)),
-    ...Object.values(narrative.locations).flatMap((l) => l.continuity.nodes.map((n) => n.id)),
+    ...Object.values(narrative.characters).flatMap((c) => Object.keys(c.continuity.nodes)),
+    ...Object.values(narrative.locations).flatMap((l) => Object.keys(l.continuity.nodes)),
+    ...Object.values(narrative.artifacts ?? {}).flatMap((a) => Object.keys(a.continuity.nodes)),
   ];
-  const totalKMutations = scenes.reduce((sum, s) => sum + s.continuityMutations.length, 0);
-  const kIds = nextIds('K', existingKIds, totalKMutations);
+  const totalNodeMutations = scenes.reduce((sum, s) => sum + s.continuityMutations.reduce((ns, km) => ns + (km.addedNodes?.length ?? 0), 0), 0);
+  const kIds = nextIds('K', existingKIds, totalNodeMutations);
   let kIdx = 0;
   for (const scene of scenes) {
     for (const km of scene.continuityMutations) {
-      km.nodeId = kIds[kIdx++];
+      for (const node of km.addedNodes ?? []) {
+        node.id = kIds[kIdx++];
+      }
     }
   }
 
@@ -1884,8 +1888,8 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       return false;
     });
     scene.continuityMutations = scene.continuityMutations.filter((km) => {
-      if (!km.characterId || validCharIds.has(km.characterId)) return true;
-      stripped.push(`knowledgeMutation characterId "${km.characterId}" in scene ${scene.id}`);
+      if (!km.entityId || allEntityIds.has(km.entityId)) return true;
+      stripped.push(`continuityMutation entityId "${km.entityId}" in scene ${scene.id}`);
       return false;
     });
     scene.relationshipMutations = scene.relationshipMutations.filter((rm) => {
@@ -1925,11 +1929,18 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
     } else {
       scene.worldKnowledgeMutations = { addedNodes: [], addedEdges: [] };
     }
-    // Ensure continuityMutations have required fields
+    // Ensure continuityMutations have required fields (additive: addedNodes + addedEdges)
     scene.continuityMutations = scene.continuityMutations.filter((km) => {
-      if (km.characterId && km.nodeId && km.content) return true;
-      stripped.push(`continuityMutation missing fields in scene ${scene.id}`);
-      return false;
+      if (!km.entityId) { stripped.push(`continuityMutation missing entityId in scene ${scene.id}`); return false; }
+      // Sanitize addedNodes: filter out entries missing content
+      km.addedNodes = (km.addedNodes ?? []).filter(n => n.content);
+      // Sanitize addedEdges: filter out entries missing required fields
+      km.addedEdges = (km.addedEdges ?? []).filter(e => e.from && e.to && e.relation);
+      if (km.addedNodes.length === 0 && km.addedEdges.length === 0) {
+        stripped.push(`continuityMutation empty (no nodes or edges) in scene ${scene.id}`);
+        return false;
+      }
+      return true;
     });
   }
   if (stripped.length > 0) {
@@ -1959,12 +1970,9 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
       }
     }
     for (const km of scene.continuityMutations) {
-      const char = characters[km.characterId];
-      if (!char) continue;
-      if (km.action === 'added' && !char.continuity.nodes.some((kn) => kn.id === km.nodeId)) {
-        characters[km.characterId] = { ...char, continuity: { ...char.continuity, nodes: [...char.continuity.nodes, { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content }] } };
-      } else if (km.action === 'removed') {
-        characters[km.characterId] = { ...char, continuity: { ...char.continuity, nodes: char.continuity.nodes.filter((kn) => kn.id !== km.nodeId) } };
+      const char = characters[km.entityId];
+      if (char) {
+        characters[km.entityId] = { ...char, continuity: applyContinuityMutation(char.continuity, km) };
       }
     }
     for (const tm of scene.threadMutations) {
@@ -2120,7 +2128,7 @@ Return JSON:
   "characterMovements": {},
   "events": ["event_tags"],
   "threadMutations": [{"threadId": "T-XX", "from": "status", "to": "status"}],
-  "continuityMutations": [{"characterId": "C-XX", "nodeId": "K-GEN-001", "action": "added", "content": "what", "nodeType": "type"}],
+  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "what", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}], "addedEdges": []}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "desc", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
   "ownershipMutations": [],
@@ -2246,13 +2254,15 @@ export async function generateArcStepwise(
     // Sanitize
     sanitizeScenes([scene], liveNarrative, 'generateArcStepwise');
 
-    // Fix knowledge mutation IDs
+    // Fix knowledge mutation IDs (node mutations only)
     const existingKIds = [
-      ...Object.values(liveNarrative.characters).flatMap((c) => c.continuity.nodes.map((n) => n.id)),
-      ...Object.values(liveNarrative.locations).flatMap((l) => l.continuity.nodes.map((n) => n.id)),
+      ...Object.values(liveNarrative.characters).flatMap((c) => Object.keys(c.continuity.nodes)),
+      ...Object.values(liveNarrative.locations).flatMap((l) => Object.keys(l.continuity.nodes)),
+      ...Object.values(liveNarrative.artifacts ?? {}).flatMap((a) => Object.keys(a.continuity.nodes)),
     ];
-    const kIds = nextIds('K', existingKIds, scene.continuityMutations.length);
-    scene.continuityMutations.forEach((km, j) => { km.nodeId = kIds[j]; });
+    const allAddedNodes = scene.continuityMutations.flatMap(km => km.addedNodes ?? []);
+    const kIds = nextIds('K', existingKIds, allAddedNodes.length);
+    allAddedNodes.forEach((node, j) => { node.id = kIds[j]; });
 
     // Fix world knowledge IDs
     const existingWKIds = Object.keys(liveNarrative.worldKnowledge?.nodes ?? {});

@@ -120,9 +120,10 @@ function analyzeKnowledgeAsymmetries(
   const charKnowledge = new Map<string, Set<string>>();
   const charContinuityNodes = new Map<string, { content: string; index: number }[]>();
   for (const c of characters) {
-    const contentSet = new Set(c.continuity.nodes.map((n) => n.content));
+    const nodeValues = Object.values(c.continuity.nodes);
+    const contentSet = new Set(nodeValues.map((n) => n.content));
     charKnowledge.set(c.id, contentSet);
-    charContinuityNodes.set(c.id, c.continuity.nodes.map((n, i) => ({ content: n.content, index: i })));
+    charContinuityNodes.set(c.id, nodeValues.map((n, i) => ({ content: n.content, index: i })));
   }
 
   // Count how many characters know each piece of content (exclusivity)

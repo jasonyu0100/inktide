@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, StorySettings, WorldSystem, RelationshipEdge } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings, WorldSystem, RelationshipEdge, ContinuityEdge } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
 import { SCENE_CONTEXT_RECENT_CONTINUITY } from '@/lib/constants';
@@ -16,6 +16,8 @@ export function getStateAtIndex(
 ): {
   /** Continuity node IDs that existed at this point (added and not removed) */
   liveNodeIds: Set<string>;
+  /** Continuity edges that exist at this point (added and not removed) */
+  liveEdges: ContinuityEdge[];
   /** Relationship states at this point (replayed from mutations) */
   relationships: RelationshipEdge[];
   /** Thread statuses at this point */
@@ -25,14 +27,19 @@ export function getStateAtIndex(
 } {
   const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
 
-  // Replay continuity mutations to get live node IDs
+  // Replay continuity mutations to get accumulated node IDs and edges (additive only)
   const liveNodeIds = new Set<string>();
+  const liveEdges: ContinuityEdge[] = [];
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
     if (entry?.kind !== 'scene') continue;
     for (const km of entry.continuityMutations) {
-      if (km.action === 'added') liveNodeIds.add(km.nodeId);
-      else liveNodeIds.delete(km.nodeId);
+      for (const node of km.addedNodes ?? []) {
+        if (node.id) liveNodeIds.add(node.id);
+      }
+      for (const edge of km.addedEdges ?? []) {
+        liveEdges.push(edge);
+      }
     }
   }
 
@@ -91,6 +98,7 @@ export function getStateAtIndex(
 
   return {
     liveNodeIds,
+    liveEdges,
     relationships: [...relMap.values()],
     threadStatuses,
     artifactOwnership,
@@ -212,8 +220,8 @@ export function narrativeContext(
       referencedLocIds.add(entry.locationId);
       for (const tm of entry.threadMutations) referencedThreadIds.add(tm.threadId);
       for (const km of entry.continuityMutations) {
-        referencedCharIds.add(km.characterId);
-        horizonContinuityNodeIds.add(km.nodeId);
+        referencedCharIds.add(km.entityId);
+        for (const node of km.addedNodes ?? []) horizonContinuityNodeIds.add(node.id);
       }
       for (const rm of entry.relationshipMutations) {
         referencedCharIds.add(rm.from);
@@ -279,19 +287,26 @@ export function narrativeContext(
     artifactsByOwner.set(ownerId, list);
   }
 
+  // Helper: render continuity graph (nodes + edges) as XML — mirrors world knowledge rendering
+  const renderContinuityXml = (nodes: { id: string; type: string; content: string }[], edges: ContinuityEdge[], indent: string) => {
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const nodeLines = nodes.map((kn) => `${indent}<knowledge id="${kn.id}" type="${kn.type}">${kn.content}</knowledge>`);
+    const relevantEdges = edges.filter(e => nodeIds.has(e.from) && nodeIds.has(e.to));
+    const edgeLines = relevantEdges.map(e => `${indent}<edge from="${e.from}" to="${e.to}" relation="${e.relation}" />`);
+    return [...nodeLines, ...edgeLines];
+  };
+
   const characters = branchCharacters
     .map((c) => {
-      // Filter to nodes that existed at this point in the timeline
-      const relevantNodes = c.continuity.nodes.filter((kn) => timelineState.liveNodeIds.has(kn.id));
-      const continuityLines = relevantNodes.map((kn) => `  <knowledge type="${kn.type}">${kn.content}</knowledge>`);
-      const omitted = c.continuity.nodes.length - relevantNodes.length;
+      const relevantNodes = Object.values(c.continuity.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
+      const omitted = Object.keys(c.continuity.nodes).length - relevantNodes.length;
       const omittedNote = omitted > 0 ? ` omitted="${omitted}"` : '';
+      const continuityLines = renderContinuityXml(relevantNodes, c.continuity.edges, '  ');
       const owned = artifactsByOwner.get(c.id) ?? [];
       const artifactLines = owned.map((a) => {
-        // Filter artifact continuity nodes to those that existed at this point in the timeline
-        const scopedNodes = a.continuity.nodes.filter((nd) => timelineState.liveNodeIds.has(nd.id));
-        const knLines = scopedNodes.map((nd) => `    <knowledge type="${nd.type}">${nd.content}</knowledge>`).join('\n');
-        return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${knLines ? `\n${knLines}\n  ` : ''}</artifact>`;
+        const scopedNodes = Object.values(a.continuity.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
+        const inner = renderContinuityXml(scopedNodes, a.continuity.edges, '    ').join('\n');
+        return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
       const continuityBlock = continuityLines.length > 0 ? `\n${continuityLines.join('\n')}` : '';
       const artifactBlock = artifactLines.length > 0 ? `\n${artifactLines.join('\n')}` : '';
@@ -300,20 +315,18 @@ export function narrativeContext(
     .join('\n');
   const locations = branchLocations
     .map((l) => {
-      // Filter to nodes that existed at this point in the timeline
-      const relevantNodes = l.continuity.nodes.filter((kn) => timelineState.liveNodeIds.has(kn.id));
-      const continuityLines = relevantNodes.map((kn) => `  <knowledge type="${kn.type}">${kn.content}</knowledge>`);
+      const relevantNodes = Object.values(l.continuity.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
+      const continuityLines = renderContinuityXml(relevantNodes, l.continuity.edges, '  ');
       const parent = l.parentId ? ` parent="${n.locations[l.parentId]?.name ?? l.parentId}"` : '';
       const owned = artifactsByOwner.get(l.id) ?? [];
       const artifactLines = owned.map((a) => {
-        // Filter artifact continuity nodes to those that existed at this point in the timeline
-        const scopedNodes = a.continuity.nodes.filter((nd) => timelineState.liveNodeIds.has(nd.id));
-        const knLines = scopedNodes.map((nd) => `    <knowledge type="${nd.type}">${nd.content}</knowledge>`).join('\n');
-        return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${knLines ? `\n${knLines}\n  ` : ''}</artifact>`;
+        const scopedNodes = Object.values(a.continuity.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
+        const inner = renderContinuityXml(scopedNodes, a.continuity.edges, '    ').join('\n');
+        return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
       const continuityBlock = continuityLines.length > 0 ? `\n${continuityLines.join('\n')}` : '';
       const artifactBlock = artifactLines.length > 0 ? `\n${artifactLines.join('\n')}` : '';
-      return `<location id="${l.id}" name="${l.name}"${parent}>${continuityBlock}${artifactBlock}\n</location>`;
+      return `<location id="${l.id}" name="${l.name}" prominence="${l.prominence ?? 'place'}"${parent}>${continuityBlock}${artifactBlock}\n</location>`;
     })
     .join('\n');
   // Build thread age context from scene history (within time horizon)
@@ -364,9 +377,9 @@ export function narrativeContext(
       const desc = thr ? thr.description : tm.threadId;
       return `${desc}: ${tm.from}->${tm.to}`;
     }).join('; ');
-    const continuityChanges = s.continuityMutations.map((km) => {
-      const charName = n.characters[km.characterId]?.name ?? km.characterId;
-      return `${charName} learned [${km.nodeType}]: ${km.content}`;
+    const continuityChanges = s.continuityMutations.flatMap((km) => {
+      const entityName = n.characters[km.entityId]?.name ?? n.locations[km.entityId]?.name ?? n.artifacts[km.entityId]?.name ?? km.entityId;
+      return (km.addedNodes ?? []).map(node => `${entityName} learned [${node.type}]: ${node.content}`);
     }).join('; ');
     const relChanges = s.relationshipMutations.map((rm) => {
       const fromName = n.characters[rm.from]?.name ?? rm.from;
@@ -539,9 +552,10 @@ export function sceneContext(
 
   const characterBlocks = participants.map((p) => {
     // Filter to nodes that existed at this point in the timeline
+    const allNodes = Object.values(p.continuity.nodes);
     const scopedNodes = timelineState
-      ? p.continuity.nodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
-      : p.continuity.nodes;
+      ? allNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
+      : allNodes;
     const recentNodes = scopedNodes.slice(-RECENT_CONTINUITY);
     const omitted = scopedNodes.length - recentNodes.length;
     const knLines = recentNodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
@@ -552,9 +566,10 @@ export function sceneContext(
   // ── Location: continuity scoped to timeline when available ────────────────────────────────────
   const locationBlock = (() => {
     if (!location) return '<location name="Unknown" />';
+    const allLocNodes = Object.values(location.continuity.nodes);
     const scopedNodes = timelineState
-      ? location.continuity.nodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
-      : location.continuity.nodes;
+      ? allLocNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
+      : allLocNodes;
     const recentNodes = scopedNodes.slice(-RECENT_CONTINUITY);
     const knLines = recentNodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
     const parent = location.parentId ? ` parent="${narrative.locations[location.parentId]?.name ?? location.parentId}"` : '';
@@ -593,9 +608,11 @@ export function sceneContext(
     return `  <shift thread="${thread?.description ?? tm.threadId}" from="${tm.from}" to="${tm.to}" />`;
   });
 
-  const continuityMutationLines = scene.continuityMutations.map((km) => {
-    const char = narrative.characters[km.characterId];
-    return `  <change character="${char?.name ?? km.characterId}" action="${km.action}" type="${km.nodeType ?? 'knowledge'}">${km.content}</change>`;
+  const continuityMutationLines = scene.continuityMutations.flatMap((km) => {
+    const entityName = narrative.characters[km.entityId]?.name ?? narrative.locations[km.entityId]?.name ?? narrative.artifacts[km.entityId]?.name ?? km.entityId;
+    const nodeLines = (km.addedNodes ?? []).map(node => `  <change entity="${entityName}" type="${node.type}">${node.content}</change>`);
+    const edgeLines = (km.addedEdges ?? []).map(edge => `  <edge entity="${entityName}" from="${edge.from}" to="${edge.to}" relation="${edge.relation}" />`);
+    return [...nodeLines, ...edgeLines];
   });
 
   const relationshipMutationLines = scene.relationshipMutations.map((rm) => {
@@ -700,25 +717,27 @@ function buildDramaticIronyBlock(n: NarrativeState, resolvedKeys: string[]): str
     const scene = n.scenes[key];
     if (!scene) return;
 
-    // Track what each participant learns from this scene
+    // Track what each entity learns from this scene
     for (const km of scene.continuityMutations) {
-      const nodeKey = `${km.characterId}:${km.nodeId}`;
+      for (const node of km.addedNodes ?? []) {
+        const nodeKey = `${km.entityId}:${node.id}`;
 
-      // Reader sees everything
-      const charName = n.characters[km.characterId]?.name ?? km.characterId;
-      if (!readerKnowledge.has(nodeKey)) {
-        readerKnowledge.set(nodeKey, { charName, content: km.content, sceneIdx: idx + 1 });
+        // Reader sees everything
+        const entityName = n.characters[km.entityId]?.name ?? n.locations[km.entityId]?.name ?? n.artifacts[km.entityId]?.name ?? km.entityId;
+        if (!readerKnowledge.has(nodeKey)) {
+          readerKnowledge.set(nodeKey, { charName: entityName, content: node.content, sceneIdx: idx + 1 });
+        }
+
+        // Characters only see scenes they're in
+        for (const pid of scene.participantIds) {
+          if (!charSceneKnowledge.has(pid)) charSceneKnowledge.set(pid, new Set());
+          charSceneKnowledge.get(pid)!.add(nodeKey);
+        }
+
+        // Also the entity that learns it directly
+        if (!charSceneKnowledge.has(km.entityId)) charSceneKnowledge.set(km.entityId, new Set());
+        charSceneKnowledge.get(km.entityId)!.add(nodeKey);
       }
-
-      // Characters only see scenes they're in
-      for (const pid of scene.participantIds) {
-        if (!charSceneKnowledge.has(pid)) charSceneKnowledge.set(pid, new Set());
-        charSceneKnowledge.get(pid)!.add(nodeKey);
-      }
-
-      // Also the character who learns it directly
-      if (!charSceneKnowledge.has(km.characterId)) charSceneKnowledge.set(km.characterId, new Set());
-      charSceneKnowledge.get(km.characterId)!.add(nodeKey);
     }
   });
 
@@ -768,9 +787,10 @@ export function deriveLogicRules(
   const getCharacterKnowledge = (charId: string) => {
     const char = narrative.characters[charId];
     if (!char) return [];
+    const allCharNodes = Object.values(char.continuity.nodes);
     return timelineState
-      ? char.continuity.nodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
-      : char.continuity.nodes;
+      ? allCharNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
+      : allCharNodes;
   };
 
   const participantIdSet = new Set(scene.participantIds);
@@ -788,9 +808,10 @@ export function deriveLogicRules(
   if (pov) {
     const povKnowledge = getCharacterKnowledge(pov.id);
     // Knowledge being added to POV this scene — they don't have it at the START
-    const povLearnsThisScene = scene.continuityMutations
-      .filter((km) => km.characterId === pov.id && km.action === 'added');
-    const povLearnsNodeIds = new Set(povLearnsThisScene.map((km) => km.nodeId));
+    const povLearnsNodes = scene.continuityMutations
+      .filter((km) => km.entityId === pov.id)
+      .flatMap((km) => km.addedNodes ?? []);
+    const povLearnsNodeIds = new Set(povLearnsNodes.map((n) => n.id));
     // POV's knowledge at scene START = timeline-scoped graph - things learned this scene
     const povStartKnowledge = povKnowledge.filter((kn) => !povLearnsNodeIds.has(kn.id));
 
@@ -799,9 +820,9 @@ export function deriveLogicRules(
       const items = povStartKnowledge.map((kn) => kn.content);
       knowledgeLines.push(`  <knows-at-start count="${povStartKnowledge.length}">${items.join(' | ')}</knows-at-start>`);
     }
-    if (povLearnsThisScene.length > 0) {
-      for (const km of povLearnsThisScene) {
-        knowledgeLines.push(`  <learns-during-scene>${km.content}</learns-during-scene>`);
+    if (povLearnsNodes.length > 0) {
+      for (const node of povLearnsNodes) {
+        knowledgeLines.push(`  <learns-during-scene>${node.content}</learns-during-scene>`);
       }
     }
     if (knowledgeLines.length > 0) {
@@ -811,24 +832,24 @@ ${knowledgeLines.join('\n')}
 </knowledge-state>`);
     }
 
-    // Other participants learning this scene (non-POV)
-    const othersLearning = scene.continuityMutations
-      .filter((km) => km.characterId !== pov.id && km.action === 'added');
-    if (othersLearning.length > 0) {
-      const grouped = new Map<string, string[]>();
-      for (const km of othersLearning) {
-        const char = narrative.characters[km.characterId];
-        if (!char) continue;
-        const list = grouped.get(char.name) ?? [];
-        list.push(km.content);
-        grouped.set(char.name, list);
+    // Other entities learning this scene (non-POV)
+    const grouped = new Map<string, string[]>();
+    for (const km of scene.continuityMutations) {
+      if (km.entityId === pov.id) continue;
+      const entity = narrative.characters[km.entityId] ?? narrative.locations[km.entityId] ?? narrative.artifacts[km.entityId];
+      if (!entity) continue;
+      const name = entity.name;
+      for (const node of km.addedNodes ?? []) {
+        const list = grouped.get(name) ?? [];
+        list.push(node.content);
+        grouped.set(name, list);
       }
-      for (const [charName, items] of grouped) {
-        sections.push(`<knowledge-state character="${charName}" role="participant">
+    }
+    for (const [entityName, items] of grouped) {
+      sections.push(`<knowledge-state entity="${entityName}" role="participant">
   ${items.map((i) => `<learns-during-scene>${i}</learns-during-scene>`).join('\n  ')}
-  <constraint>Show ${charName}'s discovery only through observable reaction (expression, body language, dialogue) — not internal thoughts.</constraint>
+  <constraint>Show ${entityName}'s discovery only through observable reaction — not internal thoughts.</constraint>
 </knowledge-state>`);
-      }
     }
   }
 
@@ -840,8 +861,8 @@ ${knowledgeLines.join('\n')}
     const povKnowledgeIds = new Set(povKnowledge.map((kn) => kn.id));
     const povLearnsNodeIds = new Set(
       scene.continuityMutations
-        .filter((km) => km.characterId === pov.id && km.action === 'added')
-        .map((km) => km.nodeId),
+        .filter((km) => km.entityId === pov.id)
+        .flatMap((km) => (km.addedNodes ?? []).map(n => n.id)),
     );
 
     const asymmetryLines: string[] = [];
@@ -1040,10 +1061,11 @@ ${movementLines.join('\n')}
   const artifacts = narrative.artifacts ?? {};
   const getArtifactOwner = (a: { id: string; parentId: string }) =>
     timelineState?.artifactOwnership[a.id] ?? a.parentId;
-  const getArtifactCapabilities = (a: { continuity: { nodes: { id: string; content: string }[] } }) => {
+  const getArtifactCapabilities = (a: { continuity: { nodes: Record<string, { id: string; content: string }> } }) => {
+    const allArtNodes = Object.values(a.continuity.nodes);
     const nodes = timelineState
-      ? a.continuity.nodes.filter((n) => timelineState.liveNodeIds.has(n.id))
-      : a.continuity.nodes;
+      ? allArtNodes.filter((n) => timelineState.liveNodeIds.has(n.id))
+      : allArtNodes;
     return nodes.map((n) => n.content).join('; ');
   };
 
@@ -1203,14 +1225,13 @@ export function worldContext(
     for (const tm of entry.threadMutations) threadStatusAtPoint[tm.threadId] = tm.to;
   }
 
-  // Replay continuity mutations up to this point to know which nodes are live
+  // Replay continuity mutations up to this point to know which nodes are live (additive)
   const liveNodeIds = new Set<string>();
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
     if (entry?.kind !== 'scene') continue;
     for (const km of entry.continuityMutations) {
-      if (km.action === 'added') liveNodeIds.add(km.nodeId);
-      else liveNodeIds.delete(km.nodeId);
+      for (const node of km.addedNodes ?? []) liveNodeIds.add(node.id);
     }
   }
 
@@ -1226,7 +1247,7 @@ export function worldContext(
       .map((mc) => {
         const c = n.characters[mc.id];
         if (!c) return null;
-        const nodes = c.continuity.nodes.filter((kn) => liveNodeIds.has(kn.id));
+        const nodes = Object.values(c.continuity.nodes).filter((kn) => liveNodeIds.has(kn.id));
         const knBlock = nodes.length > 0 ? `\n${nodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`).join('\n')}` : '';
         return `  <character id="${mc.id}" name="${c.name}" role="${c.role}">${knBlock}\n  </character>`;
       })
@@ -1238,7 +1259,7 @@ export function worldContext(
         const l = n.locations[ml.id];
         if (!l) return null;
         const parent = l.parentId ? ` parent="${n.locations[l.parentId]?.name ?? l.parentId}"` : '';
-        const nodes = l.continuity.nodes.filter((kn) => liveNodeIds.has(kn.id));
+        const nodes = Object.values(l.continuity.nodes).filter((kn) => liveNodeIds.has(kn.id));
         const loreBlock = nodes.length > 0 ? `\n${nodes.map((kn) => `    <knowledge>${kn.content}</knowledge>`).join('\n')}` : '';
         return `  <location id="${ml.id}" name="${l.name}"${parent}>${loreBlock}\n  </location>`;
       })

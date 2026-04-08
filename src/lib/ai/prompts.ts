@@ -78,17 +78,22 @@ threadMutations — lifecycle: dormant→active→escalating→critical→termin
 - Prefer real transitions over pulses. Each arc: multiple real transitions.
 - CONVERGENCE CASCADE: advancing a convergent thread should pressure linked threads (minimum pulse).
 
-continuityMutations — what characters learn. Feeds Change directly.
-- Dense scenes: 2-3 per character. Normal: 0-1 total. Quiet: 0.
-- nodeType specific: "tactical_insight", "betrayal_discovered", "forbidden_technique".
+continuityMutations — inner world changes for ANY entity (character, location, artifact). Feeds Change via √(ΔN + √ΔE).
+- entityId can be a character, location, or artifact ID. Locations are kingdoms, organizations, factions. Artifacts are tools, AI, enchanted objects.
+- addedNodes: what the entity learned, became, or accumulated. Types: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
+- addedEdges: how new knowledge connects to existing nodes (caused_by, motivated_by, contradicts, reinforces, reveals).
+- Dense scenes: 2-3 nodes per entity. Normal: 0-1. Quiet: 0. Locations and artifacts accumulate as richly as characters.
+- Characters: beliefs shift, goals form, secrets are learned, weaknesses are exposed.
+- Locations: history accumulates (battles, rituals, transformations), states change, capabilities emerge, rules are imposed on characters.
+- Artifacts: provenance grows, capabilities are discovered, weaknesses are found, bonds form with wielders.
 
 relationshipMutations — valenceDelta: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
 - Include whenever characters interact meaningfully. Feeds Change via √Σ|valenceDelta|² (L2).
 
-worldKnowledgeMutations — types: "law", "system", "concept", "tension". REUSE existing IDs.
+worldKnowledgeMutations — types: "principle", "system", "concept", "tension", "event", "structure", "environment", "convention", "constraint". REUSE existing IDs.
 - Lore/revelation: 3-5+ nodes. Character scenes: 0-1 nodes.
 - World knowledge is #1 under-generated type. Most scenes: at least 1 node.
-- Add edges: "enables", "governs", "opposes", "extends".
+- Add edges: "enables", "governs", "opposes", "extends", "created_by", "constrains".
 
 ownershipMutations — artifacts changing hands. Only when narratively meaningful.
 

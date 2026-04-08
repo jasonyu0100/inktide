@@ -103,7 +103,7 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     name: `Character ${id}`,
     role: 'recurring',
     threadIds: [],
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -114,7 +114,7 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
     name: `Location ${id}`,
     parentId: null,
     threadIds: [],
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -380,8 +380,7 @@ describe('generateScenes', () => {
           events: [],
           threadMutations: [],
           continuityMutations: [
-            { characterId: 'C-01', nodeId: 'K-GEN-001', action: 'added', content: 'First knowledge', nodeType: 'fact' },
-            { characterId: 'C-01', nodeId: 'K-GEN-002', action: 'added', content: 'Second knowledge', nodeType: 'secret' },
+            { entityId: 'C-01', addedNodes: [{ id: 'K-GEN-001', content: 'First knowledge', type: 'fact' }, { id: 'K-GEN-002', content: 'Second knowledge', type: 'secret' }], addedEdges: [] },
           ],
           relationshipMutations: [],
           summary: 'Test scene',
@@ -393,9 +392,10 @@ describe('generateScenes', () => {
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, 'Test');
 
-    // Knowledge IDs should be sequential K-01, K-02 (2-digit padding)
-    expect(result.scenes[0].continuityMutations[0].nodeId).toBe('K-01');
-    expect(result.scenes[0].continuityMutations[1].nodeId).toBe('K-02');
+    // Knowledge node IDs should be sequential K-01, K-02 (2-digit padding)
+    const nodes = result.scenes[0].continuityMutations[0].addedNodes;
+    expect(nodes[0].id).toBe('K-01');
+    expect(nodes[1].id).toBe('K-02');
   });
 
   it('retries on JSON parse failure', async () => {

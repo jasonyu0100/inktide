@@ -72,11 +72,11 @@ describe('computeSlidesData', () => {
   it('counts entities correctly', () => {
     const n = createMinimalNarrative({
       characters: {
-        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
-        c2: { id: 'c2', name: 'Sidekick', role: 'recurring', continuity: { nodes: [] }, threadIds: [] },
+        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
+        c2: { id: 'c2', name: 'Sidekick', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] },
+        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
         t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
@@ -93,10 +93,10 @@ describe('computeSlidesData', () => {
   it('processes scenes and computes force snapshots', () => {
     const n = createMinimalNarrative({
       characters: {
-        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
+        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] },
+        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
         t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
@@ -105,7 +105,7 @@ describe('computeSlidesData', () => {
         s1: createScene('s1', {
           threadMutations: [{ threadId: 't1', from: 'dormant', to: 'active' }],
           continuityMutations: [
-            { characterId: 'c1', nodeId: 'n1', action: 'added', content: 'Learned something', nodeType: 'knowledge' },
+            { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'Learned something', type: 'belief' }], addedEdges: [] },
           ],
           events: ['event_1', 'event_2'],
         }),
@@ -167,8 +167,8 @@ describe('computeSlidesData', () => {
   it('computes top characters by participation', () => {
     const n = createMinimalNarrative({
       characters: {
-        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
-        c2: { id: 'c2', name: 'Mentor', role: 'recurring', continuity: { nodes: [] }, threadIds: [] },
+        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
+        c2: { id: 'c2', name: 'Mentor', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       scenes: {
         s1: createScene('s1', { participantIds: ['c1', 'c2'] }),
@@ -189,8 +189,8 @@ describe('computeSlidesData', () => {
   it('computes top locations by usage', () => {
     const n = createMinimalNarrative({
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] },
-        loc2: { id: 'loc2', name: 'Forest', parentId: null, continuity: { nodes: [] }, threadIds: [] },
+        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
+        loc2: { id: 'loc2', name: 'Forest', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       scenes: {
         s1: createScene('s1', { locationId: 'loc1' }),
@@ -216,8 +216,7 @@ describe('computeSlidesData', () => {
         }),
         s2: createScene('s2', {
           continuityMutations: [
-            { characterId: 'c1', nodeId: 'n1', action: 'added', content: 'K1', nodeType: 'knowledge' },
-            { characterId: 'c1', nodeId: 'n2', action: 'added', content: 'K2', nodeType: 'knowledge' },
+            { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'K1', type: 'belief' }, { id: 'n2', content: 'K2', type: 'belief' }], addedEdges: [] },
           ],
         }),
       },
@@ -238,10 +237,10 @@ describe('computeSlidesData', () => {
   it('builds name lookup maps', () => {
     const n = createMinimalNarrative({
       characters: {
-        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: [] }, threadIds: [] },
+        c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] },
+        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
         t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },

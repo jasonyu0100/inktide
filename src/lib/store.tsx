@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useReducer, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import type { AppState, InspectorContext, NarrativeState, NarrativeEntry, WizardStep, WizardData, Scene, Arc, Branch, Character, Location, Thread, RelationshipEdge, GraphViewMode, AutoConfig, AutoRunLog, WorldBuild, WorldKnowledgeGraph, WorldKnowledgeNode, WorldKnowledgeEdge, WorldKnowledgeMutation, ApiLogEntry, SystemLogEntry, StorySettings, AnalysisJob, ChatThread, ChatMessage, Note, PlanningQueue, PlanningPhase, Artifact, StructureReview, ProseEvaluation, PlanEvaluation, WorldSystem, ProseProfile, BeatProfilePreset, MechanismProfilePreset, BeatPlan, BeatProseMap, ProseScore, SearchQuery } from '@/types/narrative';
+import { EMPTY_CONTINUITY, applyContinuityMutation } from '@/lib/continuity-graph';
 import { resolveEntrySequence, nextId, computeForceSnapshots, computeSwingMagnitudes, computeDeliveryCurve, classifyNarrativeShape, classifyArchetype, classifyScale, classifyWorldDensity, gradeForces, computeRawForceTotals, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 import { initMatrixPresets } from '@/lib/pacing-profile';
 import { initBeatProfilePresets } from '@/lib/beat-profiles';
@@ -46,7 +47,7 @@ function computeDerivedEntities(
     const wb = worldBuilds[key];
     if (wb) {
       for (const c of wb.expansionManifest.characters) {
-        characters[c.id] = { ...c, continuity: { nodes: [] } };
+        characters[c.id] = { ...c, continuity: EMPTY_CONTINUITY };
       }
       for (const l of wb.expansionManifest.locations) {
         locations[l.id] = { ...l };
@@ -63,16 +64,16 @@ function computeDerivedEntities(
       for (const a of wb.expansionManifest.artifacts ?? []) {
         const existing = artifacts[a.id];
         if (existing) {
-          // Merge: update fields, accumulate continuity nodes
-          const existingNodeIds = new Set(existing.continuity.nodes.map((n) => n.id));
-          const newNodes = (a.continuity?.nodes ?? []).filter((n) => !existingNodeIds.has(n.id));
+          // Merge: update fields, accumulate continuity nodes and edges
+          const mergedNodes = { ...existing.continuity.nodes, ...a.continuity.nodes };
+          const mergedEdges = [...existing.continuity.edges, ...a.continuity.edges];
           artifacts[a.id] = {
             ...existing,
             ...a,
-            continuity: { nodes: [...existing.continuity.nodes, ...newNodes] },
+            continuity: { nodes: mergedNodes, edges: mergedEdges },
           };
         } else {
-          artifacts[a.id] = { ...a, continuity: a.continuity ?? { nodes: [] } };
+          artifacts[a.id] = { ...a };
         }
       }
       // Collect world knowledge
@@ -81,27 +82,16 @@ function computeDerivedEntities(
       const scene = scenes[key];
       if (!scene) continue;
       for (const km of scene.continuityMutations ?? []) {
-        // Continuity mutations can target characters or artifacts (same field: characterId)
-        const char = characters[km.characterId];
-        const art = artifacts[km.characterId];
-        if (!char && !art) continue;
-        const newNode = { id: km.nodeId, type: km.nodeType ?? 'learned', content: km.content };
+        // Continuity mutations can target characters, locations, or artifacts
+        const char = characters[km.entityId];
+        const loc = locations[km.entityId];
+        const art = artifacts[km.entityId];
         if (char) {
-          if (km.action === 'added') {
-            if (!char.continuity.nodes.some((n) => n.id === km.nodeId)) {
-              characters[km.characterId] = { ...char, continuity: { nodes: [...char.continuity.nodes, newNode] } };
-            }
-          } else if (km.action === 'removed') {
-            characters[km.characterId] = { ...char, continuity: { nodes: char.continuity.nodes.filter((n) => n.id !== km.nodeId) } };
-          }
+          characters[km.entityId] = { ...char, continuity: applyContinuityMutation(char.continuity, km) };
+        } else if (loc) {
+          locations[km.entityId] = { ...loc, continuity: applyContinuityMutation(loc.continuity, km) };
         } else if (art) {
-          if (km.action === 'added') {
-            if (!art.continuity.nodes.some((n) => n.id === km.nodeId)) {
-              artifacts[km.characterId] = { ...art, continuity: { nodes: [...art.continuity.nodes, newNode] } };
-            }
-          } else if (km.action === 'removed') {
-            artifacts[km.characterId] = { ...art, continuity: { nodes: art.continuity.nodes.filter((n) => n.id !== km.nodeId) } };
-          }
+          artifacts[km.entityId] = { ...art, continuity: applyContinuityMutation(art.continuity, km) };
         }
       }
       for (const tm of scene.threadMutations ?? []) {
@@ -136,13 +126,23 @@ function computeDerivedEntities(
     }
   }
 
-  // Compute threadIds on characters from thread participants
+  // Compute threadIds on all entities from thread participants
   for (const thread of Object.values(threads)) {
     for (const anchor of thread.participants) {
       if (anchor.type === 'character' && characters[anchor.id]) {
         const char = characters[anchor.id];
         if (!char.threadIds.includes(thread.id)) {
           characters[anchor.id] = { ...char, threadIds: [...char.threadIds, thread.id] };
+        }
+      } else if (anchor.type === 'location' && locations[anchor.id]) {
+        const loc = locations[anchor.id];
+        if (!loc.threadIds.includes(thread.id)) {
+          locations[anchor.id] = { ...loc, threadIds: [...loc.threadIds, thread.id] };
+        }
+      } else if (anchor.type === 'artifact' && artifacts[anchor.id]) {
+        const art = artifacts[anchor.id];
+        if (!art.threadIds.includes(thread.id)) {
+          artifacts[anchor.id] = { ...art, threadIds: [...art.threadIds, thread.id] };
         }
       }
     }
@@ -180,12 +180,18 @@ export function narrativeToEntry(n: NarrativeState): NarrativeEntry {
   const scale = classifyScale(allScenes.length);
   scaleKey = scale.key;
   scaleName = scale.name;
+  // Entity continuity graph density — total nodes and edges across all entities
+  const allEntities = [...Object.values(n.characters), ...Object.values(n.locations), ...Object.values(n.artifacts ?? {})];
+  const entityContinuityNodes = allEntities.reduce((sum, e) => sum + Object.keys(e.continuity?.nodes ?? {}).length, 0);
+  const entityContinuityEdges = allEntities.reduce((sum, e) => sum + (e.continuity?.edges?.length ?? 0), 0);
   const density = classifyWorldDensity(
     allScenes.length,
     Object.keys(n.characters).length,
     Object.keys(n.locations).length,
     Object.keys(n.threads).length,
     Object.keys(n.worldKnowledge?.nodes ?? {}).length,
+    entityContinuityNodes,
+    entityContinuityEdges,
   );
   densityKey = density.key;
   densityName = density.name;
@@ -276,6 +282,7 @@ const initialState: AppState = {
   activeBranchId: null,
   resolvedEntryKeys: [],
   inspectorContext: null,
+  inspectorHistory: [],
   wizardOpen: false,
   wizardStep: 'form',
   wizardData: { title: '', premise: '', characters: [], locations: [], threads: [], rules: [], worldSystems: [] },
@@ -317,6 +324,7 @@ export type Action =
   | { type: 'PREV_SCENE' }
   | { type: 'SET_SCENE_INDEX'; index: number }
   | { type: 'SET_INSPECTOR'; context: InspectorContext | null }
+  | { type: 'INSPECTOR_BACK' }
   | { type: 'OPEN_WIZARD'; prefill?: string; prefillData?: Partial<WizardData> }
   | { type: 'CLOSE_WIZARD' }
   | { type: 'SET_WIZARD_STEP'; step: WizardStep }
@@ -470,8 +478,17 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'SET_SCENE_INDEX':
       return { ...state, currentSceneIndex: action.index };
-    case 'SET_INSPECTOR':
-      return { ...state, inspectorContext: action.context };
+    case 'SET_INSPECTOR': {
+      // Push current context to history stack before navigating (max 20 entries)
+      const history = state.inspectorContext
+        ? [...state.inspectorHistory.slice(-19), state.inspectorContext]
+        : state.inspectorHistory;
+      return { ...state, inspectorContext: action.context, inspectorHistory: action.context ? history : [] };
+    }
+    case 'INSPECTOR_BACK': {
+      const prev = state.inspectorHistory[state.inspectorHistory.length - 1] ?? null;
+      return { ...state, inspectorContext: prev, inspectorHistory: state.inspectorHistory.slice(0, -1) };
+    }
     case 'OPEN_WIZARD':
       return { ...state, wizardOpen: true, wizardStep: action.prefillData ? 'details' : 'form', wizardData: { title: '', premise: action.prefill ?? '', characters: [], locations: [], threads: [], rules: [], worldSystems: [], ...action.prefillData } };
     case 'CLOSE_WIZARD':

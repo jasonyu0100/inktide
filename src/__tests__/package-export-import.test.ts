@@ -201,7 +201,7 @@ describe('Package Export/Import', () => {
         id: 'char1',
         name: 'Character 1',
         role: 'anchor',
-        continuity: { nodes: [] },
+        continuity: { nodes: {}, edges: [] },
         threadIds: [],
         imageUrl: charImg,
       } as Character;
@@ -211,7 +211,7 @@ describe('Package Export/Import', () => {
         name: 'Location 1',
         parentId: null,
         threadIds: [],
-        continuity: { nodes: [] },
+        continuity: { nodes: {}, edges: [] },
         imageUrl: locImg,
       } as Location;
 

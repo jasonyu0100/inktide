@@ -11,17 +11,27 @@ type Props = {
 };
 
 const TYPE_COLORS: Record<WorldKnowledgeNodeType, string> = {
-  law: 'bg-amber-400',
+  principle: 'bg-amber-400',
   system: 'bg-sky-400',
   concept: 'bg-violet-400',
   tension: 'bg-rose-400',
+  event: 'bg-orange-400',
+  structure: 'bg-teal-400',
+  environment: 'bg-emerald-400',
+  convention: 'bg-indigo-400',
+  constraint: 'bg-red-400',
 };
 
 const TYPE_TEXT: Record<WorldKnowledgeNodeType, string> = {
-  law: 'text-amber-400',
+  principle: 'text-amber-400',
   system: 'text-sky-400',
   concept: 'text-violet-400',
   tension: 'text-rose-400',
+  event: 'text-orange-400',
+  structure: 'text-teal-400',
+  environment: 'text-emerald-400',
+  convention: 'text-indigo-400',
+  constraint: 'text-red-400',
 };
 
 export default function KnowledgeDetail({ nodeId }: Props) {

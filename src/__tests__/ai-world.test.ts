@@ -28,7 +28,7 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     name: `Character ${id}`,
     role: 'recurring',
     threadIds: [],
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -39,7 +39,7 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
     name: `Location ${id}`,
     parentId: null,
     threadIds: [],
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     ...overrides,
   };
 }

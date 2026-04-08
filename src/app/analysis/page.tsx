@@ -271,7 +271,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       character: { cls: 'text-white/90', glow: 'rgba(255,255,255,0.12)' },
       location: { cls: 'text-emerald-400', glow: 'rgba(52,211,153,0.18)' },
       thread: { cls: 'text-sky-400', glow: 'rgba(56,189,248,0.15)' },
-      knowledge: { cls: node.knowledgeType === 'law' ? 'text-yellow-300' : node.knowledgeType === 'system' ? 'text-teal-400' : node.knowledgeType === 'tension' ? 'text-rose-400' : 'text-violet-400', glow: node.knowledgeType === 'law' ? 'rgba(253,224,71,0.18)' : node.knowledgeType === 'system' ? 'rgba(45,212,191,0.15)' : node.knowledgeType === 'tension' ? 'rgba(251,113,133,0.18)' : 'rgba(167,139,250,0.18)' },
+      knowledge: { cls: node.knowledgeType === 'principle' ? 'text-yellow-300' : node.knowledgeType === 'system' ? 'text-teal-400' : node.knowledgeType === 'tension' ? 'text-rose-400' : node.knowledgeType === 'event' ? 'text-orange-300' : node.knowledgeType === 'structure' ? 'text-teal-300' : 'text-violet-400', glow: node.knowledgeType === 'principle' ? 'rgba(253,224,71,0.18)' : node.knowledgeType === 'system' ? 'rgba(45,212,191,0.15)' : node.knowledgeType === 'tension' ? 'rgba(251,113,133,0.18)' : 'rgba(167,139,250,0.18)' },
       artifact: { cls: node.significance === 'key' ? 'text-orange-300' : node.significance === 'notable' ? 'text-orange-400' : 'text-orange-600', glow: 'rgba(251,146,60,0.18)' },
     };
     const styles = styleMap[node.type];
@@ -861,7 +861,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         if (!result) return null;
         const wkNodes = (result.scenes ?? []).flatMap((s) => s.worldKnowledgeMutations?.addedNodes ?? []);
         const wkEdges = (result.scenes ?? []).flatMap((s) => s.worldKnowledgeMutations?.addedEdges ?? []);
-        const wkTypeColors: Record<string, string> = { law: 'text-amber-400', system: 'text-sky-400', concept: 'text-violet-400', tension: 'text-rose-400' };
+        const wkTypeColors: Record<string, string> = { principle: 'text-amber-400', system: 'text-sky-400', concept: 'text-violet-400', tension: 'text-rose-400', event: 'text-orange-400', structure: 'text-teal-400', environment: 'text-emerald-400', convention: 'text-indigo-400', constraint: 'text-red-400' };
         return (
           <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${chunkPanelHeight}vh` }}>
             {/* Drag handle */}

@@ -784,7 +784,7 @@ export default function PaperPage() {
                 <span className="text-white/25 shrink-0">3.</span>
                 <span>
                   <B>Knowledge graph mutations</B> — additions to the world-building
-                  graph: nodes (laws, systems, concepts) and typed edges (causal links, hierarchies, thematic connections). Depth emerges from connectivity, not lexical volume.
+                  graph: nodes (principles, systems, concepts, tensions, events, structures, environments, conventions, constraints) and typed edges. Depth emerges from connectivity, not lexical volume.
                 </span>
               </li>
             </ul>
@@ -1241,18 +1241,22 @@ export default function PaperPage() {
                 same mutation count score identically.
               </P>
               <Eq
-                tex={String.raw`C = \sqrt{\Delta M} \;+\; \sqrt{\Delta E} \;+\; \sqrt{\Delta R}`}
+                tex={String.raw`C = \sqrt{\Delta N_c + \sqrt{\Delta E_c}} \;+\; \sqrt{\Delta E} \;+\; \sqrt{\Delta R}`}
               />
               <P>
-                <Tex>{String.raw`\Delta M`}</Tex> counts continuity mutations
-                (learns, loses, becomes, realizes), <Tex>{String.raw`\Delta E`}</Tex>{" "}
+                The first term uses a miniature Knowledge formula inside the
+                square root: <Tex>{String.raw`\Delta N_c`}</Tex> counts continuity nodes
+                added to entity inner worlds (traits, beliefs, goals, secrets),
+                and <Tex>{String.raw`\Delta E_c`}</Tex> counts continuity edges
+                (causal connections between inner-world facts). This recursive
+                structure reflects that Change deepens not just through accumulation
+                but through structural density — a character who gains three
+                connected beliefs is more transformed than one who gains three
+                unrelated facts. <Tex>{String.raw`\Delta E`}</Tex>{" "}
                 counts scene events, and <Tex>{String.raw`\Delta R = \sum |\Delta v|^2`}</Tex>{" "}
                 sums squared relationship valence shifts. The L2 aggregation
                 amplifies large shifts — a betrayal at <Tex>{String.raw`|\Delta v| = 0.5`}</Tex>{" "}
                 contributes 25× more than casual banter at <Tex>{String.raw`|\Delta v| = 0.1`}</Tex>.
-                The outer square root then compresses the result, preserving
-                sensitivity to dramatic spikes while preventing any single term
-                from overwhelming the others.
               </P>
             </div>
 
@@ -1269,7 +1273,7 @@ export default function PaperPage() {
               <Eq tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
               <P>
                 <Tex>{"\\Delta N"}</Tex> counts new nodes added to the graph
-                (laws, systems, concepts, tensions), and <Tex>{"\\Delta E"}</Tex>{" "}
+                (principles, systems, concepts, tensions, events, structures), and <Tex>{"\\Delta E"}</Tex>{" "}
                 counts new typed edges. Nodes scale linearly because each represents
                 genuinely new information. Edges scale sub-linearly (square root)
                 because early connections matter more than later ones — this prevents

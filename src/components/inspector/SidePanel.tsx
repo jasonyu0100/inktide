@@ -11,6 +11,7 @@ import ThreadDetail from './ThreadDetail';
 import ArcDetail from './ArcDetail';
 import KnowledgeDetail from './KnowledgeDetail';
 import ArtifactDetail from './ArtifactDetail';
+import ContinuityNodeDetail from './ContinuityNodeDetail';
 import ChatPanel from '@/components/sidebar/ChatPanel';
 import NotesPanel from '@/components/sidebar/NotesPanel';
 import BranchEval from '@/components/timeline/BranchEval';
@@ -84,7 +85,7 @@ function getDefaultContext(state: ReturnType<typeof useStore>['state']) {
 }
 
 export default function SidePanel() {
-  const { state } = useStore();
+  const { state, dispatch } = useStore();
   const ctx = state.inspectorContext ?? getDefaultContext(state);
   const [tab, setTab] = useState<Tab>('inspector');
   const [evalMode, setEvalMode] = useState<'branch' | 'prose' | 'plan' | 'continuity'>('branch');
@@ -108,6 +109,8 @@ export default function SidePanel() {
         return <KnowledgeDetail nodeId={ctx.nodeId} />;
       case 'artifact':
         return <ArtifactDetail artifactId={ctx.artifactId} />;
+      case 'continuity':
+        return <ContinuityNodeDetail entityId={ctx.entityId} nodeId={ctx.nodeId} />;
       default:
         return <EmptyState />;
     }
@@ -140,8 +143,21 @@ export default function SidePanel() {
       {/* Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {tab === 'inspector' && (
-          <div className="flex-1 overflow-y-auto p-4 min-h-0">
-            {renderInspector()}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {state.inspectorHistory.length > 0 && (
+              <div className="sticky top-0 z-10 flex items-center gap-1 px-3 py-1.5 border-b border-border bg-bg-base/90 backdrop-blur-sm">
+                <button
+                  onClick={() => dispatch({ type: 'INSPECTOR_BACK' })}
+                  className="text-[10px] text-text-dim hover:text-text-secondary transition-colors flex items-center gap-1"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Back
+                </button>
+              </div>
+            )}
+            <div className="p-4">
+              {renderInspector()}
+            </div>
           </div>
         )}
         {tab === 'chat' && (

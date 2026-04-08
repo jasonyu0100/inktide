@@ -51,7 +51,7 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     name: `Character ${id}`,
     role: 'recurring',
     threadIds: [],
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -62,7 +62,7 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
     name: `Location ${id}`,
     parentId: null,
     threadIds: [],
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -846,8 +846,8 @@ describe('buildOutlineDirective', () => {
         kind: 'world_build',
         summary: 'test',
         expansionManifest: {
-          characters: [{ id: 'char-unused', name: 'Unused Char', role: 'recurring', continuity: { nodes: [] }, threadIds: [] }],
-          locations: [{ id: 'loc-unused', name: 'Unused Location', parentId: null, continuity: { nodes: [] }, threadIds: [] }],
+          characters: [{ id: 'char-unused', name: 'Unused Char', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] }],
+          locations: [{ id: 'loc-unused', name: 'Unused Location', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] }],
           threads: [{ id: 'T-unused', description: 'Unused thread', participants: [], status: 'dormant', openedAt: 's1', dependents: [] }],
           artifacts: [],
           relationships: [],
@@ -875,8 +875,8 @@ describe('buildOutlineDirective', () => {
         kind: 'world_build',
         summary: 'test',
         expansionManifest: {
-          characters: [{ id: 'char-1', name: 'Alice', role: 'recurring', continuity: { nodes: [] }, threadIds: [] }],
-          locations: [{ id: 'loc-1', name: 'Castle', parentId: null, continuity: { nodes: [] }, threadIds: [] }],
+          characters: [{ id: 'char-1', name: 'Alice', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] }],
+          locations: [{ id: 'loc-1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] }],
           threads: [],
           artifacts: [],
           relationships: [],

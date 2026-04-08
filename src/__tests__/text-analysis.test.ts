@@ -47,7 +47,7 @@ function createMockAnalysisResult(index: number): AnalysisChunkResult {
         firstAppearance: true,
         imagePrompt: 'A young woman',
         continuity: [
-          { type: 'knowledge', content: `Alice knows something ${index}` },
+          { type: 'belief', content: `Alice knows something ${index}` },
         ],
       },
     ],
@@ -85,7 +85,7 @@ function createMockAnalysisResult(index: number): AnalysisChunkResult {
             characterName: `Alice${index}`,
             action: 'learned',
             content: 'Something important',
-            type: 'knowledge',
+            type: 'belief',
           },
         ],
         relationshipMutations: [],
@@ -283,7 +283,7 @@ describe('analyzeChunkParallel', () => {
         role: 'main',
         firstAppearance: true,
         continuity: [
-          { type: 'knowledge', content: 'Valid knowledge' },
+          { type: 'belief', content: 'Valid knowledge' },
           { type: 'goal', content: 'Valid goal' },
         ],
       }],
@@ -302,7 +302,7 @@ describe('analyzeChunkParallel', () => {
 
     // Verify continuity is returned as-is
     expect(result.characters[0].continuity.length).toBe(2);
-    expect(result.characters[0].continuity[0].type).toBe('knowledge');
+    expect(result.characters[0].continuity[0].type).toBe('belief');
     expect(result.characters[0].continuity[1].type).toBe('goal');
   });
 });

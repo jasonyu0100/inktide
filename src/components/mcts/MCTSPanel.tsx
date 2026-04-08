@@ -1006,20 +1006,19 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           {scene.continuityMutations.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Continuity</h3>
-              {scene.continuityMutations.map((km, j) => {
-                const charName = node.virtualNarrative.characters[km.characterId]?.name ?? km.characterId;
-                return (
-                  <div key={j} className="flex flex-col gap-0.5 text-xs">
+              {scene.continuityMutations.flatMap((km, j) => {
+                const n = node.virtualNarrative;
+                const entityName = n.characters[km.entityId]?.name ?? n.locations[km.entityId]?.name ?? n.artifacts[km.entityId]?.name ?? km.entityId;
+                return (km.addedNodes ?? []).map((nd, k) => (
+                  <div key={`${j}-${k}`} className="flex flex-col gap-0.5 text-xs">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-text-primary">{charName}</span>
-                      <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
-                        {km.action === 'added' ? '+' : '−'}
-                      </span>
-                      <span className="font-mono text-[10px] text-text-dim">{km.nodeId}</span>
+                      <span className="text-text-primary">{entityName}</span>
+                      <span className="text-change">+</span>
+                      <span className="font-mono text-[10px] text-text-dim">{nd.id}</span>
                     </div>
-                    <span className="text-text-secondary pl-2">{km.content}</span>
+                    <span className="text-text-secondary pl-2">{nd.content}</span>
                   </div>
-                );
+                ));
               })}
             </div>
           )}

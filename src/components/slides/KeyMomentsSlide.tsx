@@ -111,7 +111,9 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
     .filter((id) => id !== scene.povId)
     .map((id) => data.characterNames[id] ?? id);
 
-  const knowledgeGains = scene.continuityMutations?.filter((km) => km.action === 'added') ?? [];
+  const knowledgeGains = (scene.continuityMutations ?? []).flatMap((km) =>
+    (km.addedNodes ?? []).map((node) => ({ entityId: km.entityId, content: node.content }))
+  );
 
   const accentText = isPeak ? 'text-amber-400' : 'text-blue-300';
 
@@ -237,10 +239,10 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
             <div>
               <div className="text-[9px] uppercase tracking-widest text-text-dim mb-1.5">Knowledge Gained</div>
               <div className="space-y-1">
-                {knowledgeGains.slice(0, 4).map((km, i) => (
+                {knowledgeGains.slice(0, 4).map((kg, i) => (
                   <div key={i} className="text-[10px] flex gap-2">
-                    <span className="text-text-primary font-medium shrink-0">{data.characterNames[km.characterId] ?? km.characterId}</span>
-                    <span className="text-text-dim truncate">{km.content}</span>
+                    <span className="text-text-primary font-medium shrink-0">{data.characterNames[kg.entityId] ?? kg.entityId}</span>
+                    <span className="text-text-dim truncate">{kg.content}</span>
                   </div>
                 ))}
                 {knowledgeGains.length > 4 && (

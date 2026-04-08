@@ -22,11 +22,16 @@ const roleClasses: Record<CharacterRole, string> = {
   transient: 'text-text-dim',
 };
 
-const continuityDotColors: Record<ContinuityNodeType, string> = {
-  knows: 'bg-white',
-  believes: 'bg-white/40',
-  secret: 'bg-[#F59E0B]',
-  goal: 'bg-[#3B82F6]',
+const continuityDotColors: Record<string, string> = {
+  trait: 'bg-violet-400',
+  state: 'bg-emerald-400',
+  history: 'bg-amber-400',
+  capability: 'bg-blue-400',
+  belief: 'bg-pink-300',
+  relation: 'bg-purple-400',
+  secret: 'bg-amber-500',
+  goal: 'bg-sky-400',
+  weakness: 'bg-red-400',
 };
 
 const PAGE_SIZE = INSPECTOR_PAGE_SIZE;
@@ -104,7 +109,7 @@ export default function CharacterDetail({ characterId }: Props) {
   const currentSceneKey = state.resolvedEntryKeys[state.currentSceneIndex];
   const currentScene = currentSceneKey ? narrative.scenes[currentSceneKey] : null;
   const recentContinuityMuts = currentScene
-    ? currentScene.continuityMutations.filter((m) => m.characterId === characterId)
+    ? currentScene.continuityMutations.filter((m) => m.entityId === characterId)
     : [];
   const recentRelationshipMuts = currentScene
     ? currentScene.relationshipMutations.filter((rm) => rm.from === characterId || rm.to === characterId)
@@ -125,7 +130,7 @@ export default function CharacterDetail({ characterId }: Props) {
     .filter((s) => s && s.participantIds.includes(characterId))
     .map((s) => ({
       sceneId: s.id,
-      continuityMuts: s.continuityMutations.filter((km) => km.characterId === characterId),
+      continuityMuts: s.continuityMutations.filter((km) => km.entityId === characterId),
       relationshipMuts: s.relationshipMutations.filter(
         (rm) => rm.from === characterId || rm.to === characterId,
       ),
@@ -207,14 +212,14 @@ export default function CharacterDetail({ characterId }: Props) {
         if (recentContinuityMuts.length > 0) {
           groups.push(
             <ul key="continuity" className="flex flex-col gap-0.5">
-              {recentContinuityMuts.map((km, kmIdx) => (
-                <li key={`${km.nodeId}-${kmIdx}`} className="flex items-start gap-1">
-                  <span className={`shrink-0 ${km.action === 'added' ? 'text-change' : 'text-payoff'}`}>
-                    {km.action === 'added' ? '+' : '\u2212'}
-                  </span>
-                  <span className="text-xs text-text-secondary">{km.content}</span>
-                </li>
-              ))}
+              {recentContinuityMuts.flatMap((km, kmIdx) =>
+                (km.addedNodes ?? []).map((node, nIdx) => (
+                  <li key={`${node.id}-${kmIdx}-${nIdx}`} className="flex items-start gap-1">
+                    <span className="shrink-0 text-change">+</span>
+                    <span className="text-xs text-text-secondary">{node.content}</span>
+                  </li>
+                ))
+              )}
             </ul>
           );
         }
@@ -354,7 +359,13 @@ export default function CharacterDetail({ characterId }: Props) {
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-text-primary flex items-center gap-1">
                         <span className="text-text-dim">{arrow}</span>
-                        {other?.name ?? otherId}
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: otherId } })}
+                          className="hover:underline transition-colors"
+                        >
+                          {other?.name ?? otherId}
+                        </button>
                       </span>
                       <span className="text-[10px] text-text-dim">{rel.type}</span>
                     </div>
@@ -396,14 +407,14 @@ export default function CharacterDetail({ characterId }: Props) {
                   >
                     {sceneId}
                   </button>
-                  {continuityMuts.map((km, kmIdx) => (
-                    <span key={`${km.nodeId}-${kmIdx}`} className="text-xs text-text-secondary">
-                      <span className={km.action === 'added' ? 'text-change' : 'text-payoff'}>
-                        {km.action === 'added' ? '+' : '−'}
-                      </span>{' '}
-                      {km.content}
-                    </span>
-                  ))}
+                  {continuityMuts.flatMap((km, kmIdx) =>
+                    (km.addedNodes ?? []).map((node, nIdx) => (
+                      <span key={`${node.id}-${kmIdx}-${nIdx}`} className="text-xs text-text-secondary">
+                        <span className="text-change">+</span>{' '}
+                        {node.content}
+                      </span>
+                    ))
+                  )}
                   {relationshipMuts.map((rm, rmIdx) => {
                     const otherId = rm.from === characterId ? rm.to : rm.from;
                     const otherName = narrative.characters[otherId]?.name ?? otherId;

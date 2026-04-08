@@ -45,7 +45,7 @@ function createCharacter(id: string): Character {
     id,
     name: `Character ${id}`,
     role: 'anchor',
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     threadIds: [],
   };
 }
@@ -211,11 +211,9 @@ describe('buildVirtualState', () => {
     rootNarrative.characters['C-01'] = createCharacter('C-01');
 
     const continuityMutation: ContinuityMutation = {
-      characterId: 'C-01',
-      nodeId: 'K-01',
-      action: 'added',
-      content: 'Learned a secret',
-      nodeType: 'learned',
+      entityId: 'C-01',
+      addedNodes: [{ id: 'K-01', content: 'Learned a secret', type: 'belief' }],
+      addedEdges: [],
     };
     const scene = createScene('S-001', { continuityMutations: [continuityMutation] });
     const arc = createArc('ARC-01', ['S-001']);
@@ -229,21 +227,20 @@ describe('buildVirtualState', () => {
     );
 
     const char = result.narrative.characters['C-01'];
-    expect(char.continuity.nodes.some((n) => n.id === 'K-01')).toBe(true);
+    expect(char.continuity.nodes['K-01']).toBeDefined();
   });
 
-  it('applies continuity mutations (removed)', () => {
+  it('applies continuity mutations with edges', () => {
     const rootNarrative = createMinimalNarrative();
-    const char = createCharacter('C-01');
-    char.continuity.nodes = [{ id: 'K-01', type: 'learned', content: 'Old knowledge' }];
-    rootNarrative.characters['C-01'] = char;
+    rootNarrative.characters['C-01'] = createCharacter('C-01');
 
     const continuityMutation: ContinuityMutation = {
-      characterId: 'C-01',
-      nodeId: 'K-01',
-      action: 'removed',
-      content: '',
-      nodeType: 'learned',
+      entityId: 'C-01',
+      addedNodes: [
+        { id: 'K-01', content: 'Initial fact', type: 'belief' },
+        { id: 'K-02', content: 'Connected fact', type: 'belief' },
+      ],
+      addedEdges: [{ from: 'K-01', to: 'K-02', relation: 'caused_by' }],
     };
     const scene = createScene('S-001', { continuityMutations: [continuityMutation] });
     const arc = createArc('ARC-01', ['S-001']);
@@ -256,8 +253,11 @@ describe('buildVirtualState', () => {
       'main'
     );
 
-    const updatedChar = result.narrative.characters['C-01'];
-    expect(updatedChar.continuity.nodes.some((n) => n.id === 'K-01')).toBe(false);
+    const char = result.narrative.characters['C-01'];
+    expect(char.continuity.nodes['K-01']).toBeDefined();
+    expect(char.continuity.nodes['K-02']).toBeDefined();
+    expect(char.continuity.edges).toHaveLength(1);
+    expect(char.continuity.edges[0].relation).toBe('caused_by');
   });
 
   it('applies relationship mutations (new relationship)', () => {
@@ -417,7 +417,7 @@ describe('scoreArc', () => {
   it('returns positive score for scenes with mutations', () => {
     const scene = createScene('S-001', {
       threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active' }],
-      continuityMutations: [{ characterId: 'C-01', nodeId: 'K-01', action: 'added', content: 'x', nodeType: 'fact' }],
+      continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'fact' }], addedEdges: [] }],
       events: ['event1'],
     });
 
@@ -449,7 +449,7 @@ describe('scoreArc', () => {
         { threadId: 'T-01', from: 'dormant', to: 'resolved' },
         { threadId: 'T-02', from: 'active', to: 'critical' },
       ],
-      continuityMutations: Array(5).fill({ characterId: 'C-01', nodeId: 'K-01', action: 'added', content: 'x', nodeType: 'fact' }),
+      continuityMutations: Array(5).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'fact' }], addedEdges: [] }),
       events: ['event1', 'event2', 'event3'],
       worldKnowledgeMutations: {
         addedNodes: [{ id: 'WK-01', concept: 'x', type: 'system' }],
@@ -491,7 +491,7 @@ describe('scoreScene', () => {
 
     const currentScene = createScene('S-002', {
       threadMutations: [{ threadId: 'T-01', from: 'active', to: 'resolved' }],
-      continuityMutations: Array(3).fill({ characterId: 'C-01', nodeId: 'K-01', action: 'added', content: 'x', nodeType: 'fact' }),
+      continuityMutations: Array(3).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'fact' }], addedEdges: [] }),
     });
 
     const scoreWithPrior = scoreScene(currentScene, [priorScene]);

@@ -128,7 +128,7 @@ describe('Static Prompt Constants', () => {
 
     it('describes continuityMutations', () => {
       expect(PROMPT_MUTATIONS).toContain('continuityMutations');
-      expect(PROMPT_MUTATIONS).toContain('characters learn');
+      expect(PROMPT_MUTATIONS).toContain('inner world changes');
     });
 
     it('describes relationshipMutations', () => {
@@ -138,7 +138,7 @@ describe('Static Prompt Constants', () => {
 
     it('describes worldKnowledgeMutations', () => {
       expect(PROMPT_MUTATIONS).toContain('worldKnowledgeMutations');
-      expect(PROMPT_MUTATIONS).toContain('law');
+      expect(PROMPT_MUTATIONS).toContain('principle');
       expect(PROMPT_MUTATIONS).toContain('system');
     });
   });

@@ -21,10 +21,10 @@ function createWorldBuild(
     id,
     summary: `World build ${id}`,
     expansionManifest: {
-      characters: characters.map((c) => ({ id: c.id, name: `Char ${c.id}`, role: 'anchor' as const, continuity: { nodes: [] }, threadIds: [] })),
-      locations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, parentId: null, continuity: { nodes: [] }, threadIds: [] })),
+      characters: characters.map((c) => ({ id: c.id, name: `Char ${c.id}`, role: 'anchor' as const, continuity: { nodes: {}, edges: [] }, threadIds: [] })),
+      locations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, prominence: 'place' as const, parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] })),
       threads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, status: 'dormant' as const, participants: [], dependents: [], openedAt: 'S-001' })),
-      artifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key' as const, parentId: 'C-01', continuity: { nodes: [] } })),
+      artifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key' as const, parentId: 'C-01', continuity: { nodes: {}, edges: [] }, threadIds: [] })),
       relationships: [],
       worldKnowledge: { addedNodes: [], addedEdges: [] },
     },
@@ -33,7 +33,7 @@ function createWorldBuild(
 
 function createScene(
   id: string,
-  continuityMutations: { characterId: string; nodeId: string; action: 'added' | 'removed' }[] = [],
+  continuityMutations: { entityId: string; addedNodes: { id: string; content: string; type: string }[] }[] = [],
   relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[] = [],
 ): Scene {
   return {
@@ -47,8 +47,7 @@ function createScene(
     threadMutations: [],
     continuityMutations: continuityMutations.map((km) => ({
       ...km,
-      content: `Content for ${km.nodeId}`,
-      nodeType: 'fact' as const,
+      addedEdges: [],
     })),
     relationshipMutations: relationshipMutations.map((rm) => ({
       ...rm,
@@ -138,21 +137,20 @@ describe('getIntroducedIds', () => {
 // ── getContinuityNodesAtScene ────────────────────────────────────────────────
 
 describe('getContinuityNodesAtScene', () => {
-  const nodes: ContinuityNode[] = [
-    { id: 'K-01', type: 'fact', content: 'Initial knowledge' },
-    { id: 'K-02', type: 'fact', content: 'Added knowledge' },
-    { id: 'K-03', type: 'fact', content: 'Never mutated' },
-  ];
+  const nodes: Record<string, ContinuityNode> = {
+    'K-01': { id: 'K-01', type: 'fact', content: 'Initial knowledge' },
+    'K-03': { id: 'K-03', type: 'fact', content: 'Never mutated' },
+  };
 
   it('returns all nodes when no mutations exist', () => {
     const scenes: Record<string, Scene> = {};
     const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, [], 0);
-    expect(result.length).toBe(3);
+    expect(result.length).toBe(2);
   });
 
   it('includes nodes added up to current index', () => {
     const scenes: Record<string, Scene> = {
-      'S-001': createScene('S-001', [{ characterId: 'C-01', nodeId: 'K-02', action: 'added' }]),
+      'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-02', content: 'Added', type: 'fact' }] }]),
       'S-002': createScene('S-002'),
     };
     const resolvedKeys = ['S-001', 'S-002'];
@@ -161,54 +159,52 @@ describe('getContinuityNodesAtScene', () => {
     expect(result.map((n) => n.id)).toContain('K-02');
   });
 
-  it('excludes nodes removed before current index', () => {
+  it('does not include nodes added after current index', () => {
     const scenes: Record<string, Scene> = {
-      'S-001': createScene('S-001', [{ characterId: 'C-01', nodeId: 'K-01', action: 'removed' }]),
-    };
-    const resolvedKeys = ['S-001'];
-
-    // K-01's first mutation is 'removed', meaning it existed initially
-    // After S-001, it should be removed
-    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
-    expect(result.map((n) => n.id)).not.toContain('K-01');
-  });
-
-  it('handles add then remove sequence', () => {
-    const scenes: Record<string, Scene> = {
-      'S-001': createScene('S-001', [{ characterId: 'C-01', nodeId: 'K-02', action: 'added' }]),
-      'S-002': createScene('S-002', [{ characterId: 'C-01', nodeId: 'K-02', action: 'removed' }]),
+      'S-001': createScene('S-001'),
+      'S-002': createScene('S-002', [{ entityId: 'C-01', addedNodes: [{ id: 'K-04', content: 'Future', type: 'fact' }] }]),
     };
     const resolvedKeys = ['S-001', 'S-002'];
 
-    // At index 0, K-02 is added
-    const result1 = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
-    expect(result1.map((n) => n.id)).toContain('K-02');
+    // At index 0, K-04 hasn't been added yet
+    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
+    expect(result.map((n) => n.id)).not.toContain('K-04');
 
-    // At index 1, K-02 is removed
+    // At index 1, K-04 is added
     const result2 = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 1);
-    expect(result2.map((n) => n.id)).not.toContain('K-02');
+    expect(result2.map((n) => n.id)).toContain('K-04');
   });
 
-  it('filters by character ID', () => {
+  it('accumulates nodes across scenes', () => {
+    const scenes: Record<string, Scene> = {
+      'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-05', content: 'First', type: 'fact' }] }]),
+      'S-002': createScene('S-002', [{ entityId: 'C-01', addedNodes: [{ id: 'K-06', content: 'Second', type: 'fact' }] }]),
+    };
+    const resolvedKeys = ['S-001', 'S-002'];
+
+    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 1);
+    expect(result.map((n) => n.id)).toContain('K-05');
+    expect(result.map((n) => n.id)).toContain('K-06');
+  });
+
+  it('filters by entity ID', () => {
     const scenes: Record<string, Scene> = {
       'S-001': createScene('S-001', [
-        { characterId: 'C-01', nodeId: 'K-01', action: 'removed' },
-        { characterId: 'C-02', nodeId: 'K-02', action: 'added' },
+        { entityId: 'C-01', addedNodes: [{ id: 'K-07', content: 'C01 learns', type: 'fact' }] },
+        { entityId: 'C-02', addedNodes: [{ id: 'K-08', content: 'C02 learns', type: 'fact' }] },
       ]),
     };
     const resolvedKeys = ['S-001'];
 
-    // C-01's K-01 is removed
-    const result1 = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
-    expect(result1.map((n) => n.id)).not.toContain('K-01');
-
-    // C-02's changes don't affect C-01
-    expect(result1.map((n) => n.id)).toContain('K-02'); // K-02 unchanged for C-01
+    // C-01 should see K-07 but not K-08 (different entity)
+    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
+    expect(result.map((n) => n.id)).toContain('K-07');
+    expect(result.map((n) => n.id)).not.toContain('K-08');
   });
 
   it('includes never-mutated nodes', () => {
     const scenes: Record<string, Scene> = {
-      'S-001': createScene('S-001', [{ characterId: 'C-01', nodeId: 'K-01', action: 'added' }]),
+      'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-09', content: 'New', type: 'fact' }] }]),
     };
     const resolvedKeys = ['S-001'];
 

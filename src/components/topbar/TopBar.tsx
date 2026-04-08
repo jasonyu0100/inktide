@@ -71,7 +71,7 @@ function exportBranch(narrative: NarrativeState, branchId: string) {
       for (const pid of scene.participantIds) referencedCharIds.add(pid);
       referencedLocIds.add(scene.locationId);
       for (const tm of scene.threadMutations) referencedThreadIds.add(tm.threadId);
-      for (const cm of scene.continuityMutations) referencedCharIds.add(cm.characterId);
+      for (const cm of scene.continuityMutations) referencedCharIds.add(cm.entityId);
       for (const rm of scene.relationshipMutations) { referencedCharIds.add(rm.from); referencedCharIds.add(rm.to); }
       if (scene.characterMovements) {
         for (const [cid, mv] of Object.entries(scene.characterMovements)) {
@@ -550,7 +550,7 @@ export default function TopBar() {
         for (const pid of scene.participantIds) referencedCharIds.add(pid);
         referencedLocIds.add(scene.locationId);
         for (const tm of scene.threadMutations) referencedThreadIds.add(tm.threadId);
-        for (const cm of scene.continuityMutations) referencedCharIds.add(cm.characterId);
+        for (const cm of scene.continuityMutations) referencedCharIds.add(cm.entityId);
         for (const rm of scene.relationshipMutations) { referencedCharIds.add(rm.from); referencedCharIds.add(rm.to); }
         if (scene.characterMovements) {
           for (const [cid, mv] of Object.entries(scene.characterMovements)) {

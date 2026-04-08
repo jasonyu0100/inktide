@@ -32,7 +32,7 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     id,
     name: `Character ${id}`,
     role: 'recurring',
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     threadIds: [],
     ...overrides,
   };
@@ -43,7 +43,7 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
     id,
     name: `Location ${id}`,
     parentId: null,
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     threadIds: [],
     ...overrides,
   };
@@ -55,7 +55,7 @@ function createArtifact(id: string, parentId: string, overrides: Partial<Artifac
     parentId,
     name: `Artifact ${id}`,
     significance: 'minor',
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -114,10 +114,15 @@ describe('Graph Constants', () => {
   });
 
   it('CONTINUITY_FILL has colors for continuity types', () => {
-    expect(CONTINUITY_FILL.knows).toBeDefined();
-    expect(CONTINUITY_FILL.believes).toBeDefined();
+    expect(CONTINUITY_FILL.trait).toBeDefined();
+    expect(CONTINUITY_FILL.state).toBeDefined();
+    expect(CONTINUITY_FILL.history).toBeDefined();
+    expect(CONTINUITY_FILL.capability).toBeDefined();
+    expect(CONTINUITY_FILL.belief).toBeDefined();
+    expect(CONTINUITY_FILL.relation).toBeDefined();
     expect(CONTINUITY_FILL.secret).toBeDefined();
     expect(CONTINUITY_FILL.goal).toBeDefined();
+    expect(CONTINUITY_FILL.weakness).toBeDefined();
   });
 
   it('KNOWLEDGE_OPACITY has values between 0 and 1', () => {
@@ -128,10 +133,15 @@ describe('Graph Constants', () => {
   });
 
   it('WK_TYPE_COLORS has colors for world knowledge types', () => {
-    expect(WK_TYPE_COLORS.law).toBeDefined();
+    expect(WK_TYPE_COLORS.principle).toBeDefined();
     expect(WK_TYPE_COLORS.system).toBeDefined();
     expect(WK_TYPE_COLORS.concept).toBeDefined();
     expect(WK_TYPE_COLORS.tension).toBeDefined();
+    expect(WK_TYPE_COLORS.event).toBeDefined();
+    expect(WK_TYPE_COLORS.structure).toBeDefined();
+    expect(WK_TYPE_COLORS.environment).toBeDefined();
+    expect(WK_TYPE_COLORS.convention).toBeDefined();
+    expect(WK_TYPE_COLORS.constraint).toBeDefined();
   });
 });
 
@@ -549,7 +559,7 @@ describe('buildOverviewGraphData', () => {
         id: 'wb-1',
         summary: 'Expansion',
         expansionManifest: {
-          characters: [{ id: 'char-1', name: 'Alice', role: 'recurring', continuity: { nodes: [] }, threadIds: [] }],
+          characters: [{ id: 'char-1', name: 'Alice', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] }],
           locations: [],
           threads: [],
           relationships: [],

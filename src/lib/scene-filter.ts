@@ -1,5 +1,6 @@
 import type {
   ContinuityNode,
+  ContinuityEdge,
   RelationshipEdge,
   Scene,
   WorldBuild,
@@ -34,53 +35,77 @@ export function getIntroducedIds(
 // ── Knowledge filtering ─────────────────────────────────────────────────────
 
 /**
- * Compute which knowledge nodes are active at a given scene index by replaying
- * knowledge mutations forward. Handles initial nodes (present from world-build
- * creation and never added by a scene) as well as scene-added / scene-removed nodes.
+ * Compute which continuity nodes exist at a given scene index by replaying
+ * additive mutations forward. All initial nodes (from world-builds) plus
+ * any nodes added by scenes up to currentSceneIndex.
  */
 export function getContinuityNodesAtScene(
-  allNodes: ContinuityNode[],
-  characterId: string,
+  allNodes: Record<string, ContinuityNode>,
+  entityId: string,
   scenes: Record<string, Scene>,
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
 ): ContinuityNode[] {
-  // Collect the first mutation type for each node across the full timeline.
-  // If a node's first mutation is 'removed', it must have existed initially
-  // (introduced by a world-build) and was later removed by a scene.
-  const firstMutation = new Map<string, 'added' | 'removed'>();
-  for (const key of resolvedEntryKeys) {
-    const scene = scenes[key];
-    if (!scene) continue;
-    for (const km of scene.continuityMutations) {
-      if (km.characterId === characterId && !firstMutation.has(km.nodeId)) {
-        firstMutation.set(km.nodeId, km.action);
-      }
-    }
-  }
-
-  // Initialise active set: nodes whose first mutation is 'removed' were initial
-  const active = new Set<string>();
-  for (const [nodeId, action] of firstMutation) {
-    if (action === 'removed') active.add(nodeId);
-  }
-
-  // Replay mutations up to currentSceneIndex
+  // Collect node IDs that were added by scene mutations up to currentSceneIndex
+  const addedByMutations = new Set<string>();
   for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
     const scene = scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
     for (const km of scene.continuityMutations) {
-      if (km.characterId !== characterId) continue;
-      if (km.action === 'added') active.add(km.nodeId);
-      else active.delete(km.nodeId);
+      if (km.entityId !== entityId) continue;
+      for (const node of km.addedNodes ?? []) addedByMutations.add(node.id);
     }
   }
 
-  const allMutatedNodeIds = new Set(firstMutation.keys());
-  return allNodes.filter((node) => {
-    if (!allMutatedNodeIds.has(node.id)) return true; // initial, never mutated
-    return active.has(node.id);
+  // Collect ALL node IDs added across the full timeline
+  const allMutatedNodeIds = new Set<string>();
+  for (const key of resolvedEntryKeys) {
+    const scene = scenes[key];
+    if (!scene) continue;
+    for (const km of scene.continuityMutations) {
+      if (km.entityId !== entityId) continue;
+      for (const node of km.addedNodes ?? []) allMutatedNodeIds.add(node.id);
+    }
+  }
+
+  // Initial nodes = those in allNodes but never referenced by any mutation (seeded on world build)
+  // These are visible from the start (they existed before any scene)
+  // Scene-added nodes = only visible once the mutation that added them has been reached
+  return Object.values(allNodes).filter((node) => {
+    if (!allMutatedNodeIds.has(node.id)) return true; // initial node — always visible
+    return addedByMutations.has(node.id); // scene-added — only if mutation reached
   });
+}
+
+/**
+ * Compute which continuity edges exist at a given scene index by replaying
+ * additive mutations forward.
+ */
+export function getContinuityEdgesAtScene(
+  allEdges: ContinuityEdge[],
+  entityId: string,
+  scenes: Record<string, Scene>,
+  resolvedEntryKeys: string[],
+  currentSceneIndex: number,
+): ContinuityEdge[] {
+  // Start with initial edges from the entity
+  const edges = [...allEdges];
+
+  // Add edges from mutations up to currentSceneIndex
+  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
+    const scene = scenes[resolvedEntryKeys[i]];
+    if (!scene) continue;
+    for (const km of scene.continuityMutations) {
+      if (km.entityId !== entityId) continue;
+      for (const edge of km.addedEdges ?? []) {
+        if (!edges.some(e => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
+          edges.push(edge);
+        }
+      }
+    }
+  }
+
+  return edges;
 }
 
 // ── Relationship filtering ──────────────────────────────────────────────────

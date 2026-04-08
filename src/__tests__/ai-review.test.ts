@@ -91,7 +91,7 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     id,
     name: `Character ${id}`,
     role: 'recurring',
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     threadIds: [],
     ...overrides,
   };
@@ -102,7 +102,7 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
     id,
     name: `Location ${id}`,
     parentId: null,
-    continuity: { nodes: [] },
+    continuity: { nodes: {}, edges: [] },
     threadIds: [],
     ...overrides,
   };
@@ -594,10 +594,11 @@ describe('evaluatePlanQuality', () => {
     narrative.characters['char-1'] = createCharacter('char-1', {
       name: 'Alice',
       continuity: {
-        nodes: [
-          { id: 'node-1', content: 'Knows the secret', type: 'knows' },
-          { id: 'node-2', content: 'Has the key', type: 'has' },
-        ],
+        nodes: {
+          'node-1': { id: 'node-1', content: 'Knows the secret', type: 'secret' },
+          'node-2': { id: 'node-2', content: 'Has the key', type: 'capability' },
+        },
+        edges: [],
       },
     });
     narrative.scenes = {

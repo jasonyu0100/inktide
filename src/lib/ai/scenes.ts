@@ -418,7 +418,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
   });
 
   // ── Generate embeddings for scene summaries ──────────────────────────────
-  const { generateEmbeddingsBatch, computeCentroid } = await import('@/lib/embeddings');
+  const { generateEmbeddingsBatch, computeCentroid, resolveEmbedding } = await import('@/lib/embeddings');
   const { assetManager } = await import('@/lib/asset-manager');
 
   if (scenes.length > 0) {
@@ -436,11 +436,11 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
         // If scene has plan (in version array), compute plan centroid from beat centroids
         const latestPlan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
         if (latestPlan) {
-          const allBeatCentroids = latestPlan.beats
-            .map(b => b.embeddingCentroid)
-            .filter((e): e is number[] => Array.isArray(e));
-          if (allBeatCentroids.length > 0) {
-            scene.planEmbeddingCentroid = computeCentroid(allBeatCentroids);
+          const resolvedCentroids = (await Promise.all(
+            latestPlan.beats.map(b => resolveEmbedding(b.embeddingCentroid))
+          )).filter((e): e is number[] => e !== null);
+          if (resolvedCentroids.length > 0) {
+            scene.planEmbeddingCentroid = await assetManager.storeEmbedding(computeCentroid(resolvedCentroids), 'text-embedding-3-small');
           }
         }
       }
@@ -465,6 +465,8 @@ export async function generateScenePlan(
   onMeta?: (meta: { targetBeats: number; estWords: number }) => void,
   /** Per-scene direction that supplements storySettings.planGuidance */
   guidance?: string,
+  /** Skip embedding generation — used by plan candidates where only the winner gets embedded */
+  skipEmbeddings?: boolean,
 ): Promise<BeatPlan> {
   logInfo('Starting beat plan generation', {
     source: 'plan-generation',
@@ -694,14 +696,17 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
       mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
       what: String(beat.what ?? ''),
       propositions: parsePropositions(rawProps),
-      embeddingCentroid: undefined as number[] | undefined,
+      embeddingCentroid: undefined as string | undefined,
     };
   });
 
   const result: BeatPlan = { beats };
 
-  // ── Generate embeddings for all propositions ─────────────────────────────
-  const { embedPropositions, computeCentroid } = await import('@/lib/embeddings');
+  // ── Generate embeddings for all propositions (skipped for candidates) ────
+  if (skipEmbeddings) return result;
+
+  const { embedPropositions, computeCentroid, resolveEmbedding } = await import('@/lib/embeddings');
+  const { assetManager } = await import('@/lib/asset-manager');
 
   // Collect all propositions from beats
   const allPropositions: Array<{ content: string; type?: string }> = [];
@@ -721,14 +726,13 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
           beat.propositions[i] = embeddedProps[embeddedIndex++];
         }
 
-        // Compute beat centroid from proposition embeddings (resolve references if needed)
-        const { resolveEmbedding } = await import('@/lib/embeddings');
-        const beatEmbeddingPromises = beat.propositions
-          .map(p => resolveEmbedding(p.embedding));
-        const beatEmbeddings = (await Promise.all(beatEmbeddingPromises))
-          .filter((e): e is number[] => e !== null && Array.isArray(e));
+        // Compute beat centroid from proposition embeddings and store as asset
+        const beatEmbeddings = (await Promise.all(
+          beat.propositions.map(p => resolveEmbedding(p.embedding))
+        )).filter((e): e is number[] => e !== null);
         if (beatEmbeddings.length > 0) {
-          beat.embeddingCentroid = computeCentroid(beatEmbeddings);
+          const centroid = computeCentroid(beatEmbeddings);
+          beat.embeddingCentroid = await assetManager.storeEmbedding(centroid, 'text-embedding-3-small');
         }
       }
     } catch (error) {

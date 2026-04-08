@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useStore, withDerivedEntities } from '@/lib/store';
 import type { NarrativeState } from '@/types/narrative';
 import { resolveEntrySequence } from '@/lib/narrative-utils';
+import { assetManager } from '@/lib/asset-manager';
 import { SlidesPlayer } from '@/components/slides/SlidesPlayer';
+import { PropositionClassificationProvider } from '@/hooks/usePropositionClassification';
 
 export default function ExamplePage() {
   const router = useRouter();
   const { dispatch } = useStore();
   const [narrative, setNarrative] = useState<NarrativeState | null>(null);
+  const [resolvedKeys, setResolvedKeys] = useState<string[]>([]);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -25,9 +28,25 @@ export default function ExamplePage() {
         if (!narrativeFile) throw new Error('Missing narrative.json in package');
         const text = await narrativeFile.async('text');
         const data = JSON.parse(text) as NarrativeState;
+
+        // Import embeddings from package into IndexedDB so classification can resolve them
+        const embeddingsFolder = zip.folder('embeddings');
+        if (embeddingsFolder) {
+          const files = Object.values(embeddingsFolder.files).filter(f => !f.dir && f.name.endsWith('.bin'));
+          for (const file of files) {
+            const fileName = file.name.split('/').pop()!;
+            const embId = fileName.replace('.bin', '');
+            const buffer = await file.async('arraybuffer');
+            const float32Array = new Float32Array(buffer);
+            await assetManager.storeEmbedding(Array.from(float32Array), 'text-embedding-3-small', embId);
+          }
+        }
+
         const rootBranch = Object.values(data.branches).find(b => b.parentBranchId === null);
         const keys = rootBranch ? resolveEntrySequence(data.branches, rootBranch.id) : Object.keys(data.scenes);
+        const allKeys = [...Object.keys(data.scenes), ...Object.keys(data.worldBuilds)];
         setNarrative(withDerivedEntities(data, keys));
+        setResolvedKeys(allKeys);
       } catch {
         setError(true);
       }
@@ -61,19 +80,16 @@ export default function ExamplePage() {
     );
   }
 
-  const resolvedKeys = [
-    ...Object.keys(narrative.scenes),
-    ...Object.keys(narrative.worldBuilds),
-  ];
-
   return (
-    <SlidesPlayer
-      narrative={narrative}
-      resolvedKeys={resolvedKeys}
-      onClose={() => {
-        dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: narrative.id });
-        router.push(`/series/${narrative.id}`);
-      }}
-    />
+    <PropositionClassificationProvider narrative={narrative} resolvedKeys={resolvedKeys}>
+      <SlidesPlayer
+        narrative={narrative}
+        resolvedKeys={resolvedKeys}
+        onClose={() => {
+          dispatch({ type: 'SET_ACTIVE_NARRATIVE', id: narrative.id });
+          router.push(`/series/${narrative.id}`);
+        }}
+      />
+    </PropositionClassificationProvider>
   );
 }

@@ -10,7 +10,7 @@
 
 import { useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
-import { generateEmbeddingsBatch, embedPropositions, computeCentroid } from '@/lib/embeddings';
+import { generateEmbeddingsBatch, embedPropositions, computeCentroid, resolveEmbedding } from '@/lib/embeddings';
 import { assetManager } from '@/lib/asset-manager';
 import { logInfo, logError } from '@/lib/system-logger';
 
@@ -214,7 +214,7 @@ export function useBulkEmbed() {
         const updatedPlan = { ...latestPlan };
 
         // Update beat-level propositions and recompute centroids
-        updatedPlan.beats = updatedPlan.beats.map((beat, beatIndex) => {
+        updatedPlan.beats = await Promise.all(updatedPlan.beats.map(async (beat, beatIndex) => {
           const updatedBeat = { ...beat, propositions: [...beat.propositions] };
 
           // Map embeddings back
@@ -224,23 +224,24 @@ export function useBulkEmbed() {
             }
           });
 
-          // Recompute beat centroid (filter for inline embeddings only)
-          const beatEmbeddings = updatedBeat.propositions
-            .map(p => p.embedding)
-            .filter((e): e is number[] => Array.isArray(e));
-          if (beatEmbeddings.length > 0) {
-            updatedBeat.embeddingCentroid = computeCentroid(beatEmbeddings);
+          // Recompute beat centroid from resolved embeddings and store as asset
+          const resolvedBeatEmbeddings = (await Promise.all(
+            updatedBeat.propositions.map(p => resolveEmbedding(p.embedding))
+          )).filter((e): e is number[] => e !== null);
+          if (resolvedBeatEmbeddings.length > 0) {
+            const centroid = computeCentroid(resolvedBeatEmbeddings);
+            updatedBeat.embeddingCentroid = await assetManager.storeEmbedding(centroid, 'text-embedding-3-small');
           }
 
           return updatedBeat;
-        });
+        }));
 
-        // Compute plan centroid (filter for inline embeddings only)
-        const beatCentroids = updatedPlan.beats
-          .map(b => b.embeddingCentroid)
-          .filter((e): e is number[] => Array.isArray(e));
-        const planEmbeddingCentroid = beatCentroids.length > 0
-          ? computeCentroid(beatCentroids)
+        // Compute plan centroid from resolved beat centroids
+        const resolvedBeatCentroids = (await Promise.all(
+          updatedPlan.beats.map(b => resolveEmbedding(b.embeddingCentroid))
+        )).filter((c): c is number[] => c !== null);
+        const planEmbeddingCentroid = resolvedBeatCentroids.length > 0
+          ? await assetManager.storeEmbedding(computeCentroid(resolvedBeatCentroids), 'text-embedding-3-small')
           : undefined;
 
         // Update scene with new plan and centroid

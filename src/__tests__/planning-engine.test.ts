@@ -10,7 +10,7 @@ vi.mock('@/lib/ai/api', () => ({
 
 // Mock context building
 vi.mock('@/lib/ai/context', () => ({
-  branchContext: vi.fn().mockReturnValue('Mock branch context'),
+  narrativeContext: vi.fn().mockReturnValue('Mock branch context'),
 }));
 
 import {

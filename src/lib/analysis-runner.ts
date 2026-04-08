@@ -608,12 +608,8 @@ class AnalysisRunner {
                 // Resolve all references to actual vectors
                 const vectors: number[][] = [];
                 for (const ref of embeddingRefs) {
-                  if (typeof ref === 'string') {
-                    const vector = await assetManager.getEmbedding(ref);
-                    if (vector) vectors.push(vector);
-                  } else {
-                    vectors.push(ref);
-                  }
+                  const vector = await assetManager.getEmbedding(ref);
+                  if (vector) vectors.push(vector);
                 }
 
                 if (vectors.length > 0) {
@@ -632,12 +628,8 @@ class AnalysisRunner {
             if (beatCentroidRefs.length > 0) {
               const vectors: number[][] = [];
               for (const ref of beatCentroidRefs) {
-                if (typeof ref === 'string') {
-                  const vector = await assetManager.getEmbedding(ref);
-                  if (vector) vectors.push(vector);
-                } else {
-                  vectors.push(ref);
-                }
+                const vector = await assetManager.getEmbedding(ref);
+                if (vector) vectors.push(vector);
               }
 
               if (vectors.length > 0) {

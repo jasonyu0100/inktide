@@ -187,11 +187,9 @@ export type BeatMechanism =
 // ── Asset References (Decoupled Storage) ────────────────────────────────────
 
 /**
- * Embedding reference - supports both inline (legacy) and decoupled (new) storage
- * - string: Asset ID reference like "emb_abc123" (stored in IndexedDB)
- * - number[]: Legacy inline array (for backward compatibility)
+ * Embedding reference — asset ID stored in IndexedDB (e.g. "emb_abc123")
  */
-export type EmbeddingRef = string | number[];
+export type EmbeddingRef = string;
 
 /**
  * Image reference - decoupled storage
@@ -953,7 +951,7 @@ export type PlanningQueue = {
   profileId: string | null;
   /** Queue paradigm: 'outline' = dynamic guidelines (cube framing + direction as secondary),
    *  'plan' = explicit quotable instructions (direction bypasses cube, source text trickles down).
-   *  Defaults to 'outline' for backward compatibility. */
+   *  Defaults to 'outline'. */
   mode?: QueueMode;
   /** Ordered list of phases */
   phases: PlanningPhase[];
@@ -1379,7 +1377,7 @@ export type SearchQuery = {
   query: string;
   embedding: number[];
   synthesis?: SearchSynthesis;
-  /** Combined results (legacy, for backwards compatibility) */
+  /** Combined results across all embedding types */
   results: SearchResult[];
   /** Scene-level results (thematic, high-level context) */
   sceneResults: SearchResult[];

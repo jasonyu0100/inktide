@@ -174,13 +174,6 @@ Quality: BANNED verbs (realizes, confirms, understands, suspects, observes, deci
 Example: "Michael Corleone sits across from Sollozzo and McCluskey at the small Italian restaurant in the Bronx. He excuses himself to the bathroom where a pistol has been planted. He returns and shoots both men — Sollozzo between the eyes, McCluskey through the throat. The gun clatters to the floor as Michael walks out in a daze. The killing severs him from civilian life and hands the Tattaglia family a casus belli."
 `;
 
-// ── Legacy exports for backwards compatibility ───────────────────────────────
-// PROMPT_PACING, PROMPT_THREAD_COLLISION, PROMPT_CHARACTER_ARCS are now consolidated
-// into PROMPT_STRUCTURAL_RULES. These aliases prevent breaking existing imports.
-
-export const PROMPT_PACING = PROMPT_STRUCTURAL_RULES;
-export const PROMPT_THREAD_COLLISION = ''; // Content now in PROMPT_STRUCTURAL_RULES
-export const PROMPT_CHARACTER_ARCS = ''; // Content now in PROMPT_STRUCTURAL_RULES
 
 // ── Thread Health Analysis ──────────────────────────────────────────────────
 

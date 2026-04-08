@@ -2137,8 +2137,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         (async () => {
           try {
             const { generateEmbeddings } = await import('@/lib/embeddings');
+            const { assetManager } = await import('@/lib/asset-manager');
             const embeddings = await generateEmbeddings([prose], narrative.id);
-            const proseEmbedding = embeddings[0];
+            const proseEmbedding = await assetManager.storeEmbedding(embeddings[0], 'text-embedding-3-small');
 
             // Update scene with embedding (non-versioned update)
             dispatch({

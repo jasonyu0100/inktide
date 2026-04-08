@@ -144,8 +144,6 @@ export function computeSamplerFromPlans(scenes: Scene[]): BeatSampler | null {
   return { markov, fnMechanismDistribution, beatsPerKWord };
 }
 
-/** @deprecated Use computeSamplerFromPlans */
-export const computeProfileFromPlans = computeSamplerFromPlans;
 
 /**
  * Compute sampler from scenes using resolved plans (version-aware).

@@ -4,8 +4,8 @@ import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
-import { branchContext } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_PACING, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
+import { narrativeContext } from './context';
+import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
 import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/pacing-profile';
 import { logInfo } from '@/lib/system-logger';
 
@@ -29,7 +29,7 @@ export async function suggestArcDirection(
   resolvedKeys: string[],
   currentIndex: number,
 ): Promise<DirectionSuggestion> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
   const prompt = `${ctx}
 
@@ -71,7 +71,7 @@ export async function suggestAutoDirection(
   resolvedKeys: string[],
   currentIndex: number,
 ): Promise<string> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
   const prompt = `${ctx}
 
@@ -285,7 +285,7 @@ export async function suggestWorldExpansion(
   size: WorldExpansionSize = 'medium',
   strategy: WorldExpansionStrategy = 'dynamic',
 ): Promise<string> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
   // Build structural summary for analysis
   const charCount = Object.keys(narrative.characters).length;
@@ -360,7 +360,7 @@ export async function expandWorld(
     },
   });
 
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
   // Compute next sequential IDs for the AI to use
   const nextCharId = nextId('C', Object.keys(narrative.characters));
@@ -746,7 +746,7 @@ ${buildSequencePrompt(buildIntroductionSequence())}
 
 ${PROMPT_POV}
 ${PROMPT_FORCE_STANDARDS}
-${PROMPT_PACING}
+${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_MUTATIONS}
 ${PROMPT_CONTINUITY}
 ${PROMPT_SUMMARY_REQUIREMENT}`}

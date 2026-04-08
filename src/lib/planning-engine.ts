@@ -1,7 +1,7 @@
 import type { NarrativeState, PlanningQueue, PlanningPhase } from '@/types/narrative';
 import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './ai/api';
-import { branchContext } from './ai/context';
+import { narrativeContext } from './ai/context';
 import { MAX_TOKENS_SMALL, MAX_TOKENS_DEFAULT, MAX_TOKENS_LARGE } from '@/lib/constants';
 import { logError } from '@/lib/system-logger';
 
@@ -51,7 +51,7 @@ export async function generatePhaseDirection(
   queue: PlanningQueue,
   onReasoning?: (token: string) => void,
 ): Promise<{ direction: string; constraints: string }> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
   // Build completed phases summary
   const completedSummary = queue.phases
@@ -144,7 +144,7 @@ export async function generateCustomPlan(
   planDocument: string,
   onReasoning?: (token: string) => void,
 ): Promise<{ name: string; phases: { name: string; objective: string; sceneAllocation: number; constraints: string; structuralRules?: string; worldExpansionHints: string; sourceText?: string }[] }> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
   const prompt = `${ctx}
 
@@ -235,7 +235,7 @@ export async function generatePlanDocument(
   currentIndex: number,
   onReasoning?: (token: string) => void,
 ): Promise<string> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
   const prompt = `${ctx}
 
@@ -287,7 +287,7 @@ export async function generateOutline(
   currentIndex: number,
   onReasoning?: (token: string) => void,
 ): Promise<{ name: string; phases: { name: string; objective: string; sceneAllocation: number; constraints: string; worldExpansionHints: string }[] }> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
   const prompt = `${ctx}
 

@@ -34,7 +34,7 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     ...overrides,
   };
 
-  // Convert legacy prose to versioned format
+  // Shorthand: prose override auto-wraps into proseVersions
   if ('prose' in overrides && overrides.prose !== undefined) {
     scene.proseVersions = [{
       version: '1.0.0',
@@ -46,7 +46,7 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     delete (scene as any).prose;
   }
 
-  // Convert legacy plan to versioned format
+  // Shorthand: plan override auto-wraps into planVersions
   if ('plan' in overrides && overrides.plan !== undefined) {
     scene.planVersions = [{
       version: '1.0.0',

@@ -2,7 +2,7 @@ import type { NarrativeState, StructureReview, ProseEvaluation, ProseSceneEval, 
 import { resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
-import { branchContext } from './context';
+import { narrativeContext } from './context';
 import { buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { logInfo } from '@/lib/system-logger';
@@ -557,7 +557,7 @@ export async function refreshDirection(
   currentDirection: string,
   currentConstraints: string,
 ): Promise<{ direction: string; constraints: string; sceneBudget?: Record<string, number> }> {
-  const ctx = branchContext(narrative, resolvedKeys, currentIndex);
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
   const scenesRemaining = phase.sceneAllocation - phase.scenesCompleted;
   const avgArcSize = 4; // typical arc length

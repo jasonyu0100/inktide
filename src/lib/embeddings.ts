@@ -1,23 +1,13 @@
 /**
  * Embedding utilities for semantic search
  * Uses OpenAI text-embedding-3-small model via /api/embeddings
- *
- * Supports two storage modes:
- * 1. Inline (legacy): Embeddings stored as number[] in narrative JSON
- * 2. Decoupled (new): Embeddings stored in IndexedDB, narrative stores only ID references
+ * Embeddings stored in IndexedDB via AssetManager; narratives contain only reference IDs
  */
 
 import { logInfo, logError } from '@/lib/system-logger';
 import { EMBEDDING_BATCH_SIZE } from '@/lib/constants';
 import { assetManager } from '@/lib/asset-manager';
 import type { EmbeddingRef } from '@/types/narrative';
-
-// ── Storage Mode Control ─────────────────────────────────────────────────────
-/**
- * Asset storage is always enabled for decoupled storage via AssetManager
- * Embeddings are always stored in IndexedDB and narratives contain only references
- */
-const useAssetStorage = true;
 
 /**
  * Generate embeddings for an array of texts
@@ -137,47 +127,31 @@ export function computeCentroid(embeddings: number[][]): number[] {
 
 /**
  * Resolve an embedding reference to its vector array
- * Handles both inline arrays (legacy) and asset references (new)
- * @param embeddingRef Reference ID or inline array
+ * @param embeddingRef Asset reference ID
  * @returns Embedding vector array, or null if not found
  */
 export async function resolveEmbedding(embeddingRef: EmbeddingRef | undefined): Promise<number[] | null> {
   if (!embeddingRef) return null;
-
-  // If it's already an array, return it
-  if (Array.isArray(embeddingRef)) {
-    return embeddingRef;
-  }
-
-  // Otherwise, it's a reference ID - fetch from asset manager
   return await assetManager.getEmbedding(embeddingRef);
 }
 
 /**
  * Resolve multiple embedding references in batch
  * @param refs Array of embedding references
- * @returns Map of reference → vector array (only successful resolutions)
+ * @returns Map of index → vector array (only successful resolutions)
  */
 export async function resolveEmbeddingsBatch(refs: (EmbeddingRef | undefined)[]): Promise<Map<number, number[]>> {
   const results = new Map<number, number[]>();
 
-  // Separate inline arrays from references
-  const inlineIndices: number[] = [];
   const refIds: string[] = [];
   const refIndices: number[] = [];
 
   refs.forEach((ref, i) => {
     if (!ref) return;
-    if (Array.isArray(ref)) {
-      inlineIndices.push(i);
-      results.set(i, ref);
-    } else {
-      refIds.push(ref);
-      refIndices.push(i);
-    }
+    refIds.push(ref);
+    refIndices.push(i);
   });
 
-  // Batch fetch all references
   if (refIds.length > 0) {
     const batchResults = await assetManager.getEmbeddingsBatch(refIds);
     refIds.forEach((id, batchIdx) => {
@@ -193,10 +167,9 @@ export async function resolveEmbeddingsBatch(refs: (EmbeddingRef | undefined)[])
 
 /**
  * Embed propositions and add metadata
- * Supports both inline and decoupled storage modes
  * @param propositions Array of propositions to embed
  * @param narrativeId Optional narrative ID for logging context
- * @returns Propositions with embeddings and metadata added
+ * @returns Propositions with embeddings stored as asset references
  */
 export async function embedPropositions(
   propositions: Array<{ content: string; type?: string }>,
@@ -212,24 +185,13 @@ export async function embedPropositions(
   const embeddings = await generateEmbeddingsBatch(texts, narrativeId);
   const timestamp = Date.now();
 
-  // If asset storage is enabled, store in IndexedDB and return references
-  if (useAssetStorage) {
-    return await Promise.all(propositions.map(async (prop, i) => {
-      const embeddingId = await assetManager.storeEmbedding(embeddings[i], 'text-embedding-3-small');
-      return {
-        ...prop,
-        embedding: embeddingId,  // Reference ID, not array
-        embeddedAt: timestamp,
-        embeddingModel: 'text-embedding-3-small',
-      };
-    }));
-  }
-
-  // Legacy mode: store inline
-  return propositions.map((prop, i) => ({
-    ...prop,
-    embedding: embeddings[i],  // Inline array
-    embeddedAt: timestamp,
-    embeddingModel: 'text-embedding-3-small',
+  return await Promise.all(propositions.map(async (prop, i) => {
+    const embeddingId = await assetManager.storeEmbedding(embeddings[i], 'text-embedding-3-small');
+    return {
+      ...prop,
+      embedding: embeddingId,
+      embeddedAt: timestamp,
+      embeddingModel: 'text-embedding-3-small',
+    };
   }));
 }

@@ -109,7 +109,7 @@ describe('synthesizeSearchResults', () => {
       },
     ];
 
-    // Combined for backwards compatibility where needed (unused but kept for reference)
+    // Combined results across all types
     mockResults = [...mockSceneResults, ...mockDetailResults];
 
     mockTopArc = {

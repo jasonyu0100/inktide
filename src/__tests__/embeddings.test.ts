@@ -210,14 +210,9 @@ describe('Embedding Generation Pipeline', () => {
         expect(prop.embeddedAt).toBeDefined();
         expect(prop.embeddingModel).toBe('text-embedding-3-small');
 
-        // If embedding is a reference, resolve it
-        if (typeof prop.embedding === 'string') {
-          const resolved = await assetManager.getEmbedding(prop.embedding);
-          expect(resolved).toBeDefined();
-          expect(resolved).toHaveLength(EMBEDDING_DIMENSIONS);
-        } else {
-          expect(prop.embedding).toHaveLength(EMBEDDING_DIMENSIONS);
-        }
+        const resolved = await assetManager.getEmbedding(prop.embedding);
+        expect(resolved).toBeDefined();
+        expect(resolved).toHaveLength(EMBEDDING_DIMENSIONS);
       }
     });
 
@@ -233,12 +228,8 @@ describe('Embedding Generation Pipeline', () => {
       // Resolve embedding references to actual vectors
       const embeddings: number[][] = [];
       for (const prop of embeddedProps) {
-        if (typeof prop.embedding === 'string') {
-          const resolved = await assetManager.getEmbedding(prop.embedding);
-          if (resolved) embeddings.push(resolved);
-        } else {
-          embeddings.push(prop.embedding);
-        }
+        const resolved = await assetManager.getEmbedding(prop.embedding);
+        if (resolved) embeddings.push(resolved);
       }
 
       const centroid = computeCentroid(embeddings);

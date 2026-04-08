@@ -235,7 +235,7 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
     );
     const changelogParsed = parseJson(changelogRaw, 'rewriteChangelog') as { changelog: unknown };
     const raw = changelogParsed.changelog;
-    // Normalize to string — handle array fallback for backwards compatibility
+    // Normalize to string — LLM may return string or array
     if (typeof raw === 'string') {
       changelog = raw;
     } else if (Array.isArray(raw)) {

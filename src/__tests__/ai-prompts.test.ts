@@ -7,9 +7,6 @@ import {
   PROMPT_POV,
   PROMPT_CONTINUITY,
   PROMPT_SUMMARY_REQUIREMENT,
-  PROMPT_PACING,
-  PROMPT_THREAD_COLLISION,
-  PROMPT_CHARACTER_ARCS,
   promptThreadLifecycle,
   buildThreadHealthPrompt,
   buildCompletedBeatsPrompt,
@@ -179,19 +176,6 @@ describe('Static Prompt Constants', () => {
     });
   });
 
-  describe('Legacy aliases', () => {
-    it('PROMPT_PACING equals PROMPT_STRUCTURAL_RULES', () => {
-      expect(PROMPT_PACING).toBe(PROMPT_STRUCTURAL_RULES);
-    });
-
-    it('PROMPT_THREAD_COLLISION is empty (consolidated)', () => {
-      expect(PROMPT_THREAD_COLLISION).toBe('');
-    });
-
-    it('PROMPT_CHARACTER_ARCS is empty (consolidated)', () => {
-      expect(PROMPT_CHARACTER_ARCS).toBe('');
-    });
-  });
 });
 
 // ── promptThreadLifecycle ────────────────────────────────────────────────────

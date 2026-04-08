@@ -1327,5 +1327,3 @@ ${commitSections.join('\n\n')}
 ${wkBlock}</world-state>`;
 }
 
-/** @deprecated Use narrativeContext instead */
-export const branchContext = narrativeContext;

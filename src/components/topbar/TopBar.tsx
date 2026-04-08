@@ -310,7 +310,6 @@ export default function TopBar() {
   const usageRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-open slides when ?slides=1 is in the URL (fresh analysis or works seed)
   useEffect(() => {
@@ -774,33 +773,6 @@ export default function TopBar() {
     };
   }, [allScenes, narrative]);
 
-  const handleImport = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const imported = JSON.parse(ev.target?.result as string) as NarrativeState;
-        if (!imported.id || !imported.scenes || !imported.branches) {
-          alert('Invalid narrative file');
-          return;
-        }
-        const newId = crypto.randomUUID();
-        const newNarrative = { ...imported, id: newId };
-        dispatch({ type: 'ADD_NARRATIVE', narrative: newNarrative });
-        setSelectorOpen(false);
-        router.push(`/series/${newId}`);
-      } catch {
-        alert('Failed to parse narrative file');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  }, [dispatch, router]);
 
   const hasNarrative = !!narrative;
 
@@ -924,13 +896,27 @@ export default function TopBar() {
                     <IconPlus size={10} />
                     New
                   </button>
-                  <button
-                    onClick={() => { handleImport(); }}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors border border-white/6"
-                  >
-                    <IconImport size={10} />
-                    Import
-                  </button>
+                  <div className="flex rounded-md border border-white/6 overflow-hidden">
+                    <button
+                      onClick={() => { setImportPackageOpen(true); setSelectorOpen(false); }}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                    >
+                      <IconImport size={10} />
+                      Import
+                    </button>
+                    {narrative && (
+                      <>
+                        <div className="w-px bg-white/6" />
+                        <button
+                          onClick={() => { setExportPackageOpen(true); setSelectorOpen(false); }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                        >
+                          <IconDownload size={10} />
+                          Export
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -953,42 +939,12 @@ export default function TopBar() {
                     ) : null;
                   })()}
 
-                  {/* Export group */}
-                  <div className="px-3 pt-2 pb-1">
-                    <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Export</span>
-                  </div>
-                  <button
-                    onClick={() => { setExportPackageOpen(true); setSelectorOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                  >
-                    <IconDownload size={12} className="text-text-dim shrink-0" />
-                    Story Package (.inktide)
-                  </button>
-
-                  {/* Import group */}
-                  <div className="px-3 pt-2 pb-1">
-                    <span className="text-[9px] font-semibold text-text-dim uppercase tracking-widest">Import</span>
-                  </div>
-                  <button
-                    onClick={() => { setImportPackageOpen(true); setSelectorOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                  >
-                    <IconImport size={12} className="text-text-dim shrink-0" />
-                    Story Package (.inktide)
-                  </button>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleFileChange}
-          className="hidden"
-        />
 
         {/* Divider */}
         <div className="w-px h-4 bg-white/8 mx-1.5" />

@@ -1340,18 +1340,12 @@ export async function assembleNarrative(
           const nodes = (km.addedNodes ?? []).map((n) => ({
             id: nextKId(), content: n.content, type: (n.type || 'trait') as ContinuityNodeType,
           }));
-          // Resolve content-based edge references to node IDs
+          // Resolve content-based edge references to node IDs (LLM-generated edges only)
           const edges: { from: string; to: string; relation: string }[] = [];
           for (const e of km.addedEdges ?? []) {
             const from = nodes.find(n => n.content === e.fromContent);
             const to = nodes.find(n => n.content === e.toContent);
             if (from && to) edges.push({ from: from.id, to: to.id, relation: e.relation });
-          }
-          // Chain sequential nodes for connectivity
-          for (let i = 1; i < nodes.length; i++) {
-            if (!edges.some(e => e.from === nodes[i - 1].id && e.to === nodes[i].id)) {
-              edges.push({ from: nodes[i - 1].id, to: nodes[i].id, relation: 'follows' });
-            }
           }
           return { entityId, addedNodes: nodes, addedEdges: edges };
         }),
@@ -1516,28 +1510,6 @@ export async function assembleNarrative(
           entity.continuity.edges.push(edge);
         }
       }
-    }
-  }
-
-  // Build continuity edges for all entities — sequential chain + same-type connections
-  const allEntities = [...Object.values(characters), ...Object.values(locations), ...Object.values(artifactEntities)];
-  for (const entity of allEntities) {
-    if (!entity.continuity || Object.keys(entity.continuity.nodes).length < 2) continue;
-    const nodeList = Object.values(entity.continuity.nodes);
-    // Sequential chain: each node connects to the next (temporal ordering from scene replay)
-    for (let i = 1; i < nodeList.length; i++) {
-      entity.continuity.edges.push({ from: nodeList[i - 1].id, to: nodeList[i].id, relation: 'follows' });
-    }
-    // Same-type connections: nodes of the same type reinforce each other
-    const byType = new Map<string, typeof nodeList>();
-    for (const n of nodeList) {
-      if (!byType.has(n.type)) byType.set(n.type, []);
-      byType.get(n.type)!.push(n);
-    }
-    for (const [, group] of byType) {
-      if (group.length < 2) continue;
-      // Connect first to last of each type group (thematic arc)
-      entity.continuity.edges.push({ from: group[0].id, to: group[group.length - 1].id, relation: 'reinforces' });
     }
   }
 

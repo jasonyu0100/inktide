@@ -336,7 +336,7 @@ export function CanvasTopBar() {
       plan.beats.reduce(
         (sum, b) => sum + (b.propositions?.length ?? 0),
         0,
-      ) + (plan.propositions?.length ?? 0);
+      );
     return { beats, propositions };
   }, [currentScene, branchId, branches]);
 

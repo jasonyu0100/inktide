@@ -801,7 +801,6 @@ export async function editScenePlan(
 
   const currentPlanJson = JSON.stringify({
     beats: plan.beats.map((b, i) => ({ idx: i + 1, fn: b.fn, mechanism: b.mechanism, what: b.what, propositions: b.propositions })),
-    propositions: plan.propositions,
   }, null, 2);
 
   const issueBlock = issues.map((iss, i) => `${i + 1}. ${iss}`).join('\n');

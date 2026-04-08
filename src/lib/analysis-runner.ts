@@ -569,13 +569,6 @@ class AnalysisRunner {
         allScenes.forEach((scene, sceneIndex) => {
           if (!scene.plan) return;
 
-          // Scene-level propositions
-          if (scene.plan.propositions) {
-            scene.plan.propositions.forEach((prop, propIndex) => {
-              allPropositions.push({ ...prop, sceneIndex, beatIndex: -1, propIndex });
-            });
-          }
-
           // Beat-level propositions
           scene.plan.beats.forEach((beat, beatIndex) => {
             beat.propositions.forEach((prop, propIndex) => {
@@ -599,15 +592,7 @@ class AnalysisRunner {
 
             const embeddedProp = embeddedProps[embeddedIndex];
 
-            if (prop.beatIndex === -1) {
-              // Scene-level proposition
-              if (scene.plan.propositions) {
-                scene.plan.propositions[prop.propIndex] = embeddedProp;
-              }
-            } else {
-              // Beat-level proposition
-              scene.plan.beats[prop.beatIndex].propositions[prop.propIndex] = embeddedProp;
-            }
+            scene.plan.beats[prop.beatIndex].propositions[prop.propIndex] = embeddedProp;
           });
 
           // Compute beat centroids (resolve references to vectors)

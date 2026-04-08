@@ -1858,15 +1858,17 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
   const validLocIds = new Set(Object.keys(narrative.locations));
   const validThreadIds = new Set(Object.keys(narrative.threads));
   const validArtifactIds = new Set(Object.keys(narrative.artifacts ?? {}));
-  const allEntityIds = new Set([...validCharIds, ...validLocIds]);
+  const allEntityIds = new Set([...validCharIds, ...validLocIds, ...validArtifactIds]);
   const stripped: string[] = [];
   const fallbackCharId = Object.keys(narrative.characters)[0];
 
   for (const scene of scenes) {
-    if (!validLocIds.has(scene.locationId)) {
+    if (!scene.locationId || !validLocIds.has(scene.locationId)) {
       stripped.push(`locationId "${scene.locationId}" in scene ${scene.id}`);
       scene.locationId = Object.keys(narrative.locations)[0];
     }
+    if (!Array.isArray(scene.participantIds)) scene.participantIds = [];
+    if (!Array.isArray(scene.events)) scene.events = [];
     if (!scene.povId || !validCharIds.has(scene.povId)) {
       if (scene.povId) stripped.push(`povId "${scene.povId}" in scene ${scene.id} (invalid)`);
       scene.povId = scene.participantIds.find((pid) => validCharIds.has(pid)) ?? fallbackCharId;

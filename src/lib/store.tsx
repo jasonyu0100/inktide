@@ -64,7 +64,6 @@ function computeDerivedEntities(
       for (const a of wb.expansionManifest.artifacts ?? []) {
         const existing = artifacts[a.id];
         if (existing) {
-          // Merge: update fields, accumulate continuity nodes and edges
           const mergedNodes = { ...existing.continuity.nodes, ...a.continuity.nodes };
           const mergedEdges = [...existing.continuity.edges, ...a.continuity.edges];
           artifacts[a.id] = {

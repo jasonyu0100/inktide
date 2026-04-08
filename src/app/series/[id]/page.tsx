@@ -243,10 +243,10 @@ export default function SeriesPage() {
               <button
                 onClick={() => setBottomPanelCollapsed(!bottomPanelCollapsed)}
                 title={bottomPanelCollapsed ? 'Expand timeline' : 'Collapse timeline'}
-                className="pointer-events-auto flex items-center justify-center w-9 h-5 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-60 hover:opacity-100 transition-all cursor-pointer"
+                className="pointer-events-auto flex items-center justify-center w-10 h-6 rounded-full bg-bg-panel border border-white/10 text-text-secondary shadow-lg opacity-80 hover:opacity-100 hover:scale-110 hover:text-text-primary transition-all cursor-pointer"
                 style={{ transform: 'translateY(-50%)' }}
               >
-                <IconChevronDown size={6} style={{ transform: bottomPanelCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                <IconChevronDown size={10} style={{ transform: bottomPanelCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
               </button>
             </div>
 

@@ -125,9 +125,9 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
           <button
             onClick={left.toggle}
             title={left.collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
+            className="pointer-events-auto flex items-center justify-center w-6 h-10 rounded-full bg-bg-panel border border-white/10 text-text-secondary shadow-lg opacity-80 hover:opacity-100 hover:scale-110 hover:text-text-primary transition-all cursor-pointer"
           >
-            {left.collapsed ? <IconChevronRight size={6} /> : <IconChevronLeft size={6} />}
+            {left.collapsed ? <IconChevronRight size={10} /> : <IconChevronLeft size={10} />}
           </button>
         </div>
 
@@ -139,9 +139,9 @@ export default function AppShell({ children, sidebar, sidepanel }: AppShellProps
           <button
             onClick={right.toggle}
             title={right.collapsed ? 'Expand inspector' : 'Collapse inspector'}
-            className="pointer-events-auto flex items-center justify-center w-5 h-9 rounded-full bg-bg-panel border border-border text-text-dim shadow-md opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
+            className="pointer-events-auto flex items-center justify-center w-6 h-10 rounded-full bg-bg-panel border border-white/10 text-text-secondary shadow-lg opacity-80 hover:opacity-100 hover:scale-110 hover:text-text-primary transition-all cursor-pointer"
           >
-            {right.collapsed ? <IconChevronLeft size={6} /> : <IconChevronRight size={6} />}
+            {right.collapsed ? <IconChevronLeft size={10} /> : <IconChevronRight size={10} />}
           </button>
         </div>
       </div>

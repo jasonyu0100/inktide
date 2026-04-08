@@ -392,8 +392,13 @@ export function narrativeContext(
       const toName = n.characters[om.toId]?.name ?? n.locations[om.toId]?.name ?? om.toId;
       return `${artName}: ${fromName}→${toName}`;
     }).join('; ');
+    const artifactUsages = (s.artifactUsages ?? []).map((au) => {
+      const artName = n.artifacts?.[au.artifactId]?.name ?? au.artifactId;
+      const charName = n.characters[au.characterId]?.name ?? au.characterId;
+      return `${charName} uses ${artName}`;
+    }).join('; ');
     const povName = n.characters[s.povId]?.name ?? s.povId;
-    return `<entry index="${globalIdx}" location="${loc}" pov="${povName}" participants="${participants}"${threadChanges ? ` threads="${threadChanges}"` : ''}${continuityChanges ? ` continuity="${continuityChanges}"` : ''}${relChanges ? ` relationships="${relChanges}"` : ''}${ownershipChanges ? ` artifacts="${ownershipChanges}"` : ''}>${s.summary}</entry>`;
+    return `<entry index="${globalIdx}" location="${loc}" pov="${povName}" participants="${participants}"${threadChanges ? ` threads="${threadChanges}"` : ''}${continuityChanges ? ` continuity="${continuityChanges}"` : ''}${relChanges ? ` relationships="${relChanges}"` : ''}${ownershipChanges ? ` artifact-transfers="${ownershipChanges}"` : ''}${artifactUsages ? ` artifact-usages="${artifactUsages}"` : ''}>${s.summary}</entry>`;
   }).filter(Boolean).join('\n');
 
   // Arcs context — only arcs with scenes within the time horizon

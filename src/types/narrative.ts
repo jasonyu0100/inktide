@@ -122,6 +122,11 @@ export type OwnershipMutation = {
   toId: string;
 };
 
+export type ArtifactUsage = {
+  artifactId: string;
+  characterId: string;
+};
+
 // ── Scene & Arc ─────────────────────────────────────────────────────────────
 export type ThreadMutation = {
   threadId: string;
@@ -528,6 +533,9 @@ export type Scene = {
   /** Character whose perspective this scene is told from */
   povId: string;
   participantIds: string[];
+  /** Artifact usages — which character used which artifact in this scene.
+   *  Location-owned artifacts can be used communally; character-owned only by owner. */
+  artifactUsages?: ArtifactUsage[];
   /** Characters who move in this scene — characterId → movement details. Only include deltas. */
   characterMovements?: Record<string, CharacterMovement>;
   events: string[];
@@ -1105,6 +1113,7 @@ export type AnalysisChunkResult = {
       addedNodes: { content: string; type: string }[];
     }[];
     relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
+    artifactUsages?: { artifactName: string; characterName: string }[];
     ownershipMutations?: { artifactName: string; fromName: string; toName: string }[];
     characterMovements?: { characterName: string; locationName: string; transition: string }[];
     worldKnowledgeMutations?: {

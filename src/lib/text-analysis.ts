@@ -398,6 +398,9 @@ Return a single JSON object with this exact structure:
       "relationshipMutations": [
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
       ],
+      "artifactUsages": [
+        { "artifactName": "Artifact Name", "characterName": "Who uses it" }
+      ],
       "ownershipMutations": [
         { "artifactName": "Artifact Name", "fromName": "Previous owner name", "toName": "New owner name" }
       ],
@@ -623,6 +626,9 @@ Return a single JSON object with this exact structure:
       ],
       "relationshipMutations": [
         { "from": "Name", "to": "Name", "type": "Description of relationship shift", "valenceDelta": -0.3 }
+      ],
+      "artifactUsages": [
+        { "artifactName": "Artifact Name", "characterName": "Who uses it" }
       ],
       "ownershipMutations": [
         { "artifactName": "Artifact Name", "fromName": "Previous owner name", "toName": "New owner name" }
@@ -1360,6 +1366,14 @@ export async function assembleNarrative(
           }
           return Object.keys(result).length > 0 ? result : undefined;
         })(),
+        artifactUsages: (() => {
+          const aus = s.artifactUsages ?? [];
+          if (aus.length === 0) return undefined;
+          return aus.map((au) => ({
+            artifactId: getArtifactId(au.artifactName),
+            characterId: getCharId(au.characterName),
+          })).filter((au) => artifactEntities[au.artifactId] && au.characterId);
+        })() || undefined,
         ownershipMutations: (() => {
           const oms = s.ownershipMutations ?? [];
           if (oms.length === 0) return undefined;

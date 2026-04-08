@@ -94,19 +94,21 @@ export default function ArtifactDetail({ artifactId }: Props) {
     state.currentSceneIndex,
   );
 
-  // Scenes: where artifact had continuity mutations, ownership transfers, or was mentioned
+  // Scenes: where artifact was used, had continuity mutations, ownership transfers, or thread activity
   const artifactThreadIds = new Set(artifact.threadIds);
   const lifecycle = sceneKeysUpToCurrent
     .map((k) => narrative.scenes[k])
     .filter((s) => {
       if (!s) return false;
+      const hasUsage = (s.artifactUsages ?? []).some((au) => au.artifactId === artifactId);
       const hasContinuity = s.continuityMutations.some((km) => km.entityId === artifactId);
       const hasOwnership = (s.ownershipMutations ?? []).some((om) => om.artifactId === artifactId);
       const hasThreadMut = s.threadMutations.some((tm) => artifactThreadIds.has(tm.threadId));
-      return hasContinuity || hasOwnership || hasThreadMut;
+      return hasUsage || hasContinuity || hasOwnership || hasThreadMut;
     })
     .map((s) => ({
       sceneId: s.id,
+      usages: (s.artifactUsages ?? []).filter((au) => au.artifactId === artifactId),
       continuityMuts: s.continuityMutations.filter((km) => km.entityId === artifactId),
       ownershipMuts: (s.ownershipMutations ?? []).filter((om) => om.artifactId === artifactId),
       threadMuts: s.threadMutations.filter((tm) => artifactThreadIds.has(tm.threadId)),
@@ -198,7 +200,7 @@ export default function ArtifactDetail({ artifactId }: Props) {
         return (
           <CollapsibleSection title="Scenes" count={lifecycle.length} defaultOpen>
             <ul className="flex flex-col gap-2">
-              {pageItems.map(({ sceneId, continuityMuts, ownershipMuts, threadMuts }) => (
+              {pageItems.map(({ sceneId, usages, continuityMuts, ownershipMuts, threadMuts }) => (
                 <li key={sceneId} className="flex flex-col gap-0.5">
                   <button
                     type="button"
@@ -207,6 +209,11 @@ export default function ArtifactDetail({ artifactId }: Props) {
                   >
                     {sceneId}
                   </button>
+                  {usages.map((au, auIdx) => (
+                    <span key={`usage-${au.characterId}-${auIdx}`} className="text-xs text-amber-300/80">
+                      used by {narrative.characters[au.characterId]?.name ?? au.characterId}
+                    </span>
+                  ))}
                   {threadMuts.map((tm, tmIdx) => (
                     <span key={`${tm.threadId}-${tmIdx}`} className="text-xs text-text-secondary">
                       {tm.threadId}: {tm.from} &rarr; {tm.to}

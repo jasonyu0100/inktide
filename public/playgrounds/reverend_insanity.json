@@ -1,6 +1,6 @@
 {
   "id": "N-RI",
-  "title": "Reverend Insanity — Rebirth of the Demon Venerable",
+  "title": "Reverend Insanity \u2014 Rebirth of the Demon Venerable",
   "description": "Fang Yuan, a 500-year-old demonic cultivator, has been reborn into his 15-year-old body via the Spring Autumn Cicada. Armed with complete knowledge of the future, he hides behind mediocrity while pursuing the only goal that matters: eternal life. The mountain clans around him see a dull boy. They do not see the predator.",
   "characters": {},
   "locations": {},
@@ -128,16 +128,26 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-01",
-          "nodeId": "K-80",
-          "action": "added",
-          "content": "The village layout matches his memories — the timeline is intact and his rebirth succeeded"
-        },
-        {
-          "characterId": "C-01",
-          "nodeId": "K-81",
-          "action": "added",
-          "content": "The bamboo grove path to the academy is unwatched at dawn — useful for future movements"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-80",
+              "content": "The village layout matches his memories \u2014 the timeline is intact and his rebirth succeeded",
+              "type": "belief"
+            },
+            {
+              "id": "K-81",
+              "content": "The bamboo grove path to the academy is unwatched at dawn \u2014 useful for future movements",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": [
+            {
+              "from": "K-80",
+              "to": "K-81",
+              "relation": "co_occurs"
+            }
+          ]
         }
       ],
       "relationshipMutations": [],
@@ -150,7 +160,7 @@
           },
           {
             "id": "WK-RI-03",
-            "concept": "Spring Autumn Cicada — a legendary Gu capable of sending its user's consciousness back in time upon death",
+            "concept": "Spring Autumn Cicada \u2014 a legendary Gu capable of sending its user's consciousness back in time upon death",
             "type": "concept"
           }
         ],
@@ -158,7 +168,7 @@
           {
             "from": "WK-RI-03",
             "to": "WK-RI-01",
-            "relation": "The Spring Autumn Cicada is itself a Gu worm — the most legendary of all"
+            "relation": "The Spring Autumn Cicada is itself a Gu worm \u2014 the most legendary of all"
           },
           {
             "from": "WK-RI-03",
@@ -193,23 +203,33 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-01",
-          "nodeId": "K-82",
-          "action": "added",
-          "content": "Fang Zheng is exactly as naive as he remembers — easy to manipulate through genuine affection"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-82",
+              "content": "Fang Zheng is exactly as naive as he remembers \u2014 easy to manipulate through genuine affection",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-02",
-          "nodeId": "K-83",
-          "action": "added",
-          "content": "Fang Yuan seems quieter than usual lately — perhaps nervous about the awakening ceremony"
+          "entityId": "C-02",
+          "addedNodes": [
+            {
+              "id": "K-83",
+              "content": "Fang Yuan seems quieter than usual lately \u2014 perhaps nervous about the awakening ceremony",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-01",
           "to": "C-02",
-          "type": "Calibrating the brotherly mask — every reaction must be pitch-perfect",
+          "type": "Calibrating the brotherly mask \u2014 every reaction must be pitch-perfect",
           "valenceDelta": -0.05
         }
       ],
@@ -217,12 +237,12 @@
         "addedNodes": [
           {
             "id": "WK-RI-06",
-            "concept": "The aperture — an organ within a Gu Master's body that stores primeval essence and determines cultivation potential",
+            "concept": "The aperture \u2014 an organ within a Gu Master's body that stores primeval essence and determines cultivation potential",
             "type": "concept"
           },
           {
             "id": "WK-RI-07",
-            "concept": "Talent grades (A through D) determine a cultivator's ceiling — social standing follows aptitude",
+            "concept": "Talent grades (A through D) determine a cultivator's ceiling \u2014 social standing follows aptitude",
             "type": "system"
           }
         ],
@@ -271,23 +291,33 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-05",
-          "nodeId": "K-84",
-          "action": "added",
-          "content": "The new class shows uneven aptitude — several students struggle with basic primeval essence concepts"
+          "entityId": "C-05",
+          "addedNodes": [
+            {
+              "id": "K-84",
+              "content": "The new class shows uneven aptitude \u2014 several students struggle with basic primeval essence concepts",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-01",
-          "nodeId": "K-85",
-          "action": "added",
-          "content": "Shen Cui teaches the orthodox method — inefficient but safe, exactly as he remembers"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-85",
+              "content": "Shen Cui teaches the orthodox method \u2014 inefficient but safe, exactly as he remembers",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-05",
           "to": "C-01",
-          "type": "The boy deliberately hides in the back row — pity tinged with mild concern",
+          "type": "The boy deliberately hides in the back row \u2014 pity tinged with mild concern",
           "valenceDelta": 0.05
         }
       ],
@@ -295,7 +325,7 @@
         "addedNodes": [
           {
             "id": "WK-RI-09",
-            "concept": "Gu must be fed, maintained, and understood — neglect kills them, misuse kills the cultivator",
+            "concept": "Gu must be fed, maintained, and understood \u2014 neglect kills them, misuse kills the cultivator",
             "type": "law"
           },
           {
@@ -308,11 +338,11 @@
           {
             "from": "WK-RI-09",
             "to": "WK-RI-01",
-            "relation": "Gu are alive and have needs — this is the first law of cultivation"
+            "relation": "Gu are alive and have needs \u2014 this is the first law of cultivation"
           }
         ]
       },
-      "summary": "Academy. Shen Cui draws a diagram of primeval essence flow on the slate board, her chalk strokes precise as surgical cuts. She explains that Gu are living organisms, not tools — they must be fed, understood, respected. The students lean forward. Fang Yuan leans back. He learned this five hundred years ago from a man Shen Cui has never heard of, in a city that will not be founded for another century. He lets his eyes glaze. Fang Zheng takes meticulous notes beside him."
+      "summary": "Academy. Shen Cui draws a diagram of primeval essence flow on the slate board, her chalk strokes precise as surgical cuts. She explains that Gu are living organisms, not tools \u2014 they must be fed, understood, respected. The students lean forward. Fang Yuan leans back. He learned this five hundred years ago from a man Shen Cui has never heard of, in a city that will not be founded for another century. He lets his eyes glaze. Fang Zheng takes meticulous notes beside him."
     },
     "S-004": {
       "id": "S-004",
@@ -343,16 +373,26 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-01",
-          "nodeId": "K-86",
-          "action": "added",
-          "content": "The Moonlight Gu still migrates along the ridge path — the inheritance ground entrance should be two valleys south"
-        },
-        {
-          "characterId": "C-01",
-          "nodeId": "K-87",
-          "action": "added",
-          "content": "Terrain mapping complete — three viable escape routes from the village confirmed"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-86",
+              "content": "The Moonlight Gu still migrates along the ridge path \u2014 the inheritance ground entrance should be two valleys south",
+              "type": "belief"
+            },
+            {
+              "id": "K-87",
+              "content": "Terrain mapping complete \u2014 three viable escape routes from the village confirmed",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": [
+            {
+              "from": "K-86",
+              "to": "K-87",
+              "relation": "co_occurs"
+            }
+          ]
         }
       ],
       "relationshipMutations": [],
@@ -360,12 +400,12 @@
         "addedNodes": [
           {
             "id": "WK-RI-14",
-            "concept": "Inheritance grounds — sealed legacies left by powerful cultivators containing Gu, techniques, and resources",
+            "concept": "Inheritance grounds \u2014 sealed legacies left by powerful cultivators containing Gu, techniques, and resources",
             "type": "concept"
           },
           {
             "id": "WK-RI-15",
-            "concept": "Gu Master ranks (1-9) define power tiers — each rank is an exponential leap in capability",
+            "concept": "Gu Master ranks (1-9) define power tiers \u2014 each rank is an exponential leap in capability",
             "type": "system"
           }
         ],
@@ -382,7 +422,7 @@
           }
         ]
       },
-      "summary": "Dusk on Qing Mao Mountain. Fang Yuan walks the ridge path alone, ostensibly gathering herbs for a class assignment. The real work is invisible: he is mapping the terrain against five centuries of memory, noting what has changed and what remains. A luminous beetle Gu drifts past — a Moonlight Gu, rank one, harmless and beautiful. In his previous life he crushed a thousand of them for reagents. Tonight he lets it pass. Not out of mercy. Out of patience."
+      "summary": "Dusk on Qing Mao Mountain. Fang Yuan walks the ridge path alone, ostensibly gathering herbs for a class assignment. The real work is invisible: he is mapping the terrain against five centuries of memory, noting what has changed and what remains. A luminous beetle Gu drifts past \u2014 a Moonlight Gu, rank one, harmless and beautiful. In his previous life he crushed a thousand of them for reagents. Tonight he lets it pass. Not out of mercy. Out of patience."
     },
     "S-005": {
       "id": "S-005",
@@ -424,35 +464,55 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-05",
-          "nodeId": "K-43",
-          "action": "added",
-          "content": "Fang Zheng awakened A-grade talent — the clans brightest hope in a decade"
+          "entityId": "C-05",
+          "addedNodes": [
+            {
+              "id": "K-43",
+              "content": "Fang Zheng awakened A-grade talent \u2014 the clans brightest hope in a decade",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-03",
-          "nodeId": "K-24",
-          "action": "added",
-          "content": "Fang Zheng is a generational talent who must be cultivated carefully"
+          "entityId": "C-03",
+          "addedNodes": [
+            {
+              "id": "K-24",
+              "content": "Fang Zheng is a generational talent who must be cultivated carefully",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-02",
-          "nodeId": "K-88",
-          "action": "added",
-          "content": "The gap between A-grade and C-grade is enormous — guilt at outshining his brother"
+          "entityId": "C-02",
+          "addedNodes": [
+            {
+              "id": "K-88",
+              "content": "The gap between A-grade and C-grade is enormous \u2014 guilt at outshining his brother",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-01",
-          "nodeId": "K-89",
-          "action": "added",
-          "content": "Successfully suppressed his aperture reading to C-grade — no one suspects"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-89",
+              "content": "Successfully suppressed his aperture reading to C-grade \u2014 no one suspects",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-05",
           "to": "C-02",
-          "type": "Awe at A-grade talent — this boy could carry the clan",
+          "type": "Awe at A-grade talent \u2014 this boy could carry the clan",
           "valenceDelta": 0.2
         },
         {
@@ -472,12 +532,12 @@
         "addedNodes": [
           {
             "id": "WK-RI-16",
-            "concept": "Vital Gu — the first Gu bonded to a cultivator's aperture, defining their initial cultivation path",
+            "concept": "Vital Gu \u2014 the first Gu bonded to a cultivator's aperture, defining their initial cultivation path",
             "type": "concept"
           },
           {
             "id": "WK-RI-18",
-            "concept": "Talent can be deliberately suppressed — a cultivator with knowledge can fake weakness",
+            "concept": "Talent can be deliberately suppressed \u2014 a cultivator with knowledge can fake weakness",
             "type": "tension"
           }
         ],
@@ -494,7 +554,7 @@
           }
         ]
       },
-      "summary": "The Awakening Ceremony. The entire clan gathers in the academy hall, lanterns casting copper light across a hundred expectant faces. Each youth places their hand on the vital Gu. When Fang Zheng touches it, A-grade light floods the chamber — gasps, then applause, then the elders whispering among themselves. Fang Yuan deliberately dampens his own response: C-grade. Polite silence. Gu Yue Bo nods once and moves on. Shen Cui cannot meet his eyes. Only Fang Yuan knows the measurement stone would have shattered if he had let it."
+      "summary": "The Awakening Ceremony. The entire clan gathers in the academy hall, lanterns casting copper light across a hundred expectant faces. Each youth places their hand on the vital Gu. When Fang Zheng touches it, A-grade light floods the chamber \u2014 gasps, then applause, then the elders whispering among themselves. Fang Yuan deliberately dampens his own response: C-grade. Polite silence. Gu Yue Bo nods once and moves on. Shen Cui cannot meet his eyes. Only Fang Yuan knows the measurement stone would have shattered if he had let it."
     },
     "S-006": {
       "id": "S-006",
@@ -530,16 +590,26 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-02",
-          "nodeId": "K-90",
-          "action": "added",
-          "content": "The villagers pity Fang Yuan openly — his brother deserves better than their condescension"
+          "entityId": "C-02",
+          "addedNodes": [
+            {
+              "id": "K-90",
+              "content": "The villagers pity Fang Yuan openly \u2014 his brother deserves better than their condescension",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-01",
-          "nodeId": "K-91",
-          "action": "added",
-          "content": "The village reaction confirms his cover is perfect — pity is the best camouflage"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-91",
+              "content": "The village reaction confirms his cover is perfect \u2014 pity is the best camouflage",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
@@ -552,7 +622,7 @@
         {
           "from": "C-01",
           "to": "C-02",
-          "type": "The boy is useful — his guilt makes him predictable and loyal",
+          "type": "The boy is useful \u2014 his guilt makes him predictable and loyal",
           "valenceDelta": 0.05
         }
       ],
@@ -560,7 +630,7 @@
         "addedNodes": [
           {
             "id": "WK-RI-19",
-            "concept": "Pity is camouflage — perceived weakness grants invisibility in a world that only watches the strong",
+            "concept": "Pity is camouflage \u2014 perceived weakness grants invisibility in a world that only watches the strong",
             "type": "tension"
           }
         ],
@@ -609,23 +679,33 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-02",
-          "nodeId": "K-92",
-          "action": "added",
-          "content": "Shen Cui warned that A-grade talent draws political attention from clan elders — he must be careful"
+          "entityId": "C-02",
+          "addedNodes": [
+            {
+              "id": "K-92",
+              "content": "Shen Cui warned that A-grade talent draws political attention from clan elders \u2014 he must be careful",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-05",
-          "nodeId": "K-93",
-          "action": "added",
-          "content": "Fang Zheng has the temperament to match his talent — earnest, teachable, uncorrupted"
+          "entityId": "C-05",
+          "addedNodes": [
+            {
+              "id": "K-93",
+              "content": "Fang Zheng has the temperament to match his talent \u2014 earnest, teachable, uncorrupted",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-02",
           "to": "C-05",
-          "type": "Sees a mentor figure — someone who believes in him for the right reasons",
+          "type": "Sees a mentor figure \u2014 someone who believes in him for the right reasons",
           "valenceDelta": 0.2
         },
         {
@@ -639,7 +719,7 @@
         "addedNodes": [
           {
             "id": "WK-RI-20",
-            "concept": "Exceptional talent draws political attention — genius is a resource factions compete to claim",
+            "concept": "Exceptional talent draws political attention \u2014 genius is a resource factions compete to claim",
             "type": "law"
           }
         ],
@@ -656,7 +736,7 @@
           }
         ]
       },
-      "summary": "Academy, after hours. Shen Cui keeps Fang Zheng behind to discuss his training regimen. She speaks carefully about the burden of exceptional talent — how the clan will expect much, how he must pace himself. Fang Zheng listens with the earnest gravity of a boy who has never been told he is special before. The late afternoon light falls through the window slats in bars across the floor. It is a gentle scene, almost domestic, entirely unaware of the forces gathering around it."
+      "summary": "Academy, after hours. Shen Cui keeps Fang Zheng behind to discuss his training regimen. She speaks carefully about the burden of exceptional talent \u2014 how the clan will expect much, how he must pace himself. Fang Zheng listens with the earnest gravity of a boy who has never been told he is special before. The late afternoon light falls through the window slats in bars across the floor. It is a gentle scene, almost domestic, entirely unaware of the forces gathering around it."
     },
     "S-008": {
       "id": "S-008",
@@ -687,16 +767,26 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-01",
-          "nodeId": "K-94",
-          "action": "added",
-          "content": "The Bai clan breach point is unfortified — the village defenses have the same weaknesses as before"
-        },
-        {
-          "characterId": "C-01",
-          "nodeId": "K-95",
-          "action": "added",
-          "content": "Night patrol routes have gaps — the perimeter is unwatched between the second and fourth hour"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-94",
+              "content": "The Bai clan breach point is unfortified \u2014 the village defenses have the same weaknesses as before",
+              "type": "belief"
+            },
+            {
+              "id": "K-95",
+              "content": "Night patrol routes have gaps \u2014 the perimeter is unwatched between the second and fourth hour",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": [
+            {
+              "from": "K-94",
+              "to": "K-95",
+              "relation": "co_occurs"
+            }
+          ]
         }
       ],
       "relationshipMutations": [],
@@ -704,7 +794,7 @@
         "addedNodes": [
           {
             "id": "WK-RI-22",
-            "concept": "Future knowledge is the ultimate weapon — knowing where and when enemies will strike inverts all power dynamics",
+            "concept": "Future knowledge is the ultimate weapon \u2014 knowing where and when enemies will strike inverts all power dynamics",
             "type": "tension"
           }
         ],
@@ -747,16 +837,26 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-03",
-          "nodeId": "K-96",
-          "action": "added",
-          "content": "Mo Bei Liu has at least three supporters among the younger elders — the faction is growing"
+          "entityId": "C-03",
+          "addedNodes": [
+            {
+              "id": "K-96",
+              "content": "Mo Bei Liu has at least three supporters among the younger elders \u2014 the faction is growing",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-06",
-          "nodeId": "K-97",
-          "action": "added",
-          "content": "Gu Yue Bo still commands enough respect to deny proposals outright — a direct challenge is premature"
+          "entityId": "C-06",
+          "addedNodes": [
+            {
+              "id": "K-97",
+              "content": "Gu Yue Bo still commands enough respect to deny proposals outright \u2014 a direct challenge is premature",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
@@ -769,7 +869,7 @@
         {
           "from": "C-03",
           "to": "C-06",
-          "type": "The man grows bolder — his patience with Mo Bei Liu wears thinner",
+          "type": "The man grows bolder \u2014 his patience with Mo Bei Liu wears thinner",
           "valenceDelta": -0.1
         }
       ],
@@ -777,12 +877,12 @@
         "addedNodes": [
           {
             "id": "WK-RI-23",
-            "concept": "Primeval stones — crystallized primeval essence used as currency, cultivation fuel, and Gu feed",
+            "concept": "Primeval stones \u2014 crystallized primeval essence used as currency, cultivation fuel, and Gu feed",
             "type": "concept"
           },
           {
             "id": "WK-RI-25",
-            "concept": "Factional politics within clans — elders form competing blocs that undermine unity from within",
+            "concept": "Factional politics within clans \u2014 elders form competing blocs that undermine unity from within",
             "type": "system"
           }
         ],
@@ -799,7 +899,7 @@
           }
         ]
       },
-      "summary": "Clan Hall. The elders convene to allocate quarterly resources — primeval stones, Gu feed, training materials. Mo Bei Liu proposes redirecting funds from border patrols to youth cultivation. Gu Yue Bo denies the request with a single raised hand. The room is quiet. Mo Bei Liu smiles, bows, sits. But his supporters exchange glances across the table, and Gu Yue Bo notices every one. The meeting ends. Nothing has happened. Everything has begun."
+      "summary": "Clan Hall. The elders convene to allocate quarterly resources \u2014 primeval stones, Gu feed, training materials. Mo Bei Liu proposes redirecting funds from border patrols to youth cultivation. Gu Yue Bo denies the request with a single raised hand. The room is quiet. Mo Bei Liu smiles, bows, sits. But his supporters exchange glances across the table, and Gu Yue Bo notices every one. The meeting ends. Nothing has happened. Everything has begun."
     },
     "S-010": {
       "id": "S-010",
@@ -830,29 +930,39 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-01",
-          "nodeId": "K-98",
-          "action": "added",
-          "content": "Mo Bei Liu left through the east gate with two allies — the faction alignment matches his past life memories exactly"
-        },
-        {
-          "characterId": "C-01",
-          "nodeId": "K-99",
-          "action": "added",
-          "content": "Gu Yue Bo walks alone — the old man is more isolated than he realizes"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-98",
+              "content": "Mo Bei Liu left through the east gate with two allies \u2014 the faction alignment matches his past life memories exactly",
+              "type": "belief"
+            },
+            {
+              "id": "K-99",
+              "content": "Gu Yue Bo walks alone \u2014 the old man is more isolated than he realizes",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": [
+            {
+              "from": "K-98",
+              "to": "K-99",
+              "relation": "co_occurs"
+            }
+          ]
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-01",
           "to": "C-06",
-          "type": "Mo Bei Liu is a predictable piece on the board — useful when the time comes",
+          "type": "Mo Bei Liu is a predictable piece on the board \u2014 useful when the time comes",
           "valenceDelta": 0.1
         },
         {
           "from": "C-01",
           "to": "C-03",
-          "type": "The old patriarch is weakening — his downfall will create the chaos Fang Yuan needs",
+          "type": "The old patriarch is weakening \u2014 his downfall will create the chaos Fang Yuan needs",
           "valenceDelta": -0.1
         }
       ],
@@ -860,7 +970,7 @@
         "addedNodes": [
           {
             "id": "WK-RI-26",
-            "concept": "Information asymmetry is the deepest form of power — those who know the future control the present",
+            "concept": "Information asymmetry is the deepest form of power \u2014 those who know the future control the present",
             "type": "law"
           }
         ],
@@ -877,7 +987,7 @@
           }
         ]
       },
-      "summary": "Fang Yuan loiters outside the Clan Hall as the elders disperse, pretending to sweep the courtyard steps — a chore no one questions a C-grade student performing. He watches Mo Bei Liu leave through the east gate, flanked by two younger elders. He watches Gu Yue Bo leave alone through the main entrance, walking slowly. Five hundred years of political experience read the scene like an open scroll. The timeline is intact. Mo Bei Liu will move in approximately four months. Fang Yuan sets down the broom and walks away."
+      "summary": "Fang Yuan loiters outside the Clan Hall as the elders disperse, pretending to sweep the courtyard steps \u2014 a chore no one questions a C-grade student performing. He watches Mo Bei Liu leave through the east gate, flanked by two younger elders. He watches Gu Yue Bo leave alone through the main entrance, walking slowly. Five hundred years of political experience read the scene like an open scroll. The timeline is intact. Mo Bei Liu will move in approximately four months. Fang Yuan sets down the broom and walks away."
     },
     "S-011": {
       "id": "S-011",
@@ -903,27 +1013,37 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-05",
-          "nodeId": "K-100",
-          "action": "added",
-          "content": "Fang Zheng has raw power but lacks fine control — he needs specialized exercises"
+          "entityId": "C-05",
+          "addedNodes": [
+            {
+              "id": "K-100",
+              "content": "Fang Zheng has raw power but lacks fine control \u2014 he needs specialized exercises",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-02",
-          "nodeId": "K-101",
-          "action": "added",
-          "content": "A-grade talent does not guarantee mastery — the gap between potential and skill is humbling"
+          "entityId": "C-02",
+          "addedNodes": [
+            {
+              "id": "K-101",
+              "content": "A-grade talent does not guarantee mastery \u2014 the gap between potential and skill is humbling",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-05",
           "to": "C-02",
-          "type": "His struggle with control makes him more relatable — talent alone is not enough",
+          "type": "His struggle with control makes him more relatable \u2014 talent alone is not enough",
           "valenceDelta": 0.1
         }
       ],
-      "summary": "Academy training yard. The newly awakened students practice channeling primeval essence into their first Gu. Most fail repeatedly — the Gu squirm away from clumsy flows of energy like fish from a child's hands. Fang Zheng, despite his A-grade talent, struggles with fine control. Shen Cui corrects his grip. The other students watch him with a mix of envy and hope. A normal afternoon. The kind of afternoon that makes a world feel lived-in before the world begins to crack."
+      "summary": "Academy training yard. The newly awakened students practice channeling primeval essence into their first Gu. Most fail repeatedly \u2014 the Gu squirm away from clumsy flows of energy like fish from a child's hands. Fang Zheng, despite his A-grade talent, struggles with fine control. Shen Cui corrects his grip. The other students watch him with a mix of envy and hope. A normal afternoon. The kind of afternoon that makes a world feel lived-in before the world begins to crack."
     },
     "S-012": {
       "id": "S-012",
@@ -959,16 +1079,26 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-01",
-          "nodeId": "K-10A",
-          "action": "added",
-          "content": "Located the hidden primeval stone cache in the tunnels, exactly where he remembered"
-        },
-        {
-          "characterId": "C-01",
-          "nodeId": "K-102",
-          "action": "added",
-          "content": "The tunnel network connects to deeper mountain caverns — a potential path to the inheritance ground"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-10A",
+              "content": "Located the hidden primeval stone cache in the tunnels, exactly where he remembered",
+              "type": "belief"
+            },
+            {
+              "id": "K-102",
+              "content": "The tunnel network connects to deeper mountain caverns \u2014 a potential path to the inheritance ground",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": [
+            {
+              "from": "K-10A",
+              "to": "K-102",
+              "relation": "co_occurs"
+            }
+          ]
         }
       ],
       "relationshipMutations": [],
@@ -976,12 +1106,12 @@
         "addedNodes": [
           {
             "id": "WK-RI-28",
-            "concept": "The Flower Wine Monk — a Rank 4 Gu Immortal who sealed his complete legacy beneath Qing Mao Mountain",
+            "concept": "The Flower Wine Monk \u2014 a Rank 4 Gu Immortal who sealed his complete legacy beneath Qing Mao Mountain",
             "type": "concept"
           },
           {
             "id": "WK-RI-29",
-            "concept": "Gu Immortal — cultivators who transcend mortal ranks and attain power over natural law itself",
+            "concept": "Gu Immortal \u2014 cultivators who transcend mortal ranks and attain power over natural law itself",
             "type": "concept"
           }
         ],
@@ -998,7 +1128,7 @@
           }
         ]
       },
-      "summary": "Deep night. Fang Yuan lifts the stone slab behind the abandoned granary and descends into the tunnels beneath Gu Yue Village. The air below is cold and tastes of minerals. He walks without light — five hundred years of memory serving as his lantern. Left at the collapsed arch, right at the dripping wall, duck beneath the low beam that decapitated a thief in another century. He finds the primeval stone cache exactly where he left it, in a life no one else remembers. He takes only a few. He will be back."
+      "summary": "Deep night. Fang Yuan lifts the stone slab behind the abandoned granary and descends into the tunnels beneath Gu Yue Village. The air below is cold and tastes of minerals. He walks without light \u2014 five hundred years of memory serving as his lantern. Left at the collapsed arch, right at the dripping wall, duck beneath the low beam that decapitated a thief in another century. He finds the primeval stone cache exactly where he left it, in a life no one else remembers. He takes only a few. He will be back."
     },
     "S-013": {
       "id": "S-013",
@@ -1034,29 +1164,39 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-02",
-          "nodeId": "K-103",
-          "action": "added",
-          "content": "Fang Yuan said he wants to be useful — but something about the way he said it felt hollow"
+          "entityId": "C-02",
+          "addedNodes": [
+            {
+              "id": "K-103",
+              "content": "Fang Yuan said he wants to be useful \u2014 but something about the way he said it felt hollow",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-01",
-          "nodeId": "K-104",
-          "action": "added",
-          "content": "Fang Zheng idolizes their parents sacrifice — a lever that could be pulled if necessary"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-104",
+              "content": "Fang Zheng idolizes their parents sacrifice \u2014 a lever that could be pulled if necessary",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-02",
           "to": "C-01",
-          "type": "Love laced with the first whisper of unease — his brother feels far away",
+          "type": "Love laced with the first whisper of unease \u2014 his brother feels far away",
           "valenceDelta": -0.1
         },
         {
           "from": "C-01",
           "to": "C-02",
-          "type": "A fleeting moment of something almost human — suppressed immediately",
+          "type": "A fleeting moment of something almost human \u2014 suppressed immediately",
           "valenceDelta": 0.05
         }
       ],
@@ -1064,7 +1204,7 @@
         "addedNodes": [
           {
             "id": "WK-RI-30",
-            "concept": "Emotional bonds are leverage — sentiment is a mechanism for control in a ruthless world",
+            "concept": "Emotional bonds are leverage \u2014 sentiment is a mechanism for control in a ruthless world",
             "type": "tension"
           }
         ],
@@ -1081,7 +1221,7 @@
           }
         ]
       },
-      "summary": "Their small house. Fang Zheng cooks — badly — while talking about his first successful Gu channeling. He wants to become strong enough to protect the whole clan, like their parents did. He asks Fang Yuan what he wants. Fang Yuan says he wants to be useful. The soup boils over. They eat in companionable silence, and for a single unguarded moment Fang Yuan watches his brother with something that might, in better light, be mistaken for grief. Then it is gone, and he asks for more soup."
+      "summary": "Their small house. Fang Zheng cooks \u2014 badly \u2014 while talking about his first successful Gu channeling. He wants to become strong enough to protect the whole clan, like their parents did. He asks Fang Yuan what he wants. Fang Yuan says he wants to be useful. The soup boils over. They eat in companionable silence, and for a single unguarded moment Fang Yuan watches his brother with something that might, in better light, be mistaken for grief. Then it is gone, and he asks for more soup."
     },
     "S-014": {
       "id": "S-014",
@@ -1114,35 +1254,50 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-01",
-          "nodeId": "K-105",
-          "action": "added",
-          "content": "Mo Bei Liu is using Fang Zheng as a political wedge — the boy will become a factional pawn"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-105",
+              "content": "Mo Bei Liu is using Fang Zheng as a political wedge \u2014 the boy will become a factional pawn",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-03",
-          "nodeId": "K-106",
-          "action": "added",
-          "content": "Mo Bei Liu openly challenged training assignments — his ambition is no longer hidden"
+          "entityId": "C-03",
+          "addedNodes": [
+            {
+              "id": "K-106",
+              "content": "Mo Bei Liu openly challenged training assignments \u2014 his ambition is no longer hidden",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-06",
-          "nodeId": "K-107",
-          "action": "added",
-          "content": "The A-grade boy is the perfect justification to redirect resources toward his faction"
+          "entityId": "C-06",
+          "addedNodes": [
+            {
+              "id": "K-107",
+              "content": "The A-grade boy is the perfect justification to redirect resources toward his faction",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-06",
           "to": "C-03",
-          "type": "Openly challenging the patriarch in session — respect crumbling",
+          "type": "Openly challenging the patriarch in session \u2014 respect crumbling",
           "valenceDelta": -0.15
         },
         {
           "from": "C-01",
           "to": "C-06",
-          "type": "Mo Bei Liu moves exactly on schedule — a useful fool",
+          "type": "Mo Bei Liu moves exactly on schedule \u2014 a useful fool",
           "valenceDelta": 0.05
         }
       ],
@@ -1150,7 +1305,7 @@
         "addedNodes": [
           {
             "id": "WK-RI-31",
-            "concept": "Talented individuals become political pawns — their potential is claimed by factions before they can choose",
+            "concept": "Talented individuals become political pawns \u2014 their potential is claimed by factions before they can choose",
             "type": "tension"
           }
         ],
@@ -1167,7 +1322,7 @@
           }
         ]
       },
-      "summary": "Clan Hall, open session. The elders formally discuss how to invest in the new generation. Fang Zheng's name comes up repeatedly — Mo Bei Liu argues the A-grade talent should train under his faction's instructors, not the academy. Gu Yue Bo insists on tradition. The boy has become a chess piece before he has even learned to fight. Fang Yuan stands among the spectators in the back row, invisible and unhurried, watching the board arrange itself exactly as he remembers."
+      "summary": "Clan Hall, open session. The elders formally discuss how to invest in the new generation. Fang Zheng's name comes up repeatedly \u2014 Mo Bei Liu argues the A-grade talent should train under his faction's instructors, not the academy. Gu Yue Bo insists on tradition. The boy has become a chess piece before he has even learned to fight. Fang Yuan stands among the spectators in the back row, invisible and unhurried, watching the board arrange itself exactly as he remembers."
     },
     "S-ALT-01": {
       "id": "S-ALT-01",
@@ -1192,29 +1347,39 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-02",
-          "nodeId": "K-15",
-          "action": "added",
-          "content": "Fang Yuan was not in his bed at midnight — followed him through the village but lost him near the old granary"
-        },
-        {
-          "characterId": "C-02",
-          "nodeId": "K-111",
-          "action": "added",
-          "content": "Fang Yuan moved through the dark village with uncanny confidence — no hesitation, no stumbling"
+          "entityId": "C-02",
+          "addedNodes": [
+            {
+              "id": "K-15",
+              "content": "Fang Yuan was not in his bed at midnight \u2014 followed him through the village but lost him near the old granary",
+              "type": "belief"
+            },
+            {
+              "id": "K-111",
+              "content": "Fang Yuan moved through the dark village with uncanny confidence \u2014 no hesitation, no stumbling",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": [
+            {
+              "from": "K-15",
+              "to": "K-111",
+              "relation": "co_occurs"
+            }
+          ]
         }
       ],
       "relationshipMutations": [
         {
           "from": "C-02",
           "to": "C-01",
-          "type": "First crack — where does his brother go at night?",
+          "type": "First crack \u2014 where does his brother go at night?",
           "valenceDelta": -0.05
         },
         {
           "from": "C-02",
           "to": "C-01",
-          "type": "The C-grade boy navigated darkness like a predator — that is not mediocrity",
+          "type": "The C-grade boy navigated darkness like a predator \u2014 that is not mediocrity",
           "valenceDelta": -0.15
         }
       ],
@@ -1222,7 +1387,7 @@
         "addedNodes": [
           {
             "id": "WK-RI-32",
-            "concept": "The demonic path — cultivators who reject societal norms, using forbidden methods and ruthless pragmatism",
+            "concept": "The demonic path \u2014 cultivators who reject societal norms, using forbidden methods and ruthless pragmatism",
             "type": "concept"
           }
         ],
@@ -1239,7 +1404,7 @@
           }
         ]
       },
-      "summary": "Fang Zheng wakes to an empty room. His brother's bed is cold, the blanket undisturbed. He pulls on his shoes and steps into the village night, following a shape he almost recognizes through the narrow lanes. Near the old granary, Fang Yuan vanishes — not around a corner, not into a doorway, but simply gone, as though the ground swallowed him. Fang Zheng stands alone in the moonlight, breathing hard, and for the first time wonders whether the brother he pities is someone else entirely."
+      "summary": "Fang Zheng wakes to an empty room. His brother's bed is cold, the blanket undisturbed. He pulls on his shoes and steps into the village night, following a shape he almost recognizes through the narrow lanes. Near the old granary, Fang Yuan vanishes \u2014 not around a corner, not into a doorway, but simply gone, as though the ground swallowed him. Fang Zheng stands alone in the moonlight, breathing hard, and for the first time wonders whether the brother he pities is someone else entirely."
     },
     "S-ALT-02": {
       "id": "S-ALT-02",
@@ -1271,16 +1436,26 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-02",
-          "nodeId": "K-108",
-          "action": "added",
-          "content": "Fang Yuan answered too smoothly — ordinary people stumble when surprised, but he was perfectly composed"
+          "entityId": "C-02",
+          "addedNodes": [
+            {
+              "id": "K-108",
+              "content": "Fang Yuan answered too smoothly \u2014 ordinary people stumble when surprised, but he was perfectly composed",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         },
         {
-          "characterId": "C-01",
-          "nodeId": "K-109",
-          "action": "added",
-          "content": "Fang Zheng noticed the absence — must be more careful with nighttime movements"
+          "entityId": "C-01",
+          "addedNodes": [
+            {
+              "id": "K-109",
+              "content": "Fang Zheng noticed the absence \u2014 must be more careful with nighttime movements",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": []
         }
       ],
       "relationshipMutations": [
@@ -1293,11 +1468,11 @@
         {
           "from": "C-01",
           "to": "C-02",
-          "type": "The boy is more observant than expected — a variable that needs managing",
+          "type": "The boy is more observant than expected \u2014 a variable that needs managing",
           "valenceDelta": -0.1
         }
       ],
-      "summary": "Morning. Fang Zheng confronts his brother over breakfast — where were you last night? Fang Yuan looks up from his congee with mild surprise. He says he went walking, that he could not sleep. The explanation is ordinary, delivered with a self-deprecating shrug. Fang Zheng wants to believe it. Almost does. But there is a half-second delay before Fang Yuan answers, a practiced quality to his confusion, and the small cold seed of doubt does not dissolve. It roots."
+      "summary": "Morning. Fang Zheng confronts his brother over breakfast \u2014 where were you last night? Fang Yuan looks up from his congee with mild surprise. He says he went walking, that he could not sleep. The explanation is ordinary, delivered with a self-deprecating shrug. Fang Zheng wants to believe it. Almost does. But there is a half-second delay before Fang Yuan answers, a practiced quality to his confusion, and the small cold seed of doubt does not dissolve. It roots."
     },
     "S-ALT-03": {
       "id": "S-ALT-03",
@@ -1327,16 +1502,26 @@
       ],
       "continuityMutations": [
         {
-          "characterId": "C-02",
-          "nodeId": "K-17",
-          "action": "added",
-          "content": "Found a loose stone slab behind the old granary — too heavy to move, but the dust around it has been disturbed recently"
-        },
-        {
-          "characterId": "C-02",
-          "nodeId": "K-110",
-          "action": "added",
-          "content": "Something is hidden beneath the granary — and his brother knows about it"
+          "entityId": "C-02",
+          "addedNodes": [
+            {
+              "id": "K-17",
+              "content": "Found a loose stone slab behind the old granary \u2014 too heavy to move, but the dust around it has been disturbed recently",
+              "type": "belief"
+            },
+            {
+              "id": "K-110",
+              "content": "Something is hidden beneath the granary \u2014 and his brother knows about it",
+              "type": "belief"
+            }
+          ],
+          "addedEdges": [
+            {
+              "from": "K-17",
+              "to": "K-110",
+              "relation": "co_occurs"
+            }
+          ]
         }
       ],
       "relationshipMutations": [
@@ -1351,7 +1536,7 @@
         "addedNodes": [
           {
             "id": "WK-RI-33",
-            "concept": "Secrets compound — each hidden truth requires further deception to protect, creating an unstable web",
+            "concept": "Secrets compound \u2014 each hidden truth requires further deception to protect, creating an unstable web",
             "type": "tension"
           }
         ],
@@ -1388,51 +1573,93 @@
               "T-06"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "K-01": {
                   "id": "K-01",
-                  "type": "knows",
+                  "type": "belief",
                   "content": "Reborn 500 years into the past via the Spring Autumn Cicada"
                 },
-                {
+                "K-02": {
                   "id": "K-02",
-                  "type": "knows",
+                  "type": "belief",
                   "content": "Complete knowledge of Gu cultivation, refinement paths, and future events"
                 },
-                {
+                "K-03": {
                   "id": "K-03",
                   "type": "secret",
                   "content": "Is a 500-year-old Rank 6 demonic Gu Immortal in a 15-year-old body"
                 },
-                {
+                "K-04": {
                   "id": "K-04",
                   "type": "goal",
-                  "content": "Attain eternal life — the Great Dao of longevity"
+                  "content": "Attain eternal life \u2014 the Great Dao of longevity"
                 },
-                {
+                "K-05": {
                   "id": "K-05",
-                  "type": "believes",
+                  "type": "belief",
                   "content": "Only strength matters. Morality is a shackle the weak use to bind themselves"
                 },
-                {
+                "K-06": {
                   "id": "K-06",
-                  "type": "knows",
+                  "type": "belief",
                   "content": "The Flower Wine Monk inheritance ground lies beneath Qing Mao Mountain"
                 },
-                {
+                "K-07": {
                   "id": "K-07",
-                  "type": "knows",
-                  "content": "Bai Ning Bing carries the Northern Dark Ice Soul physique — she will die before 20"
+                  "type": "belief",
+                  "content": "Bai Ning Bing carries the Northern Dark Ice Soul physique \u2014 she will die before 20"
                 },
-                {
+                "K-08": {
                   "id": "K-08",
-                  "type": "knows",
+                  "type": "belief",
                   "content": "Mo Bei Liu is embezzling clan resources and will attempt a power grab"
                 },
-                {
+                "K-09": {
                   "id": "K-09",
-                  "type": "knows",
+                  "type": "belief",
                   "content": "Fang Zheng will awaken an A-grade talent at the ceremony"
+                }
+              },
+              "edges": [
+                {
+                  "from": "K-01",
+                  "to": "K-02",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-02",
+                  "to": "K-03",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-03",
+                  "to": "K-04",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-04",
+                  "to": "K-05",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-05",
+                  "to": "K-06",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-06",
+                  "to": "K-07",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-07",
+                  "to": "K-08",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-08",
+                  "to": "K-09",
+                  "relation": "co_occurs"
                 }
               ]
             }
@@ -1446,31 +1673,53 @@
               "T-03"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "K-10": {
                   "id": "K-10",
-                  "type": "believes",
+                  "type": "belief",
                   "content": "Fang Yuan is a mediocre but well-meaning elder brother"
                 },
-                {
+                "K-11": {
                   "id": "K-11",
-                  "type": "knows",
+                  "type": "belief",
                   "content": "The clan awakening ceremony determines a young cultivators future"
                 },
-                {
+                "K-12": {
                   "id": "K-12",
                   "type": "goal",
                   "content": "Become a great Gu Master and honor the Fang family name"
                 },
-                {
+                "K-13": {
                   "id": "K-13",
-                  "type": "believes",
+                  "type": "belief",
                   "content": "Hard work and righteousness will be rewarded"
                 },
-                {
+                "K-14": {
                   "id": "K-14",
-                  "type": "knows",
-                  "content": "Their parents died protecting the clan — he must live up to their legacy"
+                  "type": "belief",
+                  "content": "Their parents died protecting the clan \u2014 he must live up to their legacy"
+                }
+              },
+              "edges": [
+                {
+                  "from": "K-10",
+                  "to": "K-11",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-11",
+                  "to": "K-12",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-12",
+                  "to": "K-13",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-13",
+                  "to": "K-14",
+                  "relation": "co_occurs"
                 }
               ]
             }
@@ -1483,26 +1732,43 @@
               "T-04"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "K-20": {
                   "id": "K-20",
-                  "type": "knows",
-                  "content": "The Gu Yue clan is weakening — fewer talented youths each generation"
+                  "type": "belief",
+                  "content": "The Gu Yue clan is weakening \u2014 fewer talented youths each generation"
                 },
-                {
+                "K-21": {
                   "id": "K-21",
                   "type": "secret",
                   "content": "Aware of factional struggles between elders, especially Mo Bei Liu"
                 },
-                {
+                "K-22": {
                   "id": "K-22",
                   "type": "goal",
                   "content": "Maintain Gu Yue clan dominance on Qing Mao Mountain"
                 },
-                {
+                "K-23": {
                   "id": "K-23",
-                  "type": "believes",
+                  "type": "belief",
                   "content": "The clan must find exceptional talent to survive the next generation"
+                }
+              },
+              "edges": [
+                {
+                  "from": "K-20",
+                  "to": "K-21",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-21",
+                  "to": "K-22",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-22",
+                  "to": "K-23",
+                  "relation": "co_occurs"
                 }
               ]
             }
@@ -1515,26 +1781,43 @@
               "T-05"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "K-30": {
                   "id": "K-30",
-                  "type": "knows",
-                  "content": "Carries the Northern Dark Ice Soul physique — a curse disguised as genius"
+                  "type": "belief",
+                  "content": "Carries the Northern Dark Ice Soul physique \u2014 a curse disguised as genius"
                 },
-                {
+                "K-31": {
                   "id": "K-31",
                   "type": "goal",
                   "content": "Break the Ice Soul curse and live beyond age 20"
                 },
-                {
+                "K-32": {
                   "id": "K-32",
                   "type": "secret",
                   "content": "Willing to sacrifice anyone and anything to survive"
                 },
-                {
+                "K-33": {
                   "id": "K-33",
-                  "type": "believes",
-                  "content": "Life itself is the only thing worth pursuing — everything else is meaningless"
+                  "type": "belief",
+                  "content": "Life itself is the only thing worth pursuing \u2014 everything else is meaningless"
+                }
+              },
+              "edges": [
+                {
+                  "from": "K-30",
+                  "to": "K-31",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-31",
+                  "to": "K-32",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-32",
+                  "to": "K-33",
+                  "relation": "co_occurs"
                 }
               ]
             }
@@ -1547,21 +1830,33 @@
               "T-02"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "K-40": {
                   "id": "K-40",
-                  "type": "believes",
+                  "type": "belief",
                   "content": "Talent should be nurtured fairly regardless of background"
                 },
-                {
+                "K-41": {
                   "id": "K-41",
-                  "type": "knows",
+                  "type": "belief",
                   "content": "Fang Yuan appears to be a mediocre student with no remarkable aptitude"
                 },
-                {
+                "K-42": {
                   "id": "K-42",
                   "type": "goal",
                   "content": "Identify and develop the most promising students for the clan"
+                }
+              },
+              "edges": [
+                {
+                  "from": "K-40",
+                  "to": "K-41",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-41",
+                  "to": "K-42",
+                  "relation": "co_occurs"
                 }
               ]
             }
@@ -1574,26 +1869,43 @@
               "T-04"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "K-50": {
                   "id": "K-50",
                   "type": "secret",
                   "content": "Has been embezzling clan primeval stones and Gu resources for years"
                 },
-                {
+                "K-51": {
                   "id": "K-51",
                   "type": "goal",
-                  "content": "Seize more power within the clan — ideally replace Gu Yue Bo as leader"
+                  "content": "Seize more power within the clan \u2014 ideally replace Gu Yue Bo as leader"
                 },
-                {
+                "K-52": {
                   "id": "K-52",
-                  "type": "believes",
+                  "type": "belief",
                   "content": "Gu Yue Bo is too cautious and will lead the clan to ruin"
                 },
-                {
+                "K-53": {
                   "id": "K-53",
-                  "type": "knows",
+                  "type": "belief",
                   "content": "Has gathered supporters among the younger elders"
+                }
+              },
+              "edges": [
+                {
+                  "from": "K-50",
+                  "to": "K-51",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-51",
+                  "to": "K-52",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-52",
+                  "to": "K-53",
+                  "relation": "co_occurs"
                 }
               ]
             }
@@ -1606,21 +1918,33 @@
               "T-06"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "K-60": {
                   "id": "K-60",
-                  "type": "knows",
+                  "type": "belief",
                   "content": "Has found markings near Qing Mao Mountain pointing to a secret inheritance ground"
                 },
-                {
+                "K-61": {
                   "id": "K-61",
                   "type": "goal",
                   "content": "Find and claim the inheritance before anyone else"
                 },
-                {
+                "K-62": {
                   "id": "K-62",
-                  "type": "believes",
+                  "type": "belief",
                   "content": "The inheritance could elevate him from a wandering Gu Master to a true power"
+                }
+              },
+              "edges": [
+                {
+                  "from": "K-60",
+                  "to": "K-61",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-61",
+                  "to": "K-62",
+                  "relation": "co_occurs"
                 }
               ]
             }
@@ -1633,21 +1957,33 @@
               "T-07"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "K-70": {
                   "id": "K-70",
                   "type": "goal",
                   "content": "Investigate rumors of demonic cultivator activity near Qing Mao Mountain"
                 },
-                {
+                "K-71": {
                   "id": "K-71",
-                  "type": "believes",
+                  "type": "belief",
                   "content": "The righteous path must root out demonic cultivators wherever they hide"
                 },
-                {
+                "K-72": {
                   "id": "K-72",
-                  "type": "knows",
-                  "content": "Detected faint traces of Spring Autumn Cicada activation — an impossible Gu thought lost"
+                  "type": "belief",
+                  "content": "Detected faint traces of Spring Autumn Cicada activation \u2014 an impossible Gu thought lost"
+                }
+              },
+              "edges": [
+                {
+                  "from": "K-70",
+                  "to": "K-71",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "K-71",
+                  "to": "K-72",
+                  "relation": "co_occurs"
                 }
               ]
             }
@@ -1660,19 +1996,27 @@
             "parentId": null,
             "threadIds": [],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "LK-01": {
                   "id": "LK-01",
-                  "type": "lore",
-                  "content": "Home to three rival Gu Master clans — Gu Yue, Bai, and Xiong"
+                  "type": "history",
+                  "content": "Home to three rival Gu Master clans \u2014 Gu Yue, Bai, and Xiong"
                 },
-                {
+                "LK-02": {
                   "id": "LK-02",
-                  "type": "lore",
+                  "type": "history",
                   "content": "Rich in wild Gu worms due to the mountains primeval essence veins"
                 }
+              },
+              "edges": [
+                {
+                  "from": "LK-01",
+                  "to": "LK-02",
+                  "relation": "co_occurs"
+                }
               ]
-            }
+            },
+            "prominence": "place"
           },
           {
             "id": "L-02",
@@ -1682,19 +2026,27 @@
               "T-04"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "LK-03": {
                   "id": "LK-03",
-                  "type": "lore",
+                  "type": "history",
                   "content": "The weakest of the three mountain clans, relying on tradition over innovation"
                 },
-                {
+                "LK-04": {
                   "id": "LK-04",
                   "type": "secret",
                   "content": "Hidden tunnel network beneath the village, known only to past clan leaders"
                 }
+              },
+              "edges": [
+                {
+                  "from": "LK-03",
+                  "to": "LK-04",
+                  "relation": "co_occurs"
+                }
               ]
-            }
+            },
+            "prominence": "place"
           },
           {
             "id": "L-03",
@@ -1704,14 +2056,16 @@
               "T-02"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "LK-05": {
                   "id": "LK-05",
-                  "type": "lore",
+                  "type": "history",
                   "content": "Where clan youths are tested and trained in basic Gu cultivation"
                 }
-              ]
-            }
+              },
+              "edges": []
+            },
+            "prominence": "place"
           },
           {
             "id": "L-04",
@@ -1721,19 +2075,27 @@
               "T-04"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "LK-06": {
                   "id": "LK-06",
-                  "type": "lore",
-                  "content": "Seat of Gu Yue clan governance — where elders debate and resources are allocated"
+                  "type": "history",
+                  "content": "Seat of Gu Yue clan governance \u2014 where elders debate and resources are allocated"
                 },
-                {
+                "LK-07": {
                   "id": "LK-07",
                   "type": "secret",
                   "content": "Factional meetings occur in side chambers after formal sessions"
                 }
+              },
+              "edges": [
+                {
+                  "from": "LK-06",
+                  "to": "LK-07",
+                  "relation": "co_occurs"
+                }
               ]
-            }
+            },
+            "prominence": "place"
           },
           {
             "id": "L-05",
@@ -1743,19 +2105,27 @@
               "T-01"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "LK-08": {
                   "id": "LK-08",
                   "type": "secret",
                   "content": "Contains hidden caches of primeval stones left by previous generations"
                 },
-                {
+                "LK-09": {
                   "id": "LK-09",
                   "type": "secret",
                   "content": "Connected to the deeper mountain caverns where wild Gu thrive"
                 }
+              },
+              "edges": [
+                {
+                  "from": "LK-08",
+                  "to": "LK-09",
+                  "relation": "co_occurs"
+                }
               ]
-            }
+            },
+            "prominence": "place"
           },
           {
             "id": "L-06",
@@ -1765,19 +2135,27 @@
               "T-05"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "LK-10": {
                   "id": "LK-10",
-                  "type": "lore",
+                  "type": "history",
                   "content": "The strongest of the three mountain clans, known for ice-path Gu cultivation"
                 },
-                {
+                "LK-11": {
                   "id": "LK-11",
-                  "type": "lore",
-                  "content": "Birthplace of the Northern Dark Ice Soul physique — both blessing and curse"
+                  "type": "history",
+                  "content": "Birthplace of the Northern Dark Ice Soul physique \u2014 both blessing and curse"
+                }
+              },
+              "edges": [
+                {
+                  "from": "LK-10",
+                  "to": "LK-11",
+                  "relation": "co_occurs"
                 }
               ]
-            }
+            },
+            "prominence": "place"
           },
           {
             "id": "L-07",
@@ -1787,19 +2165,27 @@
               "T-06"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "LK-12": {
                   "id": "LK-12",
-                  "type": "danger",
+                  "type": "weakness",
                   "content": "Wild beast packs and untamed Gu worms make this area lethal for low-rank cultivators"
                 },
-                {
+                "LK-13": {
                   "id": "LK-13",
-                  "type": "lore",
+                  "type": "history",
                   "content": "Ancient markings on cliff faces hint at hidden inheritance grounds"
                 }
+              },
+              "edges": [
+                {
+                  "from": "LK-12",
+                  "to": "LK-13",
+                  "relation": "co_occurs"
+                }
               ]
-            }
+            },
+            "prominence": "place"
           },
           {
             "id": "L-08",
@@ -1809,24 +2195,37 @@
               "T-06"
             ],
             "continuity": {
-              "nodes": [
-                {
+              "nodes": {
+                "LK-14": {
                   "id": "LK-14",
                   "type": "secret",
-                  "content": "A Rank 4 Gu Immortals complete legacy — techniques, Gu worms, and primeval stones"
+                  "content": "A Rank 4 Gu Immortals complete legacy \u2014 techniques, Gu worms, and primeval stones"
                 },
-                {
+                "LK-15": {
                   "id": "LK-15",
-                  "type": "danger",
-                  "content": "Protected by lethal formations — poisoned darts, illusion arrays, and collapsing architecture"
+                  "type": "weakness",
+                  "content": "Protected by lethal formations \u2014 poisoned darts, illusion arrays, and collapsing architecture"
                 },
-                {
+                "LK-16": {
                   "id": "LK-16",
-                  "type": "lore",
+                  "type": "history",
                   "content": "The Flower Wine Monk was known for unconventional cultivation paths"
                 }
+              },
+              "edges": [
+                {
+                  "from": "LK-14",
+                  "to": "LK-15",
+                  "relation": "co_occurs"
+                },
+                {
+                  "from": "LK-15",
+                  "to": "LK-16",
+                  "relation": "co_occurs"
+                }
               ]
-            }
+            },
+            "prominence": "place"
           }
         ],
         "threads": [
@@ -1838,7 +2237,7 @@
                 "type": "character"
               }
             ],
-            "description": "Spring Autumn Cicada — Fang Yuan's rebirth secret, the one truth that must never be exposed",
+            "description": "Spring Autumn Cicada \u2014 Fang Yuan's rebirth secret, the one truth that must never be exposed",
             "status": "dormant",
             "openedAt": "S-001",
             "dependents": [
@@ -1862,7 +2261,7 @@
                 "type": "character"
               }
             ],
-            "description": "The Awakening Ceremony — who receives which vital Gu, and whose future is sealed",
+            "description": "The Awakening Ceremony \u2014 who receives which vital Gu, and whose future is sealed",
             "status": "dormant",
             "openedAt": "S-001",
             "dependents": []
@@ -1879,7 +2278,7 @@
                 "type": "character"
               }
             ],
-            "description": "Brother against brother — Fang Zheng's growing suspicion that something is deeply wrong with Fang Yuan",
+            "description": "Brother against brother \u2014 Fang Zheng's growing suspicion that something is deeply wrong with Fang Yuan",
             "status": "dormant",
             "openedAt": "S-001",
             "dependents": []
@@ -1900,7 +2299,7 @@
                 "type": "character"
               }
             ],
-            "description": "Clan politics — Mo Bei Liu's faction against Gu Yue Bo's loyalists, the Gu Yue clan fracturing from within",
+            "description": "Clan politics \u2014 Mo Bei Liu's faction against Gu Yue Bo's loyalists, the Gu Yue clan fracturing from within",
             "status": "dormant",
             "openedAt": "S-009",
             "dependents": []
@@ -1913,7 +2312,7 @@
                 "type": "character"
               }
             ],
-            "description": "Bai Ning Bing's curse — the Northern Dark Ice Soul physique, a ticking clock toward death before age 20",
+            "description": "Bai Ning Bing's curse \u2014 the Northern Dark Ice Soul physique, a ticking clock toward death before age 20",
             "status": "dormant",
             "openedAt": "S-001",
             "dependents": []
@@ -1930,7 +2329,7 @@
                 "type": "location"
               }
             ],
-            "description": "The Flower Wine Monk's inheritance ground — hidden power buried beneath Qing Mao Mountain",
+            "description": "The Flower Wine Monk's inheritance ground \u2014 hidden power buried beneath Qing Mao Mountain",
             "status": "dormant",
             "openedAt": "S-001",
             "dependents": [
@@ -1945,7 +2344,7 @@
                 "type": "character"
               }
             ],
-            "description": "Tie Ruo Nan's investigation — the righteous path hunting demonic cultivator traces near the mountain",
+            "description": "Tie Ruo Nan's investigation \u2014 the righteous path hunting demonic cultivator traces near the mountain",
             "status": "dormant",
             "openedAt": "S-001",
             "dependents": []
@@ -1955,7 +2354,7 @@
           {
             "from": "C-01",
             "to": "C-02",
-            "type": "Views brother as a useful shield — affection is a tool he wears like a mask",
+            "type": "Views brother as a useful shield \u2014 affection is a tool he wears like a mask",
             "valence": 0.1
           },
           {
@@ -1973,7 +2372,7 @@
           {
             "from": "C-03",
             "to": "C-01",
-            "type": "Barely registers the C-grade boy — just another unremarkable student",
+            "type": "Barely registers the C-grade boy \u2014 just another unremarkable student",
             "valence": -0.1
           },
           {
@@ -1991,13 +2390,13 @@
           {
             "from": "C-04",
             "to": "C-01",
-            "type": "Has never met this person — no impression formed",
+            "type": "Has never met this person \u2014 no impression formed",
             "valence": 0
           },
           {
             "from": "C-01",
             "to": "C-04",
-            "type": "Knows she is dangerous and desperate — a volatile element to monitor",
+            "type": "Knows she is dangerous and desperate \u2014 a volatile element to monitor",
             "valence": -0.2
           },
           {
@@ -2017,47 +2416,47 @@
           "addedNodes": [
             {
               "id": "WK-RI-WB-01",
-              "concept": "The Gu ecosystem — a living supernatural ecology where insects, worms, and organisms are the medium of all power, cultivated like crops and wielded like weapons",
+              "concept": "The Gu ecosystem \u2014 a living supernatural ecology where insects, worms, and organisms are the medium of all power, cultivated like crops and wielded like weapons",
               "type": "system"
             },
             {
               "id": "WK-RI-WB-02",
-              "concept": "The clan system — autonomous Gu Master clans that govern territories, allocate resources, and wage war, each a self-contained society organized around cultivation strength",
+              "concept": "The clan system \u2014 autonomous Gu Master clans that govern territories, allocate resources, and wage war, each a self-contained society organized around cultivation strength",
               "type": "system"
             },
             {
               "id": "WK-RI-WB-03",
-              "concept": "The mortal-immortal divide — Rank 1-5 cultivators are mortal, bound by lifespan and physiology; Gu Immortals (Rank 6+) transcend natural law and operate on a cosmic scale",
+              "concept": "The mortal-immortal divide \u2014 Rank 1-5 cultivators are mortal, bound by lifespan and physiology; Gu Immortals (Rank 6+) transcend natural law and operate on a cosmic scale",
               "type": "tension"
             },
             {
               "id": "WK-RI-WB-04",
-              "concept": "The Great Dream Realm — a dimension accessible through sleep where the souls of all living beings intermingle and ancient knowledge can be glimpsed",
+              "concept": "The Great Dream Realm \u2014 a dimension accessible through sleep where the souls of all living beings intermingle and ancient knowledge can be glimpsed",
               "type": "concept"
             },
             {
               "id": "WK-RI-WB-05",
-              "concept": "The Ten Extreme Physiques — rare body constitutions that grant extraordinary cultivation advantages but come with equally extreme costs and vulnerabilities",
+              "concept": "The Ten Extreme Physiques \u2014 rare body constitutions that grant extraordinary cultivation advantages but come with equally extreme costs and vulnerabilities",
               "type": "concept"
             },
             {
               "id": "WK-RI-WB-06",
-              "concept": "Heavenly Dao — the abstract laws governing reality itself, divided into paths (strength, wisdom, luck, time, space, etc.) that cultivators can comprehend and weaponize",
+              "concept": "Heavenly Dao \u2014 the abstract laws governing reality itself, divided into paths (strength, wisdom, luck, time, space, etc.) that cultivators can comprehend and weaponize",
               "type": "law"
             },
             {
               "id": "WK-RI-WB-07",
-              "concept": "The Righteous-Demonic dichotomy — society labels cultivators as righteous (following clan norms) or demonic (following self-interest), but the distinction is political, not moral",
+              "concept": "The Righteous-Demonic dichotomy \u2014 society labels cultivators as righteous (following clan norms) or demonic (following self-interest), but the distinction is political, not moral",
               "type": "tension"
             },
             {
               "id": "WK-RI-WB-08",
-              "concept": "Gu recipe systems — the combinatorial logic of refining, feeding, and pairing Gu worms, where knowledge of recipes is as valuable as the Gu themselves",
+              "concept": "Gu recipe systems \u2014 the combinatorial logic of refining, feeding, and pairing Gu worms, where knowledge of recipes is as valuable as the Gu themselves",
               "type": "system"
             },
             {
               "id": "WK-RI-WB-09",
-              "concept": "Reincarnation as strategic resource — in a world where death is not final, those who return carry advantages that reshape the balance of power",
+              "concept": "Reincarnation as strategic resource \u2014 in a world where death is not final, those who return carry advantages that reshape the balance of power",
               "type": "law"
             }
           ],
@@ -2215,14 +2614,14 @@
     "nodes": {},
     "edges": []
   },
-  "worldSummary": "Qing Mao Mountain is home to three rival Gu Master clans living in uneasy balance. Gu — living organisms that grant supernatural powers — are cultivated, refined, and fought over. Fang Yuan has been reborn 500 years into his past using the legendary Spring Autumn Cicada. He now inhabits his 15-year-old body within the Gu Yue clan, armed with complete knowledge of the future. His goal is absolute: attain eternal life. Everyone else — brother, clan, rivals — is either a tool or an obstacle. The mountain does not know what walks among it.",
+  "worldSummary": "Qing Mao Mountain is home to three rival Gu Master clans living in uneasy balance. Gu \u2014 living organisms that grant supernatural powers \u2014 are cultivated, refined, and fought over. Fang Yuan has been reborn 500 years into his past using the legendary Spring Autumn Cicada. He now inhabits his 15-year-old body within the Gu Yue clan, armed with complete knowledge of the future. His goal is absolute: attain eternal life. Everyone else \u2014 brother, clan, rivals \u2014 is either a tool or an obstacle. The mountain does not know what walks among it.",
   "rules": [
-    "Fang Yuan is ruthlessly pragmatic — he does not act out of sentiment, only calculated self-interest",
-    "Gu are living organisms, not spells — they must be fed, refined, and can die or be stolen",
+    "Fang Yuan is ruthlessly pragmatic \u2014 he does not act out of sentiment, only calculated self-interest",
+    "Gu are living organisms, not spells \u2014 they must be fed, refined, and can die or be stolen",
     "A Gu Master can only have one vital Gu in their aperture at a time per rank",
     "Fang Yuan has 500 years of future knowledge but his current body is Rank 1 with limited primeval essence",
-    "The three clans of Qing Mao Mountain maintain a fragile power balance — open war risks mutual destruction",
-    "Rebirth is Fang Yuan's deepest secret — if revealed, every power in the world would hunt him"
+    "The three clans of Qing Mao Mountain maintain a fragile power balance \u2014 open war risks mutual destruction",
+    "Rebirth is Fang Yuan's deepest secret \u2014 if revealed, every power in the world would hunt him"
   ],
   "controlMode": "auto",
   "imageStyle": "Dark Chinese xianxia ink-wash painting with digital colour, sharp angular compositions, crimson and black accents, venomous insects and jade-green Gu energy, cold ruthless atmosphere",

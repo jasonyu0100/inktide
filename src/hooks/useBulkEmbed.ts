@@ -63,11 +63,6 @@ export function useBulkEmbed() {
       // Proposition embeddings - use latest plan version
       const latestPlan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
       if (latestPlan) {
-        if (latestPlan.propositions) {
-          stats.propositions.total += latestPlan.propositions.length;
-          stats.propositions.missing += latestPlan.propositions.filter(p => !p.embedding).length;
-        }
-
         for (const beat of latestPlan.beats) {
           stats.propositions.total += beat.propositions.length;
           stats.propositions.missing += beat.propositions.filter(p => !p.embedding).length;
@@ -199,15 +194,6 @@ export function useBulkEmbed() {
         propIndex: number;
       }> = [];
 
-      // Scene-level propositions
-      if (latestPlan.propositions) {
-        latestPlan.propositions.forEach((prop, propIndex) => {
-          if (!prop.embedding) {
-            allPropositions.push({ ...prop, beatIndex: -1, propIndex });
-          }
-        });
-      }
-
       // Beat-level propositions
       latestPlan.beats.forEach((beat, beatIndex) => {
         beat.propositions.forEach((prop, propIndex) => {
@@ -227,20 +213,13 @@ export function useBulkEmbed() {
         // Create updated plan with new embeddings
         const updatedPlan = { ...latestPlan };
 
-        // Update scene-level propositions
-        if (updatedPlan.propositions) {
-          updatedPlan.propositions = [...updatedPlan.propositions];
-        }
-
         // Update beat-level propositions and recompute centroids
         updatedPlan.beats = updatedPlan.beats.map((beat, beatIndex) => {
           const updatedBeat = { ...beat, propositions: [...beat.propositions] };
 
           // Map embeddings back
           allPropositions.forEach((prop, embeddedIndex) => {
-            if (prop.beatIndex === -1 && updatedPlan.propositions) {
-              updatedPlan.propositions[prop.propIndex] = embeddedProps[embeddedIndex];
-            } else if (prop.beatIndex === beatIndex) {
+            if (prop.beatIndex === beatIndex) {
               updatedBeat.propositions[prop.propIndex] = embeddedProps[embeddedIndex];
             }
           });

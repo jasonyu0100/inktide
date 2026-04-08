@@ -438,7 +438,6 @@ describe('generateScenePlan', () => {
     expect(result.beats).toHaveLength(3);
     expect(result.beats[0].fn).toBe('breathe');
     expect(result.beats[0].mechanism).toBe('environment');
-    expect(result.propositions).toHaveLength(1);
   });
 
   it('validates beat function values', async () => {
@@ -482,7 +481,6 @@ describe('generateScenePlan', () => {
   it('filters non-string anchors', async () => {
     const mockResponse = JSON.stringify({
       beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'anchor' }] }],
-      propositions: [{ content: 'Valid anchor' }, { content: 'Another valid' }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -491,7 +489,7 @@ describe('generateScenePlan', () => {
 
     const result = await generateScenePlan(narrative, scene, []);
 
-    expect(result.propositions).toEqual([{ content: 'Valid anchor' }, { content: 'Another valid' }]);
+    expect(result.beats[0].propositions).toEqual([{ content: 'anchor' }]);
   });
 });
 
@@ -514,7 +512,6 @@ describe('editScenePlan', () => {
         beats: [
           { fn: 'breathe', mechanism: 'environment', what: 'Original opening', propositions: [{ content: 'old anchor' }] },
         ],
-        propositions: [],
       },
     });
 
@@ -640,7 +637,6 @@ describe('rewriteScenePlan', () => {
       beats: [
         { fn: 'advance', mechanism: 'action', what: 'Original beat', propositions: [{ content: 'anchor' }] },
       ],
-      propositions: [],
     };
 
     const result = await rewriteScenePlan(
@@ -653,13 +649,11 @@ describe('rewriteScenePlan', () => {
 
     expect(result.beats).toHaveLength(2);
     expect(result.beats[0].fn).toBe('turn');
-    expect(result.propositions).toHaveLength(1);
   });
 
   it('falls back to current plan if LLM returns empty beats', async () => {
     const mockResponse = JSON.stringify({
       beats: [],
-      propositions: [{ content: 'New anchor' }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
 
@@ -669,7 +663,6 @@ describe('rewriteScenePlan', () => {
       beats: [
         { fn: 'breathe', mechanism: 'environment', what: 'Original', propositions: [{ content: 'original' }] },
       ],
-      propositions: [{ content: 'Old anchor' }],
     };
 
     const result = await rewriteScenePlan(narrative, scene, [], currentPlan, 'Feedback');
@@ -677,8 +670,6 @@ describe('rewriteScenePlan', () => {
     // Should fall back to current plan's beats
     expect(result.beats).toHaveLength(1);
     expect(result.beats[0].fn).toBe('breathe');
-    // But use new propositions
-    expect(result.propositions).toEqual([{ content: 'New anchor' }]);
   });
 });
 
@@ -709,7 +700,6 @@ describe('generateSceneProse', () => {
         beats: [
           { fn: 'breathe', mechanism: 'environment', what: 'Opening atmosphere', propositions: [{ content: 'grey sky' }] },
         ],
-        propositions: [{ content: 'The sky was the color of old iron.' }],
       },
     });
 
@@ -718,8 +708,7 @@ describe('generateSceneProse', () => {
     const callArgs = vi.mocked(callGenerate).mock.calls[0];
     expect(callArgs[0]).toContain('BEAT PLAN');
     expect(callArgs[0]).toContain('breathe:environment');
-    expect(callArgs[0]).toContain('PROPOSITIONS');
-    expect(callArgs[0]).toContain('old iron');
+    expect(callArgs[0]).toContain('grey sky');
   });
 
   it('handles streaming with onToken callback', async () => {

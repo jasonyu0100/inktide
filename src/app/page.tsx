@@ -326,7 +326,7 @@ export default function HomePage() {
               className="opacity-90"
             />
           </div>
-          <p className="animate-fade-up text-[10px] uppercase tracking-[0.3em] text-white/30 font-mono mb-8">
+          <p className="animate-fade-up text-[10px] uppercase tracking-[0.3em] text-white/50 font-mono mb-8">
             InkTide Engine
           </p>
 
@@ -338,7 +338,7 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="animate-fade-up-delay-2 text-[15px] text-white/40 mt-6 max-w-lg text-center leading-relaxed">
+          <p className="animate-fade-up-delay-2 text-[15px] text-white/60 mt-6 max-w-lg text-center leading-relaxed">
             Paste any text. See its structure.
             <br />
             Search it by meaning. Generate from what you find.
@@ -354,17 +354,17 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                <div className="prompt-glow relative rounded-xl border border-white/8 focus-within:border-white/15 transition-colors duration-200">
+                <div className="prompt-glow relative rounded-xl border border-white/12 focus-within:border-white/25 transition-colors duration-200 bg-white/3">
                   <textarea
                     ref={inputRef}
                     value={analysisText}
                     onChange={(e) => setAnalysisText(e.target.value)}
                     rows={5}
-                    className="w-full bg-transparent text-white text-sm px-4 pt-4 pb-2 resize-none focus:outline-none placeholder:text-white/25"
+                    className="w-full bg-transparent text-white text-sm px-4 pt-4 pb-2 resize-none focus:outline-none placeholder:text-white/35"
                     placeholder="Paste a book, paper, screenplay, or any long-form text to analyze..."
                   />
                   <div className="flex items-center justify-between px-3 pb-3">
-                    <span className="text-[10px] text-white/20 font-mono">
+                    <span className="text-[10px] text-white/35 font-mono">
                       {analysisText.trim()
                         ? `${analysisText.trim().split(/\s+/).length.toLocaleString()} words`
                         : "text analysis"}
@@ -391,11 +391,11 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <p className="text-center text-[11px] text-white/25 mt-3">
+                <p className="text-center text-[11px] text-white/40 mt-3">
                   or{" "}
                   <button
                     onClick={() => openCreate()}
-                    className="text-white/40 hover:text-white/70 underline underline-offset-2 transition"
+                    className="text-white/60 hover:text-white/90 underline underline-offset-2 transition"
                   >
                     create a new world
                   </button>{" "}
@@ -416,7 +416,7 @@ export default function HomePage() {
                 </h2>
                 <div className="flex-1 h-px bg-white/6" />
               </div>
-              <p className="text-[13px] text-white/40 leading-relaxed mb-8 max-w-lg">
+              <p className="text-[13px] text-white/55 leading-relaxed mb-8 max-w-lg">
                 Each analyzed work adds its pacing rhythm and prose
                 patterns to the system. Explore the structure underneath
                 books that shaped a generation.
@@ -436,7 +436,7 @@ export default function HomePage() {
                 </h2>
                 <div className="flex-1 h-px bg-white/6" />
               </div>
-              <p className="text-[13px] text-white/40 leading-relaxed mb-5 max-w-lg">
+              <p className="text-[13px] text-white/55 leading-relaxed mb-5 max-w-lg">
                 AI-generated alternate paths from the same starting point.
                 Branch the timeline, compare force curves, see how different
                 structural choices reshape the same world.
@@ -502,7 +502,7 @@ export default function HomePage() {
                       <path d="M9 18l6-6-6-6" />
                     </svg>
                   </summary>
-                  <p className="text-[12px] text-white/35 leading-relaxed pb-2 pl-0">
+                  <p className="text-[12px] text-white/50 leading-relaxed pb-2 pl-0">
                     {a}
                   </p>
                 </details>

@@ -693,22 +693,13 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
     };
   });
 
-  const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
-  const scenePropositions = parsePropositions(rawSceneProps);
-
-  const result = {
-    beats,
-    propositions: scenePropositions.length > 0 ? scenePropositions : undefined,
-  };
+  const result: BeatPlan = { beats };
 
   // ── Generate embeddings for all propositions ─────────────────────────────
   const { embedPropositions, computeCentroid } = await import('@/lib/embeddings');
 
-  // Collect all propositions from beats and scene-level
+  // Collect all propositions from beats
   const allPropositions: Array<{ content: string; type?: string }> = [];
-  if (result.propositions) {
-    allPropositions.push(...result.propositions);
-  }
   result.beats.forEach(beat => {
     allPropositions.push(...beat.propositions);
   });
@@ -720,12 +711,6 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
 
       // Map embeddings back to plan
       let embeddedIndex = 0;
-      if (result.propositions) {
-        for (let i = 0; i < result.propositions.length; i++) {
-          result.propositions[i] = embeddedProps[embeddedIndex++];
-        }
-      }
-
       for (const beat of result.beats) {
         for (let i = 0; i < beat.propositions.length; i++) {
           beat.propositions[i] = embeddedProps[embeddedIndex++];
@@ -759,7 +744,6 @@ REMINDER: All propositions (per-beat and scene-level) MUST conform to the PROSE 
       sceneId: scene.id,
       beatsGenerated: beats.length,
       totalPropositions: beats.reduce((sum, b) => sum + b.propositions.length, 0),
-      scenePropositions: scenePropositions.length,
     },
   });
 
@@ -855,9 +839,6 @@ Return the COMPLETE plan (all beats, not just changed ones) as JSON:
     };
   });
 
-  const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
-  const scenePropositions = parsePropositions(rawSceneProps);
-
   logInfo('Completed scene plan edit', {
     source: 'plan-generation',
     operation: 'edit-plan-complete',
@@ -865,14 +846,10 @@ Return the COMPLETE plan (all beats, not just changed ones) as JSON:
       narrativeId: narrative.id,
       sceneId: scene.id,
       beatsReturned: beats.length,
-      hasPropositions: scenePropositions.length > 0,
     },
   });
 
-  return {
-    beats,
-    propositions: scenePropositions.length > 0 ? scenePropositions : undefined,
-  };
+  return { beats };
 }
 
 /**
@@ -1405,13 +1382,11 @@ export async function rewriteScenePlan(
   const currentPlanText = currentPlan.beats.map((b, i) =>
     `${i + 1}. [${b.fn}:${b.mechanism}] ${b.what}\n   Propositions: ${b.propositions.map(p => `"${p.content}"`).join('; ')}`
   ).join('\n');
-  const currentProps = currentPlan.propositions && currentPlan.propositions.length > 0
-    ? `\nScene Propositions: ${currentPlan.propositions.map((p) => `"${p.content}"`).join(', ')}`
-    : '';
+
 
   const systemPrompt = `You are a dramaturg making TARGETED REVISIONS to a scene plan for "${narrative.title}". This is NOT a regeneration — preserve the existing structure and only modify what the feedback specifically addresses.
 
-Return ONLY valid JSON: { "beats": [{ "fn": "...", "mechanism": "...", "what": "...", "propositions": [{"content": "...", "type": "..."}] }], "propositions": [{"content": "...", "type": "..."}] }
+Return ONLY valid JSON: { "beats": [{ "fn": "...", "mechanism": "...", "what": "...", "propositions": [{"content": "...", "type": "..."}] }] }
 
 Beat functions: ${BEAT_FN_LIST.join(', ')}
 Mechanisms: ${BEAT_MECHANISM_LIST.join(', ')}
@@ -1439,7 +1414,7 @@ SCENE AT BRANCH HEAD:
 ${sceneDesc}
 
 CURRENT PLAN:
-${currentPlanText}${currentProps}
+${currentPlanText}
 
 TARGETED FEEDBACK:
 ${analysis}
@@ -1476,9 +1451,6 @@ Scene-level "propositions" should capture the overall takeaways from the scene.`
     };
   });
 
-  const rawSceneProps = Array.isArray(parsed.propositions) ? parsed.propositions : [];
-  const scenePropositions = parsePropositions(rawSceneProps);
-
   logInfo('Completed scene plan rewrite', {
     source: 'plan-generation',
     operation: 'rewrite-plan-complete',
@@ -1492,7 +1464,6 @@ Scene-level "propositions" should capture the overall takeaways from the scene.`
 
   return {
     beats: beats.length > 0 ? beats : currentPlan.beats,
-    propositions: scenePropositions.length > 0 ? scenePropositions : currentPlan.propositions,
   };
 }
 
@@ -1696,7 +1667,7 @@ Given proposition: "Fang Yuan views other people as tools"
 The proposition is a belief-state to establish. HOW you establish it is craft.
 
 CRITICAL: If a proposition contains figurative language and the prose profile forbids figures of speech, REWRITE the proposition as literal fact, then transmit that. "Smoke dances like spirits" becomes "Smoke rises in twisted columns" if metaphor is forbidden.
-${activePlan.propositions && activePlan.propositions.length > 0 ? `\nSCENE PROPOSITIONS (story world facts spanning the whole scene):\n${activePlan.propositions.map((p) => `  "${p.content}"`).join('\n')}` : ''}\n`
+\n`
     : '';
 
   // Derive logical constraints from the scene graph — these are hard rules the prose must obey

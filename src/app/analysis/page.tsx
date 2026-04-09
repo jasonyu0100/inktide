@@ -212,6 +212,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const isExtracting = liveJob.phase === 'plans';
   const isPlanExtracting = liveJob.phase === 'plans';
   const isStructuring = liveJob.phase === 'structure';
+  const isArcing = liveJob.phase === 'arcs';
   const isReconciling = liveJob.phase === 'reconciliation';
   const isFinalizing = liveJob.phase === 'finalization';
   const isAssembling = liveJob.phase === 'assembly';
@@ -443,13 +444,14 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     <p className="text-white/20 text-[11px] leading-relaxed">
                       The text has been split into {totalChunks} chunk{totalChunks !== 1 ? 's' : ''} that will be analyzed in parallel. Each chunk independently extracts characters, locations, threads, and scenes. A reconciliation pass then merges duplicates and stitches continuity across chunks.
                     </p>
-                    <div className="grid grid-cols-5 gap-2 pt-1">
+                    <div className="grid grid-cols-6 gap-2 pt-1">
                       {[
-                        { label: 'Plans', desc: 'Extract beats, propositions & embeddings' },
-                        { label: 'Structure', desc: 'Derive graph mutations from scenes' },
-                        { label: 'Reconcile', desc: 'Merge duplicates across chunks' },
-                        { label: 'Finalize', desc: 'Analyze thread dependencies' },
-                        { label: 'Assemble', desc: 'Build the narrative structure' },
+                        { label: 'Plans', desc: 'Extract beats & propositions' },
+                        { label: 'Structure', desc: 'Per-scene entity extraction' },
+                        { label: 'Arcs', desc: 'Group scenes & name arcs' },
+                        { label: 'Reconcile', desc: 'Merge duplicates' },
+                        { label: 'Finalize', desc: 'Thread dependencies' },
+                        { label: 'Assemble', desc: 'Build narrative' },
                       ].map((phase) => (
                         <div key={phase.label} className="bg-white/3 rounded-lg px-3 py-2.5">
                           <div className="text-[9px] uppercase tracking-[0.15em] text-white/30 font-mono mb-1">{phase.label}</div>
@@ -580,7 +582,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
               <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isStructuring ? 'bg-violet-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
               <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">
-                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isStructuring ? 'Structure' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
+                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isArcing ? 'Arcs' : isStructuring ? 'Structure' : isExtracting ? 'Plans' : 'Idle'}
               </span>
               {isPlanExtracting && (
                 <span className="text-[9px] text-indigo-400/40 font-mono ml-auto">{beatStats.planCount}/{sceneCount}</span>
@@ -1022,8 +1024,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         {isRunning && (
           <div className="flex items-center gap-3 mb-2.5">
             {[
-              { label: 'Plans', active: isExtracting, done: isStructuring || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
-              { label: 'Structure', active: isStructuring, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
+              { label: 'Plans', active: isExtracting, done: isStructuring || isArcing || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
+              { label: 'Structure', active: isStructuring, done: isArcing || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
+              { label: 'Arcs', active: isArcing, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-violet-400' },
               { label: 'Reconcile', active: isReconciling, done: isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
               { label: 'Finalize', active: isFinalizing, done: isAssembling || liveJob.status === 'completed', color: 'bg-purple-400' },
               { label: 'Assemble', active: isAssembling, done: liveJob.status === 'completed', color: 'bg-amber-400' },

@@ -11,7 +11,7 @@
  *   Phase 6 — Assembly: build final NarrativeState from reconciled data
  */
 
-import { analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
+import { analyzeChunkParallel, reconcileResults, analyzeThreading, assembleNarrative, extractSceneStructure, groupScenesIntoArcs } from '@/lib/text-analysis';
 import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
@@ -517,8 +517,121 @@ class AnalysisRunner {
       return;
     }
 
-    // ── Phase 3.5: Generate embeddings ────────────────────────────────────
+    // ── Phase 2.5: Per-scene structure extraction ────────────────────────
+    // For each scene with prose + plan, extract entities and mutations from the exact prose
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'structure' } });
+
+    type StructureTask = { chunkIdx: number; sceneIdx: number; prose: string; plan: import('@/types/narrative').BeatPlan };
+    const structureTasks: StructureTask[] = [];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (!r?.scenes) continue;
+      for (let j = 0; j < r.scenes.length; j++) {
+        const s = r.scenes[j];
+        if (s.prose && s.plan) {
+          structureTasks.push({ chunkIdx: i, sceneIdx: j, prose: s.prose, plan: s.plan });
+        }
+      }
+    }
+
+    if (structureTasks.length > 0) {
+      this.emitStream(job.id, `Structure: Extracting entities from ${structureTasks.length} scenes...`);
+      let structureDone = 0;
+      const structureQueue = [...structureTasks];
+      let structureActive = 0;
+      let structureResolve!: () => void;
+      const structureDonePromise = new Promise<void>((resolve) => { structureResolve = resolve; });
+
+      const launchStructure = async (task: StructureTask) => {
+        structureActive++;
+        try {
+          const result = await extractSceneStructure(task.prose, task.plan, (token, acc) => {
+            this.emitStream(job.id, `Structure ${structureDone + 1}/${structureTasks.length}: extracting...`);
+          });
+
+          // Merge richer structure back into the chunk result's scene
+          const scene = results[task.chunkIdx]?.scenes[task.sceneIdx];
+          if (scene) {
+            scene.povName = result.povName || scene.povName;
+            scene.locationName = result.locationName || scene.locationName;
+            scene.participantNames = result.participantNames.length > 0 ? result.participantNames : scene.participantNames;
+            scene.events = result.events.length > 0 ? result.events : scene.events;
+            scene.summary = result.summary || scene.summary;
+            scene.threadMutations = result.threadMutations.length > 0 ? result.threadMutations : scene.threadMutations;
+            scene.continuityMutations = result.continuityMutations.length > 0 ? result.continuityMutations : scene.continuityMutations;
+            scene.relationshipMutations = result.relationshipMutations.length > 0 ? result.relationshipMutations : scene.relationshipMutations;
+            scene.artifactUsages = result.artifactUsages.length > 0 ? result.artifactUsages : scene.artifactUsages;
+            scene.ownershipMutations = result.ownershipMutations.length > 0 ? result.ownershipMutations : scene.ownershipMutations;
+            scene.tieMutations = result.tieMutations.length > 0 ? result.tieMutations : scene.tieMutations;
+            scene.characterMovements = result.characterMovements.length > 0 ? result.characterMovements : scene.characterMovements;
+            scene.worldKnowledgeMutations = result.worldKnowledgeMutations ?? scene.worldKnowledgeMutations;
+          }
+
+          // Merge newly discovered entities into the chunk result
+          const chunk = results[task.chunkIdx];
+          if (chunk) {
+            // Merge characters (avoid duplicates by name)
+            const existingCharNames = new Set((chunk.characters ?? []).map(c => c.name));
+            for (const c of result.characters) {
+              if (!existingCharNames.has(c.name)) { chunk.characters.push(c); existingCharNames.add(c.name); }
+            }
+            // Merge locations
+            const existingLocNames = new Set((chunk.locations ?? []).map(l => l.name));
+            for (const l of result.locations) {
+              if (!existingLocNames.has(l.name)) { chunk.locations.push(l); existingLocNames.add(l.name); }
+            }
+            // Merge artifacts
+            if (!chunk.artifacts) chunk.artifacts = [];
+            const existingArtNames = new Set(chunk.artifacts.map(a => a.name));
+            for (const a of result.artifacts) {
+              if (!existingArtNames.has(a.name)) { chunk.artifacts.push(a); existingArtNames.add(a.name); }
+            }
+            // Merge threads
+            const existingThreadDescs = new Set((chunk.threads ?? []).map(t => t.description));
+            for (const t of result.threads) {
+              if (!existingThreadDescs.has(t.description)) { chunk.threads.push(t); existingThreadDescs.add(t.description); }
+            }
+            // Merge relationships
+            for (const r of result.relationships) {
+              const exists = (chunk.relationships ?? []).some(x => x.from === r.from && x.to === r.to);
+              if (!exists) chunk.relationships.push(r);
+            }
+          }
+
+          structureDone++;
+          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results], currentChunkIndex: structureDone } });
+        } catch (err) {
+          logWarning('Per-scene structure extraction failed (non-fatal)', err, {
+            source: 'analysis', operation: 'scene-structure',
+            details: { jobId: job.id, chunkIdx: task.chunkIdx, sceneIdx: task.sceneIdx },
+          });
+          structureDone++;
+        } finally {
+          structureActive--;
+          if (structureQueue.length > 0 && !entry.cancelled) {
+            launchStructure(structureQueue.shift()!);
+          } else if (structureActive === 0) {
+            structureResolve();
+          }
+        }
+      };
+
+      // Launch initial batch
+      const MAX = ANALYSIS_CONCURRENCY;
+      for (let i = 0; i < Math.min(MAX, structureQueue.length); i++) {
+        launchStructure(structureQueue.shift()!);
+      }
+      await structureDonePromise;
+
+      this.emitStream(job.id, `[OK] Structure extracted for ${structureDone} scenes`);
+    }
+
+    if (entry.cancelled) {
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } });
+      return;
+    }
+
+    // ── Phase 3.5: Generate embeddings ────────────────────────────────────
 
     // Collect all scenes from all chunks (using analysis chunk scene type)
     const allScenes: AnalysisChunkResult['scenes'] = [];
@@ -686,9 +799,52 @@ class AnalysisRunner {
       return;
     }
 
-    // ── Phase 3: Reconciliation ───────────────────────────────────────────
+    // ── Arc grouping ─────────────────────────────────────────────────────
+    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'arcs' } });
+
+    // Collect all scene summaries across chunks in order
+    const arcSceneSummaries: { index: number; summary: string }[] = [];
+    let globalSceneIdx = 0;
+    for (const r of results) {
+      if (!r?.scenes) continue;
+      for (const s of r.scenes) {
+        arcSceneSummaries.push({ index: globalSceneIdx++, summary: s.summary });
+      }
+    }
+
+    let arcGroups: { name: string; sceneIndices: number[] }[] = [];
+    if (arcSceneSummaries.length > 0) {
+      try {
+        this.emitStream(job.id, `Arcs: Grouping ${arcSceneSummaries.length} scenes into arcs...`);
+        arcGroups = await groupScenesIntoArcs(arcSceneSummaries, (_token, accumulated) => {
+          this.emitStream(job.id, `Arcs: Naming...\n${accumulated}`);
+        });
+        this.emitStream(job.id, `[OK] ${arcGroups.length} arcs created`);
+      } catch (err) {
+        logWarning('Arc grouping failed (non-fatal)', err, {
+          source: 'analysis', operation: 'arc-grouping',
+          details: { jobId: job.id, sceneCount: arcSceneSummaries.length },
+        });
+        this.emitStream(job.id, 'Arcs: Grouping failed (non-fatal), using default grouping...');
+        // Fallback: group every SCENES_PER_ARC scenes
+        for (let i = 0; i < arcSceneSummaries.length; i += 4) {
+          const slice = arcSceneSummaries.slice(i, i + 4);
+          arcGroups.push({ name: `Arc ${Math.floor(i / 4) + 1}`, sceneIndices: slice.map(s => s.index) });
+        }
+      }
+    }
+
+    // Store arc groups on job for assembly to consume
+    (job as any).arcGroups = arcGroups;
+
+    if (entry.cancelled) {
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } });
+      return;
+    }
+
+    // ── Reconciliation ───────────────────────────────────────────────────
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'reconciliation', currentChunkIndex: totalChunks } });
-    this.emitStream(job.id, 'Phase 3: Reconciling entities...');
+    this.emitStream(job.id, 'Reconciling entities...');
 
     try {
       const rawResults = results.filter((r): r is AnalysisChunkResult => r !== null);

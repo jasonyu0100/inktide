@@ -11,9 +11,10 @@ import type {
   NarrativeState, AnalysisChunkResult, AnalysisJob,
   Character, Location, Thread, Arc, Scene, RelationshipEdge, Artifact,
   WorldBuild, Branch, ProseProfile, SceneVersionPointers, WorldKnowledgeNodeType, ContinuityNodeType,
+  BeatPlan,
 } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
+import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE, WORDS_PER_SCENE, SCENES_PER_ARC } from '@/lib/constants';
 import { validateExtractionResult, validateWorldKnowledge } from '@/lib/ai/validation';
 import { logWarning, logInfo } from '@/lib/system-logger';
 
@@ -96,6 +97,216 @@ export function splitCorpusIntoChunks(text: string): AnalysisJob['chunks'] {
     const sections = splitIntoSections(text);
     return { index, text, sectionCount: sections.length };
   });
+}
+
+// ── Scene-level Splitting ────────────────────────────────────────────────────
+
+/**
+ * Split corpus into scene-sized prose chunks (~1200 words each).
+ * Returns ordered array of { index, prose, wordCount }.
+ */
+export function splitCorpusIntoScenes(text: string): { index: number; prose: string; wordCount: number }[] {
+  const TARGET = WORDS_PER_SCENE;
+  const scenes: { index: number; prose: string; wordCount: number }[] = [];
+
+  // Split on paragraph breaks, then group into ~1200-word scenes
+  const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  let buffer: string[] = [];
+  let bufferWords = 0;
+
+  for (const para of paragraphs) {
+    const paraWords = para.split(/\s+/).length;
+    if (bufferWords > 0 && bufferWords + paraWords > TARGET * 1.3) {
+      scenes.push({ index: scenes.length, prose: buffer.join('\n\n'), wordCount: bufferWords });
+      buffer = [para];
+      bufferWords = paraWords;
+    } else {
+      buffer.push(para);
+      bufferWords += paraWords;
+    }
+  }
+  if (buffer.length > 0) {
+    scenes.push({ index: scenes.length, prose: buffer.join('\n\n'), wordCount: bufferWords });
+  }
+
+  // Merge any tiny trailing scene into the previous one
+  if (scenes.length > 1 && scenes[scenes.length - 1].wordCount < TARGET * 0.4) {
+    const last = scenes.pop()!;
+    const prev = scenes[scenes.length - 1];
+    scenes[scenes.length - 1] = { ...prev, prose: prev.prose + '\n\n' + last.prose, wordCount: prev.wordCount + last.wordCount };
+  }
+
+  return scenes;
+}
+
+// ── Per-Scene Structure Extraction ──────────────────────────────────────────
+
+/**
+ * Scene structure result — entities and mutations extracted from one scene's prose.
+ */
+export type SceneStructureResult = {
+  povName: string;
+  locationName: string;
+  participantNames: string[];
+  events: string[];
+  summary: string;
+  characters: AnalysisChunkResult['characters'];
+  locations: AnalysisChunkResult['locations'];
+  artifacts: NonNullable<AnalysisChunkResult['artifacts']>;
+  threads: AnalysisChunkResult['threads'];
+  relationships: AnalysisChunkResult['relationships'];
+  threadMutations: AnalysisChunkResult['scenes'][0]['threadMutations'];
+  continuityMutations: AnalysisChunkResult['scenes'][0]['continuityMutations'];
+  relationshipMutations: AnalysisChunkResult['scenes'][0]['relationshipMutations'];
+  artifactUsages: NonNullable<AnalysisChunkResult['scenes'][0]['artifactUsages']>;
+  ownershipMutations: NonNullable<AnalysisChunkResult['scenes'][0]['ownershipMutations']>;
+  tieMutations: NonNullable<AnalysisChunkResult['scenes'][0]['tieMutations']>;
+  characterMovements: NonNullable<AnalysisChunkResult['scenes'][0]['characterMovements']>;
+  worldKnowledgeMutations?: AnalysisChunkResult['scenes'][0]['worldKnowledgeMutations'];
+};
+
+/**
+ * Extract structure from a single scene's prose, informed by its beat plan.
+ * The plan tells the LLM where beat boundaries are; the prose is the source of truth for mutations.
+ */
+export async function extractSceneStructure(
+  prose: string,
+  plan: BeatPlan,
+  onToken?: (token: string, accumulated: string) => void,
+): Promise<SceneStructureResult> {
+  const beatSummary = plan.beats.map((b, i) => `Beat ${i + 1} [${b.fn}/${b.mechanism}]: ${b.what}`).join('\n');
+
+  const prompt = `Extract narrative structure from this scene's prose.
+
+SCENE PROSE:
+${prose}
+
+BEAT PLAN (${plan.beats.length} beats — use as a guide for where events happen):
+${beatSummary}
+
+FORCE FORMULAS — your extractions are the direct inputs to these formulas:
+- PAYOFF = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4. Ref: ~1.3/scene.
+- CHANGE = √(cont_nodes + √cont_edges) + √events + √(Σ|valenceDelta|²). Ref: ~4/scene.
+- KNOWLEDGE = ΔN + √ΔE (world knowledge). Ref: ~3.5/scene.
+
+Return JSON:
+{
+  "povName": "POV character name",
+  "locationName": "Where this scene takes place",
+  "participantNames": ["All characters present"],
+  "events": ["short_event_tags"],
+  "summary": "3-5 sentence narrative summary using character and location NAMES",
+  "characters": [{"name": "Full Name", "role": "anchor|recurring|transient", "firstAppearance": false, "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "what changed"}]}],
+  "locations": [{"name": "Location Name", "parentName": "Parent or null", "description": "Brief description", "lore": ["detail"], "tiedCharacterNames": ["characters tied here"]}],
+  "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "...", "content": "..."}], "ownerName": "owner or null"}],
+  "threads": [{"description": "narrative tension", "participantNames": ["names"], "statusAtStart": "status", "statusAtEnd": "status", "development": "how it developed"}],
+  "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
+  "threadMutations": [{"threadDescription": "exact thread description", "from": "status", "to": "status"}],
+  "continuityMutations": [{"entityName": "Name", "addedNodes": [{"content": "what", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+  "relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
+  "artifactUsages": [{"artifactName": "Name", "characterName": "who or null"}],
+  "ownershipMutations": [{"artifactName": "Name", "fromName": "prev", "toName": "new"}],
+  "tieMutations": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}],
+  "characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "how"}],
+  "worldKnowledgeMutations": {"addedNodes": [{"concept": "name", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "type"}]}
+}`;
+
+  const fieldGuide = `
+FIELD GUIDE — how each field works and feeds downstream systems:
+
+CHARACTERS — every named character who appears, speaks, or is meaningfully referenced.
+- "role": anchor = drives the story, recurring = appears regularly, transient = one-off
+- "continuity": inner world changes THIS scene. Write from the character's perspective. 9 types: trait (personality), state (condition), history (what happened), capability (what they can do), belief (what they think), relation (how they see others), secret (hidden), goal (what they want), weakness (vulnerability). Dense: 2-3 per active character. Quiet: 0-1 total.
+
+LOCATIONS — every location mentioned or established. Nest hierarchically via parentName.
+- "tiedCharacterNames": significant ties only — residents, faction members, NOT visitors.
+
+ARTIFACTS — TOOLS that extend capabilities. Physical objects, technologies, software, APIs, systems, methods, techniques, services, institutions. "ownerName": character (personal), location (communal), null (world-owned). "significance": key=alters plot, notable=recurs, minor=set dressing.
+
+THREADS — narrative tensions or questions. Lifecycle: dormant→active→escalating→critical→resolved/subverted/abandoned.
+- "statusAtStart"/"statusAtEnd": state at scene boundaries. Can be same (pulse).
+- "development": specifically what happened, not just "it advanced".
+
+THREAD MUTATIONS → PAYOFF: P = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4. Ref: ~1.3/scene. Only record actual transitions.
+
+CONTINUITY MUTATIONS → CHANGE: C = √(ΔN + √ΔE) + √events + √(Σ|valenceDelta|²). First-person changes for ANY entity. Locations track collective experiences. Artifacts track what they underwent + how they modified wielders. Ref: ~4/scene.
+
+RELATIONSHIP MUTATIONS → also CHANGE. valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic.
+
+WORLD KNOWLEDGE → KNOWLEDGE: K = ΔN + √ΔE. World's abstract structure — NOT character knowledge. 9 types: principle, system, concept, tension, event, structure, environment, convention, constraint. Ref: ~3.5/scene. Add edges: enables, governs, opposes, extends, constrains.
+
+ARTIFACT USAGES — when a tool is used. "characterName" null for unattributed (common in academic text).
+OWNERSHIP MUTATIONS — only when artifacts change hands.
+TIE MUTATIONS — significant bond changes (joining, banishment). NOT temporary visits.
+CHARACTER MOVEMENTS — only physical relocation to a different location.
+EVENTS — discrete action tags. Battle: 4-5. Quiet: 1-2.
+
+CALIBRATION: Dense prose = rich extraction. Sparse prose = minimal. Never pad. Never under-extract.`;
+
+  const fullPrompt = prompt + '\n' + fieldGuide;
+  const system = `You are a narrative structure extractor. Given a scene's exact prose and its beat plan, extract all entities, mutations, and structural data accurately. Dense prose deserves rich extraction; sparse prose deserves minimal extraction. Return only valid JSON.`;
+  const raw = await callAnalysis(fullPrompt, system, onToken);
+  const json = extractJSON(raw);
+  const parsed = JSON.parse(json) as SceneStructureResult;
+
+  return {
+    povName: parsed.povName ?? '',
+    locationName: parsed.locationName ?? '',
+    participantNames: parsed.participantNames ?? [],
+    events: parsed.events ?? [],
+    summary: parsed.summary ?? '',
+    characters: parsed.characters ?? [],
+    locations: parsed.locations ?? [],
+    artifacts: parsed.artifacts ?? [],
+    threads: parsed.threads ?? [],
+    relationships: parsed.relationships ?? [],
+    threadMutations: parsed.threadMutations ?? [],
+    continuityMutations: parsed.continuityMutations ?? [],
+    relationshipMutations: parsed.relationshipMutations ?? [],
+    artifactUsages: parsed.artifactUsages ?? [],
+    ownershipMutations: parsed.ownershipMutations ?? [],
+    tieMutations: parsed.tieMutations ?? [],
+    characterMovements: parsed.characterMovements ?? [],
+    worldKnowledgeMutations: parsed.worldKnowledgeMutations,
+  };
+}
+
+// ── Arc Grouping ────────────────────────────────────────────────────────────
+
+/**
+ * Group scenes into arcs of ~4 scenes each and name them via LLM.
+ */
+export async function groupScenesIntoArcs(
+  sceneSummaries: { index: number; summary: string }[],
+  onToken?: (token: string, accumulated: string) => void,
+): Promise<{ name: string; sceneIndices: number[] }[]> {
+  // Pre-group into chunks of SCENES_PER_ARC
+  const groups: { sceneIndices: number[]; summaries: string[] }[] = [];
+  for (let i = 0; i < sceneSummaries.length; i += SCENES_PER_ARC) {
+    const slice = sceneSummaries.slice(i, i + SCENES_PER_ARC);
+    groups.push({ sceneIndices: slice.map(s => s.index), summaries: slice.map(s => s.summary) });
+  }
+
+  const prompt = `Name each arc based on its scene summaries. An arc is a narrative unit of ~4 scenes.
+
+${groups.map((g, i) => `ARC ${i + 1} (scenes ${g.sceneIndices[0] + 1}-${g.sceneIndices[g.sceneIndices.length - 1] + 1}):\n${g.summaries.map((s, j) => `  Scene ${g.sceneIndices[j] + 1}: ${s}`).join('\n')}`).join('\n\n')}
+
+Return JSON array of arc names (one per arc, in order):
+["Arc 1 Name", "Arc 2 Name", ...]
+
+Rules:
+- Each name should capture the arc's thematic thrust in 2-5 words
+- Names should be evocative and specific, not generic ("The Betrayal at Dawn" not "Events")`;
+
+  const system = 'You are a narrative analyst. Name story arcs based on scene summaries. Return only a JSON array of strings.';
+  const raw = await callAnalysis(prompt, system, onToken);
+  const json = extractJSON(raw);
+  const names = JSON.parse(json) as string[];
+
+  return groups.map((g, i) => ({
+    name: names[i] ?? `Arc ${i + 1}`,
+    sceneIndices: g.sceneIndices,
+  }));
 }
 
 // ── Cumulative Context Builder ───────────────────────────────────────────────

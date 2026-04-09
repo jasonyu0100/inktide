@@ -1144,7 +1144,7 @@ export type AnalysisChunkResult = {
 };
 
 /** Analysis pipeline phases */
-export type AnalysisPhase = 'plans' | 'structure' | 'reconciliation' | 'finalization' | 'assembly';
+export type AnalysisPhase = 'plans' | 'structure' | 'arcs' | 'reconciliation' | 'finalization' | 'assembly';
 
 export type AnalysisJob = {
   id: string;

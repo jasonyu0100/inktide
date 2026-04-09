@@ -26,6 +26,7 @@ vi.mock('@/lib/ai/prompts', () => ({
   PROMPT_POV: 'Mock POV',
   PROMPT_CONTINUITY: 'Mock continuity',
   PROMPT_SUMMARY_REQUIREMENT: 'Mock summary requirement',
+  PROMPT_BEAT_TAXONOMY: 'Mock beat taxonomy',
   promptThreadLifecycle: vi.fn().mockReturnValue('Mock thread lifecycle'),
   buildThreadHealthPrompt: vi.fn().mockReturnValue('Mock thread health'),
   buildCompletedBeatsPrompt: vi.fn().mockReturnValue('Mock completed beats'),
@@ -540,8 +541,8 @@ describe('reverseEngineerScenePlan', () => {
   it('extracts beat structure from prose and returns plan', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'breathe', mechanism: 'environment', what: 'Morning light filters through', propositions: [{ content: 'golden rays' }], startPara: 0, endPara: 2 },
-        { fn: 'bond', mechanism: 'dialogue', what: 'Characters reconnect emotionally', propositions: [{ content: 'warm smile' }], startPara: 3, endPara: 5 },
+        { fn: 'breathe', mechanism: 'environment', what: 'Morning light filters through', propositions: [{ content: 'golden rays' }], chunks: 3 },
+        { fn: 'bond', mechanism: 'dialogue', what: 'Characters reconnect emotionally', propositions: [{ content: 'warm smile' }], chunks: 3 },
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
@@ -561,7 +562,7 @@ describe('reverseEngineerScenePlan', () => {
   it('validates beat functions and mechanisms to prevent invalid values', async () => {
     const mockResponse = JSON.stringify({
       beats: [
-        { fn: 'INVALID_FN', mechanism: 'INVALID_MECH', what: 'Something happens here in the scene', propositions: [{ content: 'descriptive fact' }], startPara: 0, endPara: 5 },
+        { fn: 'INVALID_FN', mechanism: 'INVALID_MECH', what: 'Something happens here in the scene', propositions: [{ content: 'descriptive fact' }], chunks: 6 },
       ],
       propositions: [],
     });
@@ -588,8 +589,7 @@ describe('reverseEngineerScenePlan', () => {
             { notContent: 'wrong key' }, // Wrong structure
             { content: 'Another valid one' },
           ],
-          startPara: 0,
-          endPara: 5,
+          chunks: 6,
         },
       ],
     });
@@ -605,7 +605,7 @@ describe('reverseEngineerScenePlan', () => {
 
   it('handles streaming with onToken callback', async () => {
     const mockResponse = JSON.stringify({
-      beats: [{ fn: 'advance', mechanism: 'action', what: 'Action beat moves the plot forward', propositions: [{ content: 'descriptive detail' }], startPara: 0, endPara: 5 }],
+      beats: [{ fn: 'advance', mechanism: 'action', what: 'Action beat moves the plot forward', propositions: [{ content: 'descriptive detail' }], chunks: 6 }],
     });
     vi.mocked(callGenerateStream).mockResolvedValue(mockResponse);
 

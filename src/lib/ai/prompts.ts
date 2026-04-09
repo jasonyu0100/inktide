@@ -239,6 +239,51 @@ export const SCHEMA_SCENE_MUTATIONS = [
   SCHEMA_EVENTS,
 ].join(',\n      ');
 
+// ── Beat Functions & Mechanisms ──────────────────────────────────────────────
+// Single source of truth for beat classification — used by plan generation,
+// reverse engineering, and prose generation.
+
+export const PROMPT_BEAT_TAXONOMY = `
+BEAT FUNCTIONS (10):
+  breathe    — Pacing, atmosphere, sensory grounding, scene establishment.
+  inform     — Knowledge delivery. Character or reader learns something NOW.
+  advance    — Forward momentum. Plot moves, goals pursued, tension rises.
+  bond       — Relationship shifts between characters.
+  turn       — Scene pivots. Revelation, reversal, interruption.
+  reveal     — Character nature exposed through action or choice.
+  shift      — Power dynamic inverts.
+  expand     — World-building. New rule, system, geography introduced.
+  foreshadow — Plants information that pays off LATER.
+  resolve    — Tension releases. Question answered, conflict settles.
+
+MECHANISMS (8) — determines how prose is written:
+  dialogue    — Characters SPEAKING. Requires quoted speech.
+  thought     — POV character's INTERNAL monologue. Private reasoning.
+  action      — PHYSICAL movement, gesture, body in space.
+  environment — Setting, weather, sounds, spatial context.
+  narration   — Narrator's voice. Rhetoric, time compression, exposition.
+  memory      — Flashback triggered by association.
+  document    — Embedded text shown literally. Letter, sign, excerpt.
+  comic       — Humor, irony, absurdity.
+
+MECHANISM EDGE CASES:
+  - Overhearing sounds = environment, NOT dialogue
+  - POV character thinking = thought, NOT dialogue
+  - Describing what someone said without quoting = narration, NOT dialogue
+`;
+
+// ── Entity Integration Rules ────────────────────────────────────────────────
+// Shared between world generation and world expansion.
+
+export const PROMPT_ENTITY_INTEGRATION = `
+INTEGRATION RULES:
+- Every new character MUST have at least 1 relationship to an existing character. Orphaned characters are useless.
+- Every new location SHOULD nest under an existing location via parentId (except top-level regions).
+- Thread participants MUST include at least one existing character or location.
+- Artifacts MUST have parentId referencing a character, location, or null for world-owned.
+- Names must match the cultural palette already established in the world.
+`;
+
 // ── Thread Health Analysis ──────────────────────────────────────────────────
 
 const PHASE_INDEX: Record<string, number> = { dormant: 0, active: 1, escalating: 2, critical: 3, resolved: 4, subverted: 4, abandoned: 4 };

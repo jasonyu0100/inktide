@@ -2,10 +2,10 @@ import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatP
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, BEATS_PER_SCENE, WORDS_PER_SCENE, ANALYSIS_TEMPERATURE } from '@/lib/constants';
+import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, BEATS_PER_SCENE, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
+import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, buildSingleStepPrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence, type ModeStep } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
@@ -550,34 +550,7 @@ Return ONLY valid JSON matching this schema:
   "propositions": [{"content": "atomic claim", "type": "state"}]
 }
 
-BEAT FUNCTIONS (10):
-  breathe    — Pacing, atmosphere, sensory grounding, scene establishment.
-  inform     — Knowledge delivery. Character or reader learns something NOW.
-  advance    — Forward momentum. Plot moves, goals pursued, tension rises.
-  bond       — Relationship shifts between characters.
-  turn       — Scene pivots. Revelation, reversal, interruption.
-  reveal     — Character nature exposed through action or choice.
-  shift      — Power dynamic inverts.
-  expand     — World-building. New rule, system, geography introduced.
-  foreshadow — Plants information that pays off LATER.
-  resolve    — Tension releases. Question answered, conflict settles.
-
-MECHANISMS (8) — the mechanism determines how prose is written, not what happens:
-  dialogue    — Characters SPEAKING to each other or aloud. Requires quoted speech ("...").
-  thought     — POV character's INTERNAL monologue. Private reasoning, not spoken.
-  action      — PHYSICAL movement, gesture, body in space. Visible and concrete.
-  environment — Setting, weather, SOUNDS, spatial context. Sensory details of the world.
-  narration   — Narrator's voice commenting. Rhetoric, time compression, exposition.
-  memory      — Flashback triggered by association. Temporal shift to the past.
-  document    — Embedded text shown literally. Letter, sign, newspaper excerpt.
-  comic       — Humor, irony, absurdity. The beat must be funny.
-
-MECHANISM EDGE CASES (important):
-  - Overhearing sounds (children shouting, distant calls) = environment, NOT dialogue
-  - POV character thinking to themselves = thought, NOT dialogue
-  - Character muttering alone = thought (unless another character hears it)
-  - Describing what someone said without quoting = narration, NOT dialogue
-  - Environmental sounds with voices in them = environment (the setting includes sound)
+${PROMPT_BEAT_TAXONOMY}
 
 RULES:
 - Open with 1-3 breathe beats to ground the scene physically.
@@ -973,8 +946,8 @@ Return ONLY valid JSON matching this schema:
       "fn": "${BEAT_FN_LIST.join('|')}",
       "mechanism": "${BEAT_MECHANISM_LIST.join('|')}",
       "what": "STRUCTURAL SUMMARY: what happens, not how it reads",
-      "startPara": 0,
-      "endPara": 2,
+      "startIndex": 0,
+      "chunks": 2,
       "propositions": [
         {"content": "atomic claim", "type": "state|claim|definition|formula|evidence|rule|comparison|example"}
       ]
@@ -982,59 +955,24 @@ Return ONLY valid JSON matching this schema:
   ]
 }
 
-CRITICAL INDEXING RULES:
-- Chunks use 0-based indexing: [0], [1], [2], ..., [N-1] where N is total chunk count
-- Every beat MUST include startPara and endPara (both inclusive, 0-based indices)
-- Beat ranges must be sequential with NO GAPS: if beat N ends at X, beat N+1 MUST start at X+1
-- First beat MUST start at startPara: 0
-- Last beat MUST end at endPara: N-1 (the last valid chunk index)
-- All N chunks must be covered exactly once
-- DO NOT use chunk indices >= N (out of bounds)
-- Group chunks naturally (typically 1-3 chunks per beat) to stay within word count range
+CHUNK MAPPING RULES:
+- "startIndex" is the 0-based index of the first paragraph this beat covers
+- "chunks" is how many consecutive paragraphs this beat spans (1, 2, 3, etc.)
+- Beats are sequential: beat 1 starts at 0, beat 2 starts at 0+chunks₁, beat 3 starts at 0+chunks₁+chunks₂, etc.
+- The sum of all "chunks" values MUST equal exactly N (the total paragraph count)
+- Each paragraph belongs to exactly one beat — no gaps, no overlaps
+- Typical beat: 1–3 chunks (~50–150 words). Avoid 4+ chunks per beat
 
-EXAMPLE (20 chunks of ~45 words each, grouped into ~10 beats of ~90 words):
-✓ CORRECT: [
-  {"startPara": 0, "endPara": 1, "fn": "breathe", ...},  // 2 chunks = ~90 words
-  {"startPara": 2, "endPara": 2, "fn": "inform", ...},   // 1 chunk = ~45 words (acceptable for brief moment)
-  {"startPara": 3, "endPara": 5, "fn": "advance", ...},  // 3 chunks = ~135 words (acceptable for complex action)
-  {"startPara": 6, "endPara": 7, "fn": "turn", ...},     // 2 chunks = ~90 words
-  ...
-  {"startPara": 18, "endPara": 19, "fn": "resolve", ...} // Must end at last chunk (19)
+EXAMPLE (20 chunks, ~10 beats):
+[
+  {"fn": "breathe", "startIndex": 0,  "chunks": 2, ...},  // paragraphs [0-1]
+  {"fn": "inform",  "startIndex": 2,  "chunks": 1, ...},  // paragraph  [2]
+  {"fn": "advance", "startIndex": 3,  "chunks": 3, ...},  // paragraphs [3-5]
+  {"fn": "turn",    "startIndex": 6,  "chunks": 2, ...},  // paragraphs [6-7]
+  ...                                                       // chunks must sum to 20
 ]
-✗ WRONG: endPara: 20 is out of bounds (max valid index is 19)
-✗ WRONG: gap between beats (beat ends at 5, next starts at 7 — skips chunk 6)
-✗ WRONG: overlap (beat ends at 9, next starts at 9 — chunk 9 counted twice)
-✗ WRONG: {"startPara": 0, "endPara": 9} - 10 chunks = ~450 words (way too large)
-✗ WRONG: {"fn": "compare"} - not a valid beat function (use only the 10 listed below)
 
-BEAT FUNCTIONS (10):
-  breathe    — Pacing, atmosphere, sensory grounding, scene establishment.
-  inform     — Knowledge delivery. Character or reader learns something NOW.
-  advance    — Forward momentum. Plot moves, goals pursued, tension rises.
-  bond       — Relationship shifts between characters.
-  turn       — Scene pivots. Revelation, reversal, interruption.
-  reveal     — Character nature exposed through action or choice.
-  shift      — Power dynamic inverts.
-  expand     — World-building. New rule, system, geography introduced.
-  foreshadow — Plants information that pays off LATER.
-  resolve    — Tension releases. Question answered, conflict settles.
-
-MECHANISMS (8) — the mechanism determines how prose is written, not what happens:
-  dialogue    — Characters SPEAKING to each other or aloud. Requires quoted speech ("...").
-  thought     — POV character's INTERNAL monologue. Private reasoning, not spoken.
-  action      — PHYSICAL movement, gesture, body in space. Visible and concrete.
-  environment — Setting, weather, SOUNDS, spatial context. Sensory details of the world.
-  narration   — Narrator's voice commenting. Rhetoric, time compression, exposition.
-  memory      — Flashback triggered by association. Temporal shift to the past.
-  document    — Embedded text shown literally. Letter, sign, newspaper excerpt.
-  comic       — Humor, irony, absurdity. The beat must be funny.
-
-MECHANISM EDGE CASES (important):
-  - Overhearing sounds (children shouting, distant calls) = environment, NOT dialogue
-  - POV character thinking to themselves = thought, NOT dialogue
-  - Character muttering alone = thought (unless another character hears it)
-  - Describing what someone said without quoting = narration, NOT dialogue
-  - Environmental sounds with voices in them = environment (the setting includes sound)
+${PROMPT_BEAT_TAXONOMY}
 
 RULES:
 - Identify one beat per meaningful unit of action, dialogue, or shift. Target ~${BEATS_PER_SCENE} beats per scene (~${WORDS_PER_BEAT} words per beat).
@@ -1161,28 +1099,19 @@ Group these chunks into beats by identifying natural narrative boundaries. Each 
 
 Extract propositions according to density guidelines - light fiction gets 1-2 props/beat, technical prose gets exhaustive extraction.
 
-CRITICAL CONSTRAINTS - BEAT SIZE:
-- Target beat size: ~${WORDS_PER_BEAT} words per beat
-- Each beat should typically span 1-3 consecutive chunks to stay within this range
-- Aim for approximately ${estimatedBeats} total beats
-
-CRITICAL CONSTRAINTS - INDEXING:
-- Valid paragraph indices: 0 to ${lastIndex} (inclusive)
-- Beat ranges must be sequential with NO GAPS and NO OVERLAPS
-- Rule: if beat N has endPara: X, then beat N+1 MUST have startPara: X+1 (exactly X+1, never X)
-- First beat MUST have startPara: 0
-- Final beat MUST have endPara: ${lastIndex}
-- Each chunk belongs to EXACTLY ONE beat — if a chunk straddles two narrative moments, assign it to one beat only
-- DO NOT use paragraph indices >= ${paragraphs.length} (out of bounds)
-- If a chunk contains content from two topics, assign it to whichever beat fits better — do NOT split it across two beats
-- Use ONLY the 10 beat functions listed above (breathe, inform, advance, bond, turn, reveal, shift, expand, foreshadow, resolve)`;
+CRITICAL CONSTRAINTS:
+- Target ~${WORDS_PER_BEAT} words per beat, typically 1–3 chunks each
+- Aim for approximately ${estimatedBeats} beats
+- First beat MUST have startIndex: 0. Each subsequent startIndex = previous startIndex + previous chunks
+- All chunk counts MUST sum to exactly ${paragraphs.length}
+- Use ONLY these 10 beat functions: breathe, inform, advance, bond, turn, reveal, shift, expand, foreshadow, resolve`;
 
   let accumulated = '';
   const raw = onToken
     ? await callGenerateStream(prompt, systemPrompt, (token) => { accumulated += token; onToken(token, accumulated); }, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, undefined, undefined, ANALYSIS_TEMPERATURE)
     : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'reverseEngineerScenePlan', GENERATE_MODEL, undefined, true, ANALYSIS_TEMPERATURE);
 
-  type BeatData = { fn: string; mechanism: string; what: string; propositions: unknown[]; startPara?: number; endPara?: number };
+  type BeatData = { fn: string; mechanism: string; what: string; propositions: unknown[]; startIndex?: number; chunks?: number };
   const parsed = parseJson(raw, 'reverseEngineerScenePlan') as { beats?: unknown[] };
 
   const beats: Beat[] = (parsed.beats ?? []).map((b: unknown) => {
@@ -1198,162 +1127,78 @@ CRITICAL CONSTRAINTS - INDEXING:
 
   const plan: BeatPlan = { beats };
 
-  // Build BeatProseMap from LLM-provided ranges
-  const beatsWithRanges = (parsed.beats ?? []).map((b: unknown, i: number) => ({
-    beat: beats[i],
-    startPara: (b as BeatData).startPara,
-    endPara: (b as BeatData).endPara,
-  }));
-
-  const beatProseMap = buildBeatProseMap(paragraphs, beatsWithRanges);
+  // Build BeatProseMap from LLM-provided chunk counts + startIndex cross-check
+  const rawBeats = (parsed.beats ?? []) as BeatData[];
+  const chunkCounts = rawBeats.map(b => b.chunks ?? 0);
+  const startIndices = rawBeats.map(b => b.startIndex);
+  const beatProseMap = buildBeatProseMapFromCounts(paragraphs, beats, chunkCounts, startIndices);
 
   if (!beatProseMap) {
-    console.log(`[beatProseMap] FAIL "${summary}" — ${beatsWithRanges.length} beats, ${paragraphs.length} chunks (0–${paragraphs.length - 1})`, beatsWithRanges.map((b, i) => ({ i, start: b.startPara, end: b.endPara, fn: b.beat.fn })));
+    const total = chunkCounts.reduce((a, b) => a + b, 0);
+    console.log(`[beatProseMap] FAIL "${summary}" — ${beats.length} beats, counts sum ${total} (need ${paragraphs.length})`, rawBeats.map((b, i) => ({ i, startIndex: b.startIndex, chunks: b.chunks })));
   }
 
   return { plan, beatProseMap };
 }
 
-function buildBeatProseMap(
-  paragraphs: string[],
-  beatsWithRanges: Array<{ beat: Beat; startPara?: number; endPara?: number }>
-): BeatProseMap | null {
-  if (paragraphs.length === 0 || beatsWithRanges.length === 0) return null;
-
-  // Validate and build from LLM ranges — no heuristic fallback
-  const chunks = tryBuildFromRanges(paragraphs, beatsWithRanges);
-  if (chunks) {
-    return { chunks, createdAt: Date.now() };
-  }
-
-  // Invalid ranges - return null so caller can retry
-  logWarning('Beat-prose mapping failed: invalid ranges', 'LLM provided invalid paragraph ranges', {
-    source: 'prose-generation',
-    operation: 'beat-prose-mapping'
-  });
-  return null;
-}
-
 /**
- * Attempt to build chunks from LLM-provided paragraph ranges.
- * Validates ranges are sequential, non-overlapping, and cover full prose.
- * Stores prose strings directly.
+ * Build BeatProseMap from chunk counts. Deterministic — no gaps or overlaps possible.
+ * The only validation: counts must sum to total paragraphs and each count must be >= 1.
  */
-function tryBuildFromRanges(
+export function buildBeatProseMapFromCounts(
   paragraphs: string[],
-  beatsWithRanges: Array<{ beat: Beat; startPara?: number; endPara?: number }>
-): BeatProse[] | null {
-  const chunks: BeatProse[] = [];
-  let lastEndPara = -1;
+  beats: Beat[],
+  chunkCounts: number[],
+  startIndices?: (number | undefined)[],
+): BeatProseMap | null {
+  if (paragraphs.length === 0 || beats.length === 0 || chunkCounts.length !== beats.length) return null;
 
-  for (let i = 0; i < beatsWithRanges.length; i++) {
-    const { startPara, endPara } = beatsWithRanges[i];
-
-    // Check if ranges exist
-    if (typeof startPara !== 'number' || typeof endPara !== 'number') {
-      logWarning(
-        'Beat extraction validation failed: missing paragraph range',
-        `Beat ${i} has undefined startPara or endPara`,
-        {
-          source: 'analysis',
-          operation: 'beat-range-validation',
-          details: { beatIndex: i, startPara, endPara, totalBeats: beatsWithRanges.length },
-        }
-      );
-      return null;
-    }
-
-    // Validate sequential (no gaps or overlaps)
-    if (startPara !== lastEndPara + 1) {
-      logWarning(
-        'Beat extraction validation failed: non-sequential ranges',
-        `Beat ${i} range [${startPara}, ${endPara}] not sequential (last ended at ${lastEndPara})`,
-        {
-          source: 'analysis',
-          operation: 'beat-range-validation',
-          details: { beatIndex: i, startPara, endPara, lastEndPara, totalBeats: beatsWithRanges.length },
-        }
-      );
-      return null;
-    }
-
-    // Validate bounds
-    if (startPara < 0 || endPara >= paragraphs.length || startPara > endPara) {
-      logWarning(
-        'Beat extraction validation failed: out of bounds range',
-        `Beat ${i} has invalid range [${startPara}, ${endPara}] (paragraphs: ${paragraphs.length})`,
-        {
-          source: 'analysis',
-          operation: 'beat-range-validation',
-          details: { beatIndex: i, startPara, endPara, paragraphCount: paragraphs.length, totalBeats: beatsWithRanges.length },
-        }
-      );
-      return null;
-    }
-
-    // Validate non-empty content
-    const proseChunk = paragraphs.slice(startPara, endPara + 1).join('\n\n').trim();
-    if (!proseChunk) {
-      logWarning(
-        'Beat extraction validation failed: empty prose chunk',
-        `Beat ${i} has no content after joining paragraphs [${startPara}, ${endPara}]`,
-        {
-          source: 'analysis',
-          operation: 'beat-range-validation',
-          details: { beatIndex: i, startPara, endPara, totalBeats: beatsWithRanges.length },
-        }
-      );
-      return null;
-    }
-
-    // Validate beat size (only warn if TREMENDOUSLY out of range)
-    const wordCount = proseChunk.split(/\s+/).length;
-    const EXTREMELY_SHORT = 20; // Probably an error
-    const EXTREMELY_LONG = 500; // Probably an error
-    if (wordCount < EXTREMELY_SHORT || wordCount > EXTREMELY_LONG) {
-      logWarning(
-        `Beat ${i} size tremendously out of range`,
-        `Beat has ${wordCount} words (expected roughly 50-200 for most beats)`,
-        {
-          source: 'analysis',
-          operation: 'beat-size-validation',
-          details: {
-            beatIndex: i,
-            wordCount,
-            startPara,
-            endPara,
-          },
-        }
-      );
-    }
-
-    // Store prose directly
-    chunks.push({ beatIndex: i, prose: proseChunk });
-    lastEndPara = endPara;
-  }
-
-  // Verify full coverage (all paragraphs assigned)
-  if (lastEndPara !== paragraphs.length - 1) {
-    logWarning(
-      'Beat extraction validation failed: incomplete coverage',
-      `Beats only cover paragraphs 0-${lastEndPara}, but prose has ${paragraphs.length} paragraphs`,
-      {
-        source: 'analysis',
-        operation: 'beat-range-validation',
-        details: { lastEndPara, paragraphCount: paragraphs.length, totalBeats: beatsWithRanges.length },
-      }
+  const total = chunkCounts.reduce((a, b) => a + b, 0);
+  if (total !== paragraphs.length) {
+    logWarning('Beat chunk counts do not sum to paragraph count',
+      `Sum ${total} ≠ ${paragraphs.length} paragraphs`,
+      { source: 'analysis', operation: 'beat-prose-mapping', details: { total, expected: paragraphs.length, counts: chunkCounts.join(',') } }
     );
     return null;
   }
 
-  return chunks;
-}
+  const chunks: BeatProse[] = [];
+  let cursor = 0;
 
-/**
- * Fallback: segment prose by word count distribution.
- * If not enough paragraphs, splits them into finer chunks to avoid duplicates.
- * Stores prose strings directly.
- */
+  for (let i = 0; i < chunkCounts.length; i++) {
+    const count = chunkCounts[i];
+    if (count < 1) {
+      logWarning('Beat has zero or negative chunk count',
+        `Beat ${i} has chunks=${count}`,
+        { source: 'analysis', operation: 'beat-prose-mapping', details: { beatIndex: i, count } }
+      );
+      return null;
+    }
+
+    // startIndex is the source of truth — must match computed cursor exactly
+    const expectedStart = startIndices?.[i];
+    if (typeof expectedStart === 'number' && expectedStart !== cursor) {
+      logWarning('Beat startIndex does not match expected position',
+        `Beat ${i}: startIndex=${expectedStart} but expected ${cursor}`,
+        { source: 'analysis', operation: 'beat-prose-mapping', details: { beatIndex: i, startIndex: expectedStart, cursor, count } }
+      );
+      return null;
+    }
+
+    const prose = paragraphs.slice(cursor, cursor + count).join('\n\n').trim();
+    if (!prose) {
+      logWarning('Beat prose is empty', `Beat ${i} spans paragraphs ${cursor}–${cursor + count - 1} but produced empty text`,
+        { source: 'analysis', operation: 'beat-prose-mapping', details: { beatIndex: i, cursor, count } }
+      );
+      return null;
+    }
+
+    chunks.push({ beatIndex: i, prose });
+    cursor += count;
+  }
+
+  return { chunks, createdAt: Date.now() };
+}
 
 /**
  * Rewrite a scene plan guided by user-provided analysis/critique.

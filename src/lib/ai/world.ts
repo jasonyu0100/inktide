@@ -5,7 +5,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext } from './context';
-import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT } from './prompts';
+import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION } from './prompts';
 import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/pacing-profile';
 import { logInfo } from '@/lib/system-logger';
 
@@ -525,13 +525,11 @@ ID RULES:
 - Knowledge node IDs: continue sequentially from ${nextKId} (e.g., ${nextKId}, K-${String(parseInt(nextKId.split('-').pop()!) + 1).padStart(2, '0')}, ...)
 - ALL knowledge nodes (in both characters and locations) use the K- prefix and share one sequence
 
-INTEGRATION RULES (most important):
-- EVERY new character MUST have at least one relationship to an EXISTING character. No orphans. Think: who in the existing world would know this person? Who are they allied with, opposed to, related to, or hiding from?
-- Generate at MINIMUM ${EXPANSION_SIZE_CONFIG[size].characters === '1-2' ? '2' : EXPANSION_SIZE_CONFIG[size].characters === '3-5' ? '5' : '12'} relationships total. Most should connect new→existing characters. A few can connect new→new.
-- Include varied relationship valences: allies, rivals, mentors, debtors, enemies, kin. At least one relationship should have tension (negative or ambivalent valence).
-- EVERY new location SHOULD have a parentId referencing an existing location — build a deeper hierarchy. Only use null for truly independent top-level regions. If the world has cities, nest new locations inside them. If it has regions, place new settlements within them.
-- Thread participants MUST include at least one existing character or location — threads that only reference new entities won't integrate.
-- Artifacts MUST have a parentId referencing a character or location. A character can possess an artifact from the start (a king's crown, a warrior's blade). Artifacts at locations are discoverable — visiting that place can trigger acquisition. Transferring an artifact to a DIFFERENT character must happen in a scene via ownershipMutation — that's the earned moment. Key artifacts should have 3-4 continuity nodes (what it is, what it does, its history or origin, its limitation or cost). Only create artifacts when they would meaningfully alter what characters can do. Not every expansion needs artifacts.
+${PROMPT_ENTITY_INTEGRATION}
+
+EXPANSION-SPECIFIC RULES:
+- Generate at MINIMUM ${EXPANSION_SIZE_CONFIG[size].characters === '1-2' ? '2' : EXPANSION_SIZE_CONFIG[size].characters === '3-5' ? '5' : '12'} relationships total. Most should connect new→existing. Include varied valences (allies, rivals, mentors, kin). At least one with tension.
+- Key artifacts should have 3-4 continuity nodes (what it does, its origin, its limitation). Only create artifacts when they meaningfully alter what characters can do.
 
 NAMING:
 - All new names must match the cultural palette and naming conventions already established in the world. Study the existing character and location names and produce names from the same linguistic roots.

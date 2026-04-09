@@ -62,7 +62,9 @@ function createLocation(id: string, name: string, parentId?: string): Location {
   return {
     id,
     name,
+    prominence: 'place' as const,
     parentId: parentId ?? null,
+    tiedCharacterIds: [],
     continuity: { nodes: {}, edges: [] },
     threadIds: [],
   };

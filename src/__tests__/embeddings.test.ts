@@ -44,7 +44,9 @@ const mockNarrative: NarrativeState = {
     'loc1': {
       id: 'loc1',
       name: 'Castle',
+      prominence: 'place' as const,
       parentId: null,
+      tiedCharacterIds: [],
       threadIds: ['thread1'],
       continuity: { nodes: {}, edges: [] },
     },
@@ -390,6 +392,25 @@ describe('Semantic Search', () => {
   });
 
   it('should search scenes by summary', async () => {
+    // Use fixture embeddings with known semantic similarity
+    const ref1 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.sceneDiscoverDoor), 'text-embedding-3-small');
+    const ref2 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.sceneAncientSword), 'text-embedding-3-small');
+
+    // Mock fetch to return the matching query fixture embedding
+    (global.fetch as any).mockImplementation((url: string, options: any) => {
+      if (url.includes('/api/embeddings')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            embeddings: [Array.from(TEST_EMBEDDINGS.queryMagicalDiscovery)],
+            model: 'text-embedding-3-small',
+            usage: { prompt_tokens: 3, total_tokens: 3 },
+          }),
+        });
+      }
+      return Promise.reject(new Error('Unexpected URL'));
+    });
+
     const narrative: NarrativeState = {
       ...mockNarrative,
       scenes: {
@@ -397,13 +418,13 @@ describe('Semantic Search', () => {
           ...mockScene,
           id: 'scene1',
           summary: 'Alice discovers a hidden magical door',
-          summaryEmbedding: await generateEmbeddings(['Alice discovers a hidden magical door'], mockNarrative.id).then(e => e[0]),
+          summaryEmbedding: ref1,
         },
         'scene2': {
           ...mockScene,
           id: 'scene2',
           summary: 'Bob finds an ancient sword',
-          summaryEmbedding: await generateEmbeddings(['Bob finds an ancient sword'], mockNarrative.id).then(e => e[0]),
+          summaryEmbedding: ref2,
         },
       },
     };
@@ -422,8 +443,26 @@ describe('Semantic Search', () => {
   });
 
   it('should search propositions within beats', async () => {
-    const propEmbedding1 = await generateEmbeddings(['The door glows with arcane energy'], mockNarrative.id).then(e => e[0]);
-    const propEmbedding2 = await generateEmbeddings(['A rusty key hangs on the wall'], mockNarrative.id).then(e => e[0]);
+    // Use fixture embeddings stored as asset references
+    const propRef1 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.propGlowsEnergy), 'text-embedding-3-small');
+    const propRef2 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.propRustyKey), 'text-embedding-3-small');
+    const centroidRef1 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.propGlowsEnergy), 'text-embedding-3-small');
+    const centroidRef2 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.propRustyKey), 'text-embedding-3-small');
+
+    // Mock fetch to return the matching query fixture embedding
+    (global.fetch as any).mockImplementation((url: string, options: any) => {
+      if (url.includes('/api/embeddings')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            embeddings: [Array.from(TEST_EMBEDDINGS.queryMagicalEnergy)],
+            model: 'text-embedding-3-small',
+            usage: { prompt_tokens: 2, total_tokens: 2 },
+          }),
+        });
+      }
+      return Promise.reject(new Error('Unexpected URL'));
+    });
 
     const narrative: NarrativeState = {
       ...mockNarrative,
@@ -438,18 +477,18 @@ describe('Semantic Search', () => {
                   mechanism: 'narration',
                   what: 'The door is magical',
                   propositions: [
-                    { content: 'The door glows with arcane energy', embedding: propEmbedding1 },
+                    { content: 'The door glows with arcane energy', embedding: propRef1 },
                   ],
-                  embeddingCentroid: propEmbedding1,
+                  embeddingCentroid: centroidRef1,
                 },
                 {
                   fn: 'inform',
                   mechanism: 'environment',
                   what: 'A key is nearby',
                   propositions: [
-                    { content: 'A rusty key hangs on the wall', embedding: propEmbedding2 },
+                    { content: 'A rusty key hangs on the wall', embedding: propRef2 },
                   ],
-                  embeddingCentroid: propEmbedding2,
+                  embeddingCentroid: centroidRef2,
                 },
               ],
             },
@@ -470,22 +509,37 @@ describe('Semantic Search', () => {
   });
 
   it('should build timeline heatmap', async () => {
-    // Use real embeddings that have actual semantic content
+    // Use real embeddings stored as asset references
     const baseEmbedding = Array.from(TEST_EMBEDDINGS.queryPowerfulMagic);
-    const scenes = Array.from({ length: 10 }, (_, i) => ({
-      id: `scene${i}`,
-      summary: `Scene ${i} about magic`,
-      // Create variations of the base embedding (slightly perturbed for each scene)
-      summaryEmbedding: baseEmbedding.map((val, idx) => val + Math.sin(i + idx) * 0.1),
-    }));
+    const sceneData: { id: string; summary: string; summaryEmbedding: string }[] = [];
+    for (let i = 0; i < 10; i++) {
+      const perturbed = baseEmbedding.map((val, idx) => val + Math.sin(i + idx) * 0.1);
+      const ref = await assetManager.storeEmbedding(perturbed, 'text-embedding-3-small');
+      sceneData.push({ id: `scene${i}`, summary: `Scene ${i} about magic`, summaryEmbedding: ref });
+    }
+
+    // Mock fetch to return the query fixture embedding
+    (global.fetch as any).mockImplementation((url: string) => {
+      if (url.includes('/api/embeddings')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            embeddings: [Array.from(TEST_EMBEDDINGS.queryPowerfulMagic)],
+            model: 'text-embedding-3-small',
+            usage: { prompt_tokens: 2, total_tokens: 2 },
+          }),
+        });
+      }
+      return Promise.reject(new Error('Unexpected URL'));
+    });
 
     const narrative: NarrativeState = {
       ...mockNarrative,
-      scenes: Object.fromEntries(scenes.map(s => [s.id, { ...mockScene, ...s }])),
+      scenes: Object.fromEntries(sceneData.map(s => [s.id, { ...mockScene, ...s }])),
     };
 
     const query = 'powerful magic';
-    const results = await searchNarrative(narrative, scenes.map(s => s.id), query);
+    const results = await searchNarrative(narrative, sceneData.map(s => s.id), query);
 
     expect(results.sceneTimeline).toBeDefined();
     expect(results.sceneTimeline.length).toBeGreaterThan(0);

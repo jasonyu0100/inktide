@@ -22,7 +22,7 @@ function createWorldBuild(
     summary: `World build ${id}`,
     expansionManifest: {
       characters: characters.map((c) => ({ id: c.id, name: `Char ${c.id}`, role: 'anchor' as const, continuity: { nodes: {}, edges: [] }, threadIds: [] })),
-      locations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, prominence: 'place' as const, parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] })),
+      locations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, prominence: 'place' as const, parentId: null, tiedCharacterIds: [] as string[], continuity: { nodes: {}, edges: [] }, threadIds: [] })),
       threads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, status: 'dormant' as const, participants: [], dependents: [], openedAt: 'S-001' })),
       artifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key' as const, parentId: 'C-01', continuity: { nodes: {}, edges: [] }, threadIds: [] })),
       relationships: [],

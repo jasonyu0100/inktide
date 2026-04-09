@@ -607,6 +607,7 @@ Return JSON:
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "what they learned", "type": "belief|history|capability|secret|trait|state|relation|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
+  "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
   "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."
 }`;
 
@@ -625,6 +626,7 @@ Return JSON:
     continuityMutations: parsed.continuityMutations ?? scene.continuityMutations,
     relationshipMutations: parsed.relationshipMutations ?? scene.relationshipMutations,
     worldKnowledgeMutations: normalizeWorldKnowledgeMutations(parsed.worldKnowledgeMutations, scene.worldKnowledgeMutations),
+    tieMutations: parsed.tieMutations ?? scene.tieMutations,
     summary: parsed.summary ?? scene.summary,
     audioUrl: undefined,
   };
@@ -769,6 +771,7 @@ Return JSON:
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "what they learned", "type": "belief|history|capability|secret|trait|state|relation|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
+  "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
   "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."
 }`;
 

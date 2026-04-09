@@ -145,6 +145,30 @@ export default function LocationDetail({ locationId }: Props) {
         </p>
       )}
 
+      {/* Ties — characters with a significant bond to this location */}
+      {(location.tiedCharacterIds ?? []).length > 0 && (() => {
+        const tied = (location.tiedCharacterIds ?? []).map(id => narrative.characters[id]).filter(Boolean);
+        if (tied.length === 0) return null;
+        return (
+          <CollapsibleSection title="Ties" count={tied.length} defaultOpen>
+            <ul className="flex flex-col gap-1">
+              {tied.map((char) => (
+                <li key={char.id}>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: char.id } })}
+                    className="text-xs text-text-primary transition-colors hover:underline"
+                  >
+                    {char.name}
+                    <span className="ml-1.5 text-[9px] text-text-dim">{char.role}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </CollapsibleSection>
+        );
+      })()}
+
       {/* Image prompt */}
       {location.imagePrompt && (
         <p className="text-[10px] text-text-dim italic leading-relaxed">{location.imagePrompt}</p>

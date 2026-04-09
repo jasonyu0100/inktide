@@ -336,6 +336,30 @@ export default function CharacterDetail({ characterId }: Props) {
         );
       })()}
 
+      {/* Ties — locations this character has a significant bond with */}
+      {(() => {
+        const ties = Object.values(narrative.locations).filter(loc => (loc.tiedCharacterIds ?? []).includes(characterId));
+        if (ties.length === 0) return null;
+        return (
+          <CollapsibleSection title="Ties" count={ties.length}>
+            <ul className="flex flex-col gap-1">
+              {ties.map((loc) => (
+                <li key={loc.id}>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: loc.id } })}
+                    className="text-xs text-text-primary transition-colors hover:underline"
+                  >
+                    {loc.name}
+                    <span className="ml-1.5 text-[9px] text-text-dim">{loc.prominence}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </CollapsibleSection>
+        );
+      })()}
+
       {/* Relationships — paginated, most recent first */}
       {relationships.length > 0 && (() => {
         const { pageItems, totalPages, safePage } = paginateRecent(relationships, relPage);

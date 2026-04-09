@@ -60,7 +60,9 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
   return {
     id,
     name: `Location ${id}`,
+    prominence: 'place' as const,
     parentId: null,
+    tiedCharacterIds: [],
     threadIds: [],
     continuity: { nodes: {}, edges: [] },
     ...overrides,
@@ -847,7 +849,7 @@ describe('buildOutlineDirective', () => {
         summary: 'test',
         expansionManifest: {
           characters: [{ id: 'char-unused', name: 'Unused Char', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] }],
-          locations: [{ id: 'loc-unused', name: 'Unused Location', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] }],
+          locations: [{ id: 'loc-unused', name: 'Unused Location', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] }],
           threads: [{ id: 'T-unused', description: 'Unused thread', participants: [], status: 'dormant', openedAt: 's1', dependents: [] }],
           artifacts: [],
           relationships: [],
@@ -876,7 +878,7 @@ describe('buildOutlineDirective', () => {
         summary: 'test',
         expansionManifest: {
           characters: [{ id: 'char-1', name: 'Alice', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] }],
-          locations: [{ id: 'loc-1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] }],
+          locations: [{ id: 'loc-1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] }],
           threads: [],
           artifacts: [],
           relationships: [],

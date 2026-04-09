@@ -248,9 +248,9 @@ export default function MediaDrive() {
     setGenerating(artifact.id);
     try {
       const hints = Object.values(artifact.continuity.nodes).map((n) => `${n.type}: ${n.content}`);
-      const ownerName = narrative.characters[artifact.parentId]?.name
-        ?? narrative.locations[artifact.parentId]?.name
-        ?? undefined;
+      const ownerName = artifact.parentId
+        ? (narrative.characters[artifact.parentId]?.name ?? narrative.locations[artifact.parentId]?.name ?? undefined)
+        : undefined;
       const { imageUrl } = await generateImage('character', {
         name: artifact.name,
         role: `artifact (${artifact.significance})`,

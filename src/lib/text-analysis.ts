@@ -363,7 +363,7 @@ Return a single JSON object with this exact structure:
     }
   ],
   "locations": [
-    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"] }
+    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"], "tiedCharacterNames": ["Character names with a significant tie to this location — residents, employees, faction members, students. Not casual visitors"] }
   ],
   "artifacts": [
     { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
@@ -403,6 +403,9 @@ Return a single JSON object with this exact structure:
       ],
       "ownershipMutations": [
         { "artifactName": "Artifact Name", "fromName": "Previous owner name", "toName": "New owner name" }
+      ],
+      "tieMutations": [
+        { "locationName": "Location Name", "characterName": "Character Name", "action": "add|remove" }
       ],
       "characterMovements": [
         { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
@@ -592,7 +595,7 @@ Return a single JSON object with this exact structure:
     }
   ],
   "locations": [
-    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"] }
+    { "name": "Location Name", "parentName": "Parent Location or null", "description": "Brief atmospheric description", "imagePrompt": "1-2 sentence LITERAL visual description of architecture, landscape, lighting, weather for establishing shot generation. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret descriptions literally.", "lore": ["Notable detail or significance"], "tiedCharacterNames": ["Character names with a significant tie to this location — residents, employees, faction members, students. Not casual visitors"] }
   ],
   "artifacts": [
     { "name": "Artifact Name", "significance": "key|notable|minor", "continuity": [{"type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "What it is, what it does, its properties, history, limitations"}], "ownerName": "Character or Location name that holds it" }
@@ -632,6 +635,9 @@ Return a single JSON object with this exact structure:
       ],
       "ownershipMutations": [
         { "artifactName": "Artifact Name", "fromName": "Previous owner name", "toName": "New owner name" }
+      ],
+      "tieMutations": [
+        { "locationName": "Location Name", "characterName": "Character Name", "action": "add|remove" }
       ],
       "characterMovements": [
         { "characterName": "Name", "locationName": "Destination location", "transition": "Vivid description of HOW they traveled, e.g. 'Rode horseback through the night'" }
@@ -1243,8 +1249,9 @@ export async function assembleNarrative(
       const id = getLocId(loc.name);
       if (!locations[id]) {
         const parentId = loc.parentName ? getLocId(loc.parentName) : null;
+        const tiedCharacterIds = (loc.tiedCharacterNames ?? []).map((n: string) => getCharId(n)).filter(Boolean);
         locations[id] = {
-          id, name: loc.name, prominence: 'place' as Location['prominence'], parentId, threadIds: [],
+          id, name: loc.name, prominence: 'place' as Location['prominence'], parentId, tiedCharacterIds, threadIds: [],
           continuity: { nodes: {}, edges: [] },
           ...(loc.imagePrompt ? { imagePrompt: loc.imagePrompt } : {}),
         };
@@ -1382,6 +1389,15 @@ export async function assembleNarrative(
             fromId: charNameToId[om.fromName] ?? locNameToId[om.fromName] ?? getLocId(om.fromName),
             toId: charNameToId[om.toName] ?? locNameToId[om.toName] ?? getLocId(om.toName),
           })).filter((om) => artifactEntities[om.artifactId]);
+        })() || undefined,
+        tieMutations: (() => {
+          const mms = s.tieMutations ?? [];
+          if (mms.length === 0) return undefined;
+          return mms.map((mm: { locationName: string; characterName: string; action: string }) => ({
+            locationId: getLocId(mm.locationName),
+            characterId: getCharId(mm.characterName),
+            action: mm.action as 'add' | 'remove',
+          })).filter((mm) => mm.characterId && (mm.action === 'add' || mm.action === 'remove'));
         })() || undefined,
         worldKnowledgeMutations: (() => {
           const wkm = s.worldKnowledgeMutations;

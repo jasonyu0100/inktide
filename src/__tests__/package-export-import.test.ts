@@ -209,7 +209,9 @@ describe('Package Export/Import', () => {
       narrative.locations.loc1 = {
         id: 'loc1',
         name: 'Location 1',
+        prominence: 'place' as const,
         parentId: null,
+        tiedCharacterIds: [],
         threadIds: [],
         continuity: { nodes: {}, edges: [] },
         imageUrl: locImg,

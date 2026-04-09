@@ -263,6 +263,7 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST �
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
       "worldKnowledgeMutations": {"addedNodes": [{"id": "WK-GEN-001", "concept": "world concept name", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-GEN-001", "to": "WK-XX", "relation": "enables|requires|governs|opposes|extends|etc."}]},
       "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
+      "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES — never raw IDs (no C-01, T-XX, L-03, WK-GEN, A-01 etc). Write as if for a reader: 'Fang Yuan acquires the Liquor worm' not 'C-01 acquires A-05'. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations."
     }
   ]
@@ -1917,13 +1918,21 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       if (!validArtifactIds.has(au.artifactId)) { stripped.push(`artifactUsage artifact "${au.artifactId}" in scene ${scene.id}`); return false; }
       if (!validCharIds.has(au.characterId)) { stripped.push(`artifactUsage character "${au.characterId}" in scene ${scene.id}`); return false; }
       const artifact = narrative.artifacts[au.artifactId];
-      if (artifact && narrative.characters[artifact.parentId] && artifact.parentId !== au.characterId) {
+      // Character-owned artifacts can only be used by their owner; location-owned and world-owned (null) are communal
+      if (artifact && artifact.parentId && narrative.characters[artifact.parentId] && artifact.parentId !== au.characterId) {
         stripped.push(`artifactUsage "${au.characterId}" cannot use character-owned artifact "${au.artifactId}" (owned by ${artifact.parentId}) in scene ${scene.id}`);
         return false;
       }
       return true;
     });
     if (scene.artifactUsages.length === 0) delete scene.artifactUsages;
+    scene.tieMutations = (scene.tieMutations ?? []).filter((mm) => {
+      const ok = validLocIds.has(mm.locationId) && validCharIds.has(mm.characterId) &&
+                 (mm.action === 'add' || mm.action === 'remove');
+      if (!ok) stripped.push(`tieMutation "${mm.characterId}" at "${mm.locationId}" in scene ${scene.id}`);
+      return ok;
+    });
+    if (scene.tieMutations.length === 0) delete scene.tieMutations;
     if (scene.characterMovements) {
       const sanitized: Record<string, { locationId: string; transition: string }> = {};
       for (const [charId, mv] of Object.entries(scene.characterMovements)) {
@@ -2154,6 +2163,7 @@ Return JSON:
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "desc", "valenceDelta": 0.1}],
   "worldKnowledgeMutations": {"addedNodes": [], "addedEdges": []},
   "ownershipMutations": [],
+  "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
   "summary": "Rich prose sentences using character NAMES and location NAMES — never raw IDs. Include specifics and any context that shapes prose (time span, technique, tone). NO thin generic summaries."
 }
 

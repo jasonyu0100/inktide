@@ -279,9 +279,10 @@ export function buildGraphData(
     }
   }
 
-  // Artifact nodes + ownership edges — only show if owner is in the graph
+  // Artifact nodes + ownership edges — show if owner is in the graph or world-owned
   for (const art of Object.values(artifacts ?? {})) {
-    if (!characters[art.parentId] && !locations[art.parentId]) continue;
+    const hasOwnerInGraph = art.parentId && (characters[art.parentId] || locations[art.parentId]);
+    if (!hasOwnerInGraph && art.parentId) continue; // Skip if owned by entity not in graph
     nodes.push({
       id: art.id,
       kind: 'artifact',
@@ -290,13 +291,15 @@ export function buildGraphData(
       imagePrompt: art.imagePrompt,
       significance: art.significance,
     });
-    links.push({
-      id: `ownership-${art.id}-${art.parentId}`,
-      source: art.id,
-      target: art.parentId,
-      linkKind: 'ownership',
-      label: 'owned by',
-    });
+    if (art.parentId) {
+      links.push({
+        id: `ownership-${art.id}-${art.parentId}`,
+        source: art.id,
+        target: art.parentId,
+        linkKind: 'ownership',
+        label: 'owned by',
+      });
+    }
   }
 
   return { nodes, links };
@@ -403,7 +406,8 @@ export function buildOverviewGraphData(
 
   // Artifact nodes + ownership edges
   for (const art of Object.values(artifacts ?? {})) {
-    const ownerActive = activeCharIds.has(art.parentId) || activeLocIds.has(art.parentId);
+    const isWorldOwned = !art.parentId;
+    const ownerActive = isWorldOwned || activeCharIds.has(art.parentId!) || activeLocIds.has(art.parentId!);
     if (!ownerActive) continue;
     nodes.push({
       id: art.id,
@@ -413,7 +417,7 @@ export function buildOverviewGraphData(
       imagePrompt: art.imagePrompt,
       significance: art.significance,
     });
-    links.push({
+    if (art.parentId) links.push({
       id: `ownership-${art.id}-${art.parentId}`,
       source: art.id,
       target: art.parentId,

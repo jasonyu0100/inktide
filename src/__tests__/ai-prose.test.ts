@@ -34,8 +34,8 @@ function createMinimalNarrative(): NarrativeState {
       'C-02': { id: 'C-02', name: 'Mentor', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] },
     },
     locations: {
-      'L-01': { id: 'L-01', name: 'Village', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
-      'L-02': { id: 'L-02', name: 'Forest', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
+      'L-01': { id: 'L-01', name: 'Village', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
+      'L-02': { id: 'L-02', name: 'Forest', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
     },
     threads: {
       'T-01': { id: 'T-01', description: 'Save the kingdom', status: 'active', participants: [], dependents: [], openedAt: 'S-01' },

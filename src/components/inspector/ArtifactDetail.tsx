@@ -70,10 +70,14 @@ export default function ArtifactDetail({ artifactId }: Props) {
   const artifact = narrative.artifacts[artifactId];
   if (!artifact) return <p className="p-4 text-xs text-text-dim">Artifact not found.</p>;
 
-  const ownerName = narrative.characters[artifact.parentId]?.name
-    ?? narrative.locations[artifact.parentId]?.name
-    ?? artifact.parentId;
-  const ownerIsCharacter = !!narrative.characters[artifact.parentId];
+  const isWorldOwned = !artifact.parentId;
+  const ownerId = artifact.parentId ?? '';
+  const ownerName = isWorldOwned ? 'World' : (
+    narrative.characters[ownerId]?.name
+    ?? narrative.locations[ownerId]?.name
+    ?? ownerId
+  );
+  const ownerIsCharacter = !isWorldOwned && !!narrative.characters[ownerId];
 
   const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
 
@@ -132,19 +136,25 @@ export default function ArtifactDetail({ artifactId }: Props) {
 
       {/* Current owner */}
       <p className="text-xs text-text-secondary">
-        owned by{' '}
-        <button
-          type="button"
-          onClick={() => dispatch({
-            type: 'SET_INSPECTOR',
-            context: ownerIsCharacter
-              ? { type: 'character', characterId: artifact.parentId }
-              : { type: 'location', locationId: artifact.parentId },
-          })}
-          className="text-text-primary hover:underline transition-colors"
-        >
-          {ownerName}
-        </button>
+        {isWorldOwned ? (
+          <span className="text-text-dim">world-owned</span>
+        ) : (
+          <>
+            owned by{' '}
+            <button
+              type="button"
+              onClick={() => dispatch({
+                type: 'SET_INSPECTOR',
+                context: ownerIsCharacter
+                  ? { type: 'character', characterId: artifact.parentId! }
+                  : { type: 'location', locationId: artifact.parentId! },
+              })}
+              className="text-text-primary hover:underline transition-colors"
+            >
+              {ownerName}
+            </button>
+          </>
+        )}
       </p>
 
       {/* Continuity — paginated, most recent first */}

@@ -23,7 +23,7 @@ export function getStateAtIndex(
   /** Thread statuses at this point */
   threadStatuses: Record<string, string>;
   /** Artifact ownership at this point (artifactId -> ownerId) */
-  artifactOwnership: Record<string, string>;
+  artifactOwnership: Record<string, string | null>;
 } {
   const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
 
@@ -79,7 +79,7 @@ export function getStateAtIndex(
   }
 
   // Replay artifact ownership: start with initial parentIds from worldBuilds, then apply ownershipMutations
-  const artifactOwnership: Record<string, string> = {};
+  const artifactOwnership: Record<string, string | null> = {};
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
     // WorldBuilds introduce artifacts with initial parentIds
@@ -281,7 +281,7 @@ export function narrativeContext(
   // Use timeline-scoped ownership (who owned each artifact at this point, not final state)
   const artifactsByOwner = new Map<string, typeof artifactEntries>();
   for (const a of artifactEntries) {
-    const ownerId = timelineState.artifactOwnership[a.id] ?? a.parentId;
+    const ownerId = timelineState.artifactOwnership[a.id] ?? a.parentId ?? '__world__';
     const list = artifactsByOwner.get(ownerId) ?? [];
     list.push(a);
     artifactsByOwner.set(ownerId, list);
@@ -326,7 +326,9 @@ export function narrativeContext(
       });
       const continuityBlock = continuityLines.length > 0 ? `\n${continuityLines.join('\n')}` : '';
       const artifactBlock = artifactLines.length > 0 ? `\n${artifactLines.join('\n')}` : '';
-      return `<location id="${l.id}" name="${l.name}" prominence="${l.prominence ?? 'place'}"${parent}>${continuityBlock}${artifactBlock}\n</location>`;
+      const tiedNames = (l.tiedCharacterIds ?? []).map(id => n.characters[id]?.name).filter(Boolean);
+      const tiesAttr = tiedNames.length > 0 ? ` ties="${tiedNames.join(', ')}"` : '';
+      return `<location id="${l.id}" name="${l.name}" prominence="${l.prominence ?? 'place'}"${parent}${tiesAttr}>${continuityBlock}${artifactBlock}\n</location>`;
     })
     .join('\n');
   // Build thread age context from scene history (within time horizon)
@@ -397,8 +399,13 @@ export function narrativeContext(
       const charName = n.characters[au.characterId]?.name ?? au.characterId;
       return `${charName} uses ${artName}`;
     }).join('; ');
+    const tieChanges = (s.tieMutations ?? []).map((mm) => {
+      const locName = n.locations[mm.locationId]?.name ?? mm.locationId;
+      const charName = n.characters[mm.characterId]?.name ?? mm.characterId;
+      return `${charName} ${mm.action === 'add' ? 'joins' : 'leaves'} ${locName}`;
+    }).join('; ');
     const povName = n.characters[s.povId]?.name ?? s.povId;
-    return `<entry index="${globalIdx}" location="${loc}" pov="${povName}" participants="${participants}"${threadChanges ? ` threads="${threadChanges}"` : ''}${continuityChanges ? ` continuity="${continuityChanges}"` : ''}${relChanges ? ` relationships="${relChanges}"` : ''}${ownershipChanges ? ` artifact-transfers="${ownershipChanges}"` : ''}${artifactUsages ? ` artifact-usages="${artifactUsages}"` : ''}>${s.summary}</entry>`;
+    return `<entry index="${globalIdx}" location="${loc}" pov="${povName}" participants="${participants}"${threadChanges ? ` threads="${threadChanges}"` : ''}${continuityChanges ? ` continuity="${continuityChanges}"` : ''}${relChanges ? ` relationships="${relChanges}"` : ''}${ownershipChanges ? ` artifact-transfers="${ownershipChanges}"` : ''}${artifactUsages ? ` artifact-usages="${artifactUsages}"` : ''}${tieChanges ? ` ties="${tieChanges}"` : ''}>${s.summary}</entry>`;
   }).filter(Boolean).join('\n');
 
   // Arcs context — only arcs with scenes within the time horizon
@@ -578,8 +585,10 @@ export function sceneContext(
     const recentNodes = scopedNodes.slice(-RECENT_CONTINUITY);
     const knLines = recentNodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
     const parent = location.parentId ? ` parent="${narrative.locations[location.parentId]?.name ?? location.parentId}"` : '';
+    const tiedNames = (location.tiedCharacterIds ?? []).map(id => narrative.characters[id]?.name).filter(Boolean);
+    const tiesAttr = tiedNames.length > 0 ? ` ties="${tiedNames.join(', ')}"` : '';
     const knBlock = knLines.length > 0 ? `\n${knLines.join('\n')}` : '';
-    return `  <location id="${location.id}" name="${location.name}"${parent}>${knBlock}\n  </location>`;
+    return `  <location id="${location.id}" name="${location.name}"${parent}${tiesAttr}>${knBlock}\n  </location>`;
   })();
 
   // ── Relationships between participants (scoped to timeline when available) ─────────────────────────────
@@ -634,6 +643,25 @@ export function sceneContext(
       })
     : [];
 
+  const artifactUsageLines = (scene.artifactUsages ?? []).map((au) => {
+    const artName = narrative.artifacts?.[au.artifactId]?.name ?? au.artifactId;
+    const charName = narrative.characters[au.characterId]?.name ?? au.characterId;
+    return `  <usage artifact="${artName}" character="${charName}" />`;
+  });
+
+  const ownershipMutationLines = (scene.ownershipMutations ?? []).map((om) => {
+    const artName = narrative.artifacts?.[om.artifactId]?.name ?? om.artifactId;
+    const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
+    const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
+    return `  <transfer artifact="${artName}" from="${fromName}" to="${toName}" />`;
+  });
+
+  const tieMutationLines = (scene.tieMutations ?? []).map((mm) => {
+    const locName = narrative.locations[mm.locationId]?.name ?? mm.locationId;
+    const charName = narrative.characters[mm.characterId]?.name ?? mm.characterId;
+    return `  <tie character="${charName}" action="${mm.action}" location="${locName}" />`;
+  });
+
   const wkmBlock = (() => {
     const wkm = scene.worldKnowledgeMutations;
     if (!wkm || ((wkm.addedNodes?.length ?? 0) === 0 && (wkm.addedEdges?.length ?? 0) === 0)) return '';
@@ -673,7 +701,10 @@ ${scene.events.map((e) => `  <event>${e}</event>`).join('\n')}
 ${threadMutationLines.length > 0 ? `\n<thread-shifts>\n${threadMutationLines.join('\n')}\n</thread-shifts>` : ''}
 ${continuityMutationLines.length > 0 ? `\n<continuity-changes>\n${continuityMutationLines.join('\n')}\n</continuity-changes>` : ''}
 ${relationshipMutationLines.length > 0 ? `\n<relationship-shifts>\n${relationshipMutationLines.join('\n')}\n</relationship-shifts>` : ''}${wkmBlock}
-${movementLines.length > 0 ? `\n<movements>\n${movementLines.join('\n')}\n</movements>` : ''}${rulesBlock}${systemsBlock}
+${movementLines.length > 0 ? `\n<movements>\n${movementLines.join('\n')}\n</movements>` : ''}
+${artifactUsageLines.length > 0 ? `\n<artifact-usages>\n${artifactUsageLines.join('\n')}\n</artifact-usages>` : ''}
+${ownershipMutationLines.length > 0 ? `\n<artifact-transfers>\n${ownershipMutationLines.join('\n')}\n</artifact-transfers>` : ''}
+${tieMutationLines.length > 0 ? `\n<tie-changes>\n${tieMutationLines.join('\n')}\n</tie-changes>` : ''}${rulesBlock}${systemsBlock}
 </scene>`;
 }
 
@@ -1064,7 +1095,7 @@ ${movementLines.join('\n')}
   // ARTIFACTS (possessions + location items + transfers)
   // ═══════════════════════════════════════════════════════════════════════════
   const artifacts = narrative.artifacts ?? {};
-  const getArtifactOwner = (a: { id: string; parentId: string }) =>
+  const getArtifactOwner = (a: { id: string; parentId: string | null }) =>
     timelineState?.artifactOwnership[a.id] ?? a.parentId;
   const getArtifactCapabilities = (a: { continuity: { nodes: Record<string, { id: string; content: string }> } }) => {
     const allArtNodes = Object.values(a.continuity.nodes);
@@ -1095,6 +1126,13 @@ ${movementLines.join('\n')}
     for (const a of atLocation) {
       artifactLines.push(`  <at-location artifact="${a.name}" location="${location.name}">Can be discovered and acquired.</at-location>`);
     }
+  }
+
+  // World-owned artifacts — always available
+  const worldOwned = Object.values(artifacts).filter((a) => !getArtifactOwner(a));
+  for (const a of worldOwned) {
+    const capabilities = getArtifactCapabilities(a);
+    artifactLines.push(`  <world-artifact artifact="${a.name}"${capabilities ? ` capabilities="${capabilities}"` : ''}>Communally available to all.</world-artifact>`);
   }
 
   // Ownership transfers

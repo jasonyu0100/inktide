@@ -146,14 +146,18 @@ describe('searchNarrative', () => {
         loc1: {
           id: 'loc1',
           name: 'Castle',
+          prominence: 'domain' as const,
           parentId: null,
+          tiedCharacterIds: [],
           threadIds: [],
           continuity: { nodes: {}, edges: [] },
         },
         loc2: {
           id: 'loc2',
           name: 'Courtyard',
+          prominence: 'place' as const,
           parentId: 'loc1',
+          tiedCharacterIds: [],
           threadIds: [],
           continuity: { nodes: {}, edges: [] },
         },

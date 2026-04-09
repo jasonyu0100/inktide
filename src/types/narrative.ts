@@ -78,13 +78,15 @@ export type Character = {
  *  - domain: center of gravity, where power and identity concentrate — a throne room, an empire, a kitchen
  *  - area: known ground, recurring presence — a familiar tavern, a district, a battlefield
  *  - margin: peripheral, minimal continuity — an alley, a border crossing, set dressing */
-export type LocationProminence = 'domain' | 'area' | 'margin';
+export type LocationProminence = 'domain' | 'place' | 'margin';
 
 export type Location = {
   id: string;
   name: string;
   prominence: LocationProminence;
   parentId: string | null;
+  /** Characters with a significant tie to this location — residents, faction members, students. Not casual visitors. */
+  tiedCharacterIds: string[];
   threadIds: string[];
   continuity: Continuity;
   /** AI-generated visual description used as image prompt seed */
@@ -110,8 +112,8 @@ export type Artifact = {
   /** Continuity graph — what is known about this artifact (lore, history, properties, state changes) */
   continuity: Continuity;
   threadIds: string[];
-  /** Current owner — a character or location ID (like Location.parentId) */
-  parentId: string;
+  /** Current owner — a character or location ID, or null for world-owned (communally available to all) */
+  parentId: string | null;
   imagePrompt?: string;
   imageUrl?: ImageRef;
 };
@@ -125,6 +127,12 @@ export type OwnershipMutation = {
 export type ArtifactUsage = {
   artifactId: string;
   characterId: string;
+};
+
+export type TieMutation = {
+  locationId: string;
+  characterId: string;
+  action: 'add' | 'remove';
 };
 
 // ── Scene & Arc ─────────────────────────────────────────────────────────────
@@ -546,6 +554,8 @@ export type Scene = {
   worldKnowledgeMutations?: WorldKnowledgeMutation;
   /** Artifact ownership changes — objects changing hands between characters/locations */
   ownershipMutations?: OwnershipMutation[];
+  /** Tie changes — characters forming or breaking ties with locations */
+  tieMutations?: TieMutation[];
   /** Version history for prose — enables branch isolation. Resolution uses branch lineage + fork time. */
   proseVersions?: ProseVersion[];
   /** Version history for plan — enables branch isolation. Resolution uses branch lineage + fork time. */
@@ -1101,7 +1111,7 @@ export type SystemLogEntry = {
 export type AnalysisChunkResult = {
   chapterSummary: string;
   characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string; continuity: { type: string; content: string }[] }[];
-  locations: { name: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[] }[];
+  locations: { name: string; parentName: string | null; description: string; imagePrompt?: string; lore: string[]; tiedCharacterNames?: string[] }[];
   artifacts?: { name: string; significance: string; continuity: { type: string; content: string }[]; ownerName: string }[];
   threads: { description: string; participantNames: string[]; statusAtStart: string; statusAtEnd: string; development: string; relatedThreadDescriptions?: string[] }[];
   scenes: {
@@ -1115,6 +1125,7 @@ export type AnalysisChunkResult = {
     relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
     artifactUsages?: { artifactName: string; characterName: string }[];
     ownershipMutations?: { artifactName: string; fromName: string; toName: string }[];
+    tieMutations?: { locationName: string; characterName: string; action: 'add' | 'remove' }[];
     characterMovements?: { characterName: string; locationName: string; transition: string }[];
     worldKnowledgeMutations?: {
       addedNodes: { concept: string; type: string }[];

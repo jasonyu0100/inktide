@@ -76,7 +76,7 @@ describe('computeSlidesData', () => {
         c2: { id: 'c2', name: 'Sidekick', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
+        loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
         t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
@@ -96,7 +96,7 @@ describe('computeSlidesData', () => {
         c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
+        loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
         t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },
@@ -189,8 +189,8 @@ describe('computeSlidesData', () => {
   it('computes top locations by usage', () => {
     const n = createMinimalNarrative({
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
-        loc2: { id: 'loc2', name: 'Forest', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
+        loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
+        loc2: { id: 'loc2', name: 'Forest', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       scenes: {
         s1: createScene('s1', { locationId: 'loc1' }),
@@ -240,7 +240,7 @@ describe('computeSlidesData', () => {
         c1: { id: 'c1', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       locations: {
-        loc1: { id: 'loc1', name: 'Castle', parentId: null, continuity: { nodes: {}, edges: [] }, threadIds: [] },
+        loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
         t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1' },

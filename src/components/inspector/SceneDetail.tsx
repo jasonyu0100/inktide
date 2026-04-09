@@ -512,6 +512,41 @@ export default function SceneDetail({ sceneId }: Props) {
         </div>
       )}
 
+      {/* Ties Mutations */}
+      {(scene.tieMutations?.length ?? 0) > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
+            Ties
+          </h3>
+          {scene.tieMutations!.map((mm, i) => {
+            const charName = narrative.characters[mm.characterId]?.name ?? mm.characterId;
+            const locName = narrative.locations[mm.locationId]?.name ?? mm.locationId;
+            return (
+              <div key={`mm-${mm.locationId}-${mm.characterId}-${i}`} className="flex items-center gap-1.5 text-xs">
+                <span className={mm.action === 'add' ? 'text-change' : 'text-payoff'}>
+                  {mm.action === 'add' ? '+' : '−'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: mm.characterId } })}
+                  className="text-text-primary transition-colors hover:underline"
+                >
+                  {charName}
+                </button>
+                <span className="text-text-dim">{mm.action === 'add' ? 'joins' : 'leaves'}</span>
+                <button
+                  type="button"
+                  onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: mm.locationId } })}
+                  className="text-text-primary transition-colors hover:underline"
+                >
+                  {locName}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* World Knowledge Mutations */}
       {scene.worldKnowledgeMutations && ((scene.worldKnowledgeMutations.addedNodes?.length ?? 0) > 0 || (scene.worldKnowledgeMutations.addedEdges?.length ?? 0) > 0) && (
         <div className="flex flex-col gap-1.5">

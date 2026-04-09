@@ -42,7 +42,9 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
   return {
     id,
     name: `Location ${id}`,
+    prominence: 'place' as const,
     parentId: null,
+    tiedCharacterIds: [],
     continuity: { nodes: {}, edges: [] },
     threadIds: [],
     ...overrides,

@@ -50,7 +50,7 @@ function computeDerivedEntities(
         characters[c.id] = { ...c, continuity: { nodes: c.continuity?.nodes ?? {}, edges: c.continuity?.edges ?? [] } };
       }
       for (const l of wb.expansionManifest.locations) {
-        locations[l.id] = { ...l, continuity: { nodes: l.continuity?.nodes ?? {}, edges: l.continuity?.edges ?? [] } };
+        locations[l.id] = { ...l, tiedCharacterIds: l.tiedCharacterIds ?? [], continuity: { nodes: l.continuity?.nodes ?? {}, edges: l.continuity?.edges ?? [] } };
       }
       for (const t of wb.expansionManifest.threads) {
         threads[t.id] = { ...t };
@@ -71,7 +71,7 @@ function computeDerivedEntities(
             continuity: { nodes: { ...existing.continuity.nodes, ...aCont.nodes }, edges: [...existing.continuity.edges, ...aCont.edges] },
           };
         } else {
-          artifacts[a.id] = { ...a, continuity: aCont };
+          artifacts[a.id] = { ...a, threadIds: a.threadIds ?? [], continuity: aCont };
         }
       }
       // Collect world knowledge
@@ -119,6 +119,17 @@ function computeDerivedEntities(
         const art = artifacts[om.artifactId];
         if (art) {
           artifacts[om.artifactId] = { ...art, parentId: om.toId };
+        }
+      }
+      // Apply tie mutations from scene
+      for (const mm of scene.tieMutations ?? []) {
+        const loc = locations[mm.locationId];
+        if (loc) {
+          if (mm.action === 'add' && !loc.tiedCharacterIds.includes(mm.characterId)) {
+            locations[mm.locationId] = { ...loc, tiedCharacterIds: [...loc.tiedCharacterIds, mm.characterId] };
+          } else if (mm.action === 'remove') {
+            locations[mm.locationId] = { ...loc, tiedCharacterIds: loc.tiedCharacterIds.filter(id => id !== mm.characterId) };
+          }
         }
       }
     }

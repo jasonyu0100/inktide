@@ -443,6 +443,7 @@ Return JSON with this exact structure:
       "id": "${nextLocId}",
       "name": "string",
       "parentId": "REQUIRED: existing location ID (e.g. L-01) to nest under, or null ONLY for top-level regions",
+      "tiedCharacterIds": ["character IDs with a significant tie to this location — residents, employees, faction members, students. Ties represent gravity and belonging, not just presence"],
       "threadIds": [],
       "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret them literally.",
       "continuity": {
@@ -468,7 +469,7 @@ Return JSON with this exact structure:
       "id": "${nextArtifactId}",
       "name": "string",
       "significance": "key|notable|minor",
-      "parentId": "owner — a character or location ID",
+      "parentId": "owner — a character or location ID, or null for world-owned (communally available to all)",
       "continuity": {"nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "what it is, what it does, its history, its powers, its limitations — everything about this artifact lives in its continuity"}]},
       "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"
     }
@@ -646,7 +647,7 @@ Return JSON with this exact structure:
     {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
   ],
   "artifacts": [
-    {"id": "A-01", "name": "string", "significance": "key|notable|minor", "threadIds": [], "parentId": "character or location ID", "continuity": {"nodes": [{"id": "AK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
+    {"id": "A-01", "name": "string", "significance": "key|notable|minor", "threadIds": [], "parentId": "character or location ID, or null for world-owned", "continuity": {"nodes": [{"id": "AK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
   ],${worldOnly ? `
   "worldKnowledge": {"addedNodes": [{"id": "WK-01", "concept": "name of a world concept, rule, system, or structure", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "WK-01", "to": "WK-02", "relation": "typed relationship: enables, requires, governs, opposes, created_by, extends, etc."}]},` : `
   "scenes": [

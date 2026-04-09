@@ -169,14 +169,19 @@ export default function WorldGraph() {
     let links: GraphLink[];
 
     // Filter artifacts to only those used in the current scene
-    const usedArtifactIds = new Set<string>();
+    // Artifacts: show those used in current scene, or introduced in current world build
+    const visibleArtifactIds = new Set<string>();
     const currentKey = resolvedEntryKeys[state.currentSceneIndex];
     const currentSceneForArtifacts = currentKey ? narrative.scenes[currentKey] : null;
+    const currentWBForArtifacts = currentKey ? narrative.worldBuilds[currentKey] : null;
     if (currentSceneForArtifacts) {
-      for (const au of currentSceneForArtifacts.artifactUsages ?? []) usedArtifactIds.add(au.artifactId);
+      for (const au of currentSceneForArtifacts.artifactUsages ?? []) visibleArtifactIds.add(au.artifactId);
+    }
+    if (currentWBForArtifacts) {
+      for (const a of currentWBForArtifacts.expansionManifest.artifacts ?? []) visibleArtifactIds.add(a.id);
     }
     const usedArtifacts = Object.fromEntries(
-      Object.entries(narrative.artifacts ?? {}).filter(([id]) => usedArtifactIds.has(id))
+      Object.entries(narrative.artifacts ?? {}).filter(([id]) => visibleArtifactIds.has(id))
     );
 
     // Entity visibility filters

@@ -471,7 +471,7 @@ PAYOFF = Σ max(0, φ_to - φ_from) + 0.25 per pulse
 CHANGE = √(continuity_nodes + √continuity_edges) + √events + √(Σ|valenceDelta|²)
   Continuity mutations (per-entity inner world changes) drive the first term.
   Events drive the second. Relationship valenceDelta drives the third (L2 aggregated).
-  Reference mean: ~3.5/scene (~3-4 continuity nodes + ~2-3 events + relationship shifts ±0.2+).
+  Reference mean: ~4/scene (~4-5 continuity nodes + ~2-3 events + relationship shifts ±0.2+).
   → A character-driven text should have HIGH change: many continuity mutations per entity, rich relationship shifts.
   → An idea-driven text (academic paper, essay) may have LOW change — fewer characters experiencing things.
   → Background characters who are merely present get NO mutations. Quiet scenes = few mutations.

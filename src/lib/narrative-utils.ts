@@ -1316,9 +1316,8 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Originally calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
- *  Change reference adjusted from 4→3.5 after L2 valenceDelta aggregation (∑|Δv|²).
- *  The L2 change deflates the R term by ~40% for typical δ≈0.3; if R≈⅓ of C, total deflation ~15%. */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.3, change: 3.5, knowledge: 3.5 } as const;
+ *  Change reference raised to 4 for harsher grading — requires richer continuity mutations per scene. */
+export const FORCE_REFERENCE_MEANS = { payoff: 1.3, change: 4, knowledge: 3.5 } as const;
 
 /** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */

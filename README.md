@@ -4,11 +4,11 @@
 
 **Knowledge-graph-based text analysis, querying, and generation engine.**
 
-Paste any long-form text — a novel, a paper, a screenplay — and InkTide builds a knowledge graph that mutates section by section. Multiple analysis layers score the structural forces at work: thread resolution, transformation intensity, new information, pacing rhythm, and dynamic contrast. Applied to Harry Potter, the system identifies the Sorting Hat, the troll fight, and the Quirrell confrontation as structural peaks — without human labeling.
+Paste any long-form text — a novel, a paper, a screenplay — and InkTide builds a living knowledge graph that evolves section by section. Multiple analysis layers reveal the structural forces shaping the narrative: how threads resolve, how characters transform, how the world deepens, and how the rhythm breathes. Applied to Harry Potter, the system surfaces the Sorting Hat, the troll fight, and the Quirrell confrontation as structural peaks — discovered, not labeled.
 
-Everything becomes searchable by meaning. Every proposition is embedded as a vector. Ask about "betrayal" and find scenes of broken trust even when the word never appears. Each analyzed work adds its pacing fingerprint to a growing network of structural data.
+Everything becomes searchable by meaning. Every proposition is embedded as a vector. Search for "sacrifice" and surface every moment of selfless choice across the timeline, even when the word never appears. Each analyzed work contributes its pacing fingerprint to a growing network of structural intelligence.
 
-The same analysis layers drive generation — content paced by Markov chains from published works, branching paths explored via MCTS, and iterative revision through structural evaluation.
+The same analysis layers power generation — new content shaped by the rhythms of published works, branching paths explored via MCTS, and drafts refined through structural evaluation.
 
 **[Read the paper →](https://inktide-sourcenovel.vercel.app/paper)** · **[Case analysis →](https://inktide-sourcenovel.vercel.app/case-analysis)** · **[Try it →](https://inktide-sourcenovel.vercel.app/)**
 
@@ -32,34 +32,34 @@ You need an **[OpenRouter API key](https://openrouter.ai/keys)** for LLM access.
 
 ### Analyze
 
-Three force dimensions, all z-score normalised, computed deterministically from knowledge graph mutations — no LLM in the scoring loop:
+Three force dimensions, all z-score normalised, computed from knowledge graph evolution — pure math, no LLM:
 
-| Force | What it measures |
+| Force | What it reveals |
 |-------|-----------------|
-| **Payoff** | Thread phase transitions — the moments the text can't take back |
-| **Change** | How intensely subjects were transformed — continuity mutations, relationship shifts |
-| **Knowledge** | How much richer the world became — new concepts, systems, connections |
+| **Payoff** | Thread resolution — promises kept, tensions released, turning points that reshape the story |
+| **Change** | Transformation depth — how characters grow, relationships shift, and the familiar becomes new |
+| **Knowledge** | World enrichment — new concepts, systems, and connections that expand what's possible |
 
-Each force is graded 0–25 on an exponential curve, 100 total. The **narrative cube** maps force combinations into 8 modes (Epoch, Climax, Revelation, Closure, Discovery, Growth, Lore, Rest) used for pacing analysis, Markov chain sampling, and MCTS search.
+Each force is graded 0–25 on an exponential curve, 100 total. The **narrative cube** maps force combinations into 8 modes (Epoch, Climax, Revelation, Closure, Discovery, Growth, Lore, Rest) — a vocabulary for how stories move.
 
-Additional layers: **swing** (dynamic contrast between consecutive sections), **pacing profiles** (Markov transition matrices over scene modes and beat functions), and **scale & density** (world knowledge interconnection depth).
+Additional layers: **swing** (the rhythm of contrast between sections), **pacing profiles** (Markov transition matrices capturing an author's structural signature), and **scale & density** (how richly interconnected the world becomes).
 
 ### Query
 
-Every proposition, beat, and scene is embedded as a 1536-dimensional vector. Cosine similarity retrieves content by meaning, not keywords. AI-synthesized overviews trace patterns across the full timeline with inline citations.
+Every proposition, beat, and scene is embedded as a 1536-dimensional vector. Cosine similarity retrieves content by meaning, not keywords. AI-synthesized overviews trace thematic patterns across the full timeline with inline citations.
 
-Applications: continuity validation (does the referenced event actually exist?), knowledge asymmetry tracking (does this character actually know this?), semantic retrieval for generation context.
+Applications: continuity validation (verifying that referenced events actually occurred), tracking what each character knows at any point in the story, and semantic retrieval that gives generation rich context from anywhere in the timeline.
 
 ### Generate
 
 | Capability | How it works |
 |-----------|-------------|
-| **Markov pacing** | Transition matrices from analyzed works shape scene-by-scene rhythm |
-| **Prose profiles** | Beat plans with authorial Markov chains over a 10-function / 8-mechanism taxonomy |
-| **MCTS search** | Explores branching narrative paths, each expansion guided by a fresh pacing sequence |
-| **Course correction** | Direction vectors rewritten after each arc based on what actually happened |
-| **Iterative revision** | Evaluate → verdict (ok / edit / merge / insert / cut) → reconstruct versioned branches |
-| **Pacing presets** | Curated sequences (Sucker Punch, Slow Burn, Roller Coaster, etc.) that bypass Markov sampling |
+| **Markov pacing** | Learn the rhythm of any published work and write in its structural signature |
+| **Prose profiles** | Beat plans shaped by authorial Markov chains — 10 functions, 8 mechanisms |
+| **MCTS search** | Explore branching narrative paths, each guided by a fresh pacing sequence |
+| **Course correction** | Direction adapts after each arc based on what the story actually became |
+| **Iterative revision** | Evaluate → verdict (ok / edit / merge / insert / cut) → reconstruct into refined drafts |
+| **Pacing presets** | Curated arcs (Sucker Punch, Slow Burn, Roller Coaster) for targeted narrative shapes |
 
 ---
 
@@ -73,7 +73,7 @@ IndexedDB + localStorage — fully client-side persistence, no backend database
 
 All LLM calls route through OpenRouter. Embeddings use OpenAI's `text-embedding-3-small` (1536 dimensions). Image generation uses Replicate's Seedream 4.5. State is managed via React Context + useReducer with IndexedDB persistence.
 
-See the **[paper](https://inktide-sourcenovel.vercel.app/paper)** for the full formal treatment — force formulas, Markov chain pacing, MCTS evaluation, beat taxonomy, and validation against published works.
+See the **[paper](https://inktide-sourcenovel.vercel.app/paper)** for the full theory — force formulas, Markov chain pacing, MCTS evaluation, beat taxonomy, and validation against published works.
 
 ---
 

@@ -162,34 +162,39 @@ Return JSON:
 }`;
 
   const fieldGuide = `
-FIELD GUIDE — how each field works and feeds downstream systems:
+MUTATION STANDARDS (same as generation — extract what the prose contains):
 
-CHARACTERS — every named character who appears, speaks, or is meaningfully referenced.
-- "role": anchor = drives the story, recurring = appears regularly, transient = one-off
-- "continuity": inner world changes THIS scene. Write from the character's perspective. 9 types: trait (personality), state (condition), history (what happened), capability (what they can do), belief (what they think), relation (how they see others), secret (hidden), goal (what they want), weakness (vulnerability). Dense: 2-3 per active character. Quiet: 0-1 total.
+threadMutations — lifecycle: dormant→active→escalating→critical→resolved/subverted/abandoned.
+- Transitions ONE step at a time. NEVER skip phases.
+- Pulses (same→same) are normal. Most scenes: 1-2 pulses, 0-1 transitions.
+- Only record a transition when the prose clearly shows a definitive shift in tension.
 
-LOCATIONS — every location mentioned or established. Nest hierarchically via parentName.
-- "tiedCharacterNames": significant ties only — residents, faction members, NOT visitors.
+continuityMutations — first-person experiential changes for ANY entity.
+- Write COMPLETE SENTENCES. BAD: "curious". GOOD: "Alice is highly curious and impulsive when faced with novelty."
+- Each node: a meaningful thought capturing what changed and why it matters.
+- Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
+- Connect related nodes with addedEdges: "follows", "causes", "contradicts", "enables".
+- 2-4 quality nodes per active entity. Quiet scenes: 0-1.
+- Locations: collective experiences. Artifacts: what it underwent + how it modified the wielder.
 
-ARTIFACTS — TOOLS that extend capabilities. Physical objects, technologies, software, APIs, systems, methods, techniques, services, institutions. "ownerName": character (personal), location (communal), null (world-owned). "significance": key=alters plot, notable=recurs, minor=set dressing.
+relationshipMutations — valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic.
 
-THREADS — narrative tensions or questions. Lifecycle: dormant→active→escalating→critical→resolved/subverted/abandoned.
-- "statusAtStart"/"statusAtEnd": state at scene boundaries. Can be same (pulse).
-- "development": specifically what happened, not just "it advanced".
+worldKnowledgeMutations — world's abstract structure, NOT character knowledge.
+- Well-named meaningful concepts. Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
+- Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
+- 2-3 well-chosen concepts per scene. Dense world-building: 3-5. Character drama: 0-1.
 
-THREAD MUTATIONS → PAYOFF: P = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4. Ref: ~1.3/scene. Only record actual transitions.
+ENTITY EXTRACTION:
+- characters: every named character present. Role: anchor/recurring/transient. Continuity as above.
+- locations: nest via parentName. tiedCharacterNames: characters who BELONG here — residents, employees, regulars, faction members. A tie means the location is significant to the character's identity. Alice's home, a detective's precinct, a wizard's tower, a student's school. Include ties on EVERY location that has characters who live, work, or belong there. Most locations should have at least one tied character.
+- artifacts: tools that extend capabilities. ownerName: character/location/null (world-owned). significance: key/notable/minor.
+- threads: narrative tensions. statusAtStart/statusAtEnd at scene boundaries. development: what specifically happened.
 
-CONTINUITY MUTATIONS → CHANGE: C = √(ΔN + √ΔE) + √events + √(Σ|valenceDelta|²). First-person changes for ANY entity. Locations track collective experiences. Artifacts track what they underwent + how they modified wielders. Ref: ~4/scene.
-
-RELATIONSHIP MUTATIONS → also CHANGE. valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic.
-
-WORLD KNOWLEDGE → KNOWLEDGE: K = ΔN + √ΔE. World's abstract structure — NOT character knowledge. 9 types: principle, system, concept, tension, event, structure, environment, convention, constraint. Ref: ~3.5/scene. Add edges: enables, governs, opposes, extends, constrains.
-
-ARTIFACT USAGES — when a tool is used. "characterName" null for unattributed (common in academic text).
-OWNERSHIP MUTATIONS — only when artifacts change hands.
-TIE MUTATIONS — significant bond changes (joining, banishment). NOT temporary visits.
-CHARACTER MOVEMENTS — only physical relocation to a different location.
-EVENTS — discrete action tags. Battle: 4-5. Quiet: 1-2.
+events — short descriptive tags (2-4 words): "curiosity_sparked", "secret_pact_formed". Dense: 4-5. Quiet: 1-2.
+artifactUsages — when a tool is used. characterName null for unattributed.
+ownershipMutations — only when artifacts change hands.
+tieMutations — bond changes between characters and locations. "add" when a character establishes belonging (moves in, joins faction, takes a post). "remove" only for exile, firing, permanent departure. NOT for temporary visits — a traveller passing through does NOT get a tie. Most first appearances at a character's HOME location should produce an "add" tie.
+characterMovements — only physical relocation. Vivid transitions.
 
 CALIBRATION: Dense prose = rich extraction. Sparse prose = minimal. Never pad. Never under-extract.`;
 
@@ -940,8 +945,17 @@ export async function assembleNarrative(
           ...(loc.imagePrompt ? { imagePrompt: loc.imagePrompt } : {}),
         };
         locFirstChunk.set(id, chunkIdx);
-      } else if (loc.imagePrompt) {
-        locations[id].imagePrompt = loc.imagePrompt;
+      } else {
+        if (loc.imagePrompt) {
+          locations[id].imagePrompt = loc.imagePrompt;
+        }
+        // Accumulate tied characters across scenes (not just first creation)
+        const newTied = (loc.tiedCharacterNames ?? []).map((n: string) => getCharId(n)).filter(Boolean);
+        for (const cid of newTied) {
+          if (!locations[id].tiedCharacterIds.includes(cid)) {
+            locations[id].tiedCharacterIds = [...locations[id].tiedCharacterIds, cid];
+          }
+        }
       }
       // Build location continuity directly on the entity
       for (const lore of loc.lore ?? []) {

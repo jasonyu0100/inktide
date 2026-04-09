@@ -131,11 +131,15 @@ class AnalysisRunner {
 
       await runParallel(planPending, async (idx) => {
         const chunk = job.chunks[idx];
+        const planKey = String(idx);
+        entry.planInFlightKeys.add(planKey);
+        this.emitPlanInFlight(job.id, [...entry.planInFlightKeys]);
+
         try {
           const { plan, beatProseMap } = await reverseEngineerScenePlan(
             chunk.text,
             `Scene ${idx + 1}`,
-            (_token, acc) => { entry.planStreams.set(String(idx), acc); this.emitPlanStream(job.id, String(idx), acc); },
+            (_token, acc) => { entry.planStreams.set(planKey, acc); this.emitPlanStream(job.id, planKey, acc); },
           );
 
           // Initialize result with scene containing plan + prose
@@ -157,6 +161,9 @@ class AnalysisRunner {
             }],
             relationships: [],
           };
+
+          // Dispatch immediately so the UI shows the tick before embedding starts
+          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
 
           // Embed propositions immediately after plan extraction
           try {
@@ -183,6 +190,9 @@ class AnalysisRunner {
           }
         } catch (err) {
           logWarning('Plan extraction failed for scene', err, { source: 'analysis', operation: 'plan-extraction', details: { jobId: job.id, sceneIdx: idx } });
+        } finally {
+          entry.planInFlightKeys.delete(planKey);
+          this.emitPlanInFlight(job.id, [...entry.planInFlightKeys]);
         }
       }, 'Plans');
 
@@ -209,9 +219,13 @@ class AnalysisRunner {
         const scene = r?.scenes?.[0];
         if (!scene?.prose || !scene?.plan) return;
 
+        entry.inFlightIndices.add(idx);
+        this.emitInFlight(job.id, [...entry.inFlightIndices]);
+
         try {
-          const s = await extractSceneStructure(scene.prose, scene.plan, () => {
-            this.emitStream(job.id, `Structure: scene ${idx + 1}...`);
+          const s = await extractSceneStructure(scene.prose, scene.plan, (_token, acc) => {
+            entry.chunkStreams.set(idx, acc);
+            this.emitChunkStream(job.id, idx, acc);
           });
 
           // Populate scene mutations
@@ -238,10 +252,14 @@ class AnalysisRunner {
           r!.relationships = s.relationships;
         } catch (err) {
           logWarning('Structure extraction failed for scene', err, { source: 'analysis', operation: 'scene-structure', details: { jobId: job.id, sceneIdx: idx } });
+        } finally {
+          entry.inFlightIndices.delete(idx);
+          this.emitInFlight(job.id, [...entry.inFlightIndices]);
         }
       }, 'Structure');
 
       // Generate summary + prose embeddings now that summaries exist
+      this.emitStream(job.id, 'Embedding summaries + prose...');
       try {
         const { generateEmbeddingsBatch } = await import('@/lib/embeddings');
         const { assetManager } = await import('@/lib/asset-manager');
@@ -249,18 +267,22 @@ class AnalysisRunner {
 
         const summaries = allScenes.map(s => s.summary);
         if (summaries.length > 0) {
+          this.emitStream(job.id, `Embedding ${summaries.length} summaries...`);
           const embs = await generateEmbeddingsBatch(summaries, job.id);
           for (let i = 0; i < allScenes.length; i++) {
             (allScenes[i] as any).summaryEmbedding = await assetManager.storeEmbedding(embs[i], 'text-embedding-3-small');
           }
+          this.emitStream(job.id, `[OK] ${summaries.length} summaries embedded`);
         }
 
         const withProse = allScenes.filter(s => s.prose);
         if (withProse.length > 0) {
+          this.emitStream(job.id, `Embedding ${withProse.length} prose segments...`);
           const proseEmbs = await generateEmbeddingsBatch(withProse.map(s => s.prose!), job.id);
           for (let i = 0; i < withProse.length; i++) {
             (withProse[i] as any).proseEmbedding = await assetManager.storeEmbedding(proseEmbs[i], 'text-embedding-3-small');
           }
+          this.emitStream(job.id, `[OK] ${withProse.length} prose segments embedded`);
         }
       } catch (embErr) {
         logWarning('Summary/prose embedding failed (non-fatal)', embErr, { source: 'analysis', operation: 'summary-embed' });

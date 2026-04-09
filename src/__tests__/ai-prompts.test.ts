@@ -120,7 +120,7 @@ describe('Static Prompt Constants', () => {
   describe('PROMPT_MUTATIONS', () => {
     it('describes threadMutations', () => {
       expect(PROMPT_MUTATIONS).toContain('threadMutations');
-      expect(PROMPT_MUTATIONS).toContain('dormant→active→escalating→critical→terminal');
+      expect(PROMPT_MUTATIONS).toContain('dormant→active→escalating→critical→resolved/subverted/abandoned');
     });
 
     it('describes continuityMutations', () => {

@@ -73,39 +73,48 @@ SCAN BEFORE RETURNING:
 // ── Mutation Guidelines ──────────────────────────────────────────────────────
 
 export const PROMPT_MUTATIONS = `
-MUTATIONS — these produce force scores. Thin mutations = low scores.
+MUTATIONS — these produce force scores. Quality over quantity.
 
-threadMutations — lifecycle: dormant→active→escalating→critical→terminal. Pulses (same→same) = 0.25 payoff.
-- Prefer real transitions over pulses. Each arc: multiple real transitions.
+FORCE FORMULAS:
+- PAYOFF = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4.
+- CHANGE = √(ΔN_cont + √ΔE_cont) + √|events| + √(Σ|valenceDelta|²).
+- KNOWLEDGE = ΔN_world + √ΔE_world.
+
+threadMutations — lifecycle: dormant→active→escalating→critical→resolved/subverted/abandoned.
+- Transitions must be ONE step at a time. NEVER skip phases (dormant→escalating is WRONG).
+- Pulses (same→same) = 0.25 payoff. Most scenes should have pulses — a thread is present but doesn't shift.
+- A scene with 1-2 threads pulsing and 0-1 transitioning is typical. Scenes where every thread transitions are rare climaxes.
 - CONVERGENCE CASCADE: advancing a convergent thread should pressure linked threads (minimum pulse).
 
-continuityMutations — first-person experiential changes for ANY entity (character, location, artifact). NOT omniscient narration — what the entity itself experienced, perceived, or became. Feeds Change via √(ΔN + √ΔE).
-- entityId can be a character, location, or artifact ID.
-- addedNodes: what the entity experienced from its own perspective. Types: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
-- Write from the entity's perspective: "Learned the king is a fraud" not "The king was revealed as a fraud".
-- Dense scenes: 2-3 nodes per entity. Normal: 0-1. Quiet: 0. Locations and artifacts accumulate as richly as characters.
-- Characters: what they perceived, felt, decided, discovered, or became. Artifacts they possess extend their capabilities — a character with a magical weapon gains "capability" nodes, a character with AI access gains knowledge and power through their tools.
-- Locations: a place AND its people. The Shire is both rolling hills and hobbits. Sydney is both a harbour and a culture. A location experiences events collectively — a city mourns its dead, a kingdom feels a power shift, a village celebrates a harvest. Major events reshape a location's identity, goals, and beliefs.
-- Artifacts: tools that extend what's possible. An AI system grants its wielder analytical power. A cursed sword imposes its will. An enchanted map reveals hidden paths. Track what the artifact underwent AND how it modified the capabilities of whoever holds it.
+continuityMutations — first-person experiential changes for ANY entity (character, location, artifact).
+- Write COMPLETE SENTENCES from the entity's perspective. BAD: "curious". GOOD: "Alice is highly curious and impulsive when faced with novelty."
+- Each node should be a meaningful thought capturing what changed and why it matters.
+- addedNodes types: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
+- addedEdges: connect related nodes within the same entity. Relations: "follows", "causes", "contradicts", "enables".
+- Prefer 2-4 quality nodes per active entity over many thin ones. Quiet scenes: 0-1.
+- Characters: what they perceived, felt, decided, discovered, or became.
+- Locations: a place AND its people collectively — a city mourns, a kingdom shifts power, a village celebrates.
+- Artifacts: what the artifact underwent AND how it modified the capabilities of whoever holds it.
 
 relationshipMutations — valenceDelta: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
-- Include whenever characters interact meaningfully. Feeds Change via √Σ|valenceDelta|² (L2).
+- Include whenever characters interact meaningfully.
 
-worldKnowledgeMutations — types: "principle", "system", "concept", "tension", "event", "structure", "environment", "convention", "constraint". REUSE existing IDs.
-- Lore/revelation: 3-5+ nodes. Character scenes: 0-1 nodes.
-- World knowledge is #1 under-generated type. Most scenes: at least 1 node.
-- Add edges: "enables", "governs", "opposes", "extends", "created_by", "constrains".
+worldKnowledgeMutations — the world's abstract structure, NOT character knowledge.
+- Each concept should be well-named and meaningful. BAD: vague labels. GOOD: "Anthropomorphic Animals", "Size-Altering Substances".
+- Types: "principle", "system", "concept", "tension", "event", "structure", "environment", "convention", "constraint".
+- Connect concepts with edges: "enables", "governs", "opposes", "extends", "created_by", "constrains", "exist_within".
+- Prefer 2-3 well-chosen concepts per scene over 5+ shallow ones. REUSE existing IDs when reinforcing.
 
+artifactUsages — when a character uses a tool. characterId null for unattributed usage.
 ownershipMutations — artifacts changing hands. Only when narratively meaningful.
-
-SCENE INTELLIGENCE — locations and artifacts are active scene participants:
-- LOCATION EFFECTS: The scene's location shapes what can happen. A sacred grove forbids violence. A lawless frontier permits anything. A city under siege constrains movement. Generate continuityMutations for the location when major events reshape it.
-- TOOL USAGE: When characters use artifacts, it changes the scene. A character with a sword fights. A character with AI analyses. A character with a map navigates. Generate continuityMutations for BOTH the artifact (what it underwent) AND the wielder (capability gained/lost). Reference tool usage in events and summary.
-- ENVIRONMENTAL EFFECTS: The location's state affects characters within it. A burning building forces evacuation. A cursed land drains strength. A thriving market enables trade. Locations impose constraints and grant opportunities.
-
-events — specific tags ("ambush_at_dawn", "secret_pact_formed"). Conversation=1, battle=4-5.
-
+tieMutations — significant bond changes between characters and locations. NOT temporary visits.
+events — short descriptive tags (2-4 words): "curiosity_sparked", "secret_pact_formed". Dense: 4-5. Quiet: 1-2.
 characterMovements — only characters whose location CHANGES. Transition should be vivid.
+
+SCENE INTELLIGENCE:
+- LOCATION EFFECTS: The scene's location shapes what can happen. Generate continuityMutations for the location when major events reshape it.
+- TOOL USAGE: When characters use artifacts, generate artifactUsages AND continuityMutations for BOTH the artifact AND the wielder.
+- ENVIRONMENTAL EFFECTS: The location's state affects characters within it. Locations impose constraints and grant opportunities.
 `;
 
 // ── Artifact Usage ──────────────────────────────────────────────────────────

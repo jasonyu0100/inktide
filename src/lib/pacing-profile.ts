@@ -429,7 +429,7 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
   lines.push(`PACING SEQUENCE (${sequence.pacingDescription})`);
   lines.push('');
   lines.push('Mode determines mutation profile. Formulas compute forces FROM mutations:');
-  lines.push('  P = Σ thread transitions (pulse=0.25) | C = √continuity + √events + √Σ|valence|² | K = nodes + √edges');
+  lines.push('  P = Σ thread transitions (pulse=0.25) | C = ΔN_c + √ΔE_c (entity continuity) | K = ΔN + √ΔE (world knowledge)');
   lines.push('');
 
   // Build compact scene assignments

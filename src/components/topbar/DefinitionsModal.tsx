@@ -227,7 +227,7 @@ function PropositionsTab() {
 
 const ARCHETYPES = [
   { name: 'Opus', key: 'opus' as ArchetypeKey, forces: 'P + C + K', desc: 'All three forces in concert — payoffs land, characters transform, and the world deepens together' },
-  { name: 'Saga', key: 'saga' as ArchetypeKey, forces: 'P + C', desc: 'Consequential events that permanently reshape characters — payoffs land and lives change' },
+  { name: 'Series', key: 'series' as ArchetypeKey, forces: 'P + C', desc: 'Consequential events that permanently reshape characters — payoffs land and lives change' },
   { name: 'Atlas', key: 'atlas' as ArchetypeKey, forces: 'P + K', desc: 'Resolutions that map the world — each payoff reveals how things work' },
   { name: 'Chronicle', key: 'chronicle' as ArchetypeKey, forces: 'C + K', desc: 'Characters transform within a deepening world — lives and systems evolve together' },
   { name: 'Classic', key: 'classic' as ArchetypeKey, forces: 'P', desc: 'Driven by resolution — threads pay off and relationships shift decisively' },

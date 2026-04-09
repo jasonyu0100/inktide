@@ -497,7 +497,7 @@ export function zScoreNormalize(values: number[]): number[] {
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
 // P = Σ max(0, φ_to - φ_from) + 0.25 per same-status mention  (phase distance)
-// C = √M_c + √|events|                   (continuity mutations + events; cast-blind)
+// C = ΔN_c + √ΔE_c                       (entity continuity — mirrors K for inner worlds)
 // K = ΔN + √ΔE                           (new world-knowledge nodes + sqrt edges)
 //
 // S = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in PCK space)
@@ -544,17 +544,17 @@ function computeRawPayoff(scene: Scene): number {
  *  Ownership mutations are structural bookkeeping (like character movements) —
  *  their narrative impact is captured by the thread/continuity/relationship
  *  mutations that accompany them. */
+/** Raw change: C = ΔN_c + √ΔE_c
+ *
+ *  Entity continuity graph complexity delta per scene.
+ *  Mirrors Knowledge but for inner worlds — nodes contribute linearly,
+ *  edges use sqrt. Same structure, different domain:
+ *  Knowledge measures what we learn about the WORLD, Change measures
+ *  what we learn about ENTITIES (characters, locations, artifacts). */
 function rawChange(scene: Scene): number {
-  const relIntensity = scene.relationshipMutations.reduce((sum, rm) => sum + rm.valenceDelta ** 2, 0);
-  // Continuity contribution uses a miniature Knowledge formula (ΔN + √ΔE)
-  // reflecting the recursive nature of inner-world density:
-  // nodes contribute linearly, edges use sqrt (same pattern as world knowledge).
   const contNodes = scene.continuityMutations.reduce((sum, km) => sum + (km.addedNodes?.length ?? 0), 0);
   const contEdges = scene.continuityMutations.reduce((sum, km) => sum + (km.addedEdges?.length ?? 0), 0);
-  const contDensity = contNodes + Math.sqrt(contEdges);
-  return Math.sqrt(contDensity)
-    + Math.sqrt(scene.events.length)
-    + Math.sqrt(relIntensity);
+  return contNodes + Math.sqrt(contEdges);
 }
 
 /** Raw knowledge: K = ΔN + √ΔE
@@ -1091,7 +1091,7 @@ export interface NarrativeArchetype {
 
 const ARCHETYPES = {
   opus:        { key: 'opus',        name: 'Opus',        description: 'All three forces in concert — payoffs land, characters transform, and the world deepens together', dominant: ['payoff', 'change', 'knowledge'] as const },
-  saga:        { key: 'saga',        name: 'Saga',        description: 'Consequential events that permanently reshape characters — payoffs land and lives change', dominant: ['payoff', 'change'] as const },
+  series:      { key: 'series',      name: 'Series',      description: 'Consequential events that permanently reshape characters — payoffs land and lives change', dominant: ['payoff', 'change'] as const },
   atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Resolutions that map the world — each payoff reveals how things work', dominant: ['payoff', 'knowledge'] as const },
   chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Characters transform within a deepening world — lives and systems evolve together', dominant: ['change', 'knowledge'] as const },
   classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['payoff'] as const },
@@ -1123,7 +1123,7 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   const kDom = k >= floor && k >= max - gap;
 
   if (pDom && cDom && kDom) return ARCHETYPES.opus;
-  if (pDom && cDom)         return ARCHETYPES.saga;
+  if (pDom && cDom)         return ARCHETYPES.series;
   if (pDom && kDom)         return ARCHETYPES.atlas;
   if (cDom && kDom)         return ARCHETYPES.chronicle;
   if (pDom)                 return ARCHETYPES.classic;
@@ -1316,8 +1316,8 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Originally calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
- *  Change reference raised to 4 for harsher grading — requires richer continuity mutations per scene. */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 4, knowledge: 4 } as const;
+ *  Change reference is 7 (entity continuity spans multiple entities per scene vs one world graph). */
+export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 7, knowledge: 4 } as const;
 
 /** Grade a mean-normalized force value 8→25: g(x̃) = 25 − 17·e^{−kx̃}, k = ln(17/4).
  *  Single exponential — floor 8, reference 21 (dominance threshold), cap 25.

@@ -7,10 +7,10 @@ import React from 'react';
  * Maps force-dominance profiles to visually distinctive icons.
  */
 
-export type ArchetypeKey = 'opus' | 'saga' | 'atlas' | 'chronicle' | 'classic' | 'show' | 'paper' | 'emerging';
+export type ArchetypeKey = 'opus' | 'series' | 'atlas' | 'chronicle' | 'classic' | 'show' | 'paper' | 'emerging';
 
 export const ARCHETYPE_COLORS: Record<ArchetypeKey, string> = {
-  opus: '#f59e0b', saga: '#ef4444', atlas: '#3b82f6',
+  opus: '#f59e0b', series: '#ef4444', atlas: '#3b82f6',
   chronicle: '#8b5cf6', classic: '#10b981', show: '#ec4899',
   paper: '#06b6d4', emerging: '#6b7280',
 };
@@ -52,8 +52,8 @@ const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React
     </>
   ),
 
-  // Saga: upward chevron — ascent
-  saga: (half, s, c) => (
+  // Series: upward chevron — ascent
+  series: (half, s, c) => (
     <>
       <polyline points={`${s * 0.18},${s * 0.58} ${half},${s * 0.22} ${s * 0.82},${s * 0.58}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
       <polyline points={`${s * 0.18},${s * 0.76} ${half},${s * 0.40} ${s * 0.82},${s * 0.76}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.4} />

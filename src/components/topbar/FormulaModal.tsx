@@ -51,13 +51,12 @@ function ForcesTab() {
         </p>
       </S>
 
-      <S title="Change" analogy="How intensely did this scene transform? Inner worlds deepen through connected knowledge, not just accumulation.">
-        <Block tex={String.raw`C = \sqrt{\Delta N_c + \sqrt{\Delta E_c}} \;+\; \sqrt{\Delta E} \;+\; \sqrt{\Delta R}`} />
+      <S title="Change" analogy="How much did we learn about the entities? Mirrors Knowledge but for inner worlds — characters, locations, artifacts.">
+        <Block tex={String.raw`C = \Delta N_c + \sqrt{\Delta E_c}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`\Delta N_c`}</Tex> = continuity nodes added to entity inner worlds (traits, beliefs, goals, secrets).{' '}
-          <Tex>{String.raw`\Delta E_c`}</Tex> = continuity edges (causal connections between inner-world facts). The nested{' '}
-          <Tex>{String.raw`\Delta N_c + \sqrt{\Delta E_c}`}</Tex> mirrors the Knowledge formula — structural density matters.{' '}
-          <Tex>{String.raw`\Delta E`}</Tex> = events. <Tex>{String.raw`\Delta R = \sum |\Delta v|^2`}</Tex> = relationship valence intensity (L2).
+          <Tex>{String.raw`\Delta N_c`}</Tex> = continuity nodes added to entity inner worlds (traits, beliefs, goals, secrets, capabilities, states).{' '}
+          <Tex>{String.raw`\Delta E_c`}</Tex> = continuity edges (causal connections between inner-world facts).{' '}
+          Same structure as Knowledge — nodes linear, edges sqrt — but spanning every entity rather than one world graph.
         </p>
       </S>
 
@@ -118,17 +117,17 @@ function ScoringTab() {
         Forces convert to grades calibrated against literary reference works (HP, Gatsby, Crime &amp; Punishment land at 88&ndash;93).
       </p>
 
-      <S title="Grading" analogy="Exponential curve — steep early, plateaus at high levels.">
-        <Block tex={String.raw`g(\tilde{x}) = 25\!\left(1 - e^{-2\tilde{x}}\right) \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}`} />
+      <S title="Grading" analogy="Single exponential — floor 8, dominance at reference, cap 25.">
+        <Block tex={String.raw`g(\tilde{x}) = 25 - 17\,e^{-k\tilde{x}} \qquad k = \ln\!\tfrac{17}{4} \qquad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}`} />
         <Block tex="\text{Overall} = g(\tilde{P}) + g(\tilde{C}) + g(\tilde{K}) + g(\tilde{S})" />
         <p className="text-[10px] text-text-dim">
-          At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade &asymp; 22/25 (88%). Swing is already mean-normalized, graded directly.
+          At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade = 21/25 (dominance threshold). Floor of 8, cap of 25. Swing graded directly.
         </p>
         <div className="mt-2 flex gap-2 text-[10px]">
           {[
-            { label: 'Payoff', value: '1.3', color: '#EF4444' },
-            { label: 'Change', value: '4', color: '#22C55E' },
-            { label: 'Knowledge', value: '3.5', color: '#3B82F6' },
+            { label: 'Payoff', value: '1.5', color: '#EF4444' },
+            { label: 'Change', value: '7', color: '#22C55E' },
+            { label: 'Knowledge', value: '4', color: '#3B82F6' },
           ].map(({ label, value, color }) => (
             <div key={label} className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/8">
               <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />

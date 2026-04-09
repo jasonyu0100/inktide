@@ -135,7 +135,7 @@ ${prose}${beatSection}
 
 FORCE FORMULAS — your extractions are the direct inputs to these formulas:
 - PAYOFF = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4. Ref: ~1.3/scene.
-- CHANGE = √(cont_nodes + √cont_edges) + √events + √(Σ|valenceDelta|²). Ref: ~4/scene.
+- CHANGE = ΔN_c + √ΔE_c (entity continuity — mirrors Knowledge but for inner worlds). Ref: ~7/scene.
 - KNOWLEDGE = ΔN + √ΔE (world knowledge). Ref: ~4/scene.
 
 Return JSON:

@@ -145,20 +145,17 @@ Every scene records structural changes to the knowledge graph. These mutations a
 Threads are narrative tensions with a lifecycle: `dormant → active → escalating → critical → resolved/subverted/abandoned`. Each scene records thread mutations as `{threadId, from, to}` status transitions. A thread jumping from `active` to `critical` contributes `|3 - 1| = 2` to Payoff. Threads mentioned without transitioning earn a pulse of 0.25.
 
 ### Continuity Mutations → Change
-Continuity mutations are additive changes to any entity's inner knowledge graph: `{entityId, addedNodes: [{id, content, type}], addedEdges: [{from, to, relation}]}`. Entities are characters, locations, or artifacts — each maintains its own continuity graph parallel to the world knowledge graph. Events are tagged per scene. These feed Change via a recursive inner-world density formula: `C = √(ΔN_c + √ΔE_c) + √|E| + √Σ|valenceDelta|²`, where `ΔN_c` and `ΔE_c` are continuity node and edge counts — the same `ΔN + √ΔE` pattern as world Knowledge, nested inside a sqrt to represent the recursive nature of change.
+Continuity mutations are additive changes to any entity's inner knowledge graph: `{entityId, addedNodes: [{id, content, type}], addedEdges: [{from, to, relation}]}`. Entities are characters, locations, or artifacts — each maintains its own continuity graph parallel to the world knowledge graph. Change mirrors Knowledge but for entity inner worlds: `C = ΔN_c + √ΔE_c` — continuity nodes linear, continuity edges sqrt.
 
 ### World Knowledge Mutations → Knowledge
 The world knowledge graph tracks laws, systems, concepts, and tensions as nodes with typed edges. Knowledge is computed as `K = ΔN + √ΔE` — nodes linear, edges sqrt.
-
-### Relationship Mutations → Change
-Relationship mutations (`{from, to, type, valenceDelta}`) track how connections between entities shift. They feed Change via `√Σ|valenceDelta|²` (L2).
 
 ## Narrative Forces & Formulas
 
 Three force dimensions, all **z-score normalised** (mean=0, units=standard deviations):
 
 - **Payoff (P)** — `Σ max(0, φ_to - φ_from)` over thread mutations, plus 0.25 pulse per same-status mention
-- **Change (C)** — `√(ΔN_c + √ΔE_c) + √|E| + √Σ|valenceDelta|²` — continuity uses miniature Knowledge formula
+- **Change (C)** — `ΔN_c + √ΔE_c` — mirrors Knowledge but for entity continuity
 - **Knowledge (K)** — `ΔN + √ΔE`
 
 Derived metrics:

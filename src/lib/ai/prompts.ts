@@ -12,7 +12,7 @@
  *
  * When updating: check src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS
  * to keep prompt numbers in sync with grading formulas.
- * Current: { payoff: 1.5, change: 4, knowledge: 4 }
+ * Current: { payoff: 1.5, change: 7, knowledge: 4 }
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
@@ -21,15 +21,15 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 
 // ── Force Standards ──────────────────────────────────────────────────────────
 // Numbers here MUST match FORCE_REFERENCE_MEANS in narrative-utils.ts:
-//   { payoff: 1.5, change: 4, knowledge: 4 }
-// These are the values where the exponential grading curve scores ~86% (22/25).
+//   { payoff: 1.5, change: 7, knowledge: 4 }
+// These are the values where the grading curve hits the dominance threshold (21/25).
 
 export const PROMPT_FORCE_STANDARDS = `
-FORCE SCORING — exponential grading. Reference means (~86%): P ~1.5 | C ~4 | K ~4 per scene (~12 beats, ~1200 words).
+FORCE SCORING — reference means (dominance threshold): P ~1.5 | C ~7 | K ~4 per scene (~12 beats, ~1200 words).
 
 In practice (per 12-beat scene):
 - PAYOFF ~1.5: 1-2 thread transitions averaging ~1 phase jump, OR several pulses.
-- CHANGE ~4: ~4-5 continuity mutations + ~2-3 events + relationship shifts (valenceDelta ±0.2+, L2 aggregated).
+- CHANGE ~7: ~5-8 continuity nodes across 2-3 entities + connecting edges. Change mirrors Knowledge but spans every entity's inner world.
 - KNOWLEDGE ~4: ~2-3 new world knowledge nodes + connecting edges.
 
 SCALE STANDARDS: Beat ~100 words | Scene ~12 beats (~1200 words) | Arc ~4 scenes (~4800 words).
@@ -77,7 +77,7 @@ MUTATIONS — these feed force formulas. Every mutation must EARN its place. Low
 
 FORCE FORMULAS:
 - PAYOFF = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4.
-- CHANGE = √(ΔN_cont + √ΔE_cont) + √|events| + √(Σ|valenceDelta|²).
+- CHANGE = ΔN_c + √ΔE_c (entity continuity — mirrors Knowledge but for inner worlds).
 - KNOWLEDGE = ΔN_world + √ΔE_world.
 
 threadMutations — lifecycle: dormant→active→escalating→critical→resolved/subverted/abandoned.

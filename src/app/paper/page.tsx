@@ -283,10 +283,10 @@ const ARCHETYPES = [
     color: ARCHETYPE_COLORS.opus,
   },
   {
-    key: "saga" as const,
-    name: "Saga",
+    key: "series" as const,
+    name: "Series",
     desc: "Payoff + Change",
-    color: ARCHETYPE_COLORS.saga,
+    color: ARCHETYPE_COLORS.series,
   },
   {
     key: "atlas" as const,
@@ -1243,30 +1243,24 @@ export default function PaperPage() {
                 Change
               </h3>
               <P>
-                Change measures character transformation. It aggregates continuity
-                mutations (permanent knowledge/identity shifts), events (transient
-                occurrences), and relationship mutations (valence changes). The
-                formula scales sub-linearly to prevent cast size from dominating —
-                a two-character turning point and a ten-character ensemble producing the
-                same mutation count score identically.
+                Change measures entity transformation — what we learn about
+                characters, locations, and artifacts. It mirrors the Knowledge
+                formula but operates on entity continuity graphs instead of the
+                world knowledge graph: nodes contribute linearly, edges use
+                square root.
               </P>
               <Eq
-                tex={String.raw`C = \sqrt{\Delta N_c + \sqrt{\Delta E_c}} \;+\; \sqrt{\Delta E} \;+\; \sqrt{\Delta R}`}
+                tex={String.raw`C = \Delta N_c + \sqrt{\Delta E_c}`}
               />
               <P>
-                The first term uses a miniature Knowledge formula inside the
-                square root: <Tex>{String.raw`\Delta N_c`}</Tex> counts continuity nodes
-                added to entity inner worlds (traits, beliefs, goals, secrets),
-                and <Tex>{String.raw`\Delta E_c`}</Tex> counts continuity edges
-                (causal connections between inner-world facts). This recursive
-                structure reflects that Change deepens not just through accumulation
-                but through structural density — a character who gains three
-                connected beliefs is more transformed than one who gains three
-                unrelated facts. <Tex>{String.raw`\Delta E`}</Tex>{" "}
-                counts scene events, and <Tex>{String.raw`\Delta R = \sum |\Delta v|^2`}</Tex>{" "}
-                sums squared relationship valence shifts. The L2 aggregation
-                amplifies large shifts — a deep reconciliation at <Tex>{String.raw`|\Delta v| = 0.5`}</Tex>{" "}
-                contributes 25× more than casual banter at <Tex>{String.raw`|\Delta v| = 0.1`}</Tex>.
+                <Tex>{String.raw`\Delta N_c`}</Tex> counts continuity nodes
+                added to entity inner worlds (traits, beliefs, goals, secrets,
+                capabilities, states), and <Tex>{String.raw`\Delta E_c`}</Tex> counts
+                continuity edges (causal connections between inner-world facts).
+                The symmetry with Knowledge is deliberate — both measure
+                structural complexity growth, but in different domains: Knowledge
+                tracks what we learn about the <em>world</em>, Change tracks what
+                we learn about <em>entities</em>.
               </P>
             </div>
 
@@ -1546,7 +1540,7 @@ export default function PaperPage() {
             <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
                 { force: "Payoff", value: "1.5", color: "#EF4444" },
-                { force: "Change", value: "4", color: "#22C55E" },
+                { force: "Change", value: "7", color: "#22C55E" },
                 { force: "Knowledge", value: "4", color: "#3B82F6" },
               ].map(({ force, value, color }) => (
                 <div

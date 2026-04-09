@@ -2,138 +2,80 @@
 
 # InkTide
 
-> Analyze. Query. Generate.
+**Knowledge-graph-based text analysis, querying, and generation engine.**
 
-Paste any long-form text — a novel, a paper, a screenplay — and InkTide builds a **knowledge graph** of its threads, relationships, and ideas. Multiple analysis layers score the text: force grading (thread resolution, transformation intensity, new information), pacing rhythm, world density, and dynamic contrast. Applied to Harry Potter, the system identifies the Sorting Hat, the troll fight, and the Quirrell confrontation as structural peaks — without human labeling.
+Paste any long-form text — a novel, a paper, a screenplay — and InkTide builds a knowledge graph that mutates section by section. Multiple analysis layers score the structural forces at work: thread resolution, transformation intensity, new information, pacing rhythm, and dynamic contrast. Applied to Harry Potter, the system identifies the Sorting Hat, the troll fight, and the Quirrell confrontation as structural peaks — without human labeling.
 
-Everything becomes **searchable by meaning**. Every proposition is embedded as a vector. Ask about "betrayal" and find scenes of broken trust even when the word never appears. AI-synthesized overviews trace patterns across the full timeline with inline citations.
+Everything becomes searchable by meaning. Every proposition is embedded as a vector. Ask about "betrayal" and find scenes of broken trust even when the word never appears. Each analyzed work adds its pacing fingerprint to a growing network of structural data.
 
-Each analyzed work adds its pacing rhythm and prose patterns to a **growing open network** of structural data across fiction and non-fiction. Transition matrices become reusable. Authorial profiles become applicable. The more works analyzed, the richer the system.
-
-The same analysis layers drive **generation**. The engine produces new content paced by transition matrices from published works, explores branching paths scored by force metrics, and revises through structural evaluation.
+The same analysis layers drive generation — content paced by Markov chains from published works, branching paths explored via MCTS, and iterative revision through structural evaluation.
 
 **[Read the paper →](https://inktide-sourcenovel.vercel.app/paper)** · **[Case analysis →](https://inktide-sourcenovel.vercel.app/case-analysis)** · **[Try it →](https://inktide-sourcenovel.vercel.app/)**
 
-## Setup
+---
+
+## Quick Start
 
 ```bash
+git clone https://github.com/jasonyu0100/inktide.git
+cd inktide
 npm install
 cp .env.example .env.local   # add your OpenRouter key
-npm run dev                   # http://localhost:3001
+npm run dev                   # → http://localhost:3001
 ```
 
-You need an **OpenRouter API key** ([openrouter.ai/keys](https://openrouter.ai/keys)) for LLM access. Optionally add a **Replicate token** for image generation. See `.env.example` for all options.
+You need an **[OpenRouter API key](https://openrouter.ai/keys)** for LLM access. Optionally add a **Replicate token** for image generation. See `.env.example` for all options.
 
-## How It Works
+---
 
-Every section produces mutations across three structural layers. Deterministic, z-score normalised formulas compute forces from those mutations — no LLM in the scoring loop:
+## What It Does
 
-- **Payoff** — thread phase transitions (dormant → active → escalating → critical → resolved). The moments the text can't take back.
-- **Change** — how intensely subjects were transformed. Continuity mutations, events, relationship valence shifts.
-- **Knowledge** — how much richer the world became. New concepts, systems, laws, and the edges connecting them.
-- **Swing** — Euclidean distance between consecutive force snapshots. The text breathing — dynamic vs flat pacing.
+### Analyze
 
-Each force is graded 0–25 on an exponential curve (`g(x̃) = 25(1 - e^{-2x̃})`), 100 total. The **narrative cube** maps force combinations into 8 modes (Epoch, Climax, Revelation, Closure, Discovery, Growth, Lore, Rest) used for analysis, Markov pacing, and MCTS search.
+Three force dimensions, all z-score normalised, computed deterministically from knowledge graph mutations — no LLM in the scoring loop:
 
-## Analysis & Search
+| Force | What it measures |
+|-------|-----------------|
+| **Payoff** | Thread phase transitions — the moments the text can't take back |
+| **Change** | How intensely subjects were transformed — continuity mutations, relationship shifts |
+| **Knowledge** | How much richer the world became — new concepts, systems, connections |
 
-### Semantic Search & Embeddings
+Each force is graded 0–25 on an exponential curve, 100 total. The **narrative cube** maps force combinations into 8 modes (Epoch, Climax, Revelation, Closure, Discovery, Growth, Lore, Rest) used for pacing analysis, Markov chain sampling, and MCTS search.
 
-Every narrative element — propositions, beats, scenes — is embedded as a 1536-dimensional vector using OpenAI's `text-embedding-3-small` model. These embeddings capture **meaning**, not keywords. Searching for "betrayal" surfaces scenes of broken trust even when that word never appears.
+Additional layers: **swing** (dynamic contrast between consecutive sections), **pacing profiles** (Markov transition matrices over scene modes and beat functions), and **scale & density** (world knowledge interconnection depth).
 
-```
-Query: "character motivations"
-  ↓ embed → cosine similarity → rank all content
-Result: [Scene 6 Beat 7 · inform · 92% match]
-        [Scene 3 Beat 2 · reveal · 87% match]
-```
+### Query
 
-**Continuity validation** becomes tractable. When a scene references "the promise made at the river", semantic search retrieves all prior content close to that concept and verifies it exists. Knowledge asymmetries (what each character knows vs. the reader) can be tracked: if Character A acts on information they shouldn't have, the system surfaces when that information was revealed and who was present.
+Every proposition, beat, and scene is embedded as a 1536-dimensional vector. Cosine similarity retrieves content by meaning, not keywords. AI-synthesized overviews trace patterns across the full timeline with inline citations.
 
-**Search synthesis** produces Google-style AI overviews over retrieved results. Rather than listing matches, the system identifies patterns, arc relevance, and timeline clusters. Inline citations `[1] [2] [3]` link claims to specific beats. `src/lib/search.ts` `src/lib/ai/search-synthesis.ts`
+Applications: continuity validation (does the referenced event actually exist?), knowledge asymmetry tracking (does this character actually know this?), semantic retrieval for generation context.
 
-The embedding layer turns the knowledge graph into a **semantic space** where narrative distance is measurable. Thread convergence, character arc parallels, thematic echoes — all queryable through cosine similarity rather than explicit graph edges.
+### Generate
 
-## Generation
+| Capability | How it works |
+|-----------|-------------|
+| **Markov pacing** | Transition matrices from analyzed works shape scene-by-scene rhythm |
+| **Prose profiles** | Beat plans with authorial Markov chains over a 10-function / 8-mechanism taxonomy |
+| **MCTS search** | Explores branching narrative paths, each expansion guided by a fresh pacing sequence |
+| **Course correction** | Direction vectors rewritten after each arc based on what actually happened |
+| **Iterative revision** | Evaluate → verdict (ok / edit / merge / insert / cut) → reconstruct versioned branches |
+| **Pacing presets** | Curated sequences (Sucker Punch, Slow Burn, Roller Coaster, etc.) that bypass Markov sampling |
 
-### Markov Chain Pacing
+---
 
-Scene-to-scene transitions in published works form empirical Markov chains over the 8 cube modes. We compute transition matrices from analysed corpora — Harry Potter's matrix captures its exploratory rhythm, 1984's captures sustained tension. Before generating an arc, the engine samples a pacing sequence from the active matrix:
-
-```
-current_mode = detect(last_scene)
-sequence = markov_walk(matrix, current_mode, n_scenes)
-# → Growth → Lore → Climax → Rest → Growth
-```
-
-Each step becomes a per-scene directive injected into the LLM prompt — specifying which force profile the scene must produce. The LLM decides *what happens*; the Markov chain controls *how intense it is*. `src/lib/pacing-profile.ts`
-
-### Prose Profiles & Beat Plans
-
-Before any prose is written, each scene is decomposed into a **beat plan** — a sequence of typed beats that specify *what happens* and *how it's delivered*. The taxonomy comes from reverse-engineering published fiction: an LLM analyzes existing prose against a fixed vocabulary of **10 beat functions** and **8 mechanisms**, then statistical profiles are built from the extracted plans.
-
-**Beat functions** (what the beat does): breathe, inform, advance, bond, turn, reveal, shift, expand, foreshadow, resolve. **Mechanisms** (how it's delivered): dialogue, thought, action, environment, narration, memory, document, comic.
-
-From ~800 analysed scenes across published works, the system builds per-work **Markov chains** over beat functions — capturing how one type of beat tends to follow another. A thriller's chain differs from literary fiction's. These chains can then guide plan generation: instead of the LLM choosing beat types freely, it follows a sampled sequence from the authorial profile.
-
-Each profile also captures voice (register, stance, rhetorical devices, rules) and density (beats per thousand words, mechanism distribution). Presets are derived from analysed works; the "self" preset computes a live profile from the current story's own plans. `src/lib/beat-profiles.ts`
-
-### MCTS Narrative Search
-
-Monte Carlo Tree Search explores branching narrative paths. Nodes are full knowledge graph states. Edges are generated arcs. The evaluation function is the force grading system — no separate reward model.
+## Architecture
 
 ```
-Selection:    UCB1(n) = Q(n)/N(n) + C√(ln N(parent) / N(n))
-Expansion:    generate arc with fresh Markov pacing sequence
-Evaluation:   grade(payoff, change, knowledge, swing) → 0-100
-Backprop:     propagate score up the tree
+Next.js 16 · React 19 · TypeScript · Tailwind v4 · D3.js
+OpenRouter (Gemini 2.5/3 Flash) · OpenAI Embeddings · Replicate (Seedream 4.5)
+IndexedDB + localStorage — fully client-side persistence, no backend database
 ```
 
-Each expansion samples a different pacing sequence, so sibling nodes explore structurally different trajectories even from the same state — one gets `Rest → Growth → Epoch`, another gets `Lore → Lore → Climax → Closure`. The search naturally diversifies. `src/lib/mcts-engine.ts`
+All LLM calls route through OpenRouter. Embeddings use OpenAI's `text-embedding-3-small` (1536 dimensions). Image generation uses Replicate's Seedream 4.5. State is managed via React Context + useReducer with IndexedDB persistence.
 
-### Planning with Course Correction
+See the **[paper](https://inktide-sourcenovel.vercel.app/paper)** for the full formal treatment — force formulas, Markov chain pacing, MCTS evaluation, beat taxonomy, and validation against published works.
 
-Long-form stories are divided into **phases** (structural chapters with objectives and scene allocations). When a phase activates, the system generates two vectors from the current narrative state:
-
-- **Direction vector** — which threads to push, what the reader should feel, what trajectory to follow
-- **Constraint vector** — what must *not* happen yet, protecting later phases from premature resolution
-
-After every arc, a **course correction** pass analyses the story through five lenses — thread tension, character cost, rhythm, freshness, momentum — and rewrites both vectors in place. The next arc generates under guidance that reflects what *actually happened*, not what was originally planned. At phase boundaries, world expansion introduces new entities seeded with knowledge asymmetries. `src/lib/ai/review.ts`
-
-### Iterative Revision
-
-Generation produces a first draft. The revision pipeline improves it without starting over, using versioned branches:
-
-```
-evaluate(branch)  → per-scene verdicts: ok | edit | rewrite | cut
-reconstruct(eval) → new branch (v2, v3, v4...) with changes applied
-```
-
-- **ok** — structurally sound, continuity intact. Kept as-is.
-- **edit** — right idea, tighten execution. POV/location/cast locked, summary and mutations adjusted.
-- **rewrite** — scene should exist but structure is wrong. Everything rebuilt from scratch.
-- **cut** — redundant or near-duplicate. Removed entirely.
-
-Edits and rewrites run in parallel (`PROSE_CONCURRENCY = 10`). World commits pass through at their original timeline positions. The original branch is never modified. Evaluations can be **guided** — paste external feedback from another AI or human editor, and the system incorporates it alongside its own structural analysis. The loop converges in 2–3 passes. `src/lib/ai/review.ts` `src/lib/ai/reconstruct.ts`
-
-### Version Control
-
-InkTide implements two distinct versioning systems that serve different purposes:
-
-**Branch Reconstruction Versioning** — The revision pipeline creates new branch versions (main-v2, main-v3, main-v4) through the review → reconstruct cycle. Each reconstruction pass evaluates the entire branch, applies structural edits across multiple scenes, and produces a new versioned branch. These branch versions represent complete narrative revisions where the system has reevaluated story structure, pacing, and continuity across the full timeline. Reconstruction is destructive iteration — you get a new branch with changes applied, not a document you can incrementally edit.
-
-**Prose & Plan Content Versioning** — Separate from branch reconstruction, individual scenes track prose and plan versions with semantic numbering `v1.2.3`:
-- **Generate** (major): `1`, `2`, `3` — fresh generation from plan or scratch
-- **Rewrite** (minor): `1.1`, `1.2`, `2.1` — LLM-guided revision with critique
-- **Edit** (patch): `1.1.1`, `1.1.2` — manual or incremental tweaks
-
-This is document-style version history. You can edit the original text while keeping all previous versions safe. Resolution functions (`resolveProseForBranch`, `resolvePlanForBranch`) determine which version each branch sees based on lineage, fork timestamps, and optional branch-specific pointers.
-
-**Structural Branching** — Beneath both versioning systems, scenes themselves are structurally immutable (POV, location, participants, mutations fixed). Branches reference shared scenes — only structurally different scenes create new objects. Descendants dynamically resolve their view through parent lineage, enabling git-like cloning with minimal storage. `src/lib/narrative-utils.ts` `src/lib/store.tsx`
-
-## Tech
-
-Next.js 16 · React 19 · TypeScript · Tailwind v4 · D3.js · OpenRouter (Gemini 2.5/3 Flash) · OpenAI (Embeddings) · Replicate (Seedream 4.5)
+---
 
 ## License
 

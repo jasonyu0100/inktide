@@ -1276,9 +1276,9 @@ export async function assembleNarrative(
 
   const relationships = Object.values(relationshipMap);
 
-  // World builds — one per 3-chunk batch, only when new entities are introduced.
+  // World builds — one per ~3 arcs (12 scenes), only when new entities are introduced.
   // The first batch always gets a commit; later batches are skipped if nothing new appeared.
-  const WORLD_COMMIT_INTERVAL = 3;
+  const WORLD_COMMIT_INTERVAL = SCENES_PER_ARC * 3; // ~12 scenes = 3 arcs
   const worldBuilds: Record<string, WorldBuild> = {};
   // Map from the first scene id of a batch → the world build commit to insert before it
   const worldBuildBeforeScene = new Map<string, string>(); // sceneId → worldBuildId

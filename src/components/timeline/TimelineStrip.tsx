@@ -44,10 +44,12 @@ export default function TimelineStrip() {
       tintIdx: number;
     }[] = [];
     const arcList = Object.values(narrative.arcs);
+    // Only use scene positions for arc bands — skip world builds between scenes
+    const sceneOnlyIndices = new Set(sceneKeys.map((k, i) => narrative.scenes[k] ? i : -1).filter(i => i >= 0));
     arcList.forEach((arc, ai) => {
       const indices = arc.sceneIds
         .map((sid) => sceneKeys.indexOf(sid))
-        .filter((i) => i >= 0)
+        .filter((i) => i >= 0 && sceneOnlyIndices.has(i))
         .sort((a, b) => a - b);
       if (indices.length > 0) {
         bands.push({

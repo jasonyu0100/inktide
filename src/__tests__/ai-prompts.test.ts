@@ -141,9 +141,12 @@ describe('Static Prompt Constants', () => {
   });
 
   describe('PROMPT_ARTIFACTS', () => {
-    it('describes artifact capabilities', () => {
+    it('describes artifact utility and ownership', () => {
       expect(PROMPT_ARTIFACTS).toContain('ARTIFACTS');
-      expect(PROMPT_ARTIFACTS).toContain('capabilities');
+      expect(PROMPT_ARTIFACTS).toContain('UTILITY');
+      expect(PROMPT_ARTIFACTS).toContain('Character-owned');
+      expect(PROMPT_ARTIFACTS).toContain('Location-owned');
+      expect(PROMPT_ARTIFACTS).toContain('World-owned');
     });
   });
 

@@ -359,6 +359,18 @@ export async function retryWithValidation<T>(
       }
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Don't retry billing/auth errors — they won't resolve on retry
+      const errMsg = lastError.message;
+      if (errMsg.includes('"code":402') || errMsg.includes('"code":401') || errMsg.includes('"code":403')) {
+        logError(
+          `${operationName} failed with non-retryable error`,
+          error,
+          { source, operation: operationName, details: { attempt, maxRetries } }
+        );
+        throw lastError;
+      }
+
       logError(
         `${operationName} threw error (attempt ${attempt}/${maxRetries})`,
         error,

@@ -121,18 +121,17 @@ export type SceneStructureResult = {
  */
 export async function extractSceneStructure(
   prose: string,
-  plan: BeatPlan,
+  plan: BeatPlan | null,
   onToken?: (token: string, accumulated: string) => void,
 ): Promise<SceneStructureResult> {
-  const beatSummary = plan.beats.map((b, i) => `Beat ${i + 1} [${b.fn}/${b.mechanism}]: ${b.what}`).join('\n');
+  const beatSection = plan
+    ? `\n\nBEAT PLAN (${plan.beats.length} beats — use as a guide for where events happen):\n${plan.beats.map((b, i) => `Beat ${i + 1} [${b.fn}/${b.mechanism}]: ${b.what}`).join('\n')}`
+    : '';
 
   const prompt = `Extract narrative structure from this scene's prose.
 
 SCENE PROSE:
-${prose}
-
-BEAT PLAN (${plan.beats.length} beats — use as a guide for where events happen):
-${beatSummary}
+${prose}${beatSection}
 
 FORCE FORMULAS — your extractions are the direct inputs to these formulas:
 - PAYOFF = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4. Ref: ~1.3/scene.
@@ -162,41 +161,50 @@ Return JSON:
 }`;
 
   const fieldGuide = `
-MUTATION STANDARDS (same as generation — extract what the prose contains):
+EXTRACTION STANDARDS — every mutation must EARN its place. Low-value mutations flatten the force graph.
 
 threadMutations — lifecycle: dormant→active→escalating→critical→resolved/subverted/abandoned.
-- Transitions ONE step at a time. NEVER skip phases.
-- Pulses (same→same) are normal. Most scenes: 1-2 pulses, 0-1 transitions.
-- Only record a transition when the prose clearly shows a definitive shift in tension.
+- ONE step at a time. NEVER skip phases.
+- Most scenes: 1-2 PULSES (same→same). Real transitions are RARE: 0-1 per scene.
+- Only record a transition when the prose shows a clear, irreversible shift in tension.
+- Touching 2-3 threads per scene (mostly pulses) with at most one transition is typical.
 
-continuityMutations — first-person experiential changes for ANY entity.
-- Write COMPLETE SENTENCES. BAD: "curious". GOOD: "Alice is highly curious and impulsive when faced with novelty."
-- Each node: a meaningful thought capturing what changed and why it matters.
+continuityMutations — the entity's inner world CHANGED. Not observations — CHANGES.
+- QUALITY BAR: each node must describe something the entity didn't know/feel/have BEFORE this scene.
+  BAD: "Alice is curious" (observation). BAD: "The White Rabbit has pink eyes" (description).
+  GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour).
+  GOOD: "The White Rabbit's panic reveals it answers to a higher authority" (new understanding).
+- MAX 2-3 nodes per entity per scene. Only POV character and one other entity typically earn continuity.
+- Background characters who don't change: ZERO nodes.
+- addedEdges: connect causally linked changes with "follows", "causes", "contradicts", "enables".
 - Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
-- Connect related nodes with addedEdges: "follows", "causes", "contradicts", "enables".
-- 2-4 quality nodes per active entity. Quiet scenes: 0-1.
-- Locations: collective experiences. Artifacts: what it underwent + how it modified the wielder.
 
-relationshipMutations — valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic.
+relationshipMutations — only when a relationship SHIFTS, not just exists.
+- valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic. Most scenes: 0-1.
 
-worldKnowledgeMutations — world's abstract structure, NOT character knowledge.
-- Well-named meaningful concepts. Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
+worldKnowledgeMutations — REVEALED world rules, not character observations.
+- Each concept: a genuine world SYSTEM or PRINCIPLE.
+  BAD: "Wonderland Logic" (vague). GOOD: "Anthropomorphic Animals" (real world feature).
+- MAX 1-2 concepts per scene. Most scenes: 0-1. Only exposition/world-building: 3+.
+- Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
-- 2-3 well-chosen concepts per scene. Dense world-building: 3-5. Character drama: 0-1.
 
 ENTITY EXTRACTION:
-- characters: every named character present. Role: anchor/recurring/transient. Continuity as above.
-- locations: nest via parentName. tiedCharacterNames: characters who BELONG here — residents, employees, regulars, faction members. A tie means the location is significant to the character's identity. Alice's home, a detective's precinct, a wizard's tower, a student's school. Include ties on EVERY location that has characters who live, work, or belong there. Most locations should have at least one tied character.
-- artifacts: tools that extend capabilities. ownerName: character/location/null (world-owned). significance: key/notable/minor.
-- threads: narrative tensions. statusAtStart/statusAtEnd at scene boundaries. development: what specifically happened.
+- characters: named characters present. Role: anchor/recurring/transient.
+- locations: nest via parentName. tiedCharacterNames: characters who BELONG (residents, faction members).
+- artifacts: tools that extend capabilities. ownerName: character/location/null. significance: key/notable/minor.
+- threads: narrative tensions. development: what specifically happened.
 
-events — short descriptive tags (2-4 words): "curiosity_sparked", "secret_pact_formed". Dense: 4-5. Quiet: 1-2.
-artifactUsages — when a tool is used. characterName null for unattributed.
+events — 2-4 word tags. 2-4 per scene. Each names a discrete beat.
+artifactUsages — when a tool is actively USED, not merely present.
 ownershipMutations — only when artifacts change hands.
-tieMutations — bond changes between characters and locations. "add" when a character establishes belonging (moves in, joins faction, takes a post). "remove" only for exile, firing, permanent departure. NOT for temporary visits — a traveller passing through does NOT get a tie. Most first appearances at a character's HOME location should produce an "add" tie.
+tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only physical relocation. Vivid transitions.
 
-CALIBRATION: Dense prose = rich extraction. Sparse prose = minimal. Never pad. Never under-extract.`;
+VARIANCE IS SIGNAL:
+- Quiet scene: 0 transitions, 1 continuity node, 0 knowledge, 2 events = CORRECT.
+- Climactic scene: 2 transitions, 5 nodes, 3 concepts, 5 events = CORRECT.
+- If every scene has similar counts, you are extracting noise. The graph needs peaks and valleys.`;
 
   const fullPrompt = prompt + '\n' + fieldGuide;
   const system = `You are a narrative structure extractor. Given a scene's exact prose and its beat plan, extract all entities, mutations, and structural data accurately. Dense prose deserves rich extraction; sparse prose deserves minimal extraction. Return only valid JSON.`;

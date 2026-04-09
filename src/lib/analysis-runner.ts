@@ -122,8 +122,91 @@ class AnalysisRunner {
     };
 
     // ═════════════════════════════════════════════════════════════════════════
-    // Phase 1: PLANS + EMBEDDINGS — beat plans per scene (parallel)
+    // Phase 1: STRUCTURE — entities + mutations per scene from raw prose (parallel)
     // ═════════════════════════════════════════════════════════════════════════
+    const structPending = job.chunks.map((_, i) => i).filter(i => !results[i]?.chapterSummary);
+
+    if (structPending.length > 0) {
+      this.emitStream(job.id, `Structure: ${structPending.length} scenes...`);
+
+      await runParallel(structPending, async (idx) => {
+        const chunk = job.chunks[idx];
+
+        // Initialize result if not yet created
+        if (!results[idx]) {
+          results[idx] = {
+            chapterSummary: '',
+            characters: [],
+            locations: [],
+            threads: [],
+            scenes: [{
+              locationName: '', povName: '', participantNames: [], events: [],
+              summary: `Scene ${idx + 1}`,
+              sections: [],
+              prose: chunk.text,
+              threadMutations: [],
+              continuityMutations: [],
+              relationshipMutations: [],
+            }],
+            relationships: [],
+          };
+        }
+
+        entry.inFlightIndices.add(idx);
+        this.emitInFlight(job.id, [...entry.inFlightIndices]);
+
+        try {
+          const scene = results[idx]!.scenes[0];
+          const s = await extractSceneStructure(scene.prose ?? chunk.text, scene.plan ?? null, (_token, acc) => {
+            entry.chunkStreams.set(idx, acc);
+            this.emitChunkStream(job.id, idx, acc);
+          });
+
+          // Populate scene mutations
+          scene.povName = s.povName || scene.povName;
+          scene.locationName = s.locationName || scene.locationName;
+          scene.participantNames = s.participantNames.length > 0 ? s.participantNames : scene.participantNames;
+          scene.events = s.events.length > 0 ? s.events : scene.events;
+          scene.summary = s.summary || scene.summary;
+          scene.threadMutations = s.threadMutations;
+          scene.continuityMutations = s.continuityMutations;
+          scene.relationshipMutations = s.relationshipMutations;
+          scene.artifactUsages = s.artifactUsages;
+          scene.ownershipMutations = s.ownershipMutations;
+          scene.tieMutations = s.tieMutations;
+          scene.characterMovements = s.characterMovements;
+          scene.worldKnowledgeMutations = s.worldKnowledgeMutations;
+
+          // Populate chunk-level entities
+          const r = results[idx]!;
+          r.chapterSummary = s.summary;
+          r.characters = s.characters;
+          r.locations = s.locations;
+          r.artifacts = s.artifacts;
+          r.threads = s.threads;
+          r.relationships = s.relationships;
+
+          // Dispatch immediately so the entity cloud updates progressively
+          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
+        } catch (err) {
+          logWarning('Structure extraction failed for scene', err, { source: 'analysis', operation: 'scene-structure', details: { jobId: job.id, sceneIdx: idx } });
+        } finally {
+          entry.inFlightIndices.delete(idx);
+          this.emitInFlight(job.id, [...entry.inFlightIndices]);
+        }
+      }, 'Structure');
+
+      this.emitStream(job.id, `[OK] Structure extracted`);
+      d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
+    }
+
+    if (entry.cancelled) { d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } }); return; }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // Phase 2: PLANS + EMBEDDINGS — beat plans per scene (parallel)
+    // ═════════════════════════════════════════════════════════════════════════
+    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'plans' } });
+
     const planPending = job.chunks.map((_, i) => i).filter(i => !results[i]?.scenes?.[0]?.plan);
 
     if (planPending.length > 0) {
@@ -136,31 +219,19 @@ class AnalysisRunner {
         this.emitPlanInFlight(job.id, [...entry.planInFlightKeys]);
 
         try {
+          const sceneSummary = results[idx]?.scenes?.[0]?.summary ?? `Scene ${idx + 1}`;
           const { plan, beatProseMap } = await reverseEngineerScenePlan(
             chunk.text,
-            `Scene ${idx + 1}`,
+            sceneSummary,
             (_token, acc) => { entry.planStreams.set(planKey, acc); this.emitPlanStream(job.id, planKey, acc); },
           );
 
-          // Initialize result with scene containing plan + prose
-          results[idx] = {
-            chapterSummary: '',
-            characters: [],
-            locations: [],
-            threads: [],
-            scenes: [{
-              locationName: '', povName: '', participantNames: [], events: [],
-              summary: `Scene ${idx + 1}`,
-              sections: [],
-              prose: chunk.text,
-              plan,
-              beatProseMap: beatProseMap ?? undefined,
-              threadMutations: [],
-              continuityMutations: [],
-              relationshipMutations: [],
-            }],
-            relationships: [],
-          };
+          // Attach plan + prose map to existing result
+          const scene = results[idx]?.scenes?.[0];
+          if (scene) {
+            scene.plan = plan;
+            scene.beatProseMap = beatProseMap ?? undefined;
+          }
 
           // Dispatch immediately so the UI shows the tick before embedding starts
           d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
@@ -196,69 +267,7 @@ class AnalysisRunner {
         }
       }, 'Plans');
 
-      this.emitStream(job.id, `[OK] Plans + embeddings done`);
-    }
-
-    if (entry.cancelled) { d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused', results: [...results] } }); return; }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // Phase 2: STRUCTURE — entities + mutations per scene (parallel)
-    // ═════════════════════════════════════════════════════════════════════════
-    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'structure' } });
-
-    const structPending = results.map((r, i) => i).filter(i => {
-      const r = results[i];
-      return r?.scenes?.[0]?.plan && r?.scenes?.[0]?.prose && !r?.chapterSummary;
-    });
-
-    if (structPending.length > 0) {
-      this.emitStream(job.id, `Structure: ${structPending.length} scenes...`);
-
-      await runParallel(structPending, async (idx) => {
-        const r = results[idx];
-        const scene = r?.scenes?.[0];
-        if (!scene?.prose || !scene?.plan) return;
-
-        entry.inFlightIndices.add(idx);
-        this.emitInFlight(job.id, [...entry.inFlightIndices]);
-
-        try {
-          const s = await extractSceneStructure(scene.prose, scene.plan, (_token, acc) => {
-            entry.chunkStreams.set(idx, acc);
-            this.emitChunkStream(job.id, idx, acc);
-          });
-
-          // Populate scene mutations
-          scene.povName = s.povName || scene.povName;
-          scene.locationName = s.locationName || scene.locationName;
-          scene.participantNames = s.participantNames.length > 0 ? s.participantNames : scene.participantNames;
-          scene.events = s.events.length > 0 ? s.events : scene.events;
-          scene.summary = s.summary || scene.summary;
-          scene.threadMutations = s.threadMutations;
-          scene.continuityMutations = s.continuityMutations;
-          scene.relationshipMutations = s.relationshipMutations;
-          scene.artifactUsages = s.artifactUsages;
-          scene.ownershipMutations = s.ownershipMutations;
-          scene.tieMutations = s.tieMutations;
-          scene.characterMovements = s.characterMovements;
-          scene.worldKnowledgeMutations = s.worldKnowledgeMutations;
-
-          // Populate chunk-level entities
-          r!.chapterSummary = s.summary;
-          r!.characters = s.characters;
-          r!.locations = s.locations;
-          r!.artifacts = s.artifacts;
-          r!.threads = s.threads;
-          r!.relationships = s.relationships;
-        } catch (err) {
-          logWarning('Structure extraction failed for scene', err, { source: 'analysis', operation: 'scene-structure', details: { jobId: job.id, sceneIdx: idx } });
-        } finally {
-          entry.inFlightIndices.delete(idx);
-          this.emitInFlight(job.id, [...entry.inFlightIndices]);
-        }
-      }, 'Structure');
-
-      // Generate summary + prose embeddings now that summaries exist
+      // Generate summary + prose embeddings
       this.emitStream(job.id, 'Embedding summaries + prose...');
       try {
         const { generateEmbeddingsBatch } = await import('@/lib/embeddings');
@@ -288,7 +297,7 @@ class AnalysisRunner {
         logWarning('Summary/prose embedding failed (non-fatal)', embErr, { source: 'analysis', operation: 'summary-embed' });
       }
 
-      this.emitStream(job.id, `[OK] Structure extracted`);
+      this.emitStream(job.id, `[OK] Plans + embeddings done`);
       d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
     }
 

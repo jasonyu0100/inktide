@@ -1002,8 +1002,10 @@ EXAMPLE (20 chunks of ~45 words each, grouped into ~10 beats of ~90 words):
   {"startPara": 18, "endPara": 19, "fn": "resolve", ...} // Must end at last chunk (19)
 ]
 ✗ WRONG: endPara: 20 is out of bounds (max valid index is 19)
-✗ WRONG: gap between beats (beat ends at 5, next starts at 7)
+✗ WRONG: gap between beats (beat ends at 5, next starts at 7 — skips chunk 6)
+✗ WRONG: overlap (beat ends at 9, next starts at 9 — chunk 9 counted twice)
 ✗ WRONG: {"startPara": 0, "endPara": 9} - 10 chunks = ~450 words (way too large)
+✗ WRONG: {"fn": "compare"} - not a valid beat function (use only the 10 listed below)
 
 BEAT FUNCTIONS (10):
   breathe    — Pacing, atmosphere, sensory grounding, scene establishment.
@@ -1158,11 +1160,14 @@ CRITICAL CONSTRAINTS - BEAT SIZE:
 
 CRITICAL CONSTRAINTS - INDEXING:
 - Valid paragraph indices: 0 to ${lastIndex} (inclusive)
-- Beat ranges must be sequential with NO GAPS: if beat N ends at X, beat N+1 MUST start at X+1
-- First beat MUST start at paragraph 0
-- Final beat MUST end at paragraph ${lastIndex}
-- All ${paragraphs.length} paragraphs must be covered exactly once
-- DO NOT use paragraph indices >= ${paragraphs.length} (out of bounds)`;
+- Beat ranges must be sequential with NO GAPS and NO OVERLAPS
+- Rule: if beat N has endPara: X, then beat N+1 MUST have startPara: X+1 (exactly)
+- First beat MUST have startPara: 0
+- Final beat MUST have endPara: ${lastIndex}
+- Each chunk index appears in EXACTLY ONE beat — no chunk is skipped or counted twice
+- DO NOT use paragraph indices >= ${paragraphs.length} (out of bounds)
+- If a chunk contains content from two topics, assign it to whichever beat fits better — do NOT split it across two beats
+- Use ONLY the 10 beat functions listed above (breathe, inform, advance, bond, turn, reveal, shift, expand, foreshadow, resolve)`;
 
   let accumulated = '';
   const raw = onToken

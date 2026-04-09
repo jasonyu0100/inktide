@@ -73,7 +73,7 @@ SCAN BEFORE RETURNING:
 // ── Mutation Guidelines ──────────────────────────────────────────────────────
 
 export const PROMPT_MUTATIONS = `
-MUTATIONS — these produce force scores. Quality over quantity.
+MUTATIONS — these feed force formulas. Every mutation must EARN its place. Low-value mutations flatten the graph and destroy analytical signal.
 
 FORCE FORMULAS:
 - PAYOFF = Σ max(0, φ_to - φ_from) + 0.25/pulse. Phase: dormant=0, active=1, escalating=2, critical=3, terminal=4.
@@ -81,40 +81,43 @@ FORCE FORMULAS:
 - KNOWLEDGE = ΔN_world + √ΔE_world.
 
 threadMutations — lifecycle: dormant→active→escalating→critical→resolved/subverted/abandoned.
-- Transitions must be ONE step at a time. NEVER skip phases (dormant→escalating is WRONG).
-- Pulses (same→same) = 0.25 payoff. Most scenes should have pulses — a thread is present but doesn't shift.
-- A scene with 1-2 threads pulsing and 0-1 transitioning is typical. Scenes where every thread transitions are rare climaxes.
-- CONVERGENCE CASCADE: advancing a convergent thread should pressure linked threads (minimum pulse).
+- Transitions ONE step at a time. NEVER skip phases.
+- Most scenes: 1-2 thread PULSES (same→same, 0.25 payoff each). Real transitions are RARE — 0-1 per scene.
+- Only record a transition when the prose shows a clear, irreversible shift in tension level.
+- A scene touching 2-3 threads (mostly pulses) with one transition is a strong scene. More than that is overcounting.
 
-continuityMutations — first-person experiential changes for ANY entity (character, location, artifact).
-- Write COMPLETE SENTENCES from the entity's perspective. BAD: "curious". GOOD: "Alice is highly curious and impulsive when faced with novelty."
-- Each node should be a meaningful thought capturing what changed and why it matters.
-- addedNodes types: "trait", "state", "history", "capability", "belief", "relation", "secret", "goal", "weakness".
-- addedEdges: connect related nodes within the same entity. Relations: "follows", "causes", "contradicts", "enables".
-- Prefer 2-4 quality nodes per active entity over many thin ones. Quiet scenes: 0-1.
-- Characters: what they perceived, felt, decided, discovered, or became.
-- Locations: a place AND its people collectively — a city mourns, a kingdom shifts power, a village celebrates.
-- Artifacts: what the artifact underwent AND how it modified the capabilities of whoever holds it.
+continuityMutations — the entity's inner world CHANGED. Not observations, not descriptions — CHANGES.
+- QUALITY BAR: each node must describe something the entity didn't know/feel/have before this scene.
+  BAD: "Alice is curious" (observation, not change). BAD: "The White Rabbit has pink eyes" (description, not mutation).
+  GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour pattern).
+  GOOD: "The White Rabbit's panic about being late reveals it answers to a higher authority" (new understanding).
+- MAX 2-3 nodes per entity per scene. Only the POV character and one other entity typically earn continuity.
+- Background characters who don't change: ZERO nodes. An entity merely present is not mutated.
+- addedEdges connect RELATED changes: "follows", "causes", "contradicts", "enables". Only add edges when nodes are causally linked.
+- Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
 
-relationshipMutations — valenceDelta: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
-- Include whenever characters interact meaningfully.
+relationshipMutations — only when a relationship SHIFTS, not just exists.
+- valenceDelta: ±0.1 (subtle), ±0.2-0.3 (meaningful), ±0.4-0.5 (dramatic).
+- Most scenes: 0-1 relationship mutations. Two characters talking ≠ relationship shift.
 
-worldKnowledgeMutations — the world's abstract structure, NOT character knowledge.
-- Each concept should be well-named and meaningful. BAD: vague labels. GOOD: "Anthropomorphic Animals", "Size-Altering Substances".
-- Types: "principle", "system", "concept", "tension", "event", "structure", "environment", "convention", "constraint".
-- Connect concepts with edges: "enables", "governs", "opposes", "extends", "created_by", "constrains", "exist_within".
-- Prefer 2-3 well-chosen concepts per scene over 5+ shallow ones. REUSE existing IDs when reinforcing.
+worldKnowledgeMutations — REVEALED world rules, not character observations.
+- Each concept must be a genuine world SYSTEM or PRINCIPLE the prose establishes.
+  BAD: "Wonderland Logic" (vague). BAD: "Alice's Adventures" (not a world rule).
+  GOOD: "Anthropomorphic Animals" (genuine world feature). GOOD: "Size-Altering Substances" (actionable world system).
+- MAX 1-2 concepts per scene. Most scenes reveal 0-1 new world rules. Only world-building and exposition scenes justify 3+.
+- Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
+- Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
-artifactUsages — when a character uses a tool. characterId null for unattributed usage.
+events — short descriptive tags (2-4 words). 2-4 per scene. Each tag names a discrete narrative beat.
+artifactUsages — when a tool is actively used, not merely present. characterId null for unattributed.
 ownershipMutations — artifacts changing hands. Only when narratively meaningful.
-tieMutations — significant bond changes between characters and locations. NOT temporary visits.
-events — short descriptive tags (2-4 words): "curiosity_sparked", "secret_pact_formed". Dense: 4-5. Quiet: 1-2.
-characterMovements — only characters whose location CHANGES. Transition should be vivid.
+tieMutations — significant bond changes. NOT temporary visits.
+characterMovements — only characters whose location CHANGES. Vivid transitions.
 
-SCENE INTELLIGENCE:
-- LOCATION EFFECTS: The scene's location shapes what can happen. Generate continuityMutations for the location when major events reshape it.
-- TOOL USAGE: When characters use artifacts, generate artifactUsages AND continuityMutations for BOTH the artifact AND the wielder.
-- ENVIRONMENTAL EFFECTS: The location's state affects characters within it. Locations impose constraints and grant opportunities.
+VARIANCE IS SIGNAL:
+- A quiet scene with 0 thread transitions, 1 continuity node, 0 knowledge, and 2 events is CORRECT if the prose is quiet.
+- A climactic scene with 2 thread transitions, 5 continuity nodes, 3 knowledge concepts, and 5 events is CORRECT if the prose is dense.
+- If every scene has similar mutation counts, you are extracting noise. The graph should have peaks and valleys.
 `;
 
 // ── Artifact Usage ──────────────────────────────────────────────────────────

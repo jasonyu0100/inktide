@@ -1155,11 +1155,18 @@ export function buildBeatProseMapFromCounts(
 
   const total = chunkCounts.reduce((a, b) => a + b, 0);
   if (total !== paragraphs.length) {
-    logWarning('Beat chunk counts do not sum to paragraph count',
-      `Sum ${total} ≠ ${paragraphs.length} paragraphs`,
-      { source: 'analysis', operation: 'beat-prose-mapping', details: { total, expected: paragraphs.length, counts: chunkCounts.join(',') } }
-    );
-    return null;
+    // Tolerate small mismatches by adjusting the last beat's count
+    const diff = paragraphs.length - total;
+    const lastCount = chunkCounts[chunkCounts.length - 1] + diff;
+    if (Math.abs(diff) <= 2 && lastCount >= 1) {
+      chunkCounts[chunkCounts.length - 1] = lastCount;
+    } else {
+      logWarning('Beat chunk counts do not sum to paragraph count',
+        `Sum ${total} ≠ ${paragraphs.length} paragraphs`,
+        { source: 'analysis', operation: 'beat-prose-mapping', details: { total, expected: paragraphs.length, counts: chunkCounts.join(',') } }
+      );
+      return null;
+    }
   }
 
   const chunks: BeatProse[] = [];

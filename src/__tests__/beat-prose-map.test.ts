@@ -33,11 +33,22 @@ describe('buildBeatProseMapFromCounts', () => {
     expect(result!.chunks).toHaveLength(3);
   });
 
-  it('rejects when counts do not sum to paragraph count', () => {
+  it('auto-corrects when counts are off by 1-2', () => {
     const result = buildBeatProseMapFromCounts(
       paragraphs,
       [beat(), beat()],
-      [2, 2], // sum 4, need 5
+      [2, 2], // sum 4, need 5 — last beat absorbs the extra
+    );
+    expect(result).not.toBeNull();
+    expect(result!.chunks).toHaveLength(2);
+    expect(result!.chunks[1].prose).toContain('para 4'); // last beat absorbed the extra paragraph
+  });
+
+  it('rejects when counts are off by more than 2', () => {
+    const result = buildBeatProseMapFromCounts(
+      paragraphs,
+      [beat(), beat()],
+      [1, 1], // sum 2, need 5 — diff too large
     );
     expect(result).toBeNull();
   });

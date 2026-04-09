@@ -195,10 +195,10 @@ ENTITY EXTRACTION — every entity gets at least 1 continuity node. Detail scale
   recurring: 2-4 continuity nodes on first appearance. 1-2 per subsequent scene.
   transient: 1-2 continuity nodes on first appearance (defining trait, role in the scene). Only update if they do something structurally meaningful.
 - locations: strictly SPATIAL places. Nest via parentName. If the text has no spatial places, extract ZERO. Companies and institutions are artifacts, not locations. tiedCharacterNames: characters who BELONG (residents, faction members).
-  domain: 3-5 lore entries on first appearance (atmosphere, history, rules, sensory detail, function). 2-3 per subsequent scene.
-  place: 2-4 lore entries on first appearance. 1-2 per subsequent scene.
-  margin: 1-2 lore entries on first appearance (what makes it distinct). Only update if something notable happens here.
-- artifacts: tools that extend capabilities. ownerName: character/location/null. significance: key/notable/minor.
+  domain: a major region, institution, or world that CONTAINS other places (Hogwarts, Middle-earth, the Capitol). 3-5 lore entries on first appearance. 2-3 per subsequent scene.
+  place: a specific named location where scenes happen (the Great Hall, Bag End, the arena). 2-4 lore entries on first appearance. 1-2 per subsequent scene.
+  margin: a fleeting or peripheral spot mentioned in passing (a corridor, a roadside inn). 1-2 lore entries on first appearance. Only update if something notable happens here.
+- artifacts: something that by itself can provide utility. Concepts and definitions belong in world knowledge. ownerName: character/location/null. significance: key/notable/minor.
   key: 2-4 continuity nodes (lore, history, properties, limitations, state). Update per scene if used.
   notable: 1-3 continuity nodes. Update only on significant use.
   minor: 1 continuity node on first appearance (what it is, what it does). Only update if its role changes.
@@ -1241,6 +1241,17 @@ export async function assembleNarrative(
         existing.valence = r.valence;
       } else {
         relationshipMap[key] = { from: fromId, to: toId, type: r.type, valence: r.valence };
+      }
+    }
+  }
+
+  // Ensure parent locations are at least as prominent as their children
+  const promRankFinal: Record<string, number> = { margin: 0, place: 1, domain: 2 };
+  for (const loc of Object.values(locations)) {
+    if (loc.parentId && locations[loc.parentId]) {
+      const parent = locations[loc.parentId];
+      if ((promRankFinal[parent.prominence] ?? 0) < (promRankFinal[loc.prominence] ?? 0)) {
+        parent.prominence = loc.prominence;
       }
     }
   }

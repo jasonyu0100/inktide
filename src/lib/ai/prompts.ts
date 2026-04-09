@@ -141,16 +141,17 @@ ARTIFACTS — the tools that make societies flourish.
 `;
 
 export const PROMPT_LOCATIONS = `
-LOCATIONS — places AND their people.
-- A location is not passive scenery. It is a collective entity with its own continuity — history, beliefs, goals, and weaknesses.
-- When a major event happens AT a location, generate continuityMutations for the location itself. A city that witnesses a massacre gains "history" and "state" nodes. A kingdom that loses a war gains "weakness" and shifts "belief".
-- Location rules constrain characters: a sacred grove forbids violence, a kingdom demands fealty, a lawless frontier permits anything.
-- Revisit locations — a place that appeared in act 1 and returns in act 3 with accumulated history feels lived-in.
-- Generate location continuity whenever the scene's events meaningfully impact the place or its people.
-- TIES represent a character's gravity toward a location — their karma, loyalty, and belonging. A tie means the location is significant to the character's identity, not just a place they visited. A character with a single tie has a home. A character with ties across domains, places, and margins lives a distributed life. A character with no ties is rootless, just passing through.
-- Ties influence behaviour: characters gravitate toward tied locations, defend them, return to them. A tied character at a foreign location feels displaced; an untied character anywhere feels transient.
-- Ties are contextual: an employee has ties to home AND workplace. A remote worker has ties to where they live, not where they work. A student has ties to their school. A soldier has ties to their barracks and hometown.
-- Removing a tie is a significant narrative event — firing, exile, betrayal, occupation by an enemy. Damage, war, or hardship do NOT break ties unless the location is permanently lost to the character. Only generate tieMutations when the bond genuinely changes. Temporary departures never remove ties.
+LOCATIONS — strictly SPATIAL places where events happen. A location is a physical or virtual space you can be IN.
+- Ranges from micro (a room, a desk) to macro (a continent, a planet, cyberspace). All are valid if spatial.
+- NOT organizations, companies, institutions, or abstract concepts — those are artifacts or world knowledge.
+  A "hospital" is a location (you go there). "The medical system" is world knowledge. "Google" is an artifact. "Google's headquarters" is a location.
+- If the text has no spatial places, generate ZERO locations. Do not fabricate locations that don't exist.
+- Locations have continuity — history, state, rules. A city that witnesses a massacre gains history. A kingdom that loses a war gains weakness.
+- Location rules constrain characters: a sacred grove forbids violence, a kingdom demands fealty.
+- Hierarchy via parentId: room → building → district → city → region → country.
+- TIES represent a character's gravity toward a location — belonging, not just visiting. A tie means the location is significant to the character's identity.
+- Ties are contextual: an employee has ties to home AND workplace. A student has ties to their school.
+- Removing a tie is a significant narrative event — exile, firing, permanent departure. Temporary departures never remove ties.
 `;
 
 // ── POV Discipline ───────────────────────────────────────────────────────────

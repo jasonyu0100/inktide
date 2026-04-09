@@ -92,6 +92,17 @@ const mockStructureResult = {
   characterMovements: [],
 };
 
+// Speed up tests: eliminate all setTimeout delays (retries, backoffs, afterEach cleanup)
+const origSetTimeout = globalThis.setTimeout;
+beforeAll(() => {
+  globalThis.setTimeout = ((fn: (...args: unknown[]) => void, _ms?: number, ...args: unknown[]) => {
+    return origSetTimeout(fn, 0, ...args);
+  }) as typeof globalThis.setTimeout;
+});
+afterAll(() => {
+  globalThis.setTimeout = origSetTimeout;
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
 

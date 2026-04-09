@@ -191,7 +191,7 @@ worldKnowledgeMutations — REVEALED world rules, not character observations.
 
 ENTITY EXTRACTION:
 - characters: named characters present. Role: anchor/recurring/transient.
-- locations: nest via parentName. tiedCharacterNames: characters who BELONG (residents, faction members).
+- locations: strictly SPATIAL places. Nest via parentName. If the text has no spatial places, extract ZERO. Companies and institutions are artifacts, not locations. tiedCharacterNames: characters who BELONG (residents, faction members).
 - artifacts: tools that extend capabilities. ownerName: character/location/null. significance: key/notable/minor.
 - threads: narrative tensions. development: what specifically happened.
 

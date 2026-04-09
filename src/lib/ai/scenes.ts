@@ -1264,8 +1264,21 @@ function tryBuildFromRanges(
     }
 
     // Auto-fix systematic off-by-one overlap (startPara === lastEndPara)
-    if (startPara === lastEndPara && startPara < endPara) {
-      startPara = lastEndPara + 1;
+    // Only fix if the beat spans multiple paragraphs — can safely trim the first one
+    // If it's a single-para beat (start === end === lastEndPara), absorb it into the previous beat instead
+    if (startPara === lastEndPara) {
+      if (startPara < endPara) {
+        startPara = lastEndPara + 1;
+      } else {
+        // Single-paragraph overlap — extend previous beat to include it, skip this beat
+        if (chunks.length > 0) {
+          const prevChunk = chunks[chunks.length - 1];
+          const extraProse = paragraphs.slice(startPara, endPara + 1).join('\n\n').trim();
+          if (extraProse) prevChunk.prose += '\n\n' + extraProse;
+          lastEndPara = endPara;
+        }
+        continue;
+      }
     }
 
     // Validate sequential (no gaps or overlaps)

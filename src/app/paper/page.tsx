@@ -1525,11 +1525,14 @@ export default function PaperPage() {
               to each of the three forces plus <B>swing</B> — the Euclidean
               distance between consecutive force snapshots, measuring dynamic contrast. The grading curve is piecewise, calibrated so published works land in the 85–92 range.
             </P>
-            <Eq tex="g(\tilde{x}) = \begin{cases} 8 + 13\sqrt{\tilde{x}} & \tilde{x} \leq 1 \\ 21 + 4\left(1 - e^{-(\tilde{x}-1)}\right) & \tilde{x} > 1 \end{cases} \qquad \text{where} \quad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
+            <Eq tex="g(\tilde{x}) = 25 - 17\,e^{-k\tilde{x}} \qquad k = \ln\!\tfrac{17}{4} \approx 1.45 \qquad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
-              The floor of 8 ensures every force contributes a baseline score — even a structurally empty story scores 32/100.
-              The square root naturally decelerates — early gains come easily, but the last few points before the reference mean are harder to earn.
-              This maps onto quality bands: bad (10–15), mediocre (15–20), good (21–25).
+              A single exponential with three constraints: floor of 8 at <Tex>{"\\tilde{x}=0"}</Tex>,
+              dominance threshold of 21 at <Tex>{"\\tilde{x}=1"}</Tex>,
+              and asymptote of 25. The rate constant <Tex>{"k = \\ln(17/4)"}</Tex> is
+              fully determined by these constraints.
+              The curve naturally decelerates — early gains come easily, the last few points before the reference mean are harder to earn,
+              and exceeding reference yields diminishing returns. Quality bands: bad (8–15), mediocre (15–20), good (21–25).
               At <Tex>{"\\tilde{x} = 1"}</Tex> (matching the reference mean),
               the grade is 21 out of 25 — the dominance threshold used by the archetype classifier.
               Above reference, exponential saturation makes each additional point harder to earn, asymptoting toward 25.

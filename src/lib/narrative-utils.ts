@@ -1319,14 +1319,12 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Change reference raised to 4 for harsher grading — requires richer continuity mutations per scene. */
 export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 4, knowledge: 4 } as const;
 
-/** Grade a mean-normalized force value 8→25.
- *  Below reference: 8 + 13√x̃ — sqrt naturally decelerates toward the reference.
- *  Above reference: exponential saturation toward 25.
- *  Floor 8 (bad), mediocre ~15-19, good 21+ (dominance threshold at x̃ = 1). */
+/** Grade a mean-normalized force value 8→25: g(x̃) = 25 − 17·e^{−kx̃}, k = ln(17/4).
+ *  Single exponential — floor 8, reference 21 (dominance threshold), cap 25.
+ *  k is fully determined by these three constraints. */
+const GRADE_K = Math.log(17 / 4);
 export function gradeForce(normalizedMean: number): number {
-  const x = Math.max(0, normalizedMean);
-  if (x <= 1) return 8 + 13 * Math.sqrt(x);
-  return 21 + 4 * (1 - Math.exp(-(x - 1)));
+  return 25 - 17 * Math.exp(-GRADE_K * Math.max(0, normalizedMean));
 }
 
 /**

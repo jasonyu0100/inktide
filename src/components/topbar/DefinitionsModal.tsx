@@ -227,9 +227,9 @@ function PropositionsTab() {
 
 const ARCHETYPES = [
   { name: 'Opus', key: 'opus' as ArchetypeKey, forces: 'P + C + K', desc: 'All three forces in concert — payoffs land, characters transform, and the world deepens together' },
-  { name: 'Tempest', key: 'tempest' as ArchetypeKey, forces: 'P + C', desc: 'Violent forces that leave nothing unchanged — consequences land and characters are reshaped' },
-  { name: 'Chronicle', key: 'chronicle' as ArchetypeKey, forces: 'P + K', desc: 'Resolutions deepen the world — each payoff reveals how things work' },
-  { name: 'Mosaic', key: 'mosaic' as ArchetypeKey, forces: 'C + K', desc: 'Many lives composing a larger picture — characters transform within a deepening world' },
+  { name: 'Saga', key: 'saga' as ArchetypeKey, forces: 'P + C', desc: 'Consequential events that permanently reshape characters — payoffs land and lives change' },
+  { name: 'Atlas', key: 'atlas' as ArchetypeKey, forces: 'P + K', desc: 'Resolutions that map the world — each payoff reveals how things work' },
+  { name: 'Chronicle', key: 'chronicle' as ArchetypeKey, forces: 'C + K', desc: 'Characters transform within a deepening world — lives and systems evolve together' },
   { name: 'Classic', key: 'classic' as ArchetypeKey, forces: 'P', desc: 'Driven by resolution — threads pay off and relationships shift decisively' },
   { name: 'Show', key: 'show' as ArchetypeKey, forces: 'C', desc: 'People-driven — characters transform and their journeys are the heart of the story' },
   { name: 'Paper', key: 'paper' as ArchetypeKey, forces: 'K', desc: 'Dense with ideas and systems — the depth of the world itself is the draw' },

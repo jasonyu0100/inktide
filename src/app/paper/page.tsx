@@ -275,22 +275,22 @@ const ARCHETYPES = [
     color: ARCHETYPE_COLORS.opus,
   },
   {
-    key: "tempest" as const,
-    name: "Tempest",
+    key: "saga" as const,
+    name: "Saga",
     desc: "Payoff + Change",
-    color: ARCHETYPE_COLORS.tempest,
+    color: ARCHETYPE_COLORS.saga,
+  },
+  {
+    key: "atlas" as const,
+    name: "Atlas",
+    desc: "Payoff + Knowledge",
+    color: ARCHETYPE_COLORS.atlas,
   },
   {
     key: "chronicle" as const,
     name: "Chronicle",
-    desc: "Payoff + Knowledge",
-    color: ARCHETYPE_COLORS.chronicle,
-  },
-  {
-    key: "mosaic" as const,
-    name: "Mosaic",
     desc: "Change + Knowledge",
-    color: ARCHETYPE_COLORS.mosaic,
+    color: ARCHETYPE_COLORS.chronicle,
   },
   {
     key: "classic" as const,

@@ -7,11 +7,11 @@ import React from 'react';
  * Maps force-dominance profiles to visually distinctive icons.
  */
 
-export type ArchetypeKey = 'opus' | 'tempest' | 'chronicle' | 'mosaic' | 'classic' | 'show' | 'paper' | 'emerging';
+export type ArchetypeKey = 'opus' | 'saga' | 'atlas' | 'chronicle' | 'classic' | 'show' | 'paper' | 'emerging';
 
 export const ARCHETYPE_COLORS: Record<ArchetypeKey, string> = {
-  opus: '#f59e0b', tempest: '#ef4444', chronicle: '#3b82f6',
-  mosaic: '#8b5cf6', classic: '#10b981', show: '#ec4899',
+  opus: '#f59e0b', saga: '#ef4444', atlas: '#3b82f6',
+  chronicle: '#8b5cf6', classic: '#10b981', show: '#ec4899',
   paper: '#06b6d4', emerging: '#6b7280',
 };
 
@@ -52,16 +52,16 @@ const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React
     </>
   ),
 
-  // Tempest: upward chevron — ascent
-  tempest: (half, s, c) => (
+  // Saga: upward chevron — ascent
+  saga: (half, s, c) => (
     <>
       <polyline points={`${s * 0.18},${s * 0.58} ${half},${s * 0.22} ${s * 0.82},${s * 0.58}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" />
       <polyline points={`${s * 0.18},${s * 0.76} ${half},${s * 0.40} ${s * 0.82},${s * 0.76}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.4} />
     </>
   ),
 
-  // Chronicle: two parallel horizontals with a bisecting vertical — layered record
-  chronicle: (half, s, c) => (
+  // Atlas: two parallel horizontals with a bisecting vertical — layered map
+  atlas: (half, s, c) => (
     <>
       <line x1={s * 0.2} y1={s * 0.33} x2={s * 0.8} y2={s * 0.33} stroke={c} strokeWidth={1.2} strokeLinecap="round" />
       <line x1={s * 0.2} y1={s * 0.67} x2={s * 0.8} y2={s * 0.67} stroke={c} strokeWidth={1.2} strokeLinecap="round" />
@@ -69,8 +69,8 @@ const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React
     </>
   ),
 
-  // Mosaic: expanding arc — outward sweep
-  mosaic: (half, s, c) => (
+  // Chronicle: expanding arc — lives evolving
+  chronicle: (half, s, c) => (
     <>
       <path d={`M ${s * 0.22} ${s * 0.7} A ${s * 0.35} ${s * 0.35} 0 0 1 ${s * 0.78} ${s * 0.7}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" fill="none" />
       <path d={`M ${s * 0.3} ${s * 0.48} A ${s * 0.24} ${s * 0.24} 0 0 1 ${s * 0.7} ${s * 0.48}`} stroke={c} strokeWidth={1.2} strokeLinecap="round" fill="none" />

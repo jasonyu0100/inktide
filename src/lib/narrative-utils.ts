@@ -1091,9 +1091,9 @@ export interface NarrativeArchetype {
 
 const ARCHETYPES = {
   opus:        { key: 'opus',        name: 'Opus',        description: 'All three forces in concert — payoffs land, characters transform, and the world deepens together', dominant: ['payoff', 'change', 'knowledge'] as const },
-  tempest:     { key: 'tempest',     name: 'Tempest',     description: 'Violent forces that leave nothing unchanged — consequences land and characters are reshaped by them', dominant: ['payoff', 'change'] as const },
-  chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Resolutions deepen the world — each payoff reveals how things work', dominant: ['payoff', 'knowledge'] as const },
-  mosaic:      { key: 'mosaic',      name: 'Mosaic',      description: 'Many lives composing a larger picture — characters transform within a deepening world', dominant: ['change', 'knowledge'] as const },
+  saga:        { key: 'saga',        name: 'Saga',        description: 'Consequential events that permanently reshape characters — payoffs land and lives change', dominant: ['payoff', 'change'] as const },
+  atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Resolutions that map the world — each payoff reveals how things work', dominant: ['payoff', 'knowledge'] as const },
+  chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Characters transform within a deepening world — lives and systems evolve together', dominant: ['change', 'knowledge'] as const },
   classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['payoff'] as const },
   show:        { key: 'show',        name: 'Show',        description: 'People-driven — characters transform and their journeys are the heart of the story', dominant: ['change'] as const },
   paper:       { key: 'paper',       name: 'Paper',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['knowledge'] as const },
@@ -1123,9 +1123,9 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   const kDom = k >= floor && k >= max - gap;
 
   if (pDom && cDom && kDom) return ARCHETYPES.opus;
-  if (pDom && cDom)         return ARCHETYPES.tempest;
-  if (pDom && kDom)         return ARCHETYPES.chronicle;
-  if (cDom && kDom)         return ARCHETYPES.mosaic;
+  if (pDom && cDom)         return ARCHETYPES.saga;
+  if (pDom && kDom)         return ARCHETYPES.atlas;
+  if (cDom && kDom)         return ARCHETYPES.chronicle;
   if (pDom)                 return ARCHETYPES.classic;
   if (cDom)                 return ARCHETYPES.show;
   if (kDom)                 return ARCHETYPES.paper;

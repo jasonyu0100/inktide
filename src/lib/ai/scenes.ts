@@ -2,7 +2,7 @@ import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatP
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATIVE_CUBE } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
-import { WRITING_MODEL, ANALYSIS_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX, BEAT_DENSITY_DEFAULT, WORDS_PER_BEAT_MIN, WORDS_PER_BEAT_MAX, WORDS_PER_BEAT_DEFAULT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
+import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, BEATS_PER_SCENE, WORDS_PER_SCENE, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, deriveLogicRules, sceneScale } from './context';
 import { PROMPT_FORCE_STANDARDS, PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt } from './prompts';
@@ -193,7 +193,7 @@ export async function generateScenes(
   const seed = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
 
   // ── Pacing sequence: sample from Markov chain when enabled ──
-  const sceneCount = count > 0 ? Math.max(3, count) : targetLen;
+  const sceneCount = count > 0 ? Math.max(4, count) : targetLen;
   let sequencePrompt = '';
   let sequence: PacingSequence | null = null;
   if (storySettings.usePacingChain !== false) {
@@ -501,10 +501,8 @@ export async function generateScenePlan(
   const sampler = resolveSampler(narrative);
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
   const scale = sceneScale(scene);
+  const targetBeats = scale.targetBeats;
   const estWords = scale.estWords;
-  // Clamp beatsPerKWord to standardized range (8-14)
-  const bpkw = Math.min(BEAT_DENSITY_MAX, Math.max(BEAT_DENSITY_MIN, sampler.beatsPerKWord ?? BEAT_DENSITY_DEFAULT));
-  const targetBeats = Math.max(8, Math.round(estWords * bpkw / 1000));
   onMeta?.({ targetBeats, estWords });
 
   // Sample a beat sequence from the Markov chain when enabled
@@ -1039,7 +1037,7 @@ MECHANISM EDGE CASES (important):
   - Environmental sounds with voices in them = environment (the setting includes sound)
 
 RULES:
-- Identify one beat per meaningful unit of action, dialogue, or shift. Target ~${BEAT_DENSITY_MIN}-${BEAT_DENSITY_MAX} beats per 1000 words.
+- Identify one beat per meaningful unit of action, dialogue, or shift. Target ~${BEATS_PER_SCENE} beats per scene (~${WORDS_PER_BEAT} words per beat).
 - Every beat must map to a specific moment in the prose.
 - STRUCTURAL SUMMARIES ONLY: The 'what' field describes WHAT HAPPENS, not how it reads as prose.
   • DO: "Guard confronts him about the forged papers" — structural event
@@ -1135,9 +1133,9 @@ INVALID: craft goals, pacing instructions, meta-commentary.
 
 - Return ONLY valid JSON.`;
 
-  // Estimate target beats based on word count and beat density constants
+  // Estimate target beats based on word count and standard beat size
   const wordCount = prose.split(/\s+/).length;
-  const estimatedBeats = Math.max(Math.round(wordCount / WORDS_PER_BEAT_DEFAULT), 3);
+  const estimatedBeats = Math.max(Math.round(wordCount / WORDS_PER_BEAT), 3);
 
   // Split prose into fine-grained chunks (2x beats) so LLM can group naturally
   const targetChunks = estimatedBeats * 2;
@@ -1156,9 +1154,8 @@ Group these chunks into beats by identifying natural narrative boundaries. Each 
 Extract propositions according to density guidelines - light fiction gets 1-2 props/beat, technical prose gets exhaustive extraction.
 
 CRITICAL CONSTRAINTS - BEAT SIZE:
-- Target beat size: ${WORDS_PER_BEAT_DEFAULT} words (acceptable range: ${WORDS_PER_BEAT_MIN}-${WORDS_PER_BEAT_MAX} words)
+- Target beat size: ~${WORDS_PER_BEAT} words per beat
 - Each beat should typically span 1-3 consecutive chunks to stay within this range
-- Beats outside ${WORDS_PER_BEAT_MIN}-${WORDS_PER_BEAT_MAX} words are acceptable ONLY if required for natural narrative boundaries
 - Aim for approximately ${estimatedBeats} total beats
 
 CRITICAL CONSTRAINTS - INDEXING:
@@ -2208,7 +2205,7 @@ export async function generateArcStepwise(
   const { existingArc, pacingSequence, worldBuildFocus, onToken, onReasoning, onScene, shouldStop } = options;
   const storySettings: StorySettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
   const targetLen = storySettings.targetArcLength;
-  const sceneCount = count > 0 ? Math.max(3, count) : targetLen;
+  const sceneCount = count > 0 ? Math.max(4, count) : targetLen;
 
   logInfo('Starting stepwise arc generation', {
     source: 'manual-generation',

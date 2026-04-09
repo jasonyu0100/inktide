@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene, StorySettings, WorldSystem, RelationshipEdge, ContinuityEdge } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeWorldKnowledge, rankWorldKnowledgeNodes } from '@/lib/narrative-utils';
-import { SCENE_CONTEXT_RECENT_CONTINUITY } from '@/lib/constants';
+import { SCENE_CONTEXT_RECENT_CONTINUITY, WORDS_PER_SCENE, BEATS_PER_SCENE } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 
 /**
@@ -710,27 +710,10 @@ ${tieMutationLines.length > 0 ? `\n<tie-changes>\n${tieMutationLines.join('\n')}
 </scene>`;
 }
 
-/** Estimate scene complexity to drive dynamic length guidance.
- *  Returns { prose: { min, max, tokens }, plan: { words } } */
-export function sceneScale(scene: Scene): { estWords: number; planWords: string } {
-  const mutations = scene.threadMutations.length + scene.continuityMutations.length + scene.relationshipMutations.length;
-  const events = scene.events.length;
-  const movements = scene.characterMovements ? Object.keys(scene.characterMovements).length : 0;
-  const participants = scene.participantIds.length;
-  const summaryLen = scene.summary.length;
-
-  // Complexity score: mutations, events, participants, and longer summaries
-  const complexity = mutations * 2 + events * 1.5 + movements + participants * 0.5 + (summaryLen > 200 ? 2 : 0) + (summaryLen > 400 ? 3 : 0);
-
-  // Linear fit from 682 scenes across 9 published works (R²=0.09 — complexity is a weak
-  // predictor, but the intercept is the real value: most scenes land around 800-1800 words).
-  // Formula: words ≈ 12 * complexity + 822, floored at 600.
-  const estWords = Math.max(600, Math.round(12 * complexity + 822));
-
-  // Plan word guidance for prompts
-  const planWords = `${Math.round(estWords * 0.3)}-${Math.round(estWords * 0.5)}`;
-
-  return { estWords, planWords };
+/** Scene scale based on standard: ~10 beats × ~100 words/beat = ~1000 words.
+ *  Generation is flexible — the LLM can vary beat count based on scene intensity. */
+export function sceneScale(scene: Scene): { estWords: number; targetBeats: number; planWords: string } {
+  return { estWords: WORDS_PER_SCENE, targetBeats: BEATS_PER_SCENE, planWords: `${Math.round(WORDS_PER_SCENE * 0.3)}-${Math.round(WORDS_PER_SCENE * 0.5)}` };
 }
 
 /**

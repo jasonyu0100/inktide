@@ -422,7 +422,7 @@ Return a single JSON object with this exact structure:
 }
 
 RULES:
-- Break the chunk into 3-5 distinct scenes based on location shifts, time jumps, or major tonal changes
+- Break the chunk into scenes (~1200 words each, ~12 beats) based on location shifts, time jumps, or major tonal changes
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.
@@ -471,7 +471,7 @@ PAYOFF = Σ max(0, φ_to - φ_from) + 0.25 per pulse
 CHANGE = √(continuity_nodes + √continuity_edges) + √events + √(Σ|valenceDelta|²)
   Continuity mutations (per-entity inner world changes) drive the first term.
   Events drive the second. Relationship valenceDelta drives the third (L2 aggregated).
-  Reference mean: ~4/scene (~4-5 continuity nodes + ~2-3 events + relationship shifts ±0.2+).
+  Reference mean: ~4/scene (~4-5 continuity nodes + ~2-3 events + relationship shifts ±0.2+). Standard scene: ~12 beats, ~1200 words.
   → A character-driven text should have HIGH change: many continuity mutations per entity, rich relationship shifts.
   → An idea-driven text (academic paper, essay) may have LOW change — fewer characters experiencing things.
   → Background characters who are merely present get NO mutations. Quiet scenes = few mutations.
@@ -686,7 +686,7 @@ Return a single JSON object with this exact structure:
 }
 
 RULES:
-- Break the chunk into 3-5 distinct scenes based on location shifts, time jumps, or major tonal changes
+- Break the chunk into scenes (~1200 words each, ~12 beats) based on location shifts, time jumps, or major tonal changes
 - Every scene MUST have a non-empty "summary", at least one event tag, and a "povName"
 - "sections" is an array of section numbers (1-indexed) that this scene covers. Together, all scenes should cover all ${sections.length} sections.
 - characterMovements: only include characters who physically RELOCATE to a different location during the scene. The destination must differ from the scene's locationName. Omit characters who stay put.

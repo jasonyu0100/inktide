@@ -145,7 +145,7 @@ class AnalysisRunner {
     });
 
     try {
-      dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running', phase: 'extraction' } });
+      dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running', phase: 'plans' } });
 
       await this.runPipeline(job, entry, dispatch);
     } catch (err) {
@@ -518,7 +518,7 @@ class AnalysisRunner {
     }
 
     // ── Phase 3.5: Generate embeddings ────────────────────────────────────
-    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'embeddings' } });
+    d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'structure' } });
 
     // Collect all scenes from all chunks (using analysis chunk scene type)
     const allScenes: AnalysisChunkResult['scenes'] = [];

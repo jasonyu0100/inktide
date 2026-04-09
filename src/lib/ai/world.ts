@@ -81,7 +81,7 @@ IMPORTANT: Use character NAMES, location NAMES, and thread DESCRIPTIONS in the d
   const parsed = parseJson(raw, 'suggestDirection') as {
     arcName?: string; direction?: string; sceneSuggestion?: string; suggestedSceneCount?: number;
   };
-  const sceneCount = Math.max(1, Math.min(8, parsed.suggestedSceneCount ?? 3));
+  const sceneCount = Math.max(1, Math.min(8, parsed.suggestedSceneCount ?? 4));
   return {
     text: `${parsed.arcName}: ${parsed.direction}${parsed.sceneSuggestion ? '\n\n' + parsed.sceneSuggestion : ''}`,
     arcName: parsed.arcName ?? '',

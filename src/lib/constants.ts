@@ -17,10 +17,10 @@ export const ANALYSIS_MAX_CHUNK_RETRIES = 3;
 /** Enable exponential backoff delays for plan extraction retries (disabled in tests for speed) */
 export const ANALYSIS_PLAN_BACKOFF_ENABLED = true;
 
-/** Target number of sections per analysis chunk */
+/** Target number of sections per analysis chunk (~1 section per beat) */
 export const ANALYSIS_TARGET_SECTIONS_PER_CHUNK = 12;
 
-/** Target word count per analysis chunk */
+/** Target word count per analysis chunk (~1 arc = 4 scenes × 1000 words) */
 export const ANALYSIS_TARGET_CHUNK_WORDS = 4000;
 
 /** Max corpus size (words) accepted for analysis */
@@ -145,17 +145,28 @@ export const MOMENT_SPARKLINE_WINDOW = 50;
 /** Max recent continuity nodes shown per entity in sceneContext */
 export const SCENE_CONTEXT_RECENT_CONTINUITY = 25;
 
-// ── Beat Density Standards ──────────────────────────────────────────────────
+// ── Scale Standards ─────────────────────────────────────────────────────────
+// Beat → Scene → Arc hierarchy. Analysis is strict; generation is flexible.
 
-/** Beat density range (beats per 1000 words) - the core metric for comparing analysis vs generation */
+/** Words per beat — the atomic unit of prose */
+export const WORDS_PER_BEAT = 100;
+/** Beats per scene — standard scene size */
+export const BEATS_PER_SCENE = 12;
+/** Scenes per arc — standard arc length */
+export const SCENES_PER_ARC = 4;
+
+/** Derived: words per scene (~1,000) */
+export const WORDS_PER_SCENE = WORDS_PER_BEAT * BEATS_PER_SCENE;
+/** Derived: beats per 1000 words (10) — for prose profile compatibility */
+export const BEATS_PER_KWORD = Math.round(BEATS_PER_SCENE / (WORDS_PER_SCENE / 1000));
+
+// Legacy aliases — used by beat profiles and prose density validation
 export const BEAT_DENSITY_MIN = 8;
 export const BEAT_DENSITY_MAX = 14;
-export const BEAT_DENSITY_DEFAULT = 11;
-
-/** Derived: words per beat (for reference/validation) */
-export const WORDS_PER_BEAT_MIN = Math.round(1000 / BEAT_DENSITY_MAX);     // ~71
-export const WORDS_PER_BEAT_MAX = Math.round(1000 / BEAT_DENSITY_MIN);     // ~125
-export const WORDS_PER_BEAT_DEFAULT = Math.round(1000 / BEAT_DENSITY_DEFAULT); // ~91
+export const BEAT_DENSITY_DEFAULT = BEATS_PER_KWORD;
+export const WORDS_PER_BEAT_MIN = Math.round(1000 / BEAT_DENSITY_MAX);
+export const WORDS_PER_BEAT_MAX = Math.round(1000 / BEAT_DENSITY_MIN);
+export const WORDS_PER_BEAT_DEFAULT = WORDS_PER_BEAT;
 
 // ── Embeddings & Semantic Search ─────────────────────────────────────────────
 

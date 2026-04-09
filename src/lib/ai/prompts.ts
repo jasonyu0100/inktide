@@ -25,13 +25,14 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 // These are the values where the exponential grading curve scores ~86% (22/25).
 
 export const PROMPT_FORCE_STANDARDS = `
-FORCE SCORING — exponential grading. Reference means (~86%): P ~1.3 | C ~4 | K ~3.5 per scene.
+FORCE SCORING — exponential grading. Reference means (~86%): P ~1.3 | C ~4 | K ~3.5 per scene (~12 beats, ~1200 words).
 
-In practice:
+In practice (per 12-beat scene):
 - PAYOFF ~1.3: 1-2 thread transitions averaging ~1 phase jump, OR several pulses.
 - CHANGE ~4: ~4-5 continuity mutations + ~2-3 events + relationship shifts (valenceDelta ±0.2+, L2 aggregated).
 - KNOWLEDGE ~3.5: ~2-3 new world knowledge nodes + connecting edges.
 
+SCALE STANDARDS: Beat ~100 words | Scene ~12 beats (~1200 words) | Arc ~4 scenes (~4800 words).
 Thin mutations = low scores. REUSE existing world knowledge node IDs when reinforcing established concepts.
 `;
 

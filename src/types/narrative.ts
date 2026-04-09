@@ -889,7 +889,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   povCharacterIds: [],
   storyDirection: '',
   storyConstraints: '',
-  targetArcLength: 5,
+  targetArcLength: 4,
   rhythmPreset: '',
   proseVoice: '',
   planGuidance: '',
@@ -1144,7 +1144,7 @@ export type AnalysisChunkResult = {
 };
 
 /** Analysis pipeline phases */
-export type AnalysisPhase = 'extraction' | 'plans' | 'embeddings' | 'reconciliation' | 'finalization' | 'assembly';
+export type AnalysisPhase = 'plans' | 'structure' | 'reconciliation' | 'finalization' | 'assembly';
 
 export type AnalysisJob = {
   id: string;

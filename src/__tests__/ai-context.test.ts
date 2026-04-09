@@ -363,64 +363,17 @@ describe('sceneScale', () => {
     expect(scale.estWords).toBeGreaterThanOrEqual(600);
   });
 
-  it('scales up for complex scenes', () => {
-    const simpleScene = createScene('s1', {
-      events: ['Event 1'],
-      threadMutations: [],
-      continuityMutations: [],
-      relationshipMutations: [],
-      participantIds: ['c1'],
-      summary: 'Short',
-    });
-
-    const complexScene = createScene('s2', {
-      events: ['Event 1', 'Event 2', 'Event 3', 'Event 4'],
-      threadMutations: [
-        { threadId: 't1', from: 'dormant', to: 'active' },
-        { threadId: 't2', from: 'active', to: 'escalating' },
-      ],
-      continuityMutations: [
-        { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'Knowledge', type: 'belief' }], addedEdges: [] },
-        { entityId: 'c2', addedNodes: [{ id: 'n2', content: 'Knowledge 2', type: 'belief' }], addedEdges: [] },
-      ],
-      relationshipMutations: [
-        { from: 'c1', to: 'c2', type: 'ally', valenceDelta: 0.5 },
-      ],
-      participantIds: ['c1', 'c2', 'c3', 'c4'],
-      summary: 'A much longer and more detailed summary that describes many things happening in this scene with great detail and complexity',
-      characterMovements: { c1: { locationId: 'loc-2', transition: 'walked to' } },
-    });
-
-    const simpleScale = sceneScale(simpleScene);
-    const complexScale = sceneScale(complexScene);
-
-    expect(complexScale.estWords).toBeGreaterThan(simpleScale.estWords);
-  });
-
-  it('returns planWords range based on estWords', () => {
-    const scene = createScene('s1', {
-      events: ['Event 1', 'Event 2'],
-      threadMutations: [{ threadId: 't1', from: 'dormant', to: 'active' }],
-      participantIds: ['c1', 'c2'],
-    });
-
+  it('returns standard scale values', () => {
+    const scene = createScene('s1');
     const scale = sceneScale(scene);
+
+    expect(scale.estWords).toBe(1200);
+    expect(scale.targetBeats).toBe(12);
     expect(scale.planWords).toMatch(/^\d+-\d+$/);
 
-    // Parse the range and check proportions
     const [min, max] = scale.planWords.split('-').map(Number);
-    expect(min).toBeCloseTo(scale.estWords * 0.3, -1);
-    expect(max).toBeCloseTo(scale.estWords * 0.5, -1);
-  });
-
-  it('adds complexity for long summaries', () => {
-    const shortSummary = createScene('s1', { summary: 'Short' });
-    const longSummary = createScene('s2', { summary: 'x'.repeat(500) });
-
-    const shortScale = sceneScale(shortSummary);
-    const longScale = sceneScale(longSummary);
-
-    expect(longScale.estWords).toBeGreaterThan(shortScale.estWords);
+    expect(min).toBe(360);
+    expect(max).toBe(600);
   });
 });
 

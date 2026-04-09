@@ -209,9 +209,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const completedChunks = liveJob.results.filter((r) => r !== null).length;
   const totalChunks = liveJob.chunks.length;
   // Use explicit phase field for reliable phase detection
-  const isExtracting = liveJob.phase === 'extraction';
+  const isExtracting = liveJob.phase === 'plans';
   const isPlanExtracting = liveJob.phase === 'plans';
-  const isEmbedding = liveJob.phase === 'embeddings';
+  const isStructuring = liveJob.phase === 'structure';
   const isReconciling = liveJob.phase === 'reconciliation';
   const isFinalizing = liveJob.phase === 'finalization';
   const isAssembling = liveJob.phase === 'assembly';
@@ -318,7 +318,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               {isAssembling ? 'assembling...'
                 : isFinalizing ? 'finalizing...'
                 : isReconciling ? 'reconciling...'
-                : isEmbedding ? (liveJob.embeddingProgress ? `embeddings ${liveJob.embeddingProgress.completed}/${liveJob.embeddingProgress.total}` : 'embedding...')
+                : isStructuring ? (liveJob.embeddingProgress ? `embeddings ${liveJob.embeddingProgress.completed}/${liveJob.embeddingProgress.total}` : 'embedding...')
                 : isPlanExtracting ? `plans ${beatStats.planCount}/${sceneCount}`
                 : liveJob.status === 'completed' ? 'complete'
                 : liveJob.status === 'failed' ? 'failed'
@@ -445,8 +445,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     </p>
                     <div className="grid grid-cols-5 gap-2 pt-1">
                       {[
-                        { label: 'Extract', desc: 'Parse entities from each chunk' },
-                        { label: 'Embed', desc: 'Generate semantic embeddings' },
+                        { label: 'Plans', desc: 'Extract beats, propositions & embeddings' },
+                        { label: 'Structure', desc: 'Derive graph mutations from scenes' },
                         { label: 'Reconcile', desc: 'Merge duplicates across chunks' },
                         { label: 'Finalize', desc: 'Analyze thread dependencies' },
                         { label: 'Assemble', desc: 'Build the narrative structure' },
@@ -578,9 +578,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
             {/* Header */}
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
-              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isEmbedding ? 'bg-violet-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isStructuring ? 'bg-violet-400' : isPlanExtracting ? 'bg-indigo-400' : isExtracting ? 'bg-change' : 'bg-white/20'} animate-pulse`} />
               <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">
-                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isEmbedding ? 'Embeddings' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
+                {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isStructuring ? 'Structure' : isPlanExtracting ? 'Beat Plans' : isExtracting ? 'Extraction' : 'Idle'}
               </span>
               {isPlanExtracting && (
                 <span className="text-[9px] text-indigo-400/40 font-mono ml-auto">{beatStats.planCount}/{sceneCount}</span>
@@ -588,7 +588,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               {isExtracting && (
                 <span className="text-[9px] text-white/10 font-mono ml-auto">{completedChunks}/{totalChunks}</span>
               )}
-              {isEmbedding && liveJob.embeddingProgress && (
+              {isStructuring && liveJob.embeddingProgress && (
                 <span className="text-[9px] text-violet-400/40 font-mono ml-auto">{liveJob.embeddingProgress.completed}/{liveJob.embeddingProgress.total}</span>
               )}
             </div>
@@ -1022,9 +1022,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         {isRunning && (
           <div className="flex items-center gap-3 mb-2.5">
             {[
-              { label: 'Extract', active: isExtracting, done: isPlanExtracting || isEmbedding || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
-              { label: 'Plans', active: isPlanExtracting, done: isEmbedding || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
-              { label: 'Embed', active: isEmbedding, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-violet-400' },
+              { label: 'Plans', active: isExtracting, done: isStructuring || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
+              { label: 'Structure', active: isStructuring, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
               { label: 'Reconcile', active: isReconciling, done: isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
               { label: 'Finalize', active: isFinalizing, done: isAssembling || liveJob.status === 'completed', color: 'bg-purple-400' },
               { label: 'Assemble', active: isAssembling, done: liveJob.status === 'completed', color: 'bg-amber-400' },
@@ -1318,7 +1317,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         chunks,
         results: new Array(chunks.length).fill(null),
         status: 'running', // Start as 'running' so JobDetail shows correct state immediately
-        phase: 'extraction',
+        phase: 'plans',
         currentChunkIndex: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),

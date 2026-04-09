@@ -12,6 +12,7 @@ import {
   resolveSampler,
   BEAT_PROFILE_PRESETS,
 } from '@/lib/beat-profiles';
+import { BEATS_PER_KWORD } from '@/lib/constants';
 import { DEFAULT_MECHANISM_DIST } from '@/lib/mechanism-profiles';
 import type { Scene, NarrativeState, BeatSampler, BeatFn, BeatMechanism } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
@@ -130,7 +131,7 @@ describe('DEFAULT exports', () => {
   it('DEFAULT_BEAT_SAMPLER has required fields', () => {
     expect(DEFAULT_BEAT_SAMPLER.markov).toBe(DEFAULT_BEAT_MATRIX);
     expect(DEFAULT_BEAT_SAMPLER.fnMechanismDistribution).toBe(DEFAULT_FN_MECHANISM_DIST);
-    expect(DEFAULT_BEAT_SAMPLER.beatsPerKWord).toBe(11);
+    expect(DEFAULT_BEAT_SAMPLER.beatsPerKWord).toBe(BEATS_PER_KWORD);
   });
 
   it('DEFAULT_PROSE_PROFILE has required fields', () => {

@@ -155,42 +155,66 @@ class AnalysisRunner {
         entry.inFlightIndices.add(idx);
         this.emitInFlight(job.id, [...entry.inFlightIndices]);
 
-        try {
-          const scene = results[idx]!.scenes[0];
-          const s = await extractSceneStructure(scene.prose ?? chunk.text, scene.plan ?? null, (_token, acc) => {
-            entry.chunkStreams.set(idx, acc);
-            this.emitChunkStream(job.id, idx, acc);
-          });
+        const MAX_STRUCTURE_RETRIES = 3;
+        let attempt = 0;
+        let succeeded = false;
 
-          // Populate scene mutations
-          scene.povName = s.povName || scene.povName;
-          scene.locationName = s.locationName || scene.locationName;
-          scene.participantNames = s.participantNames.length > 0 ? s.participantNames : scene.participantNames;
-          scene.events = s.events.length > 0 ? s.events : scene.events;
-          scene.summary = s.summary || scene.summary;
-          scene.threadMutations = s.threadMutations;
-          scene.continuityMutations = s.continuityMutations;
-          scene.relationshipMutations = s.relationshipMutations;
-          scene.artifactUsages = s.artifactUsages;
-          scene.ownershipMutations = s.ownershipMutations;
-          scene.tieMutations = s.tieMutations;
-          scene.characterMovements = s.characterMovements;
-          scene.worldKnowledgeMutations = s.worldKnowledgeMutations;
+        while (attempt < MAX_STRUCTURE_RETRIES && !succeeded && !entry.cancelled) {
+          attempt++;
+          try {
+            const scene = results[idx]!.scenes[0];
+            const s = await extractSceneStructure(scene.prose ?? chunk.text, scene.plan ?? null, (_token, acc) => {
+              entry.chunkStreams.set(idx, acc);
+              this.emitChunkStream(job.id, idx, acc);
+            });
 
-          // Populate chunk-level entities
-          const r = results[idx]!;
-          r.chapterSummary = s.summary;
-          r.characters = s.characters;
-          r.locations = s.locations;
-          r.artifacts = s.artifacts;
-          r.threads = s.threads;
-          r.relationships = s.relationships;
+            // Populate scene mutations
+            scene.povName = s.povName || scene.povName;
+            scene.locationName = s.locationName || scene.locationName;
+            scene.participantNames = s.participantNames.length > 0 ? s.participantNames : scene.participantNames;
+            scene.events = s.events.length > 0 ? s.events : scene.events;
+            scene.summary = s.summary || scene.summary;
+            scene.threadMutations = s.threadMutations;
+            scene.continuityMutations = s.continuityMutations;
+            scene.relationshipMutations = s.relationshipMutations;
+            scene.artifactUsages = s.artifactUsages;
+            scene.ownershipMutations = s.ownershipMutations;
+            scene.tieMutations = s.tieMutations;
+            scene.characterMovements = s.characterMovements;
+            scene.worldKnowledgeMutations = s.worldKnowledgeMutations;
 
-          // Dispatch immediately so the entity cloud updates progressively
-          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
-        } catch (err) {
-          logWarning('Structure extraction failed for scene', err, { source: 'analysis', operation: 'scene-structure', details: { jobId: job.id, sceneIdx: idx } });
-        } finally {
+            // Populate chunk-level entities
+            const r = results[idx]!;
+            r.chapterSummary = s.summary;
+            r.characters = s.characters;
+            r.locations = s.locations;
+            r.artifacts = s.artifacts;
+            r.threads = s.threads;
+            r.relationships = s.relationships;
+
+            // Dispatch immediately so the entity cloud updates progressively
+            d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
+            succeeded = true;
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            if (attempt < MAX_STRUCTURE_RETRIES) {
+              logWarning(`Structure extraction failed for scene ${idx + 1} (attempt ${attempt}/${MAX_STRUCTURE_RETRIES}), retrying...`, err, {
+                source: 'analysis', operation: 'scene-structure',
+                details: { jobId: job.id, sceneIdx: idx, attempt, error: errMsg },
+              });
+              this.emitStream(job.id, `Structure: scene ${idx + 1} failed (attempt ${attempt}), retrying...`);
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // backoff
+            } else {
+              logError(`Structure extraction failed for scene ${idx + 1} after ${MAX_STRUCTURE_RETRIES} attempts`, err, {
+                source: 'analysis', operation: 'scene-structure',
+                details: { jobId: job.id, sceneIdx: idx, attempts: attempt, error: errMsg },
+              });
+              this.emitStream(job.id, `Structure: scene ${idx + 1} FAILED after ${MAX_STRUCTURE_RETRIES} attempts`);
+            }
+          }
+        }
+
+        {
           entry.inFlightIndices.delete(idx);
           this.emitInFlight(job.id, [...entry.inFlightIndices]);
         }

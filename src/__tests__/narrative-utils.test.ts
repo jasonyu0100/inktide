@@ -534,10 +534,8 @@ describe('gradeForce', () => {
     expect(gradeForce(100)).toBe(25);
   });
 
-  it('returns approximately 22 at normalized mean of 1', () => {
-    const grade = gradeForce(1);
-    expect(grade).toBeGreaterThan(20);
-    expect(grade).toBeLessThan(25);
+  it('returns 22 at normalized mean of 1', () => {
+    expect(gradeForce(1)).toBe(22);
   });
 });
 

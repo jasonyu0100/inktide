@@ -1319,10 +1319,13 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Change reference raised to 4 for harsher grading — requires richer continuity mutations per scene. */
 export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 4, knowledge: 4 } as const;
 
-/** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
- *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */
+/** Grade a mean-normalized force value 0→25.
+ *  x̃ = x̄ / μ_ref. Below reference: power curve 22·x̃^1.5. Above: exponential saturation toward 25.
+ *  At x̃ = 1 (matching reference), grade = 22/25 (88%). */
 export function gradeForce(normalizedMean: number): number {
-  return Math.min(25, 25 * (1 - Math.exp(-2 * Math.max(0, normalizedMean))));
+  const x = Math.max(0, normalizedMean);
+  if (x <= 1) return 22 * x ** 1.5;
+  return 22 + 3 * (1 - Math.exp(-2 * (x - 1)));
 }
 
 /**

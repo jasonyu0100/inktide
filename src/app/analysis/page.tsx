@@ -24,11 +24,11 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const { state, dispatch } = useStore();
   const streamRef = useRef<HTMLPreElement>(null);
   const [streamText, setStreamText] = useState(() => analysisRunner.getStreamText(job.id));
-  const [selectedChunk, setSelectedChunk] = useState<number | null>(null);
-  const [chunkPanelHeight, setChunkPanelHeight] = useState(35);
+  const [selectedScene, setSelectedChunk] = useState<number | null>(null);
+  const [scenePanelHeight, setChunkPanelHeight] = useState(35);
   const [inFlightIndices, setInFlightIndices] = useState<number[]>(() => analysisRunner.getInFlightIndices(job.id));
-  const [chunkStreamTexts, setChunkStreamTexts] = useState<Map<number, string>>(new Map());
-  const [viewingChunkStream, setViewingChunkStream] = useState<number | null>(null);
+  const [sceneStreamTexts, setChunkStreamTexts] = useState<Map<number, string>>(new Map());
+  const [viewingSceneStream, setViewingChunkStream] = useState<number | null>(null);
   const [assembling, setAssembling] = useState(false);
   const [selectedPlanKey, setSelectedPlanKey] = useState<string | null>(null);
   const [planInFlightKeys, setPlanInFlightKeys] = useState<string[]>(() => analysisRunner.getPlanInFlightKeys(job.id));
@@ -78,11 +78,11 @@ function JobDetail({ job }: { job: AnalysisJob }) {
 
   // Subscribe to per-chunk stream text
   useEffect(() => {
-    return analysisRunner.onChunkStream((id, chunkIndex, text) => {
+    return analysisRunner.onChunkStream((id, sceneIndex, text) => {
       if (id === job.id) {
         setChunkStreamTexts((prev) => {
           const next = new Map(prev);
-          next.set(chunkIndex, text);
+          next.set(sceneIndex, text);
           return next;
         });
       }
@@ -124,30 +124,30 @@ function JobDetail({ job }: { job: AnalysisJob }) {
     const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
     const map = new Map<string, WordNode>();
 
-    completed.forEach((result, chunkIdx) => {
+    completed.forEach((result, sceneIdx) => {
       for (const c of result.characters) {
         const key = `character-${c.name}`;
         const existing = map.get(key);
         if (existing) { existing.count++; }
-        else { map.set(key, { label: c.name, type: 'character', count: 1, firstSeen: chunkIdx }); }
+        else { map.set(key, { label: c.name, type: 'character', count: 1, firstSeen: sceneIdx }); }
       }
       for (const l of result.locations) {
         const key = `location-${l.name}`;
         const existing = map.get(key);
         if (existing) { existing.count++; }
-        else { map.set(key, { label: l.name, type: 'location', count: 1, firstSeen: chunkIdx }); }
+        else { map.set(key, { label: l.name, type: 'location', count: 1, firstSeen: sceneIdx }); }
       }
       for (const t of result.threads) {
         const key = `thread-${t.description}`;
         const existing = map.get(key);
         if (existing) { existing.count++; }
-        else { map.set(key, { label: t.description, type: 'thread', count: 1, firstSeen: chunkIdx }); }
+        else { map.set(key, { label: t.description, type: 'thread', count: 1, firstSeen: sceneIdx }); }
       }
       for (const a of result.artifacts ?? []) {
         const key = `artifact-${a.name}`;
         const existing = map.get(key);
         if (existing) { existing.count++; }
-        else { map.set(key, { label: a.name, type: 'artifact', count: 1, firstSeen: chunkIdx, significance: a.significance }); }
+        else { map.set(key, { label: a.name, type: 'artifact', count: 1, firstSeen: sceneIdx, significance: a.significance }); }
       }
       for (const s of result.scenes ?? []) {
         for (const n of s.worldKnowledgeMutations?.addedNodes ?? []) {
@@ -155,7 +155,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           const key = `knowledge-${shortConcept}`;
           const existing = map.get(key);
           if (existing) { existing.count++; }
-          else { map.set(key, { label: shortConcept, type: 'knowledge', count: 1, firstSeen: chunkIdx, knowledgeType: n.type }); }
+          else { map.set(key, { label: shortConcept, type: 'knowledge', count: 1, firstSeen: sceneIdx, knowledgeType: n.type }); }
         }
       }
     });
@@ -190,7 +190,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   // Auto-scroll stream
   useEffect(() => {
     if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight;
-  }, [streamText, chunkStreamTexts, viewingChunkStream]);
+  }, [streamText, sceneStreamTexts, viewingSceneStream]);
 
   const handlePause = useCallback(() => { analysisRunner.pause(job.id); }, [job.id]);
   const handleStart = useCallback((j: AnalysisJob) => {
@@ -206,8 +206,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
     foreshadow: '#818cf8', resolve: '#a3e635',
   };
 
-  const completedChunks = liveJob.results.filter((r) => r !== null).length;
-  const totalChunks = liveJob.chunks.length;
+  const completedScenes = liveJob.results.filter((r) => r !== null).length;
+  const totalScenes = liveJob.chunks.length;
   // Use explicit phase field for reliable phase detection
   const isExtracting = liveJob.phase === 'plans';
   const isPlanExtracting = liveJob.phase === 'plans';
@@ -262,13 +262,13 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const artifactCount = new Set(completed.flatMap((r) => (r.artifacts ?? []).map((a) => a.name))).size;
 
   // Current chunk stream text for viewing
-  const activeChunkStream = viewingChunkStream !== null ? (chunkStreamTexts.get(viewingChunkStream) ?? '') : '';
+  const activeChunkStream = viewingSceneStream !== null ? (sceneStreamTexts.get(viewingSceneStream) ?? '') : '';
 
   // All scenes extracted so far (for Plans phase display)
   const allExtractedScenes = useMemo(() =>
     completed.flatMap((r, ci) =>
       (r.scenes ?? []).map((s, si) => ({
-        key: `${ci}-${si}`, chunkIdx: ci, sceneIdx: si,
+        key: `${ci}-${si}`, resultIdx: ci, sceneIdx: si,
         summary: s.summary, povName: s.povName, plan: s.plan,
       }))
     ), [completed]);
@@ -324,13 +324,13 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 : liveJob.status === 'completed' ? 'complete'
                 : liveJob.status === 'failed' ? 'failed'
                 : liveJob.status === 'paused' ? 'paused'
-                : isRunning ? `extracting ${completedChunks}/${totalChunks}`
+                : isRunning ? `extracting ${completedScenes}/${totalScenes}`
                 : 'pending'}
             </span>
           </div>
         </div>
         {/* Stats inline */}
-        {completedChunks > 0 && (
+        {completedScenes > 0 && (
           <div className="flex items-center gap-5 shrink-0">
             {[
               { value: charCount, color: 'text-white/60', dot: 'bg-white/30', label: 'chr' },
@@ -433,7 +433,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       ))}
                     </div>
                     <p className="text-white/12 text-xs font-mono">
-                      {isReconciling ? 'Reconciling entities...' : isFinalizing ? 'Analyzing thread dependencies...' : isAssembling ? 'Assembling narrative...' : 'Extracting entities in parallel...'}
+                      {isReconciling ? 'Reconciling entities...' : isFinalizing ? 'Analyzing thread dependencies...' : isAssembling ? 'Assembling narrative...' : isStructuring ? 'Extracting structure per scene...' : isArcing ? 'Grouping scenes into arcs...' : 'Extracting beat plans...'}
                     </p>
                   </>
                 ) : liveJob.status === 'completed' ? (
@@ -442,7 +442,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   <div className="max-w-sm space-y-4">
                     <p className="text-white/40 text-sm font-medium">Ready to analyze</p>
                     <p className="text-white/20 text-[11px] leading-relaxed">
-                      The text has been split into {totalChunks} chunk{totalChunks !== 1 ? 's' : ''} that will be analyzed in parallel. Each chunk independently extracts characters, locations, threads, and scenes. A reconciliation pass then merges duplicates and stitches continuity across chunks.
+                      The text has been split into {totalScenes} scene{totalScenes !== 1 ? 's' : ''} (~1200 words each). Each scene gets a beat plan, then structure is extracted from the exact prose. Scenes are grouped into arcs of ~4, reconciled, and assembled.
                     </p>
                     <div className="grid grid-cols-6 gap-2 pt-1">
                       {[
@@ -588,7 +588,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 <span className="text-[9px] text-indigo-400/40 font-mono ml-auto">{beatStats.planCount}/{sceneCount}</span>
               )}
               {isExtracting && (
-                <span className="text-[9px] text-white/10 font-mono ml-auto">{completedChunks}/{totalChunks}</span>
+                <span className="text-[9px] text-white/10 font-mono ml-auto">{completedScenes}/{totalScenes}</span>
               )}
               {isStructuring && liveJob.embeddingProgress && (
                 <span className="text-[9px] text-violet-400/40 font-mono ml-auto">{liveJob.embeddingProgress.completed}/{liveJob.embeddingProgress.total}</span>
@@ -679,7 +679,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                         key={idx}
                         onClick={() => setViewingChunkStream(idx)}
                         className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-mono transition shrink-0 ${
-                          viewingChunkStream === idx
+                          viewingSceneStream === idx
                             ? 'bg-change/15 text-change/70 ring-1 ring-change/20'
                             : 'bg-white/3 text-white/25 hover:text-white/40'
                         }`}
@@ -692,13 +692,13 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 )}
 
                 {/* Stream output for selected chunk */}
-                {viewingChunkStream !== null && activeChunkStream ? (
+                {viewingSceneStream !== null && activeChunkStream ? (
                   <pre
                     ref={streamRef}
                     className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
                     style={{ scrollbarWidth: 'thin' }}
                   >
-                    <span className="text-white/8 select-none">chunk {viewingChunkStream + 1} &gt; </span>
+                    <span className="text-white/8 select-none">chunk {viewingSceneStream + 1} &gt; </span>
                     {activeChunkStream}
                   </pre>
                 ) : (
@@ -759,13 +759,13 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         if (!scene?.plan) return null;
         const { beats } = scene.plan;
         return (
-          <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${chunkPanelHeight}vh` }}>
+          <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${scenePanelHeight}vh` }}>
             <div
               className="h-2 cursor-ns-resize flex items-center justify-center hover:bg-white/4 transition-colors shrink-0"
               onMouseDown={(e) => {
                 e.preventDefault();
                 const startY = e.clientY;
-                const startH = chunkPanelHeight;
+                const startH = scenePanelHeight;
                 const onMove = (ev: MouseEvent) => {
                   const delta = startY - ev.clientY;
                   setChunkPanelHeight(Math.max(15, Math.min(80, startH + (delta / window.innerHeight) * 100)));
@@ -871,21 +871,21 @@ function JobDetail({ job }: { job: AnalysisJob }) {
       })()}
 
       {/* ── Chunk detail panel — resizable ── */}
-      {selectedChunk !== null && !isPlanExtracting && (() => {
-        const result = liveJob.results[selectedChunk] as AnalysisChunkResult | null;
+      {selectedScene !== null && !isPlanExtracting && (() => {
+        const result = liveJob.results[selectedScene] as AnalysisChunkResult | null;
         if (!result) return null;
         const wkNodes = (result.scenes ?? []).flatMap((s) => s.worldKnowledgeMutations?.addedNodes ?? []);
         const wkEdges = (result.scenes ?? []).flatMap((s) => s.worldKnowledgeMutations?.addedEdges ?? []);
         const wkTypeColors: Record<string, string> = { principle: 'text-amber-400', system: 'text-sky-400', concept: 'text-violet-400', tension: 'text-rose-400', event: 'text-orange-400', structure: 'text-teal-400', environment: 'text-emerald-400', convention: 'text-indigo-400', constraint: 'text-red-400' };
         return (
-          <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${chunkPanelHeight}vh` }}>
+          <div className="shrink-0 border-t border-white/8 flex flex-col" style={{ height: `${scenePanelHeight}vh` }}>
             {/* Drag handle */}
             <div
               className="h-2 cursor-ns-resize flex items-center justify-center hover:bg-white/4 transition-colors shrink-0"
               onMouseDown={(e) => {
                 e.preventDefault();
                 const startY = e.clientY;
-                const startH = chunkPanelHeight;
+                const startH = scenePanelHeight;
                 const onMove = (ev: MouseEvent) => {
                   const delta = startY - ev.clientY;
                   setChunkPanelHeight(Math.max(15, Math.min(80, startH + (delta / window.innerHeight) * 100)));
@@ -903,7 +903,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               {/* Header */}
               <div className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-text-primary">Chunk {selectedChunk + 1}</span>
+                  <span className="text-sm font-semibold text-text-primary">Chunk {selectedScene + 1}</span>
                   <div className="flex items-center gap-2 text-[10px] text-text-dim">
                     <span>{result.characters?.length ?? 0} chars</span>
                     <span className="text-white/10">·</span>
@@ -1048,8 +1048,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         <div className="flex items-center gap-4 mb-2">
           <div className="flex items-center gap-1.5">
             <div className="w-1 h-1 rounded-full bg-change/50" />
-            <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Chunks</span>
-            <span className="text-[9px] text-white/10 font-mono">{completedChunks} / {totalChunks}</span>
+            <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Scenes</span>
+            <span className="text-[9px] text-white/10 font-mono">{completedScenes} / {totalScenes}</span>
           </div>
           {beatStats.planCount > 0 && (
             <div className="flex items-center gap-1.5">
@@ -1116,7 +1116,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               {liveJob.chunks.map((_, i) => {
                 const extracted = liveJob.results[i] !== null;
                 const isInFlight = inFlightSet.has(i);
-                const isSelected = selectedChunk === i;
+                const isSelected = selectedScene === i;
                 const result = liveJob.results[i] as AnalysisChunkResult | null;
                 const proseScenesCount = result?.scenes?.filter((s) => s.prose).length ?? 0;
                 const plannedCount = result?.scenes?.filter((s) => s.plan).length ?? 0;
@@ -1347,7 +1347,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         <div>
           <h2 className="text-sm font-semibold text-white/90 mb-1">New Analysis</h2>
           <p className={`text-[10px] uppercase tracking-wider font-mono ${tooLarge ? 'text-red-400/70' : 'text-white/30'}`}>
-            {wordCount.toLocaleString()} words &middot; {chunks.length} chunk{chunks.length !== 1 ? 's' : ''} detected
+            {wordCount.toLocaleString()} words &middot; {chunks.length} scene{chunks.length !== 1 ? 's' : ''} detected
             {tooLarge && ` · max ${ANALYSIS_MAX_CORPUS_WORDS.toLocaleString()}`}
           </p>
         </div>
@@ -1382,7 +1382,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         </div>
 
         <div className="text-[11px] text-white/20 leading-relaxed">
-          {chunks.length} chunks analyzed in parallel — extracts characters, locations, threads, scenes, world knowledge, and beat plans, then reconciles and assembles.
+          {chunks.length} scenes analyzed in parallel — extracts characters, locations, threads, scenes, world knowledge, and beat plans, then reconciles and assembles.
         </div>
 
         {startError && (
@@ -1441,9 +1441,9 @@ function JobsList({ jobs, selectedId, onSelect }: { jobs: AnalysisJob[]; selecte
   return (
     <div className="flex-1 overflow-y-auto">
       {jobs.map((job) => {
-        const completedChunks = job.results.filter((r) => r !== null).length;
-        const totalChunks = job.chunks.length;
-        const progress = totalChunks > 0 ? Math.round((completedChunks / totalChunks) * 100) : 0;
+        const completedScenes = job.results.filter((r) => r !== null).length;
+        const totalScenes = job.chunks.length;
+        const progress = totalScenes > 0 ? Math.round((completedScenes / totalScenes) * 100) : 0;
         const isSelected = job.id === selectedId;
 
         return (
@@ -1465,7 +1465,7 @@ function JobsList({ jobs, selectedId, onSelect }: { jobs: AnalysisJob[]; selecte
             <div className="flex-1 min-w-0">
               <div className="text-xs text-white/70 font-medium truncate">{job.title}</div>
               <div className="text-[10px] text-white/25 font-mono mt-0.5">
-                {completedChunks}/{totalChunks} &middot; {progress}%
+                {completedScenes}/{totalScenes} &middot; {progress}%
               </div>
             </div>
 

@@ -478,64 +478,6 @@ export function CanvasTopBar() {
       )}
 
       {/* Contextual controls per mode */}
-      {canvasMode === 'graph' && (
-        <>
-          {/* Graph domain tabs */}
-          <div className="flex items-center gap-0.5 rounded bg-white/4 p-0.5">
-            {GRAPH_DOMAINS.map(({ label, local, global: globalMode, Icon, description }) => {
-              const isActive = graphViewMode === local || graphViewMode === globalMode;
-              return (
-                <button
-                  key={label}
-                  className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded transition-all ${
-                    isActive
-                      ? 'bg-white/15 text-text-primary shadow-sm'
-                      : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
-                  }`}
-                  onClick={() => dispatch({
-                    type: 'SET_GRAPH_VIEW_MODE',
-                    mode: isActive ? (graphViewMode === local ? globalMode : local) : local,
-                  })}
-                  title={description}
-                >
-                  <Icon size={12} />
-                  <span className="font-medium">{label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Scope toggle */}
-          {scopePair && (
-            <div className="flex items-center rounded bg-white/4 border border-white/10 overflow-hidden">
-              <button
-                className={`text-[9px] px-2.5 py-1 font-medium transition-all ${
-                  isLocal
-                    ? 'bg-white/15 text-text-primary shadow-sm'
-                    : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
-                }`}
-                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.local })}
-                title="Show current scene view"
-              >
-                Local
-              </button>
-              <div className="w-px h-3 bg-white/10" />
-              <button
-                className={`text-[9px] px-2.5 py-1 font-medium transition-all ${
-                  !isLocal
-                    ? 'bg-white/15 text-text-primary shadow-sm'
-                    : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
-                }`}
-                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.global })}
-                title="Show full narrative view"
-              >
-                Global
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
       {canvasMode === 'plan' && (
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-sky-400/60">Plan</span>
@@ -657,8 +599,65 @@ export function CanvasTopBar() {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Right — Mode toggle: Graph / Plan / Prose / Audio / Search */}
+      {/* Right — Graph toggles + Mode toggle */}
       <div className="flex items-center gap-2">
+        {canvasMode === 'graph' && (
+          <>
+            {/* Scope toggle */}
+            {scopePair && (
+              <div className="flex items-center gap-0.5 rounded bg-white/4 p-0.5">
+                <button
+                  className={`text-[10px] px-2 py-1 rounded font-medium transition-all ${
+                    isLocal
+                      ? 'bg-white/15 text-text-primary shadow-sm'
+                      : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
+                  }`}
+                  onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.local })}
+                  title="Show current scene view"
+                >
+                  Local
+                </button>
+                <button
+                  className={`text-[10px] px-2 py-1 rounded font-medium transition-all ${
+                    !isLocal
+                      ? 'bg-white/15 text-text-primary shadow-sm'
+                      : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
+                  }`}
+                  onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.global })}
+                  title="Show full narrative view"
+                >
+                  Global
+                </button>
+              </div>
+            )}
+
+            {/* Graph domain tabs */}
+            <div className="flex items-center gap-0.5 rounded bg-white/4 p-0.5">
+              {GRAPH_DOMAINS.map(({ label, local, global: globalMode, Icon, description }) => {
+                const isActive = graphViewMode === local || graphViewMode === globalMode;
+                return (
+                  <button
+                    key={label}
+                    className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded font-medium transition-all ${
+                      isActive
+                        ? 'bg-white/15 text-text-primary shadow-sm'
+                        : 'text-text-dim hover:text-text-secondary hover:bg-white/5'
+                    }`}
+                    onClick={() => dispatch({
+                      type: 'SET_GRAPH_VIEW_MODE',
+                      mode: isActive ? (graphViewMode === local ? globalMode : local) : local,
+                    })}
+                    title={description}
+                  >
+                    <Icon size={12} />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
         <div className="flex items-center rounded bg-white/4 border border-white/10 overflow-hidden">
           {[
             { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', description: 'Interactive knowledge graph' },

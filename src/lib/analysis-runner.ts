@@ -73,7 +73,7 @@ class AnalysisRunner {
     logInfo('Starting analysis job', { source: 'analysis', operation: 'start-job', details: { jobId: job.id, title: job.title, chunkCount: job.chunks.length } });
 
     try {
-      dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running', phase: 'plans' } });
+      dispatch({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'running', phase: 'structure' } });
       await this.runPipeline(job, entry, dispatch);
     } catch (err) {
       logError('Analysis job failed', err, { source: 'analysis', operation: 'analysis-job', details: { jobId: job.id, title: job.title } });
@@ -232,33 +232,6 @@ class AnalysisRunner {
             scene.plan = plan;
             scene.beatProseMap = beatProseMap ?? undefined;
           }
-
-          // Dispatch immediately so the UI shows the tick before embedding starts
-          d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
-
-          // Embed propositions immediately after plan extraction
-          try {
-            const { embedPropositions, computeCentroid } = await import('@/lib/embeddings');
-            const { assetManager } = await import('@/lib/asset-manager');
-
-            const allProps = plan.beats.flatMap((beat, bi) => beat.propositions.map((p, pi) => ({ ...p, bi, pi })));
-            if (allProps.length > 0) {
-              const embedded = await embedPropositions(allProps.map(p => ({ content: p.content, type: p.type })), job.id);
-              allProps.forEach((p, i) => { plan.beats[p.bi].propositions[p.pi] = embedded[i]; });
-
-              // Beat centroids
-              for (const beat of plan.beats) {
-                const refs = beat.propositions.filter(p => p.embedding).map(p => p.embedding!);
-                if (refs.length > 0) {
-                  const vectors: number[][] = [];
-                  for (const ref of refs) { const v = await assetManager.getEmbedding(ref); if (v) vectors.push(v); }
-                  if (vectors.length > 0) beat.embeddingCentroid = await assetManager.storeEmbedding(computeCentroid(vectors), 'text-embedding-3-small');
-                }
-              }
-            }
-          } catch (embErr) {
-            logWarning('Embedding failed for scene plan (non-fatal)', embErr, { source: 'analysis', operation: 'plan-embed', details: { sceneIdx: idx } });
-          }
         } catch (err) {
           logWarning('Plan extraction failed for scene', err, { source: 'analysis', operation: 'plan-extraction', details: { jobId: job.id, sceneIdx: idx } });
         } finally {
@@ -266,6 +239,48 @@ class AnalysisRunner {
           this.emitPlanInFlight(job.id, [...entry.planInFlightKeys]);
         }
       }, 'Plans');
+
+      this.emitStream(job.id, `[OK] Plans extracted`);
+
+      // Embed propositions from all plans (batched after plan extraction for progressive UI)
+      this.emitStream(job.id, 'Embedding propositions...');
+      try {
+        const { embedPropositions, computeCentroid } = await import('@/lib/embeddings');
+        const { assetManager } = await import('@/lib/asset-manager');
+
+        const scenesWithPlans = results
+          .map((r, i) => ({ idx: i, scene: r?.scenes?.[0] }))
+          .filter((s): s is { idx: number; scene: NonNullable<typeof s.scene> } => !!s.scene?.plan);
+
+        for (let si = 0; si < scenesWithPlans.length; si++) {
+          const { scene } = scenesWithPlans[si];
+          const plan = scene.plan!;
+          const allProps = plan.beats.flatMap((beat, bi) => beat.propositions.map((p, pi) => ({ ...p, bi, pi })));
+          if (allProps.length === 0) continue;
+
+          try {
+            const embedded = await embedPropositions(allProps.map(p => ({ content: p.content, type: p.type })), job.id);
+            allProps.forEach((p, i) => { plan.beats[p.bi].propositions[p.pi] = embedded[i]; });
+
+            // Beat centroids
+            for (const beat of plan.beats) {
+              const refs = beat.propositions.filter(p => p.embedding).map(p => p.embedding!);
+              if (refs.length > 0) {
+                const vectors: number[][] = [];
+                for (const ref of refs) { const v = await assetManager.getEmbedding(ref); if (v) vectors.push(v); }
+                if (vectors.length > 0) beat.embeddingCentroid = await assetManager.storeEmbedding(computeCentroid(vectors), 'text-embedding-3-small');
+              }
+            }
+          } catch (embErr) {
+            logWarning('Proposition embedding failed for scene (non-fatal)', embErr, { source: 'analysis', operation: 'plan-embed', details: { sceneIdx: scenesWithPlans[si].idx } });
+          }
+
+          this.emitStream(job.id, `Embedding propositions: ${si + 1}/${scenesWithPlans.length}`);
+          if (entry.cancelled) break;
+        }
+      } catch (embErr) {
+        logWarning('Proposition embedding failed (non-fatal)', embErr, { source: 'analysis', operation: 'plan-embed' });
+      }
 
       // Generate summary + prose embeddings
       this.emitStream(job.id, 'Embedding summaries + prose...');

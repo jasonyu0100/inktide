@@ -121,7 +121,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
 
   // Build word map from completed results
   const wordNodes = useMemo(() => {
-    const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
+    const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null && !!r.chapterSummary);
     const map = new Map<string, WordNode>();
 
     completed.forEach((result, sceneIdx) => {
@@ -206,7 +206,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
     foreshadow: '#818cf8', resolve: '#a3e635',
   };
 
-  const completedScenes = liveJob.results.filter((r) => r !== null).length;
+  const completedScenes = liveJob.results.filter((r) => r !== null && !!r.chapterSummary).length;
   const totalScenes = liveJob.chunks.length;
   // Use explicit phase field for reliable phase detection
   const isPlanExtracting = liveJob.phase === 'plans';
@@ -216,7 +216,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const isFinalizing = liveJob.phase === 'finalization';
   const isAssembling = liveJob.phase === 'assembly';
 
-  const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null);
+  const completed = liveJob.results.filter((r): r is AnalysisChunkResult => r !== null && !!r.chapterSummary);
   const assembledNarrative = liveJob.narrativeId && state.activeNarrative?.id === liveJob.narrativeId
     ? state.activeNarrative
     : null;
@@ -449,8 +449,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     </p>
                     <div className="grid grid-cols-6 gap-2 pt-1">
                       {[
-                        { label: 'Plans', desc: 'Extract beats & propositions' },
                         { label: 'Structure', desc: 'Per-scene entity extraction' },
+                        { label: 'Plans', desc: 'Extract beats & propositions' },
                         { label: 'Arcs', desc: 'Group scenes & name arcs' },
                         { label: 'Reconcile', desc: 'Merge duplicates' },
                         { label: 'Finalize', desc: 'Thread dependencies' },
@@ -583,16 +583,16 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
             {/* Header */}
             <div className="px-3 py-2 flex items-center gap-2 border-b border-white/4 shrink-0">
-              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isStructuring ? 'bg-violet-400' : isPlanExtracting ? 'bg-indigo-400' : 'bg-white/20'} animate-pulse`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isReconciling ? 'bg-sky-400' : isFinalizing ? 'bg-purple-400' : isAssembling ? 'bg-amber-400' : isStructuring ? 'bg-emerald-400' : isPlanExtracting ? 'bg-indigo-400' : 'bg-white/20'} animate-pulse`} />
               <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">
                 {isReconciling ? 'Reconciliation' : isFinalizing ? 'Finalization' : isAssembling ? 'Assembly' : isArcing ? 'Arcs' : isStructuring ? 'Structure' : isPlanExtracting ? 'Plans' : 'Idle'}
               </span>
-              <span className="text-[9px] font-mono ml-auto" style={{ color: isPlanExtracting ? 'rgb(129 140 248 / 0.4)' : isStructuring ? 'rgb(167 139 250 / 0.4)' : 'rgb(255 255 255 / 0.1)' }}>
+              <span className="text-[9px] font-mono ml-auto" style={{ color: isPlanExtracting ? 'rgb(129 140 248 / 0.4)' : isStructuring ? 'rgb(52 211 153 / 0.4)' : 'rgb(255 255 255 / 0.1)' }}>
                 {isPlanExtracting ? `${beatStats.planCount} / ${totalScenes}` : isStructuring ? `${completedScenes} / ${totalScenes}` : ''}
               </span>
             </div>
 
-            {/* Plans phase — mirrors extraction layout exactly */}
+            {/* Plans phase — plan stream tabs + scene grid */}
             {isPlanExtracting ? (
               <div className="flex-1 flex flex-col min-h-0">
                 {/* In-flight scene tabs */}
@@ -678,7 +678,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 )}
               </div>
             ) : isStructuring ? (
-              /* Structure phase: chunk stream tabs + stream viewer */
+              /* Structure phase: chunk stream tabs + chunk grid */
               <div className="flex-1 flex flex-col min-h-0">
                 {/* In-flight chunk tabs */}
                 {inFlightIndices.length > 0 && (
@@ -689,7 +689,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                         onClick={() => setViewingChunkStream(idx)}
                         className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-mono transition shrink-0 ${
                           viewingSceneStream === idx
-                            ? 'bg-violet-400/15 text-violet-400/70 ring-1 ring-violet-400/20'
+                            ? 'bg-emerald-400/15 text-emerald-400/70 ring-1 ring-emerald-400/20'
                             : 'bg-white/3 text-white/25 hover:text-white/40'
                         }`}
                       >
@@ -711,7 +711,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                         <IconChevronLeft size={10} />
                         back
                       </button>
-                      <span className="text-[9px] text-violet-400/30 font-mono">scene {viewingSceneStream + 1}</span>
+                      <span className="text-[9px] text-emerald-400/30 font-mono">scene {viewingSceneStream + 1}</span>
                     </div>
                     <pre
                       ref={streamRef}
@@ -739,19 +739,17 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                               else if (done) setSelectedChunk(isSelected ? null : i);
                             }}
                             className={`flex items-center gap-2 px-2 py-1.5 rounded text-[10px] font-mono transition-all ${
-                              isSelected ? 'bg-violet-500/15 ring-1 ring-violet-400/25 cursor-pointer' : done ? 'bg-violet-500/8 cursor-pointer hover:bg-violet-500/12' : isInFlight ? 'bg-violet-400/8 cursor-pointer hover:bg-violet-400/12' : hasPlan ? 'bg-white/3' : 'bg-white/2'
+                              isSelected ? 'bg-emerald-500/15 ring-1 ring-emerald-400/25 cursor-pointer' : done ? 'bg-emerald-500/8 cursor-pointer hover:bg-emerald-500/12' : isInFlight ? 'bg-emerald-400/8 cursor-pointer hover:bg-emerald-400/12' : 'bg-white/2'
                             }`}
                           >
                             {isInFlight ? (
-                              <IconSpinner size={12} className="text-violet-400/50 animate-spin shrink-0" />
+                              <IconSpinner size={12} className="text-emerald-400/50 animate-spin shrink-0" />
                             ) : done ? (
-                              <IconCheck size={12} className="text-violet-400/50 shrink-0" />
-                            ) : hasPlan ? (
-                              <div className="w-3 h-3 rounded-full border border-indigo-400/20 bg-indigo-400/5 shrink-0" />
+                              <IconCheck size={12} className="text-emerald-400/50 shrink-0" />
                             ) : (
                               <div className="w-3 h-3 rounded-full border border-white/8 shrink-0" />
                             )}
-                            <span className={done ? 'text-violet-400/40' : isInFlight ? 'text-violet-400/40' : hasPlan ? 'text-white/15' : 'text-white/10'}>
+                            <span className={done ? 'text-emerald-400/40' : isInFlight ? 'text-emerald-400/40' : 'text-white/10'}>
                               {i + 1}
                             </span>
                             {done && result && (
@@ -1051,8 +1049,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         {isRunning && (
           <div className="flex items-center gap-3 mb-2.5">
             {[
-              { label: 'Plans', active: isPlanExtracting, done: isStructuring || isArcing || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-change' },
-              { label: 'Structure', active: isStructuring, done: isArcing || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
+              { label: 'Structure', active: isStructuring, done: isPlanExtracting || isArcing || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-emerald-400' },
+              { label: 'Plans', active: isPlanExtracting, done: isArcing || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
               { label: 'Arcs', active: isArcing, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-violet-400' },
               { label: 'Reconcile', active: isReconciling, done: isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
               { label: 'Finalize', active: isFinalizing, done: isAssembling || liveJob.status === 'completed', color: 'bg-purple-400' },
@@ -1074,17 +1072,15 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         )}
         <div className="flex items-center gap-4 mb-2">
           <div className="flex items-center gap-1.5">
+            <div className={`w-1 h-1 rounded-full ${isStructuring ? 'bg-emerald-400/70 animate-pulse' : completedScenes > 0 ? 'bg-emerald-400/40' : 'bg-white/15'}`} />
+            <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Structure</span>
+            <span className="text-[9px] text-emerald-400/30 font-mono">{completedScenes} / {totalScenes}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <div className={`w-1 h-1 rounded-full ${isPlanExtracting ? 'bg-indigo-400/70 animate-pulse' : beatStats.planCount > 0 ? 'bg-indigo-400/40' : 'bg-white/15'}`} />
             <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Plans</span>
             <span className="text-[9px] text-indigo-400/30 font-mono">{beatStats.planCount} / {totalScenes}</span>
           </div>
-          {completedScenes > 0 && (
-            <div className="flex items-center gap-1.5">
-              <div className={`w-1 h-1 rounded-full ${isStructuring ? 'bg-violet-400/70 animate-pulse' : 'bg-violet-400/40'}`} />
-              <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Structure</span>
-              <span className="text-[9px] text-violet-400/30 font-mono">{charCount > 0 ? completedScenes : 0} / {totalScenes}</span>
-            </div>
-          )}
         </div>
         <div className="overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
           {isPlanExtracting ? (
@@ -1341,7 +1337,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         chunks,
         results: new Array(chunks.length).fill(null),
         status: 'running', // Start as 'running' so JobDetail shows correct state immediately
-        phase: 'plans',
+        phase: 'structure',
         currentChunkIndex: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),

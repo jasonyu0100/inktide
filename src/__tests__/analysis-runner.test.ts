@@ -186,7 +186,6 @@ describe('AnalysisRunner — Full Pipeline', () => {
     const first = dispatched[0];
     expect(first.type).toBe('UPDATE_ANALYSIS_JOB');
     expect(first.updates.status).toBe('running');
-    expect(first.updates.phase).toBe('plans');
   });
 
   it('sets narrativeId on completion', async () => {
@@ -322,15 +321,14 @@ describe('AnalysisRunner — Phase 2: Structure', () => {
     expect(assembleNarrative).toHaveBeenCalledTimes(1);
   });
 
-  it('skips structure for scenes without plans', async () => {
-    // Plan extraction fails for all scenes
+  it('still attempts structure even when plans fail — uses prose alone', async () => {
     vi.mocked(reverseEngineerScenePlan).mockRejectedValue(new Error('All plans failed'));
 
     const job = createMockJob();
     await analysisRunner.start(job, () => {});
 
-    // No scenes have plans → no structure extraction
-    expect(extractSceneStructure).not.toHaveBeenCalled();
+    // Structure extraction is attempted (with prose, plan may be null)
+    expect(extractSceneStructure).toHaveBeenCalled();
   });
 });
 

@@ -1139,7 +1139,21 @@ INVALID: craft goals, pacing instructions, meta-commentary.
 
   // Split prose into fine-grained chunks (2x beats) so LLM can group naturally
   const targetChunks = estimatedBeats * 2;
-  const paragraphs = splitProseEvenly(prose, targetChunks);
+  const rawParagraphs = splitProseEvenly(prose, targetChunks);
+
+  // Merge decorative chunks (section breaks like "* * * *") into their neighbours
+  // to avoid wasting indices on whitespace-only content
+  const paragraphs: string[] = [];
+  for (const p of rawParagraphs) {
+    const stripped = p.replace(/[\s*·•–—\-=_#~.]/g, '').trim();
+    if (stripped.length === 0 && paragraphs.length > 0) {
+      // Append decorative content to previous chunk
+      paragraphs[paragraphs.length - 1] += '\n\n' + p;
+    } else {
+      paragraphs.push(p);
+    }
+  }
+
   const numberedProse = paragraphs.map((p, i) => `[${i}] ${p}`).join('\n\n');
 
   const lastIndex = paragraphs.length - 1;
@@ -1351,8 +1365,11 @@ function tryBuildFromRanges(
   }
 
   // Detect duplicate prose chunks (critical: prevents alignment errors)
+  // Skip decorative content (section breaks like "* * * *") — these are legitimately repeated
   const proseSet = new Set<string>();
   for (let i = 0; i < chunks.length; i++) {
+    const normalized = chunks[i].prose.replace(/[\s*·•–—\-=_#~.]/g, '').trim();
+    if (normalized.length === 0) continue; // purely decorative — skip duplicate check
     if (proseSet.has(chunks[i].prose)) {
       console.log(`[tryBuildFromRanges] FAIL: duplicate prose — beat ${i} has identical prose to a previous beat:\n${chunks[i].prose}`);
       logWarning(

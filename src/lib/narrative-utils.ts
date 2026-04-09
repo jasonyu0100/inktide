@@ -1317,7 +1317,7 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Originally calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
  *  Change reference raised to 4 for harsher grading — requires richer continuity mutations per scene. */
-export const FORCE_REFERENCE_MEANS = { payoff: 1.3, change: 4, knowledge: 3.5 } as const;
+export const FORCE_REFERENCE_MEANS = { payoff: 1.5, change: 4, knowledge: 4 } as const;
 
 /** Grade a mean-normalized force value 0→25: g(x̃) = 25(1 - e^{-2x̃}).
  *  x̃ = x̄ / μ_ref. At x̃ = 1 (matching reference), grade ≈ 22/25 (86%). */

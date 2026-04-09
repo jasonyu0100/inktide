@@ -1532,7 +1532,7 @@ export default function PaperPage() {
             </P>
             <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
-                { force: "Payoff", value: "1.3", color: "#EF4444" },
+                { force: "Payoff", value: "1.5", color: "#EF4444" },
                 { force: "Change", value: "4", color: "#22C55E" },
                 { force: "Knowledge", value: "3.5", color: "#3B82F6" },
               ].map(({ force, value, color }) => (

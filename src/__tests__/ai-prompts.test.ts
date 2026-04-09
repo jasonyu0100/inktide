@@ -80,7 +80,7 @@ function createThread(id: string, description: string, status: string = 'dormant
 describe('Static Prompt Constants', () => {
   describe('PROMPT_FORCE_STANDARDS', () => {
     it('contains payoff reference mean', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('P ~1.3');
+      expect(PROMPT_FORCE_STANDARDS).toContain('P ~1.5');
     });
 
     it('contains change reference mean', () => {
@@ -88,7 +88,7 @@ describe('Static Prompt Constants', () => {
     });
 
     it('contains knowledge reference mean', () => {
-      expect(PROMPT_FORCE_STANDARDS).toContain('K ~3.5');
+      expect(PROMPT_FORCE_STANDARDS).toContain('K ~4');
     });
 
     it('mentions exponential grading', () => {

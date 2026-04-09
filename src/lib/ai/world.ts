@@ -294,7 +294,7 @@ const EXPANSION_STRATEGY_PROMPTS: Record<WorldExpansionStrategy, string> = {
 - Add sub-locations WITHIN existing locations (rooms inside buildings, districts inside cities, hidden areas within known places)
 - Add characters who are ALREADY embedded in existing social structures (subordinates, rivals, mentors, family members of existing characters)
 - Add threads that complicate EXISTING tensions rather than introducing new ones
-- Add structural knowledge per entity (2-3 per character, 2-3 per location) — defining traits, hidden agendas, structural weaknesses
+- Add rich knowledge per entity (3-4 per character, 2-3 per location) — secrets, hidden agendas, structural weaknesses, unexploited resources
 - Add artifacts that are locally relevant — tools, keys, resources that matter in the current sandbox
 - Focus world knowledge on the mechanics, economics, and power dynamics of the CURRENT setting
 The goal is to make the existing world feel richer, not bigger. One constrained sandbox with more detail beats a sprawling map.`,
@@ -531,7 +531,7 @@ INTEGRATION RULES (most important):
 - Include varied relationship valences: allies, rivals, mentors, debtors, enemies, kin. At least one relationship should have tension (negative or ambivalent valence).
 - EVERY new location SHOULD have a parentId referencing an existing location — build a deeper hierarchy. Only use null for truly independent top-level regions. If the world has cities, nest new locations inside them. If it has regions, place new settlements within them.
 - Thread participants MUST include at least one existing character or location — threads that only reference new entities won't integrate.
-- Artifacts MUST have a parentId referencing a character or location. A character can possess an artifact from the start (a king's crown, a warrior's blade). Artifacts at locations are discoverable — visiting that place can trigger acquisition. Transferring an artifact to a DIFFERENT character must happen in a scene via ownershipMutation — that's the earned moment. Key artifacts should have 2-3 continuity nodes (what it does, its defining property, its limitation). Only create artifacts when they would meaningfully alter what characters can do. Not every expansion needs artifacts.
+- Artifacts MUST have a parentId referencing a character or location. A character can possess an artifact from the start (a king's crown, a warrior's blade). Artifacts at locations are discoverable — visiting that place can trigger acquisition. Transferring an artifact to a DIFFERENT character must happen in a scene via ownershipMutation — that's the earned moment. Key artifacts should have 3-4 continuity nodes (what it is, what it does, its history or origin, its limitation or cost). Only create artifacts when they would meaningfully alter what characters can do. Not every expansion needs artifacts.
 
 NAMING:
 - All new names must match the cultural palette and naming conventions already established in the world. Study the existing character and location names and produce names from the same linguistic roots.
@@ -542,7 +542,7 @@ CONTENT RULES:
 - Characters should have meaningful knowledge (3-5 nodes). Give each character SECRETS or unique knowledge that only they possess — knowledge asymmetries drive narrative tension. Include at least one hidden or dangerous piece of knowledge per character.
 - Knowledge node types should be SPECIFIC and CONTEXTUAL — not generic labels. Examples: "cultivation_technique", "blood_pact", "hidden_treasury", "ancient_prophecy", "political_alliance", "forbidden_memory", "territorial_claim", "ancestral_grudge". Pick types that fit the narrative world.
 - New locations should CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.
-- Location knowledge should describe the structural features that shape what happens there (1-2 nodes per location — a defining trait and a constraint or resource)
+- Location knowledge should establish what makes each place narratively distinct (2-3 nodes per location — its defining atmosphere, a constraint or danger, and a resource or opportunity it offers)
 - Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
 - ALL new threads MUST have status "dormant" — they are seeds for future arcs, not active storylines yet
 - Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)
@@ -560,7 +560,7 @@ worldKnowledgeMutations define the FOUNDATIONAL abstractions this expansion esta
 - Use "principle" for fundamental truths, "system" for mechanisms/institutions, "concept" for abstract ideas, "tension" for contradictions, "event" for world-level occurrences, "structure" for organizations/factions, "environment" for geography/climate, "convention" for customs/norms, "constraint" for scarcities/limitations.
 - Node IDs should be WK-GEN-001, WK-GEN-002, etc. (they will be re-mapped to real IDs).
 - Edges can reference both new WK-GEN-* IDs and existing world knowledge IDs already in the narrative.
-- Generate 2-4 world knowledge nodes depending on expansion size, with edges connecting related concepts. Each must be a genuine structural rule or system, not a description.
+- Generate 3-6 world knowledge nodes depending on expansion size, with edges connecting related concepts. Each must be a genuine structural rule or system that the new entities operate within.
 - Focus on the structural WHY behind the expansion — what abstract rules, power structures, or tensions make these new entities meaningful?`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
@@ -730,19 +730,19 @@ Return JSON with this exact structure:
   "planGuidance": "2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? EXAMPLE: 'Prioritise action and dialogue beats over narration. System mechanics revealed through usage, never expository narration beats. Internal monologue should be tactical and clipped. Plans should never include a beat whose purpose is to explain a concept that was already demonstrated in a prior beat.'"
 }
 
-HARD MINIMUMS — the world MUST contain at least these counts. Generating fewer is a failure:
-- EXACTLY 18 characters: 3 anchors + 5 recurring + 10 transient
-- EXACTLY 20 locations with parent/child hierarchy (at least 3 nesting levels)
-- EXACTLY 6 threads — 2 short-term (resolve within 1-2 arcs), 2 medium-term (3-5 arcs), 2 long-term (story-spanning). Threads are fate — they force entities into action. At least 3 must share participants. Participants can be characters, locations, or artifacts.
-- EXACTLY 20 relationships (asymmetric, at least 3 hostile)
-- EXACTLY 3 artifacts (at least 1 key, 1 notable, 1 minor)
-- EXACTLY 5 world knowledge nodes with 4 edges — the foundational rules/systems the world operates by${worldOnly ? '' : `
-- EXACTLY 8 scenes in 1 arc`}
+PILOT EPISODE — establish a tight, focused world. These are minimums; exceed when the premise warrants it:
+- AT LEAST 8 characters: 2+ anchors, 3+ recurring, 3+ transient
+- AT LEAST 6 locations with parent/child hierarchy (at least 2 nesting levels)
+- AT LEAST 4 threads — 1+ short-term, 1+ medium-term, 2+ long-term. Threads force entities into action. At least 2 must share participants.
+- AT LEAST 8 relationships (at least 1 hostile)
+- AT LEAST 1 artifact when the premise involves tools or objects of power
+- AT LEAST 5 world knowledge nodes with 3 edges — the systems and rules the world runs on${worldOnly ? '' : `
+- AT LEAST 8 scenes in 1 arc`}
 
-CHARACTER DEPTH BY ROLE — structural foundations only, not biographies:
-- Anchors (3): 3-4 continuity nodes each — the defining structural traits that drive their arc. One goal, one belief, one weakness or secret. Connect with edges (goal motivated_by belief, weakness caused_by history). Quality over quantity.
-- Recurring (5): 2-3 continuity nodes each — their role in the story, their relationship to anchors, one hidden dimension.
-- Transient (10): 1 continuity node each — their function. A trait or a state is enough.
+CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters:
+- Anchors: 4-5 continuity nodes each — a defining trait, a goal, a belief, a weakness or secret, and a capability. Connect with edges.
+- Recurring: 2-3 continuity nodes each — their role, relationship to an anchor, one hidden dimension.
+- Transient: 1 continuity node each — their function.
 
 SEED DATA vs. BARE PREMISE:
 The premise may include user-provided characters, locations, threads, rules, and systems. Handle both cases:

@@ -1133,26 +1133,20 @@ INVALID: craft goals, pacing instructions, meta-commentary.
 
 - Return ONLY valid JSON.`;
 
+  // Strip decorative content (section breaks like "* * * *", chapter dividers)
+  // before splitting — they carry no narrative information and waste chunk indices
+  const cleanedProse = prose
+    .split(/\n\s*\n/)
+    .filter(p => p.replace(/[\s*·•–—\-=_#~.]/g, '').trim().length > 0)
+    .join('\n\n');
+
   // Estimate target beats based on word count and standard beat size
-  const wordCount = prose.split(/\s+/).length;
+  const wordCount = cleanedProse.split(/\s+/).length;
   const estimatedBeats = Math.max(Math.round(wordCount / WORDS_PER_BEAT), 3);
 
   // Split prose into fine-grained chunks (2x beats) so LLM can group naturally
   const targetChunks = estimatedBeats * 2;
-  const rawParagraphs = splitProseEvenly(prose, targetChunks);
-
-  // Merge decorative chunks (section breaks like "* * * *") into their neighbours
-  // to avoid wasting indices on whitespace-only content
-  const paragraphs: string[] = [];
-  for (const p of rawParagraphs) {
-    const stripped = p.replace(/[\s*·•–—\-=_#~.]/g, '').trim();
-    if (stripped.length === 0 && paragraphs.length > 0) {
-      // Append decorative content to previous chunk
-      paragraphs[paragraphs.length - 1] += '\n\n' + p;
-    } else {
-      paragraphs.push(p);
-    }
-  }
+  const paragraphs = splitProseEvenly(cleanedProse, targetChunks);
 
   const numberedProse = paragraphs.map((p, i) => `[${i}] ${p}`).join('\n\n');
 
@@ -1214,15 +1208,7 @@ CRITICAL CONSTRAINTS - INDEXING:
   const beatProseMap = buildBeatProseMap(paragraphs, beatsWithRanges);
 
   if (!beatProseMap) {
-    console.log(`\n${'='.repeat(80)}\n[reverseEngineerScenePlan] FAILED PROSE MAP — ${summary}\n${'='.repeat(80)}`);
-    console.log(`\n── PROMPT ──\n${prompt}`);
-    console.log(`\n── RAW LLM RESPONSE ──\n${raw}`);
-    console.log(`\n── PARSED BEATS (${beatsWithRanges.length} beats, ${paragraphs.length} paragraphs, valid indices 0–${paragraphs.length - 1}) ──`);
-    console.log(JSON.stringify((parsed.beats ?? []).map((b: unknown) => {
-      const d = b as BeatData;
-      return { fn: d.fn, mechanism: d.mechanism, startPara: d.startPara, endPara: d.endPara, what: d.what };
-    }), null, 2));
-    console.log(`${'='.repeat(80)}\n`);
+    console.log(`[beatProseMap] FAIL "${summary}" — ${beatsWithRanges.length} beats, ${paragraphs.length} chunks (0–${paragraphs.length - 1})`, beatsWithRanges.map((b, i) => ({ i, start: b.startPara, end: b.endPara, fn: b.beat.fn })));
   }
 
   return { plan, beatProseMap };
@@ -1261,11 +1247,10 @@ function tryBuildFromRanges(
   let lastEndPara = -1;
 
   for (let i = 0; i < beatsWithRanges.length; i++) {
-    const { startPara, endPara } = beatsWithRanges[i];
+    let { startPara, endPara } = beatsWithRanges[i];
 
     // Check if ranges exist
     if (typeof startPara !== 'number' || typeof endPara !== 'number') {
-      console.log(`[tryBuildFromRanges] FAIL beat ${i}/${beatsWithRanges.length}: missing range — startPara=${JSON.stringify(startPara)} endPara=${JSON.stringify(endPara)}`);
       logWarning(
         'Beat extraction validation failed: missing paragraph range',
         `Beat ${i} has undefined startPara or endPara`,
@@ -1278,9 +1263,13 @@ function tryBuildFromRanges(
       return null;
     }
 
+    // Auto-fix systematic off-by-one overlap (startPara === lastEndPara)
+    if (startPara === lastEndPara && startPara < endPara) {
+      startPara = lastEndPara + 1;
+    }
+
     // Validate sequential (no gaps or overlaps)
     if (startPara !== lastEndPara + 1) {
-      console.log(`[tryBuildFromRanges] FAIL beat ${i}/${beatsWithRanges.length}: non-sequential — range [${startPara}, ${endPara}], expected startPara=${lastEndPara + 1} (last endPara was ${lastEndPara})`);
       logWarning(
         'Beat extraction validation failed: non-sequential ranges',
         `Beat ${i} range [${startPara}, ${endPara}] not sequential (last ended at ${lastEndPara})`,
@@ -1295,7 +1284,6 @@ function tryBuildFromRanges(
 
     // Validate bounds
     if (startPara < 0 || endPara >= paragraphs.length || startPara > endPara) {
-      console.log(`[tryBuildFromRanges] FAIL beat ${i}/${beatsWithRanges.length}: out of bounds — range [${startPara}, ${endPara}], valid=[0, ${paragraphs.length - 1}]`);
       logWarning(
         'Beat extraction validation failed: out of bounds range',
         `Beat ${i} has invalid range [${startPara}, ${endPara}] (paragraphs: ${paragraphs.length})`,
@@ -1351,7 +1339,6 @@ function tryBuildFromRanges(
 
   // Verify full coverage (all paragraphs assigned)
   if (lastEndPara !== paragraphs.length - 1) {
-    console.log(`[tryBuildFromRanges] FAIL: incomplete coverage — last endPara=${lastEndPara}, expected ${paragraphs.length - 1} (${paragraphs.length} paragraphs)`);
     logWarning(
       'Beat extraction validation failed: incomplete coverage',
       `Beats only cover paragraphs 0-${lastEndPara}, but prose has ${paragraphs.length} paragraphs`,
@@ -1362,28 +1349,6 @@ function tryBuildFromRanges(
       }
     );
     return null;
-  }
-
-  // Detect duplicate prose chunks (critical: prevents alignment errors)
-  // Skip decorative content (section breaks like "* * * *") — these are legitimately repeated
-  const proseSet = new Set<string>();
-  for (let i = 0; i < chunks.length; i++) {
-    const normalized = chunks[i].prose.replace(/[\s*·•–—\-=_#~.]/g, '').trim();
-    if (normalized.length === 0) continue; // purely decorative — skip duplicate check
-    if (proseSet.has(chunks[i].prose)) {
-      console.log(`[tryBuildFromRanges] FAIL: duplicate prose — beat ${i} has identical prose to a previous beat:\n${chunks[i].prose}`);
-      logWarning(
-        'Beat extraction validation failed: duplicate prose detected',
-        `Beat ${i} has identical prose to a previous beat`,
-        {
-          source: 'analysis',
-          operation: 'beat-range-validation',
-          details: { beatIndex: i, totalBeats: chunks.length, prose: chunks[i].prose },
-        }
-      );
-      return null;
-    }
-    proseSet.add(chunks[i].prose);
   }
 
   return chunks;

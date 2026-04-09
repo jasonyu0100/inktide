@@ -24,11 +24,11 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const { state, dispatch } = useStore();
   const streamRef = useRef<HTMLPreElement>(null);
   const [streamText, setStreamText] = useState(() => analysisRunner.getStreamText(job.id));
-  const [selectedScene, setSelectedChunk] = useState<number | null>(null);
-  const [scenePanelHeight, setChunkPanelHeight] = useState(35);
+  const [selectedScene, setSelectedScene] = useState<number | null>(null);
+  const [scenePanelHeight, setScenePanelHeight] = useState(35);
   const [inFlightIndices, setInFlightIndices] = useState<number[]>(() => analysisRunner.getInFlightIndices(job.id));
-  const [sceneStreamTexts, setChunkStreamTexts] = useState<Map<number, string>>(new Map());
-  const [viewingSceneStream, setViewingChunkStream] = useState<number | null>(null);
+  const [sceneStreamTexts, setSceneStreamTexts] = useState<Map<number, string>>(new Map());
+  const [viewingSceneStream, setViewingSceneStream] = useState<number | null>(null);
   const [assembling, setAssembling] = useState(false);
   const [selectedPlanKey, setSelectedPlanKey] = useState<string | null>(null);
   const [planInFlightKeys, setPlanInFlightKeys] = useState<string[]>(() => analysisRunner.getPlanInFlightKeys(job.id));
@@ -76,11 +76,11 @@ function JobDetail({ job }: { job: AnalysisJob }) {
     });
   }, [job.id]);
 
-  // Subscribe to per-chunk stream text
+  // Subscribe to per-scene stream text
   useEffect(() => {
     return analysisRunner.onChunkStream((id, sceneIndex, text) => {
       if (id === job.id) {
-        setChunkStreamTexts((prev) => {
+        setSceneStreamTexts((prev) => {
           const next = new Map(prev);
           next.set(sceneIndex, text);
           return next;
@@ -238,7 +238,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         for (const b of plan.beats) fnCounts[b.fn] = (fnCounts[b.fn] ?? 0) + 1;
       }
     } else {
-      // Fall back to chunk results (mid-run or pre-assembly)
+      // Fall back to scene results (mid-run or pre-assembly)
       for (const r of completed) {
         for (const s of r.scenes ?? []) {
           if (!s.plan) continue;
@@ -260,11 +260,11 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const knowledgeCount = new Set(completed.flatMap((r) => (r.scenes ?? []).flatMap((s) => (s.worldKnowledgeMutations?.addedNodes ?? []).map((n) => n.concept)))).size;
   const artifactCount = new Set(completed.flatMap((r) => (r.artifacts ?? []).map((a) => a.name))).size;
 
-  // Current chunk stream text for viewing
-  const activeChunkStream = viewingSceneStream !== null ? (sceneStreamTexts.get(viewingSceneStream) ?? '') : '';
+  // Current scene stream text for viewing
+  const activeSceneStream = viewingSceneStream !== null ? (sceneStreamTexts.get(viewingSceneStream) ?? '') : '';
 
   // All scenes extracted so far (for Plans phase display)
-  // Build from all chunks — shows completed, in-flight, and pending scenes
+  // Build from all scenes — shows completed, in-flight, and pending
   const allSceneSlots = useMemo(() =>
     liveJob.chunks.map((_, chunkIdx) => {
       const r = liveJob.results[chunkIdx];
@@ -578,7 +578,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           )}
         </div>
 
-        {/* Right column — chunk stream viewer during extraction, job stream during reconciliation/assembly */}
+        {/* Right column — scene stream viewer during extraction, job stream during reconciliation/assembly */}
         {(isRunning || streamText) && (
           <div className="w-80 shrink-0 border-l border-white/6 bg-black/40 flex flex-col min-h-0">
             {/* Header */}
@@ -678,15 +678,15 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 )}
               </div>
             ) : isStructuring ? (
-              /* Structure phase: chunk stream tabs + chunk grid */
+              /* Structure phase: scene stream tabs + scene grid */
               <div className="flex-1 flex flex-col min-h-0">
-                {/* In-flight chunk tabs */}
+                {/* In-flight scene tabs */}
                 {inFlightIndices.length > 0 && (
                   <div className="shrink-0 px-2 py-1.5 border-b border-white/4 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
                     {inFlightIndices.map((idx) => (
                       <button
                         key={idx}
-                        onClick={() => setViewingChunkStream(idx)}
+                        onClick={() => setViewingSceneStream(idx)}
                         className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-mono transition shrink-0 ${
                           viewingSceneStream === idx
                             ? 'bg-emerald-400/15 text-emerald-400/70 ring-1 ring-emerald-400/20'
@@ -700,12 +700,12 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   </div>
                 )}
 
-                {/* Stream output for selected chunk */}
-                {viewingSceneStream !== null && activeChunkStream ? (
+                {/* Stream output for selected scene */}
+                {viewingSceneStream !== null && activeSceneStream ? (
                   <div className="flex-1 flex flex-col min-h-0">
                     <div className="shrink-0 px-2 py-1 border-b border-white/4 flex items-center gap-2">
                       <button
-                        onClick={() => setViewingChunkStream(null)}
+                        onClick={() => setViewingSceneStream(null)}
                         className="text-[10px] text-white/25 hover:text-white/50 font-mono transition flex items-center gap-1"
                       >
                         <IconChevronLeft size={10} />
@@ -718,11 +718,11 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
                       style={{ scrollbarWidth: 'thin' }}
                     >
-                      {activeChunkStream}
+                      {activeSceneStream}
                     </pre>
                   </div>
                 ) : (
-                  /* Grid of all chunks */
+                  /* Grid of all scenes */
                   <div className="flex-1 overflow-y-auto px-3 py-3" style={{ scrollbarWidth: 'thin' }}>
                     <div className="grid grid-cols-2 gap-1.5">
                       {liveJob.chunks.map((_, i) => {
@@ -735,8 +735,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                           <div
                             key={i}
                             onClick={() => {
-                              if (isInFlight) setViewingChunkStream(i);
-                              else if (done) setSelectedChunk(isSelected ? null : i);
+                              if (isInFlight) setViewingSceneStream(i);
+                              else if (done) setSelectedScene(isSelected ? null : i);
                             }}
                             className={`flex items-center gap-2 px-2 py-1.5 rounded text-[10px] font-mono transition-all ${
                               isSelected ? 'bg-emerald-500/15 ring-1 ring-emerald-400/25 cursor-pointer' : done ? 'bg-emerald-500/8 cursor-pointer hover:bg-emerald-500/12' : isInFlight ? 'bg-emerald-400/8 cursor-pointer hover:bg-emerald-400/12' : 'bg-white/2'
@@ -793,7 +793,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 const startH = scenePanelHeight;
                 const onMove = (ev: MouseEvent) => {
                   const delta = startY - ev.clientY;
-                  setChunkPanelHeight(Math.max(15, Math.min(80, startH + (delta / window.innerHeight) * 100)));
+                  setScenePanelHeight(Math.max(15, Math.min(80, startH + (delta / window.innerHeight) * 100)));
                 };
                 const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
                 window.addEventListener('mousemove', onMove);
@@ -805,8 +805,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
             <div className="flex-1 overflow-y-auto px-6 pb-4" style={{ scrollbarWidth: 'thin' }}>
               <div className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-text-primary">{scene.povName}</span>
+                  <span className="text-sm font-semibold text-text-primary">Scene {parseInt(selectedPlanKey!) + 1}</span>
                   <span className="text-[10px] text-indigo-400/50 font-mono">{beats.length} beats</span>
+                  {scene.povName && <span className="text-[10px] text-text-dim">{scene.povName}</span>}
                 </div>
                 <button onClick={() => setSelectedPlanKey(null)} className="text-xs text-text-dim hover:text-text-secondary transition px-2 py-1 rounded hover:bg-white/5">&times;</button>
               </div>
@@ -895,7 +896,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         );
       })()}
 
-      {/* ── Chunk detail panel — resizable ── */}
+      {/* ── Scene detail panel — resizable ── */}
       {selectedScene !== null && !isPlanExtracting && (() => {
         const result = liveJob.results[selectedScene] as AnalysisChunkResult | null;
         if (!result) return null;
@@ -913,7 +914,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 const startH = scenePanelHeight;
                 const onMove = (ev: MouseEvent) => {
                   const delta = startY - ev.clientY;
-                  setChunkPanelHeight(Math.max(15, Math.min(80, startH + (delta / window.innerHeight) * 100)));
+                  setScenePanelHeight(Math.max(15, Math.min(80, startH + (delta / window.innerHeight) * 100)));
                 };
                 const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
                 window.addEventListener('mousemove', onMove);
@@ -928,7 +929,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               {/* Header */}
               <div className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-text-primary">Chunk {selectedScene + 1}</span>
+                  <span className="text-sm font-semibold text-text-primary">Scene {selectedScene + 1}</span>
                   <div className="flex items-center gap-2 text-[10px] text-text-dim">
                     <span>{result.characters?.length ?? 0} chars</span>
                     <span className="text-white/10">·</span>
@@ -943,7 +944,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     </>}
                   </div>
                 </div>
-                <button onClick={() => setSelectedChunk(null)} className="text-xs text-text-dim hover:text-text-secondary transition px-2 py-1 rounded hover:bg-white/5">&times;</button>
+                <button onClick={() => setSelectedScene(null)} className="text-xs text-text-dim hover:text-text-secondary transition px-2 py-1 rounded hover:bg-white/5">&times;</button>
               </div>
 
               {/* Summary */}
@@ -1034,7 +1035,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       )}
                     </div>
                   ) : (
-                    <p className="text-[10px] text-text-dim italic">No world knowledge in this chunk</p>
+                    <p className="text-[10px] text-text-dim italic">No world knowledge in this scene</p>
                   )}
                 </div>
               </div>
@@ -1043,7 +1044,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         );
       })()}
 
-      {/* ── Bottom: Phase indicator + Chunk timeline — always visible ── */}
+      {/* ── Bottom: Phase indicator + Scene timeline — always visible ── */}
       <div className="shrink-0 border-t border-white/6 bg-black/25 px-6 py-3">
         {/* Phase progress bar */}
         {isRunning && (
@@ -1127,7 +1128,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
               })}
             </div>
           ) : (
-            /* Extract phase — chunk tiles */
+            /* Scene tiles */
             <div className="flex items-center gap-1">
               {liveJob.chunks.map((_, i) => {
                 const extracted = liveJob.results[i] !== null;
@@ -1143,8 +1144,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   <button
                     key={i}
                     onClick={() => {
-                      if (extracted) setSelectedChunk(isSelected ? null : i);
-                      else if (isInFlight) setViewingChunkStream(i);
+                      if (extracted) setSelectedScene(isSelected ? null : i);
+                      else if (isInFlight) setViewingSceneStream(i);
                     }}
                     disabled={!extracted && !isInFlight}
                     className={`relative w-10 min-w-10 h-10 rounded transition-all duration-300 group shrink-0 ${
@@ -1163,8 +1164,8 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                                   : 'bg-white/3'
                     } ${extracted || isInFlight ? 'cursor-pointer' : 'cursor-default'}`}
                     title={result
-                      ? `Chunk ${i + 1}: ${result.characters?.length ?? 0} chars, ${result.scenes?.length ?? 0} scenes${plannedCount > 0 ? `, ${plannedCount} plans` : ''}`
-                      : isInFlight ? `Chunk ${i + 1}: extracting...` : `Chunk ${i + 1}: pending`}
+                      ? `Scene ${i + 1}: ${result.characters?.length ?? 0} chars, ${result.scenes?.length ?? 0} scenes${plannedCount > 0 ? `, ${plannedCount} plans` : ''}`
+                      : isInFlight ? `Scene ${i + 1}: extracting...` : `Scene ${i + 1}: pending`}
                   >
                     {isInFlight ? (
                       <IconSpinner size={16} className="absolute inset-0 m-auto text-change/60 animate-spin" />

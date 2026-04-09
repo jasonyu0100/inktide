@@ -544,9 +544,9 @@ describe('gradeForce', () => {
 describe('gradeForces', () => {
   it('returns grades for each force and overall', () => {
     const grades = gradeForces(
-      [1.3, 1.3], // payoff at reference
+      [1.5, 1.5], // payoff at reference
       [4, 4],     // change at reference
-      [3.5, 3.5], // knowledge at reference
+      [4, 4],     // knowledge at reference
       [1, 1],     // swing
     );
 

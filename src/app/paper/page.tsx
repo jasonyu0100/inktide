@@ -544,9 +544,10 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              Structured text exhibits measurable regularities, yet existing
-              metrics fail to quantify the mechanisms that make writing work.
-              This paper introduces a framework that makes textual
+              Structured text exhibits measurable regularities — threads
+              that progress, worlds that deepen, rhythms that breathe — yet
+              no established framework captures these mechanisms as computable
+              quantities. This paper introduces a framework that makes textual
               structure <B>measurable, searchable, and generative</B>. We model
               long-form text as knowledge graphs mutating across three layers —
               thread lifecycle transitions, continuity shifts, and world
@@ -554,8 +555,8 @@ export default function PaperPage() {
               scoring, semantic embeddings, pacing rhythm extraction, world
               density grading, and dynamic contrast measurement.
               Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the
-              system autonomously identifies the Sorting Hat, troll confrontation,
-              and Quirrell climax as structural peaks — without human annotation.
+              system identifies the Sorting Hat, troll confrontation,
+              and Quirrell climax as structural peaks — recovering the dramatic shape that readers intuitively recognize.
               The model is validated on fiction; the structural primitives
               (threads, knowledge accumulation, continuity shifts) are
               domain-general. Early results on academic papers (Yann LeCun&apos;s <em>A Path Towards Autonomous Machine Intelligence</em>) confirm the structural primitives transfer to non-fiction.
@@ -577,19 +578,20 @@ export default function PaperPage() {
           {/* ── The Problem ───────────────────────────────────────────── */}
           <Section id="problem" label="The Problem">
             <P>
-              We lack the tools to answer a basic question: why does one text
-              compel while another meanders? Sentiment analysis measures tone;
-              topic models measure word distribution. Neither can tell you whether
-              threads are advancing or spinning in circles, whether knowledge is
-              accumulating or just being listed, whether depth is building or the
-              writing is just getting longer. Without structural metrics, we
-              can&apos;t diagnose these problems — and we can&apos;t search a text
-              for meaning across its full timeline.
+              Why does one text compel while another meanders? Existing
+              approaches measure useful properties — sentiment analysis captures
+              tone, topic models capture word distribution, readability metrics
+              capture surface complexity — but none operate at the level of
+              structural mechanics: whether threads are advancing or cycling,
+              whether knowledge is accumulating or merely being listed, whether
+              depth is building or the writing is simply getting longer. These
+              structural questions remain largely unmeasured — and a text
+              can&apos;t be searched for meaning across its full timeline.
             </P>
             <P>
-              Readers feel these structural regularities — threads that progress,
-              worlds that deepen, ideas that interconnect — but no established
-              framework measures them. When we apply mutation-derived formulas to
+              Readers feel these structural regularities intuitively — threads
+              that progress, worlds that deepen, ideas that interconnect — but
+              the intuition has lacked a formal counterpart. When we apply mutation-derived formulas to
               published works versus AI-generated text, the gap becomes empirically
               visible. Published literature scores 85–95 on composite delivery;
               unguided AI output scores 65–78. The 15–20 point disparity traces
@@ -758,7 +760,7 @@ export default function PaperPage() {
           {/* ── Approach ──────────────────────────────────────────────── */}
           <Section id="approach" label="Approach">
             <P>
-              We model narratives as knowledge graphs that mutate scene by scene. An LLM extracts mutations; deterministic formulas compute forces. This separates <em>comprehension</em> (LLM) from <em>measurement</em> (formulas), making the pipeline auditable.
+              We model narratives as knowledge graphs that evolve scene by scene. An LLM extracts structural mutations; deterministic formulas compute forces from those mutations. This separates <em>comprehension</em> (LLM) from <em>measurement</em> (formulas), keeping the scoring fully transparent and reproducible.
             </P>
             <P>
               The three mutation layers are:
@@ -1237,7 +1239,7 @@ export default function PaperPage() {
                 mutations (permanent knowledge/identity shifts), events (transient
                 occurrences), and relationship mutations (valence changes). The
                 formula scales sub-linearly to prevent cast size from dominating —
-                a two-character betrayal and a ten-character ensemble producing the
+                a two-character turning point and a ten-character ensemble producing the
                 same mutation count score identically.
               </P>
               <Eq
@@ -1255,7 +1257,7 @@ export default function PaperPage() {
                 unrelated facts. <Tex>{String.raw`\Delta E`}</Tex>{" "}
                 counts scene events, and <Tex>{String.raw`\Delta R = \sum |\Delta v|^2`}</Tex>{" "}
                 sums squared relationship valence shifts. The L2 aggregation
-                amplifies large shifts — a betrayal at <Tex>{String.raw`|\Delta v| = 0.5`}</Tex>{" "}
+                amplifies large shifts — a deep reconciliation at <Tex>{String.raw`|\Delta v| = 0.5`}</Tex>{" "}
                 contributes 25× more than casual banter at <Tex>{String.raw`|\Delta v| = 0.1`}</Tex>.
               </P>
             </div>
@@ -1316,7 +1318,7 @@ export default function PaperPage() {
               against <em>Harry Potter and the Sorcerer&apos;s Stone</em> — a
               novel whose dramatic peaks are well-established in popular memory.
               The delivery curve below was computed entirely from structural
-              mutations, with no human annotation.
+              mutations extracted at analysis time.
             </P>
 
             {/* Annotated Delivery Curve — computed from /works/harry_potter JSON via the same formulas used in the app */}
@@ -1504,7 +1506,7 @@ export default function PaperPage() {
               confrontation with Quirrell.
             </P>
             <P>
-              This is the core claim: <B>deterministic formulas applied to structural mutations recover the dramatic shape of a narrative without reading the prose</B>. Mutations are extracted by an LLM at low temperature to maximize extraction determinism. The formulas themselves are fully deterministic and auditable. Cross-run validation confirms stable rankings — published works reliably outscore AI output across independent extraction passes. The same formulas that analyze published works also drive generation — the measurement <em>is</em> the objective function.
+              This is the core claim: <B>deterministic formulas applied to structural mutations recover the dramatic shape of a narrative</B>. Mutations are extracted by an LLM at low temperature to maximize extraction consistency. The formulas themselves are fully deterministic — given the same mutations, the same scores follow. Cross-run validation confirms stable rankings: published works reliably outscore AI output across independent extraction passes. The same formulas that analyze published works also drive generation — the measurement <em>is</em> the objective function.
             </P>
           </Section>
 
@@ -2598,7 +2600,7 @@ export default function PaperPage() {
               Classification transforms generation into <B>causal continuity management</B>. An LLM generating scene 45 receives not just recent context but the specific propositions from scene 3 that embedding similarity identifies as structurally connected — the foundations and foreshadows that new prose must not contradict. A foreshadow in chapter one constrains what can be validly stated in chapter twenty.
             </P>
             <P>
-              The resulting distributions align with structural expectations: <em>Harry Potter</em> yields 29% Anchor — consistent with a tightly plotted novel whose threads span the full narrative. <em>Alice&apos;s Adventures in Wonderland</em> shows 25% Anchor — lower, reflecting its episodic structure. LeCun&apos;s paper scores 14% Anchor and 53% Texture, characteristic of academic argumentation with section-local claims. A five-section methods paper (<em>Quantifying Narrative Force</em>) reaches 67% Texture. These distributions emerge from cosine similarity alone — no genre labels, no human annotation, no narrative-specific tuning.
+              The resulting distributions align with structural expectations: <em>Harry Potter</em> yields 29% Anchor — consistent with a tightly plotted novel whose threads span the full narrative. <em>Alice&apos;s Adventures in Wonderland</em> shows 25% Anchor — lower, reflecting its episodic structure. LeCun&apos;s paper scores 14% Anchor and 53% Texture, characteristic of academic argumentation with section-local claims. A five-section methods paper (<em>Quantifying Narrative Force</em>) reaches 67% Texture. These distributions emerge from cosine similarity alone — the same threshold and the same formula applied uniformly across fiction, academic writing, and methods papers.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
@@ -2732,13 +2734,14 @@ export default function PaperPage() {
             </P>
 
             <P>
-              A human ghostwriter charges $10,000–$50,000 for a novel. A
-              developmental editor charges $2,000–$5,000 for structural
-              feedback. InkTide generates the structure, evaluates it against
-              force targets, course-corrects after every arc, and produces
-              full prose — for under seven dollars at novel scale with low reasoning. The
-              economics make iterative experimentation practical: generate,
-              evaluate, discard, try again.
+              The cost structure changes what&apos;s practical. At under
+              seven dollars for a full novel with low reasoning, the
+              generate-evaluate-revise loop becomes something you can run
+              repeatedly — testing different pacing profiles, branching
+              strategies, or structural constraints without budgeting for
+              each attempt. Structural analysis of existing works is even
+              cheaper, making it feasible to build comparative datasets
+              across dozens of texts.
             </P>
           </Section>
 

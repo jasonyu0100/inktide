@@ -3,7 +3,7 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
-import { getRelationshipsAtScene, getIntroducedIds } from '@/lib/scene-filter';
+import { getRelationshipsAtScene } from '@/lib/scene-filter';
 import type {
   Character,
   Location,
@@ -50,7 +50,6 @@ export default function WorldGraph() {
 
   const [showEdgeLabels, setShowEdgeLabels] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [showItems, setShowItems] = useState(true);
   const [showEval, setShowEval] = useState(true);
   const [showCharacters, setShowCharacters] = useState(true);
   const [showLocations, setShowLocations] = useState(true);
@@ -169,16 +168,21 @@ export default function WorldGraph() {
     let nodes: GraphNode[];
     let links: GraphLink[];
 
-    // Filter artifacts to only those introduced by the current timeline position
-    const introduced = getIntroducedIds(narrative.worldBuilds, resolvedEntryKeys, state.currentSceneIndex);
-    const visibleArtifacts = showItems
-      ? Object.fromEntries(Object.entries(narrative.artifacts ?? {}).filter(([id]) => introduced.artifactIds.has(id)))
-      : {};
+    // Filter artifacts to only those used in the current scene
+    const usedArtifactIds = new Set<string>();
+    const currentKey = resolvedEntryKeys[state.currentSceneIndex];
+    const currentSceneForArtifacts = currentKey ? narrative.scenes[currentKey] : null;
+    if (currentSceneForArtifacts) {
+      for (const au of currentSceneForArtifacts.artifactUsages ?? []) usedArtifactIds.add(au.artifactId);
+    }
+    const usedArtifacts = Object.fromEntries(
+      Object.entries(narrative.artifacts ?? {}).filter(([id]) => usedArtifactIds.has(id))
+    );
 
     // Entity visibility filters
     const filteredCharacters = showCharacters ? narrative.characters : {};
     const filteredLocations = showLocations ? narrative.locations : {};
-    const filteredArtifacts = showArtifacts ? visibleArtifacts : {};
+    const filteredArtifacts = showArtifacts ? usedArtifacts : {};
 
     if (graphViewMode === 'overview') {
       // Overview mode: all characters/locations sized by usage
@@ -245,7 +249,7 @@ export default function WorldGraph() {
           filteredLocs,
           filteredRels,
           {},
-          visibleArtifacts,
+          filteredArtifacts,
         );
         nodes = result.nodes;
         links = result.links;
@@ -323,7 +327,7 @@ export default function WorldGraph() {
           filteredLocations,
           filteredRelationships,
           characterPositions,
-          visibleArtifacts,
+          filteredArtifacts,
         );
         nodes = result.nodes;
         links = result.links;
@@ -745,7 +749,7 @@ export default function WorldGraph() {
       gRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap, sceneFocus, showItems, currentScene, resolvedImageUrls.size, selectedKnowledgeEntity, showCharacters, showLocations, showArtifacts]);
+  }, [narrative, activeArcId, graphViewMode, currentWorldBuildId, showHeatmap, sceneFocus, currentScene, resolvedImageUrls.size, selectedKnowledgeEntity, showCharacters, showLocations, showArtifacts]);
 
   // ── Lightweight: update selected node highlight + relationship edges ──
   useEffect(() => {
@@ -951,7 +955,6 @@ export default function WorldGraph() {
             { key: 'heat', label: 'Heat', checked: showHeatmap, toggle: () => setShowHeatmap((v) => !v) },
             { key: 'eval', label: 'Eval', checked: showEval, toggle: () => setShowEval((v) => !v) },
             ...(graphViewMode === 'spatial' ? [{ key: 'focus', label: 'Focus', checked: sceneFocus, toggle: () => setSceneFocus((v: boolean) => !v) }] : []),
-            { key: 'artifacts', label: 'Artifacts', checked: showItems, toggle: () => setShowItems((v) => !v) },
           ] as { key: string; label: string; checked: boolean; toggle: () => void }[]).map(({ key, label, checked, toggle }) => (
             <button
               key={key}

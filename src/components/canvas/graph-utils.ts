@@ -279,10 +279,9 @@ export function buildGraphData(
     }
   }
 
-  // Artifact nodes + ownership edges — show if owner is in the graph or world-owned
+  // Artifact nodes + ownership edges (pre-filtered to used artifacts by caller)
   for (const art of Object.values(artifacts ?? {})) {
-    const hasOwnerInGraph = art.parentId && (characters[art.parentId] || locations[art.parentId]);
-    if (!hasOwnerInGraph && art.parentId) continue; // Skip if owned by entity not in graph
+    const ownerInGraph = art.parentId && (characters[art.parentId] || locations[art.parentId]);
     nodes.push({
       id: art.id,
       kind: 'artifact',
@@ -291,11 +290,11 @@ export function buildGraphData(
       imagePrompt: art.imagePrompt,
       significance: art.significance,
     });
-    if (art.parentId) {
+    if (ownerInGraph) {
       links.push({
         id: `ownership-${art.id}-${art.parentId}`,
         source: art.id,
-        target: art.parentId,
+        target: art.parentId!,
         linkKind: 'ownership',
         label: 'owned by',
       });
@@ -405,10 +404,9 @@ export function buildOverviewGraphData(
   }
 
   // Artifact nodes + ownership edges
+  // Artifact nodes + ownership edges (pre-filtered to used artifacts by caller)
   for (const art of Object.values(artifacts ?? {})) {
-    const isWorldOwned = !art.parentId;
-    const ownerActive = isWorldOwned || activeCharIds.has(art.parentId!) || activeLocIds.has(art.parentId!);
-    if (!ownerActive) continue;
+    const ownerInGraph = art.parentId && (activeCharIds.has(art.parentId) || activeLocIds.has(art.parentId));
     nodes.push({
       id: art.id,
       kind: 'artifact',
@@ -417,13 +415,15 @@ export function buildOverviewGraphData(
       imagePrompt: art.imagePrompt,
       significance: art.significance,
     });
-    if (art.parentId) links.push({
-      id: `ownership-${art.id}-${art.parentId}`,
-      source: art.id,
-      target: art.parentId,
-      linkKind: 'ownership',
-      label: 'owned by',
-    });
+    if (ownerInGraph) {
+      links.push({
+        id: `ownership-${art.id}-${art.parentId}`,
+        source: art.id,
+        target: art.parentId!,
+        linkKind: 'ownership',
+        label: 'owned by',
+      });
+    }
   }
 
   return { nodes, links };

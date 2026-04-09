@@ -214,7 +214,7 @@ NAMING (applies to ALL names — entities, choices, systems, threads, title):
 - Choice labels in questions should also use specific, textured language — not generic fantasy phrasing.
 - If the user provided a placeholder name (e.g. "The Reincarnator", "The Shadow Council"), replace it with an original name that fits the world's cultural palette when extracting the entity.`;
 
-  const raw = await callGenerate(prompt, PREMISE_SYSTEM, undefined, 'premiseQuestion', GENERATE_MODEL);
+  const raw = await callGenerate(prompt, PREMISE_SYSTEM, undefined, 'premiseQuestion', GENERATE_MODEL, 0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'premiseQuestion') as any;
 
@@ -264,6 +264,7 @@ Respond in exactly this JSON format:
     300,
     'suggestPremise',
     GENERATE_MODEL,
+    0, // no reasoning — simple creative prompt
   );
   const parsed = parseJson(raw, 'suggestPremise') as { title?: string; premise?: string };
   return { title: parsed.title ?? '', premise: parsed.premise ?? '' };

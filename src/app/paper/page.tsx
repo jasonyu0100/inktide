@@ -1578,8 +1578,8 @@ export default function PaperPage() {
             <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
                 { force: "Drive", value: "3", color: "#EF4444" },
-                { force: "World", value: "7", color: "#22C55E" },
-                { force: "System", value: "4", color: "#3B82F6" },
+                { force: "World", value: "14", color: "#22C55E" },
+                { force: "System", value: "8", color: "#3B82F6" },
               ].map(({ force, value, color }) => (
                 <div
                   key={force}

@@ -12,7 +12,7 @@
  *
  * When updating: check src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS
  * to keep prompt numbers in sync with grading formulas.
- * Current: { drive: 3, world: 7, system: 4 }
+ * Current: { drive: 3, world: 14, system: 8 }
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
@@ -21,7 +21,7 @@ import { THREAD_LIFECYCLE_DOC } from './context';
 
 // ── Force Standards ──────────────────────────────────────────────────────────
 // Numbers here MUST match FORCE_REFERENCE_MEANS in narrative-utils.ts:
-//   { drive: 3, world: 7, system: 4 }
+//   { drive: 3, world: 14, system: 8 }
 // These are the values where the grading curve hits the dominance threshold (21/25).
 
 export const PROMPT_FORCE_STANDARDS = `
@@ -35,12 +35,12 @@ DRIVE is the fate of threads — the unifying force that pulls world and system 
 WORLD is the inner transformation of entities — what we learn about characters, locations, and artifacts.
   Where drive measures what the story wants, world measures what the story DOES TO THE PEOPLE IN IT.
   Every continuity node is a permanent mark on an entity's inner graph — a new trait, belief, capability, or wound.
-  Reference: ~7 per scene (~5-8 continuity nodes across 2-3 entities + connecting edges).
+  Reference: ~14 per scene (~10-16 continuity nodes across 3-5 entities + connecting edges).
 
 SYSTEM is the deepening of rules and structures — the substrate on which drive and world operate.
-  A world without systems is a stage without physics. Drive cannot create meaningful fate in a vacuum of rules.
+  A world without systems is a stage without physics. Drive cannot create meaningful resolution in a vacuum of rules.
   Every knowledge node expands what is possible or constrains what is allowed.
-  Reference: ~4 per scene (~2-3 new world knowledge nodes + connecting edges).
+  Reference: ~8 per scene (~4-6 new world knowledge nodes + connecting edges).
 
 Different works weight these forces differently. A Classic is drive-dominant. A Show is world-dominant. A Paper is system-dominant. An Opus balances all three.
 

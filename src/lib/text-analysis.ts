@@ -135,9 +135,9 @@ SCENE PROSE:
 ${prose}${beatSection}
 
 FORCE FORMULAS — your extractions are the direct inputs:
-- DRIVE = activeArcs^1.3 × stageWeight (thread fate). Ref: ~3/scene.
-- WORLD = ΔN_c + √ΔE_c (entity transformation — what we learn about characters, locations, artifacts). Ref: ~7/scene.
-- SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~4/scene.
+- DRIVE = activeArcs^1.3 × stageWeight (thread commitment toward resolution). Ref: ~3/scene.
+- WORLD = ΔN_c + √ΔE_c (entity transformation — what we learn about characters, locations, artifacts). Ref: ~14/scene.
+- SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~8/scene.
 
 Return JSON:
 {

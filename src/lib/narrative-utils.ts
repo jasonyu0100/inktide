@@ -1359,8 +1359,8 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Originally calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
- *  World reference is 7 (entity continuity spans multiple entities per scene vs one world graph). */
-export const FORCE_REFERENCE_MEANS = { drive: 3, world: 7, system: 4 } as const;
+ *  World reference is 14 (entity continuity spans multiple entities per scene, each contributing nodes). */
+export const FORCE_REFERENCE_MEANS = { drive: 3, world: 14, system: 8 } as const;
 
 /** Grade a mean-normalized force value 8→25: g(x̃) = 25 − 17·e^{−kx̃}, k = ln(17/4).
  *  Single exponential — floor 8, reference 21 (dominance threshold), cap 25.

@@ -395,7 +395,7 @@ describe('reconstructBranch', () => {
         threads: [],
         artifacts: [],
         relationships: [],
-        worldKnowledge: { addedNodes: [], addedEdges: [] },
+        worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
       },
     };
     narrative.worldBuilds['WB-01'] = worldBuild;
@@ -721,5 +721,123 @@ describe('reconstructBranch', () => {
     expect(result.scenes[1].summary).toBe('First insert');
     expect(result.scenes[2].summary).toBe('Second insert');
     expect(result.scenes[3].id).toBe('S-02');
+  });
+
+  // ── Thread log preservation through reconstruction ────────────────────────
+  // Locks in the fix for the bug where the reconstruct schemas omitted
+  // addedNodes, causing the LLM to strip log entries from edited/merged/
+  // inserted scenes.
+
+  it('preserves addedNodes from LLM when editing a scene', async () => {
+    const editedScene = {
+      locationId: 'L-02',
+      povId: 'C-01',
+      participantIds: ['C-01'],
+      events: ['revised'],
+      threadMutations: [{
+        threadId: 'T-01',
+        from: 'active',
+        to: 'critical',
+        addedNodes: [
+          { id: 'TK-NEW-001', content: 'Hero commits to the final stand', type: 'transition' },
+          { id: 'TK-NEW-002', content: 'Stakes rise', type: 'escalation' },
+        ],
+      }],
+      continuityMutations: [],
+      relationshipMutations: [],
+      summary: 'Revised scene with log entries',
+    };
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(editedScene));
+    vi.mocked(parseJson).mockReturnValue(editedScene);
+
+    const narrative = createMinimalNarrative();
+    const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
+      branchId: 'BR-01',
+      sceneEvals: [
+        { sceneId: 'S-01', verdict: 'ok', reason: '' },
+        { sceneId: 'S-02', verdict: 'edit', reason: 'Needs stakes' },
+        { sceneId: 'S-03', verdict: 'ok', reason: '' },
+      ],
+      repetitions: [],
+      thematicQuestion: '',
+      overall: '',
+    };
+    const callbacks = createMockCallbacks();
+    const cancelledRef = { current: false };
+
+    const result = await reconstructBranch(
+      narrative,
+      ['S-01', 'S-02', 'S-03'],
+      evaluation,
+      callbacks,
+      cancelledRef,
+    );
+
+    // The edited scene must still carry its log entries — before the
+    // schema fix, the LLM would return threadMutations without addedNodes
+    // and the scene's thread log would go blank.
+    const edited = result.scenes.find((s) => s.summary === 'Revised scene with log entries');
+    expect(edited).toBeDefined();
+    expect(edited!.threadMutations).toHaveLength(1);
+    expect(edited!.threadMutations[0].addedNodes).toHaveLength(2);
+    expect(edited!.threadMutations[0].addedNodes![0].content).toMatch(/commits to the final stand/);
+    expect(edited!.threadMutations[0].addedNodes![1].content).toBe('Stakes rise');
+  });
+
+  it('preserves addedNodes from LLM when inserting a new scene', async () => {
+    const insertedScene = {
+      locationId: 'L-01',
+      povId: 'C-02',
+      participantIds: ['C-02'],
+      events: ['bridge_beat'],
+      threadMutations: [{
+        threadId: 'T-01',
+        from: 'active',
+        to: 'active',
+        addedNodes: [
+          { id: 'TK-NEW-001', content: 'Mentor checks in on the hero', type: 'pulse' },
+        ],
+      }],
+      continuityMutations: [],
+      relationshipMutations: [],
+      summary: 'Inserted transition scene',
+    };
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(insertedScene));
+    vi.mocked(parseJson).mockReturnValue(insertedScene);
+
+    const narrative = createMinimalNarrative();
+    const evaluation: StructureReview = {
+      id: 'EVAL-1',
+      createdAt: new Date().toISOString(),
+      branchId: 'BR-01',
+      sceneEvals: [
+        { sceneId: 'S-01', verdict: 'ok', reason: '' },
+        { sceneId: 'S-02', verdict: 'ok', reason: '' },
+        { sceneId: 'INSERT-1', verdict: 'insert', reason: 'Missing bridge', insertAfter: 'S-02' },
+        { sceneId: 'S-03', verdict: 'ok', reason: '' },
+      ],
+      repetitions: [],
+      thematicQuestion: '',
+      overall: '',
+    };
+    const callbacks = createMockCallbacks();
+    const cancelledRef = { current: false };
+
+    const result = await reconstructBranch(
+      narrative,
+      ['S-01', 'S-02', 'S-03'],
+      evaluation,
+      callbacks,
+      cancelledRef,
+    );
+
+    const inserted = result.scenes.find((s) => s.summary === 'Inserted transition scene');
+    expect(inserted).toBeDefined();
+    expect(inserted!.threadMutations).toHaveLength(1);
+    expect(inserted!.threadMutations[0].addedNodes).toHaveLength(1);
+    expect(inserted!.threadMutations[0].addedNodes![0].content).toMatch(/Mentor checks in/);
+    expect(inserted!.threadMutations[0].addedNodes![0].type).toBe('pulse');
   });
 });

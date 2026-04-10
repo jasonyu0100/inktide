@@ -582,3 +582,144 @@ describe('generateNarrative — worldKnowledge + initial continuity', () => {
     expect(Object.keys(result.worldKnowledge!.nodes)).toHaveLength(2);
   });
 });
+
+// ── generateNarrative: pilot thread logs ────────────────────────────────────
+// Locks in the fix for the bug where the pilot schema omitted addedNodes,
+// producing 8 pilot scenes with no thread log history. Also verifies the
+// TK-ID remap so scenes using the same LLM placeholder don't collide.
+
+describe('generateNarrative — pilot thread logs', () => {
+  function baseWorld() {
+    return {
+      worldSummary: 'A test world',
+      imageStyle: 'test style',
+      characters: [{ id: 'C-01', name: 'Alice', role: 'anchor', threadIds: [] }],
+      locations: [{ id: 'L-01', name: 'Castle', prominence: 'place', parentId: null, threadIds: [] }],
+      threads: [
+        { id: 'T-01', participants: [{ id: 'C-01', type: 'character' }], description: 'Main quest', status: 'latent', openedAt: 'S-001', dependents: [] },
+        { id: 'T-02', participants: [{ id: 'C-01', type: 'character' }], description: 'Side quest', status: 'latent', openedAt: 'S-001', dependents: [] },
+      ],
+      relationships: [],
+      artifacts: [],
+      arcs: [
+        { id: 'ARC-01', name: 'Pilot', sceneIds: ['S-001', 'S-002', 'S-003'], develops: ['T-01', 'T-02'], locationIds: ['L-01'], activeCharacterIds: ['C-01'], initialCharacterLocations: { 'C-01': 'L-01' } },
+      ],
+      rules: [],
+      worldSystems: [],
+    };
+  }
+
+  it('populates thread logs from pilot scene threadMutations', async () => {
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      ...baseWorld(),
+      scenes: [
+        {
+          id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+          participantIds: ['C-01'], events: [],
+          threadMutations: [{
+            threadId: 'T-01', from: 'latent', to: 'seeded',
+            addedNodes: [
+              { id: 'TK-GEN-001', content: 'Alice hears rumour of the crown', type: 'setup' },
+            ],
+          }],
+          continuityMutations: [], relationshipMutations: [],
+          summary: 'Alice hears of the crown.',
+        },
+        {
+          id: 'S-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+          participantIds: ['C-01'], events: [],
+          threadMutations: [{
+            threadId: 'T-01', from: 'seeded', to: 'active',
+            addedNodes: [
+              { id: 'TK-GEN-001', content: 'Alice decides to pursue the crown', type: 'transition' },
+              { id: 'TK-GEN-002', content: 'escalation', type: 'escalation' },
+            ],
+          }],
+          continuityMutations: [], relationshipMutations: [],
+          summary: 'Alice decides to pursue.',
+        },
+      ],
+    }));
+
+    const result = await generateNarrative('Test', 'A story');
+
+    const t1 = result.threads['T-01'];
+    expect(t1.threadLog).toBeDefined();
+    // 3 log entries across 2 scenes — all must be present, none dropped.
+    expect(Object.keys(t1.threadLog.nodes)).toHaveLength(3);
+
+    // TK IDs must be globally unique — no collisions despite LLM re-using
+    // TK-GEN-001 across scenes. Without the remap, scene 2's first node
+    // would collide with scene 1's and be silently dropped.
+    const allTkIds = Object.keys(t1.threadLog.nodes);
+    expect(new Set(allTkIds).size).toBe(allTkIds.length);
+    for (const id of allTkIds) {
+      expect(id).toMatch(/^TK-\d+$/);
+      expect(id).not.toMatch(/GEN/);
+    }
+
+    // All three content strings must be preserved.
+    const contents = Object.values(t1.threadLog.nodes).map((n) => n.content);
+    expect(contents).toContain('Alice hears rumour of the crown');
+    expect(contents).toContain('Alice decides to pursue the crown');
+    expect(contents).toContain('escalation');
+  });
+
+  it('chains adjacent log nodes within a single mutation via co_occurs', async () => {
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      ...baseWorld(),
+      scenes: [
+        {
+          id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+          participantIds: ['C-01'], events: [],
+          threadMutations: [{
+            threadId: 'T-01', from: 'latent', to: 'seeded',
+            addedNodes: [
+              { id: 'TK-GEN-001', content: 'setup', type: 'setup' },
+              { id: 'TK-GEN-002', content: 'escalation', type: 'escalation' },
+              { id: 'TK-GEN-003', content: 'transition', type: 'transition' },
+            ],
+          }],
+          continuityMutations: [], relationshipMutations: [],
+          summary: 'Scene',
+        },
+      ],
+    }));
+
+    const result = await generateNarrative('Test', 'A story');
+    const t1 = result.threads['T-01'];
+    // 3 nodes → 2 auto-chain edges
+    expect(t1.threadLog.edges).toHaveLength(2);
+    expect(t1.threadLog.edges.every((e) => e.relation === 'co_occurs')).toBe(true);
+  });
+
+  it('synthesizes fallback log entries when LLM omits addedNodes', async () => {
+    vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
+      ...baseWorld(),
+      scenes: [
+        {
+          id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+          participantIds: ['C-01'], events: [],
+          threadMutations: [
+            // LLM omitted addedNodes — pilot fallback should synthesize one.
+            { threadId: 'T-01', from: 'latent', to: 'seeded', addedNodes: [] },
+            { threadId: 'T-02', from: 'latent', to: 'latent', addedNodes: [] },
+          ],
+          continuityMutations: [], relationshipMutations: [],
+          summary: 'Scene',
+        },
+      ],
+    }));
+
+    const result = await generateNarrative('Test', 'A story');
+
+    const t1Nodes = Object.values(result.threads['T-01'].threadLog.nodes);
+    const t2Nodes = Object.values(result.threads['T-02'].threadLog.nodes);
+    expect(t1Nodes).toHaveLength(1);
+    expect(t1Nodes[0].content).toMatch(/advanced from latent to seeded/);
+    expect(t1Nodes[0].type).toBe('transition');
+    expect(t2Nodes).toHaveLength(1);
+    expect(t2Nodes[0].content).toMatch(/held latent without transition/);
+    expect(t2Nodes[0].type).toBe('pulse');
+  });
+});

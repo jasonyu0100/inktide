@@ -1476,4 +1476,105 @@ describe('assembleNarrative', () => {
     // initialCharacterLocations should map character IDs to location IDs
     expect(Object.keys(arc.initialCharacterLocations).length).toBeGreaterThan(0);
   });
+
+  // ── Thread log mapper — synthesis fallback ────────────────────────────────
+  // Locks in the fix for the bug where extractSceneStructure returned a
+  // threadMutation with empty addedNodes, and the assembleNarrative mapper
+  // passed it through as-is, leaving the final thread log blank.
+
+  it('synthesizes fallback log entries when analysis extraction omits addedNodes', async () => {
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
+      locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
+      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: '' }],
+      scenes: [{
+        locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
+        events: [], summary: 'Alice sets off', sections: [0],
+        threadMutations: [
+          // LLM-returned extraction with no log entries — should be synthesized.
+          { threadDescription: 'The Quest', from: 'dormant', to: 'active', addedNodes: [] },
+        ],
+        continuityMutations: [],
+        relationshipMutations: [],
+      }],
+    }];
+
+    const narrative = await assembleNarrative('Test', results, {});
+
+    const scene = Object.values(narrative.scenes)[0];
+    expect(scene.threadMutations).toHaveLength(1);
+    const tm = scene.threadMutations[0];
+    expect(tm.addedNodes).toHaveLength(1);
+    // Synthesized from the from→to status change.
+    expect(tm.addedNodes![0].content).toMatch(/advanced from dormant to active/);
+    expect(tm.addedNodes![0].type).toBe('transition');
+    // Must be a real TK-* ID from the allocator, not a placeholder.
+    expect(tm.addedNodes![0].id).toMatch(/^TK-/);
+  });
+
+  it('synthesizes pulse fallback when from === to and LLM omits addedNodes', async () => {
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
+      locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
+      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'active', statusAtEnd: 'active', development: '' }],
+      scenes: [{
+        locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
+        events: [], summary: 'Alice reflects', sections: [0],
+        threadMutations: [
+          { threadDescription: 'The Quest', from: 'active', to: 'active', addedNodes: [] },
+        ],
+        continuityMutations: [],
+        relationshipMutations: [],
+      }],
+    }];
+
+    const narrative = await assembleNarrative('Test', results, {});
+
+    const scene = Object.values(narrative.scenes)[0];
+    const tm = scene.threadMutations[0];
+    expect(tm.addedNodes).toHaveLength(1);
+    expect(tm.addedNodes![0].content).toMatch(/held active without transition/);
+    expect(tm.addedNodes![0].type).toBe('pulse');
+  });
+
+  it('preserves LLM-provided addedNodes when present (does not duplicate)', async () => {
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
+      locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
+      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: '' }],
+      scenes: [{
+        locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
+        events: [], summary: 'Alice sets off', sections: [0],
+        threadMutations: [{
+          threadDescription: 'The Quest',
+          from: 'dormant',
+          to: 'active',
+          addedNodes: [
+            { content: 'Alice receives the mandate', type: 'transition' },
+            { content: 'She weighs the cost', type: 'escalation' },
+          ],
+        }],
+        continuityMutations: [],
+        relationshipMutations: [],
+      }],
+    }];
+
+    const narrative = await assembleNarrative('Test', results, {});
+
+    const scene = Object.values(narrative.scenes)[0];
+    const tm = scene.threadMutations[0];
+    // Two LLM-provided nodes — no synthesis, no duplication.
+    expect(tm.addedNodes).toHaveLength(2);
+    expect(tm.addedNodes![0].content).toBe('Alice receives the mandate');
+    expect(tm.addedNodes![0].type).toBe('transition');
+    expect(tm.addedNodes![1].content).toBe('She weighs the cost');
+    expect(tm.addedNodes![1].type).toBe('escalation');
+    // Both nodes should have distinct TK-* IDs assigned by the allocator.
+    expect(tm.addedNodes![0].id).toMatch(/^TK-/);
+    expect(tm.addedNodes![1].id).toMatch(/^TK-/);
+    expect(tm.addedNodes![0].id).not.toBe(tm.addedNodes![1].id);
+  });
 });

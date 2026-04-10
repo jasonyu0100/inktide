@@ -5,7 +5,7 @@ import {
   scoreScene,
   extractOrderedScenes,
 } from '@/lib/mcts-state';
-import type { NarrativeState, Scene, Arc, Thread, Character, ContinuityMutation, RelationshipMutation, ThreadMutation } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, Thread, Character, ContinuityMutation, RelationshipMutation, LogMutation } from '@/types/narrative';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
@@ -192,7 +192,7 @@ describe('buildVirtualState', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
 
-    const threadMutation: ThreadMutation = { threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] };
+    const threadMutation: LogMutation = { threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] };
     const scene = createScene('S-001', { threadMutations: [threadMutation] });
     const arc = createArc('ARC-01', ['S-001']);
 
@@ -255,10 +255,10 @@ describe('buildVirtualState', () => {
     const char = result.narrative.characters['C-01'];
     expect(char.continuity.nodes['K-01']).toBeDefined();
     expect(char.continuity.nodes['K-02']).toBeDefined();
-    // 2 nodes → 1 co_occurs chain edge + 1 explicit caused_by edge
-    expect(char.continuity.edges).toHaveLength(2);
-    expect(char.continuity.edges.some(e => e.relation === 'caused_by')).toBe(true);
-    expect(char.continuity.edges.some(e => e.relation === 'co_occurs')).toBe(true);
+    // 2 nodes → 1 co_occurs chain edge (explicit edges were removed; adjacency
+    // in addedNodes is the only source of continuity edges now).
+    expect(char.continuity.edges).toHaveLength(1);
+    expect(char.continuity.edges[0].relation).toBe('co_occurs');
   });
 
   it('applies relationship mutations (new relationship)', () => {
@@ -535,7 +535,7 @@ describe('extractOrderedScenes', () => {
         locations: [],
         threads: [],
         relationships: [],
-        worldKnowledge: { addedNodes: [], addedEdges: [] },
+        worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
         artifacts: [],
       },
     };

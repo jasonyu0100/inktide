@@ -66,7 +66,7 @@ vi.mock('@/lib/beat-profiles', () => ({
   ]),
 }));
 
-import { generateScenes, generateScenePlan, editScenePlan, reverseEngineerScenePlan, rewriteScenePlan, generateSceneProse } from '@/lib/ai/scenes';
+import { generateScenes, generateScenePlan, editScenePlan, reverseEngineerScenePlan, rewriteScenePlan, generateSceneProse, generateArcStepwise } from '@/lib/ai/scenes';
 import { callGenerate, callGenerateStream } from '@/lib/ai/api';
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
@@ -1174,5 +1174,228 @@ Third beat prose.
     expect(result.beatProseMap?.chunks[1].beatIndex).toBe(1);
     expect(result.beatProseMap?.chunks[2].beatIndex).toBe(2);
     expect(result.prose).not.toContain('[BEAT_END:');
+  });
+});
+
+// ── Thread Log (TK) ID Handling ──────────────────────────────────────────────
+// These tests lock in the fix for the bug where the LLM emits TK-GEN-0 in
+// every scene of a stepwise arc and applyLogMutation's duplicate-id guard
+// silently drops every log entry after the first scene for each thread.
+
+describe('generateScenes — thread log TK ID remap', () => {
+  it('assigns globally unique TK-* IDs when LLM re-uses GEN placeholders across scenes', async () => {
+    // LLM emits TK-GEN-1 and TK-GEN-2 in BOTH scenes for the same thread —
+    // without a remap, applyLogMutation would silently drop scene 2's
+    // contribution during store replay.
+    const mockResponse = JSON.stringify({
+      arcName: 'Test Arc',
+      scenes: [
+        {
+          id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+          participantIds: ['C-01'], events: [],
+          threadMutations: [{
+            threadId: 'T-01', from: 'active', to: 'active',
+            addedNodes: [
+              { id: 'TK-GEN-1', content: 'scene 1 pulse A', type: 'pulse' },
+              { id: 'TK-GEN-2', content: 'scene 1 pulse B', type: 'pulse' },
+            ],
+          }],
+          continuityMutations: [], relationshipMutations: [],
+          summary: 'Scene 1',
+        },
+        {
+          id: 'S-GEN-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+          participantIds: ['C-01'], events: [],
+          threadMutations: [{
+            threadId: 'T-01', from: 'active', to: 'active',
+            addedNodes: [
+              { id: 'TK-GEN-1', content: 'scene 2 pulse A', type: 'pulse' },
+              { id: 'TK-GEN-2', content: 'scene 2 pulse B', type: 'pulse' },
+            ],
+          }],
+          continuityMutations: [], relationshipMutations: [],
+          summary: 'Scene 2',
+        },
+      ],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    const result = await generateScenes(narrative, [], 0, 2, 'Test');
+
+    // Collect all TK IDs across both scenes — they must all be unique.
+    const allTkIds = result.scenes.flatMap((s) =>
+      s.threadMutations.flatMap((tm) => tm.addedNodes?.map((n) => n.id) ?? [])
+    );
+    expect(allTkIds).toHaveLength(4);
+    expect(new Set(allTkIds).size).toBe(4); // all unique
+    // No lingering TK-GEN placeholders — all should be real sequential IDs.
+    for (const id of allTkIds) {
+      expect(id).toMatch(/^TK-\d+$/);
+    }
+  });
+
+  it('synthesizes a fallback log entry when LLM omits addedNodes entirely', async () => {
+    const mockResponse = JSON.stringify({
+      arcName: 'Test Arc',
+      scenes: [
+        {
+          id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+          participantIds: ['C-01'], events: [],
+          threadMutations: [
+            // Status transition with no log entries — should synthesize one.
+            { threadId: 'T-01', from: 'seeded', to: 'active', addedNodes: [] },
+            // Pulse with no log entries — should synthesize one too.
+            { threadId: 'T-02', from: 'active', to: 'active', addedNodes: [] },
+          ],
+          continuityMutations: [], relationshipMutations: [],
+          summary: 'Scene',
+        },
+      ],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    const result = await generateScenes(narrative, [], 0, 1, 'Test');
+
+    const [t1, t2] = result.scenes[0].threadMutations;
+    expect(t1.addedNodes).toHaveLength(1);
+    expect(t1.addedNodes![0].content).toMatch(/advanced from seeded to active/);
+    expect(t1.addedNodes![0].type).toBe('transition');
+
+    expect(t2.addedNodes).toHaveLength(1);
+    expect(t2.addedNodes![0].content).toMatch(/held active without transition/);
+    expect(t2.addedNodes![0].type).toBe('pulse');
+  });
+
+  it('synthesized fallback nodes are assigned unique TK-* IDs like any other', async () => {
+    const mockResponse = JSON.stringify({
+      arcName: 'Test Arc',
+      scenes: [
+        {
+          id: 'S-GEN-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+          participantIds: ['C-01'], events: [],
+          threadMutations: [
+            { threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [] },
+            { threadId: 'T-02', from: 'seeded', to: 'active', addedNodes: [] },
+          ],
+          continuityMutations: [], relationshipMutations: [],
+          summary: 'Scene',
+        },
+      ],
+    });
+    vi.mocked(callGenerate).mockResolvedValue(mockResponse);
+
+    const narrative = createMinimalNarrative();
+    const result = await generateScenes(narrative, [], 0, 1, 'Test');
+
+    const allTkIds = result.scenes[0].threadMutations.flatMap(
+      (tm) => tm.addedNodes?.map((n) => n.id) ?? []
+    );
+    expect(allTkIds).toHaveLength(2);
+    expect(new Set(allTkIds).size).toBe(2);
+    for (const id of allTkIds) {
+      expect(id).toMatch(/^TK-\d+$/);
+    }
+  });
+});
+
+// ── Stepwise Arc Generation — thread log handling ───────────────────────────
+
+describe('generateArcStepwise — thread log TK ID remap', () => {
+  /**
+   * Build a mock scene returned by generateSingleScene. The LLM reuses the
+   * same TK-GEN-0/1 placeholders across every stepwise scene because each
+   * call is independent — this is the exact scenario that broke before
+   * the stepwise TK-ID remap was added.
+   */
+  function mockSingleSceneResponse(threadId: string, from: string, to: string) {
+    return JSON.stringify({
+      id: 'S-GEN-SW', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
+      participantIds: ['C-01'], events: ['beat'],
+      threadMutations: [{
+        threadId, from, to,
+        addedNodes: [
+          { id: 'TK-GEN-0', content: `${threadId} ${from}→${to} entry A`, type: from === to ? 'pulse' : 'transition' },
+          { id: 'TK-GEN-1', content: `${threadId} ${from}→${to} entry B`, type: 'pulse' },
+        ],
+      }],
+      continuityMutations: [], relationshipMutations: [],
+      worldKnowledgeMutations: { addedNodes: [], addedEdges: [] },
+      summary: `Stepwise scene for ${threadId}`,
+    });
+  }
+
+  it('remaps TK-GEN placeholders to globally unique TK-* IDs across stepwise scenes', async () => {
+    // generateArcStepwise enforces a 4-scene minimum (Math.max(4, count)).
+    // Arc plan response — required by generateArcStepwise before the scene loop.
+    const arcPlanResponse = JSON.stringify({
+      arcName: 'Stepwise Arc',
+      directionVector: 'Things happen',
+      scenePlan: ['Scene 1 beat', 'Scene 2 beat', 'Scene 3 beat', 'Scene 4 beat'],
+    });
+
+    vi.mocked(callGenerate)
+      .mockResolvedValueOnce(arcPlanResponse) // generateArcPlan
+      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
+      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
+      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
+      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'));
+
+    const narrative = createMinimalNarrative();
+    // Disable pacing chain so detectCurrentMode returns LLL without needing markov setup.
+    narrative.storySettings = { ...narrative.storySettings, usePacingChain: false } as NarrativeState['storySettings'];
+
+    const result = await generateArcStepwise(narrative, [], -1, 4, 'Test');
+
+    // All four scenes should exist with TK IDs assigned.
+    expect(result.scenes).toHaveLength(4);
+
+    // Flatten all TK IDs across every threadMutation in every scene.
+    const allTkIds = result.scenes.flatMap((s) =>
+      (s.threadMutations ?? []).flatMap((tm) => tm.addedNodes?.map((n) => n.id) ?? [])
+    );
+
+    // LLM emitted 2 nodes per scene × 4 scenes = 8 total.
+    expect(allTkIds).toHaveLength(8);
+    // All must be unique — this is the bug fix. Before the fix, the LLM's
+    // TK-GEN-0/1 would collide across scenes and applyLogMutation would
+    // silently drop scenes 2-4's log entries.
+    expect(new Set(allTkIds).size).toBe(8);
+    // All must be real TK-NNN IDs, not leftover GEN placeholders.
+    for (const id of allTkIds) {
+      expect(id).toMatch(/^TK-\d+$/);
+      expect(id).not.toMatch(/GEN/);
+    }
+  });
+
+  it('preserves distinct node content per scene (nothing dropped by collision)', async () => {
+    const arcPlanResponse = JSON.stringify({
+      arcName: 'Stepwise Arc',
+      directionVector: 'Things happen',
+      scenePlan: ['Scene 1', 'Scene 2', 'Scene 3', 'Scene 4'],
+    });
+
+    vi.mocked(callGenerate)
+      .mockResolvedValueOnce(arcPlanResponse)
+      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
+      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
+      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'))
+      .mockResolvedValueOnce(mockSingleSceneResponse('T-01', 'active', 'active'));
+
+    const narrative = createMinimalNarrative();
+    narrative.storySettings = { ...narrative.storySettings, usePacingChain: false } as NarrativeState['storySettings'];
+
+    const result = await generateArcStepwise(narrative, [], -1, 4, 'Test');
+
+    // Every scene's log content must be present — if the bug were still there,
+    // scenes 2-4's TK-GEN-0/1 would collide with scene 1's and be dropped.
+    const allContent = result.scenes.flatMap((s) =>
+      (s.threadMutations ?? []).flatMap((tm) => tm.addedNodes?.map((n) => n.content) ?? [])
+    );
+    expect(allContent).toHaveLength(8); // 2 nodes × 4 scenes
+    // All scenes emit identical content strings — all should survive.
+    const occurrencesOfEntryA = allContent.filter((c) => c.endsWith('entry A')).length;
+    expect(occurrencesOfEntryA).toBe(4);
   });
 });

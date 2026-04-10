@@ -81,15 +81,15 @@ function createThread(id: string, description: string, status: string = 'latent'
 describe('Static Prompt Constants', () => {
   describe('PROMPT_FORCE_STANDARDS', () => {
     it('contains drive reference per-scene target', () => {
-      expect(PROMPT_FORCE_STANDARDS).toMatch(/DRIVE[\s\S]+Reference:/);
+      expect(PROMPT_FORCE_STANDARDS).toMatch(/DRIVE[\s\S]+Reference mean:/);
     });
 
     it('contains world reference per-scene target', () => {
-      expect(PROMPT_FORCE_STANDARDS).toMatch(/WORLD[\s\S]+Reference:/);
+      expect(PROMPT_FORCE_STANDARDS).toMatch(/WORLD[\s\S]+Reference mean:/);
     });
 
     it('contains system reference per-scene target', () => {
-      expect(PROMPT_FORCE_STANDARDS).toMatch(/SYSTEM[\s\S]+Reference:/);
+      expect(PROMPT_FORCE_STANDARDS).toMatch(/SYSTEM[\s\S]+Reference mean:/);
     });
 
     it('mentions dominance framing', () => {

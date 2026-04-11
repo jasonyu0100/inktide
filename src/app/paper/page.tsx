@@ -467,10 +467,10 @@ const ARCHETYPES = [
     color: ARCHETYPE_COLORS.classic,
   },
   {
-    key: "show" as const,
-    name: "Show",
+    key: "stage" as const,
+    name: "Stage",
     desc: "World-driven",
-    color: ARCHETYPE_COLORS.show,
+    color: ARCHETYPE_COLORS.stage,
   },
   {
     key: "paper" as const,
@@ -746,9 +746,9 @@ export default function PaperPage() {
             <P>
               This paper proposes an answer: model text as knowledge graphs that
               mutate section by section, and derive three forces from those
-              mutations. <B>Fate</B> measures thread progression toward
-              resolution. <B>World</B> measures transformation of entities.{" "}
-              <B>System</B> measures the deepening of rules and structures.
+              mutations. <B>System</B> measures the deepening of rules and
+              structures. <B>World</B> measures transformation of entities.{" "}
+              <B>Fate</B> measures thread progression toward resolution.
               Together they capture what readers perceive intuitively: a scene
               &ldquo;feels&rdquo; climactic, a chapter &ldquo;drags&rdquo;, a
               proof &ldquo;builds&rdquo; — now computable.
@@ -1006,23 +1006,23 @@ export default function PaperPage() {
             <P>Three forces derive directly from these mutations:</P>
             <ul className="space-y-2 text-[13px] text-white/60 leading-relaxed pl-4">
               <li>
-                <B>Fate</B> measures how threads compete for narrative bandwidth
-                and accumulate commitment — the unifying force that pulls world
-                and system toward resolution.
+                <B>System</B> measures how the world&apos;s rules and structures
+                deepen through knowledge graph expansion.
               </li>
               <li>
                 <B>World</B> measures entity transformation through continuity
                 shifts — what the story does to the people in it.
               </li>
               <li>
-                <B>System</B> measures how the world&apos;s rules and structures
-                deepen through knowledge graph expansion.
+                <B>Fate</B> measures thread progression toward resolution — the
+                directional force that pulls world and system toward big-picture
+                events and extraordinary circumstances.
               </li>
             </ul>
             <P>
               The composition of these three forces defines a work&apos;s
-              archetype. A <B>Classic</B> is fate-dominant. A <B>Show</B> is
-              world-dominant. A <B>Paper</B> is system-dominant. An <B>Opus</B>{" "}
+              archetype. A <B>Paper</B> is system-dominant. A <B>Stage</B> is
+              world-dominant. A <B>Classic</B> is fate-dominant. An <B>Opus</B>{" "}
               balances all three. All forces are z-score normalized, making them
               comparable across works of arbitrary length.
             </P>
@@ -1534,58 +1534,26 @@ export default function PaperPage() {
             </p>
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
-                Fate
+                System
               </h3>
               <P>
-                Fate is the force that unifies narrative &mdash; the release of
-                accumulated potential when threads resolve. Where world and
-                system measure what the story <em>is</em>, fate measures what
-                the story
-                <em>wants</em>. But fate isn&apos;t earned by threads alone
-                &mdash; it&apos;s earned by <em>entities</em>. The story invests
-                in characters, locations, artifacts, concepts. When those
-                investments pay off through resolution, that&apos;s fate.
+                System measures the deepening of the world itself &mdash; the
+                rules, structures, and concepts that form the substrate on which
+                stories operate. Every narrative exists within a physics of
+                possibility: what can happen, what cannot, what costs what.
+                System tracks how that substrate grows and connects.
               </P>
-              <Eq tex="F = \sum_{t} \sqrt{\text{arcs}(t)} \times w(t) \times (1 + \ln(1 + I(t)))" />
+              <Eq tex={String.raw`S = \Delta N + \sqrt{\Delta E}`} />
               <P>
-                Three factors combine. <B>Arc span</B> uses{" "}
-                <Tex>{String.raw`\sqrt{\text{arcs}}`}</Tex> &mdash; sublinear
-                scaling that rewards persistence without penalizing short works.
-                A single-arc short story and a sprawling novel both earn
-                meaningful fate. <B>Stage weight</B> <Tex>w(t)</Tex> reflects
-                lifecycle position: pulse = 0.25, seeded = 0.5, active = 1.0,
-                escalating = 1.5, critical = 2.0, resolved = 4.0. Abandoned
-                threads earn zero &mdash; cleanup, not resolution.
-              </P>
-              <P>
-                <B>Investment</B> <Tex>I(t)</Tex> is what distinguishes earned
-                fate from red herrings. It measures what the story has built
-                into the thread&apos;s participants &mdash; their continuity
-                depth (accumulated knowledge, relationships, history). A thread
-                resolving around a deeply-developed character earns more fate
-                than one involving transient figures. The formula captures both
-                depth (one invested entity) and breadth (many entities
-                converging):
-              </P>
-              <Eq tex="I(t) = \max_p(\text{depth}_p) \times (1 + 0.15 \times \text{breadth})" />
-              <P>
-                where depth is continuity nodes plus sqrt of edges for the most
-                invested participant, and breadth counts how many participants
-                exceed a minimum investment threshold. This means fate can be
-                powerful on a single individual (high depth, low breadth) or
-                across many people (moderate depth, high breadth). A prophecy
-                about a chosen one and a fellowship converging at a climax both
-                earn high fate &mdash; through different paths.
-              </P>
-              <P>
-                Fate attaches to <em>nodes</em>, not entity types. In fiction
-                those nodes are characters, locations, artifacts. In a paper
-                they&apos;re theorems, concepts, arguments. The formula works
-                universally: a theorem referenced throughout a paper and finally
-                proven earns fate just as a character arc resolving does. This
-                is why fate can feel like a gift that develops like wine over
-                time, or a false flag that was never really there &mdash;
-                investment distinguishes the two.
+                <Tex>{"\\Delta N"}</Tex> counts new nodes added to the graph
+                (principles, systems, concepts, tensions, events, structures),
+                and <Tex>{"\\Delta E"}</Tex> counts new typed edges. Nodes scale
+                linearly because each represents genuinely new information.
+                Edges scale sub-linearly (square root) because early connections
+                matter more than later ones — this prevents bulk edge additions
+                from dominating. The formula applies to any world-building
+                context: fantasy magic systems, literary social hierarchies, or
+                science fiction physics.
               </P>
             </div>
 
@@ -1595,9 +1563,9 @@ export default function PaperPage() {
               </h3>
               <P>
                 World measures the transformation of entities &mdash; what we
-                learn about characters, locations, and artifacts as fate pulls
-                them through the story. Where fate measures what the story
-                wants, world measures what the story does to the people in it.
+                learn about characters, locations, and artifacts as they move
+                through the story. Where System tracks the rules of the stage,
+                World tracks the inner lives of those who walk it.
               </P>
               <Eq tex={String.raw`W = \Delta N_c + \sqrt{\Delta E_c}`} />
               <P>
@@ -1614,26 +1582,44 @@ export default function PaperPage() {
 
             <div>
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
-                System
+                Fate
               </h3>
               <P>
-                System measures the deepening of the world itself &mdash; the
-                rules, structures, and concepts that form the substrate on which
-                fate and world operate. A world without systems is a stage
-                without physics; fate cannot create meaningful resolution in a
-                vacuum of rules.
+                Fate is the directional force &mdash; the pull toward
+                big-picture events and extraordinary circumstances. Where System
+                and World measure what the story <em>is</em>, Fate measures
+                where it&apos;s <em>going</em>. Not every story needs high fate;
+                a character study or world-building treatise can thrive on World
+                and System alone. But when threads accumulate and resolve, when
+                circumstances become extraordinary, that&apos;s fate at work.
               </P>
-              <Eq tex={String.raw`S = \Delta N + \sqrt{\Delta E}`} />
+              <Eq tex="F = \sum_{t} \sqrt{\text{arcs}(t)} \times w(t) \times (1 + \ln(1 + I(t)))" />
               <P>
-                <Tex>{"\\Delta N"}</Tex> counts new nodes added to the graph
-                (principles, systems, concepts, tensions, events, structures),
-                and <Tex>{"\\Delta E"}</Tex> counts new typed edges. Nodes scale
-                linearly because each represents genuinely new information.
-                Edges scale sub-linearly (square root) because early connections
-                matter more than later ones — this prevents bulk edge additions
-                from dominating. The formula applies to any world-building
-                context: fantasy magic systems, literary social hierarchies, or
-                science fiction physics.
+                Three factors combine. <B>Arc span</B> uses{" "}
+                <Tex>{String.raw`\sqrt{\text{arcs}}`}</Tex> &mdash; sublinear
+                scaling that rewards persistence without penalizing short works.
+                <B>Stage weight</B> <Tex>w(t)</Tex> reflects lifecycle position:
+                pulse = 0.25, seeded = 0.5, active = 1.0, escalating = 1.5,
+                critical = 2.0, resolved = 4.0. Abandoned threads earn zero
+                &mdash; cleanup, not resolution.
+              </P>
+              <P>
+                <B>Investment</B> <Tex>I(t)</Tex> is what distinguishes earned
+                fate from red herrings. It measures what the story has built
+                into the thread&apos;s participants &mdash; their continuity
+                depth (accumulated knowledge, relationships, history). A thread
+                resolving around a deeply-developed character earns more fate
+                than one involving transient figures:
+              </P>
+              <Eq tex="I(t) = \max_p(\text{depth}_p) \times (1 + 0.15 \times \text{breadth})" />
+              <P>
+                Fate can be powerful on a single individual (high depth, low
+                breadth) or across many people (moderate depth, high breadth). A
+                prophecy about a chosen one and a fellowship converging at a
+                climax both earn high fate &mdash; through different paths. In
+                fiction those nodes are characters, locations, artifacts. In a
+                paper they&apos;re theorems, concepts, arguments. The formula
+                works universally.
               </P>
             </div>
 
@@ -1642,7 +1628,7 @@ export default function PaperPage() {
                 Delivery
               </h3>
               <P>
-                While Fate, World, and System measure structural{" "}
+                While System, World, and Fate measure structural{" "}
                 <em>operations</em>, Delivery quantifies reader-perceived{" "}
                 <em>impact</em> — the mean of all three forces, capturing
                 holistic moments where direction, transformation, and knowledge
@@ -3421,7 +3407,7 @@ export default function PaperPage() {
               At the narrative level, classification answers a practical
               question: when comparing or generating texts, what kind of
               structural emphasis does this work have? A &ldquo;Chronicle&rdquo;
-              (Fate + System) and a &ldquo;Show&rdquo; (World-driven) require
+              (World + System) and a &ldquo;Stage&rdquo; (World-driven) require
               different pacing strategies, different thread management, and
               different revision priorities. Each text is classified by which
               forces dominate its profile — a force is &ldquo;dominant&rdquo; if

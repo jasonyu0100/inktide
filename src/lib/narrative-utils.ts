@@ -1500,7 +1500,7 @@ export const ARCHETYPE_FORCE_TARGETS: Record<ArchetypeKey, ArchetypeForceProfile
   atlas:     { fate: HIGH_FATE, world: LOW_WORLD,  system: HIGH_SYSTEM, enforced: false, description: "Resolutions through world-building — each fate reveals how things work" },
   chronicle: { fate: LOW_FATE,  world: HIGH_WORLD, system: HIGH_SYSTEM, enforced: false, description: "Transformative exploration — characters grow within a deepening world" },
   classic:   { fate: HIGH_FATE, world: LOW_WORLD,  system: LOW_SYSTEM,  enforced: false, description: "Plot-driven — threads pay off decisively, less focus on transformation or lore" },
-  show:      { fate: LOW_FATE,  world: HIGH_WORLD, system: LOW_SYSTEM,  enforced: false, description: "Character-driven — people transform, journeys are the heart of the story" },
+  stage:     { fate: LOW_FATE,  world: HIGH_WORLD, system: LOW_SYSTEM,  enforced: false, description: "Rich inner worlds — characters, places, and artifacts with deep continuity" },
   paper:     { fate: LOW_FATE,  world: LOW_WORLD,  system: HIGH_SYSTEM, enforced: false, description: "Idea-dense — the depth and structure of the world itself is the draw" },
 };
 

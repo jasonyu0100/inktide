@@ -1,36 +1,36 @@
-import { describe, it, expect } from 'vitest';
 import {
-  computeMatrixFromNarrative,
-  samplePacingSequence,
+  buildIntroductionSequence,
   buildPresetSequence,
   buildSequenceFromModes,
-  buildIntroductionSequence,
-  detectCurrentMode,
-  buildSingleStepPrompt,
   buildSequencePrompt,
+  buildSingleStepPrompt,
+  computeMatrixFromNarrative,
+  detectCurrentMode,
   initMatrixPresets,
+  INTRODUCTION_SEQUENCE,
   MATRIX_PRESETS,
   PACING_PRESETS,
-  INTRODUCTION_SEQUENCE,
+  samplePacingSequence,
   type TransitionMatrix,
-} from '@/lib/pacing-profile';
-import type { NarrativeState, Scene, CubeCornerKey } from '@/types/narrative';
+} from "@/lib/pacing-profile";
+import type { CubeCornerKey, NarrativeState, Scene } from "@/types/narrative";
+import { describe, expect, it } from "vitest";
 
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 
 function createScene(overrides: Partial<Scene> = {}): Scene {
   return {
-    kind: 'scene',
-    id: overrides.id ?? 'S-001',
-    arcId: 'ARC-01',
-    povId: 'C-01',
-    locationId: 'L-01',
-    participantIds: ['C-01'],
+    kind: "scene",
+    id: overrides.id ?? "S-001",
+    arcId: "ARC-01",
+    povId: "C-01",
+    locationId: "L-01",
+    participantIds: ["C-01"],
     events: [],
     threadMutations: [],
     continuityMutations: [],
     relationshipMutations: [],
-    summary: 'Test scene',
+    summary: "Test scene",
     ...overrides,
   };
 }
@@ -41,9 +41,9 @@ function createNarrative(scenes: Scene[] = []): NarrativeState {
     sceneMap[s.id] = s;
   }
   return {
-    id: 'test-narrative',
-    title: 'Test',
-    description: 'Test narrative',
+    id: "test-narrative",
+    title: "Test",
+    description: "Test narrative",
     characters: {},
     locations: {},
     threads: {},
@@ -53,8 +53,8 @@ function createNarrative(scenes: Scene[] = []): NarrativeState {
     worldBuilds: {},
     branches: {
       main: {
-        id: 'main',
-        name: 'Main',
+        id: "main",
+        name: "Main",
         parentBranchId: null,
         forkEntryId: null,
         entryIds: scenes.map((s) => s.id),
@@ -63,7 +63,7 @@ function createNarrative(scenes: Scene[] = []): NarrativeState {
     },
     relationships: [],
     systemGraph: { nodes: {}, edges: [] },
-    worldSummary: '',
+    worldSummary: "",
     rules: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -72,13 +72,22 @@ function createNarrative(scenes: Scene[] = []): NarrativeState {
 
 // ── Matrix Computation ───────────────────────────────────────────────────────
 
-describe('computeMatrixFromNarrative', () => {
-  it('returns empty matrix for narrative with fewer than 3 scenes', () => {
-    const narrative = createNarrative([createScene({ id: 'S-001' })]);
+describe("computeMatrixFromNarrative", () => {
+  it("returns empty matrix for narrative with fewer than 3 scenes", () => {
+    const narrative = createNarrative([createScene({ id: "S-001" })]);
     const matrix = computeMatrixFromNarrative(narrative);
 
     // Check all values are 0
-    const corners: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
+    const corners: CubeCornerKey[] = [
+      "HHH",
+      "HHL",
+      "HLH",
+      "HLL",
+      "LHH",
+      "LHL",
+      "LLH",
+      "LLL",
+    ];
     for (const from of corners) {
       for (const to of corners) {
         expect(matrix[from][to]).toBe(0);
@@ -86,29 +95,44 @@ describe('computeMatrixFromNarrative', () => {
     }
   });
 
-  it('computes transitions from scene sequence', () => {
+  it("computes transitions from scene sequence", () => {
     // Create scenes with varying mutation profiles
     const scenes = [
       createScene({
-        id: 'S-001',
+        id: "S-001",
         threadMutations: [],
         continuityMutations: [],
         events: [],
       }),
       createScene({
-        id: 'S-002',
-        threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active', addedNodes: [] }],
-        continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }],
-        events: ['event1'],
+        id: "S-002",
+        threadMutations: [
+          { threadId: "T-01", from: "dormant", to: "active", addedNodes: [] },
+        ],
+        continuityMutations: [
+          {
+            entityId: "C-01",
+            addedNodes: [{ id: "K-01", content: "x", type: "history" }],
+          },
+        ],
+        events: ["event1"],
       }),
       createScene({
-        id: 'S-003',
-        threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [] }],
-        continuityMutations: [
-          { entityId: 'C-01', addedNodes: [{ id: 'K-02', content: 'y', type: 'belief' }] },
-          { entityId: 'C-02', addedNodes: [{ id: 'K-03', content: 'z', type: 'belief' }] },
+        id: "S-003",
+        threadMutations: [
+          { threadId: "T-01", from: "active", to: "critical", addedNodes: [] },
         ],
-        events: ['event2', 'event3'],
+        continuityMutations: [
+          {
+            entityId: "C-01",
+            addedNodes: [{ id: "K-02", content: "y", type: "belief" }],
+          },
+          {
+            entityId: "C-02",
+            addedNodes: [{ id: "K-03", content: "z", type: "belief" }],
+          },
+        ],
+        events: ["event2", "event3"],
       }),
     ];
 
@@ -116,11 +140,20 @@ describe('computeMatrixFromNarrative', () => {
     const matrix = computeMatrixFromNarrative(narrative);
 
     // Matrix should have proper structure (all corners defined)
-    const corners: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
+    const corners: CubeCornerKey[] = [
+      "HHH",
+      "HHL",
+      "HLH",
+      "HLL",
+      "LHH",
+      "LHL",
+      "LLH",
+      "LLL",
+    ];
     for (const from of corners) {
       expect(matrix[from]).toBeDefined();
       for (const to of corners) {
-        expect(typeof matrix[from][to]).toBe('number');
+        expect(typeof matrix[from][to]).toBe("number");
         expect(matrix[from][to]).toBeGreaterThanOrEqual(0);
       }
     }
@@ -138,32 +171,32 @@ describe('computeMatrixFromNarrative', () => {
 
 // ── Sampling ─────────────────────────────────────────────────────────────────
 
-describe('samplePacingSequence', () => {
-  it('returns sequence of correct length', () => {
-    const sequence = samplePacingSequence('LLL', 5);
+describe("samplePacingSequence", () => {
+  it("returns sequence of correct length", () => {
+    const sequence = samplePacingSequence("LLL", 5);
     expect(sequence.steps).toHaveLength(5);
   });
 
-  it('each step has required properties', () => {
-    const sequence = samplePacingSequence('LLL', 3);
+  it("each step has required properties", () => {
+    const sequence = samplePacingSequence("LLL", 3);
     for (const step of sequence.steps) {
-      expect(step).toHaveProperty('mode');
-      expect(step).toHaveProperty('name');
-      expect(step).toHaveProperty('description');
-      expect(step).toHaveProperty('forces');
-      expect(step.forces).toHaveProperty('drive');
-      expect(step.forces).toHaveProperty('world');
-      expect(step.forces).toHaveProperty('system');
+      expect(step).toHaveProperty("mode");
+      expect(step).toHaveProperty("name");
+      expect(step).toHaveProperty("description");
+      expect(step).toHaveProperty("forces");
+      expect(step.forces).toHaveProperty("fate");
+      expect(step.forces).toHaveProperty("world");
+      expect(step.forces).toHaveProperty("system");
     }
   });
 
-  it('includes pacing description', () => {
-    const sequence = samplePacingSequence('LLL', 4);
+  it("includes pacing description", () => {
+    const sequence = samplePacingSequence("LLL", 4);
     expect(sequence.pacingDescription).toBeDefined();
     expect(sequence.pacingDescription.length).toBeGreaterThan(0);
   });
 
-  it('uses provided matrix when given', () => {
+  it("uses provided matrix when given", () => {
     // Create a deterministic matrix where LLL always goes to HHH
     const deterministicMatrix: TransitionMatrix = {
       HHH: { HHH: 1, HHL: 0, HLH: 0, HLL: 0, LHH: 0, LHL: 0, LLH: 0, LLL: 0 },
@@ -176,16 +209,16 @@ describe('samplePacingSequence', () => {
       LLL: { HHH: 1, HHL: 0, HLH: 0, HLL: 0, LHH: 0, LHL: 0, LLH: 0, LLL: 0 },
     };
 
-    const sequence = samplePacingSequence('LLL', 3, deterministicMatrix);
-    expect(sequence.steps.every((s) => s.mode === 'HHH')).toBe(true);
+    const sequence = samplePacingSequence("LLL", 3, deterministicMatrix);
+    expect(sequence.steps.every((s) => s.mode === "HHH")).toBe(true);
   });
 });
 
 // ── Preset Building ──────────────────────────────────────────────────────────
 
-describe('buildPresetSequence', () => {
-  it('builds sequence from preset modes', () => {
-    const preset = PACING_PRESETS.find((p) => p.key === 'classic-arc');
+describe("buildPresetSequence", () => {
+  it("builds sequence from preset modes", () => {
+    const preset = PACING_PRESETS.find((p) => p.key === "classic-arc");
     expect(preset).toBeDefined();
 
     if (preset) {
@@ -196,20 +229,20 @@ describe('buildPresetSequence', () => {
   });
 });
 
-describe('buildSequenceFromModes', () => {
-  it('builds sequence from raw mode array', () => {
-    const modes: CubeCornerKey[] = ['LLL', 'LHL', 'HHL'];
+describe("buildSequenceFromModes", () => {
+  it("builds sequence from raw mode array", () => {
+    const modes: CubeCornerKey[] = ["LLL", "LHL", "HHL"];
     const sequence = buildSequenceFromModes(modes);
 
     expect(sequence.steps).toHaveLength(3);
-    expect(sequence.steps[0].mode).toBe('LLL');
-    expect(sequence.steps[1].mode).toBe('LHL');
-    expect(sequence.steps[2].mode).toBe('HHL');
+    expect(sequence.steps[0].mode).toBe("LLL");
+    expect(sequence.steps[1].mode).toBe("LHL");
+    expect(sequence.steps[2].mode).toBe("HHL");
   });
 });
 
-describe('buildIntroductionSequence', () => {
-  it('returns introduction sequence with correct modes', () => {
+describe("buildIntroductionSequence", () => {
+  it("returns introduction sequence with correct modes", () => {
     const sequence = buildIntroductionSequence();
     expect(sequence.steps).toHaveLength(INTRODUCTION_SEQUENCE.length);
     expect(sequence.steps.map((s) => s.mode)).toEqual(INTRODUCTION_SEQUENCE);
@@ -218,33 +251,44 @@ describe('buildIntroductionSequence', () => {
 
 // ── Current Mode Detection ───────────────────────────────────────────────────
 
-describe('detectCurrentMode', () => {
-  it('returns LLL for empty narrative', () => {
+describe("detectCurrentMode", () => {
+  it("returns LLL for empty narrative", () => {
     const narrative = createNarrative([]);
     const mode = detectCurrentMode(narrative, []);
-    expect(mode).toBe('LLL');
+    expect(mode).toBe("LLL");
   });
 
-  it('detects mode from last scene forces', () => {
-    // Create scenes with high drive to push toward H** corners
+  it("detects mode from last scene forces", () => {
+    // Create scenes with high fate to push toward H** corners
     const scenes = [
       createScene({
-        id: 'S-001',
+        id: "S-001",
         threadMutations: [
-          { threadId: 'T-01', from: 'dormant', to: 'resolved', addedNodes: [] },
-          { threadId: 'T-02', from: 'dormant', to: 'resolved', addedNodes: [] },
+          { threadId: "T-01", from: "dormant", to: "resolved", addedNodes: [] },
+          { threadId: "T-02", from: "dormant", to: "resolved", addedNodes: [] },
         ],
-        continuityMutations: Array(10).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }),
-        events: Array(10).fill('event'),
+        continuityMutations: Array(10).fill({
+          entityId: "C-01",
+          addedNodes: [{ id: "K-01", content: "x", type: "history" }],
+        }),
+        events: Array(10).fill("event"),
         systemMutations: {
-          addedNodes: Array(5).fill({ id: 'K-01', concept: 'x', type: 'system' }),
-          addedEdges: Array(5).fill({ from: 'K-01', to: 'K-02', relation: 'x' }),
+          addedNodes: Array(5).fill({
+            id: "K-01",
+            concept: "x",
+            type: "system",
+          }),
+          addedEdges: Array(5).fill({
+            from: "K-01",
+            to: "K-02",
+            relation: "x",
+          }),
         },
       }),
     ];
 
     const narrative = createNarrative(scenes);
-    const mode = detectCurrentMode(narrative, ['S-001']);
+    const mode = detectCurrentMode(narrative, ["S-001"]);
 
     // With high forces all around, should be in a high corner
     expect(mode).toBeDefined();
@@ -253,14 +297,14 @@ describe('detectCurrentMode', () => {
 
 // ── Prompt Generation ────────────────────────────────────────────────────────
 
-describe('buildSingleStepPrompt', () => {
-  it('includes scene number and mode info', () => {
+describe("buildSingleStepPrompt", () => {
+  it("includes scene number and mode info", () => {
     const step = {
-      mode: 'HHL' as CubeCornerKey,
-      name: 'Climax',
-      description: 'Threads pay off, characters transform',
+      mode: "HHL" as CubeCornerKey,
+      name: "Climax",
+      description: "Threads pay off, characters transform",
       forces: {
-        drive: [2, 6] as [number, number],
+        fate: [2, 6] as [number, number],
         world: [4, 8] as [number, number],
         system: [0, 1.5] as [number, number],
       },
@@ -268,46 +312,55 @@ describe('buildSingleStepPrompt', () => {
 
     const prompt = buildSingleStepPrompt(step, 2, 5);
 
-    expect(prompt).toContain('Scene 3/5');
-    expect(prompt).toContain('Climax');
-    expect(prompt).toContain('P:HIGH');
-    expect(prompt).toContain('W:HIGH');
-    expect(prompt).toContain('S:LOW');
+    expect(prompt).toContain("Scene 3/5");
+    expect(prompt).toContain("Climax");
+    expect(prompt).toContain("P:HIGH");
+    expect(prompt).toContain("W:HIGH");
+    expect(prompt).toContain("S:LOW");
   });
 });
 
-describe('buildSequencePrompt', () => {
-  it('includes all scenes in sequence', () => {
-    const sequence = buildSequenceFromModes(['LLL', 'LHL', 'HHL']);
+describe("buildSequencePrompt", () => {
+  it("includes all scenes in sequence", () => {
+    const sequence = buildSequenceFromModes(["LLL", "LHL", "HHL"]);
     const prompt = buildSequencePrompt(sequence);
 
-    expect(prompt).toContain('SCENE 1');
-    expect(prompt).toContain('SCENE 2');
-    expect(prompt).toContain('SCENE 3');
-    expect(prompt).toContain('PACING SEQUENCE');
+    expect(prompt).toContain("SCENE 1");
+    expect(prompt).toContain("SCENE 2");
+    expect(prompt).toContain("SCENE 3");
+    expect(prompt).toContain("PACING SEQUENCE");
   });
 
-  it('includes force formula explanation', () => {
-    const sequence = buildSequenceFromModes(['LLL']);
+  it("includes force formula explanation", () => {
+    const sequence = buildSequenceFromModes(["LLL"]);
     const prompt = buildSequencePrompt(sequence);
 
-    expect(prompt).toContain('Formulas compute forces FROM mutations');
+    expect(prompt).toContain("Formulas compute forces FROM mutations");
   });
 });
 
 // ── Presets ──────────────────────────────────────────────────────────────────
 
-describe('PACING_PRESETS', () => {
-  it('includes expected preset keys', () => {
+describe("PACING_PRESETS", () => {
+  it("includes expected preset keys", () => {
     const keys = PACING_PRESETS.map((p) => p.key);
-    expect(keys).toContain('classic-arc');
-    expect(keys).toContain('introduction');
-    expect(keys).toContain('slow-burn');
-    expect(keys).toContain('roller-coaster');
+    expect(keys).toContain("classic-arc");
+    expect(keys).toContain("introduction");
+    expect(keys).toContain("slow-burn");
+    expect(keys).toContain("roller-coaster");
   });
 
-  it('all presets have valid modes', () => {
-    const validModes: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
+  it("all presets have valid modes", () => {
+    const validModes: CubeCornerKey[] = [
+      "HHH",
+      "HHL",
+      "HLH",
+      "HLL",
+      "LHH",
+      "LHL",
+      "LLH",
+      "LLL",
+    ];
 
     for (const preset of PACING_PRESETS) {
       expect(preset.modes.length).toBeGreaterThan(0);
@@ -318,54 +371,77 @@ describe('PACING_PRESETS', () => {
   });
 });
 
-describe('INTRODUCTION_SEQUENCE', () => {
-  it('has 8 scenes', () => {
+describe("INTRODUCTION_SEQUENCE", () => {
+  it("has 8 scenes", () => {
     expect(INTRODUCTION_SEQUENCE).toHaveLength(8);
   });
 
-  it('starts with Rest and ends with Climax', () => {
-    expect(INTRODUCTION_SEQUENCE[0]).toBe('LLL'); // Rest
-    expect(INTRODUCTION_SEQUENCE[INTRODUCTION_SEQUENCE.length - 1]).toBe('HHL'); // Climax
+  it("starts with Rest and ends with Climax", () => {
+    expect(INTRODUCTION_SEQUENCE[0]).toBe("LLL"); // Rest
+    expect(INTRODUCTION_SEQUENCE[INTRODUCTION_SEQUENCE.length - 1]).toBe("HHL"); // Climax
   });
 });
 
 // ── Matrix Preset Initialization ─────────────────────────────────────────────
 
-describe('initMatrixPresets', () => {
-  it('includes built-in presets after initialization', () => {
+describe("initMatrixPresets", () => {
+  it("includes built-in presets after initialization", () => {
     initMatrixPresets([]);
 
     const keys = MATRIX_PRESETS.map((p) => p.key);
-    expect(keys).toContain('storyteller');
+    expect(keys).toContain("storyteller");
     // Only storyteller is the default preset
     expect(keys.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('adds work presets with sufficient data', () => {
+  it("adds work presets with sufficient data", () => {
     const workNarrative = createNarrative([
       createScene({
-        id: 'S-001',
-        threadMutations: [{ threadId: 'T-01', from: 'dormant', to: 'active', addedNodes: [] }],
+        id: "S-001",
+        threadMutations: [
+          { threadId: "T-01", from: "dormant", to: "active", addedNodes: [] },
+        ],
       }),
       createScene({
-        id: 'S-002',
-        threadMutations: [{ threadId: 'T-01', from: 'active', to: 'escalating', addedNodes: [] }],
+        id: "S-002",
+        threadMutations: [
+          {
+            threadId: "T-01",
+            from: "active",
+            to: "escalating",
+            addedNodes: [],
+          },
+        ],
       }),
       createScene({
-        id: 'S-003',
-        threadMutations: [{ threadId: 'T-01', from: 'escalating', to: 'critical', addedNodes: [] }],
+        id: "S-003",
+        threadMutations: [
+          {
+            threadId: "T-01",
+            from: "escalating",
+            to: "critical",
+            addedNodes: [],
+          },
+        ],
       }),
       createScene({
-        id: 'S-004',
-        threadMutations: [{ threadId: 'T-01', from: 'critical', to: 'resolved', addedNodes: [] }],
+        id: "S-004",
+        threadMutations: [
+          {
+            threadId: "T-01",
+            from: "critical",
+            to: "resolved",
+            addedNodes: [],
+          },
+        ],
       }),
     ]);
 
     initMatrixPresets([
-      { key: 'test-work', name: 'Test Work', narrative: workNarrative },
+      { key: "test-work", name: "Test Work", narrative: workNarrative },
     ]);
 
     const keys = MATRIX_PRESETS.map((p) => p.key);
-    expect(keys).toContain('test-work');
+    expect(keys).toContain("test-work");
   });
 });

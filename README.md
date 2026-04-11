@@ -4,7 +4,7 @@
 
 **Narrative is a composition of three forces in flux.**
 
-Every story is drive, world, and system — threads accumulating commitment toward resolution, entities transforming under pressure, rules deepening beneath the surface. InkTide makes these forces measurable. Paste any long-form text and it builds a living knowledge graph that evolves section by section, deriving the structural forces that shape the work. A Classic is drive-dominant. A Show is world-dominant. A Paper is system-dominant. An Opus balances all three.
+Every story is fate, world, and system — threads accumulating commitment toward resolution, entities transforming under pressure, rules deepening beneath the surface. InkTide makes these forces measurable. Paste any long-form text and it builds a living knowledge graph that evolves section by section, deriving the structural forces that shape the work. A Classic is fate-dominant. A Show is world-dominant. A Paper is system-dominant. An Opus balances all three.
 
 Everything becomes searchable by meaning. Every proposition is embedded as a vector. Search for "sacrifice" and surface every moment of selfless choice across the timeline, even when the word never appears. Each analyzed work contributes its pacing fingerprint to a growing network of structural intelligence.
 
@@ -34,13 +34,13 @@ You need an **[OpenRouter API key](https://openrouter.ai/keys)** for LLM access.
 
 Three forces, all z-score normalised, derived from knowledge graph mutations — pure math, no LLM:
 
-| Force | What it measures |
-|-------|-----------------|
-| **Drive** | Thread resolution — how narrative tensions compete for bandwidth, accumulate structural commitment, and resolve. The unifying force that pulls world and system toward resolution. |
-| **World** | Entity transformation — what we learn about characters, locations, and artifacts as drive pulls them through the story. |
-| **System** | World deepening — the rules, structures, and concepts that form the substrate on which drive and world operate. |
+| Force      | What it measures                                                                                                                                                                   |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fate**   | Thread resolution — how narrative tensions compete for bandwidth, accumulate structural commitment, and resolve. The unifying force that pulls world and system toward resolution. |
+| **World**  | Entity transformation — what we learn about characters, locations, and artifacts as fate pulls them through the story.                                                             |
+| **System** | World deepening — the rules, structures, and concepts that form the substrate on which fate and world operate.                                                                     |
 
-Each force is graded 0–25, 100 total. The **narrative cube** maps force combinations into 8 modes — a vocabulary for how stories move through drive/world/system space.
+Each force is graded 0–25, 100 total. The **narrative cube** maps force combinations into 8 modes — a vocabulary for how stories move through fate/world/system space.
 
 Additional layers: **swing** (the rhythm of contrast between sections), **pacing profiles** (Markov transition matrices capturing an author's structural signature), and **scale & density** (how richly interconnected the world becomes).
 
@@ -52,14 +52,14 @@ Applications: continuity validation (verifying that referenced events actually o
 
 ### Generate
 
-| Capability | How it works |
-|-----------|-------------|
-| **Markov pacing** | Learn the rhythm of any published work and write in its structural signature |
-| **Prose profiles** | Beat plans shaped by authorial Markov chains — 10 functions, 8 mechanisms |
-| **MCTS search** | Explore branching narrative paths, each guided by a fresh pacing sequence |
-| **Course correction** | Direction adapts after each arc based on what the story actually became |
+| Capability             | How it works                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| **Markov pacing**      | Learn the rhythm of any published work and write in its structural signature            |
+| **Prose profiles**     | Beat plans shaped by authorial Markov chains — 10 functions, 8 mechanisms               |
+| **MCTS search**        | Explore branching narrative paths, each guided by a fresh pacing sequence               |
+| **Course correction**  | Direction adapts after each arc based on what the story actually became                 |
 | **Iterative revision** | Evaluate → verdict (ok / edit / merge / insert / cut) → reconstruct into refined drafts |
-| **Pacing presets** | Curated arcs (Sucker Punch, Slow Burn, Roller Coaster) for targeted narrative shapes |
+| **Pacing presets**     | Curated arcs (Sucker Punch, Slow Burn, Roller Coaster) for targeted narrative shapes    |
 
 ---
 

@@ -5,7 +5,7 @@ import * as d3 from 'd3';
 import type { SlidesData } from '@/lib/slides-data';
 
 const FORCE_COLORS: Record<string, string> = {
-  drive: '#EF4444', world: '#22C55E', system: '#3B82F6', swing: '#FACC15',
+  fate: '#EF4444', world: '#22C55E', system: '#3B82F6', swing: '#FACC15',
 };
 
 const gradeColor = (v: number) => {
@@ -67,9 +67,9 @@ export function TitleSlide({ data }: { data: SlidesData }) {
     }
   }, [data]);
 
-  const forces = ['drive', 'world', 'system'] as const;
-  const colors: Record<string, string> = { drive: '#EF4444', world: '#22C55E', system: '#3B82F6' };
-  const names: Record<string, string> = { drive: 'Drive', world: 'World', system: 'System' };
+  const forces = ['fate', 'world', 'system'] as const;
+  const colors: Record<string, string> = { fate: '#EF4444', world: '#22C55E', system: '#3B82F6' };
+  const names: Record<string, string> = { fate: 'Fate', world: 'World', system: 'System' };
   const dominant = forces.reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
 
   return (
@@ -112,7 +112,7 @@ export function TitleSlide({ data }: { data: SlidesData }) {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          {(['drive', 'world', 'system', 'swing'] as const).map((f) => (
+          {(['fate', 'world', 'system', 'swing'] as const).map((f) => (
             <div key={f} className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: FORCE_COLORS[f] }} />
               <span className="text-[10px] w-16 capitalize" style={{ color: FORCE_COLORS[f] }}>{f}</span>

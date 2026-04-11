@@ -5,7 +5,7 @@ import * as d3 from 'd3';
 import type { SlidesData } from '@/lib/slides-data';
 
 const FORCE_COLORS = {
-  drive: '#EF4444',
+  fate: '#EF4444',
   world: '#22C55E',
   system: '#3B82F6',
   swing: '#FACC15',
@@ -29,7 +29,7 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
 
     // Axes: P, C, K, S at 90 degree intervals
     const axes = [
-      { key: 'drive' as const, label: 'Drive', angle: -Math.PI / 2 },
+      { key: 'fate' as const, label: 'Fate', angle: -Math.PI / 2 },
       { key: 'world' as const, label: 'World', angle: 0 },
       { key: 'system' as const, label: 'System', angle: Math.PI / 2 },
       { key: 'swing' as const, label: 'Swing', angle: Math.PI },
@@ -63,7 +63,7 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
 
     // Normalize grades to 0-1 (grade is 0-25)
     const values = {
-      drive: data.overallGrades.drive / 25,
+      fate: data.overallGrades.fate / 25,
       world: data.overallGrades.world / 25,
       system: data.overallGrades.system / 25,
       swing: data.overallGrades.swing / 25,
@@ -97,17 +97,17 @@ export function ForcesOverviewSlide({ data }: { data: SlidesData }) {
   }, [data]);
 
   // Determine dominant force
-  const forces = ['drive', 'world', 'system', 'swing'] as const;
+  const forces = ['fate', 'world', 'system', 'swing'] as const;
   const avgRaw = {
-    drive: data.rawForces.drive.reduce((s, v) => s + v, 0) / data.sceneCount,
+    fate: data.rawForces.fate.reduce((s, v) => s + v, 0) / data.sceneCount,
     world: data.rawForces.world.reduce((s, v) => s + v, 0) / data.sceneCount,
     system: data.rawForces.system.reduce((s, v) => s + v, 0) / data.sceneCount,
   };
   const dominant = forces.reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
 
   const forceDescriptions: Record<string, string> = {
-    drive: 'Thread resolutions and relationship shifts carry the narrative weight',
-    world: 'Character transformation and continuity mutations drive the story forward',
+    fate: 'Thread resolutions and relationship shifts carry the narrative weight',
+    world: 'Character transformation and continuity mutations shape the story forward',
     system: 'World-building density — new concepts, systems, and connections expand the reader\'s understanding',
   };
 

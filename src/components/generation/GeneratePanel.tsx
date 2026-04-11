@@ -1,30 +1,65 @@
-'use client';
+"use client";
 
-import { useState, useMemo, useCallback } from 'react';
-import { useStore } from '@/lib/store';
-import { generateScenes, expandWorld, suggestWorldExpansion, type WorldExpansionSize, type WorldExpansionStrategy, type ExpansionEntityFilter, DEFAULT_EXPANSION_FILTER } from '@/lib/ai';
-import { resolveEntry, NARRATIVE_CUBE } from '@/types/narrative';
-import type { CubeCornerKey } from '@/types/narrative';
-import { nextId } from '@/lib/narrative-utils';
-import { samplePacingSequence, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, PACING_PRESETS, buildPresetSequence, buildSequenceFromModes, type PacingSequence } from '@/lib/pacing-profile';
-import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { PacingStrip, CubeBadge } from './PacingStrip';
-import { MarkovGraph } from './MarkovGraph';
-import { GuidanceFields } from './GuidanceFields';
-import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
-import { IconDice, IconChevronRight } from '@/components/icons';
-import { logError } from '@/lib/system-logger';
+import { Modal, ModalBody, ModalHeader } from "@/components/Modal";
+import { IconChevronRight, IconDice } from "@/components/icons";
+import {
+  DEFAULT_EXPANSION_FILTER,
+  expandWorld,
+  generateScenes,
+  suggestWorldExpansion,
+  type ExpansionEntityFilter,
+  type WorldExpansionSize,
+  type WorldExpansionStrategy,
+} from "@/lib/ai";
+import { nextId } from "@/lib/narrative-utils";
+import {
+  buildPresetSequence,
+  buildSequenceFromModes,
+  DEFAULT_TRANSITION_MATRIX,
+  detectCurrentMode,
+  MATRIX_PRESETS,
+  PACING_PRESETS,
+  samplePacingSequence,
+  type PacingSequence,
+} from "@/lib/pacing-profile";
+import { useStore } from "@/lib/store";
+import { logError } from "@/lib/system-logger";
+import type { CubeCornerKey } from "@/types/narrative";
+import {
+  DEFAULT_STORY_SETTINGS,
+  NARRATIVE_CUBE,
+  resolveEntry,
+} from "@/types/narrative";
+import { useCallback, useMemo, useState } from "react";
+import { GuidanceFields } from "./GuidanceFields";
+import { MarkovGraph } from "./MarkovGraph";
+import { CubeBadge, PacingStrip } from "./PacingStrip";
 
-type Mode = 'continuation' | 'world';
+type Mode = "continuation" | "world";
 
 // ── Corner colors ────────────────────────────────────────────────────────────
 
 const CORNER_COLORS: Record<CubeCornerKey, string> = {
-  HHH: '#f59e0b', HHL: '#ef4444', HLH: '#a855f7', HLL: '#6366f1',
-  LHH: '#22d3ee', LHL: '#22c55e', LLH: '#3b82f6', LLL: '#6b7280',
+  HHH: "#f59e0b",
+  HHL: "#ef4444",
+  HLH: "#a855f7",
+  HLL: "#6366f1",
+  LHH: "#22d3ee",
+  LHL: "#22c55e",
+  LLH: "#3b82f6",
+  LLL: "#6b7280",
 };
 
-const ALL_CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
+const ALL_CORNERS: CubeCornerKey[] = [
+  "HHH",
+  "HHL",
+  "HLH",
+  "HLL",
+  "LHH",
+  "LHL",
+  "LLH",
+  "LLL",
+];
 
 // ── Streaming Output ─────────────────────────────────────────────────────────
 
@@ -33,7 +68,9 @@ function StreamingOutput({ label, text }: { label: string; text: string }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <h2 className="text-sm font-semibold text-text-primary">{label}&hellip;</h2>
+        <h2 className="text-sm font-semibold text-text-primary">
+          {label}&hellip;
+        </h2>
       </div>
       {text ? (
         <pre className="text-[11px] text-text-dim font-mono whitespace-pre-wrap max-h-60 overflow-y-auto bg-white/3 rounded-lg p-3 leading-relaxed">
@@ -54,47 +91,53 @@ function StreamingOutput({ label, text }: { label: string; text: string }) {
 
 export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
-  const [mode, setMode] = useState<Mode>('continuation');
+  const [mode, setMode] = useState<Mode>("continuation");
 
   // Continuation state
   const [newArc, setNewArc] = useState(true);
-  const [arcName, setArcName] = useState('');
-  const [direction, setDirection] = useState('');
+  const [arcName, setArcName] = useState("");
+  const [direction, setDirection] = useState("");
   const [count, setCount] = useState(5);
-  const [worldBuildFocusId, setWorldBuildFocusId] = useState<string | null>(null);
-  const [guidanceDirection, setGuidanceDirection] = useState('');
-  const [guidanceConstraints, setGuidanceConstraints] = useState('');
+  const [worldBuildFocusId, setWorldBuildFocusId] = useState<string | null>(
+    null,
+  );
+  const [guidanceDirection, setGuidanceDirection] = useState("");
+  const [guidanceConstraints, setGuidanceConstraints] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Pacing preview
-  const [previewSequence, setPreviewSequence] = useState<PacingSequence | null>(null);
+  const [previewSequence, setPreviewSequence] = useState<PacingSequence | null>(
+    null,
+  );
   const [animating, setAnimating] = useState(false);
   const [editingStep, setEditingStep] = useState<number | null>(null);
 
   // World state
-  const [worldDirective, setWorldDirective] = useState('');
-  const [worldSize, setWorldSize] = useState<WorldExpansionSize>('exact');
+  const [worldDirective, setWorldDirective] = useState("");
+  const [worldSize, setWorldSize] = useState<WorldExpansionSize>("exact");
   const [worldStrategy, setWorldStrategy] = useState<WorldExpansionStrategy>(
-    state.activeNarrative?.storySettings?.expansionStrategy ?? 'dynamic'
+    state.activeNarrative?.storySettings?.expansionStrategy ?? "dynamic",
   );
-  const [entityFilter, setEntityFilter] = useState<ExpansionEntityFilter>({ ...DEFAULT_EXPANSION_FILTER });
+  const [entityFilter, setEntityFilter] = useState<ExpansionEntityFilter>({
+    ...DEFAULT_EXPANSION_FILTER,
+  });
 
   // Shared
   const [loading, setLoading] = useState(false);
-  const [streamText, setStreamText] = useState('');
+  const [streamText, setStreamText] = useState("");
   const [suggesting, setSuggesting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const narrative = state.activeNarrative;
   if (!narrative) return null;
 
-
   const headIndex = state.resolvedEntryKeys.length - 1;
   const headKey = state.resolvedEntryKeys[headIndex];
   const headEntry = headKey ? resolveEntry(narrative, headKey) : null;
-  const currentArc = headEntry?.kind === 'scene' && narrative.arcs[headEntry.arcId]
-    ? narrative.arcs[headEntry.arcId]
-    : null;
+  const currentArc =
+    headEntry?.kind === "scene" && narrative.arcs[headEntry.arcId]
+      ? narrative.arcs[headEntry.arcId]
+      : null;
 
   const currentMode = useMemo(
     () => detectCurrentMode(narrative, state.resolvedEntryKeys),
@@ -102,8 +145,13 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   );
 
   const storyMatrix = useMemo(() => {
-    const presetKey = narrative.storySettings?.rhythmPreset ?? DEFAULT_STORY_SETTINGS.rhythmPreset;
-    return MATRIX_PRESETS.find((p) => p.key === presetKey)?.matrix ?? DEFAULT_TRANSITION_MATRIX;
+    const presetKey =
+      narrative.storySettings?.rhythmPreset ??
+      DEFAULT_STORY_SETTINGS.rhythmPreset;
+    return (
+      MATRIX_PRESETS.find((p) => p.key === presetKey)?.matrix ??
+      DEFAULT_TRANSITION_MATRIX
+    );
   }, [narrative.storySettings?.rhythmPreset]);
 
   const handleSample = useCallback(() => {
@@ -112,69 +160,98 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     setAnimating(true);
   }, [currentMode, count, storyMatrix]);
 
-  const handleSetStep = useCallback((index: number, mode: CubeCornerKey) => {
-    if (!previewSequence) return;
-    const modes = previewSequence.steps.map((s) => s.mode);
-    modes[index] = mode;
-    setPreviewSequence(buildSequenceFromModes(modes));
-    setEditingStep(null);
-  }, [previewSequence]);
+  const handleSetStep = useCallback(
+    (index: number, mode: CubeCornerKey) => {
+      if (!previewSequence) return;
+      const modes = previewSequence.steps.map((s) => s.mode);
+      modes[index] = mode;
+      setPreviewSequence(buildSequenceFromModes(modes));
+      setEditingStep(null);
+    },
+    [previewSequence],
+  );
 
   const handleAddStep = useCallback(() => {
     if (!previewSequence) return;
     const modes = previewSequence.steps.map((s) => s.mode);
-    modes.push('LLL');
+    modes.push("LLL");
     setPreviewSequence(buildSequenceFromModes(modes));
     setCount(modes.length);
   }, [previewSequence]);
 
-  const handleRemoveStep = useCallback((index: number) => {
-    if (!previewSequence || previewSequence.steps.length <= 1) return;
-    const modes = previewSequence.steps.map((s) => s.mode).filter((_, i) => i !== index);
-    setPreviewSequence(buildSequenceFromModes(modes));
-    setCount(modes.length);
-    setEditingStep(null);
-  }, [previewSequence]);
-
+  const handleRemoveStep = useCallback(
+    (index: number) => {
+      if (!previewSequence || previewSequence.steps.length <= 1) return;
+      const modes = previewSequence.steps
+        .map((s) => s.mode)
+        .filter((_, i) => i !== index);
+      setPreviewSequence(buildSequenceFromModes(modes));
+      setCount(modes.length);
+      setEditingStep(null);
+    },
+    [previewSequence],
+  );
 
   async function handleGenerateArc() {
     if (!narrative) return;
     if (!newArc && !currentArc) return;
     setLoading(true);
-    setStreamText('');
-    setError('');
+    setStreamText("");
+    setError("");
     try {
       // Apply direction/constraints to story settings so branchContext picks them up
-      const currentSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-      if (guidanceDirection !== currentSettings.storyDirection || guidanceConstraints !== currentSettings.storyConstraints) {
+      const currentSettings = {
+        ...DEFAULT_STORY_SETTINGS,
+        ...narrative.storySettings,
+      };
+      if (
+        guidanceDirection !== currentSettings.storyDirection ||
+        guidanceConstraints !== currentSettings.storyConstraints
+      ) {
         dispatch({
-          type: 'SET_STORY_SETTINGS',
-          settings: { ...currentSettings, storyDirection: guidanceDirection, storyConstraints: guidanceConstraints },
+          type: "SET_STORY_SETTINGS",
+          settings: {
+            ...currentSettings,
+            storyDirection: guidanceDirection,
+            storyConstraints: guidanceConstraints,
+          },
         });
       }
 
-      const existingArc = !newArc ? currentArc ?? undefined : undefined;
-      const worldBuildFocus = worldBuildFocusId ? narrative.worldBuilds[worldBuildFocusId] : undefined;
+      const existingArc = !newArc ? (currentArc ?? undefined) : undefined;
+      const worldBuildFocus = worldBuildFocusId
+        ? narrative.worldBuilds[worldBuildFocusId]
+        : undefined;
 
       const { scenes, arc } = await generateScenes(
-        narrative, state.resolvedEntryKeys, headIndex, count, direction,
-        { existingArc, pacingSequence: previewSequence ?? undefined, worldBuildFocus, onReasoning: (token) => setStreamText((prev) => prev + token) },
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
+        count,
+        direction,
+        {
+          existingArc,
+          pacingSequence: previewSequence ?? undefined,
+          worldBuildFocus,
+          onReasoning: (token) => setStreamText((prev) => prev + token),
+        },
       );
-      dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: state.activeBranchId! });
+      dispatch({
+        type: "BULK_ADD_SCENES",
+        scenes,
+        arc,
+        branchId: state.activeBranchId!,
+      });
       onClose();
     } catch (err) {
-      logError(
-        'Manual scene generation failed',
-        err,
-        {
-          source: 'manual-generation',
-          operation: 'generate-scenes',
-          details: {
-            sceneCount: count,
-            newArc,
-          },
-        }
-      );
+      logError("Manual scene generation failed", err, {
+        source: "manual-generation",
+        operation: "generate-scenes",
+        details: {
+          sceneCount: count,
+          newArc,
+        },
+      });
       setError(String(err));
     } finally {
       setLoading(false);
@@ -184,54 +261,77 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   async function handleSuggestWorld() {
     if (!narrative) return;
     setSuggesting(true);
-    setError('');
+    setError("");
     try {
-      const suggestion = await suggestWorldExpansion(narrative, state.resolvedEntryKeys, headIndex, worldSize, worldStrategy);
+      const suggestion = await suggestWorldExpansion(
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
+        worldSize,
+        worldStrategy,
+      );
       setWorldDirective(suggestion);
     } catch (err) {
-      logError(
-        'World expansion suggestion failed',
-        err,
-        {
-          source: 'world-expansion',
-          operation: 'suggest-expansion',
-          details: { worldSize, worldStrategy },
-        }
-      );
+      logError("World expansion suggestion failed", err, {
+        source: "world-expansion",
+        operation: "suggest-expansion",
+        details: { worldSize, worldStrategy },
+      });
       setError(String(err));
-    } finally { setSuggesting(false); }
+    } finally {
+      setSuggesting(false);
+    }
   }
 
   async function handleExpandWorld() {
     if (!narrative) return;
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const expansion = await expandWorld(narrative, state.resolvedEntryKeys, headIndex, worldDirective, worldSize, worldStrategy, undefined, (token) => setStreamText((prev) => prev + token), entityFilter);
+      const expansion = await expandWorld(
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
+        worldDirective,
+        worldSize,
+        worldStrategy,
+        undefined,
+        (token) => setStreamText((prev) => prev + token),
+        entityFilter,
+      );
       dispatch({
-        type: 'EXPAND_WORLD', worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
-        characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
-        relationships: expansion.relationships, systemMutations: expansion.systemMutations,
-        artifacts: expansion.artifacts, branchId: state.activeBranchId!,
-        ownershipMutations: expansion.ownershipMutations, tieMutations: expansion.tieMutations,
-        continuityMutations: expansion.continuityMutations, relationshipMutations: expansion.relationshipMutations,
+        type: "EXPAND_WORLD",
+        worldBuildId: nextId("WB", Object.keys(narrative.worldBuilds), 3),
+        characters: expansion.characters,
+        locations: expansion.locations,
+        threads: expansion.threads,
+        relationships: expansion.relationships,
+        systemMutations: expansion.systemMutations,
+        artifacts: expansion.artifacts,
+        branchId: state.activeBranchId!,
+        ownershipMutations: expansion.ownershipMutations,
+        tieMutations: expansion.tieMutations,
+        continuityMutations: expansion.continuityMutations,
+        relationshipMutations: expansion.relationshipMutations,
       });
       onClose();
     } catch (err) {
-      logError(
-        'World expansion generation failed',
-        err,
-        {
-          source: 'world-expansion',
-          operation: 'expand-world',
-          details: { worldSize, worldStrategy, directiveLength: worldDirective.length },
-        }
-      );
+      logError("World expansion generation failed", err, {
+        source: "world-expansion",
+        operation: "expand-world",
+        details: {
+          worldSize,
+          worldStrategy,
+          directiveLength: worldDirective.length,
+        },
+      });
       setError(String(err));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const showPreview = !!previewSequence && mode === 'continuation' && !loading;
+  const showPreview = !!previewSequence && mode === "continuation" && !loading;
 
   return (
     <Modal onClose={loading ? () => {} : onClose} size="xl" maxHeight="90vh">
@@ -243,16 +343,22 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       <ModalBody className="p-6 space-y-4">
         {/* Mode tabs */}
         <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5">
-          {([
-            { label: 'Continuation', value: 'continuation' as Mode },
-            { label: 'Expand World', value: 'world' as Mode },
-          ]).map((m) => (
+          {[
+            { label: "Continuation", value: "continuation" as Mode },
+            { label: "Expand World", value: "world" as Mode },
+          ].map((m) => (
             <button
               key={m.value}
-              onClick={() => { setMode(m.value); setError(''); setPreviewSequence(null); }}
+              onClick={() => {
+                setMode(m.value);
+                setError("");
+                setPreviewSequence(null);
+              }}
               disabled={loading}
               className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors rounded-md ${
-                mode === m.value ? 'bg-bg-overlay text-text-primary' : 'text-text-dim hover:text-text-secondary'
+                mode === m.value
+                  ? "bg-bg-overlay text-text-primary"
+                  : "text-text-dim hover:text-text-secondary"
               } disabled:opacity-50`}
             >
               {m.label}
@@ -261,7 +367,16 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         </div>
 
         {loading ? (
-          <StreamingOutput label={mode === 'continuation' ? (newArc ? 'Generating arc' : 'Continuing arc') : 'Expanding world'} text={streamText} />
+          <StreamingOutput
+            label={
+              mode === "continuation"
+                ? newArc
+                  ? "Generating arc"
+                  : "Continuing arc"
+                : "Expanding world"
+            }
+            text={streamText}
+          />
         ) : showPreview ? (
           /* ── Pacing Preview (editable) ─────────────────────────── */
           <div className="flex flex-col gap-4">
@@ -279,69 +394,92 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
             {/* Editable strip — animated on first render, then editable */}
             {animating ? (
-              <PacingStrip
-                sequence={previewSequence}
-                animating={animating}
-              />
+              <PacingStrip sequence={previewSequence} animating={animating} />
             ) : (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center flex-wrap gap-1.5">
                   {previewSequence.steps.map((step, i) => (
                     <div key={i} className="relative flex items-center">
-                      {i > 0 && <span className="text-text-dim/30 text-[13px] font-light select-none mx-0.5">→</span>}
+                      {i > 0 && (
+                        <span className="text-text-dim/30 text-[13px] font-light select-none mx-0.5">
+                          →
+                        </span>
+                      )}
                       <button
                         data-step-idx={i}
-                        onClick={() => setEditingStep(editingStep === i ? null : i)}
-                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-all ${editingStep === i ? 'ring-1 ring-white/30' : 'hover:ring-1 hover:ring-white/15'}`}
-                        style={{ backgroundColor: `${CORNER_COLORS[step.mode]}15` }}
+                        onClick={() =>
+                          setEditingStep(editingStep === i ? null : i)
+                        }
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-all ${editingStep === i ? "ring-1 ring-white/30" : "hover:ring-1 hover:ring-white/15"}`}
+                        style={{
+                          backgroundColor: `${CORNER_COLORS[step.mode]}15`,
+                        }}
                       >
                         <CubeBadge mode={step.mode} size="sm" />
-                        <span className="text-[10px] font-semibold leading-none whitespace-nowrap" style={{ color: CORNER_COLORS[step.mode] }}>
+                        <span
+                          className="text-[10px] font-semibold leading-none whitespace-nowrap"
+                          style={{ color: CORNER_COLORS[step.mode] }}
+                        >
                           {NARRATIVE_CUBE[step.mode].name}
                         </span>
                       </button>
                       {/* Dropdown picker */}
-                      {editingStep === i && (() => {
-                        // Use a portal-style ref to position the dropdown in fixed space
-                        const btn = document.querySelector(`[data-step-idx="${i}"]`);
-                        const rect = btn?.getBoundingClientRect();
-                        return (
-                          <>
-                            {/* Backdrop to close on outside click */}
-                            <div className="fixed inset-0 z-60" onClick={() => setEditingStep(null)} />
-                            <div
-                              className="fixed z-61 bg-bg-base border border-white/10 rounded-lg shadow-xl p-1 w-36"
-                              style={rect ? { top: rect.bottom + 4, left: rect.left } : undefined}
-                            >
-                              {ALL_CORNERS.map((corner) => (
-                                <button
-                                  key={corner}
-                                  onClick={() => handleSetStep(i, corner)}
-                                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition ${
-                                    corner === step.mode ? 'bg-white/10' : 'hover:bg-white/5'
-                                  }`}
-                                >
-                                  <CubeBadge mode={corner} size="sm" />
-                                  <span className="text-[10px] font-medium" style={{ color: CORNER_COLORS[corner] }}>
-                                    {NARRATIVE_CUBE[corner].name}
-                                  </span>
-                                </button>
-                              ))}
-                              {previewSequence.steps.length > 1 && (
-                                <>
-                                  <div className="h-px bg-white/6 my-1" />
+                      {editingStep === i &&
+                        (() => {
+                          // Use a portal-style ref to position the dropdown in fixed space
+                          const btn = document.querySelector(
+                            `[data-step-idx="${i}"]`,
+                          );
+                          const rect = btn?.getBoundingClientRect();
+                          return (
+                            <>
+                              {/* Backdrop to close on outside click */}
+                              <div
+                                className="fixed inset-0 z-60"
+                                onClick={() => setEditingStep(null)}
+                              />
+                              <div
+                                className="fixed z-61 bg-bg-base border border-white/10 rounded-lg shadow-xl p-1 w-36"
+                                style={
+                                  rect
+                                    ? { top: rect.bottom + 4, left: rect.left }
+                                    : undefined
+                                }
+                              >
+                                {ALL_CORNERS.map((corner) => (
                                   <button
-                                    onClick={() => handleRemoveStep(i)}
-                                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-[10px] text-red-400/70 hover:bg-red-500/10 transition"
+                                    key={corner}
+                                    onClick={() => handleSetStep(i, corner)}
+                                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition ${
+                                      corner === step.mode
+                                        ? "bg-white/10"
+                                        : "hover:bg-white/5"
+                                    }`}
                                   >
-                                    Remove step
+                                    <CubeBadge mode={corner} size="sm" />
+                                    <span
+                                      className="text-[10px] font-medium"
+                                      style={{ color: CORNER_COLORS[corner] }}
+                                    >
+                                      {NARRATIVE_CUBE[corner].name}
+                                    </span>
                                   </button>
-                                </>
-                              )}
-                            </div>
-                          </>
-                        );
-                      })()}
+                                ))}
+                                {previewSequence.steps.length > 1 && (
+                                  <>
+                                    <div className="h-px bg-white/6 my-1" />
+                                    <button
+                                      onClick={() => handleRemoveStep(i)}
+                                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-[10px] text-red-400/70 hover:bg-red-500/10 transition"
+                                    >
+                                      Remove step
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
                     </div>
                   ))}
                   {/* Add step */}
@@ -389,27 +527,40 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         ) : (
           /* ── Configuration ──────────────────────────────────── */
           <div className="flex flex-col gap-4">
-            {mode === 'continuation' ? (
+            {mode === "continuation" ? (
               <>
                 {/* Arc toggle */}
                 <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input type="checkbox" checked={newArc} onChange={(e) => setNewArc(e.target.checked)} className="accent-white/80" />
+                  <input
+                    type="checkbox"
+                    checked={newArc}
+                    onChange={(e) => setNewArc(e.target.checked)}
+                    className="accent-white/80"
+                  />
                   <span className="text-xs text-text-secondary">New arc</span>
                 </label>
 
                 {newArc ? (
                   <div>
-                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">Arc Name</label>
+                    <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1">
+                      Arc Name
+                    </label>
                     <input
-                      type="text" value={arcName} onChange={(e) => setArcName(e.target.value)}
+                      type="text"
+                      value={arcName}
+                      onChange={(e) => setArcName(e.target.value)}
                       placeholder="e.g. The Reckoning"
                       className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full outline-none placeholder:text-text-dim"
                     />
                   </div>
                 ) : currentArc ? (
                   <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2">
-                    <span className="text-[10px] uppercase tracking-widest text-text-dim">Continuing</span>
-                    <p className="text-sm text-text-primary">{currentArc.name}</p>
+                    <span className="text-[10px] uppercase tracking-widest text-text-dim">
+                      Continuing
+                    </span>
+                    <p className="text-sm text-text-primary">
+                      {currentArc.name}
+                    </p>
                   </div>
                 ) : null}
 
@@ -417,40 +568,59 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 <GuidanceFields
                   direction={guidanceDirection}
                   constraints={guidanceConstraints}
-                  onDirectionChange={(v) => { setGuidanceDirection(v); setDirection(v); }}
+                  onDirectionChange={(v) => {
+                    setGuidanceDirection(v);
+                    setDirection(v);
+                  }}
                   onConstraintsChange={setGuidanceConstraints}
                 />
 
                 {/* Scene Count */}
                 <div className="flex items-center gap-3">
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim shrink-0">Scenes</label>
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim shrink-0">
+                    Scenes
+                  </label>
                   <div className="flex items-center gap-2 flex-1">
                     <input
-                      type="range" min={1} max={16} value={count}
+                      type="range"
+                      min={1}
+                      max={16}
+                      value={count}
                       onChange={(e) => setCount(Number(e.target.value))}
                       className="flex-1 h-1 appearance-none bg-white/10 rounded-full accent-white/60 cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/80 [&::-webkit-slider-thumb]:appearance-none"
                     />
-                    <span className="text-xs font-medium text-text-primary w-5 text-center tabular-nums">{count}</span>
+                    <span className="text-xs font-medium text-text-primary w-5 text-center tabular-nums">
+                      {count}
+                    </span>
                   </div>
                   {/* Current mode pill */}
                   <div className="flex items-center gap-1.5 text-[10px] text-text-dim shrink-0">
                     <CubeBadge mode={currentMode} />
-                    <span style={{ color: CORNER_COLORS[currentMode] }}>{NARRATIVE_CUBE[currentMode].name}</span>
+                    <span style={{ color: CORNER_COLORS[currentMode] }}>
+                      {NARRATIVE_CUBE[currentMode].name}
+                    </span>
                   </div>
                 </div>
 
                 {/* Advanced */}
                 <div>
-                  <button onClick={() => setAdvancedOpen((v) => !v)}
-                    className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-text-dim hover:text-text-secondary transition-colors">
-                    <IconChevronRight size={12} className={`transition-transform ${advancedOpen ? 'rotate-90' : ''}`} />
+                  <button
+                    onClick={() => setAdvancedOpen((v) => !v)}
+                    className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-text-dim hover:text-text-secondary transition-colors"
+                  >
+                    <IconChevronRight
+                      size={12}
+                      className={`transition-transform ${advancedOpen ? "rotate-90" : ""}`}
+                    />
                     Advanced
                   </button>
                   {advancedOpen && (
                     <div className="mt-3 flex flex-col gap-3">
                       {/* Pacing presets */}
                       <div>
-                        <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">Pacing Presets</label>
+                        <label className="text-[10px] ufatease tracking-widest text-text-dim block mb-1.5">
+                          Pacing fatets
+                        </label>
                         <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
                           {PACING_PRESETS.map((preset) => (
                             <button
@@ -466,13 +636,26 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                             >
                               <div className="flex gap-0.5 shrink-0">
                                 {preset.modes.map((m, i) => (
-                                  <div key={i} className="w-2 h-2 rounded-sm" style={{ backgroundColor: CORNER_COLORS[m] }} title={NARRATIVE_CUBE[m].name} />
+                                  <div
+                                    key={i}
+                                    className="w-2 h-2 rounded-sm"
+                                    style={{
+                                      backgroundColor: CORNER_COLORS[m],
+                                    }}
+                                    title={NARRATIVE_CUBE[m].name}
+                                  />
                                 ))}
                               </div>
                               <div className="min-w-0">
-                                <span className="text-[11px] font-medium text-text-primary">{preset.name}</span>
-                                <span className="text-[10px] text-text-dim ml-1.5">{preset.modes.length}s</span>
-                                <p className="text-[10px] text-text-dim line-clamp-1">{preset.description}</p>
+                                <span className="text-[11px] font-medium text-text-primary">
+                                  {preset.name}
+                                </span>
+                                <span className="text-[10px] text-text-dim ml-1.5">
+                                  {preset.modes.length}s
+                                </span>
+                                <p className="text-[10px] text-text-dim line-clamp-1">
+                                  {preset.description}
+                                </p>
                               </div>
                             </button>
                           ))}
@@ -482,20 +665,38 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                       {/* World build focus */}
                       {(() => {
                         const resolvedSet = new Set(state.resolvedEntryKeys);
-                        const wbEntries = Object.values(narrative.worldBuilds).filter((wb) => resolvedSet.has(wb.id));
+                        const wbEntries = Object.values(
+                          narrative.worldBuilds,
+                        ).filter((wb) => resolvedSet.has(wb.id));
                         if (wbEntries.length === 0) return null;
                         return (
                           <div>
-                            <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">World Build Focus</label>
+                            <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">
+                              World Build Focus
+                            </label>
                             <div className="flex flex-col gap-1 max-h-24 overflow-y-auto">
                               {wbEntries.map((wb) => {
                                 const isSelected = worldBuildFocusId === wb.id;
                                 return (
-                                  <button key={wb.id} type="button" onClick={() => setWorldBuildFocusId(isSelected ? null : wb.id)}
+                                  <button
+                                    key={wb.id}
+                                    type="button"
+                                    onClick={() =>
+                                      setWorldBuildFocusId(
+                                        isSelected ? null : wb.id,
+                                      )
+                                    }
                                     className={`rounded-lg px-3 py-2 text-left transition border ${
-                                      isSelected ? 'bg-amber-500/10 border-amber-500/30' : 'bg-bg-elevated border-border hover:border-white/16'
-                                    }`}>
-                                    <p className={`text-xs line-clamp-1 ${isSelected ? 'text-amber-300' : 'text-text-primary'}`}>{wb.summary}</p>
+                                      isSelected
+                                        ? "bg-amber-500/10 border-amber-500/30"
+                                        : "bg-bg-elevated border-border hover:border-white/16"
+                                    }`}
+                                  >
+                                    <p
+                                      className={`text-xs line-clamp-1 ${isSelected ? "text-amber-300" : "text-text-primary"}`}
+                                    >
+                                      {wb.summary}
+                                    </p>
                                   </button>
                                 );
                               })}
@@ -531,79 +732,169 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 {/* World mode */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-[10px] uppercase tracking-widest text-text-dim">Directive</label>
-                    <button onClick={handleSuggestWorld} disabled={suggesting}
-                      className="text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 uppercase tracking-wider">
-                      {suggesting ? 'Thinking...' : 'Suggest'}
+                    <label className="text-[10px] uppercase tracking-widest text-text-dim">
+                      Directive
+                    </label>
+                    <button
+                      onClick={handleSuggestWorld}
+                      disabled={suggesting}
+                      className="text-[10px] text-text-secondary hover:text-text-primary transition-colors disabled:opacity-30 uppercase tracking-wider"
+                    >
+                      {suggesting ? "Thinking..." : "Suggest"}
                     </button>
                   </div>
-                  <textarea value={worldDirective} onChange={(e) => setWorldDirective(e.target.value)}
+                  <textarea
+                    value={worldDirective}
+                    onChange={(e) => setWorldDirective(e.target.value)}
                     placeholder="Describe what to add to the world..."
-                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-28 resize-none outline-none placeholder:text-text-dim" />
+                    className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-text-primary w-full h-28 resize-none outline-none placeholder:text-text-dim"
+                  />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Size</label>
+                  <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
+                    Size
+                  </label>
                   <div className="flex gap-1.5">
-                    {([
-                      { value: 'exact' as WorldExpansionSize, label: 'Exact', desc: 'As described' },
-                      { value: 'small' as WorldExpansionSize, label: 'Small', desc: '~5 entities' },
-                      { value: 'medium' as WorldExpansionSize, label: 'Medium', desc: '~12 entities' },
-                      { value: 'large' as WorldExpansionSize, label: 'Large', desc: '~30 entities' },
-                    ]).map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => setWorldSize(opt.value)}
+                    {[
+                      {
+                        value: "exact" as WorldExpansionSize,
+                        label: "Exact",
+                        desc: "As described",
+                      },
+                      {
+                        value: "small" as WorldExpansionSize,
+                        label: "Small",
+                        desc: "~5 entities",
+                      },
+                      {
+                        value: "medium" as WorldExpansionSize,
+                        label: "Medium",
+                        desc: "~12 entities",
+                      },
+                      {
+                        value: "large" as WorldExpansionSize,
+                        label: "Large",
+                        desc: "~30 entities",
+                      },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setWorldSize(opt.value)}
                         className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
-                          worldSize === opt.value ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/3 hover:bg-white/6'
-                        }`}>
-                        <div className="text-xs text-text-primary font-medium">{opt.label}</div>
-                        <div className="text-[9px] text-text-dim">{opt.desc}</div>
+                          worldSize === opt.value
+                            ? "bg-white/10 ring-1 ring-white/20"
+                            : "bg-white/3 hover:bg-white/6"
+                        }`}
+                      >
+                        <div className="text-xs text-text-primary font-medium">
+                          {opt.label}
+                        </div>
+                        <div className="text-[9px] text-text-dim">
+                          {opt.desc}
+                        </div>
                       </button>
                     ))}
                   </div>
                 </div>
                 <details className="group">
                   <summary className="text-[10px] uppercase tracking-widest text-text-dim cursor-pointer select-none flex items-center gap-1 hover:text-text-secondary transition-colors">
-                    <svg className="w-3 h-3 transition-transform group-open:rotate-90" viewBox="0 0 16 16" fill="currentColor"><path d="M6 4l4 4-4 4" /></svg>
+                    <svg
+                      className="w-3 h-3 transition-transform group-open:rotate-90"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                    >
+                      <path d="M6 4l4 4-4 4" />
+                    </svg>
                     Advanced
                   </summary>
                   <div className="mt-2 space-y-3">
                     <div>
-                      <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Strategy</label>
+                      <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
+                        Strategy
+                      </label>
                       <div className="flex gap-1.5">
-                        {([
-                          { value: 'depth' as WorldExpansionStrategy, label: 'Depth', desc: 'Deepen' },
-                          { value: 'breadth' as WorldExpansionStrategy, label: 'Breadth', desc: 'Widen' },
-                          { value: 'dynamic' as WorldExpansionStrategy, label: 'Dynamic', desc: 'Auto' },
-                        ]).map((opt) => (
-                          <button key={opt.value} type="button" onClick={() => setWorldStrategy(opt.value)}
+                        {[
+                          {
+                            value: "depth" as WorldExpansionStrategy,
+                            label: "Depth",
+                            desc: "Deepen",
+                          },
+                          {
+                            value: "breadth" as WorldExpansionStrategy,
+                            label: "Breadth",
+                            desc: "Widen",
+                          },
+                          {
+                            value: "dynamic" as WorldExpansionStrategy,
+                            label: "Dynamic",
+                            desc: "Auto",
+                          },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setWorldStrategy(opt.value)}
                             className={`flex-1 px-2 py-2 rounded-lg text-left transition-colors ${
-                              worldStrategy === opt.value ? 'bg-white/10 ring-1 ring-white/20' : 'bg-white/3 hover:bg-white/6'
-                            }`}>
-                            <div className="text-xs text-text-primary font-medium">{opt.label}</div>
-                            <div className="text-[9px] text-text-dim">{opt.desc}</div>
+                              worldStrategy === opt.value
+                                ? "bg-white/10 ring-1 ring-white/20"
+                                : "bg-white/3 hover:bg-white/6"
+                            }`}
+                          >
+                            <div className="text-xs text-text-primary font-medium">
+                              {opt.label}
+                            </div>
+                            <div className="text-[9px] text-text-dim">
+                              {opt.desc}
+                            </div>
                           </button>
                         ))}
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">Entity Types</label>
+                      <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
+                        Entity Types
+                      </label>
                       <div className="flex flex-wrap gap-1.5">
-                        {([
-                          { key: 'characters' as const, label: 'Characters' },
-                          { key: 'locations' as const, label: 'Locations' },
-                          { key: 'threads' as const, label: 'Threads' },
-                          { key: 'artifacts' as const, label: 'Artifacts' },
-                          { key: 'relationships' as const, label: 'Relationships' },
-                          { key: 'systemMutations' as const, label: 'System' },
-                          { key: 'ownershipMutations' as const, label: 'Ownership' },
-                          { key: 'tieMutations' as const, label: 'Ties' },
-                          { key: 'continuityMutations' as const, label: 'Continuity' },
-                          { key: 'relationshipMutations' as const, label: 'Rel. Shifts' },
-                        ]).map((opt) => (
-                          <button key={opt.key} type="button"
-                            onClick={() => setEntityFilter(prev => ({ ...prev, [opt.key]: !prev[opt.key] }))}
+                        {[
+                          { key: "characters" as const, label: "Characters" },
+                          { key: "locations" as const, label: "Locations" },
+                          { key: "threads" as const, label: "Threads" },
+                          { key: "artifacts" as const, label: "Artifacts" },
+                          {
+                            key: "relationships" as const,
+                            label: "Relationships",
+                          },
+                          { key: "systemMutations" as const, label: "System" },
+                          {
+                            key: "ownershipMutations" as const,
+                            label: "Ownership",
+                          },
+                          { key: "tieMutations" as const, label: "Ties" },
+                          {
+                            key: "continuityMutations" as const,
+                            label: "Continuity",
+                          },
+                          {
+                            key: "relationshipMutations" as const,
+                            label: "Rel. Shifts",
+                          },
+                        ].map((opt) => (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            onClick={() =>
+                              setEntityFilter((prev) => ({
+                                ...prev,
+                                [opt.key]: !prev[opt.key],
+                              }))
+                            }
                             className={`px-2.5 py-1.5 rounded-lg text-[10px] transition-colors ${
-                              entityFilter[opt.key] ? 'bg-white/10 text-text-primary ring-1 ring-white/20' : 'bg-white/3 text-text-dim/50 line-through'
-                            }`}>
+                              entityFilter[opt.key]
+                                ? "bg-white/10 text-text-primary ring-1 ring-white/20"
+                                : "bg-white/3 text-text-dim/50 line-through"
+                            }`}
+                          >
                             {opt.label}
                           </button>
                         ))}
@@ -611,16 +902,19 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
                 </details>
-                <button onClick={handleExpandWorld} disabled={loading}
-                  className="bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30">
-                  {loading ? 'Expanding...' : 'Expand World'}
+                <button
+                  onClick={handleExpandWorld}
+                  disabled={loading}
+                  className="bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30"
+                >
+                  {loading ? "Expanding..." : "Expand World"}
                 </button>
               </>
             )}
 
             {error && (
-              <div className="bg-drive/10 border border-drive/30 rounded-lg px-3 py-2">
-                <p className="text-sm text-drive font-medium">Failed</p>
+              <div className="bg-fate/10 border border-fate/30 rounded-lg px-3 py-2">
+                <p className="text-sm text-fate font-medium">Failed</p>
                 <p className="text-xs text-drive/80 mt-1">{error}</p>
               </div>
             )}

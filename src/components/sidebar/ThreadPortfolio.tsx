@@ -4,25 +4,19 @@ import { useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { computeThreadStatuses, computeActiveArcs } from '@/lib/narrative-utils';
 import type { Thread, ThreadStatus, NarrativeState } from '@/types/narrative';
-import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
-
-// Display order: active statuses (reversed so highest-tension first), then terminal
-const STATUS_ORDER: ThreadStatus[] = [
-  ...([...THREAD_ACTIVE_STATUSES].reverse()),
-  ...THREAD_TERMINAL_STATUSES,
-];
-
-const CLOSED_STATUSES = new Set<string>(THREAD_TERMINAL_STATUSES);
-
 const STATUS_COLORS: Record<string, string> = {
   latent: 'bg-white/10 text-white/40',
   seeded: 'bg-amber-500/15 text-amber-400',
   active: 'bg-blue-500/15 text-blue-400',
+  escalating: 'bg-orange-500/15 text-orange-400',  // point of no return
   critical: 'bg-red-500/15 text-red-400',
   resolved: 'bg-emerald-500/15 text-emerald-400',
   subverted: 'bg-violet-500/15 text-violet-400',
   abandoned: 'bg-white/5 text-white/30',
 };
+
+// Stale thread threshold — threads below escalating with no transition for this many scenes are stale
+const STALE_THRESHOLD_SCENES = 5;
 
 // ── Thread metrics computation ──────────────────────────────────────────────
 
@@ -86,7 +80,7 @@ function computeThreadMetrics(
 
 // ── Thread item ─────────────────────────────────────────────────────────────
 
-const LIFECYCLE_INDEX: Record<string, number> = { latent: 0, seeded: 1, active: 2, critical: 3, resolved: 4 };
+const LIFECYCLE_INDEX: Record<string, number> = { latent: 0, seeded: 1, active: 2, escalating: 3, critical: 4, resolved: 5 };
 
 function ThreadItem({
   thread,
@@ -96,6 +90,7 @@ function ThreadItem({
   activeArcs,
   convergenceCount,
   dimmed,
+  isStale,
   onClick,
 }: {
   thread: Thread;
@@ -105,6 +100,7 @@ function ThreadItem({
   activeArcs: number;
   convergenceCount: number;
   dimmed?: boolean;
+  isStale?: boolean;
   onClick: () => void;
 }) {
   const phase = LIFECYCLE_INDEX[statusLabel] ?? 0;
@@ -115,9 +111,9 @@ function ThreadItem({
   return (
     <button
       onClick={onClick}
-      className={`text-left rounded px-1.5 py-1.5 hover:bg-bg-elevated transition-colors flex flex-col gap-1${dimmed ? ' opacity-50' : ''}`}
+      className={`text-left rounded px-1.5 py-1.5 hover:bg-bg-elevated transition-colors flex flex-col gap-1${dimmed ? ' opacity-50' : ''}${isStale ? ' border-l-2 border-amber-400/50' : ''}`}
     >
-      {/* Top row: ID + description */}
+      {/* Top row: ID + description + stale indicator */}
       <div className="flex items-center gap-1.5">
         <span className="font-mono text-[10px] bg-white/6 text-text-secondary px-1.5 py-0.5 rounded shrink-0">
           {thread.id}
@@ -125,6 +121,11 @@ function ThreadItem({
         <span className="text-xs text-text-primary truncate">
           {thread.description}
         </span>
+        {isStale && (
+          <span className="text-[9px] text-amber-400 shrink-0" title="Stale — no transition in 5+ scenes">
+            stale
+          </span>
+        )}
       </div>
 
       {/* Status + phase bar + convergence */}
@@ -132,14 +133,15 @@ function ThreadItem({
         <span className={`text-[10px] px-2 py-0.5 rounded-full ${STATUS_COLORS[statusLabel] ?? 'bg-white/6 text-text-secondary'}`}>
           {statusLabel}
         </span>
-        {/* Phase progress dots */}
+        {/* Phase progress dots (5 phases: latent, seeded, active, escalating, critical) */}
         <div className="flex items-center gap-0.5">
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
               className={`w-1.5 h-1.5 rounded-full ${
                 i < phase ? 'bg-white/40' : i === phase ? 'bg-white/70' : 'bg-white/10'
-              }`}
+              }${i >= 3 ? ' ring-1 ring-orange-400/30' : ''}`}
+              title={i >= 3 ? 'Fate committed' : undefined}
             />
           ))}
         </div>
@@ -243,8 +245,10 @@ export default function ThreadPortfolio() {
   type ThreadWithStatus = Thread & { currentStatus: ThreadStatus };
   const emptyList: ThreadWithStatus[] = [];
 
-  const { opened, closed, unopened } = useMemo(() => {
-    if (!narrative) return { opened: emptyList, closed: emptyList, unopened: emptyList };
+  // Categorize threads by fate commitment level
+  const { committed, potential, latent, abandoned, complete, unopened } = useMemo(() => {
+    const empty = { committed: emptyList, potential: emptyList, latent: emptyList, abandoned: emptyList, complete: emptyList, unopened: emptyList };
+    if (!narrative) return empty;
 
     const visibleKeys = new Set(state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1));
     const allThreads = Object.values(narrative.threads);
@@ -259,8 +263,11 @@ export default function ThreadPortfolio() {
       })
     );
 
-    const active: ThreadWithStatus[] = [];
-    const terminal: ThreadWithStatus[] = [];
+    const committedThreads: ThreadWithStatus[] = [];   // escalating + critical — fate committed
+    const potentialThreads: ThreadWithStatus[] = [];   // active + seeded — can be abandoned
+    const latentThreads: ThreadWithStatus[] = [];      // latent — not yet developed
+    const abandonedThreads: ThreadWithStatus[] = [];   // abandoned — cleaned up
+    const completeThreads: ThreadWithStatus[] = [];    // resolved + subverted — fate delivered
     const unopenedThreads: ThreadWithStatus[] = [];
 
     for (const t of allThreads) {
@@ -270,21 +277,33 @@ export default function ThreadPortfolio() {
 
       if (!isVisible) {
         unopenedThreads.push(entry);
-      } else if (CLOSED_STATUSES.has(status)) {
-        terminal.push(entry);
+      } else if (status === 'escalating' || status === 'critical') {
+        committedThreads.push(entry);
+      } else if (status === 'active' || status === 'seeded') {
+        potentialThreads.push(entry);
+      } else if (status === 'latent') {
+        latentThreads.push(entry);
+      } else if (status === 'abandoned') {
+        abandonedThreads.push(entry);
       } else {
-        active.push(entry);
+        // resolved, subverted
+        completeThreads.push(entry);
       }
     }
 
-    // Sort by status order
-    const statusIdx = (s: string) => { const i = STATUS_ORDER.indexOf(s); return i < 0 ? STATUS_ORDER.length : i; };
-    active.sort((a, b) => statusIdx(a.currentStatus) - statusIdx(b.currentStatus));
-    terminal.sort((a, b) => statusIdx(a.currentStatus) - statusIdx(b.currentStatus));
-    unopenedThreads.sort((a, b) => statusIdx(a.currentStatus) - statusIdx(b.currentStatus));
+    // Sort committed by urgency (critical first)
+    committedThreads.sort((a, b) => (a.currentStatus === 'critical' ? -1 : 1) - (b.currentStatus === 'critical' ? -1 : 1));
+    // Sort potential by staleness (most stale first to encourage cleanup)
+    potentialThreads.sort((a, b) => {
+      const mA = threadMetrics[a.id];
+      const mB = threadMetrics[b.id];
+      const staleA = mA?.scenesSinceLastTransition ?? 0;
+      const staleB = mB?.scenesSinceLastTransition ?? 0;
+      return staleB - staleA;
+    });
 
-    return { opened: active, closed: terminal, unopened: unopenedThreads };
-  }, [narrative, currentStatuses, state.resolvedEntryKeys, state.currentSceneIndex]);
+    return { committed: committedThreads, potential: potentialThreads, latent: latentThreads, abandoned: abandonedThreads, complete: completeThreads, unopened: unopenedThreads };
+  }, [narrative, currentStatuses, threadMetrics, state.resolvedEntryKeys, state.currentSceneIndex]);
 
   if (!narrative) {
     return (
@@ -296,7 +315,9 @@ export default function ThreadPortfolio() {
     );
   }
 
-  if (opened.length === 0 && closed.length === 0 && unopened.length === 0) {
+  const totalVisible = committed.length + potential.length + latent.length + abandoned.length + complete.length;
+
+  if (totalVisible === 0 && unopened.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center px-3">
         <p className="text-xs text-text-dim text-center">No threads yet</p>
@@ -304,63 +325,116 @@ export default function ThreadPortfolio() {
     );
   }
 
-  const renderThreads = (threads: (Thread & { currentStatus: ThreadStatus })[], dimmed?: boolean) =>
-    threads.map((thread) => (
-      <ThreadItem
-        key={thread.id}
-        thread={thread}
-        statusLabel={thread.currentStatus}
-        metrics={threadMetrics[thread.id]}
-        totalArcs={Object.keys(narrative?.arcs ?? {}).length || 1}
-        activeArcs={computeActiveArcs(thread.id, narrative?.scenes ?? {})}
-        convergenceCount={convergenceCounts[thread.id] ?? 0}
-        dimmed={dimmed}
-        onClick={() => {
-          dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'threads' });
-          dispatch({ type: 'SELECT_THREAD_LOG', threadId: thread.id });
-          dispatch({
-            type: 'SET_INSPECTOR',
-            context: { type: 'thread', threadId: thread.id },
-          });
-        }}
-      />
-    ));
+  // Check for stale threads that should be abandoned
+  const staleThreads = potential.filter((t) => {
+    const m = threadMetrics[t.id];
+    return m && m.scenesSinceLastTransition >= STALE_THRESHOLD_SCENES;
+  });
 
-  // Resolution summary
-  const totalThreads = opened.length + closed.length + unopened.length;
+  const renderThreads = (threads: (Thread & { currentStatus: ThreadStatus })[], dimmed?: boolean, showStaleWarning?: boolean) =>
+    threads.map((thread) => {
+      const isStale = showStaleWarning && staleThreads.some((st) => st.id === thread.id);
+      return (
+        <ThreadItem
+          key={thread.id}
+          thread={thread}
+          statusLabel={thread.currentStatus}
+          metrics={threadMetrics[thread.id]}
+          totalArcs={Object.keys(narrative?.arcs ?? {}).length || 1}
+          activeArcs={computeActiveArcs(thread.id, narrative?.scenes ?? {})}
+          convergenceCount={convergenceCounts[thread.id] ?? 0}
+          dimmed={dimmed}
+          isStale={isStale}
+          onClick={() => {
+            dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: 'threads' });
+            dispatch({ type: 'SELECT_THREAD_LOG', threadId: thread.id });
+            dispatch({
+              type: 'SET_INSPECTOR',
+              context: { type: 'thread', threadId: thread.id },
+            });
+          }}
+        />
+      );
+    });
+
+  const completeCount = complete.length + abandoned.length;
 
   return (
     <div className="flex-1 overflow-y-auto px-2 pb-2">
-      {/* Resolution summary bar */}
+      {/* Fate summary bar */}
       <div className="flex items-center gap-2 px-1 py-1.5 mb-1">
         <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden flex">
-          {closed.length > 0 && (
+          {committed.length > 0 && (
             <div
-              className="h-full bg-emerald-400/50 rounded-l-full"
-              style={{ width: `${(closed.length / totalThreads) * 100}%` }}
+              className="h-full bg-orange-400/60"
+              style={{ width: `${(committed.length / totalVisible) * 100}%` }}
+              title="Committed fate"
             />
           )}
-          {opened.length > 0 && (
+          {potential.length > 0 && (
             <div
-              className="h-full bg-amber-400/40"
-              style={{ width: `${(opened.length / totalThreads) * 100}%` }}
+              className="h-full bg-blue-400/40"
+              style={{ width: `${(potential.length / totalVisible) * 100}%` }}
+              title="Potential"
+            />
+          )}
+          {latent.length > 0 && (
+            <div
+              className="h-full bg-white/10"
+              style={{ width: `${(latent.length / totalVisible) * 100}%` }}
+              title="Latent"
+            />
+          )}
+          {completeCount > 0 && (
+            <div
+              className="h-full bg-emerald-400/50"
+              style={{ width: `${(completeCount / totalVisible) * 100}%` }}
+              title="Resolved"
             />
           )}
         </div>
         <span className="text-[9px] text-text-dim font-mono shrink-0">
-          {closed.length}/{totalThreads}
+          {completeCount}/{totalVisible}
         </span>
       </div>
 
-      {opened.length > 0 && (
-        <CollapsibleSection title="Opened" count={opened.length} defaultOpen>
-          {renderThreads(opened)}
+      {/* Stale thread warning */}
+      {staleThreads.length > 0 && (
+        <div className="flex items-center gap-1.5 px-2 py-1.5 mb-1 rounded bg-amber-500/10 border border-amber-500/20">
+          <span className="text-amber-400 text-[10px]">⚠</span>
+          <span className="text-[10px] text-amber-300">
+            {staleThreads.length} stale thread{staleThreads.length > 1 ? 's' : ''} — consider abandoning
+          </span>
+        </div>
+      )}
+
+      {committed.length > 0 && (
+        <CollapsibleSection title="Committed" count={committed.length} defaultOpen>
+          {renderThreads(committed)}
         </CollapsibleSection>
       )}
 
-      {closed.length > 0 && (
-        <CollapsibleSection title="Closed" count={closed.length} defaultOpen={false}>
-          {renderThreads(closed, true)}
+      {potential.length > 0 && (
+        <CollapsibleSection title="Potential" count={potential.length} defaultOpen>
+          {renderThreads(potential, false, true)}
+        </CollapsibleSection>
+      )}
+
+      {latent.length > 0 && (
+        <CollapsibleSection title="Latent" count={latent.length} defaultOpen={false}>
+          {renderThreads(latent, true)}
+        </CollapsibleSection>
+      )}
+
+      {complete.length > 0 && (
+        <CollapsibleSection title="Complete" count={complete.length} defaultOpen={false}>
+          {renderThreads(complete, true)}
+        </CollapsibleSection>
+      )}
+
+      {abandoned.length > 0 && (
+        <CollapsibleSection title="Abandoned" count={abandoned.length} defaultOpen={false}>
+          {renderThreads(abandoned, true)}
         </CollapsibleSection>
       )}
 

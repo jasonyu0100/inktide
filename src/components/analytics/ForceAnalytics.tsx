@@ -4,10 +4,10 @@ import { useMemo, useState, useRef, useEffect, useCallback, useId } from 'react'
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint, type EntityContext } from '@/lib/narrative-utils';
 import { IconLineChart, IconPencilDraw } from '@/components/icons';
 
-type ForceKey = 'drive' | 'world' | 'system' | 'swing' | 'delivery';
+type ForceKey = 'fate' | 'world' | 'system' | 'swing' | 'delivery';
 
 type SceneDataPoint = {
   index: number;
@@ -33,9 +33,9 @@ type ArcRegion = {
 
 type DrawLine = { points: [number, number][] };
 
-type ChartForceKey = 'drive' | 'world' | 'system' | 'swing';
+type ChartForceKey = 'fate' | 'world' | 'system' | 'swing';
 const FORCE_CONFIG: { key: ChartForceKey; label: string; color: string }[] = [
-  { key: 'drive', label: 'PAYOFF', color: '#EF4444' },
+  { key: 'fate', label: 'FATE', color: '#EF4444' },
   { key: 'world', label: 'WORLD', color: '#22C55E' },
   { key: 'system', label: 'SYSTEM', color: '#3B82F6' },
   { key: 'swing', label: 'SWING', color: '#facc15' },
@@ -411,6 +411,7 @@ function ZoneBar({
   width,
   height,
   dense,
+  entityCtx,
 }: {
   data: SceneDataPoint[];
   arcRegions: ArcRegion[];
@@ -423,6 +424,7 @@ function ZoneBar({
   width: number;
   height: number;
   dense: boolean;
+  entityCtx?: EntityContext;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -430,9 +432,9 @@ function ZoneBar({
   const arcZones = useMemo((): ArcZone[] => {
     if (allScenes.length === 0 || arcRegions.length === 0) return [];
 
-    const raw = computeRawForceTotals(allScenes);
-    const rawForces = raw.drive.map((_, i) => ({
-      drive: raw.drive[i],
+    const raw = computeRawForceTotals(allScenes, entityCtx);
+    const rawForces = raw.fate.map((_, i) => ({
+      fate: raw.fate[i],
       world: raw.world[i],
       system: raw.system[i],
     }));
@@ -445,11 +447,11 @@ function ZoneBar({
           forceIndices.push(i);
         }
       }
-      const arcDrive = forceIndices.map((i) => raw.drive[i]);
+      const arcFate = forceIndices.map((i) => raw.fate[i]);
       const arcWorld = forceIndices.map((i) => raw.world[i]);
       const arcSystem = forceIndices.map((i) => raw.system[i]);
       const arcSwing = forceIndices.map((i, idx) => idx === 0 ? 0 : swings[i]);
-      const { overall: grade } = gradeForces(arcDrive, arcWorld, arcSystem, arcSwing);
+      const { overall: grade } = gradeForces(arcFate, arcWorld, arcSystem, arcSwing);
 
       return {
         arcId: arc.arcId,
@@ -459,7 +461,7 @@ function ZoneBar({
         grade,
       };
     });
-  }, [allScenes, arcRegions]);
+  }, [allScenes, arcRegions, entityCtx]);
 
   // Map each scene index to its arc grade for hover display
   const sceneGrades = useMemo(() => {
@@ -988,7 +990,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   // Drawing state
   const [drawing, setDrawing] = useState(false);
   const [drawLines, setDrawLines] = useState<Record<ForceKey, DrawLine[]>>({
-    drive: [], world: [], system: [], swing: [], delivery: [],
+    fate: [], world: [], system: [], swing: [], delivery: [],
   });
   const [activeDrawKey, setActiveDrawKey] = useState<ForceKey | null>(null);
   const activeLineRef = useRef<[number, number][]>([]);
@@ -1025,7 +1027,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   }, [activeDrawKey]);
 
   const clearDrawings = useCallback(() => {
-    setDrawLines({ drive: [], world: [], system: [], swing: [], delivery: [] });
+    setDrawLines({ fate: [], world: [], system: [], swing: [], delivery: [] });
   }, []);
 
   // Resize observer
@@ -1050,15 +1052,26 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
       .filter((e): e is Scene => !!e && isScene(e));
   }, [narrative, state.resolvedEntryKeys]);
 
+  // Entity context for investment-weighted fate calculation
+  const entityCtx = useMemo((): EntityContext | undefined => {
+    if (!narrative) return undefined;
+    return {
+      characters: narrative.characters,
+      locations: narrative.locations,
+      artifacts: narrative.artifacts,
+      threads: narrative.threads,
+    };
+  }, [narrative]);
+
   const forceMap = useMemo(() => {
     if (allScenes.length === 0) return {};
-    return computeForceSnapshots(allScenes);
-  }, [allScenes]);
+    return computeForceSnapshots(allScenes, [], entityCtx);
+  }, [allScenes, entityCtx]);
 
   const dataPoints = useMemo((): SceneDataPoint[] => {
     if (!narrative || allScenes.length === 0) return [];
     const points = allScenes.map((scene, i) => {
-      const forces = forceMap[scene.id] ?? { drive: 0, world: 0, system: 0 };
+      const forces = forceMap[scene.id] ?? { fate: 0, world: 0, system: 0 };
       const corner = detectCubeCorner(forces);
       const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
       const location = narrative.locations[scene.locationId];
@@ -1084,7 +1097,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
       if (i === 0) return 0;
       const prev = points[i - 1].forces;
       const curr = points[i].forces;
-      const dp = curr.drive - prev.drive;
+      const dp = curr.fate - prev.fate;
       const dc = curr.world - prev.world;
       const dk = curr.system - prev.system;
       return Math.sqrt(dp * dp + dc * dc + dk * dk);
@@ -1099,16 +1112,16 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   // Raw (non-normalised) data points for absolute force view
   const rawDataPoints = useMemo((): SceneDataPoint[] => {
     if (dataPoints.length === 0 || allScenes.length === 0) return [];
-    const raw = computeRawForceTotals(allScenes);
+    const raw = computeRawForceTotals(allScenes, entityCtx);
     return dataPoints.map((dp, i) => ({
       ...dp,
       forces: {
-        drive: raw.drive[i] ?? 0,
+        fate: raw.fate[i] ?? 0,
         world: raw.world[i] ?? 0,
         system: raw.system[i] ?? 0,
       },
       swing: i === 0 ? 0 : (() => {
-        const dP = raw.drive[i] - raw.drive[i - 1];
+        const dP = raw.fate[i] - raw.fate[i - 1];
         const dC = raw.world[i] - raw.world[i - 1];
         const dV = raw.system[i] - raw.system[i - 1];
         return Math.sqrt(dP * dP + dC * dC + dV * dV);
@@ -1497,6 +1510,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
               width={dims.width}
               height={zoneBarHeight + MARGIN.top}
               dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
+              entityCtx={entityCtx}
             />
             {arcRegions.length < DENSE_ARC_THRESHOLD && (
               <ArcLabelsBar
@@ -1532,7 +1546,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
                       );
                     })}
                   </svg>
-                  <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{infoScene.forces.drive >= 0 ? '+' : ''}{infoScene.forces.drive.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono" style={{ color: '#EF4444' }}>P:{infoScene.forces.fate >= 0 ? '+' : ''}{infoScene.forces.fate.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#22C55E' }}>W:{infoScene.forces.world >= 0 ? '+' : ''}{infoScene.forces.world.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#3B82F6' }}>S:{infoScene.forces.system >= 0 ? '+' : ''}{infoScene.forces.system.toFixed(2)}</span>
                   <span className="text-[10px] font-mono" style={{ color: '#facc15' }}>S:{infoScene.swing.toFixed(2)}</span>

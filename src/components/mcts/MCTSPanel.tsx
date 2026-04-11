@@ -862,7 +862,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           .map((k) => node.virtualNarrative.scenes[k])
           .filter((s): s is Scene => !!s);
         const forceMap = computeForceSnapshots(allScenes);
-        const forces = forceMap[scene.id] ?? { drive: 0, world: 0, system: 0 };
+        const forces = forceMap[scene.id] ?? { fate: 0, world: 0, system: 0 };
         const corner = detectCubeCorner(forces);
         const loc = node.virtualNarrative.locations[scene.locationId];
         const pov = scene.povId ? node.virtualNarrative.characters[scene.povId] : null;
@@ -935,7 +935,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             </div>
             <div className="flex gap-3">
               {([
-                { label: 'Drive', value: forces.drive, color: '#EF4444' },
+                { label: 'Fate', value: forces.fate, color: '#EF4444' },
                 { label: 'World', value: forces.world, color: '#22C55E' },
                 { label: 'System', value: forces.system, color: '#3B82F6' },
               ] as const).map(({ label, value, color }) => (

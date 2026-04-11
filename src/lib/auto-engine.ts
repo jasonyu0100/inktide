@@ -1,26 +1,40 @@
+import { AUTO_STOP_CYCLE_LENGTH } from "@/lib/constants";
+import {
+  averageSwing,
+  computeWindowedForces,
+  detectCubeCorner,
+  FORCE_WINDOW_SIZE,
+  forceDistance,
+} from "@/lib/narrative-utils";
+import { logInfo } from "@/lib/system-logger";
 import type {
-  NarrativeState,
-  AutoConfig,
   AutoAction,
   AutoActionWeight,
+  AutoConfig,
   AutoEndCondition,
-  ForceSnapshot,
-  Scene,
-  Thread,
   Character,
   CubeCornerKey,
-} from '@/types/narrative';
-import { isScene, NARRATIVE_CUBE, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_PRIMED_STATUSES } from '@/types/narrative';
-import { detectCubeCorner, computeWindowedForces, averageSwing, FORCE_WINDOW_SIZE, forceDistance } from '@/lib/narrative-utils';
-import { AUTO_STOP_CYCLE_LENGTH } from '@/lib/constants';
-import { logInfo } from '@/lib/system-logger';
+  ForceSnapshot,
+  NarrativeState,
+  Scene,
+  Thread,
+} from "@/types/narrative";
+import {
+  isScene,
+  NARRATIVE_CUBE,
+  THREAD_ACTIVE_STATUSES,
+  THREAD_PRIMED_STATUSES,
+  THREAD_TERMINAL_STATUSES,
+} from "@/types/narrative";
 
 // ── Thread status helpers (derived from canonical lists in narrative.ts) ─────
 const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
-const ACTIVE_SET = new Set<string>(THREAD_ACTIVE_STATUSES.filter((s) => s !== 'latent'));
+const ACTIVE_SET = new Set<string>(
+  THREAD_ACTIVE_STATUSES.filter((s) => s !== "latent"),
+);
 const PRIMED_SET = new Set<string>(THREAD_PRIMED_STATUSES);
 
-const FORCE_KEYS = ['drive', 'world', 'system'] as const;
+const FORCE_KEYS = ["fate", "world", "system"] as const;
 
 function isTerminal(status: string): boolean {
   return TERMINAL_SET.has(status.toLowerCase());
@@ -32,20 +46,38 @@ function isActive(status: string): boolean {
 
 // ── Objective multipliers for cube corners ──────────────────────────────────
 // Bias action selection toward the high-level goal.
-// High-drive corners (H__) tend toward drive/climax.
-// Low-drive corners (L__) tend toward exploration/open-endedness.
+// High-fate corners (H__) tend toward fate/climax.
+// Low-fate corners (L__) tend toward exploration/open-endedness.
 const OBJECTIVE_MULTIPLIERS: Record<string, Record<CubeCornerKey, number>> = {
   resolve_threads: {
-    HHH: 1.4, HHL: 1.6, HLH: 1.0, HLL: 1.2,
-    LHH: 0.4, LHL: 0.6, LLH: 0.3, LLL: 0.8,
+    HHH: 1.4,
+    HHL: 1.6,
+    HLH: 1.0,
+    HLL: 1.2,
+    LHH: 0.4,
+    LHL: 0.6,
+    LLH: 0.3,
+    LLL: 0.8,
   },
   explore_and_resolve: {
-    HHH: 1.0, HHL: 1.0, HLH: 1.0, HLL: 1.0,
-    LHH: 1.0, LHL: 1.0, LLH: 1.0, LLL: 1.0,
+    HHH: 1.0,
+    HHL: 1.0,
+    HLH: 1.0,
+    HLL: 1.0,
+    LHH: 1.0,
+    LHL: 1.0,
+    LLH: 1.0,
+    LLL: 1.0,
   },
   open_ended: {
-    HHH: 0.6, HHL: 0.5, HLH: 0.8, HLL: 0.4,
-    LHH: 1.5, LHL: 1.2, LLH: 1.4, LLL: 1.0,
+    HHH: 0.6,
+    HHL: 0.5,
+    HLH: 0.8,
+    HLL: 0.4,
+    LHH: 1.5,
+    LHL: 1.2,
+    LLH: 1.4,
+    LLL: 1.0,
   },
 };
 
@@ -69,11 +101,14 @@ function computeThreadMaturity(
 
   scenes.forEach((scene, idx) => {
     for (const tm of scene.threadMutations) {
-      threadMutationCount[tm.threadId] = (threadMutationCount[tm.threadId] ?? 0) + 1;
+      threadMutationCount[tm.threadId] =
+        (threadMutationCount[tm.threadId] ?? 0) + 1;
       if (tm.from !== tm.to) {
-        threadTransitions[tm.threadId] = (threadTransitions[tm.threadId] ?? 0) + 1;
+        threadTransitions[tm.threadId] =
+          (threadTransitions[tm.threadId] ?? 0) + 1;
       }
-      if (threadFirstScene[tm.threadId] === undefined) threadFirstScene[tm.threadId] = idx;
+      if (threadFirstScene[tm.threadId] === undefined)
+        threadFirstScene[tm.threadId] = idx;
       threadLastScene[tm.threadId] = idx;
     }
   });
@@ -93,9 +128,17 @@ function computeThreadMaturity(
     const anchorAppearances = recentScenes.filter((s) =>
       s.participantIds.some((pid) => anchorIds.has(pid)),
     ).length;
-    const anchorInvolvement = recentScenes.length > 0 ? anchorAppearances / recentScenes.length : 0;
+    const anchorInvolvement =
+      recentScenes.length > 0 ? anchorAppearances / recentScenes.length : 0;
 
-    const score = Math.min(1, age * 0.3 + transitions * 0.2 + mutations * 0.15 + statusBonus + anchorInvolvement * 0.1);
+    const score = Math.min(
+      1,
+      age * 0.3 +
+        transitions * 0.2 +
+        mutations * 0.15 +
+        statusBonus +
+        anchorInvolvement * 0.1,
+    );
     return { thread, score };
   });
 }
@@ -118,12 +161,18 @@ function analyzeKnowledgeAsymmetries(
 
   // Build a set of knowledge content per character for fast lookup
   const charKnowledge = new Map<string, Set<string>>();
-  const charContinuityNodes = new Map<string, { content: string; index: number }[]>();
+  const charContinuityNodes = new Map<
+    string,
+    { content: string; index: number }[]
+  >();
   for (const c of characters) {
     const nodeValues = Object.values(c.continuity.nodes);
     const contentSet = new Set(nodeValues.map((n) => n.content));
     charKnowledge.set(c.id, contentSet);
-    charContinuityNodes.set(c.id, nodeValues.map((n, i) => ({ content: n.content, index: i })));
+    charContinuityNodes.set(
+      c.id,
+      nodeValues.map((n, i) => ({ content: n.content, index: i })),
+    );
   }
 
   // Count how many characters know each piece of content (exclusivity)
@@ -168,16 +217,24 @@ function analyzeKnowledgeAsymmetries(
       const bKnows = charKnowledge.get(b.id)!;
 
       // Find what A knows that B doesn't, and vice versa
-      const checkAsymmetry = (holder: Character, ignorant: Character, holderSet: Set<string>, ignorantSet: Set<string>) => {
+      const checkAsymmetry = (
+        holder: Character,
+        ignorant: Character,
+        holderSet: Set<string>,
+        ignorantSet: Set<string>,
+      ) => {
         for (const content of holderSet) {
           if (ignorantSet.has(content)) continue;
 
           // Structural weight factors
           const exclusivity = 1 / Math.max(contentHolderCount[content] ?? 1, 1);
-          const tensionBonus = Math.max(0, -(relValence[`${holder.id}→${ignorant.id}`] ?? 0)) * 0.3;
+          const tensionBonus =
+            Math.max(0, -(relValence[`${holder.id}→${ignorant.id}`] ?? 0)) *
+            0.3;
           const threadProximity = sharedThreads.length > 0 ? 0.2 : 0;
 
-          const weight = exclusivity * 0.5 + tensionBonus + threadProximity + 0.1;
+          const weight =
+            exclusivity * 0.5 + tensionBonus + threadProximity + 0.1;
 
           if (weight > 0.25) {
             opportunities.push({
@@ -196,22 +253,30 @@ function analyzeKnowledgeAsymmetries(
   }
 
   // Sort by dramatic weight, return top opportunities
-  return opportunities.sort((a, b) => b.dramaticWeight - a.dramaticWeight).slice(0, 10);
+  return opportunities
+    .sort((a, b) => b.dramaticWeight - a.dramaticWeight)
+    .slice(0, 10);
 }
 
 // ── Composite tension from force snapshot ───────────────────────────────────
 function compositeTension(f: ForceSnapshot): number {
-  return f.drive * 0.4 + f.world * 0.3 + f.system * 0.3;
+  return f.fate * 0.4 + f.world * 0.3 + f.system * 0.3;
 }
 
 // ── Story trajectory ────────────────────────────────────────────────────────
 // Maps story progress (0–1) to a dramatic phase that shapes corner selection.
-// The key insight: human-written stories have SHAPE — they breathe, with drive
+// The key insight: human-written stories have SHAPE — they breathe, with fate
 // and world oscillating across the zero line. System naturally declines as
-// the story narrows focus, but drive and world MUST dip into negative
+// the story narrows focus, but fate and world MUST dip into negative
 // territory regularly to create contrast and quiet moments.
 
-export type StoryPhase = 'setup' | 'rising' | 'midpoint' | 'escalation' | 'climax' | 'resolution';
+export type StoryPhase =
+  | "setup"
+  | "rising"
+  | "midpoint"
+  | "escalation"
+  | "climax"
+  | "resolution";
 
 type PhaseDefinition = {
   name: StoryPhase;
@@ -223,58 +288,88 @@ type PhaseDefinition = {
 
 const STORY_PHASES: PhaseDefinition[] = [
   {
-    name: 'setup',
+    name: "setup",
     range: [0, 0.15],
-    description: 'Establishing the world and characters. Drive should be low, world moderate, system high. Plant seeds — do not harvest them.',
+    description:
+      "Establishing the world and characters. Fate should be low, world moderate, system high. Plant seeds — do not harvest them.",
     cornerBias: {
-      LHH: 0.35, LLH: 0.3, LHL: 0.2, LLL: 0.1,  // exploration, discovery, routine
-      HHH: -0.35, HHL: -0.3, HLH: -0.15,          // way too early for crisis
+      LHH: 0.35,
+      LLH: 0.3,
+      LHL: 0.2,
+      LLL: 0.1, // exploration, discovery, routine
+      HHH: -0.35,
+      HHL: -0.3,
+      HLH: -0.15, // way too early for crisis
     },
   },
   {
-    name: 'rising',
+    name: "rising",
     range: [0.15, 0.35],
-    description: 'Complications emerge and drive begins to rise, but the story still breathes. Alternate tension-building scenes with quieter character moments. Drive should cross zero — some high, some low.',
+    description:
+      "Complications emerge and fate begins to rise, but the story still breathes. Alternate tension-building scenes with quieter character moments. Fate should cross zero — some high, some low.",
     cornerBias: {
-      HLH: 0.2, LHH: 0.15, HLL: 0.15, LHL: 0.1, LLL: 0.1,  // slow burn + exploration + breathers
-      HHH: -0.25, HHL: -0.1,                                   // don't peak yet
+      HLH: 0.2,
+      LHH: 0.15,
+      HLL: 0.15,
+      LHL: 0.1,
+      LLL: 0.1, // slow burn + exploration + breathers
+      HHH: -0.25,
+      HHL: -0.1, // don't peak yet
     },
   },
   {
-    name: 'midpoint',
-    range: [0.35, 0.50],
-    description: 'A significant shift — a revelation, betrayal, or escalation that redefines the conflict. One intense arc, then pull back to absorb the impact. Drive and world should spike then dip.',
+    name: "midpoint",
+    range: [0.35, 0.5],
+    description:
+      "A significant shift — a revelation, betrayal, or escalation that redefines the conflict. One intense arc, then pull back to absorb the impact. Fate and world should spike then dip.",
     cornerBias: {
-      HHL: 0.25, HLH: 0.15, LLL: 0.1,  // climactic moment then tension + recovery
-      LLH: -0.1,                          // shouldn't wander aimlessly
+      HHL: 0.25,
+      HLH: 0.15,
+      LLL: 0.1, // climactic moment then tension + recovery
+      LLH: -0.1, // shouldn't wander aimlessly
     },
   },
   {
-    name: 'escalation',
-    range: [0.50, 0.75],
-    description: 'Building toward the climax. Drive trends upward but MUST still include valleys — quiet scenes between intense ones. World should alternate between bursts and pauses.',
+    name: "escalation",
+    range: [0.5, 0.75],
+    description:
+      "Building toward the climax. Fate trends upward but MUST still include valleys — quiet scenes between intense ones. World should alternate between bursts and pauses.",
     cornerBias: {
-      HHL: 0.2, HLH: 0.2, HHH: 0.1, LLL: 0.1, HLL: 0.1,  // tension building + mandatory breathers
-      LLH: -0.15,                                             // less wandering
+      HHL: 0.2,
+      HLH: 0.2,
+      HHH: 0.1,
+      LLL: 0.1,
+      HLL: 0.1, // tension building + mandatory breathers
+      LLH: -0.15, // less wandering
     },
   },
   {
-    name: 'climax',
-    range: [0.75, 0.90],
-    description: 'Peak intensity — the story\'s most consequential moments. Even here, include at least one quiet scene between high-intensity arcs for contrast. Without valleys, peaks have no impact.',
+    name: "climax",
+    range: [0.75, 0.9],
+    description:
+      "Peak intensity — the story's most consequential moments. Even here, include at least one quiet scene between high-intensity arcs for contrast. Without valleys, peaks have no impact.",
     cornerBias: {
-      HHH: 0.3, HHL: 0.3, HLH: 0.15,   // maximum intensity
-      LLL: 0.05,                           // even climax needs a breath
-      LLH: -0.25, LHL: -0.15,             // less routine exploration
+      HHH: 0.3,
+      HHL: 0.3,
+      HLH: 0.15, // maximum intensity
+      LLL: 0.05, // even climax needs a breath
+      LLH: -0.25,
+      LHL: -0.15, // less routine exploration
     },
   },
   {
-    name: 'resolution',
-    range: [0.90, 1.0],
-    description: 'Wind down and resolve remaining threads. Drive and world should drop — the storm has passed. Focus on aftermath, character growth, and closure.',
+    name: "resolution",
+    range: [0.9, 1.0],
+    description:
+      "Wind down and resolve remaining threads. Fate and world should drop — the storm has passed. Focus on aftermath, character growth, and closure.",
     cornerBias: {
-      LLL: 0.35, LLH: 0.2, LHL: 0.2, HLL: 0.1,   // recovery and resolution
-      HHH: -0.35, HHL: -0.25, LHH: -0.1,           // don't restart intensity
+      LLL: 0.35,
+      LLH: 0.2,
+      LHL: 0.2,
+      HLL: 0.1, // recovery and resolution
+      HHH: -0.35,
+      HHL: -0.25,
+      LHH: -0.1, // don't restart intensity
     },
   },
 ];
@@ -294,7 +389,9 @@ export function computeStoryProgress(
   startingSceneCount: number,
   startingArcCount: number,
 ): number {
-  const hasManualOnly = config.endConditions.length === 1 && config.endConditions[0].type === 'manual_stop';
+  const hasManualOnly =
+    config.endConditions.length === 1 &&
+    config.endConditions[0].type === "manual_stop";
 
   if (hasManualOnly || config.endConditions.length === 0) {
     // Repeating seasonal cycle for open-ended stories
@@ -306,13 +403,14 @@ export function computeStoryProgress(
   for (const cond of config.endConditions) {
     let progress = 0;
     switch (cond.type) {
-      case 'scene_count': {
+      case "scene_count": {
         const scenesThisRun = resolvedKeys.length - startingSceneCount;
         progress = Math.min(1, scenesThisRun / Math.max(cond.target, 1));
         break;
       }
-      case 'arc_count': {
-        const arcsThisRun = Object.keys(narrative.arcs).length - startingArcCount;
+      case "arc_count": {
+        const arcsThisRun =
+          Object.keys(narrative.arcs).length - startingArcCount;
         progress = Math.min(1, arcsThisRun / Math.max(cond.target, 1));
         break;
       }
@@ -341,53 +439,66 @@ export function checkEndConditions(
 ): AutoEndCondition | null {
   for (const cond of config.endConditions) {
     switch (cond.type) {
-      case 'scene_count': {
+      case "scene_count": {
         const scenesThisRun = resolvedKeys.length - startingSceneCount;
         if (scenesThisRun >= cond.target) {
           logInfo(`Auto-play end condition met: scene_count`, {
-            source: 'auto-play',
-            operation: 'check-end-conditions',
-            details: { type: 'scene_count', target: cond.target, scenesGenerated: scenesThisRun }
+            source: "auto-play",
+            operation: "check-end-conditions",
+            details: {
+              type: "scene_count",
+              target: cond.target,
+              scenesGenerated: scenesThisRun,
+            },
           });
           return cond;
         }
         break;
       }
-      case 'all_threads_resolved': {
+      case "all_threads_resolved": {
         const threads = Object.values(narrative.threads);
         if (threads.length > 0 && threads.every((t) => isTerminal(t.status))) {
           logInfo(`Auto-play end condition met: all_threads_resolved`, {
-            source: 'auto-play',
-            operation: 'check-end-conditions',
-            details: { type: 'all_threads_resolved', threadCount: threads.length }
+            source: "auto-play",
+            operation: "check-end-conditions",
+            details: {
+              type: "all_threads_resolved",
+              threadCount: threads.length,
+            },
           });
           return cond;
         }
         break;
       }
-      case 'arc_count': {
-        const arcsThisRun = Object.keys(narrative.arcs).length - startingArcCount;
+      case "arc_count": {
+        const arcsThisRun =
+          Object.keys(narrative.arcs).length - startingArcCount;
         if (arcsThisRun >= cond.target) return cond;
         break;
       }
-      case 'planning_complete': {
+      case "planning_complete": {
         // Check if the ACTIVE branch's planning queue is fully completed
-        const activeBranch = activeBranchId ? narrative.branches[activeBranchId] : undefined;
+        const activeBranch = activeBranchId
+          ? narrative.branches[activeBranchId]
+          : undefined;
         const pq = activeBranch?.planningQueue;
         if (pq) {
-          const allDone = pq.phases.every((p) => p.status === 'completed');
+          const allDone = pq.phases.every((p) => p.status === "completed");
           if (allDone) {
             logInfo(`Auto-play end condition met: planning_complete`, {
-              source: 'auto-play',
-              operation: 'check-end-conditions',
-              details: { type: 'planning_complete', phaseCount: pq.phases.length }
+              source: "auto-play",
+              operation: "check-end-conditions",
+              details: {
+                type: "planning_complete",
+                phaseCount: pq.phases.length,
+              },
             });
             return cond;
           }
         }
         break;
       }
-      case 'manual_stop':
+      case "manual_stop":
         break; // only triggered by user
     }
   }
@@ -400,15 +511,15 @@ export function checkEndConditions(
 
 // ── Per-force saturation detection ───────────────────────────────────────────
 // Detects when individual forces are pinned at extremes, which composite
-// metrics like avgTension mask (e.g. drive=1 + system=-1 = "moderate").
+// metrics like avgTension mask (e.g. fate=1 + system=-1 = "moderate").
 type ForceSaturation = { saturated: boolean; direction: number };
 
 function detectForceSaturation(
   scenes: Scene[],
   forceMap: Record<string, ForceSnapshot>,
-): Record<'drive' | 'world' | 'system', ForceSaturation> {
-  const result: Record<'drive' | 'world' | 'system', ForceSaturation> = {
-    drive: { saturated: false, direction: 0 },
+): Record<"fate" | "world" | "system", ForceSaturation> {
+  const result: Record<"fate" | "world" | "system", ForceSaturation> = {
+    fate: { saturated: false, direction: 0 },
     world: { saturated: false, direction: 0 },
     system: { saturated: false, direction: 0 },
   };
@@ -475,30 +586,47 @@ export function evaluateNarrativeState(
   startingSceneCount = 0,
   startingArcCount = 0,
 ): { weights: AutoActionWeight[]; directiveCtx: DirectiveContext } {
-  const scenes = resolvedKeys.map((k) => narrative.scenes[k]).filter(Boolean).filter(isScene) as Scene[];
+  const scenes = resolvedKeys
+    .map((k) => narrative.scenes[k])
+    .filter(Boolean)
+    .filter(isScene) as Scene[];
   const threads = Object.values(narrative.threads);
   const characters = Object.values(narrative.characters);
   // Neutral multipliers — direction and constraints guide the narrative instead of objectives
   const objectiveMult = OBJECTIVE_MULTIPLIERS.explore_and_resolve;
 
   // ── Story trajectory ──────────────────────────────────────────────────
-  const storyProgress = computeStoryProgress(narrative, resolvedKeys, config, startingSceneCount, startingArcCount);
+  const storyProgress = computeStoryProgress(
+    narrative,
+    resolvedKeys,
+    config,
+    startingSceneCount,
+    startingArcCount,
+  );
   const storyPhase = getStoryPhase(storyProgress);
 
   // ── Current force state (windowed — relative to recent scenes) ──────────
   const windowed = computeWindowedForces(scenes, scenes.length - 1);
   const forceMap = windowed.forceMap;
   const lastScene = scenes[scenes.length - 1];
-  const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? { drive: 0, world: 0, system: 0 };
+  const currentForce = (lastScene ? forceMap[lastScene.id] : null) ?? {
+    fate: 0,
+    world: 0,
+    system: 0,
+  };
   const currentCorner = detectCubeCorner(currentForce);
 
   // ── Swing analysis ────────────────────────────────────────────────────────
-  const recentForceSnapshots = scenes.slice(-FORCE_WINDOW_SIZE).map((s) => forceMap[s.id] ?? { drive: 0, world: 0, system: 0 });
+  const recentForceSnapshots = scenes
+    .slice(-FORCE_WINDOW_SIZE)
+    .map((s) => forceMap[s.id] ?? { fate: 0, world: 0, system: 0 });
   const recentSwing = averageSwing(recentForceSnapshots, FORCE_WINDOW_SIZE);
 
   // ── Thread analysis ─────────────────────────────────────────────────────
   const activeThreads = threads.filter((t) => isActive(t.status));
-  const latentThreads = threads.filter((t) => t.status.toLowerCase() === THREAD_ACTIVE_STATUSES[0]);
+  const latentThreads = threads.filter(
+    (t) => t.status.toLowerCase() === THREAD_ACTIVE_STATUSES[0],
+  );
 
   const threadLastMutated: Record<string, number> = {};
   scenes.forEach((scene, idx) => {
@@ -509,23 +637,32 @@ export function evaluateNarrativeState(
 
   const stagnantThreads = activeThreads.filter((t) => {
     const lastMut = threadLastMutated[t.id] ?? -1;
-    return (scenes.length - 1 - lastMut) >= config.threadStagnationThreshold;
+    return scenes.length - 1 - lastMut >= config.threadStagnationThreshold;
   });
 
   // ── Character coverage ──────────────────────────────────────────────────
-  const anchorCharacters = characters.filter((c) => c.role === 'anchor');
-  const recentSceneWindow = scenes.slice(-config.minScenesBetweenCharacterFocus);
-  const recentParticipants = new Set(recentSceneWindow.flatMap((s) => s.participantIds));
+  const anchorCharacters = characters.filter((c) => c.role === "anchor");
+  const recentSceneWindow = scenes.slice(
+    -config.minScenesBetweenCharacterFocus,
+  );
+  const recentParticipants = new Set(
+    recentSceneWindow.flatMap((s) => s.participantIds),
+  );
   const neglectedAnchors = config.characterRotationEnabled
     ? anchorCharacters.filter((c) => !recentParticipants.has(c.id))
     : [];
 
   // ── Post-climax detection ─────────────────────────────────────────────
   const recentWindow = scenes.slice(-FORCE_WINDOW_SIZE);
-  const recentForces = recentWindow.map((s) => forceMap[s.id] ?? { drive: 0, world: 0, system: 0 });
-  const isPostClimax = recentForces.length >= 3 &&
+  const recentForces = recentWindow.map(
+    (s) => forceMap[s.id] ?? { fate: 0, world: 0, system: 0 },
+  );
+  const isPostClimax =
+    recentForces.length >= 3 &&
     compositeTension(recentForces[0]) > 0.75 &&
-    compositeTension(recentForces[recentForces.length - 1]) - compositeTension(recentForces[0]) < -0.15;
+    compositeTension(recentForces[recentForces.length - 1]) -
+      compositeTension(recentForces[0]) <
+      -0.15;
 
   // ── Thread maturity (primed for resolution) ───────────────────────────
   const maturityScores = computeThreadMaturity(narrative, scenes);
@@ -534,16 +671,32 @@ export function evaluateNarrativeState(
   );
 
   // ── Knowledge asymmetries ────────────────────────────────────────────
-  const continuityOpportunities = analyzeKnowledgeAsymmetries(narrative, scenes);
-  const hasHighDramaOpportunities = continuityOpportunities.length > 0 && continuityOpportunities[0].dramaticWeight > 0.4;
+  const continuityOpportunities = analyzeKnowledgeAsymmetries(
+    narrative,
+    scenes,
+  );
+  const hasHighDramaOpportunities =
+    continuityOpportunities.length > 0 &&
+    continuityOpportunities[0].dramaticWeight > 0.4;
 
   // ── PHASE 1: Hard constraints — force saturation & corner repetition ──
   const forceSaturation = detectForceSaturation(scenes, forceMap);
-  const saturatedForces = FORCE_KEYS.filter((k) => forceSaturation[k].saturated);
+  const saturatedForces = FORCE_KEYS.filter(
+    (k) => forceSaturation[k].saturated,
+  );
   const cornerRepetition = detectCornerRepetition(scenes, forceMap);
 
   // Build eligible set: eliminate corners that push ALL saturated forces deeper
-  const ALL_CORNERS: CubeCornerKey[] = ['HHH', 'HHL', 'HLH', 'HLL', 'LHH', 'LHL', 'LLH', 'LLL'];
+  const ALL_CORNERS: CubeCornerKey[] = [
+    "HHH",
+    "HHL",
+    "HLH",
+    "HLL",
+    "LHH",
+    "LHL",
+    "LLH",
+    "LLL",
+  ];
   const eligibleCorners = new Set<CubeCornerKey>(ALL_CORNERS);
 
   if (saturatedForces.length > 0) {
@@ -573,7 +726,7 @@ export function evaluateNarrativeState(
 
   for (const key of ALL_CORNERS) {
     const corner = NARRATIVE_CUBE[key];
-    const isHighDrive = corner.forces.drive > 0;
+    const isHighDrive = corner.forces.fate > 0;
     const isHighWorld = corner.forces.world > 0;
     const isLowWorld = corner.forces.world < 0;
     const isHighKnowledge = corner.forces.system > 0;
@@ -583,7 +736,7 @@ export function evaluateNarrativeState(
       scores.push({
         action: key,
         score: 0.05,
-        reason: `eliminated: pushes saturated force(s) ${saturatedForces.join(', ')} further`,
+        reason: `eliminated: pushes saturated force(s) ${saturatedForces.join(", ")} further`,
       });
       continue;
     }
@@ -595,7 +748,7 @@ export function evaluateNarrativeState(
     const dist = forceDistance(currentForce, corner.forces);
     if (dist < 0.3) {
       score -= 0.2;
-      reasons.push('too close to current state');
+      reasons.push("too close to current state");
     } else if (dist > 0.5 && dist < 2.0) {
       score += 0.15;
     }
@@ -603,7 +756,7 @@ export function evaluateNarrativeState(
     // ── 2. Avoid current corner + penalize repetition ───────────────────
     if (key === currentCorner.key) {
       score -= 0.3;
-      reasons.push('already in this corner');
+      reasons.push("already in this corner");
     }
     const recentCount = cornerRepetition[key] ?? 0;
     if (recentCount >= 2) {
@@ -614,17 +767,26 @@ export function evaluateNarrativeState(
     // ── 3. Thread-driven signals ────────────────────────────────────────
     // These are now GATED by saturation: thread signals that push in the
     // same direction as a saturated force are suppressed.
-    const driveNotSaturatedHigh = !forceSaturation.drive.saturated || forceSaturation.drive.direction !== 1;
-    const worldNotSaturatedLow = !forceSaturation.world.saturated || forceSaturation.world.direction !== -1;
+    const driveNotSaturatedHigh =
+      !forceSaturation.fate.saturated || forceSaturation.fate.direction !== 1;
+    const worldNotSaturatedLow =
+      !forceSaturation.world.saturated ||
+      forceSaturation.world.direction !== -1;
 
-    // Too many active threads → favor resolution, but NOT if drive already saturated high
-    if (activeThreads.length > config.maxActiveThreads && isHighDrive && driveNotSaturatedHigh) {
+    // Too many active threads → favor resolution, but NOT if fate already saturated high
+    if (
+      activeThreads.length > config.maxActiveThreads &&
+      isHighDrive &&
+      driveNotSaturatedHigh
+    ) {
       score += 0.2;
       reasons.push(`${activeThreads.length} active threads need resolution`);
     } else if (activeThreads.length > config.maxActiveThreads && isHighWorld) {
-      // Redirect thread pressure to world instead when drive is saturated
+      // Redirect thread pressure to world instead when fate is saturated
       score += 0.15;
-      reasons.push(`${activeThreads.length} active threads — world can advance them`);
+      reasons.push(
+        `${activeThreads.length} active threads — world can advance them`,
+      );
     }
 
     // Stagnant threads → world, but gate if world is already saturated low
@@ -636,28 +798,34 @@ export function evaluateNarrativeState(
     // Latent threads → system
     if (latentThreads.length > 2 && isHighKnowledge) {
       score += 0.1;
-      reasons.push(`${latentThreads.length} latent threads — system can surface them`);
+      reasons.push(
+        `${latentThreads.length} latent threads — system can surface them`,
+      );
     }
 
-    // Primed threads → resolution, gated by drive saturation
+    // Primed threads → resolution, gated by fate saturation
     if (primedThreads.length > 0 && isHighDrive && driveNotSaturatedHigh) {
       const boost = Math.min(0.35, primedThreads.length * 0.12);
       score += boost;
       reasons.push(`${primedThreads.length} thread(s) primed for resolution`);
     } else if (primedThreads.length > 0 && isHighWorld) {
-      // Can still resolve through world-driven drive
+      // Can still resolve through world-driven fate
       score += 0.1;
-      reasons.push(`${primedThreads.length} primed thread(s) — world can deliver drive`);
+      reasons.push(
+        `${primedThreads.length} primed thread(s) — world can deliver fate`,
+      );
     }
 
-    // Knowledge asymmetries → revelation, favor system over drive when drive saturated
+    // Knowledge asymmetries → revelation, favor system over fate when fate saturated
     if (hasHighDramaOpportunities) {
       if (isHighKnowledge) {
         score += 0.2;
-        reasons.push('knowledge asymmetries — system creates revelation opportunities');
+        reasons.push(
+          "knowledge asymmetries — system creates revelation opportunities",
+        );
       } else if (isHighDrive && driveNotSaturatedHigh) {
         score += 0.15;
-        reasons.push('knowledge asymmetries — drive can force confrontation');
+        reasons.push("knowledge asymmetries — fate can force confrontation");
       }
     }
 
@@ -671,25 +839,29 @@ export function evaluateNarrativeState(
       if (cornerSign !== sat.direction) {
         // Corner corrects this saturated force
         score += 0.25;
-        reasons.push(`corrects ${fk} (saturated ${sat.direction > 0 ? 'high' : 'low'})`);
+        reasons.push(
+          `corrects ${fk} (saturated ${sat.direction > 0 ? "high" : "low"})`,
+        );
       }
     }
 
     // ── 5. Post-climax: strongly favor recovery corners ─────────────────
     if (isPostClimax) {
-      if (key === 'LLL' || key === 'LLH' || key === 'LHL') {
+      if (key === "LLL" || key === "LLH" || key === "LHL") {
         score += 0.4;
-        reasons.push('post-climax recovery');
+        reasons.push("post-climax recovery");
       } else if (isHighDrive && isHighWorld) {
         score *= 0.2;
-        reasons.push('suppressed post-climax');
+        reasons.push("suppressed post-climax");
       }
     }
 
     // ── 6. Neglected characters ─────────────────────────────────────────
     if (neglectedAnchors.length > 0 && isLowWorld) {
       score += 0.1;
-      reasons.push(`${neglectedAnchors.length} neglected anchors — good for character focus`);
+      reasons.push(
+        `${neglectedAnchors.length} neglected anchors — good for character focus`,
+      );
     }
 
     // ── 7. Story trajectory — phase-based corner shaping ────────────────
@@ -699,7 +871,9 @@ export function evaluateNarrativeState(
     const phaseBias = storyPhase.cornerBias[key] ?? 0;
     if (phaseBias !== 0) {
       score += phaseBias;
-      reasons.push(`${storyPhase.name} phase (${Math.round(storyProgress * 100)}%)`);
+      reasons.push(
+        `${storyPhase.name} phase (${Math.round(storyProgress * 100)}%)`,
+      );
     }
 
     // ── 8. Swing vibrancy ─────────────────────────────────────────────
@@ -707,10 +881,10 @@ export function evaluateNarrativeState(
     // the current state to create dynamic scene-to-scene shifts
     if (recentSwing < 0.3 && dist > 1.0) {
       score += 0.2;
-      reasons.push('low balance — favoring high-contrast corner for vibrancy');
+      reasons.push("low balance — favoring high-contrast corner for vibrancy");
     } else if (recentSwing < 0.5 && dist > 0.8) {
       score += 0.1;
-      reasons.push('moderate balance — slight contrast boost');
+      reasons.push("moderate balance — slight contrast boost");
     }
 
     // ── 9. Apply objective multiplier ───────────────────────────────────
@@ -722,7 +896,7 @@ export function evaluateNarrativeState(
     scores.push({
       action: key,
       score: Math.max(0, Math.min(1, score)),
-      reason: reasons.join('; ') || corner.name,
+      reason: reasons.join("; ") || corner.name,
     });
   }
 
@@ -730,17 +904,17 @@ export function evaluateNarrativeState(
   const topAction = sortedScores[0];
 
   logInfo(`Auto-play action selected: ${topAction.action}`, {
-    source: 'auto-play',
-    operation: 'evaluate-narrative-state',
+    source: "auto-play",
+    operation: "evaluate-narrative-state",
     details: {
       selectedAction: topAction.action,
       score: Math.round(topAction.score * 100) / 100,
       reason: topAction.reason,
       storyPhase: storyPhase.name,
       progress: Math.round(storyProgress * 100),
-      saturatedForces: saturatedForces.join(',') || 'none',
+      saturatedForces: saturatedForces.join(",") || "none",
       recentSwing: Math.round(recentSwing * 100) / 100,
-    }
+    },
   });
 
   return {
@@ -765,11 +939,11 @@ export function pickArcLength(config: AutoConfig, action: AutoAction): number {
 
   // High world → longer arcs (more scenes to carry the pace)
   // Low world → shorter arcs (brief, contemplative)
-  // High drive → medium-long (need scenes to build/release drive)
-  if (f.world > 0 && f.drive > 0) {
+  // High fate → medium-long (need scenes to build/release fate)
+  if (f.world > 0 && f.fate > 0) {
     // High energy corners (HHH, HHL) — full arcs
     return config.maxArcLength;
-  } else if (f.world < 0 && f.drive < 0) {
+  } else if (f.world < 0 && f.fate < 0) {
     // Low energy corners (LLL, LLH) — brief interludes
     return config.minArcLength;
   } else {
@@ -796,7 +970,7 @@ export type DirectiveContext = {
   stagnantThreads: Thread[];
   primedThreads: ThreadMaturity[];
   continuityOpportunities: KnowledgeOpportunity[];
-  forceSaturation: Record<'drive' | 'world' | 'system', ForceSaturation>;
+  forceSaturation: Record<"fate" | "world" | "system", ForceSaturation>;
   recentSwing: number;
   storyProgress: number;
   storyPhase: { name: StoryPhase; description: string };
@@ -825,16 +999,25 @@ export function buildOutlineDirective(
   config: AutoConfig,
   ctx: DirectiveContext,
 ): string {
-  const toneClause = config.toneGuidance ? `\nTone: ${config.toneGuidance}` : '';
-  const constraintClause = config.narrativeConstraints ? `\nConstraints: ${config.narrativeConstraints}` : '';
+  const toneClause = config.toneGuidance
+    ? `\nTone: ${config.toneGuidance}`
+    : "";
+  const constraintClause = config.narrativeConstraints
+    ? `\nConstraints: ${config.narrativeConstraints}`
+    : "";
   const directionClause = config.direction
     ? `\nOUTLINE DIRECTION (the user's guidance for where the story should go — follow this, but you have creative freedom in how you get there):\n${config.direction}`
-    : '';
+    : "";
 
   // Analytical signals from narrative state
   const worldBuildSeed = buildWorldBuildSeedClause(narrative, ctx.scenes);
-  const maturityClause = buildThreadMaturityClause(narrative, ctx.primedThreads);
-  const asymmetryClause = buildKnowledgeAsymmetryClause(ctx.continuityOpportunities);
+  const maturityClause = buildThreadMaturityClause(
+    narrative,
+    ctx.primedThreads,
+  );
+  const asymmetryClause = buildKnowledgeAsymmetryClause(
+    ctx.continuityOpportunities,
+  );
   const balanceClause = buildForceBalanceClause(ctx.forceSaturation);
   const vibrancyClause = buildSwingClause(ctx.recentSwing);
 
@@ -845,42 +1028,50 @@ export function buildOutlineDirective(
 
 /** Build LLM correction text from pre-computed saturation results */
 function buildForceBalanceClause(
-  saturation: Record<'drive' | 'world' | 'system', ForceSaturation>,
+  saturation: Record<"fate" | "world" | "system", ForceSaturation>,
 ): string {
   const HIGH_CORRECTIONS: Record<string, string> = {
-    drive: 'Drive has been at maximum for too long. Write scenes where immediate danger recedes — characters regroup, reflect, or shift focus to personal/interpersonal matters rather than existential threats. Use low-drive thread mutations.',
-    world: 'World has been relentlessly fast. Slow down — write contemplative, dialogue-heavy scenes. Let characters process events instead of rushing to the next plot point.',
-    system: 'System has been too high for too long. Ground the narrative — return to familiar locations and established character dynamics instead of constantly introducing new elements.',
+    fate:
+      "Fate has been at maximum for too long. Write scenes where immediate danger recedes — characters regroup, reflect, or shift focus to personal/interpersonal matters rather than existential threats. Use low-fate thread mutations.",
+    world:
+      "World has been relentlessly fast. Slow down — write contemplative, dialogue-heavy scenes. Let characters process events instead of rushing to the next plot point.",
+    system:
+      "System has been too high for too long. Ground the narrative — return to familiar locations and established character dynamics instead of constantly introducing new elements.",
   };
   const LOW_CORRECTIONS: Record<string, string> = {
-    drive: 'Drive has been too low for too long. Introduce genuine consequences — a betrayal, a threat, a revelation that changes everything. Characters should face real risk.',
-    world: 'World has stagnated. Inject urgency — time pressure, pursuit, rapid developments. Move characters into action instead of contemplation.',
-    system: 'System has collapsed — the story feels repetitive. Shift perspective, introduce an unexpected character, change location, or subvert an established pattern. Break the routine.',
+    fate:
+      "Fate has been too low for too long. Introduce genuine consequences — a betrayal, a threat, a revelation that changes everything. Characters should face real risk.",
+    world:
+      "World has stagnated. Inject urgency — time pressure, pursuit, rapid developments. Move characters into action instead of contemplation.",
+    system:
+      "System has collapsed — the story feels repetitive. Shift perspective, introduce an unexpected character, change location, or subvert an established pattern. Break the routine.",
   };
 
   const corrections: string[] = [];
   for (const key of FORCE_KEYS) {
     const sat = saturation[key];
     if (!sat.saturated) continue;
-    corrections.push(sat.direction > 0 ? HIGH_CORRECTIONS[key] : LOW_CORRECTIONS[key]);
+    corrections.push(
+      sat.direction > 0 ? HIGH_CORRECTIONS[key] : LOW_CORRECTIONS[key],
+    );
   }
 
-  if (corrections.length === 0) return '';
-  return `\nFORCE BALANCE CORRECTION — the narrative has become unbalanced. You MUST address these issues in the scenes you generate:\n${corrections.map((c) => `- ${c}`).join('\n')}`;
+  if (corrections.length === 0) return "";
+  return `\nFORCE BALANCE CORRECTION — the narrative has become unbalanced. You MUST address these issues in the scenes you generate:\n${corrections.map((c) => `- ${c}`).join("\n")}`;
 }
 
 /** Build a clause about swing vibrancy — high swing = vibrant story, low swing = flat */
 function buildSwingClause(recentSwing: number): string {
   if (recentSwing < 0.3) {
-    return '\nBALANCE VIBRANCY — WARNING: The story has become flat. Recent scenes feel samey in energy. You MUST create dramatic contrast between scenes — alternate between high-intensity and quiet moments. Each scene should feel dynamically different from the one before. A vibrant narrative never stays at the same energy level.';
+    return "\nBALANCE VIBRANCY — WARNING: The story has become flat. Recent scenes feel samey in energy. You MUST create dramatic contrast between scenes — alternate between high-intensity and quiet moments. Each scene should feel dynamically different from the one before. A vibrant narrative never stays at the same energy level.";
   }
   if (recentSwing < 0.6) {
-    return '\nBALANCE VIBRANCY — The story could use more dynamic range. Vary the energy between scenes — follow an intense scene with a contemplative one, or a quiet buildup with a sudden escalation. Readers thrive on contrast.';
+    return "\nBALANCE VIBRANCY — The story could use more dynamic range. Vary the energy between scenes — follow an intense scene with a contemplative one, or a quiet buildup with a sudden escalation. Readers thrive on contrast.";
   }
   if (recentSwing > 1.5) {
-    return '\nBALANCE VIBRANCY — Excellent dynamic range. The story feels alive with constant shifts between high and low energy. Maintain this rhythm — keep alternating between different force levels to sustain the vibrant, unpredictable feel.';
+    return "\nBALANCE VIBRANCY — Excellent dynamic range. The story feels alive with constant shifts between high and low energy. Maintain this rhythm — keep alternating between different force levels to sustain the vibrant, unpredictable feel.";
   }
-  return '';
+  return "";
 }
 
 /** Build a clause listing threads that are mature and primed for resolution */
@@ -888,16 +1079,20 @@ function buildThreadMaturityClause(
   narrative: NarrativeState,
   primedThreads: ThreadMaturity[],
 ): string {
-  if (primedThreads.length === 0) return '';
+  if (primedThreads.length === 0) return "";
 
   const lines = primedThreads.slice(0, 3).map((m) => {
     const participants = m.thread.participants
-      .map((a) => a.type === 'character' ? narrative.characters[a.id]?.name : narrative.locations[a.id]?.name)
+      .map((a) =>
+        a.type === "character"
+          ? narrative.characters[a.id]?.name
+          : narrative.locations[a.id]?.name,
+      )
       .filter(Boolean)
-      .join(', ');
-    return `- "${m.thread.description}" [${m.thread.status}, maturity: ${(m.score * 100).toFixed(0)}%] — ${participants || 'unknown'}`;
+      .join(", ");
+    return `- "${m.thread.description}" [${m.thread.status}, maturity: ${(m.score * 100).toFixed(0)}%] — ${participants || "unknown"}`;
   });
-  return `\nRIPE THREADS — these have been building and are ready for resolution or escalation:\n${lines.join('\n')}`;
+  return `\nRIPE THREADS — these have been building and are ready for resolution or escalation:\n${lines.join("\n")}`;
 }
 
 /** Build a clause surfacing dramatic knowledge gaps between characters */
@@ -905,12 +1100,13 @@ function buildKnowledgeAsymmetryClause(
   opportunities: KnowledgeOpportunity[],
 ): string {
   const top = opportunities.filter((o) => o.dramaticWeight > 0.3).slice(0, 3);
-  if (top.length === 0) return '';
+  if (top.length === 0) return "";
 
   const lines = top.map(
-    (o) => `- ${o.holderName} knows "${o.content}" but ${o.ignorantName} does not`,
+    (o) =>
+      `- ${o.holderName} knows "${o.content}" but ${o.ignorantName} does not`,
   );
-  return `\nKNOWLEDGE GAPS — information asymmetries that can drive conflict or revelation:\n${lines.join('\n')}`;
+  return `\nKNOWLEDGE GAPS — information asymmetries that can drive conflict or revelation:\n${lines.join("\n")}`;
 }
 
 /** Build a clause that references unused world-build elements to weave into arcs */
@@ -919,11 +1115,13 @@ function buildWorldBuildSeedClause(
   scenes: Scene[],
 ): string {
   const worldBuilds = Object.values(narrative.worldBuilds);
-  if (worldBuilds.length === 0) return '';
+  if (worldBuilds.length === 0) return "";
 
   const usedCharIds = new Set(scenes.flatMap((s) => s.participantIds));
   const usedLocIds = new Set(scenes.map((s) => s.locationId));
-  const mutatedThreadIds = new Set(scenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)));
+  const mutatedThreadIds = new Set(
+    scenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)),
+  );
 
   const unusedChars: string[] = [];
   const unusedLocs: string[] = [];
@@ -950,12 +1148,22 @@ function buildWorldBuildSeedClause(
     }
   }
 
-  if (unusedChars.length === 0 && unusedLocs.length === 0 && unusedThreads.length === 0) return '';
+  if (
+    unusedChars.length === 0 &&
+    unusedLocs.length === 0 &&
+    unusedThreads.length === 0
+  )
+    return "";
 
-  const parts: string[] = ['\nConsider incorporating these unused world-building elements:'];
-  if (unusedChars.length > 0) parts.push(`- Characters: ${unusedChars.slice(0, 4).join(', ')}`);
-  if (unusedLocs.length > 0) parts.push(`- Locations: ${unusedLocs.slice(0, 3).join(', ')}`);
-  if (unusedThreads.length > 0) parts.push(`- Threads: ${unusedThreads.slice(0, 3).join(', ')}`);
+  const parts: string[] = [
+    "\nConsider incorporating these unused world-building elements:",
+  ];
+  if (unusedChars.length > 0)
+    parts.push(`- Characters: ${unusedChars.slice(0, 4).join(", ")}`);
+  if (unusedLocs.length > 0)
+    parts.push(`- Locations: ${unusedLocs.slice(0, 3).join(", ")}`);
+  if (unusedThreads.length > 0)
+    parts.push(`- Threads: ${unusedThreads.slice(0, 3).join(", ")}`);
 
-  return parts.join('\n');
+  return parts.join("\n");
 }

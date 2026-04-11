@@ -1,9 +1,24 @@
-'use client';
+"use client";
 
-import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
-import { useStore } from '@/lib/store';
-import { resolveEntry, isScene, NARRATIVE_CUBE, type CubeCorner, type CubeCornerKey, type ForceSnapshot, type Scene } from '@/types/narrative';
-import { detectCubeCorner, computeForceSnapshots, computeWindowedForces, computeDeliveryCurve, classifyCurrentPosition, FORCE_WINDOW_SIZE } from '@/lib/narrative-utils';
+import {
+  classifyCurrentPosition,
+  computeDeliveryCurve,
+  computeForceSnapshots,
+  computeWindowedForces,
+  detectCubeCorner,
+  FORCE_WINDOW_SIZE,
+} from "@/lib/narrative-utils";
+import { useStore } from "@/lib/store";
+import {
+  isScene,
+  NARRATIVE_CUBE,
+  resolveEntry,
+  type CubeCorner,
+  type CubeCornerKey,
+  type ForceSnapshot,
+  type Scene,
+} from "@/types/narrative";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // ── 3D math helpers ──────────────────────────────────────────────────────────
 
@@ -28,23 +43,41 @@ function project(p: Vec3, w: number, h: number, fov: number): [number, number] {
 
 // Map z-score force values to cube coordinates via tanh compression.
 // z≈0 (average) stays centered; extreme values asymptote to ±1 corners.
-// Drive → Y (vertical), World → X (horizontal), System → Z (depth)
-function forcesToCubePos(drive: number, world: number, system: number): Vec3 {
-  return [Math.tanh(world), Math.tanh(drive), Math.tanh(system)];
+// Fate → Y (vertical), World → X (horizontal), System → Z (depth)
+function forcesToCubePos(fate: number, world: number, system: number): Vec3 {
+  return [Math.tanh(world), Math.tanh(fate), Math.tanh(system)];
 }
 
 // ── Cube corner positions ────────────────────────────────────────────────────
 
 const CUBE_EDGES: [number, number][] = [
-  [0, 1], [1, 3], [3, 2], [2, 0], // front face
-  [4, 5], [5, 7], [7, 6], [6, 4], // back face
-  [0, 4], [1, 5], [2, 6], [3, 7], // connecting edges
+  [0, 1],
+  [1, 3],
+  [3, 2],
+  [2, 0], // front face
+  [4, 5],
+  [5, 7],
+  [7, 6],
+  [6, 4], // back face
+  [0, 4],
+  [1, 5],
+  [2, 6],
+  [3, 7], // connecting edges
 ];
 
-const CORNER_KEYS: CubeCornerKey[] = ['LLL', 'HLL', 'LHL', 'HHL', 'LLH', 'HLH', 'LHH', 'HHH'];
+const CORNER_KEYS: CubeCornerKey[] = [
+  "LLL",
+  "HLL",
+  "LHL",
+  "HHL",
+  "LLH",
+  "HLH",
+  "LHH",
+  "HHH",
+];
 const CORNER_POSITIONS: Vec3[] = CORNER_KEYS.map((k) => {
   const c = NARRATIVE_CUBE[k].forces;
-  return forcesToCubePos(c.drive, c.world, c.system);
+  return forcesToCubePos(c.fate, c.world, c.system);
 });
 
 // ── Force data type for AI analysis ──────────────────────────────────────────
@@ -55,7 +88,7 @@ type SceneForceEntry = {
   arcName: string;
   corner: CubeCorner;
   cornerKey: CubeCornerKey;
-  forces: { drive: number; world: number; system: number };
+  forces: { fate: number; world: number; system: number };
   swing: number;
 };
 
@@ -79,7 +112,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   const [focusedIdx, setFocusedIdx] = useState<number>(0);
 
   // Force mode: global (full-history z-score) vs local (rolling window)
-  const [forceMode, setForceMode] = useState<'global' | 'local'>('global');
+  const [forceMode, setForceMode] = useState<"global" | "local">("global");
 
   // Playback state
   const [playing, setPlaying] = useState(false);
@@ -99,7 +132,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   // Force map: global = full-history z-score, local = per-scene rolling window
   const forceMap = useMemo(() => {
     if (allScenes.length === 0) return {};
-    if (forceMode === 'global') return computeForceSnapshots(allScenes);
+    if (forceMode === "global") return computeForceSnapshots(allScenes);
     // Local: compute windowed forces for each scene and merge
     const merged: Record<string, ForceSnapshot> = {};
     for (let i = 0; i < allScenes.length; i++) {
@@ -114,14 +147,14 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   const trajectory = useMemo(() => {
     if (!narrative) return [];
     const pts: { pos: Vec3; index: number }[] = [];
-    let lastForce = { drive: 0, world: 0, system: 0 };
+    let lastForce = { fate: 0, world: 0, system: 0 };
     for (let i = 0; i < resolvedKeys.length; i++) {
       const entry = resolveEntry(narrative, resolvedKeys[i]);
       if (entry && isScene(entry)) {
         lastForce = forceMap[entry.id] ?? lastForce;
       }
       pts.push({
-        pos: forcesToCubePos(lastForce.drive, lastForce.world, lastForce.system),
+        pos: forcesToCubePos(lastForce.fate, lastForce.world, lastForce.system),
         index: i,
       });
     }
@@ -142,7 +175,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
           const corner = detectCubeCorner(f);
           let swing = 0;
           if (prevForce) {
-            const dp = f.drive - prevForce.drive;
+            const dp = f.fate - prevForce.fate;
             const dc = f.world - prevForce.world;
             const dk = f.system - prevForce.system;
             swing = Math.sqrt(dp * dp + dc * dc + dk * dk);
@@ -173,7 +206,10 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   // Local delivery position from the trailing window ending at focusedIdx
   const localPosition = useMemo(() => {
     if (forceEntries.length === 0) return null;
-    const windowEntries = forceEntries.slice(Math.max(0, focusedIdx - FORCE_WINDOW_SIZE + 1), focusedIdx + 1);
+    const windowEntries = forceEntries.slice(
+      Math.max(0, focusedIdx - FORCE_WINDOW_SIZE + 1),
+      focusedIdx + 1,
+    );
     const snapshots = windowEntries.map((e) => e.forces);
     const pts = computeDeliveryCurve(snapshots);
     return pts.length > 0 ? classifyCurrentPosition(pts) : null;
@@ -182,7 +218,8 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   // Initialize focused index to the current timeline scene
   const initializedRef = useRef(false);
   useEffect(() => {
-    if (initializedRef.current || forceEntries.length === 0 || !narrative) return;
+    if (initializedRef.current || forceEntries.length === 0 || !narrative)
+      return;
     initializedRef.current = true;
     // Find which forceEntry index corresponds to the current scene
     const currentKey = resolvedKeys[state.currentSceneIndex];
@@ -195,7 +232,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     const container = sidebarRef.current;
     if (!container) return;
     const btn = container.children[focusedIdx] as HTMLElement | undefined;
-    btn?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    btn?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [focusedIdx]);
 
   // Playback auto-advance with countdown timer
@@ -233,23 +270,35 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     if (!scene) return null;
     const loc = narrative.locations[scene.locationId];
     const pov = narrative.characters[scene.povId];
-    const participants = scene.participantIds.map((id) => narrative.characters[id]?.name).filter(Boolean);
+    const participants = scene.participantIds
+      .map((id) => narrative.characters[id]?.name)
+      .filter(Boolean);
 
     // Previous scene for transition context
     const prevEntry = focusedIdx > 0 ? forceEntries[focusedIdx - 1] : null;
     const prevScene = prevEntry ? narrative.scenes[prevEntry.sceneId] : null;
-    const prevLoc = prevScene ? narrative.locations[prevScene.locationId] : null;
-    const locationChanged = prevScene ? prevScene.locationId !== scene.locationId : false;
-    const cornerChanged = prevEntry ? prevEntry.cornerKey !== entry.cornerKey : false;
+    const prevLoc = prevScene
+      ? narrative.locations[prevScene.locationId]
+      : null;
+    const locationChanged = prevScene
+      ? prevScene.locationId !== scene.locationId
+      : false;
+    const cornerChanged = prevEntry
+      ? prevEntry.cornerKey !== entry.cornerKey
+      : false;
 
     return {
       ...entry,
       summary: scene.summary,
-      locationName: loc?.name ?? '—',
-      povName: pov?.name ?? '—',
+      locationName: loc?.name ?? "—",
+      povName: pov?.name ?? "—",
       participants,
       events: scene.events,
-      pos: forcesToCubePos(entry.forces.drive, entry.forces.world, entry.forces.system),
+      pos: forcesToCubePos(
+        entry.forces.fate,
+        entry.forces.world,
+        entry.forces.system,
+      ),
       prevLocationName: prevLoc?.name ?? null,
       locationChanged,
       prevCornerName: prevEntry?.corner.name ?? null,
@@ -261,33 +310,33 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   // Uses capture phase + stopPropagation to prevent main timeline shortcuts from firing.
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
         e.preventDefault();
         e.stopPropagation();
         if (forceEntries.length === 0) return;
         setPlaying(false);
         setFocusedIdx((prev) => Math.max(0, prev - 1));
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
         e.preventDefault();
         e.stopPropagation();
         if (forceEntries.length === 0) return;
         setPlaying(false);
         setFocusedIdx((prev) => Math.min(forceEntries.length - 1, prev + 1));
-      } else if (e.key === ' ') {
+      } else if (e.key === " ") {
         e.preventDefault();
         e.stopPropagation();
         setPlaying((p) => {
           if (!p && focusedIdx >= forceEntries.length - 1) setFocusedIdx(0);
           return !p;
         });
-      } else if (e.key === 'Escape') {
+      } else if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
         onClose();
       }
     }
-    window.addEventListener('keydown', handleKey, true);
-    return () => window.removeEventListener('keydown', handleKey, true);
+    window.addEventListener("keydown", handleKey, true);
+    return () => window.removeEventListener("keydown", handleKey, true);
   }, [forceEntries.length, focusedIdx, onClose]);
 
   // Map focused scene to its trajectory index for canvas highlighting
@@ -304,12 +353,16 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     const first = forceEntries[0];
     const last = forceEntries[forceEntries.length - 1];
     const cornerCounts: Record<string, number> = {};
-    for (const e of forceEntries) cornerCounts[e.corner.name] = (cornerCounts[e.corner.name] ?? 0) + 1;
-    const dominant = Object.entries(cornerCounts).sort((a, b) => b[1] - a[1])[0];
+    for (const e of forceEntries)
+      cornerCounts[e.corner.name] = (cornerCounts[e.corner.name] ?? 0) + 1;
+    const dominant = Object.entries(cornerCounts).sort(
+      (a, b) => b[1] - a[1],
+    )[0];
     const uniqueCorners = Object.keys(cornerCounts).length;
     let transitions = 0;
     for (let i = 1; i < forceEntries.length; i++) {
-      if (forceEntries[i].cornerKey !== forceEntries[i - 1].cornerKey) transitions++;
+      if (forceEntries[i].cornerKey !== forceEntries[i - 1].cornerKey)
+        transitions++;
     }
     return {
       first: first.corner.name,
@@ -324,7 +377,9 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
 
   // Hover state for trajectory dots
   const [hoveredDotIdx, setHoveredDotIdx] = useState<number | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const projectedDotsRef = useRef<{ x: number; y: number; idx: number }[]>([]);
 
   // Mouse drag handlers
@@ -386,14 +441,20 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     const arc = narrative.arcs[entry.arcId];
     const loc = entry.locationId ? narrative.locations[entry.locationId] : null;
     const pt = trajectory[hoveredDotIdx];
-    // pos layout from forcesToCubePos: [tanh(world), tanh(drive), tanh(system)]
-    const corner = pt ? detectCubeCorner({ drive: pt.pos[1], world: pt.pos[0], system: pt.pos[2] }) : null;
+    // pos layout from forcesToCubePos: [tanh(world), tanh(fate), tanh(system)]
+    const corner = pt
+      ? detectCubeCorner({
+          fate: pt.pos[1],
+          world: pt.pos[0],
+          system: pt.pos[2],
+        })
+      : null;
     return {
       summary: entry.summary,
       arcName: arc?.name ?? entry.arcId,
-      locationName: loc?.name ?? '—',
+      locationName: loc?.name ?? "—",
       events: entry.events,
-      cornerName: corner?.name ?? '',
+      cornerName: corner?.name ?? "",
       index: hoveredDotIdx + 1,
       total: resolvedKeys.length,
     };
@@ -403,7 +464,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -435,12 +496,12 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     // ── Resolve CSS colors ─────────────────────────────────────────────
     const style = getComputedStyle(canvas);
     function resolveCssColor(v: string): string {
-      if (!v.startsWith('var(')) return v;
-      return style.getPropertyValue(v.slice(4, -1)).trim() || '#888';
+      if (!v.startsWith("var(")) return v;
+      return style.getPropertyValue(v.slice(4, -1)).trim() || "#888";
     }
-    const driveColor = resolveCssColor('var(--color-drive)');
-    const changeColor = resolveCssColor('var(--color-world)');
-    const knowledgeColor = resolveCssColor('var(--color-system)');
+    const driveColor = resolveCssColor("var(--color-fate)");
+    const changeColor = resolveCssColor("var(--color-world)");
+    const knowledgeColor = resolveCssColor("var(--color-system)");
 
     // ── Draw cube edges ────────────────────────────────────────────────
     for (const [a, b] of CUBE_EDGES) {
@@ -449,17 +510,17 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       const pa = transform(ca);
       const pb = transform(cb);
 
-      // Cube axes: X = change, Y = drive, Z = knowledge
+      // Cube axes: X = world, Y = fate, Z = system
       const dx = Math.abs(ca[0] - cb[0]);
       const dy = Math.abs(ca[1] - cb[1]);
       const dz = Math.abs(ca[2] - cb[2]);
       let edgeColor: string;
       if (dx > dy && dx > dz) {
-        edgeColor = changeColor;  // X axis
+        edgeColor = changeColor; // X axis
       } else if (dy > dz) {
-        edgeColor = driveColor;  // Y axis
+        edgeColor = driveColor; // Y axis
       } else {
-        edgeColor = knowledgeColor;  // Z axis
+        edgeColor = knowledgeColor; // Z axis
       }
 
       ctx.strokeStyle = edgeColor;
@@ -474,9 +535,24 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
 
     // ── Draw axis lines + labels ────────────────────────────────────────
     const axes: { label: string; lo: Vec3; hi: Vec3; color: string }[] = [
-      { label: 'World',  lo: [-1.35, 0, 0], hi: [1.35, 0, 0], color: changeColor },
-      { label: 'Drive',  lo: [0, -1.35, 0], hi: [0, 1.35, 0], color: driveColor },
-      { label: 'System', lo: [0, 0, -1.35], hi: [0, 0, 1.35], color: knowledgeColor },
+      {
+        label: "World",
+        lo: [-1.35, 0, 0],
+        hi: [1.35, 0, 0],
+        color: changeColor,
+      },
+      {
+        label: "Fate",
+        lo: [0, -1.35, 0],
+        hi: [0, 1.35, 0],
+        color: driveColor,
+      },
+      {
+        label: "System",
+        lo: [0, 0, -1.35],
+        hi: [0, 0, 1.35],
+        color: knowledgeColor,
+      },
     ];
 
     for (const ax of axes) {
@@ -494,13 +570,13 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
 
-      ctx.font = '9px system-ui, sans-serif';
+      ctx.font = "9px system-ui, sans-serif";
       ctx.fillStyle = ax.color;
       ctx.globalAlpha = 0.6;
-      ctx.textAlign = 'center';
-      ctx.fillText('Lo', pLo[0], pLo[1] + 12);
+      ctx.textAlign = "center";
+      ctx.fillText("Lo", pLo[0], pLo[1] + 12);
 
-      ctx.font = 'bold 10px system-ui, sans-serif';
+      ctx.font = "bold 10px system-ui, sans-serif";
       ctx.globalAlpha = 0.95;
       ctx.fillText(`${ax.label} Hi`, pHi[0], pHi[1] - 6);
       ctx.globalAlpha = 1;
@@ -525,17 +601,19 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
       ctx.fill();
 
-      ctx.font = isNearest ? 'bold 10px system-ui, sans-serif' : '9px system-ui, sans-serif';
+      ctx.font = isNearest
+        ? "bold 10px system-ui, sans-serif"
+        : "9px system-ui, sans-serif";
       ctx.fillStyle = `rgba(255, 255, 255, ${isNearest ? 1 : 0.5})`;
-      ctx.textAlign = 'center';
+      ctx.textAlign = "center";
       ctx.fillText(cd.name, cd.screenPos[0], cd.screenPos[1] - radius - 4);
     }
 
     // ── Draw trajectory ────────────────────────────────────────────────
     if (trajectory.length > 1) {
       ctx.lineWidth = 1.5;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
       for (let i = 1; i < trajectory.length; i++) {
         const prev = transform(trajectory[i - 1].pos);
         const curr = transform(trajectory[i].pos);
@@ -559,20 +637,20 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       ctx.beginPath();
       ctx.arc(sx, sy, r, 0, Math.PI * 2);
       ctx.fillStyle = isFocused
-        ? '#facc15'
+        ? "#facc15"
         : isHovered
-          ? '#FFFFFF'
+          ? "#FFFFFF"
           : `rgba(255, 255, 255, ${0.15 + (i / trajectory.length) * 0.25})`;
       ctx.fill();
 
       if (isFocused) {
-        ctx.strokeStyle = 'rgba(250, 204, 21, 0.6)';
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.6)";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(sx, sy, 10, 0, Math.PI * 2);
         ctx.stroke();
       } else if (isHovered) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.arc(sx, sy, 8, 0, Math.PI * 2);
@@ -595,7 +673,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
         const shaftStart = [prevPos[0] + ux * 4, prevPos[1] + uy * 4];
         const shaftEnd = [currPos[0] - ux * 8, currPos[1] - uy * 8];
 
-        ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.9)";
         ctx.lineWidth = 2;
         ctx.setLineDash([]);
         ctx.beginPath();
@@ -610,7 +688,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
         const tipY = currPos[1] - uy * 7;
         const angle = Math.atan2(dy, dx);
 
-        ctx.fillStyle = 'rgba(250, 204, 21, 0.9)';
+        ctx.fillStyle = "rgba(250, 204, 21, 0.9)";
         ctx.beginPath();
         ctx.moveTo(tipX, tipY);
         ctx.lineTo(
@@ -627,30 +705,62 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
     }
 
     projectedDotsRef.current = dots;
-  }, [rotX, rotY, trajectory, currentCorner, hoveredDotIdx, focusedTrajectoryIdx]);
-
+  }, [
+    rotX,
+    rotY,
+    trajectory,
+    currentCorner,
+    hoveredDotIdx,
+    focusedTrajectoryIdx,
+  ]);
 
   return (
     <div className="fixed inset-0 bg-[#0a0a0f] z-60 flex flex-col">
       {/* Header */}
       <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
         <div className="flex items-baseline gap-3">
-          <h2 className="text-sm font-semibold text-text-primary">Narrative Cube</h2>
+          <h2 className="text-sm font-semibold text-text-primary">
+            Narrative Cube
+          </h2>
           {currentCorner && (
             <span className="flex items-center gap-2">
               <svg width="24" height="12" viewBox="0 0 24 12">
-                {([0,1,2]).map((i) => {
-                  const isHigh = currentCorner.key[i] === 'H';
-                  const colors = ['#EF4444','#22C55E','#3B82F6'];
+                {[0, 1, 2].map((i) => {
+                  const isHigh = currentCorner.key[i] === "H";
+                  const colors = ["#EF4444", "#22C55E", "#3B82F6"];
                   const barH = isHigh ? 9 : 4;
-                  return <rect key={i} x={i * 9} y={12 - barH} width={7} height={barH} rx={1} fill={colors[i]} opacity={0.75} />;
+                  return (
+                    <rect
+                      key={i}
+                      x={i * 9}
+                      y={12 - barH}
+                      width={7}
+                      height={barH}
+                      rx={1}
+                      fill={colors[i]}
+                      opacity={0.75}
+                    />
+                  );
                 })}
               </svg>
-              <span className="text-[11px] text-text-primary font-medium">{currentCorner.name}</span>
+              <span className="text-[11px] text-text-primary font-medium">
+                {currentCorner.name}
+              </span>
               {localPosition && (
                 <>
                   <span className="text-white/15">|</span>
-                  <span className="text-[10px] font-medium" style={{ color: { peak: '#F59E0B', trough: '#3B82F6', rising: '#22C55E', falling: '#EF4444', stable: 'rgba(255,255,255,0.4)' }[localPosition.key] }}>
+                  <span
+                    className="text-[10px] font-medium"
+                    style={{
+                      color: {
+                        peak: "#F59E0B",
+                        trough: "#3B82F6",
+                        rising: "#22C55E",
+                        falling: "#EF4444",
+                        stable: "rgba(255,255,255,0.4)",
+                      }[localPosition.key],
+                    }}
+                  >
                     {localPosition.name}
                   </span>
                 </>
@@ -661,7 +771,9 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
             <>
               <span className="text-text-dim/30 text-[10px]">&middot;</span>
               <span className="text-[10px] text-text-dim">
-                {trajectoryStats.sceneCount} scenes &middot; {trajectoryStats.uniqueCorners}/8 corners &middot; {trajectoryStats.transitions} transitions
+                {trajectoryStats.sceneCount} scenes &middot;{" "}
+                {trajectoryStats.uniqueCorners}/8 corners &middot;{" "}
+                {trajectoryStats.transitions} transitions
               </span>
             </>
           )}
@@ -670,21 +782,21 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
           {/* Global / Local toggle */}
           <div className="flex items-center rounded-full border border-white/10 overflow-hidden">
             <button
-              onClick={() => setForceMode('global')}
+              onClick={() => setForceMode("global")}
               className={`text-[9px] px-2.5 py-0.5 transition ${
-                forceMode === 'global'
-                  ? 'bg-white/10 text-text-primary'
-                  : 'text-text-dim hover:text-text-secondary'
+                forceMode === "global"
+                  ? "bg-white/10 text-text-primary"
+                  : "text-text-dim hover:text-text-secondary"
               }`}
             >
               Global
             </button>
             <button
-              onClick={() => setForceMode('local')}
+              onClick={() => setForceMode("local")}
               className={`text-[9px] px-2.5 py-0.5 transition ${
-                forceMode === 'local'
-                  ? 'bg-white/10 text-text-primary'
-                  : 'text-text-dim hover:text-text-secondary'
+                forceMode === "local"
+                  ? "bg-white/10 text-text-primary"
+                  : "text-text-dim hover:text-text-secondary"
               }`}
             >
               Local
@@ -705,7 +817,10 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       {/* Main content area */}
       <div className="flex-1 overflow-hidden flex">
         {/* Scene list sidebar */}
-        <div ref={sidebarRef} className="w-56 shrink-0 border-r border-white/10 overflow-y-auto py-2">
+        <div
+          ref={sidebarRef}
+          className="w-56 shrink-0 border-r border-white/10 overflow-y-auto py-2"
+        >
           {forceEntries.map((entry, i) => {
             const scene = narrative?.scenes[entry.sceneId];
             return (
@@ -714,8 +829,8 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
                 onClick={() => setFocusedIdx(i)}
                 className={`w-full text-left px-4 py-2.5 transition-colors ${
                   i === focusedIdx
-                    ? 'bg-white/8 text-text-primary'
-                    : 'text-text-dim hover:bg-white/4 hover:text-text-secondary'
+                    ? "bg-white/8 text-text-primary"
+                    : "text-text-dim hover:bg-white/4 hover:text-text-secondary"
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -723,12 +838,17 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
                     {i + 1}
                   </span>
                   <span className="text-[11px] truncate">
-                    {(scene?.summary ?? '').slice(0, 60)}{(scene?.summary ?? '').length > 60 ? '...' : ''}
+                    {(scene?.summary ?? "").slice(0, 60)}
+                    {(scene?.summary ?? "").length > 60 ? "..." : ""}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 ml-5">
-                  <span className="text-[9px] text-text-dim">{entry.arcName}</span>
-                  <span className="text-[8px] text-yellow-400/50">{entry.corner.name}</span>
+                  <span className="text-[9px] text-text-dim">
+                    {entry.arcName}
+                  </span>
+                  <span className="text-[8px] text-yellow-400/50">
+                    {entry.corner.name}
+                  </span>
                 </div>
               </button>
             );
@@ -745,23 +865,31 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
               onMouseDown={onMouseDown}
               onMouseMove={onMouseMove}
               onMouseUp={onMouseUp}
-              onMouseLeave={() => { onMouseUp(); setHoveredDotIdx(null); setTooltipPos(null); }}
+              onMouseLeave={() => {
+                onMouseUp();
+                setHoveredDotIdx(null);
+                setTooltipPos(null);
+              }}
             />
             {hoveredScene && tooltipPos && (
               <div
                 className="absolute z-20 pointer-events-none bg-bg-surface/95 border border-white/10 rounded-lg px-3 py-2 shadow-lg max-w-55"
                 style={{
-                  left: Math.min(tooltipPos.x + 12 + 24, (canvasRef.current?.clientWidth ?? 300) - 200),
+                  left: Math.min(
+                    tooltipPos.x + 12 + 24,
+                    (canvasRef.current?.clientWidth ?? 300) - 200,
+                  ),
                   top: tooltipPos.y - 8 + 24,
-                  transform: 'translateY(-100%)',
+                  transform: "translateY(-100%)",
                 }}
               >
                 <div className="text-[9px] text-text-dim mb-1">
-                  Scene {hoveredScene.index}/{hoveredScene.total} &middot; {hoveredScene.arcName}
+                  Scene {hoveredScene.index}/{hoveredScene.total} &middot;{" "}
+                  {hoveredScene.arcName}
                 </div>
                 <div className="text-[10px] text-text-secondary leading-snug mb-1">
                   {hoveredScene.summary.length > 120
-                    ? hoveredScene.summary.slice(0, 120) + '...'
+                    ? hoveredScene.summary.slice(0, 120) + "..."
                     : hoveredScene.summary}
                 </div>
                 <div className="flex items-center gap-2 text-[9px] text-text-dim">
@@ -779,11 +907,22 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
           {/* Playback controls */}
           <div className="shrink-0 border-t border-white/10 px-6 py-2.5 flex items-center justify-between">
             <button
-              onClick={() => { setPlaying(false); setFocusedIdx((prev) => Math.max(0, prev - 1)); }}
+              onClick={() => {
+                setPlaying(false);
+                setFocusedIdx((prev) => Math.max(0, prev - 1));
+              }}
               disabled={focusedIdx === 0}
               className="text-[10px] px-3 py-1 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12 transition disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
             >
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                className="w-3 h-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <polyline points="15 18 9 12 15 6" />
               </svg>
               Prev
@@ -797,7 +936,11 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
                 disabled={playing}
                 className="p-1.5 rounded-full border border-green-500/30 text-green-400 hover:bg-green-500/10 transition disabled:opacity-30 disabled:pointer-events-none"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <polygon points="6,4 20,12 6,20" />
                 </svg>
               </button>
@@ -806,7 +949,11 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
                 disabled={!playing}
                 className="p-1.5 rounded-full border border-white/10 text-text-dim hover:bg-white/5 transition disabled:opacity-30 disabled:pointer-events-none"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <rect x="6" y="4" width="4" height="16" rx="1" />
                   <rect x="14" y="4" width="4" height="16" rx="1" />
                 </svg>
@@ -829,17 +976,29 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
               </select>
             </div>
             <button
-              onClick={() => { setPlaying(false); setFocusedIdx((prev) => Math.min(forceEntries.length - 1, prev + 1)); }}
+              onClick={() => {
+                setPlaying(false);
+                setFocusedIdx((prev) =>
+                  Math.min(forceEntries.length - 1, prev + 1),
+                );
+              }}
               disabled={focusedIdx === forceEntries.length - 1}
               className="text-[10px] px-3 py-1 rounded-full border border-white/8 text-text-dim hover:text-text-secondary hover:border-white/12 transition disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
             >
               Next
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                className="w-3 h-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
           </div>
-
         </div>
 
         {/* Right panel: focused scene detail */}
@@ -849,45 +1008,79 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
               {/* Transition badges */}
               {(focusedScene.locationChanged || focusedScene.cornerChanged) && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  {focusedScene.locationChanged && focusedScene.prevLocationName && (
-                    <span className="inline-flex items-center gap-1 text-[9px] bg-blue-500/10 text-blue-400/90 px-2 py-0.5 rounded-full">
-                      <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                        <circle cx="12" cy="9" r="2.5" />
-                      </svg>
-                      {focusedScene.prevLocationName} &rarr; {focusedScene.locationName}
-                    </span>
-                  )}
-                  {focusedScene.cornerChanged && focusedScene.prevCornerName && (
-                    <span className="inline-flex items-center gap-1 text-[9px] bg-yellow-500/10 text-yellow-400/90 px-2 py-0.5 rounded-full">
-                      {focusedScene.prevCornerName} &rarr; {focusedScene.corner.name}
-                    </span>
-                  )}
+                  {focusedScene.locationChanged &&
+                    focusedScene.prevLocationName && (
+                      <span className="inline-flex items-center gap-1 text-[9px] bg-blue-500/10 text-blue-400/90 px-2 py-0.5 rounded-full">
+                        <svg
+                          className="w-2.5 h-2.5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                          <circle cx="12" cy="9" r="2.5" />
+                        </svg>
+                        {focusedScene.prevLocationName} &rarr;{" "}
+                        {focusedScene.locationName}
+                      </span>
+                    )}
+                  {focusedScene.cornerChanged &&
+                    focusedScene.prevCornerName && (
+                      <span className="inline-flex items-center gap-1 text-[9px] bg-yellow-500/10 text-yellow-400/90 px-2 py-0.5 rounded-full">
+                        {focusedScene.prevCornerName} &rarr;{" "}
+                        {focusedScene.corner.name}
+                      </span>
+                    )}
                 </div>
               )}
 
               <div className="flex items-baseline justify-between">
                 <div className="flex items-center gap-2">
                   <svg width="21" height="12" viewBox="0 0 21 12">
-                    {focusedScene.cornerKey.split('').map((c, i) => {
-                      const isHi = c === 'H';
-                      const colors = ['#EF4444', '#22C55E', '#3B82F6'];
+                    {focusedScene.cornerKey.split("").map((c, i) => {
+                      const isHi = c === "H";
+                      const colors = ["#EF4444", "#22C55E", "#3B82F6"];
                       return (
-                        <rect key={i} x={i * 8} y={isHi ? 1 : 6} width={6} height={isHi ? 10 : 5} rx={1}
-                          fill={colors[i]} opacity={isHi ? 1 : 0.4} />
+                        <rect
+                          key={i}
+                          x={i * 8}
+                          y={isHi ? 1 : 6}
+                          width={6}
+                          height={isHi ? 10 : 5}
+                          rx={1}
+                          fill={colors[i]}
+                          opacity={isHi ? 1 : 0.4}
+                        />
                       );
                     })}
                   </svg>
-                  <span className="text-[11px] font-medium text-yellow-400/90">{focusedScene.corner.name}</span>
+                  <span className="text-[11px] font-medium text-yellow-400/90">
+                    {focusedScene.corner.name}
+                  </span>
                 </div>
-                <span className="text-[9px] text-text-dim">{focusedScene.arcName}</span>
+                <span className="text-[9px] text-text-dim">
+                  {focusedScene.arcName}
+                </span>
               </div>
 
-              <p className="text-[11px] text-text-secondary leading-relaxed">{focusedScene.summary}</p>
+              <p className="text-[11px] text-text-secondary leading-relaxed">
+                {focusedScene.summary}
+              </p>
 
               <div className="flex items-center gap-3 text-[9px] text-text-dim flex-wrap">
                 <span className="flex items-center gap-1">
-                  <svg className="w-2.5 h-2.5 text-text-dim/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    className="w-2.5 h-2.5 text-text-dim/50"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
                     <circle cx="12" cy="9" r="2.5" />
                   </svg>
@@ -895,7 +1088,15 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
                 </span>
                 <span className="text-text-dim/30">&middot;</span>
                 <span className="flex items-center gap-1">
-                  <svg className="w-2.5 h-2.5 text-text-dim/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    className="w-2.5 h-2.5 text-text-dim/50"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
@@ -904,7 +1105,9 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
                 {focusedScene.participants.length > 0 && (
                   <>
                     <span className="text-text-dim/30">&middot;</span>
-                    <span className="truncate">{focusedScene.participants.join(', ')}</span>
+                    <span className="truncate">
+                      {focusedScene.participants.join(", ")}
+                    </span>
                   </>
                 )}
               </div>
@@ -912,34 +1115,46 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
               {/* Force values */}
               <div className="flex items-center gap-2.5 pt-1">
                 <div className="flex items-center gap-1">
-                  <span className="text-[9px] text-drive font-medium">P</span>
+                  <span className="text-[9px] text-drive font-medium">F</span>
                   <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
                       className="h-full bg-drive rounded-full"
-                      style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.drive) + 1) * 50)}%` }}
+                      style={{
+                        width: `${Math.max(5, (Math.tanh(focusedScene.forces.fate) + 1) * 50)}%`,
+                      }}
                     />
                   </div>
-                  <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.drive.toFixed(1)}</span>
+                  <span className="text-[8px] font-mono text-text-dim/60">
+                    {focusedScene.forces.fate.toFixed(1)}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-[9px] text-world font-medium">W</span>
                   <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
                       className="h-full bg-world rounded-full"
-                      style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.world) + 1) * 50)}%` }}
+                      style={{
+                        width: `${Math.max(5, (Math.tanh(focusedScene.forces.world) + 1) * 50)}%`,
+                      }}
                     />
                   </div>
-                  <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.world.toFixed(1)}</span>
+                  <span className="text-[8px] font-mono text-text-dim/60">
+                    {focusedScene.forces.world.toFixed(1)}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-[9px] text-system font-medium">S</span>
                   <div className="w-10 h-1 rounded-full bg-white/5 overflow-hidden">
                     <div
                       className="h-full bg-system rounded-full"
-                      style={{ width: `${Math.max(5, (Math.tanh(focusedScene.forces.system) + 1) * 50)}%` }}
+                      style={{
+                        width: `${Math.max(5, (Math.tanh(focusedScene.forces.system) + 1) * 50)}%`,
+                      }}
                     />
                   </div>
-                  <span className="text-[8px] font-mono text-text-dim/60">{focusedScene.forces.system.toFixed(1)}</span>
+                  <span className="text-[8px] font-mono text-text-dim/60">
+                    {focusedScene.forces.system.toFixed(1)}
+                  </span>
                 </div>
               </div>
 
@@ -951,7 +1166,6 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </div>
-
     </div>
   );
 }

@@ -1,7 +1,16 @@
-'use client';
+"use client";
 
-import { IconSpinner, IconPause, IconPlay, IconStop, IconDocument, IconSettings, IconWarning, IconRefresh } from '@/components/icons';
-import type { AutoRunLog } from '@/types/narrative';
+import {
+  IconDocument,
+  IconPause,
+  IconPlay,
+  IconRefresh,
+  IconSettings,
+  IconSpinner,
+  IconStop,
+  IconWarning,
+} from "@/components/icons";
+import type { AutoRunLog } from "@/types/narrative";
 
 type Props = {
   isRunning: boolean;
@@ -18,14 +27,14 @@ type Props = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  HHH: 'Convergence',
-  HHL: 'Climax',
-  HLH: 'Twist',
-  HLL: 'Closure',
-  LHH: 'Discovery',
-  LHL: 'Growth',
-  LLH: 'Wandering',
-  LLL: 'Rest',
+  HHH: "Convergence",
+  HHL: "Climax",
+  HLH: "Twist",
+  HLL: "Closure",
+  LHH: "Discovery",
+  LHL: "Growth",
+  LLH: "Wandering",
+  LLL: "Rest",
 };
 
 export function AutoControlBar({
@@ -48,7 +57,9 @@ export function AutoControlBar({
 
   return (
     <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
-      <div className={`glass-pill px-3 py-1.5 flex items-center gap-3 ${stoppedByError ? 'ring-1 ring-red-400/40' : ''}`}>
+      <div
+        className={`glass-pill px-3 py-1.5 flex items-center gap-3 ${stoppedByError ? "ring-1 ring-red-400/40" : ""}`}
+      >
         {/* Status indicator */}
         <div className="flex items-center gap-1.5">
           {isRunning && hasError ? (
@@ -58,10 +69,22 @@ export function AutoControlBar({
           ) : stoppedByError ? (
             <div className="w-2 h-2 rounded-full bg-red-400" />
           ) : (
-            <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-text-dim'}`} />
+            <div
+              className={`w-2 h-2 rounded-full ${isPaused ? "bg-amber-400" : "bg-text-dim"}`}
+            />
           )}
-          <span className={`text-[10px] uppercase tracking-wider ${stoppedByError ? 'text-red-400' : 'text-text-dim'}`}>
-            {stoppedByError ? 'Error' : isRunning && hasError ? 'Retrying' : isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped'}
+          <span
+            className={`text-[10px] uppercase tracking-wider ${stoppedByError ? "text-red-400" : "text-text-dim"}`}
+          >
+            {stoppedByError
+              ? "Error"
+              : isRunning && hasError
+                ? "Retrying"
+                : isRunning
+                  ? "Running"
+                  : isPaused
+                    ? "Paused"
+                    : "Stopped"}
           </span>
         </div>
 
@@ -112,7 +135,7 @@ export function AutoControlBar({
 
         <button
           onClick={onStop}
-          className="w-6 h-6 flex items-center justify-center text-text-dim hover:text-drive hover:bg-white/6 rounded transition-colors"
+          className="w-6 h-6 flex items-center justify-center text-text-dim hover:text-fate hover:bg-white/6 rounded transition-colors"
           title="Stop"
         >
           <IconStop size={10} />
@@ -133,27 +156,33 @@ export function AutoControlBar({
         >
           <IconSettings size={12} />
         </button>
-
       </div>
 
       {/* Contextual status below the pill */}
       {(isRunning || isPaused || stoppedByError) && statusMessage && (
-        <div className={`mt-1.5 text-[10px] text-center max-w-96 px-2 ${
-          stoppedByError
-            ? 'text-red-400'
-            : statusMessage.startsWith('Retry')
-            ? 'text-amber-400'
-            : statusMessage.startsWith('Error')
-            ? 'text-red-400/80'
-            : 'text-text-dim'
-        }`}>
+        <div
+          className={`mt-1.5 text-[10px] text-center max-w-96 px-2 ${
+            stoppedByError
+              ? "text-red-400"
+              : statusMessage.startsWith("Retry")
+                ? "text-amber-400"
+                : statusMessage.startsWith("Error")
+                  ? "text-red-400/80"
+                  : "text-text-dim"
+          }`}
+        >
           {stoppedByError ? (
             <span className="flex items-center justify-center gap-1.5">
               <IconWarning size={12} className="shrink-0" />
               <span className="truncate">{statusMessage}</span>
-              <button onClick={onOpenLog} className="underline hover:text-red-300 transition-colors shrink-0">view logs</button>
+              <button
+                onClick={onOpenLog}
+                className="underline hover:text-red-300 transition-colors shrink-0"
+              >
+                view logs
+              </button>
             </span>
-          ) : statusMessage.startsWith('Retry') ? (
+          ) : statusMessage.startsWith("Retry") ? (
             <span className="flex items-center justify-center gap-1.5">
               <IconRefresh size={12} className="shrink-0 animate-pulse" />
               <span className="truncate">{statusMessage}</span>

@@ -26,7 +26,7 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
 
     const x = d3.scaleLinear().domain([0, n - 1]).range([0, w]);
     const maxVal = Math.max(
-      ...raw.drive, ...raw.world, ...raw.system, 1,
+      ...raw.fate, ...raw.world, ...raw.system, 1,
     );
     const y = d3.scaleLinear().domain([0, maxVal * 1.1]).range([h, 0]);
 
@@ -44,7 +44,7 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
     const forces = [
       { data: raw.system, color: '#3B82F6', label: 'System' },
       { data: raw.world, color: '#22C55E', label: 'World' },
-      { data: raw.drive, color: '#EF4444', label: 'Drive' },
+      { data: raw.fate, color: '#EF4444', label: 'Fate' },
     ];
 
     for (const f of forces) {
@@ -95,10 +95,10 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
   const crossovers: { idx: number; from: string; to: string }[] = [];
   let prevDom = '';
   for (let i = 0; i < data.sceneCount; i++) {
-    const p = data.rawForces.drive[i];
+    const p = data.rawForces.fate[i];
     const c = data.rawForces.world[i];
     const k = data.rawForces.system[i];
-    const dom = p >= c && p >= k ? 'Drive' : c >= p && c >= k ? 'World' : 'System';
+    const dom = p >= c && p >= k ? 'Fate' : c >= p && c >= k ? 'World' : 'System';
     if (prevDom && dom !== prevDom) {
       crossovers.push({ idx: i, from: prevDom, to: dom });
     }
@@ -117,7 +117,7 @@ export function ForceDecompositionSlide({ data }: { data: SlidesData }) {
       {/* Legend + crossover highlights */}
       <div className="flex items-center gap-6 mt-4">
         {[
-          { label: 'Drive', color: '#EF4444' },
+          { label: 'Fate', color: '#EF4444' },
           { label: 'World', color: '#22C55E' },
           { label: 'System', color: '#3B82F6' },
         ].map((f) => (

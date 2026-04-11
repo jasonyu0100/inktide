@@ -1,4 +1,4 @@
-import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, SystemGraph, SystemNode, SystemEdge, SystemMutation, WorldBuild } from '@/types/narrative';
+import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, SystemGraph, SystemNode, SystemEdge, SystemMutation, WorldBuild, Character, Location, Artifact, Continuity } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX } from '@/lib/constants';
 
@@ -402,6 +402,114 @@ export function computeActiveArcs(threadId: string, scenes: Record<string, Scene
   return arcIds.size;
 }
 
+// ── Stale Thread Detection ─────────────────────────────────────────────────
+
+/** Threshold: threads with no transition for this many scenes are stale. */
+export const STALE_THREAD_THRESHOLD = 5;
+
+/** Statuses that are below the fate commitment boundary (can be abandoned). */
+const ABANDONABLE_STATUSES = new Set(['latent', 'seeded', 'active']);
+
+/** Statuses at or above the fate commitment boundary (must resolve). */
+const COMMITTED_STATUSES = new Set(['escalating', 'critical']);
+
+export type StaleThread = {
+  threadId: string;
+  status: string;
+  scenesSinceTransition: number;
+  reason: 'no_transition' | 'high_pulse_ratio' | 'low_bandwidth';
+};
+
+/**
+ * Detect stale threads that should be abandoned.
+ * Threads below 'escalating' that haven't transitioned in STALE_THREAD_THRESHOLD scenes
+ * are candidates for cleanup.
+ *
+ * Returns threads sorted by staleness (most stale first).
+ */
+export function detectStaleThreads(
+  narrative: NarrativeState,
+  resolvedEntryKeys: string[],
+  currentSceneIndex: number,
+): StaleThread[] {
+  const statuses = computeThreadStatuses(narrative, currentSceneIndex, resolvedEntryKeys);
+  const staleThreads: StaleThread[] = [];
+
+  // Track last transition scene for each thread
+  const lastTransition: Record<string, number> = {};
+  const mutationCounts: Record<string, { transitions: number; pulses: number }> = {};
+
+  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
+    const scene = narrative.scenes[resolvedEntryKeys[i]];
+    if (!scene) continue;
+
+    for (const tm of scene.threadMutations) {
+      if (!mutationCounts[tm.threadId]) {
+        mutationCounts[tm.threadId] = { transitions: 0, pulses: 0 };
+      }
+      if (tm.from !== tm.to) {
+        lastTransition[tm.threadId] = i;
+        mutationCounts[tm.threadId].transitions++;
+      } else {
+        mutationCounts[tm.threadId].pulses++;
+      }
+    }
+  }
+
+  // Check each thread for staleness
+  for (const [threadId, status] of Object.entries(statuses)) {
+    // Only check abandonable threads
+    if (!ABANDONABLE_STATUSES.has(status)) continue;
+    // Skip terminal/abandoned
+    if (status === 'resolved' || status === 'subverted' || status === 'abandoned') continue;
+
+    const lastTrans = lastTransition[threadId] ?? -1;
+    const scenesSince = lastTrans >= 0 ? currentSceneIndex - lastTrans : currentSceneIndex + 1;
+    const counts = mutationCounts[threadId] ?? { transitions: 0, pulses: 0 };
+    const totalMuts = counts.transitions + counts.pulses;
+    const pulseRatio = totalMuts > 0 ? counts.pulses / totalMuts : 0;
+
+    // Stale if no transition in threshold scenes
+    if (scenesSince >= STALE_THREAD_THRESHOLD) {
+      staleThreads.push({
+        threadId,
+        status,
+        scenesSinceTransition: scenesSince,
+        reason: 'no_transition',
+      });
+    }
+    // Also flag high-pulse threads (spinning without progress)
+    else if (pulseRatio > 0.85 && totalMuts >= 4) {
+      staleThreads.push({
+        threadId,
+        status,
+        scenesSinceTransition: scenesSince,
+        reason: 'high_pulse_ratio',
+      });
+    }
+  }
+
+  // Sort by staleness (most stale first)
+  staleThreads.sort((a, b) => b.scenesSinceTransition - a.scenesSinceTransition);
+
+  return staleThreads;
+}
+
+/**
+ * Check if a thread can be abandoned (is below fate commitment boundary).
+ * Returns false for escalating, critical, resolved, subverted threads.
+ */
+export function canAbandonThread(status: string): boolean {
+  return ABANDONABLE_STATUSES.has(status);
+}
+
+/**
+ * Check if a thread has committed fate (must resolve).
+ */
+export function isFateCommitted(status: string): boolean {
+  return COMMITTED_STATUSES.has(status);
+}
+
 /** Classify a thread as storyline or incident based on lifecycle span.
  *  Storyline: activeArcs > 2, or has reached active/critical without resolving quickly.
  *  Incident: resolves within 1-2 arcs, or never progresses past seeded. */
@@ -420,7 +528,7 @@ export function classifyThreadKind(thread: Thread, scenes: Record<string, Scene>
 /** Euclidean distance between two force snapshots */
 export function forceDistance(a: ForceSnapshot, b: ForceSnapshot): number {
   return Math.sqrt(
-    (a.drive - b.drive) ** 2 +
+    (a.fate - b.fate) ** 2 +
     (a.world - b.world) ** 2 +
     (a.system - b.system) ** 2,
   );
@@ -453,17 +561,17 @@ export function cubeCornerProximity(forces: ForceSnapshot, cornerKey: CubeCorner
  *  Returns an array of the same length; the first element is always 0. */
 export function computeSwingMagnitudes(
   forceSnapshots: ForceSnapshot[],
-  refMeans?: { drive: number; world: number; system: number },
+  refMeans?: { fate: number; world: number; system: number },
 ): number[] {
-  const rp = refMeans?.drive ?? 1;
-  const rc = refMeans?.world ?? 1;
-  const rk = refMeans?.system ?? 1;
+  const rf = refMeans?.fate ?? 1;
+  const rw = refMeans?.world ?? 1;
+  const rs = refMeans?.system ?? 1;
   const swings: number[] = [0];
   for (let i = 1; i < forceSnapshots.length; i++) {
-    const dp = (forceSnapshots[i].drive - forceSnapshots[i - 1].drive) / rp;
-    const dc = (forceSnapshots[i].world - forceSnapshots[i - 1].world) / rc;
-    const dk = (forceSnapshots[i].system - forceSnapshots[i - 1].system) / rk;
-    swings.push(Math.sqrt(dp * dp + dc * dc + dk * dk));
+    const df = (forceSnapshots[i].fate - forceSnapshots[i - 1].fate) / rf;
+    const dw = (forceSnapshots[i].world - forceSnapshots[i - 1].world) / rw;
+    const ds = (forceSnapshots[i].system - forceSnapshots[i - 1].system) / rs;
+    swings.push(Math.sqrt(df * df + dw * dw + ds * ds));
   }
   return swings;
 }
@@ -520,46 +628,142 @@ export function zScoreNormalize(values: number[]): number[] {
 // Three forces measure distinct dimensions of narrative movement per scene.
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
-// P = Σ activeArcs^α × stageWeight(from, to)  (bandwidth-weighted fate)
+// F = Σ √arcs × stageWeight × (1 + log(1 + investment))  (investment-weighted fate)
 // W = ΔN_c + √ΔE_c                           (entity continuity — mirrors S for inner worlds)
 // S = ΔN + √ΔE                               (new world-knowledge nodes + sqrt edges)
 //
-// S = ‖f_i - f_{i-1}‖₂                       (Euclidean distance in PWS space)
+// Swing = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in FWS space)
 // E = 0.3·Σ tanh(f/1.5) + 0.2·contrast       (delivery, all forces symmetric via tanh)
 //     contrast = max(0, T[i-1] - T[i])        (tension release bonus)
-//     T = W + S - P                            (tension: buildup without fate)
-// g(x̃) = 25 - 17·e^{-kx̃}, k = ln(17/4)     (grade, μ = {3, 7, 4})
+//     T = W + S - F                            (tension: buildup without fate)
+// g(x̃) = 25 - 17·e^{-kx̃}, k = ln(17/4)     (grade, μ = {1.5, 12, 3})
 //
 
-/** Superlinear exponent for bandwidth reward — sustained threads earn more */
-const PAYOFF_ALPHA = 1.3;
+/** Minimum continuity depth to count as "invested" for breadth calculation */
+const INVESTMENT_THRESHOLD = 2;
+
+/** Breadth bonus coefficient — how much additional participants boost fate */
+const BREADTH_COEFFICIENT = 0.15;
+
+// ── Entity Investment ─────────────────────────────────────────────────────────
+//
+// Fate is enriched by entity investment — what the story has built into the
+// participants of a thread. Deeply-developed entities resolving threads earn
+// more fate than shallow/transient ones. This captures the difference between
+// a red herring (low investment) and earned fate (high investment).
+//
+// Investment = depth × (1 + breadth_bonus)
+// where depth = max continuity across participants
+// and breadth_bonus = 0.15 × count of invested participants
+//
+
+/** Context for entity investment calculation */
+export type EntityContext = {
+  characters: Record<string, Character>;
+  locations: Record<string, Location>;
+  artifacts: Record<string, Artifact>;
+  threads: Record<string, Thread>;
+};
+
+/** Calculate continuity depth for an entity (nodes + √edges) */
+function continuityDepth(c: Continuity | undefined): number {
+  if (!c) return 0;
+  const nodes = Object.keys(c.nodes).length;
+  const edges = c.edges.length;
+  return nodes + Math.sqrt(edges);
+}
+
+/** Get continuity for an entity by type and id */
+function getEntityContinuity(
+  type: 'character' | 'location' | 'artifact',
+  id: string,
+  ctx: EntityContext
+): Continuity | undefined {
+  switch (type) {
+    case 'character': return ctx.characters[id]?.continuity;
+    case 'location': return ctx.locations[id]?.continuity;
+    case 'artifact': return ctx.artifacts[id]?.continuity;
+  }
+}
+
+/**
+ * Calculate investment for a thread based on its participants' continuity depth.
+ *
+ * Investment captures both:
+ * - Depth: the most invested participant (one deeply-built character = high fate)
+ * - Breadth: how many participants have meaningful investment (convergence bonus)
+ *
+ * Returns a value ≥ 0. Use with log(1 + investment) for the multiplier.
+ */
+function threadInvestment(threadId: string, ctx: EntityContext): number {
+  const thread = ctx.threads[threadId];
+  if (!thread || thread.participants.length === 0) return 0;
+
+  const depths = thread.participants.map(p =>
+    continuityDepth(getEntityContinuity(p.type, p.id, ctx))
+  );
+
+  // Depth: the most invested participant
+  const depth = Math.max(...depths, 0);
+
+  // Breadth: count of participants with meaningful investment
+  const breadth = depths.filter(d => d > INVESTMENT_THRESHOLD).length;
+
+  // Combined: depth dominates, breadth adds bonus
+  return depth * (1 + BREADTH_COEFFICIENT * breadth);
+}
 
 /** Stage weight for thread lifecycle transitions.
  *  Pulses (same→same): 0.25. Forward transitions earn more at higher stages.
- *  Abandoned earns 0 — it's cleanup, moving threads to the done pile without contributing to drive.
+ *  Abandoned earns 0 — it's cleanup, moving threads to the done pile without contributing to fate.
+ *  Escalating is the point of no return — active threads can still be forgotten, escalating must resolve.
  *  Backward transitions and unrecognized statuses earn 0. */
 function getStageWeight(from: string, to: string): number {
-  if (to === 'abandoned') return 0;  // cleanup, not resolution — no drive
+  if (to === 'abandoned') return 0;  // cleanup, not resolution — no fate
   if (from === to) return 0.25;
   const key = `${from}->${to}`;
   const WEIGHTS: Record<string, number> = {
     'latent->seeded': 0.5,
     'seeded->active': 1.0,
-    'active->critical': 2.0,
+    'active->escalating': 1.5,    // point of no return — thread now committed
+    'escalating->critical': 2.0,  // peak tension approaches
+    'active->critical': 2.0,      // legacy direct jump (prefer escalating path)
     'critical->resolved': 4.0,
-    'critical->subverted': 4.0,  // subverted = fate defied, same weight as resolved
+    'critical->subverted': 4.0,   // subverted = fate defied, same weight as resolved
   };
   return WEIGHTS[key] ?? 0;
 }
 
-function computeRawDrive(scene: Scene, activeArcsMap: Record<string, number> = {}): number {
+/**
+ * Compute raw fate score for a scene.
+ *
+ * F = Σ √arcs × stageWeight × (1 + log(1 + investment))
+ *
+ * - √arcs: sublinear arc scaling — rewards persistence without penalizing short works
+ * - stageWeight: lifecycle transition weight (pulse=0.25, resolution=4.0)
+ * - investment: entity depth bonus — deeply-built participants boost fate
+ *
+ * When entityCtx is provided, fate is weighted by entity investment.
+ * Without entityCtx, falls back to structural formula (investment = 0).
+ */
+function computeRawFate(
+  scene: Scene,
+  activeArcsMap: Record<string, number> = {},
+  entityCtx?: EntityContext
+): number {
   let score = 0;
   for (const tm of scene.threadMutations) {
     const from = tm.from.toLowerCase();
     const to = tm.to.toLowerCase();
     const weight = getStageWeight(from, to);
     const arcs = Math.max(1, activeArcsMap[tm.threadId] ?? 1);
-    score += arcs ** PAYOFF_ALPHA * weight;
+
+    // Arc scaling: √arcs — sublinear growth, no penalty for short works
+    // Investment multiplier: 1 + log(1 + investment) — entity depth bonus
+    const investment = entityCtx ? threadInvestment(tm.threadId, entityCtx) : 0;
+    const investmentMultiplier = 1 + Math.log1p(investment);
+
+    score += Math.sqrt(arcs) * weight * investmentMultiplier;
   }
   return score;
 }
@@ -657,16 +861,18 @@ export function buildCumulativeSystemGraph(
  * Compute ForceSnapshots for a batch of scenes using z-score normalization.
  * 0 = average moment; positive = above average; negative = below average (units of std deviation).
  *
- * - **Drive**: phase transitions — thread status changes (weighted by jump magnitude) and relationship valence deltas
+ * - **Fate**: phase transitions — thread status changes (weighted by jump magnitude and entity investment)
  * - **World**: entity continuity graph complexity delta (ΔN_c + √ΔE_c per scene)
  * - **System**: system graph complexity delta (new nodes + sqrt edges per scene)
  *
  * @param scenes - Ordered list of scenes to compute forces for
  * @param priorScenes - Scenes before this batch (for usage tracking). Empty for initial generation.
+ * @param entityCtx - Optional entity context for investment-weighted fate calculation
  */
 export function computeForceSnapshots(
   scenes: Scene[],
   priorScenes: Scene[] = [],
+  entityCtx?: EntityContext,
 ): Record<string, ForceSnapshot> {
   const result: Record<string, ForceSnapshot> = {};
   if (scenes.length === 0) return result;
@@ -684,24 +890,24 @@ export function computeForceSnapshots(
   for (const [tid, arcs] of Object.entries(threadArcSets)) activeArcsMap[tid] = arcs.size;
 
   // Compute raw values per scene
-  const rawDrives: number[] = [];
+  const rawFates: number[] = [];
   const rawWorlds: number[] = [];
   const rawSystems: number[] = [];
 
   for (const scene of scenes) {
-    rawDrives.push(computeRawDrive(scene, activeArcsMap));
+    rawFates.push(computeRawFate(scene, activeArcsMap, entityCtx));
     rawWorlds.push(rawWorld(scene));
     rawSystems.push(rawSystem(scene));
   }
 
   // Z-score normalize each dimension (mean = 0, units = std deviations)
-  const normDrives = zScoreNormalize(rawDrives);
+  const normFates = zScoreNormalize(rawFates);
   const normWorlds = zScoreNormalize(rawWorlds);
   const normSystems = zScoreNormalize(rawSystems);
 
   for (let i = 0; i < scenes.length; i++) {
     result[scenes[i].id] = {
-      drive: normDrives[i],
+      fate: normFates[i],
       world: normWorlds[i],
       system: normSystems[i],
     };
@@ -712,11 +918,15 @@ export function computeForceSnapshots(
 /**
  * Compute raw (non-normalized) force totals for a set of scenes.
  * Returns absolute values suitable for cross-series comparison.
+ *
+ * @param scenes - Ordered list of scenes
+ * @param entityCtx - Optional entity context for investment-weighted fate calculation
  */
 export function computeRawForceTotals(
   scenes: Scene[],
-): { drive: number[]; world: number[]; system: number[] } {
-  if (scenes.length === 0) return { drive: [], world: [], system: [] };
+  entityCtx?: EntityContext,
+): { fate: number[]; world: number[]; system: number[] } {
+  if (scenes.length === 0) return { fate: [], world: [], system: [] };
 
   // Pre-compute activeArcs per thread
   const activeArcsMap: Record<string, number> = {};
@@ -729,17 +939,17 @@ export function computeRawForceTotals(
   }
   for (const [tid, arcs] of Object.entries(threadArcSets)) activeArcsMap[tid] = arcs.size;
 
-  const drive: number[] = [];
+  const fate: number[] = [];
   const world: number[] = [];
   const system: number[] = [];
 
   for (const scene of scenes) {
-    drive.push(computeRawDrive(scene, activeArcsMap));
+    fate.push(computeRawFate(scene, activeArcsMap, entityCtx));
     world.push(rawWorld(scene));
     system.push(rawSystem(scene));
   }
 
-  return { drive, world, system };
+  return { fate, world, system };
 }
 
 /** Compute a simple moving average over a data series.
@@ -848,10 +1058,10 @@ function detectPeaksAndValleys(
 export interface DeliveryPoint {
   /** Scene index (0-based) */
   index: number;
-  /** Delivery: equal-weighted mean of drive, world, and system z-scores.
+  /** Delivery: equal-weighted mean of fate, world, and system z-scores.
    *  Measures the overall narrative presence of a scene — how strongly all three forces radiate. */
   delivery: number;
-  /** Tension buildup: world + system − drive. High when energy accumulates without release. */
+  /** Tension buildup: world + system − fate. High when energy accumulates without release. */
   tension: number;
   /** Gaussian-smoothed delivery (σ=1.5) — local curve shape for display. */
   smoothed: number;
@@ -886,8 +1096,8 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
   const GAMMA = 0.2;       // contrast weight
 
   // Tension per scene: buildup without release
-  const tensions = snapshots.map(({ drive, world, system }) =>
-    world + system - drive,
+  const tensions = snapshots.map(({ fate, world, system }) =>
+    world + system - fate,
   );
 
   // Contrast: reward scenes where tension drops (= release)
@@ -895,8 +1105,8 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
     i === 0 ? 0 : Math.max(0, tensions[i - 1] - t),
   );
 
-  const engValues = snapshots.map(({ drive, world, system }, i) =>
-    W * (Math.tanh(drive / ALPHA) + Math.tanh(world / ALPHA) + Math.tanh(system / ALPHA)) + GAMMA * contrasts[i],
+  const engValues = snapshots.map(({ fate, world, system }, i) =>
+    W * (Math.tanh(fate / ALPHA) + Math.tanh(world / ALPHA) + Math.tanh(system / ALPHA)) + GAMMA * contrasts[i],
   );
 
   const smoothed = gaussianSmooth(engValues, 1.5);
@@ -913,10 +1123,10 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
 
   const { peaks, valleys } = detectPeaksAndValleys(smoothed, minDrop, windowR);
 
-  return snapshots.map(({ drive, world, system }, i) => ({
+  return snapshots.map(({ fate, world, system }, i) => ({
     index: i,
     delivery: engValues[i],
-    tension: world + system - drive,
+    tension: world + system - fate,
     smoothed: smoothed[i],
     macroTrend: macroTrend[i],
     isPeak: peaks.has(i),
@@ -1116,7 +1326,7 @@ export function classifyNarrativeShape(deliveries: number[]): NarrativeShape {
   if (hasDeepTrough && hasStrongRecovery) return SHAPES.rebounding;
 
   // Episodic: many peaks, none dominant, after directional shapes ruled out.
-  // Long-form narratives with repeated drive cycles and no clear slope.
+  // Long-form narratives with repeated fate cycles and no clear slope.
   if (hasManyPeaks && !hasDominantPeak) return SHAPES.episodic;
 
   // Climactic: dominant mid/late peak, or fallback
@@ -1132,15 +1342,15 @@ export interface NarrativeArchetype {
   name: string;
   description: string;
   /** Which force(s) define this archetype */
-  dominant: ('drive' | 'world' | 'system')[];
+  dominant: ('fate' | 'world' | 'system')[];
 }
 
 const ARCHETYPES = {
-  opus:        { key: 'opus',        name: 'Opus',        description: 'All three forces in concert — drives land, characters transform, and the world deepens together', dominant: ['drive', 'world', 'system'] as const },
-  series:      { key: 'series',      name: 'Series',      description: 'Consequential events that permanently reshape characters — drives land and lives change', dominant: ['drive', 'world'] as const },
-  atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Resolutions that map the world — each drive reveals how things work', dominant: ['drive', 'system'] as const },
+  opus:        { key: 'opus',        name: 'Opus',        description: 'All three forces in concert — fates land, characters transform, and the world deepens together', dominant: ['fate', 'world', 'system'] as const },
+  series:      { key: 'series',      name: 'Series',      description: 'Consequential events that permanently reshape characters — fates land and lives change', dominant: ['fate', 'world'] as const },
+  atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Resolutions that map the world — each fate reveals how things work', dominant: ['fate', 'system'] as const },
   chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Characters transform within a deepening world — lives and systems evolve together', dominant: ['world', 'system'] as const },
-  classic:     { key: 'classic',     name: 'Classic',     description: 'Driven by resolution — threads pay off and relationships shift decisively', dominant: ['drive'] as const },
+  classic:     { key: 'classic',     name: 'Classic',     description: 'Fate-driven — threads pay off and relationships shift decisively', dominant: ['fate'] as const },
   show:        { key: 'show',        name: 'Show',        description: 'People-driven — characters transform and their journeys are the heart of the story', dominant: ['world'] as const },
   paper:       { key: 'paper',       name: 'Paper',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['system'] as const },
   emerging:    { key: 'emerging',    name: 'Emerging',    description: 'No single force has reached its potential yet — the story is still finding its voice', dominant: [] as const },
@@ -1156,25 +1366,25 @@ const ARCHETYPES = {
  * - Balanced + high (avg ≥ 18) = Masterwork; balanced + low = Intimate
  */
 export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
-  const p = grades.drive;
-  const c = grades.world;
-  const k = grades.system;
-  const max = Math.max(p, c, k);
+  const f = grades.fate;
+  const w = grades.world;
+  const s = grades.system;
+  const max = Math.max(f, w, s);
   const gap = 5;
   const floor = 21;
 
   // A force must score ≥ 21 AND be within 5 of the max to be dominant
-  const pDom = p >= floor && p >= max - gap;
-  const cDom = c >= floor && c >= max - gap;
-  const kDom = k >= floor && k >= max - gap;
+  const fDom = f >= floor && f >= max - gap;
+  const wDom = w >= floor && w >= max - gap;
+  const sDom = s >= floor && s >= max - gap;
 
-  if (pDom && cDom && kDom) return ARCHETYPES.opus;
-  if (pDom && cDom)         return ARCHETYPES.series;
-  if (pDom && kDom)         return ARCHETYPES.atlas;
-  if (cDom && kDom)         return ARCHETYPES.chronicle;
-  if (pDom)                 return ARCHETYPES.classic;
-  if (cDom)                 return ARCHETYPES.show;
-  if (kDom)                 return ARCHETYPES.paper;
+  if (fDom && wDom && sDom) return ARCHETYPES.opus;
+  if (fDom && wDom)         return ARCHETYPES.series;
+  if (fDom && sDom)         return ARCHETYPES.atlas;
+  if (wDom && sDom)         return ARCHETYPES.chronicle;
+  if (fDom)                 return ARCHETYPES.classic;
+  if (wDom)                 return ARCHETYPES.show;
+  if (sDom)                 return ARCHETYPES.paper;
   return ARCHETYPES.emerging;
 }
 
@@ -1349,7 +1559,7 @@ export function computeWindowedForces(
 // ── Scorecard Grading ────────────────────────────────────────────────────────
 
 export type ForceGrades = {
-  drive: number;
+  fate: number;
   world: number;
   system: number;
   swing: number;
@@ -1362,8 +1572,8 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Originally calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
- *  World reference is 14 (entity continuity spans multiple entities per scene, each contributing nodes). */
-export const FORCE_REFERENCE_MEANS = { drive: 3, world: 14, system: 5 } as const;
+ *  Reference means: fate 1.5, world 12, system 3. */
+export const FORCE_REFERENCE_MEANS = { fate: 1.5, world: 12, system: 3 } as const;
 
 /** Grade a mean-normalized force value 8→25: g(x̃) = 25 − 17·e^{−kx̃}, k = ln(17/4).
  *  Single exponential — floor 8, reference 21 (dominance threshold), cap 25.
@@ -1375,25 +1585,25 @@ export function gradeForce(normalizedMean: number): number {
 
 /**
  * Grade narrative forces (0–25 each, 0–100 overall).
- * Drive/world/system are raw values, normalised here by FORCE_REFERENCE_MEANS.
+ * Fate/world/system are raw values, normalised here by FORCE_REFERENCE_MEANS.
  * Swing values are mean-normalised Euclidean distances — graded directly (single normalisation).
  */
 export function gradeForces(
-  drive: number[],
+  fate: number[],
   world: number[],
   system: number[],
   swing: number[],
 ): ForceGrades {
   const R = FORCE_REFERENCE_MEANS;
-  const driveGrade = gradeForce(avg(drive) / R.drive);
+  const fateGrade = gradeForce(avg(fate) / R.fate);
   const worldGrade = gradeForce(avg(world) / R.world);
   const systemGrade = gradeForce(avg(system) / R.system);
   const swingGrade = gradeForce(avg(swing));
 
-  const overall = driveGrade + worldGrade + systemGrade + swingGrade;
+  const overall = fateGrade + worldGrade + systemGrade + swingGrade;
 
   return {
-    drive: Math.round(driveGrade),
+    fate: Math.round(fateGrade),
     world: Math.round(worldGrade),
     system: Math.round(systemGrade),
     swing: Math.round(swingGrade),

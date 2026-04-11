@@ -1,18 +1,18 @@
-import * as d3 from 'd3';
 import type {
-  Character,
-  Location,
-  Artifact,
-  RelationshipEdge,
-  CharacterRole,
   Arc,
+  Artifact,
+  Character,
+  CharacterRole,
+  Location,
+  RelationshipEdge,
   Scene,
   WorldBuild,
-} from '@/types/narrative';
+} from "@/types/narrative";
+import * as d3 from "d3";
 
 // ── Graph node / link types ─────────────────────────────────────────────────
 
-export type NodeKind = 'character' | 'location' | 'knowledge' | 'artifact';
+export type NodeKind = "character" | "location" | "knowledge" | "artifact";
 
 export interface GraphNode extends d3.SimulationNodeDatum {
   id: string;
@@ -38,7 +38,12 @@ export interface GraphNode extends d3.SimulationNodeDatum {
 
 export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   id: string;
-  linkKind: 'relationship' | 'spatial' | 'knowledge' | 'character-location' | 'ownership';
+  linkKind:
+    | "relationship"
+    | "spatial"
+    | "knowledge"
+    | "character-location"
+    | "ownership";
   label?: string;
   valence?: number;
   /** For bidirectional pairs: labels for each direction (sourceId → label) */
@@ -47,20 +52,25 @@ export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
 
 // ── World Knowledge graph types ─────────────────────────────────────────────
 
-export type WKNode = d3.SimulationNodeDatum & { id: string; concept: string; type: string; degree: number };
+export type WKNode = d3.SimulationNodeDatum & {
+  id: string;
+  concept: string;
+  type: string;
+  degree: number;
+};
 export type WKLink = d3.SimulationLinkDatum<WKNode> & { relation: string };
 
 // ── Helper: compute connected components (groups) ──────────────────────────
 
-export function computeGroups<N extends d3.SimulationNodeDatum & { id: string }, L extends d3.SimulationLinkDatum<N>>(
-  nodes: N[],
-  links: L[],
-): N[][] {
+export function computeGroups<
+  N extends d3.SimulationNodeDatum & { id: string },
+  L extends d3.SimulationLinkDatum<N>,
+>(nodes: N[], links: L[]): N[][] {
   const adj = new Map<string, Set<string>>();
   for (const n of nodes) adj.set(n.id, new Set());
   for (const l of links) {
-    const s = typeof l.source === 'string' ? l.source : (l.source as N).id;
-    const t = typeof l.target === 'string' ? l.target : (l.target as N).id;
+    const s = typeof l.source === "string" ? l.source : (l.source as N).id;
+    const t = typeof l.target === "string" ? l.target : (l.target as N).id;
     adj.get(s)?.add(t);
     adj.get(t)?.add(s);
   }
@@ -100,22 +110,22 @@ export const ROLE_RADIUS: Record<CharacterRole, number> = {
 };
 
 export const ROLE_FILL: Record<CharacterRole, string> = {
-  anchor: '#E8E8E8',
-  recurring: '#888888',
-  transient: '#555555',
+  anchor: "#E8E8E8",
+  recurring: "#888888",
+  transient: "#555555",
 };
 
 export const LOCATION_SIZE = 24;
 export const LOCATION_RX = 6;
-export const LOCATION_FILL = '#333333';
+export const LOCATION_FILL = "#333333";
 
 /** Interpolate from cool (blue) to hot (red) matching force graph colors */
 export function heatColor(t: number): string {
-  // knowledge (blue) → change (green) → drive (red)
+  // knowledge (blue) → change (green) → fate (red)
   const stops = [
-    [59, 130, 246],   // #3B82F6 knowledge blue
-    [34, 197, 94],    // #22C55E change green
-    [239, 68, 68],    // #EF4444 drive red
+    [59, 130, 246], // #3B82F6 knowledge blue
+    [34, 197, 94], // #22C55E change green
+    [239, 68, 68], // #EF4444 fate red
   ];
   const idx = t * (stops.length - 1);
   const lo = Math.floor(idx);
@@ -128,15 +138,15 @@ export function heatColor(t: number): string {
 }
 
 export const CONTINUITY_FILL: Record<string, string> = {
-  trait: '#A78BFA',      // violet
-  state: '#34D399',      // emerald
-  history: '#FBBF24',    // amber
-  capability: '#60A5FA', // blue
-  belief: '#F9A8D4',     // pink
-  relation: '#C084FC',   // purple
-  secret: '#F59E0B',     // orange-amber
-  goal: '#38BDF8',       // sky
-  weakness: '#F87171',   // red
+  trait: "#A78BFA", // violet
+  state: "#34D399", // emerald
+  history: "#FBBF24", // amber
+  capability: "#60A5FA", // blue
+  belief: "#F9A8D4", // pink
+  relation: "#C084FC", // purple
+  secret: "#F59E0B", // orange-amber
+  goal: "#38BDF8", // sky
+  weakness: "#F87171", // red
 };
 
 export const KNOWLEDGE_OPACITY: Record<string, number> = {
@@ -151,46 +161,46 @@ export const KNOWLEDGE_OPACITY: Record<string, number> = {
   weakness: 0.9,
 };
 
-export const DEFAULT_CONTINUITY_FILL = '#FFFFFF';
+export const DEFAULT_CONTINUITY_FILL = "#FFFFFF";
 export const DEFAULT_KNOWLEDGE_OPACITY = 0.7;
 
 // ── Thread log node type colors ─────────────────────────────────────────────
 export const THREAD_LOG_FILL: Record<string, string> = {
-  pulse: '#FFFFFF99',     // faint white
-  transition: '#EF4444',  // red — lifecycle shift
-  setup: '#F59E0B',       // amber — forward promise
-  escalation: '#FB923C',  // orange — rising stakes
-  payoff: '#10B981',      // emerald — resolution
-  twist: '#8B5CF6',       // violet — direction revision
-  callback: '#38BDF8',    // sky — past reference
-  resistance: '#EF4444',  // red — opposition
-  stall: '#EF444488',     // faded red — dysfunction
+  pulse: "#FFFFFF99", // faint white
+  transition: "#EF4444", // red — lifecycle shift
+  setup: "#F59E0B", // amber — forward promise
+  escalation: "#FB923C", // orange — rising stakes
+  payoff: "#10B981", // emerald — resolution
+  twist: "#8B5CF6", // violet — direction revision
+  callback: "#38BDF8", // sky — past reference
+  resistance: "#EF4444", // red — opposition
+  stall: "#EF444488", // faded red — dysfunction
 };
 
 // ── World Knowledge type colors ─────────────────────────────────────────────
 
 export const WK_TYPE_COLORS: Record<string, string> = {
-  principle: '#FBBF24',    // gold
-  system: '#38BDF8',       // sky blue
-  concept: '#A78BFA',      // violet
-  tension: '#FB7185',      // rose
-  event: '#FB923C',        // orange
-  structure: '#2DD4BF',    // teal
-  environment: '#34D399',  // emerald
-  convention: '#818CF8',   // indigo
-  constraint: '#F87171',   // red
+  principle: "#FBBF24", // gold
+  system: "#38BDF8", // sky blue
+  concept: "#A78BFA", // violet
+  tension: "#FB7185", // rose
+  event: "#FB923C", // orange
+  structure: "#2DD4BF", // teal
+  environment: "#34D399", // emerald
+  convention: "#818CF8", // indigo
+  constraint: "#F87171", // red
 };
 
 export const WK_TYPE_GLOW: Record<string, string> = {
-  principle: '0 0 12px #FBBF2480, 0 0 4px #FBBF2440',
-  system: '0 0 12px #38BDF880, 0 0 4px #38BDF840',
-  concept: '0 0 12px #A78BFA80, 0 0 4px #A78BFA40',
-  tension: '0 0 12px #FB718580, 0 0 4px #FB718540',
-  event: '0 0 12px #FB923C80, 0 0 4px #FB923C40',
-  structure: '0 0 12px #2DD4BF80, 0 0 4px #2DD4BF40',
-  environment: '0 0 12px #34D39980, 0 0 4px #34D39940',
-  convention: '0 0 12px #818CF880, 0 0 4px #818CF840',
-  constraint: '0 0 12px #F8717180, 0 0 4px #F8717140',
+  principle: "0 0 12px #FBBF2480, 0 0 4px #FBBF2440",
+  system: "0 0 12px #38BDF880, 0 0 4px #38BDF840",
+  concept: "0 0 12px #A78BFA80, 0 0 4px #A78BFA40",
+  tension: "0 0 12px #FB718580, 0 0 4px #FB718540",
+  event: "0 0 12px #FB923C80, 0 0 4px #FB923C40",
+  structure: "0 0 12px #2DD4BF80, 0 0 4px #2DD4BF40",
+  environment: "0 0 12px #34D39980, 0 0 4px #34D39940",
+  convention: "0 0 12px #818CF880, 0 0 4px #818CF840",
+  constraint: "0 0 12px #F8717180, 0 0 4px #F8717140",
 };
 
 // ── Helper: build graph data from narrative state ───────────────────────────
@@ -234,7 +244,7 @@ export function buildGraphData(
   for (const char of Object.values(characters)) {
     nodes.push({
       id: char.id,
-      kind: 'character',
+      kind: "character",
       label: char.name,
       role: char.role,
       threadCount: char.threadIds.length,
@@ -247,7 +257,7 @@ export function buildGraphData(
   for (const loc of Object.values(locations)) {
     nodes.push({
       id: loc.id,
-      kind: 'location',
+      kind: "location",
       label: loc.name,
       threadCount: loc.threadIds.length,
       imageUrl: loc.imageUrl,
@@ -261,7 +271,7 @@ export function buildGraphData(
       id: `rel-${rel.from}-${rel.to}-${rel.type}`,
       source: rel.from,
       target: rel.to,
-      linkKind: 'relationship',
+      linkKind: "relationship",
       label: rel.type,
       valence: rel.valence,
     });
@@ -274,7 +284,7 @@ export function buildGraphData(
         id: `spatial-${loc.id}-${loc.parentId}`,
         source: loc.id,
         target: loc.parentId,
-        linkKind: 'spatial',
+        linkKind: "spatial",
       });
     }
   }
@@ -287,17 +297,18 @@ export function buildGraphData(
         id: `charloc-${charId}-${locId}`,
         source: charId,
         target: locId,
-        linkKind: 'character-location',
+        linkKind: "character-location",
       });
     }
   }
 
   // Artifact nodes + ownership edges (pre-filtered to used artifacts by caller)
   for (const art of Object.values(artifacts ?? {})) {
-    const ownerInGraph = art.parentId && (characters[art.parentId] || locations[art.parentId]);
+    const ownerInGraph =
+      art.parentId && (characters[art.parentId] || locations[art.parentId]);
     nodes.push({
       id: art.id,
-      kind: 'artifact',
+      kind: "artifact",
       label: art.name,
       imageUrl: art.imageUrl,
       imagePrompt: art.imagePrompt,
@@ -308,8 +319,8 @@ export function buildGraphData(
         id: `ownership-${art.id}-${art.parentId}`,
         source: art.id,
         target: art.parentId!,
-        linkKind: 'ownership',
-        label: 'owned by',
+        linkKind: "ownership",
+        label: "owned by",
       });
     }
   }
@@ -367,7 +378,7 @@ export function buildOverviewGraphData(
     if (!activeCharIds.has(char.id)) continue;
     nodes.push({
       id: char.id,
-      kind: 'character',
+      kind: "character",
       label: char.name,
       role: char.role,
       threadCount: char.threadIds.length,
@@ -381,7 +392,7 @@ export function buildOverviewGraphData(
     if (!activeLocIds.has(loc.id)) continue;
     nodes.push({
       id: loc.id,
-      kind: 'location',
+      kind: "location",
       label: loc.name,
       threadCount: loc.threadIds.length,
       usageCount: locUsage[loc.id],
@@ -397,7 +408,7 @@ export function buildOverviewGraphData(
         id: `rel-${rel.from}-${rel.to}-${rel.type}`,
         source: rel.from,
         target: rel.to,
-        linkKind: 'relationship',
+        linkKind: "relationship",
         label: rel.type,
         valence: rel.valence,
       });
@@ -406,12 +417,16 @@ export function buildOverviewGraphData(
 
   // Spatial edges for active locations
   for (const loc of Object.values(locations)) {
-    if (activeLocIds.has(loc.id) && loc.parentId && activeLocIds.has(loc.parentId)) {
+    if (
+      activeLocIds.has(loc.id) &&
+      loc.parentId &&
+      activeLocIds.has(loc.parentId)
+    ) {
       links.push({
         id: `spatial-${loc.id}-${loc.parentId}`,
         source: loc.id,
         target: loc.parentId,
-        linkKind: 'spatial',
+        linkKind: "spatial",
       });
     }
   }
@@ -419,10 +434,12 @@ export function buildOverviewGraphData(
   // Artifact nodes + ownership edges
   // Artifact nodes + ownership edges (pre-filtered to used artifacts by caller)
   for (const art of Object.values(artifacts ?? {})) {
-    const ownerInGraph = art.parentId && (activeCharIds.has(art.parentId) || activeLocIds.has(art.parentId));
+    const ownerInGraph =
+      art.parentId &&
+      (activeCharIds.has(art.parentId) || activeLocIds.has(art.parentId));
     nodes.push({
       id: art.id,
-      kind: 'artifact',
+      kind: "artifact",
       label: art.name,
       imageUrl: art.imageUrl,
       imagePrompt: art.imagePrompt,
@@ -433,8 +450,8 @@ export function buildOverviewGraphData(
         id: `ownership-${art.id}-${art.parentId}`,
         source: art.id,
         target: art.parentId!,
-        linkKind: 'ownership',
-        label: 'owned by',
+        linkKind: "ownership",
+        label: "owned by",
       });
     }
   }

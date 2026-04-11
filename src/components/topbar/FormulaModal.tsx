@@ -43,16 +43,16 @@ function ForcesTab() {
         Three forces capture distinct dimensions of narrative intensity. All z-score normalized: <Tex>{'z_i = (x_i - \\mu) \\,/\\, \\sigma'}</Tex>
       </p>
 
-      <S title="Drive" analogy="How much narrative fate has been earned? Long-running threads that resolve pay off superlinearly.">
-        <Block tex={String.raw`D = \sum_{t} \text{activeArcs}(t)^{1.3} \times w(t)`} />
+      <S title="Fate" analogy="How much narrative fate has been earned? Investment in entities pays off at resolution.">
+        <Block tex={String.raw`F = \sum_{t} \sqrt{\text{arcs}(t)} \times w(t) \times (1 + \ln(1 + I(t)))`} />
         <p className="text-[10px] text-text-dim">
-          Lifecycle: latent→seeded→active→critical→resolved/subverted. Weights: pulse=0.25, latent→seeded=0.5, seeded→active=1.0, active→critical=2.0, critical→resolved/subverted=4.0.
-          Threads earn fate through sustained bandwidth — activeArcs counts arcs where the thread received attention.
+          Lifecycle: latent→seeded→active→escalating→critical→resolved/subverted. Weights: pulse=0.25, seeded=0.5, active=1.0, escalating=1.5, critical=2.0, resolved=4.0.
+          Investment <Tex>{'I(t)'}</Tex> = participant continuity depth. Deeply-developed entities resolving threads earn more fate.
         </p>
       </S>
 
-      <S title="World" analogy="How much did we learn about the entities? Mirrors System but for inner worlds — characters, locations, artifacts.">
-        <Block tex={String.raw`C = \Delta N_c + \sqrt{\Delta E_c}`} />
+      <S title="World" analogy="How much did we learn about the entities? Inner transformation of characters, locations, artifacts.">
+        <Block tex={String.raw`W = \Delta N_c + \sqrt{\Delta E_c}`} />
         <p className="text-[10px] text-text-dim">
           <Tex>{String.raw`\Delta N_c`}</Tex> = continuity nodes added to entity inner worlds (traits, beliefs, goals, secrets, capabilities, states).{' '}
           <Tex>{String.raw`\Delta E_c`}</Tex> = continuity edges (causal connections between inner-world facts).{' '}
@@ -61,7 +61,7 @@ function ForcesTab() {
       </S>
 
       <S title="System" analogy="Is the world growing richer? Revealing a new principle expands the world more than linking two known concepts.">
-        <Block tex={String.raw`K = \Delta N + \sqrt{\Delta E}`} />
+        <Block tex={String.raw`S = \Delta N + \sqrt{\Delta E}`} />
         <p className="text-[10px] text-text-dim">
           <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes (principles, systems, concepts, tensions, events, structures).{' '}
           <Tex>{String.raw`\Delta E`}</Tex> = new edges between nodes (sqrt — first connections matter more than bulk linking). Fresh ideas outweigh new connections.
@@ -79,14 +79,14 @@ function DynamicsTab() {
       </p>
 
       <S title="Tension" analogy="The coiled spring — energy building without release.">
-        <Block tex="T_i = C_i + K_i - P_i" />
+        <Block tex="T_i = W_i + S_i - F_i" />
         <p className="text-[10px] text-text-dim">
-          High when characters change and the world expands but nothing resolves. Drops sharply at drive scenes.
+          High when characters change and the world expands but nothing resolves. Drops sharply at fate scenes.
         </p>
       </S>
 
       <S title="Delivery" analogy="The dopamine hit — earned resolution lands hardest.">
-        <Block tex={String.raw`E_i = w \sum_{f \in \{P,C,K\}} \tanh\!\left(\frac{f_i}{\alpha}\right) + \gamma \cdot \text{contrast}_i`} />
+        <Block tex={String.raw`E_i = w \sum_{f \in \{F,W,S\}} \tanh\!\left(\frac{f_i}{\alpha}\right) + \gamma \cdot \text{contrast}_i`} />
         <Block tex={String.raw`w = 0.3 \qquad \alpha = 1.5 \qquad \gamma = 0.2 \qquad \text{contrast}_i = \max(0,\; T_{i-1} - T_i)`} />
         <p className="text-[10px] text-text-dim">
           All three forces treated symmetrically — same weight, same saturation. tanh compresses extremes while preserving relative ordering. Calibrated across HP, 1984, Gatsby, RI.
@@ -125,9 +125,9 @@ function ScoringTab() {
         </p>
         <div className="mt-2 flex gap-2 text-[10px]">
           {[
-            { label: 'Drive', value: '3', color: '#EF4444' },
-            { label: 'World', value: '14', color: '#22C55E' },
-            { label: 'System', value: '8', color: '#3B82F6' },
+            { label: 'Fate', value: '1.5', color: '#EF4444' },
+            { label: 'World', value: '12', color: '#22C55E' },
+            { label: 'System', value: '3', color: '#3B82F6' },
           ].map(({ label, value, color }) => (
             <div key={label} className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/8">
               <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />

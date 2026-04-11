@@ -258,7 +258,7 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST �
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}],
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition: 'Rode horseback through the night', 'Slipped through the back gate at dawn'"}},
       "events": ["event_tag_1", "event_tag_2"],
-      "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+      "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
       "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
       "systemMutations": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-XX", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
@@ -276,10 +276,10 @@ Rules:
 - World knowledge node IDs for NEW concepts must be unique: SYS-GEN-001, SYS-GEN-002, etc. Reused nodes should keep their original ID.
 
 DENSITY BAR (grading reference means — your arc averages must hit these or it grades in the 60s):
-  Drive P ≈ 3 per scene · World W ≈ 14 per scene · System S ≈ 5 per scene
-  A typical scene: 3-5 entities touched, 12-16 continuity nodes (list in causal order — edges auto-chain), 3-5 world knowledge nodes + 2-4 edges, 2-4 thread pulses (0-1 transitions).
-  A climax scene: push to 18-25+ continuity, 6-10 knowledge, 1-2 transitions.
-  A quiet scene: 3-6 continuity, 0-2 knowledge, 0-1 pulses.
+  Fate F ≈ 1.5 per scene · World W ≈ 12 per scene · System S ≈ 3 per scene
+  A typical scene: 3-5 entities touched, 10-14 continuity nodes (list in causal order — edges auto-chain), 2-4 world knowledge nodes + 1-3 edges, 2-4 thread pulses (0-1 transitions).
+  A climax scene: push to 16-20+ continuity, 5-8 knowledge, 1-2 transitions.
+  A quiet scene: 6-8 continuity, 0-1 knowledge, 0-1 pulses.
   Every entity in participantIds that the scene VISIBLY CHANGES must have a continuityMutation. Scan the participant list before returning — any visible participant with zero nodes is a scoring leak.
   REUSE existing WK node IDs when reinforcing — only NEW concepts count as density.
 ${PROMPT_STRUCTURAL_RULES}
@@ -662,11 +662,11 @@ FICTION:
 • {"content": "The Cheshire Cat can disappear", "type": "rule"}
 
 NON-FICTION (exhaustive example):
-• {"content": "D = activeArcs^α × stageWeight", "type": "formula"}
-• {"content": "D represents Drive — the fate of threads pulling world and system toward resolution", "type": "definition"}
+• {"content": "F = activeArcs^α × stageWeight", "type": "formula"}
+• {"content": "F represents Fate — the force of threads pulling world and system toward resolution", "type": "definition"}
 • {"content": "W = ΔN_c + √ΔE_c — entity transformation (what we learn about characters, locations, artifacts)", "type": "definition"}
 • {"content": "S = ΔN + √ΔE — world deepening (rules, structures, concepts)", "type": "definition"}
-• {"content": "Thread lifecycle: latent→seeded→active→critical→resolved/subverted. Abandoned earns 0.", "type": "definition"}
+• {"content": "Thread lifecycle: latent→seeded→active→escalating→critical→resolved/subverted. Escalating = point of no return. Abandoned earns 0.", "type": "definition"}
 • {"content": "Published works score 85-95", "type": "evidence"}
 
 INVALID: craft goals, pacing instructions, meta-commentary.
@@ -1056,9 +1056,9 @@ If the prose says "Published works score 85–95, while unguided AI output achie
 • {"content": "Unguided AI output scores 65-78", "type": "evidence"}
 • {"content": "There is a score gap between published works and AI output", "type": "claim"}
 
-If the prose mentions "three fundamental forces (Drive, World, System)", you need:
+If the prose mentions "three fundamental forces (Fate, World, System)", you need:
 • {"content": "There are three fundamental forces", "type": "claim"}
-• {"content": "The three forces are Drive, World, and System", "type": "definition"}
+• {"content": "The three forces are Fate, World, and System", "type": "definition"}
 
 DO NOT summarize multiple claims into one. Each atomic fact gets its own proposition.
 
@@ -1072,11 +1072,11 @@ FICTION:
 • {"content": "The Cheshire Cat can disappear", "type": "rule"}
 
 NON-FICTION (exhaustive example from a technical paper):
-• {"content": "D = activeArcs^α × stageWeight", "type": "formula"}
-• {"content": "D represents Drive — the fate of threads pulling world and system toward resolution", "type": "definition"}
+• {"content": "F = activeArcs^α × stageWeight", "type": "formula"}
+• {"content": "F represents Fate — the force of threads pulling world and system toward resolution", "type": "definition"}
 • {"content": "W = ΔN_c + √ΔE_c — entity transformation (what we learn about characters, locations, artifacts)", "type": "definition"}
 • {"content": "S = ΔN + √ΔE — world deepening (rules, structures, concepts)", "type": "definition"}
-• {"content": "Thread lifecycle: latent→seeded→active→critical→resolved/subverted. Abandoned earns 0.", "type": "definition"}
+• {"content": "Thread lifecycle: latent→seeded→active→escalating→critical→resolved/subverted. Escalating = point of no return. Abandoned earns 0.", "type": "definition"}
 • {"content": "Sustained threads earn superlinearly: 5 arcs at critical→resolved earns ~34 vs 4 for single-arc", "type": "example"}
 • {"content": "Published works score 85-95", "type": "evidence"}
 • {"content": "C = √ΔM + √ΔE + √ΔR", "type": "formula"}

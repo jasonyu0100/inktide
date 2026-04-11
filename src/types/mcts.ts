@@ -83,7 +83,7 @@ export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; desc
     name: 'Escalate',
     description: 'Rising deliveries — each scene raises the stakes',
     prompt: `Structure this arc so each scene raises the stakes higher than the last.
-- THREADS: Advance progressively — latent→seeded, seeded→active, active→critical. Each scene pushes at least one thread forward. Widen the circle of consequence across scenes.
+- THREADS: Advance progressively — latent→seeded, seeded→active, active→escalating, escalating→critical. Each scene pushes at least one thread forward. Widen the circle of consequence across scenes.
 - RELATIONSHIPS: Test alliances and loyalties — shifts of ±0.2 to ±0.3 as pressure mounts. Knowledge asymmetries deepen between characters.
 - WORLD: Reveal concepts that raise stakes — rules that constrain, systems that threaten, tensions with no easy resolution. 2+ nodes per scene connecting to existing graph.
 - Maintain POV streaks (2-4 scenes per perspective).`,

@@ -498,25 +498,25 @@ Return JSON with this exact structure:
   "characters": [
     {
       "id": "${nextCharId}",
-      "name": "string",
+      "name": "Full name matching the cultural palette of the world — rough, asymmetric, lived-in",
       "role": "anchor|recurring|transient",
       "threadIds": [],
       "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. Never use metaphors, similes, or figurative language — image generators interpret them literally.",
       "continuity": {
-        "nodes": [{"id": "${nextKId}", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "string"}]
+        "nodes": [{"id": "${nextKId}", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this character — trait, belief, capability, state, secret, goal, or weakness"}]
       }
     }
   ],
   "locations": [
     {
       "id": "${nextLocId}",
-      "name": "string",
+      "name": "Location name from geography, founders, or corrupted older words — concrete and specific",
       "parentId": "REQUIRED: existing location ID (e.g. L-01) to nest under, or null ONLY for top-level regions",
       "tiedCharacterIds": ["character IDs with a significant tie to this location — residents, employees, faction members, students. Ties represent gravity and belonging, not just presence"],
       "threadIds": [],
       "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret them literally.",
       "continuity": {
-        "nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "string"}]
+        "nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties"}]
       }
     }
   ],
@@ -524,7 +524,7 @@ Return JSON with this exact structure:
     {
       "id": "${nextThreadId}",
       "participants": [{"id": "character or location ID", "type": "character|location"}],
-      "description": "string",
+      "description": "15-30 words: the narrative tension or question this thread poses — specific conflict, not generic",
       "status": "latent",
       "openedAt": "new",
       "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
@@ -536,10 +536,10 @@ Return JSON with this exact structure:
   "artifacts": [
     {
       "id": "${nextArtifactId}",
-      "name": "string",
+      "name": "Artifact name — concrete and specific to its function or origin",
       "significance": "key|notable|minor",
       "parentId": "owner — a character or location ID, or null for world-owned (communally available to all)",
-      "continuity": {"nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "what it is, what it does, its history, its powers, its limitations — everything about this artifact lives in its continuity"}]},
+      "continuity": {"nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: what this artifact is, what it does, its history, powers, or limitations"}]},
       "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"
     }
   ],
@@ -549,7 +549,7 @@ Return JSON with this exact structure:
   },
   "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
   "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
-  "continuityMutations": [{"entityId": "existing C-XX, L-XX, or A-XX", "addedNodes": [{"id": "K-next", "content": "what changed", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+  "continuityMutations": [{"entityId": "existing C-XX, L-XX, or A-XX", "addedNodes": [{"id": "K-next", "content": "15-25 words, PRESENT tense: a stable fact about the entity — what they experienced, became, or now possess", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}]
 }
 
@@ -741,19 +741,19 @@ Return JSON with this exact structure:
   "worldSummary": "2-3 sentence world description",
   "imageStyle": "A concise visual style directive for all generated images (e.g. 'watercolour style with soft lighting'). Should capture the tone, medium, palette, and aesthetic that best fits this world.",
   "characters": [
-    {"id": "C-01", "name": "string", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence LITERAL physical description — concrete traits (hair colour, build, clothing). No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "K-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "string"}]}}
+    {"id": "C-01", "name": "Full name matching the cultural palette of the world — rough, asymmetric, lived-in", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence LITERAL physical description — concrete traits (hair colour, build, clothing). No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "K-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this character — trait, belief, capability, state, secret, goal, or weakness"}]}}
   ],
   "locations": [
-    {"id": "L-01", "name": "string", "prominence": "domain|place|margin", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "LK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "string"}]}}
+    {"id": "L-01", "name": "Location name from geography, founders, or corrupted older words — concrete and specific", "prominence": "domain|place|margin", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "LK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties"}]}}
   ],
   "threads": [
-    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "string", "status": "latent", "openedAt": "S-001", "dependents": []}
+    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "15-30 words: the narrative tension or question this thread poses — specific conflict, not generic", "status": "latent", "openedAt": "S-001", "dependents": []}
   ],
   "relationships": [
     {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
   ],
   "artifacts": [
-    {"id": "A-01", "name": "string", "significance": "key|notable|minor", "threadIds": [], "parentId": "character or location ID, or null for world-owned", "continuity": {"nodes": [{"id": "AK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "what it is, what it does, its history, its powers, its limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
+    {"id": "A-01", "name": "Artifact name — concrete and specific to its function or origin", "significance": "key|notable|minor", "threadIds": [], "parentId": "character or location ID, or null for world-owned", "continuity": {"nodes": [{"id": "AK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: what this artifact is, what it does, its history, powers, or limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
   ],${worldOnly ? `
   "systemMutations": {"addedNodes": [{"id": "SYS-01", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-01", "to": "SYS-02", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},` : `
   "scenes": [
@@ -765,15 +765,15 @@ Return JSON with this exact structure:
       "participantIds": ["C-01"],
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX or null for unattributed usage", "usage": "what the artifact did — how it delivered utility"}],
       "events": ["event_tag"],
-      "threadMutations": [{"threadId": "T-01", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+      "threadMutations": [{"threadId": "T-01", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "15-25 words, PRESENT tense: a stable fact about the entity — what they experienced, became, or now possess", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
       "relationshipMutations": [],
       "systemMutations": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-GEN-002", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics: actions, consequences, dialogue snippets. Include any context that shapes how the scene is written (time span, technique, tone). No sentences ending in emotions or realizations."
     }
   ],
   "arcs": [
-    {"id": "ARC-01", "name": "string", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
+    {"id": "ARC-01", "name": "Arc name — a short thematic label for this story segment", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
   ],`}
   "rules": ["World rule 1", "World rule 2"],
   "worldSystems": [
@@ -800,7 +800,18 @@ PILOT EPISODE — establish a tight, focused world. These are minimums; exceed w
 - AT LEAST 8 relationships (at least 1 hostile)
 - AT LEAST 1 artifact when the premise involves tools or objects of power
 - AT LEAST 12 system nodes with 8 edges — the systems, principles, tensions, and structures the world runs on. This is the foundational system graph every future scene draws from; a thin root means thin scenes forever. Each node MUST be 15-25 words describing a general rule or structural fact (how the world works). Include micro-rules (specific mechanics), mid-rules (institutional/economic), and macro-rules (cosmological/thematic). SHORT NAMES ARE FAILURES — "Aperture Grading" is wrong; "The sect grades disciples by aperture quality, with A-grade apertures receiving priority resource allocation and mentorship" is correct.${worldOnly ? '' : `
-- AT LEAST 8 scenes in 1 arc, AVERAGING ~14 continuity nodes and ~5 system nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with 10-16 continuity nodes and reveals 3-5 system concepts; climactic scenes push to 18-25+ continuity and 6-10 system.`}
+- AT LEAST 8 scenes in 1 arc, AVERAGING ~12 continuity nodes and ~3 system nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with 10-14 continuity nodes and reveals 2-4 system concepts; climactic scenes push to 16-20+ continuity and 5-8 system.`}
+
+SEEDING FATE — a great world is pregnant with story. Every entity you create should carry the seeds of future conflict:
+- Threads are fate's mechanism — each thread is a question the story MUST eventually answer, a promise it MUST keep
+- Characters carry secrets that WILL come out, goals that WILL collide, relationships that WILL be tested
+- Locations hold histories that WILL matter, resources that WILL be contested, rules that WILL constrain
+- Artifacts have costs that WILL be paid, powers that WILL corrupt, origins that WILL be revealed
+- Systems create pressures that WILL force action — scarcity breeds conflict, power demands trade-offs
+- The reader should sense from page one that SOMETHING LARGER IS COMING. Every detail is a fuse; you're laying the powder trail
+- Plant surprises: at least 2 characters should have secrets even the reader doesn't know yet (these go in continuity nodes of type "secret")
+- Create asymmetries: what Character A believes about Character B should differ from reality in ways that will explode later
+- Build pressure: threads should share participants so collision is INEVITABLE, not coincidental
 
 ENTITY DEFINITIONS:
 - Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.

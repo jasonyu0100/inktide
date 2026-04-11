@@ -6,7 +6,7 @@ import type { SlidesData } from '@/lib/slides-data';
 import { MOMENT_SPARKLINE_WINDOW } from '@/lib/constants';
 
 const FORCE_COLORS: Record<string, string> = {
-  drive: '#EF4444',
+  fate: '#EF4444',
   world: '#22C55E',
   system: '#3B82F6',
 };
@@ -98,13 +98,13 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
   const scene = data.scenes[sceneIdx];
   if (!scene) return null;
 
-  const forces = peakInfo?.forces ?? troughInfo?.forces ?? { drive: 0, world: 0, system: 0 };
+  const forces = peakInfo?.forces ?? troughInfo?.forces ?? { fate: 0, world: 0, system: 0 };
   const delivery = peakInfo?.delivery ?? troughInfo?.delivery;
   const cubeCorner = peakInfo?.cubeCorner ?? troughInfo?.cubeCorner;
   const threadChanges = peakInfo?.threadChanges ?? scene.threadMutations?.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })) ?? [];
   const relationshipChanges = peakInfo?.relationshipChanges ?? scene.relationshipMutations?.map((rm) => ({ from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta })) ?? [];
 
-  const maxForce = Math.max(Math.abs(forces.drive), Math.abs(forces.world), Math.abs(forces.system), 0.5);
+  const maxForce = Math.max(Math.abs(forces.fate), Math.abs(forces.world), Math.abs(forces.system), 0.5);
   const povName = data.characterNames[scene.povId] ?? scene.povId;
   const locationName = data.locationNames[scene.locationId] ?? scene.locationId;
   const participants = scene.participantIds
@@ -177,7 +177,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
           <div>
             <div className="text-[9px] uppercase tracking-widest text-text-dim mb-2">Forces</div>
             <div className="space-y-1.5">
-              {(['drive', 'world', 'system'] as const).map((f) => {
+              {(['fate', 'world', 'system'] as const).map((f) => {
                 const val = forces[f];
                 const pct = Math.abs(val) / maxForce;
                 return (

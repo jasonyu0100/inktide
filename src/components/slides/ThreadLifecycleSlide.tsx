@@ -6,6 +6,7 @@ const STATUS_COLORS: Record<string, string> = {
   latent:     '#475569',
   seeded:     '#FBBF24',
   active:     '#38BDF8',
+  escalating: '#FB923C',  // point of no return — fate committed
   critical:   '#F87171',
   resolved:   '#34D399',
   subverted:  '#C084FC',
@@ -58,7 +59,18 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
 
       return { ...tl, firstScene, lastScene, endStatus, segments, transitions, pulseScenes };
     })
-    .sort((a, b) => a.firstScene - b.firstScene);
+    .sort((a, b) => {
+      // Status priority: escalating/critical threads float to top (fate committed)
+      const statusPriority = (s: string) => {
+        if (s === 'escalating') return 0;  // point of no return — highest priority
+        if (s === 'critical') return 1;    // demands resolution
+        if (s === 'active') return 2;
+        if (s === 'seeded') return 3;
+        if (s === 'latent') return 4;
+        return 5;  // terminal statuses sink
+      };
+      return statusPriority(a.endStatus) - statusPriority(b.endStatus) || a.firstScene - b.firstScene;
+    });
 
   const TIMELINE_W = 600;
   const SVG_W = LABEL_W + TIMELINE_W + ARC_ZONE;

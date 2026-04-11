@@ -2,27 +2,35 @@
 export type ThreadStatus = string;
 
 // Canonical thread status vocabulary — single source of truth.
-// Forward: latent → seeded → active → critical → resolved/subverted.
+// Forward: latent → seeded → active → escalating → critical → resolved/subverted.
 // Abandoned resets the thread to a latent-like state for potential repickup.
-export const THREAD_ACTIVE_STATUSES = ['latent', 'seeded', 'active', 'critical'] as const;
-export const THREAD_TERMINAL_STATUSES = ['resolved', 'subverted'] as const;
-export const THREAD_PRIMED_STATUSES = ['critical'] as const;
+// Once escalating, the thread has passed the point of no return — it must resolve.
+export const THREAD_ACTIVE_STATUSES = [
+  "latent",
+  "seeded",
+  "active",
+  "escalating",
+  "critical",
+] as const;
+export const THREAD_TERMINAL_STATUSES = ["resolved", "subverted"] as const;
+export const THREAD_PRIMED_STATUSES = ["escalating", "critical"] as const;
 /** Abandoned is special — not terminal, but resets the thread for potential repickup */
-export const THREAD_RESET_STATUSES = ['abandoned'] as const;
+export const THREAD_RESET_STATUSES = ["abandoned"] as const;
 
 export const THREAD_STATUS_LABELS: Record<string, string> = {
-  latent: 'introduced but not yet developed',
-  seeded: 'setup established, tension planted',
-  active: 'actively driving narrative',
-  critical: 'at peak tension, demanding resolution',
-  resolved: 'concluded or ran its course',
-  subverted: 'fate defied — resolved contrary to expectations',
-  abandoned: 'dropped and reset — available for repickup',
+  latent: "introduced but not yet developed",
+  seeded: "setup established, tension planted",
+  active: "actively driving narrative",
+  escalating: "point of no return — must resolve",
+  critical: "at peak tension, demanding resolution",
+  resolved: "concluded or ran its course",
+  subverted: "fate defied — resolved contrary to expectations",
+  abandoned: "dropped and reset — available for repickup",
 };
 
 export type ThreadParticipant = {
   id: string;
-  type: 'character' | 'location' | 'artifact';
+  type: "character" | "location" | "artifact";
 };
 
 // ── Thread Log ──────────────────────────────────────────────────────────────
@@ -40,17 +48,27 @@ export type ThreadParticipant = {
  *  - "The prophecy was mentioned again in Snape's memory." (callback)
  */
 export type ThreadLogNodeType =
-  | 'pulse'       // "I was acknowledged but nothing changed." Continuity maintenance.
-  | 'transition'  // "My fundamental state has changed." Lifecycle position updated.
-  | 'setup'       // "Something is being prepared on my behalf." Forward-looking — promises being made.
-  | 'escalation'  // "The stakes around me are rising." Increasing pressure without advancing.
-  | 'payoff'      // "A promise made to me has been fulfilled." Experiencing own resolution.
-  | 'twist'       // "My understanding of my own direction has changed." Revising own drive vector.
-  | 'callback'    // "Something from my past has been referenced." History being honored.
-  | 'resistance'  // "Something is working against me." Experiencing opposition directly.
-  | 'stall';      // "I am not moving and I don't know why." Self-diagnosis of dysfunction.
+  | "pulse" // "I was acknowledged but nothing changed." Continuity maintenance.
+  | "transition" // "My fundamental state has changed." Lifecycle position updated.
+  | "setup" // "Something is being prepared on my behalf." Forward-looking — promises being made.
+  | "escalation" // "The stakes around me are rising." Increasing pressure without advancing.
+  | "payoff" // "A promise made to me has been fulfilled." Experiencing own resolution.
+  | "twist" // "My understanding of my own direction has changed." Revising own fate vector.
+  | "callback" // "Something from my past has been referenced." History being honored.
+  | "resistance" // "Something is working against me." Experiencing opposition directly.
+  | "stall"; // "I am not moving and I don't know why." Self-diagnosis of dysfunction.
 
-export const THREAD_LOG_NODE_TYPES: ThreadLogNodeType[] = ['pulse', 'transition', 'setup', 'escalation', 'payoff', 'twist', 'callback', 'resistance', 'stall'];
+export const THREAD_LOG_NODE_TYPES: ThreadLogNodeType[] = [
+  "pulse",
+  "transition",
+  "setup",
+  "escalation",
+  "payoff",
+  "twist",
+  "callback",
+  "resistance",
+  "stall",
+];
 
 export type ThreadLogNode = {
   id: string;
@@ -70,7 +88,7 @@ export type ThreadLog = {
 };
 
 /** Storyline: long-running thread spanning multiple arcs. Incident: short-lived, resolves within 1-2 arcs. */
-export type ThreadKind = 'storyline' | 'incident';
+export type ThreadKind = "storyline" | "incident";
 
 export type Thread = {
   id: string;
@@ -84,7 +102,7 @@ export type Thread = {
 };
 
 // ── Character ────────────────────────────────────────────────────────────────
-export type CharacterRole = 'anchor' | 'recurring' | 'transient';
+export type CharacterRole = "anchor" | "recurring" | "transient";
 
 /** Continuity node — a statement of stable fact about an entity's nature, identity, or permanent condition.
  *  Written in simple present tense. No events, no causation. Works across characters, locations, and artifacts.
@@ -97,17 +115,27 @@ export type CharacterRole = 'anchor' | 'recurring' | 'transient';
  *  - "The Iron Throne is forged from a thousand surrendered swords." (history)
  */
 export type ContinuityNodeType =
-  | 'trait'       // Inherent characteristic — personality, atmosphere, physical property
-  | 'state'       // Current condition — wounded, ruined, activated, contested
-  | 'history'     // Past experience — memory, founding event, provenance
-  | 'capability'  // What it can do — skill, strategic value, function
-  | 'belief'      // Subjective truth — opinion, legend, lore, contested claim
-  | 'relation'    // Connection to another entity — bond, sacred-to, bound-to
-  | 'secret'      // Hidden information — hidden knowledge, concealed origin
-  | 'goal'        // Orientation — ambition, purpose, intended use
-  | 'weakness';   // Vulnerability — fear, structural flaw, limitation
+  | "trait" // Inherent characteristic — personality, atmosphere, physical property
+  | "state" // Current condition — wounded, ruined, activated, contested
+  | "history" // Past experience — memory, founding event, provenance
+  | "capability" // What it can do — skill, strategic value, function
+  | "belief" // Subjective truth — opinion, legend, lore, contested claim
+  | "relation" // Connection to another entity — bond, sacred-to, bound-to
+  | "secret" // Hidden information — hidden knowledge, concealed origin
+  | "goal" // Orientation — ambition, purpose, intended use
+  | "weakness"; // Vulnerability — fear, structural flaw, limitation
 
-export const CONTINUITY_NODE_TYPES: ContinuityNodeType[] = ['trait', 'state', 'history', 'capability', 'belief', 'relation', 'secret', 'goal', 'weakness'];
+export const CONTINUITY_NODE_TYPES: ContinuityNodeType[] = [
+  "trait",
+  "state",
+  "history",
+  "capability",
+  "belief",
+  "relation",
+  "secret",
+  "goal",
+  "weakness",
+];
 
 export type ContinuityNode = {
   id: string;
@@ -116,8 +144,8 @@ export type ContinuityNode = {
 };
 
 export type ContinuityEdge = {
-  from: string;   // ContinuityNode id
-  to: string;     // ContinuityNode id
+  from: string; // ContinuityNode id
+  to: string; // ContinuityNode id
   relation: string;
 };
 
@@ -142,7 +170,7 @@ export type Character = {
  *  - domain: center of gravity, where power and identity concentrate — a throne room, an empire, a kitchen
  *  - area: known ground, recurring presence — a familiar tavern, a district, a battlefield
  *  - margin: peripheral, minimal continuity — an alley, a border crossing, set dressing */
-export type LocationProminence = 'domain' | 'place' | 'margin';
+export type LocationProminence = "domain" | "place" | "margin";
 
 export type Location = {
   id: string;
@@ -166,7 +194,7 @@ export type RelationshipEdge = {
 };
 
 // ── Artifact ────────────────────────────────────────────────────────────────
-export type ArtifactSignificance = 'key' | 'notable' | 'minor';
+export type ArtifactSignificance = "key" | "notable" | "minor";
 
 export type Artifact = {
   id: string;
@@ -199,7 +227,7 @@ export type ArtifactUsage = {
 export type TieMutation = {
   locationId: string;
   characterId: string;
-  action: 'add' | 'remove';
+  action: "add" | "remove";
 };
 
 // ── Scene & Arc ─────────────────────────────────────────────────────────────
@@ -252,27 +280,27 @@ export type WorldSystem = {
 
 /** Beat function — what the beat DOES in the scene's structure */
 export type BeatFn =
-  | 'breathe'     // Pacing, atmosphere, sensory grounding, scene establishment
-  | 'inform'      // Knowledge delivery — character or reader learns something now
-  | 'advance'     // Forward momentum — plot moves, goals pursued, tension rises
-  | 'bond'        // Relationship shifts between characters
-  | 'turn'        // Scene pivots — revelation, reversal, interruption
-  | 'reveal'      // Character nature exposed through action or choice
-  | 'shift'       // Power dynamic inverts
-  | 'expand'      // World-building — new rules, systems, geography
-  | 'foreshadow'  // Plants information that pays off later
-  | 'resolve';    // Tension releases — question answered, conflict settles
+  | "breathe" // Pacing, atmosphere, sensory grounding, scene establishment
+  | "inform" // Knowledge delivery — character or reader learns something now
+  | "advance" // Forward momentum — plot moves, goals pursued, tension rises
+  | "bond" // Relationship shifts between characters
+  | "turn" // Scene pivots — revelation, reversal, interruption
+  | "reveal" // Character nature exposed through action or choice
+  | "shift" // Power dynamic inverts
+  | "expand" // World-building — new rules, systems, geography
+  | "foreshadow" // Plants information that pays off later
+  | "resolve"; // Tension releases — question answered, conflict settles
 
 /** Mechanism — HOW the beat is delivered as prose */
 export type BeatMechanism =
-  | 'dialogue'     // Characters speaking
-  | 'thought'      // Internal monologue
-  | 'action'       // Physical movement, gesture, body in space
-  | 'environment'  // Setting, weather, arrivals, sensory details
-  | 'narration'    // Narrator addresses reader, authorial commentary, rhetoric
-  | 'memory'       // Flashback triggered by association
-  | 'document'     // Embedded text: letter, newspaper, cited poetry
-  | 'comic';       // Humor — physical comedy, ironic observation, absurdity
+  | "dialogue" // Characters speaking
+  | "thought" // Internal monologue
+  | "action" // Physical movement, gesture, body in space
+  | "environment" // Setting, weather, arrivals, sensory details
+  | "narration" // Narrator addresses reader, authorial commentary, rhetoric
+  | "memory" // Flashback triggered by association
+  | "document" // Embedded text: letter, newspaper, cited poetry
+  | "comic"; // Humor — physical comedy, ironic observation, absurdity
 
 // ── Asset References (Decoupled Storage) ────────────────────────────────────
 
@@ -310,12 +338,12 @@ export type AudioRef = string | undefined;
  *   Close:    HI backward, LO forward  — resolves prior chains, terminal
  *   Texture:  LO backward, LO forward  — atmosphere, world-color
  */
-export type PropositionBaseCategory = 'Anchor' | 'Seed' | 'Close' | 'Texture';
+export type PropositionBaseCategory = "Anchor" | "Seed" | "Close" | "Texture";
 
 /**
  * Temporal reach — whether strongest connections are local (within-arc) or global (cross-arc).
  */
-export type PropositionReach = 'Local' | 'Global';
+export type PropositionReach = "Local" | "Global";
 
 /** Classification scores for a single proposition */
 export type PropositionClassification = {
@@ -389,7 +417,9 @@ export type BeatProseMap = {
 };
 
 /** Markov transition matrix — probability of transitioning from one beat fn to another */
-export type BeatTransitionMatrix = Partial<Record<BeatFn, Partial<Record<BeatFn, number>>>>;
+export type BeatTransitionMatrix = Partial<
+  Record<BeatFn, Partial<Record<BeatFn, number>>>
+>;
 
 /** Authorial prose profile — voice and style applied to all prose generation. */
 export type ProseProfile = {
@@ -414,7 +444,9 @@ export type ProseProfile = {
 };
 
 /** Mechanism distribution conditioned on beat function — preserves fn/mechanism correlation from source texts */
-export type FnMechanismDistribution = Partial<Record<BeatFn, Partial<Record<BeatMechanism, number>>>>;
+export type FnMechanismDistribution = Partial<
+  Record<BeatFn, Partial<Record<BeatMechanism, number>>>
+>;
 
 /** Beat sampling data — derived from analyzed works, separate from voice profile. */
 export type BeatSampler = {
@@ -426,8 +458,28 @@ export type BeatSampler = {
   beatsPerKWord: number;
 };
 
-export const BEAT_FN_LIST: BeatFn[] = ['breathe', 'inform', 'advance', 'bond', 'turn', 'reveal', 'shift', 'expand', 'foreshadow', 'resolve'];
-export const BEAT_MECHANISM_LIST: BeatMechanism[] = ['dialogue', 'thought', 'action', 'environment', 'narration', 'memory', 'document', 'comic'];
+export const BEAT_FN_LIST: BeatFn[] = [
+  "breathe",
+  "inform",
+  "advance",
+  "bond",
+  "turn",
+  "reveal",
+  "shift",
+  "expand",
+  "foreshadow",
+  "resolve",
+];
+export const BEAT_MECHANISM_LIST: BeatMechanism[] = [
+  "dialogue",
+  "thought",
+  "action",
+  "environment",
+  "narration",
+  "memory",
+  "document",
+  "comic",
+];
 
 // ── World Knowledge Graph ───────────────────────────────────────────────────
 
@@ -444,17 +496,27 @@ export const BEAT_MECHANISM_LIST: BeatMechanism[] = ['dialogue', 'thought', 'act
  *  - "The Iron Bank of Braavos always collects its debts, even across generations." (structure)
  */
 export type SystemNodeType =
-  | 'principle'    // Fundamental truth — physical law, economic axiom, magic rule
-  | 'system'       // Organized mechanism — governance, ecosystem, magic system, TCP/IP
-  | 'concept'      // Abstract idea — theory, framework, phenomenon, category
-  | 'tension'      // Contradiction — unresolved force, debate, opposing pressures
-  | 'event'        // Significant occurrence — war, discovery, founding, publication
-  | 'structure'    // Organization — institution, faction, hierarchy, research lab
-  | 'environment'  // Physical/spatial reality — geography, climate, infrastructure
-  | 'convention'   // Norm — custom, practice, etiquette, legal precedent
-  | 'constraint';  // Limitation — scarcity, cost, boundary, physical limit
+  | "principle" // Fundamental truth — physical law, economic axiom, magic rule
+  | "system" // Organized mechanism — governance, ecosystem, magic system, TCP/IP
+  | "concept" // Abstract idea — theory, framework, phenomenon, category
+  | "tension" // Contradiction — unresolved force, debate, opposing pressures
+  | "event" // Significant occurrence — war, discovery, founding, publication
+  | "structure" // Organization — institution, faction, hierarchy, research lab
+  | "environment" // Physical/spatial reality — geography, climate, infrastructure
+  | "convention" // Norm — custom, practice, etiquette, legal precedent
+  | "constraint"; // Limitation — scarcity, cost, boundary, physical limit
 
-export const SYSTEM_NODE_TYPES: SystemNodeType[] = ['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'];
+export const SYSTEM_NODE_TYPES: SystemNodeType[] = [
+  "principle",
+  "system",
+  "concept",
+  "tension",
+  "event",
+  "structure",
+  "environment",
+  "convention",
+  "constraint",
+];
 
 export type SystemNode = {
   id: string;
@@ -480,21 +542,27 @@ export type SystemMutation = {
 
 /** Force values are z-score normalized (mean = 0, units = standard deviations).
  *  0 = average moment, positive = above average, negative = below average.
- *  - drive:  thread phase transitions (weighted by jump magnitude) + relationship valence deltas
+ *  - fate:   thread phase transitions (weighted by jump magnitude) + relationship valence deltas
  *  - world:  entity continuity graph complexity delta (ΔN_c + √ΔE_c per scene)
  *  - system: world knowledge graph complexity delta (new nodes + new edges per scene)
  */
 export type ForceSnapshot = {
-  drive: number;
+  fate: number;
   world: number;
   system: number;
 };
 
-// ── Narrative Cube (Drive · World · System) ─────────────────────────────────
-// The three forces (P·C·K) define a cube. Each corner is a recognisable narrative state.
+// ── Narrative Cube (Fate · World · System) ──────────────────────────────────
+// The three forces (F·W·S) define a cube. Each corner is a recognisable narrative state.
 export type CubeCornerKey =
-  | 'HHH' | 'HHL' | 'HLH' | 'HLL'
-  | 'LHH' | 'LHL' | 'LLH' | 'LLL';
+  | "HHH"
+  | "HHL"
+  | "HLH"
+  | "HLL"
+  | "LHH"
+  | "LHL"
+  | "LLH"
+  | "LLL";
 
 export type CubeCorner = {
   key: CubeCornerKey;
@@ -505,52 +573,60 @@ export type CubeCorner = {
 
 export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
   HHH: {
-    key: 'HHH',
-    name: 'Epoch',
-    description: 'Everything converges — threads resolve, characters transform, and the world\'s rules expand. A defining moment that reshapes the narrative landscape.',
-    forces: { drive: 1, world: 1, system: 1 },
+    key: "HHH",
+    name: "Epoch",
+    description:
+      "Everything converges — threads resolve, characters transform, and the world's rules expand. A defining moment that reshapes the narrative landscape.",
+    forces: { fate: 1, world: 1, system: 1 },
   },
   HHL: {
-    key: 'HHL',
-    name: 'Climax',
-    description: 'Threads resolve and characters transform within established world rules. The drive of what\'s already been built — no new lore needed.',
-    forces: { drive: 1, world: 1, system: -1 },
+    key: "HHL",
+    name: "Climax",
+    description:
+      "Threads resolve and characters transform within established world rules. The fate of what's already been built — no new lore needed.",
+    forces: { fate: 1, world: 1, system: -1 },
   },
   HLH: {
-    key: 'HLH',
-    name: 'Revelation',
-    description: 'Threads pay off through world-building. The world\'s rules explain why things happened — lore unlocks resolution without personal transformation.',
-    forces: { drive: 1, world: -1, system: 1 },
+    key: "HLH",
+    name: "Revelation",
+    description:
+      "Threads pay off through world-building. The world's rules explain why things happened — lore unlocks resolution without personal transformation.",
+    forces: { fate: 1, world: -1, system: 1 },
   },
   HLL: {
-    key: 'HLL',
-    name: 'Closure',
-    description: 'Quiet resolution within established world rules. Tying up loose ends — conversations that needed to happen, debts paid, promises kept or broken.',
-    forces: { drive: 1, world: -1, system: -1 },
+    key: "HLL",
+    name: "Closure",
+    description:
+      "Quiet resolution within established world rules. Tying up loose ends — conversations that needed to happen, debts paid, promises kept or broken.",
+    forces: { fate: 1, world: -1, system: -1 },
   },
   LHH: {
-    key: 'LHH',
-    name: 'Discovery',
-    description: 'Characters transform through encountering new world systems. No threads resolve — pure exploration, world-building, and possibility.',
-    forces: { drive: -1, world: 1, system: 1 },
+    key: "LHH",
+    name: "Discovery",
+    description:
+      "Characters transform through encountering new world systems. No threads resolve — pure exploration, world-building, and possibility.",
+    forces: { fate: -1, world: 1, system: 1 },
   },
   LHL: {
-    key: 'LHL',
-    name: 'Growth',
-    description: 'Internal character development within established world rules. Characters train, bond, argue, and change through interaction — no new lore.',
-    forces: { drive: -1, world: 1, system: -1 },
+    key: "LHL",
+    name: "Growth",
+    description:
+      "Internal character development within established world rules. Characters train, bond, argue, and change through interaction — no new lore.",
+    forces: { fate: -1, world: 1, system: -1 },
   },
   LLH: {
-    key: 'LLH',
-    name: 'Lore',
-    description: 'Pure world-building without resolution or transformation. Establishing rules, systems, cultures, and connections for future drive. Seeds planted in the world\'s structure.',
-    forces: { drive: -1, world: -1, system: 1 },
+    key: "LLH",
+    name: "Lore",
+    description:
+      "Pure world-building without resolution or transformation. Establishing rules, systems, cultures, and connections for future fate. Seeds planted in the world's structure.",
+    forces: { fate: -1, world: -1, system: 1 },
   },
   LLL: {
-    key: 'LLL',
-    name: 'Rest',
-    description: 'Nothing resolves, no one transforms, no new world concepts. Recovery and breathing room — quiet character deliveries and seed-planting.',
-    forces: { drive: -1, world: -1, system: -1 },
+    key: "LLL",
+    name: "Rest",
+    description:
+      "Nothing resolves, no one transforms, no new world concepts. Recovery and breathing room — quiet character deliveries and seed-planting.",
+    forces: { fate: -1, world: -1, system: -1 },
   },
 };
 
@@ -567,7 +643,6 @@ export type ExpansionManifest = {
   continuityMutations?: ContinuityMutation[];
   relationshipMutations?: RelationshipMutation[];
 };
-
 
 export type CharacterMovement = {
   locationId: string;
@@ -587,7 +662,7 @@ export type CharacterMovement = {
 // Edits are cleared when rewrite or regeneration occurs (they branch from the new version).
 
 /** Version type: 'generate' = fresh AI generation, 'rewrite' = AI revision, 'edit' = manual edit */
-export type VersionType = 'generate' | 'rewrite' | 'edit';
+export type VersionType = "generate" | "rewrite" | "edit";
 
 /** A versioned prose snapshot — tagged with the branch that created it */
 export type ProseVersion = {
@@ -626,7 +701,7 @@ export type ProseScore = {
 };
 
 export type Scene = {
-  kind: 'scene';
+  kind: "scene";
   id: string;
   arcId: string;
   locationId: string;
@@ -664,7 +739,7 @@ export type Scene = {
 };
 
 export type WorldBuild = {
-  kind: 'world_build';
+  kind: "world_build";
   id: string;
   summary: string;
   expansionManifest: ExpansionManifest;
@@ -673,7 +748,7 @@ export type WorldBuild = {
 // ── Branch Evaluation ─────────────────────────────────────────────────────
 
 /** Per-scene verdict from a branch evaluation pass */
-export type SceneVerdict = 'ok' | 'edit' | 'merge' | 'cut' | 'insert' | 'move';
+export type SceneVerdict = "ok" | "edit" | "merge" | "cut" | "insert" | "move";
 
 /** One scene's evaluation entry */
 export type SceneEval = {
@@ -706,7 +781,7 @@ export type StructureReview = {
 
 // ── Prose Evaluation ─────────────────────────────────────────────────────────
 
-export type ProseVerdict = 'ok' | 'edit';
+export type ProseVerdict = "ok" | "edit";
 
 export type ProseSceneEval = {
   sceneId: string;
@@ -729,7 +804,7 @@ export type ProseEvaluation = {
 
 // ── Plan Evaluation ──────────────────────────────────────────────────────────
 
-export type PlanVerdict = 'ok' | 'edit';
+export type PlanVerdict = "ok" | "edit";
 
 export type PlanSceneEval = {
   sceneId: string;
@@ -754,11 +829,11 @@ export type PlanEvaluation = {
 export type TimelineEntry = Scene | WorldBuild;
 
 export function isScene(entry: TimelineEntry): entry is Scene {
-  return entry.kind === 'scene';
+  return entry.kind === "scene";
 }
 
 export function isWorldBuild(entry: TimelineEntry): entry is WorldBuild {
-  return entry.kind === 'world_build';
+  return entry.kind === "world_build";
 }
 
 export type Arc = {
@@ -850,7 +925,10 @@ export type NarrativeState = {
 };
 
 /** Look up a timeline entry (scene or world build) by ID */
-export function resolveEntry(n: NarrativeState, id: string): TimelineEntry | null {
+export function resolveEntry(
+  n: NarrativeState,
+  id: string,
+): TimelineEntry | null {
   return n.scenes[id] ?? n.worldBuilds[id] ?? null;
 }
 
@@ -888,16 +966,16 @@ export type NarrativeEntry = {
 // ── Story Settings ──────────────────────────────────────────────────────────
 
 /** How many POV characters drive the narrative */
-export type POVMode = 'single' | 'pareto' | 'ensemble' | 'free';
+export type POVMode = "single" | "pareto" | "ensemble" | "free";
 
 /** Which world commit to seed generations with */
-export type WorldFocusMode = 'latest' | 'custom' | 'none';
+export type WorldFocusMode = "latest" | "custom" | "none";
 
 /** Reasoning effort level — controls how many thinking tokens the model uses before responding.
  *  Higher levels produce better structural decisions (causality, agency, convergence)
  *  at the cost of slower generation and higher token usage.
  *  Maps to OpenRouter's `reasoning.max_tokens` parameter. */
-export type ReasoningLevel = 'none' | 'low' | 'medium' | 'high';
+export type ReasoningLevel = "none" | "low" | "medium" | "high";
 
 /** Max thinking tokens per reasoning level */
 export const REASONING_BUDGETS: Record<ReasoningLevel, number> = {
@@ -908,7 +986,7 @@ export const REASONING_BUDGETS: Record<ReasoningLevel, number> = {
 };
 
 /** Output format for prose generation */
-export type ProseFormat = 'prose' | 'screenplay';
+export type ProseFormat = "prose" | "screenplay";
 
 export type StorySettings = {
   /** How POV is distributed across the story */
@@ -938,7 +1016,7 @@ export type StorySettings = {
   /** Editorial guidance — storytelling principles that shape how the narrative is told (scope, pacing philosophy, reveal discipline, tonal rules) */
   narrativeGuidance: string;
   /** Default world expansion strategy — depth deepens the existing sandbox, breadth widens the map, dynamic auto-selects based on metrics */
-  expansionStrategy: 'depth' | 'breadth' | 'dynamic';
+  expansionStrategy: "depth" | "breadth" | "dynamic";
   /** Reasoning effort — how much thinking the model does before responding. Higher = better structural decisions, slower generation. */
   reasoningLevel: ReasoningLevel;
   /** Beat profile preset key — selects a published work's beat/prose profile. Empty = default profile. */
@@ -960,33 +1038,33 @@ export type StorySettings = {
 export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
-  povMode: 'free',
+  povMode: "free",
   povCharacterIds: [],
-  storyDirection: '',
-  storyConstraints: '',
+  storyDirection: "",
+  storyConstraints: "",
   targetArcLength: 4,
-  rhythmPreset: '',
-  proseVoice: '',
-  planGuidance: '',
+  rhythmPreset: "",
+  proseVoice: "",
+  planGuidance: "",
   branchTimeHorizon: 50,
-  coverPrompt: '',
-  worldFocus: 'none',
-  narrativeGuidance: '',
-  expansionStrategy: 'dynamic',
-  reasoningLevel: 'low',
-  beatProfilePreset: '',
-  mechanismProfilePreset: '',
+  coverPrompt: "",
+  worldFocus: "none",
+  narrativeGuidance: "",
+  expansionStrategy: "dynamic",
+  reasoningLevel: "low",
+  beatProfilePreset: "",
+  mechanismProfilePreset: "",
   usePacingChain: true,
   useBeatChain: true,
-  audioVoice: 'onyx',
-  audioModel: 'tts-1',
-  proseFormat: 'prose',
+  audioVoice: "onyx",
+  audioModel: "tts-1",
+  proseFormat: "prose",
 };
 
 // ── Planning Queue ──────────────────────────────────────────────────────────
 
 /** Completion status of a planning phase */
-export type PlanningPhaseStatus = 'pending' | 'active' | 'completed';
+export type PlanningPhaseStatus = "pending" | "active" | "completed";
 
 /** A single phase in the planning queue — an allocated block of scenes with objectives */
 export type PlanningPhase = {
@@ -1003,7 +1081,7 @@ export type PlanningPhase = {
   status: PlanningPhaseStatus;
   /** Phase-specific constraint overrides (empty = use story settings) */
   constraints: string;
-  /** Structural mechanics rules — convergence, drive density, scene function variety, protagonist gravity */
+  /** Structural mechanics rules — convergence, fate density, scene function variety, protagonist gravity */
   structuralRules?: string;
   /** AI-generated direction for this phase (set when phase becomes active) */
   direction: string;
@@ -1023,7 +1101,7 @@ export type PlanningProfile = {
   name: string;
   description: string;
   /** 'complete' for self-contained stories, 'episodic' for series volumes */
-  category: 'complete' | 'episodic';
+  category: "complete" | "episodic";
   /** Whether this is a built-in archetype or user-created */
   builtIn: boolean;
   /** Phase templates — no runtime state, just the blueprint */
@@ -1032,7 +1110,7 @@ export type PlanningProfile = {
     objective: string;
     sceneAllocation: number;
     constraints: string;
-    /** Structural mechanics rules — convergence, drive density, scene function variety, protagonist gravity */
+    /** Structural mechanics rules — convergence, fate density, scene function variety, protagonist gravity */
     structuralRules?: string;
     worldExpansionHints: string;
     sourceText?: string;
@@ -1040,7 +1118,7 @@ export type PlanningProfile = {
 };
 
 /** Queue paradigm — determines how direction flows into scene generation */
-export type QueueMode = 'outline' | 'plan';
+export type QueueMode = "outline" | "plan";
 
 /** Branch-scoped planning queue */
 export type PlanningQueue = {
@@ -1061,11 +1139,11 @@ export type PlanningQueue = {
 // ── Auto Mode ───────────────────────────────────────────────────────────────
 
 export type AutoEndCondition =
-  | { type: 'scene_count'; target: number }
-  | { type: 'all_threads_resolved' }
-  | { type: 'arc_count'; target: number }
-  | { type: 'planning_complete' }
-  | { type: 'manual_stop' };
+  | { type: "scene_count"; target: number }
+  | { type: "all_threads_resolved" }
+  | { type: "arc_count"; target: number }
+  | { type: "planning_complete" }
+  | { type: "manual_stop" };
 
 /** Auto actions map directly to the 8 narrative cube corners */
 export type AutoAction = CubeCornerKey;
@@ -1141,7 +1219,7 @@ export type ApiLogEntry = {
   analysisId?: string;
   /** Discovery this call belongs to */
   discoveryId?: string;
-  status: 'pending' | 'success' | 'error';
+  status: "pending" | "success" | "error";
   durationMs: number | null;
   promptTokens: number;
   responseTokens: number | null;
@@ -1163,8 +1241,14 @@ export type ApiLogEntry = {
 export type SystemLogEntry = {
   id: string;
   timestamp: number;
-  severity: 'error' | 'warning' | 'info';
-  category: 'network' | 'timeout' | 'parsing' | 'validation' | 'lifecycle' | 'unknown';
+  severity: "error" | "warning" | "info";
+  category:
+    | "network"
+    | "timeout"
+    | "parsing"
+    | "validation"
+    | "lifecycle"
+    | "unknown";
   /** Human-readable message describing what happened */
   message: string;
   /** Raw error message from the exception (for errors/warnings) */
@@ -1172,7 +1256,16 @@ export type SystemLogEntry = {
   /** Stack trace if available (for errors) */
   errorStack?: string;
   /** Where the event occurred */
-  source: 'auto-play' | 'mcts' | 'manual-generation' | 'analysis' | 'world-expansion' | 'direction-generation' | 'prose-generation' | 'plan-generation' | 'other';
+  source:
+    | "auto-play"
+    | "mcts"
+    | "manual-generation"
+    | "analysis"
+    | "world-expansion"
+    | "direction-generation"
+    | "prose-generation"
+    | "plan-generation"
+    | "other";
   /** Current operation */
   operation?: string;
   /** Additional context */
@@ -1189,26 +1282,85 @@ export type SystemLogEntry = {
 
 export type AnalysisChunkResult = {
   chapterSummary: string;
-  characters: { name: string; role: string; firstAppearance: boolean; imagePrompt?: string }[];
-  locations: { name: string; prominence?: string; parentName: string | null; description: string; imagePrompt?: string; tiedCharacterNames?: string[] }[];
-  artifacts?: { name: string; significance: string; imagePrompt?: string; ownerName: string | null }[];
-  threads: { description: string; participantNames: string[]; statusAtStart: string; statusAtEnd: string; development: string; relatedThreadDescriptions?: string[] }[];
+  characters: {
+    name: string;
+    role: string;
+    firstAppearance: boolean;
+    imagePrompt?: string;
+  }[];
+  locations: {
+    name: string;
+    prominence?: string;
+    parentName: string | null;
+    description: string;
+    imagePrompt?: string;
+    tiedCharacterNames?: string[];
+  }[];
+  artifacts?: {
+    name: string;
+    significance: string;
+    imagePrompt?: string;
+    ownerName: string | null;
+  }[];
+  threads: {
+    description: string;
+    participantNames: string[];
+    statusAtStart: string;
+    statusAtEnd: string;
+    development: string;
+    relatedThreadDescriptions?: string[];
+  }[];
   scenes: {
-    locationName: string; povName: string; participantNames: string[]; events: string[];
-    summary: string; sections: number[]; prose?: string;
-    threadMutations: { threadDescription: string; from: string; to: string; addedNodes: { content: string; type: string }[] }[];
+    locationName: string;
+    povName: string;
+    participantNames: string[];
+    events: string[];
+    summary: string;
+    sections: number[];
+    prose?: string;
+    threadMutations: {
+      threadDescription: string;
+      from: string;
+      to: string;
+      addedNodes: { content: string; type: string }[];
+    }[];
     continuityMutations: {
       entityName: string;
       addedNodes: { content: string; type: string }[];
     }[];
-    relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[];
-    artifactUsages?: { artifactName: string; characterName: string | null; usage: string }[];
-    ownershipMutations?: { artifactName: string; fromName: string; toName: string }[];
-    tieMutations?: { locationName: string; characterName: string; action: 'add' | 'remove' }[];
-    characterMovements?: { characterName: string; locationName: string; transition: string }[];
+    relationshipMutations: {
+      from: string;
+      to: string;
+      type: string;
+      valenceDelta: number;
+    }[];
+    artifactUsages?: {
+      artifactName: string;
+      characterName: string | null;
+      usage: string;
+    }[];
+    ownershipMutations?: {
+      artifactName: string;
+      fromName: string;
+      toName: string;
+    }[];
+    tieMutations?: {
+      locationName: string;
+      characterName: string;
+      action: "add" | "remove";
+    }[];
+    characterMovements?: {
+      characterName: string;
+      locationName: string;
+      transition: string;
+    }[];
     systemMutations?: {
       addedNodes: { concept: string; type: string }[];
-      addedEdges: { fromConcept: string; toConcept: string; relation: string }[];
+      addedEdges: {
+        fromConcept: string;
+        toConcept: string;
+        relation: string;
+      }[];
     };
     plan?: BeatPlan;
     beatProseMap?: BeatProseMap;
@@ -1217,7 +1369,13 @@ export type AnalysisChunkResult = {
 };
 
 /** Analysis pipeline phases */
-export type AnalysisPhase = 'plans' | 'structure' | 'arcs' | 'reconciliation' | 'finalization' | 'assembly';
+export type AnalysisPhase =
+  | "plans"
+  | "structure"
+  | "arcs"
+  | "reconciliation"
+  | "finalization"
+  | "assembly";
 
 export type AnalysisJob = {
   id: string;
@@ -1227,7 +1385,7 @@ export type AnalysisJob = {
   chunks: { index: number; text: string; sectionCount: number }[];
   /** Results per chunk (same indices as chunks) */
   results: (AnalysisChunkResult | null)[];
-  status: 'pending' | 'running' | 'paused' | 'completed' | 'failed';
+  status: "pending" | "running" | "paused" | "completed" | "failed";
   /** Current pipeline phase — more reliable than parsing stream text */
   phase?: AnalysisPhase;
   currentChunkIndex: number;
@@ -1242,9 +1400,15 @@ export type AnalysisJob = {
 
 // ── Discovery Inquiries ──────────────────────────────────────────────────────
 
-import type { PremiseDecision, PremiseEntity, PremiseEdge, PremiseQuestion, PremiseSystemSketch } from '@/lib/ai/premise';
+import type {
+  PremiseDecision,
+  PremiseEdge,
+  PremiseEntity,
+  PremiseQuestion,
+  PremiseSystemSketch,
+} from "@/lib/ai/premise";
 
-export type DiscoveryPhase = 'systems' | 'rules' | 'cast' | 'threads';
+export type DiscoveryPhase = "systems" | "rules" | "cast" | "threads";
 
 export type DiscoverySnapshot = {
   decisions: PremiseDecision[];
@@ -1255,7 +1419,7 @@ export type DiscoverySnapshot = {
   title: string;
   worldSummary: string;
   currentQuestion: PremiseQuestion | null;
-  phase: 'seed' | DiscoveryPhase;
+  phase: "seed" | DiscoveryPhase;
 };
 
 export type DiscoveryInquiryState = {
@@ -1268,7 +1432,7 @@ export type DiscoveryInquiryState = {
   title: string;
   worldSummary: string;
   currentQuestion: PremiseQuestion | null;
-  phase: 'seed' | DiscoveryPhase;
+  phase: "seed" | DiscoveryPhase;
   history?: DiscoverySnapshot[];
 };
 
@@ -1281,21 +1445,21 @@ export type DiscoveryInquiry = {
 
 // ── App State ────────────────────────────────────────────────────────────────
 export type InspectorContext =
-  | { type: 'scene'; sceneId: string }
-  | { type: 'character'; characterId: string }
-  | { type: 'location'; locationId: string }
-  | { type: 'thread'; threadId: string }
-  | { type: 'arc'; arcId: string }
-  | { type: 'knowledge'; nodeId: string }
-  | { type: 'artifact'; artifactId: string }
-  | { type: 'continuity'; entityId: string; nodeId: string }
-  | { type: 'threadLog'; threadId: string; nodeId: string };
+  | { type: "scene"; sceneId: string }
+  | { type: "character"; characterId: string }
+  | { type: "location"; locationId: string }
+  | { type: "thread"; threadId: string }
+  | { type: "arc"; arcId: string }
+  | { type: "knowledge"; nodeId: string }
+  | { type: "artifact"; artifactId: string }
+  | { type: "continuity"; entityId: string; nodeId: string }
+  | { type: "threadLog"; threadId: string; nodeId: string };
 
-export type WizardStep = 'form' | 'details' | 'generate';
+export type WizardStep = "form" | "details" | "generate";
 
 export type CharacterSketch = {
   name: string;
-  role: 'anchor' | 'recurring' | 'transient';
+  role: "anchor" | "recurring" | "transient";
   description: string;
 };
 
@@ -1330,11 +1494,21 @@ export type WizardData = {
   worldOnly?: boolean;
 };
 
-export type GraphViewMode = 'spatial' | 'overview' | 'prose' | 'plan' | 'audio' | 'spark' | 'codex' | 'pulse' | 'threads' | 'search';
+export type GraphViewMode =
+  | "spatial"
+  | "overview"
+  | "prose"
+  | "plan"
+  | "audio"
+  | "spark"
+  | "codex"
+  | "pulse"
+  | "threads"
+  | "search";
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 };
 
@@ -1451,7 +1625,7 @@ export type PlanCandidates = {
 // ─── Semantic Search Types ──────────────────────────────────────────
 
 export type SearchResult = {
-  type: 'proposition' | 'beat' | 'scene';
+  type: "proposition" | "beat" | "scene";
   id: string;
   sceneId: string;
   beatIndex?: number;
@@ -1468,7 +1642,7 @@ export type SearchSynthesis = {
   citations: Array<{
     id: number;
     sceneId: string;
-    type: 'arc' | 'scene' | 'beat' | 'proposition';
+    type: "arc" | "scene" | "beat" | "proposition";
     title: string;
     similarity: number;
   }>;

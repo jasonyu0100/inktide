@@ -19,6 +19,7 @@ import {
   gradeForces,
   FORCE_REFERENCE_MEANS,
   computeThreadStatuses,
+  type EntityContext,
   type DeliveryPoint,
   type NarrativeShape,
   type ForceGrades,
@@ -39,7 +40,7 @@ export type Segment = {
   /** Delivery points for this segment */
   delivery: DeliveryPoint[];
   /** Dominant force in this segment */
-  dominantForce: 'drive' | 'world' | 'system';
+  dominantForce: 'fate' | 'world' | 'system';
   /** Key thread mutations in this segment */
   threadChanges: { threadId: string; from: string; to: string; sceneIdx: number }[];
   /** Peaks within this segment */
@@ -62,7 +63,7 @@ export type PeakInfo = {
   /** Relationship mutations at this scene */
   relationshipChanges: { from: string; to: string; type: string; delta: number }[];
   /** Force decomposition: which force contributed most */
-  dominantForce: 'drive' | 'world' | 'system';
+  dominantForce: 'fate' | 'world' | 'system';
 };
 
 export type TroughInfo = {
@@ -74,7 +75,7 @@ export type TroughInfo = {
   /** How many scenes until next peak */
   scenesToNextPeak: number;
   /** Which force recovers first in the scenes after this trough */
-  recoveryForce: 'drive' | 'world' | 'system' | null;
+  recoveryForce: 'fate' | 'world' | 'system' | null;
 };
 
 export type ThreadLifecycle = {
@@ -103,7 +104,7 @@ export type SlidesData = {
 
   scenes: Scene[];
   forceSnapshots: ForceSnapshot[];
-  rawForces: { drive: number[]; world: number[]; system: number[] };
+  rawForces: { fate: number[]; world: number[]; system: number[] };
   deliveryCurve: DeliveryPoint[];
   shape: NarrativeShape;
   swings: number[];
@@ -149,9 +150,9 @@ export type SlidesData = {
 
 // ── Computation ────────────────────────────────────────────────────────────────
 
-function dominantForce(p: number, c: number, k: number): 'drive' | 'world' | 'system' {
-  if (p >= c && p >= k) return 'drive';
-  if (c >= p && c >= k) return 'world';
+function dominantForce(f: number, w: number, s: number): 'fate' | 'world' | 'system' {
+  if (f >= w && f >= s) return 'fate';
+  if (w >= f && w >= s) return 'world';
   return 'system';
 }
 
@@ -166,12 +167,20 @@ export function computeSlidesData(
 
   const n = scenes.length;
 
-  // Force snapshots (z-score normalized)
-  const forceMap = computeForceSnapshots(scenes);
-  const forceSnapshots = scenes.map((s) => forceMap[s.id] ?? { drive: 0, world: 0, system: 0 });
+  // Build entity context for investment-weighted fate calculation
+  const entityCtx: EntityContext = {
+    characters: narrative.characters,
+    locations: narrative.locations,
+    artifacts: narrative.artifacts,
+    threads: narrative.threads,
+  };
 
-  // Raw forces
-  const rawForces = computeRawForceTotals(scenes);
+  // Force snapshots (z-score normalized, investment-weighted)
+  const forceMap = computeForceSnapshots(scenes, [], entityCtx);
+  const forceSnapshots = scenes.map((s) => forceMap[s.id] ?? { fate: 0, world: 0, system: 0 });
+
+  // Raw forces (investment-weighted)
+  const rawForces = computeRawForceTotals(scenes, entityCtx);
 
   // Delivery curve
   const deliveryCurve = computeDeliveryCurve(forceSnapshots);
@@ -180,8 +189,8 @@ export function computeSlidesData(
   const shape = classifyNarrativeShape(deliveryCurve.map((d) => d.delivery));
 
   // Swings from mean-normalised raw forces (preserves cross-series differences)
-  const rawForceSnapshots = rawForces.drive.map((_, i) => ({
-    drive: rawForces.drive[i],
+  const rawForceSnapshots = rawForces.fate.map((_, i) => ({
+    fate: rawForces.fate[i],
     world: rawForces.world[i],
     system: rawForces.system[i],
   }));
@@ -211,7 +220,7 @@ export function computeSlidesData(
       relationshipChanges: scene.relationshipMutations.map((rm) => ({
         from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
       })),
-      dominantForce: dominantForce(f.drive, f.world, f.system),
+      dominantForce: dominantForce(f.fate, f.world, f.system),
     }];
   }
 
@@ -226,12 +235,12 @@ export function computeSlidesData(
     const scenesToNextPeak = nextPeak !== undefined ? nextPeak - minPoint.index : scenes.length - minPoint.index;
     let recoveryForce: TroughInfo['recoveryForce'] = null;
     if (minPoint.index + 3 < forceSnapshots.length) {
-      const dp = forceSnapshots[minPoint.index + 3].drive - f.drive;
-      const dc = forceSnapshots[minPoint.index + 3].world - f.world;
-      const dk = forceSnapshots[minPoint.index + 3].system - f.system;
-      const maxDelta = Math.max(dp, dc, dk);
+      const df = forceSnapshots[minPoint.index + 3].fate - f.fate;
+      const dw = forceSnapshots[minPoint.index + 3].world - f.world;
+      const ds = forceSnapshots[minPoint.index + 3].system - f.system;
+      const maxDelta = Math.max(df, dw, ds);
       if (maxDelta > 0) {
-        recoveryForce = dp === maxDelta ? 'drive' : dc === maxDelta ? 'world' : 'system';
+        recoveryForce = df === maxDelta ? 'fate' : dw === maxDelta ? 'world' : 'system';
       }
     }
     troughs = [{
@@ -330,19 +339,19 @@ export function computeSlidesData(
     const arc = narrative.arcs[arcId];
     const indices = arc.sceneIds.map((sid) => sceneIdToIdx.get(sid)).filter((i): i is number => i !== undefined);
     if (indices.length === 0) continue;
-    const ap = indices.map((i) => rawForces.drive[i]);
-    const ac = indices.map((i) => rawForces.world[i]);
-    const ak = indices.map((i) => rawForces.system[i]);
+    const af = indices.map((i) => rawForces.fate[i]);
+    const aw = indices.map((i) => rawForces.world[i]);
+    const as = indices.map((i) => rawForces.system[i]);
     const as_ = indices.map((i) => swings[i]);
     arcGrades.push({
       arcId,
       arcName: arc.name,
       sceneCount: indices.length,
-      grades: gradeForces(ap, ac, ak, as_),
+      grades: gradeForces(af, aw, as, as_),
     });
   }
 
-  const overallGrades = gradeForces(rawForces.drive, rawForces.world, rawForces.system, swings);
+  const overallGrades = gradeForces(rawForces.fate, rawForces.world, rawForces.system, swings);
 
   // Beat profile data from scene plans
   const beatSampler = computeSamplerFromPlans(scenes);
@@ -459,7 +468,7 @@ function buildSegments(
 
     // Average z-score normalized forces in segment
     const segForces = forces.slice(startIdx, endIdx + 1);
-    const segDrive = avg(segForces.map((f) => f.drive));
+    const segFate = avg(segForces.map((f) => f.fate));
     const segWorld = avg(segForces.map((f) => f.world));
     const segSystem = avg(segForces.map((f) => f.system));
 
@@ -486,7 +495,7 @@ function buildSegments(
       startIdx,
       endIdx,
       delivery: segDelivery,
-      dominantForce: dominantForce(segDrive, segWorld, segSystem),
+      dominantForce: dominantForce(segFate, segWorld, segSystem),
       threadChanges,
       peakIndices: segPeaks,
       avgDelivery: avg(segDelivery.map((e) => e.delivery)),
@@ -519,7 +528,7 @@ function buildPeakInfos(
         relationshipChanges: scene.relationshipMutations.map((rm) => ({
           from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
         })),
-        dominantForce: dominantForce(f.drive, f.world, f.system),
+        dominantForce: dominantForce(f.fate, f.world, f.system),
       };
     })
     .sort((a, b) => b.delivery.delivery - a.delivery.delivery);
@@ -546,12 +555,12 @@ function buildTroughInfos(
       // Recovery force: check the next 3 scenes to see which force rises most
       let recoveryForce: TroughInfo['recoveryForce'] = null;
       if (e.index + 3 < forces.length) {
-        const dp = forces[e.index + 3].drive - f.drive;
-        const dc = forces[e.index + 3].world - f.world;
-        const dk = forces[e.index + 3].system - f.system;
-        const maxDelta = Math.max(dp, dc, dk);
+        const df = forces[e.index + 3].fate - f.fate;
+        const dw = forces[e.index + 3].world - f.world;
+        const ds = forces[e.index + 3].system - f.system;
+        const maxDelta = Math.max(df, dw, ds);
         if (maxDelta > 0) {
-          recoveryForce = dp === maxDelta ? 'drive' : dc === maxDelta ? 'world' : 'system';
+          recoveryForce = df === maxDelta ? 'fate' : dw === maxDelta ? 'world' : 'system';
         }
       }
 
@@ -576,6 +585,12 @@ function buildThreadLifecycles(
   const terminalStatuses = new Set(THREAD_TERMINAL_STATUSES as readonly string[]);
   const threads = Object.values(narrative.threads);
 
+  // Build scene key to index map for looking up openedAt
+  const sceneKeyToIdx = new Map<string, number>();
+  for (let i = 0; i < resolvedEntryKeys.length; i++) {
+    sceneKeyToIdx.set(resolvedEntryKeys[i], i);
+  }
+
   return threads.map((thread) => {
     // Find all scenes that mutate this thread
     const mutations: { sceneIdx: number; from: string; to: string }[] = [];
@@ -589,15 +604,21 @@ function buildThreadLifecycles(
 
     if (mutations.length === 0) return null;
 
-    // Build status timeline from first mutation to last (or terminal)
-    const firstIdx = mutations[0].sceneIdx;
+    // Find the scene where the thread was introduced (openedAt)
+    // This captures the latent period — when fate was first detected
+    const openedAtIdx = sceneKeyToIdx.get(thread.openedAt) ?? mutations[0].sceneIdx;
+    const firstMutationIdx = mutations[0].sceneIdx;
+
+    // Start from when fate was first detected (openedAt), not first mutation
+    const startIdx = Math.min(openedAtIdx, firstMutationIdx);
     const statuses: { sceneIdx: number; status: string }[] = [];
 
-    // Start with the "from" status of the first mutation
-    let currentStatus = mutations[0].from;
+    // Initial status is the thread's base status (usually 'latent')
+    // or the 'from' status of the first mutation if we start at that scene
+    let currentStatus = startIdx < firstMutationIdx ? thread.status : mutations[0].from;
     let mutIdx = 0;
 
-    for (let i = firstIdx; i < scenes.length; i++) {
+    for (let i = startIdx; i < scenes.length; i++) {
       // Apply all mutations at this scene index
       while (mutIdx < mutations.length && mutations[mutIdx].sceneIdx === i) {
         currentStatus = mutations[mutIdx].to;

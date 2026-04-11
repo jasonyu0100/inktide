@@ -134,58 +134,181 @@ function ShapeCurve({
 //   100K novel (~83 scenes):  83×$0.016 + $0.038 = ~$1.37
 //   500K series (~416 scenes): 416×$0.016 + $0.038 = ~$6.70
 
-type BreakdownRow = { call: string; count: string; model: '2.5 Flash' | '3 Flash'; note: string; cost: string };
-type BreakdownCategory = { label: string; unit: string; rows: BreakdownRow[]; subtotal: { calls: string; cost: string } | null };
+type BreakdownRow = {
+  call: string;
+  count: string;
+  model: "2.5 Flash" | "3 Flash";
+  note: string;
+  cost: string;
+};
+type BreakdownCategory = {
+  label: string;
+  unit: string;
+  rows: BreakdownRow[];
+  subtotal: { calls: string; cost: string } | null;
+};
 
 const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
   {
-    label: 'Generation',
-    unit: 'per arc  ·  ~4 scenes  ·  ~4800 words',
+    label: "Generation",
+    unit: "per arc  ·  ~4 scenes  ·  ~4800 words",
     rows: [
-      { call: 'generateScenes',          count: '×1',  model: '2.5 Flash', note: 'Scene structures & mutations',           cost: '$0.03' },
-      { call: 'generateScenePlan',        count: '×4',  model: '2.5 Flash', note: 'Beat plan per scene (~12 beats)',        cost: '$0.06' },
-      { call: 'generateSceneProse',       count: '×4',  model: '3 Flash',   note: '~1.2K words of prose per scene',         cost: '$0.15' },
-      { call: 'refreshDirection',         count: '×1',  model: '2.5 Flash', note: 'Arc direction & constraints',             cost: '$0.02' },
-      { call: 'expandWorld',              count: '×1',  model: '2.5 Flash', note: 'New characters, locations & threads',    cost: '$0.01' },
-      { call: 'phaseCompletionReport',    count: '×1',  model: '2.5 Flash', note: 'Phase retrospective',                    cost: '$0.01' },
-      { call: 'generatePhaseDirection',   count: '×1',  model: '2.5 Flash', note: 'Next phase objectives & constraints',    cost: '$0.01' },
+      {
+        call: "generateScenes",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Scene structures & mutations",
+        cost: "$0.03",
+      },
+      {
+        call: "generateScenePlan",
+        count: "×4",
+        model: "2.5 Flash",
+        note: "Beat plan per scene (~12 beats)",
+        cost: "$0.06",
+      },
+      {
+        call: "generateSceneProse",
+        count: "×4",
+        model: "3 Flash",
+        note: "~1.2K words of prose per scene",
+        cost: "$0.15",
+      },
+      {
+        call: "refreshDirection",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Arc direction & constraints",
+        cost: "$0.02",
+      },
+      {
+        call: "expandWorld",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "New characters, locations & threads",
+        cost: "$0.01",
+      },
+      {
+        call: "phaseCompletionReport",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Phase retrospective",
+        cost: "$0.01",
+      },
+      {
+        call: "generatePhaseDirection",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Next phase objectives & constraints",
+        cost: "$0.01",
+      },
     ],
-    subtotal: { calls: '13 calls', cost: '$0.29' },
+    subtotal: { calls: "13 calls", cost: "$0.29" },
   },
   {
-    label: 'Evaluation & Revision',
-    unit: 'per arc  ·  ~4 scenes  ·  25% edit rate',
+    label: "Evaluation & Revision",
+    unit: "per arc  ·  ~4 scenes  ·  25% edit rate",
     rows: [
-      { call: 'evaluateBranch',       count: '×1',  model: '2.5 Flash', note: 'Structure verdicts + thematic critique',  cost: '$0.01' },
-      { call: 'editScene',            count: '×~1', model: '2.5 Flash', note: 'Scene structure edit (summary + mutations)', cost: '$0.01' },
-      { call: 'evaluateProseQuality', count: '×1',  model: '2.5 Flash', note: 'Prose quality edit verdicts + critique',  cost: '$0.01' },
-      { call: 'rewriteSceneProse',    count: '×~1', model: '3 Flash',   note: '~1K words rewritten (25% rate)',          cost: '$0.03' },
+      {
+        call: "evaluateBranch",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Structure verdicts + thematic critique",
+        cost: "$0.01",
+      },
+      {
+        call: "editScene",
+        count: "×~1",
+        model: "2.5 Flash",
+        note: "Scene structure edit (summary + mutations)",
+        cost: "$0.01",
+      },
+      {
+        call: "evaluateProseQuality",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Prose quality edit verdicts + critique",
+        cost: "$0.01",
+      },
+      {
+        call: "rewriteSceneProse",
+        count: "×~1",
+        model: "3 Flash",
+        note: "~1K words rewritten (25% rate)",
+        cost: "$0.03",
+      },
     ],
-    subtotal: { calls: '~4 calls', cost: '~$0.06' },
+    subtotal: { calls: "~4 calls", cost: "~$0.06" },
   },
   {
-    label: 'Analysis',
-    unit: 'per corpus  ·  scene-first pipeline  ·  ~$0.016/scene',
+    label: "Analysis",
+    unit: "per corpus  ·  scene-first pipeline  ·  ~$0.016/scene",
     rows: [
-      { call: 'reverseEngineerScenePlan',   count: '×N',  model: '2.5 Flash', note: 'Beat plan + propositions per scene',          cost: '~$0.005/scene' },
-      { call: 'extractSceneStructure',      count: '×N',  model: '2.5 Flash', note: 'Entities & mutations from prose + plan',      cost: '~$0.008/scene' },
-      { call: 'embeddings',                 count: '×N',  model: '2.5 Flash', note: 'Summaries, propositions, prose (OpenAI)',      cost: '~$0.003/scene' },
-      { call: 'groupScenesIntoArcs',        count: '×1',  model: '2.5 Flash', note: 'Name arcs from scene summaries',              cost: '~$0.002' },
-      { call: 'reconcileResults',           count: '×1',  model: '2.5 Flash', note: 'Entity deduplication across scenes',          cost: '~$0.008' },
-      { call: 'analyzeThreading',           count: '×1',  model: '2.5 Flash', note: 'Thread dependency analysis',                  cost: '~$0.003' },
-      { call: 'assembleNarrative',          count: '×1',  model: '2.5 Flash', note: 'Rules, world systems, prose profile',         cost: '~$0.025' },
+      {
+        call: "reverseEngineerScenePlan",
+        count: "×N",
+        model: "2.5 Flash",
+        note: "Beat plan + propositions per scene",
+        cost: "~$0.005/scene",
+      },
+      {
+        call: "extractSceneStructure",
+        count: "×N",
+        model: "2.5 Flash",
+        note: "Entities & mutations from prose + plan",
+        cost: "~$0.008/scene",
+      },
+      {
+        call: "embeddings",
+        count: "×N",
+        model: "2.5 Flash",
+        note: "Summaries, propositions, prose (OpenAI)",
+        cost: "~$0.003/scene",
+      },
+      {
+        call: "groupScenesIntoArcs",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Name arcs from scene summaries",
+        cost: "~$0.002",
+      },
+      {
+        call: "reconcileResults",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Entity deduplication across scenes",
+        cost: "~$0.008",
+      },
+      {
+        call: "analyzeThreading",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Thread dependency analysis",
+        cost: "~$0.003",
+      },
+      {
+        call: "assembleNarrative",
+        count: "×1",
+        model: "2.5 Flash",
+        note: "Rules, world systems, prose profile",
+        cost: "~$0.025",
+      },
     ],
-    subtotal: { calls: '3N + 3', cost: '~$1.06 for HP (64 scenes)' },
+    subtotal: { calls: "3N + 3", cost: "~$1.06 for HP (64 scenes)" },
   },
 ];
 
-function ModelPill({ model }: { model: '2.5 Flash' | '3 Flash' }) {
+function ModelPill({ model }: { model: "2.5 Flash" | "3 Flash" }) {
   return (
-    <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono whitespace-nowrap ${
-      model === '3 Flash'
-        ? 'bg-amber-500/10 text-amber-400/60'
-        : 'bg-emerald-500/10 text-emerald-400/60'
-    }`}>{model}</span>
+    <span
+      className={`text-[9px] px-1.5 py-0.5 rounded font-mono whitespace-nowrap ${
+        model === "3 Flash"
+          ? "bg-amber-500/10 text-amber-400/60"
+          : "bg-emerald-500/10 text-emerald-400/60"
+      }`}
+    >
+      {model}
+    </span>
   );
 }
 
@@ -194,19 +317,22 @@ function CostEstimates() {
   return (
     <div className="my-5 px-3 sm:px-5 py-4 rounded-lg bg-white/3 border border-white/6">
       <span className="text-[10px] uppercase tracking-wider text-white/20 block mb-3 font-mono">
-        End-to-End Estimates  ·  ~5 scenes/arc  ·  ~1K words/scene
+        End-to-End Estimates · ~5 scenes/arc · ~1K words/scene
       </span>
 
       {/* Generation estimates */}
       <div className="space-y-2 text-[11px] text-white/45">
         {[
-          { scale: "Short story (~10K words)",  cost: "~$0.66"  },
-          { scale: "Novella (~35K words)",       cost: "~$2.30"  },
-          { scale: "Novel (~85K words)",         cost: "~$5.60"  },
-          { scale: "Epic (~200K words)",         cost: "~$13.20" },
-          { scale: "Serial (~500K words)",       cost: "~$33.00" },
+          { scale: "Short story (~10K words)", cost: "~$0.66" },
+          { scale: "Novella (~35K words)", cost: "~$2.30" },
+          { scale: "Novel (~85K words)", cost: "~$5.60" },
+          { scale: "Epic (~200K words)", cost: "~$13.20" },
+          { scale: "Serial (~500K words)", cost: "~$33.00" },
         ].map(({ scale, cost }, i) => (
-          <div key={scale} className={`flex justify-between${i > 0 ? ' border-t border-white/5 pt-2' : ''}`}>
+          <div
+            key={scale}
+            className={`flex justify-between${i > 0 ? " border-t border-white/5 pt-2" : ""}`}
+          >
             <span>{scale}</span>
             <span className="font-mono text-white/60">{cost}</span>
           </div>
@@ -214,17 +340,32 @@ function CostEstimates() {
       </div>
 
       <p className="text-[10px] text-white/25 mt-3">
-        Structure, planning &amp; analysis: <span className="text-emerald-500/40">Gemini 2.5 Flash</span> ($0.30/M in · $2.50/M out+reasoning).
-        Prose only: <span className="text-amber-500/40">Gemini 3 Flash</span> ($0.50/M in · $3.00/M out+reasoning).
-        Generation cost per arc is constant once the story exceeds the 50-scene context window.
+        Structure, planning &amp; analysis:{" "}
+        <span className="text-emerald-500/40">Gemini 2.5 Flash</span> ($0.30/M
+        in · $2.50/M out+reasoning). Prose only:{" "}
+        <span className="text-amber-500/40">Gemini 3 Flash</span> ($0.50/M in ·
+        $3.00/M out+reasoning). Generation cost per arc is constant once the
+        story exceeds the 50-scene context window.
       </p>
 
       <button
         onClick={() => setShowBreakdown(!showBreakdown)}
         className="mt-3 flex items-center gap-1.5 text-[10px] text-white/25 hover:text-white/40 transition-colors cursor-pointer"
       >
-        <svg width="10" height="10" viewBox="0 0 12 12" className={`transition-transform duration-200 ${showBreakdown ? 'rotate-180' : ''}`}>
-          <path d="M3 4.5L6 7.5L9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 12 12"
+          className={`transition-transform duration-200 ${showBreakdown ? "rotate-180" : ""}`}
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
         <span>Per-arc breakdown</span>
       </button>
@@ -235,7 +376,9 @@ function CostEstimates() {
             <div key={cat.label}>
               {/* Category header */}
               <div className="flex items-baseline gap-2 mb-1.5">
-                <span className="text-[10px] font-mono text-white/50 uppercase tracking-wider">{cat.label}</span>
+                <span className="text-[10px] font-mono text-white/50 uppercase tracking-wider">
+                  {cat.label}
+                </span>
                 <span className="text-[9px] text-white/20">{cat.unit}</span>
               </div>
               <table className="w-full text-[11px] table-fixed">
@@ -249,18 +392,35 @@ function CostEstimates() {
                 <tbody>
                   {cat.rows.map((row) => (
                     <tr key={row.call} className="border-t border-white/4">
-                      <td className="py-1.5 font-mono text-white/50 pr-3 truncate">{row.call}</td>
-                      <td className="py-1.5 font-mono text-white/25 text-right pr-3">{row.count}</td>
-                      <td className="py-1.5 pr-3"><ModelPill model={row.model} /></td>
-                      <td className="py-1.5 text-white/30 text-[10px] pr-3">{row.note}</td>
-                      <td className="py-1.5 font-mono text-white/55 text-right">{row.cost}</td>
+                      <td className="py-1.5 font-mono text-white/50 pr-3 truncate">
+                        {row.call}
+                      </td>
+                      <td className="py-1.5 font-mono text-white/25 text-right pr-3">
+                        {row.count}
+                      </td>
+                      <td className="py-1.5 pr-3">
+                        <ModelPill model={row.model} />
+                      </td>
+                      <td className="py-1.5 text-white/30 text-[10px] pr-3">
+                        {row.note}
+                      </td>
+                      <td className="py-1.5 font-mono text-white/55 text-right">
+                        {row.cost}
+                      </td>
                     </tr>
                   ))}
                   {cat.subtotal && (
                     <tr className="border-t border-white/10">
-                      <td className="pt-1.5 text-white/40 font-mono text-[10px]" colSpan={3}>{cat.subtotal.calls}</td>
+                      <td
+                        className="pt-1.5 text-white/40 font-mono text-[10px]"
+                        colSpan={3}
+                      >
+                        {cat.subtotal.calls}
+                      </td>
                       <td />
-                      <td className="pt-1.5 font-mono text-white/60 text-right font-semibold">{cat.subtotal.cost}</td>
+                      <td className="pt-1.5 font-mono text-white/60 text-right font-semibold">
+                        {cat.subtotal.cost}
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -285,13 +445,13 @@ const ARCHETYPES = [
   {
     key: "series" as const,
     name: "Series",
-    desc: "Drive + World",
+    desc: "Fate + World",
     color: ARCHETYPE_COLORS.series,
   },
   {
     key: "atlas" as const,
     name: "Atlas",
-    desc: "Drive + System",
+    desc: "Fate + System",
     color: ARCHETYPE_COLORS.atlas,
   },
   {
@@ -303,7 +463,7 @@ const ARCHETYPES = [
   {
     key: "classic" as const,
     name: "Classic",
-    desc: "Drive-driven",
+    desc: "Fate-driven",
     color: ARCHETYPE_COLORS.classic,
   },
   {
@@ -405,19 +565,44 @@ const SHAPES = [
 ] as const;
 
 const SCALE_TIERS = [
-  { key: 'short',  name: 'Short',  desc: '< 20 scenes', color: '#22D3EE' },
-  { key: 'story',  name: 'Story',  desc: '20–50 scenes', color: '#22D3EE' },
-  { key: 'novel',  name: 'Novel',  desc: '50–120 scenes', color: '#22D3EE' },
-  { key: 'epic',   name: 'Epic',   desc: '120–300 scenes', color: '#22D3EE' },
-  { key: 'serial', name: 'Serial', desc: '300+ scenes', color: '#22D3EE' },
+  { key: "short", name: "Short", desc: "< 20 scenes", color: "#22D3EE" },
+  { key: "story", name: "Story", desc: "20–50 scenes", color: "#22D3EE" },
+  { key: "novel", name: "Novel", desc: "50–120 scenes", color: "#22D3EE" },
+  { key: "epic", name: "Epic", desc: "120–300 scenes", color: "#22D3EE" },
+  { key: "serial", name: "Serial", desc: "300+ scenes", color: "#22D3EE" },
 ] as const;
 
 const DENSITY_TIERS = [
-  { key: 'sparse',    name: 'Sparse',    desc: '< 0.5 entities/scene', color: '#34D399' },
-  { key: 'focused',   name: 'Focused',   desc: '0.5–1.5 entities/scene', color: '#34D399' },
-  { key: 'developed', name: 'Developed', desc: '1.5–2.5 entities/scene', color: '#34D399' },
-  { key: 'rich',      name: 'Rich',      desc: '2.5–4.0 entities/scene', color: '#34D399' },
-  { key: 'sprawling', name: 'Sprawling', desc: '4.0+ entities/scene', color: '#34D399' },
+  {
+    key: "sparse",
+    name: "Sparse",
+    desc: "< 0.5 entities/scene",
+    color: "#34D399",
+  },
+  {
+    key: "focused",
+    name: "Focused",
+    desc: "0.5–1.5 entities/scene",
+    color: "#34D399",
+  },
+  {
+    key: "developed",
+    name: "Developed",
+    desc: "1.5–2.5 entities/scene",
+    color: "#34D399",
+  },
+  {
+    key: "rich",
+    name: "Rich",
+    desc: "2.5–4.0 entities/scene",
+    color: "#34D399",
+  },
+  {
+    key: "sprawling",
+    name: "Sprawling",
+    desc: "4.0+ entities/scene",
+    color: "#34D399",
+  },
 ] as const;
 
 /* ── Navigation items ────────────────────────────────────────────────────── */
@@ -538,8 +723,8 @@ export default function PaperPage() {
             Quantifying Narrative Force
           </h1>
           <p className="text-[15px] text-white/40 leading-relaxed max-w-xl">
-            Measuring, querying, and generating structural
-            intelligence from long-form text.
+            Measuring, querying, and generating structural intelligence from
+            long-form text.
           </p>
           <div className="mt-3">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/5 border border-white/10 text-white/40">
@@ -552,68 +737,78 @@ export default function PaperPage() {
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              Structured text exhibits measurable regularities. Threads
-              progress through lifecycles. Characters accumulate inner change.
-              Worlds deepen through rules and systems. Readers perceive these
-              patterns intuitively — a scene &ldquo;feels&rdquo; like a climax, a
-              chapter &ldquo;drags&rdquo; — but no established framework captures
-              these mechanisms as computable quantities. This paper proposes
-              one: a soft-science approach to quantifying narrative structure
-              through three observable forces.
+              Why do some resolutions feel earned while others ring hollow? A
+              climax lands or falls flat. A theorem satisfies or feels
+              arbitrary. A character arc resonates or seems forced. The
+              difference is <em>investment</em> — something was built up before
+              it paid off. But what exactly was built, and how do we measure it?
             </P>
             <P>
-              We model long-form text as knowledge graphs that mutate section
-              by section. An LLM extracts structural mutations — thread
-              transitions, entity continuity shifts, world knowledge additions
-              — and three forces are derived deterministically from these
-              mutations: <B>drive</B> (the accumulated commitment of threads
-              toward resolution), <B>world</B> (the inner transformation of
-              entities), and <B>system</B> (the deepening of rules and structures).
-              Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the
-              framework recovers the Sorting Hat, troll confrontation, and
-              Quirrell climax as structural peaks — the dramatic shape that
-              readers intuitively recognise, now measurable.
+              This paper proposes an answer: model text as knowledge graphs that
+              mutate section by section, and derive three forces from those
+              mutations. <B>Fate</B> measures accumulated investment toward
+              resolution — not just whether threads resolve, but whether the
+              entities involved have been developed enough to earn that
+              resolution.
+              <B>World</B> measures transformation of entities. <B>System</B>
+              measures the deepening of rules and structures. Together they
+              capture what readers perceive intuitively: a scene
+              &ldquo;feels&rdquo; climactic, a chapter &ldquo;drags&rdquo;, a
+              proof &ldquo;builds&rdquo; — now computable.
             </P>
             <P>
-              The structural primitives are domain-general — early results on
-              academic papers confirm they transfer to non-fiction.
+              The key insight is that fate attaches to <em>nodes</em>, not just
+              threads. In fiction those nodes are characters, locations,
+              artifacts. In a paper they&apos;re theorems, concepts, arguments.
+              A thread resolving around deeply-invested nodes earns high fate; a
+              thread with shallow participants earns little — distinguishing
+              earned resolution from red herrings. This makes the framework
+              domain-general: applied to <em>Harry Potter</em>, it recovers the
+              Sorting Hat and Quirrell climax as structural peaks; applied to
+              academic papers, it identifies theorems that the text has built
+              toward versus those that appear without setup.
             </P>
             <P>
-              The primary contribution is <B>analysis and querying</B>. Every
-              proposition is embedded for meaning-based retrieval with
-              AI-synthesized overviews and inline citations. Each analyzed work
-              contributes its pacing transition matrix and prose profile to
-              a growing corpus network across fiction and non-fiction.
               Empirical validation: published works score 85–95 on a composite
-              delivery metric; unguided AI output scores 65–78. The same
-              metrics drive generation — pacing from published transition
-              matrices, branching search scored by force grading, and iterative
-              structural revision. All components are open source.
+              delivery metric; unguided AI output scores 65–78. The gap traces
+              to specific structural weaknesses — insufficient investment before
+              resolution. The same metrics drive generation: pacing from
+              published transition matrices, structural revision guided by force
+              grading. All components are open source.
             </P>
           </Section>
 
           {/* ── The Problem ───────────────────────────────────────────── */}
           <Section id="problem" label="The Problem">
             <P>
-              Why does one text compel while another meanders? Existing
-              approaches measure useful properties — sentiment analysis captures
-              tone, topic models capture word distribution, readability metrics
-              capture surface complexity — but none operate at the level of
-              structural mechanics: whether threads are advancing or cycling,
-              whether knowledge is accumulating or merely being listed, whether
-              depth is building or the writing is simply getting longer. These
-              structural questions remain largely unmeasured — and a text
-              can&apos;t be searched for meaning across its full timeline.
+              Why does one text compel while another meanders? The question has
+              a deeper twin: <em>what makes a resolution feel earned?</em> A
+              twist can land or fall flat. A theorem can satisfy or feel
+              arbitrary. A character arc can resonate or ring hollow. The
+              difference isn&apos;t just execution — it&apos;s{" "}
+              <em>investment</em>. Something was built up before it paid off.
+              But what exactly was built, and how do we measure it?
             </P>
             <P>
-              Readers feel these structural regularities intuitively — threads
-              that progress, worlds that deepen, ideas that interconnect — but
-              the intuition has lacked a formal counterpart. When we apply mutation-derived formulas to
-              published works versus AI-generated text, the gap becomes empirically
-              visible. Published literature scores 85–95 on composite delivery;
-              unguided AI output scores 65–78. The 15–20 point disparity traces
-              to specific structural weaknesses: threads that cycle without
-              advancing, shallow continuity, sparse world-knowledge connectivity.
+              Existing approaches capture useful properties — sentiment analysis
+              measures tone, topic models capture word distribution, readability
+              metrics gauge surface complexity — but none operate at the level
+              where investment accumulates: whether threads are advancing or
+              cycling, whether knowledge is deepening or merely being listed,
+              whether entities are developing or staying flat. These structural
+              questions remain largely unmeasured.
+            </P>
+            <P>
+              Readers feel investment intuitively. A scene &ldquo;earns&rdquo;
+              its climax. A proof &ldquo;builds&rdquo; to its conclusion. A
+              character &ldquo;deserves&rdquo; their fate. When we apply
+              structural formulas to published works versus AI-generated text,
+              this intuition becomes empirically visible. Published literature
+              scores 85–95 on composite delivery; unguided AI output scores
+              65–78. The gap traces to specific structural weaknesses: threads
+              that cycle without advancing, shallow entity continuity, sparse
+              concept connectivity. In short:
+              <em>insufficient investment before resolution</em>.
             </P>
 
             {/* ── Human vs AI gradient bar ──────────────────────────── */}
@@ -777,61 +972,78 @@ export default function PaperPage() {
           {/* ── Approach ──────────────────────────────────────────────── */}
           <Section id="approach" label="Approach">
             <P>
-              We model narratives as knowledge graphs that evolve scene by scene. An LLM extracts structural mutations; deterministic formulas compute forces from those mutations. This separates <em>comprehension</em> (LLM) from <em>measurement</em> (formulas), keeping the scoring fully transparent and reproducible.
+              We model narratives as knowledge graphs that evolve scene by
+              scene. An LLM extracts structural mutations; deterministic
+              formulas compute forces from those mutations. This separates{" "}
+              <em>comprehension</em> (LLM) from <em>measurement</em> (formulas),
+              keeping the scoring fully transparent and reproducible.
             </P>
-            <P>
-              The three mutation layers are:
-            </P>
+            <P>The three mutation layers are:</P>
             <ul className="mt-3 space-y-2 text-[13px] text-white/50 leading-[1.85]">
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">1.</span>
                 <span>
                   <B>Thread mutations</B> — lifecycle transitions of narrative
-                  tensions (rivalries, secrets, quests) through discrete states: latent &rarr; seeded &rarr; active &rarr;
-                  critical &rarr; resolved/subverted. Abandoned resets a thread for repickup.
-                  Each thread maintains a lifecycle log of perceptual events, and drive is computed as bandwidth-weighted payoff: sustained threads that resolve earn superlinearly.
+                  tensions (rivalries, secrets, quests) through discrete states:
+                  latent &rarr; seeded &rarr; active &rarr; escalating &rarr;
+                  critical &rarr; resolved/subverted. Abandoned resets a thread
+                  for repickup. Fate is investment-weighted: threads resolving
+                  around deeply-developed entities earn more than those with
+                  shallow participants.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">2.</span>
                 <span>
-                  <B>Continuity mutations</B> — permanent character transformations
-                  (learns, loses, becomes, realizes) plus relationship valence shifts. These accumulate as persistent state attached to characters.
+                  <B>Continuity mutations</B> — permanent character
+                  transformations (learns, loses, becomes, realizes) plus
+                  relationship valence shifts. These accumulate as persistent
+                  state attached to characters.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">3.</span>
                 <span>
-                  <B>Knowledge graph mutations</B> — additions to the world-building
-                  graph: nodes (principles, systems, concepts, tensions, events, structures, environments, conventions, constraints) and typed edges. Depth emerges from connectivity, not lexical volume.
+                  <B>Knowledge graph mutations</B> — additions to the
+                  world-building graph: nodes (principles, systems, concepts,
+                  tensions, events, structures, environments, conventions,
+                  constraints) and typed edges. Depth emerges from connectivity,
+                  not lexical volume.
                 </span>
               </li>
             </ul>
-            <P>
-              Three forces derive directly from these mutations:
-            </P>
+            <P>Three forces derive directly from these mutations:</P>
             <ul className="space-y-2 text-[13px] text-white/60 leading-relaxed pl-4">
-              <li><B>Drive</B> measures how threads compete for narrative bandwidth
+              <li>
+                <B>Fate</B> measures how threads compete for narrative bandwidth
                 and accumulate commitment — the unifying force that pulls world
-                and system toward resolution.</li>
-              <li><B>World</B> measures entity transformation through continuity
-                shifts — what the story does to the people in it.</li>
-              <li><B>System</B> measures how the world&apos;s rules and structures
-                deepen through knowledge graph expansion.</li>
+                and system toward resolution.
+              </li>
+              <li>
+                <B>World</B> measures entity transformation through continuity
+                shifts — what the story does to the people in it.
+              </li>
+              <li>
+                <B>System</B> measures how the world&apos;s rules and structures
+                deepen through knowledge graph expansion.
+              </li>
             </ul>
             <P>
-              The composition of these three forces defines a work&apos;s archetype.
-              A <B>Classic</B> is drive-dominant. A <B>Show</B> is world-dominant.
-              A <B>Paper</B> is system-dominant. An <B>Opus</B> balances all three.
-              All forces are z-score normalized, making them comparable across
-              works of arbitrary length.
+              The composition of these three forces defines a work&apos;s
+              archetype. A <B>Classic</B> is fate-dominant. A <B>Show</B> is
+              world-dominant. A <B>Paper</B> is system-dominant. An <B>Opus</B>{" "}
+              balances all three. All forces are z-score normalized, making them
+              comparable across works of arbitrary length.
             </P>
           </Section>
 
           {/* ── Computational Hierarchy ───────────────────────────────── */}
           <Section id="hierarchy" label="Computational Hierarchy">
             <P>
-              Narratives decompose into five nested layers. Structure generation (scenes with mutations) runs independently of prose generation (beats and propositions), enabling parallel processing and precise attribution.
+              Narratives decompose into five nested layers. Structure generation
+              (scenes with mutations) runs independently of prose generation
+              (beats and propositions), enabling parallel processing and precise
+              attribution.
             </P>
 
             {/* Visual hierarchy diagram - clean and compact */}
@@ -915,9 +1127,13 @@ export default function PaperPage() {
 
                       {/* Connecting lines - arcs to scenes */}
                       {[
-                        [0, 0], [0, 1], [0, 2], // arc 0 → scenes 0,1,2
-                        [1, 3], [1, 4],         // arc 1 → scenes 3,4
-                        [2, 5], [2, 6],         // arc 2 → scenes 5,6
+                        [0, 0],
+                        [0, 1],
+                        [0, 2], // arc 0 → scenes 0,1,2
+                        [1, 3],
+                        [1, 4], // arc 1 → scenes 3,4
+                        [2, 5],
+                        [2, 6], // arc 2 → scenes 5,6
                       ].map(([arcIdx, sceneIdx], i) => (
                         <line
                           key={`as-${i}`}
@@ -933,11 +1149,14 @@ export default function PaperPage() {
 
                       {/* Connecting lines - scenes to beats */}
                       {[
-                        [0, 0], [0, 1],         // scene 0 → beats 0-1
-                        [2, 2], [2, 3],         // scene 2 → beats 2-3
-                        [3, 4],                 // scene 3 → beat 4
-                        [5, 5], [5, 6],         // scene 5 → beats 5-6
-                        [6, 7],                 // scene 6 → beat 7
+                        [0, 0],
+                        [0, 1], // scene 0 → beats 0-1
+                        [2, 2],
+                        [2, 3], // scene 2 → beats 2-3
+                        [3, 4], // scene 3 → beat 4
+                        [5, 5],
+                        [5, 6], // scene 5 → beats 5-6
+                        [6, 7], // scene 6 → beat 7
                       ].map(([sceneIdx, beatIdx], i) => (
                         <line
                           key={`sb-${i}`}
@@ -953,12 +1172,18 @@ export default function PaperPage() {
 
                       {/* Connecting lines - beats to propositions */}
                       {[
-                        [0, 0], [0, 1],         // beat 0 → props 0-1
-                        [1, 2], [1, 3],         // beat 1 → props 2-3
-                        [2, 4], [2, 5],         // beat 2 → props 4-5
-                        [4, 6], [4, 7],         // beat 4 → props 6-7
-                        [5, 8], [5, 9],         // beat 5 → props 8-9
-                        [7, 10], [7, 11],       // beat 7 → props 10-11
+                        [0, 0],
+                        [0, 1], // beat 0 → props 0-1
+                        [1, 2],
+                        [1, 3], // beat 1 → props 2-3
+                        [2, 4],
+                        [2, 5], // beat 2 → props 4-5
+                        [4, 6],
+                        [4, 7], // beat 4 → props 6-7
+                        [5, 8],
+                        [5, 9], // beat 5 → props 8-9
+                        [7, 10],
+                        [7, 11], // beat 7 → props 10-11
                       ].map(([beatIdx, propIdx], i) => (
                         <line
                           key={`bp-${i}`}
@@ -1077,7 +1302,18 @@ export default function PaperPage() {
                             fontSize="9"
                             fontWeight="600"
                           >
-                            {["breathe", "inform", "advance", "turn", "reveal", "bond", "shift", "expand"][i]}
+                            {
+                              [
+                                "breathe",
+                                "inform",
+                                "advance",
+                                "turn",
+                                "reveal",
+                                "bond",
+                                "shift",
+                                "expand",
+                              ][i]
+                            }
                           </text>
                         </g>
                       ))}
@@ -1175,105 +1411,190 @@ export default function PaperPage() {
 
             <div className="mt-4 space-y-4">
               <P>
-                <B>Narrative</B> — The full knowledge graph: all characters, locations, threads, relationships, and world knowledge. Persists and grows across the entire timeline.
+                <B>Narrative</B> — The full knowledge graph: all characters,
+                locations, threads, relationships, and world knowledge. Persists
+                and grows across the entire timeline.
                 <span className="block text-white/25 text-[11px] mt-1 italic">
-                  HP: Harry, Hogwarts, the Philosopher&apos;s Stone quest, Snape&apos;s ambiguous loyalty, the rules of wand magic — all as graph nodes and edges.
+                  HP: Harry, Hogwarts, the Philosopher&apos;s Stone quest,
+                  Snape&apos;s ambiguous loyalty, the rules of wand magic — all
+                  as graph nodes and edges.
                 </span>
               </P>
               <P>
-                <B>Arcs</B> — Thematic groupings of 5–8 scenes with directional objectives. Direction vectors recompute after each arc based on thread tension and momentum.
+                <B>Arcs</B> — Thematic groupings of 5–8 scenes with directional
+                objectives. Direction vectors recompute after each arc based on
+                thread tension and momentum.
                 <span className="block text-white/25 text-[11px] mt-1 italic">
-                  HP: &ldquo;Arrival at Hogwarts&rdquo; (Sorting Hat through first classes) — establishing threads, expanding the world, seeding rivalries.
+                  HP: &ldquo;Arrival at Hogwarts&rdquo; (Sorting Hat through
+                  first classes) — establishing threads, expanding the world,
+                  seeding rivalries.
                 </span>
               </P>
               <P>
-                <B>Scenes</B> — Atomic units of structural mutation. Each scene records thread transitions, continuity mutations, and knowledge graph additions. Forces derive from these mutations, not from prose.
+                <B>Scenes</B> — Atomic units of structural mutation. Each scene
+                records thread transitions, continuity mutations, and knowledge
+                graph additions. Forces derive from these mutations, not from
+                prose.
                 <span className="block text-white/25 text-[11px] mt-1 italic">
-                  HP: The troll fight — &ldquo;friendship with Hermione&rdquo; thread jumps latent → seeded, relationship mutation between Harry/Ron/Hermione, knowledge node for troll vulnerability.
+                  HP: The troll fight — &ldquo;friendship with Hermione&rdquo;
+                  thread jumps latent → seeded, relationship mutation between
+                  Harry/Ron/Hermione, knowledge node for troll vulnerability.
                 </span>
               </P>
               <P>
-                <B>Beats</B> — Typed prose segments with a function (breathe, inform, advance, turn, reveal, etc.) and delivery mechanism (dialogue, thought, action, etc.). Generated as blueprints before prose is written.
+                <B>Beats</B> — Typed prose segments with a function (breathe,
+                inform, advance, turn, reveal, etc.) and delivery mechanism
+                (dialogue, thought, action, etc.). Generated as blueprints
+                before prose is written.
                 <span className="block text-white/25 text-[11px] mt-1 italic">
-                  HP troll scene: breathe:environment (bathroom, troll stench) → advance:action (Ron levitates the club) → bond:dialogue (&ldquo;There are some things you can&apos;t share&rdquo;).
+                  HP troll scene: breathe:environment (bathroom, troll stench) →
+                  advance:action (Ron levitates the club) → bond:dialogue
+                  (&ldquo;There are some things you can&apos;t share&rdquo;).
                 </span>
               </P>
               <P>
-                <B>Propositions</B> — Atomic prose units (20–60 words) that execute beat intentions. The smallest embeddable unit for semantic search.
+                <B>Propositions</B> — Atomic prose units (20–60 words) that
+                execute beat intentions. The smallest embeddable unit for
+                semantic search.
                 <span className="block text-white/25 text-[11px] mt-1 italic">
-                  &ldquo;The troll&apos;s club clattered to the floor. In the silence, Ron was still holding his wand in the air.&rdquo;
+                  &ldquo;The troll&apos;s club clattered to the floor. In the
+                  silence, Ron was still holding his wand in the air.&rdquo;
                 </span>
               </P>
             </div>
 
             <P>
-              Forces are computed from mutations without examining prose. Revision edits beats without modifying scene structure. Every layer is independently auditable.
+              Forces are computed from mutations without examining prose.
+              Revision edits beats without modifying scene structure. Every
+              layer is independently auditable.
             </P>
           </Section>
 
           {/* ── Embeddings & Proposition Classification ─────────────────── */}
           <Section id="embeddings" label="Embeddings">
             <P>
-              Forces operate at the scene level. But readers experience <B>prose</B>, composed of <B>propositions</B> — atomic claims that must be accepted as true within the narrative world. &ldquo;Harry has a lightning-bolt scar.&rdquo; &ldquo;The wand chooses the wizard.&rdquo; Each is a temporally bounded statement whose structural significance is determined by its relationships to every other proposition.
+              Forces operate at the scene level. But readers experience{" "}
+              <B>prose</B>, composed of <B>propositions</B> — atomic claims that
+              must be accepted as true within the narrative world. &ldquo;Harry
+              has a lightning-bolt scar.&rdquo; &ldquo;The wand chooses the
+              wizard.&rdquo; Each is a temporally bounded statement whose
+              structural significance is determined by its relationships to
+              every other proposition.
             </P>
             <P>
-              Forces measure <B>what changes</B> in the knowledge graph. Propositions measure <B>what is stated</B> in the prose. Every proposition is embedded as a 1536-dimensional vector (OpenAI text-embedding-3-small), transforming prose into a geometric space where similarity is distance and structural relationships become computable.
+              Forces measure <B>what changes</B> in the knowledge graph.
+              Propositions measure <B>what is stated</B> in the prose. Every
+              proposition is embedded as a 1536-dimensional vector (OpenAI
+              text-embedding-3-small), transforming prose into a geometric space
+              where similarity is distance and structural relationships become
+              computable.
             </P>
             <P>
-              Coherent writing is a <B>proof graph</B>. Each proposition introduces, derives from, or resolves prior content. A plot hole is a broken inference chain; a satisfying drive is a deep proof tree resolving. Quality is structural — how propositions relate across time — and that structure is now computable.
+              Coherent writing is a <B>proof graph</B>. Each proposition
+              introduces, derives from, or resolves prior content. A plot hole
+              is a broken inference chain; a satisfying resolution is a deep
+              proof tree resolving. Quality is structural — how propositions
+              relate across time — and that structure is now computable.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
               Activation
             </h3>
             <P>
-              The full pairwise similarity structure is computed via matrix multiplication — <Tex>{'\\mathbf{S} = \\hat{E} \\hat{E}^\\top'}</Tex> where <Tex>{'\\hat{E}'}</Tex> is the L2-normalized embedding matrix — accelerated by TensorFlow.js. From this matrix, each proposition receives two scores: <B>backward activation</B> (how strongly it connects to prior content) and <B>forward activation</B> (how strongly future content builds upon it).
+              The full pairwise similarity structure is computed via matrix
+              multiplication —{" "}
+              <Tex>{"\\mathbf{S} = \\hat{E} \\hat{E}^\\top"}</Tex> where{" "}
+              <Tex>{"\\hat{E}"}</Tex> is the L2-normalized embedding matrix —
+              accelerated by TensorFlow.js. From this matrix, each proposition
+              receives two scores: <B>backward activation</B> (how strongly it
+              connects to prior content) and <B>forward activation</B> (how
+              strongly future content builds upon it).
             </P>
             <Eq
               label="Hybrid activation score"
               tex="A(p_i, D) = 0.5 \cdot \max_{j \in D} S_{ij} + 0.5 \cdot \frac{1}{k} \sum_{j \in \text{top}_k(D)} S_{ij}"
             />
             <P>
-              The hybrid of maximum (depth — strongest single dependency) and mean-top-<Tex>{'k'}</Tex> (breadth — cluster of strong connections) with <Tex>{'k=5'}</Tex> produces a robust activation score. A proposition is <B>HI</B> if its score exceeds an absolute threshold of 0.65, determined by systematic parameter sweep maximizing cross-work distributional variance (<Tex>{'\\Sigma \\text{var} = 225'}</Tex> across four reference works). The backward/forward binary produces four structural categories — <B>Anchor</B>, <B>Seed</B>, <B>Close</B>, <B>Texture</B> — detailed in the <a href="#classification" className="text-accent hover:underline">Classification</a> section.
+              The hybrid of maximum (depth — strongest single dependency) and
+              mean-top-<Tex>{"k"}</Tex> (breadth — cluster of strong
+              connections) with <Tex>{"k=5"}</Tex> produces a robust activation
+              score. A proposition is <B>HI</B> if its score exceeds an absolute
+              threshold of 0.65, determined by systematic parameter sweep
+              maximizing cross-work distributional variance (
+              <Tex>{"\\Sigma \\text{var} = 225"}</Tex> across four reference
+              works). The backward/forward binary produces four structural
+              categories — <B>Anchor</B>, <B>Seed</B>, <B>Close</B>,{" "}
+              <B>Texture</B> — detailed in the{" "}
+              <a href="#classification" className="text-accent hover:underline">
+                Classification
+              </a>{" "}
+              section.
             </P>
           </Section>
 
           {/* ── The Three Forces ──────────────────────────────────────── */}
           <Section id="forces" label="The Three Forces">
+            <p className="text-[15px] leading-relaxed text-white/50 italic mb-8">
+              We opened with a question: why do some resolutions feel earned
+              while others ring hollow? The answer is investment — and here we
+              make it precise. Three forces capture what readers perceive
+              intuitively, derived deterministically from knowledge graph
+              mutations.
+            </p>
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
-                Drive
+                Fate
               </h3>
               <P>
-                Drive is the force that unifies narrative &mdash; the accumulated investment of threads
-                pulling the world and its systems toward resolution. Where world
-                and system measure what the story <em>is</em>, drive measures what
-                the story <em>wants</em>. Threads compete for narrative bandwidth
-                across arcs, and the longer a thread sustains attention before
-                resolving, the greater its contribution to drive.
+                Fate is the force that unifies narrative &mdash; the release of
+                accumulated potential when threads resolve. Where world and
+                system measure what the story <em>is</em>, fate measures what
+                the story
+                <em>wants</em>. But fate isn&apos;t earned by threads alone
+                &mdash; it&apos;s earned by <em>entities</em>. The story invests
+                in characters, locations, artifacts, concepts. When those
+                investments pay off through resolution, that&apos;s fate.
               </P>
-              <Eq tex="D = \sum_{t} \text{activeArcs}(t)^{\alpha} \times w(t)" />
+              <Eq tex="F = \sum_{t} \sqrt{\text{arcs}(t)} \times w(t) \times (1 + \ln(1 + I(t)))" />
               <P>
-                Threads progress through a lifecycle: latent &rarr; seeded &rarr;
-                active &rarr; critical &rarr; resolved/subverted. Each transition
-                earns a stage weight: pulse = 0.25, latent&rarr;seeded = 0.5,
-                seeded&rarr;active = 1.0, active&rarr;critical = 2.0,
-                critical&rarr;resolved/subverted = 4.0. The exponent{" "}
-                <Tex>{"\\alpha = 1.3"}</Tex> provides superlinear reward for sustained
-                commitment &mdash; a thread active across 5 arcs resolving at
-                critical&rarr;resolved earns{" "}
-                <Tex>{"5^{1.3} \\times 4 \\approx 34"}</Tex> versus{" "}
-                <Tex>{"1^{1.3} \\times 4 = 4"}</Tex> for a single-arc incident.
-                Abandoned threads earn zero drive &mdash; they move to the done pile
-                cleanly and can be picked back up later as latent if the story needs them.
+                Three factors combine. <B>Arc span</B> uses{" "}
+                <Tex>{String.raw`\sqrt{\text{arcs}}`}</Tex> &mdash; sublinear
+                scaling that rewards persistence without penalizing short works.
+                A single-arc short story and a sprawling novel both earn
+                meaningful fate. <B>Stage weight</B> <Tex>w(t)</Tex> reflects
+                lifecycle position: pulse = 0.25, seeded = 0.5, active = 1.0,
+                escalating = 1.5, critical = 2.0, resolved = 4.0. Abandoned
+                threads earn zero &mdash; cleanup, not resolution.
               </P>
               <P>
-                Each thread maintains a lifecycle log using nine perceptual
-                primitives &mdash; pulse, transition, setup, escalation, payoff,
-                twist, callback, resistance, stall &mdash; that model the
-                thread&apos;s experience of its own situation. This log accumulates
-                as a graph parallel to entity continuity, enabling structural
-                analysis of how threads develop over time.
+                <B>Investment</B> <Tex>I(t)</Tex> is what distinguishes earned
+                fate from red herrings. It measures what the story has built
+                into the thread&apos;s participants &mdash; their continuity
+                depth (accumulated knowledge, relationships, history). A thread
+                resolving around a deeply-developed character earns more fate
+                than one involving transient figures. The formula captures both
+                depth (one invested entity) and breadth (many entities
+                converging):
+              </P>
+              <Eq tex="I(t) = \max_p(\text{depth}_p) \times (1 + 0.15 \times \text{breadth})" />
+              <P>
+                where depth is continuity nodes plus sqrt of edges for the most
+                invested participant, and breadth counts how many participants
+                exceed a minimum investment threshold. This means fate can be
+                powerful on a single individual (high depth, low breadth) or
+                across many people (moderate depth, high breadth). A prophecy
+                about a chosen one and a fellowship converging at a climax both
+                earn high fate &mdash; through different paths.
+              </P>
+              <P>
+                Fate attaches to <em>nodes</em>, not entity types. In fiction
+                those nodes are characters, locations, artifacts. In a paper
+                they&apos;re theorems, concepts, arguments. The formula works
+                universally: a theorem referenced throughout a paper and finally
+                proven earns fate just as a character arc resolving does. This
+                is why fate can feel like a gift that develops like wine over
+                time, or a false flag that was never really there &mdash;
+                investment distinguishes the two.
               </P>
             </div>
 
@@ -1282,20 +1603,18 @@ export default function PaperPage() {
                 World
               </h3>
               <P>
-                World measures the transformation of entities &mdash; what we learn
-                about characters, locations, and artifacts as drive pulls them
-                through the story. Where drive measures what the story wants,
-                world measures what the story does to the people in it.
+                World measures the transformation of entities &mdash; what we
+                learn about characters, locations, and artifacts as fate pulls
+                them through the story. Where fate measures what the story
+                wants, world measures what the story does to the people in it.
               </P>
-              <Eq
-                tex={String.raw`W = \Delta N_c + \sqrt{\Delta E_c}`}
-              />
+              <Eq tex={String.raw`W = \Delta N_c + \sqrt{\Delta E_c}`} />
               <P>
                 <Tex>{String.raw`\Delta N_c`}</Tex> counts continuity nodes
                 added to entity inner worlds (traits, beliefs, goals, secrets,
-                capabilities, states), and <Tex>{String.raw`\Delta E_c`}</Tex> counts
-                continuity edges (causal connections between inner-world facts).
-                The symmetry with System is deliberate — both measure
+                capabilities, states), and <Tex>{String.raw`\Delta E_c`}</Tex>{" "}
+                counts continuity edges (causal connections between inner-world
+                facts). The symmetry with System is deliberate — both measure
                 structural complexity growth, but in different domains: System
                 tracks what we learn about the <em>world</em>, World tracks what
                 we learn about <em>entities</em>.
@@ -1307,21 +1626,23 @@ export default function PaperPage() {
                 System
               </h3>
               <P>
-                System measures the deepening of the world itself &mdash; the rules,
-                structures, and concepts that form the substrate on which drive
-                and world operate. A world without systems is a stage without physics;
-                drive cannot create meaningful resolution in a vacuum of rules.
+                System measures the deepening of the world itself &mdash; the
+                rules, structures, and concepts that form the substrate on which
+                fate and world operate. A world without systems is a stage
+                without physics; fate cannot create meaningful resolution in a
+                vacuum of rules.
               </P>
               <Eq tex={String.raw`S = \Delta N + \sqrt{\Delta E}`} />
               <P>
                 <Tex>{"\\Delta N"}</Tex> counts new nodes added to the graph
-                (principles, systems, concepts, tensions, events, structures), and <Tex>{"\\Delta E"}</Tex>{" "}
-                counts new typed edges. Nodes scale linearly because each represents
-                genuinely new information. Edges scale sub-linearly (square root)
-                because early connections matter more than later ones — this prevents
-                bulk edge additions from dominating. The formula applies to any
-                world-building context: fantasy magic systems, literary social
-                hierarchies, or science fiction physics.
+                (principles, systems, concepts, tensions, events, structures),
+                and <Tex>{"\\Delta E"}</Tex> counts new typed edges. Nodes scale
+                linearly because each represents genuinely new information.
+                Edges scale sub-linearly (square root) because early connections
+                matter more than later ones — this prevents bulk edge additions
+                from dominating. The formula applies to any world-building
+                context: fantasy magic systems, literary social hierarchies, or
+                science fiction physics.
               </P>
             </div>
 
@@ -1330,7 +1651,7 @@ export default function PaperPage() {
                 Delivery
               </h3>
               <P>
-                While Drive, World, and System measure structural{" "}
+                While Fate, World, and System measure structural{" "}
                 <em>operations</em>, Delivery quantifies reader-perceived{" "}
                 <em>impact</em> — the aggregate effect of all three forces,
                 weighted by tension-release dynamics.
@@ -1344,9 +1665,15 @@ export default function PaperPage() {
                 values while preserving their sign and relative ordering. The
                 contrast term{" "}
                 <Tex>{"\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)"}</Tex>{" "}
-                where <Tex>{"T_i = C_i + K_i - P_i"}</Tex> rewards
+                where <Tex>{"T_i = W_i + S_i - F_i"}</Tex> rewards
                 tension-release patterns: the bigger the drop from buildup to
-                drive, the stronger the delivery. Constants were determined by systematic parameter sweep across a reference corpus (<em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>, <em>The Great Gatsby</em>, <em>Alice&apos;s Adventures in Wonderland</em>), optimizing for alignment between computed delivery peaks and established dramatic moments identified in literary analysis.
+                fate, the stronger the delivery. Constants were determined by
+                systematic parameter sweep across a reference corpus (
+                <em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>,{" "}
+                <em>The Great Gatsby</em>,{" "}
+                <em>Alice&apos;s Adventures in Wonderland</em>), optimizing for
+                alignment between computed delivery peaks and established
+                dramatic moments identified in literary analysis.
               </P>
             </div>
           </Section>
@@ -1526,12 +1853,6 @@ export default function PaperPage() {
                   <p className="text-[10px] text-white/30 text-center mt-2">
                     Harry Potter and the Sorcerer&apos;s Stone — smoothed
                     delivery curve with annotated peaks.
-                    <br />
-                    Computed from structural mutations in{" "}
-                    <code className="text-white/40">
-                      works/harry_potter_and_the_sorcerer_s_stone.json
-                    </code>
-                    .
                   </p>
                 </div>
               );
@@ -1546,7 +1867,18 @@ export default function PaperPage() {
               confrontation with Quirrell.
             </P>
             <P>
-              This is the core claim: <B>deterministic formulas applied to structural mutations recover the dramatic shape of a narrative</B>. Mutations are extracted by an LLM at low temperature to maximize extraction consistency. The formulas themselves are fully deterministic — given the same mutations, the same scores follow. Cross-run validation confirms stable rankings: published works reliably outscore AI output across independent extraction passes. The same formulas that analyze published works also drive generation — the measurement <em>is</em> the objective function.
+              This is the core claim:{" "}
+              <B>
+                deterministic formulas applied to structural mutations recover
+                the dramatic shape of a narrative
+              </B>
+              . Mutations are extracted by an LLM at low temperature to maximize
+              extraction consistency. The formulas themselves are fully
+              deterministic — given the same mutations, the same scores follow.
+              Cross-run validation confirms stable rankings: published works
+              reliably outscore AI output across independent extraction passes.
+              The same formulas that analyze published works also drive
+              generation — the measurement <em>is</em> the objective function.
             </P>
           </Section>
 
@@ -1555,19 +1887,24 @@ export default function PaperPage() {
             <P>
               Each story receives a score out of 100, with 25 points allocated
               to each of the three forces plus <B>swing</B> — the Euclidean
-              distance between consecutive force snapshots, measuring dynamic contrast. The grading curve is piecewise, calibrated so published works land in the 85–92 range.
+              distance between consecutive force snapshots, measuring dynamic
+              contrast. The grading curve is piecewise, calibrated so published
+              works land in the 85–92 range.
             </P>
             <Eq tex="g(\tilde{x}) = 25 - 17\,e^{-k\tilde{x}} \qquad k = \ln\!\tfrac{17}{4} \approx 1.45 \qquad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}" />
             <P>
-              A single exponential with three constraints: floor of 8 at <Tex>{"\\tilde{x}=0"}</Tex>,
-              dominance threshold of 21 at <Tex>{"\\tilde{x}=1"}</Tex>,
-              and asymptote of 25. The rate constant <Tex>{"k = \\ln(17/4)"}</Tex> is
-              fully determined by these constraints.
-              The curve naturally decelerates — early gains come easily, the last few points before the reference mean are harder to earn,
-              and exceeding reference yields diminishing returns. Quality bands: bad (8–15), mediocre (15–20), good (21–25).
-              At <Tex>{"\\tilde{x} = 1"}</Tex> (matching the reference mean),
-              the grade is 21 out of 25 — the dominance threshold used by the archetype classifier.
-              Above reference, exponential saturation makes each additional point harder to earn, asymptoting toward 25.
+              A single exponential with three constraints: floor of 8 at{" "}
+              <Tex>{"\\tilde{x}=0"}</Tex>, dominance threshold of 21 at{" "}
+              <Tex>{"\\tilde{x}=1"}</Tex>, and asymptote of 25. The rate
+              constant <Tex>{"k = \\ln(17/4)"}</Tex> is fully determined by
+              these constraints. The curve naturally decelerates — early gains
+              come easily, the last few points before the reference mean are
+              harder to earn, and exceeding reference yields diminishing
+              returns. Quality bands: bad (8–15), mediocre (15–20), good
+              (21–25). At <Tex>{"\\tilde{x} = 1"}</Tex> (matching the reference
+              mean), the grade is 21 out of 25 — the dominance threshold used by
+              the archetype classifier. Above reference, exponential saturation
+              makes each additional point harder to earn, asymptoting toward 25.
               Reference works land between 85 and 92.
             </P>
 
@@ -1577,9 +1914,9 @@ export default function PaperPage() {
             </P>
             <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
-                { force: "Drive", value: "3", color: "#EF4444" },
-                { force: "World", value: "14", color: "#22C55E" },
-                { force: "System", value: "5", color: "#3B82F6" },
+                { force: "Fate", value: "1.5", color: "#EF4444" },
+                { force: "World", value: "12", color: "#22C55E" },
+                { force: "System", value: "3", color: "#3B82F6" },
               ].map(({ force, value, color }) => (
                 <div
                   key={force}
@@ -1606,8 +1943,8 @@ export default function PaperPage() {
               , where <Tex>{"\\tilde{\\sigma}"}</Tex> is swing. Swing values are
               already mean-normalised by the reference means during distance
               computation, so no separate reference mean is needed —{" "}
-              <Tex>{"g(\\tilde{\\sigma})"}</Tex> is applied directly to the average
-              swing magnitude.
+              <Tex>{"g(\\tilde{\\sigma})"}</Tex> is applied directly to the
+              average swing magnitude.
             </P>
           </Section>
 
@@ -1615,8 +1952,8 @@ export default function PaperPage() {
           {/* ── Markov Chains ─────────────────────────────────────────── */}
           <Section id="markov" label="Markov Chains">
             <P>
-              InkTide uses two layers of Markov chains to guide generation.
-              The first operates at the <strong>scene level</strong> — controlling
+              InkTide uses two layers of Markov chains to guide generation. The
+              first operates at the <strong>scene level</strong> — controlling
               pacing by sampling force profiles from an 8-state transition
               matrix. The second operates at the <strong>beat level</strong> —
               controlling prose texture by sampling sequences from a 10-state
@@ -1640,10 +1977,10 @@ export default function PaperPage() {
 
             <P>
               We compute force vectors for each scene from raw mutation data —
-              thread phase transitions for Drive, continuity and relationship
-              mutations for World, world knowledge additions for System —
-              then z-score normalise across the novel and classify each scene
-              into its cube corner. Consecutive corners form the chain.
+              thread phase transitions for Fate, continuity and relationship
+              mutations for World, world knowledge additions for System — then
+              z-score normalise across the novel and classify each scene into
+              its cube corner. Consecutive corners form the chain.
             </P>
 
             {/* HP Pacing State Graph — all 49 transitions */}
@@ -1655,21 +1992,89 @@ export default function PaperPage() {
                 className="select-none max-w-full min-w-[300px]"
               >
                 {(() => {
-                  const names = ["Epoch", "Climax", "Revelation", "Closure", "Discovery", "Growth", "Lore", "Rest"];
-                  const colors = ["#f59e0b", "#ef4444", "#a855f7", "#6366f1", "#22d3ee", "#22c55e", "#3b82f6", "#6b7280"];
+                  const names = [
+                    "Epoch",
+                    "Climax",
+                    "Revelation",
+                    "Closure",
+                    "Discovery",
+                    "Growth",
+                    "Lore",
+                    "Rest",
+                  ];
+                  const colors = [
+                    "#f59e0b",
+                    "#ef4444",
+                    "#a855f7",
+                    "#6366f1",
+                    "#22d3ee",
+                    "#22c55e",
+                    "#3b82f6",
+                    "#6b7280",
+                  ];
                   const visits = [16, 18, 13, 7, 8, 9, 10, 10];
-                  const cx = 200, cy = 200, r = 150;
+                  const cx = 200,
+                    cy = 200,
+                    r = 150;
                   const maxV = Math.max(...visits);
                   const positions = names.map((_, i) => {
                     const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
-                    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+                    return {
+                      x: cx + r * Math.cos(angle),
+                      y: cy + r * Math.sin(angle),
+                    };
                   });
                   // All 49 transitions from HP mutation analysis
                   const edges: [number, number, number][] = [
-                    [1, 2, 4], [1, 0, 4], [6, 1, 4], [1, 1, 4],
-                    [5, 2, 3], [2, 2, 3], [4, 5, 3], [7, 1, 3], [0, 6, 3], [0, 3, 3], [1, 6, 3], [0, 1, 3], [0, 0, 3],
-                    [2, 4, 2], [4, 4, 2], [2, 7, 2], [2, 1, 2], [7, 7, 2], [1, 3, 2], [7, 0, 2], [2, 0, 2], [0, 5, 2], [3, 2, 2], [6, 0, 2],
-                    [7, 5, 1], [5, 7, 1], [7, 4, 1], [3, 5, 1], [5, 6, 1], [6, 5, 1], [2, 5, 1], [5, 3, 1], [3, 6, 1], [6, 7, 1], [3, 7, 1], [3, 1, 1], [5, 1, 1], [6, 6, 1], [5, 0, 1], [1, 7, 1], [5, 4, 1], [4, 6, 1], [6, 4, 1], [4, 3, 1], [3, 0, 1], [0, 7, 1], [0, 4, 1], [4, 0, 1], [7, 2, 1],
+                    [1, 2, 4],
+                    [1, 0, 4],
+                    [6, 1, 4],
+                    [1, 1, 4],
+                    [5, 2, 3],
+                    [2, 2, 3],
+                    [4, 5, 3],
+                    [7, 1, 3],
+                    [0, 6, 3],
+                    [0, 3, 3],
+                    [1, 6, 3],
+                    [0, 1, 3],
+                    [0, 0, 3],
+                    [2, 4, 2],
+                    [4, 4, 2],
+                    [2, 7, 2],
+                    [2, 1, 2],
+                    [7, 7, 2],
+                    [1, 3, 2],
+                    [7, 0, 2],
+                    [2, 0, 2],
+                    [0, 5, 2],
+                    [3, 2, 2],
+                    [6, 0, 2],
+                    [7, 5, 1],
+                    [5, 7, 1],
+                    [7, 4, 1],
+                    [3, 5, 1],
+                    [5, 6, 1],
+                    [6, 5, 1],
+                    [2, 5, 1],
+                    [5, 3, 1],
+                    [3, 6, 1],
+                    [6, 7, 1],
+                    [3, 7, 1],
+                    [3, 1, 1],
+                    [5, 1, 1],
+                    [6, 6, 1],
+                    [5, 0, 1],
+                    [1, 7, 1],
+                    [5, 4, 1],
+                    [4, 6, 1],
+                    [6, 4, 1],
+                    [4, 3, 1],
+                    [3, 0, 1],
+                    [0, 7, 1],
+                    [0, 4, 1],
+                    [4, 0, 1],
+                    [7, 2, 1],
                   ];
                   const maxE = 4;
                   return (
@@ -1683,7 +2088,9 @@ export default function PaperPage() {
                           return (
                             <circle
                               key={ei}
-                              cx={ox} cy={oy} r={loopR}
+                              cx={ox}
+                              cy={oy}
+                              r={loopR}
                               fill="none"
                               stroke="rgba(52,211,153,1)"
                               strokeWidth={1 + 2 * (count / maxE)}
@@ -1691,17 +2098,22 @@ export default function PaperPage() {
                             />
                           );
                         }
-                        const p1 = positions[fi], p2 = positions[ti];
-                        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                        const p1 = positions[fi],
+                          p2 = positions[ti];
+                        const dx = p2.x - p1.x,
+                          dy = p2.y - p1.y;
                         const len = Math.sqrt(dx * dx + dy * dy);
-                        const nx = -dy / len, ny = dx / len;
+                        const nx = -dy / len,
+                          ny = dx / len;
                         const nr = 14 + (visits[ti] / maxV) * 10;
                         const ratio = Math.max(0, (len - nr - 8) / len);
                         return (
                           <line
                             key={ei}
-                            x1={p1.x + 4 * nx} y1={p1.y + 4 * ny}
-                            x2={p1.x + dx * ratio + 4 * nx} y2={p1.y + dy * ratio + 4 * ny}
+                            x1={p1.x + 4 * nx}
+                            y1={p1.y + 4 * ny}
+                            x2={p1.x + dx * ratio + 4 * nx}
+                            y2={p1.y + dy * ratio + 4 * ny}
                             stroke="rgba(52,211,153,1)"
                             strokeWidth={1 + 2 * (count / maxE)}
                             opacity={0.12 + 0.55 * (count / maxE)}
@@ -1714,9 +2126,33 @@ export default function PaperPage() {
                         const nr = 14 + (visits[i] / maxV) * 10;
                         return (
                           <g key={i}>
-                            <circle cx={p.x} cy={p.y} r={nr} fill={colors[i]} opacity={0.85} />
-                            <text x={p.x} y={p.y + 1} fill="#fff" fontSize="9" fontWeight="600" textAnchor="middle" dominantBaseline="middle">{name}</text>
-                            <text x={p.x} y={p.y + nr + 12} fill="#9ca3af" fontSize="8" textAnchor="middle">{visits[i]}x</text>
+                            <circle
+                              cx={p.x}
+                              cy={p.y}
+                              r={nr}
+                              fill={colors[i]}
+                              opacity={0.85}
+                            />
+                            <text
+                              x={p.x}
+                              y={p.y + 1}
+                              fill="#fff"
+                              fontSize="9"
+                              fontWeight="600"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              {name}
+                            </text>
+                            <text
+                              x={p.x}
+                              y={p.y + nr + 12}
+                              fill="#9ca3af"
+                              fontSize="8"
+                              textAnchor="middle"
+                            >
+                              {visits[i]}x
+                            </text>
                           </g>
                         );
                       })}
@@ -1725,8 +2161,8 @@ export default function PaperPage() {
                 })()}
               </svg>
               <p className="text-[10px] text-white/30 text-center">
-                Harry Potter and the Sorcerer&apos;s Stone — pacing chain.
-                91 scenes, 90 transitions, 49 unique edges.
+                Harry Potter and the Sorcerer&apos;s Stone — pacing chain. 91
+                scenes, 90 transitions, 49 unique edges.
                 <br />
                 Node size = visit frequency. Edge thickness = transition count.
               </p>
@@ -1734,19 +2170,22 @@ export default function PaperPage() {
 
             <P>
               Harry Potter&apos;s pacing chain is remarkably well-distributed:
-              entropy 2.93/3.00, self-loop rate 16.7%, drive-to-buildup ratio
-              54/37. Climax (18 visits) and Epoch (16) lead — the story runs hot,
-              with high-force scenes appearing more often than quiet ones. But the
-              chain never stays in one place long: the strongest transitions
-              (Climax&rarr;Revelation, Climax&rarr;Epoch, Lore&rarr;Climax, each
-              4x) show a story that constantly pivots between peaks and reframing.
+              entropy 2.93/3.00, self-loop rate 16.7%, fate-to-buildup ratio
+              54/37. Climax (18 visits) and Epoch (16) lead — the story runs
+              hot, with high-force scenes appearing more often than quiet ones.
+              But the chain never stays in one place long: the strongest
+              transitions (Climax&rarr;Revelation, Climax&rarr;Epoch,
+              Lore&rarr;Climax, each 4x) show a story that constantly pivots
+              between peaks and reframing.
             </P>
             <P>
               Other works produce strikingly different fingerprints.{" "}
-              <em>Nineteen Eighty-Four</em> is drive-heavy —
-              72% of scenes land in the top four corners, reflecting Orwell&apos;s sustained pressure
-              rather than Rowling&apos;s pivoting. <em>The Great Gatsby</em> oscillates between Epoch
-              and Rest with little middle ground — Fitzgerald&apos;s pendulum rhythm. Each work&apos;s transition matrix is a measurable authorial signature.
+              <em>Nineteen Eighty-Four</em> is fate-heavy — 72% of scenes land
+              in the top four corners, reflecting Orwell&apos;s sustained
+              pressure rather than Rowling&apos;s pivoting.{" "}
+              <em>The Great Gatsby</em> oscillates between Epoch and Rest with
+              little middle ground — Fitzgerald&apos;s pendulum rhythm. Each
+              work&apos;s transition matrix is a measurable authorial signature.
             </P>
             <P>
               Before generating an arc, the engine samples a pacing sequence
@@ -1756,13 +2195,13 @@ export default function PaperPage() {
                 Growth &rarr; Lore &rarr; Climax &rarr; Rest &rarr; Growth
               </span>
               . Each step becomes a per-scene direction — Scene 1 must produce a
-              Growth force profile, Scene 3 must spike all forces. Users select a{" "}
-              <em>rhythm profile</em> derived from a published work: a story
+              Growth force profile, Scene 3 must spike all forces. Users select
+              a <em>rhythm profile</em> derived from a published work: a story
               using Harry Potter&apos;s matrix will pivot constantly between
               peaks, while one using Orwell&apos;s will sustain pressure then
-              erupt. Whether Markov-guided generation produces
-              higher-scoring output than unguided generation is a testable
-              claim we have not yet tested in controlled experiment.
+              erupt. Whether Markov-guided generation produces higher-scoring
+              output than unguided generation is a testable claim we have not
+              yet tested in controlled experiment.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
@@ -1774,24 +2213,29 @@ export default function PaperPage() {
               sequence of discrete <strong>beats</strong>, each performing a
               specific narrative function through a specific delivery mechanism.
               We reverse-engineer this structure from published prose: an LLM
-              decomposes each scene into its constituent beats, classifying
-              each against a fixed taxonomy of 10 functions and 8 mechanisms.
+              decomposes each scene into its constituent beats, classifying each
+              against a fixed taxonomy of 10 functions and 8 mechanisms.
             </P>
 
             <P>
               The <strong>10 beat functions</strong> describe what each section
               of prose does:{" "}
               <span className="text-white/60">
-                <span style={{ color: '#6b7280' }}>breathe</span> (atmosphere, grounding),{" "}
-                <span style={{ color: '#3b82f6' }}>inform</span> (knowledge delivery),{" "}
-                <span style={{ color: '#22c55e' }}>advance</span> (forward momentum),{" "}
-                <span style={{ color: '#ec4899' }}>bond</span> (relationship shifts),{" "}
-                <span style={{ color: '#f59e0b' }}>turn</span> (pivots and reversals),{" "}
-                <span style={{ color: '#a855f7' }}>reveal</span> (character nature exposed),{" "}
-                <span style={{ color: '#ef4444' }}>shift</span> (power dynamics invert),{" "}
-                <span style={{ color: '#06b6d4' }}>expand</span> (world-building),{" "}
-                <span style={{ color: '#84cc16' }}>foreshadow</span> (plants for later drive),{" "}
-                <span style={{ color: '#14b8a6' }}>resolve</span> (tension releases).
+                <span style={{ color: "#6b7280" }}>breathe</span> (atmosphere,
+                grounding), <span style={{ color: "#3b82f6" }}>inform</span>{" "}
+                (knowledge delivery),{" "}
+                <span style={{ color: "#22c55e" }}>advance</span> (forward
+                momentum), <span style={{ color: "#ec4899" }}>bond</span>{" "}
+                (relationship shifts),{" "}
+                <span style={{ color: "#f59e0b" }}>turn</span> (pivots and
+                reversals), <span style={{ color: "#a855f7" }}>reveal</span>{" "}
+                (character nature exposed),{" "}
+                <span style={{ color: "#ef4444" }}>shift</span> (power dynamics
+                invert), <span style={{ color: "#06b6d4" }}>expand</span>{" "}
+                (world-building),{" "}
+                <span style={{ color: "#84cc16" }}>foreshadow</span> (plants for
+                later fate), <span style={{ color: "#14b8a6" }}>resolve</span>{" "}
+                (tension releases).
               </span>
             </P>
 
@@ -1799,19 +2243,18 @@ export default function PaperPage() {
               The <strong>8 mechanisms</strong> describe how each beat is
               delivered as prose: dialogue, thought, action, environment,
               narration, memory, document, comic. A single beat function can be
-              delivered through different mechanisms — a <em>reveal</em> can land
-              through dialogue, action, or narration, each producing
-              a different texture.
+              delivered through different mechanisms — a <em>reveal</em> can
+              land through dialogue, action, or narration, each producing a
+              different texture.
             </P>
 
             <P>
               The methodology mirrors the pacing chain exactly: extract beat
               plans from every scene of a published work, tally consecutive
               function&rarr;function transitions, normalise rows, and produce a
-              Markov matrix{" "}
-              <Tex>{"B \\in \\mathbb{R}^{10 \\times 10}"}</Tex>. Applied to{" "}
-              <em>Harry Potter and the Sorcerer&apos;s Stone</em>, this yields
-              1,254 beats across 91 scenes (~13.8 beats per scene):
+              Markov matrix <Tex>{"B \\in \\mathbb{R}^{10 \\times 10}"}</Tex>.
+              Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>,
+              this yields 1,254 beats across 91 scenes (~13.8 beats per scene):
             </P>
 
             {/* HP Beat Profile Graph — all 92 transitions */}
@@ -1823,40 +2266,136 @@ export default function PaperPage() {
                 className="select-none max-w-full min-w-[300px]"
               >
                 {(() => {
-                  const fns = ['breathe', 'inform', 'advance', 'bond', 'turn', 'reveal', 'shift', 'expand', 'foreshadow', 'resolve'];
+                  const fns = [
+                    "breathe",
+                    "inform",
+                    "advance",
+                    "bond",
+                    "turn",
+                    "reveal",
+                    "shift",
+                    "expand",
+                    "foreshadow",
+                    "resolve",
+                  ];
                   const fnColors: Record<string, string> = {
-                    breathe: '#6b7280', inform: '#3b82f6', advance: '#22c55e', bond: '#ec4899',
-                    turn: '#f59e0b', reveal: '#a855f7', shift: '#ef4444', expand: '#06b6d4',
-                    foreshadow: '#84cc16', resolve: '#14b8a6',
+                    breathe: "#6b7280",
+                    inform: "#3b82f6",
+                    advance: "#22c55e",
+                    bond: "#ec4899",
+                    turn: "#f59e0b",
+                    reveal: "#a855f7",
+                    shift: "#ef4444",
+                    expand: "#06b6d4",
+                    foreshadow: "#84cc16",
+                    resolve: "#14b8a6",
                   };
                   const visits = [205, 255, 329, 96, 83, 81, 44, 48, 48, 65];
-                  const cx = 210, cy = 210, r = 155;
+                  const cx = 210,
+                    cy = 210,
+                    r = 155;
                   const maxV = Math.max(...visits);
                   const positions = fns.map((_, i) => {
                     const angle = (i / 10) * Math.PI * 2 - Math.PI / 2;
-                    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+                    return {
+                      x: cx + r * Math.cos(angle),
+                      y: cy + r * Math.sin(angle),
+                    };
                   });
                   // All 92 transitions from HP beat analysis
                   const edges: [number, number, number][] = [
-                    [1, 2, 98], [0, 1, 82], [2, 1, 66], [2, 2, 58], [0, 2, 56],
-                    [2, 0, 42], [2, 4, 38], [2, 3, 31], [2, 9, 29], [1, 3, 27],
-                    [4, 2, 26], [3, 2, 26], [1, 0, 25], [5, 2, 24], [2, 5, 23],
-                    [1, 5, 23], [1, 1, 23], [4, 1, 21], [1, 7, 20], [3, 1, 18],
-                    [0, 0, 16], [5, 1, 16], [7, 2, 16], [0, 4, 14], [5, 3, 13],
-                    [1, 4, 13], [3, 5, 11], [3, 0, 11], [2, 6, 11], [5, 9, 10],
-                    [8, 0, 10], [2, 8, 9], [1, 6, 9], [6, 2, 9], [2, 7, 9],
-                    [7, 1, 9], [9, 2, 8], [6, 5, 8], [4, 6, 8], [3, 6, 7],
-                    [8, 2, 7], [1, 8, 7], [0, 3, 7], [9, 8, 6], [0, 7, 6],
-                    [0, 8, 6], [4, 8, 6], [9, 0, 6], [8, 9, 5], [3, 4, 5],
-                    [7, 0, 5], [0, 9, 5], [4, 0, 5], [1, 9, 5], [9, 3, 5],
-                    [3, 7, 5], [6, 9, 5], [8, 1, 4], [5, 8, 4], [7, 5, 4],
-                    [5, 4, 4], [0, 5, 4], [6, 8, 4], [4, 3, 4], [6, 1, 4],
-                    [9, 6, 4], [9, 4, 3], [6, 4, 3], [3, 3, 3], [4, 5, 3],
-                    [6, 0, 3], [8, 4, 3], [6, 3, 3], [5, 6, 3], [4, 9, 3],
-                    [9, 5, 3], [3, 8, 3], [3, 9, 3], [9, 1, 3], [7, 8, 3],
-                    [4, 7, 3], [5, 0, 2], [7, 3, 2], [0, 6, 1], [5, 7, 1],
-                    [7, 7, 1], [5, 5, 1], [7, 6, 1], [8, 7, 1], [9, 7, 1],
-                    [6, 7, 1], [8, 5, 1],
+                    [1, 2, 98],
+                    [0, 1, 82],
+                    [2, 1, 66],
+                    [2, 2, 58],
+                    [0, 2, 56],
+                    [2, 0, 42],
+                    [2, 4, 38],
+                    [2, 3, 31],
+                    [2, 9, 29],
+                    [1, 3, 27],
+                    [4, 2, 26],
+                    [3, 2, 26],
+                    [1, 0, 25],
+                    [5, 2, 24],
+                    [2, 5, 23],
+                    [1, 5, 23],
+                    [1, 1, 23],
+                    [4, 1, 21],
+                    [1, 7, 20],
+                    [3, 1, 18],
+                    [0, 0, 16],
+                    [5, 1, 16],
+                    [7, 2, 16],
+                    [0, 4, 14],
+                    [5, 3, 13],
+                    [1, 4, 13],
+                    [3, 5, 11],
+                    [3, 0, 11],
+                    [2, 6, 11],
+                    [5, 9, 10],
+                    [8, 0, 10],
+                    [2, 8, 9],
+                    [1, 6, 9],
+                    [6, 2, 9],
+                    [2, 7, 9],
+                    [7, 1, 9],
+                    [9, 2, 8],
+                    [6, 5, 8],
+                    [4, 6, 8],
+                    [3, 6, 7],
+                    [8, 2, 7],
+                    [1, 8, 7],
+                    [0, 3, 7],
+                    [9, 8, 6],
+                    [0, 7, 6],
+                    [0, 8, 6],
+                    [4, 8, 6],
+                    [9, 0, 6],
+                    [8, 9, 5],
+                    [3, 4, 5],
+                    [7, 0, 5],
+                    [0, 9, 5],
+                    [4, 0, 5],
+                    [1, 9, 5],
+                    [9, 3, 5],
+                    [3, 7, 5],
+                    [6, 9, 5],
+                    [8, 1, 4],
+                    [5, 8, 4],
+                    [7, 5, 4],
+                    [5, 4, 4],
+                    [0, 5, 4],
+                    [6, 8, 4],
+                    [4, 3, 4],
+                    [6, 1, 4],
+                    [9, 6, 4],
+                    [9, 4, 3],
+                    [6, 4, 3],
+                    [3, 3, 3],
+                    [4, 5, 3],
+                    [6, 0, 3],
+                    [8, 4, 3],
+                    [6, 3, 3],
+                    [5, 6, 3],
+                    [4, 9, 3],
+                    [9, 5, 3],
+                    [3, 8, 3],
+                    [3, 9, 3],
+                    [9, 1, 3],
+                    [7, 8, 3],
+                    [4, 7, 3],
+                    [5, 0, 2],
+                    [7, 3, 2],
+                    [0, 6, 1],
+                    [5, 7, 1],
+                    [7, 7, 1],
+                    [5, 5, 1],
+                    [7, 6, 1],
+                    [8, 7, 1],
+                    [9, 7, 1],
+                    [6, 7, 1],
+                    [8, 5, 1],
                   ];
                   const maxE = 98;
                   return (
@@ -1870,7 +2409,9 @@ export default function PaperPage() {
                           return (
                             <circle
                               key={ei}
-                              cx={ox} cy={oy} r={loopR}
+                              cx={ox}
+                              cy={oy}
+                              r={loopR}
                               fill="none"
                               stroke="rgba(52,211,153,1)"
                               strokeWidth={0.5 + 2.5 * (count / maxE)}
@@ -1878,17 +2419,22 @@ export default function PaperPage() {
                             />
                           );
                         }
-                        const p1 = positions[fi], p2 = positions[ti];
-                        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                        const p1 = positions[fi],
+                          p2 = positions[ti];
+                        const dx = p2.x - p1.x,
+                          dy = p2.y - p1.y;
                         const len = Math.sqrt(dx * dx + dy * dy);
-                        const nx = -dy / len, ny = dx / len;
+                        const nx = -dy / len,
+                          ny = dx / len;
                         const nr = 12 + (visits[ti] / maxV) * 12;
                         const ratio = Math.max(0, (len - nr - 6) / len);
                         return (
                           <line
                             key={ei}
-                            x1={p1.x + 3 * nx} y1={p1.y + 3 * ny}
-                            x2={p1.x + dx * ratio + 3 * nx} y2={p1.y + dy * ratio + 3 * ny}
+                            x1={p1.x + 3 * nx}
+                            y1={p1.y + 3 * ny}
+                            x2={p1.x + dx * ratio + 3 * nx}
+                            y2={p1.y + dy * ratio + 3 * ny}
                             stroke="rgba(52,211,153,1)"
                             strokeWidth={0.5 + 2.5 * (count / maxE)}
                             opacity={0.08 + 0.6 * (count / maxE)}
@@ -1901,9 +2447,33 @@ export default function PaperPage() {
                         const nr = 12 + (visits[i] / maxV) * 12;
                         return (
                           <g key={i}>
-                            <circle cx={p.x} cy={p.y} r={nr} fill={fnColors[fn]} opacity={0.85} />
-                            <text x={p.x} y={p.y + 1} fill="#fff" fontSize="8" fontWeight="600" textAnchor="middle" dominantBaseline="middle">{fn}</text>
-                            <text x={p.x} y={p.y + nr + 12} fill="#9ca3af" fontSize="8" textAnchor="middle">{visits[i]}x</text>
+                            <circle
+                              cx={p.x}
+                              cy={p.y}
+                              r={nr}
+                              fill={fnColors[fn]}
+                              opacity={0.85}
+                            />
+                            <text
+                              x={p.x}
+                              y={p.y + 1}
+                              fill="#fff"
+                              fontSize="8"
+                              fontWeight="600"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              {fn}
+                            </text>
+                            <text
+                              x={p.x}
+                              y={p.y + nr + 12}
+                              fill="#9ca3af"
+                              fontSize="8"
+                              textAnchor="middle"
+                            >
+                              {visits[i]}x
+                            </text>
                           </g>
                         );
                       })}
@@ -1912,29 +2482,37 @@ export default function PaperPage() {
                 })()}
               </svg>
               <p className="text-[10px] text-white/30 text-center">
-                Harry Potter and the Sorcerer&apos;s Stone — beat chain.
-                1,254 beats, 1,163 transitions, 92 unique edges.
+                Harry Potter and the Sorcerer&apos;s Stone — beat chain. 1,254
+                beats, 1,163 transitions, 92 unique edges.
                 <br />
                 Node size = beat frequency. Edge thickness = transition count.
               </p>
             </div>
 
             <P>
-              The beat chain reveals <em>advance</em> as the dominant hub
-              (329 beats, 26%) — momentum is the connective tissue of
-              Rowling&apos;s prose. The strongest single transition is{" "}
+              The beat chain reveals <em>advance</em> as the dominant hub (329
+              beats, 26%) — momentum is the connective tissue of Rowling&apos;s
+              prose. The strongest single transition is{" "}
               <em>inform &rarr; advance</em> (98 occurrences): knowledge
               delivery triggers immediate action. <em>Breathe</em> feeds almost
-              exclusively into <em>inform</em> (82x) and <em>advance</em> (56x) —
-              atmospheric grounding exists only to launch the next movement. The
-              advance&rarr;advance self-loop (58x) captures sustained momentum
-              sequences where action chains without pause. Every one of the 100
-              possible beat&rarr;beat pairs appears at least once — the matrix
-              is dense, reflecting Rowling&apos;s structural variety.
+              exclusively into <em>inform</em> (82x) and <em>advance</em> (56x)
+              — atmospheric grounding exists only to launch the next movement.
+              The advance&rarr;advance self-loop (58x) captures sustained
+              momentum sequences where action chains without pause. Every one of
+              the 100 possible beat&rarr;beat pairs appears at least once — the
+              matrix is dense, reflecting Rowling&apos;s structural variety.
             </P>
 
             <P>
-              The pattern shifts across works. <em>Nineteen Eighty-Four</em> gives reveal unusual prominence — Orwell&apos;s mechanism distribution is the most balanced analysed, reflecting a mind trapped between inner world and outer surveillance. <em>The Great Gatsby</em> leans heavily on dialogue and narration — Fitzgerald&apos;s observer-narrator reporting what he sees. <em>Alice&apos;s Adventures in Wonderland</em> is advance-dominant with minimal bonding — a protagonist propelled through episodes without deepening relationships.
+              The pattern shifts across works. <em>Nineteen Eighty-Four</em>{" "}
+              gives reveal unusual prominence — Orwell&apos;s mechanism
+              distribution is the most balanced analysed, reflecting a mind
+              trapped between inner world and outer surveillance.{" "}
+              <em>The Great Gatsby</em> leans heavily on dialogue and narration
+              — Fitzgerald&apos;s observer-narrator reporting what he sees.{" "}
+              <em>Alice&apos;s Adventures in Wonderland</em> is advance-dominant
+              with minimal bonding — a protagonist propelled through episodes
+              without deepening relationships.
             </P>
 
             <P>
@@ -1964,8 +2542,8 @@ export default function PaperPage() {
           <Section id="prose-profiles" label="Prose Profiles">
             <P>
               Prose generation separates <B>content</B> (what is written) from{" "}
-              <B>accent</B> (how it is written). Content derives from beat
-              plans — structured blueprints specifying the narrative work each
+              <B>accent</B> (how it is written). Content derives from beat plans
+              — structured blueprints specifying the narrative work each
               paragraph must perform (function, mechanism, propositions). Accent
               derives from prose profiles — statistical fingerprints of
               authorial voice reverse-engineered from published works.
@@ -1975,12 +2553,13 @@ export default function PaperPage() {
               A <B>prose profile</B> comprises three components:{" "}
               <Tex>{"(1)"}</Tex> a beat Markov chain{" "}
               <Tex>{"B \\in \\mathbb{R}^{10 \\times 10}"}</Tex> over beat
-              functions (Rowling favors{" "}
-              <em>breathe → inform → advance</em>, Orwell loops on{" "}
-              <em>reveal → reveal</em>); <Tex>{"(2)"}</Tex> a mechanism
-              distribution over 8 delivery types — each work&apos;s balance of dialogue, action, thought, and narration forms a measurable stylistic signature; <Tex>{"(3)"}</Tex> voice parameters —
-              register, stance, tense, and rhetorical
-              devices extracted via LLM analysis of the corpus.
+              functions (Rowling favors <em>breathe → inform → advance</em>,
+              Orwell loops on <em>reveal → reveal</em>); <Tex>{"(2)"}</Tex> a
+              mechanism distribution over 8 delivery types — each work&apos;s
+              balance of dialogue, action, thought, and narration forms a
+              measurable stylistic signature; <Tex>{"(3)"}</Tex> voice
+              parameters — register, stance, tense, and rhetorical devices
+              extracted via LLM analysis of the corpus.
             </P>
 
             <P>
@@ -1996,24 +2575,27 @@ export default function PaperPage() {
             </P>
 
             <P>
-              This separation enables <B>structural control without stylistic
-              constraint</B>. Beat plans specify exact narrative scaffolding
-              (this beat introduces a rule, this escalates conflict), while
-              profiles provide empirically-grounded style (write like Rowling,
-              like Orwell, like your own past work). The same mutations and
-              force profile can be rendered in different authorial accents by
-              swapping profiles — a thriller in Orwell&apos;s introspective
-              voice produces psychological tension; the same story in
-              Rowling&apos;s dialogue-driven style produces kinetic urgency.
+              This separation enables{" "}
+              <B>structural control without stylistic constraint</B>. Beat plans
+              specify exact narrative scaffolding (this beat introduces a rule,
+              this escalates conflict), while profiles provide
+              empirically-grounded style (write like Rowling, like Orwell, like
+              your own past work). The same mutations and force profile can be
+              rendered in different authorial accents by swapping profiles — a
+              thriller in Orwell&apos;s introspective voice produces
+              psychological tension; the same story in Rowling&apos;s
+              dialogue-driven style produces kinetic urgency.
             </P>
           </Section>
 
           {/* ── MCTS ──────────────────────────────────────────────────── */}
           <Section id="mcts" label="MCTS">
             <P>
-              <em>This section describes implemented architecture, not
-              validated results. No controlled comparison against simpler
-              baselines (greedy, random) has been run.</em>
+              <em>
+                This section describes implemented architecture, not validated
+                results. No controlled comparison against simpler baselines
+                (greedy, random) has been run.
+              </em>
             </P>
             <P>
               Monte Carlo Tree Search adapts the game-playing algorithm to
@@ -2174,8 +2756,16 @@ export default function PaperPage() {
                         x2="100%"
                         y2="0%"
                       >
-                        <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.4" />
-                        <stop offset="100%" stopColor="#818cf8" stopOpacity="0.5" />
+                        <stop
+                          offset="0%"
+                          stopColor="#60a5fa"
+                          stopOpacity="0.4"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#818cf8"
+                          stopOpacity="0.5"
+                        />
                       </linearGradient>
                       <linearGradient
                         id="actualGrad"
@@ -2184,18 +2774,42 @@ export default function PaperPage() {
                         x2="100%"
                         y2="0%"
                       >
-                        <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.7" />
-                        <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.8" />
+                        <stop
+                          offset="0%"
+                          stopColor="#fbbf24"
+                          stopOpacity="0.7"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#f59e0b"
+                          stopOpacity="0.8"
+                        />
                       </linearGradient>
 
                       {/* Glows for nodes */}
                       <radialGradient id="planNodeGlow">
-                        <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.6" />
-                        <stop offset="100%" stopColor="#60a5fa" stopOpacity="0" />
+                        <stop
+                          offset="0%"
+                          stopColor="#60a5fa"
+                          stopOpacity="0.6"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#60a5fa"
+                          stopOpacity="0"
+                        />
                       </radialGradient>
                       <radialGradient id="actualNodeGlow">
-                        <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.8" />
-                        <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+                        <stop
+                          offset="0%"
+                          stopColor="#fbbf24"
+                          stopOpacity="0.8"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#fbbf24"
+                          stopOpacity="0"
+                        />
                       </radialGradient>
 
                       {/* Arrow markers with gradients */}
@@ -2207,10 +2821,7 @@ export default function PaperPage() {
                         refY="3.5"
                         orient="auto"
                       >
-                        <polygon
-                          points="0,0 0,7 7,3.5"
-                          fill="#10b981"
-                        />
+                        <polygon points="0,0 0,7 7,3.5" fill="#10b981" />
                       </marker>
                       <marker
                         id="arrowhead-constraint"
@@ -2220,10 +2831,7 @@ export default function PaperPage() {
                         refY="3.5"
                         orient="auto"
                       >
-                        <polygon
-                          points="0,0 0,7 7,3.5"
-                          fill="#f43f5e"
-                        />
+                        <polygon points="0,0 0,7 7,3.5" fill="#f43f5e" />
                       </marker>
                     </defs>
 
@@ -2282,16 +2890,23 @@ export default function PaperPage() {
                       // Direction vector (green) — points strongly toward plan correction
                       // Emphasizes vertical correction (getting back to plan height)
                       const dirVecLen = 35 + Math.abs(driftCorrection) * 50;
-                      const dirAngleRad = Math.atan2(driftCorrection * plotH * 2.0, plotW * 0.25);
+                      const dirAngleRad = Math.atan2(
+                        driftCorrection * plotH * 2.0,
+                        plotW * 0.25,
+                      );
                       const dirX = x + dirVecLen * Math.cos(dirAngleRad);
                       const dirY = yActual + dirVecLen * Math.sin(dirAngleRad);
 
                       // Constraint vector (red) — points away from bad directions
                       // Emphasizes horizontal avoidance (perpendicular to direction)
                       const constVecLen = 30 + Math.abs(driftCorrection) * 35;
-                      const constAngleRad = Math.atan2(-driftCorrection * plotH * 0.5, plotW * 0.6);
+                      const constAngleRad = Math.atan2(
+                        -driftCorrection * plotH * 0.5,
+                        plotW * 0.6,
+                      );
                       const constX = x + constVecLen * Math.cos(constAngleRad);
-                      const constY = yActual + constVecLen * Math.sin(constAngleRad);
+                      const constY =
+                        yActual + constVecLen * Math.sin(constAngleRad);
 
                       return (
                         <g key={i}>
@@ -2380,9 +2995,25 @@ export default function PaperPage() {
                         actualDrift[i] * plotH;
                       return (
                         <>
-                          <circle cx={x} cy={yPlan} r={8} fill="url(#planNodeGlow)" />
-                          <circle cx={x} cy={yPlan} r={3} fill="#60a5fa" opacity="0.8" />
-                          <circle cx={x} cy={yActual} r={10} fill="url(#actualNodeGlow)" />
+                          <circle
+                            cx={x}
+                            cy={yPlan}
+                            r={8}
+                            fill="url(#planNodeGlow)"
+                          />
+                          <circle
+                            cx={x}
+                            cy={yPlan}
+                            r={3}
+                            fill="#60a5fa"
+                            opacity="0.8"
+                          />
+                          <circle
+                            cx={x}
+                            cy={yActual}
+                            r={10}
+                            fill="url(#actualNodeGlow)"
+                          />
                           <circle
                             cx={x}
                             cy={yActual}
@@ -2516,9 +3147,8 @@ export default function PaperPage() {
               <B>Evaluation</B> reads scene summaries and assigns per-scene
               verdicts. <B>Reconstruction</B> creates a new versioned branch,
               applying verdicts in parallel — edits revise content, merges
-              combine scenes, inserts generate new scenes to fill gaps,
-              moves reposition scenes without any LLM call,
-              cuts are omitted. World
+              combine scenes, inserts generate new scenes to fill gaps, moves
+              reposition scenes without any LLM call, cuts are omitted. World
               commits pass through at their original positions. The original
               branch is never modified.
             </P>
@@ -2537,7 +3167,8 @@ export default function PaperPage() {
                   edit
                 </span>
                 <span className="text-white/50">
-                  Revise content — may change POV, location, participants, mutations, and summary.
+                  Revise content — may change POV, location, participants,
+                  mutations, and summary.
                 </span>
               </div>
               <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
@@ -2545,7 +3176,8 @@ export default function PaperPage() {
                   merge
                 </span>
                 <span className="text-white/50">
-                  Absorbed into another scene. Both scenes&apos; best elements combined into one denser beat.
+                  Absorbed into another scene. Both scenes&apos; best elements
+                  combined into one denser beat.
                 </span>
               </div>
               <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
@@ -2553,7 +3185,8 @@ export default function PaperPage() {
                   insert
                 </span>
                 <span className="text-white/50">
-                  New scene generated to fill a pacing gap, missing transition, or stalled thread.
+                  New scene generated to fill a pacing gap, missing transition,
+                  or stalled thread.
                 </span>
               </div>
               <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
@@ -2569,97 +3202,237 @@ export default function PaperPage() {
                   move
                 </span>
                 <span className="text-white/50">
-                  Content correct but wrong position. Repositioned after a target scene using <code className="text-blue-300/70">moveAfter</code>. No LLM call — prose preserved exactly.
+                  Content correct but wrong position. Repositioned after a
+                  target scene using{" "}
+                  <code className="text-blue-300/70">moveAfter</code>. No LLM
+                  call — prose preserved exactly.
                 </span>
               </div>
             </div>
 
             <P>
               Evaluations can be <B>guided</B> with external feedback — from
-              another AI, a human editor, or the author&apos;s own notes.
-              Each reconstruction produces a versioned branch (<em>v2</em>,{" "}
-              <em>v3</em>, <em>v4</em>) — the original is never modified. The loop converges in 2–3 passes. Beneath branch versioning, individual scenes track prose and plan versions with semantic numbering (major/minor/patch), and structural branching uses git-like reference sharing so a 200-scene narrative with 10 branches stores far fewer than 2000 scene objects.
+              another AI, a human editor, or the author&apos;s own notes. Each
+              reconstruction produces a versioned branch (<em>v2</em>,{" "}
+              <em>v3</em>, <em>v4</em>) — the original is never modified. The
+              loop converges in 2–3 passes. Beneath branch versioning,
+              individual scenes track prose and plan versions with semantic
+              numbering (major/minor/patch), and structural branching uses
+              git-like reference sharing so a 200-scene narrative with 10
+              branches stores far fewer than 2000 scene objects.
             </P>
           </Section>
-
 
           {/* ── Classification ──────────────────────────────────────── */}
           <Section id="classification" label="Classification">
             <P>
-              Classification operates at two levels: <B>propositions</B> (the atomic claims within prose) and <B>narratives</B> (the overall structural profile). Proposition classification identifies load-bearing content for generation. Narrative classification categorizes works by force dominance for comparative analysis.
+              Classification operates at two levels: <B>propositions</B> (the
+              atomic claims within prose) and <B>narratives</B> (the overall
+              structural profile). Proposition classification identifies
+              load-bearing content for generation. Narrative classification
+              categorizes works by force dominance for comparative analysis.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
               Propositions
             </h3>
             <P>
-              Using the <a href="#embeddings" className="text-accent hover:underline">activation scores</a> computed from embedding similarity, each proposition is classified by its backward and forward activation. The hybrid score (<Tex>{"0.5 \\cdot \\max + 0.5 \\cdot \\bar{x}_{\\text{top-}k}"}</Tex>) is compared against an absolute threshold of <B>0.65</B>. This threshold was determined by parameter sweep across nine candidate values (percentile-based and absolute), evaluated on four structurally distinct works — <em>Harry Potter and the Sorcerer&apos;s Stone</em>, <em>Alice&apos;s Adventures in Wonderland</em>, <em>A Path Towards Autonomous Machine Intelligence</em> (LeCun, 2022), and <em>Quantifying Narrative Force</em> — selecting the value that maximized cross-work distributional variance while maintaining within-work category diversity. A proposition is <B>HI</B> if its score exceeds this threshold. The backward/forward binary produces four structural categories:
+              Using the{" "}
+              <a href="#embeddings" className="text-accent hover:underline">
+                activation scores
+              </a>{" "}
+              computed from embedding similarity, each proposition is classified
+              by its backward and forward activation. The hybrid score (
+              <Tex>
+                {"0.5 \\cdot \\max + 0.5 \\cdot \\bar{x}_{\\text{top-}k}"}
+              </Tex>
+              ) is compared against an absolute threshold of <B>0.65</B>. This
+              threshold was determined by parameter sweep across nine candidate
+              values (percentile-based and absolute), evaluated on four
+              structurally distinct works —{" "}
+              <em>Harry Potter and the Sorcerer&apos;s Stone</em>,{" "}
+              <em>Alice&apos;s Adventures in Wonderland</em>,{" "}
+              <em>A Path Towards Autonomous Machine Intelligence</em> (LeCun,
+              2022), and <em>Quantifying Narrative Force</em> — selecting the
+              value that maximized cross-work distributional variance while
+              maintaining within-work category diversity. A proposition is{" "}
+              <B>HI</B> if its score exceeds this threshold. The
+              backward/forward binary produces four structural categories:
             </P>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {[
-                { name: 'Anchor', color: '#6366f1', back: 'HI', fwd: 'HI', desc: 'Load-bearing both directions. The structural spine — removing it collapses what comes before and after.' },
-                { name: 'Seed', color: '#10b981', back: 'LO', fwd: 'HI', desc: 'Plants forward. Weakly grounded when introduced but proves foundational later. Foreshadowing, Chekhov\'s gun.' },
-                { name: 'Close', color: '#f59e0b', back: 'HI', fwd: 'LO', desc: 'Resolves prior chains. Deeply earned but terminal — satisfying drive that doesn\'t seed further.' },
-                { name: 'Texture', color: '#6b7280', back: 'LO', fwd: 'LO', desc: 'Atmosphere, world-color, sensory grounding. Structurally inert but narratively essential.' },
+                {
+                  name: "Anchor",
+                  color: "#6366f1",
+                  back: "HI",
+                  fwd: "HI",
+                  desc: "Load-bearing both directions. The structural spine — removing it collapses what comes before and after.",
+                },
+                {
+                  name: "Seed",
+                  color: "#10b981",
+                  back: "LO",
+                  fwd: "HI",
+                  desc: "Plants forward. Weakly grounded when introduced but proves foundational later. Foreshadowing, Chekhov's gun.",
+                },
+                {
+                  name: "Close",
+                  color: "#f59e0b",
+                  back: "HI",
+                  fwd: "LO",
+                  desc: "Resolves prior chains. Deeply earned but terminal — satisfying fate that doesn't seed further.",
+                },
+                {
+                  name: "Texture",
+                  color: "#6b7280",
+                  back: "LO",
+                  fwd: "LO",
+                  desc: "Atmosphere, world-color, sensory grounding. Structurally inert but narratively essential.",
+                },
               ].map(({ name, color, back, fwd, desc }) => (
-                <div key={name} className="px-3 py-3 rounded-lg border border-white/6 bg-white/2">
+                <div
+                  key={name}
+                  className="px-3 py-3 rounded-lg border border-white/6 bg-white/2"
+                >
                   <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-[12px] font-semibold" style={{ color }}>{name}</span>
-                    <span className="text-[9px] font-mono text-white/25">{back} back / {fwd} fwd</span>
+                    <span
+                      className="text-[12px] font-semibold"
+                      style={{ color }}
+                    >
+                      {name}
+                    </span>
+                    <span className="text-[9px] font-mono text-white/25">
+                      {back} back / {fwd} fwd
+                    </span>
                   </div>
-                  <p className="text-[11px] text-white/40 leading-relaxed">{desc}</p>
+                  <p className="text-[11px] text-white/40 leading-relaxed">
+                    {desc}
+                  </p>
                 </div>
               ))}
             </div>
 
-            <h4 className="text-sm font-semibold text-white/60 mt-6 mb-1">Temporal Reach</h4>
+            <h4 className="text-sm font-semibold text-white/60 mt-6 mb-1">
+              Temporal Reach
+            </h4>
             <P>
-              Categories tell you <B>what</B> a proposition does. Temporal reach tells you <B>how far</B> its connections span. The median scene distance of a proposition&apos;s top-k connections determines whether it operates <B>locally</B> (within-arc) or <B>globally</B> (cross-arc). The threshold scales with narrative length — 25% of total scenes, minimum 5 — so &ldquo;global&rdquo; means the same thing structurally whether the narrative has 20 scenes or 200. A 24-scene story needs connections spanning 6+ scenes to qualify as global; a 91-scene novel needs 23+.
+              Categories tell you <B>what</B> a proposition does. Temporal reach
+              tells you <B>how far</B> its connections span. The median scene
+              distance of a proposition&apos;s top-k connections determines
+              whether it operates <B>locally</B> (within-arc) or <B>globally</B>{" "}
+              (cross-arc). The threshold scales with narrative length — 25% of
+              total scenes, minimum 5 — so &ldquo;global&rdquo; means the same
+              thing structurally whether the narrative has 20 scenes or 200. A
+              24-scene story needs connections spanning 6+ scenes to qualify as
+              global; a 91-scene novel needs 23+.
             </P>
             <P>
-              Each category has a local and global variant, each with its own name. A <B>seed</B> is short-range foreshadowing — the Remembrall leading to Harry becoming Seeker one scene later. A <B>foreshadow</B> is Chekhov&apos;s gun — Harry&apos;s scar mentioned in chapter one, structurally active in the climax. A <B>close</B> resolves an immediate setup. An <B>ending</B> resolves something planted dozens of scenes ago — &ldquo;Snape hated Harry&apos;s father&rdquo; closing a thread from 46 scenes back.
+              Each category has a local and global variant, each with its own
+              name. A <B>seed</B> is short-range foreshadowing — the Remembrall
+              leading to Harry becoming Seeker one scene later. A{" "}
+              <B>foreshadow</B> is Chekhov&apos;s gun — Harry&apos;s scar
+              mentioned in chapter one, structurally active in the climax. A{" "}
+              <B>close</B> resolves an immediate setup. An <B>ending</B>{" "}
+              resolves something planted dozens of scenes ago — &ldquo;Snape
+              hated Harry&apos;s father&rdquo; closing a thread from 46 scenes
+              back.
             </P>
             <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
               {[
-                { label: 'anchor', color: '#6366f1', desc: 'Load-bearing within an arc. Immediate structural tension.' },
-                { label: 'foundation', color: '#4338ca', desc: 'Thematic spine. Connections span the full narrative.' },
-                { label: 'seed', color: '#10b981', desc: 'Pays off within an arc. Short-range foreshadowing.' },
-                { label: 'foreshadow', color: '#047857', desc: 'Pays off much later. Cross-arc Chekhov\'s gun.' },
-                { label: 'close', color: '#f59e0b', desc: 'Resolves recent setups. Terminal within the arc.' },
-                { label: 'ending', color: '#b45309', desc: 'Resolves distant seeds. Everything comes together.' },
-                { label: 'texture', color: '#6b7280', desc: 'Scene-level atmosphere and sensory grounding.' },
-                { label: 'atmosphere', color: '#4b5563', desc: 'Ambient world-color across time.' },
+                {
+                  label: "anchor",
+                  color: "#6366f1",
+                  desc: "Load-bearing within an arc. Immediate structural tension.",
+                },
+                {
+                  label: "foundation",
+                  color: "#4338ca",
+                  desc: "Thematic spine. Connections span the full narrative.",
+                },
+                {
+                  label: "seed",
+                  color: "#10b981",
+                  desc: "Pays off within an arc. Short-range foreshadowing.",
+                },
+                {
+                  label: "foreshadow",
+                  color: "#047857",
+                  desc: "Pays off much later. Cross-arc Chekhov's gun.",
+                },
+                {
+                  label: "close",
+                  color: "#f59e0b",
+                  desc: "Resolves recent setups. Terminal within the arc.",
+                },
+                {
+                  label: "ending",
+                  color: "#b45309",
+                  desc: "Resolves distant seeds. Everything comes together.",
+                },
+                {
+                  label: "texture",
+                  color: "#6b7280",
+                  desc: "Scene-level atmosphere and sensory grounding.",
+                },
+                {
+                  label: "atmosphere",
+                  color: "#4b5563",
+                  desc: "Ambient world-color across time.",
+                },
               ].map(({ label, color, desc }) => (
                 <div key={label} className="flex items-start gap-2">
-                  <div className="w-0.5 min-h-6 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: color }} />
+                  <div
+                    className="w-0.5 min-h-6 rounded-full shrink-0 mt-0.5"
+                    style={{ backgroundColor: color }}
+                  />
                   <div>
-                    <span className="font-medium" style={{ color }}>{label}</span>
+                    <span className="font-medium" style={{ color }}>
+                      {label}
+                    </span>
                     <span className="text-white/25 ml-1.5">— {desc}</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            <h4 className="text-sm font-semibold text-white/60 mt-6 mb-1">Causal Continuity</h4>
+            <h4 className="text-sm font-semibold text-white/60 mt-6 mb-1">
+              Causal Continuity
+            </h4>
             <P>
-              Classification transforms generation into <B>causal continuity management</B>. An LLM generating scene 45 receives not just recent context but the specific propositions from scene 3 that embedding similarity identifies as structurally connected — the foundations and foreshadows that new prose must not contradict. A foreshadow in chapter one constrains what can be validly stated in chapter twenty.
+              Classification transforms generation into{" "}
+              <B>causal continuity management</B>. An LLM generating scene 45
+              receives not just recent context but the specific propositions
+              from scene 3 that embedding similarity identifies as structurally
+              connected — the foundations and foreshadows that new prose must
+              not contradict. A foreshadow in chapter one constrains what can be
+              validly stated in chapter twenty.
             </P>
             <P>
-              The resulting distributions align with structural expectations: <em>Harry Potter</em> yields 29% Anchor — consistent with a tightly plotted novel whose threads span the full narrative. <em>Alice&apos;s Adventures in Wonderland</em> shows 25% Anchor — lower, reflecting its episodic structure. LeCun&apos;s paper scores 14% Anchor and 53% Texture, characteristic of academic argumentation with section-local claims. A five-section methods paper (<em>Quantifying Narrative Force</em>) reaches 67% Texture. These distributions emerge from cosine similarity alone — the same threshold and the same formula applied uniformly across fiction, academic writing, and methods papers.
+              The resulting distributions align with structural expectations:{" "}
+              <em>Harry Potter</em> yields 29% Anchor — consistent with a
+              tightly plotted novel whose threads span the full narrative.{" "}
+              <em>Alice&apos;s Adventures in Wonderland</em> shows 25% Anchor —
+              lower, reflecting its episodic structure. LeCun&apos;s paper
+              scores 14% Anchor and 53% Texture, characteristic of academic
+              argumentation with section-local claims. A five-section methods
+              paper (<em>Quantifying Narrative Force</em>) reaches 67% Texture.
+              These distributions emerge from cosine similarity alone — the same
+              threshold and the same formula applied uniformly across fiction,
+              academic writing, and methods papers.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
               Archetypes
             </h3>
             <P>
-              At the narrative level, classification answers a practical question: when comparing
-              or generating texts, what kind of structural emphasis does this
-              work have? A &ldquo;Chronicle&rdquo; (Drive + System) and a
-              &ldquo;Show&rdquo; (World-driven) require different pacing
-              strategies, different thread management, and different revision
-              priorities. Each text is classified by which forces dominate
-              its profile — a force is &ldquo;dominant&rdquo; if it scores
-              &ge; 21 and falls within 5 points of the maximum.
+              At the narrative level, classification answers a practical
+              question: when comparing or generating texts, what kind of
+              structural emphasis does this work have? A &ldquo;Chronicle&rdquo;
+              (Fate + System) and a &ldquo;Show&rdquo; (World-driven) require
+              different pacing strategies, different thread management, and
+              different revision priorities. Each text is classified by which
+              forces dominate its profile — a force is &ldquo;dominant&rdquo; if
+              it scores &ge; 21 and falls within 5 points of the maximum.
             </P>
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
               {ARCHETYPES.map(({ key, name, desc, color }) => (
@@ -2702,9 +3475,15 @@ export default function PaperPage() {
               ))}
             </div>
 
-            <h3 className="text-sm font-semibold text-white/60 mt-6 mb-1">Scale</h3>
+            <h3 className="text-sm font-semibold text-white/60 mt-6 mb-1">
+              Scale
+            </h3>
             <P>
-              Scale classifies a narrative by structural length — scenes across all arcs. Thresholds are derived from empirical analysis of a reference corpus spanning short fiction (<em>Alice&apos;s Adventures in Wonderland</em>, 22 scenes) through novels (<em>Harry Potter</em>, 91 scenes) to epic-length serials.
+              Scale classifies a narrative by structural length — scenes across
+              all arcs. Thresholds are derived from empirical analysis of a
+              reference corpus spanning short fiction (
+              <em>Alice&apos;s Adventures in Wonderland</em>, 22 scenes) through
+              novels (<em>Harry Potter</em>, 91 scenes) to epic-length serials.
             </P>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-2 text-[11px]">
               {SCALE_TIERS.map(({ key, name, desc, color }, i) => (
@@ -2712,22 +3491,43 @@ export default function PaperPage() {
                   key={key}
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-white/6 bg-white/2"
                 >
-                  <svg width="16" height="16" viewBox="0 0 18 18" className="shrink-0">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 18 18"
+                    className="shrink-0"
+                  >
                     {[0, 1, 2, 3, 4].map((j) => (
-                      <rect key={j} x={2 + j * 3} y={14 - (j + 1) * 2.4} width={2} height={(j + 1) * 2.4} rx={0.5} fill={j <= i ? color : '#ffffff10'} />
+                      <rect
+                        key={j}
+                        x={2 + j * 3}
+                        y={14 - (j + 1) * 2.4}
+                        width={2}
+                        height={(j + 1) * 2.4}
+                        rx={0.5}
+                        fill={j <= i ? color : "#ffffff10"}
+                      />
                     ))}
                   </svg>
                   <div>
-                    <span className="font-medium" style={{ color }}>{name}</span>
+                    <span className="font-medium" style={{ color }}>
+                      {name}
+                    </span>
                     <p className="text-white/35 mt-0.5">{desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <h3 className="text-sm font-semibold text-white/60 mt-6 mb-1">World Density</h3>
+            <h3 className="text-sm font-semibold text-white/60 mt-6 mb-1">
+              World Density
+            </h3>
             <P>
-              World density measures narrative richness relative to length: (characters + locations + threads + world knowledge nodes) / scenes. Tier thresholds are derived from the same reference corpus, spanning genre fiction, literary fiction, and academic texts.
+              World density measures narrative richness relative to length:
+              (characters + locations + threads + world knowledge nodes) /
+              scenes. Tier thresholds are derived from the same reference
+              corpus, spanning genre fiction, literary fiction, and academic
+              texts.
             </P>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-2 text-[11px]">
               {DENSITY_TIERS.map(({ key, name, desc, color }, i) => (
@@ -2735,13 +3535,28 @@ export default function PaperPage() {
                   key={key}
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-white/6 bg-white/2"
                 >
-                  <svg width="16" height="16" viewBox="0 0 18 18" className="shrink-0">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 18 18"
+                    className="shrink-0"
+                  >
                     {[0, 1, 2, 3, 4].map((j) => (
-                      <circle key={j} cx={9} cy={9} r={2 + j * 1.8} fill="none" stroke={j <= i ? color : '#ffffff10'} strokeWidth={1} />
+                      <circle
+                        key={j}
+                        cx={9}
+                        cy={9}
+                        r={2 + j * 1.8}
+                        fill="none"
+                        stroke={j <= i ? color : "#ffffff10"}
+                        strokeWidth={1}
+                      />
                     ))}
                   </svg>
                   <div>
-                    <span className="font-medium" style={{ color }}>{name}</span>
+                    <span className="font-medium" style={{ color }}>
+                      {name}
+                    </span>
                     <p className="text-white/35 mt-0.5">{desc}</p>
                   </div>
                 </div>
@@ -2752,41 +3567,39 @@ export default function PaperPage() {
           {/* ── Economics ──────────────────────────────────────────────── */}
           <Section id="economics" label="Economics">
             <P>
-              A short story costs under a dollar; a full novel under seven;
-              an open-ended serial under forty. The pipeline splits across
-              two model tiers: <B>Gemini 2.5 Flash</B> (<B>$0.30/M input</B>,{" "}
-              <B>$2.50/M output</B>) handles structure generation, analysis,
-              and evaluation, while <B>Gemini 3 Flash</B> (<B>$0.50/M input</B>,{" "}
-              <B>$3.00/M output</B>) handles beat plans and prose — the
-              tasks where prose quality matters most. Input tokens dominate
-              because every call sends the full narrative context, but
-              context is capped by the branch time horizon (~50 scenes),
-              so cost per arc is constant — arc 10 costs the same as
-              arc 100. Reasoning is configurable per story from none
-              (analysis) through low (~2K tokens/call, default) to
-              high (~24K).
+              A short story costs under a dollar; a full novel under seven; an
+              open-ended serial under forty. The pipeline splits across two
+              model tiers: <B>Gemini 2.5 Flash</B> (<B>$0.30/M input</B>,{" "}
+              <B>$2.50/M output</B>) handles structure generation, analysis, and
+              evaluation, while <B>Gemini 3 Flash</B> (<B>$0.50/M input</B>,{" "}
+              <B>$3.00/M output</B>) handles beat plans and prose — the tasks
+              where prose quality matters most. Input tokens dominate because
+              every call sends the full narrative context, but context is capped
+              by the branch time horizon (~50 scenes), so cost per arc is
+              constant — arc 10 costs the same as arc 100. Reasoning is
+              configurable per story from none (analysis) through low (~2K
+              tokens/call, default) to high (~24K).
             </P>
 
             <CostEstimates />
 
             <P>
-              Analysing an existing 100K-word novel into a full narrative
-              state costs under twenty-five cents — parallel chunk extraction
-              with no reasoning. A 500K-word series runs about a dollar.
-              Evaluating a branch (structure + prose quality) costs five
-              cents. This makes the full generate-evaluate-revise loop
-              economical at any scale.
+              Analysing an existing 100K-word novel into a full narrative state
+              costs under twenty-five cents — parallel chunk extraction with no
+              reasoning. A 500K-word series runs about a dollar. Evaluating a
+              branch (structure + prose quality) costs five cents. This makes
+              the full generate-evaluate-revise loop economical at any scale.
             </P>
 
             <P>
-              The cost structure changes what&apos;s practical. At under
-              seven dollars for a full novel with low reasoning, the
+              The cost structure changes what&apos;s practical. At under seven
+              dollars for a full novel with low reasoning, the
               generate-evaluate-revise loop becomes something you can run
               repeatedly — testing different pacing profiles, branching
-              strategies, or structural constraints without budgeting for
-              each attempt. Structural analysis of existing works is even
-              cheaper, making it feasible to build comparative datasets
-              across dozens of texts.
+              strategies, or structural constraints without budgeting for each
+              attempt. Structural analysis of existing works is even cheaper,
+              making it feasible to build comparative datasets across dozens of
+              texts.
             </P>
           </Section>
 
@@ -2798,9 +3611,9 @@ export default function PaperPage() {
             </P>
             <P>
               This is deliberate. Narrative analysis should be transparent. If
-              you disagree with how we weight drive against knowledge, change
-              the constant. If your genre needs a fourth force, add it. The
-              formulas are tools, not doctrine.
+              you disagree with how we weight fate against knowledge, change the
+              constant. If your genre needs a fourth force, add it. The formulas
+              are tools, not doctrine.
             </P>
             <P>
               We&apos;d especially love to see the community experiment with

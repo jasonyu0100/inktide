@@ -347,8 +347,11 @@ export function narrativeContext(
       const depsAttr = validDeps.length > 0 ? ` converges="${validDeps.join(',')}"` : '';
       // Use timeline-scoped status, falling back to base status if no mutations yet
       const status = timelineState.threadStatuses[t.id] ?? t.status;
+      // Filter out abandoned threads — they're cleaned up and shouldn't appear in generation context
+      if (status === 'abandoned') return null;
       return `<thread id="${t.id}" status="${status}"${age > 0 ? ` age="${age}" mutations="${mutations}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}>${t.description}</thread>`;
     })
+    .filter(Boolean)
     .join('\n');
   const relationships = branchRelationships
     .map((r) => {
@@ -419,9 +422,9 @@ export function narrativeContext(
     .map((k) => resolveEntry(n, k))
     .filter((e): e is Scene => e?.kind === 'scene');
   const forceMap = computeForceSnapshots(allScenes);
-  const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { drive: 0, world: 0, system: 0 });
+  const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { fate: 0, world: 0, system: 0 });
   const swings = computeSwingMagnitudes(forceSnapshots);
-  const driveMA = movingAverage(forceSnapshots.map(f => f.drive), FORCE_WINDOW_SIZE);
+  const fateMA = movingAverage(forceSnapshots.map(f => f.fate), FORCE_WINDOW_SIZE);
   const worldMA = movingAverage(forceSnapshots.map(f => f.world), FORCE_WINDOW_SIZE);
   const systemMA = movingAverage(forceSnapshots.map(f => f.system), FORCE_WINDOW_SIZE);
   const swingMA = movingAverage(swings, FORCE_WINDOW_SIZE);
@@ -429,7 +432,7 @@ export function narrativeContext(
     const f = forceMap[s.id];
     if (!f) return null;
     const corner = detectCubeCorner(f);
-    return `[${horizonStart + i + 1}] P:${f.drive >= 0 ? '+' : ''}${f.drive.toFixed(1)} C:${f.world >= 0 ? '+' : ''}${f.world.toFixed(1)} K:${f.system >= 0 ? '+' : ''}${f.system.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(P:${driveMA[i].toFixed(1)} C:${worldMA[i].toFixed(1)} K:${systemMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
+    return `[${horizonStart + i + 1}] F:${f.fate >= 0 ? '+' : ''}${f.fate.toFixed(1)} W:${f.world >= 0 ? '+' : ''}${f.world.toFixed(1)} S:${f.system >= 0 ? '+' : ''}${f.system.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(F:${fateMA[i].toFixed(1)} W:${worldMA[i].toFixed(1)} S:${systemMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
   }).filter(Boolean).join('\n');
 
   // Current cube position and local delivery position
@@ -478,9 +481,11 @@ ${nodeLines.join('\n')}
   }
 
   // Compact ID lookup — placed last so it's closest to the generation prompt
+  // Exclude abandoned threads from valid IDs — they shouldn't be referenced in generation
   const charIdList = branchCharacters.map((c) => c.id).join(', ');
   const locIdList = branchLocations.map((l) => l.id).join(', ');
-  const threadIdList = branchThreads.map((t) => t.id).join(', ');
+  const activeThreads = branchThreads.filter((t) => (timelineState.threadStatuses[t.id] ?? t.status) !== 'abandoned');
+  const threadIdList = activeThreads.map((t) => t.id).join(', ');
   const sysIdList = rankedSystemNodes.map(({ node }) => node.id).join(', ');
 
   const rulesBlock = n.rules && n.rules.length > 0
@@ -506,7 +511,7 @@ ${characters}
 ${locations}
 </locations>
 
-<threads hint="Lifecycle: latent → seeded → active → critical → resolved/subverted. Abandoned resets. Advance through action. Threads sharing participants should collide.">
+<threads hint="Lifecycle: latent → seeded → active → escalating → critical → resolved/subverted. Escalating = point of no return; active can be abandoned, escalating must resolve. Threads sharing participants should collide.">
 ${threads}
 </threads>
 
@@ -522,7 +527,7 @@ ${arcs}
 ${sceneHistory}
 </scene-history>
 
-<force-trajectory hint="D=Drive (thread fate) W=World (entity transformation) S=System (world deepening). Vary density between scenes.">
+<force-trajectory hint="F=Fate (thread resolution) W=World (entity transformation) S=System (world deepening). Vary density between scenes.">
 ${forceTrajectory || '(no scenes yet)'}
 ${currentStateBlock}</force-trajectory>
 ${systemGraphBlock}

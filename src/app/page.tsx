@@ -1,10 +1,9 @@
 "use client";
 
-import Image from "next/image";
-import ApiKeyModal from "@/components/topbar/ApiKeyModal";
 import { StoryCard } from "@/components/cards/StoryCard";
-import { CreationWizard } from "@/components/wizard/CreationWizard";
 import { InkBlot } from "@/components/effects/InkBlot";
+import ApiKeyModal from "@/components/topbar/ApiKeyModal";
+import { CreationWizard } from "@/components/wizard/CreationWizard";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import {
   ANALYSIS_NARRATIVE_IDS,
@@ -12,6 +11,7 @@ import {
   useStore,
 } from "@/lib/store";
 import type { NarrativeEntry } from "@/types/narrative";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -332,7 +332,10 @@ export default function HomePage() {
 
           <h1 className="animate-fade-up-delay-1 text-5xl sm:text-7xl font-bold tracking-[-0.03em] text-center leading-[1.05] max-w-160 sm:whitespace-nowrap">
             <span className="text-white">Text that </span>
-            <span className="glitch-wrapper text-white italic" data-text="breathe...">
+            <span
+              className="glitch-wrapper text-white italic"
+              data-text="breathe..."
+            >
               <MorphText text="breathe" />
               ...
             </span>
@@ -417,9 +420,9 @@ export default function HomePage() {
                 <div className="flex-1 h-px bg-white/6" />
               </div>
               <p className="text-[13px] text-white/55 leading-relaxed mb-8 max-w-lg">
-                Each analyzed work adds its pacing rhythm and prose
-                patterns to the system. Explore the structure underneath
-                books that shaped a generation.
+                Each analyzed work adds its pacing rhythm and prose patterns to
+                the system. Explore the structure underneath books that shaped a
+                generation.
               </p>
               <SeedCarousel seeds={analysisSeeds} openSlides />
             </div>
@@ -463,11 +466,11 @@ export default function HomePage() {
                 },
                 {
                   q: "What does the analysis measure?",
-                  a: "Thread development and resolution (Drive). Transformation intensity — how much shifts per section (Change). New information entering the text (Knowledge). Pacing rhythm — how the author transitions between fast and slow sections. World density — how interconnected the knowledge graph is. Dynamic contrast — whether the text varies its intensity or flatlines. Each layer is a different lens on the same underlying structure.",
+                  a: "Thread development and resolution (Fate). Transformation intensity — how much shifts per section (Change). New information entering the text (Knowledge). Pacing rhythm — how the author transitions between fast and slow sections. World density — how interconnected the knowledge graph is. Dynamic contrast — whether the text varies its intensity or flatlines. Each layer is a different lens on the same underlying structure.",
                 },
                 {
                   q: "How does search work?",
-                  a: "Every proposition in the text is embedded as a vector. You search by meaning, not keywords — \"betrayal\" finds scenes of broken trust even when the word never appears. Results include AI-synthesized overviews that trace patterns across the timeline, with inline citations linking to specific passages.",
+                  a: 'Every proposition in the text is embedded as a vector. You search by meaning, not keywords — "betrayal" finds scenes of broken trust even when the word never appears. Results include AI-synthesized overviews that trace patterns across the timeline, with inline citations linking to specific passages.',
                 },
                 {
                   q: "What do the charts show?",
@@ -515,7 +518,13 @@ export default function HomePage() {
         <div className="relative px-4 sm:px-10 py-8 border-t border-white/6">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <Image src="/logo.svg" alt="InkTide" width={20} height={20} className="opacity-40" />
+              <Image
+                src="/logo.svg"
+                alt="InkTide"
+                width={20}
+                height={20}
+                className="opacity-40"
+              />
               <p className="text-[11px] font-mono text-white/20 uppercase tracking-[0.2em]">
                 InkTide
               </p>

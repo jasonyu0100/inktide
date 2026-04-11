@@ -1,42 +1,79 @@
-import type { NarrativeState, Scene } from '@/types/narrative';
-import { resolveEntry, isScene } from '@/types/narrative';
-import type { MCTSNode } from '@/types/mcts';
-import { computeRawForceTotals, computeSwingMagnitudes, gradeForces, FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
-import { applyContinuityMutation } from '@/lib/continuity-graph';
+import { applyContinuityMutation } from "@/lib/continuity-graph";
+import {
+  computeRawForceTotals,
+  computeSwingMagnitudes,
+  FORCE_REFERENCE_MEANS,
+  gradeForces,
+} from "@/lib/narrative-utils";
+import type { MCTSNode } from "@/types/mcts";
+import type { NarrativeState, Scene } from "@/types/narrative";
+import { isScene, resolveEntry } from "@/types/narrative";
 
 /**
  * Apply scene mutations (relationship + knowledge + thread) to a narrative state.
  * Duplicated from store.tsx to avoid importing React-heavy store module.
  */
-function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState {
+function applySceneMutations(
+  n: NarrativeState,
+  scenes: Scene[],
+): NarrativeState {
   let relationships = [...n.relationships];
   const characters = { ...n.characters };
   const locations = { ...n.locations };
   const artifacts = { ...n.artifacts };
   const threads = { ...n.threads };
-  const systemGraph = { nodes: { ...n.systemGraph?.nodes }, edges: [...(n.systemGraph?.edges ?? [])] };
+  const systemGraph = {
+    nodes: { ...n.systemGraph?.nodes },
+    edges: [...(n.systemGraph?.edges ?? [])],
+  };
 
   for (const scene of scenes) {
     for (const rm of scene.relationshipMutations) {
-      const idx = relationships.findIndex((r) => r.from === rm.from && r.to === rm.to);
+      const idx = relationships.findIndex(
+        (r) => r.from === rm.from && r.to === rm.to,
+      );
       if (idx >= 0) {
         const existing = relationships[idx];
         relationships = [
           ...relationships.slice(0, idx),
-          { ...existing, type: rm.type, valence: Math.max(-1, Math.min(1, existing.valence + rm.valenceDelta)) },
+          {
+            ...existing,
+            type: rm.type,
+            valence: Math.max(
+              -1,
+              Math.min(1, existing.valence + rm.valenceDelta),
+            ),
+          },
           ...relationships.slice(idx + 1),
         ];
       } else {
-        relationships.push({ from: rm.from, to: rm.to, type: rm.type, valence: Math.max(-1, Math.min(1, rm.valenceDelta)) });
+        relationships.push({
+          from: rm.from,
+          to: rm.to,
+          type: rm.type,
+          valence: Math.max(-1, Math.min(1, rm.valenceDelta)),
+        });
       }
     }
     for (const km of scene.continuityMutations) {
       const char = characters[km.entityId];
       const loc = locations[km.entityId];
       const art = artifacts[km.entityId];
-      if (char) characters[km.entityId] = { ...char, continuity: applyContinuityMutation(char.continuity, km) };
-      else if (loc) locations[km.entityId] = { ...loc, continuity: applyContinuityMutation(loc.continuity, km) };
-      else if (art) artifacts[km.entityId] = { ...art, continuity: applyContinuityMutation(art.continuity, km) };
+      if (char)
+        characters[km.entityId] = {
+          ...char,
+          continuity: applyContinuityMutation(char.continuity, km),
+        };
+      else if (loc)
+        locations[km.entityId] = {
+          ...loc,
+          continuity: applyContinuityMutation(loc.continuity, km),
+        };
+      else if (art)
+        artifacts[km.entityId] = {
+          ...art,
+          continuity: applyContinuityMutation(art.continuity, km),
+        };
     }
     for (const tm of scene.threadMutations) {
       const thread = threads[tm.threadId];
@@ -46,18 +83,41 @@ function applySceneMutations(n: NarrativeState, scenes: Scene[]): NarrativeState
     if (wkm) {
       for (const node of wkm.addedNodes ?? []) {
         if (!systemGraph.nodes[node.id]) {
-          systemGraph.nodes[node.id] = { id: node.id, concept: node.concept, type: node.type };
+          systemGraph.nodes[node.id] = {
+            id: node.id,
+            concept: node.concept,
+            type: node.type,
+          };
         }
       }
       for (const edge of wkm.addedEdges ?? []) {
-        if (!systemGraph.edges.some((e: { from: string; to: string; relation: string }) => e.from === edge.from && e.to === edge.to && e.relation === edge.relation)) {
-          systemGraph.edges.push({ from: edge.from, to: edge.to, relation: edge.relation });
+        if (
+          !systemGraph.edges.some(
+            (e: { from: string; to: string; relation: string }) =>
+              e.from === edge.from &&
+              e.to === edge.to &&
+              e.relation === edge.relation,
+          )
+        ) {
+          systemGraph.edges.push({
+            from: edge.from,
+            to: edge.to,
+            relation: edge.relation,
+          });
         }
       }
     }
   }
 
-  return { ...n, relationships, characters, locations, artifacts, threads, systemGraph };
+  return {
+    ...n,
+    relationships,
+    characters,
+    locations,
+    artifacts,
+    threads,
+    systemGraph,
+  };
 }
 
 // ── Virtual State Construction ───────────────────────────────────────────────
@@ -77,7 +137,7 @@ export function buildVirtualState(
   rootNarrative: NarrativeState,
   rootResolvedKeys: string[],
   rootCurrentIndex: number,
-  ancestorNodes: Pick<MCTSNode, 'scenes' | 'arc'>[],
+  ancestorNodes: Pick<MCTSNode, "scenes" | "arc">[],
   activeBranchId: string,
 ): VirtualState {
   // Deep clone the root to avoid mutation
@@ -98,14 +158,19 @@ export function buildVirtualState(
       const existing = narrative.arcs[node.arc.id];
       const existingSet = new Set(existing.sceneIds);
       const deduped = node.arc.sceneIds.filter((id) => !existingSet.has(id));
-      narrative.arcs[node.arc.id] = { ...existing, sceneIds: [...existing.sceneIds, ...deduped] };
+      narrative.arcs[node.arc.id] = {
+        ...existing,
+        sceneIds: [...existing.sceneIds, ...deduped],
+      };
     }
 
     // Extend branch entryIds
     const branch = narrative.branches[activeBranchId];
     if (branch) {
       const existingSet = new Set(branch.entryIds);
-      const newEntries = node.scenes.map((s) => s.id).filter((id) => !existingSet.has(id));
+      const newEntries = node.scenes
+        .map((s) => s.id)
+        .filter((id) => !existingSet.has(id));
       narrative.branches[activeBranchId] = {
         ...branch,
         entryIds: [...branch.entryIds, ...newEntries],
@@ -116,7 +181,9 @@ export function buildVirtualState(
     narrative = applySceneMutations(narrative, node.scenes);
 
     // Update resolved keys and index
-    const newKeys = node.scenes.map((s) => s.id).filter((id) => !resolvedKeys.includes(id));
+    const newKeys = node.scenes
+      .map((s) => s.id)
+      .filter((id) => !resolvedKeys.includes(id));
     resolvedKeys = [...resolvedKeys, ...newKeys];
     currentIndex = resolvedKeys.length - 1;
   }
@@ -128,7 +195,7 @@ export function buildVirtualState(
 
 /**
  * Score a generated arc's scenes using the force grading system.
- * Raw forces for drive/change/knowledge (normalised by reference means in gradeForces).
+ * Raw forces for fate/change/knowledge (normalised by reference means in gradeForces).
  * Swing from mean-normalised raw forces (single normalisation, preserves absolute magnitude).
  *
  * @param arcScenes - The scenes in this arc
@@ -138,14 +205,14 @@ export function scoreArc(arcScenes: Scene[], priorScenes: Scene[]): number {
   if (arcScenes.length === 0) return 0;
 
   const raw = computeRawForceTotals(arcScenes);
-  const forces = raw.drive.map((_, i) => ({
-    drive: raw.drive[i],
+  const forces = raw.fate.map((_, i) => ({
+    fate: raw.fate[i],
     world: raw.world[i],
     system: raw.system[i],
   }));
   const swings = computeSwingMagnitudes(forces, FORCE_REFERENCE_MEANS);
 
-  const grades = gradeForces(raw.drive, raw.world, raw.system, swings);
+  const grades = gradeForces(raw.fate, raw.world, raw.system, swings);
   return grades.overall;
 }
 
@@ -167,18 +234,21 @@ export function scoreScene(scene: Scene, priorScenes: Scene[]): number {
   if (priorScenes.length > 0) {
     const lastScene = priorScenes[priorScenes.length - 1];
     const combined = computeRawForceTotals([lastScene, scene]);
-    const combinedForces = combined.drive.map((_, i) => ({
-      drive: combined.drive[i],
+    const combinedForces = combined.fate.map((_, i) => ({
+      fate: combined.fate[i],
       world: combined.world[i],
       system: combined.system[i],
     }));
-    const allSwings = computeSwingMagnitudes(combinedForces, FORCE_REFERENCE_MEANS);
+    const allSwings = computeSwingMagnitudes(
+      combinedForces,
+      FORCE_REFERENCE_MEANS,
+    );
     swings = [allSwings[allSwings.length - 1] ?? 0];
   } else {
     swings = [0];
   }
 
-  const grades = gradeForces(raw.drive, raw.world, raw.system, swings);
+  const grades = gradeForces(raw.fate, raw.world, raw.system, swings);
   return grades.overall;
 }
 

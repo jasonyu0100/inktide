@@ -1,22 +1,36 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useStore } from '@/lib/store';
-import { BUILT_IN_PROFILES, profileToQueue } from '@/lib/planning-profiles';
-import { generatePhaseDirection, generateCustomPlan, generatePlanDocument, generateOutline } from '@/lib/planning-engine';
-import { expandWorld } from '@/lib/ai';
-import { nextId } from '@/lib/narrative-utils';
-import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import type { PlanningPhase, PlanningProfile, PlanningQueue } from '@/types/narrative';
-import { PlanningLoadingModal } from './PlanningLoadingModal';
-import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
+import { Modal, ModalBody, ModalFooter, ModalHeader } from "@/components/Modal";
+import { expandWorld } from "@/lib/ai";
+import { nextId } from "@/lib/narrative-utils";
+import {
+  generateCustomPlan,
+  generateOutline,
+  generatePhaseDirection,
+  generatePlanDocument,
+} from "@/lib/planning-engine";
+import { BUILT_IN_PROFILES, profileToQueue } from "@/lib/planning-profiles";
+import { useStore } from "@/lib/store";
+import type {
+  PlanningPhase,
+  PlanningProfile,
+  PlanningQueue,
+} from "@/types/narrative";
+import { DEFAULT_STORY_SETTINGS } from "@/types/narrative";
+import { useState } from "react";
+import { PlanningLoadingModal } from "./PlanningLoadingModal";
 
 type Props = {
   onClose: () => void;
   onStartAuto?: () => void;
 };
 
-type CreateMode = 'templates' | 'ai-outline' | 'custom-outline' | 'ai-plan' | 'custom-plan';
+type CreateMode =
+  | "templates"
+  | "ai-outline"
+  | "custom-outline"
+  | "ai-plan"
+  | "custom-plan";
 
 export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
   const { state, dispatch } = useStore();
@@ -24,14 +38,20 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
   const branch = branchId ? state.activeNarrative?.branches[branchId] : null;
   const existingQueue = branch?.planningQueue;
 
-  const [queue, setQueue] = useState<PlanningQueue | null>(existingQueue ?? null);
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(existingQueue?.profileId ?? null);
-  const [planDocument, setPlanDocument] = useState('');
+  const [queue, setQueue] = useState<PlanningQueue | null>(
+    existingQueue ?? null,
+  );
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
+    existingQueue?.profileId ?? null,
+  );
+  const [planDocument, setPlanDocument] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [generatingReasoning, setGeneratingReasoning] = useState('');
-  const [regenerating, setRegenerating] = useState<'world' | 'direction' | null>(null);
-  const [regeneratingReasoning, setRegeneratingReasoning] = useState('');
-  const [createMode, setCreateMode] = useState<CreateMode>('templates');
+  const [generatingReasoning, setGeneratingReasoning] = useState("");
+  const [regenerating, setRegenerating] = useState<
+    "world" | "direction" | null
+  >(null);
+  const [regeneratingReasoning, setRegeneratingReasoning] = useState("");
+  const [createMode, setCreateMode] = useState<CreateMode>("templates");
 
   // ── Actions ─────────────────────────────────────────────────────────────
 
@@ -39,37 +59,40 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     const narrative = state.activeNarrative;
     if (!narrative || !doc.trim()) return;
     setGenerating(true);
-    setGeneratingReasoning('');
+    setGeneratingReasoning("");
     try {
       // Always use head index for generation operations
       const headIndex = state.resolvedEntryKeys.length - 1;
       const result = await generateCustomPlan(
-        narrative, state.resolvedEntryKeys, headIndex, doc,
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
+        doc,
         (token) => setGeneratingReasoning((prev) => prev + token),
       );
       const hasSourceText = result.phases.some((p) => p.sourceText);
       const newQueue: PlanningQueue = {
         profileId: null,
-        mode: hasSourceText ? 'plan' : 'outline',
+        mode: hasSourceText ? "plan" : "outline",
         phases: result.phases.map((p, i) => ({
           id: `phase-${i}`,
           name: p.name,
           objective: p.objective,
           sceneAllocation: p.sceneAllocation,
           scenesCompleted: 0,
-          status: i === 0 ? 'active' : 'pending',
+          status: i === 0 ? "active" : "pending",
           constraints: p.constraints,
           structuralRules: p.structuralRules,
-          direction: '',
+          direction: "",
           worldExpansionHints: p.worldExpansionHints,
           sourceText: p.sourceText,
         })),
         activePhaseIndex: 0,
       };
       setQueue(newQueue);
-      setSelectedProfileId('custom');
+      setSelectedProfileId("custom");
     } catch (err) {
-      console.error('[planning-queue] plan generation failed:', err);
+      console.error("[planning-queue] plan generation failed:", err);
     } finally {
       setGenerating(false);
     }
@@ -79,89 +102,130 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     const narrative = state.activeNarrative;
     if (!narrative) return;
     setGenerating(true);
-    setGeneratingReasoning('');
+    setGeneratingReasoning("");
     try {
       // Always use head index for generation operations
       const headIndex = state.resolvedEntryKeys.length - 1;
       const result = await generateOutline(
-        narrative, state.resolvedEntryKeys, headIndex,
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
         (token) => setGeneratingReasoning((prev) => prev + token),
       );
       const newQueue: PlanningQueue = {
         profileId: null,
-        mode: 'outline',
+        mode: "outline",
         phases: result.phases.map((p, i) => ({
           id: `phase-${i}`,
           name: p.name,
           objective: p.objective,
           sceneAllocation: p.sceneAllocation,
           scenesCompleted: 0,
-          status: i === 0 ? 'active' : 'pending',
+          status: i === 0 ? "active" : "pending",
           constraints: p.constraints,
-          direction: '',
+          direction: "",
           worldExpansionHints: p.worldExpansionHints,
         })),
         activePhaseIndex: 0,
       };
       setQueue(newQueue);
-      setSelectedProfileId('ai-outline');
+      setSelectedProfileId("ai-outline");
     } catch (err) {
-      console.error('[planning-queue] outline generation failed:', err);
+      console.error("[planning-queue] outline generation failed:", err);
     } finally {
       setGenerating(false);
     }
   }
 
-  async function regenerateForActivePhase(mode: 'world' | 'direction' | 'both') {
+  async function regenerateForActivePhase(
+    mode: "world" | "direction" | "both",
+  ) {
     const narrative = state.activeNarrative;
     if (!narrative || !branchId || !queue) return;
     const phaseIndex = queue.activePhaseIndex;
     const phase = queue.phases[phaseIndex];
-    if (!phase || phase.status !== 'active') return;
+    if (!phase || phase.status !== "active") return;
 
     // Always use head index for generation operations
     const headIndex = state.resolvedEntryKeys.length - 1;
 
-    setRegenerating(mode === 'both' ? 'world' : mode);
-    setRegeneratingReasoning('');
+    setRegenerating(mode === "both" ? "world" : mode);
+    setRegeneratingReasoning("");
     try {
       // World expansion first
-      if (mode === 'world' || mode === 'both') {
+      if (mode === "world" || mode === "both") {
         const expansion = await expandWorld(
-          narrative, state.resolvedEntryKeys, headIndex,
-          phase.worldExpansionHints || '', 'medium', undefined, phase.sourceText,
+          narrative,
+          state.resolvedEntryKeys,
+          headIndex,
+          phase.worldExpansionHints || "",
+          "medium",
+          undefined,
+          phase.sourceText,
           (token) => setRegeneratingReasoning((prev) => prev + token),
         );
         dispatch({
-          type: 'EXPAND_WORLD',
-          worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
-          characters: expansion.characters, locations: expansion.locations,
-          threads: expansion.threads, relationships: expansion.relationships,
+          type: "EXPAND_WORLD",
+          worldBuildId: nextId("WB", Object.keys(narrative.worldBuilds), 3),
+          characters: expansion.characters,
+          locations: expansion.locations,
+          threads: expansion.threads,
+          relationships: expansion.relationships,
           systemMutations: expansion.systemMutations,
-          artifacts: expansion.artifacts, branchId,
+          artifacts: expansion.artifacts,
+          branchId,
           ownershipMutations: expansion.ownershipMutations,
           tieMutations: expansion.tieMutations,
           continuityMutations: expansion.continuityMutations,
           relationshipMutations: expansion.relationshipMutations,
         });
-        const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-        dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, worldFocus: 'latest' } });
+        const baseSettings = {
+          ...DEFAULT_STORY_SETTINGS,
+          ...narrative.storySettings,
+        };
+        dispatch({
+          type: "SET_STORY_SETTINGS",
+          settings: { ...baseSettings, worldFocus: "latest" },
+        });
       }
 
       // Direction generation (uses fresh state after world expansion)
-      if (mode === 'direction' || mode === 'both') {
-        if (mode === 'both') { setRegenerating('direction'); setRegeneratingReasoning(''); }
+      if (mode === "direction" || mode === "both") {
+        if (mode === "both") {
+          setRegenerating("direction");
+          setRegeneratingReasoning("");
+        }
         const freshNarrative = state.activeNarrative ?? narrative;
         const { direction, constraints } = await generatePhaseDirection(
-          freshNarrative, state.resolvedEntryKeys, headIndex, phase, queue,
+          freshNarrative,
+          state.resolvedEntryKeys,
+          headIndex,
+          phase,
+          queue,
           (token) => setRegeneratingReasoning((prev) => prev + token),
         );
-        dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId, phaseIndex, updates: { direction, constraints: constraints || phase.constraints } });
-        const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...freshNarrative.storySettings };
-        dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || phase.constraints || baseSettings.storyConstraints } });
+        dispatch({
+          type: "UPDATE_PLANNING_PHASE",
+          branchId,
+          phaseIndex,
+          updates: { direction, constraints: constraints || phase.constraints },
+        });
+        const baseSettings = {
+          ...DEFAULT_STORY_SETTINGS,
+          ...freshNarrative.storySettings,
+        };
+        dispatch({
+          type: "SET_STORY_SETTINGS",
+          settings: {
+            ...baseSettings,
+            storyDirection: direction,
+            storyConstraints:
+              constraints || phase.constraints || baseSettings.storyConstraints,
+          },
+        });
       }
     } catch (err) {
-      console.error('[planning-queue] regenerate failed:', err);
+      console.error("[planning-queue] regenerate failed:", err);
     } finally {
       setRegenerating(null);
     }
@@ -179,20 +243,24 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     phases[index] = { ...phases[index], ...updates };
     setQueue({ ...queue, phases });
     if (existingQueue && branchId) {
-      dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId, phaseIndex: index, updates });
+      dispatch({
+        type: "UPDATE_PLANNING_PHASE",
+        branchId,
+        phaseIndex: index,
+        updates,
+      });
     }
   }
 
-
   const [activating, setActivating] = useState(false);
   const [activatingStep, setActivatingStep] = useState<string | null>(null);
-  const [activatingReasoning, setActivatingReasoning] = useState('');
+  const [activatingReasoning, setActivatingReasoning] = useState("");
   const [showModeChoice, setShowModeChoice] = useState(false);
 
   /** Save the queue to the store without running any generation */
   function handleSave() {
     if (!branchId || !queue || queue.phases.length === 0) return;
-    dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue });
+    dispatch({ type: "SET_PLANNING_QUEUE", branchId, queue });
     setShowModeChoice(true);
   }
 
@@ -203,26 +271,42 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     if (!narrative) return;
 
     const firstPhase = queue.phases[0];
-    if (!firstPhase || (firstPhase.status === 'active' && firstPhase.direction)) return;
+    if (!firstPhase || (firstPhase.status === "active" && firstPhase.direction))
+      return;
 
     setActivating(true);
-    setActivatingReasoning('');
+    setActivatingReasoning("");
     try {
       const resolvedKeys = state.resolvedEntryKeys;
       // Always use head index for generation operations
       const headIndex = resolvedKeys.length - 1;
-      const onReasoning = (token: string) => setActivatingReasoning((prev) => prev + token);
+      const onReasoning = (token: string) =>
+        setActivatingReasoning((prev) => prev + token);
 
       if (queue.expandWorld !== false) {
-        setActivatingStep('Expanding world...');
-        const strategy = narrative.storySettings?.expansionStrategy ?? 'dynamic';
-        const expansion = await expandWorld(narrative, resolvedKeys, headIndex, firstPhase.worldExpansionHints || '', 'medium', strategy, firstPhase.sourceText, onReasoning);
+        setActivatingStep("Expanding world...");
+        const strategy =
+          narrative.storySettings?.expansionStrategy ?? "dynamic";
+        const expansion = await expandWorld(
+          narrative,
+          resolvedKeys,
+          headIndex,
+          firstPhase.worldExpansionHints || "",
+          "medium",
+          strategy,
+          firstPhase.sourceText,
+          onReasoning,
+        );
         dispatch({
-          type: 'EXPAND_WORLD',
-          worldBuildId: nextId('WB', Object.keys(narrative.worldBuilds), 3),
-          characters: expansion.characters, locations: expansion.locations, threads: expansion.threads,
-          relationships: expansion.relationships, systemMutations: expansion.systemMutations,
-          artifacts: expansion.artifacts, branchId,
+          type: "EXPAND_WORLD",
+          worldBuildId: nextId("WB", Object.keys(narrative.worldBuilds), 3),
+          characters: expansion.characters,
+          locations: expansion.locations,
+          threads: expansion.threads,
+          relationships: expansion.relationships,
+          systemMutations: expansion.systemMutations,
+          artifacts: expansion.artifacts,
+          branchId,
           ownershipMutations: expansion.ownershipMutations,
           tieMutations: expansion.tieMutations,
           continuityMutations: expansion.continuityMutations,
@@ -230,21 +314,51 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
         });
       }
 
-      setActivatingStep('Generating direction...');
-      setActivatingReasoning('');
-      const { direction, constraints } = await generatePhaseDirection(narrative, resolvedKeys, headIndex, firstPhase, queue, onReasoning);
+      setActivatingStep("Generating direction...");
+      setActivatingReasoning("");
+      const { direction, constraints } = await generatePhaseDirection(
+        narrative,
+        resolvedKeys,
+        headIndex,
+        firstPhase,
+        queue,
+        onReasoning,
+      );
       // Activate the first phase: set status, direction, and activePhaseIndex
       const activatedQueue: PlanningQueue = {
         ...queue,
         activePhaseIndex: 0,
-        phases: queue.phases.map((p, i) => i === 0 ? { ...p, status: 'active' as const, direction, constraints: constraints || p.constraints } : p),
+        phases: queue.phases.map((p, i) =>
+          i === 0
+            ? {
+                ...p,
+                status: "active" as const,
+                direction,
+                constraints: constraints || p.constraints,
+              }
+            : p,
+        ),
       };
-      dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: activatedQueue });
+      dispatch({ type: "SET_PLANNING_QUEUE", branchId, queue: activatedQueue });
       setQueue(activatedQueue);
-      const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-      dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || firstPhase.constraints || baseSettings.storyConstraints, worldFocus: 'latest' } });
+      const baseSettings = {
+        ...DEFAULT_STORY_SETTINGS,
+        ...narrative.storySettings,
+      };
+      dispatch({
+        type: "SET_STORY_SETTINGS",
+        settings: {
+          ...baseSettings,
+          storyDirection: direction,
+          storyConstraints:
+            constraints ||
+            firstPhase.constraints ||
+            baseSettings.storyConstraints,
+          worldFocus: "latest",
+        },
+      });
     } catch (err) {
-      console.error('[planning-queue] first phase init failed:', err);
+      console.error("[planning-queue] first phase init failed:", err);
     } finally {
       setActivating(false);
       setActivatingStep(null);
@@ -266,7 +380,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
   function handleClear() {
     if (!branchId) return;
-    dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: undefined });
+    dispatch({ type: "SET_PLANNING_QUEUE", branchId, queue: undefined });
     setQueue(null);
     setSelectedProfileId(null);
   }
@@ -278,35 +392,59 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
       activePhaseIndex: -1,
       phases: existingQueue.phases.map((p) => ({
         ...p,
-        status: 'pending' as const,
+        status: "pending" as const,
         scenesCompleted: 0,
-        direction: '',
+        direction: "",
         completionReport: undefined,
         worldBuildId: undefined,
       })),
     };
-    dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: resetQueue });
+    dispatch({ type: "SET_PLANNING_QUEUE", branchId, queue: resetQueue });
     // Clear direction/constraints that were set by the queue
     const narrative = state.activeNarrative;
     if (narrative) {
-      const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...narrative.storySettings };
-      dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: '', storyConstraints: '' } });
+      const baseSettings = {
+        ...DEFAULT_STORY_SETTINGS,
+        ...narrative.storySettings,
+      };
+      dispatch({
+        type: "SET_STORY_SETTINGS",
+        settings: { ...baseSettings, storyDirection: "", storyConstraints: "" },
+      });
     }
     setQueue(resetQueue);
   }
 
-  const totalScenes = queue?.phases.reduce((sum, p) => sum + p.sceneAllocation, 0) ?? 0;
+  const totalScenes =
+    queue?.phases.reduce((sum, p) => sum + p.sceneAllocation, 0) ?? 0;
 
   // ── Loading / Auto prompt states ──────────────────────────────────────
 
   if (activating) {
-    return <PlanningLoadingModal step={activatingStep ?? 'Initializing...'} subtitle="Preparing the first phase" reasoning={activatingReasoning || undefined} />;
+    return (
+      <PlanningLoadingModal
+        step={activatingStep ?? "Initializing..."}
+        subtitle="Preparing the first phase"
+        reasoning={activatingReasoning || undefined}
+      />
+    );
   }
 
   if (regenerating) {
-    const stepLabel = regenerating === 'world' ? 'Expanding world...' : 'Generating direction...';
+    const stepLabel =
+      regenerating === "world"
+        ? "Expanding world..."
+        : "Generating direction...";
     const activePhaseForRegen = queue?.phases[queue.activePhaseIndex];
-    return <PlanningLoadingModal step={stepLabel} subtitle={activePhaseForRegen ? `Phase: ${activePhaseForRegen.name}` : undefined} reasoning={regeneratingReasoning || undefined} />;
+    return (
+      <PlanningLoadingModal
+        step={stepLabel}
+        subtitle={
+          activePhaseForRegen ? `Phase: ${activePhaseForRegen.name}` : undefined
+        }
+        reasoning={regeneratingReasoning || undefined}
+      />
+    );
   }
 
   if (showModeChoice) {
@@ -314,8 +452,12 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
       <Modal onClose={onClose} size="md">
         <ModalHeader onClose={onClose}>
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">Queue activated</h2>
-            <p className="text-[10px] text-text-dim uppercase tracking-wider">Choose how to run the first phase</p>
+            <h2 className="text-sm font-semibold text-text-primary">
+              Queue activated
+            </h2>
+            <p className="text-[10px] text-text-dim uppercase tracking-wider">
+              Choose how to run the first phase
+            </p>
           </div>
         </ModalHeader>
         <ModalBody className="p-6">
@@ -325,26 +467,37 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
               className="w-full text-left rounded-lg border border-white/15 bg-white/6 hover:bg-white/10 hover:border-white/20 p-4 transition-colors group"
             >
               <div className="flex items-center gap-2">
-                <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">Auto Mode</p>
-                <span className="text-[9px] uppercase tracking-wider text-emerald-400/80 font-medium">Recommended</span>
+                <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">
+                  Auto Mode
+                </p>
+                <span className="text-[9px] uppercase tracking-wider text-emerald-400/80 font-medium">
+                  Recommended
+                </span>
               </div>
               <p className="text-[11px] text-text-dim mt-0.5 leading-relaxed">
-                Generate world and direction, then auto-generate scenes through every phase until complete.
+                Generate world and direction, then auto-generate scenes through
+                every phase until complete.
               </p>
             </button>
             <button
               onClick={handleManualGenerate}
               className="w-full text-left rounded-lg border border-white/8 bg-white/3 hover:bg-white/6 hover:border-white/15 p-4 transition-colors group"
             >
-              <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">Manual</p>
+              <p className="text-[12px] font-medium text-text-primary group-hover:text-white transition-colors">
+                Manual
+              </p>
               <p className="text-[11px] text-text-dim mt-0.5 leading-relaxed">
-                Generate world and direction, then generate scenes yourself. You control the pace.
+                Generate world and direction, then generate scenes yourself. You
+                control the pace.
               </p>
             </button>
           </div>
         </ModalBody>
         <ModalFooter>
-          <button onClick={onClose} className="text-[10px] px-3 py-1.5 text-text-dim hover:text-text-secondary transition-colors">
+          <button
+            onClick={onClose}
+            className="text-[10px] px-3 py-1.5 text-text-dim hover:text-text-secondary transition-colors"
+          >
             Cancel
           </button>
         </ModalFooter>
@@ -358,11 +511,13 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
     <Modal onClose={onClose} size="2xl" maxHeight="85vh">
       <ModalHeader onClose={onClose}>
         <div>
-          <h2 className="text-sm font-semibold text-text-primary">Planning Queue</h2>
+          <h2 className="text-sm font-semibold text-text-primary">
+            Planning Queue
+          </h2>
           <p className="text-[10px] text-text-dim mt-0.5">
             {queue
-              ? `${queue.mode === 'plan' ? 'Plan' : 'Outline'} · ${queue.phases.length} phases · ${totalScenes} scenes`
-              : 'Choose how to structure your story'}
+              ? `${queue.mode === "plan" ? "Plan" : "Outline"} · ${queue.phases.length} phases · ${totalScenes} scenes`
+              : "Choose how to structure your story"}
           </p>
         </div>
       </ModalHeader>
@@ -373,20 +528,24 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
             <div className="p-5">
               {/* Mode tabs — outline vs plan */}
               {(() => {
-                const isOutline = createMode === 'templates' || createMode === 'ai-outline' || createMode === 'custom-outline';
-                const isPlan = createMode === 'ai-plan' || createMode === 'custom-plan';
+                const isOutline =
+                  createMode === "templates" ||
+                  createMode === "ai-outline" ||
+                  createMode === "custom-outline";
+                const isPlan =
+                  createMode === "ai-plan" || createMode === "custom-plan";
                 return (
                   <>
                     <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 mb-4">
                       <button
-                        onClick={() => setCreateMode('templates')}
-                        className={`flex-1 py-2 text-[11px] font-medium rounded-md transition-colors ${isOutline ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'}`}
+                        onClick={() => setCreateMode("templates")}
+                        className={`flex-1 py-2 text-[11px] font-medium rounded-md transition-colors ${isOutline ? "bg-white/10 text-text-primary" : "text-text-dim hover:text-text-secondary"}`}
                       >
                         Outline
                       </button>
                       <button
-                        onClick={() => setCreateMode('ai-plan')}
-                        className={`flex-1 py-2 text-[11px] font-medium rounded-md transition-colors ${isPlan ? 'bg-white/10 text-text-primary' : 'text-text-dim hover:text-text-secondary'}`}
+                        onClick={() => setCreateMode("ai-plan")}
+                        className={`flex-1 py-2 text-[11px] font-medium rounded-md transition-colors ${isPlan ? "bg-white/10 text-text-primary" : "text-text-dim hover:text-text-secondary"}`}
                       >
                         Plan
                       </button>
@@ -394,64 +553,98 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
 
                     {/* Sub-options within the selected mode */}
                     <div className="flex gap-1.5 mb-5">
-                      {isOutline && ([
-                        { mode: 'templates' as CreateMode, label: 'Templates' },
-                        { mode: 'ai-outline' as CreateMode, label: 'AI Generated' },
-                        { mode: 'custom-outline' as CreateMode, label: 'Custom' },
-                      ]).map(({ mode, label }) => (
-                        <button
-                          key={mode}
-                          onClick={() => setCreateMode(mode)}
-                          className={`text-[10px] font-medium px-3 py-1.5 rounded-lg transition ${
-                            createMode === mode ? 'bg-white/12 text-text-primary' : 'text-text-dim hover:text-text-secondary hover:bg-white/6'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                      {isPlan && ([
-                        { mode: 'ai-plan' as CreateMode, label: 'AI Generated' },
-                        { mode: 'custom-plan' as CreateMode, label: 'Custom' },
-                      ]).map(({ mode, label }) => (
-                        <button
-                          key={mode}
-                          onClick={() => setCreateMode(mode)}
-                          className={`text-[10px] font-medium px-3 py-1.5 rounded-lg transition ${
-                            createMode === mode ? 'bg-white/12 text-text-primary' : 'text-text-dim hover:text-text-secondary hover:bg-white/6'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
+                      {isOutline &&
+                        [
+                          {
+                            mode: "templates" as CreateMode,
+                            label: "Templates",
+                          },
+                          {
+                            mode: "ai-outline" as CreateMode,
+                            label: "AI Generated",
+                          },
+                          {
+                            mode: "custom-outline" as CreateMode,
+                            label: "Custom",
+                          },
+                        ].map(({ mode, label }) => (
+                          <button
+                            key={mode}
+                            onClick={() => setCreateMode(mode)}
+                            className={`text-[10px] font-medium px-3 py-1.5 rounded-lg transition ${
+                              createMode === mode
+                                ? "bg-white/12 text-text-primary"
+                                : "text-text-dim hover:text-text-secondary hover:bg-white/6"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      {isPlan &&
+                        [
+                          {
+                            mode: "ai-plan" as CreateMode,
+                            label: "AI Generated",
+                          },
+                          {
+                            mode: "custom-plan" as CreateMode,
+                            label: "Custom",
+                          },
+                        ].map(({ mode, label }) => (
+                          <button
+                            key={mode}
+                            onClick={() => setCreateMode(mode)}
+                            className={`text-[10px] font-medium px-3 py-1.5 rounded-lg transition ${
+                              createMode === mode
+                                ? "bg-white/12 text-text-primary"
+                                : "text-text-dim hover:text-text-secondary hover:bg-white/6"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
                     </div>
                   </>
                 );
               })()}
 
               {/* Templates */}
-              {createMode === 'templates' && (
+              {createMode === "templates" && (
                 <div className="space-y-4">
-                  {(['complete', 'episodic'] as const).map((cat) => {
-                    const profiles = BUILT_IN_PROFILES.filter((p) => p.category === cat);
+                  {(["complete", "episodic"] as const).map((cat) => {
+                    const profiles = BUILT_IN_PROFILES.filter(
+                      (p) => p.category === cat,
+                    );
                     return (
                       <div key={cat}>
                         <span className="text-[9px] uppercase tracking-widest text-text-dim font-mono block mb-2">
-                          {cat === 'complete' ? 'Complete Stories' : 'Episodic / Series'}
+                          {cat === "complete"
+                            ? "Complete Stories"
+                            : "Episodic / Series"}
                         </span>
-                        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                        <div
+                          className="flex gap-2 overflow-x-auto pb-1"
+                          style={{ scrollbarWidth: "none" }}
+                        >
                           {profiles.map((p) => (
                             <button
                               key={p.id}
                               onClick={() => selectProfile(p)}
                               className={`w-44 shrink-0 text-left rounded-lg border p-3 transition ${
                                 selectedProfileId === p.id
-                                  ? 'border-white/25 bg-white/8'
-                                  : 'border-white/6 bg-white/2 hover:border-white/15 hover:bg-white/4'
+                                  ? "border-white/25 bg-white/8"
+                                  : "border-white/6 bg-white/2 hover:border-white/15 hover:bg-white/4"
                               }`}
                             >
-                              <span className="text-[11px] font-semibold text-text-primary block">{p.name}</span>
-                              <span className="text-[10px] text-text-dim leading-snug mt-1 block line-clamp-3">{p.description}</span>
-                              <span className="text-[9px] text-text-dim mt-1.5 block font-mono">{p.phases.length} phases</span>
+                              <span className="text-[11px] font-semibold text-text-primary block">
+                                {p.name}
+                              </span>
+                              <span className="text-[10px] text-text-dim leading-snug mt-1 block line-clamp-3">
+                                {p.description}
+                              </span>
+                              <span className="text-[9px] text-text-dim mt-1.5 block font-mono">
+                                {p.phases.length} phases
+                              </span>
                             </button>
                           ))}
                         </div>
@@ -462,17 +655,20 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
               )}
 
               {/* AI Outline */}
-              {createMode === 'ai-outline' && (
+              {createMode === "ai-outline" && (
                 <div className="flex flex-col gap-3">
                   <p className="text-[11px] text-text-dim leading-relaxed">
-                    Analyse the current story state and generate a dynamic outline — phase objectives, scene allocations, and constraints. The system has creative freedom within each phase.
+                    Analyse the current story state and generate a dynamic
+                    outline — phase objectives, scene allocations, and
+                    constraints. The system has creative freedom within each
+                    phase.
                   </p>
                   <button
                     onClick={generateFromOutlineAI}
                     disabled={generating}
                     className="self-start px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
                   >
-                    {generating ? 'Generating outline...' : 'Generate Outline'}
+                    {generating ? "Generating outline..." : "Generate Outline"}
                   </button>
                   {generating && generatingReasoning && (
                     <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 text-[10px] text-text-dim font-mono max-h-32 overflow-y-auto whitespace-pre-wrap">
@@ -483,27 +679,33 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
               )}
 
               {/* Custom Outline */}
-              {createMode === 'custom-outline' && (
+              {createMode === "custom-outline" && (
                 <div className="flex flex-col gap-3">
                   <p className="text-[11px] text-text-dim leading-relaxed">
-                    Paste a rough outline — phase names, objectives, and scene counts. The system will use these as dynamic guidelines with creative freedom within each phase.
+                    Paste a rough outline — phase names, objectives, and scene
+                    counts. The system will use these as dynamic guidelines with
+                    creative freedom within each phase.
                   </p>
                   <textarea
                     value={planDocument}
                     onChange={(e) => setPlanDocument(e.target.value)}
-                    placeholder={"## Phase 1: The Setup (6 scenes)\nIntroduce the protagonist and establish the world...\n\n## Phase 2: Rising Tension (8 scenes)\nEscalate the central conflict..."}
+                    placeholder={
+                      "## Phase 1: The Setup (6 scenes)\nIntroduce the protagonist and establish the world...\n\n## Phase 2: Rising Tension (8 scenes)\nEscalate the central conflict..."
+                    }
                     className="bg-bg-elevated border border-border rounded-lg px-3 py-2.5 text-[11px] text-text-primary font-mono w-full h-48 resize-y outline-none placeholder:text-text-dim/50 focus:border-white/16 transition"
                   />
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-text-dim">
-                      {planDocument.trim() ? `${planDocument.split(/\n/).length} lines` : 'Lightweight structure — objectives and scene counts'}
+                      {planDocument.trim()
+                        ? `${planDocument.split(/\n/).length} lines`
+                        : "Lightweight structure — objectives and scene counts"}
                     </span>
                     <button
                       onClick={() => generateFromDocument(planDocument)}
                       disabled={!planDocument.trim() || generating}
                       className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
                     >
-                      {generating ? 'Parsing...' : 'Generate Queue'}
+                      {generating ? "Parsing..." : "Generate Queue"}
                     </button>
                   </div>
                   {generating && generatingReasoning && (
@@ -515,10 +717,14 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
               )}
 
               {/* AI Plan */}
-              {createMode === 'ai-plan' && (
+              {createMode === "ai-plan" && (
                 <div className="flex flex-col gap-3">
                   <p className="text-[11px] text-text-dim leading-relaxed">
-                    Generate a detailed narrative treatment from the current story state. The AI writes a full plan document with prose samples, character beats, and structural guidance, then parses it into phases with source text that trickles down into every scene.
+                    Generate a detailed narrative treatment from the current
+                    story state. The AI writes a full plan document with prose
+                    samples, character beats, and structural guidance, then
+                    parses it into phases with source text that trickles down
+                    into every scene.
                   </p>
                   {!planDocument ? (
                     <button
@@ -526,17 +732,23 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                         const narrative = state.activeNarrative;
                         if (!narrative) return;
                         setGenerating(true);
-                        setGeneratingReasoning('');
+                        setGeneratingReasoning("");
                         try {
                           // Always use head index for generation operations
                           const headIndex = state.resolvedEntryKeys.length - 1;
                           const doc = await generatePlanDocument(
-                            narrative, state.resolvedEntryKeys, headIndex,
-                            (token) => setGeneratingReasoning((prev) => prev + token),
+                            narrative,
+                            state.resolvedEntryKeys,
+                            headIndex,
+                            (token) =>
+                              setGeneratingReasoning((prev) => prev + token),
                           );
                           setPlanDocument(doc);
                         } catch (err) {
-                          console.error('[planning-queue] plan document generation failed:', err);
+                          console.error(
+                            "[planning-queue] plan document generation failed:",
+                            err,
+                          );
                         } finally {
                           setGenerating(false);
                         }
@@ -544,7 +756,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                       disabled={generating}
                       className="self-start px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
                     >
-                      {generating ? 'Generating plan...' : 'Generate Plan'}
+                      {generating ? "Generating plan..." : "Generate Plan"}
                     </button>
                   ) : (
                     <>
@@ -555,11 +767,12 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                       />
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-text-dim">
-                          {planDocument.split(/\n/).length} lines · {Math.round(planDocument.length / 4)} tokens est.
+                          {planDocument.split(/\n/).length} lines ·{" "}
+                          {Math.round(planDocument.length / 4)} tokens est.
                         </span>
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => setPlanDocument('')}
+                            onClick={() => setPlanDocument("")}
                             className="text-[10px] px-2 py-1 text-text-dim hover:text-text-secondary transition-colors"
                           >
                             Clear
@@ -569,7 +782,7 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                             disabled={generating}
                             className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
                           >
-                            {generating ? 'Parsing plan...' : 'Generate Queue'}
+                            {generating ? "Parsing plan..." : "Generate Queue"}
                           </button>
                         </div>
                       </div>
@@ -584,27 +797,34 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
               )}
 
               {/* Custom Plan */}
-              {createMode === 'custom-plan' && (
+              {createMode === "custom-plan" && (
                 <div className="flex flex-col gap-3">
                   <p className="text-[11px] text-text-dim leading-relaxed">
-                    Paste a detailed plan document — arc treatments, story bibles, chapter outlines with prose samples and structural guidance. Each section becomes a phase with source text that trickles down into direction, summaries, and prose.
+                    Paste a detailed plan document — arc treatments, story
+                    bibles, chapter outlines with prose samples and structural
+                    guidance. Each section becomes a phase with source text that
+                    trickles down into direction, summaries, and prose.
                   </p>
                   <textarea
                     value={planDocument}
                     onChange={(e) => setPlanDocument(e.target.value)}
-                    placeholder={"# Arc One: The Mountain and the Flower\n\n## Part One: The Weight of Five Hundred Years\n### Chapters 1-3 — The Stage, Set Small\n\nOpen *in medias res* — not the rebirth, but the instant before it...\n\n## Part Two: The Flower in Another Garden\n### Chapters 4-5 — What Feng Jin Huang Inherited\n..."}
+                    placeholder={
+                      "# Arc One: The Mountain and the Flower\n\n## Part One: The Weight of Five Hundred Years\n### Chapters 1-3 — The Stage, Set Small\n\nOpen *in medias res* — not the rebirth, but the instant before it...\n\n## Part Two: The Flower in Another Garden\n### Chapters 4-5 — What Feng Jin Huang Inherited\n..."
+                    }
                     className="bg-bg-elevated border border-border rounded-lg px-3 py-2.5 text-[11px] text-text-primary font-mono w-full h-64 resize-y outline-none placeholder:text-text-dim/50 focus:border-white/16 transition"
                   />
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-text-dim">
-                      {planDocument.trim() ? `${planDocument.split(/\n/).length} lines · ${Math.round(planDocument.length / 4)} tokens est.` : 'Full arc treatments with prose samples and structural notes'}
+                      {planDocument.trim()
+                        ? `${planDocument.split(/\n/).length} lines · ${Math.round(planDocument.length / 4)} tokens est.`
+                        : "Full arc treatments with prose samples and structural notes"}
                     </span>
                     <button
                       onClick={() => generateFromDocument(planDocument)}
                       disabled={!planDocument.trim() || generating}
                       className="px-5 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/16 text-text-primary transition disabled:opacity-30"
                     >
-                      {generating ? 'Parsing plan...' : 'Generate Queue'}
+                      {generating ? "Parsing plan..." : "Generate Queue"}
                     </button>
                   </div>
                   {generating && generatingReasoning && (
@@ -627,48 +847,78 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                     type="checkbox"
                     checked={queue.expandWorld !== false}
                     onChange={(e) => {
-                      const updated = { ...queue, expandWorld: e.target.checked };
+                      const updated = {
+                        ...queue,
+                        expandWorld: e.target.checked,
+                      };
                       setQueue(updated);
                       if (existingQueue && branchId) {
-                        dispatch({ type: 'SET_PLANNING_QUEUE', branchId, queue: updated });
+                        dispatch({
+                          type: "SET_PLANNING_QUEUE",
+                          branchId,
+                          queue: updated,
+                        });
                       }
                     }}
                     className="accent-white/60 w-3 h-3"
                   />
-                  <span className="text-[10px] text-text-dim">Expand world at phase boundaries</span>
+                  <span className="text-[10px] text-text-dim">
+                    Expand world at phase boundaries
+                  </span>
                 </label>
               </div>
 
               <div className="flex flex-col gap-1.5">
                 {queue.phases.map((phase, i) => {
-                  const isActive = phase.status === 'active';
-                  const isCompleted = phase.status === 'completed';
+                  const isActive = phase.status === "active";
+                  const isCompleted = phase.status === "completed";
 
-                  const progress = isActive ? phase.scenesCompleted / phase.sceneAllocation : isCompleted ? 1 : 0;
+                  const progress = isActive
+                    ? phase.scenesCompleted / phase.sceneAllocation
+                    : isCompleted
+                      ? 1
+                      : 0;
 
                   return (
                     <div
                       key={phase.id}
                       className={`rounded-lg border transition-colors ${
-                        isActive ? 'bg-amber-500/5 border-amber-500/15'
-                          : isCompleted ? 'bg-white/2 border-white/6 opacity-50'
-                          : 'bg-white/2 border-white/6'
+                        isActive
+                          ? "bg-amber-500/5 border-amber-500/15"
+                          : isCompleted
+                            ? "bg-white/2 border-white/6 opacity-50"
+                            : "bg-white/2 border-white/6"
                       }`}
                     >
                       {/* Compact header — always visible */}
                       <div className="flex items-center gap-2.5 px-3 py-2">
-                        <span className={`text-[10px] font-mono shrink-0 w-4 text-center ${isActive ? 'text-amber-400' : 'text-text-dim'}`}>{i + 1}</span>
+                        <span
+                          className={`text-[10px] font-mono shrink-0 w-4 text-center ${isActive ? "text-amber-400" : "text-text-dim"}`}
+                        >
+                          {i + 1}
+                        </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className={`text-[11px] font-medium truncate ${isActive ? 'text-text-primary' : 'text-text-secondary'}`}>{phase.name}</span>
+                            <span
+                              className={`text-[11px] font-medium truncate ${isActive ? "text-text-primary" : "text-text-secondary"}`}
+                            >
+                              {phase.name}
+                            </span>
                             <span className="text-[10px] text-text-dim shrink-0">
-                              {isActive ? `${phase.scenesCompleted}/${phase.sceneAllocation}` : isCompleted ? 'done' : `${phase.sceneAllocation} scenes`}
+                              {isActive
+                                ? `${phase.scenesCompleted}/${phase.sceneAllocation}`
+                                : isCompleted
+                                  ? "done"
+                                  : `${phase.sceneAllocation} scenes`}
                             </span>
                           </div>
                           {/* Progress bar for active phase */}
                           {isActive && (
                             <div className="mt-1 h-0.5 bg-white/6 rounded-full overflow-hidden">
-                              <div className="h-full bg-amber-400/50 rounded-full transition-all" style={{ width: `${progress * 100}%` }} />
+                              <div
+                                className="h-full bg-amber-400/50 rounded-full transition-all"
+                                style={{ width: `${progress * 100}%` }}
+                              />
                             </div>
                           )}
                         </div>
@@ -677,27 +927,38 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                       {/* Expandable detail — objective, direction, settings */}
                       <details className="group">
                         <summary className="px-3 pb-1.5 text-[10px] text-text-dim cursor-pointer hover:text-text-secondary select-none -mt-0.5">
-                          {phase.objective.slice(0, 80)}{phase.objective.length > 80 ? '...' : ''}
+                          {phase.objective.slice(0, 80)}
+                          {phase.objective.length > 80 ? "..." : ""}
                         </summary>
                         <div className="px-3 pb-3 pt-1 border-t border-white/4 space-y-2.5">
                           {/* Objective */}
                           <div>
-                            <p className="text-[10px] text-text-secondary leading-relaxed">{phase.objective}</p>
+                            <p className="text-[10px] text-text-secondary leading-relaxed">
+                              {phase.objective}
+                            </p>
                           </div>
 
                           {/* Direction — active phase only */}
                           {isActive && phase.direction && existingQueue && (
                             <div>
-                              <label className="text-[9px] text-amber-400/60 uppercase tracking-wider block mb-0.5">Direction</label>
-                              <p className="text-[10px] text-text-secondary leading-relaxed">{phase.direction}</p>
+                              <label className="text-[9px] text-amber-400/60 uppercase tracking-wider block mb-0.5">
+                                Direction
+                              </label>
+                              <p className="text-[10px] text-text-secondary leading-relaxed">
+                                {phase.direction}
+                              </p>
                             </div>
                           )}
 
                           {/* Completion report — completed phase */}
                           {isCompleted && phase.completionReport && (
                             <div>
-                              <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Report</label>
-                              <p className="text-[10px] text-text-dim leading-relaxed italic">{phase.completionReport}</p>
+                              <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">
+                                Report
+                              </label>
+                              <p className="text-[10px] text-text-dim leading-relaxed italic">
+                                {phase.completionReport}
+                              </p>
                             </div>
                           )}
 
@@ -705,11 +966,14 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                           {phase.sourceText && (
                             <details>
                               <summary className="text-[9px] text-text-dim cursor-pointer hover:text-text-secondary select-none">
-                                Source text · {Math.round(phase.sourceText.length / 4)}t
+                                Source text ·{" "}
+                                {Math.round(phase.sourceText.length / 4)}t
                               </summary>
                               <textarea
                                 value={phase.sourceText}
-                                onChange={(e) => updatePhase(i, { sourceText: e.target.value })}
+                                onChange={(e) =>
+                                  updatePhase(i, { sourceText: e.target.value })
+                                }
                                 className="mt-1 bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary font-mono w-full outline-none resize-y leading-relaxed"
                                 rows={6}
                               />
@@ -721,25 +985,39 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                             <details>
                               <summary className="text-[9px] text-text-dim cursor-pointer hover:text-text-secondary select-none">
                                 Settings
-                                {phase.constraints ? ' · constraints' : ''}
-                                {phase.worldExpansionHints ? ' · expansion hints' : ''}
+                                {phase.constraints ? " · constraints" : ""}
+                                {phase.worldExpansionHints
+                                  ? " · expansion hints"
+                                  : ""}
                               </summary>
                               <div className="mt-1.5 space-y-2">
                                 <div>
-                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Constraints</label>
+                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">
+                                    Constraints
+                                  </label>
                                   <textarea
                                     value={phase.constraints}
-                                    onChange={(e) => updatePhase(i, { constraints: e.target.value })}
+                                    onChange={(e) =>
+                                      updatePhase(i, {
+                                        constraints: e.target.value,
+                                      })
+                                    }
                                     placeholder="What must NOT happen..."
                                     className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
                                     rows={2}
                                   />
                                 </div>
                                 <div>
-                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">World Expansion Hints</label>
+                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">
+                                    World Expansion Hints
+                                  </label>
                                   <textarea
                                     value={phase.worldExpansionHints}
-                                    onChange={(e) => updatePhase(i, { worldExpansionHints: e.target.value })}
+                                    onChange={(e) =>
+                                      updatePhase(i, {
+                                        worldExpansionHints: e.target.value,
+                                      })
+                                    }
                                     placeholder="Characters, locations, or systems to introduce..."
                                     className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none placeholder:text-text-dim resize-none leading-relaxed"
                                     rows={1}
@@ -747,28 +1025,44 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
                                 </div>
                                 {phase.structuralRules && (
                                   <div>
-                                    <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Structural Rules</label>
+                                    <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">
+                                      Structural Rules
+                                    </label>
                                     <textarea
                                       value={phase.structuralRules}
-                                      onChange={(e) => updatePhase(i, { structuralRules: e.target.value })}
+                                      onChange={(e) =>
+                                        updatePhase(i, {
+                                          structuralRules: e.target.value,
+                                        })
+                                      }
                                       className="bg-bg-overlay border border-border rounded px-2 py-1.5 text-[10px] text-text-primary w-full outline-none resize-none leading-relaxed"
                                       rows={3}
                                     />
                                   </div>
                                 )}
                                 <div>
-                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">Scene Allocation</label>
+                                  <label className="text-[9px] text-text-dim uppercase tracking-wider block mb-0.5">
+                                    Scene Allocation
+                                  </label>
                                   <input
-                                    type="number" min={1} max={50}
+                                    type="number"
+                                    min={1}
+                                    max={50}
                                     value={phase.sceneAllocation}
-                                    onChange={(e) => updatePhase(i, { sceneAllocation: Math.max(1, Number(e.target.value)) })}
+                                    onChange={(e) =>
+                                      updatePhase(i, {
+                                        sceneAllocation: Math.max(
+                                          1,
+                                          Number(e.target.value),
+                                        ),
+                                      })
+                                    }
                                     className="bg-bg-overlay border border-border rounded px-2 py-1 text-[10px] text-text-primary w-16 outline-none"
                                   />
                                 </div>
                               </div>
                             </details>
                           )}
-
                         </div>
                       </details>
                     </div>
@@ -781,53 +1075,74 @@ export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
       </ModalBody>
       <ModalFooter>
         {queue && !existingQueue && (
-          <button onClick={() => { setQueue(null); setSelectedProfileId(null); }}
-            className="px-4 text-xs font-medium py-2 rounded-lg text-text-dim hover:text-text-secondary hover:bg-white/6 transition-colors">
+          <button
+            onClick={() => {
+              setQueue(null);
+              setSelectedProfileId(null);
+            }}
+            className="px-4 text-xs font-medium py-2 rounded-lg text-text-dim hover:text-text-secondary hover:bg-white/6 transition-colors"
+          >
             Back
           </button>
         )}
         {existingQueue && (
           <>
-            <button onClick={handleReset}
-              className="px-4 text-xs font-medium py-2 rounded-lg text-text-dim hover:text-text-secondary hover:bg-white/6 transition-colors">
+            <button
+              onClick={handleReset}
+              className="px-4 text-xs font-medium py-2 rounded-lg text-text-dim hover:text-text-secondary hover:bg-white/6 transition-colors"
+            >
               Reset Progress
             </button>
-            <button onClick={handleClear}
-              className="px-4 text-xs font-medium py-2 rounded-lg text-drive hover:bg-white/6 transition-colors">
+            <button
+              onClick={handleClear}
+              className="px-4 text-xs font-medium py-2 rounded-lg text-fate hover:bg-white/6 transition-colors"
+            >
               Remove Queue
             </button>
           </>
         )}
         <div className="flex-1" />
-        {existingQueue && queue?.phases.some((p) => p.status === 'active') && (
+        {existingQueue && queue?.phases.some((p) => p.status === "active") && (
           <div className="flex items-center">
-            <button onClick={() => regenerateForActivePhase('world')} disabled={regenerating !== null}
-              className="px-3 text-[10px] font-medium py-1.5 rounded-l-lg border border-r-0 border-white/10 text-text-dim hover:text-text-primary hover:bg-white/8 transition-colors disabled:opacity-30">
-              {regenerating === 'world' ? 'Expanding...' : 'World'}
+            <button
+              onClick={() => regenerateForActivePhase("world")}
+              disabled={regenerating !== null}
+              className="px-3 text-[10px] font-medium py-1.5 rounded-l-lg border border-r-0 border-white/10 text-text-dim hover:text-text-primary hover:bg-white/8 transition-colors disabled:opacity-30"
+            >
+              {regenerating === "world" ? "Expanding..." : "World"}
             </button>
-            <button onClick={() => regenerateForActivePhase('direction')} disabled={regenerating !== null}
-              className="px-3 text-[10px] font-medium py-1.5 border border-r-0 border-white/10 text-text-dim hover:text-text-primary hover:bg-white/8 transition-colors disabled:opacity-30">
-              {regenerating === 'direction' ? 'Generating...' : 'Direction'}
+            <button
+              onClick={() => regenerateForActivePhase("direction")}
+              disabled={regenerating !== null}
+              className="px-3 text-[10px] font-medium py-1.5 border border-r-0 border-white/10 text-text-dim hover:text-text-primary hover:bg-white/8 transition-colors disabled:opacity-30"
+            >
+              {regenerating === "direction" ? "Generating..." : "Direction"}
             </button>
-            <button onClick={() => regenerateForActivePhase('both')} disabled={regenerating !== null}
-              className="px-3 text-[10px] font-medium py-1.5 rounded-r-lg border border-white/10 bg-white/6 text-text-secondary hover:text-text-primary hover:bg-white/12 transition-colors disabled:opacity-30">
-              {regenerating ? 'Working...' : 'Both'}
+            <button
+              onClick={() => regenerateForActivePhase("both")}
+              disabled={regenerating !== null}
+              className="px-3 text-[10px] font-medium py-1.5 rounded-r-lg border border-white/10 bg-white/6 text-text-secondary hover:text-text-primary hover:bg-white/12 transition-colors disabled:opacity-30"
+            >
+              {regenerating ? "Working..." : "Both"}
             </button>
           </div>
         )}
-        {queue && (!existingQueue || (existingQueue.activePhaseIndex === -1 && existingQueue.phases.every((p) => p.status === 'pending'))) && (
-          <button
-            onClick={handleSave}
-            disabled={queue.phases.length === 0 || activating}
-            className={`px-6 text-xs font-semibold py-2 rounded-lg transition-colors ${
-              queue.phases.length === 0 || activating
-                ? 'bg-white/4 text-text-dim cursor-not-allowed'
-                : 'bg-white/12 text-text-primary hover:bg-white/16'
-            }`}
-          >
-            Activate Queue
-          </button>
-        )}
+        {queue &&
+          (!existingQueue ||
+            (existingQueue.activePhaseIndex === -1 &&
+              existingQueue.phases.every((p) => p.status === "pending"))) && (
+            <button
+              onClick={handleSave}
+              disabled={queue.phases.length === 0 || activating}
+              className={`px-6 text-xs font-semibold py-2 rounded-lg transition-colors ${
+                queue.phases.length === 0 || activating
+                  ? "bg-white/4 text-text-dim cursor-not-allowed"
+                  : "bg-white/12 text-text-primary hover:bg-white/16"
+              }`}
+            >
+              Activate Queue
+            </button>
+          )}
       </ModalFooter>
     </Modal>
   );

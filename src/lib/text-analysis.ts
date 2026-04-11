@@ -7,17 +7,39 @@
  * for in-browser use with the app's existing callGenerate infrastructure.
  */
 
+import {
+  ANALYSIS_MODEL,
+  ANALYSIS_TEMPERATURE,
+  MAX_TOKENS_DEFAULT,
+  SCENES_PER_ARC,
+  WORDS_PER_SCENE,
+} from "@/lib/constants";
+import { logWarning } from "@/lib/system-logger";
 import type {
-  NarrativeState, AnalysisChunkResult, AnalysisJob,
-  Character, Location, Thread, Arc, Scene, RelationshipEdge, Artifact,
-  WorldBuild, Branch, ProseProfile, SceneVersionPointers, SystemNodeType, ContinuityNodeType,
+  AnalysisChunkResult,
+  Arc,
+  Artifact,
   BeatPlan,
-} from '@/types/narrative';
-import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, THREAD_LOG_NODE_TYPES, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import type { ThreadLogNodeType } from '@/types/narrative';
-import { ANALYSIS_TARGET_SECTIONS_PER_CHUNK, ANALYSIS_TARGET_CHUNK_WORDS, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT, ANALYSIS_TEMPERATURE, WORDS_PER_SCENE, SCENES_PER_ARC } from '@/lib/constants';
-import { validateExtractionResult, validateSystemMutation } from '@/lib/ai/validation';
-import { logWarning, logInfo } from '@/lib/system-logger';
+  Branch,
+  Character,
+  ContinuityNodeType,
+  Location,
+  NarrativeState,
+  ProseProfile,
+  RelationshipEdge,
+  Scene,
+  SceneVersionPointers,
+  SystemNodeType,
+  Thread,
+  ThreadLogNodeType,
+  WorldBuild,
+} from "@/types/narrative";
+import {
+  DEFAULT_STORY_SETTINGS,
+  THREAD_ACTIVE_STATUSES,
+  THREAD_LOG_NODE_TYPES,
+  THREAD_TERMINAL_STATUSES,
+} from "@/types/narrative";
 
 // ── Scene-level Splitting ────────────────────────────────────────────────────
 
@@ -25,12 +47,17 @@ import { logWarning, logInfo } from '@/lib/system-logger';
  * Split corpus into scene-sized prose chunks (~1200 words each).
  * Returns ordered array of { index, prose, wordCount }.
  */
-export function splitCorpusIntoScenes(text: string): { index: number; prose: string; wordCount: number }[] {
+export function splitCorpusIntoScenes(
+  text: string,
+): { index: number; prose: string; wordCount: number }[] {
   const TARGET = WORDS_PER_SCENE;
   const scenes: { index: number; prose: string; wordCount: number }[] = [];
 
   // Split on paragraph breaks first, then sentence breaks for long paragraphs
-  let paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  let paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   // Break any paragraph longer than TARGET into sentence-level chunks
   const expanded: string[] = [];
@@ -39,9 +66,12 @@ export function splitCorpusIntoScenes(text: string): { index: number; prose: str
     if (wc > TARGET) {
       // Split on sentence boundaries
       const sentences = para.match(/[^.!?]+[.!?]+["']?\s*/g) ?? [para];
-      let sentBuf = '';
+      let sentBuf = "";
       for (const sent of sentences) {
-        if (sentBuf && (sentBuf.split(/\s+/).length + sent.split(/\s+/).length) > TARGET) {
+        if (
+          sentBuf &&
+          sentBuf.split(/\s+/).length + sent.split(/\s+/).length > TARGET
+        ) {
           expanded.push(sentBuf.trim());
           sentBuf = sent;
         } else {
@@ -63,12 +93,20 @@ export function splitCorpusIntoScenes(text: string): { index: number; prose: str
     const paraWords = para.split(/\s+/).length;
     if (bufferWords >= TARGET) {
       // Buffer already at target — flush immediately
-      scenes.push({ index: scenes.length, prose: buffer.join('\n\n'), wordCount: bufferWords });
+      scenes.push({
+        index: scenes.length,
+        prose: buffer.join("\n\n"),
+        wordCount: bufferWords,
+      });
       buffer = [para];
       bufferWords = paraWords;
     } else if (bufferWords > 0 && bufferWords + paraWords > TARGET * 1.15) {
       // Adding this paragraph would overshoot — flush and start new
-      scenes.push({ index: scenes.length, prose: buffer.join('\n\n'), wordCount: bufferWords });
+      scenes.push({
+        index: scenes.length,
+        prose: buffer.join("\n\n"),
+        wordCount: bufferWords,
+      });
       buffer = [para];
       bufferWords = paraWords;
     } else {
@@ -77,14 +115,22 @@ export function splitCorpusIntoScenes(text: string): { index: number; prose: str
     }
   }
   if (buffer.length > 0) {
-    scenes.push({ index: scenes.length, prose: buffer.join('\n\n'), wordCount: bufferWords });
+    scenes.push({
+      index: scenes.length,
+      prose: buffer.join("\n\n"),
+      wordCount: bufferWords,
+    });
   }
 
   // Merge any tiny trailing scene into the previous one
   if (scenes.length > 1 && scenes[scenes.length - 1].wordCount < TARGET * 0.3) {
     const last = scenes.pop()!;
     const prev = scenes[scenes.length - 1];
-    scenes[scenes.length - 1] = { ...prev, prose: prev.prose + '\n\n' + last.prose, wordCount: prev.wordCount + last.wordCount };
+    scenes[scenes.length - 1] = {
+      ...prev,
+      prose: prev.prose + "\n\n" + last.prose,
+      wordCount: prev.wordCount + last.wordCount,
+    };
   }
 
   return scenes;
@@ -101,19 +147,25 @@ export type SceneStructureResult = {
   participantNames: string[];
   events: string[];
   summary: string;
-  characters: AnalysisChunkResult['characters'];
-  locations: AnalysisChunkResult['locations'];
-  artifacts: NonNullable<AnalysisChunkResult['artifacts']>;
-  threads: AnalysisChunkResult['threads'];
-  relationships: AnalysisChunkResult['relationships'];
-  threadMutations: AnalysisChunkResult['scenes'][0]['threadMutations'];
-  continuityMutations: AnalysisChunkResult['scenes'][0]['continuityMutations'];
-  relationshipMutations: AnalysisChunkResult['scenes'][0]['relationshipMutations'];
-  artifactUsages: NonNullable<AnalysisChunkResult['scenes'][0]['artifactUsages']>;
-  ownershipMutations: NonNullable<AnalysisChunkResult['scenes'][0]['ownershipMutations']>;
-  tieMutations: NonNullable<AnalysisChunkResult['scenes'][0]['tieMutations']>;
-  characterMovements: NonNullable<AnalysisChunkResult['scenes'][0]['characterMovements']>;
-  systemMutations?: AnalysisChunkResult['scenes'][0]['systemMutations'];
+  characters: AnalysisChunkResult["characters"];
+  locations: AnalysisChunkResult["locations"];
+  artifacts: NonNullable<AnalysisChunkResult["artifacts"]>;
+  threads: AnalysisChunkResult["threads"];
+  relationships: AnalysisChunkResult["relationships"];
+  threadMutations: AnalysisChunkResult["scenes"][0]["threadMutations"];
+  continuityMutations: AnalysisChunkResult["scenes"][0]["continuityMutations"];
+  relationshipMutations: AnalysisChunkResult["scenes"][0]["relationshipMutations"];
+  artifactUsages: NonNullable<
+    AnalysisChunkResult["scenes"][0]["artifactUsages"]
+  >;
+  ownershipMutations: NonNullable<
+    AnalysisChunkResult["scenes"][0]["ownershipMutations"]
+  >;
+  tieMutations: NonNullable<AnalysisChunkResult["scenes"][0]["tieMutations"]>;
+  characterMovements: NonNullable<
+    AnalysisChunkResult["scenes"][0]["characterMovements"]
+  >;
+  systemMutations?: AnalysisChunkResult["scenes"][0]["systemMutations"];
 };
 
 /**
@@ -126,8 +178,8 @@ export async function extractSceneStructure(
   onToken?: (token: string, accumulated: string) => void,
 ): Promise<SceneStructureResult> {
   const beatSection = plan
-    ? `\n\nBEAT PLAN (${plan.beats.length} beats — use as a guide for where events happen):\n${plan.beats.map((b, i) => `Beat ${i + 1} [${b.fn}/${b.mechanism}]: ${b.what}`).join('\n')}`
-    : '';
+    ? `\n\nBEAT PLAN (${plan.beats.length} beats — use as a guide for where events happen):\n${plan.beats.map((b, i) => `Beat ${i + 1} [${b.fn}/${b.mechanism}]: ${b.what}`).join("\n")}`
+    : "";
 
   const prompt = `Extract narrative structure from this scene's prose.
 
@@ -135,9 +187,9 @@ SCENE PROSE:
 ${prose}${beatSection}
 
 FORCE FORMULAS — your extractions are the direct inputs:
-- DRIVE = activeArcs^1.3 × stageWeight (thread commitment toward resolution). Ref: ~3/scene.
-- WORLD = ΔN_c + √ΔE_c (entity transformation — what we learn about characters, locations, artifacts). Ref: ~14/scene.
-- SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~5/scene.
+- FATE = Σ √arcs × stageWeight × (1 + log(1 + investment)) (thread commitment toward resolution). Ref: ~1.5/scene.
+- WORLD = ΔN_c + √ΔE_c (entity transformation — what we learn about characters, locations, artifacts). Ref: ~12/scene.
+- SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~3/scene.
 
 Return JSON:
 {
@@ -149,22 +201,29 @@ Return JSON:
   "characters": [{"name": "Full Name", "role": "anchor|recurring|transient", "firstAppearance": false, "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. No metaphors or figurative language."}],
   "locations": [{"name": "Location Name", "prominence": "domain|place|margin", "parentName": "Parent or null", "description": "Brief description", "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Concrete physical details only, no metaphors.", "tiedCharacterNames": ["characters tied here"]}],
   "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
-  "threads": [{"description": "narrative tension", "participantNames": ["names"], "statusAtStart": "status", "statusAtEnd": "status", "development": "how it developed"}],
+  "threads": [{"description": "15-30 words: the narrative tension or question this thread poses — specific conflict, not generic", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this thread developed in this specific scene"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
-  "threadMutations": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-  "continuityMutations": [{"entityName": "Name", "addedNodes": [{"content": "what", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+  "threadMutations": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "continuityMutations": [{"entityName": "Name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
   "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
   "ownershipMutations": [{"artifactName": "Name", "fromName": "prev", "toName": "new"}],
   "tieMutations": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}],
-  "characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "how"}],
-  "systemMutations": {"addedNodes": [{"concept": "name", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "type"}]}
+  "characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "15-25 words describing how they traveled — the journey, transport, or spatial transition"}],
+  "systemMutations": {"addedNodes": [{"concept": "15-25 words, PRESENT tense: a general rule or structural fact — how the world works, no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}
 }`;
 
   const fieldGuide = `
 EXTRACTION STANDARDS — every mutation must EARN its place. Low-value mutations flatten the force graph.
 
-threadMutations — lifecycle: latent→seeded→active→critical→resolved/subverted. Abandoned resets to latent.
+DETECTING FATE — Fate is the intangible bigger picture. Threads are the mechanism; fate is where they're going.
+- Read prose for MOMENTS THAT MATTER — when does this scene advance the larger story?
+- A thread mutation records your detection: "this moment moves the story closer to resolution."
+- Fate is what pulls world and system toward meaning. Without it, nothing resolves.
+
+threadMutations — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
+- Escalating = POINT OF NO RETURN. Once detected, the story has promised resolution.
+- Abandoned = cleanup. Threads below escalating that go nowhere should be abandoned, not left hanging.
 - ONE step at a time. NEVER skip phases.
 - Most scenes: 1-2 PULSES (same→same). Real transitions are RARE: 0-1 per scene.
 - Only record a transition when the prose shows a clear, irreversible shift in tension.
@@ -195,8 +254,11 @@ relationshipMutations — only when a relationship SHIFTS, not just exists.
 - valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic. Most scenes: 0-1.
 
 systemMutations — REVEALED world rules, not character observations.
-- Each concept: a genuine world SYSTEM or PRINCIPLE.
-  BAD: "Wonderland Logic" (vague). GOOD: "Anthropomorphic Animals" (real world feature).
+- Each concept: 15-25 words, PRESENT TENSE. A genuine world SYSTEM or PRINCIPLE that governs how things work.
+  BAD: "Wonderland Logic" (too vague, too short).
+  BAD: "Anthropomorphic Animals" (too short — what do they do? what rules govern them?).
+  GOOD: "Animals in Wonderland possess human speech, clothing, and social hierarchies, interacting with humans as equals in formal settings."
+  GOOD: "The rabbit hole serves as a dimensional threshold, transporting travelers to a realm where physical laws operate differently."
 - MAX 1-2 concepts per scene. Most scenes: 0-1. Only exposition/world-building: 3+.
 - Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
@@ -229,18 +291,18 @@ VARIANCE IS SIGNAL:
 - Climactic scene: 2 transitions, 5 nodes, 3 concepts, 5 events = CORRECT.
 - If every scene has similar counts, you are extracting noise. The graph needs peaks and valleys.`;
 
-  const fullPrompt = prompt + '\n' + fieldGuide;
+  const fullPrompt = prompt + "\n" + fieldGuide;
   const system = `You are a narrative structure extractor. Given a scene's exact prose and its beat plan, extract all entities, mutations, and structural data accurately. Dense prose deserves rich extraction; sparse prose deserves minimal extraction. Return only valid JSON.`;
   const raw = await callAnalysis(fullPrompt, system, onToken);
   const json = extractJSON(raw);
   const parsed = JSON.parse(json) as SceneStructureResult;
 
   return {
-    povName: parsed.povName ?? '',
-    locationName: parsed.locationName ?? '',
+    povName: parsed.povName ?? "",
+    locationName: parsed.locationName ?? "",
     participantNames: parsed.participantNames ?? [],
     events: parsed.events ?? [],
-    summary: parsed.summary ?? '',
+    summary: parsed.summary ?? "",
     characters: parsed.characters ?? [],
     locations: parsed.locations ?? [],
     artifacts: parsed.artifacts ?? [],
@@ -270,12 +332,15 @@ export async function groupScenesIntoArcs(
   const groups: { sceneIndices: number[]; summaries: string[] }[] = [];
   for (let i = 0; i < sceneSummaries.length; i += SCENES_PER_ARC) {
     const slice = sceneSummaries.slice(i, i + SCENES_PER_ARC);
-    groups.push({ sceneIndices: slice.map(s => s.index), summaries: slice.map(s => s.summary) });
+    groups.push({
+      sceneIndices: slice.map((s) => s.index),
+      summaries: slice.map((s) => s.summary),
+    });
   }
 
   const prompt = `Name each arc based on its scene summaries. An arc is a narrative unit of ~4 scenes.
 
-${groups.map((g, i) => `ARC ${i + 1} (scenes ${g.sceneIndices[0] + 1}-${g.sceneIndices[g.sceneIndices.length - 1] + 1}):\n${g.summaries.map((s, j) => `  Scene ${g.sceneIndices[j] + 1}: ${s}`).join('\n')}`).join('\n\n')}
+${groups.map((g, i) => `ARC ${i + 1} (scenes ${g.sceneIndices[0] + 1}-${g.sceneIndices[g.sceneIndices.length - 1] + 1}):\n${g.summaries.map((s, j) => `  Scene ${g.sceneIndices[j] + 1}: ${s}`).join("\n")}`).join("\n\n")}
 
 Return JSON array of arc names (one per arc, in order):
 ["Arc 1 Name", "Arc 2 Name", ...]
@@ -284,7 +349,8 @@ Rules:
 - Each name should capture the arc's thematic thrust in 2-5 words
 - Names should be evocative and specific, not generic ("The Betrayal at Dawn" not "Events")`;
 
-  const system = 'You are a narrative analyst. Name story arcs based on scene summaries. Return only a JSON array of strings.';
+  const system =
+    "You are a narrative analyst. Name story arcs based on scene summaries. Return only a JSON array of strings.";
   const raw = await callAnalysis(prompt, system, onToken);
   const json = extractJSON(raw);
   const names = JSON.parse(json) as string[];
@@ -297,23 +363,44 @@ Rules:
 
 // ── LLM Call ─────────────────────────────────────────────────────────────────
 
-async function callAnalysis(prompt: string, systemPrompt: string, onToken?: (token: string, accumulated: string) => void): Promise<string> {
-  const { logApiCall, updateApiLog } = await import('@/lib/api-logger');
-  const { apiHeaders } = await import('@/lib/api-headers');
-  const logId = logApiCall('analyzeChunk', prompt.length + systemPrompt.length, prompt, ANALYSIS_MODEL);
+async function callAnalysis(
+  prompt: string,
+  systemPrompt: string,
+  onToken?: (token: string, accumulated: string) => void,
+): Promise<string> {
+  const { logApiCall, updateApiLog } = await import("@/lib/api-logger");
+  const { apiHeaders } = await import("@/lib/api-headers");
+  const logId = logApiCall(
+    "analyzeChunk",
+    prompt.length + systemPrompt.length,
+    prompt,
+    ANALYSIS_MODEL,
+  );
   const start = performance.now();
 
   try {
     const useStream = !!onToken;
-    const res = await fetch('/api/generate', {
-      method: 'POST',
+    const res = await fetch("/api/generate", {
+      method: "POST",
       headers: apiHeaders(),
-      body: JSON.stringify({ prompt, systemPrompt, maxTokens: MAX_TOKENS_DEFAULT, stream: useStream, model: ANALYSIS_MODEL, temperature: ANALYSIS_TEMPERATURE, reasoningBudget: 0 }),
+      body: JSON.stringify({
+        prompt,
+        systemPrompt,
+        maxTokens: MAX_TOKENS_DEFAULT,
+        stream: useStream,
+        model: ANALYSIS_MODEL,
+        temperature: ANALYSIS_TEMPERATURE,
+        reasoningBudget: 0,
+      }),
     });
     if (!res.ok) {
       const err = await res.json();
-      const message = err.error || 'Analysis failed';
-      updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+      const message = err.error || "Analysis failed";
+      updateApiLog(logId, {
+        status: "error",
+        error: message,
+        durationMs: Math.round(performance.now() - start),
+      });
       throw new Error(message);
     }
 
@@ -323,21 +410,21 @@ async function callAnalysis(prompt: string, systemPrompt: string, onToken?: (tok
       // Stream SSE tokens
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let accumulated = '';
-      let buffer = '';
+      let accumulated = "";
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
 
         for (const line of lines) {
           const trimmed = line.trim();
-          if (!trimmed || trimmed === 'data: [DONE]') continue;
-          if (trimmed.startsWith('data: ')) {
+          if (!trimmed || trimmed === "data: [DONE]") continue;
+          if (trimmed.startsWith("data: ")) {
             try {
               const parsed = JSON.parse(trimmed.slice(6));
               if (parsed.token) {
@@ -356,11 +443,20 @@ async function callAnalysis(prompt: string, systemPrompt: string, onToken?: (tok
       content = data.content;
     }
 
-    updateApiLog(logId, { status: 'success', durationMs: Math.round(performance.now() - start), responseLength: content.length, responsePreview: content });
+    updateApiLog(logId, {
+      status: "success",
+      durationMs: Math.round(performance.now() - start),
+      responseLength: content.length,
+      responsePreview: content,
+    });
     return content;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+    updateApiLog(logId, {
+      status: "error",
+      error: message,
+      durationMs: Math.round(performance.now() - start),
+    });
     throw err;
   }
 }
@@ -369,15 +465,15 @@ async function callAnalysis(prompt: string, systemPrompt: string, onToken?: (tok
 
 function extractJSON(raw: string): string {
   let text = raw.trim();
-  text = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```\s*$/i, '');
+  text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "");
 
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
   if (firstBrace !== -1 && lastBrace > firstBrace) {
     text = text.slice(firstBrace, lastBrace + 1);
   }
 
-  text = text.replace(/,\s*([}\]])/g, '$1');
+  text = text.replace(/,\s*([}\]])/g, "$1");
 
   // Fix missing opening quote on string values: "key": value" → "key": "value"
   text = text.replace(/:\s*([a-zA-Z_][a-zA-Z0-9_]*)"(,|\s*[}\]])/g, ': "$1"$2');
@@ -386,21 +482,30 @@ function extractJSON(raw: string): string {
   // Escape raw newlines/tabs inside string values (not already escaped)
   text = text.replace(/"([^"]*?)"/g, (_match, inner: string) => {
     const escaped = inner
-      .replace(/(?<!\\)\n/g, '\\n')
-      .replace(/(?<!\\)\r/g, '\\r')
-      .replace(/(?<!\\)\t/g, '\\t');
+      .replace(/(?<!\\)\n/g, "\\n")
+      .replace(/(?<!\\)\r/g, "\\r")
+      .replace(/(?<!\\)\t/g, "\\t");
     return `"${escaped}"`;
   });
 
-  let opens = 0, closes = 0, sqOpens = 0, sqCloses = 0;
+  let opens = 0,
+    closes = 0,
+    sqOpens = 0,
+    sqCloses = 0;
   for (const ch of text) {
-    if (ch === '{') opens++;
-    else if (ch === '}') closes++;
-    else if (ch === '[') sqOpens++;
-    else if (ch === ']') sqCloses++;
+    if (ch === "{") opens++;
+    else if (ch === "}") closes++;
+    else if (ch === "[") sqOpens++;
+    else if (ch === "]") sqCloses++;
   }
-  while (sqCloses < sqOpens) { text += ']'; sqCloses++; }
-  while (closes < opens) { text += '}'; closes++; }
+  while (sqCloses < sqOpens) {
+    text += "]";
+    sqCloses++;
+  }
+  while (closes < opens) {
+    text += "}";
+    closes++;
+  }
 
   return text;
 }
@@ -433,7 +538,8 @@ export async function reconcileResults(
     for (const l of r.locations ?? []) allLocNames.add(l.name);
     for (const a of r.artifacts ?? []) allArtifactNames.add(a.name);
     for (const s of r.scenes ?? []) {
-      for (const n of s.systemMutations?.addedNodes ?? []) allWKConcepts.add(n.concept);
+      for (const n of s.systemMutations?.addedNodes ?? [])
+        allWKConcepts.add(n.concept);
     }
   }
 
@@ -441,19 +547,19 @@ export async function reconcileResults(
   const reconciliationPrompt = `Reconcile narrative data extracted independently from ${results.length} scenes of the same story. Each scene was analyzed in isolation — the same entity often appears under different names or descriptions. Your job: find EVERY overlap and merge aggressively.
 
 CHARACTERS (${allCharNames.size}):
-${[...allCharNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
+${[...allCharNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
 
 THREADS (${allThreadDescs.size}):
-${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join('\n')}
+${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join("\n")}
 
 LOCATIONS (${allLocNames.size}):
-${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
+${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
 
 ARTIFACTS (${allArtifactNames.size}):
-${[...allArtifactNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
+${[...allArtifactNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
 
 WORLD KNOWLEDGE (${allWKConcepts.size}):
-${[...allWKConcepts].map((c, i) => `${i + 1}. "${c}"`).join('\n')}
+${[...allWKConcepts].map((c, i) => `${i + 1}. "${c}"`).join("\n")}
 
 For each category, map every variant to its canonical form. Only include entries where variant ≠ canonical.
 
@@ -502,7 +608,11 @@ Empty object {} if no merges needed for a category.`;
 
   const reconciliationSystem = `You deduplicate entities extracted independently from different scenes of the same story. Scenes were analyzed in isolation, so the same character, thread, location, or concept often appears under different names or phrasings. Detect these intelligently and merge them. Return only valid JSON.`;
 
-  const raw = await callAnalysis(reconciliationPrompt, reconciliationSystem, onToken);
+  const raw = await callAnalysis(
+    reconciliationPrompt,
+    reconciliationSystem,
+    onToken,
+  );
   const json = extractJSON(raw);
   let merges: {
     characterMerges: CharacterNameMap;
@@ -517,7 +627,9 @@ Empty object {} if no merges needed for a category.`;
     const repaired = json
       .replace(/[\u201C\u201D]/g, '"')
       .replace(/[\u2018\u2019]/g, "'")
-      .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\t' ? ch : '');
+      .replace(/[\x00-\x1F\x7F]/g, (ch) =>
+        ch === "\n" || ch === "\t" ? ch : "",
+      );
     merges = JSON.parse(repaired);
   }
 
@@ -544,7 +656,11 @@ Empty object {} if no merges needed for a category.`;
     characters: deduplicateBy(
       (r.characters ?? []).map((c) => ({ ...c, name: resolveChar(c.name) })),
       (c) => c.name,
-      (a, b) => ({ ...a, role: higherRole(a.role, b.role), imagePrompt: a.imagePrompt || b.imagePrompt }),
+      (a, b) => ({
+        ...a,
+        role: higherRole(a.role, b.role),
+        imagePrompt: a.imagePrompt || b.imagePrompt,
+      }),
     ),
     locations: deduplicateBy(
       (r.locations ?? []).map((l) => ({
@@ -556,8 +672,23 @@ Empty object {} if no merges needed for a category.`;
       (l) => l.name,
       (a, b) => ({
         ...a,
-        tiedCharacterNames: [...new Set([...(a.tiedCharacterNames ?? []), ...(b.tiedCharacterNames ?? [])])],
-        prominence: a.prominence && b.prominence ? (({ margin: 0, place: 1, domain: 2 } as Record<string, number>)[b.prominence] ?? 0) > (({ margin: 0, place: 1, domain: 2 } as Record<string, number>)[a.prominence] ?? 0) ? b.prominence : a.prominence : a.prominence || b.prominence,
+        tiedCharacterNames: [
+          ...new Set([
+            ...(a.tiedCharacterNames ?? []),
+            ...(b.tiedCharacterNames ?? []),
+          ]),
+        ],
+        prominence:
+          a.prominence && b.prominence
+            ? (({ margin: 0, place: 1, domain: 2 } as Record<string, number>)[
+                b.prominence
+              ] ?? 0) >
+              (({ margin: 0, place: 1, domain: 2 } as Record<string, number>)[
+                a.prominence
+              ] ?? 0)
+              ? b.prominence
+              : a.prominence
+            : a.prominence || b.prominence,
         imagePrompt: a.imagePrompt || b.imagePrompt,
       }),
     ),
@@ -583,7 +714,11 @@ Empty object {} if no merges needed for a category.`;
         statusAtEnd: normalizeStatus(t.statusAtEnd),
       })),
       (t) => t.description,
-      (a, b) => ({ ...a, statusAtEnd: b.statusAtEnd, development: `${a.development}; ${b.development}` }),
+      (a, b) => ({
+        ...a,
+        statusAtEnd: b.statusAtEnd,
+        development: `${a.development}; ${b.development}`,
+      }),
     ),
     scenes: (r.scenes ?? []).map((s) => ({
       ...s,
@@ -599,14 +734,23 @@ Empty object {} if no merges needed for a category.`;
         })),
         (tm) => tm.threadDescription,
         // When two mutations target the same thread in one scene, keep widest transition and merge logs
-        (a, b) => ({ ...a, from: a.from, to: b.to, addedNodes: [...(a.addedNodes ?? []), ...(b.addedNodes ?? [])] }),
+        (a, b) => ({
+          ...a,
+          from: a.from,
+          to: b.to,
+          addedNodes: [...(a.addedNodes ?? []), ...(b.addedNodes ?? [])],
+        }),
       ),
       continuityMutations: deduplicateBy(
         (s.continuityMutations ?? []).map((km) => ({
-          ...km, entityName: resolveEntity(km.entityName),
+          ...km,
+          entityName: resolveEntity(km.entityName),
         })),
         (km) => km.entityName,
-        (a, b) => ({ ...a, addedNodes: mergeContinuity(a.addedNodes, b.addedNodes) }),
+        (a, b) => ({
+          ...a,
+          addedNodes: mergeContinuity(a.addedNodes, b.addedNodes),
+        }),
       ),
       relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
         ...rm,
@@ -616,7 +760,9 @@ Empty object {} if no merges needed for a category.`;
       artifactUsages: (s.artifactUsages ?? []).map((au) => ({
         ...au,
         artifactName: resolveArt(au.artifactName),
-        characterName: au.characterName ? resolveEntity(au.characterName) : null,
+        characterName: au.characterName
+          ? resolveEntity(au.characterName)
+          : null,
       })),
       ownershipMutations: (s.ownershipMutations ?? []).map((om) => ({
         ...om,
@@ -634,17 +780,19 @@ Empty object {} if no merges needed for a category.`;
         characterName: resolveEntity(cm.characterName),
         locationName: resolveEntity(cm.locationName),
       })),
-      systemMutations: s.systemMutations ? {
-        addedNodes: (s.systemMutations.addedNodes ?? []).map((n) => ({
-          ...n,
-          concept: resolveWK(n.concept),
-        })),
-        addedEdges: (s.systemMutations.addedEdges ?? []).map((e) => ({
-          ...e,
-          fromConcept: resolveWK(e.fromConcept),
-          toConcept: resolveWK(e.toConcept),
-        })),
-      } : undefined,
+      systemMutations: s.systemMutations
+        ? {
+            addedNodes: (s.systemMutations.addedNodes ?? []).map((n) => ({
+              ...n,
+              concept: resolveWK(n.concept),
+            })),
+            addedEdges: (s.systemMutations.addedEdges ?? []).map((e) => ({
+              ...e,
+              fromConcept: resolveWK(e.fromConcept),
+              toConcept: resolveWK(e.toConcept),
+            })),
+          }
+        : undefined,
     })),
     relationships: deduplicateBy(
       (r.relationships ?? []).map((rel) => ({
@@ -710,7 +858,7 @@ export async function analyzeThreading(
   const prompt = `You are analyzing narrative threads to identify causal dependencies.
 
 CANONICAL THREADS (post-merge, deduplicated):
-${canonicalThreads.map((d, i) => `${i + 1}. "${d}"`).join('\n')}
+${canonicalThreads.map((d, i) => `${i + 1}. "${d}"`).join("\n")}
 
 Identify which threads CAUSALLY DEPEND on other threads. A depends on B means:
 - A's resolution is affected by B's trajectory
@@ -743,7 +891,9 @@ RULES:
     const repaired = json
       .replace(/[\u201C\u201D]/g, '"')
       .replace(/[\u2018\u2019]/g, "'")
-      .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\t' ? ch : '');
+      .replace(/[\x00-\x1F\x7F]/g, (ch) =>
+        ch === "\n" || ch === "\t" ? ch : "",
+      );
     const parsed = JSON.parse(repaired);
     return parsed.threadDependencies ?? {};
   }
@@ -753,18 +903,44 @@ RULES:
 function normalizeStatus(raw: string): string {
   const s = raw.trim().toLowerCase();
   // Direct matches
-  const allStatuses = [...THREAD_ACTIVE_STATUSES, ...THREAD_TERMINAL_STATUSES] as readonly string[];
+  const allStatuses = [
+    ...THREAD_ACTIVE_STATUSES,
+    ...THREAD_TERMINAL_STATUSES,
+  ] as readonly string[];
   if (allStatuses.includes(s)) return s;
   // Common LLM variants → canonical
   const aliases: Record<string, string> = {
-    'inactive': 'latent', 'introduced': 'latent', 'emerging': 'latent',
-    'developing': 'seeded', 'planted': 'seeded', 'setup': 'seeded', 'hinted': 'seeded',
-    'ongoing': 'active', 'progressing': 'active', 'in progress': 'active',
-    'rising': 'active', 'intensifying': 'active', 'heightening': 'active', 'building': 'active',
-    'peak': 'critical', 'climactic': 'critical', 'urgent': 'critical', 'crisis': 'critical',
-    'concluded': 'resolved', 'completed': 'resolved', 'settled': 'resolved', 'closed': 'resolved',
-    'twisted': 'subverted', 'inverted': 'subverted', 'upended': 'subverted', 'reversed': 'subverted', 'defied': 'subverted',
-    'dropped': 'abandoned', 'forgotten': 'abandoned', 'faded': 'abandoned', 'reset': 'abandoned',
+    inactive: "latent",
+    introduced: "latent",
+    emerging: "latent",
+    developing: "seeded",
+    planted: "seeded",
+    setup: "seeded",
+    hinted: "seeded",
+    ongoing: "active",
+    progressing: "active",
+    "in progress": "active",
+    rising: "active",
+    intensifying: "active",
+    heightening: "active",
+    building: "active",
+    peak: "critical",
+    climactic: "critical",
+    urgent: "critical",
+    crisis: "critical",
+    concluded: "resolved",
+    completed: "resolved",
+    settled: "resolved",
+    closed: "resolved",
+    twisted: "subverted",
+    inverted: "subverted",
+    upended: "subverted",
+    reversed: "subverted",
+    defied: "subverted",
+    dropped: "abandoned",
+    forgotten: "abandoned",
+    faded: "abandoned",
+    reset: "abandoned",
   };
   if (aliases[s]) return aliases[s];
   // Fuzzy: check if any canonical status is a substring
@@ -784,9 +960,12 @@ function isContentSubsumed(norm: string, existing: Set<string>): boolean {
 }
 
 /** Merge two continuity arrays, dropping entries whose content is identical or near-identical (substring match) */
-function mergeContinuity(a: { type: string; content: string }[], b: { type: string; content: string }[]): { type: string; content: string }[] {
+function mergeContinuity(
+  a: { type: string; content: string }[],
+  b: { type: string; content: string }[],
+): { type: string; content: string }[] {
   const result = [...a];
-  const existing = new Set(a.map(n => n.content.toLowerCase().trim()));
+  const existing = new Set(a.map((n) => n.content.toLowerCase().trim()));
   for (const node of b) {
     const norm = node.content.toLowerCase().trim();
     if (isContentSubsumed(norm, existing)) continue;
@@ -802,11 +981,19 @@ function higherSignificance(a: string, b: string): string {
 }
 
 function higherRole(a: string, b: string): string {
-  const rank: Record<string, number> = { transient: 0, recurring: 1, anchor: 2 };
+  const rank: Record<string, number> = {
+    transient: 0,
+    recurring: 1,
+    anchor: 2,
+  };
   return (rank[b] ?? 0) > (rank[a] ?? 0) ? b : a;
 }
 
-function deduplicateBy<T>(items: T[], key: (item: T) => string, merge: (existing: T, incoming: T) => T): T[] {
+function deduplicateBy<T>(
+  items: T[],
+  key: (item: T) => string,
+  merge: (existing: T, incoming: T) => T,
+): T[] {
   const map = new Map<string, T>();
   for (const item of items) {
     const k = key(item);
@@ -838,26 +1025,48 @@ function buildMetaContext(
   lines.push(`WORLD SUMMARY: ${worldSummary.slice(0, 2000)}`);
 
   // ── Characters ──
-  lines.push(`\nCHARACTERS: ${Object.values(characters).map((c) => `${c.name} (${c.role})`).join(', ')}`);
+  lines.push(
+    `\nCHARACTERS: ${Object.values(characters)
+      .map((c) => `${c.name} (${c.role})`)
+      .join(", ")}`,
+  );
 
   // ── Threads ──
-  lines.push(`\nTHREADS: ${Object.values(threads).map((t) => `"${t.description}" [${t.status}]`).join(', ')}`);
+  lines.push(
+    `\nTHREADS: ${Object.values(threads)
+      .map((t) => `"${t.description}" [${t.status}]`)
+      .join(", ")}`,
+  );
 
   // ── Locations ──
-  lines.push(`\nLOCATIONS: ${Object.values(locations).map((l) => l.name).join(', ')}`);
+  lines.push(
+    `\nLOCATIONS: ${Object.values(locations)
+      .map((l) => l.name)
+      .join(", ")}`,
+  );
 
   // ── Scene summaries — evenly sampled across the full corpus ──
   const allScenes = Object.values(scenes);
-  const SUMMARY_BUDGET = 8;  // target sample count
-  const summaryStep = Math.max(1, Math.floor(allScenes.length / SUMMARY_BUDGET));
+  const SUMMARY_BUDGET = 8; // target sample count
+  const summaryStep = Math.max(
+    1,
+    Math.floor(allScenes.length / SUMMARY_BUDGET),
+  );
   const sampledSummaries: string[] = [];
-  for (let i = 0; i < allScenes.length && sampledSummaries.length < SUMMARY_BUDGET; i += summaryStep) {
+  for (
+    let i = 0;
+    i < allScenes.length && sampledSummaries.length < SUMMARY_BUDGET;
+    i += summaryStep
+  ) {
     const s = allScenes[i];
-    const pov = Object.values(characters).find((c) => c.id === s.povId)?.name ?? s.povId;
+    const pov =
+      Object.values(characters).find((c) => c.id === s.povId)?.name ?? s.povId;
     sampledSummaries.push(`- [${pov}] ${s.summary.slice(0, 150)}`);
   }
   if (sampledSummaries.length > 0) {
-    lines.push(`\nSCENE SUMMARIES (${sampledSummaries.length} evenly sampled from ${allScenes.length}):\n${sampledSummaries.join('\n')}`);
+    lines.push(
+      `\nSCENE SUMMARIES (${sampledSummaries.length} evenly sampled from ${allScenes.length}):\n${sampledSummaries.join("\n")}`,
+    );
   }
 
   // ── World knowledge concepts — deduplicated, capped ──
@@ -871,7 +1080,9 @@ function buildMetaContext(
   }
   if (concepts.size > 0) {
     const sampled = [...concepts].slice(0, 25);
-    lines.push(`\nWORLD KNOWLEDGE CONCEPTS (${sampled.length} of ${concepts.size}):\n${sampled.join(', ')}`);
+    lines.push(
+      `\nWORLD KNOWLEDGE CONCEPTS (${sampled.length} of ${concepts.size}):\n${sampled.join(", ")}`,
+    );
   }
 
   // ── Prose excerpts — sampled from early, middle, late for voice range ──
@@ -887,22 +1098,27 @@ function buildMetaContext(
 
   if (chunksWithProse.length > 0) {
     // Pick up to 4 excerpts: first, ~33%, ~66%, last
-    const indices = chunksWithProse.length <= 4
-      ? chunksWithProse.map((_, i) => i)
-      : [
-          0,
-          Math.floor(chunksWithProse.length * 0.33),
-          Math.floor(chunksWithProse.length * 0.66),
-          chunksWithProse.length - 1,
-        ];
+    const indices =
+      chunksWithProse.length <= 4
+        ? chunksWithProse.map((_, i) => i)
+        : [
+            0,
+            Math.floor(chunksWithProse.length * 0.33),
+            Math.floor(chunksWithProse.length * 0.66),
+            chunksWithProse.length - 1,
+          ];
     const unique = [...new Set(indices)];
     const excerpts = unique.map((i) => chunksWithProse[i].prose.slice(0, 2500));
-    lines.push(`\nPROSE EXCERPTS (${excerpts.length} sampled from early/mid/late for voice range):\n${excerpts.map((e) => `---\n${e}\n---`).join('\n')}`);
+    lines.push(
+      `\nPROSE EXCERPTS (${excerpts.length} sampled from early/mid/late for voice range):\n${excerpts.map((e) => `---\n${e}\n---`).join("\n")}`,
+    );
   } else {
-    lines.push('\n(no prose available — infer voice from summaries and world tone)');
+    lines.push(
+      "\n(no prose available — infer voice from summaries and world tone)",
+    );
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 // ── Assemble Narrative ───────────────────────────────────────────────────────
@@ -914,19 +1130,32 @@ export async function assembleNarrative(
   onToken?: (token: string, accumulated: string) => void,
   arcGroups?: { name: string; sceneIndices: number[] }[],
 ): Promise<NarrativeState> {
-  const PREFIX = title.replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'TXT';
-  let charCounter = 0, locCounter = 0, threadCounter = 0, sceneCounter = 0, arcCounter = 0, kCounter = 0, tkCounter = 0, wkCounter = 0, artifactCounter = 0;
+  const PREFIX =
+    title
+      .replace(/[^a-zA-Z]/g, "")
+      .slice(0, 3)
+      .toUpperCase() || "TXT";
+  let charCounter = 0,
+    locCounter = 0,
+    threadCounter = 0,
+    sceneCounter = 0,
+    arcCounter = 0,
+    kCounter = 0,
+    tkCounter = 0,
+    wkCounter = 0,
+    artifactCounter = 0;
 
-  const nextId = (pre: string, counter: () => number, pad = 2) => `${pre}-${PREFIX}-${String(counter()).padStart(pad, '0')}`;
-  const nextCharId = () => nextId('C', () => ++charCounter);
-  const nextLocId = () => nextId('L', () => ++locCounter);
-  const nextThreadId = () => nextId('T', () => ++threadCounter);
-  const nextSceneId = () => nextId('S', () => ++sceneCounter, 3);
-  const nextArcId = () => nextId('ARC', () => ++arcCounter);
-  const nextKId = () => nextId('K', () => ++kCounter, 3);
-  const nextTkId = () => nextId('TK', () => ++tkCounter, 3);
-  const nextWkId = () => nextId('WK', () => ++wkCounter, 2);
-  const nextArtifactIdFn = () => nextId('A', () => ++artifactCounter);
+  const nextId = (pre: string, counter: () => number, pad = 2) =>
+    `${pre}-${PREFIX}-${String(counter()).padStart(pad, "0")}`;
+  const nextCharId = () => nextId("C", () => ++charCounter);
+  const nextLocId = () => nextId("L", () => ++locCounter);
+  const nextThreadId = () => nextId("T", () => ++threadCounter);
+  const nextSceneId = () => nextId("S", () => ++sceneCounter, 3);
+  const nextArcId = () => nextId("ARC", () => ++arcCounter);
+  const nextKId = () => nextId("K", () => ++kCounter, 3);
+  const nextTkId = () => nextId("TK", () => ++tkCounter, 3);
+  const nextWkId = () => nextId("WK", () => ++wkCounter, 2);
+  const nextArtifactIdFn = () => nextId("A", () => ++artifactCounter);
 
   const charNameToId: Record<string, string> = {};
   const locNameToId: Record<string, string> = {};
@@ -940,12 +1169,28 @@ export async function assembleNarrative(
     return wkConceptToId[key];
   };
 
-  const getCharId = (name: string) => { if (!charNameToId[name]) charNameToId[name] = nextCharId(); return charNameToId[name]; };
-  const getLocId = (name: string) => { if (!locNameToId[name]) locNameToId[name] = nextLocId(); return locNameToId[name]; };
-  const getThreadId = (desc: string) => { if (!threadDescToId[desc]) threadDescToId[desc] = nextThreadId(); return threadDescToId[desc]; };
-  const getArtifactId = (name: string) => { if (!artifactNameToId[name]) artifactNameToId[name] = nextArtifactIdFn(); return artifactNameToId[name]; };
+  const getCharId = (name: string) => {
+    if (!charNameToId[name]) charNameToId[name] = nextCharId();
+    return charNameToId[name];
+  };
+  const getLocId = (name: string) => {
+    if (!locNameToId[name]) locNameToId[name] = nextLocId();
+    return locNameToId[name];
+  };
+  const getThreadId = (desc: string) => {
+    if (!threadDescToId[desc]) threadDescToId[desc] = nextThreadId();
+    return threadDescToId[desc];
+  };
+  const getArtifactId = (name: string) => {
+    if (!artifactNameToId[name]) artifactNameToId[name] = nextArtifactIdFn();
+    return artifactNameToId[name];
+  };
   /** Resolve an entity name to its ID — checks characters first, then locations, then artifacts. Falls back to character ID. */
-  const getEntityId = (name: string) => charNameToId[name] ?? locNameToId[name] ?? artifactNameToId[name] ?? getCharId(name);
+  const getEntityId = (name: string) =>
+    charNameToId[name] ??
+    locNameToId[name] ??
+    artifactNameToId[name] ??
+    getCharId(name);
 
   const characters: Record<string, Character> = {};
   const locations: Record<string, Location> = {};
@@ -976,7 +1221,10 @@ export async function assembleNarrative(
       const id = getCharId(c.name);
       if (!characters[id]) {
         characters[id] = {
-          id, name: c.name, role: c.role as Character['role'], threadIds: [],
+          id,
+          name: c.name,
+          role: c.role as Character["role"],
+          threadIds: [],
           continuity: { nodes: {}, edges: [] },
           ...(c.imagePrompt ? { imagePrompt: c.imagePrompt } : {}),
         };
@@ -984,9 +1232,13 @@ export async function assembleNarrative(
       } else if (c.imagePrompt) {
         characters[id].imagePrompt = c.imagePrompt;
       }
-      const rank: Record<string, number> = { transient: 0, recurring: 1, anchor: 2 };
+      const rank: Record<string, number> = {
+        transient: 0,
+        recurring: 1,
+        anchor: 2,
+      };
       if ((rank[c.role] ?? 0) > (rank[characters[id].role] ?? 0)) {
-        characters[id].role = c.role as Character['role'];
+        characters[id].role = c.role as Character["role"];
       }
     }
 
@@ -995,24 +1247,46 @@ export async function assembleNarrative(
       const id = getLocId(loc.name);
       if (!locations[id]) {
         const parentId = loc.parentName ? getLocId(loc.parentName) : null;
-        const tiedCharacterIds = (loc.tiedCharacterNames ?? []).map((n: string) => getCharId(n)).filter(Boolean);
+        const tiedCharacterIds = (loc.tiedCharacterNames ?? [])
+          .map((n: string) => getCharId(n))
+          .filter(Boolean);
         locations[id] = {
-          id, name: loc.name, prominence: (loc.prominence && ['domain', 'place', 'margin'].includes(loc.prominence) ? loc.prominence : 'place') as Location['prominence'], parentId, tiedCharacterIds, threadIds: [],
+          id,
+          name: loc.name,
+          prominence: (loc.prominence &&
+          ["domain", "place", "margin"].includes(loc.prominence)
+            ? loc.prominence
+            : "place") as Location["prominence"],
+          parentId,
+          tiedCharacterIds,
+          threadIds: [],
           continuity: { nodes: {}, edges: [] },
           ...(loc.imagePrompt ? { imagePrompt: loc.imagePrompt } : {}),
         };
         locFirstChunk.set(id, chunkIdx);
       } else {
         if (loc.imagePrompt) locations[id].imagePrompt = loc.imagePrompt;
-        const promRank: Record<string, number> = { margin: 0, place: 1, domain: 2 };
-        if ((promRank[loc.prominence ?? ''] ?? 0) > (promRank[locations[id].prominence] ?? 0)) {
-          locations[id].prominence = loc.prominence as Location['prominence'];
+        const promRank: Record<string, number> = {
+          margin: 0,
+          place: 1,
+          domain: 2,
+        };
+        if (
+          (promRank[loc.prominence ?? ""] ?? 0) >
+          (promRank[locations[id].prominence] ?? 0)
+        ) {
+          locations[id].prominence = loc.prominence as Location["prominence"];
         }
         // Accumulate tied characters across scenes (not just first creation)
-        const newTied = (loc.tiedCharacterNames ?? []).map((n: string) => getCharId(n)).filter(Boolean);
+        const newTied = (loc.tiedCharacterNames ?? [])
+          .map((n: string) => getCharId(n))
+          .filter(Boolean);
         for (const cid of newTied) {
           if (!locations[id].tiedCharacterIds.includes(cid)) {
-            locations[id].tiedCharacterIds = [...locations[id].tiedCharacterIds, cid];
+            locations[id].tiedCharacterIds = [
+              ...locations[id].tiedCharacterIds,
+              cid,
+            ];
           }
         }
       }
@@ -1023,12 +1297,17 @@ export async function assembleNarrative(
       const id = getArtifactId(a.name);
       const ownerName = a.ownerName;
       const parentId = ownerName
-        ? (charNameToId[ownerName] ?? locNameToId[ownerName] ?? getLocId(ownerName))
+        ? (charNameToId[ownerName] ??
+          locNameToId[ownerName] ??
+          getLocId(ownerName))
         : null;
       if (!artifactEntities[id]) {
         artifactEntities[id] = {
-          id, name: a.name,
-          significance: (['key', 'notable', 'minor'].includes(a.significance) ? a.significance : 'notable') as Artifact['significance'],
+          id,
+          name: a.name,
+          significance: (["key", "notable", "minor"].includes(a.significance)
+            ? a.significance
+            : "notable") as Artifact["significance"],
           continuity: { nodes: {}, edges: [] },
           threadIds: [],
           parentId,
@@ -1045,17 +1324,29 @@ export async function assembleNarrative(
     for (const t of ch.threads ?? []) {
       const id = getThreadId(t.description);
       const newAnchors = (t.participantNames ?? []).map((name) => {
-        if (charNameToId[name]) return { id: charNameToId[name], type: 'character' as const };
-        if (locNameToId[name]) return { id: locNameToId[name], type: 'location' as const };
-        return { id: getCharId(name), type: 'character' as const };
+        if (charNameToId[name])
+          return { id: charNameToId[name], type: "character" as const };
+        if (locNameToId[name])
+          return { id: locNameToId[name], type: "location" as const };
+        return { id: getCharId(name), type: "character" as const };
       });
       if (!threads[id]) {
-        threads[id] = { id, participants: newAnchors, description: t.description, status: t.statusAtEnd ?? 'latent', openedAt: '', dependents: [], threadLog: { nodes: {}, edges: [] } };
+        threads[id] = {
+          id,
+          participants: newAnchors,
+          description: t.description,
+          status: t.statusAtEnd ?? "latent",
+          openedAt: "",
+          dependents: [],
+          threadLog: { nodes: {}, edges: [] },
+        };
         threadFirstChunk.set(id, chunkIdx);
       } else {
         threads[id].status = t.statusAtEnd ?? threads[id].status;
         // Accumulate anchors from later chunks
-        const existingAnchorIds = new Set(threads[id].participants.map((a) => a.id));
+        const existingAnchorIds = new Set(
+          threads[id].participants.map((a) => a.id),
+        );
         for (const anchor of newAnchors) {
           if (!existingAnchorIds.has(anchor.id)) {
             threads[id].participants.push(anchor);
@@ -1067,16 +1358,20 @@ export async function assembleNarrative(
 
     // Scenes — collect into flat list; arcs created from arcGroups after loop
     const chScenes: Scene[] = [];
-    const arcId = '__pending__'; // Will be assigned from arcGroups below
+    const arcId = "__pending__"; // Will be assigned from arcGroups below
 
     for (const s of ch.scenes ?? []) {
       const sceneId = nextSceneId();
-      const locationId = getLocId(s.locationName ?? 'Unknown');
-      const participantIds = (s.participantNames ?? []).map((n) => getCharId(n));
-      const povId = s.povName ? getCharId(s.povName) : participantIds[0] ?? '';
+      const locationId = getLocId(s.locationName ?? "Unknown");
+      const participantIds = (s.participantNames ?? []).map((n) =>
+        getCharId(n),
+      );
+      const povId = s.povName
+        ? getCharId(s.povName)
+        : (participantIds[0] ?? "");
 
       const scene: Scene = {
-        kind: 'scene',
+        kind: "scene",
         id: sceneId,
         arcId,
         locationId,
@@ -1088,29 +1383,39 @@ export async function assembleNarrative(
           // log node type vocabulary (e.g. "pulse") in the status fields.
           // Anything outside the lifecycle vocabulary collapses to a
           // status-hold so the thread's stored phase can't be polluted.
-          const validStatuses = new Set<string>([...THREAD_ACTIVE_STATUSES, ...THREAD_TERMINAL_STATUSES, 'abandoned']);
-          const safeFrom = validStatuses.has(tm.from) ? tm.from : 'latent';
+          const validStatuses = new Set<string>([
+            ...THREAD_ACTIVE_STATUSES,
+            ...THREAD_TERMINAL_STATUSES,
+            "abandoned",
+          ]);
+          const safeFrom = validStatuses.has(tm.from) ? tm.from : "latent";
           const safeTo = validStatuses.has(tm.to) ? tm.to : safeFrom;
-          const fallbackType: ThreadLogNodeType = safeFrom === safeTo ? 'pulse' : 'transition';
+          const fallbackType: ThreadLogNodeType =
+            safeFrom === safeTo ? "pulse" : "transition";
           // Assign IDs to log nodes. Chain edges are created deterministically
           // by applyThreadMutation during store replay — same as continuity.
           const addedNodes = (tm.addedNodes ?? [])
-            .filter((e) => e && typeof e.content === 'string' && e.content.trim())
+            .filter(
+              (e) => e && typeof e.content === "string" && e.content.trim(),
+            )
             .map((e) => ({
               id: nextTkId(),
               content: e.content,
-              type: (THREAD_LOG_NODE_TYPES.includes(e.type as ThreadLogNodeType) ? e.type : fallbackType) as ThreadLogNodeType,
+              type: (THREAD_LOG_NODE_TYPES.includes(e.type as ThreadLogNodeType)
+                ? e.type
+                : fallbackType) as ThreadLogNodeType,
             }));
           // Synthesize a fallback log entry if the LLM omitted them — every
           // threadMutation must produce at least one log node, otherwise the
           // thread's history goes blank on a silent extraction miss.
           if (addedNodes.length === 0) {
-            const desc = tm.threadDescription || 'thread';
+            const desc = tm.threadDescription || "thread";
             addedNodes.push({
               id: nextTkId(),
-              content: safeFrom === safeTo
-                ? `Thread "${desc}" held ${safeTo} without transition`
-                : `Thread "${desc}" advanced from ${safeFrom} to ${safeTo}`,
+              content:
+                safeFrom === safeTo
+                  ? `Thread "${desc}" held ${safeTo} without transition`
+                  : `Thread "${desc}" advanced from ${safeFrom} to ${safeTo}`,
               type: fallbackType,
             });
           }
@@ -1126,7 +1431,9 @@ export async function assembleNarrative(
           // Assign IDs in the order the LLM listed nodes — applyContinuityMutation
           // chains them sequentially via co_occurs during store replay.
           const nodes = (km.addedNodes ?? []).map((n) => ({
-            id: nextKId(), content: n.content, type: (n.type || 'trait') as ContinuityNodeType,
+            id: nextKId(),
+            content: n.content,
+            type: (n.type || "trait") as ContinuityNodeType,
           }));
           return { entityId, addedNodes: nodes };
         }),
@@ -1139,43 +1446,76 @@ export async function assembleNarrative(
         characterMovements: (() => {
           const mvs = s.characterMovements ?? [];
           if (mvs.length === 0) return undefined;
-          const result: Record<string, { locationId: string; transition: string }> = {};
+          const result: Record<
+            string,
+            { locationId: string; transition: string }
+          > = {};
           for (const mv of mvs) {
             const charId = getCharId(mv.characterName);
             const locId = getLocId(mv.locationName);
             if (charId && locId && locId !== locationId) {
-              result[charId] = { locationId: locId, transition: mv.transition ?? '' };
+              result[charId] = {
+                locationId: locId,
+                transition: mv.transition ?? "",
+              };
             }
           }
           return Object.keys(result).length > 0 ? result : undefined;
         })(),
-        artifactUsages: (() => {
-          const aus = s.artifactUsages ?? [];
-          if (aus.length === 0) return undefined;
-          return aus.map((au) => ({
-            artifactId: getArtifactId(au.artifactName),
-            characterId: au.characterName ? getCharId(au.characterName) : null,
-            usage: au.usage || '',
-          })).filter((au) => artifactEntities[au.artifactId]);
-        })() || undefined,
-        ownershipMutations: (() => {
-          const oms = s.ownershipMutations ?? [];
-          if (oms.length === 0) return undefined;
-          return oms.map((om) => ({
-            artifactId: getArtifactId(om.artifactName),
-            fromId: charNameToId[om.fromName] ?? locNameToId[om.fromName] ?? getLocId(om.fromName),
-            toId: charNameToId[om.toName] ?? locNameToId[om.toName] ?? getLocId(om.toName),
-          })).filter((om) => artifactEntities[om.artifactId]);
-        })() || undefined,
-        tieMutations: (() => {
-          const mms = s.tieMutations ?? [];
-          if (mms.length === 0) return undefined;
-          return mms.map((mm: { locationName: string; characterName: string; action: string }) => ({
-            locationId: getLocId(mm.locationName),
-            characterId: getCharId(mm.characterName),
-            action: mm.action as 'add' | 'remove',
-          })).filter((mm) => mm.characterId && (mm.action === 'add' || mm.action === 'remove'));
-        })() || undefined,
+        artifactUsages:
+          (() => {
+            const aus = s.artifactUsages ?? [];
+            if (aus.length === 0) return undefined;
+            return aus
+              .map((au) => ({
+                artifactId: getArtifactId(au.artifactName),
+                characterId: au.characterName
+                  ? getCharId(au.characterName)
+                  : null,
+                usage: au.usage || "",
+              }))
+              .filter((au) => artifactEntities[au.artifactId]);
+          })() || undefined,
+        ownershipMutations:
+          (() => {
+            const oms = s.ownershipMutations ?? [];
+            if (oms.length === 0) return undefined;
+            return oms
+              .map((om) => ({
+                artifactId: getArtifactId(om.artifactName),
+                fromId:
+                  charNameToId[om.fromName] ??
+                  locNameToId[om.fromName] ??
+                  getLocId(om.fromName),
+                toId:
+                  charNameToId[om.toName] ??
+                  locNameToId[om.toName] ??
+                  getLocId(om.toName),
+              }))
+              .filter((om) => artifactEntities[om.artifactId]);
+          })() || undefined,
+        tieMutations:
+          (() => {
+            const mms = s.tieMutations ?? [];
+            if (mms.length === 0) return undefined;
+            return mms
+              .map(
+                (mm: {
+                  locationName: string;
+                  characterName: string;
+                  action: string;
+                }) => ({
+                  locationId: getLocId(mm.locationName),
+                  characterId: getCharId(mm.characterName),
+                  action: mm.action as "add" | "remove",
+                }),
+              )
+              .filter(
+                (mm) =>
+                  mm.characterId &&
+                  (mm.action === "add" || mm.action === "remove"),
+              );
+          })() || undefined,
         systemMutations: (() => {
           const wkm = s.systemMutations;
           if (!wkm) return undefined;
@@ -1188,7 +1528,19 @@ export async function assembleNarrative(
               return {
                 id,
                 concept: n.concept,
-                type: (['principle', 'system', 'concept', 'tension', 'event', 'structure', 'environment', 'convention', 'constraint'].includes(n.type) ? n.type : 'concept') as SystemNodeType,
+                type: ([
+                  "principle",
+                  "system",
+                  "concept",
+                  "tension",
+                  "event",
+                  "structure",
+                  "environment",
+                  "convention",
+                  "constraint",
+                ].includes(n.type)
+                  ? n.type
+                  : "concept") as SystemNodeType,
               };
             });
           const addedEdges = (wkm.addedEdges ?? [])
@@ -1201,7 +1553,12 @@ export async function assembleNarrative(
               const fromId = wkConceptToId[fromKey];
               const toId = wkConceptToId[toKey];
               // Both concepts must already exist as actual nodes (seen in some scene)
-              return !!fromId && !!toId && seenWkNodeIds.has(fromId) && seenWkNodeIds.has(toId);
+              return (
+                !!fromId &&
+                !!toId &&
+                seenWkNodeIds.has(fromId) &&
+                seenWkNodeIds.has(toId)
+              );
             })
             .map((e) => ({
               from: getWkId(e.fromConcept),
@@ -1216,27 +1573,37 @@ export async function assembleNarrative(
               seenWkEdgeKeys.add(key);
               return true;
             });
-          if (addedNodes.length === 0 && addedEdges.length === 0) return undefined;
+          if (addedNodes.length === 0 && addedEdges.length === 0)
+            return undefined;
           return { addedNodes, addedEdges };
         })(),
-        summary: s.summary ?? '',
+        summary: s.summary ?? "",
         // Create version arrays for analyzed scenes
-        proseVersions: (s.prose || s.beatProseMap) ? [{
-          prose: s.prose ?? '',
-          beatProseMap: s.beatProseMap,
-          branchId: 'main',
-          timestamp: Date.now(),
-          version: '1',
-          versionType: 'generate' as const,
-          ...(s.plan ? { sourcePlanVersion: '1' } : {}),
-        }] : undefined,
-        planVersions: s.plan ? [{
-          plan: s.plan,
-          branchId: 'main',
-          timestamp: Date.now(),
-          version: '1',
-          versionType: 'generate' as const,
-        }] : undefined,
+        proseVersions:
+          s.prose || s.beatProseMap
+            ? [
+                {
+                  prose: s.prose ?? "",
+                  beatProseMap: s.beatProseMap,
+                  branchId: "main",
+                  timestamp: Date.now(),
+                  version: "1",
+                  versionType: "generate" as const,
+                  ...(s.plan ? { sourcePlanVersion: "1" } : {}),
+                },
+              ]
+            : undefined,
+        planVersions: s.plan
+          ? [
+              {
+                plan: s.plan,
+                branchId: "main",
+                timestamp: Date.now(),
+                version: "1",
+                versionType: "generate" as const,
+              },
+            ]
+          : undefined,
         // Preserve embeddings from analysis pipeline
         summaryEmbedding: (s as any).summaryEmbedding,
         proseEmbedding: (s as any).proseEmbedding,
@@ -1245,7 +1612,8 @@ export async function assembleNarrative(
 
       scenes[sceneId] = scene;
       chScenes.push(scene);
-      if (!chunkFirstSceneId.has(chunkIdx)) chunkFirstSceneId.set(chunkIdx, sceneId);
+      if (!chunkFirstSceneId.has(chunkIdx))
+        chunkFirstSceneId.set(chunkIdx, sceneId);
     }
 
     // Distribute deferred knowledge across the chunk's scenes.
@@ -1256,7 +1624,7 @@ export async function assembleNarrative(
     }
 
     // Track scene order for arc group assignment below
-    allOrderedSceneIds.push(...chScenes.map(s => s.id));
+    allOrderedSceneIds.push(...chScenes.map((s) => s.id));
 
     for (const tm of chScenes.flatMap((s) => s.threadMutations)) {
       if (threads[tm.threadId] && !threads[tm.threadId].openedAt) {
@@ -1275,17 +1643,29 @@ export async function assembleNarrative(
         existing.type = r.type;
         existing.valence = r.valence;
       } else {
-        relationshipMap[key] = { from: fromId, to: toId, type: r.type, valence: r.valence };
+        relationshipMap[key] = {
+          from: fromId,
+          to: toId,
+          type: r.type,
+          valence: r.valence,
+        };
       }
     }
   }
 
   // Ensure parent locations are at least as prominent as their children
-  const promRankFinal: Record<string, number> = { margin: 0, place: 1, domain: 2 };
+  const promRankFinal: Record<string, number> = {
+    margin: 0,
+    place: 1,
+    domain: 2,
+  };
   for (const loc of Object.values(locations)) {
     if (loc.parentId && locations[loc.parentId]) {
       const parent = locations[loc.parentId];
-      if ((promRankFinal[parent.prominence] ?? 0) < (promRankFinal[loc.prominence] ?? 0)) {
+      if (
+        (promRankFinal[parent.prominence] ?? 0) <
+        (promRankFinal[loc.prominence] ?? 0)
+      ) {
         parent.prominence = loc.prominence;
       }
     }
@@ -1296,21 +1676,35 @@ export async function assembleNarrative(
     for (const group of arcGroups) {
       const arcId = nextArcId();
       const sceneIds = group.sceneIndices
-        .filter(i => i < allOrderedSceneIds.length)
-        .map(i => allOrderedSceneIds[i]);
+        .filter((i) => i < allOrderedSceneIds.length)
+        .map((i) => allOrderedSceneIds[i]);
       if (sceneIds.length === 0) continue;
 
-      const arcScenes = sceneIds.map(id => scenes[id]).filter(Boolean);
-      const develops = [...new Set(arcScenes.flatMap(s => s.threadMutations.map(tm => tm.threadId)))];
-      const locationIds = [...new Set(arcScenes.map(s => s.locationId))];
-      const activeCharacterIds = [...new Set(arcScenes.flatMap(s => s.participantIds))];
+      const arcScenes = sceneIds.map((id) => scenes[id]).filter(Boolean);
+      const develops = [
+        ...new Set(
+          arcScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)),
+        ),
+      ];
+      const locationIds = [...new Set(arcScenes.map((s) => s.locationId))];
+      const activeCharacterIds = [
+        ...new Set(arcScenes.flatMap((s) => s.participantIds)),
+      ];
       const initialCharacterLocations: Record<string, string> = {};
       for (const cid of activeCharacterIds) {
-        const first = arcScenes.find(s => s.participantIds.includes(cid));
+        const first = arcScenes.find((s) => s.participantIds.includes(cid));
         if (first) initialCharacterLocations[cid] = first.locationId;
       }
 
-      arcs[arcId] = { id: arcId, name: group.name, sceneIds, develops, locationIds, activeCharacterIds, initialCharacterLocations };
+      arcs[arcId] = {
+        id: arcId,
+        name: group.name,
+        sceneIds,
+        develops,
+        locationIds,
+        activeCharacterIds,
+        initialCharacterLocations,
+      };
       // Assign arcId to scenes
       for (const scene of arcScenes) scene.arcId = arcId;
     }
@@ -1319,28 +1713,48 @@ export async function assembleNarrative(
     for (let i = 0; i < allOrderedSceneIds.length; i += 4) {
       const arcId = nextArcId();
       const sceneIds = allOrderedSceneIds.slice(i, i + 4);
-      const arcScenes = sceneIds.map(id => scenes[id]).filter(Boolean);
-      const develops = [...new Set(arcScenes.flatMap(s => s.threadMutations.map(tm => tm.threadId)))];
-      const locationIds = [...new Set(arcScenes.map(s => s.locationId))];
-      const activeCharacterIds = [...new Set(arcScenes.flatMap(s => s.participantIds))];
+      const arcScenes = sceneIds.map((id) => scenes[id]).filter(Boolean);
+      const develops = [
+        ...new Set(
+          arcScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)),
+        ),
+      ];
+      const locationIds = [...new Set(arcScenes.map((s) => s.locationId))];
+      const activeCharacterIds = [
+        ...new Set(arcScenes.flatMap((s) => s.participantIds)),
+      ];
       const initialCharacterLocations: Record<string, string> = {};
       for (const cid of activeCharacterIds) {
-        const first = arcScenes.find(s => s.participantIds.includes(cid));
+        const first = arcScenes.find((s) => s.participantIds.includes(cid));
         if (first) initialCharacterLocations[cid] = first.locationId;
       }
-      arcs[arcId] = { id: arcId, name: `Arc ${Math.floor(i / 4) + 1}`, sceneIds, develops, locationIds, activeCharacterIds, initialCharacterLocations };
+      arcs[arcId] = {
+        id: arcId,
+        name: `Arc ${Math.floor(i / 4) + 1}`,
+        sceneIds,
+        develops,
+        locationIds,
+        activeCharacterIds,
+        initialCharacterLocations,
+      };
       for (const scene of arcScenes) scene.arcId = arcId;
     }
   }
 
   // Apply thread dependencies from reconciliation (description → array of dependent descriptions)
-  const threadDescToIdMap = new Map(Object.values(threads).map((t) => [t.description, t.id]));
+  const threadDescToIdMap = new Map(
+    Object.values(threads).map((t) => [t.description, t.id]),
+  );
   for (const [desc, depDescs] of Object.entries(threadDependencies)) {
     const threadId = threadDescToIdMap.get(desc);
     if (!threadId || !threads[threadId]) continue;
     for (const depDesc of depDescs) {
       const depId = threadDescToIdMap.get(depDesc);
-      if (depId && depId !== threadId && !threads[threadId].dependents.includes(depId)) {
+      if (
+        depId &&
+        depId !== threadId &&
+        !threads[threadId].dependents.includes(depId)
+      ) {
         threads[threadId].dependents.push(depId);
       }
     }
@@ -1349,11 +1763,13 @@ export async function assembleNarrative(
   // Wire thread IDs on characters/locations
   for (const thread of Object.values(threads)) {
     for (const anchor of thread.participants) {
-      if (anchor.type === 'character' && characters[anchor.id]) {
-        if (!characters[anchor.id].threadIds.includes(thread.id)) characters[anchor.id].threadIds.push(thread.id);
+      if (anchor.type === "character" && characters[anchor.id]) {
+        if (!characters[anchor.id].threadIds.includes(thread.id))
+          characters[anchor.id].threadIds.push(thread.id);
       }
-      if (anchor.type === 'location' && locations[anchor.id]) {
-        if (!locations[anchor.id].threadIds.includes(thread.id)) locations[anchor.id].threadIds.push(thread.id);
+      if (anchor.type === "location" && locations[anchor.id]) {
+        if (!locations[anchor.id].threadIds.includes(thread.id))
+          locations[anchor.id].threadIds.push(thread.id);
       }
     }
   }
@@ -1372,27 +1788,52 @@ export async function assembleNarrative(
   // Map from the first scene id of a batch → the world build commit to insert before it
   const worldBuildBeforeScene = new Map<string, string>(); // sceneId → worldBuildId
 
-  for (let batchStart = 0; batchStart < results.length; batchStart += WORLD_COMMIT_INTERVAL) {
-    const batchEnd = Math.min(batchStart + WORLD_COMMIT_INTERVAL, results.length);
-    const batchChunkIndices = new Set(Array.from({ length: batchEnd - batchStart }, (_, i) => batchStart + i));
+  for (
+    let batchStart = 0;
+    batchStart < results.length;
+    batchStart += WORLD_COMMIT_INTERVAL
+  ) {
+    const batchEnd = Math.min(
+      batchStart + WORLD_COMMIT_INTERVAL,
+      results.length,
+    );
+    const batchChunkIndices = new Set(
+      Array.from({ length: batchEnd - batchStart }, (_, i) => batchStart + i),
+    );
     const isInitial = batchStart === 0;
 
-    const newCharIds = Object.keys(characters).filter((id) => batchChunkIndices.has(charFirstChunk.get(id) ?? 0));
-    const newLocIds = Object.keys(locations).filter((id) => batchChunkIndices.has(locFirstChunk.get(id) ?? 0));
-    const newThreadIds = Object.keys(threads).filter((id) => batchChunkIndices.has(threadFirstChunk.get(id) ?? 0));
-    const newArtifactIds = Object.keys(artifactEntities).filter((id) => batchChunkIndices.has(artifactFirstChunk.get(id) ?? 0));
+    const newCharIds = Object.keys(characters).filter((id) =>
+      batchChunkIndices.has(charFirstChunk.get(id) ?? 0),
+    );
+    const newLocIds = Object.keys(locations).filter((id) =>
+      batchChunkIndices.has(locFirstChunk.get(id) ?? 0),
+    );
+    const newThreadIds = Object.keys(threads).filter((id) =>
+      batchChunkIndices.has(threadFirstChunk.get(id) ?? 0),
+    );
+    const newArtifactIds = Object.keys(artifactEntities).filter((id) =>
+      batchChunkIndices.has(artifactFirstChunk.get(id) ?? 0),
+    );
 
-    if (!isInitial && newCharIds.length === 0 && newLocIds.length === 0 && newThreadIds.length === 0 && newArtifactIds.length === 0) continue;
+    if (
+      !isInitial &&
+      newCharIds.length === 0 &&
+      newLocIds.length === 0 &&
+      newThreadIds.length === 0 &&
+      newArtifactIds.length === 0
+    )
+      continue;
 
     const batchNum = Math.floor(batchStart / WORLD_COMMIT_INTERVAL) + 1;
-    const worldBuildId = `WB-${PREFIX}-${String(batchNum).padStart(3, '0')}`;
-    const artSuffix = newArtifactIds.length > 0 ? `, ${newArtifactIds.length} artifacts` : '';
+    const worldBuildId = `WB-${PREFIX}-${String(batchNum).padStart(3, "0")}`;
+    const artSuffix =
+      newArtifactIds.length > 0 ? `, ${newArtifactIds.length} artifacts` : "";
     const summary = isInitial
       ? `Initial world: ${newCharIds.length} characters, ${newLocIds.length} locations, ${newThreadIds.length} threads${artSuffix}`
       : `Chunks ${batchStart + 1}–${batchEnd}: +${newCharIds.length} characters, +${newLocIds.length} locations, +${newThreadIds.length} threads${artSuffix}`;
 
     worldBuilds[worldBuildId] = {
-      kind: 'world_build',
+      kind: "world_build",
       id: worldBuildId,
       summary,
       expansionManifest: {
@@ -1401,14 +1842,19 @@ export async function assembleNarrative(
         threads: newThreadIds.map((id) => threads[id]).filter(Boolean),
         relationships: [],
         systemMutations: { addedNodes: [], addedEdges: [] },
-        artifacts: newArtifactIds.map((id) => artifactEntities[id]).filter(Boolean),
+        artifacts: newArtifactIds
+          .map((id) => artifactEntities[id])
+          .filter(Boolean),
       },
     };
 
     // Find the first scene of the first chunk in this batch
     for (let ci = batchStart; ci < batchEnd; ci++) {
       const firstScene = chunkFirstSceneId.get(ci);
-      if (firstScene) { worldBuildBeforeScene.set(firstScene, worldBuildId); break; }
+      if (firstScene) {
+        worldBuildBeforeScene.set(firstScene, worldBuildId);
+        break;
+      }
     }
   }
 
@@ -1445,7 +1891,7 @@ export async function assembleNarrative(
   const branches: Record<string, Branch> = {
     [branchId]: {
       id: branchId,
-      name: 'Canon Timeline',
+      name: "Canon Timeline",
       parentBranchId: null,
       forkEntryId: null,
       entryIds,
@@ -1454,14 +1900,14 @@ export async function assembleNarrative(
     },
   };
 
-  const worldSummary = results.map((ch) => ch.chapterSummary).join(' ');
+  const worldSummary = results.map((ch) => ch.chapterSummary).join(" ");
 
   // Generate rules, systems, and image style from the analyzed content
   let rules: string[] = [];
-  let worldSystems: NarrativeState['worldSystems'] = [];
+  let worldSystems: NarrativeState["worldSystems"] = [];
   let imageStyle: string | undefined;
   let proseProfile: ProseProfile | undefined;
-  let planGuidance = '';
+  let planGuidance = "";
 
   try {
     const metaResult = await callAnalysis(
@@ -1508,50 +1954,71 @@ Return JSON:
   },
   "planGuidance": "How beat plans should be structured for this work"
 }`,
-      'You are a world-building and literary analyst. Extract the implicit rules, mechanical systems, visual style, and prose voice of a narrative universe. Return only valid JSON.',
+      "You are a world-building and literary analyst. Extract the implicit rules, mechanical systems, visual style, and prose voice of a narrative universe. Return only valid JSON.",
       onToken,
     );
     const metaParsed = JSON.parse(extractJSON(metaResult));
     rules = metaParsed.rules ?? [];
     imageStyle = metaParsed.imageStyle;
-    if (metaParsed.proseProfile && typeof metaParsed.proseProfile === 'object') {
+    if (
+      metaParsed.proseProfile &&
+      typeof metaParsed.proseProfile === "object"
+    ) {
       const pp = metaParsed.proseProfile;
-      const str = (v: unknown) => typeof v === 'string' && v.trim() ? v.trim() : undefined;
+      const str = (v: unknown) =>
+        typeof v === "string" && v.trim() ? v.trim() : undefined;
       proseProfile = {
-        register:       str(pp.register)       ?? '',
-        stance:         str(pp.stance)         ?? '',
-        tense:          str(pp.tense),
+        register: str(pp.register) ?? "",
+        stance: str(pp.stance) ?? "",
+        tense: str(pp.tense),
         sentenceRhythm: str(pp.sentenceRhythm),
-        interiority:    str(pp.interiority),
+        interiority: str(pp.interiority),
         dialogueWeight: str(pp.dialogueWeight),
-        devices:        Array.isArray(pp.devices) ? pp.devices.filter((d: unknown) => typeof d === 'string') : [],
-        rules:          Array.isArray(pp.rules)   ? pp.rules.filter((r: unknown) => typeof r === 'string')   : [],
-        antiPatterns:   Array.isArray(pp.antiPatterns) ? pp.antiPatterns.filter((a: unknown) => typeof a === 'string') : [],
+        devices: Array.isArray(pp.devices)
+          ? pp.devices.filter((d: unknown) => typeof d === "string")
+          : [],
+        rules: Array.isArray(pp.rules)
+          ? pp.rules.filter((r: unknown) => typeof r === "string")
+          : [],
+        antiPatterns: Array.isArray(pp.antiPatterns)
+          ? pp.antiPatterns.filter((a: unknown) => typeof a === "string")
+          : [],
       };
     }
-    if (typeof metaParsed.planGuidance === 'string' && metaParsed.planGuidance.trim()) {
+    if (
+      typeof metaParsed.planGuidance === "string" &&
+      metaParsed.planGuidance.trim()
+    ) {
       planGuidance = metaParsed.planGuidance.trim();
     }
     if (Array.isArray(metaParsed.worldSystems)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      worldSystems = metaParsed.worldSystems.filter((s: any) => s && typeof s.name === 'string').map((s: any) => ({
-        id: `WS-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        name: s.name,
-        description: typeof s.description === 'string' ? s.description : '',
-        principles: Array.isArray(s.principles) ? s.principles.filter((p: unknown) => typeof p === 'string') : [],
-        constraints: Array.isArray(s.constraints) ? s.constraints.filter((c: unknown) => typeof c === 'string') : [],
-        interactions: Array.isArray(s.interactions) ? s.interactions.filter((x: unknown) => typeof x === 'string') : [],
-      }));
+      worldSystems = metaParsed.worldSystems
+        .filter((s: any) => s && typeof s.name === "string")
+        .map((s: any) => ({
+          id: `WS-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          name: s.name,
+          description: typeof s.description === "string" ? s.description : "",
+          principles: Array.isArray(s.principles)
+            ? s.principles.filter((p: unknown) => typeof p === "string")
+            : [],
+          constraints: Array.isArray(s.constraints)
+            ? s.constraints.filter((c: unknown) => typeof c === "string")
+            : [],
+          interactions: Array.isArray(s.interactions)
+            ? s.interactions.filter((x: unknown) => typeof x === "string")
+            : [],
+        }));
     }
   } catch (err) {
     logWarning(
-      'Rules/systems/style extraction failed - using defaults',
+      "Rules/systems/style extraction failed - using defaults",
       err instanceof Error ? err : String(err),
       {
-        source: 'analysis',
-        operation: 'meta-extraction',
-        details: { title, chunkCount: results.length }
-      }
+        source: "analysis",
+        operation: "meta-extraction",
+        details: { title, chunkCount: results.length },
+      },
     );
   }
 
@@ -1574,7 +2041,9 @@ Return JSON:
     worldSystems,
     imageStyle,
     proseProfile,
-    storySettings: planGuidance ? { ...DEFAULT_STORY_SETTINGS, planGuidance } : undefined,
+    storySettings: planGuidance
+      ? { ...DEFAULT_STORY_SETTINGS, planGuidance }
+      : undefined,
     createdAt: Date.now() - 86400000,
     updatedAt: Date.now(),
   };

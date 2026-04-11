@@ -12,9 +12,9 @@ const gradeColor = (v: number) => {
 };
 
 export function ClosingSlide({ data, onClose }: { data: SlidesData; onClose: () => void }) {
-  const dominant = (['drive', 'world', 'system'] as const)
+  const dominant = (['fate', 'world', 'system'] as const)
     .reduce((a, b) => data.overallGrades[a] > data.overallGrades[b] ? a : b);
-  const dominantColors: Record<string, string> = { drive: '#EF4444', world: '#22C55E', system: '#3B82F6' };
+  const dominantColors: Record<string, string> = { fate: '#EF4444', world: '#22C55E', system: '#3B82F6' };
 
   return (
     <div className="flex items-center justify-center h-full px-12 relative overflow-hidden">

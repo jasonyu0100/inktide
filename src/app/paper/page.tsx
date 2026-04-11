@@ -746,26 +746,18 @@ export default function PaperPage() {
             <P>
               This paper proposes an answer: model text as knowledge graphs that
               mutate section by section, and derive three forces from those
-              mutations. <B>Fate</B> measures accumulated investment toward
-              resolution — not just whether threads resolve, but whether the
-              entities involved have been developed enough to earn that
+              mutations. <B>Fate</B> measures thread progression toward
               resolution. <B>World</B> measures transformation of entities.{" "}
-              <B>System</B> measures the deepening of rules and structures. Together they
-              capture what readers perceive intuitively: a scene
+              <B>System</B> measures the deepening of rules and structures.
+              Together they capture what readers perceive intuitively: a scene
               &ldquo;feels&rdquo; climactic, a chapter &ldquo;drags&rdquo;, a
               proof &ldquo;builds&rdquo; — now computable.
             </P>
             <P>
-              The key insight is that fate attaches to <em>nodes</em>, not just
-              threads. In fiction those nodes are characters, locations,
-              artifacts. In a paper they&apos;re theorems, concepts, arguments.
-              A thread resolving around deeply-invested nodes earns high fate; a
-              thread with shallow participants earns little — distinguishing
-              earned resolution from red herrings. This makes the framework
-              domain-general: applied to <em>Harry Potter</em>, it recovers the
-              Sorting Hat and Quirrell climax as structural peaks; applied to
-              academic papers, it identifies theorems that the text has built
-              toward versus those that appear without setup.
+              Peaks emerge where all three forces converge. Applied to{" "}
+              <em>Harry Potter</em>, the delivery curve recovers the
+              story&apos;s structural spine — the wand choosing Harry, the
+              Quidditch jinxing, the Forbidden Forest, the Quirrell climax.
             </P>
             <P>
               Empirical validation: published works score 85–95 on a composite
@@ -1652,27 +1644,21 @@ export default function PaperPage() {
               <P>
                 While Fate, World, and System measure structural{" "}
                 <em>operations</em>, Delivery quantifies reader-perceived{" "}
-                <em>impact</em> — the aggregate effect of all three forces,
-                weighted by tension-release dynamics.
+                <em>impact</em> — the mean of all three forces, capturing
+                holistic moments where direction, transformation, and knowledge
+                converge.
               </P>
               <Eq
-                tex={String.raw`D_i = w \sum_{f \,\in\, \{P,C,K\}} \tanh\!\left(\frac{f_i}{\alpha}\right) \;+\; \gamma \cdot \text{contrast}_i \qquad w{=}0.3,\;\; \alpha{=}1.5,\;\; \gamma{=}0.2`}
+                tex={String.raw`D_i = \frac{1}{3}\left[\tanh\!\left(\frac{F_i}{\alpha}\right) + \tanh\!\left(\frac{W_i}{\alpha}\right) + \tanh\!\left(\frac{S_i}{\alpha}\right)\right] \qquad \alpha{=}1.5`}
               />
               <P>
                 All three forces contribute symmetrically — same weight, same
                 saturation. <Tex>{"\\tanh(f/\\alpha)"}</Tex> compresses extreme
                 values while preserving their sign and relative ordering. The
-                contrast term{" "}
-                <Tex>{"\\text{contrast}_i = \\max(0,\\; T_{i-1} - T_i)"}</Tex>{" "}
-                where <Tex>{"T_i = W_i + S_i - F_i"}</Tex> rewards
-                tension-release patterns: the bigger the drop from buildup to
-                fate, the stronger the delivery. Constants were determined by
-                systematic parameter sweep across a reference corpus (
-                <em>Harry Potter</em>, <em>Nineteen Eighty-Four</em>,{" "}
-                <em>The Great Gatsby</em>,{" "}
-                <em>Alice&apos;s Adventures in Wonderland</em>), optimizing for
-                alignment between computed delivery peaks and established
-                dramatic moments identified in literary analysis.
+                division by 3 normalizes output to{" "}
+                <Tex>{String.raw`[-1, 1]`}</Tex>. Peaks emerge not from
+                one-dimensional spikes but from scenes where all three forces
+                fire together — structurally complete moments.
               </P>
             </div>
           </Section>
@@ -1680,10 +1666,9 @@ export default function PaperPage() {
           {/* ── Validation ──────────────────────────────────────────── */}
           <Section id="validation" label="Validation">
             <P>
-              Do the formulas capture what readers actually feel? We tested
-              against <em>Harry Potter and the Sorcerer&apos;s Stone</em> — a
-              novel whose dramatic peaks are well-established in popular memory.
-              The delivery curve below was computed entirely from structural
+              Do the formulas capture structural significance? We tested
+              against <em>Harry Potter and the Sorcerer&apos;s Stone</em>. The
+              delivery curve below was computed entirely from structural
               mutations extracted at analysis time.
             </P>
 
@@ -1858,12 +1843,21 @@ export default function PaperPage() {
             })()}
 
             <P>
-              Every peak corresponds to a moment any reader would identify:
-              Harry&apos;s letters arriving in impossible quantities, Hagrid
-              revealing the truth, the wonder of Diagon Alley, the Sorting Hat
-              ceremony, the troll fight that forges a friendship, discovering
-              Nicolas Flamel, the Norbert aftermath, and the climactic
-              confrontation with Quirrell.
+              Delivery captures holistic narrative moments — scenes where fate,
+              world, and system converge rather than scenes that excel in just
+              one dimension. A pure action scene with thread movement but no
+              character depth scores lower than a scene that balances direction
+              with inner transformation and knowledge expansion. In Harry
+              Potter, peaks align with the story&apos;s structural spine: Harry
+              choosing his wand (identity forged, magical rules revealed,
+              destiny seeded), the Quidditch jinxing incident (antagonist
+              influence surfacing), strange occurrences in the Forbidden Forest
+              (Voldemort thread escalating while Harry&apos;s understanding
+              deepens), and the climactic confrontation where threads resolve,
+              the true villain is revealed, and Harry discovers his
+              mother&apos;s protection. These aren&apos;t pop culture highlights
+              — they&apos;re the moments where the narrative structurally
+              commits on all three dimensions.
             </P>
             <P>
               This is the core claim:{" "}

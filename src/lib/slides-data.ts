@@ -19,7 +19,6 @@ import {
   gradeForces,
   FORCE_REFERENCE_MEANS,
   computeThreadStatuses,
-  type EntityContext,
   type DeliveryPoint,
   type NarrativeShape,
   type ForceGrades,
@@ -167,20 +166,12 @@ export function computeSlidesData(
 
   const n = scenes.length;
 
-  // Build entity context for investment-weighted fate calculation
-  const entityCtx: EntityContext = {
-    characters: narrative.characters,
-    locations: narrative.locations,
-    artifacts: narrative.artifacts,
-    threads: narrative.threads,
-  };
-
-  // Force snapshots (z-score normalized, investment-weighted)
-  const forceMap = computeForceSnapshots(scenes, [], entityCtx);
+  // Force snapshots (z-score normalized)
+  const forceMap = computeForceSnapshots(scenes, []);
   const forceSnapshots = scenes.map((s) => forceMap[s.id] ?? { fate: 0, world: 0, system: 0 });
 
-  // Raw forces (investment-weighted)
-  const rawForces = computeRawForceTotals(scenes, entityCtx);
+  // Raw forces
+  const rawForces = computeRawForceTotals(scenes);
 
   // Delivery curve
   const deliveryCurve = computeDeliveryCurve(forceSnapshots);

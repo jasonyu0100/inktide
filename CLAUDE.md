@@ -144,7 +144,7 @@ Files: `src/lib/search.ts`, `src/lib/embeddings.ts`, `src/lib/ai/search-synthesi
 Every scene records structural changes to the knowledge graph. These mutations are the raw inputs to the force formulas — the forces are computed *from* the mutations, not from the prose.
 
 ### Thread Mutations → Fate
-Threads are narrative tensions with a lifecycle: `latent → seeded → active → escalating → critical → resolved/subverted`. Abandoned moves a thread to the done pile cleanly — it earns zero fate and can be picked back up later as latent. Each scene records thread mutations as `{threadId, from, to}` status transitions. Fate is investment-weighted: `F = √arcs × stageWeight × (1 + log(1 + investment))` where stageWeight is pulse=0.25, seeded=0.5, active=1.0, escalating=1.5, critical=2.0, resolved=4.0. Investment measures what the story has built into the thread's participants — their continuity depth. A thread resolving around a deeply-developed character earns more fate than one involving transient figures. The √arcs term provides sublinear scaling that works for both short stories and novels. Each thread maintains a `threadLog` — an accumulated graph of lifecycle events using nine perceptual primitives (pulse, transition, setup, escalation, payoff, twist, callback, resistance, stall).
+Threads are narrative tensions with a lifecycle: `latent → seeded → active → escalating → critical → resolved/subverted`. Abandoned moves a thread to the done pile cleanly — it earns zero fate and can be picked back up later as latent. Each scene records thread mutations as `{threadId, from, to}` status transitions. Fate is the sum of stage weights: `F = Σ stageWeight(from, to)`. Transitions: seeded=1.0, active=1.5, escalating=2.0, critical=3.0, resolved=4.0. Pulses scale by lifecycle stage: latent=0.25, seeded=0.5, active=1.0, escalating=1.5, critical=2.0 — sustaining tension at higher stages contributes more fate. Each thread maintains a `threadLog` — an accumulated graph of lifecycle events using nine perceptual primitives (pulse, transition, setup, escalation, payoff, twist, callback, resistance, stall).
 
 ### Continuity Mutations → World
 Continuity mutations are additive changes to any entity's inner knowledge graph: `{entityId, addedNodes: [{id, content, type}], addedEdges: [{from, to, relation}]}`. Entities are characters, locations, or artifacts — each maintains its own continuity graph parallel to the world knowledge graph. World mirrors System but for entity inner worlds: `W = ΔN_c + √ΔE_c` — continuity nodes linear, continuity edges sqrt.
@@ -156,15 +156,12 @@ The world knowledge graph tracks laws, systems, concepts, and tensions as nodes 
 
 Three force dimensions, all **z-score normalised** (mean=0, units=standard deviations):
 
-- **Fate (F)** — `√arcs × stageWeight × (1 + log(1 + investment))` — investment-weighted resolution; abandoned earns 0
+- **Fate (F)** — `Σ stageWeight(from, to)` — sum of thread transition weights; resolution earns more than setup
 - **World (W)** — `ΔN_c + √ΔE_c` — entity continuity graph complexity
 - **System (S)** — `ΔN + √ΔE` — world knowledge graph complexity
 
-Investment = `max(depth) × (1 + 0.15 × breadth)` where depth is participant continuity and breadth counts invested participants.
-
 Derived metrics:
-- **Tension** — `T = W + S - F`
-- **Delivery** — `0.3·Σ tanh(f/1.5) + 0.2·contrast` where `contrast = max(0, T[i-1] - T[i])`
+- **Delivery** — `[tanh(F/1.5) + tanh(W/1.5) + tanh(S/1.5)] / 3` — mean of tanh-compressed forces, normalised to [-1, 1]
 - **Swing** — Euclidean distance between consecutive force snapshots
 
 Formulas in `src/lib/narrative-utils.ts`. The **cube** model maps forces into 3D space for trajectory analysis.

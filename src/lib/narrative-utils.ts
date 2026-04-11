@@ -1,4 +1,4 @@
-import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, SystemGraph, SystemNode, SystemEdge, SystemMutation, WorldBuild, Character, Location, Artifact, Continuity } from '@/types/narrative';
+import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, SystemGraph, SystemNode, SystemEdge, SystemMutation, WorldBuild, Character, Location, Artifact } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX } from '@/lib/constants';
 
@@ -628,36 +628,16 @@ export function zScoreNormalize(values: number[]): number[] {
 // Three forces measure distinct dimensions of narrative movement per scene.
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
-// F = Σ √arcs × stageWeight × (1 + log(1 + investment))  (investment-weighted fate)
+// F = Σ stageWeight(from, to)                (sum of thread transition weights)
 // W = ΔN_c + √ΔE_c                           (entity continuity — mirrors S for inner worlds)
 // S = ΔN + √ΔE                               (new world-knowledge nodes + sqrt edges)
 //
 // Swing = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in FWS space)
-// E = 0.3·Σ tanh(f/1.5) + 0.2·contrast       (delivery, all forces symmetric via tanh)
-//     contrast = max(0, T[i-1] - T[i])        (tension release bonus)
-//     T = W + S - F                            (tension: buildup without fate)
+// E = [tanh(F/1.5) + tanh(W/1.5) + tanh(S/1.5)] / 3  (delivery, mean of tanh-compressed forces, [-1,1])
 // g(x̃) = 25 - 17·e^{-kx̃}, k = ln(17/4)     (grade, μ = {1.5, 12, 3})
 //
 
-/** Minimum continuity depth to count as "invested" for breadth calculation */
-const INVESTMENT_THRESHOLD = 2;
-
-/** Breadth bonus coefficient — how much additional participants boost fate */
-const BREADTH_COEFFICIENT = 0.15;
-
-// ── Entity Investment ─────────────────────────────────────────────────────────
-//
-// Fate is enriched by entity investment — what the story has built into the
-// participants of a thread. Deeply-developed entities resolving threads earn
-// more fate than shallow/transient ones. This captures the difference between
-// a red herring (low investment) and earned fate (high investment).
-//
-// Investment = depth × (1 + breadth_bonus)
-// where depth = max continuity across participants
-// and breadth_bonus = 0.15 × count of invested participants
-//
-
-/** Context for entity investment calculation */
+/** Context for entity-related calculations (used by external consumers) */
 export type EntityContext = {
   characters: Record<string, Character>;
   locations: Record<string, Location>;
@@ -665,69 +645,34 @@ export type EntityContext = {
   threads: Record<string, Thread>;
 };
 
-/** Calculate continuity depth for an entity (nodes + √edges) */
-function continuityDepth(c: Continuity | undefined): number {
-  if (!c) return 0;
-  const nodes = Object.keys(c.nodes).length;
-  const edges = c.edges.length;
-  return nodes + Math.sqrt(edges);
-}
-
-/** Get continuity for an entity by type and id */
-function getEntityContinuity(
-  type: 'character' | 'location' | 'artifact',
-  id: string,
-  ctx: EntityContext
-): Continuity | undefined {
-  switch (type) {
-    case 'character': return ctx.characters[id]?.continuity;
-    case 'location': return ctx.locations[id]?.continuity;
-    case 'artifact': return ctx.artifacts[id]?.continuity;
-  }
-}
-
-/**
- * Calculate investment for a thread based on its participants' continuity depth.
- *
- * Investment captures both:
- * - Depth: the most invested participant (one deeply-built character = high fate)
- * - Breadth: how many participants have meaningful investment (convergence bonus)
- *
- * Returns a value ≥ 0. Use with log(1 + investment) for the multiplier.
- */
-function threadInvestment(threadId: string, ctx: EntityContext): number {
-  const thread = ctx.threads[threadId];
-  if (!thread || thread.participants.length === 0) return 0;
-
-  const depths = thread.participants.map(p =>
-    continuityDepth(getEntityContinuity(p.type, p.id, ctx))
-  );
-
-  // Depth: the most invested participant
-  const depth = Math.max(...depths, 0);
-
-  // Breadth: count of participants with meaningful investment
-  const breadth = depths.filter(d => d > INVESTMENT_THRESHOLD).length;
-
-  // Combined: depth dominates, breadth adds bonus
-  return depth * (1 + BREADTH_COEFFICIENT * breadth);
-}
-
 /** Stage weight for thread lifecycle transitions.
- *  Pulses (same→same): 0.25. Forward transitions earn more at higher stages.
+ *  Pulses scale by lifecycle stage — maintaining a critical thread is more significant.
+ *  Forward transitions earn progressively more. Resolution is weighted highest.
  *  Abandoned earns 0 — it's cleanup, moving threads to the done pile without contributing to fate.
  *  Escalating is the point of no return — active threads can still be forgotten, escalating must resolve.
  *  Backward transitions and unrecognized statuses earn 0. */
 function getStageWeight(from: string, to: string): number {
   if (to === 'abandoned') return 0;  // cleanup, not resolution — no fate
-  if (from === to) return 0.25;
+
+  // Pulses scale by lifecycle stage — sustaining tension at higher stages matters more
+  if (from === to) {
+    const PULSE_WEIGHTS: Record<string, number> = {
+      'latent': 0.25,
+      'seeded': 0.5,
+      'active': 1.0,
+      'escalating': 1.5,
+      'critical': 2.0,
+    };
+    return PULSE_WEIGHTS[from] ?? 0.25;
+  }
+
   const key = `${from}->${to}`;
   const WEIGHTS: Record<string, number> = {
-    'latent->seeded': 0.5,
-    'seeded->active': 1.0,
-    'active->escalating': 1.5,    // point of no return — thread now committed
-    'escalating->critical': 2.0,  // peak tension approaches
-    'active->critical': 2.0,      // legacy direct jump (prefer escalating path)
+    'latent->seeded': 1.0,
+    'seeded->active': 1.5,
+    'active->escalating': 2.0,    // point of no return — thread now committed
+    'escalating->critical': 3.0,  // peak tension approaches
+    'active->critical': 3.0,      // legacy direct jump (prefer escalating path)
     'critical->resolved': 4.0,
     'critical->subverted': 4.0,   // subverted = fate defied, same weight as resolved
   };
@@ -737,33 +682,17 @@ function getStageWeight(from: string, to: string): number {
 /**
  * Compute raw fate score for a scene.
  *
- * F = Σ √arcs × stageWeight × (1 + log(1 + investment))
+ * F = Σ stageWeight(from, to)
  *
- * - √arcs: sublinear arc scaling — rewards persistence without penalizing short works
- * - stageWeight: lifecycle transition weight (pulse=0.25, resolution=4.0)
- * - investment: entity depth bonus — deeply-built participants boost fate
- *
- * When entityCtx is provided, fate is weighted by entity investment.
- * Without entityCtx, falls back to structural formula (investment = 0).
+ * Simple sum of transition weights. Pulses (from === to) score 0.
+ * Resolution weights more than setup (critical→resolved = 4.0, latent→seeded = 0.5).
  */
-function computeRawFate(
-  scene: Scene,
-  activeArcsMap: Record<string, number> = {},
-  entityCtx?: EntityContext
-): number {
+function computeRawFate(scene: Scene): number {
   let score = 0;
   for (const tm of scene.threadMutations) {
     const from = tm.from.toLowerCase();
     const to = tm.to.toLowerCase();
-    const weight = getStageWeight(from, to);
-    const arcs = Math.max(1, activeArcsMap[tm.threadId] ?? 1);
-
-    // Arc scaling: √arcs — sublinear growth, no penalty for short works
-    // Investment multiplier: 1 + log(1 + investment) — entity depth bonus
-    const investment = entityCtx ? threadInvestment(tm.threadId, entityCtx) : 0;
-    const investmentMultiplier = 1 + Math.log1p(investment);
-
-    score += Math.sqrt(arcs) * weight * investmentMultiplier;
+    score += getStageWeight(from, to);
   }
   return score;
 }
@@ -871,23 +800,10 @@ export function buildCumulativeSystemGraph(
  */
 export function computeForceSnapshots(
   scenes: Scene[],
-  priorScenes: Scene[] = [],
-  entityCtx?: EntityContext,
+  _priorScenes: Scene[] = [],
 ): Record<string, ForceSnapshot> {
   const result: Record<string, ForceSnapshot> = {};
   if (scenes.length === 0) return result;
-
-  // Pre-compute activeArcs per thread from scenes
-  const allScenes = [...priorScenes, ...scenes];
-  const activeArcsMap: Record<string, number> = {};
-  const threadArcSets: Record<string, Set<string>> = {};
-  for (const s of allScenes) {
-    for (const tm of s.threadMutations) {
-      if (!threadArcSets[tm.threadId]) threadArcSets[tm.threadId] = new Set();
-      threadArcSets[tm.threadId].add(s.arcId);
-    }
-  }
-  for (const [tid, arcs] of Object.entries(threadArcSets)) activeArcsMap[tid] = arcs.size;
 
   // Compute raw values per scene
   const rawFates: number[] = [];
@@ -895,7 +811,7 @@ export function computeForceSnapshots(
   const rawSystems: number[] = [];
 
   for (const scene of scenes) {
-    rawFates.push(computeRawFate(scene, activeArcsMap, entityCtx));
+    rawFates.push(computeRawFate(scene));
     rawWorlds.push(rawWorld(scene));
     rawSystems.push(rawSystem(scene));
   }
@@ -920,31 +836,18 @@ export function computeForceSnapshots(
  * Returns absolute values suitable for cross-series comparison.
  *
  * @param scenes - Ordered list of scenes
- * @param entityCtx - Optional entity context for investment-weighted fate calculation
  */
 export function computeRawForceTotals(
   scenes: Scene[],
-  entityCtx?: EntityContext,
 ): { fate: number[]; world: number[]; system: number[] } {
   if (scenes.length === 0) return { fate: [], world: [], system: [] };
-
-  // Pre-compute activeArcs per thread
-  const activeArcsMap: Record<string, number> = {};
-  const threadArcSets: Record<string, Set<string>> = {};
-  for (const s of scenes) {
-    for (const tm of s.threadMutations) {
-      if (!threadArcSets[tm.threadId]) threadArcSets[tm.threadId] = new Set();
-      threadArcSets[tm.threadId].add(s.arcId);
-    }
-  }
-  for (const [tid, arcs] of Object.entries(threadArcSets)) activeArcsMap[tid] = arcs.size;
 
   const fate: number[] = [];
   const world: number[] = [];
   const system: number[] = [];
 
   for (const scene of scenes) {
-    fate.push(computeRawFate(scene, activeArcsMap, entityCtx));
+    fate.push(computeRawFate(scene));
     world.push(rawWorld(scene));
     system.push(rawSystem(scene));
   }
@@ -1076,37 +979,22 @@ export interface DeliveryPoint {
 /**
  * Compute the delivery curve from z-score normalised force snapshots.
  *
- * Delivery = w·[tanh(P/α) + tanh(C/α) + tanh(K/α)] + γ·contrast
+ * Delivery = [tanh(F/α) + tanh(W/α) + tanh(S/α)] / 3
  *
- * where w = 0.3, α = 1.5, γ = 0.2, contrast = max(0, T[i-1] - T[i]).
+ * where α = 1.5. Output is normalised to [-1, 1].
  *
  * All three forces are treated symmetrically — same weight, same saturation.
  * tanh(x/1.5) compresses extreme values while preserving the sign and relative
- * ordering of z-scored forces. The contrast bonus rewards tension-release.
- *
- * Calibrated against subjective peak/valley identification across Harry Potter,
- * Nineteen Eighty-Four, The Great Gatsby, and Reverend Insanity.
+ * ordering of z-scored forces.
  */
 export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[] {
   if (snapshots.length === 0) return [];
   const n = snapshots.length;
 
-  const W = 0.3;           // weight per force
   const ALPHA = 1.5;       // tanh divisor — controls saturation speed
-  const GAMMA = 0.2;       // contrast weight
 
-  // Tension per scene: buildup without release
-  const tensions = snapshots.map(({ fate, world, system }) =>
-    world + system - fate,
-  );
-
-  // Contrast: reward scenes where tension drops (= release)
-  const contrasts = tensions.map((t, i) =>
-    i === 0 ? 0 : Math.max(0, tensions[i - 1] - t),
-  );
-
-  const engValues = snapshots.map(({ fate, world, system }, i) =>
-    W * (Math.tanh(fate / ALPHA) + Math.tanh(world / ALPHA) + Math.tanh(system / ALPHA)) + GAMMA * contrasts[i],
+  const engValues = snapshots.map(({ fate, world, system }) =>
+    (Math.tanh(fate / ALPHA) + Math.tanh(world / ALPHA) + Math.tanh(system / ALPHA)) / 3,
   );
 
   const smoothed = gaussianSmooth(engValues, 1.5);

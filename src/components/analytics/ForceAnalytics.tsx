@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect, useCallback, useId } from 'react'
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint, type EntityContext } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint } from '@/lib/narrative-utils';
 import { IconLineChart, IconPencilDraw } from '@/components/icons';
 
 type ForceKey = 'fate' | 'world' | 'system' | 'swing' | 'delivery';
@@ -411,7 +411,6 @@ function ZoneBar({
   width,
   height,
   dense,
-  entityCtx,
 }: {
   data: SceneDataPoint[];
   arcRegions: ArcRegion[];
@@ -424,7 +423,6 @@ function ZoneBar({
   width: number;
   height: number;
   dense: boolean;
-  entityCtx?: EntityContext;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -432,7 +430,7 @@ function ZoneBar({
   const arcZones = useMemo((): ArcZone[] => {
     if (allScenes.length === 0 || arcRegions.length === 0) return [];
 
-    const raw = computeRawForceTotals(allScenes, entityCtx);
+    const raw = computeRawForceTotals(allScenes);
     const rawForces = raw.fate.map((_, i) => ({
       fate: raw.fate[i],
       world: raw.world[i],
@@ -461,7 +459,7 @@ function ZoneBar({
         grade,
       };
     });
-  }, [allScenes, arcRegions, entityCtx]);
+  }, [allScenes, arcRegions]);
 
   // Map each scene index to its arc grade for hover display
   const sceneGrades = useMemo(() => {
@@ -1052,21 +1050,10 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
       .filter((e): e is Scene => !!e && isScene(e));
   }, [narrative, state.resolvedEntryKeys]);
 
-  // Entity context for investment-weighted fate calculation
-  const entityCtx = useMemo((): EntityContext | undefined => {
-    if (!narrative) return undefined;
-    return {
-      characters: narrative.characters,
-      locations: narrative.locations,
-      artifacts: narrative.artifacts,
-      threads: narrative.threads,
-    };
-  }, [narrative]);
-
   const forceMap = useMemo(() => {
     if (allScenes.length === 0) return {};
-    return computeForceSnapshots(allScenes, [], entityCtx);
-  }, [allScenes, entityCtx]);
+    return computeForceSnapshots(allScenes, []);
+  }, [allScenes]);
 
   const dataPoints = useMemo((): SceneDataPoint[] => {
     if (!narrative || allScenes.length === 0) return [];
@@ -1112,7 +1099,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   // Raw (non-normalised) data points for absolute force view
   const rawDataPoints = useMemo((): SceneDataPoint[] => {
     if (dataPoints.length === 0 || allScenes.length === 0) return [];
-    const raw = computeRawForceTotals(allScenes, entityCtx);
+    const raw = computeRawForceTotals(allScenes);
     return dataPoints.map((dp, i) => ({
       ...dp,
       forces: {
@@ -1510,7 +1497,6 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
               width={dims.width}
               height={zoneBarHeight + MARGIN.top}
               dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
-              entityCtx={entityCtx}
             />
             {arcRegions.length < DENSE_ARC_THRESHOLD && (
               <ArcLabelsBar

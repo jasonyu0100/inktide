@@ -989,7 +989,7 @@ export const REASONING_BUDGETS: Record<ReasoningLevel, number> = {
 export type ProseFormat = "prose" | "screenplay";
 
 /** Target archetype for force standards — what balance of forces the story aims for */
-export type ArchetypeKey = "opus" | "series" | "atlas" | "chronicle" | "classic" | "show" | "paper";
+export type ArchetypeKey = "opus" | "series" | "atlas" | "chronicle" | "classic" | "stage" | "paper";
 
 export type StorySettings = {
   /** Target archetype — influences force standards for generation. Empty = opus (balanced). */

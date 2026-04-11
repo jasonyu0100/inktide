@@ -7,11 +7,11 @@ import React from 'react';
  * Maps force-dominance profiles to visually distinctive icons.
  */
 
-export type ArchetypeKey = 'opus' | 'series' | 'atlas' | 'chronicle' | 'classic' | 'show' | 'paper' | 'emerging';
+export type ArchetypeKey = 'opus' | 'series' | 'atlas' | 'chronicle' | 'classic' | 'stage' | 'paper' | 'emerging';
 
 export const ARCHETYPE_COLORS: Record<ArchetypeKey, string> = {
   opus: '#f59e0b', series: '#ef4444', atlas: '#3b82f6',
-  chronicle: '#8b5cf6', classic: '#10b981', show: '#ec4899',
+  chronicle: '#8b5cf6', classic: '#10b981', stage: '#ec4899',
   paper: '#06b6d4', emerging: '#6b7280',
 };
 
@@ -95,8 +95,8 @@ const SHAPES: Record<ArchetypeKey, (half: number, s: number, c: string) => React
     );
   },
 
-  // Show: three offset dots — people-driven
-  show: (half, s, c) => {
+  // Stage: three offset dots — people-driven
+  stage: (half, s, c) => {
     const r = s * 0.07;
     return (
       <>

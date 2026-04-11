@@ -148,7 +148,7 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
     const label = s.targetArchetype.charAt(0).toUpperCase() + s.targetArchetype.slice(1);
     const dominant = profile.enforced ? ['fate', 'world', 'system'] :
       s.targetArchetype === 'classic' ? ['fate'] :
-      s.targetArchetype === 'show' ? ['world'] :
+      s.targetArchetype === 'stage' ? ['world'] :
       s.targetArchetype === 'paper' ? ['system'] :
       s.targetArchetype === 'series' ? ['fate', 'world'] :
       s.targetArchetype === 'atlas' ? ['fate', 'system'] :

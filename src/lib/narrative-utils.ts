@@ -1239,7 +1239,7 @@ export const ARCHETYPES = {
   atlas:       { key: 'atlas',       name: 'Atlas',       description: 'Resolutions that map the world — each fate reveals how things work', dominant: ['fate', 'system'] as const },
   chronicle:   { key: 'chronicle',   name: 'Chronicle',   description: 'Characters transform within a deepening world — lives and systems evolve together', dominant: ['world', 'system'] as const },
   classic:     { key: 'classic',     name: 'Classic',     description: 'Fate-driven — threads pay off and relationships shift decisively', dominant: ['fate'] as const },
-  show:        { key: 'show',        name: 'Show',        description: 'People-driven — characters transform and their journeys are the heart of the story', dominant: ['world'] as const },
+  stage:       { key: 'stage',       name: 'Stage',       description: 'People-driven — characters transform and their journeys are the heart of the story', dominant: ['world'] as const },
   paper:       { key: 'paper',       name: 'Paper',       description: 'Dense with ideas and systems — the depth of the world itself is the draw', dominant: ['system'] as const },
   emerging:    { key: 'emerging',    name: 'Emerging',    description: 'No single force has reached its potential yet — the story is still finding its voice', dominant: [] as const },
 } satisfies Record<string, NarrativeArchetype>;
@@ -1271,7 +1271,7 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   if (fDom && sDom)         return ARCHETYPES.atlas;
   if (wDom && sDom)         return ARCHETYPES.chronicle;
   if (fDom)                 return ARCHETYPES.classic;
-  if (wDom)                 return ARCHETYPES.show;
+  if (wDom)                 return ARCHETYPES.stage;
   if (sDom)                 return ARCHETYPES.paper;
   return ARCHETYPES.emerging;
 }

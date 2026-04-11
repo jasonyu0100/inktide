@@ -451,32 +451,28 @@ export function narrativeContext(
   const rankedSystemNodes = rankSystemNodes(horizonSystemGraph);
   let systemGraphBlock = '';
   if (rankedSystemNodes.length > 0) {
-    // Build adjacency map for each node → connected concepts
+    // Build adjacency map for each node → connected node IDs
     const adjacency = new Map<string, string[]>();
     for (const e of horizonSystemGraph.edges) {
-      const fromConcept = horizonSystemGraph.nodes[e.from]?.concept;
-      const toConcept = horizonSystemGraph.nodes[e.to]?.concept;
-      if (!fromConcept || !toConcept) continue;
-      adjacency.set(e.from, [...(adjacency.get(e.from) ?? []), toConcept]);
-      adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), fromConcept]);
+      if (!horizonSystemGraph.nodes[e.from] || !horizonSystemGraph.nodes[e.to]) continue;
+      adjacency.set(e.from, [...(adjacency.get(e.from) ?? []), e.to]);
+      adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), e.from]);
     }
 
-    // Show each node with its type and relationships
+    // Show each node as XML with ID, type, and connections
     const nodeLines = rankedSystemNodes.map(({ node }) => {
       const connections = adjacency.get(node.id);
-      const connStr = connections && connections.length > 0
-        ? ` ↔ ${connections.join(', ')}`
+      const connAttr = connections && connections.length > 0
+        ? ` connects="${connections.join(', ')}"`
         : '';
-      return `  [${node.type}] ${node.concept}${connStr}`;
+      return `<node id="${node.id}" type="${node.type}"${connAttr}>${node.concept}</node>`;
     });
 
     const totalNodes = Object.keys(horizonSystemGraph.nodes).length;
     const totalEdges = horizonSystemGraph.edges.length;
     systemGraphBlock = `
-<system-graph nodes="${totalNodes}" edges="${totalEdges}" hint="Established rules, systems, concepts, tensions. Reference existing nodes when relevant. New nodes need edges showing how they relate.">
-
+<system-graph nodes="${totalNodes}" edges="${totalEdges}" hint="Reference existing IDs when relevant. New nodes need edges.">
 ${nodeLines.join('\n')}
-<node-ids>${rankedSystemNodes.map(({ node }) => `${node.id}: ${node.concept}`).join(', ')}</node-ids>
 </system-graph>
 `;
   }
@@ -485,9 +481,10 @@ ${nodeLines.join('\n')}
   const charIdList = branchCharacters.map((c) => c.id).join(', ');
   const locIdList = branchLocations.map((l) => l.id).join(', ');
   const threadIdList = branchThreads.map((t) => t.id).join(', ');
+  const sysIdList = rankedSystemNodes.map(({ node }) => node.id).join(', ');
 
   const rulesBlock = n.rules && n.rules.length > 0
-    ? `\n<world-rules hint="Absolute constraints — every scene MUST obey these.">\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n</world-rules>\n`
+    ? `\n<world-rules hint="Absolute constraints — every scene MUST obey these.">\n${n.rules.map((r) => `<rule>${r}</rule>`).join('\n')}\n</world-rules>\n`
     : '';
 
   const systemsBlock = buildWorldSystemsBlock(n.worldSystems);
@@ -528,11 +525,11 @@ ${sceneHistory}
 <force-trajectory hint="D=Drive (thread fate) W=World (entity transformation) S=System (world deepening). Vary density between scenes.">
 ${forceTrajectory || '(no scenes yet)'}
 ${currentStateBlock}</force-trajectory>
-${systemGraphBlock}${buildDramaticIronyBlock(n, keysUpToCurrent)}
+${systemGraphBlock}
 <valid-ids hint="You MUST use ONLY these exact IDs — do NOT invent new ones.">
   <characters>${charIdList}</characters>
   <locations>${locIdList}</locations>
-  <threads>${threadIdList}</threads>${artifactEntries.length > 0 ? `\n  <artifacts>${artifactEntries.map((a) => a.id).join(', ')}</artifacts>` : ''}
+  <threads>${threadIdList}</threads>${artifactEntries.length > 0 ? `\n  <artifacts>${artifactEntries.map((a) => a.id).join(', ')}</artifacts>` : ''}${sysIdList ? `\n  <system-nodes>${sysIdList}</system-nodes>` : ''}
 </valid-ids>
 </narrative>`;
 }
@@ -662,19 +659,17 @@ export function sceneContext(
     if (!wkm || ((wkm.addedNodes?.length ?? 0) === 0 && (wkm.addedEdges?.length ?? 0) === 0)) return '';
     const lines: string[] = [];
     for (const node of wkm.addedNodes ?? []) {
-      lines.push(`  <node type="${node.type}">${node.concept}</node>`);
+      lines.push(`<node id="${node.id}" type="${node.type}">${node.concept}</node>`);
     }
     for (const edge of wkm.addedEdges ?? []) {
-      const fromLabel = narrative.systemGraph.nodes[edge.from]?.concept ?? edge.from;
-      const toLabel = narrative.systemGraph.nodes[edge.to]?.concept ?? edge.to;
-      lines.push(`  <edge>${fromLabel} → ${edge.relation} → ${toLabel}</edge>`);
+      lines.push(`<edge from="${edge.from}" to="${edge.to}" relation="${edge.relation}"/>`);
     }
-    return `\n<system-graph-reveals>\n${lines.join('\n')}\n</world-knowledge-reveals>`;
+    return `\n<system-graph-reveals>\n${lines.join('\n')}\n</system-graph-reveals>`;
   })();
 
   // ── World rules & systems (compact) ──────────────────────────────
   const rulesBlock = narrative.rules?.length
-    ? `\n<world-rules>\n${narrative.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n</world-rules>` : '';
+    ? `\n<world-rules>\n${narrative.rules.map((r) => `<rule>${r}</rule>`).join('\n')}\n</world-rules>` : '';
   const systemsBlock = buildWorldSystemsBlock(narrative.worldSystems);
 
   return `<scene id="${scene.id}" arc="${arc?.name ?? 'standalone'}" pov="${pov?.name ?? 'Unknown'}" pov-role="${pov?.role ?? 'unknown'}">
@@ -707,79 +702,6 @@ ${tieMutationLines.length > 0 ? `\n<tie-changes>\n${tieMutationLines.join('\n')}
  *  Generation is flexible — the LLM can vary beat count based on scene intensity. */
 export function sceneScale(scene: Scene): { estWords: number; targetBeats: number; planWords: string } {
   return { estWords: WORDS_PER_SCENE, targetBeats: BEATS_PER_SCENE, planWords: `${Math.round(WORDS_PER_SCENE * 0.3)}-${Math.round(WORDS_PER_SCENE * 0.5)}` };
-}
-
-/**
- * Compute dramatic irony: what the reader knows that key characters don't.
- *
- * The reader "participates" in every scene. Characters only know what happened
- * in scenes they were present for. The gap is dramatic irony — the engine of
- * suspense, dread, and dramatic satisfaction.
- *
- * Returns a formatted block for injection into branchContext.
- */
-function buildDramaticIronyBlock(n: NarrativeState, resolvedKeys: string[]): string {
-  const anchors = Object.values(n.characters).filter((c) => c.role === 'anchor');
-  if (anchors.length === 0 || resolvedKeys.length < 3) return '';
-
-  // Build per-character knowledge: what continuity nodes exist in scenes they participated in
-  const charSceneKnowledge = new Map<string, Set<string>>();
-  // Reader knowledge: all continuity across all scenes
-  const readerKnowledge = new Map<string, { charName: string; content: string; sceneIdx: number }>();
-
-  resolvedKeys.forEach((key, idx) => {
-    const scene = n.scenes[key];
-    if (!scene) return;
-
-    // Track what each entity learns from this scene
-    for (const km of scene.continuityMutations) {
-      for (const node of km.addedNodes ?? []) {
-        const nodeKey = `${km.entityId}:${node.id}`;
-
-        // Reader sees everything
-        const entityName = n.characters[km.entityId]?.name ?? n.locations[km.entityId]?.name ?? n.artifacts[km.entityId]?.name ?? km.entityId;
-        if (!readerKnowledge.has(nodeKey)) {
-          readerKnowledge.set(nodeKey, { charName: entityName, content: node.content, sceneIdx: idx + 1 });
-        }
-
-        // Characters only see scenes they're in
-        for (const pid of scene.participantIds) {
-          if (!charSceneKnowledge.has(pid)) charSceneKnowledge.set(pid, new Set());
-          charSceneKnowledge.get(pid)!.add(nodeKey);
-        }
-
-        // Also the entity that learns it directly
-        if (!charSceneKnowledge.has(km.entityId)) charSceneKnowledge.set(km.entityId, new Set());
-        charSceneKnowledge.get(km.entityId)!.add(nodeKey);
-      }
-    }
-  });
-
-  // Find the most dramatically useful gaps for each anchor
-  const ironyLines: string[] = [];
-
-  for (const anchor of anchors) {
-    const anchorKnows = charSceneKnowledge.get(anchor.id) ?? new Set<string>();
-
-    // What does the reader know about OTHER characters that this anchor doesn't?
-    const gaps: { charName: string; content: string; sceneIdx: number }[] = [];
-    for (const [nodeKey, info] of readerKnowledge) {
-      if (!anchorKnows.has(nodeKey) && info.charName !== anchor.name) {
-        gaps.push(info);
-      }
-    }
-
-    if (gaps.length === 0) continue;
-
-    // Take the most recent gaps (most dramatically relevant)
-    const recent = gaps.sort((a, b) => b.sceneIdx - a.sceneIdx).slice(0, 3);
-    const gapDescs = recent.map((g) => `${g.charName} learned "${g.content}" (scene ${g.sceneIdx})`);
-    ironyLines.push(`${anchor.name} is UNAWARE that: ${gapDescs.join('; ')}`);
-  }
-
-  if (ironyLines.length === 0) return '';
-
-  return `\n<dramatic-irony hint="The reader knows these things but the characters do not. Exploit these gaps — scenes where characters act on incomplete information create tension.">\n${ironyLines.join('\n')}\n</dramatic-irony>\n`;
 }
 
 /** Deterministically derive logical rules from the scene graph — no LLM needed.
@@ -896,31 +818,9 @@ ${knowledgeLines.join('\n')}
       }
     }
 
-    // Dramatic irony: things the reader knows that POV doesn't (from other scenes)
-    const dramaticIronyItems: string[] = [];
-    for (const [, char] of Object.entries(narrative.characters)) {
-      if (char.id === pov.id) continue;
-      const charKnowledge = getCharacterKnowledge(char.id);
-      for (const kn of charKnowledge) {
-        if (!povKnowledgeIds.has(kn.id) && !povLearnsNodeIds.has(kn.id)) {
-          const anyParticipantKnows = scene.participantIds.some((pid) => {
-            if (pid === pov.id) return false;
-            const pKnowledge = getCharacterKnowledge(pid);
-            return pKnowledge.some((n) => n.id === kn.id);
-          });
-          if (anyParticipantKnows) {
-            dramaticIronyItems.push(`${kn.content} (${char.name})`);
-          }
-        }
-      }
-    }
-
-    if (asymmetryLines.length > 0 || dramaticIronyItems.length > 0) {
-      const ironyBlock = dramaticIronyItems.length > 0
-        ? `\n  <dramatic-irony hint="Reader knows these, POV does not — show POV acting on incomplete information">${dramaticIronyItems.join(' | ')}</dramatic-irony>`
-        : '';
+    if (asymmetryLines.length > 0) {
       sections.push(`<knowledge-asymmetry pov="${pov.name}">
-${asymmetryLines.join('\n')}${ironyBlock}
+${asymmetryLines.join('\n')}
   <constraint>Do not reveal hidden knowledge through narration. ${pov.name} can only observe external behaviour and draw their own (possibly wrong) conclusions.</constraint>
 </knowledge-asymmetry>`);
     }
@@ -1318,21 +1218,20 @@ export function worldContext(
   if (rankedNodes.length > 0) {
     const adjacency = new Map<string, string[]>();
     for (const e of wk.edges) {
-      const fc = wk.nodes[e.from]?.concept;
-      const tc = wk.nodes[e.to]?.concept;
-      if (!fc || !tc) continue;
-      adjacency.set(e.from, [...(adjacency.get(e.from) ?? []), tc]);
-      adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), fc]);
+      if (!wk.nodes[e.from] || !wk.nodes[e.to]) continue;
+      adjacency.set(e.from, [...(adjacency.get(e.from) ?? []), e.to]);
+      adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), e.from]);
     }
     const nodeLines = rankedNodes.map(({ node }) => {
       const conns = adjacency.get(node.id);
-      return `  [${node.type}] ${node.concept}${conns?.length ? ` ↔ ${conns.join(', ')}` : ''}`;
+      const connAttr = conns?.length ? ` connects="${conns.join(', ')}"` : '';
+      return `<node id="${node.id}" type="${node.type}"${connAttr}>${node.concept}</node>`;
     });
     wkBlock = `\n<system-graph nodes="${rankedNodes.length}" edges="${wk.edges.length}">\n${nodeLines.join('\n')}\n</system-graph>\n`;
   }
 
   const rulesBlock = n.rules?.length
-    ? `<world-rules hint="Absolute constraints — every scene MUST obey these.">\n${n.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n</world-rules>\n`
+    ? `<world-rules hint="Absolute constraints — every scene MUST obey these.">\n${n.rules.map((r) => `<rule>${r}</rule>`).join('\n')}\n</world-rules>\n`
     : '';
 
   const systemsBlock = buildWorldSystemsBlock(n.worldSystems);

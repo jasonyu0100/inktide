@@ -59,20 +59,22 @@ export function Modal({ onClose, children, size = 'md', fullScreen, maxHeight, p
   );
 }
 
-export function ModalHeader({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+export function ModalHeader({ children, onClose, hideClose }: { children: ReactNode; onClose: () => void; hideClose?: boolean }) {
   return (
     <div className="flex items-center justify-between px-5 py-3 border-b border-white/6 shrink-0">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {children}
       </div>
-      <button
-        onClick={onClose}
-        className="p-1.5 rounded hover:bg-white/5 transition-colors text-text-dim hover:text-text-primary shrink-0 ml-3"
-      >
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
+      {!hideClose && (
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded hover:bg-white/5 transition-colors text-text-dim hover:text-text-primary shrink-0 ml-3"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

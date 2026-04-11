@@ -335,7 +335,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal onClose={loading ? () => {} : onClose} size="xl" maxHeight="90vh">
-      <ModalHeader onClose={loading ? () => {} : onClose}>
+      <ModalHeader onClose={onClose} hideClose={loading}>
         <div>
           <h2 className="text-sm font-semibold text-text-primary">Generate</h2>
         </div>

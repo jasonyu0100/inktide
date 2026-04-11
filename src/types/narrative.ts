@@ -218,8 +218,8 @@ export type OwnershipMutation = {
 
 export type ArtifactUsage = {
   artifactId: string;
-  /** Character who used the artifact, or null for unattributed usage (e.g. a tool described in a paper) */
-  characterId: string | null;
+  /** Character who used the artifact. Every usage must have a character. */
+  characterId: string | null; // null preserved for backwards compatibility with legacy data
   /** What the artifact did — how it delivered utility (e.g. "cut through the ward", "predicted the market crash") */
   usage: string;
 };

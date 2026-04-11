@@ -253,35 +253,48 @@ continuityMutations — what we LEARN about an entity that wasn't known before. 
 relationshipMutations — only when a relationship SHIFTS, not just exists.
 - valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic. Most scenes: 0-1.
 
-systemMutations — REVEALED world rules, not character observations.
-- Each concept: 15-25 words, PRESENT TENSE. A genuine world SYSTEM or PRINCIPLE that governs how things work.
-  BAD: "Wonderland Logic" (too vague, too short).
-  BAD: "Anthropomorphic Animals" (too short — what do they do? what rules govern them?).
-  GOOD: "Animals in Wonderland possess human speech, clothing, and social hierarchies, interacting with humans as equals in formal settings."
-  GOOD: "The rabbit hole serves as a dimensional threshold, transporting travelers to a realm where physical laws operate differently."
+systemMutations — REVEALED world rules, not character observations. 15-25 words, PRESENT TENSE.
+  FICTION: ✓ "Wizards cannot Apparate within Hogwarts grounds due to ancient protective enchantments."
+  FICTION: ✓ "The One Ring corrupts its bearer over time, amplifying their desire for power."
+  FICTION: ✗ "Magic" (too vague) — describe HOW it works
+  NON-FICTION: ✓ "Self-attention computes weighted sums where each position attends to all positions in the sequence."
+  NON-FICTION: ✓ "Transformers eliminate recurrence entirely, relying solely on attention mechanisms for sequence modeling."
+  NON-FICTION: ✗ "Transformer architecture" (too short) — describe what it DOES
 - MAX 1-2 concepts per scene. Most scenes: 0-1. Only exposition/world-building: 3+.
 - Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
-ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). ALL continuity/lore MUST be emitted as scenes[].continuityMutations on the scene where it is revealed. Never dump backstory — reveal it where the prose reveals it.
-- characters: conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI is an artifact. Role: anchor/recurring/transient.
-  anchor: 3-5 continuityMutations on the scene where they first appear. 2-3 per subsequent scene.
-  recurring: 2-4 continuityMutations on first appearance. 1-2 per subsequent scene.
-  transient: 1-2 continuityMutations on first appearance (defining trait, role in the scene). Only update if they do something structurally meaningful.
-- locations: PHYSICAL spatial areas you can STAND IN. The test: could a character physically walk there and look around? Rooms, buildings, cities, forests, planets — yes. Abstract domains, conceptual spaces, fields of study, conferences, institutions, frameworks — no (these belong in world knowledge or as artifacts). Nest via parentName. If the text has no physical places, extract ZERO. tiedCharacterNames: characters who BELONG (residents, faction members).
-  domain: a region or world that contains other places. 3-5 continuityMutations on first-appearance scene. 2-3 per subsequent scene.
-  place: a specific named setting where scenes happen. 2-4 continuityMutations on first-appearance scene. 1-2 per subsequent scene.
-  margin: a fleeting or peripheral spot mentioned in passing. 1-2 continuityMutations on first-appearance scene. Only update if something notable happens here.
-- artifacts: anything that delivers utility — active tools, not passive concepts. Spans every genre and scale: a wand, a forge, a dataset, an algorithm, a platform, a search engine, AI. The test: does it DO something when applied? Concepts and definitions that only DESCRIBE belong in world knowledge. ownerName: character/location/null (null = world-owned, universally accessible). significance: key/notable/minor.
-  key: 2-4 continuityMutations on first-appearance scene. Update continuity every scene the artifact is referenced — new properties revealed, limitations discovered, capabilities demonstrated.
-  notable: 1-3 continuityMutations on first-appearance scene. Update on significant use.
-  minor: 1 continuityMutation on first-appearance scene. Only update if its role changes.
-  IMPORTANT: when an artifact reappears in later scenes, generate BOTH an artifactUsage AND a continuityMutation for it. Invoking an artifact to explain, demonstrate, validate, or apply its capabilities counts as usage.
+ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). ALL continuity/lore MUST be emitted as scenes[].continuityMutations on the scene where it is revealed.
+
+- characters: conscious beings with agency. Role: anchor/recurring/transient.
+  FICTION: ✓ Harry Potter, Gandalf, Elizabeth Bennet — people with agency
+  FICTION: ✓ Hedwig, Shadowfax — named animals with personality
+  NON-FICTION: ✓ Einstein, Vaswani et al., the lead researcher — people who act
+  NON-FICTION: ✗ "The scientific community", "reviewers" — collectives, not characters
+  anchor: 3-5 continuityMutations on first appearance. recurring: 2-4. transient: 1-2.
+
+- locations: PHYSICAL spatial areas you can STAND IN.
+  FICTION: ✓ Hogwarts, the Shire, Pemberley — places you can walk into
+  FICTION: ✗ "The wizarding world", "Middle-earth politics" — abstract domains (system knowledge)
+  NON-FICTION: ✓ Google's data center, Stanford lab, the conference room — physical places
+  NON-FICTION: ✗ "The field of machine learning", "academia", "NeurIPS" — abstract domains (system knowledge)
+  Nest via parentName. tiedCharacterNames: characters who BELONG (residents, members).
+  domain: 3-5 continuityMutations. place: 2-4. margin: 1-2.
+
+- artifacts: economic goods you can USE — NOT techniques or concepts.
+  FICTION: ✓ A wand, the One Ring, a ship, a letter — objects you wield or possess
+  FICTION: ✗ "Magic", "swordsmanship", "prophecy" — concepts (system knowledge)
+  NON-FICTION: ✓ GPT-4, TensorFlow, WMT dataset, P100 GPU — software/hardware you USE
+  NON-FICTION: ✗ "Transformer architecture", "attention mechanism", "BLEU score" — techniques/metrics (system knowledge)
+  NON-FICTION: ✗ "Figure 3", "Table 2" — document references, NOT artifacts
+  ownerName: character/location/null (world-owned for ubiquitous tools). significance: key/notable/minor.
+  key: 2-4 continuityMutations. notable: 1-3. minor: 1.
+
 - threads: narrative tensions. development: what specifically happened.
 
 events — 2-4 word tags. 2-4 per scene. Each names a discrete beat.
-artifactUsages — when an artifact delivers utility. Every artifact referenced for what it DOES (not just mentioned by name) is a usage. The artifact doesn't need to be physically held — a paper applying gradient descent or leveraging a framework is a usage. characterName null for unattributed.
-  usage: describe WHAT the artifact did — literal uses (swung the sword, drove the car) and meta uses (cited the framework, invoked the theorem). Capture the specific utility delivered.
+artifactUsages — when an artifact delivers utility. Every artifact referenced for what it DOES (not just mentioned by name) is a usage. Every usage MUST have a character who used it.
+  usage: describe WHAT the artifact did — the specific utility delivered (searched for X, generated Y, computed Z).
 ownershipMutations — only when artifacts change hands.
 tieMutations — significant bond changes. NOT temporary visits.
 characterMovements — only physical relocation. Vivid transitions.
@@ -544,7 +557,7 @@ export async function reconcileResults(
   }
 
   // Ask LLM to identify duplicates and merge them
-  const reconciliationPrompt = `Reconcile narrative data extracted independently from ${results.length} scenes of the same story. Each scene was analyzed in isolation — the same entity often appears under different names or descriptions. Your job: find EVERY overlap and merge aggressively.
+  const reconciliationPrompt = `Reconcile narrative data extracted independently from ${results.length} scenes of the same story. Each scene was analyzed in isolation — the same entity may appear under different names. Your job: find TRUE duplicates and merge them conservatively.
 
 CHARACTERS (${allCharNames.size}):
 ${[...allCharNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
@@ -573,40 +586,57 @@ Return JSON:
 }
 
 ═══ CHARACTER MERGING ═══
-- Same person, different name forms: "Professor McGonagall" / "Minerva McGonagall" / "McGonagall" → pick fullest name
-- Titles vs bare names: "Mr. Dursley" / "Vernon Dursley" / "Uncle Vernon" → pick the most identifiable
-- Nicknames: "Hagrid" / "Rubeus Hagrid" → pick full name
-- Pronouns or descriptions that became names: "The boy" / "Harry" → merge if clearly the same person
+MERGE: Same person, different name forms.
+  ✓ "Professor McGonagall" / "Minerva McGonagall" / "McGonagall" → pick fullest name
+  ✓ "Mr. Dursley" / "Vernon Dursley" / "Uncle Vernon" → pick most identifiable
+  ✓ "Hagrid" / "Rubeus Hagrid" → pick full name
 
-═══ THREAD MERGING — MOST CRITICAL ═══
-Each scene extracts threads independently, so the SAME narrative tension gets described many different ways. You MUST collapse these aggressively.
+DO NOT MERGE: Different characters who share a surname or title.
+  ✗ "Mr. Dursley" + "Dudley" — different people
+  ✗ "Professor Snape" + "Professor McGonagall" — different people
 
-MERGE when:
-- Same tension, different wording: "Harry's conflict with Snape" + "Snape's antagonism toward Harry" → one thread
-- Specific instance of a broader thread: "The Dursleys prevent Harry from receiving letters" + "The Dursleys suppress Harry's connection to the wizarding world" → merge to the broader one
-- Same relationship from different perspectives: "Ron's jealousy of Harry" + "Harry and Ron's friendship strain" → one thread
-- Same question tracked across scenes: "Who is trying to steal the Stone?" + "The mystery of who wants the Sorcerer's Stone" → one thread
-- Overlapping scope: if thread A is entirely contained within thread B's scope, merge A → B
-- Same conflict at different stages: "Harry discovers the trapdoor" + "Harry investigates what Fluffy guards" → one thread
+═══ THREAD MERGING ═══
+MERGE: Same narrative tension with different wording.
+  ✓ "Who is trying to steal the Stone?" + "The mystery of who wants the Sorcerer's Stone" — identical question
+  ✓ "Snape's antagonism toward Harry" + "Harry's conflict with Snape" — same relationship from two perspectives
+
+DO NOT MERGE: Related but distinct threads. Test: would resolving one automatically resolve the other? If not, keep separate.
+  ✗ "Harry's fear of Voldemort" + "Harry's conflict with Snape" — different antagonists, different stakes
+  ✗ "Harry learns he is a wizard" + "Harry adjusts to Hogwarts life" — discovery vs adaptation, different arcs
+  ✗ "Ron's jealousy of Harry" + "Hermione's academic pressure" — different characters, different internal conflicts
+  ✗ "The Dursleys suppress Harry" + "Harry must defeat Voldemort" — different obstacles, different scales
+  ✗ "Who opened the Chamber?" + "Who is the Heir of Slytherin?" — seem related but are genuinely distinct mysteries
 
 ═══ LOCATION MERGING ═══
-- Same place, different names: "The Great Hall" / "Great Hall" / "Hogwarts Great Hall"
-- Hierarchical duplicates: if "Platform Nine and Three-Quarters" and "Platform 9¾" both appear → merge
-- Don't merge distinct locations that happen to be nearby
+MERGE: Same place, different formatting.
+  ✓ "The Great Hall" / "Great Hall" / "Hogwarts Great Hall"
+  ✓ "Platform Nine and Three-Quarters" / "Platform 9¾"
+
+DO NOT MERGE: Distinct places even if nearby or related.
+  ✗ "The Great Hall" + "The Entrance Hall" — different rooms
+  ✗ "Diagon Alley" + "Knockturn Alley" — different streets
 
 ═══ ARTIFACT MERGING ═══
-- Same object, different names: "the Elder Wand" / "Elder Wand" / "Dumbledore's wand"
-- Different abstraction levels: "Google" / "Google Search" → keep the more specific
-- Don't merge distinct objects that are merely related
+MERGE: Same object, different names.
+  ✓ "the Elder Wand" / "Elder Wand" / "Dumbledore's wand"
+  ✓ "Marauder's Map" / "The Marauder's Map"
+
+DO NOT MERGE: Related but distinct objects.
+  ✗ "Harry's wand" + "Voldemort's wand" — different wands
+  ✗ "The Invisibility Cloak" + "The Elder Wand" — different Hallows
 
 ═══ WORLD KNOWLEDGE MERGING ═══
-- Same concept, different phrasing: "Magic requires wands" / "Wands are required for spellcasting" → merge
-- Same system described at different granularity: "The house point system" / "Houses earn and lose points for behavior" → merge to the more descriptive
-- Don't merge concepts that are related but genuinely distinct
+MERGE: Same concept, different phrasing.
+  ✓ "Magic requires wands" / "Wands are required for spellcasting"
+  ✓ "The house point system" / "Houses earn and lose points for behavior"
+
+DO NOT MERGE: Related but distinct concepts.
+  ✗ "Unforgivable Curses are illegal" + "Dark magic is dangerous" — different claims
+  ✗ "Hogwarts has four houses" + "The Sorting Hat assigns students" — related but distinct facts
 
 Empty object {} if no merges needed for a category.`;
 
-  const reconciliationSystem = `You deduplicate entities extracted independently from different scenes of the same story. Scenes were analyzed in isolation, so the same character, thread, location, or concept often appears under different names or phrasings. Detect these intelligently and merge them. Return only valid JSON.`;
+  const reconciliationSystem = `You deduplicate entities extracted independently from different scenes of the same story. Be conservative: only merge when entities are truly identical (same person, same tension, same place). Related but distinct entities must stay separate. Return only valid JSON.`;
 
   const raw = await callAnalysis(
     reconciliationPrompt,

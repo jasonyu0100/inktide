@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluateNarrativeState, checkEndConditions, pickArcLength, buildOutlineDirective } from '@/lib/auto-engine';
+import { evaluateNarrativeState, checkEndConditions, pickArcLength } from '@/lib/auto-engine';
 import { generateScenes, expandWorld } from '@/lib/ai';
 import { refreshDirection } from '@/lib/ai/review';
 import { generatePhaseDirection } from '@/lib/planning-engine';
@@ -40,7 +40,7 @@ export function useAutoPlay() {
           dispatch({
             type: 'LOG_AUTO_CYCLE',
             entry: {
-              cycle: autoRunState.currentCycle + 1, timestamp: Date.now(), action: 'LHL',
+              cycle: autoRunState.currentCycle + 1, timestamp: Date.now(), action: 'resolution',
               reason: 'Planning queue completed — all phases done',
               scenesGenerated: 0, worldExpanded: false,
               endConditionMet: { type: 'planning_complete' },
@@ -57,7 +57,7 @@ export function useAutoPlay() {
         dispatch({
           type: 'LOG_AUTO_CYCLE',
           entry: {
-            cycle: autoRunState.currentCycle + 1, timestamp: Date.now(), action: 'LHL',
+            cycle: autoRunState.currentCycle + 1, timestamp: Date.now(), action: 'resolution',
             reason: 'Planning queue completed — all phases done',
             scenesGenerated: 0, worldExpanded: false,
             endConditionMet: { type: 'planning_complete' },
@@ -111,7 +111,7 @@ export function useAutoPlay() {
             entry: {
               cycle: autoRunState.currentCycle + 1,
               timestamp: Date.now(),
-              action: 'LLL',
+              action: 'setup',
               reason: `Phase "${ap.name}" initialized — world expanded, direction set`,
               scenesGenerated: 0,
               worldExpanded: pq.expandWorld !== false,
@@ -155,7 +155,7 @@ export function useAutoPlay() {
             entry: {
               cycle: autoRunState.currentCycle + 1,
               timestamp: Date.now(),
-              action: 'LLL',
+              action: 'setup',
               reason: `Phase init failed: ${errorMsg.split('\n')[0].substring(0, 100)}`,
               scenesGenerated: 0,
               worldExpanded: false,
@@ -176,7 +176,7 @@ export function useAutoPlay() {
         entry: {
           cycle: autoRunState.currentCycle + 1,
           timestamp: Date.now(),
-          action: 'LHL',
+          action: 'resolution',
           reason: `End condition met: ${endMet.type}`,
           scenesGenerated: 0,
           worldExpanded: false,
@@ -187,9 +187,9 @@ export function useAutoPlay() {
       return;
     }
 
-    // Evaluate and pick action
-    dispatch({ type: 'SET_AUTO_STATUS', message: 'Choosing next action...' });
-    const { weights, directiveCtx } = evaluateNarrativeState(
+    // Evaluate narrative state and get directive
+    dispatch({ type: 'SET_AUTO_STATUS', message: 'Evaluating narrative state...' });
+    const { phase, pressure, directive: autoDirective } = evaluateNarrativeState(
       activeNarrative,
       resolvedEntryKeys,
       headIndex,
@@ -197,14 +197,6 @@ export function useAutoPlay() {
       autoRunState.startingSceneCount,
       autoRunState.startingArcCount,
     );
-    const chosen = weights[0];
-    if (!chosen) {
-      dispatch({ type: 'SET_AUTO_STATUS', message: 'No viable action — stopping' });
-      dispatch({ type: 'STOP_AUTO_RUN' });
-      return;
-    }
-
-    const action = chosen.action;
     let scenesGenerated = 0;
     let worldExpanded = false;
     let arcName = '';
@@ -240,9 +232,10 @@ export function useAutoPlay() {
       // Build the directive that scene generation will follow.
       // Plan mode: direction + constraints derived from plan source text are the
       //   complete brief — passed directly, no outline directive needed.
-      // Outline mode: direction + constraints are combined with analytical signals
-      //   (thread maturity, force balance, vibrancy) into an outline directive that
-      //   gives scene generation creative freedom within the user's guidance.
+      // Plan mode: direction + constraints derived from plan source text are the
+      //   complete brief — passed directly, auto directive not used.
+      // Outline mode: use the auto directive which includes analytical signals
+      //   (thread pressure, entity development, force balance).
       const freshPq = stateRef.current.activeNarrative?.branches[activeBranchId]?.planningQueue ?? pq;
       const isPlanMode = freshPq?.mode === 'plan';
       let directive: string;
@@ -252,10 +245,10 @@ export function useAutoPlay() {
           directive += `\n\nCONSTRAINTS: ${freshConfig.narrativeConstraints}`;
         }
       } else {
-        directive = buildOutlineDirective(activeNarrative, freshConfig, directiveCtx);
+        directive = autoDirective;
       }
 
-      sceneCount = pickArcLength(autoConfig, action);
+      sceneCount = pickArcLength(autoConfig, pressure);
 
       // If a planning queue phase is active, cap to remaining scenes exactly
       const MIN_ARC_SCENES = 3;
@@ -365,7 +358,7 @@ export function useAutoPlay() {
       const isJSON = errorMsg.includes('JSON') || errorMsg.includes('parse');
 
       let detailedMsg = `[auto-play] Cycle ${autoRunState.currentCycle + 1} failed`;
-      detailedMsg += `\nAction: ${action} (${chosen.reason})`;
+      detailedMsg += `\nPhase: ${phase}`;
       detailedMsg += `\nTarget scenes: ${sceneCount}`;
 
       if (isFetchError) {
@@ -393,7 +386,7 @@ export function useAutoPlay() {
           source: 'auto-play',
           operation: 'scene-generation',
           details: {
-            action,
+            storyPhase: phase,
             phaseName: pq?.phases[pq.activePhaseIndex]?.name,
             phaseProgress: pq ? `${pq.phases[pq.activePhaseIndex]?.scenesCompleted}/${pq.phases[pq.activePhaseIndex]?.sceneAllocation}` : undefined,
           },
@@ -409,11 +402,19 @@ export function useAutoPlay() {
     const phaseName = pq ? pq.phases[pq.activePhaseIndex]?.name : undefined;
     const phaseProgress = pq ? `${pq.phases[pq.activePhaseIndex]?.scenesCompleted ?? 0}/${pq.phases[pq.activePhaseIndex]?.sceneAllocation ?? 0}` : undefined;
 
+    // Build reason from pressure analysis
+    const pressureReasons: string[] = [];
+    if (pressure.threads.primed.length > 0) pressureReasons.push(`${pressure.threads.primed.length} primed threads`);
+    if (pressure.threads.stale.length > 0) pressureReasons.push(`${pressure.threads.stale.length} stale threads`);
+    if (pressure.entities.shallow.length > 0) pressureReasons.push(`${pressure.entities.shallow.length} shallow characters`);
+    if (pressure.knowledge.isStagnant) pressureReasons.push('stagnant world-building');
+    const reason = pressureReasons.length > 0 ? pressureReasons.join(', ') : `${phase} phase — balanced forces`;
+
     const logEntry: AutoRunLog = {
       cycle: autoRunState.currentCycle + 1,
       timestamp: Date.now(),
-      action,
-      reason: chosen.reason,
+      action: phase,
+      reason,
       scenesGenerated,
       worldExpanded,
       endConditionMet: null,
@@ -470,7 +471,7 @@ export function useAutoPlay() {
         dispatch({ type: 'LOG_AUTO_CYCLE', entry: {
           cycle: (stateRef.current.autoRunState?.currentCycle ?? 0) + 1,
           timestamp: Date.now(),
-          action: 'LLL',
+          action: 'setup',
           reason: 'Auto mode stopped — 3 consecutive errors. Check API Logs for details.',
           scenesGenerated: 0,
           worldExpanded: false,

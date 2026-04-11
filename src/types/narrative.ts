@@ -1145,14 +1145,14 @@ export type AutoEndCondition =
   | { type: "planning_complete" }
   | { type: "manual_stop" };
 
-/** Auto actions map directly to the 8 narrative cube corners */
-export type AutoAction = CubeCornerKey;
-
-export type AutoActionWeight = {
-  action: AutoAction;
-  score: number;
-  reason: string;
-};
+/** Auto actions map to story phases (setup → rising → midpoint → escalation → climax → resolution) */
+export type AutoAction =
+  | "setup"
+  | "rising"
+  | "midpoint"
+  | "escalation"
+  | "climax"
+  | "resolution";
 
 export type AutoConfig = {
   endConditions: AutoEndCondition[];

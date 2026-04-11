@@ -85,7 +85,7 @@ src/
 │   ├── pacing-profile.ts           # Markov chain pacing — transition matrices, sequence sampling, presets, prompt generation
 │   ├── store.tsx           # State management + reducer actions
 │   ├── text-analysis.ts    # Corpus → NarrativeState extraction (scene-first: plans → structure → arcs)
-│   ├── auto-engine.ts      # Automated story generation loop
+│   ├── auto-engine.ts      # Automated story generation — phase-aware force management
 │   ├── mcts-engine.ts      # MCTS scene exploration
 │   ├── mcts-state.ts       # MCTS state management
 │   ├── slides-data.ts      # Slide generation logic
@@ -247,6 +247,24 @@ InkTide implements two distinct versioning systems:
 This is document-style version history. You can edit the original text while keeping all previous versions safe. Resolution functions (`resolveProseForBranch`, `resolvePlanForBranch`) determine which version each branch sees based on lineage, fork timestamps, and optional branch-specific version pointers.
 
 **Structural Branching**: Beneath both versioning systems, scenes themselves are structurally immutable (POV, location, participants, mutations fixed). Branches fork from parents and inherit their timeline via `entryIds` arrays. Storage is efficient — shared scenes are referenced, not copied. Only structurally different scenes (new generations, structural edits) create new scene objects. Descendants dynamically resolve their view through parent lineage at read time, enabling git-like cloning with minimal storage overhead.
+
+## Auto Mode Engine (src/lib/auto-engine.ts)
+
+Automated story generation guided by **narrative pressure analysis** across the three forces. The engine evaluates thread management, entity development, and world knowledge to create peaks and valleys in the delivery curve.
+
+**Story Phases**: Progress maps to six phases — `setup → rising → midpoint → escalation → climax → resolution`. Each phase has guidance for what should happen structurally (e.g., "setup" plants seeds, "climax" resolves critical threads).
+
+**Pressure Analysis** evaluates:
+- **Threads** — stale threads (no recent mutation), primed threads (escalating/critical ready for payoff), active count vs ideal range
+- **Entities** — shallow characters (low continuity depth), neglected anchors (not appearing recently), recent continuity growth
+- **Knowledge** — system growth rate, world-building stagnation
+- **Balance** — which force is dominant, recommendation to rebalance
+
+**Directive Building**: The engine produces a directive string that guides scene generation. It includes phase guidance, thread management priorities, character development needs, and user-provided direction/constraints.
+
+**Arc Length Selection**: Primed threads → shorter focused arcs. Too many active threads → medium arcs. Character development needed → longer arcs with breathing room.
+
+**Planning Queue Integration**: When a planning queue is active, auto mode respects phase allocations and yields to the planning layer for phase transitions. The planning queue defines objectives; auto mode executes with force-aware pacing.
 
 ## AI Pipeline (src/lib/ai/)
 

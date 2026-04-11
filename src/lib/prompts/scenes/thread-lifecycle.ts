@@ -5,6 +5,7 @@
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
 import type { NarrativeState } from '@/types/narrative';
 import { THREAD_LIFECYCLE_DOC } from '@/lib/ai/context';
+import { ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
 
 /**
  * Generate thread lifecycle documentation prompt.
@@ -91,7 +92,7 @@ export function buildThreadHealthPrompt(
 
     // Recent thread log nodes
     const logNodes = Object.values(t.threadLog?.nodes ?? {});
-    const recentNodes = logNodes.slice(-3);
+    const recentNodes = logNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
     if (recentNodes.length > 0) {
       lines.push(`  log: ${recentNodes.map((n) => `[${n.type}] ${n.content.slice(0, 60)}`).join(' | ')}`);
     }

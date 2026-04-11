@@ -137,9 +137,6 @@ export const FORCE_CHARTS_WINDOW_DEFAULT = 100;
 /** Scene window for delivery sparklines on key moment cards (slides + report) */
 export const MOMENT_SPARKLINE_WINDOW = 50;
 
-/** Max recent continuity nodes shown per entity in sceneContext */
-export const SCENE_CONTEXT_RECENT_CONTINUITY = 25;
-
 // ── Scale Standards ─────────────────────────────────────────────────────────
 // Beat → Scene → Arc hierarchy. Analysis is strict; generation is flexible.
 
@@ -191,3 +188,6 @@ export const SEARCH_SIMILARITY_THRESHOLD = 0.3;
 
 /** Number of candidate plans to generate in plan candidates */
 export const PLAN_CANDIDATES_COUNT = 5;
+
+/** Limit for continuity nodes and thread logs per entity in LLM context */
+export const ENTITY_LOG_CONTEXT_LIMIT = 25;

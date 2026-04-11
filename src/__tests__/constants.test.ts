@@ -43,7 +43,6 @@ import {
   PLAN_CONCURRENCY,
   PROSE_CONCURRENCY,
   REWRITE_CONCURRENCY,
-  SCENE_CONTEXT_RECENT_CONTINUITY,
   SHAPE_TROUGH_BAND_HI,
   SHAPE_TROUGH_BAND_LO,
   WRITING_MODEL,
@@ -233,9 +232,5 @@ describe("UI Constants", () => {
 
   it("MOMENT_SPARKLINE_WINDOW is positive", () => {
     expect(MOMENT_SPARKLINE_WINDOW).toBeGreaterThan(0);
-  });
-
-  it("SCENE_CONTEXT_RECENT_CONTINUITY is positive", () => {
-    expect(SCENE_CONTEXT_RECENT_CONTINUITY).toBeGreaterThan(0);
   });
 });

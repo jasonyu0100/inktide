@@ -248,10 +248,9 @@ export function useAutoPlay() {
         directive = autoDirective;
       }
 
-      sceneCount = pickArcLength(autoConfig, pressure);
-
-      // If a planning queue phase is active, cap to remaining scenes exactly
-      const MIN_ARC_SCENES = 3;
+      // If a planning queue phase is active, use fixed arc length of 4
+      // (or remaining if less than 4). Otherwise use pressure-based arc length.
+      const DEFAULT_QUEUE_ARC_LENGTH = 4;
       let phaseRemaining = Infinity;
       if (pq) {
         const ap = pq.phases[pq.activePhaseIndex];
@@ -259,16 +258,13 @@ export function useAutoPlay() {
           phaseRemaining = ap.sceneAllocation - ap.scenesCompleted;
           if (phaseRemaining <= 0) return; // Phase already full, let transition handle it
 
-          // If remaining is less than a viable arc, absorb into this arc to avoid 1-2 scene runts
-          // e.g. 7 remaining with sceneCount=5 → would leave 2. Instead generate all 7.
-          const wouldLeave = phaseRemaining - Math.min(sceneCount, phaseRemaining);
-          if (wouldLeave > 0 && wouldLeave < MIN_ARC_SCENES) {
-            // Generate all remaining scenes in one arc
-            sceneCount = phaseRemaining;
-          } else {
-            sceneCount = Math.min(sceneCount, phaseRemaining);
-          }
+          // Use 4 scenes per arc, or remaining if less than 4
+          sceneCount = Math.min(DEFAULT_QUEUE_ARC_LENGTH, phaseRemaining);
+        } else {
+          sceneCount = pickArcLength(autoConfig, pressure);
         }
+      } else {
+        sceneCount = pickArcLength(autoConfig, pressure);
       }
 
       // Always generate from the HEAD of the story (end), not from the cursor position

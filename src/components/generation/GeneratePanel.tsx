@@ -616,51 +616,53 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                   </button>
                   {advancedOpen && (
                     <div className="mt-3 flex flex-col gap-3">
-                      {/* Pacing presets */}
-                      <div>
-                        <label className="text-[10px] ufatease tracking-widest text-text-dim block mb-1.5">
-                          Pacing fatets
-                        </label>
-                        <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                          {PACING_PRESETS.map((preset) => (
-                            <button
-                              key={preset.key}
-                              onClick={() => {
-                                setCount(preset.modes.length);
-                                const seq = buildPresetSequence(preset);
-                                setPreviewSequence(seq);
-                                setAnimating(true);
-                              }}
-                              disabled={!newArc && !currentArc}
-                              className="rounded-lg px-3 py-2 text-left transition border border-white/6 bg-white/2 hover:bg-white/6 hover:border-white/12 disabled:opacity-30 flex items-center gap-3"
-                            >
-                              <div className="flex gap-0.5 shrink-0">
-                                {preset.modes.map((m, i) => (
-                                  <div
-                                    key={i}
-                                    className="w-2 h-2 rounded-sm"
-                                    style={{
-                                      backgroundColor: CORNER_COLORS[m],
-                                    }}
-                                    title={NARRATIVE_CUBE[m].name}
-                                  />
-                                ))}
-                              </div>
-                              <div className="min-w-0">
-                                <span className="text-[11px] font-medium text-text-primary">
-                                  {preset.name}
-                                </span>
-                                <span className="text-[10px] text-text-dim ml-1.5">
-                                  {preset.modes.length}s
-                                </span>
-                                <p className="text-[10px] text-text-dim line-clamp-1">
-                                  {preset.description}
-                                </p>
-                              </div>
-                            </button>
-                          ))}
+                      {/* Pacing presets — only shown when Markov pacing is enabled */}
+                      {narrative.storySettings?.usePacingChain && (
+                        <div>
+                          <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-1.5">
+                            Pacing Presets
+                          </label>
+                          <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                            {PACING_PRESETS.map((preset) => (
+                              <button
+                                key={preset.key}
+                                onClick={() => {
+                                  setCount(preset.modes.length);
+                                  const seq = buildPresetSequence(preset);
+                                  setPreviewSequence(seq);
+                                  setAnimating(true);
+                                }}
+                                disabled={!newArc && !currentArc}
+                                className="rounded-lg px-3 py-2 text-left transition border border-white/6 bg-white/2 hover:bg-white/6 hover:border-white/12 disabled:opacity-30 flex items-center gap-3"
+                              >
+                                <div className="flex gap-0.5 shrink-0">
+                                  {preset.modes.map((m, i) => (
+                                    <div
+                                      key={i}
+                                      className="w-2 h-2 rounded-sm"
+                                      style={{
+                                        backgroundColor: CORNER_COLORS[m],
+                                      }}
+                                      title={NARRATIVE_CUBE[m].name}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-[11px] font-medium text-text-primary">
+                                    {preset.name}
+                                  </span>
+                                  <span className="text-[10px] text-text-dim ml-1.5">
+                                    {preset.modes.length}s
+                                  </span>
+                                  <p className="text-[10px] text-text-dim line-clamp-1">
+                                    {preset.description}
+                                  </p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* World build focus */}
                       {(() => {

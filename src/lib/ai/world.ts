@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemEdge, SystemMutation, SystemNodeType, Artifact, ReasoningLevel, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemEdge, SystemMutation, SystemNodeType, Artifact, ReasoningLevel, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation, ArchetypeKey } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import type { ThreadLogNodeType } from '@/types/narrative';
@@ -10,7 +10,6 @@ import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext } from './context';
 import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, buildForceStandardsPrompt } from './prompts';
-import { buildSequencePrompt, buildIntroductionSequence } from '@/lib/pacing-profile';
 import { logInfo } from '@/lib/system-logger';
 
 /**
@@ -718,6 +717,8 @@ export async function generateNarrative(
   /** When true: generate world entities only — no introduction arc or scenes.
    *  The premise is treated as a full story plan / world bible to seed from. */
   worldOnly = false,
+  /** Target archetype for the series — sets default story settings. */
+  targetArchetype?: ArchetypeKey | "",
 ): Promise<NarrativeState> {
   logInfo('Starting narrative generation', {
     source: 'manual-generation',
@@ -867,10 +868,8 @@ ARTIFACTS & TOOLS:
 
 ${worldOnly ? '' : `Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
 
-${buildSequencePrompt(buildIntroductionSequence())}
-
 ${PROMPT_POV}
-${buildForceStandardsPrompt('')}
+${buildForceStandardsPrompt(targetArchetype)}
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_MUTATIONS}
 ${PROMPT_CONTINUITY}
@@ -1142,9 +1141,11 @@ The goal is to make the world feel like a coherent machine where systems interlo
         antiPatterns:   Array.isArray(pp.antiPatterns) ? pp.antiPatterns.filter((a: unknown) => typeof a === 'string') : [],
       };
     })(),
-    storySettings: typeof parsed.planGuidance === 'string' && parsed.planGuidance.trim()
-      ? { ...DEFAULT_STORY_SETTINGS, planGuidance: parsed.planGuidance.trim() }
-      : undefined,
+    storySettings: {
+      ...DEFAULT_STORY_SETTINGS,
+      ...(typeof parsed.planGuidance === 'string' && parsed.planGuidance.trim() ? { planGuidance: parsed.planGuidance.trim() } : {}),
+      ...(targetArchetype ? { targetArchetype } : {}),
+    },
     createdAt: now,
     updatedAt: now,
   };

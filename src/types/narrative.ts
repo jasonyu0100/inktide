@@ -1498,6 +1498,8 @@ export type WizardData = {
   proseProfile?: ProseProfile;
   /** When true: generate world entities only — no introduction arc or scenes. Premise is treated as the full world plan document. */
   worldOnly?: boolean;
+  /** Target archetype for the series — guides initial world generation and sets default story settings. */
+  targetArchetype?: ArchetypeKey | "";
 };
 
 export type GraphViewMode =

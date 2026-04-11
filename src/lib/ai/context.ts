@@ -1,11 +1,8 @@
 import type { NarrativeState, Scene, StorySettings, WorldSystem, RelationshipEdge, ContinuityEdge, ArchetypeKey } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeSystemGraph, rankSystemNodes, ARCHETYPE_FORCE_TARGETS } from '@/lib/narrative-utils';
-import { SCENE_CONTEXT_RECENT_CONTINUITY, WORDS_PER_SCENE, BEATS_PER_SCENE } from '@/lib/constants';
+import { WORDS_PER_SCENE, BEATS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
-
-/** Limit for continuity nodes and thread logs per entity in context */
-const CONTEXT_LIMIT = 5;
 
 /**
  * Replay mutations up to a given timeline index to get the state at that point.
@@ -311,12 +308,12 @@ export function narrativeContext(
   const characters = branchCharacters
     .map((c) => {
       const relevantNodes = Object.values(c.continuity.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
-      const recentNodes = relevantNodes.slice(-CONTEXT_LIMIT);
+      const recentNodes = relevantNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
       const continuityLines = renderContinuityXml(recentNodes, c.continuity.edges, '  ');
       const owned = artifactsByOwner.get(c.id) ?? [];
       const artifactLines = owned.map((a) => {
         const scopedNodes = Object.values(a.continuity.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
-        const recentArtNodes = scopedNodes.slice(-CONTEXT_LIMIT);
+        const recentArtNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
         const inner = renderContinuityXml(recentArtNodes, a.continuity.edges, '    ').join('\n');
         return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
@@ -328,13 +325,13 @@ export function narrativeContext(
   const locations = branchLocations
     .map((l) => {
       const relevantNodes = Object.values(l.continuity.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
-      const recentNodes = relevantNodes.slice(-CONTEXT_LIMIT);
+      const recentNodes = relevantNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
       const continuityLines = renderContinuityXml(recentNodes, l.continuity.edges, '  ');
       const parent = l.parentId ? ` parent="${n.locations[l.parentId]?.name ?? l.parentId}"` : '';
       const owned = artifactsByOwner.get(l.id) ?? [];
       const artifactLines = owned.map((a) => {
         const scopedNodes = Object.values(a.continuity.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
-        const recentArtNodes = scopedNodes.slice(-CONTEXT_LIMIT);
+        const recentArtNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
         const inner = renderContinuityXml(recentArtNodes, a.continuity.edges, '    ').join('\n');
         return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
@@ -372,7 +369,7 @@ export function narrativeContext(
       if (status === 'abandoned') return null;
       // Include recent thread log entries (last 5) to show thread momentum
       const logNodes = Object.values(t.threadLog?.nodes ?? {});
-      const recentLogs = logNodes.slice(-CONTEXT_LIMIT);
+      const recentLogs = logNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
       const logBlock = recentLogs.length > 0
         ? `\n  <log>${recentLogs.map((ln) => `[${ln.type}] ${ln.content}`).join(' | ')}</log>`
         : '';
@@ -584,15 +581,13 @@ export function sceneContext(
     : null;
 
   // ── Characters: knowledge scoped to timeline when available ──────────
-  const RECENT_CONTINUITY = SCENE_CONTEXT_RECENT_CONTINUITY;
-
   const characterBlocks = participants.map((p) => {
     // Filter to nodes that existed at this point in the timeline
     const allNodes = Object.values(p.continuity.nodes);
     const scopedNodes = timelineState
       ? allNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
       : allNodes;
-    const recentNodes = scopedNodes.slice(-RECENT_CONTINUITY);
+    const recentNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
     const knLines = recentNodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
     const knBlock = knLines.length > 0 ? `\n${knLines.join('\n')}` : '';
     return `  <character id="${p.id}" name="${p.name}" role="${p.role}">${knBlock}\n  </character>`;
@@ -605,7 +600,7 @@ export function sceneContext(
     const scopedNodes = timelineState
       ? allLocNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
       : allLocNodes;
-    const recentNodes = scopedNodes.slice(-RECENT_CONTINUITY);
+    const recentNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
     const knLines = recentNodes.map((kn) => `    <knowledge type="${kn.type}">${kn.content}</knowledge>`);
     const parent = location.parentId ? ` parent="${narrative.locations[location.parentId]?.name ?? location.parentId}"` : '';
     const tiedNames = (location.tiedCharacterIds ?? []).map(id => narrative.characters[id]?.name).filter(Boolean);
@@ -638,7 +633,7 @@ export function sceneContext(
     const status = timelineState?.threadStatuses[tid] ?? thread.status;
     // Include recent thread log entries (last 5) to show thread momentum
     const logNodes = Object.values(thread.threadLog?.nodes ?? {});
-    const recentLogs = logNodes.slice(-CONTEXT_LIMIT);
+    const recentLogs = logNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
     const logBlock = recentLogs.length > 0
       ? `\n    <log>${recentLogs.map((ln) => `[${ln.type}] ${ln.content}`).join(' | ')}</log>`
       : '';

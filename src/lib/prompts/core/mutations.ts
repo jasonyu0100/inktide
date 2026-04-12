@@ -18,7 +18,9 @@ DENSITY TARGETS (21/25 at reference — fate 1.5, world 12, system 3):
   Lore dump: modest continuity (6-10), heavy system (5-10)
 Variance required — peaks and valleys, not flatline.
 
-threadMutations — TWO AXES:
+threadMutations — Threads are QUESTIONS that shape fate. Frame as: "Will X?" "Can Y?" "What is Z?"
+  Thread logs track incremental ANSWERS to these questions over time.
+  TWO AXES:
   STATUS (from/to): latent | seeded | active | escalating | critical | resolved | subverted | abandoned
     "pulse" is NOT a status. Transitions move ONE step. 0-1 transitions per scene.
   LOG TYPE: pulse | transition | setup | escalation | payoff | twist | callback | resistance | stall

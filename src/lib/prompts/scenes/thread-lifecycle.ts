@@ -1,5 +1,9 @@
 /**
  * Thread Lifecycle Prompts and Helper Functions
+ *
+ * CONCEPTUAL MODEL: Threads are QUESTIONS that have yet to be answered.
+ * They actively shape fate by pulling the story toward resolution.
+ * Thread logs track how these questions are being answered over time.
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
@@ -12,11 +16,20 @@ import { ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
  */
 export function promptThreadLifecycle(): string {
   return `
+THREADS ARE QUESTIONS — each thread is an unanswered question that actively shapes fate.
+Frame threads as questions: "Will X succeed?" "Can Y be trusted?" "What happened to Z?"
+Thread logs track incremental answers to these questions over time.
+
 THREAD LIFECYCLE: latent → seeded → active → escalating → critical → resolved/subverted
 ${THREAD_LIFECYCLE_DOC}
 Terminal: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}.
 
-STAGES: latent (whisper) → seeded (promise planted) → active (pulling toward resolution) → escalating (COMMITTED) → critical (demands resolution now)
+STAGES:
+  latent (whisper) → the question is hinted at but not yet posed
+  seeded (promise planted) → the question is clearly posed to the reader
+  active (pulling toward resolution) → the story is actively pursuing the answer
+  escalating (COMMITTED) → the question has become unavoidable, must be answered
+  critical (demands resolution now) → answer is imminent
 
 COMMITMENT: Below escalating = can abandon. At escalating+ = must resolve.
   Prune stale threads (5+ scenes silent, below escalating). Keep 3-6 committed; 10+ = noise.

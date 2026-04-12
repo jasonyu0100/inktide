@@ -158,7 +158,7 @@ export async function generateReasoningGraph(
 
 ## AVAILABLE ENTITIES
 
-ACTIVE THREADS:
+ACTIVE THREADS (threads are QUESTIONS the story must answer):
 ${activeThreads || "None yet"}
 
 KEY CHARACTERS:
@@ -237,7 +237,7 @@ Return a JSON object:
 - **artifact**: An object. Use entityId to reference actual artifact. Label = its role in reasoning.
 - **system**: A world rule/principle/constraint. Label = the rule as it applies here.
 - **reasoning**: A logical step. Label = the inference (3-8 words). These are the CORE of the graph.
-- **outcome**: Effect on a thread. Use threadId to reference thread. Label = how thread changes.
+- **outcome**: Effect on a thread (threads are QUESTIONS). Use threadId to reference thread. Label = how the question is advanced or answered.
 - **pattern**: COOPERATIVE AGENT — positive reinforcement. Use to encourage variety and fresh approaches. Can reinforce listed patterns OR suggest new interesting directions the arc could explore. Label = the opportunity or pattern being embraced.
 - **warning**: ADVERSARIAL AGENT — negative reinforcement. Use to prevent stagnation and repetition. Flag when the arc risks falling into anti-patterns OR when the story is becoming repetitive/predictable. Label = the risk or staleness being flagged.
 

@@ -7,7 +7,7 @@ import type { GraphViewMode } from '@/types/narrative';
 import { getResolvedProseVersion, getResolvedPlanVersion, resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
 import { VersionHistoryTree } from './VersionHistoryTree';
 import { RegenerateEmbeddingsModal } from '@/components/topbar/RegenerateEmbeddingsModal';
-import { IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch } from '@/components/icons';
+import { IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch, IconReasoning } from '@/components/icons';
 
 const GRAPH_DOMAINS = [
   {
@@ -44,7 +44,7 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 
 const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'search';
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'search' | 'reasoning';
 
 // Module-level state shared with SceneProseView
 let beatPlanLinkedModeGlobal = false;
@@ -230,6 +230,7 @@ function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'prose') return 'prose';
   if (graphViewMode === 'audio') return 'audio';
   if (graphViewMode === 'search') return 'search';
+  if (graphViewMode === 'reasoning') return 'reasoning';
   return 'graph';
 }
 
@@ -394,6 +395,19 @@ export function CanvasTopBar() {
     }
     return { sceneIndices, total: sceneIndices.length, currentSceneNum };
   }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
+
+  // ── Current arc and reasoning graph ──────────────────────────────────
+  const currentArcData = useMemo(() => {
+    if (!narrative || arcNav.currentArc === 0 || !arcNav.arcOrder[arcNav.currentArc - 1]) {
+      return { arc: null, hasReasoningGraph: false };
+    }
+    const arcId = arcNav.arcOrder[arcNav.currentArc - 1].arcId;
+    const arc = narrative.arcs[arcId];
+    return {
+      arc,
+      hasReasoningGraph: !!(arc?.reasoningGraph && arc.reasoningGraph.nodes.length > 0),
+    };
+  }, [narrative, arcNav]);
 
   // ── Inline editing ────────────────────────────────────────────────────
   const [editField, setEditField] = useState<'scene' | 'arc' | null>(null);
@@ -599,6 +613,18 @@ export function CanvasTopBar() {
         </div>
       )}
 
+      {canvasMode === 'reasoning' && currentArcData.arc?.reasoningGraph && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-cyan-400/60">Reasoning</span>
+          <span className="text-[9px] text-text-dim/50 font-mono tabular-nums">
+            {currentArcData.arc.reasoningGraph.nodes.length} nodes &middot; {currentArcData.arc.reasoningGraph.edges.length} edges
+          </span>
+          <span className="text-[9px] text-text-dim/40 truncate max-w-50" title={currentArcData.arc.reasoningGraph.summary}>
+            {currentArcData.arc.reasoningGraph.summary}
+          </span>
+        </div>
+      )}
+
       {/* Spacer */}
       <div className="flex-1" />
 
@@ -663,14 +689,16 @@ export function CanvasTopBar() {
         {/* Main canvas mode selector */}
         <div className="flex items-center rounded-md overflow-hidden border border-white/10">
           {[
-            { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', sceneOnly: false },
-            { mode: 'plan' as CanvasMode, Icon: IconNotepad, label: 'Plan', sceneOnly: true },
-            { mode: 'prose' as CanvasMode, Icon: IconDocument, label: 'Prose', sceneOnly: true },
-            { mode: 'audio' as CanvasMode, Icon: IconWaveform, label: 'Audio', sceneOnly: true },
-            { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', sceneOnly: false },
+            { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const },
+            { mode: 'reasoning' as CanvasMode, Icon: IconReasoning, label: 'Reasoning', condition: 'hasReasoning' as const },
+            { mode: 'plan' as CanvasMode, Icon: IconNotepad, label: 'Plan', condition: 'sceneOnly' as const },
+            { mode: 'prose' as CanvasMode, Icon: IconDocument, label: 'Prose', condition: 'sceneOnly' as const },
+            { mode: 'audio' as CanvasMode, Icon: IconWaveform, label: 'Audio', condition: 'sceneOnly' as const },
+            { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const },
           ]
-            .filter(({ sceneOnly }) => {
-              if (sceneOnly && !currentScene) return false;
+            .filter(({ condition }) => {
+              if (condition === 'sceneOnly' && !currentScene) return false;
+              if (condition === 'hasReasoning' && !currentArcData.hasReasoningGraph) return false;
               return true;
             })
             .map(({ mode, Icon, label }, idx) => {

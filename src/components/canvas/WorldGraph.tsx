@@ -19,6 +19,7 @@ import { ScenePlanView } from './ScenePlanView';
 import { SceneProseView } from './SceneProseView';
 import { SceneAudioView } from './SceneAudioView';
 import { SearchView } from './SearchView';
+import { ReasoningGraphView } from './ReasoningGraphView';
 import {
   type GraphNode,
   type GraphLink,
@@ -75,6 +76,14 @@ export default function WorldGraph() {
     if (!narrative || !currentSceneKey) return null;
     return Object.values(narrative.arcs).find((a) => a.sceneIds.includes(currentSceneKey))?.id ?? null;
   }, [narrative, currentSceneKey]);
+
+  // Get current arc and its reasoning graph
+  const currentArcWithReasoning = useMemo(() => {
+    if (!narrative || !activeArcId) return null;
+    const arc = narrative.arcs[activeArcId];
+    if (!arc?.reasoningGraph || arc.reasoningGraph.nodes.length === 0) return null;
+    return { arc, reasoningGraph: arc.reasoningGraph };
+  }, [narrative, activeArcId]);
 
   const currentScene = useMemo(() => {
     if (!narrative || !currentSceneKey) return null;
@@ -1054,6 +1063,17 @@ export default function WorldGraph() {
         )
       ) : graphViewMode === 'search' ? (
         <SearchView />
+      ) : graphViewMode === 'reasoning' ? (
+        currentArcWithReasoning ? (
+          <ReasoningGraphView
+            graph={currentArcWithReasoning.reasoningGraph}
+            arcId={currentArcWithReasoning.arc.id}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-text-dim text-sm italic">No reasoning graph available for this arc.</p>
+          </div>
+        )
       ) : graphViewMode === 'spark' || graphViewMode === 'codex' ? (
         <KnowledgeGraphView
           narrative={narrative!}

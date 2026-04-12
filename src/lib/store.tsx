@@ -780,7 +780,9 @@ export type Action =
       phaseIndex: number;
       updates: Partial<PlanningPhase>;
     }
-  | { type: "ADVANCE_PLANNING_PHASE"; branchId: string };
+  | { type: "ADVANCE_PLANNING_PHASE"; branchId: string }
+  // Reasoning graph
+  | { type: "SET_ARC_REASONING_GRAPH"; arcId: string; reasoningGraph: Arc["reasoningGraph"] };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -2399,6 +2401,22 @@ function reducer(state: AppState, action: Action): AppState {
                 },
               }
             : {}),
+        };
+      });
+
+    case "SET_ARC_REASONING_GRAPH":
+      return updateNarrative(state, (n) => {
+        const arc = n.arcs[action.arcId];
+        if (!arc) return n;
+        return {
+          ...n,
+          arcs: {
+            ...n.arcs,
+            [action.arcId]: {
+              ...arc,
+              reasoningGraph: action.reasoningGraph,
+            },
+          },
         };
       });
 

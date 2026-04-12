@@ -623,7 +623,7 @@ ${characters}
 ${locations}
 </locations>
 
-<threads hint="Lifecycle: latent → seeded → active → escalating → critical → resolved/subverted. Escalating = point of no return; active can be abandoned, escalating must resolve. Threads sharing participants should collide.">
+<threads hint="Threads are QUESTIONS the story must answer. Lifecycle: latent → seeded → active → escalating → critical → resolved/subverted. Escalating = point of no return. Thread logs track incremental answers. Threads sharing participants should collide.">
 ${threads}
 </threads>
 

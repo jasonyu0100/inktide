@@ -54,11 +54,13 @@ export const SCHEMA_ARTIFACT_CREATION = `{
 }`;
 
 // ── Thread Schemas ──────────────────────────────────────────────────────────
+// Threads are QUESTIONS that shape fate. Frame as: "Will X?" "Can Y?" "What is Z?"
+// Thread logs track incremental answers to these questions over time.
 
 export const SCHEMA_THREAD_CREATION = `{
   "id": "T-XX",
   "participants": [{"id": "C-XX or L-XX or A-XX", "type": "character|location|artifact"}],
-  "description": "15-30 words: the narrative tension or question this thread poses — concrete and specific, not vague",
+  "description": "Frame as a QUESTION the story must answer: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, concrete and specific",
   "status": "latent|seeded|active|escalating|critical",
   "openedAt": "S-001 or 'new'",
   "dependents": ["T-YY — existing thread IDs this thread connects to, accelerates, or converges with"]
@@ -76,6 +78,6 @@ export const SCHEMA_ANALYSIS_LOCATION = `{"name": "Location Name", "prominence":
 
 export const SCHEMA_ANALYSIS_ARTIFACT = `{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description", "ownerName": "owner or null"}`;
 
-export const SCHEMA_ANALYSIS_THREAD = `{"description": "15-30 words: the narrative tension", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-30 words: how it developed in this scene"}`;
+export const SCHEMA_ANALYSIS_THREAD = `{"description": "Frame as a QUESTION: 'Will X?' 'Can Y?' 'What is Z?' — 15-30 words", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-30 words: how this question was advanced or answered in this scene"}`;
 
 export const SCHEMA_ANALYSIS_RELATIONSHIP = `{"from": "Name", "to": "Name", "type": "15-25 words describing the relationship", "valence": -1.0 to 1.0}`;

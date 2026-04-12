@@ -30,7 +30,7 @@ export const PHASE_GUIDANCE: Record<string, string> = {
   systems: `SYSTEMS: Focus on world mechanics — power, economy, social structure, progression, combat, cosmic laws. Extract systems with principles, constraints, interactions. May introduce locations integral to systems. No characters or threads yet.`,
   rules: `RULES: Focus on absolute constraints and narrative tone — what's always true, forbidden, moral framework, genre conventions. Extract as rules. No characters or threads.`,
   cast: `CAST & LOCATIONS: Focus on characters and places — key figures, roles, relationships, motivations, flaws. Ground in established systems/rules. Extract entities with relationship edges.`,
-  threads: `THREADS: Focus on narrative tensions — conflicts, secrets, stakes. Each connects to characters, locations, systems. Extract threads with participant names.`,
+  threads: `THREADS: Threads are QUESTIONS the story must answer — frame as "Will X?" "Can Y?" "What is Z?" Focus on conflicts, secrets, stakes. Each connects to characters, locations, systems. Extract threads with participant names.`,
 };
 
 /**
@@ -49,7 +49,7 @@ export const SCHEMA_PREMISE_QUESTION = `{
   "newEntities": [
     {"id": "char-N", "type": "character", "name": "Full Name", "description": "15-25 words describing this character", "role": "anchor|recurring|transient"},
     {"id": "loc-N", "type": "location", "name": "Location Name", "description": "15-25 words describing this place"},
-    {"id": "thread-N", "type": "thread", "name": "Thread Name", "description": "15-30 words describing the tension", "participantNames": ["Name1", "Name2"]}
+    {"id": "thread-N", "type": "thread", "name": "Thread Name", "description": "Frame as a QUESTION: 'Will X?' 'Can Y?' 'What is Z?' — 15-30 words", "participantNames": ["Name1", "Name2"]}
   ],
   "newEdges": [
     {"from": "entity-id", "to": "entity-id", "label": "relationship description"}

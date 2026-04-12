@@ -201,9 +201,9 @@ Return JSON:
   "characters": [{"name": "Full Name", "role": "anchor|recurring|transient", "firstAppearance": false, "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. No metaphors or figurative language."}],
   "locations": [{"name": "Location Name", "prominence": "domain|place|margin", "parentName": "Parent or null", "description": "Brief description", "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Concrete physical details only, no metaphors.", "tiedCharacterNames": ["characters tied here"]}],
   "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
-  "threads": [{"description": "15-30 words: the narrative tension or question this thread poses — specific conflict, not generic", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this thread developed in this specific scene"}],
+  "threads": [{"description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific conflict", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this question was advanced or answered in this scene"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
-  "threadMutations": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "thread-specific: what happened to THIS thread in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "threadMutations": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words: how this question was advanced or answered in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityName": "Name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
   "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
@@ -216,9 +216,11 @@ Return JSON:
   const fieldGuide = `
 EXTRACTION STANDARDS — every mutation must EARN its place. Low-value mutations flatten the force graph.
 
-DETECTING FATE — Fate is the intangible bigger picture. Threads are the mechanism; fate is where they're going.
+DETECTING FATE — Threads are QUESTIONS that shape fate. Frame as: "Will X?" "Can Y?" "What is Z?"
+- Fate is the intangible bigger picture. Threads are questions; fate is where the answers lead.
 - Read prose for MOMENTS THAT MATTER — when does this scene advance the larger story?
-- A thread mutation records your detection: "this moment moves the story closer to resolution."
+- A thread mutation records your detection: "this moment moves the story closer to answering the question."
+- Thread logs track incremental ANSWERS to these questions over time.
 - Fate is what pulls world and system toward meaning. Without it, nothing resolves.
 
 threadMutations — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
@@ -228,8 +230,8 @@ threadMutations — lifecycle: latent→seeded→active→escalating→critical�
 - Most scenes: 1-2 PULSES (same→same). Real transitions are RARE: 0-1 per scene.
 - Only record a transition when the prose shows a clear, irreversible shift in tension.
 - Touching 2-3 threads per scene (mostly pulses) with at most one transition is typical.
-- THREAD LOG: each threadMutation MUST include 1-3 log entries recording what happened to the thread.
-  Log types: pulse (bandwidth maintained), transition (stage advanced), setup (groundwork laid), escalation (stakes raised within stage), payoff (promise fulfilled), twist (expectations subverted), callback (reference to earlier thread event), resistance (opposition encountered), stall (thread stagnated).
+- THREAD LOG: each threadMutation MUST include 1-3 log entries (15-25 words each) recording how the question was advanced or answered.
+  Log types: pulse (question maintained), transition (question urgency advanced), setup (groundwork laid for answer), escalation (stakes raised), payoff (question answered), twist (expectations subverted), callback (reference to earlier thread event), resistance (opposition to answer), stall (question stagnated).
   DENSITY STANDARDS (per thread touch):
     Pulse: 1 log node — what aspect of the thread was maintained or reinforced.
     Transition: 2-3 log nodes — what caused the shift, what changed, and what it means going forward.

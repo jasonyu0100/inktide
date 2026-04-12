@@ -284,3 +284,17 @@ export function IconSystem({ size, ...rest }: P) {
     </svg>
   );
 }
+
+export function IconReasoning({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      {/* Brain/reasoning icon - nodes with connections */}
+      <circle cx="6" cy="6" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="18" cy="6" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="6" cy="18" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="18" cy="18" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7.5 7.5L10 10M14 10L16.5 7.5M7.5 16.5L10 14M14 14L16.5 16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}

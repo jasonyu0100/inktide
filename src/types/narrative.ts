@@ -835,6 +835,35 @@ export type Arc = {
   initialCharacterLocations: Record<string, string>;
   /** Short sentence summarising the narrative direction of this arc */
   directionVector?: string;
+  /** Reasoning graph used to plan this arc's scenes — stored for canvas viewing */
+  reasoningGraph?: ReasoningGraphSnapshot;
+};
+
+/** Stored reasoning graph snapshot — decoupled from the ai module for type safety */
+export type ReasoningGraphSnapshot = {
+  nodes: ReasoningNodeSnapshot[];
+  edges: ReasoningEdgeSnapshot[];
+  arcName: string;
+  sceneCount: number;
+  summary: string;
+};
+
+export type ReasoningNodeSnapshot = {
+  id: string;
+  index: number;
+  type: "character" | "location" | "artifact" | "system" | "reasoning" | "outcome" | "pattern" | "warning";
+  label: string;
+  detail?: string;
+  entityId?: string;
+  threadId?: string;
+};
+
+export type ReasoningEdgeSnapshot = {
+  id: string;
+  from: string;
+  to: string;
+  type: "enables" | "constrains" | "risks" | "requires" | "causes" | "reveals" | "develops" | "resolves";
+  label?: string;
 };
 
 // ── Branch ───────────────────────────────────────────────────────────────────
@@ -1417,7 +1446,8 @@ export type InspectorContext =
   | { type: "knowledge"; nodeId: string }
   | { type: "artifact"; artifactId: string }
   | { type: "continuity"; entityId: string; nodeId: string }
-  | { type: "threadLog"; threadId: string; nodeId: string };
+  | { type: "threadLog"; threadId: string; nodeId: string }
+  | { type: "reasoning"; arcId: string; nodeId: string };
 
 export type WizardStep = "form" | "details" | "generate";
 
@@ -1458,7 +1488,8 @@ export type GraphViewMode =
   | "codex"
   | "pulse"
   | "threads"
-  | "search";
+  | "search"
+  | "reasoning";
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {

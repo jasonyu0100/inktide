@@ -173,7 +173,7 @@ You must ALWAYS respond with valid JSON only — no markdown, no explanation, no
 CORE PRINCIPLES:
 1. FORCE TARGETS and DIRECTION override scene history. Do NOT continue patterns just because previous scenes established them. If the directive says calm, write calm.
 2. High swing is the north star of compelling narrative. Consecutive scenes should feel dynamically different — alternate intensity with quiet, action with reflection, familiar with surprising.
-3. Threads are DISTINCT narrative tensions — each one should be genuinely different from every other. Thread advancement is dynamic: some scenes advance several threads at once, others advance none. Let the story dictate the rhythm.
+3. Threads are QUESTIONS that shape fate — frame as "Will X?" "Can Y?" "What is Z?" Each thread is a distinct question the story must answer. Thread logs track incremental answers. Thread advancement is dynamic: some scenes advance several threads at once, others advance none. Let the story dictate the rhythm.
 4. Use ONLY the character, location, and thread IDs provided. Never invent new ones.
 
 NAMING DISCIPLINE — all entity names (characters, locations, artifacts, systems) must feel authored by a human novelist, never by an AI:

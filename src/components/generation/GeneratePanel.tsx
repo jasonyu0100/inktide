@@ -284,6 +284,18 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         arc,
         branchId: state.viewState.activeBranchId!,
       });
+      // Store the reasoning graph on the arc for canvas viewing
+      dispatch({
+        type: "SET_ARC_REASONING_GRAPH",
+        arcId: arc.id,
+        reasoningGraph: {
+          nodes: reasoningGraph.nodes,
+          edges: reasoningGraph.edges,
+          arcName: reasoningGraph.arcName,
+          sceneCount: reasoningGraph.sceneCount,
+          summary: reasoningGraph.summary,
+        },
+      });
       onClose();
     } catch (err) {
       logError("Scene generation from reasoning graph failed", err, {

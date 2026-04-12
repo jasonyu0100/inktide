@@ -523,7 +523,7 @@ Return JSON with this exact structure:
     {
       "id": "${nextThreadId}",
       "participants": [{"id": "character or location ID", "type": "character|location"}],
-      "description": "15-30 words: the narrative tension or question this thread poses — specific conflict, not generic",
+      "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific conflict",
       "status": "latent",
       "openedAt": "new",
       "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
@@ -740,7 +740,7 @@ Return JSON with this exact structure:
     {"id": "L-01", "name": "Location name from geography, founders, or corrupted older words — concrete and specific", "prominence": "domain|place|margin", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "LK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties"}]}}
   ],
   "threads": [
-    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "15-30 words: the narrative tension or question this thread poses — specific conflict, not generic", "status": "latent", "openedAt": "S-001", "dependents": []}
+    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific", "status": "latent", "openedAt": "S-001", "dependents": []}
   ],
   "relationships": [
     {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
@@ -808,7 +808,7 @@ ENTITY DEFINITIONS:
 - Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.
 - Locations are spatial areas or regions — physical places you can be IN.
 - Artifacts are anything that delivers utility — active tools, not passive concepts. Concepts belong in world knowledge.
-- Threads are narrative tensions that drive action.
+- Threads are QUESTIONS that shape fate — frame as "Will X?" "Can Y?" "What is Z?" Thread logs track incremental answers.
 
 CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters. These initial continuity nodes become the first readings the grader sees, and anchor entities will be revisited for continuity mutations across every scene, so seed them richly. List each entity's nodes in the causal/temporal order they became true — adjacent nodes auto-chain into the entity's inner graph, no manual edges needed:
 - Anchors: 6-8 continuity nodes each — defining trait, goal, belief, weakness, secret, capability, relation, history.

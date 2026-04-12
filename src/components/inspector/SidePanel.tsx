@@ -21,6 +21,7 @@ import LocationDetail from "./LocationDetail";
 import SceneDetail from "./SceneDetail";
 import ThreadDetail from "./ThreadDetail";
 import ThreadLogNodeDetail from "./ThreadLogNodeDetail";
+import ReasoningNodeDetail from "./ReasoningNodeDetail";
 
 type Tab = "inspector" | "chat" | "notes" | "eval";
 
@@ -127,6 +128,10 @@ export default function SidePanel() {
       case "threadLog":
         return (
           <ThreadLogNodeDetail threadId={ctx.threadId} nodeId={ctx.nodeId} />
+        );
+      case "reasoning":
+        return (
+          <ReasoningNodeDetail arcId={ctx.arcId} nodeId={ctx.nodeId} />
         );
       default:
         return <EmptyState />;

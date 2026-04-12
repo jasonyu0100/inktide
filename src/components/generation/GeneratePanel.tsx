@@ -5,12 +5,15 @@ import { IconChevronRight, IconDice } from "@/components/icons";
 import {
   DEFAULT_EXPANSION_FILTER,
   expandWorld,
+  generateReasoningGraph,
   generateScenes,
   suggestWorldExpansion,
   type ExpansionEntityFilter,
+  type ReasoningGraph,
   type WorldExpansionSize,
   type WorldExpansionStrategy,
 } from "@/lib/ai";
+import { ReasoningGraphModal } from "./ReasoningGraphModal";
 import { nextId } from "@/lib/narrative-utils";
 import {
   buildPresetSequence,
@@ -97,7 +100,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [newArc, setNewArc] = useState(true);
   const [arcName, setArcName] = useState("");
   const [direction, setDirection] = useState("");
-  const [directionCount, setDirectionCount] = useState(3); // Number of direction options to show
+  const [directionCount, setDirectionCount] = useState(4); // Number of scenes to generate
   const [worldBuildFocusId, setWorldBuildFocusId] = useState<string | null>(
     null,
   );
@@ -121,6 +124,11 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [entityFilter, setEntityFilter] = useState<ExpansionEntityFilter>({
     ...DEFAULT_EXPANSION_FILTER,
   });
+
+  // Reasoning graph state
+  const [reasoningGraph, setReasoningGraph] = useState<ReasoningGraph | null>(null);
+  const [showReasoningModal, setShowReasoningModal] = useState(false);
+  const [generatingGraph, setGeneratingGraph] = useState(false);
 
   // Shared
   const [loading, setLoading] = useState(false);
@@ -191,6 +199,104 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     },
     [previewSequence],
   );
+
+  async function handleGenerateReasoningGraph(additionalPrompt?: string) {
+    if (!narrative) return;
+    setGeneratingGraph(true);
+    setStreamText("");
+    setError("");
+    try {
+      const finalArcName = newArc ? (arcName.trim() || "New Arc") : (currentArc?.name ?? "Continuation");
+      const baseDirection = direction || guidanceDirection;
+      const fullDirection = additionalPrompt
+        ? `${baseDirection}\n\nAdditional guidance: ${additionalPrompt}`
+        : baseDirection;
+      const graph = await generateReasoningGraph(
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
+        directionCount,
+        fullDirection,
+        finalArcName,
+        (token) => setStreamText((prev) => prev + token),
+      );
+      setReasoningGraph(graph);
+      setShowReasoningModal(true);
+    } catch (err) {
+      logError("Reasoning graph generation failed", err, {
+        source: "manual-generation",
+        operation: "generate-reasoning-graph",
+        details: { sceneCount: directionCount },
+      });
+      setError(String(err));
+    } finally {
+      setGeneratingGraph(false);
+    }
+  }
+
+  async function handleConfirmReasoningGraph() {
+    if (!narrative || !reasoningGraph) return;
+    setShowReasoningModal(false);
+    setLoading(true);
+    setStreamText("");
+    setError("");
+    try {
+      const currentSettings = {
+        ...DEFAULT_STORY_SETTINGS,
+        ...narrative.storySettings,
+      };
+      if (
+        guidanceDirection !== currentSettings.storyDirection ||
+        guidanceConstraints !== currentSettings.storyConstraints
+      ) {
+        dispatch({
+          type: "SET_STORY_SETTINGS",
+          settings: {
+            ...currentSettings,
+            storyDirection: guidanceDirection,
+            storyConstraints: guidanceConstraints,
+          },
+        });
+      }
+
+      const existingArc = !newArc ? (currentArc ?? undefined) : undefined;
+      const worldBuildFocus = worldBuildFocusId
+        ? narrative.worldBuilds[worldBuildFocusId]
+        : undefined;
+
+      const { scenes, arc } = await generateScenes(
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
+        reasoningGraph.sceneCount,
+        "", // Direction is embedded in reasoning graph
+        {
+          existingArc,
+          pacingSequence: previewSequence ?? undefined,
+          worldBuildFocus,
+          reasoningGraph,
+          onReasoning: (token) => setStreamText((prev) => prev + token),
+        },
+      );
+      dispatch({
+        type: "BULK_ADD_SCENES",
+        scenes,
+        arc,
+        branchId: state.viewState.activeBranchId!,
+      });
+      onClose();
+    } catch (err) {
+      logError("Scene generation from reasoning graph failed", err, {
+        source: "manual-generation",
+        operation: "generate-scenes-from-graph",
+        details: { sceneCount: reasoningGraph.sceneCount },
+      });
+      setError(String(err));
+    } finally {
+      setLoading(false);
+      setReasoningGraph(null);
+    }
+  }
 
   async function handleGenerateArc() {
     if (!narrative) return;
@@ -334,7 +440,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const showPreview = !!previewSequence && mode === "continuation" && !loading && narrative.storySettings?.usePacingChain;
 
   return (
-    <Modal onClose={loading ? () => {} : onClose} size="xl" maxHeight="90vh">
+    <Modal onClose={loading || generatingGraph ? () => {} : onClose} size="xl" maxHeight="90vh">
       <ModalHeader onClose={onClose} hideClose={loading}>
         <div>
           <h2 className="text-sm font-semibold text-text-primary">Generate</h2>
@@ -366,14 +472,16 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        {loading ? (
+        {loading || generatingGraph ? (
           <StreamingOutput
             label={
-              mode === "continuation"
-                ? newArc
-                  ? "Generating arc"
-                  : "Continuing arc"
-                : "Expanding world"
+              generatingGraph
+                ? "Planning arc"
+                : mode === "continuation"
+                  ? newArc
+                    ? "Generating arc"
+                    : "Continuing arc"
+                  : "Expanding world"
             }
             text={streamText}
           />
@@ -583,8 +691,8 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                   <div className="flex items-center gap-2 flex-1">
                     <input
                       type="range"
-                      min={2}
-                      max={5}
+                      min={1}
+                      max={12}
                       value={directionCount}
                       onChange={(e) => setDirectionCount(Number(e.target.value))}
                       className="flex-1 h-1 appearance-none bg-white/10 rounded-full accent-white/60 cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/80 [&::-webkit-slider-thumb]:appearance-none"
@@ -713,11 +821,19 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 {/* Action buttons */}
                 <div className="flex gap-2">
                   <button
-                    onClick={handleGenerateArc}
-                    disabled={loading || (!newArc && !currentArc)}
+                    onClick={() => handleGenerateReasoningGraph()}
+                    disabled={loading || generatingGraph || (!newArc && !currentArc)}
                     className="flex-1 py-2.5 rounded-lg bg-white/10 hover:bg-white/16 text-text-primary font-semibold transition disabled:opacity-30"
                   >
-                    {loading ? "Generating..." : "Generate Arc"}
+                    {generatingGraph ? "Planning..." : "Plan Arc"}
+                  </button>
+                  <button
+                    onClick={handleGenerateArc}
+                    disabled={loading || generatingGraph || (!newArc && !currentArc)}
+                    className="py-2.5 px-4 rounded-lg border border-white/8 hover:bg-white/6 text-text-dim hover:text-text-primary transition disabled:opacity-30 text-[12px]"
+                    title="Skip planning and generate directly"
+                  >
+                    Quick
                   </button>
                   {narrative.storySettings?.usePacingChain && (
                     <button
@@ -926,6 +1042,20 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
           </div>
         )}
       </ModalBody>
+
+      {/* Reasoning Graph Modal */}
+      {showReasoningModal && reasoningGraph && (
+        <ReasoningGraphModal
+          graph={reasoningGraph}
+          isLoading={generatingGraph}
+          onRegenerate={handleGenerateReasoningGraph}
+          onConfirm={handleConfirmReasoningGraph}
+          onClose={() => {
+            setShowReasoningModal(false);
+            setReasoningGraph(null);
+          }}
+        />
+      )}
     </Modal>
   );
 }

@@ -10,6 +10,8 @@ import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PR
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
 import { logWarning, logError, logInfo } from '@/lib/system-logger';
+import type { ReasoningGraph } from './reasoning-graph';
+import { buildSequentialPath } from './reasoning-graph';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
 import { sanitizeSystemMutation, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 
@@ -152,6 +154,8 @@ export type GenerateScenesOptions = {
   /** Pre-sampled pacing sequence. When omitted, one is auto-sampled from the story's transition matrix. */
   pacingSequence?: PacingSequence;
   worldBuildFocus?: WorldBuild;
+  /** Reasoning graph that guides scene generation. When provided, replaces direction with structured reasoning path. */
+  reasoningGraph?: ReasoningGraph;
   onToken?: (token: string) => void;
   /** Callback for streaming reasoning/thinking tokens */
   onReasoning?: (token: string) => void;
@@ -165,7 +169,7 @@ export async function generateScenes(
   direction: string,
   options: GenerateScenesOptions = {},
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
-  const { existingArc, pacingSequence, worldBuildFocus, onToken, onReasoning } = options;
+  const { existingArc, pacingSequence, worldBuildFocus, reasoningGraph, onToken, onReasoning } = options;
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
 
@@ -213,7 +217,26 @@ export async function generateScenes(
 NARRATIVE SEED: ${seed}
 
 ${arcInstruction}
-${direction.trim() ? `DIRECTION — THIS IS YOUR PRIMARY BRIEF. Every scene you generate must execute the beats described here. Do not invent scenes that ignore, skip, or contradict these instructions.
+${reasoningGraph ? `REASONING GRAPH — THIS IS YOUR PRIMARY BRIEF. The graph below captures the strategic logic driving this arc. Each node represents a piece of reasoning — entities, constraints, causal steps, and outcomes. Your scenes must execute this reasoning path exactly.
+
+Arc Summary: ${reasoningGraph.summary}
+
+REASONING PATH (step through in order — each node shows its connections):
+${buildSequentialPath(reasoningGraph)}
+
+Read through every node. The reasoning nodes (REASONING:) are the core logic you must execute. Entity nodes (CHARACTER/LOCATION/ARTIFACT/SYSTEM:) provide the grounding. Outcome nodes (OUTCOME:) show thread effects you must deliver.
+
+Edge types tell you HOW nodes relate:
+- enables: A makes B possible
+- constrains: A limits/blocks B
+- risks: A creates danger for B
+- requires: A depends on B
+- causes: A leads to B
+- reveals: A exposes information in B
+- develops: A deepens B (character arc or theme)
+- resolves: A concludes/answers B
+
+Your scenes must walk this reasoning path — don't skip nodes, don't invent reasoning not in the graph.` : direction.trim() ? `DIRECTION — THIS IS YOUR PRIMARY BRIEF. Every scene you generate must execute the beats described here. Do not invent scenes that ignore, skip, or contradict these instructions.
 
 The direction may include prose-level guidance: how to write, not just what happens. Time compression, structural techniques, tone shifts, POV style, internal monologue approach, dialogue register, pacing rhythm — any of these can appear in the direction. When they do, they must flow through into your scene summaries. The summary is the last thing the prose writer sees — anything not in the summary is lost. If the direction says "montage of monthly vignettes," the summary must read as compressed monthly snapshots. If it says "black comedy through internal monologue," the summary must set up that register. If it says "formal, layered prose for the Central Plains," the summary must signal that shift.
 

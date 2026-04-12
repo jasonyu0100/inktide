@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
+import { detectPatterns } from '@/lib/ai';
+import { IconRefresh } from '@/components/icons';
 
 type Props = {
   onClose: () => void;
@@ -14,6 +16,7 @@ function CommandmentList({
   items,
   onAdd,
   onRemove,
+  onReplace,
   placeholder,
   accentColor,
 }: {
@@ -22,10 +25,13 @@ function CommandmentList({
   items: string[];
   onAdd: (item: string) => void;
   onRemove: (index: number) => void;
+  onReplace: (items: string[]) => void;
   placeholder: string;
-  accentColor: 'emerald' | 'red';
+  accentColor: 'emerald' | 'red' | 'blue';
 }) {
   const [newItem, setNewItem] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState('');
 
   const handleAdd = () => {
     const trimmed = newItem.trim();
@@ -42,20 +48,53 @@ function CommandmentList({
     }
   };
 
-  const borderColor = accentColor === 'emerald' ? 'border-emerald-500/20' : 'border-red-500/20';
-  const bgColor = accentColor === 'emerald' ? 'bg-emerald-500/5' : 'bg-red-500/5';
-  const textColor = accentColor === 'emerald' ? 'text-emerald-400' : 'text-red-400';
-  const hoverBg = accentColor === 'emerald' ? 'hover:bg-emerald-500/10' : 'hover:bg-red-500/10';
+  const handleEdit = (index: number) => {
+    setEditingIndex(index);
+    setEditingText(items[index]);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingIndex !== null && editingText.trim()) {
+      const updated = [...items];
+      updated[editingIndex] = editingText.trim();
+      onReplace(updated);
+    }
+    setEditingIndex(null);
+    setEditingText('');
+  };
+
+  const colorMap = {
+    emerald: {
+      border: 'border-emerald-500/20',
+      bg: 'bg-emerald-500/5',
+      text: 'text-emerald-400',
+      hover: 'hover:bg-emerald-500/10',
+    },
+    red: {
+      border: 'border-red-500/20',
+      bg: 'bg-red-500/5',
+      text: 'text-red-400',
+      hover: 'hover:bg-red-500/10',
+    },
+    blue: {
+      border: 'border-blue-500/20',
+      bg: 'bg-blue-500/5',
+      text: 'text-blue-400',
+      hover: 'hover:bg-blue-500/10',
+    },
+  };
+
+  const colors = colorMap[accentColor];
 
   return (
     <div className="space-y-3">
       <div>
-        <h3 className={`text-[12px] font-medium ${textColor}`}>{title}</h3>
+        <h3 className={`text-[12px] font-medium ${colors.text}`}>{title}</h3>
         <p className="text-[10px] text-text-dim mt-0.5">{description}</p>
       </div>
 
       {/* Existing items */}
-      <div className={`border ${borderColor} rounded-lg ${bgColor} overflow-hidden`}>
+      <div className={`border ${colors.border} rounded-lg ${colors.bg} overflow-hidden`}>
         {items.length === 0 ? (
           <div className="px-3 py-4 text-center text-[11px] text-text-dim/50">
             No commandments yet
@@ -64,16 +103,48 @@ function CommandmentList({
           <ul className="divide-y divide-white/5">
             {items.map((item, index) => (
               <li key={index} className="flex items-start gap-2 px-3 py-2 group">
-                <span className="text-[11px] text-text-secondary leading-relaxed flex-1">{item}</span>
-                <button
-                  onClick={() => onRemove(index)}
-                  className="p-1 rounded opacity-0 group-hover:opacity-100 text-text-dim hover:text-red-400 hover:bg-white/5 transition-all shrink-0"
-                  title="Remove"
-                >
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
+                {editingIndex === index ? (
+                  <div className="flex-1 flex gap-2">
+                    <input
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveEdit();
+                        if (e.key === 'Escape') {
+                          setEditingIndex(null);
+                          setEditingText('');
+                        }
+                      }}
+                      className="flex-1 bg-bg-elevated border border-white/20 rounded px-2 py-1 text-[11px] text-text-primary outline-none"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveEdit}
+                      className="px-2 py-1 rounded bg-white/10 text-[10px] text-text-primary hover:bg-white/15"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span
+                      className="text-[11px] text-text-secondary leading-relaxed flex-1 cursor-pointer hover:text-text-primary transition-colors"
+                      onClick={() => handleEdit(index)}
+                      title="Click to edit"
+                    >
+                      {item}
+                    </span>
+                    <button
+                      onClick={() => onRemove(index)}
+                      className="p-1 rounded opacity-0 group-hover:opacity-100 text-text-dim hover:text-red-400 hover:bg-white/5 transition-all shrink-0"
+                      title="Remove"
+                    >
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -92,7 +163,7 @@ function CommandmentList({
         <button
           onClick={handleAdd}
           disabled={!newItem.trim()}
-          className={`px-3 py-2 rounded-lg border ${borderColor} ${bgColor} ${textColor} ${hoverBg} text-[11px] font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
+          className={`px-3 py-2 rounded-lg border ${colors.border} ${colors.bg} ${colors.text} ${colors.hover} text-[11px] font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
         >
           Add
         </button>
@@ -105,35 +176,139 @@ export function PatternsModal({ onClose }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
 
+  const [genre, setGenre] = useState<string>(narrative?.genre ?? '');
+  const [subgenre, setSubgenre] = useState<string>(narrative?.subgenre ?? '');
   const [patterns, setPatterns] = useState<string[]>(narrative?.patterns ?? []);
   const [antiPatterns, setAntiPatterns] = useState<string[]>(narrative?.antiPatterns ?? []);
 
+  const [detecting, setDetecting] = useState(false);
+  const [streamText, setStreamText] = useState('');
+
+  const handleDetect = async () => {
+    if (!narrative) return;
+    setDetecting(true);
+    setStreamText('');
+    try {
+      const headIndex = state.resolvedEntryKeys.length - 1;
+      const result = await detectPatterns(
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
+        (token) => setStreamText((prev) => prev + token),
+      );
+      setGenre(result.detectedGenre);
+      setSubgenre(result.detectedSubgenre);
+      setPatterns(result.patterns);
+      setAntiPatterns(result.antiPatterns);
+    } catch (err) {
+      console.error('Pattern detection failed:', err);
+    } finally {
+      setDetecting(false);
+      setStreamText('');
+    }
+  };
+
   const handleSave = () => {
-    dispatch({ type: 'SET_PATTERNS', patterns });
-    dispatch({ type: 'SET_ANTI_PATTERNS', antiPatterns });
+    dispatch({
+      type: 'SET_DETECTED_PATTERNS',
+      genre,
+      subgenre,
+      patterns,
+      antiPatterns,
+    });
     onClose();
   };
 
   const hasChanges =
+    genre !== (narrative?.genre ?? '') ||
+    subgenre !== (narrative?.subgenre ?? '') ||
     JSON.stringify(patterns) !== JSON.stringify(narrative?.patterns ?? []) ||
     JSON.stringify(antiPatterns) !== JSON.stringify(narrative?.antiPatterns ?? []);
 
   if (!narrative) return null;
 
   return (
-    <Modal onClose={onClose} size="lg" maxHeight="85vh">
-      <ModalHeader onClose={onClose}>
-        <h2 className="text-[13px] font-semibold text-text-primary">Patterns & Anti-Patterns</h2>
-        <span className="text-[10px] text-text-dim">Global commandments that guide story development</span>
+    <Modal onClose={detecting ? () => {} : onClose} size="lg" maxHeight="85vh">
+      <ModalHeader onClose={onClose} hideClose={detecting}>
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className="text-[13px] font-semibold text-text-primary">Genre & Patterns</h2>
+            <span className="text-[10px] text-text-dim">Auto-detect or manually define story commandments</span>
+          </div>
+        </div>
       </ModalHeader>
-      <ModalBody className="p-5 space-y-6">
+      <ModalBody className="p-5 space-y-5">
+        {/* Detection section */}
+        {detecting ? (
+          <div className="border border-blue-500/20 bg-blue-500/5 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+              <span className="text-[12px] text-blue-400 font-medium">Analyzing narrative...</span>
+            </div>
+            {streamText && (
+              <div className="text-[10px] text-text-dim font-mono leading-relaxed max-h-24 overflow-y-auto whitespace-pre-wrap">
+                {streamText.slice(-500)}
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={handleDetect}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/15 transition-colors text-[12px] font-medium"
+          >
+            <IconRefresh size={14} />
+            Auto-Detect Genre & Patterns
+          </button>
+        )}
+
+        {/* Genre / Subgenre */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] uppercase tracking-widest text-text-dim">Genre</label>
+            <input
+              value={genre}
+              onChange={(e) => setGenre(e.target.value)}
+              placeholder="e.g., Fantasy, Sci-Fi, Romance"
+              className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 transition-colors"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] uppercase tracking-widest text-text-dim">Subgenre</label>
+            <input
+              value={subgenre}
+              onChange={(e) => setSubgenre(e.target.value)}
+              placeholder="e.g., Progression Fantasy, Space Opera"
+              className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* Genre badges */}
+        {(genre || subgenre) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {genre && (
+              <span className="px-2 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-medium">
+                {genre}
+              </span>
+            )}
+            {subgenre && (
+              <span className="px-2 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-medium">
+                {subgenre}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="border-t border-white/5" />
+
         <CommandmentList
           title="Patterns"
-          description="Positive commandments — what makes this series good. Used by the Orchestrator agent to guide decisions."
+          description="Positive commandments — what makes this series good. Genre-specific tropes to embrace."
           items={patterns}
           onAdd={(item) => setPatterns([...patterns, item])}
           onRemove={(index) => setPatterns(patterns.filter((_, i) => i !== index))}
-          placeholder="e.g., Every scene must advance at least one thread"
+          onReplace={setPatterns}
+          placeholder="e.g., Every power-up must be earned through sacrifice"
           accentColor="emerald"
         />
 
@@ -141,24 +316,26 @@ export function PatternsModal({ onClose }: Props) {
 
         <CommandmentList
           title="Anti-Patterns"
-          description="Negative commandments — what to avoid. Used by the Adversarial agent to detect problems."
+          description="Negative commandments — what to avoid. Common genre pitfalls to sidestep."
           items={antiPatterns}
           onAdd={(item) => setAntiPatterns([...antiPatterns, item])}
           onRemove={(index) => setAntiPatterns(antiPatterns.filter((_, i) => i !== index))}
-          placeholder="e.g., Characters should not know information they haven't learned"
+          onReplace={setAntiPatterns}
+          placeholder="e.g., No deus ex machina power-ups"
           accentColor="red"
         />
       </ModalBody>
       <ModalFooter>
         <button
           onClick={onClose}
-          className="text-[11px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors"
+          disabled={detecting}
+          className="text-[11px] px-3 py-1.5 rounded-md bg-white/5 text-text-dim hover:text-text-secondary transition-colors disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           onClick={handleSave}
-          disabled={!hasChanges}
+          disabled={!hasChanges || detecting}
           className="text-[11px] px-3 py-1.5 rounded-md bg-white/10 text-text-primary hover:bg-white/15 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
         >
           Save

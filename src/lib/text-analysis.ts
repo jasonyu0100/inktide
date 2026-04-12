@@ -1936,6 +1936,8 @@ export async function assembleNarrative(
   let imageStyle: string | undefined;
   let proseProfile: ProseProfile | undefined;
   let planGuidance = "";
+  let genre: string | undefined;
+  let subgenre: string | undefined;
   let patterns: string[] = [];
   let antiPatterns: string[] = [];
 
@@ -1958,15 +1960,25 @@ export async function assembleNarrative(
 
 3. PLAN GUIDANCE: 2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? Be specific to this work's voice.
 
-4. PATTERNS: 3-5 positive thematic commandments — what makes THIS series good. Story-level principles derived from genre, tone, and narrative approach. NOT prose style (that's in proseProfile). EXAMPLES: "Every cost paid must compound into later consequence", "Magic always extracts a price from the wielder", "Character knowledge must be earned on-page before it can be acted upon"
+4. PATTERNS: 3-5 positive thematic commandments — what makes THIS series good. Derive from the work's GENRE and subgenre. First identify the genre (fantasy/sci-fi/thriller/romance/horror/literary/mystery/etc) and its specific subgenre (progression fantasy/space opera/cozy mystery/etc), then extract the patterns that make THIS work succeed within that tradition. Include:
+   - Genre-specific tropes the work embraces and executes well (e.g. "Power scaling follows predictable but satisfying tiers" for progression fantasy)
+   - Structural patterns that define the work's rhythm (e.g. "Each arc ends with a cultivation breakthrough that costs more than expected")
+   - Character dynamics characteristic of the genre (e.g. "Rivals become reluctant allies before becoming true friends")
+   NOT prose style (that's in proseProfile). EXAMPLES: "Every cost paid must compound into later consequence", "Magic always extracts a price from the wielder", "The underdog earns every advantage through sacrifice, never luck"
 
-5. ANTI-PATTERNS: 3-5 negative story commandments — what to avoid in THIS series. Specific patterns that would break the story's integrity. EXAMPLES: "Characters must not conveniently forget information they learned earlier", "Tension cannot resolve without visible cost", "No deus ex machina rescues — solutions must be seeded"
+5. ANTI-PATTERNS: 3-5 negative story commandments — what to avoid in THIS series. Derive from common genre pitfalls and this work's specific failures to avoid:
+   - Genre tropes the work actively subverts or avoids (e.g. "No harem dynamics — romantic tension with only one interest")
+   - Common pitfalls in this genre (e.g. "Characters cannot conveniently forget established power limitations")
+   - Patterns that would break THIS work's tone (e.g. "Humor never undercuts genuine emotional stakes")
+   EXAMPLES: "No deus ex machina rescues — solutions must be seeded", "No convenient power-ups without prior setup", "Antagonists cannot be stupid just to let protagonists win"
 
 ${buildMetaContext(results, characters, threads, locations, scenes, worldSummary)}
 
 Return JSON:
 {
   "imageStyle": "style directive",
+  "genre": "primary genre (fantasy/sci-fi/thriller/romance/horror/mystery/literary/etc)",
+  "subgenre": "specific subgenre (progression fantasy/space opera/cozy mystery/dark romance/LitRPG/xianxia/etc)",
   "proseProfile": {
     "register": "string",
     "stance": "string",

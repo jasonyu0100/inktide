@@ -744,6 +744,9 @@ export type Action =
   | { type: "SET_PROSE_PROFILE"; profile: ProseProfile | undefined }
   | { type: "SET_PATTERNS"; patterns: string[] }
   | { type: "SET_ANTI_PATTERNS"; antiPatterns: string[] }
+  | { type: "SET_GENRE"; genre: string }
+  | { type: "SET_SUBGENRE"; subgenre: string }
+  | { type: "SET_DETECTED_PATTERNS"; genre: string; subgenre: string; patterns: string[]; antiPatterns: string[] }
   // Analysis
   | { type: "ADD_ANALYSIS_JOB"; job: AnalysisJob }
   | { type: "UPDATE_ANALYSIS_JOB"; id: string; updates: Partial<AnalysisJob> }
@@ -2155,6 +2158,27 @@ function reducer(state: AppState, action: Action): AppState {
     case "SET_ANTI_PATTERNS":
       return updateNarrative(state, (n) => ({
         ...n,
+        antiPatterns: action.antiPatterns,
+      }));
+
+    case "SET_GENRE":
+      return updateNarrative(state, (n) => ({
+        ...n,
+        genre: action.genre,
+      }));
+
+    case "SET_SUBGENRE":
+      return updateNarrative(state, (n) => ({
+        ...n,
+        subgenre: action.subgenre,
+      }));
+
+    case "SET_DETECTED_PATTERNS":
+      return updateNarrative(state, (n) => ({
+        ...n,
+        genre: action.genre,
+        subgenre: action.subgenre,
+        patterns: action.patterns,
         antiPatterns: action.antiPatterns,
       }));
 

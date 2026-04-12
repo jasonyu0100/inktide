@@ -8,8 +8,8 @@ export { generateScenes, generateScenePlan, rewriteScenePlan, generateSceneProse
 export { runPlanCandidates } from './candidates';
 
 // World building & direction
-export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expandWorld, generateNarrative, computeWorldMetrics, DEFAULT_EXPANSION_FILTER } from './world';
-export type { WorldExpansion, WorldExpansionSize, WorldExpansionStrategy, WorldMetrics, DirectionSuggestion, ExpansionEntityFilter } from './world';
+export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expandWorld, generateNarrative, computeWorldMetrics, DEFAULT_EXPANSION_FILTER, detectPatterns } from './world';
+export type { WorldExpansion, WorldExpansionSize, WorldExpansionStrategy, WorldMetrics, DirectionSuggestion, ExpansionEntityFilter, DetectedPatterns } from './world';
 
 // Prose rewriting
 export { rewriteSceneProse } from './prose';
@@ -19,3 +19,7 @@ export { suggestPremise } from './premise';
 
 // Review & course correction
 export { reviewBranch, reviewProseQuality, reviewPlanQuality, refreshDirection } from './review';
+
+// Reasoning graph
+export { generateReasoningGraph, buildSequentialPath } from './reasoning-graph';
+export type { ReasoningGraph, ReasoningNode, ReasoningEdge, ReasoningNodeType, ReasoningEdgeType } from './reasoning-graph';

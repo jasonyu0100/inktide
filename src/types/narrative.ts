@@ -902,6 +902,10 @@ export type NarrativeState = {
   proseEvaluations?: Record<string, ProseEvaluation>;
   /** Plan evaluations keyed by branch ID — most recent plan eval per branch */
   planEvaluations?: Record<string, PlanEvaluation>;
+  /** Detected primary genre (fantasy, sci-fi, thriller, romance, horror, mystery, literary, etc.) */
+  genre?: string;
+  /** Detected specific subgenre (progression fantasy, space opera, cozy mystery, dark romance, LitRPG, xianxia, etc.) */
+  subgenre?: string;
   /** Positive patterns — commandments defining what makes this series good (used by Orchestrator agent) */
   patterns?: string[];
   /** Anti-patterns — commandments defining what to avoid (used by Adversarial agent) */

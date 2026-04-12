@@ -780,8 +780,8 @@ Return JSON with this exact structure:
     "antiPatterns": ["3-5 SPECIFIC prose failures to avoid — concrete patterns that break this voice. BAD: 'Don't be boring'. GOOD: 'NEVER use \"This was a [Name]\" to introduce a mechanic — show what it does, not what it is called' / 'No strategic summaries in internal monologue (\"He calculated that...\") — show calculation through action' / 'Do not follow a system reveal with a sentence restating its significance' / 'Do not write narrator summaries of what the character already achieved on-page'"]
   },
   "planGuidance": "2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? EXAMPLE: 'Prioritise action and dialogue beats over narration. System mechanics revealed through usage, never expository narration beats. Internal monologue should be tactical and clipped. Plans should never include a beat whose purpose is to explain a concept that was already demonstrated in a prior beat.'",
-  "patterns": ["3-5 positive thematic commandments — what makes THIS series good. Derived from genre, tone, and premise. Not prose style (that's in proseProfile) but story-level principles that guide decisions. EXAMPLES: 'Every cost paid must compound into later consequence', 'Magic always extracts a price from the wielder', 'Character knowledge must be earned on-page before it can be acted upon'"],
-  "antiPatterns": ["3-5 negative story commandments — what to avoid in THIS series. Specific patterns that would break the story's integrity. EXAMPLES: 'Characters must not conveniently forget information they learned earlier', 'Tension cannot resolve without visible cost', 'No deus ex machina rescues — solutions must be seeded']"
+  "patterns": ["3-5 positive thematic commandments derived from THIS story's GENRE. First identify the genre/subgenre (progression fantasy, space opera, cozy mystery, dark romance, LitRPG, etc), then extract patterns that make stories in this tradition succeed: genre-specific tropes to embrace (e.g. 'Power scaling follows satisfying tiers'), structural rhythms (e.g. 'Each arc ends with breakthrough and cost'), character dynamics typical of the genre (e.g. 'Rivals become reluctant allies'). EXAMPLES: 'Every cost paid must compound into later consequence', 'The underdog earns every advantage through sacrifice, never luck'"],
+  "antiPatterns": ["3-5 negative story commandments — common pitfalls in THIS genre to avoid. Genre-specific tropes to subvert or skip (e.g. 'No harem dynamics'), common genre failures (e.g. 'No convenient power-ups without setup'), patterns that would break this work's tone. EXAMPLES: 'No deus ex machina rescues', 'Antagonists cannot be stupid just to let protagonists win', 'No info-dumps disguised as dialogue'"]
 }
 
 PILOT EPISODE — establish a tight, focused world. These are minimums; exceed when the premise warrants it:
@@ -1130,4 +1130,195 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
     createdAt: now,
     updatedAt: now,
   };
+}
+
+// ── Auto-Detect Patterns ─────────────────────────────────────────────────────
+
+export type DetectedPatterns = {
+  patterns: string[];
+  antiPatterns: string[];
+  detectedGenre: string;
+  detectedSubgenre: string;
+};
+
+/**
+ * Analyze an existing narrative and auto-detect patterns and anti-patterns
+ * based on genre conventions, existing content, prose samples, and structural analysis.
+ */
+export async function detectPatterns(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+  onToken?: (token: string) => void,
+): Promise<DetectedPatterns> {
+  const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
+
+  // Gather existing content signals
+  const threads = Object.values(narrative.threads).slice(0, 10);
+  const characters = Object.values(narrative.characters).slice(0, 10);
+  const systemNodes = Object.values(narrative.systemGraph?.nodes ?? {}).slice(0, 15);
+
+  const threadSummary = threads.map(t => `- ${t.description} (${t.status})`).join('\n');
+  const characterSummary = characters.map(c => `- ${c.name}: ${c.role}`).join('\n');
+  const systemSummary = systemNodes.map(n => `- ${n.concept} (${n.type})`).join('\n');
+
+  // Gather prose samples from scenes (like prose profile detection)
+  // Get the latest prose version from each scene
+  const getLatestProse = (scene: Scene): string => {
+    if (!scene.proseVersions || scene.proseVersions.length === 0) return '';
+    // Sort by version descending and get latest
+    const sorted = [...scene.proseVersions].sort((a, b) => {
+      const aParts = a.version.split('.').map(Number);
+      const bParts = b.version.split('.').map(Number);
+      for (let i = 0; i < 3; i++) {
+        if ((bParts[i] || 0) !== (aParts[i] || 0)) return (bParts[i] || 0) - (aParts[i] || 0);
+      }
+      return 0;
+    });
+    return sorted[0]?.prose || '';
+  };
+
+  const scenesWithProse = Object.values(narrative.scenes)
+    .map(s => ({ scene: s, prose: getLatestProse(s) }))
+    .filter(({ prose }) => prose.length > 100)
+    .slice(0, 10);
+
+  const proseSamples = scenesWithProse.map(({ scene, prose }, i) => {
+    const summary = scene.summary || 'No summary';
+    // Take first ~800 chars of prose to keep prompt manageable
+    const proseSnippet = prose.slice(0, 800);
+    return `--- SCENE ${i + 1}: ${summary} ---\n${proseSnippet}${proseSnippet.length >= 800 ? '...' : ''}`;
+  }).join('\n\n');
+
+  // Get scene summaries for structure analysis
+  const sceneSummaries = Object.values(narrative.scenes)
+    .slice(0, 15)
+    .map((s, i) => `${i + 1}. ${s.summary || 'Untitled scene'}`)
+    .join('\n');
+
+  const existingPatterns = narrative.patterns?.join('\n- ') || 'None';
+  const existingAntiPatterns = narrative.antiPatterns?.join('\n- ') || 'None';
+
+  const prompt = `${ctx}
+
+## NARRATIVE SIGNALS
+
+THREADS:
+${threadSummary || 'None yet'}
+
+KEY CHARACTERS:
+${characterSummary || 'None yet'}
+
+WORLD SYSTEMS:
+${systemSummary || 'None yet'}
+
+## SCENE STRUCTURE
+${sceneSummaries || 'No scenes yet'}
+
+## PROSE SAMPLES
+${proseSamples || 'No prose available yet'}
+
+## EXISTING PATTERNS
+- ${existingPatterns}
+
+## EXISTING ANTI-PATTERNS
+- ${existingAntiPatterns}
+
+## TASK
+
+Analyze this narrative's PROSE STYLE, STRUCTURE, and CONTENT to detect its GENRE and derive patterns/anti-patterns.
+
+These patterns serve TWO critical functions:
+1. **COOPERATIVE AGENT**: Patterns encourage VARIETY and push the story toward fresh, interesting territory
+2. **ADVERSARIAL AGENT**: Anti-patterns prevent STAGNATION and flag when the story becomes repetitive or predictable
+
+1. DETECT GENRE: Based on the prose samples, world systems, and narrative structure, identify:
+   - Primary genre (fantasy, sci-fi, thriller, romance, horror, mystery, literary, etc.)
+   - Specific subgenre (progression fantasy, space opera, cozy mystery, dark romance, LitRPG, xianxia, cultivation, grimdark, etc.)
+
+2. DERIVE PATTERNS (5-7): Positive commandments that encourage VARIETY and excellence:
+   - What genre conventions unlock fresh storytelling opportunities?
+   - What structural patterns create satisfying variety across arcs?
+   - What character dynamics feel authentic AND allow for growth/change?
+   - What techniques keep the prose engaging without becoming formulaic?
+   - Include at least 1-2 patterns that specifically encourage novelty and surprise
+
+3. DERIVE ANTI-PATTERNS (5-7): Negative commandments that prevent STAGNATION:
+   - What patterns would make the story feel repetitive or predictable?
+   - What genre tropes are overdone and signal lazy writing?
+   - What character dynamics become stale if repeated too often?
+   - What structural rhythms feel formulaic after a few arcs?
+   - Include at least 1-2 anti-patterns that specifically flag staleness and repetition
+
+CRITICAL: The goal is a LIVING story that evolves. Patterns should encourage the story to grow and surprise. Anti-patterns should prevent the story from settling into comfortable ruts.
+
+Examples of variety-encouraging patterns:
+- "Each arc must introduce at least one element (character, location, system) that recontextualizes something established"
+- "Power dynamics must shift — no character should stay dominant for more than two arcs"
+- "Every major character must make a choice that surprises even themselves"
+
+Examples of stagnation-preventing anti-patterns:
+- "NEVER repeat the same arc structure back-to-back (training → challenge → victory)"
+- "No character should solve problems the same way twice in a row"
+- "Avoid recycling tension patterns — if betrayal drove the last arc, it cannot drive this one"
+
+Return JSON:
+{
+  "detectedGenre": "primary genre",
+  "detectedSubgenre": "specific subgenre",
+  "patterns": [
+    "Pattern 1 — concrete, actionable, genre-specific",
+    "Pattern 2",
+    "..."
+  ],
+  "antiPatterns": [
+    "Anti-pattern 1 — concrete, actionable, genre-specific",
+    "Anti-pattern 2",
+    "..."
+  ]
+}`;
+
+  const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
+
+  const raw = onToken
+    ? await callGenerateStream(
+        prompt,
+        SYSTEM_PROMPT,
+        () => {},
+        undefined,
+        'detectPatterns',
+        undefined,
+        reasoningBudget,
+        onToken,
+      )
+    : await callGenerate(
+        prompt,
+        SYSTEM_PROMPT,
+        undefined,
+        'detectPatterns',
+        undefined,
+        reasoningBudget,
+      );
+
+  try {
+    const parsed = parseJson(raw, 'detectPatterns') as {
+      detectedGenre?: unknown;
+      detectedSubgenre?: unknown;
+      patterns?: unknown;
+      antiPatterns?: unknown;
+    };
+    return {
+      detectedGenre: typeof parsed.detectedGenre === 'string' ? parsed.detectedGenre : 'Unknown',
+      detectedSubgenre: typeof parsed.detectedSubgenre === 'string' ? parsed.detectedSubgenre : 'Unknown',
+      patterns: Array.isArray(parsed.patterns) ? parsed.patterns.filter((p: unknown) => typeof p === 'string') : [],
+      antiPatterns: Array.isArray(parsed.antiPatterns) ? parsed.antiPatterns.filter((p: unknown) => typeof p === 'string') : [],
+    };
+  } catch {
+    return {
+      detectedGenre: 'Unknown',
+      detectedSubgenre: 'Unknown',
+      patterns: [],
+      antiPatterns: [],
+    };
+  }
 }

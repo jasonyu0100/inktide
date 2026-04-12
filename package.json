@@ -14,9 +14,11 @@
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
     "@types/d3": "^7.4.3",
+    "@types/dagre": "^0.7.54",
     "@types/uuid": "^10.0.0",
     "@vercel/analytics": "^2.0.0",
     "d3": "^7.9.0",
+    "dagre": "^0.8.5",
     "idb": "^8.0.3",
     "jszip": "^3.10.1",
     "katex": "^0.16.38",

@@ -1,10 +1,10 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemEdge, SystemMutation, SystemNodeType, Artifact, ReasoningLevel, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation, ArchetypeKey } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemMutation, SystemNodeType, Artifact, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation, ArchetypeKey, WorldBuild } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import type { ThreadLogNodeType } from '@/types/narrative';
 import { applyThreadMutation } from '@/lib/thread-log';
 import { applyContinuityMutation } from '@/lib/continuity-graph';
-import { sanitizeSystemMutation, applySystemMutation, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
+import { sanitizeSystemMutation, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
@@ -709,11 +709,7 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
 export async function generateNarrative(
   title: string,
   premise: string,
-  rules: string[] = [],
-  systemSketches: { name: string; description: string; principles: string[]; constraints: string[]; interactions: string[] }[] = [],
-  onToken?: (token: string) => void,
   onReasoning?: (token: string) => void,
-  reasoningLevel?: ReasoningLevel,
   /** When true: generate world entities only — no introduction arc or scenes.
    *  The premise is treated as a full story plan / world bible to seed from. */
   worldOnly = false,
@@ -726,8 +722,6 @@ export async function generateNarrative(
     details: {
       title,
       worldOnly,
-      hasRules: rules.length > 0,
-      hasSystemSketches: systemSketches.length > 0,
     },
   });
 
@@ -776,10 +770,6 @@ Return JSON with this exact structure:
   "arcs": [
     {"id": "ARC-01", "name": "Arc name — a short thematic label for this story segment", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
   ],`}
-  "rules": ["World rule 1", "World rule 2"],
-  "worldSystems": [
-    {"id": "WS-01", "name": "System Name", "description": "One-line summary of what this system is", "principles": ["How it works"], "constraints": ["Hard limits and costs"], "interactions": ["How it connects to other systems"]}
-  ],
   "proseProfile": {
     "register": "the tonal register (conversational/literary/raw/clinical/sardonic/lyrical/mythic/journalistic or other)",
     "stance": "narrative stance (close_third/intimate_first_person/omniscient_ironic/detached_observer/unreliable_first or other)",
@@ -791,7 +781,9 @@ Return JSON with this exact structure:
     "rules": ["3-6 SPECIFIC prose rules as imperatives — these must be concrete enough to apply sentence-by-sentence. BAD: 'Write well'. GOOD: 'Show emotion through physical reaction, never name it' / 'No figurative language — just plain statements of fact' / 'Terse does not mean monotone — vary between clipped fragments and occasional longer compound sentences'"],
     "antiPatterns": ["3-5 SPECIFIC prose failures to avoid — concrete patterns that break this voice. BAD: 'Don't be boring'. GOOD: 'NEVER use \"This was a [Name]\" to introduce a mechanic — show what it does, not what it is called' / 'No strategic summaries in internal monologue (\"He calculated that...\") — show calculation through action' / 'Do not follow a system reveal with a sentence restating its significance' / 'Do not write narrator summaries of what the character already achieved on-page'"]
   },
-  "planGuidance": "2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? EXAMPLE: 'Prioritise action and dialogue beats over narration. System mechanics revealed through usage, never expository narration beats. Internal monologue should be tactical and clipped. Plans should never include a beat whose purpose is to explain a concept that was already demonstrated in a prior beat.'"
+  "planGuidance": "2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? EXAMPLE: 'Prioritise action and dialogue beats over narration. System mechanics revealed through usage, never expository narration beats. Internal monologue should be tactical and clipped. Plans should never include a beat whose purpose is to explain a concept that was already demonstrated in a prior beat.'",
+  "patterns": ["3-5 positive thematic commandments — what makes THIS series good. Derived from genre, tone, and premise. Not prose style (that's in proseProfile) but story-level principles that guide decisions. EXAMPLES: 'Every cost paid must compound into later consequence', 'Magic always extracts a price from the wielder', 'Character knowledge must be earned on-page before it can be acted upon'"],
+  "antiPatterns": ["3-5 negative story commandments — what to avoid in THIS series. Specific patterns that would break the story's integrity. EXAMPLES: 'Characters must not conveniently forget information they learned earlier', 'Tension cannot resolve without visible cost', 'No deus ex machina rescues — solutions must be seeded']"
 }
 
 PILOT EPISODE — establish a tight, focused world. These are minimums; exceed when the premise warrants it:
@@ -875,29 +867,11 @@ ${PROMPT_MUTATIONS}
 ${PROMPT_CONTINUITY}
 ${PROMPT_SUMMARY_REQUIREMENT}`}
 
-WORLD RULES: Generate 4-6 world rules — absolute constraints that every scene must obey. These define the physics, magic system limits, social rules, or thematic laws of the world.${rules.length > 0 ? ` The user has already provided these rules — include them as-is and add more if appropriate:\n${rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}` : ''}
+`;
 
-WORLD SYSTEMS: Generate 3-6 world systems that define how this world uniquely works. A system is any distinct mechanic, institution, force, or structure that shapes how the world operates. There are no fixed categories — define whatever systems make this world feel real and internally consistent.${systemSketches.length > 0 ? `\nThe user has already provided these systems — include them as-is and flesh them out with additional principles/constraints/interactions if appropriate:\n${systemSketches.map(s => {
-  const parts = [`- ${s.name}: ${s.description}`];
-  if (s.principles.length) parts.push(`  Principles: ${s.principles.join('; ')}`);
-  if (s.constraints.length) parts.push(`  Constraints: ${s.constraints.join('; ')}`);
-  if (s.interactions.length) parts.push(`  Interactions: ${s.interactions.join('; ')}`);
-  return parts.join('\n');
-}).join('\n')}` : ''}
-
-For each system, provide:
-- name: A clear label
-- description: One-line summary of what this system is
-- principles (2-4): HOW it works — the core mechanics
-- constraints (1-3): HARD LIMITS — costs, scarcity, failure modes
-- interactions (1-2): CROSS-SYSTEM connections — how this system amplifies, suppresses, or feeds into other systems
-
-The goal is to make the world feel like a coherent machine where systems interlock. Great worlds have systems that create emergent behavior — institutions that arise from mechanics, conflicts that emerge from scarcity, power that requires trade-offs.`;
-
-  const reasoningBudget = REASONING_BUDGETS[reasoningLevel ?? 'medium'] || undefined;
-  const useStream = !!(onToken || onReasoning);
-  const raw = useStream
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget, onReasoning)
+  const reasoningBudget = REASONING_BUDGETS['medium'] || undefined;
+  const raw = onReasoning
+    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget, onReasoning)
     : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'generateNarrative') as any;
@@ -932,6 +906,32 @@ The goal is to make the world feel like a coherent machine where systems interlo
     for (const a of (parsed.arcs ?? [])) arcs[a.id] = a;
   }
 
+  // Normalize artifacts with continuity
+  const artifacts: NarrativeState['artifacts'] = Object.fromEntries(
+    (parsed.artifacts ?? []).map((a: Artifact) => [
+      a.id,
+      { ...a, continuity: normalizeInitialContinuity(a.id, a.continuity) },
+    ]),
+  );
+
+  // Create initial WorldBuild with entities and empty systemMutations
+  // This mirrors the analysis pattern: entities are structural (in WorldBuild),
+  // all knowledge (system + continuity mutations) flows through scenes
+  const worldBuildId = `WB-${now}-INIT`;
+  const initialWorldBuild: WorldBuild = {
+    kind: 'world_build',
+    id: worldBuildId,
+    summary: `Initial world: ${Object.keys(characters).length} characters, ${Object.keys(locations).length} locations, ${Object.keys(threads).length} threads`,
+    expansionManifest: {
+      characters: Object.values(characters),
+      locations: Object.values(locations),
+      threads: Object.values(threads),
+      artifacts: Object.values(artifacts),
+      relationships: parsed.relationships ?? [],
+      systemMutations: { addedNodes: [], addedEdges: [] },
+    },
+  };
+
   const branchId = `B-${now}`;
   const branches: NarrativeState['branches'] = {
     [branchId]: {
@@ -939,22 +939,41 @@ The goal is to make the world feel like a coherent machine where systems interlo
       name: 'Main',
       parentBranchId: null,
       forkEntryId: null,
-      entryIds: Object.keys(scenes),
+      entryIds: [worldBuildId, ...Object.keys(scenes)],
       createdAt: now,
     },
   };
 
-  // Sanitize and re-ID world knowledge mutations, then build cumulative graph
+  // Sanitize and re-ID world knowledge mutations on scenes. The system graph
+  // is derived on load by computeDerivedEntities replaying the timeline.
   const sceneList = Object.values(scenes);
 
-  // Collect all system mutations — from scenes normally, or from top-level systemMutations in worldOnly mode
-  const allSystemMutations: SystemMutation[] = [];
+  // For worldOnly mode, system mutations go in the WorldBuild (seeded knowledge)
   if (worldOnly && parsed.systemMutations) {
-    allSystemMutations.push({
+    const seededMutation: SystemMutation = {
       addedNodes: parsed.systemMutations.addedNodes ?? [],
       addedEdges: parsed.systemMutations.addedEdges ?? [],
-    });
+    };
+    // Resolve IDs and sanitize
+    const allocator = makeSystemIdAllocator([]);
+    const resolved = resolveSystemConceptIds(seededMutation.addedNodes, {}, allocator);
+    seededMutation.addedNodes = resolved.newNodes;
+    const validIds = new Set(resolved.newNodes.map(n => n.id));
+    seededMutation.addedEdges = seededMutation.addedEdges.map(edge => ({
+      from: resolved.idMap[edge.from] ?? edge.from,
+      to: resolved.idMap[edge.to] ?? edge.to,
+      relation: edge.relation,
+    }));
+    sanitizeSystemMutation(seededMutation, validIds, new Set());
+    initialWorldBuild.expansionManifest.systemMutations = seededMutation;
   }
+
+  // Normalize and resolve IDs for scene system mutations
+  const allocateFreshWkId = makeSystemIdAllocator([]);
+  const accumulatedNodes: Record<string, SystemNode> = {};
+  const validWKIds = new Set<string>();
+  const seenWkEdgeKeys = new Set<string>();
+
   for (const scene of sceneList) {
     if (!scene.systemMutations) {
       scene.systemMutations = { addedNodes: [], addedEdges: [] };
@@ -962,44 +981,27 @@ The goal is to make the world feel like a coherent machine where systems interlo
     }
     scene.systemMutations.addedNodes = scene.systemMutations.addedNodes ?? [];
     scene.systemMutations.addedEdges = scene.systemMutations.addedEdges ?? [];
-    allSystemMutations.push(scene.systemMutations);
-  }
 
-  const systemGraph: { nodes: Record<string, SystemNode>; edges: SystemEdge[] } = {
-    nodes: {},
-    edges: [],
-  };
-  const allocateFreshWkId = makeSystemIdAllocator([]);
-  const validWKIds = new Set<string>();
-  const seenWkEdgeKeys = new Set<string>();
-
-  for (const mutation of allSystemMutations) {
-    // Concept-based resolution: re-mentioned concepts from earlier mutations
-    // in this generation pass collapse to the same id, so the LLM emitting
-    // "mana-binding" across scene S-001 and S-005 produces one node, not two.
+    // Concept-based resolution: re-mentioned concepts collapse to the same id
     const resolved = resolveSystemConceptIds(
-      mutation.addedNodes,
-      systemGraph.nodes,
+      scene.systemMutations.addedNodes,
+      accumulatedNodes,
       allocateFreshWkId,
     );
-    mutation.addedNodes = resolved.newNodes;
-    for (const n of resolved.newNodes) validWKIds.add(n.id);
+    scene.systemMutations.addedNodes = resolved.newNodes;
+    for (const n of resolved.newNodes) {
+      validWKIds.add(n.id);
+      accumulatedNodes[n.id] = n;
+    }
 
-    // Remap edge references, then run the shared sanitizer so that self-loops,
-    // orphans, bad fields, and cross-mutation duplicates are filtered
-    // consistently with every other pipeline.
-    mutation.addedEdges = mutation.addedEdges.map((edge) => ({
+    // Remap edge references and sanitize
+    scene.systemMutations.addedEdges = scene.systemMutations.addedEdges.map((edge) => ({
       from: resolved.idMap[edge.from] ?? edge.from,
       to: resolved.idMap[edge.to] ?? edge.to,
       relation: edge.relation,
     }));
-    sanitizeSystemMutation(mutation, validWKIds, seenWkEdgeKeys);
-
-    // Accumulate into the cumulative graph through the shared applier.
-    applySystemMutation(systemGraph, mutation);
+    sanitizeSystemMutation(scene.systemMutations, validWKIds, seenWkEdgeKeys);
   }
-  const systemNodes = systemGraph.nodes;
-  const systemEdges = systemGraph.edges;
 
   // Generate embeddings for scene summaries
   if (sceneList.length > 0) {
@@ -1086,7 +1088,7 @@ The goal is to make the world feel like a coherent machine where systems interlo
       threadsCreated: Object.keys(threads).length,
       scenesCreated: Object.keys(scenes).length,
       arcsCreated: Object.keys(arcs).length,
-      systemNodeCount: Object.keys(systemNodes).length,
+      artifactsCreated: Object.keys(artifacts).length,
     },
   });
 
@@ -1097,35 +1099,15 @@ The goal is to make the world feel like a coherent machine where systems interlo
     characters,
     locations,
     threads,
-    artifacts: Object.fromEntries(
-      (parsed.artifacts ?? []).map((a: Artifact) => [
-        a.id,
-        { ...a, continuity: normalizeInitialContinuity(a.id, a.continuity) },
-      ]),
-    ),
+    artifacts,
     arcs,
     scenes,
-    worldBuilds: {},
+    worldBuilds: { [worldBuildId]: initialWorldBuild },
     branches,
     relationships: parsed.relationships ?? [],
-    systemGraph: { nodes: systemNodes, edges: systemEdges },
+    systemGraph: { nodes: {}, edges: [] },
     worldSummary: parsed.worldSummary ?? premise,
     imageStyle: typeof parsed.imageStyle === 'string' ? parsed.imageStyle : undefined,
-    rules: Array.isArray(parsed.rules) ? parsed.rules.filter((r: unknown) => typeof r === 'string') : rules,
-    worldSystems: Array.isArray(parsed.worldSystems) ? parsed.worldSystems.filter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (s: any) => s && typeof s.name === 'string'
-    ).map(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (s: any) => ({
-        id: s.id ?? `WS-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        name: s.name,
-        description: typeof s.description === 'string' ? s.description : '',
-        principles: Array.isArray(s.principles) ? s.principles.filter((p: unknown) => typeof p === 'string') : [],
-        constraints: Array.isArray(s.constraints) ? s.constraints.filter((c: unknown) => typeof c === 'string') : [],
-        interactions: Array.isArray(s.interactions) ? s.interactions.filter((x: unknown) => typeof x === 'string') : [],
-      })
-    ) : [],
     proseProfile: (() => {
       const pp = parsed.proseProfile;
       if (!pp || typeof pp !== 'object') return undefined;
@@ -1146,6 +1128,8 @@ The goal is to make the world feel like a coherent machine where systems interlo
       ...(typeof parsed.planGuidance === 'string' && parsed.planGuidance.trim() ? { planGuidance: parsed.planGuidance.trim() } : {}),
       ...(targetArchetype ? { targetArchetype } : {}),
     },
+    patterns: Array.isArray(parsed.patterns) ? parsed.patterns.filter((p: unknown) => typeof p === 'string') : [],
+    antiPatterns: Array.isArray(parsed.antiPatterns) ? parsed.antiPatterns.filter((p: unknown) => typeof p === 'string') : [],
     createdAt: now,
     updatedAt: now,
   };

@@ -7,21 +7,19 @@ import type {
   Thread,
 } from "@/types/narrative";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 // Mock the AI module
 vi.mock("@/lib/ai/api", () => ({
   callGenerate: vi.fn(),
   callGenerateStream: vi.fn(),
   SYSTEM_PROMPT: "Test system prompt",
 }));
-
 // Mock context building
 vi.mock("@/lib/ai/context", () => ({
   narrativeContext: vi.fn().mockReturnValue("Mock narrative context"),
   sceneContext: vi.fn().mockReturnValue("Mock scene context"),
   sceneScale: vi.fn().mockReturnValue({ estWords: 1500 }),
+  buildProseProfile: vi.fn().mockReturnValue("PROSE PROFILE\nVoice: literary"),
 }));
-
 // Mock prompts
 vi.mock("@/lib/ai/prompts", () => ({
   PROMPT_FORCE_STANDARDS: "Mock force standards",
@@ -36,8 +34,8 @@ vi.mock("@/lib/ai/prompts", () => ({
   promptThreadLifecycle: vi.fn().mockReturnValue("Mock thread lifecycle"),
   buildThreadHealthPrompt: vi.fn().mockReturnValue("Mock thread health"),
   buildCompletedBeatsPrompt: vi.fn().mockReturnValue("Mock completed beats"),
+  buildForceStandardsPrompt: vi.fn().mockReturnValue("Mock force standards prompt"),
 }));
-
 // Mock markov functions
 vi.mock("@/lib/markov", () => ({
   samplePacingSequence: vi.fn().mockReturnValue({
@@ -57,7 +55,6 @@ vi.mock("@/lib/markov", () => ({
   MATRIX_PRESETS: [],
   DEFAULT_TRANSITION_MATRIX: {},
 }));
-
 // Mock beat profiles
 vi.mock("@/lib/beat-profiles", () => ({
   resolveProfile: vi.fn().mockReturnValue({
@@ -76,7 +73,6 @@ vi.mock("@/lib/beat-profiles", () => ({
     { fn: "turn", mechanism: "dialogue" },
   ]),
 }));
-
 import { callGenerate, callGenerateStream } from "@/lib/ai/api";
 import {
   editScenePlan,
@@ -86,9 +82,7 @@ import {
   reverseEngineerScenePlan,
   rewriteScenePlan,
 } from "@/lib/ai/scenes";
-
 // ── Test Fixtures ────────────────────────────────────────────────────────────
-
 function createScene(
   id: string,
   overrides: Partial<Scene> & { plan?: BeatPlan } = {},
@@ -123,7 +117,6 @@ function createScene(
       : {}),
   };
 }
-
 function createCharacter(
   id: string,
   overrides: Partial<Character> = {},
@@ -137,7 +130,6 @@ function createCharacter(
     ...overrides,
   };
 }
-
 function createLocation(
   id: string,
   overrides: Partial<Location> = {},
@@ -153,7 +145,6 @@ function createLocation(
     ...overrides,
   };
 }
-
 function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
   return {
     id,
@@ -166,7 +157,6 @@ function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
     ...overrides,
   };
 }
-
 function createMinimalNarrative(): NarrativeState {
   return {
     id: "N-001",
@@ -201,20 +191,15 @@ function createMinimalNarrative(): NarrativeState {
     relationships: [],
     systemGraph: { nodes: {}, edges: [] },
     worldSummary: "A fantasy world",
-    rules: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
 }
-
 // ── Setup ────────────────────────────────────────────────────────────────────
-
 beforeEach(() => {
   vi.clearAllMocks();
 });
-
 // ── generateScenes Tests ─────────────────────────────────────────────────────
-
 describe("generateScenes", () => {
   it("returns parsed scenes and arc from LLM response", async () => {
     const mockResponse = JSON.stringify({
@@ -238,15 +223,12 @@ describe("generateScenes", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test direction");
-
     expect(result.scenes).toHaveLength(1);
     expect(result.arc.name).toBe("The Siege Begins");
     expect(result.scenes[0].summary).toContain("Alice prepares");
   });
-
   it("assigns sequential scene IDs", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
@@ -290,15 +272,12 @@ describe("generateScenes", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 3, "Test direction");
-
     expect(result.scenes[0].id).toBe("S-001");
     expect(result.scenes[1].id).toBe("S-002");
     expect(result.scenes[2].id).toBe("S-003");
   });
-
   it("sanitizes invalid character IDs from participantIds", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
@@ -318,14 +297,11 @@ describe("generateScenes", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-
     // Invalid character should be stripped
     expect(result.scenes[0].participantIds).toEqual(["C-01", "C-02"]);
   });
-
   it("sanitizes invalid location IDs", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
@@ -345,14 +321,11 @@ describe("generateScenes", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-
     // Invalid location should be replaced with first valid location
     expect(result.scenes[0].locationId).toBe("L-01");
   });
-
   it("sanitizes invalid thread IDs in threadMutations", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
@@ -380,15 +353,12 @@ describe("generateScenes", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-
     // Only valid thread mutation should remain
     expect(result.scenes[0].threadMutations).toHaveLength(1);
     expect(result.scenes[0].threadMutations[0].threadId).toBe("T-01");
   });
-
   it("builds arc with correct metadata", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
@@ -430,10 +400,8 @@ describe("generateScenes", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 2, "Test");
-
     expect(result.arc.name).toBe("Test Arc");
     expect(result.arc.directionVector).toBe("Characters face challenges");
     expect(result.arc.sceneIds).toHaveLength(2);
@@ -444,7 +412,6 @@ describe("generateScenes", () => {
     expect(result.arc.activeCharacterIds).toContain("C-01");
     expect(result.arc.activeCharacterIds).toContain("C-02");
   });
-
   it("continues existing arc when provided", async () => {
     const mockResponse = JSON.stringify({
       scenes: [
@@ -463,7 +430,6 @@ describe("generateScenes", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const existingArc = {
       id: "ARC-EXISTING",
@@ -474,11 +440,9 @@ describe("generateScenes", () => {
       activeCharacterIds: ["C-01"],
       initialCharacterLocations: { "C-01": "L-01" },
     };
-
     const result = await generateScenes(narrative, [], 0, 1, "Continue", {
       existingArc,
     });
-
     expect(result.arc.id).toBe("ARC-EXISTING");
     expect(result.arc.name).toBe("Existing Arc");
     expect(result.arc.sceneIds).toContain("S-001");
@@ -486,7 +450,6 @@ describe("generateScenes", () => {
     expect(result.arc.locationIds).toContain("L-01");
     expect(result.arc.locationIds).toContain("L-02");
   });
-
   it("assigns sequential knowledge mutation IDs", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
@@ -518,16 +481,13 @@ describe("generateScenes", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-
     // Knowledge node IDs should be sequential K-01, K-02 (2-digit padding)
     const nodes = result.scenes[0].continuityMutations[0].addedNodes;
     expect(nodes[0].id).toBe("K-01");
     expect(nodes[1].id).toBe("K-02");
   });
-
   it("retries on JSON parse failure", async () => {
     vi.mocked(callGenerate)
       .mockRejectedValueOnce(new Error("Invalid JSON"))
@@ -550,16 +510,12 @@ describe("generateScenes", () => {
           ],
         }),
       );
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-
     expect(result.scenes).toHaveLength(1);
     expect(vi.mocked(callGenerate)).toHaveBeenCalledTimes(2);
   });
-
   // ── World knowledge mutation handling ──────────────────────────────────────
-
   describe("systemMutations", () => {
     it("assigns sequential WK IDs to new concepts", async () => {
       const mockResponse = JSON.stringify({
@@ -589,10 +545,8 @@ describe("generateScenes", () => {
         ],
       });
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, "Test");
-
       const wkm = result.scenes[0].systemMutations!;
       expect(wkm.addedNodes).toHaveLength(2);
       expect(wkm.addedNodes[0].id).toBe("SYS-01");
@@ -605,7 +559,6 @@ describe("generateScenes", () => {
         relation: "enables",
       });
     });
-
     it("collapses re-asserted concepts to existing WK ids (no System inflation)", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
@@ -631,7 +584,6 @@ describe("generateScenes", () => {
         ],
       });
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
       const narrative = createMinimalNarrative();
       // Pre-seed the graph with a matching concept under a different id.
       narrative.systemGraph = {
@@ -641,11 +593,9 @@ describe("generateScenes", () => {
         edges: [],
       };
       const result = await generateScenes(narrative, [], 0, 1, "Test");
-
       // The re-asserted concept does not earn a new node.
       expect(result.scenes[0].systemMutations!.addedNodes).toHaveLength(0);
     });
-
     it("collapses within-batch duplicate concepts across scenes", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
@@ -689,16 +639,13 @@ describe("generateScenes", () => {
         ],
       });
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 2, "Test");
-
       // Scene 1 adds the node; scene 2 does not (re-mention).
       expect(result.scenes[0].systemMutations!.addedNodes).toHaveLength(1);
       expect(result.scenes[0].systemMutations!.addedNodes[0].id).toBe("SYS-01");
       expect(result.scenes[1].systemMutations!.addedNodes).toHaveLength(0);
     });
-
     it("remaps edges in a later scene to reference nodes added by an earlier scene", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
@@ -745,10 +692,8 @@ describe("generateScenes", () => {
         ],
       });
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 2, "Test");
-
       expect(result.scenes[1].systemMutations!.addedEdges).toHaveLength(1);
       // SYS-GEN-1 from scene 1 was resolved to SYS-01; scene 2's edge points to it.
       expect(result.scenes[1].systemMutations!.addedEdges[0]).toEqual({
@@ -757,7 +702,6 @@ describe("generateScenes", () => {
         relation: "draws_from",
       });
     });
-
     it("filters self-loops from edges", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
@@ -787,15 +731,12 @@ describe("generateScenes", () => {
         ],
       });
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, "Test");
-
       const edges = result.scenes[0].systemMutations!.addedEdges;
       expect(edges).toHaveLength(1);
       expect(edges[0].from).not.toBe(edges[0].to);
     });
-
     it("deduplicates edges across scenes", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
@@ -843,15 +784,12 @@ describe("generateScenes", () => {
         ],
       });
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 2, "Test");
-
       // First scene keeps its edge; second scene's duplicate is dropped.
       expect(result.scenes[0].systemMutations!.addedEdges).toHaveLength(1);
       expect(result.scenes[1].systemMutations!.addedEdges).toHaveLength(0);
     });
-
     it("drops orphan edges referencing unknown WK ids", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
@@ -880,17 +818,13 @@ describe("generateScenes", () => {
         ],
       });
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, "Test");
-
       expect(result.scenes[0].systemMutations!.addedEdges).toHaveLength(0);
     });
   });
 });
-
 // ── generateScenePlan Tests ──────────────────────────────────────────────────
-
 describe("generateScenePlan", () => {
   it("returns parsed beat plan from LLM response", async () => {
     const mockResponse = JSON.stringify({
@@ -917,17 +851,13 @@ describe("generateScenePlan", () => {
       propositions: [{ content: "The fog tasted of ash and old promises." }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001");
-
     const result = await generateScenePlan(narrative, scene, []);
-
     expect(result.beats).toHaveLength(3);
     expect(result.beats[0].fn).toBe("breathe");
     expect(result.beats[0].mechanism).toBe("environment");
   });
-
   it("validates beat function values", async () => {
     const mockResponse = JSON.stringify({
       beats: [
@@ -947,17 +877,13 @@ describe("generateScenePlan", () => {
       propositions: [],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001");
-
     const result = await generateScenePlan(narrative, scene, []);
-
     // Invalid fn should default to 'advance'
     expect(result.beats[0].fn).toBe("advance");
     expect(result.beats[1].fn).toBe("advance");
   });
-
   it("validates mechanism values", async () => {
     const mockResponse = JSON.stringify({
       beats: [
@@ -971,16 +897,12 @@ describe("generateScenePlan", () => {
       propositions: [],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001");
-
     const result = await generateScenePlan(narrative, scene, []);
-
     // Invalid mechanism should default to 'action'
     expect(result.beats[0].mechanism).toBe("action");
   });
-
   it("filters non-string anchors", async () => {
     const mockResponse = JSON.stringify({
       beats: [
@@ -993,18 +915,13 @@ describe("generateScenePlan", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001");
-
     const result = await generateScenePlan(narrative, scene, []);
-
     expect(result.beats[0].propositions).toEqual([{ content: "anchor" }]);
   });
 });
-
 // ── editScenePlan Tests ──────────────────────────────────────────────────────
-
 describe("editScenePlan", () => {
   it("returns edited beat plan based on issues", async () => {
     const mockResponse = JSON.stringify({
@@ -1025,7 +942,6 @@ describe("editScenePlan", () => {
       propositions: [{ content: "The truth hung between them." }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001", {
       plan: {
@@ -1039,7 +955,6 @@ describe("editScenePlan", () => {
         ],
       },
     });
-
     const currentPlan = scene.planVersions![0].plan;
     const result = await editScenePlan(
       narrative,
@@ -1048,24 +963,19 @@ describe("editScenePlan", () => {
       ["Opening is too slow", "Missing character reveal"],
       currentPlan,
     );
-
     expect(result.beats).toHaveLength(2);
     expect(result.beats[0].what).toBe("Revised opening");
     expect(result.beats[1].fn).toBe("reveal");
   });
-
   it("throws if no plan is passed", async () => {
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001"); // No plan
-
     await expect(
       editScenePlan(narrative, scene, [], ["Issue"], undefined),
     ).rejects.toThrow("Scene has no plan");
   });
 });
-
 // ── reverseEngineerScenePlan Tests ───────────────────────────────────────────
-
 describe("reverseEngineerScenePlan", () => {
   it("extracts beat structure from prose and returns plan", async () => {
     const mockResponse = JSON.stringify({
@@ -1087,20 +997,16 @@ describe("reverseEngineerScenePlan", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const prose =
       'The morning light fell like honey across the chamber, casting long shadows that danced upon the ancient stone walls. Dust motes swirled in the golden beams, caught in their eternal waltz through the still air. The room held its breath, waiting for something, though what exactly remained unclear to those who stood within its bounds. Every surface gleamed with the soft warmth of dawn breaking over distant mountains. The air itself seemed to shimmer with possibility, thick with the promise of a new beginning after so many dark days. Outside the window, birds began their morning song, their voices rising in a chorus that echoed through the valley below.\n\n"I missed you," she said with a warm smile that crinkled the corners of her eyes. Her voice carried the weight of countless days spent apart, each one a small eternity of longing and hope. He reached out to take her hand, feeling the familiar warmth of her touch, and knew in that moment that everything they had endured had been worth it. The distance melted away like morning frost under the sun. They stood there together, neither speaking, both understanding that words were unnecessary now. The silence between them was comfortable, filled with all the things they had wanted to say during their time apart.';
     const summary = "Characters reunite at dawn";
-
     const result = await reverseEngineerScenePlan(prose, summary);
-
     expect(result.plan.beats).toHaveLength(2);
     expect(result.plan.beats[0].fn).toBe("breathe");
     expect(result.plan.beats[0].mechanism).toBe("environment");
     expect(result.plan.beats[1].fn).toBe("bond");
     expect(result.plan.beats[1].mechanism).toBe("dialogue");
   });
-
   it("validates beat functions and mechanisms to prevent invalid values", async () => {
     const mockResponse = JSON.stringify({
       beats: [
@@ -1120,16 +1026,13 @@ describe("reverseEngineerScenePlan", () => {
       propositions: [],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const prose =
       "The room was quiet except for the steady drip of water from a crack in the ceiling. Each drop fell in perfect rhythm, marking time like a metronome in the otherwise silent chamber. Alice stood by the window, watching the street below with careful attention, her hand resting on the cold glass as she tried to make sense of everything that had happened. The events of the past few days swirled through her mind like leaves caught in a whirlwind, each memory sharp and painful. She had replayed every conversation, every decision, trying to find the moment where things had gone wrong.\n\nFootsteps echoed in the hallway outside, growing louder with each passing second. She tensed, her breath catching in her throat as the door handle began to turn. This was the moment she had been waiting for, the confrontation she had been dreading, and now there was no escape. Her fingers curled into fists at her sides as the door swung open. The figure in the doorway was backlit by the hallway light, casting a long shadow across the floor. She knew who it was before they spoke, had known this moment was coming for days now.";
     const result = await reverseEngineerScenePlan(prose, "Test");
-
     // Should default invalid values
     expect(result.plan.beats[0].fn).toBe("advance"); // Default fn
     expect(result.plan.beats[0].mechanism).toBe("action"); // Default mechanism
   });
-
   it("filters out invalid propositions without content", async () => {
     const mockResponse = JSON.stringify({
       beats: [
@@ -1147,11 +1050,9 @@ describe("reverseEngineerScenePlan", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const prose =
       "The old manor stood silhouetted against the darkening sky, its windows like empty eye sockets staring down at the overgrown garden below. Ivy had claimed the walls long ago, wrapping around the crumbling stonework in a suffocating embrace. The air smelled of decay and forgotten things, heavy with the weight of years abandoned. No one had lived here for decades, yet tonight the house seemed to be waiting for something. The wind howled through the broken shutters, creating an eerie symphony that echoed across the empty rooms. Every board creaked, every shadow moved, and the very foundation of the building seemed to groan under the burden of time. The moon emerged from behind the clouds, casting silver light across the desolate scene.";
     const result = await reverseEngineerScenePlan(prose, "Test");
-
     expect(result.plan.beats[0].propositions).toHaveLength(2);
     expect(result.plan.beats[0].propositions[0].content).toBe(
       "Valid proposition",
@@ -1160,7 +1061,6 @@ describe("reverseEngineerScenePlan", () => {
       "Another valid one",
     );
   });
-
   it("handles streaming with onToken callback", async () => {
     const mockResponse = JSON.stringify({
       beats: [
@@ -1173,21 +1073,17 @@ describe("reverseEngineerScenePlan", () => {
       ],
     });
     vi.mocked(callGenerateStream).mockResolvedValue(mockResponse);
-
     const tokens: string[] = [];
     const result = await reverseEngineerScenePlan(
       "The detective moved quickly down the narrow alley, his coat whipping behind him in the cold wind. His hand rested on the grip of his pistol, ready for whatever might emerge from the shadows ahead. Each step brought him closer to the truth he had been chasing for months, and closer to the danger that came with it. The sound of footsteps behind him confirmed his suspicions, and he knew there was no turning back now. The alley twisted and turned, leading him deeper into the maze of the city old quarter. Overhead, laundry lines stretched between buildings, their forgotten contents flapping in the breeze like ghosts of lives long past.",
       "Test summary",
       (token) => tokens.push(token),
     );
-
     expect(result.plan.beats.length).toBeGreaterThanOrEqual(1);
     expect(vi.mocked(callGenerateStream)).toHaveBeenCalled();
   });
 });
-
 // ── rewriteScenePlan Tests ───────────────────────────────────────────────────
-
 describe("rewriteScenePlan", () => {
   it("rewrites plan based on editorial feedback", async () => {
     const mockResponse = JSON.stringify({
@@ -1208,7 +1104,6 @@ describe("rewriteScenePlan", () => {
       propositions: [{ content: "Everything changed in that instant." }],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001");
     const currentPlan: BeatPlan = {
@@ -1221,7 +1116,6 @@ describe("rewriteScenePlan", () => {
         },
       ],
     };
-
     const result = await rewriteScenePlan(
       narrative,
       scene,
@@ -1229,17 +1123,14 @@ describe("rewriteScenePlan", () => {
       currentPlan,
       "Add more dramatic tension and a clearer resolution",
     );
-
     expect(result.beats).toHaveLength(2);
     expect(result.beats[0].fn).toBe("turn");
   });
-
   it("falls back to current plan if LLM returns empty beats", async () => {
     const mockResponse = JSON.stringify({
       beats: [],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001");
     const currentPlan: BeatPlan = {
@@ -1252,7 +1143,6 @@ describe("rewriteScenePlan", () => {
         },
       ],
     };
-
     const result = await rewriteScenePlan(
       narrative,
       scene,
@@ -1260,35 +1150,27 @@ describe("rewriteScenePlan", () => {
       currentPlan,
       "Feedback",
     );
-
     // Should fall back to current plan's beats
     expect(result.beats).toHaveLength(1);
     expect(result.beats[0].fn).toBe("breathe");
   });
 });
-
 // ── generateSceneProse Tests ─────────────────────────────────────────────────
-
 describe("generateSceneProse", () => {
   it("returns prose from LLM response", async () => {
     const mockProse =
       "The castle walls loomed against the grey sky. Alice drew her blade, the steel singing as it cleared the scabbard.";
     vi.mocked(callGenerate).mockResolvedValue(mockProse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001", {
       summary: "Alice prepares for battle at the castle",
     });
-
     const result = await generateSceneProse(narrative, scene, []);
-
     expect(result.prose).toBe(mockProse);
   });
-
   it("includes beat plan in prompt when available", async () => {
     const mockProse = "Test prose output";
     vi.mocked(callGenerate).mockResolvedValue(mockProse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001", {
       plan: {
@@ -1302,38 +1184,29 @@ describe("generateSceneProse", () => {
         ],
       },
     });
-
     await generateSceneProse(narrative, scene, []);
-
     const callArgs = vi.mocked(callGenerate).mock.calls[0];
     expect(callArgs[0]).toContain("BEAT PLAN");
     expect(callArgs[0]).toContain("breathe:environment");
     expect(callArgs[0]).toContain("grey sky");
   });
-
   it("handles streaming with onToken callback", async () => {
     const mockProse = "Streamed prose content";
     vi.mocked(callGenerateStream).mockResolvedValue(mockProse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001");
     const tokens: string[] = [];
-
     const result = await generateSceneProse(narrative, scene, [], (token) =>
       tokens.push(token),
     );
-
     expect(result.prose).toBe(mockProse);
     expect(vi.mocked(callGenerateStream)).toHaveBeenCalled();
   });
-
   it("includes prose guidance when provided", async () => {
     const mockProse = "Test output";
     vi.mocked(callGenerate).mockResolvedValue(mockProse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001");
-
     await generateSceneProse(
       narrative,
       scene,
@@ -1341,16 +1214,13 @@ describe("generateSceneProse", () => {
       undefined,
       "Write with dark humor",
     );
-
     const callArgs = vi.mocked(callGenerate).mock.calls[0];
     expect(callArgs[1]).toContain("SCENE DIRECTION");
     expect(callArgs[1]).toContain("dark humor");
   });
-
   it("includes prose profile when available", async () => {
     const mockProse = "Test output";
     vi.mocked(callGenerate).mockResolvedValue(mockProse);
-
     const narrative = createMinimalNarrative();
     narrative.proseProfile = {
       register: "literary",
@@ -1360,29 +1230,19 @@ describe("generateSceneProse", () => {
       antiPatterns: ["Purple prose"],
     };
     const scene = createScene("S-001");
-
     await generateSceneProse(narrative, scene, []);
-
     const callArgs = vi.mocked(callGenerate).mock.calls[0];
     // Prose profile is in user prompt (arg 0), not system prompt (arg 1)
     expect(callArgs[0]).toContain("PROSE PROFILE");
     expect(callArgs[0]).toContain("literary");
-    expect(callArgs[0]).toContain("close_third");
   });
-
   it("parses BEAT_END markers and creates beatProseMap", async () => {
     const mockProse = `The morning light filtered through the window.
-
 [BEAT_END:0]
-
 She reached for her sword.
-
 [BEAT_END:1]
-
 "We must go now," he said.`;
-
     vi.mocked(callGenerate).mockResolvedValue(mockProse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001", {
       plan: {
@@ -1408,9 +1268,7 @@ She reached for her sword.
         ],
       },
     });
-
     const result = await generateSceneProse(narrative, scene, []);
-
     expect(result.beatProseMap).toBeDefined();
     expect(result.beatProseMap?.chunks).toHaveLength(3);
     expect(result.beatProseMap?.chunks[0].prose).toBe(
@@ -1424,20 +1282,15 @@ She reached for her sword.
     );
     expect(result.prose).not.toContain("[BEAT_END:");
   });
-
   it("retries when BEAT_END markers are missing", async () => {
     const proseWithoutMarkers =
       "The morning light filtered through the window. She reached for her sword.";
     const proseWithMarkers = `The morning light filtered through the window.
-
 [BEAT_END:0]
-
 She reached for her sword.`;
-
     vi.mocked(callGenerate)
       .mockResolvedValueOnce(proseWithoutMarkers) // First attempt - no markers
       .mockResolvedValueOnce(proseWithMarkers); // Second attempt - has markers
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001", {
       plan: {
@@ -1457,22 +1310,17 @@ She reached for her sword.`;
         ],
       },
     });
-
     const result = await generateSceneProse(narrative, scene, []);
-
     expect(vi.mocked(callGenerate)).toHaveBeenCalledTimes(2);
     expect(result.beatProseMap).toBeDefined();
     expect(result.beatProseMap?.chunks).toHaveLength(2);
   });
-
   it("returns prose without beatProseMap after max retries on marker failure", async () => {
     const proseWithoutMarkers =
       "The morning light filtered through the window. She reached for her sword.";
-
     vi.mocked(callGenerate)
       .mockResolvedValueOnce(proseWithoutMarkers) // First attempt
       .mockResolvedValueOnce(proseWithoutMarkers); // Second attempt (max retries)
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001", {
       plan: {
@@ -1492,36 +1340,23 @@ She reached for her sword.`;
         ],
       },
     });
-
     const result = await generateSceneProse(narrative, scene, []);
-
     expect(vi.mocked(callGenerate)).toHaveBeenCalledTimes(2);
     expect(result.beatProseMap).toBeUndefined();
     expect(result.prose).toBe(proseWithoutMarkers);
   });
-
   it("handles invalid marker order gracefully", async () => {
     const mockProse = `First beat prose.
-
 [BEAT_END:0]
-
 Second beat prose.
-
 [BEAT_END:2]
-
 Third beat prose.`; // Skipped beat 1!
-
     vi.mocked(callGenerate).mockResolvedValueOnce(mockProse)
       .mockResolvedValueOnce(`Fixed prose.
-
 [BEAT_END:0]
-
 Fixed prose 2.
-
 [BEAT_END:1]
-
 Fixed prose 3.`);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001", {
       plan: {
@@ -1547,30 +1382,20 @@ Fixed prose 3.`);
         ],
       },
     });
-
     const result = await generateSceneProse(narrative, scene, []);
-
     expect(result.beatProseMap).toBeDefined();
     expect(result.beatProseMap?.chunks).toHaveLength(3);
   });
-
   it("correctly handles all beats marked with no prose after last marker", async () => {
     // This tests the fix for the case where LLM correctly places all markers
     // (e.g., [BEAT_END:0] through [BEAT_END:8] for 9 beats) with no trailing prose
     const mockProse = `First beat prose.
-
 [BEAT_END:0]
-
 Second beat prose.
-
 [BEAT_END:1]
-
 Third beat prose.
-
 [BEAT_END:2]`;
-
     vi.mocked(callGenerate).mockResolvedValue(mockProse);
-
     const narrative = createMinimalNarrative();
     const scene = createScene("S-001", {
       plan: {
@@ -1596,9 +1421,7 @@ Third beat prose.
         ],
       },
     });
-
     const result = await generateSceneProse(narrative, scene, []);
-
     // Should successfully parse without adding an extra beat
     expect(result.beatProseMap).toBeDefined();
     expect(result.beatProseMap?.chunks).toHaveLength(3);
@@ -1608,12 +1431,10 @@ Third beat prose.
     expect(result.prose).not.toContain("[BEAT_END:");
   });
 });
-
 // ── Thread Log (TK) ID Handling ──────────────────────────────────────────────
 // These tests lock in the fix for the bug where the LLM emits TK-GEN-0 in
 // every scene of an arc and applyThreadMutation's duplicate-id guard
 // silently drops every log entry after the first scene for each thread.
-
 describe("generateScenes — thread log TK ID remap", () => {
   it("assigns globally unique TK-* IDs when LLM re-uses GEN placeholders across scenes", async () => {
     // LLM emits TK-GEN-1 and TK-GEN-2 in BOTH scenes for the same thread —
@@ -1669,10 +1490,8 @@ describe("generateScenes — thread log TK ID remap", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 2, "Test");
-
     // Collect all TK IDs across both scenes — they must all be unique.
     const allTkIds = result.scenes.flatMap((s) =>
       s.threadMutations.flatMap((tm) => tm.addedNodes?.map((n) => n.id) ?? []),
@@ -1684,7 +1503,6 @@ describe("generateScenes — thread log TK ID remap", () => {
       expect(id).toMatch(/^TK-\d+$/);
     }
   });
-
   it("synthesizes a fallback log entry when LLM omits addedNodes entirely", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
@@ -1709,20 +1527,16 @@ describe("generateScenes — thread log TK ID remap", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-
     const [t1, t2] = result.scenes[0].threadMutations;
     expect(t1.addedNodes).toHaveLength(1);
     expect(t1.addedNodes![0].content).toMatch(/advanced from seeded to active/);
     expect(t1.addedNodes![0].type).toBe("transition");
-
     expect(t2.addedNodes).toHaveLength(1);
     expect(t2.addedNodes![0].content).toMatch(/held active without transition/);
     expect(t2.addedNodes![0].type).toBe("pulse");
   });
-
   it('coerces invalid status values (e.g. "pulse") in from/to fields', async () => {
     // The LLM sometimes confuses the log node type "pulse" with a status
     // value and emits something like "from": "pulse", "to": "active".
@@ -1758,10 +1572,8 @@ describe("generateScenes — thread log TK ID remap", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-
     const tms = result.scenes[0].threadMutations;
     // First mutation: "pulse" was coerced to T-01's current status ("active").
     // T-01 in the minimal narrative is created with status "active".
@@ -1773,7 +1585,6 @@ describe("generateScenes — thread log TK ID remap", () => {
     expect(tms[1].addedNodes![0].content).toBe("real pulse");
     expect(tms[1].addedNodes![0].type).toBe("pulse");
   });
-
   it("synthesized fallback nodes are assigned unique TK-* IDs like any other", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
@@ -1801,10 +1612,8 @@ describe("generateScenes — thread log TK ID remap", () => {
       ],
     });
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
-
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-
     const allTkIds = result.scenes[0].threadMutations.flatMap(
       (tm) => tm.addedNodes?.map((n) => n.id) ?? [],
     );

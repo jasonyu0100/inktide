@@ -262,20 +262,6 @@ export type RelationshipMutation = {
   valenceDelta: number;
 };
 
-// ── World Systems ──────────────────────────────────────────────────────────
-
-export type WorldSystem = {
-  id: string;
-  name: string;
-  description: string;
-  /** Core principles — how this system works */
-  principles: string[];
-  /** Hard constraints — limits, costs, scarcity rules */
-  constraints: string[];
-  /** Cross-system interactions — how this connects to other systems */
-  interactions: string[];
-};
-
 // ── Prose Profile & Beat Plans ───────────────────────────────────────────────
 
 /** Beat function — what the beat DOES in the scene's structure */
@@ -825,7 +811,7 @@ export type PlanEvaluation = {
   patterns: string[];
 };
 
-/** A timeline entry is either a narrative scene or a world build */
+/** A timeline entry is a scene or world build. */
 export type TimelineEntry = Scene | WorldBuild;
 
 export function isScene(entry: TimelineEntry): entry is Scene {
@@ -899,10 +885,6 @@ export type NarrativeState = {
   /** Derived cache — cumulative world knowledge graph built from world-build manifests + scene mutations */
   systemGraph: SystemGraph;
   worldSummary: string;
-  /** World rules / commandments that the narrative must follow */
-  rules: string[];
-  /** Structured world systems — layered mechanics that define how the world works */
-  worldSystems?: WorldSystem[];
   /** Authorial prose profile — voice, rhythm, and beat transition patterns for prose generation */
   proseProfile?: ProseProfile;
   coverImageUrl?: ImageRef;
@@ -920,6 +902,10 @@ export type NarrativeState = {
   proseEvaluations?: Record<string, ProseEvaluation>;
   /** Plan evaluations keyed by branch ID — most recent plan eval per branch */
   planEvaluations?: Record<string, PlanEvaluation>;
+  /** Positive patterns — commandments defining what makes this series good (used by Orchestrator agent) */
+  patterns?: string[];
+  /** Anti-patterns — commandments defining what to avoid (used by Adversarial agent) */
+  antiPatterns?: string[];
   createdAt: number;
   updatedAt: number;
 };
@@ -1223,8 +1209,6 @@ export type ApiLogEntry = {
   narrativeId?: string;
   /** Analysis this call belongs to */
   analysisId?: string;
-  /** Discovery this call belongs to */
-  discoveryId?: string;
   status: "pending" | "success" | "error";
   durationMs: number | null;
   promptTokens: number;
@@ -1280,8 +1264,6 @@ export type SystemLogEntry = {
   narrativeId?: string;
   /** Analysis this log belongs to */
   analysisId?: string;
-  /** Discovery this log belongs to */
-  discoveryId?: string;
 };
 
 // ── Text Analysis ────────────────────────────────────────────────────────────
@@ -1404,49 +1386,24 @@ export type AnalysisJob = {
   updatedAt: number;
 };
 
-// ── Discovery Inquiries ──────────────────────────────────────────────────────
+// ── Narrative View State ─────────────────────────────────────────────────────
+// UI state that is scoped to a specific narrative — swapped automatically when switching narratives.
+// Persisted per-narrative in IndexedDB and restored when the narrative is loaded.
 
-import type {
-  PremiseDecision,
-  PremiseEdge,
-  PremiseEntity,
-  PremiseQuestion,
-  PremiseSystemSketch,
-} from "@/lib/ai/premise";
-
-export type DiscoveryPhase = "systems" | "rules" | "cast" | "threads";
-
-export type DiscoverySnapshot = {
-  decisions: PremiseDecision[];
-  entities: PremiseEntity[];
-  edges: PremiseEdge[];
-  rules: string[];
-  systems: PremiseSystemSketch[];
-  title: string;
-  worldSummary: string;
-  currentQuestion: PremiseQuestion | null;
-  phase: "seed" | DiscoveryPhase;
-};
-
-export type DiscoveryInquiryState = {
-  seed: string;
-  decisions: PremiseDecision[];
-  entities: PremiseEntity[];
-  edges: PremiseEdge[];
-  rules: string[];
-  systems: PremiseSystemSketch[];
-  title: string;
-  worldSummary: string;
-  currentQuestion: PremiseQuestion | null;
-  phase: "seed" | DiscoveryPhase;
-  history?: DiscoverySnapshot[];
-};
-
-export type DiscoveryInquiry = {
-  id: string;
-  createdAt: number;
-  updatedAt: number;
-  state: DiscoveryInquiryState;
+export type NarrativeViewState = {
+  activeBranchId: string | null;
+  currentSceneIndex: number;
+  inspectorContext: InspectorContext | null;
+  inspectorHistory: InspectorContext[];
+  selectedKnowledgeEntity: string | null;
+  selectedThreadLog: string | null;
+  currentSearchQuery: SearchQuery | null;
+  currentResultIndex: number;
+  searchFocusMode: boolean;
+  activeChatThreadId: string | null;
+  activeNoteId: string | null;
+  autoRunState: AutoRunState | null;
+  isPlaying: boolean;
 };
 
 // ── App State ────────────────────────────────────────────────────────────────
@@ -1479,22 +1436,12 @@ export type ThreadSketch = {
   participantNames: string[];
 };
 
-export type WorldSystemSketch = {
-  name: string;
-  description: string;
-  principles: string[];
-  constraints: string[];
-  interactions: string[];
-};
-
 export type WizardData = {
   title: string;
   premise: string;
   characters: CharacterSketch[];
   locations: LocationSketch[];
   threads: ThreadSketch[];
-  rules: string[];
-  worldSystems: WorldSystemSketch[];
   proseProfile?: ProseProfile;
   /** When true: generate world entities only — no introduction arc or scenes. Premise is treated as the full world plan document. */
   worldOnly?: boolean;
@@ -1538,37 +1485,20 @@ export type Note = {
 };
 
 export type AppState = {
+  // App-level
   narratives: NarrativeEntry[];
   activeNarrativeId: string | null;
   activeNarrative: NarrativeState | null;
-  isPlaying: boolean;
-  currentSceneIndex: number;
-  activeBranchId: string | null;
-  /** Ordered timeline entry IDs (scenes + world builds) for the active branch, resolved across parent branches */
-  resolvedEntryKeys: string[];
-  inspectorContext: InspectorContext | null;
-  inspectorHistory: InspectorContext[];
-  wizardOpen: boolean;
-  wizardStep: WizardStep;
-  wizardData: WizardData;
-  selectedKnowledgeEntity: string | null;
-  selectedThreadLog: string | null;
-  graphViewMode: GraphViewMode;
-  /** Current search query and results (persisted) */
-  currentSearchQuery: SearchQuery | null;
-  /** Index of currently focused search result (0-based) */
-  currentResultIndex: number;
-  /** Whether search UI is active/visible */
-  searchFocusMode: boolean;
-  autoConfig: AutoConfig;
-  autoRunState: AutoRunState | null;
-  apiLogs: ApiLogEntry[];
-  systemLogs: SystemLogEntry[];
   analysisJobs: AnalysisJob[];
-  activeChatThreadId: string | null;
-  activeNoteId: string | null;
-  beatProfilePresets: BeatProfilePreset[];
-  mechanismProfilePresets: MechanismProfilePreset[];
+
+  // Global preferences
+  graphViewMode: GraphViewMode;
+  autoConfig: AutoConfig;
+
+  // Narrative-scoped (swapped on narrative switch)
+  viewState: NarrativeViewState;
+  /** Derived: Ordered timeline entry IDs (scenes + world builds) for the active branch */
+  resolvedEntryKeys: string[];
 };
 
 export type BeatProfilePreset = {

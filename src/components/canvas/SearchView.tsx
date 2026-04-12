@@ -58,7 +58,7 @@ export function SearchView() {
       return;
     }
 
-    const savedSearch = state.currentSearchQuery;
+    const savedSearch = state.viewState.currentSearchQuery;
     if (savedSearch && savedSearch.synthesis) {
       setQuery(savedSearch.query);
 
@@ -93,7 +93,7 @@ export function SearchView() {
       setErrorMessage(null);
     }
     setIsLoaded(true);
-  }, [state.activeNarrative?.id, state.currentSearchQuery]);
+  }, [state.activeNarrative?.id, state.viewState.currentSearchQuery]);
 
   // Listen for clear search event from top bar
   useEffect(() => {
@@ -219,19 +219,19 @@ export function SearchView() {
   const getSceneInfo = useCallback(
     (sceneId: string, beatIndex?: number) => {
       const narrative = state.activeNarrative;
-      if (!narrative || !state.activeBranchId) return null;
+      if (!narrative || !state.viewState.activeBranchId) return null;
 
       const scene = narrative.scenes[sceneId];
       if (!scene) return null;
 
       const proseData = resolveProseForBranch(
         scene,
-        state.activeBranchId,
+        state.viewState.activeBranchId,
         narrative.branches,
       );
       const planData = resolvePlanForBranch(
         scene,
-        state.activeBranchId,
+        state.viewState.activeBranchId,
         narrative.branches,
       );
 
@@ -267,7 +267,7 @@ export function SearchView() {
         sceneIndex,
       };
     },
-    [state.activeNarrative, state.activeBranchId, state.resolvedEntryKeys],
+    [state.activeNarrative, state.viewState.activeBranchId, state.resolvedEntryKeys],
   );
 
   const navigateToCitation = useCallback(
@@ -436,11 +436,11 @@ export function SearchView() {
           {response && response.citations.length > 0 && (
             <div>
               {/* Timeline heat curve */}
-              {state.currentSearchQuery &&
+              {state.viewState.currentSearchQuery &&
                 (() => {
                   const timeline = showDetailTimeline
-                    ? state.currentSearchQuery.detailTimeline
-                    : state.currentSearchQuery.sceneTimeline;
+                    ? state.viewState.currentSearchQuery.detailTimeline
+                    : state.viewState.currentSearchQuery.sceneTimeline;
 
                   if (!timeline || timeline.length === 0) return null;
 

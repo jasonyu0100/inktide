@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { useWizard } from '@/lib/wizard-context';
 import { IconChevronDown } from '@/components/icons';
 import AppShell from '@/components/layout/AppShell';
 import Sidebar from '@/components/sidebar/Sidebar';
@@ -27,8 +28,6 @@ import { useBulkGenerate } from '@/hooks/useBulkGenerate';
 import { useBulkAudioGenerate } from '@/hooks/useBulkAudioGenerate';
 import { ForceAnalytics } from '@/components/analytics/ForceAnalytics';
 import { CastAnalytics } from '@/components/analytics/CastAnalytics';
-import RulesPanel from '@/components/layout/RulesPanel';
-import WorldSystemsPanel from '@/components/layout/WorldSystemsPanel';
 import ProseProfilePanel from '@/components/layout/ProseProfilePanel';
 import { MCTSPanel } from '@/components/mcts/MCTSPanel';
 import { ModeControlBar } from '@/components/generation/ModeControlBar';
@@ -53,6 +52,7 @@ export default function SeriesPage() {
   const params = useParams();
   const router = useRouter();
   const { state, dispatch } = useStore();
+  const { state: wizardState } = useWizard();
   const isMobile = useIsMobile();
   const [generateOpen, setGenerateOpen] = useState(false);
   const [forkOpen, setForkOpen] = useState(false);
@@ -61,8 +61,6 @@ export default function SeriesPage() {
   const [cubeViewerOpen, setCubeViewerOpen] = useState(false);
   const [forceAnalyticsOpen, setForceAnalyticsOpen] = useState(false);
   const [castAnalyticsOpen, setCastAnalyticsOpen] = useState(false);
-  const [rulesOpen, setRulesOpen] = useState(false);
-  const [worldSystemsOpen, setWorldSystemsOpen] = useState(false);
   const [proseProfileOpen, setProseProfileOpen] = useState(false);
   const [mctsOpen, setMctsOpen] = useState(false);
   const [storySettingsOpen, setStorySettingsOpen] = useState(false);
@@ -96,8 +94,6 @@ export default function SeriesPage() {
     function handleOpenCubeViewer() { setCubeViewerOpen(true); }
     function handleOpenForceAnalytics() { setForceAnalyticsOpen(true); }
     function handleOpenCastAnalytics() { setCastAnalyticsOpen(true); }
-    function handleOpenRules() { setRulesOpen(true); }
-    function handleOpenWorldSystems() { setWorldSystemsOpen(true); }
     function handleOpenProseProfile() { setProseProfileOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
     function handleOpenStorySettings() { setStorySettingsOpen(true); }
@@ -108,8 +104,6 @@ export default function SeriesPage() {
     window.addEventListener('open-cube-viewer', handleOpenCubeViewer);
     window.addEventListener('open-force-analytics', handleOpenForceAnalytics);
     window.addEventListener('open-cast-analytics', handleOpenCastAnalytics);
-    window.addEventListener('open-rules-panel', handleOpenRules);
-    window.addEventListener('open-world-systems-panel', handleOpenWorldSystems);
     window.addEventListener('open-prose-profile', handleOpenProseProfile);
     window.addEventListener('open-mcts-panel', handleOpenMcts);
     window.addEventListener('open-story-settings', handleOpenStorySettings);
@@ -121,8 +115,6 @@ export default function SeriesPage() {
       window.removeEventListener('open-cube-viewer', handleOpenCubeViewer);
       window.removeEventListener('open-force-analytics', handleOpenForceAnalytics);
       window.removeEventListener('open-cast-analytics', handleOpenCastAnalytics);
-      window.removeEventListener('open-rules-panel', handleOpenRules);
-      window.removeEventListener('open-world-systems-panel', handleOpenWorldSystems);
       window.removeEventListener('open-prose-profile', handleOpenProseProfile);
       window.removeEventListener('open-mcts-panel', handleOpenMcts);
       window.removeEventListener('open-story-settings', handleOpenStorySettings);
@@ -153,7 +145,7 @@ export default function SeriesPage() {
     );
   }
 
-  const showAutoBar = state.autoRunState && (state.autoRunState.isRunning || state.autoRunState.isPaused || state.autoRunState.log.length > 0);
+  const showAutoBar = state.viewState.autoRunState && (state.viewState.autoRunState.isRunning || state.viewState.autoRunState.isPaused || state.viewState.autoRunState.log.length > 0);
   const showMctsBar = mcts.runState.status !== 'idle' || Object.keys(mcts.runState.tree.nodes).length > 0;
   const showBulkBar = bulk.runState !== null;
   const showBulkAudioBar = bulkAudio.runState !== null;
@@ -211,8 +203,8 @@ export default function SeriesPage() {
                 isRunning={autoPlay.isRunning}
                 isPaused={autoPlay.isPaused}
                 currentCycle={autoPlay.currentCycle}
-                totalScenes={state.autoRunState?.totalScenesGenerated ?? 0}
-                statusMessage={state.autoRunState?.statusMessage ?? ''}
+                totalScenes={state.viewState.autoRunState?.totalScenesGenerated ?? 0}
+                statusMessage={state.viewState.autoRunState?.statusMessage ?? ''}
                 log={autoPlay.log}
                 onPause={autoPlay.pause}
                 onResume={autoPlay.resume}
@@ -260,7 +252,7 @@ export default function SeriesPage() {
           </div>
         </div>
       </AppShell>
-      {state.wizardOpen && <CreationWizard />}
+      {wizardState.isOpen && <CreationWizard />}
       {generateOpen && <GeneratePanel onClose={() => setGenerateOpen(false)} />}
       {forkOpen && <BranchModal onClose={() => setForkOpen(false)} />}
       {autoSettingsOpen && (
@@ -280,8 +272,6 @@ export default function SeriesPage() {
       )}
       {forceAnalyticsOpen && <ForceAnalytics onClose={() => setForceAnalyticsOpen(false)} />}
       {castAnalyticsOpen && <CastAnalytics onClose={() => setCastAnalyticsOpen(false)} />}
-      {rulesOpen && <RulesPanel onClose={() => setRulesOpen(false)} />}
-      {worldSystemsOpen && <WorldSystemsPanel onClose={() => setWorldSystemsOpen(false)} />}
       {proseProfileOpen && <ProseProfilePanel onClose={() => setProseProfileOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}
       {planningQueueOpen && (

@@ -252,15 +252,15 @@ export function CanvasTopBar() {
   // ── Current scene ──────────────────────────────────────────────────────
   const currentScene = useMemo<Scene | null>(() => {
     if (!narrative) return null;
-    const key = state.resolvedEntryKeys[state.currentSceneIndex];
+    const key = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
     if (!key) return null;
     const entry = resolveEntry(narrative, key);
     return entry && isScene(entry) ? entry : null;
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   // ── Version state ────────────────────────────────────────────────────
   const branches = narrative?.branches ?? {};
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
 
   const currentProseVersion = useMemo(() => {
     if (!currentScene || !branchId) return undefined;
@@ -376,10 +376,10 @@ export function CanvasTopBar() {
     }
     let currentArc = 0;
     for (let i = arcOrder.length - 1; i >= 0; i--) {
-      if (state.currentSceneIndex >= arcOrder[i].firstTlIdx) { currentArc = i + 1; break; }
+      if (state.viewState.currentSceneIndex >= arcOrder[i].firstTlIdx) { currentArc = i + 1; break; }
     }
     return { total: arcOrder.length, currentArc, arcOrder };
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   // ── Scene navigation ──────────────────────────────────────────────────
   const sceneNav = useMemo(() => {
@@ -390,10 +390,10 @@ export function CanvasTopBar() {
     }
     let currentSceneNum = 0;
     for (let i = 0; i < sceneIndices.length; i++) {
-      if (sceneIndices[i] <= state.currentSceneIndex) currentSceneNum = i + 1;
+      if (sceneIndices[i] <= state.viewState.currentSceneIndex) currentSceneNum = i + 1;
     }
     return { sceneIndices, total: sceneIndices.length, currentSceneNum };
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   // ── Inline editing ────────────────────────────────────────────────────
   const [editField, setEditField] = useState<'scene' | 'arc' | null>(null);
@@ -427,8 +427,11 @@ export function CanvasTopBar() {
   }, [editValue, editField, sceneNav, arcNav, dispatch]);
 
   const switchMode = useCallback((mode: CanvasMode) => {
-    if (mode === 'graph') dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: lastGraphModeRef.current });
-    else dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode });
+    if (mode === 'graph') {
+      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: lastGraphModeRef.current });
+    } else {
+      dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode });
+    }
   }, [dispatch]);
 
   const inputClass = "w-8 bg-white/5 text-center text-[10px] font-mono text-text-primary rounded px-1 py-0.5 outline-none border border-white/15 focus:border-white/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
@@ -666,7 +669,10 @@ export function CanvasTopBar() {
             { mode: 'audio' as CanvasMode, Icon: IconWaveform, label: 'Audio', sceneOnly: true },
             { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', sceneOnly: false },
           ]
-            .filter(({ sceneOnly }) => !sceneOnly || currentScene)
+            .filter(({ sceneOnly }) => {
+              if (sceneOnly && !currentScene) return false;
+              return true;
+            })
             .map(({ mode, Icon, label }, idx) => {
               const isActive = canvasMode === mode;
               return (

@@ -1,13 +1,12 @@
 "use client";
 
-import { IconChevronRight, IconQuestion } from "@/components/icons";
 import { generateNarrative, suggestPremise } from "@/lib/ai";
 import { useStore } from "@/lib/store";
+import { useWizard } from "@/lib/wizard-context";
 import type {
   CharacterSketch,
   LocationSketch,
   ThreadSketch,
-  WorldSystemSketch,
   ArchetypeKey,
 } from "@/types/narrative";
 import { ARCHETYPE_FORCE_TARGETS, ARCHETYPES } from "@/lib/narrative-utils";
@@ -20,15 +19,14 @@ const ROLES: CharacterSketch["role"][] = ["anchor", "recurring", "transient"];
 export function CreationWizard() {
   const router = useRouter();
   const { state, dispatch } = useStore();
-  const wd = state.wizardData;
-  const isGenerating = state.wizardStep === "generate";
-  const isDetails = state.wizardStep === "details";
+  const { state: wizardState, dispatch: wizardDispatch } = useWizard();
+  const wd = wizardState.data;
+  const isGenerating = wizardState.step === "generate";
+  const isDetails = wizardState.step === "details";
 
   const [loading, setLoading] = useState(false);
   const [streamText, setStreamText] = useState("");
   const [error, setError] = useState("");
-  const [ruleDraft, setRuleDraft] = useState("");
-  const [addingRule, setAddingRule] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const started = useRef(false);
 
@@ -41,7 +39,7 @@ export function CreationWizard() {
   const canGenerate = !!wd.title.trim() && !!wd.premise.trim() && !isDuplicate;
 
   function update(data: Partial<typeof wd>) {
-    dispatch({ type: "UPDATE_WIZARD_DATA", data });
+    wizardDispatch({ type: "UPDATE_DATA", data });
   }
 
   // ── Characters ───────────────────────────────────────────────────────
@@ -88,84 +86,6 @@ export function CreationWizard() {
   }
   function removeThread(i: number) {
     update({ threads: wd.threads.filter((_, idx) => idx !== i) });
-  }
-
-  // ── Rules ────────────────────────────────────────────────────────────
-  function addRule() {
-    const text = ruleDraft.trim();
-    if (!text) return;
-    update({ rules: [...wd.rules, text] });
-    setRuleDraft("");
-    setAddingRule(false);
-  }
-  function removeRule(i: number) {
-    update({ rules: wd.rules.filter((_, idx) => idx !== i) });
-  }
-
-  // ── World Systems ──────────────────────────────────────────────────
-  const [addingSystem, setAddingSystem] = useState(false);
-  const [systemDraft, setSystemDraft] = useState({ name: "", description: "" });
-  const [expandedSystem, setExpandedSystem] = useState<number | null>(null);
-  const [sysPropDrafts, setSysPropDrafts] = useState<
-    Record<number, Record<string, string>>
-  >({});
-
-  function addSystem() {
-    if (!systemDraft.name.trim()) return;
-    const sys: WorldSystemSketch = {
-      name: systemDraft.name.trim(),
-      description: systemDraft.description.trim(),
-      principles: [],
-      constraints: [],
-      interactions: [],
-    };
-    update({ worldSystems: [...wd.worldSystems, sys] });
-    setSystemDraft({ name: "", description: "" });
-    setAddingSystem(false);
-    setExpandedSystem(wd.worldSystems.length);
-  }
-  function removeSystem(i: number) {
-    update({ worldSystems: wd.worldSystems.filter((_, idx) => idx !== i) });
-    if (expandedSystem === i) setExpandedSystem(null);
-  }
-  function addSysProp(
-    i: number,
-    field: "principles" | "constraints" | "interactions",
-  ) {
-    const text = sysPropDrafts[i]?.[field]?.trim();
-    if (!text) return;
-    const sys = {
-      ...wd.worldSystems[i],
-      [field]: [...wd.worldSystems[i][field], text],
-    };
-    const systems = [...wd.worldSystems];
-    systems[i] = sys;
-    update({ worldSystems: systems });
-    setSysPropDrafts((prev) => ({ ...prev, [i]: { ...prev[i], [field]: "" } }));
-  }
-  function removeSysProp(
-    i: number,
-    field: "principles" | "constraints" | "interactions",
-    j: number,
-  ) {
-    const sys = {
-      ...wd.worldSystems[i],
-      [field]: wd.worldSystems[i][field].filter(
-        (_: string, idx: number) => idx !== j,
-      ),
-    };
-    const systems = [...wd.worldSystems];
-    systems[i] = sys;
-    update({ worldSystems: systems });
-  }
-  function getSysDraft(i: number, field: string) {
-    return sysPropDrafts[i]?.[field] ?? "";
-  }
-  function setSysDraft(i: number, field: string, value: string) {
-    setSysPropDrafts((prev) => ({
-      ...prev,
-      [i]: { ...prev[i], [field]: value },
-    }));
   }
 
   // ── Suggest ──────────────────────────────────────────────────────────
@@ -224,29 +144,6 @@ export function CreationWizard() {
       }
     }
 
-    if (wd.rules.length > 0) {
-      details.push(
-        `World rules (absolute constraints the narrative must obey):\n${wd.rules.map((r, i) => `  ${i + 1}. ${r}`).join("\n")}`,
-      );
-    }
-
-    if (wd.worldSystems.length > 0) {
-      details.push(
-        `World systems:\n${wd.worldSystems
-          .map((s) => {
-            const lines = [`  - ${s.name}: ${s.description}`];
-            if (s.principles.length)
-              lines.push(`    Principles: ${s.principles.join("; ")}`);
-            if (s.constraints.length)
-              lines.push(`    Constraints: ${s.constraints.join("; ")}`);
-            if (s.interactions.length)
-              lines.push(`    Interactions: ${s.interactions.join("; ")}`);
-            return lines.join("\n");
-          })
-          .join("\n")}`,
-      );
-    }
-
     if (details.length > 0) {
       parts.push("", ...details);
     }
@@ -263,11 +160,7 @@ export function CreationWizard() {
       const narrative = await generateNarrative(
         wd.title,
         buildEnhancedPremise(),
-        wd.rules,
-        wd.worldSystems,
-        undefined,
         (reasoning) => setStreamText((prev) => prev + reasoning),
-        undefined,
         wd.worldOnly ?? false,
         wd.targetArchetype ?? "",
       );
@@ -288,7 +181,7 @@ export function CreationWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGenerating]);
 
-  if (!state.wizardOpen) return null;
+  if (!wizardState.isOpen) return null;
 
   // ── Generate view ────────────────────────────────────────────────────
   if (isGenerating) {
@@ -332,7 +225,7 @@ export function CreationWizard() {
               <button
                 onClick={() => {
                   started.current = false;
-                  dispatch({ type: "SET_WIZARD_STEP", step: "form" });
+                  wizardDispatch({ type: "SET_STEP", step: "form" });
                 }}
                 disabled={loading}
                 className="text-text-dim text-xs hover:text-text-secondary transition disabled:opacity-30 disabled:pointer-events-none"
@@ -360,7 +253,7 @@ export function CreationWizard() {
       <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
         <div className="glass max-w-2xl w-full rounded-2xl p-6 relative">
           <button
-            onClick={() => dispatch({ type: "CLOSE_WIZARD" })}
+            onClick={() => wizardDispatch({ type: "CLOSE" })}
             className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none"
           >
             &times;
@@ -635,304 +528,6 @@ export function CreationWizard() {
               </div>
             </div>
 
-            {/* World Rules */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">
-                  Rules
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddingRule(true);
-                    setRuleDraft("");
-                  }}
-                  className="text-[10px] text-text-dim hover:text-text-secondary transition"
-                >
-                  + Add
-                </button>
-              </div>
-              {wd.rules.length === 0 && !addingRule && (
-                <p className="text-[11px] text-text-dim/60 italic">
-                  No rules defined — the AI will generate rules from the
-                  premise.
-                </p>
-              )}
-              <div className="flex flex-col gap-2">
-                {wd.rules.map((rule, i) => (
-                  <div
-                    key={i}
-                    className="flex gap-2 items-start bg-bg-elevated rounded-lg p-2.5 border border-border"
-                  >
-                    <span className="text-[10px] font-mono text-text-dim mt-0.5 shrink-0 w-4 text-right">
-                      {i + 1}.
-                    </span>
-                    <p className="text-xs text-text-secondary leading-relaxed flex-1">
-                      {rule}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => removeRule(i)}
-                      className="text-text-dim hover:text-text-secondary text-xs mt-0.5"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-                {addingRule && (
-                  <div className="flex gap-2 items-center bg-bg-elevated rounded-lg p-2.5 border border-border">
-                    <input
-                      // eslint-disable-next-line jsx-a11y/no-autofocus
-                      autoFocus
-                      type="text"
-                      value={ruleDraft}
-                      onChange={(e) => setRuleDraft(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addRule();
-                        }
-                        if (e.key === "Escape") {
-                          setAddingRule(false);
-                          setRuleDraft("");
-                        }
-                      }}
-                      placeholder="Describe the rule..."
-                      className="flex-1 bg-transparent border-b border-border text-xs text-text-primary outline-none placeholder:text-text-dim focus:border-white/20 transition pb-0.5"
-                    />
-                    <button
-                      type="button"
-                      onClick={addRule}
-                      disabled={!ruleDraft.trim()}
-                      className="text-[10px] text-text-dim hover:text-text-secondary disabled:opacity-30 transition shrink-0"
-                    >
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddingRule(false);
-                        setRuleDraft("");
-                      }}
-                      className="text-text-dim hover:text-text-secondary text-xs"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* World Systems */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[10px] uppercase tracking-[0.15em] text-text-dim font-mono">
-                  Systems
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAddingSystem(true);
-                    setSystemDraft({ name: "", description: "" });
-                  }}
-                  className="text-[10px] text-text-dim hover:text-text-secondary transition"
-                >
-                  + Add
-                </button>
-              </div>
-              {wd.worldSystems.length === 0 && !addingSystem && (
-                <p className="text-[11px] text-text-dim/60 italic">
-                  No systems defined — the AI will generate systems from the
-                  premise.
-                </p>
-              )}
-              <div className="flex flex-col gap-2">
-                {wd.worldSystems.map((sys, i) => {
-                  const isExpanded = expandedSystem === i;
-                  const entryCount =
-                    sys.principles.length +
-                    sys.constraints.length +
-                    sys.interactions.length;
-                  return (
-                    <div
-                      key={i}
-                      className="bg-bg-elevated rounded-lg border border-border overflow-hidden"
-                    >
-                      <div
-                        className="flex gap-2 items-center p-2.5 cursor-pointer"
-                        onClick={() => setExpandedSystem(isExpanded ? null : i)}
-                      >
-                        <span className="text-[10px] text-text-dim">
-                          {isExpanded ? "▾" : "▸"}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-text-primary">
-                            {sys.name}
-                          </p>
-                          {sys.description && (
-                            <p className="text-[10px] text-text-dim truncate">
-                              {sys.description}
-                            </p>
-                          )}
-                        </div>
-                        {!isExpanded && entryCount > 0 && (
-                          <span className="text-[10px] text-text-dim">
-                            {entryCount}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeSystem(i);
-                          }}
-                          className="text-text-dim hover:text-text-secondary text-xs"
-                        >
-                          &times;
-                        </button>
-                      </div>
-                      {isExpanded && (
-                        <div className="px-2.5 pb-2.5 space-y-2 border-t border-border/50">
-                          {(
-                            [
-                              "principles",
-                              "constraints",
-                              "interactions",
-                            ] as const
-                          ).map((field) => (
-                            <div key={field} className="pt-1.5">
-                              <label className="text-[9px] uppercase tracking-wider text-text-dim/60 font-mono mb-0.5 block">
-                                {field === "principles"
-                                  ? "Principles"
-                                  : field === "constraints"
-                                    ? "Constraints"
-                                    : "Interactions"}
-                              </label>
-                              {sys[field].map((item: string, j: number) => (
-                                <div
-                                  key={j}
-                                  className="flex items-start gap-1 group"
-                                >
-                                  <span className="text-[9px] text-text-dim mt-0.5">
-                                    •
-                                  </span>
-                                  <span className="text-[11px] text-text-secondary leading-snug flex-1">
-                                    {item}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSysProp(i, field, j)}
-                                    className="text-[9px] text-red-400/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"
-                                  >
-                                    &times;
-                                  </button>
-                                </div>
-                              ))}
-                              <div className="flex gap-1 mt-0.5">
-                                <input
-                                  type="text"
-                                  value={getSysDraft(i, field)}
-                                  onChange={(e) =>
-                                    setSysDraft(i, field, e.target.value)
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      addSysProp(i, field);
-                                    }
-                                  }}
-                                  placeholder={
-                                    field === "principles"
-                                      ? "How it works..."
-                                      : field === "constraints"
-                                        ? "Hard limits..."
-                                        : "Cross-system connections..."
-                                  }
-                                  className="flex-1 bg-transparent border-b border-border/50 text-[10px] text-text-primary outline-none placeholder:text-text-dim/40 focus:border-white/15 transition pb-0.5"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => addSysProp(i, field)}
-                                  disabled={!getSysDraft(i, field).trim()}
-                                  className="text-[9px] text-text-dim hover:text-text-secondary disabled:opacity-20 transition"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {addingSystem && (
-                  <div className="bg-bg-elevated rounded-lg p-2.5 border border-border space-y-2">
-                    <input
-                      autoFocus
-                      type="text"
-                      value={systemDraft.name}
-                      onChange={(e) =>
-                        setSystemDraft((prev) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addSystem();
-                        }
-                        if (e.key === "Escape") {
-                          setAddingSystem(false);
-                        }
-                      }}
-                      placeholder="System name..."
-                      className="w-full bg-transparent border-b border-border text-xs text-text-primary outline-none placeholder:text-text-dim focus:border-white/20 transition pb-0.5"
-                    />
-                    <input
-                      type="text"
-                      value={systemDraft.description}
-                      onChange={(e) =>
-                        setSystemDraft((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addSystem();
-                        }
-                        if (e.key === "Escape") {
-                          setAddingSystem(false);
-                        }
-                      }}
-                      placeholder="One-line description..."
-                      className="w-full bg-transparent border-b border-border text-[10px] text-text-dim outline-none placeholder:text-text-dim/40 focus:border-white/20 transition pb-0.5"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={addSystem}
-                        disabled={!systemDraft.name.trim()}
-                        className="text-[10px] text-text-dim hover:text-text-secondary disabled:opacity-30 transition"
-                      >
-                        Add
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAddingSystem(false)}
-                        className="text-text-dim hover:text-text-secondary text-xs"
-                      >
-                        &times;
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* World-only toggle */}
             <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
               <input
@@ -953,7 +548,7 @@ export function CreationWizard() {
             <div className="flex items-center justify-between pt-1">
               <button
                 onClick={() =>
-                  dispatch({ type: "SET_WIZARD_STEP", step: "form" })
+                  wizardDispatch({ type: "SET_STEP", step: "form" })
                 }
                 className="text-text-dim text-xs hover:text-text-secondary transition"
               >
@@ -961,7 +556,7 @@ export function CreationWizard() {
               </button>
               <button
                 onClick={() =>
-                  dispatch({ type: "SET_WIZARD_STEP", step: "generate" })
+                  wizardDispatch({ type: "SET_STEP", step: "generate" })
                 }
                 className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold px-5 py-2 rounded-lg transition"
               >
@@ -979,7 +574,7 @@ export function CreationWizard() {
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
       <div className="glass max-w-2xl w-full rounded-2xl p-6 relative">
         <button
-          onClick={() => dispatch({ type: "CLOSE_WIZARD" })}
+          onClick={() => wizardDispatch({ type: "CLOSE" })}
           className="absolute top-4 right-4 text-text-dim hover:text-text-primary text-lg leading-none"
         >
           &times;
@@ -1047,7 +642,7 @@ export function CreationWizard() {
           <div className="flex items-center justify-between pt-1">
             <button
               onClick={() =>
-                dispatch({ type: "SET_WIZARD_STEP", step: "details" })
+                wizardDispatch({ type: "SET_STEP", step: "details" })
               }
               disabled={!canGenerate}
               className="text-text-dim text-xs hover:text-text-secondary transition disabled:opacity-30 disabled:pointer-events-none"
@@ -1056,7 +651,7 @@ export function CreationWizard() {
             </button>
             <button
               onClick={() =>
-                dispatch({ type: "SET_WIZARD_STEP", step: "generate" })
+                wizardDispatch({ type: "SET_STEP", step: "generate" })
               }
               disabled={!canGenerate}
               className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold px-5 py-2 rounded-lg transition disabled:opacity-30 disabled:pointer-events-none"
@@ -1065,31 +660,6 @@ export function CreationWizard() {
             </button>
           </div>
 
-          {/* Premise builder nudge */}
-          {!wd.premise.trim() && (
-            <button
-              onClick={() => {
-                dispatch({ type: "CLOSE_WIZARD" });
-                router.push("/discover");
-              }}
-              className="flex items-center gap-3 w-full rounded-lg border border-dashed border-white/8 hover:border-white/16 px-4 py-3 transition group"
-            >
-              <IconQuestion
-                size={16}
-                className="text-white/20 group-hover:text-white/40 transition shrink-0"
-              />
-              <div className="text-left">
-                <p className="text-[11px] text-white/50 group-hover:text-white/70 transition font-medium">
-                  Not sure where to start?
-                </p>
-                <p className="text-[10px] text-white/25 group-hover:text-white/35 transition">
-                  Answer a few questions to discover and refine your world
-                  first.
-                </p>
-              </div>
-              <IconChevronRight className="w-3.5 h-3.5 text-white/15 group-hover:text-white/35 transition ml-auto shrink-0" />
-            </button>
-          )}
         </div>
       </div>
     </div>

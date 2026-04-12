@@ -101,9 +101,9 @@ export default function ThreadDetail({ threadId }: Props) {
   const currentStatuses = useMemo(
     () =>
       narrative
-        ? computeThreadStatuses(narrative, state.currentSceneIndex)
+        ? computeThreadStatuses(narrative, state.viewState.currentSceneIndex)
         : {},
-    [narrative, state.currentSceneIndex],
+    [narrative, state.viewState.currentSceneIndex],
   );
 
   // Progressive reveal: thread log nodes visible at current scene index
@@ -114,14 +114,14 @@ export default function ThreadDetail({ threadId }: Props) {
       threadId,
       narrative.scenes,
       state.resolvedEntryKeys,
-      state.currentSceneIndex,
+      state.viewState.currentSceneIndex,
     );
   }, [
     narrative,
     thread,
     threadId,
     state.resolvedEntryKeys,
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
   ]);
 
   if (!narrative || !thread) return null;
@@ -223,7 +223,7 @@ export default function ThreadDetail({ threadId }: Props) {
       {(() => {
         const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(
           0,
-          state.currentSceneIndex + 1,
+          state.viewState.currentSceneIndex + 1,
         );
         const sceneTouches = sceneKeysUpToCurrent
           .map((k) => narrative.scenes[k])

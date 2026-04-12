@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
+import { useLogs } from '@/lib/logs-context';
 import { useStore } from '@/lib/store';
 import type { SystemLogEntry } from '@/types/narrative';
 
@@ -120,11 +121,12 @@ function LogDetail({ entry, onClose }: { entry: SystemLogEntry; onClose: () => v
   );
 }
 
-type ContextFilter = 'all' | 'narrative' | 'analysis' | 'discovery';
+type ContextFilter = 'all' | 'narrative' | 'analysis';
 
 export default function SystemLogModal({ onClose }: Props) {
-  const { state, dispatch } = useStore();
-  const logs = state.systemLogs;
+  const { state: logsState, dispatch: logsDispatch } = useLogs();
+  const { state: appState } = useStore();
+  const logs = logsState.systemLogs;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filterSeverity, setFilterSeverity] = useState<'all' | 'error' | 'warning' | 'info'>('all');
   const [filterContext, setFilterContext] = useState<ContextFilter>('all');
@@ -142,16 +144,14 @@ export default function SystemLogModal({ onClose }: Props) {
     // Filter by context
     if (filterContext !== 'all') {
       if (filterContext === 'narrative') {
-        filtered = filtered.filter(l => l.narrativeId === state.activeNarrativeId);
+        filtered = filtered.filter(l => l.narrativeId === appState.activeNarrativeId);
       } else if (filterContext === 'analysis') {
         filtered = filtered.filter(l => l.analysisId != null);
-      } else if (filterContext === 'discovery') {
-        filtered = filtered.filter(l => l.discoveryId != null);
       }
     }
 
     return filtered;
-  }, [logs, filterSeverity, filterContext, state.activeNarrativeId]);
+  }, [logs, filterSeverity, filterContext, appState.activeNarrativeId]);
 
   const errorCount = logs.filter((l) => l.severity === 'error').length;
   const warningCount = logs.filter((l) => l.severity === 'warning').length;
@@ -189,7 +189,6 @@ export default function SystemLogModal({ onClose }: Props) {
                 <option value="all">All</option>
                 <option value="narrative">Narrative</option>
                 <option value="analysis">Analysis</option>
-                <option value="discovery">Discovery</option>
               </select>
             </div>
             <div className="flex items-center gap-2 text-[10px]">
@@ -242,7 +241,7 @@ export default function SystemLogModal({ onClose }: Props) {
               </div>
               {logs.length > 0 && (
                 <button
-                  onClick={() => dispatch({ type: 'CLEAR_SYSTEM_LOGS' })}
+                  onClick={() => logsDispatch({ type: 'CLEAR_SYSTEM_LOGS' })}
                   className="text-[11px] text-text-dim hover:text-text-secondary transition-colors px-2 py-1 rounded hover:bg-white/5"
                 >
                   Clear

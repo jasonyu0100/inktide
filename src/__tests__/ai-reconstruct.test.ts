@@ -1,24 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { reconstructBranch, type ReconstructionProgress, type ReconstructionCallbacks } from '@/lib/ai/reconstruct';
 import type { NarrativeState, Scene, Branch, StructureReview, WorldBuild } from '@/types/narrative';
-
 // Mock all AI dependencies
 vi.mock('@/lib/ai/api', () => ({
   callGenerate: vi.fn(),
   SYSTEM_PROMPT: 'Mock system prompt',
 }));
-
 vi.mock('@/lib/ai/context', () => ({
   narrativeContext: vi.fn(() => 'Mock narrative context'),
 }));
-
 vi.mock('@/lib/ai/json', () => ({
   parseJson: vi.fn((str: string) => JSON.parse(str)),
 }));
-
 import { callGenerate } from '@/lib/ai/api';
 import { parseJson } from '@/lib/ai/json';
-
 // Helper to create minimal narrative
 function createMinimalNarrative(): NarrativeState {
   return {
@@ -95,17 +90,14 @@ function createMinimalNarrative(): NarrativeState {
     systemGraph: { nodes: {}, edges: [] },
     relationships: [],
     artifacts: {},
-    rules: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
 }
-
 function createMockCallbacks(): ReconstructionCallbacks & { progress: ReconstructionProgress[]; readyScenes: Scene[]; createdBranches: Branch[] } {
   const progress: ReconstructionProgress[] = [];
   const readyScenes: Scene[] = [];
   const createdBranches: Branch[] = [];
-
   return {
     progress,
     readyScenes,
@@ -115,12 +107,10 @@ function createMockCallbacks(): ReconstructionCallbacks & { progress: Reconstruc
     onBranchCreated: (branch) => createdBranches.push({ ...branch }),
   };
 }
-
 describe('reconstructBranch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
   it('passes through ok scenes unchanged', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
@@ -138,7 +128,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -146,7 +135,6 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.scenes).toHaveLength(3);
     // ok scenes reuse their original IDs
     expect(result.scenes[0].id).toBe('S-01');
@@ -154,7 +142,6 @@ describe('reconstructBranch', () => {
     expect(result.scenes[2].id).toBe('S-03');
     expect(callGenerate).not.toHaveBeenCalled();
   });
-
   it('removes cut scenes from timeline', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
@@ -172,7 +159,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -180,12 +166,10 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.scenes).toHaveLength(2);
     expect(result.scenes.map(s => s.id)).toEqual(['S-01', 'S-03']);
     expect(result.branch.entryIds).toEqual(['S-01', 'S-03']);
   });
-
   it('edits scenes with edit verdict via LLM', async () => {
     const editedScene = {
       locationId: 'L-02',
@@ -199,7 +183,6 @@ describe('reconstructBranch', () => {
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(editedScene));
     vi.mocked(parseJson).mockReturnValue(editedScene);
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -216,7 +199,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -224,14 +206,12 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.scenes).toHaveLength(3);
     // Edited scenes get new IDs
     expect(result.scenes[1].id).not.toBe('S-02');
     expect(result.scenes[1].summary).toBe('Revised scene with fixes');
     expect(callGenerate).toHaveBeenCalledTimes(1);
   });
-
   it('inserts new scenes via LLM', async () => {
     const insertedScene = {
       locationId: 'L-01',
@@ -245,7 +225,6 @@ describe('reconstructBranch', () => {
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(insertedScene));
     vi.mocked(parseJson).mockReturnValue(insertedScene);
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -263,7 +242,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -271,12 +249,10 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.scenes).toHaveLength(4);
     expect(result.scenes[2].summary).toBe('New transition scene');
     expect(callGenerate).toHaveBeenCalledTimes(1);
   });
-
   it('moves scenes to new positions', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
@@ -294,7 +270,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -302,12 +277,10 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.scenes).toHaveLength(3);
     // S-02 moved after S-03: order is now S-01, S-03, S-02
     expect(result.scenes.map(s => s.id)).toEqual(['S-01', 'S-03', 'S-02']);
   });
-
   it('merges scenes via LLM', async () => {
     const mergedScene = {
       locationId: 'L-01',
@@ -321,7 +294,6 @@ describe('reconstructBranch', () => {
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(mergedScene));
     vi.mocked(parseJson).mockReturnValue(mergedScene);
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -338,7 +310,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -346,13 +317,11 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.scenes).toHaveLength(2);
     // S-02 is removed, S-01 is merged
     expect(result.scenes[0].summary).toBe('Combined scene with both beats');
     expect(callGenerate).toHaveBeenCalledTimes(1);
   });
-
   it('creates branch with version suffix', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
@@ -370,7 +339,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -378,11 +346,9 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.branch.name).toBe('main v2');
     expect(result.branch.parentBranchId).toBeNull(); // Root branch
   });
-
   it('preserves world builds in timeline order', async () => {
     const narrative = createMinimalNarrative();
     const worldBuild: WorldBuild = {
@@ -401,7 +367,6 @@ describe('reconstructBranch', () => {
     narrative.worldBuilds['WB-01'] = worldBuild;
     // World build appears between S-01 and S-02
     narrative.branches['BR-01'].entryIds = ['S-01', 'WB-01', 'S-02', 'S-03'];
-
     const evaluation: StructureReview = {
       id: 'EVAL-1',
       createdAt: new Date().toISOString(),
@@ -417,7 +382,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'WB-01', 'S-02', 'S-03'],
@@ -425,11 +389,9 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.branch.entryIds).toContain('WB-01');
     expect(result.branch.entryIds.indexOf('WB-01')).toBe(1);
   });
-
   it('invokes progress callbacks', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
@@ -447,7 +409,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -455,13 +416,11 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(callbacks.progress.length).toBeGreaterThan(0);
     expect(callbacks.progress.some(p => p.phase === 'preparing')).toBe(true);
     expect(callbacks.progress.some(p => p.phase === 'done')).toBe(true);
     expect(callbacks.createdBranches).toHaveLength(1);
   });
-
   it('handles insert at START position', async () => {
     const insertedScene = {
       locationId: 'L-01',
@@ -475,7 +434,6 @@ describe('reconstructBranch', () => {
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(insertedScene));
     vi.mocked(parseJson).mockReturnValue(insertedScene);
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -493,7 +451,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -501,17 +458,14 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.scenes).toHaveLength(4);
     expect(result.scenes[0].summary).toBe('Opening scene');
   });
-
   it('handles cancellation', async () => {
     vi.mocked(callGenerate).mockImplementation(async () => {
       await new Promise(r => setTimeout(r, 10));
       return JSON.stringify({ summary: 'Should not appear' });
     });
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -528,7 +482,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     // Cancel immediately
     const promise = reconstructBranch(
       narrative,
@@ -538,16 +491,13 @@ describe('reconstructBranch', () => {
       cancelledRef,
     );
     cancelledRef.current = true;
-
     const result = await promise;
     // Should still return a result but with partial work
     expect(result.branch).toBeDefined();
     expect(result.scenes).toBeDefined();
   });
-
   it('handles edit failures gracefully', async () => {
     vi.mocked(callGenerate).mockRejectedValue(new Error('LLM failed'));
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -564,7 +514,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -572,11 +521,9 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     // Should complete without throwing even when LLM operations fail
     expect(result.scenes).toHaveLength(3);
   });
-
   it('updates arc sceneIds after reconstruction', async () => {
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
@@ -594,7 +541,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -602,10 +548,8 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.arcs['ARC-01'].sceneIds).toEqual(['S-01', 'S-03']);
   });
-
   it('increments version when branch already has version suffix', async () => {
     const narrative = createMinimalNarrative();
     narrative.branches['BR-01'].name = 'main v2';
@@ -617,7 +561,6 @@ describe('reconstructBranch', () => {
       entryIds: [],
       createdAt: Date.now(),
     };
-
     const evaluation: StructureReview = {
       id: 'EVAL-1',
       createdAt: new Date().toISOString(),
@@ -633,7 +576,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -641,15 +583,12 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.branch.name).toBe('main v4');
   });
-
   it('includes thematic question in edit prompts', async () => {
     const editedScene = { summary: 'Edited' };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(editedScene));
     vi.mocked(parseJson).mockReturnValue(editedScene);
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -666,7 +605,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -674,12 +612,10 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     const promptArg = vi.mocked(callGenerate).mock.calls[0]![0];
     expect(promptArg).toContain('What defines true courage?');
     expect(promptArg).toContain('Hero always wins');
   });
-
   it('chains inserts correctly (INSERT-2 after INSERT-1)', async () => {
     vi.mocked(callGenerate)
       .mockResolvedValueOnce(JSON.stringify({ summary: 'First insert' }))
@@ -687,7 +623,6 @@ describe('reconstructBranch', () => {
     vi.mocked(parseJson)
       .mockReturnValueOnce({ summary: 'First insert' })
       .mockReturnValueOnce({ summary: 'Second insert' });
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -706,7 +641,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -714,7 +648,6 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     expect(result.scenes).toHaveLength(5);
     // Order: S-01, INSERT-1, INSERT-2, S-02, S-03
     expect(result.scenes[0].id).toBe('S-01');
@@ -722,12 +655,10 @@ describe('reconstructBranch', () => {
     expect(result.scenes[2].summary).toBe('Second insert');
     expect(result.scenes[3].id).toBe('S-02');
   });
-
   // ── Thread log preservation through reconstruction ────────────────────────
   // Locks in the fix for the bug where the reconstruct schemas omitted
   // addedNodes, causing the LLM to strip log entries from edited/merged/
   // inserted scenes.
-
   it('preserves addedNodes from LLM when editing a scene', async () => {
     const editedScene = {
       locationId: 'L-02',
@@ -749,7 +680,6 @@ describe('reconstructBranch', () => {
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(editedScene));
     vi.mocked(parseJson).mockReturnValue(editedScene);
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -766,7 +696,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -774,7 +703,6 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     // The edited scene must still carry its log entries — before the
     // schema fix, the LLM would return threadMutations without addedNodes
     // and the scene's thread log would go blank.
@@ -785,7 +713,6 @@ describe('reconstructBranch', () => {
     expect(edited!.threadMutations[0].addedNodes![0].content).toMatch(/commits to the final stand/);
     expect(edited!.threadMutations[0].addedNodes![1].content).toBe('Stakes rise');
   });
-
   it('preserves addedNodes from LLM when inserting a new scene', async () => {
     const insertedScene = {
       locationId: 'L-01',
@@ -806,7 +733,6 @@ describe('reconstructBranch', () => {
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(insertedScene));
     vi.mocked(parseJson).mockReturnValue(insertedScene);
-
     const narrative = createMinimalNarrative();
     const evaluation: StructureReview = {
       id: 'EVAL-1',
@@ -824,7 +750,6 @@ describe('reconstructBranch', () => {
     };
     const callbacks = createMockCallbacks();
     const cancelledRef = { current: false };
-
     const result = await reconstructBranch(
       narrative,
       ['S-01', 'S-02', 'S-03'],
@@ -832,7 +757,6 @@ describe('reconstructBranch', () => {
       callbacks,
       cancelledRef,
     );
-
     const inserted = result.scenes.find((s) => s.summary === 'Inserted transition scene');
     expect(inserted).toBeDefined();
     expect(inserted!.threadMutations).toHaveLength(1);

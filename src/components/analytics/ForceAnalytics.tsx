@@ -958,17 +958,17 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(() => {
     // Initialize to the current scene so the tracker opens with it selected
     if (!narrative) return null;
-    const currentKey = state.resolvedEntryKeys[state.currentSceneIndex];
+    const currentKey = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
     if (!currentKey) return null;
     const currentEntry = resolveEntry(narrative, currentKey);
     if (!currentEntry || !isScene(currentEntry)) return null;
     // Find this scene's index in the scene-only array
     let sceneIdx = 0;
-    for (let i = 0; i <= state.currentSceneIndex; i++) {
+    for (let i = 0; i <= state.viewState.currentSceneIndex; i++) {
       const k = state.resolvedEntryKeys[i];
       const e = resolveEntry(narrative, k);
       if (e && isScene(e)) {
-        if (i === state.currentSceneIndex) return sceneIdx;
+        if (i === state.viewState.currentSceneIndex) return sceneIdx;
         sceneIdx++;
       }
     }

@@ -121,3 +121,11 @@ export function IconPencilDraw({ size, ...rest }: P) {
     </svg>
   );
 }
+
+export function IconMinus({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}

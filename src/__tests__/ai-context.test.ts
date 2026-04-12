@@ -10,9 +10,7 @@ import {
 } from '@/lib/ai/context';
 import type { NarrativeState, Scene, Character, Location, Thread, Arc, WorldBuild } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-
 // ── Test Fixtures ────────────────────────────────────────────────────────────
-
 function createMinimalNarrative(overrides: Partial<NarrativeState> = {}): NarrativeState {
   return {
     id: 'test-narrative',
@@ -38,13 +36,11 @@ function createMinimalNarrative(overrides: Partial<NarrativeState> = {}): Narrat
     relationships: [],
     systemGraph: { nodes: {}, edges: [] },
     worldSummary: 'A test world',
-    rules: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
     ...overrides,
   };
 }
-
 function createCharacter(id: string, name: string, role: string = 'recurring'): Character {
   return {
     id,
@@ -54,7 +50,6 @@ function createCharacter(id: string, name: string, role: string = 'recurring'): 
     threadIds: [],
   };
 }
-
 function createLocation(id: string, name: string, parentId?: string): Location {
   return {
     id,
@@ -66,7 +61,6 @@ function createLocation(id: string, name: string, parentId?: string): Location {
     threadIds: [],
   };
 }
-
 function createThread(id: string, description: string, participants: string[] = []): Thread {
   return {
     id,
@@ -78,7 +72,6 @@ function createThread(id: string, description: string, participants: string[] = 
     threadLog: { nodes: {}, edges: [] },
   };
 }
-
 function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
   return {
     kind: 'scene',
@@ -96,7 +89,6 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     ...overrides,
   };
 }
-
 function createWorldBuild(id: string, summary: string): WorldBuild {
   return {
     kind: 'world_build',
@@ -112,7 +104,6 @@ function createWorldBuild(id: string, summary: string): WorldBuild {
     },
   };
 }
-
 function createArc(id: string, name: string, sceneIds: string[]): Arc {
   return {
     id,
@@ -124,9 +115,7 @@ function createArc(id: string, name: string, sceneIds: string[]): Arc {
     initialCharacterLocations: {},
   };
 }
-
 // ── THREAD_LIFECYCLE_DOC ─────────────────────────────────────────────────────
-
 describe('THREAD_LIFECYCLE_DOC', () => {
   it('contains active statuses', () => {
     expect(THREAD_LIFECYCLE_DOC).toContain('Active statuses');
@@ -134,27 +123,22 @@ describe('THREAD_LIFECYCLE_DOC', () => {
     expect(THREAD_LIFECYCLE_DOC).toContain('active');
     expect(THREAD_LIFECYCLE_DOC).toContain('critical');
   });
-
   it('contains terminal statuses', () => {
     expect(THREAD_LIFECYCLE_DOC).toContain('Terminal');
     expect(THREAD_LIFECYCLE_DOC).toContain('resolved');
     expect(THREAD_LIFECYCLE_DOC).toContain('subverted');
   });
 });
-
 // ── getStateAtIndex ──────────────────────────────────────────────────────────
-
 describe('getStateAtIndex', () => {
   it('returns empty state for empty narrative', () => {
     const n = createMinimalNarrative();
     const state = getStateAtIndex(n, [], 0);
-
     expect(state.liveNodeIds.size).toBe(0);
     expect(state.relationships.length).toBe(0);
     expect(Object.keys(state.threadStatuses).length).toBe(0);
     expect(Object.keys(state.artifactOwnership).length).toBe(0);
   });
-
   it('replays continuity mutations correctly (additive)', () => {
     const n = createMinimalNarrative({
       scenes: {
@@ -170,18 +154,15 @@ describe('getStateAtIndex', () => {
         }),
       },
     });
-
     // At index 0 (after s1), only node-1 exists
     const stateAt0 = getStateAtIndex(n, ['s1', 's2'], 0);
     expect(stateAt0.liveNodeIds.has('node-1')).toBe(true);
     expect(stateAt0.liveNodeIds.has('node-2')).toBe(false);
-
     // At index 1 (after s1, s2), both nodes and edge exist
     const stateAt1 = getStateAtIndex(n, ['s1', 's2'], 1);
     expect(stateAt1.liveNodeIds.has('node-1')).toBe(true);
     expect(stateAt1.liveNodeIds.has('node-2')).toBe(true);
   });
-
   it('replays relationship mutations correctly', () => {
     const n = createMinimalNarrative({
       scenes: {
@@ -197,13 +178,11 @@ describe('getStateAtIndex', () => {
         }),
       },
     });
-
     const state = getStateAtIndex(n, ['s1', 's2'], 1);
     expect(state.relationships.length).toBe(1);
     expect(state.relationships[0].valence).toBeCloseTo(0.2); // 0.5 + (-0.3) = 0.2
     expect(state.relationships[0].type).toBe('rival'); // latest type
   });
-
   it('clamps relationship valence between -1 and 1', () => {
     const n = createMinimalNarrative({
       scenes: {
@@ -219,11 +198,9 @@ describe('getStateAtIndex', () => {
         }),
       },
     });
-
     const state = getStateAtIndex(n, ['s1', 's2'], 1);
     expect(state.relationships[0].valence).toBe(1); // Clamped at 1
   });
-
   it('replays thread mutations correctly', () => {
     const n = createMinimalNarrative({
       scenes: {
@@ -240,12 +217,10 @@ describe('getStateAtIndex', () => {
         }),
       },
     });
-
     const state = getStateAtIndex(n, ['s1', 's2'], 1);
     expect(state.threadStatuses['t1']).toBe('active');
     expect(state.threadStatuses['t2']).toBe('active');
   });
-
   it('tracks artifact ownership from world builds', () => {
     const n = createMinimalNarrative({
       worldBuilds: {
@@ -271,26 +246,21 @@ describe('getStateAtIndex', () => {
         }),
       },
     });
-
     // After world build only
     const state0 = getStateAtIndex(n, ['wb1'], 0);
     expect(state0.artifactOwnership['art-1']).toBe('c1');
-
     // After ownership transfer
     const state1 = getStateAtIndex(n, ['wb1', 's1'], 1);
     expect(state1.artifactOwnership['art-1']).toBe('c2');
   });
 });
-
 // ── buildStorySettingsBlock ──────────────────────────────────────────────────
-
 describe('buildStorySettingsBlock', () => {
   it('returns empty string for default settings', () => {
     const n = createMinimalNarrative();
     const block = buildStorySettingsBlock(n);
     expect(block).toBe('');
   });
-
   it('includes POV mode when not free', () => {
     const n = createMinimalNarrative({
       storySettings: { ...DEFAULT_STORY_SETTINGS, povMode: 'single', povCharacterIds: ['c1'] },
@@ -300,7 +270,6 @@ describe('buildStorySettingsBlock', () => {
     expect(block).toContain('SINGLE POV');
     expect(block).toContain('Hero');
   });
-
   it('includes pareto POV guidance', () => {
     const n = createMinimalNarrative({
       storySettings: { ...DEFAULT_STORY_SETTINGS, povMode: 'pareto', povCharacterIds: ['c1'] },
@@ -311,7 +280,6 @@ describe('buildStorySettingsBlock', () => {
     expect(block).toContain('Protagonist');
     expect(block).toContain('80%');
   });
-
   it('includes story direction when set', () => {
     const n = createMinimalNarrative({
       storySettings: { ...DEFAULT_STORY_SETTINGS, storyDirection: 'The hero must defeat the villain' },
@@ -320,7 +288,6 @@ describe('buildStorySettingsBlock', () => {
     expect(block).toContain('STORY DIRECTION');
     expect(block).toContain('defeat the villain');
   });
-
   it('includes story constraints when set', () => {
     const n = createMinimalNarrative({
       storySettings: { ...DEFAULT_STORY_SETTINGS, storyConstraints: 'No character deaths' },
@@ -329,7 +296,6 @@ describe('buildStorySettingsBlock', () => {
     expect(block).toContain('STORY CONSTRAINTS');
     expect(block).toContain('No character deaths');
   });
-
   it('includes narrative guidance when set', () => {
     const n = createMinimalNarrative({
       storySettings: { ...DEFAULT_STORY_SETTINGS, narrativeGuidance: 'Keep scenes tight and focused' },
@@ -339,9 +305,7 @@ describe('buildStorySettingsBlock', () => {
     expect(block).toContain('tight and focused');
   });
 });
-
 // ── sceneScale ───────────────────────────────────────────────────────────────
-
 describe('sceneScale', () => {
   it('returns minimum 600 words for simple scene', () => {
     const scene = createScene('s1', {
@@ -352,27 +316,21 @@ describe('sceneScale', () => {
       participantIds: ['c1'],
       summary: 'A short summary',
     });
-
     const scale = sceneScale(scene);
     expect(scale.estWords).toBeGreaterThanOrEqual(600);
   });
-
   it('returns standard scale values', () => {
     const scene = createScene('s1');
     const scale = sceneScale(scene);
-
     expect(scale.estWords).toBe(1200);
     expect(scale.targetBeats).toBe(12);
     expect(scale.planWords).toMatch(/^\d+-\d+$/);
-
     const [min, max] = scale.planWords.split('-').map(Number);
     expect(min).toBe(360);
     expect(max).toBe(600);
   });
 });
-
 // ── sceneContext ─────────────────────────────────────────────────────────────
-
 describe('sceneContext', () => {
   it('includes scene summary', () => {
     const n = createMinimalNarrative({
@@ -385,13 +343,11 @@ describe('sceneContext', () => {
       participantIds: ['c1'],
       summary: 'The hero arrives at the castle',
     });
-
     const ctx = sceneContext(n, scene);
     expect(ctx).toContain('The hero arrives at the castle');
     expect(ctx).toContain('Hero');
     expect(ctx).toContain('Castle');
   });
-
   it('includes events', () => {
     const n = createMinimalNarrative({
       characters: { c1: createCharacter('c1', 'Hero') },
@@ -402,12 +358,10 @@ describe('sceneContext', () => {
       locationId: 'loc1',
       events: ['The gate opens', 'Guards appear'],
     });
-
     const ctx = sceneContext(n, scene);
     expect(ctx).toContain('The gate opens');
     expect(ctx).toContain('Guards appear');
   });
-
   it('includes thread mutations', () => {
     const n = createMinimalNarrative({
       characters: { c1: createCharacter('c1', 'Hero') },
@@ -419,13 +373,11 @@ describe('sceneContext', () => {
       locationId: 'loc1',
       threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
     });
-
     const ctx = sceneContext(n, scene);
     expect(ctx).toContain('Quest for the Sword');
     expect(ctx).toContain('latent');
     expect(ctx).toContain('active');
   });
-
   it('includes relationship mutations', () => {
     const n = createMinimalNarrative({
       characters: {
@@ -442,16 +394,13 @@ describe('sceneContext', () => {
         { from: 'c1', to: 'c2', type: 'mentor', valenceDelta: 0.3 },
       ],
     });
-
     const ctx = sceneContext(n, scene);
     expect(ctx).toContain('Hero');
     expect(ctx).toContain('Mentor');
     expect(ctx).toContain('0.3');
   });
 });
-
 // ── outlineContext ───────────────────────────────────────────────────────────
-
 describe('outlineContext', () => {
   it('groups scenes by arc', () => {
     const n = createMinimalNarrative({
@@ -465,13 +414,11 @@ describe('outlineContext', () => {
         'arc-1': createArc('arc-1', 'Act I', ['s1', 's2']),
       },
     });
-
     const outline = outlineContext(n, ['s1', 's2'], 1);
     expect(outline).toContain('Act I');
     expect(outline).toContain('Scene 1 summary');
     expect(outline).toContain('Scene 2 summary');
   });
-
   it('includes world commits as markers', () => {
     const n = createMinimalNarrative({
       characters: { c1: createCharacter('c1', 'Hero') },
@@ -486,22 +433,18 @@ describe('outlineContext', () => {
         'arc-1': createArc('arc-1', 'Act I', ['s1']),
       },
     });
-
     const outline = outlineContext(n, ['wb1', 's1'], 1);
     expect(outline).toContain('world-commit');
     expect(outline).toContain('World expansion');
   });
 });
-
 // ── narrativeContext ─────────────────────────────────────────────────────────
-
 describe('narrativeContext', () => {
   it('includes narrative title', () => {
     const n = createMinimalNarrative({ title: 'Epic Adventure' });
     const ctx = narrativeContext(n, [], 0);
     expect(ctx).toContain('Epic Adventure');
   });
-
   it('includes world summary', () => {
     const n = createMinimalNarrative({
       worldSummary: 'A land of mystery and magic',
@@ -509,7 +452,6 @@ describe('narrativeContext', () => {
     const ctx = narrativeContext(n, [], 0);
     expect(ctx).toContain('mystery and magic');
   });
-
   it('includes characters', () => {
     const n = createMinimalNarrative({
       characters: {
@@ -521,7 +463,6 @@ describe('narrativeContext', () => {
     expect(ctx).toContain('Hero');
     expect(ctx).toContain('Sidekick');
   });
-
   it('includes locations', () => {
     const n = createMinimalNarrative({
       locations: {
@@ -533,7 +474,6 @@ describe('narrativeContext', () => {
     expect(ctx).toContain('Castle');
     expect(ctx).toContain('Forest');
   });
-
   it('includes threads', () => {
     const n = createMinimalNarrative({
       threads: {
@@ -545,7 +485,6 @@ describe('narrativeContext', () => {
     expect(ctx).toContain('Quest for Glory');
     expect(ctx).toContain('Romance Subplot');
   });
-
   it('includes valid-ids section', () => {
     const n = createMinimalNarrative({
       characters: { c1: createCharacter('c1', 'Hero') },
@@ -558,7 +497,6 @@ describe('narrativeContext', () => {
     expect(ctx).toContain('loc1');
     expect(ctx).toContain('t1');
   });
-
   it('includes scene history', () => {
     const n = createMinimalNarrative({
       characters: { c1: createCharacter('c1', 'Hero') },

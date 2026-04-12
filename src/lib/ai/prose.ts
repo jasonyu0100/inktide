@@ -3,7 +3,7 @@ import { REASONING_BUDGETS } from '@/types/narrative';
 import { callGenerate, callGenerateStream } from './api';
 import { WRITING_MODEL, ANALYSIS_MODEL, MAX_TOKENS_DEFAULT } from '@/lib/constants';
 import { parseJson } from './json';
-import { sceneContext, buildProseProfileXml } from './context';
+import { sceneContext, buildProseProfile } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
 import { logInfo, logError } from '@/lib/system-logger';
 
@@ -157,10 +157,10 @@ export async function rewriteSceneProse(
   const proseFormat = narrative.storySettings?.proseFormat ?? 'prose';
   const formatInstructions = FORMAT_INSTRUCTIONS[proseFormat];
 
-  // Build prose profile XML block
+  // Build prose profile block
   const proseProfile = resolveProfile(narrative);
   const profileSection = proseProfile
-    ? `\n\n${buildProseProfileXml(proseProfile)}`
+    ? `\n\n${buildProseProfile(proseProfile)}`
     : '';
 
   const systemPrompt = `${formatInstructions.systemRole} Your task is to REWRITE based on the provided analysis.${onToken ? '' : ' You return ONLY valid JSON — no markdown, no commentary.'}

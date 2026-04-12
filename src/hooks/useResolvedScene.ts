@@ -25,7 +25,7 @@ export type ResolvedScene = Scene & {
 export function useResolvedScene(scene: Scene | null | undefined): ResolvedScene | null {
   const { state } = useStore();
   const branches = state.activeNarrative?.branches ?? {};
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
 
   return useMemo(() => {
     if (!scene || !branchId) return null;
@@ -50,7 +50,7 @@ export function useResolvedScene(scene: Scene | null | undefined): ResolvedScene
 export function useResolvedProse(scene: Scene | null | undefined) {
   const { state } = useStore();
   const branches = state.activeNarrative?.branches ?? {};
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
 
   return useMemo(() => {
     if (!scene || !branchId) return { prose: undefined, beatProseMap: undefined, proseScore: undefined };
@@ -65,7 +65,7 @@ export function useResolvedProse(scene: Scene | null | undefined) {
 export function useResolvedPlan(scene: Scene | null | undefined): BeatPlan | undefined {
   const { state } = useStore();
   const branches = state.activeNarrative?.branches ?? {};
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
 
   return useMemo(() => {
     if (!scene || !branchId) return undefined;

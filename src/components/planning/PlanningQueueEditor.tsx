@@ -34,7 +34,7 @@ type CreateMode =
 
 export function PlanningQueueEditor({ onClose, onStartAuto }: Props) {
   const { state, dispatch } = useStore();
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
   const branch = branchId ? state.activeNarrative?.branches[branchId] : null;
   const existingQueue = branch?.planningQueue;
 

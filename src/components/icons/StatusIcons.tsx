@@ -39,3 +39,12 @@ export function IconCheckCircle({ size, ...rest }: P) {
     </svg>
   );
 }
+
+export function IconLock({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

@@ -171,7 +171,7 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
   const [renameValue, setRenameValue] = useState('');
   const [newBranchName, setNewBranchName] = useState('');
   const [forkEntryId, setForkEntryId] = useState<string | null>(
-    state.resolvedEntryKeys[state.currentSceneIndex] ?? null,
+    state.resolvedEntryKeys[state.viewState.currentSceneIndex] ?? null,
   );
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -182,9 +182,9 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
 
   const { columns, rows, forkConnectors } = useMemo(
     () => narrative
-      ? buildGrid(allBranches, state.activeBranchId, narrative)
+      ? buildGrid(allBranches, state.viewState.activeBranchId, narrative)
       : { columns: [], rows: [], forkConnectors: [] },
-    [allBranches, state.activeBranchId, narrative],
+    [allBranches, state.viewState.activeBranchId, narrative],
   );
 
   if (!narrative) return null;
@@ -234,9 +234,9 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
   }
 
   function wouldDeleteActiveBranch(branchId: string): boolean {
-    if (branchId === state.activeBranchId) return true;
+    if (branchId === state.viewState.activeBranchId) return true;
     const descendants = getDescendants(branchId);
-    return descendants.some((b) => b.id === state.activeBranchId);
+    return descendants.some((b) => b.id === state.viewState.activeBranchId);
   }
 
   function handleDeleteClick(branchId: string) {
@@ -268,7 +268,7 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
       branch: {
         id: `B-${Date.now()}`,
         name,
-        parentBranchId: state.activeBranchId,
+        parentBranchId: state.viewState.activeBranchId,
         forkEntryId,
         entryIds: [],
         createdAt: Date.now(),
@@ -377,7 +377,7 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
                             <div className="flex gap-1 shrink-0">
                               {headCols.map(({ branchId }) => {
                                 const branch = narrative!.branches[branchId];
-                                const isActive = branchId === state.activeBranchId;
+                                const isActive = branchId === state.viewState.activeBranchId;
                                 const c = stableBranchColor(branchId, allBranches);
                                 return (
                                   <button
@@ -410,7 +410,7 @@ export function BranchModal({ onClose }: { onClose: () => void }) {
           <p className="text-[10px] text-text-dim uppercase tracking-widest mb-2">All Branches</p>
           <div className="flex flex-col gap-0.5 max-h-80 overflow-y-auto">
             {allBranches.map((b) => {
-              const isActive = b.id === state.activeBranchId;
+              const isActive = b.id === state.viewState.activeBranchId;
               const isRenaming = renamingId === b.id;
               const c = stableBranchColor(b.id, allBranches);
               return (

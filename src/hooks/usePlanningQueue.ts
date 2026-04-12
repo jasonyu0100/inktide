@@ -29,11 +29,11 @@ export function usePlanningQueue() {
   const transitioningRef = useRef(false);
   const lastProcessedRef = useRef<string | null>(null);
 
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
   const branch = branchId ? state.activeNarrative?.branches[branchId] : null;
   const queue = branch?.planningQueue;
   const activePhase = queue?.phases[queue.activePhaseIndex];
-  const isAutoRunning = state.autoRunState?.isRunning ?? false;
+  const isAutoRunning = state.viewState.autoRunState?.isRunning ?? false;
 
   // Detect when the active phase has met its scene allocation
   const phaseComplete = activePhase

@@ -4,7 +4,7 @@ import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
-import { narrativeContext, sceneContext, sceneScale, buildProseProfileXml } from './context';
+import { narrativeContext, sceneContext, sceneScale, buildProseProfile } from './context';
 import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, buildForceStandardsPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
@@ -553,8 +553,8 @@ export async function generateScenePlan(
 ${sampledBeats.map((b, i) => `  ${i + 1}. ${b.fn}:${b.mechanism}`).join('\n')}\n`;
   }
 
-  // Build prose profile XML block
-  const profileBlock = `\n${buildProseProfileXml(profile, { beatDensity: sampler.beatsPerKWord, targetBeats })}${beatSequenceHint}\n`;
+  // Build prose profile block
+  const profileBlock = `\n${buildProseProfile(profile, { beatDensity: sampler.beatsPerKWord, targetBeats })}${beatSequenceHint}\n`;
 
   const systemPrompt = `You are a scene architect. Given a scene's structural data (summary, mutations, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
 
@@ -1448,9 +1448,9 @@ export async function generateSceneProse(
   // Use resolveProfile to respect beatProfilePreset selection (same as generateScenePlan)
   const proseProfile = resolveProfile(narrative);
 
-  // Build prose profile XML block
+  // Build prose profile block
   const profileSection = proseProfile
-    ? `\n\n${buildProseProfileXml(proseProfile)}`
+    ? `\n\n${buildProseProfile(proseProfile)}`
     : '';
 
   const hasVoiceOverride = !!narrative.storySettings?.proseVoice?.trim();
@@ -1775,6 +1775,10 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       return false;
     });
     scene.relationshipMutations = scene.relationshipMutations.filter((rm) => {
+      if (rm.from === rm.to) {
+        stripped.push(`relationshipMutation self-loop "${rm.from}" in scene ${scene.id}`);
+        return false;
+      }
       if (validCharIds.has(rm.from) && validCharIds.has(rm.to)) return true;
       stripped.push(`relationshipMutation "${rm.from}" -> "${rm.to}" in scene ${scene.id}`);
       return false;
@@ -1845,7 +1849,7 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       scene.systemMutations = { addedNodes: [], addedEdges: [] };
     }
     // Ensure continuityMutations have required fields. Node ORDER defines
-    // the chain — no explicit edges are stored on mutations.
+    // the chain — no explicit edges are stored. Type sanitization in applyContinuityMutation.
     scene.continuityMutations = scene.continuityMutations.filter((km) => {
       if (!km.entityId) { stripped.push(`continuityMutation missing entityId in scene ${scene.id}`); return false; }
       km.addedNodes = (km.addedNodes ?? []).filter(n => n.content);

@@ -222,10 +222,10 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       return;
     initializedRef.current = true;
     // Find which forceEntry index corresponds to the current scene
-    const currentKey = resolvedKeys[state.currentSceneIndex];
+    const currentKey = resolvedKeys[state.viewState.currentSceneIndex];
     const idx = forceEntries.findIndex((e) => e.sceneId === currentKey);
     if (idx >= 0) setFocusedIdx(idx);
-  }, [forceEntries, narrative, resolvedKeys, state.currentSceneIndex]);
+  }, [forceEntries, narrative, resolvedKeys, state.viewState.currentSceneIndex]);
 
   // Scroll sidebar to keep focused scene visible
   useEffect(() => {

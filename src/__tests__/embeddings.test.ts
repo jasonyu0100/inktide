@@ -9,7 +9,6 @@
  * 5. Manual embedding regeneration
  * 6. Export/import with embeddings
  */
-
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { generateScenePlan, generateScenes, generateSceneProse } from '@/lib/ai/scenes';
 import { rewriteSceneProse } from '@/lib/ai/prose';
@@ -20,16 +19,13 @@ import type { NarrativeState, Scene, BeatPlan } from '@/types/narrative';
 import { EMBEDDING_DIMENSIONS } from '@/lib/constants';
 import { TEST_EMBEDDINGS } from './fixtures/test-embeddings';
 import { assetManager } from '@/lib/asset-manager';
-
 // Mock fetch for embedding API
 global.fetch = vi.fn();
-
 const mockNarrative: NarrativeState = {
   id: 'test-narrative',
   title: 'Test Story',
   description: 'A test narrative',
   worldSummary: '',
-  rules: [],
   artifacts: {},
   characters: {
     'char1': {
@@ -90,7 +86,6 @@ const mockNarrative: NarrativeState = {
   createdAt: Date.now(),
   updatedAt: Date.now(),
 };
-
 const mockScene: Scene = {
   kind: 'scene',
   id: 'scene1',
@@ -106,7 +101,6 @@ const mockScene: Scene = {
   ownershipMutations: [],
   arcId: 'arc1',
 };
-
 // Map text to fixture embedding keys
 const TEXT_TO_FIXTURE_KEY: Record<string, keyof typeof TEST_EMBEDDINGS> = {
   'Alice discovers a hidden door': 'sceneDiscoverDoor',
@@ -130,7 +124,6 @@ const TEXT_TO_FIXTURE_KEY: Record<string, keyof typeof TEST_EMBEDDINGS> = {
   'powerful magic': 'queryPowerfulMagic',
   'Test text': 'testText',
 };
-
 // Helper to create mock embedding response using real OpenAI embeddings from fixtures
 function mockEmbeddingResponse(texts: string[]) {
   return {
@@ -139,13 +132,11 @@ function mockEmbeddingResponse(texts: string[]) {
       if (fixtureKey) {
         return TEST_EMBEDDINGS[fixtureKey] as unknown as number[];
       }
-
       // For texts not in fixtures (like batch test texts or scene summaries with indices),
       // generate a deterministic but realistic-looking embedding
       // This is just for tests that generate dynamic text (e.g., "Scene 0 about magic", "Text 0", etc.)
       const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       const baseEmbedding = TEST_EMBEDDINGS.testText as unknown as number[];
-
       // Create a variant by slightly perturbing the base embedding deterministically
       return baseEmbedding.map((val, i) => {
         const perturbation = Math.sin(hash + i) * 0.1;
@@ -156,7 +147,6 @@ function mockEmbeddingResponse(texts: string[]) {
     model: 'text-embedding-3-small',
   };
 }
-
 describe('Embedding Generation Pipeline', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -172,7 +162,6 @@ describe('Embedding Generation Pipeline', () => {
       return Promise.reject(new Error('Unexpected URL'));
     });
   });
-
   describe('1. Scene Plan Generation', () => {
     it('should generate embeddings for all propositions in plan', async () => {
       // Mock the generateScenePlan function to return a plan with propositions
@@ -197,46 +186,37 @@ describe('Embedding Generation Pipeline', () => {
           },
         ],
       };
-
       // Check that all propositions have embeddings after generation
       // In real implementation, this would be called by generateScenePlan
       const allPropositions = [
         ...mockPlan.beats[0].propositions,
         ...mockPlan.beats[1].propositions,
       ];
-
       const embeddedProps = await embedPropositions(allPropositions, mockNarrative.id);
-
       expect(embeddedProps).toHaveLength(3);
       for (const prop of embeddedProps) {
         expect(prop.embedding).toBeDefined();
         expect(prop.embeddedAt).toBeDefined();
         expect(prop.embeddingModel).toBe('text-embedding-3-small');
-
         const resolved = await assetManager.getEmbedding(prop.embedding);
         expect(resolved).toBeDefined();
         expect(resolved).toHaveLength(EMBEDDING_DIMENSIONS);
       }
     });
-
     it('should compute beat centroids from proposition embeddings', async () => {
       const propositions = [
         { content: 'Proposition A' },
         { content: 'Proposition B' },
         { content: 'Proposition C' },
       ];
-
       const embeddedProps = await embedPropositions(propositions, mockNarrative.id);
-
       // Resolve embedding references to actual vectors
       const embeddings: number[][] = [];
       for (const prop of embeddedProps) {
         const resolved = await assetManager.getEmbedding(prop.embedding);
         if (resolved) embeddings.push(resolved);
       }
-
       const centroid = computeCentroid(embeddings);
-
       expect(centroid).toHaveLength(EMBEDDING_DIMENSIONS);
       // Centroid should be average of embeddings
       for (let i = 0; i < EMBEDDING_DIMENSIONS; i++) {
@@ -245,7 +225,6 @@ describe('Embedding Generation Pipeline', () => {
       }
     });
   });
-
   describe('2. Scene Generation', () => {
     it('should generate summary embeddings for all scenes', async () => {
       const summaries = [
@@ -253,16 +232,13 @@ describe('Embedding Generation Pipeline', () => {
         'Bob finds a mysterious key',
         'Carol deciphers ancient runes',
       ];
-
       const embeddings = await generateEmbeddings(summaries, mockNarrative.id);
-
       expect(embeddings).toHaveLength(3);
       embeddings.forEach((embedding) => {
         expect(embedding).toHaveLength(EMBEDDING_DIMENSIONS);
         expect(embedding.every(v => typeof v === 'number')).toBe(true);
       });
     });
-
     it('should compute plan centroid from beat centroids', async () => {
       // Simulate beat centroids
       const beatCentroids = [
@@ -270,9 +246,7 @@ describe('Embedding Generation Pipeline', () => {
         Array.from({ length: EMBEDDING_DIMENSIONS }, () => Math.random()),
         Array.from({ length: EMBEDDING_DIMENSIONS }, () => Math.random()),
       ];
-
       const planCentroid = computeCentroid(beatCentroids);
-
       expect(planCentroid).toHaveLength(EMBEDDING_DIMENSIONS);
       // Verify it's the average
       for (let i = 0; i < EMBEDDING_DIMENSIONS; i++) {
@@ -281,24 +255,18 @@ describe('Embedding Generation Pipeline', () => {
       }
     });
   });
-
   describe('3. Prose Generation', () => {
     it('should generate prose embeddings when prose is created', async () => {
       const proseText = 'Alice pushed open the heavy wooden door. Beyond lay a corridor shrouded in darkness, its walls lined with ancient tapestries depicting forgotten battles.';
-
       const embeddings = await generateEmbeddings([proseText], mockNarrative.id);
-
       expect(embeddings).toHaveLength(1);
       expect(embeddings[0]).toHaveLength(EMBEDDING_DIMENSIONS);
     });
-
     it('should regenerate embeddings when prose is rewritten', async () => {
       const originalProse = 'Alice opened the door.';
       const rewrittenProse = 'With trembling hands, Alice slowly pushed the creaking door ajar.';
-
       const [originalEmbedding] = await generateEmbeddings([originalProse], mockNarrative.id);
       const [rewrittenEmbedding] = await generateEmbeddings([rewrittenProse], mockNarrative.id);
-
       // Embeddings should be different (not identical)
       const similarity = cosineSimilarity(originalEmbedding, rewrittenEmbedding);
       expect(similarity).toBeLessThan(1.0); // Not identical
@@ -307,7 +275,6 @@ describe('Embedding Generation Pipeline', () => {
     });
   });
 });
-
 describe('Plan Candidates', () => {
   beforeEach(() => {
     (global.fetch as any).mockImplementation((url: string, options: any) => {
@@ -339,20 +306,16 @@ describe('Plan Candidates', () => {
       return Promise.reject(new Error('Unexpected URL'));
     });
   });
-
   it('should generate multiple candidate plans', async () => {
     // This would test the full candidates flow
     // For now, we test the similarity scoring logic
     const sceneSummaryEmbedding = Array.from({ length: EMBEDDING_DIMENSIONS }, () => Math.random());
-
     const candidate1Centroid = Array.from({ length: EMBEDDING_DIMENSIONS }, () => Math.random());
     const candidate2Centroid = Array.from({ length: EMBEDDING_DIMENSIONS }, () => Math.random());
     const candidate3Centroid = Array.from({ length: EMBEDDING_DIMENSIONS }, () => Math.random());
-
     const similarity1 = cosineSimilarity(sceneSummaryEmbedding, candidate1Centroid);
     const similarity2 = cosineSimilarity(sceneSummaryEmbedding, candidate2Centroid);
     const similarity3 = cosineSimilarity(sceneSummaryEmbedding, candidate3Centroid);
-
     // Verify similarity scores are normalized
     expect(similarity1).toBeGreaterThanOrEqual(-1);
     expect(similarity1).toBeLessThanOrEqual(1);
@@ -361,7 +324,6 @@ describe('Plan Candidates', () => {
     expect(similarity3).toBeGreaterThanOrEqual(-1);
     expect(similarity3).toBeLessThanOrEqual(1);
   });
-
   it('should rank candidates by similarity score', () => {
     const candidates = [
       { id: 'c1', score: 0.85 },
@@ -370,14 +332,11 @@ describe('Plan Candidates', () => {
       { id: 'c4', score: 0.88 },
       { id: 'c5', score: 0.81 },
     ];
-
     const sorted = [...candidates].sort((a, b) => b.score - a.score);
-
     expect(sorted[0].id).toBe('c2'); // Highest score
     expect(sorted[4].id).toBe('c3'); // Lowest score
   });
 });
-
 describe('Semantic Search', () => {
   beforeEach(() => {
     (global.fetch as any).mockImplementation((url: string, options: any) => {
@@ -391,12 +350,10 @@ describe('Semantic Search', () => {
       return Promise.reject(new Error('Unexpected URL'));
     });
   });
-
   it('should search scenes by summary', async () => {
     // Use fixture embeddings with known semantic similarity
     const ref1 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.sceneDiscoverDoor), 'text-embedding-3-small');
     const ref2 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.sceneAncientSword), 'text-embedding-3-small');
-
     // Mock fetch to return the matching query fixture embedding
     (global.fetch as any).mockImplementation((url: string, options: any) => {
       if (url.includes('/api/embeddings')) {
@@ -411,7 +368,6 @@ describe('Semantic Search', () => {
       }
       return Promise.reject(new Error('Unexpected URL'));
     });
-
     const narrative: NarrativeState = {
       ...mockNarrative,
       scenes: {
@@ -429,27 +385,22 @@ describe('Semantic Search', () => {
         },
       },
     };
-
     const query = 'magical discovery';
     const results = await searchNarrative(narrative, ['scene1', 'scene2'], query);
-
     expect(results.query).toBe(query);
     expect(results.embedding).toHaveLength(EMBEDDING_DIMENSIONS);
     expect(results.results.length).toBeGreaterThan(0);
-
     // Results should be sorted by similarity
     for (let i = 1; i < results.results.length; i++) {
       expect(results.results[i - 1].similarity).toBeGreaterThanOrEqual(results.results[i].similarity);
     }
   });
-
   it('should search propositions within beats', async () => {
     // Use fixture embeddings stored as asset references
     const propRef1 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.propGlowsEnergy), 'text-embedding-3-small');
     const propRef2 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.propRustyKey), 'text-embedding-3-small');
     const centroidRef1 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.propGlowsEnergy), 'text-embedding-3-small');
     const centroidRef2 = await assetManager.storeEmbedding(Array.from(TEST_EMBEDDINGS.propRustyKey), 'text-embedding-3-small');
-
     // Mock fetch to return the matching query fixture embedding
     (global.fetch as any).mockImplementation((url: string, options: any) => {
       if (url.includes('/api/embeddings')) {
@@ -464,7 +415,6 @@ describe('Semantic Search', () => {
       }
       return Promise.reject(new Error('Unexpected URL'));
     });
-
     const narrative: NarrativeState = {
       ...mockNarrative,
       scenes: {
@@ -501,14 +451,11 @@ describe('Semantic Search', () => {
         },
       },
     };
-
     const query = 'magical energy';
     const results = await searchNarrative(narrative, ['scene1'], query);
-
     const propResults = results.results.filter(r => r.type === 'proposition');
     expect(propResults.length).toBeGreaterThan(0);
   });
-
   it('should build timeline heatmap', async () => {
     // Use real embeddings stored as asset references
     const baseEmbedding = Array.from(TEST_EMBEDDINGS.queryPowerfulMagic);
@@ -518,7 +465,6 @@ describe('Semantic Search', () => {
       const ref = await assetManager.storeEmbedding(perturbed, 'text-embedding-3-small');
       sceneData.push({ id: `scene${i}`, summary: `Scene ${i} about magic`, summaryEmbedding: ref });
     }
-
     // Mock fetch to return the query fixture embedding
     (global.fetch as any).mockImplementation((url: string) => {
       if (url.includes('/api/embeddings')) {
@@ -533,39 +479,32 @@ describe('Semantic Search', () => {
       }
       return Promise.reject(new Error('Unexpected URL'));
     });
-
     const narrative: NarrativeState = {
       ...mockNarrative,
       scenes: Object.fromEntries(sceneData.map(s => [s.id, { ...mockScene, ...s }])),
     };
-
     const query = 'powerful magic';
     const results = await searchNarrative(narrative, sceneData.map(s => s.id), query);
-
     expect(results.sceneTimeline).toBeDefined();
     expect(results.sceneTimeline.length).toBeGreaterThan(0);
-
     // Timeline should be sorted by scene index
     for (let i = 1; i < results.sceneTimeline.length; i++) {
       expect(results.sceneTimeline[i].sceneIndex).toBeGreaterThan(results.sceneTimeline[i - 1].sceneIndex);
     }
   });
 });
-
 describe('Cosine Similarity', () => {
   it('should compute similarity between identical vectors', () => {
     const vec = Array.from({ length: EMBEDDING_DIMENSIONS }, () => Math.random());
     const similarity = cosineSimilarity(vec, vec);
     expect(similarity).toBeCloseTo(1.0, 10);
   });
-
   it('should compute similarity between opposite vectors', () => {
     const vec1 = Array.from({ length: EMBEDDING_DIMENSIONS }, () => 1);
     const vec2 = Array.from({ length: EMBEDDING_DIMENSIONS }, () => -1);
     const similarity = cosineSimilarity(vec1, vec2);
     expect(similarity).toBeCloseTo(-1.0, 10);
   });
-
   it('should compute similarity between orthogonal vectors', () => {
     const vec1 = Array(EMBEDDING_DIMENSIONS).fill(0);
     vec1[0] = 1;
@@ -574,40 +513,32 @@ describe('Cosine Similarity', () => {
     const similarity = cosineSimilarity(vec1, vec2);
     expect(similarity).toBeCloseTo(0.0, 10);
   });
-
   it('should throw error for mismatched dimensions', () => {
     const vec1 = Array(100).fill(1);
     const vec2 = Array(200).fill(1);
     expect(() => cosineSimilarity(vec1, vec2)).toThrow('Vector dimensions must match');
   });
 });
-
 describe('Centroid Computation', () => {
   it('should compute centroid of single vector', () => {
     const vec = Array.from({ length: EMBEDDING_DIMENSIONS }, () => Math.random());
     const centroid = computeCentroid([vec]);
-
     expect(centroid).toEqual(vec);
   });
-
   it('should compute centroid of multiple vectors', () => {
     const vec1 = Array(EMBEDDING_DIMENSIONS).fill(1);
     const vec2 = Array(EMBEDDING_DIMENSIONS).fill(3);
     const centroid = computeCentroid([vec1, vec2]);
-
     expect(centroid).toEqual(Array(EMBEDDING_DIMENSIONS).fill(2));
   });
-
   it('should return empty array for empty input', () => {
     const centroid = computeCentroid([]);
     expect(centroid).toEqual([]);
   });
 });
-
 describe('Export/Import with Embeddings', () => {
   it('should preserve embeddings in exported JSON', async () => {
     const embedding = await generateEmbeddings(['Test text'], mockNarrative.id).then(e => e[0]);
-
     const embRef = 'emb_test123';
     const scene: Scene = {
       ...mockScene,
@@ -638,31 +569,25 @@ describe('Export/Import with Embeddings', () => {
       }],
       planEmbeddingCentroid: embRef,
     };
-
     // Serialize and deserialize
     const exported = JSON.stringify(scene);
     const imported = JSON.parse(exported) as Scene;
-
     // Verify embeddings are preserved
     expect(imported.summaryEmbedding).toEqual(embRef);
     expect(imported.planVersions?.[0].plan.beats[0].propositions[0].embedding).toEqual(embRef);
     expect(imported.planVersions?.[0].plan.beats[0].embeddingCentroid).toEqual(embRef);
     expect(imported.planEmbeddingCentroid).toEqual(embRef);
   });
-
   it('should handle scenes without embeddings', () => {
     const scene: Scene = {
       ...mockScene,
       // No embeddings
     };
-
     const exported = JSON.stringify(scene);
     const imported = JSON.parse(exported) as Scene;
-
     expect(imported.summaryEmbedding).toBeUndefined();
     expect(imported.planEmbeddingCentroid).toBeUndefined();
   });
-
   it('should preserve embedding metadata', async () => {
     const now = Date.now();
     const proposition = {
@@ -671,16 +596,13 @@ describe('Export/Import with Embeddings', () => {
       embeddedAt: now,
       embeddingModel: 'text-embedding-3-small' as const,
     };
-
     const exported = JSON.stringify(proposition);
     const imported = JSON.parse(exported);
-
     expect(imported.embeddedAt).toBe(now);
     expect(imported.embeddingModel).toBe('text-embedding-3-small');
     expect(imported.embedding).toHaveLength(EMBEDDING_DIMENSIONS);
   });
 });
-
 describe('Batch Embedding Generation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -696,12 +618,9 @@ describe('Batch Embedding Generation', () => {
       return Promise.reject(new Error('Unexpected URL'));
     });
   });
-
   it('should handle batch of 50 texts efficiently', async () => {
     const texts = Array.from({ length: 50 }, (_, i) => `Text ${i}`);
-
     const embeddings = await generateEmbeddings(texts, mockNarrative.id);
-
     expect(embeddings).toHaveLength(50);
     // Should make exactly 1 API call
     const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
@@ -710,13 +629,10 @@ describe('Batch Embedding Generation', () => {
     );
     expect(embeddingCalls.length).toBe(1);
   });
-
   it('should split large batches into multiple requests', async () => {
     const texts = Array.from({ length: 150 }, (_, i) => `Text ${i}`);
-
     const { generateEmbeddingsBatch } = await import('@/lib/embeddings');
     const embeddings = await generateEmbeddingsBatch(texts, mockNarrative.id);
-
     expect(embeddings).toHaveLength(150);
     // Should be split into 3 batches (50 each)
     const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
@@ -725,23 +641,19 @@ describe('Batch Embedding Generation', () => {
     );
     expect(embeddingCalls.length).toBe(3);
   });
-
   it('should report progress for batch operations', async () => {
     const texts = Array.from({ length: 100 }, (_, i) => `Text ${i}`);
     const progressUpdates: Array<{ completed: number; total: number }> = [];
-
     const { generateEmbeddingsBatch } = await import('@/lib/embeddings');
     await generateEmbeddingsBatch(texts, mockNarrative.id, (completed, total) => {
       progressUpdates.push({ completed, total });
     });
-
     expect(progressUpdates.length).toBeGreaterThan(0);
     const lastUpdate = progressUpdates[progressUpdates.length - 1];
     expect(lastUpdate.completed).toBe(100);
     expect(lastUpdate.total).toBe(100);
   });
 });
-
 describe('Error Handling', () => {
   it('should handle embedding API errors gracefully', async () => {
     (global.fetch as any).mockImplementation(() =>
@@ -751,22 +663,17 @@ describe('Error Handling', () => {
         text: () => Promise.resolve('Internal server error'),
       })
     );
-
     await expect(generateEmbeddings(['test'], mockNarrative.id)).rejects.toThrow('Embedding API error');
   });
-
   it('should handle network errors', async () => {
     (global.fetch as any).mockImplementation(() =>
       Promise.reject(new Error('Network error'))
     );
-
     await expect(generateEmbeddings(['test'], mockNarrative.id)).rejects.toThrow('Network error');
   });
-
   it('should handle invalid embedding dimensions', () => {
     const vec1 = Array(EMBEDDING_DIMENSIONS).fill(1);
     const vec2 = Array(100).fill(1);
-
     expect(() => cosineSimilarity(vec1, vec2)).toThrow('Vector dimensions must match');
   });
 });

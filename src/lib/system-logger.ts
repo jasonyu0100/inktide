@@ -5,7 +5,6 @@ type LogListener = (entry: SystemLogEntry) => void;
 let logListener: LogListener | null = null;
 let activeNarrativeId: string | null = null;
 let activeAnalysisId: string | null = null;
-let activeDiscoveryId: string | null = null;
 
 let counter = 0;
 
@@ -21,11 +20,6 @@ export function setSystemLoggerNarrativeId(id: string | null) {
 /** Called by analysis runner when an analysis starts/ends */
 export function setSystemLoggerAnalysisId(id: string | null) {
   activeAnalysisId = id;
-}
-
-/** Called when a discovery session starts/ends */
-export function setSystemLoggerDiscoveryId(id: string | null) {
-  activeDiscoveryId = id;
 }
 
 export type LogContext = {
@@ -88,7 +82,6 @@ export function logError(
     details: context.details,
     narrativeId: activeNarrativeId ?? undefined,
     analysisId: activeAnalysisId ?? undefined,
-    discoveryId: activeDiscoveryId ?? undefined,
   };
 
   // Log to console as well as modal
@@ -122,7 +115,6 @@ export function logInfo(message: string, context: LogContext): string {
     details: context.details,
     narrativeId: activeNarrativeId ?? undefined,
     analysisId: activeAnalysisId ?? undefined,
-    discoveryId: activeDiscoveryId ?? undefined,
   };
 
   // Log to console with JSON format for easy copy/paste

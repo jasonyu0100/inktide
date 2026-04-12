@@ -79,7 +79,7 @@ export default function ArtifactDetail({ artifactId }: Props) {
   );
   const ownerIsCharacter = !isWorldOwned && !!narrative.characters[ownerId];
 
-  const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
+  const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.viewState.currentSceneIndex + 1);
 
   // Continuity filtered to current scene
   const continuityNodes = getContinuityNodesAtScene(
@@ -87,7 +87,7 @@ export default function ArtifactDetail({ artifactId }: Props) {
     artifactId,
     narrative.scenes,
     state.resolvedEntryKeys,
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
   );
 
   // Threads filtered to current scene
@@ -95,7 +95,7 @@ export default function ArtifactDetail({ artifactId }: Props) {
     artifact.threadIds,
     narrative.threads,
     state.resolvedEntryKeys,
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
   );
 
   // Scenes: where artifact was used, had continuity mutations, ownership transfers, or thread activity

@@ -1,12 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { applyThreadMutation, EMPTY_THREAD_LOG } from '@/lib/thread-log';
 import type { ThreadMutation } from '@/types/narrative';
-
 // Thread logs are the per-thread narrative history graph. Each scene's
 // threadMutation contributes a self-contained cluster of log nodes chained
 // by adjacency. These tests lock in the invariants the rest of the pipeline
 // (generateScenes TK remap, world.ts pilot, store replay) all depend on.
-
 describe('applyThreadMutation', () => {
   it('adds nodes to an empty log and preserves content/type', () => {
     const mutation: ThreadMutation = {
@@ -19,7 +17,6 @@ describe('applyThreadMutation', () => {
     expect(log.nodes['TK-01']).toEqual({ id: 'TK-01', content: 'Harry rejects Malfoy', type: 'transition' });
     expect(log.edges).toHaveLength(0);
   });
-
   it('chains multiple nodes in one mutation via co_occurs', () => {
     const mutation: ThreadMutation = {
       threadId: 'T-01', from: 'seeded', to: 'active',
@@ -36,7 +33,6 @@ describe('applyThreadMutation', () => {
     expect(log.edges[0]).toEqual({ from: 'TK-01', to: 'TK-02', relation: 'co_occurs' });
     expect(log.edges[1]).toEqual({ from: 'TK-02', to: 'TK-03', relation: 'co_occurs' });
   });
-
   it('silently drops duplicate IDs — the invariant TK-ID remaps depend on', () => {
     // Scene 1 adds TK-01. Scene 2 tries to add TK-01 again (LLM re-using
     // the same GEN placeholder). The second node is dropped, not overwritten.
@@ -52,13 +48,11 @@ describe('applyThreadMutation', () => {
     };
     let log = applyThreadMutation(EMPTY_THREAD_LOG, first);
     log = applyThreadMutation(log, second);
-
     expect(Object.keys(log.nodes)).toHaveLength(1);
     expect(log.nodes['TK-01'].content).toBe('original');
     // No new edge because no new nodes were added in the second call.
     expect(log.edges).toHaveLength(0);
   });
-
   it('idempotent on re-application of the same mutation (supports store replay)', () => {
     // computeDerivedEntities in the store rebuilds derived state from
     // scratch on every mutation, meaning scenes' threadMutations get
@@ -82,7 +76,6 @@ describe('applyThreadMutation', () => {
     expect(twice.nodes['TK-01'].content).toBe('setup node');
     expect(twice.nodes['TK-02'].content).toBe('follow node');
   });
-
   it('drops nodes without id or content', () => {
     const mutation: ThreadMutation = {
       threadId: 'T-01', from: 'active', to: 'active',
@@ -95,7 +88,6 @@ describe('applyThreadMutation', () => {
     const log = applyThreadMutation(EMPTY_THREAD_LOG, mutation);
     expect(Object.keys(log.nodes)).toEqual(['TK-01']);
   });
-
   it('handles empty addedNodes (no-op, no crash)', () => {
     const mutation: ThreadMutation = {
       threadId: 'T-01', from: 'active', to: 'critical',
@@ -105,7 +97,6 @@ describe('applyThreadMutation', () => {
     expect(Object.keys(log.nodes)).toHaveLength(0);
     expect(log.edges).toHaveLength(0);
   });
-
   it('handles missing addedNodes field defensively', () => {
     // ThreadMutation type requires addedNodes, but defensive code in
     // applyThreadMutation uses `?? []` to handle legacy/malformed input.
@@ -115,7 +106,6 @@ describe('applyThreadMutation', () => {
     const log = applyThreadMutation(EMPTY_THREAD_LOG, mutation);
     expect(Object.keys(log.nodes)).toHaveLength(0);
   });
-
   it('defaults missing node type to pulse', () => {
     const mutation = {
       threadId: 'T-01', from: 'active', to: 'active',

@@ -1932,24 +1932,20 @@ export async function assembleNarrative(
 
   const worldSummary = results.map((ch) => ch.chapterSummary).join(" ");
 
-  // Generate rules, systems, and image style from the analyzed content
-  let rules: string[] = [];
-  let worldSystems: NarrativeState["worldSystems"] = [];
+  // Generate image style and prose profile from the analyzed content
   let imageStyle: string | undefined;
   let proseProfile: ProseProfile | undefined;
   let planGuidance = "";
+  let patterns: string[] = [];
+  let antiPatterns: string[] = [];
 
   try {
     const metaResult = await callAnalysis(
       `Based on the following world summary and character/thread data, extract:
 
-1. WORLD RULES (3-6): High-level absolute constraints that define this series — things that are ALWAYS true in this universe. Rules are broad laws, not mechanical details. For simple/realistic worlds based on our own, extract fewer rules since real-world physics are assumed. For complex fantasy/sci-fi worlds, extract more.
+1. IMAGE STYLE: A short (1-2 sentence) visual style description for consistent imagery.
 
-2. WORLD SYSTEMS (0-6): Structured mechanics that define how this world uniquely operates. A system is any distinct mechanic, institution, force, or structure that shapes the world. For each system provide: name, description, principles (how it works), constraints (hard limits/costs), and interactions (cross-system connections). Simple/realistic worlds may have few or no systems — don't force them. Complex fantasy/sci-fi worlds with unique power systems, economies, or social structures should have several.
-
-3. IMAGE STYLE: A short (1-2 sentence) visual style description for consistent imagery.
-
-4. PROSE PROFILE: Infer the author's distinctive voice and style from the text. Use your own words — choose values that accurately describe this specific work, not generic labels.
+2. PROSE PROFILE: Infer the author's distinctive voice and style from the text. Use your own words — choose values that accurately describe this specific work, not generic labels.
    - register: tonal register (conversational/literary/raw/clinical/sardonic/lyrical/mythic/journalistic or other)
    - stance: narrative stance (close_third/intimate_first_person/omniscient_ironic/detached_observer/unreliable_first or other)
    - tense: grammatical tense (past/present)
@@ -1960,16 +1956,16 @@ export async function assembleNarrative(
    - rules: 3-6 SPECIFIC prose rules as imperatives — concrete enough to apply sentence-by-sentence. Derive these from what the author DOES. BAD: "Write well". GOOD: "Show emotion through physical reaction, never name it" / "No figurative language — just plain statements of fact" / "Exposition delivered only through discovery and dialogue" / "Terse does not mean monotone — vary between clipped fragments and occasional longer compound sentences"
    - antiPatterns: 3-5 SPECIFIC prose failures to avoid — concrete patterns that would break this author's voice. Derive from what the author does NOT do. BAD: "Don't be boring". GOOD: "NEVER use 'This was a [Name]' to introduce a mechanic — show what it does" / "No strategic summaries in internal monologue ('He calculated that...') — show calculation through action" / "Do not follow a reveal with a sentence restating its significance" / "Do not write narrator summaries of what the character already achieved on-page"
 
-5. PLAN GUIDANCE: 2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? Be specific to this work's voice.
+3. PLAN GUIDANCE: 2-4 sentences of specific guidance for scene beat plans. What mechanisms should dominate? How should exposition be handled? What should plans avoid? Be specific to this work's voice.
+
+4. PATTERNS: 3-5 positive thematic commandments — what makes THIS series good. Story-level principles derived from genre, tone, and narrative approach. NOT prose style (that's in proseProfile). EXAMPLES: "Every cost paid must compound into later consequence", "Magic always extracts a price from the wielder", "Character knowledge must be earned on-page before it can be acted upon"
+
+5. ANTI-PATTERNS: 3-5 negative story commandments — what to avoid in THIS series. Specific patterns that would break the story's integrity. EXAMPLES: "Characters must not conveniently forget information they learned earlier", "Tension cannot resolve without visible cost", "No deus ex machina rescues — solutions must be seeded"
 
 ${buildMetaContext(results, characters, threads, locations, scenes, worldSummary)}
 
 Return JSON:
 {
-  "rules": ["rule1", "rule2"],
-  "worldSystems": [
-    {"name": "System Name", "description": "One-line summary", "principles": ["How it works"], "constraints": ["Hard limits"], "interactions": ["Cross-system connections"]}
-  ],
   "imageStyle": "style directive",
   "proseProfile": {
     "register": "string",
@@ -1982,13 +1978,14 @@ Return JSON:
     "rules": ["prose rule 1", "prose rule 2"],
     "antiPatterns": ["anti-pattern 1", "anti-pattern 2"]
   },
-  "planGuidance": "How beat plans should be structured for this work"
+  "planGuidance": "How beat plans should be structured for this work",
+  "patterns": ["story pattern 1", "story pattern 2"],
+  "antiPatterns": ["story anti-pattern 1", "story anti-pattern 2"]
 }`,
-      "You are a world-building and literary analyst. Extract the implicit rules, mechanical systems, visual style, and prose voice of a narrative universe. Return only valid JSON.",
+      "You are a literary analyst. Extract the visual style and prose voice of a narrative. Return only valid JSON.",
       onToken,
     );
     const metaParsed = JSON.parse(extractJSON(metaResult));
-    rules = metaParsed.rules ?? [];
     imageStyle = metaParsed.imageStyle;
     if (
       metaParsed.proseProfile &&
@@ -2021,28 +2018,15 @@ Return JSON:
     ) {
       planGuidance = metaParsed.planGuidance.trim();
     }
-    if (Array.isArray(metaParsed.worldSystems)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      worldSystems = metaParsed.worldSystems
-        .filter((s: any) => s && typeof s.name === "string")
-        .map((s: any) => ({
-          id: `WS-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          name: s.name,
-          description: typeof s.description === "string" ? s.description : "",
-          principles: Array.isArray(s.principles)
-            ? s.principles.filter((p: unknown) => typeof p === "string")
-            : [],
-          constraints: Array.isArray(s.constraints)
-            ? s.constraints.filter((c: unknown) => typeof c === "string")
-            : [],
-          interactions: Array.isArray(s.interactions)
-            ? s.interactions.filter((x: unknown) => typeof x === "string")
-            : [],
-        }));
+    if (Array.isArray(metaParsed.patterns)) {
+      patterns = metaParsed.patterns.filter((p: unknown) => typeof p === "string");
+    }
+    if (Array.isArray(metaParsed.antiPatterns)) {
+      antiPatterns = metaParsed.antiPatterns.filter((p: unknown) => typeof p === "string");
     }
   } catch (err) {
     logWarning(
-      "Rules/systems/style extraction failed - using defaults",
+      "Style/profile extraction failed - using defaults",
       err instanceof Error ? err : String(err),
       {
         source: "analysis",
@@ -2067,13 +2051,13 @@ Return JSON:
     relationships,
     systemGraph: { nodes: {}, edges: [] }, // derived — recomputed by withDerivedEntities on load
     worldSummary,
-    rules,
-    worldSystems,
     imageStyle,
     proseProfile,
     storySettings: planGuidance
       ? { ...DEFAULT_STORY_SETTINGS, planGuidance }
       : undefined,
+    patterns: patterns.length > 0 ? patterns : undefined,
+    antiPatterns: antiPatterns.length > 0 ? antiPatterns : undefined,
     createdAt: Date.now() - 86400000,
     updatedAt: Date.now(),
   };

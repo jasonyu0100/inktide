@@ -42,7 +42,6 @@ export function NarrativeEditModal({ entry, onClose }: { entry: NarrativeEntry; 
           description,
           coverPrompt: coverPrompt.trim() || undefined,
           imageStyle: state.activeNarrative?.imageStyle || undefined,
-          rules: state.activeNarrative?.rules || undefined,
         }),
       });
       if (!res.ok) {

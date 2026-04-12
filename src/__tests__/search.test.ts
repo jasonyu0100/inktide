@@ -8,24 +8,19 @@
  * - Timeline heatmap generation
  * - Top arc/scene/beat identification
  */
-
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { searchNarrative } from '@/lib/search';
 import type { NarrativeState, Scene, BeatPlan } from '@/types/narrative';
 import * as embeddingsModule from '@/lib/embeddings';
 import { SEARCH_TOP_K_SCENES, SEARCH_TOP_K_BEATS, SEARCH_TOP_K_PROPOSITIONS } from '@/lib/constants';
-
 // Mock embeddings module
 vi.mock('@/lib/embeddings');
 vi.mock('@/lib/system-logger');
-
 describe('searchNarrative', () => {
   let mockNarrative: NarrativeState;
   let mockResolvedKeys: string[];
-
   beforeEach(() => {
     vi.clearAllMocks();
-
     // Create mock narrative with scenes, beats, and propositions
     const mockBeatPlan: BeatPlan = {
       beats: [
@@ -59,7 +54,6 @@ describe('searchNarrative', () => {
         },
       ],
     };
-
     const scene1: Scene = {
       kind: 'scene',
       id: 'scene1',
@@ -84,7 +78,6 @@ describe('searchNarrative', () => {
       relationshipMutations: [],
       characterMovements: {},
     };
-
     const scene2: Scene = {
       kind: 'scene',
       id: 'scene2',
@@ -124,13 +117,11 @@ describe('searchNarrative', () => {
       relationshipMutations: [],
       characterMovements: {},
     };
-
     mockNarrative = {
       id: 'test-narrative',
       title: 'Test Story',
       description: 'A test narrative',
       worldSummary: '',
-      rules: [],
       artifacts: {},
       characters: {
         char1: {
@@ -200,14 +191,11 @@ describe('searchNarrative', () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-
     mockResolvedKeys = ['scene1', 'scene2'];
-
     // Setup mock embedding responses
     vi.mocked(embeddingsModule.generateEmbeddings).mockResolvedValue([
       [0.1, 0.2, 0.3], // query embedding
     ]);
-
     // Mock resolveEmbedding to return different vectors
     vi.mocked(embeddingsModule.resolveEmbedding).mockImplementation((ref: any) => {
       const embeddings: Record<string, number[]> = {
@@ -221,11 +209,9 @@ describe('searchNarrative', () => {
         'embed-3': [0.09, 0.19, 0.29],
         'embed-4': [0.10, 0.20, 0.30],
       };
-
       // Return embedding if exists, otherwise return a default one to avoid null
       return Promise.resolve(embeddings[ref] || [0.1, 0.2, 0.3]);
     });
-
     // Mock cosine similarity to return descending similarities
     vi.mocked(embeddingsModule.cosineSimilarity).mockImplementation((a: number[], b: number[]) => {
       // Simple mock: higher similarity for closer embeddings
@@ -233,40 +219,28 @@ describe('searchNarrative', () => {
       return 1 - Math.abs(0.6 - sum);
     });
   });
-
   it('should generate query embedding', async () => {
     const query = 'castle entrance';
-
     await searchNarrative(mockNarrative, mockResolvedKeys, query);
-
     expect(embeddingsModule.generateEmbeddings).toHaveBeenCalledWith([query], mockNarrative.id);
   });
-
   it('should search across scenes, beats, and propositions', async () => {
     const query = 'castle entrance';
-
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
-
     expect(result.query).toBe(query);
     expect(result.results).toBeDefined();
     expect(Array.isArray(result.results)).toBe(true);
     expect(result.embedding).toBeDefined();
     expect(result.detailTimeline).toBeDefined();
   });
-
   it('should limit results to SEARCH_TOP_K', async () => {
     const query = 'battle';
-
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
-
     expect(result.results.length).toBeLessThanOrEqual(SEARCH_TOP_K_SCENES + SEARCH_TOP_K_BEATS + SEARCH_TOP_K_PROPOSITIONS);
   });
-
   it('should sort results by similarity descending', async () => {
     const query = 'prophecy';
-
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
-
     // Verify descending order
     for (let i = 0; i < result.results.length - 1; i++) {
       expect(result.results[i].similarity).toBeGreaterThanOrEqual(
@@ -274,15 +248,11 @@ describe('searchNarrative', () => {
       );
     }
   });
-
   it('should generate timeline heatmap', async () => {
     const query = 'hero';
-
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
-
     expect(result.detailTimeline).toBeDefined();
     expect(Array.isArray(result.detailTimeline)).toBe(true);
-
     // Verify timeline structure
     result.detailTimeline.forEach(point => {
       expect(point).toHaveProperty('sceneIndex');
@@ -291,12 +261,9 @@ describe('searchNarrative', () => {
       expect(typeof point.maxSimilarity).toBe('number');
     });
   });
-
   it('should identify top arc', async () => {
     const query = 'castle';
-
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
-
     if (result.topArc) {
       expect(result.topArc.arcId).toBe('arc1');
       expect(typeof result.topArc.avgSimilarity).toBe('number');
@@ -304,40 +271,30 @@ describe('searchNarrative', () => {
       expect(result.topArc.avgSimilarity).toBeLessThanOrEqual(1);
     }
   });
-
   it('should return query embedding in result', async () => {
     const query = 'test';
     const mockEmbedding = [0.1, 0.2, 0.3];
     vi.mocked(embeddingsModule.generateEmbeddings).mockResolvedValue([mockEmbedding]);
-
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
-
     expect(result.embedding).toEqual(mockEmbedding);
   });
-
   it('should handle scenes without embeddings gracefully', async () => {
     // Remove embeddings from scene2
     delete mockNarrative.scenes.scene2.summaryEmbedding;
     mockNarrative.scenes.scene2.planVersions = [];
-
     const query = 'test';
-
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
-
     // Should not throw error even with missing embeddings
     expect(result).toBeDefined();
     expect(result.results).toBeDefined();
     expect(Array.isArray(result.results)).toBe(true);
   });
-
   it('should handle narrative with no scenes', async () => {
     const emptyNarrative = {
       ...mockNarrative,
       scenes: {},
     };
-
     const result = await searchNarrative(emptyNarrative, [], 'test');
-
     expect(result.results.length).toBe(0);
     expect(result.detailTimeline.length).toBe(0);
     expect(result.topArc).toBeNull();

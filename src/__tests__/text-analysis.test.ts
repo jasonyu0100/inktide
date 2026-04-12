@@ -1,15 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AnalysisChunkResult } from '@/types/narrative';
-
 // Mock fetch globally
 global.fetch = vi.fn();
-
 // Mock the AI module
 vi.mock('@/lib/ai/api', () => ({
   callGenerate: vi.fn(),
   callGenerateStream: vi.fn(),
 }));
-
 // Mock constants with smaller chunk sizes for faster tests
 vi.mock('@/lib/constants', () => ({
   ANALYSIS_CHUNK_SIZE_SECTIONS: 10,
@@ -22,18 +19,15 @@ vi.mock('@/lib/constants', () => ({
   MAX_TOKENS_DEFAULT: 4096,
   ANALYSIS_TEMPERATURE: 0.7,
 }));
-
 // Mock api-logger
 vi.mock('@/lib/api-logger', () => ({
   logApiCall: vi.fn(() => 'log-id'),
   updateApiLog: vi.fn(),
 }));
-
 // Mock api-headers
 vi.mock('@/lib/api-headers', () => ({
   apiHeaders: vi.fn(() => ({ 'Content-Type': 'application/json' })),
 }));
-
 // Mock system-logger
 vi.mock('@/lib/system-logger', () => ({
   logError: vi.fn(),
@@ -42,18 +36,14 @@ vi.mock('@/lib/system-logger', () => ({
   setSystemLoggerNarrativeId: vi.fn(),
   setSystemLoggerAnalysisId: vi.fn(),
 }));
-
 // Mock validation
 vi.mock('@/lib/ai/validation', () => ({
   validateExtractionResult: vi.fn(() => []),
   validateSystemMutation: vi.fn(() => []),
 }));
-
 import { splitCorpusIntoScenes, extractSceneStructure, groupScenesIntoArcs, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
 import { callGenerate } from '@/lib/ai/api';
-
 // ── Test Fixtures ────────────────────────────────────────────────────────────
-
 function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChunkResult> = {}): AnalysisChunkResult {
   return {
     chapterSummary: `Chunk ${index} summary`,
@@ -113,7 +103,6 @@ function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChun
     ...overrides,
   };
 }
-
 /** Create a rich fixture with artifacts, world knowledge, movements, etc. */
 function createRichAnalysisResult(index: number): AnalysisChunkResult {
   return {
@@ -174,12 +163,9 @@ function createRichAnalysisResult(index: number): AnalysisChunkResult {
     ],
   };
 }
-
 // ── Setup ────────────────────────────────────────────────────────────────────
-
 beforeEach(() => {
   vi.clearAllMocks();
-
   // Mock fetch to return successful responses with valid analysis JSON
   vi.mocked(fetch).mockResolvedValue({
     ok: true,
@@ -196,11 +182,9 @@ beforeEach(() => {
     text: async () => '{}',
   } as Response);
 });
-
 // ══════════════════════════════════════════════════════════════════════════════
 // Phase 0: splitCorpusIntoScenes
 // ══════════════════════════════════════════════════════════════════════════════
-
 describe('splitCorpusIntoScenes', () => {
   it('splits text into scene-sized chunks', () => {
     const paragraph = Array(200).fill('word').join(' '); // 200 words
@@ -210,21 +194,18 @@ describe('splitCorpusIntoScenes', () => {
     expect(scenes[0].index).toBe(0);
     expect(scenes[0].wordCount).toBeGreaterThan(0);
   });
-
   it('handles short text as single scene', () => {
     const text = 'Short text.\n\nAnother paragraph.';
     const scenes = splitCorpusIntoScenes(text);
     expect(scenes.length).toBe(1);
     expect(scenes[0].prose).toContain('Short text');
   });
-
   it('assigns sequential indices', () => {
     const paragraph = Array(300).fill('word').join(' ');
     const text = Array(8).fill(paragraph).join('\n\n'); // 2400 words = ~2 scenes
     const scenes = splitCorpusIntoScenes(text);
     scenes.forEach((s, i) => expect(s.index).toBe(i));
   });
-
   it('preserves all text (no word loss)', () => {
     const paragraph = Array(300).fill('word').join(' ');
     const text = Array(8).fill(paragraph).join('\n\n');
@@ -232,7 +213,6 @@ describe('splitCorpusIntoScenes', () => {
     const totalWords = scenes.reduce((sum, s) => sum + s.wordCount, 0);
     expect(totalWords).toBe(2400);
   });
-
   it('merges tiny trailing scene into previous', () => {
     // Create text where the last paragraph is very small (<30% of target)
     const bigParagraph = Array(1200).fill('word').join(' ');
@@ -243,7 +223,6 @@ describe('splitCorpusIntoScenes', () => {
     expect(scenes.length).toBe(1);
     expect(scenes[0].wordCount).toBe(1250);
   });
-
   it('does not merge substantial trailing scene', () => {
     // A trailing scene with > 30% of target should stay separate
     const bigParagraph = Array(1200).fill('word').join(' ');
@@ -252,7 +231,6 @@ describe('splitCorpusIntoScenes', () => {
     const scenes = splitCorpusIntoScenes(text);
     expect(scenes.length).toBe(2);
   });
-
   it('splits long single paragraph into multiple scenes', () => {
     // One giant paragraph with 3600 words — should be split by sentence boundaries
     const sentences = Array(200).fill('This is a sentence with some words.').join(' ');
@@ -262,7 +240,6 @@ describe('splitCorpusIntoScenes', () => {
     const totalWords = scenes.reduce((sum, s) => sum + s.wordCount, 0);
     expect(totalWords).toBeGreaterThan(0);
   });
-
   it('handles empty paragraphs gracefully', () => {
     const text = 'First paragraph.\n\n\n\n\n\nSecond paragraph.';
     const scenes = splitCorpusIntoScenes(text);
@@ -270,12 +247,10 @@ describe('splitCorpusIntoScenes', () => {
     expect(scenes[0].prose).toContain('First paragraph');
     expect(scenes[0].prose).toContain('Second paragraph');
   });
-
   it('handles whitespace-only input', () => {
     const scenes = splitCorpusIntoScenes('   \n\n   \n\n   ');
     expect(scenes.length).toBe(0);
   });
-
   it('produces scenes near target word count for large text', () => {
     const paragraph = Array(200).fill('word').join(' ');
     const text = Array(50).fill(paragraph).join('\n\n'); // 10000 words
@@ -287,11 +262,9 @@ describe('splitCorpusIntoScenes', () => {
     }
   });
 });
-
 // ══════════════════════════════════════════════════════════════════════════════
 // Phase 2: extractSceneStructure
 // ══════════════════════════════════════════════════════════════════════════════
-
 describe('extractSceneStructure', () => {
   it('extracts complete structure from prose + plan', async () => {
     const mockResponse = {
@@ -314,15 +287,12 @@ describe('extractSceneStructure', () => {
       characterMovements: [{ characterName: 'Alice', locationName: 'Wonderland', transition: 'fell through' }],
       systemMutations: { addedNodes: [{ concept: 'Size-Altering', type: 'system' }] },
     };
-
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: JSON.stringify(mockResponse) }),
     } as Response);
-
     const plan = { beats: [{ fn: 'advance' as const, mechanism: 'action' as const, what: 'Alice falls', propositions: [] }] };
     const result = await extractSceneStructure('Alice fell down the rabbit hole.', plan);
-
     expect(result.povName).toBe('Alice');
     expect(result.locationName).toBe('Wonderland');
     expect(result.participantNames).toContain('Alice');
@@ -340,17 +310,14 @@ describe('extractSceneStructure', () => {
     expect(result.characterMovements).toHaveLength(1);
     expect(result.systemMutations?.addedNodes).toHaveLength(1);
   });
-
   it('defaults missing fields to empty arrays/strings', async () => {
     // LLM returns partial JSON — function should fill defaults
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: JSON.stringify({ povName: 'Alice', summary: 'Partial' }) }),
     } as Response);
-
     const plan = { beats: [{ fn: 'breathe' as const, mechanism: 'environment' as const, what: 'Setup', propositions: [] }] };
     const result = await extractSceneStructure('Some prose.', plan);
-
     expect(result.povName).toBe('Alice');
     expect(result.locationName).toBe('');
     expect(result.participantNames).toEqual([]);
@@ -367,7 +334,6 @@ describe('extractSceneStructure', () => {
     expect(result.tieMutations).toEqual([]);
     expect(result.characterMovements).toEqual([]);
   });
-
   it('handles LLM response wrapped in markdown code fence', async () => {
     const jsonStr = JSON.stringify({
       povName: 'Bob', locationName: 'Library', participantNames: ['Bob'],
@@ -376,117 +342,94 @@ describe('extractSceneStructure', () => {
       threadMutations: [], continuityMutations: [], relationshipMutations: [],
       artifactUsages: [], ownershipMutations: [], tieMutations: [], characterMovements: [],
     });
-
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: '```json\n' + jsonStr + '\n```' }),
     } as Response);
-
     const plan = { beats: [{ fn: 'inform' as const, mechanism: 'narration' as const, what: 'Reads', propositions: [] }] };
     const result = await extractSceneStructure('Bob reads a book.', plan);
     expect(result.povName).toBe('Bob');
     expect(result.locationName).toBe('Library');
   });
-
   it('throws on invalid JSON response', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: 'This is not JSON at all' }),
     } as Response);
-
     const plan = { beats: [{ fn: 'breathe' as const, mechanism: 'environment' as const, what: 'Setup', propositions: [] }] };
     await expect(extractSceneStructure('Some prose.', plan)).rejects.toThrow();
   });
-
   it('throws on fetch failure', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: false,
       json: async () => ({ error: 'Rate limited' }),
     } as Response);
-
     const plan = { beats: [{ fn: 'breathe' as const, mechanism: 'environment' as const, what: 'Setup', propositions: [] }] };
     await expect(extractSceneStructure('Some prose.', plan)).rejects.toThrow('Rate limited');
   });
 });
-
 // ══════════════════════════════════════════════════════════════════════════════
 // Phase 3: groupScenesIntoArcs
 // ══════════════════════════════════════════════════════════════════════════════
-
 describe('groupScenesIntoArcs', () => {
   it('groups scenes into arcs of ~4 and names them', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: JSON.stringify(['The Beginning', 'Rising Tension']) }),
     } as Response);
-
     const summaries = Array.from({ length: 8 }, (_, i) => ({ index: i, summary: `Scene ${i} summary` }));
     const arcs = await groupScenesIntoArcs(summaries);
-
     expect(arcs).toHaveLength(2);
     expect(arcs[0].name).toBe('The Beginning');
     expect(arcs[0].sceneIndices).toEqual([0, 1, 2, 3]);
     expect(arcs[1].name).toBe('Rising Tension');
     expect(arcs[1].sceneIndices).toEqual([4, 5, 6, 7]);
   });
-
   it('handles non-multiple-of-4 scene counts', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: JSON.stringify(['Arc One', 'Arc Two']) }),
     } as Response);
-
     const summaries = Array.from({ length: 6 }, (_, i) => ({ index: i, summary: `Scene ${i}` }));
     const arcs = await groupScenesIntoArcs(summaries);
-
     expect(arcs).toHaveLength(2);
     expect(arcs[0].sceneIndices).toEqual([0, 1, 2, 3]);
     expect(arcs[1].sceneIndices).toEqual([4, 5]); // Remaining 2 scenes
   });
-
   it('falls back to default names when LLM returns fewer names', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: JSON.stringify(['Only One Name']) }),
     } as Response);
-
     const summaries = Array.from({ length: 8 }, (_, i) => ({ index: i, summary: `Scene ${i}` }));
     const arcs = await groupScenesIntoArcs(summaries);
-
     expect(arcs).toHaveLength(2);
     expect(arcs[0].name).toBe('Only One Name');
     expect(arcs[1].name).toBe('Arc 2'); // Fallback
   });
-
   it('handles single scene input', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: JSON.stringify(['Prologue']) }),
     } as Response);
-
     const arcs = await groupScenesIntoArcs([{ index: 0, summary: 'Only scene' }]);
     expect(arcs).toHaveLength(1);
     expect(arcs[0].sceneIndices).toEqual([0]);
   });
-
   it('preserves non-sequential scene indices', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: JSON.stringify(['Sparse Arc']) }),
     } as Response);
-
     // Simulate scenes that aren't 0-indexed consecutively (e.g., some scenes filtered out)
     const summaries = [{ index: 2, summary: 'Scene 2' }, { index: 5, summary: 'Scene 5' }, { index: 7, summary: 'Scene 7' }];
     const arcs = await groupScenesIntoArcs(summaries);
-
     expect(arcs[0].sceneIndices).toEqual([2, 5, 7]);
   });
 });
-
 // ══════════════════════════════════════════════════════════════════════════════
 // Phase 4: reconcileResults
 // ══════════════════════════════════════════════════════════════════════════════
-
 describe('reconcileResults', () => {
   beforeEach(() => {
     // Default: no merges needed
@@ -498,20 +441,17 @@ describe('reconcileResults', () => {
       systemMerges: {},
     }));
   });
-
   it('returns same number of chunks', async () => {
     const results = [createMockAnalysisResult(0), createMockAnalysisResult(1)];
     const reconciled = await reconcileResults(results);
     expect(reconciled.length).toBe(results.length);
   });
-
   it('preserves all scenes from all chunks', async () => {
     const results = [createMockAnalysisResult(0), createMockAnalysisResult(1), createMockAnalysisResult(2)];
     const reconciled = await reconcileResults(results);
     const totalScenes = reconciled.reduce((sum, r) => sum + r.scenes.length, 0);
     expect(totalScenes).toBe(3);
   });
-
   it('merges character name variants via LLM map', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -525,18 +465,15 @@ describe('reconcileResults', () => {
         }),
       }),
     } as Response);
-
     const results: AnalysisChunkResult[] = [
       { ...createMockAnalysisResult(0), characters: [{ name: 'Prof. McGonagall', role: 'recurring', firstAppearance: true }] },
       { ...createMockAnalysisResult(1), characters: [{ name: 'Minerva McGonagall', role: 'anchor', firstAppearance: false }] },
     ];
-
     const reconciled = await reconcileResults(results);
     // Both should now use the canonical name
     expect(reconciled[0].characters[0].name).toBe('Minerva McGonagall');
     expect(reconciled[1].characters[0].name).toBe('Minerva McGonagall');
   });
-
   it('merges thread descriptions via LLM map', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -550,7 +487,6 @@ describe('reconcileResults', () => {
         }),
       }),
     } as Response);
-
     const results: AnalysisChunkResult[] = [
       {
         ...createMockAnalysisResult(0),
@@ -561,12 +497,10 @@ describe('reconcileResults', () => {
         }],
       },
     ];
-
     const reconciled = await reconcileResults(results);
     expect(reconciled[0].threads[0].description).toBe("Harry and Snape's antagonism");
     expect(reconciled[0].scenes[0].threadMutations[0].threadDescription).toBe("Harry and Snape's antagonism");
   });
-
   it('merges location names via LLM map', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -580,7 +514,6 @@ describe('reconcileResults', () => {
         }),
       }),
     } as Response);
-
     const results: AnalysisChunkResult[] = [
       {
         ...createMockAnalysisResult(0),
@@ -588,12 +521,10 @@ describe('reconcileResults', () => {
         scenes: [{ ...createMockAnalysisResult(0).scenes[0], locationName: 'The Forest' }],
       },
     ];
-
     const reconciled = await reconcileResults(results);
     expect(reconciled[0].locations[0].name).toBe('Dark Forest');
     expect(reconciled[0].scenes[0].locationName).toBe('Dark Forest');
   });
-
   it('merges artifact names via LLM map', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -607,7 +538,6 @@ describe('reconcileResults', () => {
         }),
       }),
     } as Response);
-
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       artifacts: [{ name: 'the Elder Wand', significance: 'key', ownerName: null }],
@@ -616,12 +546,10 @@ describe('reconcileResults', () => {
         artifactUsages: [{ artifactName: 'the Elder Wand', characterName: 'Harry', usage: 'cast the disarming charm' }],
       }],
     }];
-
     const reconciled = await reconcileResults(results);
     expect(reconciled[0].artifacts![0].name).toBe('Elder Wand');
     expect(reconciled[0].scenes[0].artifactUsages![0].artifactName).toBe('Elder Wand');
   });
-
   it('merges world knowledge concepts via LLM map', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -635,7 +563,6 @@ describe('reconcileResults', () => {
         }),
       }),
     } as Response);
-
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       scenes: [{
@@ -646,12 +573,10 @@ describe('reconcileResults', () => {
         },
       }],
     }];
-
     const reconciled = await reconcileResults(results);
     expect(reconciled[0].scenes[0].systemMutations!.addedNodes[0].concept).toBe('Magic System');
     expect(reconciled[0].scenes[0].systemMutations!.addedEdges[0].fromConcept).toBe('Magic System');
   });
-
   it('stitches thread continuity across chunks', async () => {
     const results: AnalysisChunkResult[] = [
       {
@@ -665,22 +590,18 @@ describe('reconcileResults', () => {
         scenes: [{ ...createMockAnalysisResult(1).scenes[0], threadMutations: [{ threadDescription: 'Main quest', from: 'dormant', to: 'escalating', addedNodes: [] }] }],
       },
     ];
-
     const reconciled = await reconcileResults(results);
-
     // Chunk 1's statusAtStart should be stitched to chunk 0's statusAtEnd
     expect(reconciled[1].threads[0].statusAtStart).toBe('active');
     // Scene-level mutation from should also be corrected
     expect(reconciled[1].scenes[0].threadMutations[0].from).toBe('active');
   });
-
   it('normalizes LLM status variants to canonical vocabulary', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       threads: [{ description: 'Quest', participantNames: ['Hero'], statusAtStart: 'inactive', statusAtEnd: 'developing', development: 'Started' }],
       scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadMutations: [{ threadDescription: 'Quest', from: 'inactive', to: 'developing', addedNodes: [] }] }],
     }];
-
     const reconciled = await reconcileResults(results);
     // 'inactive' → 'latent', 'developing' → 'seeded'
     expect(reconciled[0].threads[0].statusAtStart).toBe('latent');
@@ -688,7 +609,6 @@ describe('reconcileResults', () => {
     expect(reconciled[0].scenes[0].threadMutations[0].from).toBe('latent');
     expect(reconciled[0].scenes[0].threadMutations[0].to).toBe('seeded');
   });
-
   it('deduplicates characters within same chunk by name', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -697,14 +617,12 @@ describe('reconcileResults', () => {
         { name: 'Alice', role: 'anchor', firstAppearance: false },
       ],
     }];
-
     const reconciled = await reconcileResults(results);
     const alices = reconciled[0].characters.filter(c => c.name === 'Alice');
     expect(alices).toHaveLength(1);
     // Should take higher role
     expect(alices[0].role).toBe('anchor');
   });
-
   it('deduplicates artifacts within same chunk by name with higher significance', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -713,13 +631,11 @@ describe('reconcileResults', () => {
         { name: 'Sword', significance: 'key', ownerName: 'Hero' },
       ],
     }];
-
     const reconciled = await reconcileResults(results);
     const swords = reconciled[0].artifacts!.filter(a => a.name === 'Sword');
     expect(swords).toHaveLength(1);
     expect(swords[0].significance).toBe('key');
   });
-
   it('resolves character names in participant lists', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -731,7 +647,6 @@ describe('reconcileResults', () => {
         }),
       }),
     } as Response);
-
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       scenes: [{
@@ -740,12 +655,10 @@ describe('reconcileResults', () => {
         povName: 'Al',
       }],
     }];
-
     const reconciled = await reconcileResults(results);
     expect(reconciled[0].scenes[0].povName).toBe('Alice');
     expect(reconciled[0].scenes[0].participantNames).toContain('Alice');
   });
-
   it('deduplicates participant names after merge', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -757,7 +670,6 @@ describe('reconcileResults', () => {
         }),
       }),
     } as Response);
-
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       scenes: [{
@@ -765,14 +677,12 @@ describe('reconcileResults', () => {
         participantNames: ['Al', 'Alice', 'Bob'], // Al and Alice are same person
       }],
     }];
-
     const reconciled = await reconcileResults(results);
     // Should deduplicate after resolving Al → Alice
     const participants = reconciled[0].scenes[0].participantNames;
     const aliceCount = participants.filter(n => n === 'Alice').length;
     expect(aliceCount).toBe(1);
   });
-
   it('resolves relationship mutation names through character map', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -784,7 +694,6 @@ describe('reconcileResults', () => {
         }),
       }),
     } as Response);
-
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       scenes: [{
@@ -792,16 +701,13 @@ describe('reconcileResults', () => {
         relationshipMutations: [{ from: 'Al', to: 'Bob', type: 'trust', valenceDelta: 0.3 }],
       }],
     }];
-
     const reconciled = await reconcileResults(results);
     expect(reconciled[0].scenes[0].relationshipMutations[0].from).toBe('Alice');
   });
 });
-
 // ══════════════════════════════════════════════════════════════════════════════
 // Phase 5: analyzeThreading
 // ══════════════════════════════════════════════════════════════════════════════
-
 describe('analyzeThreading', () => {
   it('analyzes thread dependencies and returns mapping', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
@@ -815,23 +721,19 @@ describe('analyzeThreading', () => {
         }),
       }),
     } as any);
-
     const result = await analyzeThreading(['Thread A', 'Thread B', 'Thread C']);
     expect(result['Thread B']).toEqual(['Thread A']);
     expect(result['Thread C']).toEqual(['Thread A', 'Thread B']);
   });
-
   it('returns empty object when less than 2 threads', async () => {
     const result = await analyzeThreading(['Thread A']);
     expect(result).toEqual({});
     expect(callGenerate).not.toHaveBeenCalled();
   });
-
   it('returns empty object when empty thread list', async () => {
     const result = await analyzeThreading([]);
     expect(result).toEqual({});
   });
-
   it('returns empty object when exactly 2 threads have no dependencies', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -839,11 +741,9 @@ describe('analyzeThreading', () => {
         content: JSON.stringify({ threadDependencies: {} }),
       }),
     } as any);
-
     const result = await analyzeThreading(['Thread A', 'Thread B']);
     expect(result).toEqual({});
   });
-
   it('handles LLM returning smart quotes in JSON', async () => {
     // Simulate LLM returning curly quotes instead of straight quotes
     const badJson = '{"threadDependencies": {\u201CThread B\u201D: [\u201CThread A\u201D]}}';
@@ -851,16 +751,13 @@ describe('analyzeThreading', () => {
       ok: true,
       json: async () => ({ content: badJson }),
     } as any);
-
     const result = await analyzeThreading(['Thread A', 'Thread B']);
     expect(result['Thread B']).toEqual(['Thread A']);
   });
 });
-
 // ══════════════════════════════════════════════════════════════════════════════
 // Phase 6: assembleNarrative
 // ══════════════════════════════════════════════════════════════════════════════
-
 describe('assembleNarrative', () => {
   beforeEach(() => {
     // Mock fetch for meta extraction (callAnalysis uses fetch → res.json() → data.content)
@@ -902,11 +799,9 @@ describe('assembleNarrative', () => {
       planGuidance: 'Use action and environment mechanisms primarily',
     }));
   });
-
   it('creates a complete NarrativeState from analyzed results', async () => {
     const results = [createMockAnalysisResult(0), createMockAnalysisResult(1)];
     const narrative = await assembleNarrative('Test Story', results, {});
-
     expect(narrative.title).toBe('Test Story');
     expect(narrative.id).toMatch(/^N-TES-/);
     expect(Object.keys(narrative.characters).length).toBeGreaterThan(0);
@@ -916,34 +811,27 @@ describe('assembleNarrative', () => {
     expect(Object.keys(narrative.branches).length).toBe(1);
     expect(Object.keys(narrative.arcs).length).toBeGreaterThan(0);
   });
-
   it('assigns unique IDs to all entities', async () => {
     const results = [createMockAnalysisResult(0)];
     const narrative = await assembleNarrative('Test', results, {});
-
     const characterIds = Object.keys(narrative.characters);
     const locationIds = Object.keys(narrative.locations);
     const threadIds = Object.keys(narrative.threads);
     const sceneIds = Object.keys(narrative.scenes);
-
     expect(new Set(characterIds).size).toBe(characterIds.length);
     expect(new Set(locationIds).size).toBe(locationIds.length);
     expect(new Set(threadIds).size).toBe(threadIds.length);
     expect(new Set(sceneIds).size).toBe(sceneIds.length);
   });
-
   it('creates main branch with all scene IDs', async () => {
     const results = [createMockAnalysisResult(0), createMockAnalysisResult(1)];
     const narrative = await assembleNarrative('Test', results, {});
-
     const sceneCount = Object.keys(narrative.scenes).length;
     const branchIds = Object.keys(narrative.branches);
     const mainBranch = narrative.branches[branchIds[0]];
     const mainBranchScenes = mainBranch.entryIds.filter(id => id.startsWith('S-'));
-
     expect(mainBranchScenes.length).toBe(sceneCount);
   });
-
   it('maps scene participant names to character IDs', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -954,15 +842,12 @@ describe('assembleNarrative', () => {
         threadMutations: [], continuityMutations: [], relationshipMutations: [],
       }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
     const aliceId = Object.values(narrative.characters).find(c => c.name === 'Alice')?.id;
-
     expect(scene.participantIds).toContain(aliceId);
     expect(scene.povId).toBe(aliceId);
   });
-
   it('maps scene location names to location IDs', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -973,18 +858,14 @@ describe('assembleNarrative', () => {
         threadMutations: [], continuityMutations: [], relationshipMutations: [],
       }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
     const castleId = Object.values(narrative.locations).find(l => l.name === 'Castle')?.id;
-
     expect(scene.locationId).toBe(castleId);
   });
-
   it('preserves beat plans and beatProseMaps in version arrays', async () => {
     const mockPlan = { beats: [{ fn: 'breathe' as const, mechanism: 'environment' as const, what: 'Setup', propositions: [] }] };
     const mockBeatProseMap = { chunks: [{ beatIndex: 0, prose: 'Prose chunk' }], createdAt: Date.now() };
-
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       scenes: [{
@@ -994,20 +875,16 @@ describe('assembleNarrative', () => {
         plan: mockPlan, beatProseMap: mockBeatProseMap, prose: 'Scene prose',
       }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-
     expect(scene.planVersions).toBeDefined();
     expect(scene.planVersions![0].plan).toEqual(mockPlan);
     expect(scene.planVersions![0].version).toBe('1');
     expect(scene.planVersions![0].versionType).toBe('generate');
-
     expect(scene.proseVersions).toBeDefined();
     expect(scene.proseVersions![0].beatProseMap).toEqual(mockBeatProseMap);
     expect(scene.proseVersions![0].version).toBe('1');
   });
-
   it('creates relationship entries from analysis', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -1017,26 +894,21 @@ describe('assembleNarrative', () => {
       ],
       relationships: [{ from: 'Alice', to: 'Bob', type: 'ally', valence: 5 }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
     expect(narrative.relationships).toHaveLength(1);
     expect(narrative.relationships[0].type).toBe('ally');
     expect(narrative.relationships[0].valence).toBe(5);
   });
-
   it('sets createdAt and updatedAt timestamps', async () => {
     const results = [createMockAnalysisResult(0)];
     const narrative = await assembleNarrative('Test', results, {});
-
     expect(typeof narrative.createdAt).toBe('number');
     expect(typeof narrative.updatedAt).toBe('number');
     expect(narrative.updatedAt).toBeGreaterThan(narrative.createdAt);
   });
-
   it('creates version pointers on main branch for analyzed scenes', async () => {
     const mockPlan = { beats: [{ fn: 'breathe' as const, mechanism: 'environment' as const, what: 'Setup', propositions: [] }] };
     const mockBeatProseMap = { chunks: [{ beatIndex: 0, prose: 'Chunk' }], createdAt: Date.now() };
-
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       scenes: [{
@@ -1046,27 +918,21 @@ describe('assembleNarrative', () => {
         plan: mockPlan, beatProseMap: mockBeatProseMap,
       }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
     const branchIds = Object.keys(narrative.branches);
     const mainBranch = narrative.branches[branchIds[0]];
     const sceneId = Object.keys(narrative.scenes)[0];
-
     expect(mainBranch.versionPointers).toBeDefined();
     expect(mainBranch.versionPointers![sceneId]).toBeDefined();
     expect(mainBranch.versionPointers![sceneId].proseVersion).toBe('1');
     expect(mainBranch.versionPointers![sceneId].planVersion).toBe('1');
   });
-
   // ── Rich assembly tests (artifacts, world knowledge, movements, etc.) ──
-
   it('creates artifact entities with ownership', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const artifacts = Object.values(narrative.artifacts);
     expect(artifacts.length).toBeGreaterThan(0);
-
     const sword = artifacts.find(a => a.name === 'Magic Sword');
     expect(sword).toBeDefined();
     expect(sword!.significance).toBe('key');
@@ -1076,26 +942,20 @@ describe('assembleNarrative', () => {
     // Owned by Alice — parentId should be Alice's character ID
     expect(sword!.parentId).toBeTruthy();
   });
-
   it('maps thread mutations to thread IDs in scenes', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     expect(scene.threadMutations.length).toBeGreaterThan(0);
-
     const threadId = scene.threadMutations[0].threadId;
     expect(narrative.threads[threadId]).toBeDefined();
     expect(narrative.threads[threadId].description).toBe('The Quest for the Crown');
   });
-
   it('maps continuity mutations to entity IDs', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     expect(scene.continuityMutations.length).toBeGreaterThan(0);
-
     // Each mutation should reference a valid entity
     for (const cm of scene.continuityMutations) {
       const isChar = !!narrative.characters[cm.entityId];
@@ -1104,26 +964,20 @@ describe('assembleNarrative', () => {
       expect(isChar || isLoc || isArt).toBe(true);
     }
   });
-
   it('maps relationship mutations to character IDs', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     expect(scene.relationshipMutations.length).toBeGreaterThan(0);
-
     const rm = scene.relationshipMutations[0];
     expect(narrative.characters[rm.from]).toBeDefined();
     expect(narrative.characters[rm.to]).toBeDefined();
   });
-
   it('handles character movements with location IDs', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     expect(scene.characterMovements).toBeDefined();
-
     if (scene.characterMovements) {
       for (const [charId, movement] of Object.entries(scene.characterMovements)) {
         expect(narrative.characters[charId]).toBeDefined();
@@ -1131,11 +985,9 @@ describe('assembleNarrative', () => {
       }
     }
   });
-
   it('handles artifact usages with IDs', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     if (scene.artifactUsages && scene.artifactUsages.length > 0) {
       for (const au of scene.artifactUsages) {
@@ -1143,104 +995,82 @@ describe('assembleNarrative', () => {
       }
     }
   });
-
   it('creates world knowledge mutations with concept IDs', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     expect(scene.systemMutations).toBeDefined();
     expect(scene.systemMutations!.addedNodes.length).toBeGreaterThan(0);
-
     // Nodes should have WK- prefixed IDs
     for (const node of scene.systemMutations!.addedNodes) {
       expect(node.id).toMatch(/^WK-/);
     }
-
     // Edges should reference valid WK IDs
     for (const edge of scene.systemMutations!.addedEdges) {
       expect(edge.from).toMatch(/^WK-/);
       expect(edge.to).toMatch(/^WK-/);
     }
   });
-
   it('creates world builds with expansion manifests', async () => {
     const results = [createRichAnalysisResult(0), createRichAnalysisResult(1)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const worldBuilds = Object.values(narrative.worldBuilds);
     expect(worldBuilds.length).toBeGreaterThan(0);
-
     const firstBuild = worldBuilds[0];
     expect(firstBuild.kind).toBe('world_build');
     expect(firstBuild.expansionManifest.characters.length).toBeGreaterThan(0);
     expect(firstBuild.expansionManifest.locations.length).toBeGreaterThan(0);
   });
-
   it('interleaves world builds before their batch scenes in entry IDs', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const branchIds = Object.keys(narrative.branches);
     const mainBranch = narrative.branches[branchIds[0]];
-
     // First entry should be a world build (WB-)
     expect(mainBranch.entryIds[0]).toMatch(/^WB-/);
     // Followed by scene(s)
     expect(mainBranch.entryIds[1]).toMatch(/^S-/);
   });
-
   it('uses arc groups when provided', async () => {
     const results = [createMockAnalysisResult(0), createMockAnalysisResult(1), createMockAnalysisResult(2), createMockAnalysisResult(3)];
     const arcGroups = [
       { name: 'Opening Act', sceneIndices: [0, 1] },
       { name: 'Climax', sceneIndices: [2, 3] },
     ];
-
     const narrative = await assembleNarrative('Test', results, {}, undefined, arcGroups);
-
     const arcNames = Object.values(narrative.arcs).map(a => a.name);
     expect(arcNames).toContain('Opening Act');
     expect(arcNames).toContain('Climax');
   });
-
   it('falls back to default arc grouping when arcGroups not provided', async () => {
     const results = Array.from({ length: 8 }, (_, i) => createMockAnalysisResult(i));
     const narrative = await assembleNarrative('Test', results, {});
-
     const arcEntries = Object.values(narrative.arcs);
     // 8 scenes / 4 per arc = 2 arcs
     expect(arcEntries.length).toBe(2);
     expect(arcEntries[0].sceneIds.length).toBe(4);
     expect(arcEntries[1].sceneIds.length).toBe(4);
   });
-
   it('assigns arcId to scenes from arc groups', async () => {
     const results = [createMockAnalysisResult(0), createMockAnalysisResult(1)];
     const arcGroups = [{ name: 'Act One', sceneIndices: [0, 1] }];
-
     const narrative = await assembleNarrative('Test', results, {}, undefined, arcGroups);
-
     const arcId = Object.keys(narrative.arcs)[0];
     for (const scene of Object.values(narrative.scenes)) {
       expect(scene.arcId).toBe(arcId);
     }
   });
-
   it('wires thread IDs onto characters', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const alice = Object.values(narrative.characters).find(c => c.name === 'Alice');
     expect(alice).toBeDefined();
     expect(alice!.threadIds.length).toBeGreaterThan(0);
-
     // Each threadId should reference a real thread
     for (const tid of alice!.threadIds) {
       expect(narrative.threads[tid]).toBeDefined();
     }
   });
-
   it('applies thread dependencies from finalization', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -1249,21 +1079,17 @@ describe('assembleNarrative', () => {
         { description: 'Quest B', participantNames: ['Hero'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Also started' },
       ],
     }];
-
     const threadDeps = { 'Quest B': ['Quest A'] };
     const narrative = await assembleNarrative('Test', results, threadDeps);
-
     const questB = Object.values(narrative.threads).find(t => t.description === 'Quest B');
     const questA = Object.values(narrative.threads).find(t => t.description === 'Quest A');
     expect(questB).toBeDefined();
     expect(questA).toBeDefined();
     expect(questB!.dependents).toContain(questA!.id);
   });
-
   it('records continuity mutations on scenes for later replay', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const alice = Object.values(narrative.characters).find(c => c.name === 'Alice');
     expect(alice).toBeDefined();
     // Entity continuity starts empty — graphs are built at store replay time from
@@ -1275,7 +1101,6 @@ describe('assembleNarrative', () => {
     expect(aliceMutations.length).toBeGreaterThan(0);
     expect(aliceMutations[0].addedNodes.length).toBeGreaterThan(0);
   });
-
   it('extracts rules, systems, and prose profile', async () => {
     // assembleNarrative uses callAnalysis (fetch), not callGenerate for meta extraction
     vi.mocked(fetch).mockResolvedValue({
@@ -1296,13 +1121,9 @@ describe('assembleNarrative', () => {
         }),
       }),
     } as Response);
-
     const results = [createMockAnalysisResult(0)];
     const narrative = await assembleNarrative('Test', results, {});
-
-    expect(narrative.rules.length).toBeGreaterThan(0);
-    expect(narrative.worldSystems).toBeDefined();
-    expect(narrative.worldSystems!.length).toBeGreaterThan(0);
+    // rules and worldSystems were removed - now using SystemGraph
     expect(narrative.proseProfile).toBeDefined();
     expect(narrative.proseProfile!.register).toBe('literary');
     expect(narrative.proseProfile!.stance).toBe('close_third');
@@ -1310,7 +1131,6 @@ describe('assembleNarrative', () => {
     expect(narrative.proseProfile!.rules!.length).toBeGreaterThan(0);
     expect(narrative.proseProfile!.antiPatterns!.length).toBeGreaterThan(0);
   });
-
   it('sets plan guidance in story settings', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
@@ -1322,14 +1142,11 @@ describe('assembleNarrative', () => {
         }),
       }),
     } as Response);
-
     const results = [createMockAnalysisResult(0)];
     const narrative = await assembleNarrative('Test', results, {});
-
     expect(narrative.storySettings).toBeDefined();
     expect(narrative.storySettings!.planGuidance).toBe('Use action and environment mechanisms primarily');
   });
-
   it('handles meta extraction failure gracefully', async () => {
     vi.mocked(callGenerate).mockRejectedValue(new Error('LLM failed'));
     // Also mock fetch for the callAnalysis path
@@ -1337,15 +1154,13 @@ describe('assembleNarrative', () => {
       ok: false,
       json: async () => ({ error: 'Service unavailable' }),
     } as Response);
-
     const results = [createMockAnalysisResult(0)];
     // Should not throw — meta extraction is non-fatal
     const narrative = await assembleNarrative('Test', results, {});
-
     expect(narrative.title).toBe('Test');
-    expect(narrative.rules).toEqual([]);
+    // rules was removed - verify the narrative was still created successfully
+    expect(narrative.id).toBeDefined();
   });
-
   it('creates location hierarchy via parentId', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -1354,16 +1169,13 @@ describe('assembleNarrative', () => {
         { name: 'Castle', parentName: 'Kingdom', description: 'Royal castle' },
       ],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
-
     const kingdom = Object.values(narrative.locations).find(l => l.name === 'Kingdom');
     const castle = Object.values(narrative.locations).find(l => l.name === 'Castle');
     expect(kingdom).toBeDefined();
     expect(castle).toBeDefined();
     expect(castle!.parentId).toBe(kingdom!.id);
   });
-
   it('accumulates entities across multiple chunks without duplication', async () => {
     // Same character appears across 3 chunks, each scene adds a continuity node for Alice
     const makeChunk = (index: number, nodeContent: string, nodeType: string): AnalysisChunkResult => ({
@@ -1378,15 +1190,12 @@ describe('assembleNarrative', () => {
         ],
       }],
     });
-
     const results: AnalysisChunkResult[] = [
       makeChunk(0, 'Brave and adventurous', 'trait'),
       makeChunk(1, 'Injured in battle', 'state'),
       makeChunk(2, 'Seeks the treasure', 'goal'),
     ];
-
     const narrative = await assembleNarrative('Test', results, {});
-
     const alices = Object.values(narrative.characters).filter(c => c.name === 'Alice');
     expect(alices).toHaveLength(1); // Single character entity
     // Continuity is replayed from scene mutations at store load — assembly only
@@ -1399,11 +1208,9 @@ describe('assembleNarrative', () => {
     );
     expect(aliceMutationNodes.length).toBeGreaterThanOrEqual(3);
   });
-
   it('handles tie mutations creating location-character bindings', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     if (scene.tieMutations && scene.tieMutations.length > 0) {
       for (const tm of scene.tieMutations) {
@@ -1413,38 +1220,31 @@ describe('assembleNarrative', () => {
       }
     }
   });
-
   it('sets thread openedAt to first scene with a mutation', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
-
     for (const thread of Object.values(narrative.threads)) {
       if (thread.openedAt) {
         expect(narrative.scenes[thread.openedAt]).toBeDefined();
       }
     }
   });
-
   it('sets branch name to Canon Timeline', async () => {
     const results = [createMockAnalysisResult(0)];
     const narrative = await assembleNarrative('Test', results, {});
-
     const mainBranch = Object.values(narrative.branches)[0];
     expect(mainBranch.name).toBe('Canon Timeline');
     expect(mainBranch.parentBranchId).toBeNull();
     expect(mainBranch.forkEntryId).toBeNull();
   });
-
   it('handles empty results array', async () => {
     const narrative = await assembleNarrative('Empty', [], {});
-
     expect(narrative.title).toBe('Empty');
     expect(Object.keys(narrative.scenes)).toHaveLength(0);
     expect(Object.keys(narrative.characters)).toHaveLength(0);
     const mainBranch = Object.values(narrative.branches)[0];
     expect(mainBranch.entryIds).toHaveLength(0);
   });
-
   it('handles scenes without prose or plan (no version arrays)', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -1455,19 +1255,15 @@ describe('assembleNarrative', () => {
         // No prose, no plan
       }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-
     expect(scene.proseVersions).toBeUndefined();
     expect(scene.planVersions).toBeUndefined();
   });
-
   it('populates arc develops, locationIds, and activeCharacterIds', async () => {
     const results = [createRichAnalysisResult(0)];
     const arcGroups = [{ name: 'First Arc', sceneIndices: [0] }];
     const narrative = await assembleNarrative('Rich Test', results, {}, undefined, arcGroups);
-
     const arc = Object.values(narrative.arcs)[0];
     expect(arc.name).toBe('First Arc');
     expect(arc.sceneIds.length).toBeGreaterThan(0);
@@ -1476,12 +1272,10 @@ describe('assembleNarrative', () => {
     // initialCharacterLocations should map character IDs to location IDs
     expect(Object.keys(arc.initialCharacterLocations).length).toBeGreaterThan(0);
   });
-
   // ── Thread log mapper — synthesis fallback ────────────────────────────────
   // Locks in the fix for the bug where extractSceneStructure returned a
   // threadMutation with empty addedNodes, and the assembleNarrative mapper
   // passed it through as-is, leaving the final thread log blank.
-
   it('synthesizes fallback log entries when analysis extraction omits addedNodes', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -1499,9 +1293,7 @@ describe('assembleNarrative', () => {
         relationshipMutations: [],
       }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     expect(scene.threadMutations).toHaveLength(1);
     const tm = scene.threadMutations[0];
@@ -1512,7 +1304,6 @@ describe('assembleNarrative', () => {
     // Must be a real TK-* ID from the allocator, not a placeholder.
     expect(tm.addedNodes![0].id).toMatch(/^TK-/);
   });
-
   it('coerces invalid status values (e.g. "pulse") in analysis extraction to a status-hold', async () => {
     // The LLM sometimes confuses the log type "pulse" with a status value
     // and emits something like "from": "pulse", "to": "active". The mapper
@@ -1534,7 +1325,6 @@ describe('assembleNarrative', () => {
         relationshipMutations: [],
       }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
     const tm = scene.threadMutations[0];
@@ -1546,7 +1336,6 @@ describe('assembleNarrative', () => {
     expect(tm.addedNodes![0].content).toMatch(/advanced from latent to active/);
     expect(tm.addedNodes![0].type).toBe('transition');
   });
-
   it('synthesizes pulse fallback when from === to and LLM omits addedNodes', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -1563,16 +1352,13 @@ describe('assembleNarrative', () => {
         relationshipMutations: [],
       }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     const tm = scene.threadMutations[0];
     expect(tm.addedNodes).toHaveLength(1);
     expect(tm.addedNodes![0].content).toMatch(/held active without transition/);
     expect(tm.addedNodes![0].type).toBe('pulse');
   });
-
   it('preserves LLM-provided addedNodes when present (does not duplicate)', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
@@ -1595,9 +1381,7 @@ describe('assembleNarrative', () => {
         relationshipMutations: [],
       }],
     }];
-
     const narrative = await assembleNarrative('Test', results, {});
-
     const scene = Object.values(narrative.scenes)[0];
     const tm = scene.threadMutations[0];
     // Two LLM-provided nodes — no synthesis, no duplication.

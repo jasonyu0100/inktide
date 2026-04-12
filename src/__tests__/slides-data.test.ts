@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeSlidesData } from '@/lib/slides-data';
 import type { NarrativeState, Scene } from '@/types/narrative';
-
 // ── Test Fixtures ────────────────────────────────────────────────────────────
-
 function createMinimalNarrative(overrides: Partial<NarrativeState> = {}): NarrativeState {
   return {
     id: 'test-narrative',
@@ -29,13 +27,11 @@ function createMinimalNarrative(overrides: Partial<NarrativeState> = {}): Narrat
     relationships: [],
     systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
-    rules: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
     ...overrides,
   };
 }
-
 function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
   return {
     kind: 'scene',
@@ -52,14 +48,11 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     ...overrides,
   };
 }
-
 // ── computeSlidesData ────────────────────────────────────────────────────────
-
 describe('computeSlidesData', () => {
   it('returns correct basic counts for empty narrative', () => {
     const n = createMinimalNarrative();
     const data = computeSlidesData(n, []);
-
     expect(data.title).toBe('Test Story');
     expect(data.description).toBe('A test narrative');
     expect(data.sceneCount).toBe(0);
@@ -68,7 +61,6 @@ describe('computeSlidesData', () => {
     expect(data.locationCount).toBe(0);
     expect(data.threadCount).toBe(0);
   });
-
   it('counts entities correctly', () => {
     const n = createMinimalNarrative({
       characters: {
@@ -84,12 +76,10 @@ describe('computeSlidesData', () => {
       },
     });
     const data = computeSlidesData(n, []);
-
     expect(data.characterCount).toBe(2);
     expect(data.locationCount).toBe(1);
     expect(data.threadCount).toBe(2);
   });
-
   it('processes scenes and computes force snapshots', () => {
     const n = createMinimalNarrative({
       characters: {
@@ -118,16 +108,13 @@ describe('computeSlidesData', () => {
         'arc-1': { id: 'arc-1', name: 'Act I', sceneIds: ['s1', 's2'], develops: ['t1'], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
       },
     });
-
     const data = computeSlidesData(n, ['s1', 's2']);
-
     expect(data.sceneCount).toBe(2);
     expect(data.scenes.length).toBe(2);
     expect(data.forceSnapshots.length).toBe(2);
     expect(data.deliveryCurve.length).toBe(2);
     expect(data.arcCount).toBe(1);
   });
-
   it('computes thread lifecycles', () => {
     const n = createMinimalNarrative({
       threads: {
@@ -142,14 +129,11 @@ describe('computeSlidesData', () => {
         }),
       },
     });
-
     const data = computeSlidesData(n, ['s1', 's2']);
-
     expect(data.threadLifecycles.length).toBe(1);
     expect(data.threadLifecycles[0].threadId).toBe('t1');
     expect(data.threadLifecycles[0].statuses.length).toBeGreaterThan(0);
   });
-
   it('computes thread convergences', () => {
     const n = createMinimalNarrative({
       threads: {
@@ -157,13 +141,10 @@ describe('computeSlidesData', () => {
         t2: { id: 't2', description: 'Sub Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
-
     const data = computeSlidesData(n, []);
-
     expect(data.threadConvergences.length).toBe(1);
     expect(data.threadConvergences[0]).toEqual({ fromId: 't1', toId: 't2' });
   });
-
   it('computes top characters by participation', () => {
     const n = createMinimalNarrative({
       characters: {
@@ -176,16 +157,13 @@ describe('computeSlidesData', () => {
         s3: createScene('s3', { participantIds: ['c1'] }),
       },
     });
-
     const data = computeSlidesData(n, ['s1', 's2', 's3']);
-
     expect(data.topCharacters.length).toBe(2);
     expect(data.topCharacters[0].character.name).toBe('Hero');
     expect(data.topCharacters[0].sceneCount).toBe(3);
     expect(data.topCharacters[1].character.name).toBe('Mentor');
     expect(data.topCharacters[1].sceneCount).toBe(1);
   });
-
   it('computes top locations by usage', () => {
     const n = createMinimalNarrative({
       locations: {
@@ -198,16 +176,13 @@ describe('computeSlidesData', () => {
         s3: createScene('s3', { locationId: 'loc2' }),
       },
     });
-
     const data = computeSlidesData(n, ['s1', 's2', 's3']);
-
     expect(data.topLocations.length).toBe(2);
     expect(data.topLocations[0].location.name).toBe('Castle');
     expect(data.topLocations[0].sceneCount).toBe(2);
     expect(data.topLocations[1].location.name).toBe('Forest');
     expect(data.topLocations[1].sceneCount).toBe(1);
   });
-
   it('computes cube distribution', () => {
     const n = createMinimalNarrative({
       scenes: {
@@ -224,16 +199,13 @@ describe('computeSlidesData', () => {
         t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
-
     const data = computeSlidesData(n, ['s1', 's2']);
-
     // Should have all 8 cube corners initialized
     expect(Object.keys(data.cubeDistribution).length).toBe(8);
     // Total should equal scene count
     const total = Object.values(data.cubeDistribution).reduce((sum, count) => sum + count, 0);
     expect(total).toBe(2);
   });
-
   it('builds name lookup maps', () => {
     const n = createMinimalNarrative({
       characters: {
@@ -246,23 +218,18 @@ describe('computeSlidesData', () => {
         t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
-
     const data = computeSlidesData(n, []);
-
     expect(data.characterNames['c1']).toBe('Hero');
     expect(data.locationNames['loc1']).toBe('Castle');
     expect(data.threadDescriptions['t1']).toBe('Quest');
   });
-
   it('includes cover image URL when present', () => {
     const n = createMinimalNarrative({
       coverImageUrl: 'https://example.com/cover.jpg',
     });
-
     const data = computeSlidesData(n, []);
     expect(data.coverImageUrl).toBe('https://example.com/cover.jpg');
   });
-
   it('computes arc grades', () => {
     const n = createMinimalNarrative({
       scenes: {
@@ -281,9 +248,7 @@ describe('computeSlidesData', () => {
         'arc-1': { id: 'arc-1', name: 'Act I', sceneIds: ['s1', 's2'], develops: ['t1'], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
       },
     });
-
     const data = computeSlidesData(n, ['s1', 's2']);
-
     expect(data.arcGrades.length).toBe(1);
     expect(data.arcGrades[0].arcName).toBe('Act I');
     expect(data.arcGrades[0].sceneCount).toBe(2);

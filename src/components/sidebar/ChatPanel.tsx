@@ -32,12 +32,12 @@ export default function ChatPanel() {
 
   // Track which scene index the context was built for
   const [contextSceneIndex, setContextSceneIndex] = useState(
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
   );
 
   // Active thread messages from store
-  const activeThread = state.activeChatThreadId
-    ? (state.activeNarrative?.chatThreads?.[state.activeChatThreadId] ?? null)
+  const activeThread = state.viewState.activeChatThreadId
+    ? (state.activeNarrative?.chatThreads?.[state.viewState.activeChatThreadId] ?? null)
     : null;
   const messages = activeThread?.messages ?? [];
 
@@ -66,8 +66,8 @@ export default function ChatPanel() {
 
   // Update context scene index when user navigates
   useEffect(() => {
-    setContextSceneIndex(state.currentSceneIndex);
-  }, [state.currentSceneIndex]);
+    setContextSceneIndex(state.viewState.currentSceneIndex);
+  }, [state.viewState.currentSceneIndex]);
 
   const buildSystemPrompt = useCallback(() => {
     if (!state.activeNarrative) return "";
@@ -136,10 +136,10 @@ ${ctx}`;
   // Ensure there is an active thread; create one if needed. Returns thread id.
   const ensureThread = useCallback(() => {
     if (
-      state.activeChatThreadId &&
-      state.activeNarrative?.chatThreads?.[state.activeChatThreadId]
+      state.viewState.activeChatThreadId &&
+      state.activeNarrative?.chatThreads?.[state.viewState.activeChatThreadId]
     ) {
-      return state.activeChatThreadId;
+      return state.viewState.activeChatThreadId;
     }
     const id = crypto.randomUUID();
     const now = Date.now();
@@ -154,7 +154,7 @@ ${ctx}`;
       },
     });
     return id;
-  }, [state.activeChatThreadId, state.activeNarrative, dispatch]);
+  }, [state.viewState.activeChatThreadId, state.activeNarrative, dispatch]);
 
   const send = useCallback(async () => {
     const text = input.trim();
@@ -381,7 +381,7 @@ ${ctx}`;
                         </span>
                       </div>,
                       ...items.map((thread) => {
-                        const isActive = state.activeChatThreadId === thread.id;
+                        const isActive = state.viewState.activeChatThreadId === thread.id;
                         const isRenaming = renamingThreadId === thread.id;
                         return (
                           <div

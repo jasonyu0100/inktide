@@ -20,7 +20,7 @@ export function SceneAudioView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
   const branches = narrative.branches;
 
   const resolvedProse = useMemo(() => {

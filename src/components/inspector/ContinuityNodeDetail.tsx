@@ -24,13 +24,13 @@ export default function ContinuityNodeDetail({ entityId, nodeId }: Props) {
   const entityType = narrative.characters[entityId] ? 'character' : narrative.locations[entityId] ? 'location' : 'artifact';
 
   const nodes = useMemo(() =>
-    getContinuityNodesAtScene(entity.continuity.nodes, entityId, narrative.scenes, state.resolvedEntryKeys, state.currentSceneIndex),
-    [entity, entityId, narrative, state.resolvedEntryKeys, state.currentSceneIndex],
+    getContinuityNodesAtScene(entity.continuity.nodes, entityId, narrative.scenes, state.resolvedEntryKeys, state.viewState.currentSceneIndex),
+    [entity, entityId, narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex],
   );
 
   const edges = useMemo(() =>
-    getContinuityEdgesAtScene(entity.continuity.edges, entityId, narrative.scenes, state.resolvedEntryKeys, state.currentSceneIndex, entity.continuity.nodes),
-    [entity, entityId, narrative, state.resolvedEntryKeys, state.currentSceneIndex],
+    getContinuityEdgesAtScene(entity.continuity.edges, entityId, narrative.scenes, state.resolvedEntryKeys, state.viewState.currentSceneIndex, entity.continuity.nodes),
+    [entity, entityId, narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex],
   );
 
   const node = nodes.find(n => n.id === nodeId);
@@ -51,7 +51,7 @@ export default function ContinuityNodeDetail({ entityId, nodeId }: Props) {
   // Scenes where this entity gains this node
   const mentionedScenes = useMemo(() => {
     const sceneIndices: number[] = [];
-    for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
+    for (let i = 0; i <= state.viewState.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
       const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
       if (!scene) continue;
@@ -62,7 +62,7 @@ export default function ContinuityNodeDetail({ entityId, nodeId }: Props) {
       }
     }
     return sceneIndices;
-  }, [narrative, entityId, nodeId, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, entityId, nodeId, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   return (
     <div className="flex flex-col gap-4">

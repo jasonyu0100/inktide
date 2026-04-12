@@ -35,31 +35,31 @@ export default function FloatingPalette({
   const isActive = narrative !== null;
 
   const totalScenes = state.resolvedEntryKeys.length;
-  const isHead = state.currentSceneIndex === totalScenes - 1 && totalScenes > 0;
+  const isHead = state.viewState.currentSceneIndex === totalScenes - 1 && totalScenes > 0;
   const activeBranch =
-    narrative && state.activeBranchId
-      ? narrative.branches[state.activeBranchId]
+    narrative && state.viewState.activeBranchId
+      ? narrative.branches[state.viewState.activeBranchId]
       : null;
-  const headSceneId = state.resolvedEntryKeys[state.currentSceneIndex];
+  const headSceneId = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
   const headIsOwned = activeBranch
     ? activeBranch.entryIds.includes(headSceneId)
     : false;
   // Block deletion if this scene is used as a fork point by any other branch
   const headIsForkPoint = narrative
     ? Object.values(narrative.branches).some(
-        (b) => b.id !== state.activeBranchId && b.forkEntryId === headSceneId,
+        (b) => b.id !== state.viewState.activeBranchId && b.forkEntryId === headSceneId,
       )
     : false;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const isAutoActive = !!(
-    state.autoRunState?.isRunning || state.autoRunState?.isPaused
+    state.viewState.autoRunState?.isRunning || state.viewState.autoRunState?.isPaused
   );
   const isAnyModeActive =
     isAutoActive || isBulkActive || isBulkAudioActive || isMctsActive;
 
   const handleDeleteHead = useCallback(() => {
-    if (!narrative || !state.activeBranchId || !isHead) return;
-    const headSceneId = state.resolvedEntryKeys[state.currentSceneIndex];
+    if (!narrative || !state.viewState.activeBranchId || !isHead) return;
+    const headSceneId = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
     if (!headSceneId) return;
 
     const branchesWithEntry = Object.values(narrative.branches).filter((b) =>
@@ -70,21 +70,21 @@ export default function FloatingPalette({
       dispatch({
         type: "DELETE_SCENE",
         sceneId: headSceneId,
-        branchId: state.activeBranchId,
+        branchId: state.viewState.activeBranchId,
       });
     } else {
       dispatch({
         type: "REMOVE_BRANCH_ENTRY",
         entryId: headSceneId,
-        branchId: state.activeBranchId,
+        branchId: state.viewState.activeBranchId,
       });
     }
     setDeleteConfirm(false);
   }, [
     narrative,
-    state.activeBranchId,
+    state.viewState.activeBranchId,
     state.resolvedEntryKeys,
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
     isHead,
     dispatch,
   ]);
@@ -96,15 +96,15 @@ export default function FloatingPalette({
     graphViewMode === "audio";
 
   // Branch context for version resolution
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
   const branches = useMemo(() => narrative?.branches ?? {}, [narrative?.branches]);
 
   // Current scene — for checking if rewrite is available
   const currentScene = useMemo(() => {
     if (!narrative) return null;
-    const key = state.resolvedEntryKeys[state.currentSceneIndex];
+    const key = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
     return key ? (narrative.scenes[key] ?? null) : null;
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   const hasPlan = useMemo(() => {
     if (!currentScene || !branchId) return false;

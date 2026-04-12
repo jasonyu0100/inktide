@@ -43,10 +43,10 @@ export default function KnowledgeDetail({ nodeId }: Props) {
     return buildCumulativeSystemGraph(
       narrative.scenes,
       state.resolvedEntryKeys,
-      state.currentSceneIndex,
+      state.viewState.currentSceneIndex,
       narrative.worldBuilds,
     );
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   const node = graph.nodes[nodeId];
   if (!node) return <p className="text-xs text-text-dim">Node not found</p>;
@@ -78,7 +78,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
   // Build index: for each knowledge node, which scene indices mention it
   const nodeSceneIndex = useMemo(() => {
     const map = new Map<string, number[]>();
-    for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
+    for (let i = 0; i <= state.viewState.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
       const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds?.[key];
@@ -93,7 +93,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
       }
     }
     return map;
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   // Navigate to a knowledge node:
   // - Spark mode: jump to the nearest scene that mentions it, then zoom in
@@ -103,7 +103,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
       // Find nearest scene that mentions this node
       const sceneIndices = nodeSceneIndex.get(targetId) ?? [];
       if (sceneIndices.length > 0) {
-        const current = state.currentSceneIndex;
+        const current = state.viewState.currentSceneIndex;
         let nearest = sceneIndices[0];
         let minDist = Math.abs(current - nearest);
         for (const idx of sceneIndices) {
@@ -117,12 +117,12 @@ export default function KnowledgeDetail({ nodeId }: Props) {
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent('focus-knowledge-node', { detail: { nodeId: targetId } }));
     }, 150);
-  }, [nodeSceneIndex, state.graphViewMode, state.currentSceneIndex, dispatch]);
+  }, [nodeSceneIndex, state.graphViewMode, state.viewState.currentSceneIndex, dispatch]);
 
   // Scenes where this node was introduced
   const introScenes = useMemo(() => {
     const scenes: { sceneId: string; sceneTitle: string }[] = [];
-    for (let i = 0; i <= state.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
+    for (let i = 0; i <= state.viewState.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
       const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds?.[key];
@@ -135,7 +135,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
       }
     }
     return scenes;
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex, nodeId]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex, nodeId]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -176,7 +176,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
                   {state.graphViewMode === 'spark' && (() => {
                     const indices = nodeSceneIndex.get(otherId);
                     if (!indices || indices.length === 0) return null;
-                    const current = state.currentSceneIndex;
+                    const current = state.viewState.currentSceneIndex;
                     const nearest = indices.reduce((a, b) => Math.abs(b - current) < Math.abs(a - current) ? b : a);
                     if (nearest === current) return null;
                     const delta = nearest - current;

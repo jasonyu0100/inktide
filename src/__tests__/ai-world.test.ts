@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { NarrativeState, Scene, Character, Location } from '@/types/narrative';
 import { computeWorldMetrics } from '@/lib/ai/world';
-
 // ── Test Fixtures ────────────────────────────────────────────────────────────
-
 function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
   return {
     kind: 'scene',
@@ -21,7 +19,6 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     ...overrides,
   };
 }
-
 function createCharacter(id: string, overrides: Partial<Character> = {}): Character {
   return {
     id,
@@ -32,7 +29,6 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     ...overrides,
   };
 }
-
 function createLocation(id: string, overrides: Partial<Location> = {}): Location {
   return {
     id,
@@ -45,7 +41,6 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
     ...overrides,
   };
 }
-
 function createMinimalNarrative(): NarrativeState {
   return {
     id: 'N-001',
@@ -71,27 +66,22 @@ function createMinimalNarrative(): NarrativeState {
     relationships: [],
     systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
-    rules: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
 }
-
 // ── computeWorldMetrics Tests ────────────────────────────────────────────────
-
 describe('computeWorldMetrics', () => {
   describe('basic metrics', () => {
     it('returns zeros for empty narrative', () => {
       const narrative = createMinimalNarrative();
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.totalScenes).toBe(0);
       expect(result.totalCharacters).toBe(0);
       expect(result.totalLocations).toBe(0);
       expect(result.usedCharacters).toBe(0);
       expect(result.usedLocations).toBe(0);
     });
-
     it('counts total characters and locations', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
@@ -103,13 +93,10 @@ describe('computeWorldMetrics', () => {
         'L-01': createLocation('L-01'),
         'L-02': createLocation('L-02'),
       };
-
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.totalCharacters).toBe(3);
       expect(result.totalLocations).toBe(2);
     });
-
     it('counts used characters and locations from scenes', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
@@ -125,15 +112,12 @@ describe('computeWorldMetrics', () => {
         'S-001': createScene('S-001', { participantIds: ['C-01', 'C-02'], locationId: 'L-01' }),
         'S-002': createScene('S-002', { participantIds: ['C-01'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002']);
-
       expect(result.totalScenes).toBe(2);
       expect(result.usedCharacters).toBe(2); // C-01 and C-02
       expect(result.usedLocations).toBe(1); // L-01 only
     });
   });
-
   describe('average scenes per character', () => {
     it('calculates average correctly', () => {
       const narrative = createMinimalNarrative();
@@ -147,22 +131,17 @@ describe('computeWorldMetrics', () => {
         'S-002': createScene('S-002', { participantIds: ['C-01'], locationId: 'L-01' }),
         'S-003': createScene('S-003', { participantIds: ['C-01'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003']);
-
       // C-01 appears in 3 scenes, C-02 appears in 1 scene
       // Average = (3 + 1) / 2 = 2
       expect(result.avgScenesPerCharacter).toBe(2);
     });
-
     it('returns 0 when no characters used', () => {
       const narrative = createMinimalNarrative();
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.avgScenesPerCharacter).toBe(0);
     });
   });
-
   describe('cast concentration', () => {
     it('calculates concentration as ratio of most-used character', () => {
       const narrative = createMinimalNarrative();
@@ -177,21 +156,16 @@ describe('computeWorldMetrics', () => {
         'S-003': createScene('S-003', { participantIds: ['C-01'], locationId: 'L-01' }),
         'S-004': createScene('S-004', { participantIds: ['C-02'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003', 'S-004']);
-
       // C-01 appears in 3 of 4 scenes = 75%
       expect(result.castConcentration).toBe(0.75);
     });
-
     it('returns 0 when no scenes', () => {
       const narrative = createMinimalNarrative();
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.castConcentration).toBe(0);
     });
   });
-
   describe('stale characters', () => {
     it('marks characters as stale when not seen recently', () => {
       const narrative = createMinimalNarrative();
@@ -200,7 +174,6 @@ describe('computeWorldMetrics', () => {
         'C-02': createCharacter('C-02'),
       };
       narrative.locations = { 'L-01': createLocation('L-01') };
-
       // Create 20 scenes - C-02 only appears in first scene
       const scenes: Record<string, Scene> = {};
       const keys: string[] = [];
@@ -213,14 +186,11 @@ describe('computeWorldMetrics', () => {
         keys.push(id);
       }
       narrative.scenes = scenes;
-
       const result = computeWorldMetrics(narrative, keys);
-
       // staleThreshold = max(5, 20 * 0.3) = 6
       // C-02 last seen at index 0, (20 - 1 - 0) = 19 > 6 → stale
       expect(result.staleCharacters).toBe(1);
     });
-
     it('does not mark characters as stale when recently seen', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
@@ -232,13 +202,10 @@ describe('computeWorldMetrics', () => {
         'S-001': createScene('S-001', { participantIds: ['C-01', 'C-02'], locationId: 'L-01' }),
         'S-002': createScene('S-002', { participantIds: ['C-01', 'C-02'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002']);
-
       expect(result.staleCharacters).toBe(0);
     });
   });
-
   describe('average knowledge per character', () => {
     it('calculates average knowledge nodes', () => {
       const narrative = createMinimalNarrative();
@@ -257,20 +224,15 @@ describe('computeWorldMetrics', () => {
           },
         }),
       };
-
       const result = computeWorldMetrics(narrative, []);
-
       // (1 + 3) / 2 = 2
       expect(result.avgKnowledgePerCharacter).toBe(2);
     });
-
     it('returns 0 when no characters', () => {
       const narrative = createMinimalNarrative();
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.avgKnowledgePerCharacter).toBe(0);
     });
-
     it('handles characters without continuity', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
@@ -279,14 +241,11 @@ describe('computeWorldMetrics', () => {
           continuity: { nodes: { 'K-01': { id: 'K-01', type: 'history', content: 'Fact' } }, edges: [] },
         }),
       };
-
       const result = computeWorldMetrics(narrative, []);
-
       // (0 + 1) / 2 = 0.5
       expect(result.avgKnowledgePerCharacter).toBe(0.5);
     });
   });
-
   describe('location concentration', () => {
     it('calculates concentration as ratio of most-used location', () => {
       const narrative = createMinimalNarrative();
@@ -301,14 +260,11 @@ describe('computeWorldMetrics', () => {
         'S-003': createScene('S-003', { participantIds: ['C-01'], locationId: 'L-02' }),
         'S-004': createScene('S-004', { participantIds: ['C-01'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003', 'S-004']);
-
       // L-01 appears in 3 of 4 scenes = 75%
       expect(result.locationConcentration).toBe(0.75);
     });
   });
-
   describe('stale locations', () => {
     it('marks locations as stale when not used recently', () => {
       const narrative = createMinimalNarrative();
@@ -317,7 +273,6 @@ describe('computeWorldMetrics', () => {
         'L-01': createLocation('L-01'),
         'L-02': createLocation('L-02'),
       };
-
       // Create 20 scenes - L-02 only used in first scene
       const scenes: Record<string, Scene> = {};
       const keys: string[] = [];
@@ -330,14 +285,11 @@ describe('computeWorldMetrics', () => {
         keys.push(id);
       }
       narrative.scenes = scenes;
-
       const result = computeWorldMetrics(narrative, keys);
-
       // L-02 last seen at index 0, (20 - 1 - 0) = 19 > 6 → stale
       expect(result.staleLocations).toBe(1);
     });
   });
-
   describe('location depth', () => {
     it('calculates max nesting depth', () => {
       const narrative = createMinimalNarrative();
@@ -347,19 +299,14 @@ describe('computeWorldMetrics', () => {
         'L-03': createLocation('L-03', { parentId: 'L-02' }), // Depth 3
         'L-04': createLocation('L-04', { parentId: 'L-03' }), // Depth 4
       };
-
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.locationDepth).toBe(4);
     });
-
     it('returns 0 when no locations', () => {
       const narrative = createMinimalNarrative();
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.locationDepth).toBe(0);
     });
-
     it('handles multiple root locations', () => {
       const narrative = createMinimalNarrative();
       narrative.locations = {
@@ -369,26 +316,20 @@ describe('computeWorldMetrics', () => {
         'L-04': createLocation('L-04', { parentId: 'L-03' }), // Depth 2 under L-03
         'L-05': createLocation('L-05', { parentId: 'L-04' }), // Depth 3 under L-03
       };
-
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.locationDepth).toBe(3); // Max depth is under L-03
     });
-
     it('handles circular references gracefully', () => {
       const narrative = createMinimalNarrative();
       narrative.locations = {
         'L-01': createLocation('L-01', { parentId: 'L-02' }),
         'L-02': createLocation('L-02', { parentId: 'L-01' }),
       };
-
       // Should not infinite loop
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.locationDepth).toBeGreaterThanOrEqual(0);
     });
   });
-
   describe('average children per location', () => {
     it('calculates average child count', () => {
       const narrative = createMinimalNarrative();
@@ -398,15 +339,12 @@ describe('computeWorldMetrics', () => {
         'L-03': createLocation('L-03', { parentId: 'L-01' }), // Has 0 children
         'L-04': createLocation('L-04', { parentId: 'L-02' }), // Has 0 children
       };
-
       const result = computeWorldMetrics(narrative, []);
-
       // L-01: 2 children, L-02: 1 child, L-03: 0, L-04: 0
       // Average = (2 + 1 + 0 + 0) / 4 = 0.75
       expect(result.avgChildrenPerLocation).toBe(0.75);
     });
   });
-
   describe('relationships per character', () => {
     it('calculates relationships per character correctly', () => {
       const narrative = createMinimalNarrative();
@@ -421,25 +359,19 @@ describe('computeWorldMetrics', () => {
         { from: 'C-01', to: 'C-03', type: 'rival', valence: -0.5 },
         { from: 'C-02', to: 'C-03', type: 'friend', valence: 0.7 },
       ];
-
       const result = computeWorldMetrics(narrative, []);
-
       // 3 relationships × 2 / 4 characters = 1.5
       expect(result.relationshipsPerCharacter).toBe(1.5);
     });
-
     it('returns 0 when no characters', () => {
       const narrative = createMinimalNarrative();
       narrative.relationships = [
         { from: 'C-01', to: 'C-02', type: 'ally', valence: 0.5 },
       ];
-
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.relationshipsPerCharacter).toBe(0);
     });
   });
-
   describe('orphaned characters', () => {
     it('counts characters not in any relationship', () => {
       const narrative = createMinimalNarrative();
@@ -452,12 +384,9 @@ describe('computeWorldMetrics', () => {
       narrative.relationships = [
         { from: 'C-01', to: 'C-02', type: 'ally', valence: 0.5 },
       ];
-
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.orphanedCharacters).toBe(2);
     });
-
     it('counts all characters as orphaned when no relationships', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
@@ -465,17 +394,13 @@ describe('computeWorldMetrics', () => {
         'C-02': createCharacter('C-02'),
       };
       narrative.relationships = [];
-
       const result = computeWorldMetrics(narrative, []);
-
       expect(result.orphanedCharacters).toBe(2);
     });
   });
-
   describe('recommendation logic', () => {
     // The recommendation logic requires depth/breadth signals to exceed the other by > 1
     // So we need at least 2 more signals in one direction than the other
-
     it('recommends depth when multiple depth signals present', () => {
       const narrative = createMinimalNarrative();
       // Set up multiple depth signals:
@@ -505,13 +430,10 @@ describe('computeWorldMetrics', () => {
         'S-003': createScene('S-003', { participantIds: ['C-01', 'C-03'], locationId: 'L-03' }),
         'S-004': createScene('S-004', { participantIds: ['C-02', 'C-04'], locationId: 'L-04' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003', 'S-004']);
-
       expect(result.recommendation).toBe('depth');
       expect(result.reasoning).toContain('Depth recommended');
     });
-
     it('recommends depth when orphaned characters and sparse relationships', () => {
       const narrative = createMinimalNarrative();
       // Enough knowledge to avoid that signal, but orphans + sparse relationships
@@ -535,13 +457,10 @@ describe('computeWorldMetrics', () => {
         'S-003': createScene('S-003', { participantIds: ['C-01', 'C-03'], locationId: 'L-03' }),
         'S-004': createScene('S-004', { participantIds: ['C-02', 'C-04'], locationId: 'L-04' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003', 'S-004']);
-
       expect(result.recommendation).toBe('depth');
       expect(result.reasoning).toContain('orphaned');
     });
-
     it('recommends breadth when multiple breadth signals present', () => {
       const narrative = createMinimalNarrative();
       // Set up multiple breadth signals:
@@ -602,13 +521,10 @@ describe('computeWorldMetrics', () => {
         'S-001': createScene('S-001', { participantIds: ['C-01', 'C-02', 'C-03', 'C-04', 'C-05'], locationId: 'L-01' }),
         'S-002': createScene('S-002', { participantIds: ['C-06', 'C-07', 'C-08', 'C-09', 'C-10'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002']);
-
       expect(result.recommendation).toBe('breadth');
       expect(result.reasoning).toContain('Breadth recommended');
     });
-
     it('recommends breadth when stale characters and few locations', () => {
       const narrative = createMinimalNarrative();
       // 10 characters - 5 will be stale (> 40%)
@@ -642,7 +558,6 @@ describe('computeWorldMetrics', () => {
         'L-01': createLocation('L-01'),
         'L-02': createLocation('L-02'),
       };
-
       // Create 20 scenes
       // - Characters C-01 through C-05 only appear in first 2 scenes (stale after)
       // - Remaining scenes use C-06-C-10 evenly to avoid cast concentration
@@ -667,14 +582,11 @@ describe('computeWorldMetrics', () => {
         keys.push(id);
       }
       narrative.scenes = scenes;
-
       const result = computeWorldMetrics(narrative, keys);
-
       // Should have breadth signals: stale characters (50% > 40%) + few locations (20% < 30%)
       expect(result.recommendation).toBe('breadth');
       expect(result.reasoning).toContain('Breadth recommended');
     });
-
     it('recommends balanced when signals are equal', () => {
       const narrative = createMinimalNarrative();
       // Set up a balanced world with no strong signals
@@ -715,12 +627,9 @@ describe('computeWorldMetrics', () => {
         'S-003': createScene('S-003', { participantIds: ['C-03', 'C-04'], locationId: 'L-03' }),
         'S-004': createScene('S-004', { participantIds: ['C-04', 'C-01'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003', 'S-004']);
-
       expect(result.recommendation).toBe('balanced');
     });
-
     it('reports balanced reasoning when signals roughly equal', () => {
       const narrative = createMinimalNarrative();
       // Create a world with equal depth and breadth signals (1 each)
@@ -761,15 +670,12 @@ describe('computeWorldMetrics', () => {
         'S-003': createScene('S-003', { participantIds: ['C-03', 'C-04'], locationId: 'L-01' }),
         'S-004': createScene('S-004', { participantIds: ['C-04', 'C-01'], locationId: 'L-02' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003', 'S-004']);
-
       // 1 depth signal (sparse relationships) vs 1 breadth signal (high location concentration) = balanced
       expect(result.recommendation).toBe('balanced');
       expect(result.reasoning.toLowerCase()).toContain('balanced');
     });
   });
-
   describe('depth signals', () => {
     it('detects shallow location hierarchy', () => {
       const narrative = createMinimalNarrative();
@@ -786,13 +692,10 @@ describe('computeWorldMetrics', () => {
       narrative.scenes = {
         'S-001': createScene('S-001', { participantIds: ['C-01'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001']);
-
       expect(result.locationDepth).toBe(2);
       expect(result.reasoning).toContain('shallow');
     });
-
     it('detects high cast concentration', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
@@ -812,13 +715,10 @@ describe('computeWorldMetrics', () => {
         'S-004': createScene('S-004', { participantIds: ['C-01'], locationId: 'L-01' }),
         'S-005': createScene('S-005', { participantIds: ['C-01'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003', 'S-004', 'S-005']);
-
       expect(result.castConcentration).toBe(1.0); // 5/5 = 100%
       expect(result.reasoning).toContain('concentration');
     });
-
     it('detects sparse relationships', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = {
@@ -835,14 +735,11 @@ describe('computeWorldMetrics', () => {
       narrative.scenes = {
         'S-001': createScene('S-001', { participantIds: ['C-01', 'C-02', 'C-03', 'C-04'], locationId: 'L-01' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001']);
-
       expect(result.relationshipsPerCharacter).toBe(0.5); // 1 * 2 / 4
       expect(result.reasoning).toContain('sparse relationships');
     });
   });
-
   describe('breadth signals', () => {
     it('detects few locations relative to cast', () => {
       const narrative = createMinimalNarrative();
@@ -876,14 +773,11 @@ describe('computeWorldMetrics', () => {
         'S-001': createScene('S-001', { participantIds: ['C-01', 'C-02'], locationId: 'L-01' }),
         'S-002': createScene('S-002', { participantIds: ['C-03', 'C-04'], locationId: 'L-02' }),
       };
-
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002']);
-
       // 2 locations / 10 characters = 20% (< 30%)
       expect(result.reasoning).toContain('location count low');
     });
   });
-
   describe('edge cases', () => {
     it('handles world commits in resolvedKeys', () => {
       const narrative = createMinimalNarrative();
@@ -907,14 +801,11 @@ describe('computeWorldMetrics', () => {
           },
         },
       };
-
       // resolvedKeys includes both scenes and world builds
       const result = computeWorldMetrics(narrative, ['WB-001', 'S-001']);
-
       // World builds should be filtered out
       expect(result.totalScenes).toBe(1);
     });
-
     it('handles missing scenes in resolvedKeys', () => {
       const narrative = createMinimalNarrative();
       narrative.characters = { 'C-01': createCharacter('C-01') };
@@ -922,10 +813,8 @@ describe('computeWorldMetrics', () => {
       narrative.scenes = {
         'S-001': createScene('S-001', { participantIds: ['C-01'], locationId: 'L-01' }),
       };
-
       // S-002 doesn't exist
       const result = computeWorldMetrics(narrative, ['S-001', 'S-002', 'S-003']);
-
       expect(result.totalScenes).toBe(1);
     });
   });

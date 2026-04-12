@@ -15,8 +15,7 @@ export type { WorldExpansion, WorldExpansionSize, WorldExpansionStrategy, WorldM
 export { rewriteSceneProse } from './prose';
 
 // Premise
-export { generatePremiseQuestion, buildPremiseText, suggestPremise } from './premise';
-export type { PremiseEntity, PremiseEdge, PremiseDecision, PremiseQuestion, PremiseQuestionResult } from './premise';
+export { suggestPremise } from './premise';
 
 // Review & course correction
 export { reviewBranch, reviewProseQuality, reviewPlanQuality, refreshDirection } from './review';

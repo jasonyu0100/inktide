@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
+import { BEAT_PROFILE_PRESETS } from '@/lib/beat-profiles';
 import { ingestProseProfile, deriveProseProfile } from '@/lib/ai/ingest';
 import type { BeatProfilePreset, ProseProfile } from '@/types/narrative';
 
@@ -183,7 +184,7 @@ export default function ProseProfilePanel({ onClose }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const current = narrative?.proseProfile;
-  const presets = state.beatProfilePresets ?? [];
+  const presets = BEAT_PROFILE_PRESETS;
 
   const [draft, setDraft] = useState<Draft>(() => toDraft(current ?? {}));
   const [appliedKey, setAppliedKey] = useState<string | null>(() => detectPresetKey(current, presets));

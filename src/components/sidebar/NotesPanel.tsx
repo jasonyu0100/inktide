@@ -39,7 +39,7 @@ export default function NotesPanel() {
 
   const narrative = state.activeNarrative;
   const notes = narrative?.notes ?? {};
-  const activeNote = state.activeNoteId ? notes[state.activeNoteId] ?? null : null;
+  const activeNote = state.viewState.activeNoteId ? notes[state.viewState.activeNoteId] ?? null : null;
 
   const sorted = Object.values(notes).sort((a, b) => b.updatedAt - a.updatedAt);
   const groups = noteGroups(sorted);
@@ -51,7 +51,7 @@ export default function NotesPanel() {
       const len = contentRef.current.value.length;
       contentRef.current.setSelectionRange(len, len);
     }
-  }, [view, state.activeNoteId]);
+  }, [view, state.viewState.activeNoteId]);
 
   // Focus rename input when it opens
   useEffect(() => {
@@ -76,8 +76,8 @@ export default function NotesPanel() {
 
   const deleteNote = useCallback((id: string) => {
     dispatch({ type: 'DELETE_NOTE', noteId: id });
-    if (state.activeNoteId === id) setView('list');
-  }, [dispatch, state.activeNoteId]);
+    if (state.viewState.activeNoteId === id) setView('list');
+  }, [dispatch, state.viewState.activeNoteId]);
 
   const commitRename = useCallback(() => {
     if (!renamingId) return;
@@ -193,7 +193,7 @@ export default function NotesPanel() {
                 <div
                   key={note.id}
                   className={`group flex items-center gap-1 px-3 py-2 cursor-pointer transition-colors ${
-                    state.activeNoteId === note.id
+                    state.viewState.activeNoteId === note.id
                       ? 'bg-white/5 text-text-primary'
                       : 'hover:bg-white/3 text-text-secondary'
                   }`}

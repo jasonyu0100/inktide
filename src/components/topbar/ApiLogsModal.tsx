@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLogs } from '@/lib/logs-context';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
 import type { ApiLogEntry } from '@/types/narrative';
@@ -112,24 +113,21 @@ function LogDetail({ entry, onClose }: { entry: ApiLogEntry; onClose: () => void
   );
 }
 
-type LogFilter = 'all' | 'narrative' | 'analysis' | 'discovery';
+type LogFilter = 'all' | 'narrative' | 'analysis';
 
 export function ApiLogsModal({ onClose }: { onClose: () => void }) {
-  const { state, dispatch } = useStore();
+  const { state: logsState, dispatch: logsDispatch } = useLogs();
+  const { state: appState } = useStore();
   const [filter, setFilter] = useState<LogFilter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Filter logs based on selected context
-  const filteredLogs = state.apiLogs.filter((log) => {
+  const filteredLogs = logsState.apiLogs.filter((log) => {
     if (filter === 'all') return true;
-    if (filter === 'narrative') return log.narrativeId === state.activeNarrativeId;
+    if (filter === 'narrative') return log.narrativeId === appState.activeNarrativeId;
     if (filter === 'analysis') {
       // Show logs from any analysis job
       return log.analysisId != null;
-    }
-    if (filter === 'discovery') {
-      // Show logs from any discovery session
-      return log.discoveryId != null;
     }
     return true;
   });
@@ -156,7 +154,6 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
                 <option value="all">All</option>
                 <option value="narrative">Narrative</option>
                 <option value="analysis">Analysis</option>
-                <option value="discovery">Discovery</option>
               </select>
             </div>
             <div className="flex items-center gap-2 text-[10px]">
@@ -168,9 +165,9 @@ export function ApiLogsModal({ onClose }: { onClose: () => void }) {
               )}
               <span className="text-text-dim">{filteredLogs.length} {filter === 'all' ? 'total' : filter}</span>
             </div>
-            {state.apiLogs.length > 0 && (
+            {logsState.apiLogs.length > 0 && (
               <button
-                onClick={() => dispatch({ type: 'CLEAR_API_LOGS' })}
+                onClick={() => logsDispatch({ type: 'CLEAR_API_LOGS' })}
                 className="text-[11px] text-text-dim hover:text-text-secondary transition-colors px-2 py-1 rounded hover:bg-white/5"
               >
                 Clear

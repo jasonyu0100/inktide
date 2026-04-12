@@ -15,9 +15,7 @@ import {
 } from "@/lib/pacing-profile";
 import type { CubeCornerKey, NarrativeState, Scene } from "@/types/narrative";
 import { describe, expect, it } from "vitest";
-
 // ── Test Fixtures ────────────────────────────────────────────────────────────
-
 function createScene(overrides: Partial<Scene> = {}): Scene {
   return {
     kind: "scene",
@@ -34,7 +32,6 @@ function createScene(overrides: Partial<Scene> = {}): Scene {
     ...overrides,
   };
 }
-
 function createNarrative(scenes: Scene[] = []): NarrativeState {
   const sceneMap: Record<string, Scene> = {};
   for (const s of scenes) {
@@ -64,19 +61,15 @@ function createNarrative(scenes: Scene[] = []): NarrativeState {
     relationships: [],
     systemGraph: { nodes: {}, edges: [] },
     worldSummary: "",
-    rules: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
 }
-
 // ── Matrix Computation ───────────────────────────────────────────────────────
-
 describe("computeMatrixFromNarrative", () => {
   it("returns empty matrix for narrative with fewer than 3 scenes", () => {
     const narrative = createNarrative([createScene({ id: "S-001" })]);
     const matrix = computeMatrixFromNarrative(narrative);
-
     // Check all values are 0
     const corners: CubeCornerKey[] = [
       "HHH",
@@ -94,7 +87,6 @@ describe("computeMatrixFromNarrative", () => {
       }
     }
   });
-
   it("computes transitions from scene sequence", () => {
     // Create scenes with varying mutation profiles
     const scenes = [
@@ -135,10 +127,8 @@ describe("computeMatrixFromNarrative", () => {
         events: ["event2", "event3"],
       }),
     ];
-
     const narrative = createNarrative(scenes);
     const matrix = computeMatrixFromNarrative(narrative);
-
     // Matrix should have proper structure (all corners defined)
     const corners: CubeCornerKey[] = [
       "HHH",
@@ -157,7 +147,6 @@ describe("computeMatrixFromNarrative", () => {
         expect(matrix[from][to]).toBeGreaterThanOrEqual(0);
       }
     }
-
     // With only 3 scenes of similar force profiles, they may all fall into the same corner
     // So we just verify the structure is correct and any non-empty rows sum to 1
     for (const from of corners) {
@@ -168,15 +157,12 @@ describe("computeMatrixFromNarrative", () => {
     }
   });
 });
-
 // ── Sampling ─────────────────────────────────────────────────────────────────
-
 describe("samplePacingSequence", () => {
   it("returns sequence of correct length", () => {
     const sequence = samplePacingSequence("LLL", 5);
     expect(sequence.steps).toHaveLength(5);
   });
-
   it("each step has required properties", () => {
     const sequence = samplePacingSequence("LLL", 3);
     for (const step of sequence.steps) {
@@ -189,13 +175,11 @@ describe("samplePacingSequence", () => {
       expect(step.forces).toHaveProperty("system");
     }
   });
-
   it("includes pacing description", () => {
     const sequence = samplePacingSequence("LLL", 4);
     expect(sequence.pacingDescription).toBeDefined();
     expect(sequence.pacingDescription.length).toBeGreaterThan(0);
   });
-
   it("uses provided matrix when given", () => {
     // Create a deterministic matrix where LLL always goes to HHH
     const deterministicMatrix: TransitionMatrix = {
@@ -208,19 +192,15 @@ describe("samplePacingSequence", () => {
       LLH: { HHH: 1, HHL: 0, HLH: 0, HLL: 0, LHH: 0, LHL: 0, LLH: 0, LLL: 0 },
       LLL: { HHH: 1, HHL: 0, HLH: 0, HLL: 0, LHH: 0, LHL: 0, LLH: 0, LLL: 0 },
     };
-
     const sequence = samplePacingSequence("LLL", 3, deterministicMatrix);
     expect(sequence.steps.every((s) => s.mode === "HHH")).toBe(true);
   });
 });
-
 // ── Preset Building ──────────────────────────────────────────────────────────
-
 describe("buildPresetSequence", () => {
   it("builds sequence from preset modes", () => {
     const preset = PACING_PRESETS.find((p) => p.key === "classic-arc");
     expect(preset).toBeDefined();
-
     if (preset) {
       const sequence = buildPresetSequence(preset);
       expect(sequence.steps).toHaveLength(preset.modes.length);
@@ -228,19 +208,16 @@ describe("buildPresetSequence", () => {
     }
   });
 });
-
 describe("buildSequenceFromModes", () => {
   it("builds sequence from raw mode array", () => {
     const modes: CubeCornerKey[] = ["LLL", "LHL", "HHL"];
     const sequence = buildSequenceFromModes(modes);
-
     expect(sequence.steps).toHaveLength(3);
     expect(sequence.steps[0].mode).toBe("LLL");
     expect(sequence.steps[1].mode).toBe("LHL");
     expect(sequence.steps[2].mode).toBe("HHL");
   });
 });
-
 describe("buildIntroductionSequence", () => {
   it("returns introduction sequence with correct modes", () => {
     const sequence = buildIntroductionSequence();
@@ -248,16 +225,13 @@ describe("buildIntroductionSequence", () => {
     expect(sequence.steps.map((s) => s.mode)).toEqual(INTRODUCTION_SEQUENCE);
   });
 });
-
 // ── Current Mode Detection ───────────────────────────────────────────────────
-
 describe("detectCurrentMode", () => {
   it("returns LLL for empty narrative", () => {
     const narrative = createNarrative([]);
     const mode = detectCurrentMode(narrative, []);
     expect(mode).toBe("LLL");
   });
-
   it("detects mode from last scene forces", () => {
     // Create scenes with high fate to push toward H** corners
     const scenes = [
@@ -286,17 +260,13 @@ describe("detectCurrentMode", () => {
         },
       }),
     ];
-
     const narrative = createNarrative(scenes);
     const mode = detectCurrentMode(narrative, ["S-001"]);
-
     // With high forces all around, should be in a high corner
     expect(mode).toBeDefined();
   });
 });
-
 // ── Prompt Generation ────────────────────────────────────────────────────────
-
 describe("buildSingleStepPrompt", () => {
   it("includes scene number and mode info", () => {
     const step = {
@@ -309,9 +279,7 @@ describe("buildSingleStepPrompt", () => {
         system: [0, 1.5] as [number, number],
       },
     };
-
     const prompt = buildSingleStepPrompt(step, 2, 5);
-
     expect(prompt).toContain("Scene 3/5");
     expect(prompt).toContain("Climax");
     expect(prompt).toContain("P:HIGH");
@@ -319,28 +287,22 @@ describe("buildSingleStepPrompt", () => {
     expect(prompt).toContain("S:LOW");
   });
 });
-
 describe("buildSequencePrompt", () => {
   it("includes all scenes in sequence", () => {
     const sequence = buildSequenceFromModes(["LLL", "LHL", "HHL"]);
     const prompt = buildSequencePrompt(sequence);
-
     expect(prompt).toContain("SCENE 1");
     expect(prompt).toContain("SCENE 2");
     expect(prompt).toContain("SCENE 3");
     expect(prompt).toContain("PACING SEQUENCE");
   });
-
   it("includes force formula explanation", () => {
     const sequence = buildSequenceFromModes(["LLL"]);
     const prompt = buildSequencePrompt(sequence);
-
     expect(prompt).toContain("Formulas compute forces FROM mutations");
   });
 });
-
 // ── Presets ──────────────────────────────────────────────────────────────────
-
 describe("PACING_PRESETS", () => {
   it("includes expected preset keys", () => {
     const keys = PACING_PRESETS.map((p) => p.key);
@@ -349,7 +311,6 @@ describe("PACING_PRESETS", () => {
     expect(keys).toContain("slow-burn");
     expect(keys).toContain("roller-coaster");
   });
-
   it("all presets have valid modes", () => {
     const validModes: CubeCornerKey[] = [
       "HHH",
@@ -361,7 +322,6 @@ describe("PACING_PRESETS", () => {
       "LLH",
       "LLL",
     ];
-
     for (const preset of PACING_PRESETS) {
       expect(preset.modes.length).toBeGreaterThan(0);
       for (const mode of preset.modes) {
@@ -370,30 +330,24 @@ describe("PACING_PRESETS", () => {
     }
   });
 });
-
 describe("INTRODUCTION_SEQUENCE", () => {
   it("has 8 scenes", () => {
     expect(INTRODUCTION_SEQUENCE).toHaveLength(8);
   });
-
   it("starts with Rest and ends with Climax", () => {
     expect(INTRODUCTION_SEQUENCE[0]).toBe("LLL"); // Rest
     expect(INTRODUCTION_SEQUENCE[INTRODUCTION_SEQUENCE.length - 1]).toBe("HHL"); // Climax
   });
 });
-
 // ── Matrix Preset Initialization ─────────────────────────────────────────────
-
 describe("initMatrixPresets", () => {
   it("includes built-in presets after initialization", () => {
     initMatrixPresets([]);
-
     const keys = MATRIX_PRESETS.map((p) => p.key);
     expect(keys).toContain("storyteller");
     // Only storyteller is the default preset
     expect(keys.length).toBeGreaterThanOrEqual(1);
   });
-
   it("adds work presets with sufficient data", () => {
     const workNarrative = createNarrative([
       createScene({
@@ -436,11 +390,9 @@ describe("initMatrixPresets", () => {
         ],
       }),
     ]);
-
     initMatrixPresets([
       { key: "test-work", name: "Test Work", narrative: workNarrative },
     ]);
-
     const keys = MATRIX_PRESETS.map((p) => p.key);
     expect(keys).toContain("test-work");
   });

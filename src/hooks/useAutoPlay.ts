@@ -20,7 +20,8 @@ export function useAutoPlay() {
   stateRef.current = state;
 
   const runCycle = useCallback(async () => {
-    const { activeNarrative, resolvedEntryKeys, activeBranchId, autoConfig, autoRunState } = stateRef.current;
+    const { activeNarrative, resolvedEntryKeys, autoConfig, viewState } = stateRef.current;
+    const { activeBranchId, autoRunState } = viewState;
     if (!activeNarrative || !activeBranchId || !autoRunState) return;
 
     // Always generate from the HEAD of the story (end of the resolved entries)
@@ -451,7 +452,7 @@ export function useAutoPlay() {
         operation: 'run-cycle',
         details: {
           consecutiveErrors: consecutiveTickErrors.current + 1,
-          cycle: (stateRef.current.autoRunState?.currentCycle ?? 0) + 1,
+          cycle: (stateRef.current.viewState.autoRunState?.currentCycle ?? 0) + 1,
         },
       });
       consecutiveTickErrors.current += 1;
@@ -461,11 +462,11 @@ export function useAutoPlay() {
           operation: 'auto-stop',
           details: {
             consecutiveErrors: consecutiveTickErrors.current,
-            cycle: (stateRef.current.autoRunState?.currentCycle ?? 0) + 1,
+            cycle: (stateRef.current.viewState.autoRunState?.currentCycle ?? 0) + 1,
           },
         });
         dispatch({ type: 'LOG_AUTO_CYCLE', entry: {
-          cycle: (stateRef.current.autoRunState?.currentCycle ?? 0) + 1,
+          cycle: (stateRef.current.viewState.autoRunState?.currentCycle ?? 0) + 1,
           timestamp: Date.now(),
           action: 'setup',
           reason: 'Auto mode stopped — 3 consecutive errors. Check API Logs for details.',
@@ -524,21 +525,21 @@ export function useAutoPlay() {
 
   // Stop if autoRunState goes away or is stopped externally
   useEffect(() => {
-    if (!state.autoRunState?.isRunning && runningRef.current) {
+    if (!state.viewState.autoRunState?.isRunning && runningRef.current) {
       runningRef.current = false;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     }
-  }, [state.autoRunState?.isRunning]);
+  }, [state.viewState.autoRunState?.isRunning]);
 
   return {
     start,
     pause,
     resume,
     stop,
-    isRunning: state.autoRunState?.isRunning ?? false,
-    isPaused: state.autoRunState?.isPaused ?? false,
-    currentCycle: state.autoRunState?.currentCycle ?? 0,
-    log: state.autoRunState?.log ?? [],
+    isRunning: state.viewState.autoRunState?.isRunning ?? false,
+    isPaused: state.viewState.autoRunState?.isPaused ?? false,
+    currentCycle: state.viewState.autoRunState?.currentCycle ?? 0,
+    log: state.viewState.autoRunState?.log ?? [],
   };
 }
 

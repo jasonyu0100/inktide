@@ -1,42 +1,41 @@
-import type { NarrativeState, Scene, StorySettings, WorldSystem, RelationshipEdge, ContinuityEdge, ArchetypeKey, ProseProfile } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings, RelationshipEdge, ContinuityEdge, ArchetypeKey, ProseProfile, SystemGraph } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeSystemGraph, rankSystemNodes, ARCHETYPE_FORCE_TARGETS } from '@/lib/narrative-utils';
 import { WORDS_PER_SCENE, BEATS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 
-// ── Prose Profile XML Builder ─────────────────────────────────────────────────
+// ── Prose Profile Builder ─────────────────────────────────────────────────────
 
 /**
- * Build prose profile as XML block for LLM context.
- * Centralizes prose profile rendering for consistent formatting across prompts.
+ * Build prose profile as plain text for LLM context.
  */
-export function buildProseProfileXml(profile: ProseProfile, options?: { beatDensity?: number; targetBeats?: number }): string {
-  const lines: string[] = [];
+export function buildProseProfile(profile: ProseProfile, options?: { beatDensity?: number; targetBeats?: number }): string {
+  const parts: string[] = [];
 
-  if (profile.register) lines.push(`  <register>${profile.register}</register>`);
-  if (profile.stance) lines.push(`  <stance>${profile.stance}</stance>`);
-  if (profile.tense) lines.push(`  <tense>${profile.tense}</tense>`);
-  if (profile.sentenceRhythm) lines.push(`  <sentence-rhythm>${profile.sentenceRhythm}</sentence-rhythm>`);
-  if (profile.interiority) lines.push(`  <interiority>${profile.interiority}</interiority>`);
-  if (profile.dialogueWeight) lines.push(`  <dialogue-weight>${profile.dialogueWeight}</dialogue-weight>`);
+  // Voice characteristics as a single line
+  const voice: string[] = [];
+  if (profile.register) voice.push(profile.register);
+  if (profile.stance) voice.push(profile.stance);
+  if (profile.tense) voice.push(profile.tense);
+  if (profile.sentenceRhythm) voice.push(profile.sentenceRhythm);
+  if (profile.interiority) voice.push(`${profile.interiority} interiority`);
+  if (profile.dialogueWeight) voice.push(`${profile.dialogueWeight} dialogue`);
+  if (voice.length) parts.push(`Voice: ${voice.join(', ')}`);
+
   if (profile.devices?.length) {
-    lines.push(`  <devices>${profile.devices.join(', ')}</devices>`);
+    parts.push(`Devices: ${profile.devices.join(', ')}`);
   }
   if (profile.rules?.length) {
-    lines.push(`  <rules hint="Show-don't-tell constraints — apply to ALL prose">`);
-    for (const r of profile.rules) lines.push(`    <rule>${r}</rule>`);
-    lines.push(`  </rules>`);
+    parts.push(`Rules: ${profile.rules.join('; ')}`);
   }
   if (profile.antiPatterns?.length) {
-    lines.push(`  <anti-patterns hint="Specific prose failures to avoid">`);
-    for (const a of profile.antiPatterns) lines.push(`    <avoid>${a}</avoid>`);
-    lines.push(`  </anti-patterns>`);
+    parts.push(`Avoid: ${profile.antiPatterns.join('; ')}`);
   }
   if (options?.beatDensity != null && options?.targetBeats != null) {
-    lines.push(`  <beat-density>~${options.beatDensity} beats/kword → target ${options.targetBeats} beats</beat-density>`);
+    parts.push(`Density: ~${options.beatDensity} beats/kword → target ${options.targetBeats} beats`);
   }
 
-  return `<prose-profile hint="Voice and style for prose generation">\n${lines.join('\n')}\n</prose-profile>`;
+  return `PROSE PROFILE\n${parts.join('\n')}`;
 }
 
 /**
@@ -142,34 +141,97 @@ export const THREAD_LIFECYCLE_DOC = (() => {
   return `Active statuses: ${activeList}. Terminal/closed statuses: ${terminalList}.`;
 })();
 
-/** Build a structured world-systems block for prompts */
-function buildWorldSystemsBlock(systems?: WorldSystem[]): string {
-  if (!systems?.length) return '';
+/**
+ * Build world knowledge block from SystemGraph.
+ * Consolidates what was previously split between rules[] and worldSystems[].
+ *
+ * Node types map to:
+ * - principle: Fundamental truths (laws, axioms, magic rules)
+ * - system: Organized mechanisms (governance, ecosystems, magic systems)
+ * - constraint: Hard limits (scarcity, costs, boundaries)
+ * - convention: Norms (customs, practices, etiquette)
+ * - Other types included for completeness
+ */
+function buildWorldKnowledgeBlock(graph: SystemGraph): string {
+  const nodes = Object.values(graph.nodes);
+  if (nodes.length === 0) return '';
 
-  const systemLines = systems.map((sys) => {
-    const parts: string[] = [`<system name="${sys.name}">`];
-    if (sys.description) parts.push(`  <description>${sys.description}</description>`);
-    if (sys.principles.length > 0) {
-      parts.push(`  <principles hint="How it works">`);
-      for (const p of sys.principles) parts.push(`    - ${p}`);
-      parts.push(`  </principles>`);
-    }
-    if (sys.constraints.length > 0) {
-      parts.push(`  <constraints hint="Hard limits and costs">`);
-      for (const c of sys.constraints) parts.push(`    - ${c}`);
-      parts.push(`  </constraints>`);
-    }
-    if (sys.interactions.length > 0) {
-      parts.push(`  <interactions hint="Cross-system connections">`);
-      for (const ix of sys.interactions) parts.push(`    - ${ix}`);
-      parts.push(`  </interactions>`);
-    }
-    parts.push(`</system>`);
-    return parts.join('\n');
-  });
+  // Group nodes by type
+  const byType: Record<string, typeof nodes> = {};
+  for (const node of nodes) {
+    if (!byType[node.type]) byType[node.type] = [];
+    byType[node.type].push(node);
+  }
 
-  return `\n<world-systems hint="Structured mechanics that define how this world works. Scenes must operate within these systems — use them to drive conflict, constrain action, and reward preparation.">\n${systemLines.join('\n')}\n</world-systems>\n`;
+  // Build adjacency for showing connections
+  const connections: Record<string, string[]> = {};
+  for (const edge of graph.edges) {
+    const fromNode = graph.nodes[edge.from];
+    const toNode = graph.nodes[edge.to];
+    if (!fromNode || !toNode) continue;
+    if (!connections[edge.from]) connections[edge.from] = [];
+    connections[edge.from].push(`${edge.relation} → ${toNode.concept}`);
+  }
+
+  const sections: string[] = [];
+
+  // Principles first (these are the "rules")
+  if (byType['principle']?.length) {
+    const lines = byType['principle'].map((n) => {
+      const conn = connections[n.id];
+      const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
+      return `  <principle id="${n.id}">${n.concept}${connStr}</principle>`;
+    });
+    sections.push(`<principles hint="Fundamental truths — these MUST be obeyed.">\n${lines.join('\n')}\n</principles>`);
+  }
+
+  // Systems (organized mechanisms)
+  if (byType['system']?.length) {
+    const lines = byType['system'].map((n) => {
+      const conn = connections[n.id];
+      const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
+      return `  <system id="${n.id}">${n.concept}${connStr}</system>`;
+    });
+    sections.push(`<systems hint="Organized mechanisms — use these to drive conflict and reward preparation.">\n${lines.join('\n')}\n</systems>`);
+  }
+
+  // Constraints (hard limits)
+  if (byType['constraint']?.length) {
+    const lines = byType['constraint'].map((n) => {
+      const conn = connections[n.id];
+      const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
+      return `  <constraint id="${n.id}">${n.concept}${connStr}</constraint>`;
+    });
+    sections.push(`<constraints hint="Hard limits — costs, scarcity, boundaries that cannot be ignored.">\n${lines.join('\n')}\n</constraints>`);
+  }
+
+  // Tensions (unresolved forces)
+  if (byType['tension']?.length) {
+    const lines = byType['tension'].map((n) => {
+      const conn = connections[n.id];
+      const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
+      return `  <tension id="${n.id}">${n.concept}${connStr}</tension>`;
+    });
+    sections.push(`<tensions hint="Unresolved contradictions — sources of conflict.">\n${lines.join('\n')}\n</tensions>`);
+  }
+
+  // Other types grouped together
+  const otherTypes = ['concept', 'event', 'structure', 'environment', 'convention'];
+  const otherNodes = otherTypes.flatMap((t) => byType[t] ?? []);
+  if (otherNodes.length > 0) {
+    const lines = otherNodes.map((n) => {
+      const conn = connections[n.id];
+      const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
+      return `  <node type="${n.type}" id="${n.id}">${n.concept}${connStr}</node>`;
+    });
+    sections.push(`<world-knowledge hint="Additional established facts.">\n${lines.join('\n')}\n</world-knowledge>`);
+  }
+
+  if (sections.length === 0) return '';
+
+  return `\n<world-graph hint="Established world knowledge. Scenes must operate within these truths.">\n${sections.join('\n\n')}\n</world-graph>\n`;
 }
+
 
 /** Build a prompt block from story settings — returns empty string if all defaults */
 export function buildStorySettingsBlock(n: NarrativeState): string {
@@ -232,6 +294,16 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
   // Narrative guidance (editorial principles)
   if (s.narrativeGuidance.trim()) {
     lines.push(`NARRATIVE GUIDANCE (editorial principles that govern how this story is told — scope discipline, reveal pacing, tonal rules, structural philosophy. These override default instincts):\n${s.narrativeGuidance.trim()}`);
+  }
+
+  // Story patterns (positive commandments)
+  if (n.patterns && n.patterns.length > 0) {
+    lines.push(`STORY PATTERNS (positive commandments — what makes this series good):\n${n.patterns.map(p => `• ${p}`).join('\n')}`);
+  }
+
+  // Story anti-patterns (negative commandments)
+  if (n.antiPatterns && n.antiPatterns.length > 0) {
+    lines.push(`STORY ANTI-PATTERNS (negative commandments — what to avoid):\n${n.antiPatterns.map(p => `• ${p}`).join('\n')}`);
   }
 
   if (lines.length === 0) return '';
@@ -547,11 +619,8 @@ ${nodeLines.join('\n')}
   const threadIdList = activeThreads.map((t) => t.id).join(', ');
   const sysIdList = rankedSystemNodes.map(({ node }) => node.id).join(', ');
 
-  const rulesBlock = n.rules && n.rules.length > 0
-    ? `\n<world-rules hint="Absolute constraints — every scene MUST obey these.">\n${n.rules.map((r) => `<rule>${r}</rule>`).join('\n')}\n</world-rules>\n`
-    : '';
-
-  const systemsBlock = buildWorldSystemsBlock(n.worldSystems);
+  // Build world knowledge from SystemGraph (consolidates old rules + worldSystems)
+  const worldKnowledgeBlock = buildWorldKnowledgeBlock(horizonSystemGraph);
 
   const storySettingsBlock = buildStorySettingsBlock(n);
 
@@ -561,7 +630,7 @@ ${nodeLines.join('\n')}
 
   return `<narrative title="${n.title}">
 <world>${n.worldSummary}</world>
-${rulesBlock}${systemsBlock}${storySettingsBlock}
+${worldKnowledgeBlock}${storySettingsBlock}
 <characters hint="Continuity tracks what each character knows. Use this to determine what they can reference, discover, or be surprised by.">
 ${characters}
 </characters>
@@ -757,10 +826,8 @@ export function sceneContext(
     return `\n<system-graph-reveals>\n${lines.join('\n')}\n</system-graph-reveals>`;
   })();
 
-  // ── World rules & systems (compact) ──────────────────────────────
-  const rulesBlock = narrative.rules?.length
-    ? `\n<world-rules>\n${narrative.rules.map((r) => `<rule>${r}</rule>`).join('\n')}\n</world-rules>` : '';
-  const systemsBlock = buildWorldSystemsBlock(narrative.worldSystems);
+  // ── World knowledge from SystemGraph ──────────────────────────────
+  const worldKnowledgeBlock = buildWorldKnowledgeBlock(narrative.systemGraph);
 
   return `<scene id="${scene.id}" arc="${arc?.name ?? 'standalone'}" pov="${pov?.name ?? 'Unknown'}" pov-role="${pov?.role ?? 'unknown'}">
 <summary>${scene.summary}</summary>
@@ -785,7 +852,7 @@ ${relationshipMutationLines.length > 0 ? `\n<relationship-shifts>\n${relationshi
 ${movementLines.length > 0 ? `\n<movements>\n${movementLines.join('\n')}\n</movements>` : ''}
 ${artifactUsageLines.length > 0 ? `\n<artifact-usages>\n${artifactUsageLines.join('\n')}\n</artifact-usages>` : ''}
 ${ownershipMutationLines.length > 0 ? `\n<artifact-transfers>\n${ownershipMutationLines.join('\n')}\n</artifact-transfers>` : ''}
-${tieMutationLines.length > 0 ? `\n<tie-changes>\n${tieMutationLines.join('\n')}\n</tie-changes>` : ''}${rulesBlock}${systemsBlock}
+${tieMutationLines.length > 0 ? `\n<tie-changes>\n${tieMutationLines.join('\n')}\n</tie-changes>` : ''}${worldKnowledgeBlock}
 </scene>`;
 }
 

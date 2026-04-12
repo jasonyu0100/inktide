@@ -61,15 +61,15 @@ export default function WorldGraph() {
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
 
   const narrative = state.activeNarrative;
-  const inspectorContext = state.inspectorContext;
-  const selectedKnowledgeEntity = state.selectedKnowledgeEntity;
-  const selectedThreadLog = state.selectedThreadLog;
+  const inspectorContext = state.viewState.inspectorContext;
+  const selectedKnowledgeEntity = state.viewState.selectedKnowledgeEntity;
+  const selectedThreadLog = state.viewState.selectedThreadLog;
   const graphViewMode = state.graphViewMode;
   const [sceneFocus, setSceneFocus] = useState(true);
 
   const resolvedEntryKeys = state.resolvedEntryKeys;
 
-  const currentSceneKey = resolvedEntryKeys[state.currentSceneIndex] ?? null;
+  const currentSceneKey = resolvedEntryKeys[state.viewState.currentSceneIndex] ?? null;
 
   const activeArcId = useMemo(() => {
     if (!narrative || !currentSceneKey) return null;
@@ -149,9 +149,9 @@ export default function WorldGraph() {
   // Track the current world build ID (or null) — triggers full rebuild when navigating between world builds
   const currentWorldBuildId = useMemo(() => {
     if (!narrative) return null;
-    const key = resolvedEntryKeys[state.currentSceneIndex];
+    const key = resolvedEntryKeys[state.viewState.currentSceneIndex];
     return key && narrative.worldBuilds[key] ? key : null;
-  }, [narrative, resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   // ── Full rebuild: only on arc change or knowledge entity selection ────
   useEffect(() => {
@@ -173,7 +173,7 @@ export default function WorldGraph() {
     // Filter artifacts to only those used in the current scene
     // Artifacts: show those used in current scene, or introduced in current world build
     const visibleArtifactIds = new Set<string>();
-    const currentKey = resolvedEntryKeys[state.currentSceneIndex];
+    const currentKey = resolvedEntryKeys[state.viewState.currentSceneIndex];
     const currentSceneForArtifacts = currentKey ? narrative.scenes[currentKey] : null;
     const currentWBForArtifacts = currentKey ? narrative.worldBuilds[currentKey] : null;
     if (currentSceneForArtifacts) {
@@ -207,7 +207,7 @@ export default function WorldGraph() {
       links = result.links;
     } else {
       // Check if current scene is a world expansion
-      const currentKey = resolvedEntryKeys[state.currentSceneIndex];
+      const currentKey = resolvedEntryKeys[state.viewState.currentSceneIndex];
       const currentWorldBuild = currentKey ? narrative.worldBuilds[currentKey] : null;
 
       if (currentWorldBuild) {
@@ -217,7 +217,7 @@ export default function WorldGraph() {
         const expandedLocIds = new Set(manifest.locations.map((l) => l.id));
 
         // Relationships filtered to current timeline position, then to expansion entities
-        const timelineRels = getRelationshipsAtScene(narrative, resolvedEntryKeys, state.currentSceneIndex);
+        const timelineRels = getRelationshipsAtScene(narrative, resolvedEntryKeys, state.viewState.currentSceneIndex);
         const filteredRels = timelineRels.filter(
           (r) => expandedCharIds.has(r.from) || expandedCharIds.has(r.to),
         );
@@ -274,13 +274,13 @@ export default function WorldGraph() {
         const sceneRelationships = getRelationshipsAtScene(
           narrative,
           resolvedEntryKeys,
-          state.currentSceneIndex,
+          state.viewState.currentSceneIndex,
         );
 
         if (sceneFocus && currentScene && activeArc) {
           // Scene focus: show scene location + POV character's location (if different)
           // and all characters at either location
-          const charPositions = computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedEntryKeys);
+          const charPositions = computeCharacterPositions(activeArc, narrative.scenes, state.viewState.currentSceneIndex, resolvedEntryKeys);
 
           const sceneLocId = currentScene.locationId;
           const povLocId = charPositions[currentScene.povId] ?? sceneLocId;
@@ -326,7 +326,7 @@ export default function WorldGraph() {
         }
 
         const characterPositions = activeArc
-          ? computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedEntryKeys)
+          ? computeCharacterPositions(activeArc, narrative.scenes, state.viewState.currentSceneIndex, resolvedEntryKeys)
           : {};
 
         const result = buildGraphData(
@@ -425,7 +425,7 @@ export default function WorldGraph() {
     svg.on('click', (event: MouseEvent) => {
       // Only fire when clicking the SVG background, not a node
       if (event.target === svgRef.current) {
-        const currentKey = resolvedEntryKeys[state.currentSceneIndex];
+        const currentKey = resolvedEntryKeys[state.viewState.currentSceneIndex];
         if (currentKey) {
           dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId: currentKey } });
           dispatch({ type: 'SELECT_KNOWLEDGE_ENTITY', entityId: null });
@@ -816,7 +816,7 @@ export default function WorldGraph() {
     const activeArc = narrative.arcs[activeArcId];
     if (!activeArc) return;
 
-    const positions = computeCharacterPositions(activeArc, narrative.scenes, state.currentSceneIndex, resolvedEntryKeys);
+    const positions = computeCharacterPositions(activeArc, narrative.scenes, state.viewState.currentSceneIndex, resolvedEntryKeys);
 
     // Resolve new links against existing simulation nodes
     const nodeMap = new Map(nodesRef.current.map((n) => [n.id, n]));
@@ -870,7 +870,7 @@ export default function WorldGraph() {
         .attr('x2', (d) => ((d.target as GraphNode).x ?? 0))
         .attr('y2', (d) => ((d.target as GraphNode).y ?? 0));
     });
-  }, [narrative, activeArcId, state.currentSceneIndex]);
+  }, [narrative, activeArcId, state.viewState.currentSceneIndex]);
 
   // ── Zoom to focused group ──
   useEffect(() => {
@@ -1037,13 +1037,13 @@ export default function WorldGraph() {
             fullThreadLog={narrative.threads[selectedThreadLog].threadLog ?? { nodes: {}, edges: [] }}
             scenes={narrative.scenes}
             resolvedKeys={state.resolvedEntryKeys}
-            currentIndex={state.currentSceneIndex}
+            currentIndex={state.viewState.currentSceneIndex}
           />
         ) : (
           <ThreadGraphView
             narrative={narrative!}
             resolvedKeys={state.resolvedEntryKeys}
-            currentIndex={state.currentSceneIndex}
+            currentIndex={state.viewState.currentSceneIndex}
             mode={graphViewMode as 'pulse' | 'threads'}
             onSelectThread={(id) => {
               dispatch({ type: 'SELECT_THREAD_LOG', threadId: id });
@@ -1058,7 +1058,7 @@ export default function WorldGraph() {
         <KnowledgeGraphView
           narrative={narrative!}
           resolvedKeys={state.resolvedEntryKeys}
-          currentIndex={state.currentSceneIndex}
+          currentIndex={state.viewState.currentSceneIndex}
           mode={graphViewMode}
           hideControls hideLegend
         />
@@ -1069,7 +1069,7 @@ export default function WorldGraph() {
           continuity={(narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity] ?? narrative.artifacts[selectedKnowledgeEntity])?.continuity ?? { nodes: {}, edges: [] }}
           scenes={narrative.scenes}
           resolvedKeys={resolvedEntryKeys}
-          currentIndex={state.currentSceneIndex}
+          currentIndex={state.viewState.currentSceneIndex}
         />
       ) : (
         <svg

@@ -145,7 +145,7 @@ export default function PlanEval({ sceneRange, onRangeChange }: { sceneRange?: S
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
   const branches = narrative?.branches ?? {};
 
   const filteredKeys = useMemo(

@@ -26,6 +26,7 @@ import { FormulaModal } from "@/components/topbar/FormulaModal";
 import { ImportPackageModal } from "@/components/topbar/ImportPackageModal";
 import { MarkovChainModal } from "@/components/topbar/MarkovChainModal";
 import { NarrativeEditModal } from "@/components/topbar/NarrativeEditModal";
+import { PatternsModal } from "@/components/topbar/PatternsModal";
 import { PropositionAnalysisModal } from "@/components/topbar/PropositionAnalysisModal";
 import SystemLogModal from "@/components/topbar/SystemLogModal";
 import { ThreadGraphModal } from "@/components/topbar/ThreadGraphModal";
@@ -51,11 +52,13 @@ import {
   resolvePlanForBranch,
   resolveProseForBranch,
 } from "@/lib/narrative-utils";
+import { useLogs } from "@/lib/logs-context";
 import {
   ANALYSIS_NARRATIVE_IDS,
   PLAYGROUND_NARRATIVE_IDS,
   useStore,
 } from "@/lib/store";
+import { useWizard } from "@/lib/wizard-context";
 import type { Branch, NarrativeEntry, NarrativeState } from "@/types/narrative";
 import { isScene, resolveEntry, type Scene } from "@/types/narrative";
 import Image from "next/image";
@@ -209,8 +212,6 @@ function exportBranch(narrative: NarrativeState, branchId: string) {
     relationships,
     systemGraph: narrative.systemGraph,
     worldSummary: narrative.worldSummary,
-    rules: narrative.rules,
-    worldSystems: narrative.worldSystems,
     storySettings: narrative.storySettings,
     imageStyle: narrative.imageStyle,
     coverImageUrl: narrative.coverImageUrl,
@@ -327,6 +328,8 @@ export default function TopBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { state, dispatch } = useStore();
+  const { dispatch: wizardDispatch } = useWizard();
+  const { state: logsState } = useLogs();
   const narrative = state.activeNarrative;
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -358,6 +361,7 @@ export default function TopBar() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportPackageOpen, setExportPackageOpen] = useState(false);
   const [importPackageOpen, setImportPackageOpen] = useState(false);
+  const [patternsOpen, setPatternsOpen] = useState(false);
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<
@@ -387,7 +391,7 @@ export default function TopBar() {
   const activeArc = narrative
     ? Object.values(narrative.arcs).find((a) =>
         a.sceneIds.includes(
-          state.resolvedEntryKeys[state.currentSceneIndex] ?? "",
+          state.resolvedEntryKeys[state.viewState.currentSceneIndex] ?? "",
         ),
       )
     : null;
@@ -446,13 +450,13 @@ export default function TopBar() {
   // Copy/export helpers
   const copyAllText = useCallback(
     (mode: "prose" | "plan" | "summary") => {
-      if (!narrative || !state.activeBranchId) return;
+      if (!narrative || !state.viewState.activeBranchId) return;
       const scenes = state.resolvedEntryKeys
         .map((k) => resolveEntry(narrative, k))
         .filter((e): e is Scene => !!e && isScene(e));
 
       const branches = narrative.branches;
-      const branchId = state.activeBranchId;
+      const branchId = state.viewState.activeBranchId;
 
       const parts: string[] = [];
       for (const scene of scenes) {
@@ -483,14 +487,14 @@ export default function TopBar() {
       });
       setExportOpen(false);
     },
-    [narrative, state.resolvedEntryKeys, state.activeBranchId],
+    [narrative, state.resolvedEntryKeys, state.viewState.activeBranchId],
   );
 
   const handleExportEpub = useCallback(() => {
-    if (!narrative || !state.activeBranchId) return;
-    exportEpub(narrative, state.resolvedEntryKeys, state.activeBranchId, {});
+    if (!narrative || !state.viewState.activeBranchId) return;
+    exportEpub(narrative, state.resolvedEntryKeys, state.viewState.activeBranchId, {});
     setExportOpen(false);
-  }, [narrative, state.resolvedEntryKeys, state.activeBranchId]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.activeBranchId]);
 
   const handleExportAudio = useCallback(async () => {
     if (!narrative) return;
@@ -565,8 +569,8 @@ export default function TopBar() {
     }
 
     // Check if we have a scene selected in inspector
-    if (state.inspectorContext?.type === "scene") {
-      const scene = narrative.scenes[state.inspectorContext.sceneId];
+    if (state.viewState.inspectorContext?.type === "scene") {
+      const scene = narrative.scenes[state.viewState.inspectorContext.sceneId];
       if (!scene) {
         setCopyToast("Scene not found");
         return;
@@ -603,7 +607,7 @@ export default function TopBar() {
     } catch (err) {
       setCopyToast("Failed to copy");
     }
-  }, [narrative, state.inspectorContext, state.resolvedEntryKeys]);
+  }, [narrative, state.viewState.inspectorContext, state.resolvedEntryKeys]);
 
   const handleCopyFullJson = useCallback(async () => {
     if (!narrative) return;
@@ -617,10 +621,10 @@ export default function TopBar() {
   }, [narrative]);
 
   const handleCopyBranchJson = useCallback(async () => {
-    if (!narrative || !state.activeBranchId) return;
+    if (!narrative || !state.viewState.activeBranchId) return;
     const resolvedKeys = resolveEntrySequence(
       narrative.branches,
-      state.activeBranchId,
+      state.viewState.activeBranchId,
     );
     const resolvedSet = new Set(resolvedKeys);
 
@@ -706,11 +710,11 @@ export default function TopBar() {
       (r) => referencedCharIds.has(r.from) && referencedCharIds.has(r.to),
     );
 
-    const branch = narrative.branches[state.activeBranchId];
+    const branch = narrative.branches[state.viewState.activeBranchId];
     const branches: NarrativeState["branches"] = {};
 
     const exportBranchObj: Branch = {
-      id: state.activeBranchId,
+      id: state.viewState.activeBranchId,
       name: branch?.name ?? "main",
       parentBranchId: null,
       forkEntryId: null,
@@ -718,7 +722,7 @@ export default function TopBar() {
       planningQueue: branch?.planningQueue,
       createdAt: branch?.createdAt ?? Date.now(),
     };
-    branches[state.activeBranchId] = exportBranchObj;
+    branches[state.viewState.activeBranchId] = exportBranchObj;
 
     const exported: NarrativeState = {
       id: narrative.id,
@@ -735,15 +739,13 @@ export default function TopBar() {
       relationships,
       systemGraph: narrative.systemGraph,
       worldSummary: narrative.worldSummary,
-      rules: narrative.rules,
-      worldSystems: narrative.worldSystems,
       storySettings: narrative.storySettings,
       imageStyle: narrative.imageStyle,
       coverImageUrl: narrative.coverImageUrl,
-      structureReviews: narrative.structureReviews?.[state.activeBranchId]
+      structureReviews: narrative.structureReviews?.[state.viewState.activeBranchId]
         ? {
-            [state.activeBranchId]:
-              narrative.structureReviews[state.activeBranchId],
+            [state.viewState.activeBranchId]:
+              narrative.structureReviews[state.viewState.activeBranchId],
           }
         : undefined,
       createdAt: narrative.createdAt,
@@ -757,14 +759,14 @@ export default function TopBar() {
     } catch (err) {
       setCopyToast("Failed to copy");
     }
-  }, [narrative, state.activeBranchId]);
+  }, [narrative, state.viewState.activeBranchId]);
 
   const narrativeLogs = useMemo(
     () =>
       state.activeNarrativeId
-        ? state.apiLogs.filter((l) => l.narrativeId === state.activeNarrativeId)
-        : state.apiLogs,
-    [state.apiLogs, state.activeNarrativeId],
+        ? logsState.apiLogs.filter((l) => l.narrativeId === state.activeNarrativeId)
+        : logsState.apiLogs,
+    [logsState.apiLogs, state.activeNarrativeId],
   );
   const usageCost = useMemo(
     () => computeTotalCost(narrativeLogs),
@@ -781,7 +783,7 @@ export default function TopBar() {
 
   // Export availability flags
   const exportAvailability = useMemo(() => {
-    if (!narrative || !state.activeBranchId) {
+    if (!narrative || !state.viewState.activeBranchId) {
       return {
         hasProse: false,
         hasPlans: false,
@@ -790,7 +792,7 @@ export default function TopBar() {
       };
     }
     const branches = narrative.branches;
-    const branchId = state.activeBranchId;
+    const branchId = state.viewState.activeBranchId;
     return {
       hasProse: allScenes.some(
         (s) => !!resolveProseForBranch(s, branchId, branches).prose,
@@ -801,7 +803,7 @@ export default function TopBar() {
       hasSummaries: allScenes.some((s) => s.summary),
       hasAudio: allScenes.some((s) => s.audioUrl),
     };
-  }, [allScenes, narrative, state.activeBranchId]);
+  }, [allScenes, narrative, state.viewState.activeBranchId]);
 
   const scorecard = useMemo(() => {
     if (allScenes.length === 0 || !narrative) return null;
@@ -1080,7 +1082,7 @@ export default function TopBar() {
                 <div className="flex gap-1.5">
                   <button
                     onClick={() => {
-                      dispatch({ type: "OPEN_WIZARD" });
+                      wizardDispatch({ type: "OPEN" });
                       setSelectorOpen(false);
                     }}
                     className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors border border-white/6"
@@ -1183,8 +1185,8 @@ export default function TopBar() {
         />
 
         <MenuDropdown
-          label="Inspect"
-          menuKey="inspect"
+          label="Analyze"
+          menuKey="analyze"
           openMenu={openMenu}
           setOpenMenu={setOpenMenu}
           anyMenuOpen={openMenu !== null}
@@ -1207,8 +1209,24 @@ export default function TopBar() {
               disabled: !hasNarrative,
             },
             {
-              label: "Cube Explorer",
-              onClick: () => setCubeExplorerOpen(true),
+              label: "Propositions",
+              onClick: () => setPropositionAnalysisOpen(true),
+              disabled: !hasNarrative,
+            },
+          ]}
+        />
+
+        <MenuDropdown
+          label="Profiles"
+          menuKey="profiles"
+          openMenu={openMenu}
+          setOpenMenu={setOpenMenu}
+          anyMenuOpen={openMenu !== null}
+          items={[
+            {
+              label: "Story Profile",
+              onClick: () =>
+                window.dispatchEvent(new Event("open-prose-profile")),
               disabled: !hasNarrative,
             },
             {
@@ -1222,40 +1240,27 @@ export default function TopBar() {
               disabled: !hasNarrative,
             },
             {
-              label: "Propositions",
-              onClick: () => setPropositionAnalysisOpen(true),
+              label: "Patterns",
+              onClick: () => setPatternsOpen(true),
               disabled: !hasNarrative,
             },
-            { label: "Formulas", onClick: () => setFormulaOpen(true) },
-            { label: "Definitions", onClick: () => setDefinitionsOpen(true) },
+            {
+              label: "Cube Explorer",
+              onClick: () => setCubeExplorerOpen(true),
+              disabled: !hasNarrative,
+            },
           ]}
         />
 
         <MenuDropdown
-          label="Config"
-          menuKey="config"
+          label="Reference"
+          menuKey="reference"
           openMenu={openMenu}
           setOpenMenu={setOpenMenu}
           anyMenuOpen={openMenu !== null}
           items={[
-            {
-              label: "Systems",
-              onClick: () =>
-                window.dispatchEvent(new Event("open-world-systems-panel")),
-              disabled: !hasNarrative,
-            },
-            {
-              label: "Rules",
-              onClick: () =>
-                window.dispatchEvent(new Event("open-rules-panel")),
-              disabled: !hasNarrative,
-            },
-            {
-              label: "Profile",
-              onClick: () =>
-                window.dispatchEvent(new Event("open-prose-profile")),
-              disabled: !hasNarrative,
-            },
+            { label: "Formulas", onClick: () => setFormulaOpen(true) },
+            { label: "Definitions", onClick: () => setDefinitionsOpen(true) },
           ]}
         />
 
@@ -2016,7 +2021,7 @@ export default function TopBar() {
                       <rect x="9" y="9" width="13" height="13" rx="2" />
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                     </svg>
-                    {state.inspectorContext?.type === "scene"
+                    {state.viewState.inspectorContext?.type === "scene"
                       ? "Scene"
                       : "World Commit"}
                   </button>
@@ -2040,8 +2045,8 @@ export default function TopBar() {
                   </button>
                   <button
                     onClick={handleCopyBranchJson}
-                    disabled={!state.activeBranchId}
-                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${state.activeBranchId ? "text-text-secondary hover:text-text-primary hover:bg-white/5" : "text-text-dim/50 cursor-not-allowed"}`}
+                    disabled={!state.viewState.activeBranchId}
+                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors ${state.viewState.activeBranchId ? "text-text-secondary hover:text-text-primary hover:bg-white/5" : "text-text-dim/50 cursor-not-allowed"}`}
                   >
                     <svg
                       className="w-3.5 h-3.5 text-text-dim shrink-0"
@@ -2160,7 +2165,7 @@ export default function TopBar() {
         <CubeExplorer
           narrative={narrative}
           resolvedKeys={state.resolvedEntryKeys}
-          currentSceneIndex={state.currentSceneIndex}
+          currentSceneIndex={state.viewState.currentSceneIndex}
           onClose={() => setCubeExplorerOpen(false)}
           onNavigate={(idx) =>
             dispatch({ type: "SET_SCENE_INDEX", index: idx })
@@ -2182,7 +2187,7 @@ export default function TopBar() {
         <ThreadGraphModal
           narrative={narrative}
           resolvedKeys={state.resolvedEntryKeys}
-          currentSceneIndex={state.currentSceneIndex}
+          currentSceneIndex={state.viewState.currentSceneIndex}
           onClose={() => setThreadGraphOpen(false)}
           onSelectThread={(id) => {
             dispatch({
@@ -2197,23 +2202,26 @@ export default function TopBar() {
         <MarkovChainModal
           narrative={narrative}
           resolvedKeys={state.resolvedEntryKeys}
-          currentSceneIndex={state.currentSceneIndex}
+          currentSceneIndex={state.viewState.currentSceneIndex}
           onClose={() => setMarkovOpen(false)}
         />
       )}
-      {beatProfileOpen && narrative && state.activeBranchId && (
+      {beatProfileOpen && narrative && state.viewState.activeBranchId && (
         <BeatProfileModal
           narrative={narrative}
           resolvedKeys={state.resolvedEntryKeys}
-          branchId={state.activeBranchId}
+          branchId={state.viewState.activeBranchId}
           onClose={() => setBeatProfileOpen(false)}
         />
+      )}
+      {patternsOpen && narrative && (
+        <PatternsModal onClose={() => setPatternsOpen(false)} />
       )}
       {branchContextOpen && narrative && (
         <BranchContextModal
           narrative={narrative}
           resolvedKeys={state.resolvedEntryKeys}
-          currentSceneIndex={state.currentSceneIndex}
+          currentSceneIndex={state.viewState.currentSceneIndex}
           onClose={() => setBranchContextOpen(false)}
         />
       )}

@@ -108,9 +108,9 @@ export function SceneProseView({
   // Get the current resolved plan version for tracking prose generation source
   const currentPlanVersion = useMemo(() => {
     const branches = state.activeNarrative?.branches ?? {};
-    const branchId = state.activeBranchId;
+    const branchId = state.viewState.activeBranchId;
     return branchId ? getResolvedPlanVersion(scene, branchId, branches) : undefined;
-  }, [scene, state.activeNarrative?.branches, state.activeBranchId]);
+  }, [scene, state.activeNarrative?.branches, state.viewState.activeBranchId]);
 
   type ProseState = {
     text: string;

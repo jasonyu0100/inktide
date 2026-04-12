@@ -10,6 +10,7 @@ import {
   PLAYGROUND_NARRATIVE_IDS,
   useStore,
 } from "@/lib/store";
+import { useWizard } from "@/lib/wizard-context";
 import type { NarrativeEntry } from "@/types/narrative";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -262,6 +263,7 @@ function SeedCarousel({
 export default function HomePage() {
   const router = useRouter();
   const { state, dispatch } = useStore();
+  const { state: wizardState, dispatch: wizardDispatch } = useWizard();
   const access = useFeatureAccess();
   const { userApiKeys, hasOpenRouterKey } = access;
   const isMobile = useIsMobile();
@@ -283,7 +285,7 @@ export default function HomePage() {
       return;
     }
     if (isMobile) return;
-    dispatch({ type: "OPEN_WIZARD", prefill });
+    wizardDispatch({ type: "OPEN", prefill });
   };
 
   const playgrounds = state.narratives.filter((e) =>
@@ -567,7 +569,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {state.wizardOpen && <CreationWizard />}
+      {wizardState.isOpen && <CreationWizard />}
       {apiKeysOpen && (
         <ApiKeyModal access={access} onClose={() => setApiKeysOpen(false)} />
       )}

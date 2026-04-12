@@ -2,7 +2,6 @@
 
 import { assetManager } from "@/lib/asset-manager";
 import { initBeatProfilePresets } from "@/lib/beat-profiles";
-import { API_LOG_STALE_THRESHOLD_MS } from "@/lib/constants";
 import { applyContinuityMutation } from "@/lib/continuity-graph";
 import { initMechanismProfilePresets } from "@/lib/mechanism-profiles";
 import {
@@ -45,14 +44,12 @@ import { logError, logWarning } from "@/lib/system-logger";
 import { applyThreadMutation } from "@/lib/thread-log";
 import type {
   AnalysisJob,
-  ApiLogEntry,
   AppState,
   Arc,
   Artifact,
   AutoConfig,
   AutoRunLog,
   BeatPlan,
-  BeatProfilePreset,
   BeatProseMap,
   Branch,
   Character,
@@ -62,9 +59,9 @@ import type {
   GraphViewMode,
   InspectorContext,
   Location,
-  MechanismProfilePreset,
   NarrativeEntry,
   NarrativeState,
+  NarrativeViewState,
   Note,
   OwnershipMutation,
   PlanEvaluation,
@@ -81,15 +78,11 @@ import type {
   StructureReview,
   SystemEdge,
   SystemGraph,
-  SystemLogEntry,
   SystemMutation,
   SystemNode,
   Thread,
   TieMutation,
-  WizardData,
-  WizardStep,
   WorldBuild,
-  WorldSystem,
 } from "@/types/narrative";
 import { isScene, resolveEntry } from "@/types/narrative";
 import React, {
@@ -578,33 +571,28 @@ export const SEED_NARRATIVE_IDS = SEED_IDS;
 export const PLAYGROUND_NARRATIVE_IDS = PLAYGROUND_IDS;
 export const ANALYSIS_NARRATIVE_IDS = ANALYSIS_IDS;
 
+const defaultViewState: NarrativeViewState = {
+  activeBranchId: null,
+  currentSceneIndex: 0,
+  inspectorContext: null,
+  inspectorHistory: [],
+  selectedKnowledgeEntity: null,
+  selectedThreadLog: null,
+  currentSearchQuery: null,
+  currentResultIndex: 0,
+  searchFocusMode: false,
+  activeChatThreadId: null,
+  activeNoteId: null,
+  autoRunState: null,
+  isPlaying: false,
+};
+
 const initialState: AppState = {
   narratives: [],
   activeNarrativeId: null,
   activeNarrative: null,
-  isPlaying: false,
-  currentSceneIndex: 0,
-  activeBranchId: null,
-  resolvedEntryKeys: [],
-  inspectorContext: null,
-  inspectorHistory: [],
-  wizardOpen: false,
-  wizardStep: "form",
-  wizardData: {
-    title: "",
-    premise: "",
-    characters: [],
-    locations: [],
-    threads: [],
-    rules: [],
-    worldSystems: [],
-  },
-  selectedKnowledgeEntity: null,
-  selectedThreadLog: null,
+  analysisJobs: [],
   graphViewMode: "search",
-  currentSearchQuery: null,
-  currentResultIndex: 0,
-  searchFocusMode: false,
   autoConfig: {
     endConditions: [{ type: "scene_count", target: 50 }],
     minArcLength: 2,
@@ -617,14 +605,8 @@ const initialState: AppState = {
     characterRotationEnabled: true,
     minScenesBetweenCharacterFocus: 3,
   },
-  autoRunState: null,
-  apiLogs: [],
-  systemLogs: [],
-  analysisJobs: [],
-  activeChatThreadId: null,
-  activeNoteId: null,
-  beatProfilePresets: [],
-  mechanismProfilePresets: [],
+  viewState: defaultViewState,
+  resolvedEntryKeys: [],
 };
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -643,10 +625,6 @@ export type Action =
   | { type: "SET_SCENE_INDEX"; index: number }
   | { type: "SET_INSPECTOR"; context: InspectorContext | null }
   | { type: "INSPECTOR_BACK" }
-  | { type: "OPEN_WIZARD"; prefill?: string; prefillData?: Partial<WizardData> }
-  | { type: "CLOSE_WIZARD" }
-  | { type: "SET_WIZARD_STEP"; step: WizardStep }
-  | { type: "UPDATE_WIZARD_DATA"; data: Partial<WizardData> }
   | { type: "ADD_NARRATIVE"; narrative: NarrativeState }
   | { type: "DELETE_NARRATIVE"; id: string }
   | { type: "SELECT_KNOWLEDGE_ENTITY"; entityId: string | null }
@@ -748,13 +726,6 @@ export type Action =
   | { type: "STOP_AUTO_RUN" }
   | { type: "SET_AUTO_STATUS"; message: string }
   | { type: "LOG_AUTO_CYCLE"; entry: AutoRunLog }
-  // API Logs
-  | { type: "LOG_API_CALL"; entry: ApiLogEntry }
-  | { type: "UPDATE_API_LOG"; id: string; updates: Partial<ApiLogEntry> }
-  | { type: "CLEAR_API_LOGS" }
-  // System Logs
-  | { type: "LOG_SYSTEM"; entry: SystemLogEntry }
-  | { type: "CLEAR_SYSTEM_LOGS" }
   | { type: "SET_COVER_IMAGE"; narrativeId: string; imageUrl: string }
   | {
       type: "UPDATE_NARRATIVE_META";
@@ -769,12 +740,10 @@ export type Action =
   | { type: "SET_LOCATION_IMAGE"; locationId: string; imageUrl: string }
   | { type: "SET_ARTIFACT_IMAGE"; artifactId: string; imageUrl: string }
   | { type: "SET_IMAGE_STYLE"; style: string }
-  | { type: "SET_RULES"; rules: string[] }
-  | { type: "SET_WORLD_SYSTEMS"; systems: WorldSystem[] }
   | { type: "SET_STORY_SETTINGS"; settings: StorySettings }
   | { type: "SET_PROSE_PROFILE"; profile: ProseProfile | undefined }
-  | { type: "SET_BEAT_PROFILE_PRESETS"; presets: BeatProfilePreset[] }
-  | { type: "SET_MECHANISM_PROFILE_PRESETS"; presets: MechanismProfilePreset[] }
+  | { type: "SET_PATTERNS"; patterns: string[] }
+  | { type: "SET_ANTI_PATTERNS"; antiPatterns: string[] }
   // Analysis
   | { type: "ADD_ANALYSIS_JOB"; job: AnalysisJob }
   | { type: "UPDATE_ANALYSIS_JOB"; id: string; updates: Partial<AnalysisJob> }
@@ -830,17 +799,8 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         activeNarrativeId: action.id,
         activeNarrative: null, // cleared until async load completes
-        activeBranchId: null,
         resolvedEntryKeys: [],
-        currentSceneIndex: 0,
-        inspectorContext: null,
-        selectedKnowledgeEntity: null,
-        selectedThreadLog: null,
-        activeChatThreadId: null,
-        activeNoteId: null,
-        currentSearchQuery: null, // Clear search when switching narratives
-        currentResultIndex: 0,
-        searchFocusMode: false,
+        viewState: defaultViewState, // Reset all narrative-scoped state
       };
     }
     case "LOADED_NARRATIVE": {
@@ -856,66 +816,53 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         activeNarrative: derivedNarrative,
-        activeBranchId: branchId,
         resolvedEntryKeys: resolved,
-        currentSceneIndex: resolved.length - 1,
+        viewState: {
+          ...state.viewState,
+          activeBranchId: branchId,
+          currentSceneIndex: resolved.length - 1,
+        },
       };
     }
     case "TOGGLE_PLAY":
-      return { ...state, isPlaying: !state.isPlaying };
+      return { ...state, viewState: { ...state.viewState, isPlaying: !state.viewState.isPlaying } };
     case "NEXT_SCENE": {
       const max = state.resolvedEntryKeys.length - 1;
-      const nextIdx = Math.min(state.currentSceneIndex + 1, Math.max(0, max));
-      return { ...state, currentSceneIndex: nextIdx };
+      const nextIdx = Math.min(state.viewState.currentSceneIndex + 1, Math.max(0, max));
+      return { ...state, viewState: { ...state.viewState, currentSceneIndex: nextIdx } };
     }
     case "PREV_SCENE": {
-      const prevIdx = Math.max(state.currentSceneIndex - 1, 0);
-      return { ...state, currentSceneIndex: prevIdx };
+      const prevIdx = Math.max(state.viewState.currentSceneIndex - 1, 0);
+      return { ...state, viewState: { ...state.viewState, currentSceneIndex: prevIdx } };
     }
     case "SET_SCENE_INDEX":
-      return { ...state, currentSceneIndex: action.index };
+      return { ...state, viewState: { ...state.viewState, currentSceneIndex: action.index } };
     case "SET_INSPECTOR": {
       // Push current context to history stack before navigating (max 20 entries)
-      const history = state.inspectorContext
-        ? [...state.inspectorHistory.slice(-19), state.inspectorContext]
-        : state.inspectorHistory;
+      const history = state.viewState.inspectorContext
+        ? [...state.viewState.inspectorHistory.slice(-19), state.viewState.inspectorContext]
+        : state.viewState.inspectorHistory;
       return {
         ...state,
-        inspectorContext: action.context,
-        inspectorHistory: action.context ? history : [],
+        viewState: {
+          ...state.viewState,
+          inspectorContext: action.context,
+          inspectorHistory: action.context ? history : [],
+        },
       };
     }
     case "INSPECTOR_BACK": {
       const prev =
-        state.inspectorHistory[state.inspectorHistory.length - 1] ?? null;
+        state.viewState.inspectorHistory[state.viewState.inspectorHistory.length - 1] ?? null;
       return {
         ...state,
-        inspectorContext: prev,
-        inspectorHistory: state.inspectorHistory.slice(0, -1),
-      };
-    }
-    case "OPEN_WIZARD":
-      return {
-        ...state,
-        wizardOpen: true,
-        wizardStep: action.prefillData ? "details" : "form",
-        wizardData: {
-          title: "",
-          premise: action.prefill ?? "",
-          characters: [],
-          locations: [],
-          threads: [],
-          rules: [],
-          worldSystems: [],
-          ...action.prefillData,
+        viewState: {
+          ...state.viewState,
+          inspectorContext: prev,
+          inspectorHistory: state.viewState.inspectorHistory.slice(0, -1),
         },
       };
-    case "CLOSE_WIZARD":
-      return { ...state, wizardOpen: false };
-    case "SET_WIZARD_STEP":
-      return { ...state, wizardStep: action.step };
-    case "UPDATE_WIZARD_DATA":
-      return { ...state, wizardData: { ...state.wizardData, ...action.data } };
+    }
     case "ADD_NARRATIVE": {
       // Inject an initial world-building commit as the first timeline entry
       const n = {
@@ -1012,10 +959,12 @@ function reducer(state: AppState, action: Action): AppState {
         narratives: [...state.narratives, entry],
         activeNarrativeId: derived.id,
         activeNarrative: derived,
-        activeBranchId: newBranchId,
         resolvedEntryKeys: newResolved,
-        currentSceneIndex: Math.max(0, newResolved.length - 1),
-        wizardOpen: false,
+        viewState: {
+          ...defaultViewState,
+          activeBranchId: newBranchId,
+          currentSceneIndex: Math.max(0, newResolved.length - 1),
+        },
       };
     }
     case "DELETE_NARRATIVE": {
@@ -1074,49 +1023,64 @@ function reducer(state: AppState, action: Action): AppState {
     case "SELECT_KNOWLEDGE_ENTITY":
       return {
         ...state,
-        selectedKnowledgeEntity: action.entityId,
-        selectedThreadLog: null,
+        viewState: {
+          ...state.viewState,
+          selectedKnowledgeEntity: action.entityId,
+          selectedThreadLog: null,
+        },
       };
     case "SELECT_THREAD_LOG":
       return {
         ...state,
-        selectedThreadLog: action.threadId,
-        selectedKnowledgeEntity: null,
+        viewState: {
+          ...state.viewState,
+          selectedThreadLog: action.threadId,
+          selectedKnowledgeEntity: null,
+        },
       };
     case "SET_GRAPH_VIEW_MODE":
       return {
         ...state,
         graphViewMode: action.mode,
-        selectedThreadLog: null,
-        selectedKnowledgeEntity: null,
+        viewState: {
+          ...state.viewState,
+          selectedThreadLog: null,
+          selectedKnowledgeEntity: null,
+        },
       };
 
     case "SET_SEARCH_QUERY":
       return {
         ...state,
-        currentSearchQuery: action.query,
-        currentResultIndex: 0,
-        searchFocusMode: true,
+        viewState: {
+          ...state.viewState,
+          currentSearchQuery: action.query,
+          currentResultIndex: 0,
+          searchFocusMode: true,
+        },
       };
 
     case "SET_SEARCH_RESULT_INDEX":
       return {
         ...state,
-        currentResultIndex: action.index,
+        viewState: { ...state.viewState, currentResultIndex: action.index },
       };
 
     case "CLEAR_SEARCH":
       return {
         ...state,
-        currentSearchQuery: null,
-        currentResultIndex: 0,
-        searchFocusMode: false,
+        viewState: {
+          ...state.viewState,
+          currentSearchQuery: null,
+          currentResultIndex: 0,
+          searchFocusMode: false,
+        },
       };
 
     case "TOGGLE_SEARCH_FOCUS":
       return {
         ...state,
-        searchFocusMode: !state.searchFocusMode,
+        viewState: { ...state.viewState, searchFocusMode: !state.viewState.searchFocusMode },
       };
 
     case "SWITCH_BRANCH": {
@@ -1126,15 +1090,18 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         activeNarrative: derived,
-        activeBranchId: action.branchId,
         resolvedEntryKeys: resolved,
-        currentSceneIndex: resolved.length - 1,
-        inspectorContext:
-          resolved.length > 0
-            ? { type: "scene" as const, sceneId: resolved[resolved.length - 1] }
-            : null,
-        selectedKnowledgeEntity: null,
-        selectedThreadLog: null,
+        viewState: {
+          ...state.viewState,
+          activeBranchId: action.branchId,
+          currentSceneIndex: resolved.length - 1,
+          inspectorContext:
+            resolved.length > 0
+              ? { type: "scene" as const, sceneId: resolved[resolved.length - 1] }
+              : null,
+          selectedKnowledgeEntity: null,
+          selectedThreadLog: null,
+        },
       };
     }
 
@@ -1149,8 +1116,8 @@ function reducer(state: AppState, action: Action): AppState {
         const versionType = action.versionType ?? "generate";
 
         // Get current resolved version (from pointer or latest for this branch)
-        const branch = state.activeBranchId
-          ? n.branches[state.activeBranchId]
+        const branch = state.viewState.activeBranchId
+          ? n.branches[state.viewState.activeBranchId]
           : undefined;
         const currentProsePointer =
           branch?.versionPointers?.[scene.id]?.proseVersion;
@@ -1268,10 +1235,10 @@ function reducer(state: AppState, action: Action): AppState {
 
         // Handle prose versioning — append to version array instead of overwriting
         let newProseVersion: string | undefined;
-        if (updates.prose !== undefined && state.activeBranchId) {
+        if (updates.prose !== undefined && state.viewState.activeBranchId) {
           const { version, parentVersion } = computeNextVersion(
             scene.proseVersions ?? [],
-            state.activeBranchId,
+            state.viewState.activeBranchId,
             versionType,
             currentProsePointer, // Use pointer if user pinned a specific version
           );
@@ -1279,7 +1246,7 @@ function reducer(state: AppState, action: Action): AppState {
             prose: updates.prose,
             beatProseMap: updates.beatProseMap,
             proseScore: updates.proseScore,
-            branchId: state.activeBranchId,
+            branchId: state.viewState.activeBranchId,
             timestamp: Date.now(),
             version,
             versionType,
@@ -1300,16 +1267,16 @@ function reducer(state: AppState, action: Action): AppState {
 
         // Handle plan versioning — append to version array instead of overwriting
         let newPlanVersion: string | undefined;
-        if (updates.plan !== undefined && state.activeBranchId) {
+        if (updates.plan !== undefined && state.viewState.activeBranchId) {
           const { version, parentVersion } = computeNextVersion(
             scene.planVersions ?? [],
-            state.activeBranchId,
+            state.viewState.activeBranchId,
             versionType,
             currentPlanPointer, // Use pointer if user pinned a specific version
           );
           const newVersion = {
             plan: updates.plan,
-            branchId: state.activeBranchId,
+            branchId: state.viewState.activeBranchId,
             timestamp: Date.now(),
             version,
             versionType,
@@ -1329,8 +1296,8 @@ function reducer(state: AppState, action: Action): AppState {
 
         // Update version pointers to point to newly created versions
         let updatedBranches = n.branches;
-        if (state.activeBranchId && (newProseVersion || newPlanVersion)) {
-          const currentBranch = n.branches[state.activeBranchId];
+        if (state.viewState.activeBranchId && (newProseVersion || newPlanVersion)) {
+          const currentBranch = n.branches[state.viewState.activeBranchId];
           if (currentBranch) {
             const currentPointers =
               currentBranch.versionPointers?.[action.sceneId] ?? {};
@@ -1341,7 +1308,7 @@ function reducer(state: AppState, action: Action): AppState {
             };
             updatedBranches = {
               ...n.branches,
-              [state.activeBranchId]: {
+              [state.viewState.activeBranchId]: {
                 ...currentBranch,
                 versionPointers: {
                   ...currentBranch.versionPointers,
@@ -1390,18 +1357,21 @@ function reducer(state: AppState, action: Action): AppState {
           arcs: updatedArcs,
         };
       });
-      if (newState.activeNarrative && newState.activeBranchId) {
+      if (newState.activeNarrative && newState.viewState.activeBranchId) {
         const resolved = getResolvedKeys(
           newState.activeNarrative,
-          newState.activeBranchId,
+          newState.viewState.activeBranchId,
         );
         return {
           ...newState,
           resolvedEntryKeys: resolved,
-          currentSceneIndex: Math.min(
-            newState.currentSceneIndex,
-            resolved.length - 1,
-          ),
+          viewState: {
+            ...newState.viewState,
+            currentSceneIndex: Math.min(
+              newState.viewState.currentSceneIndex,
+              resolved.length - 1,
+            ),
+          },
         };
       }
       return newState;
@@ -1420,16 +1390,19 @@ function reducer(state: AppState, action: Action): AppState {
         );
         return {
           ...newState,
-          activeBranchId: action.branch.id,
           resolvedEntryKeys: resolved,
-          currentSceneIndex: resolved.length - 1,
+          viewState: {
+            ...newState.viewState,
+            activeBranchId: action.branch.id,
+            currentSceneIndex: resolved.length - 1,
+          },
         };
       }
       return newState;
     }
 
     case "DELETE_BRANCH": {
-      if (action.branchId === state.activeBranchId) return state;
+      if (action.branchId === state.viewState.activeBranchId) return state;
       // Build full cascade set (branch + all child branches)
       const toDelete = new Set<string>();
       if (state.activeNarrative) {
@@ -1442,7 +1415,7 @@ function reducer(state: AppState, action: Action): AppState {
           });
         }
       }
-      if (state.activeBranchId && toDelete.has(state.activeBranchId))
+      if (state.viewState.activeBranchId && toDelete.has(state.viewState.activeBranchId))
         return state;
 
       const result = updateNarrative(state, (n) => {
@@ -1485,10 +1458,10 @@ function reducer(state: AppState, action: Action): AppState {
         return { ...n, branches: remaining, scenes, worldBuilds, arcs };
       });
 
-      if (result.activeNarrative && result.activeBranchId) {
+      if (result.activeNarrative && result.viewState.activeBranchId) {
         const resolved = getResolvedKeys(
           result.activeNarrative,
-          result.activeBranchId,
+          result.viewState.activeBranchId,
         );
         const derived = withDerivedEntities(result.activeNarrative, resolved);
         return {
@@ -1573,10 +1546,10 @@ function reducer(state: AppState, action: Action): AppState {
           },
         };
       });
-      if (newState.activeNarrative && newState.activeBranchId) {
+      if (newState.activeNarrative && newState.viewState.activeBranchId) {
         const resolved = getResolvedKeys(
           newState.activeNarrative,
-          newState.activeBranchId,
+          newState.viewState.activeBranchId,
         );
         const derived = withDerivedEntities(newState.activeNarrative, resolved);
         return {
@@ -1696,10 +1669,10 @@ function reducer(state: AppState, action: Action): AppState {
           branches: updatedBranches,
         };
       });
-      if (newState.activeNarrative && newState.activeBranchId) {
+      if (newState.activeNarrative && newState.viewState.activeBranchId) {
         const resolved = getResolvedKeys(
           newState.activeNarrative,
-          newState.activeBranchId,
+          newState.viewState.activeBranchId,
         );
         const derived = withDerivedEntities(newState.activeNarrative, resolved);
         return {
@@ -1832,10 +1805,10 @@ function reducer(state: AppState, action: Action): AppState {
         };
       });
 
-      if (newState.activeNarrative && newState.activeBranchId) {
+      if (newState.activeNarrative && newState.viewState.activeBranchId) {
         const resolved = getResolvedKeys(
           newState.activeNarrative,
-          newState.activeBranchId,
+          newState.viewState.activeBranchId,
         );
         const derived = withDerivedEntities(newState.activeNarrative, resolved);
         return {
@@ -1854,100 +1827,95 @@ function reducer(state: AppState, action: Action): AppState {
     case "START_AUTO_RUN":
       return {
         ...state,
-        autoRunState: {
-          isRunning: true,
-          isPaused: false,
-          currentCycle: 0,
-          consecutiveFailures: 0,
-          statusMessage: "Starting...",
-          totalScenesGenerated: 0,
-          totalWorldExpansions: 0,
-          startingSceneCount: state.resolvedEntryKeys.length,
-          startingArcCount: state.activeNarrative
-            ? Object.keys(state.activeNarrative.arcs).length
-            : 0,
-          log: [],
+        viewState: {
+          ...state.viewState,
+          autoRunState: {
+            isRunning: true,
+            isPaused: false,
+            currentCycle: 0,
+            consecutiveFailures: 0,
+            statusMessage: "Starting...",
+            totalScenesGenerated: 0,
+            totalWorldExpansions: 0,
+            startingSceneCount: state.resolvedEntryKeys.length,
+            startingArcCount: state.activeNarrative
+              ? Object.keys(state.activeNarrative.arcs).length
+              : 0,
+            log: [],
+          },
         },
       };
 
     case "PAUSE_AUTO_RUN":
-      return state.autoRunState
+      return state.viewState.autoRunState
         ? {
             ...state,
-            autoRunState: {
-              ...state.autoRunState,
-              isPaused: true,
-              isRunning: false,
+            viewState: {
+              ...state.viewState,
+              autoRunState: {
+                ...state.viewState.autoRunState,
+                isPaused: true,
+                isRunning: false,
+              },
             },
           }
         : state;
 
     case "RESUME_AUTO_RUN":
-      return state.autoRunState
+      return state.viewState.autoRunState
         ? {
             ...state,
-            autoRunState: {
-              ...state.autoRunState,
-              isPaused: false,
-              isRunning: true,
+            viewState: {
+              ...state.viewState,
+              autoRunState: {
+                ...state.viewState.autoRunState,
+                isPaused: false,
+                isRunning: true,
+              },
             },
           }
         : state;
 
     case "STOP_AUTO_RUN":
-      return { ...state, autoRunState: null };
+      return { ...state, viewState: { ...state.viewState, autoRunState: null } };
 
     case "SET_AUTO_STATUS":
-      return state.autoRunState
+      return state.viewState.autoRunState
         ? {
             ...state,
-            autoRunState: {
-              ...state.autoRunState,
-              statusMessage: action.message,
+            viewState: {
+              ...state.viewState,
+              autoRunState: {
+                ...state.viewState.autoRunState,
+                statusMessage: action.message,
+              },
             },
           }
         : state;
 
     case "LOG_AUTO_CYCLE":
-      return state.autoRunState
+      return state.viewState.autoRunState
         ? {
             ...state,
-            autoRunState: {
-              ...state.autoRunState,
-              currentCycle: state.autoRunState.currentCycle + 1,
-              consecutiveFailures: action.entry.error
-                ? state.autoRunState.consecutiveFailures + 1
-                : 0,
-              totalScenesGenerated:
-                state.autoRunState.totalScenesGenerated +
-                action.entry.scenesGenerated,
-              totalWorldExpansions:
-                state.autoRunState.totalWorldExpansions +
-                (action.entry.worldExpanded ? 1 : 0),
-              log: [...state.autoRunState.log, action.entry],
+            viewState: {
+              ...state.viewState,
+              autoRunState: {
+                ...state.viewState.autoRunState,
+                currentCycle: state.viewState.autoRunState.currentCycle + 1,
+                consecutiveFailures: action.entry.error
+                  ? state.viewState.autoRunState.consecutiveFailures + 1
+                  : 0,
+                totalScenesGenerated:
+                  state.viewState.autoRunState.totalScenesGenerated +
+                  action.entry.scenesGenerated,
+                totalWorldExpansions:
+                  state.viewState.autoRunState.totalWorldExpansions +
+                  (action.entry.worldExpanded ? 1 : 0),
+                log: [...state.viewState.autoRunState.log, action.entry],
+              },
             },
           }
         : state;
-
-    case "LOG_API_CALL":
-      return { ...state, apiLogs: [...state.apiLogs, action.entry] };
-
-    case "UPDATE_API_LOG":
-      return {
-        ...state,
-        apiLogs: state.apiLogs.map((l) =>
-          l.id === action.id ? { ...l, ...action.updates } : l,
-        ),
-      };
-
-    case "CLEAR_API_LOGS":
-      return { ...state, apiLogs: [] };
-
-    case "LOG_SYSTEM":
-      return { ...state, systemLogs: [...state.systemLogs, action.entry] };
-
-    case "CLEAR_SYSTEM_LOGS":
-      return { ...state, systemLogs: [] };
 
     case "SET_COVER_IMAGE": {
       // Update the narrative entry in the list
@@ -2166,15 +2134,6 @@ function reducer(state: AppState, action: Action): AppState {
         imageStyle: action.style,
       }));
 
-    case "SET_RULES":
-      return updateNarrative(state, (n) => ({ ...n, rules: action.rules }));
-
-    case "SET_WORLD_SYSTEMS":
-      return updateNarrative(state, (n) => ({
-        ...n,
-        worldSystems: action.systems,
-      }));
-
     case "SET_STORY_SETTINGS":
       return updateNarrative(state, (n) => ({
         ...n,
@@ -2187,11 +2146,17 @@ function reducer(state: AppState, action: Action): AppState {
         proseProfile: action.profile,
       }));
 
-    case "SET_BEAT_PROFILE_PRESETS":
-      return { ...state, beatProfilePresets: action.presets };
+    case "SET_PATTERNS":
+      return updateNarrative(state, (n) => ({
+        ...n,
+        patterns: action.patterns,
+      }));
 
-    case "SET_MECHANISM_PROFILE_PRESETS":
-      return { ...state, mechanismProfilePresets: action.presets };
+    case "SET_ANTI_PATTERNS":
+      return updateNarrative(state, (n) => ({
+        ...n,
+        antiPatterns: action.antiPatterns,
+      }));
 
     // ── Analysis ──────────────────────────────────────────────────────────
     case "ADD_ANALYSIS_JOB":
@@ -2231,7 +2196,7 @@ function reducer(state: AppState, action: Action): AppState {
           [action.thread.id]: action.thread,
         },
       }));
-      return { ...withThread, activeChatThreadId: action.thread.id };
+      return { ...withThread, viewState: { ...withThread.viewState, activeChatThreadId: action.thread.id } };
     }
 
     case "DELETE_CHAT_THREAD": {
@@ -2239,15 +2204,15 @@ function reducer(state: AppState, action: Action): AppState {
         const { [action.threadId]: _, ...rest } = n.chatThreads ?? {};
         return { ...n, chatThreads: rest };
       });
-      let nextActive = state.activeChatThreadId;
-      if (state.activeChatThreadId === action.threadId) {
+      let nextActive = state.viewState.activeChatThreadId;
+      if (state.viewState.activeChatThreadId === action.threadId) {
         const remaining = Object.values(
           withoutThread.activeNarrative?.chatThreads ?? {},
         );
         remaining.sort((a, b) => b.updatedAt - a.updatedAt);
         nextActive = remaining[0]?.id ?? null;
       }
-      return { ...withoutThread, activeChatThreadId: nextActive };
+      return { ...withoutThread, viewState: { ...withoutThread.viewState, activeChatThreadId: nextActive } };
     }
 
     case "RENAME_CHAT_THREAD":
@@ -2264,7 +2229,7 @@ function reducer(state: AppState, action: Action): AppState {
       });
 
     case "SET_ACTIVE_CHAT_THREAD":
-      return { ...state, activeChatThreadId: action.threadId };
+      return { ...state, viewState: { ...state.viewState, activeChatThreadId: action.threadId } };
 
     case "UPSERT_CHAT_THREAD":
       return updateNarrative(state, (n) => {
@@ -2289,7 +2254,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...n,
         notes: { ...(n.notes ?? {}), [action.note.id]: action.note },
       }));
-      return { ...withNote, activeNoteId: action.note.id };
+      return { ...withNote, viewState: { ...withNote.viewState, activeNoteId: action.note.id } };
     }
 
     case "DELETE_NOTE": {
@@ -2297,15 +2262,15 @@ function reducer(state: AppState, action: Action): AppState {
         const { [action.noteId]: _, ...rest } = n.notes ?? {};
         return { ...n, notes: rest };
       });
-      let nextActiveNote = state.activeNoteId;
-      if (state.activeNoteId === action.noteId) {
+      let nextActiveNote = state.viewState.activeNoteId;
+      if (state.viewState.activeNoteId === action.noteId) {
         const remaining = Object.values(
           withoutNote.activeNarrative?.notes ?? {},
         );
         remaining.sort((a, b) => b.updatedAt - a.updatedAt);
         nextActiveNote = remaining[0]?.id ?? null;
       }
-      return { ...withoutNote, activeNoteId: nextActiveNote };
+      return { ...withoutNote, viewState: { ...withoutNote.viewState, activeNoteId: nextActiveNote } };
     }
 
     case "UPDATE_NOTE":
@@ -2329,7 +2294,7 @@ function reducer(state: AppState, action: Action): AppState {
       });
 
     case "SET_ACTIVE_NOTE":
-      return { ...state, activeNoteId: action.noteId };
+      return { ...state, viewState: { ...state.viewState, activeNoteId: action.noteId } };
 
     // ── Planning Queue ────────────────────────────────────────────────────
     case "SET_PLANNING_QUEUE":
@@ -2430,37 +2395,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const prevNarrativeRef = useRef<NarrativeState | null>(null);
   const prevActiveIdRef = useRef<string | null>(null);
-
-  // Wire API logger to store
-  useEffect(() => {
-    import("@/lib/api-logger").then(({ onApiLog, onApiLogUpdate }) => {
-      onApiLog((entry) => dispatch({ type: "LOG_API_CALL", entry }));
-      onApiLogUpdate((id, updates) =>
-        dispatch({ type: "UPDATE_API_LOG", id, updates }),
-      );
-    });
-  }, []);
-
-  // Keep logger aware of which narrative is active
-  useEffect(() => {
-    import("@/lib/api-logger").then(({ setLoggerNarrativeId }) => {
-      setLoggerNarrativeId(state.activeNarrativeId);
-    });
-  }, [state.activeNarrativeId]);
-
-  // Wire system logger to store
-  useEffect(() => {
-    import("@/lib/system-logger").then(({ onSystemLog }) => {
-      onSystemLog((entry) => dispatch({ type: "LOG_SYSTEM", entry }));
-    });
-  }, []);
-
-  // Keep system logger aware of which narrative is active
-  useEffect(() => {
-    import("@/lib/system-logger").then(({ setSystemLoggerNarrativeId }) => {
-      setSystemLoggerNarrativeId(state.activeNarrativeId);
-    });
-  }, [state.activeNarrativeId]);
 
   // Hydrate persisted narratives from IndexedDB on mount
   useEffect(() => {
@@ -2868,13 +2802,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       if (worksForPresets.length > 0) {
         initMatrixPresets(worksForPresets);
-        const beatPresets = initBeatProfilePresets(worksForPresets);
-        dispatch({ type: "SET_BEAT_PROFILE_PRESETS", presets: beatPresets });
-        const mechanismPresets = initMechanismProfilePresets(worksForPresets);
-        dispatch({
-          type: "SET_MECHANISM_PROFILE_PRESETS",
-          presets: mechanismPresets,
-        });
+        initBeatProfilePresets(worksForPresets);
+        initMechanismProfilePresets(worksForPresets);
       }
 
       // Restore last active narrative
@@ -2954,15 +2883,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Persist active branch ID whenever it changes (skip null to avoid race with SET_ACTIVE_NARRATIVE)
   useEffect(() => {
-    if (state.activeBranchId === null) return;
-    saveActiveBranchId(state.activeBranchId).catch((err) => {
+    if (state.viewState.activeBranchId === null) return;
+    saveActiveBranchId(state.viewState.activeBranchId).catch((err) => {
       logError("Failed to persist active branch ID to storage", err, {
         source: "other",
         operation: "persist-active-branch-id",
-        details: { branchId: state.activeBranchId },
+        details: { branchId: state.viewState.activeBranchId },
       });
     });
-  }, [state.activeBranchId]);
+  }, [state.viewState.activeBranchId]);
 
   // Hydrate analysis jobs from IndexedDB on mount
   useEffect(() => {
@@ -3025,55 +2954,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [state.activeNarrativeId]);
 
   // Persist search state whenever it changes
-  const prevSearchQueryRef = useRef(state.currentSearchQuery);
+  const prevSearchQueryRef = useRef(state.viewState.currentSearchQuery);
   useEffect(() => {
     const narrativeId = state.activeNarrativeId;
     if (!narrativeId) return;
-    if (state.currentSearchQuery === prevSearchQueryRef.current) return;
-    prevSearchQueryRef.current = state.currentSearchQuery;
-    saveSearchState(narrativeId, state.currentSearchQuery).catch(() => {
+    if (state.viewState.currentSearchQuery === prevSearchQueryRef.current) return;
+    prevSearchQueryRef.current = state.viewState.currentSearchQuery;
+    saveSearchState(narrativeId, state.viewState.currentSearchQuery).catch(() => {
       // Silently fail for search state persistence
     });
-  }, [state.currentSearchQuery, state.activeNarrativeId]);
-
-  // API logs are in-memory only for generation/series.
-  // Analysis logs are persisted separately by the analysis runner on completion.
-
-  // Cleanup stale pending API logs — mark as timed out after threshold
-  useEffect(() => {
-    const CLEANUP_INTERVAL_MS = 60 * 1000; // Check every minute
-
-    const cleanup = () => {
-      const now = Date.now();
-      const staleLogs = state.apiLogs.filter(
-        (log) =>
-          log.status === "pending" &&
-          now - log.timestamp > API_LOG_STALE_THRESHOLD_MS,
-      );
-      for (const log of staleLogs) {
-        dispatch({
-          type: "UPDATE_API_LOG",
-          id: log.id,
-          updates: {
-            status: "error",
-            error: "Request timed out (stale)",
-            durationMs: Math.round(now - log.timestamp),
-          },
-        });
-      }
-    };
-
-    // Run cleanup immediately on mount and then periodically
-    cleanup();
-    const intervalId = setInterval(cleanup, CLEANUP_INTERVAL_MS);
-    return () => clearInterval(intervalId);
-  }, [state.apiLogs]);
+  }, [state.viewState.currentSearchQuery, state.activeNarrativeId]);
 
   // Generate prose embeddings for manual prose edits
   const proseEmbeddingQueueRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const narrative = state.activeNarrative;
-    const branchId = state.activeBranchId;
+    const branchId = state.viewState.activeBranchId;
     if (!narrative || !branchId) return;
 
     // Check all scenes for prose that needs embedding
@@ -3139,7 +3035,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })();
       }
     }
-  }, [state.activeNarrative, state.activeBranchId]);
+  }, [state.activeNarrative, state.viewState.activeBranchId]);
 
   // Keyboard shortcuts
   useEffect(() => {

@@ -218,13 +218,13 @@ export default function ThreadPortfolio() {
 
   const currentStatuses = useMemo(() => {
     if (!narrative) return {};
-    return computeThreadStatuses(narrative, state.currentSceneIndex);
-  }, [narrative, state.currentSceneIndex]);
+    return computeThreadStatuses(narrative, state.viewState.currentSceneIndex);
+  }, [narrative, state.viewState.currentSceneIndex]);
 
   const threadMetrics = useMemo(() => {
     if (!narrative) return {};
-    return computeThreadMetrics(narrative, state.resolvedEntryKeys, state.currentSceneIndex);
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+    return computeThreadMetrics(narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
 
   // Compute bidirectional convergence counts per thread
@@ -250,7 +250,7 @@ export default function ThreadPortfolio() {
     const empty = { committed: emptyList, potential: emptyList, latent: emptyList, abandoned: emptyList, complete: emptyList, unopened: emptyList };
     if (!narrative) return empty;
 
-    const visibleKeys = new Set(state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1));
+    const visibleKeys = new Set(state.resolvedEntryKeys.slice(0, state.viewState.currentSceneIndex + 1));
     const allThreads = Object.values(narrative.threads);
 
     const mutatedThreadIds = new Set(
@@ -303,7 +303,7 @@ export default function ThreadPortfolio() {
     });
 
     return { committed: committedThreads, potential: potentialThreads, latent: latentThreads, abandoned: abandonedThreads, complete: completeThreads, unopened: unopenedThreads };
-  }, [narrative, currentStatuses, threadMetrics, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, currentStatuses, threadMetrics, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   if (!narrative) {
     return (

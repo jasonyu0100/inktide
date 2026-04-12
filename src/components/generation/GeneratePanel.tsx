@@ -97,7 +97,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [newArc, setNewArc] = useState(true);
   const [arcName, setArcName] = useState("");
   const [direction, setDirection] = useState("");
-  const [count, setCount] = useState(4);
+  const [directionCount, setDirectionCount] = useState(3); // Number of direction options to show
   const [worldBuildFocusId, setWorldBuildFocusId] = useState<string | null>(
     null,
   );
@@ -155,10 +155,10 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   }, [narrative.storySettings?.rhythmPreset]);
 
   const handleSample = useCallback(() => {
-    const seq = samplePacingSequence(currentMode, count, storyMatrix);
+    const seq = samplePacingSequence(currentMode, directionCount, storyMatrix);
     setPreviewSequence(seq);
     setAnimating(true);
-  }, [currentMode, count, storyMatrix]);
+  }, [currentMode, directionCount, storyMatrix]);
 
   const handleSetStep = useCallback(
     (index: number, mode: CubeCornerKey) => {
@@ -176,7 +176,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     const modes = previewSequence.steps.map((s) => s.mode);
     modes.push("LLL");
     setPreviewSequence(buildSequenceFromModes(modes));
-    setCount(modes.length);
+    setDirectionCount(modes.length);
   }, [previewSequence]);
 
   const handleRemoveStep = useCallback(
@@ -186,7 +186,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         .map((s) => s.mode)
         .filter((_, i) => i !== index);
       setPreviewSequence(buildSequenceFromModes(modes));
-      setCount(modes.length);
+      setDirectionCount(modes.length);
       setEditingStep(null);
     },
     [previewSequence],
@@ -227,7 +227,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         narrative,
         state.resolvedEntryKeys,
         headIndex,
-        count,
+        directionCount, // Use directionCount for legacy path
         direction,
         {
           existingArc,
@@ -240,7 +240,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         type: "BULK_ADD_SCENES",
         scenes,
         arc,
-        branchId: state.activeBranchId!,
+        branchId: state.viewState.activeBranchId!,
       });
       onClose();
     } catch (err) {
@@ -248,7 +248,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         source: "manual-generation",
         operation: "generate-scenes",
         details: {
-          sceneCount: count,
+          sceneCount: directionCount,
           newArc,
         },
       });
@@ -308,7 +308,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         relationships: expansion.relationships,
         systemMutations: expansion.systemMutations,
         artifacts: expansion.artifacts,
-        branchId: state.activeBranchId!,
+        branchId: state.viewState.activeBranchId!,
         ownershipMutations: expansion.ownershipMutations,
         tieMutations: expansion.tieMutations,
         continuityMutations: expansion.continuityMutations,
@@ -583,14 +583,14 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                   <div className="flex items-center gap-2 flex-1">
                     <input
                       type="range"
-                      min={1}
-                      max={16}
-                      value={count}
-                      onChange={(e) => setCount(Number(e.target.value))}
+                      min={2}
+                      max={5}
+                      value={directionCount}
+                      onChange={(e) => setDirectionCount(Number(e.target.value))}
                       className="flex-1 h-1 appearance-none bg-white/10 rounded-full accent-white/60 cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/80 [&::-webkit-slider-thumb]:appearance-none"
                     />
                     <span className="text-xs font-medium text-text-primary w-5 text-center tabular-nums">
-                      {count}
+                      {directionCount}
                     </span>
                   </div>
                   {/* Current mode pill */}
@@ -627,7 +627,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                               <button
                                 key={preset.key}
                                 onClick={() => {
-                                  setCount(preset.modes.length);
+                                  setDirectionCount(preset.modes.length);
                                   const seq = buildPresetSequence(preset);
                                   setPreviewSequence(seq);
                                   setAnimating(true);
@@ -714,19 +714,20 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                 <div className="flex gap-2">
                   <button
                     onClick={handleGenerateArc}
-                    disabled={!newArc && !currentArc}
-                    className="flex-1 py-2.5 rounded-lg bg-white/10 hover:bg-white/16 text-text-primary font-semibold transition disabled:opacity-30 text-[12px]"
+                    disabled={loading || (!newArc && !currentArc)}
+                    className="flex-1 py-2.5 rounded-lg bg-white/10 hover:bg-white/16 text-text-primary font-semibold transition disabled:opacity-30"
                   >
-                    Generate
+                    {loading ? "Generating..." : "Generate Arc"}
                   </button>
                   {narrative.storySettings?.usePacingChain && (
                     <button
                       onClick={handleSample}
                       disabled={!newArc && !currentArc}
                       className="py-2.5 px-4 rounded-lg border border-white/8 hover:bg-white/6 text-text-dim hover:text-text-primary transition disabled:opacity-30 flex items-center justify-center gap-2 text-[12px]"
+                      title="MCTS multi-arc generation"
                     >
                       <IconDice size={16} />
-                      Roll Route
+                      MCTS
                     </button>
                   )}
                 </div>

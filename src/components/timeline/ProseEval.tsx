@@ -166,7 +166,7 @@ export default function ProseEval({ sceneRange, onRangeChange }: { sceneRange?: 
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
 
   const filteredKeys = useMemo(
     () => filterKeysBySceneRange(resolvedKeys, narrative, sceneRange ?? null),

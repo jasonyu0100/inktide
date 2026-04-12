@@ -6,9 +6,7 @@ import {
   extractOrderedScenes,
 } from '@/lib/mcts-state';
 import type { NarrativeState, Scene, Arc, Thread, Character, ContinuityMutation, RelationshipMutation, ThreadMutation } from '@/types/narrative';
-
 // ── Test Fixtures ────────────────────────────────────────────────────────────
-
 function createMinimalNarrative(): NarrativeState {
   return {
     id: 'test-narrative',
@@ -34,12 +32,10 @@ function createMinimalNarrative(): NarrativeState {
     relationships: [],
     systemGraph: { nodes: {}, edges: [] },
     worldSummary: '',
-    rules: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
 }
-
 function createCharacter(id: string): Character {
   return {
     id,
@@ -49,7 +45,6 @@ function createCharacter(id: string): Character {
     threadIds: [],
   };
 }
-
 function createThread(id: string): Thread {
   return {
     id,
@@ -61,7 +56,6 @@ function createThread(id: string): Thread {
     threadLog: { nodes: {}, edges: [] },
   };
 }
-
 function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
   return {
     kind: 'scene',
@@ -78,7 +72,6 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     ...overrides,
   };
 }
-
 function createArc(id: string, sceneIds: string[] = []): Arc {
   return {
     id,
@@ -90,15 +83,12 @@ function createArc(id: string, sceneIds: string[] = []): Arc {
     initialCharacterLocations: {},
   };
 }
-
 // ── Build Virtual State ──────────────────────────────────────────────────────
-
 describe('buildVirtualState', () => {
   it('returns root state for empty ancestor chain', () => {
     const rootNarrative = createMinimalNarrative();
     const rootResolvedKeys = ['S-001'];
     const rootCurrentIndex = 0;
-
     const result = buildVirtualState(
       rootNarrative,
       rootResolvedKeys,
@@ -106,18 +96,15 @@ describe('buildVirtualState', () => {
       [],
       'main'
     );
-
     expect(result.narrative.id).toBe('test-narrative');
     expect(result.resolvedKeys).toEqual(['S-001']);
     expect(result.currentIndex).toBe(0);
   });
-
   it('adds scenes to narrative from ancestor nodes', () => {
     const rootNarrative = createMinimalNarrative();
     const scene1 = createScene('S-001');
     const scene2 = createScene('S-002');
     const arc = createArc('ARC-01', ['S-001', 'S-002']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -125,18 +112,15 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene1, scene2], arc }],
       'main'
     );
-
     expect(result.narrative.scenes['S-001']).toBeDefined();
     expect(result.narrative.scenes['S-002']).toBeDefined();
     expect(result.resolvedKeys).toEqual(['S-001', 'S-002']);
     expect(result.currentIndex).toBe(1);
   });
-
   it('adds arc to narrative', () => {
     const rootNarrative = createMinimalNarrative();
     const scene = createScene('S-001');
     const arc = createArc('ARC-01', ['S-001']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -144,18 +128,14 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     expect(result.narrative.arcs['ARC-01']).toBeDefined();
     expect(result.narrative.arcs['ARC-01'].sceneIds).toContain('S-001');
   });
-
   it('extends existing arc without duplicates', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.arcs['ARC-01'] = createArc('ARC-01', ['S-001']);
-
     const scene = createScene('S-002');
     const arc = createArc('ARC-01', ['S-001', 'S-002']); // S-001 already exists
-
     const result = buildVirtualState(
       rootNarrative,
       ['S-001'],
@@ -163,20 +143,16 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     // Should have both scenes, S-001 not duplicated
     const arcSceneIds = result.narrative.arcs['ARC-01'].sceneIds;
     expect(arcSceneIds.filter((id) => id === 'S-001').length).toBe(1);
     expect(arcSceneIds).toContain('S-002');
   });
-
   it('extends branch entryIds', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.branches.main.entryIds = ['S-001'];
-
     const scene = createScene('S-002');
     const arc = createArc('ARC-01', ['S-002']);
-
     const result = buildVirtualState(
       rootNarrative,
       ['S-001'],
@@ -184,18 +160,14 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     expect(result.narrative.branches.main.entryIds).toEqual(['S-001', 'S-002']);
   });
-
   it('applies thread mutations', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
-
     const threadMutation: ThreadMutation = { threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] };
     const scene = createScene('S-001', { threadMutations: [threadMutation] });
     const arc = createArc('ARC-01', ['S-001']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -203,21 +175,17 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     expect(result.narrative.threads['T-01'].status).toBe('active');
   });
-
   it('applies continuity mutations (added)', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.characters['C-01'] = createCharacter('C-01');
-
     const continuityMutation: ContinuityMutation = {
       entityId: 'C-01',
       addedNodes: [{ id: 'K-01', content: 'Learned a secret', type: 'belief' }],
     };
     const scene = createScene('S-001', { continuityMutations: [continuityMutation] });
     const arc = createArc('ARC-01', ['S-001']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -225,15 +193,12 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     const char = result.narrative.characters['C-01'];
     expect(char.continuity.nodes['K-01']).toBeDefined();
   });
-
   it('applies continuity mutations with edges', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.characters['C-01'] = createCharacter('C-01');
-
     const continuityMutation: ContinuityMutation = {
       entityId: 'C-01',
       addedNodes: [
@@ -243,7 +208,6 @@ describe('buildVirtualState', () => {
     };
     const scene = createScene('S-001', { continuityMutations: [continuityMutation] });
     const arc = createArc('ARC-01', ['S-001']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -251,7 +215,6 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     const char = result.narrative.characters['C-01'];
     expect(char.continuity.nodes['K-01']).toBeDefined();
     expect(char.continuity.nodes['K-02']).toBeDefined();
@@ -260,10 +223,8 @@ describe('buildVirtualState', () => {
     expect(char.continuity.edges).toHaveLength(1);
     expect(char.continuity.edges[0].relation).toBe('co_occurs');
   });
-
   it('applies relationship mutations (new relationship)', () => {
     const rootNarrative = createMinimalNarrative();
-
     const relationshipMutation: RelationshipMutation = {
       from: 'C-01',
       to: 'C-02',
@@ -272,7 +233,6 @@ describe('buildVirtualState', () => {
     };
     const scene = createScene('S-001', { relationshipMutations: [relationshipMutation] });
     const arc = createArc('ARC-01', ['S-001']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -280,17 +240,14 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     const rel = result.narrative.relationships.find((r) => r.from === 'C-01' && r.to === 'C-02');
     expect(rel).toBeDefined();
     expect(rel!.valence).toBe(0.5);
     expect(rel!.type).toBe('trust');
   });
-
   it('applies relationship mutations (update existing)', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.relationships = [{ from: 'C-01', to: 'C-02', type: 'neutral', valence: 0.3 }];
-
     const relationshipMutation: RelationshipMutation = {
       from: 'C-01',
       to: 'C-02',
@@ -299,7 +256,6 @@ describe('buildVirtualState', () => {
     };
     const scene = createScene('S-001', { relationshipMutations: [relationshipMutation] });
     const arc = createArc('ARC-01', ['S-001']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -307,16 +263,13 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     const rel = result.narrative.relationships.find((r) => r.from === 'C-01' && r.to === 'C-02');
     expect(rel!.valence).toBe(0.7); // 0.3 + 0.4
     expect(rel!.type).toBe('alliance');
   });
-
   it('clamps relationship valence to [-1, 1]', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.relationships = [{ from: 'C-01', to: 'C-02', type: 'trust', valence: 0.8 }];
-
     const relationshipMutation: RelationshipMutation = {
       from: 'C-01',
       to: 'C-02',
@@ -325,7 +278,6 @@ describe('buildVirtualState', () => {
     };
     const scene = createScene('S-001', { relationshipMutations: [relationshipMutation] });
     const arc = createArc('ARC-01', ['S-001']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -333,14 +285,11 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     const rel = result.narrative.relationships.find((r) => r.from === 'C-01' && r.to === 'C-02');
     expect(rel!.valence).toBe(1); // Clamped to max
   });
-
   it('applies world knowledge mutations', () => {
     const rootNarrative = createMinimalNarrative();
-
     const scene = createScene('S-001', {
       systemMutations: {
         addedNodes: [{ id: 'SYS-01', concept: 'Magic system', type: 'system' }],
@@ -348,7 +297,6 @@ describe('buildVirtualState', () => {
       },
     });
     const arc = createArc('ARC-01', ['S-001']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -356,25 +304,20 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-
     expect(result.narrative.systemGraph.nodes['SYS-01']).toBeDefined();
     expect(result.narrative.systemGraph.edges.some((e) => e.from === 'SYS-01')).toBe(true);
   });
-
   it('chains multiple ancestor nodes', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
-
     const scene1 = createScene('S-001', {
       threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
     });
     const arc1 = createArc('ARC-01', ['S-001']);
-
     const scene2 = createScene('S-002', {
       threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [] }],
     });
     const arc2 = createArc('ARC-02', ['S-002']);
-
     const result = buildVirtualState(
       rootNarrative,
       [],
@@ -385,48 +328,38 @@ describe('buildVirtualState', () => {
       ],
       'main'
     );
-
     expect(result.narrative.threads['T-01'].status).toBe('critical');
     expect(result.resolvedKeys).toEqual(['S-001', 'S-002']);
     expect(result.currentIndex).toBe(1);
   });
-
   it('does not mutate root narrative', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
     const originalStatus = rootNarrative.threads['T-01'].status;
-
     const scene = createScene('S-001', {
       threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'resolved', addedNodes: [] }],
     });
     const arc = createArc('ARC-01', ['S-001']);
-
     buildVirtualState(rootNarrative, [], -1, [{ scenes: [scene], arc }], 'main');
-
     expect(rootNarrative.threads['T-01'].status).toBe(originalStatus);
   });
 });
-
 // ── Score Arc ────────────────────────────────────────────────────────────────
-
 describe('scoreArc', () => {
   it('returns 0 for empty arc', () => {
     const score = scoreArc([], []);
     expect(score).toBe(0);
   });
-
   it('returns positive score for scenes with mutations', () => {
     const scene = createScene('S-001', {
       threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
       continuityMutations: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }],
       events: ['event1'],
     });
-
     const score = scoreArc([scene], []);
     expect(score).toBeGreaterThanOrEqual(0);
     expect(score).toBeLessThanOrEqual(100);
   });
-
   it('scores multiple scenes', () => {
     const scene1 = createScene('S-001', {
       threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
@@ -435,16 +368,13 @@ describe('scoreArc', () => {
       threadMutations: [{ threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [] }],
       events: ['climax'],
     });
-
     const score = scoreArc([scene1, scene2], []);
     expect(score).toBeGreaterThanOrEqual(0);
   });
-
   it('higher mutations lead to higher scores', () => {
     const lowMutationScene = createScene('S-001', {
       events: ['minor_event'],
     });
-
     const highMutationScene = createScene('S-002', {
       threadMutations: [
         { threadId: 'T-01', from: 'latent', to: 'resolved', addedNodes: [] },
@@ -457,72 +387,57 @@ describe('scoreArc', () => {
         addedEdges: [{ from: 'SYS-01', to: 'WK-02', relation: 'x' }],
       },
     });
-
     const lowScore = scoreArc([lowMutationScene], []);
     const highScore = scoreArc([highMutationScene], []);
-
     expect(highScore).toBeGreaterThanOrEqual(lowScore);
   });
 });
-
 // ── Score Scene ──────────────────────────────────────────────────────────────
-
 describe('scoreScene', () => {
   it('returns positive score for scene with mutations', () => {
     const scene = createScene('S-001', {
       threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
       events: ['event1'],
     });
-
     const score = scoreScene(scene, []);
     expect(score).toBeGreaterThanOrEqual(0);
     expect(score).toBeLessThanOrEqual(100);
   });
-
   it('handles scene without prior context', () => {
     const scene = createScene('S-001');
     const score = scoreScene(scene, []);
     expect(typeof score).toBe('number');
   });
-
   it('considers swing when prior scenes exist', () => {
     const priorScene = createScene('S-001', {
       threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
     });
-
     const currentScene = createScene('S-002', {
       threadMutations: [{ threadId: 'T-01', from: 'active', to: 'resolved', addedNodes: [] }],
       continuityMutations: Array(3).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }),
     });
-
     const scoreWithPrior = scoreScene(currentScene, [priorScene]);
     const scoreWithoutPrior = scoreScene(currentScene, []);
-
     // Both should be valid scores
     expect(scoreWithPrior).toBeGreaterThanOrEqual(0);
     expect(scoreWithoutPrior).toBeGreaterThanOrEqual(0);
   });
 });
-
 // ── Extract Ordered Scenes ───────────────────────────────────────────────────
-
 describe('extractOrderedScenes', () => {
   it('returns empty array for empty keys', () => {
     const narrative = createMinimalNarrative();
     const scenes = extractOrderedScenes(narrative, []);
     expect(scenes).toEqual([]);
   });
-
   it('extracts scenes in order of resolvedKeys', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes['S-001'] = createScene('S-001');
     narrative.scenes['S-002'] = createScene('S-002');
     narrative.scenes['S-003'] = createScene('S-003');
-
     const scenes = extractOrderedScenes(narrative, ['S-002', 'S-001', 'S-003']);
     expect(scenes.map((s) => s.id)).toEqual(['S-002', 'S-001', 'S-003']);
   });
-
   it('skips non-scene entries (world commits)', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes['S-001'] = createScene('S-001');
@@ -539,16 +454,13 @@ describe('extractOrderedScenes', () => {
         artifacts: [],
       },
     };
-
     const scenes = extractOrderedScenes(narrative, ['S-001', 'WB-001']);
     expect(scenes.length).toBe(1);
     expect(scenes[0].id).toBe('S-001');
   });
-
   it('skips missing entries', () => {
     const narrative = createMinimalNarrative();
     narrative.scenes['S-001'] = createScene('S-001');
-
     const scenes = extractOrderedScenes(narrative, ['S-001', 'S-MISSING']);
     expect(scenes.length).toBe(1);
     expect(scenes[0].id).toBe('S-001');

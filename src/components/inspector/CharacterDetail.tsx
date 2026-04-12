@@ -104,7 +104,7 @@ export default function CharacterDetail({ characterId }: Props) {
 
   const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(
     0,
-    state.currentSceneIndex + 1,
+    state.viewState.currentSceneIndex + 1,
   );
 
   // Knowledge filtered to current scene
@@ -113,7 +113,7 @@ export default function CharacterDetail({ characterId }: Props) {
     characterId,
     narrative.scenes,
     state.resolvedEntryKeys,
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
   );
 
   // Threads filtered to current scene
@@ -121,18 +121,18 @@ export default function CharacterDetail({ characterId }: Props) {
     character.threadIds,
     narrative.threads,
     state.resolvedEntryKeys,
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
   );
 
   // Relationships filtered + valence adjusted to current scene
   const relationships = getRelationshipsAtScene(
     narrative,
     state.resolvedEntryKeys,
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
   ).filter((r) => r.from === characterId || r.to === characterId);
 
   // Current scene mutations for this character
-  const currentSceneKey = state.resolvedEntryKeys[state.currentSceneIndex];
+  const currentSceneKey = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
   const currentScene = currentSceneKey
     ? narrative.scenes[currentSceneKey]
     : null;

@@ -2,10 +2,11 @@
 
 import { Suspense, useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useLogs } from '@/lib/logs-context';
 import { useStore } from '@/lib/store';
 import { splitCorpusIntoScenes } from '@/lib/text-analysis';
 import { analysisRunner } from '@/lib/analysis-runner';
-import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
+import type { AnalysisJob, AnalysisChunkResult, ApiLogEntry } from '@/types/narrative';
 import { BEAT_FN_LIST } from '@/types/narrative';
 import { ANALYSIS_MAX_CORPUS_WORDS, DEFAULT_MODEL } from '@/lib/constants';
 import { IconSpinner, IconChevronLeft, IconDollar } from '@/components/icons';
@@ -36,6 +37,7 @@ type WordNode = { label: string; type: 'character' | 'location' | 'thread' | 'kn
 function JobDetail({ job }: { job: AnalysisJob }) {
   const router = useRouter();
   const { state, dispatch } = useStore();
+  const { state: logsState } = useLogs();
   const streamRef = useRef<HTMLPreElement>(null);
   const [streamText, setStreamText] = useState(() => analysisRunner.getStreamText(job.id));
   const [selectedScene, setSelectedScene] = useState<number | null>(null);
@@ -48,7 +50,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
   const [planInFlightKeys, setPlanInFlightKeys] = useState<string[]>(() => analysisRunner.getPlanInFlightKeys(job.id));
   const [planStreamTexts, setPlanStreamTexts] = useState<Map<string, string>>(new Map());
   const [showApiLogs, setShowApiLogs] = useState(false);
-  const [persistedLogs, setPersistedLogs] = useState<typeof state.apiLogs>([]);
+  const [persistedLogs, setPersistedLogs] = useState<ApiLogEntry[]>([]);
 
   const liveJob = state.analysisJobs.find((j) => j.id === job.id) ?? job;
   const isRunning = analysisRunner.isRunning(job.id) || liveJob.status === 'running';
@@ -67,20 +69,20 @@ function JobDetail({ job }: { job: AnalysisJob }) {
     const wasRunning = prevStatusRef.current === 'running';
     prevStatusRef.current = liveJob.status;
     if (wasRunning && (liveJob.status === 'completed' || liveJob.status === 'failed')) {
-      const logs = state.apiLogs.filter((l) => l.analysisId === job.id);
+      const logs = logsState.apiLogs.filter((l) => l.analysisId === job.id);
       if (logs.length > 0) {
         saveAnalysisApiLogs(job.id, logs).catch(() => {});
       }
     }
-  }, [liveJob.status, state.apiLogs, job.id]);
+  }, [liveJob.status, logsState.apiLogs, job.id]);
 
   // Combine live logs with persisted logs, deduped by id
   const jobApiLogs = useMemo(() => {
-    const liveLogs = state.apiLogs.filter((log) => log.analysisId === job.id);
+    const liveLogs = logsState.apiLogs.filter((log) => log.analysisId === job.id);
     const liveIds = new Set(liveLogs.map((l) => l.id));
     const uniquePersisted = persistedLogs.filter((l) => !liveIds.has(l.id));
     return [...liveLogs, ...uniquePersisted];
-  }, [state.apiLogs, job.id, persistedLogs]);
+  }, [logsState.apiLogs, job.id, persistedLogs]);
   const totalCost = useMemo(() => calculateTotalCost(jobApiLogs), [jobApiLogs]);
   const error = liveJob.error ?? '';
 

@@ -224,7 +224,8 @@ export function useMCTS() {
   // ── Main loop ──────────────────────────────────────────────────────────────
 
   const runLoop = useCallback(async (config: MCTSConfig) => {
-    const { activeNarrative, resolvedEntryKeys, activeBranchId } = state;
+    const { activeNarrative, resolvedEntryKeys, viewState } = state;
+    const { activeBranchId } = viewState;
     if (!activeNarrative || !activeBranchId) return;
 
     // Always continue from the head of the branch, not the user's cursor position
@@ -815,7 +816,7 @@ export function useMCTS() {
     const remaining = runState.config.maxNodes - runState.iterationsCompleted;
     if (remaining <= 0) return;
 
-    const { activeBranchId } = state;
+    const { activeBranchId } = state.viewState;
     if (!activeBranchId) return;
 
     (async () => {
@@ -951,7 +952,7 @@ export function useMCTS() {
 
   const continueSearch = useCallback((additionalNodes: number) => {
     if (runState.status !== 'complete' && runState.status !== 'idle') return;
-    const { activeBranchId } = state;
+    const { activeBranchId } = state.viewState;
     if (!activeBranchId) return;
 
     cancelledRef.current = false;
@@ -1085,7 +1086,7 @@ export function useMCTS() {
     const path = runState.selectedPath ?? runState.bestPath;
     if (!path || path.length === 0) return;
 
-    const { activeBranchId } = state;
+    const { activeBranchId } = state.viewState;
     if (!activeBranchId) return;
 
     // Apply each arc to the real store in order, then embed

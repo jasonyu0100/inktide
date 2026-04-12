@@ -1,4 +1,4 @@
-import type { NarrativeState, AnalysisJob, ApiLogEntry, DiscoveryInquiry, SearchQuery } from '@/types/narrative';
+import type { NarrativeState, NarrativeViewState, AnalysisJob, ApiLogEntry, SearchQuery } from '@/types/narrative';
 import { idbGet, idbPut, idbDelete, idbGetAll, NARRATIVES_STORE, META_STORE, API_LOGS_STORE } from '@/lib/idb';
 import { logInfo, logError } from '@/lib/system-logger';
 
@@ -180,41 +180,6 @@ export async function deleteAnalysisApiLogs(analysisId: string): Promise<void> {
   }
 }
 
-// ── Discovery Inquiries ──────────────────────────────────────────────────────
-
-const DISCOVERY_KEY = 'discoveryInquiries';
-
-export async function loadDiscoveryInquiries(): Promise<DiscoveryInquiry[]> {
-  if (typeof window === 'undefined') return [];
-  try {
-    const inquiries = await idbGet<DiscoveryInquiry[]>(META_STORE, DISCOVERY_KEY);
-    return inquiries ?? [];
-  } catch (err) {
-    return [];
-  }
-}
-
-export async function saveDiscoveryInquiry(inquiry: DiscoveryInquiry): Promise<void> {
-  try {
-    const all = await loadDiscoveryInquiries();
-    const idx = all.findIndex((i) => i.id === inquiry.id);
-    if (idx >= 0) all[idx] = inquiry;
-    else all.unshift(inquiry);
-    await idbPut(META_STORE, DISCOVERY_KEY, all);
-  } catch (err) {
-    // Errors logged at caller level if needed
-  }
-}
-
-export async function deleteDiscoveryInquiry(id: string): Promise<void> {
-  try {
-    const all = await loadDiscoveryInquiries();
-    await idbPut(META_STORE, DISCOVERY_KEY, all.filter((i) => i.id !== id));
-  } catch (err) {
-    // Errors logged at caller level if needed
-  }
-}
-
 // ── Migration: localStorage → IndexedDB ──────────────────────────────────────
 
 /**
@@ -286,5 +251,38 @@ export async function loadSearchState(narrativeId: string): Promise<SearchQuery 
     return (await idbGet<SearchQuery | null>(META_STORE, getSearchStateKey(narrativeId))) ?? null;
   } catch (err) {
     return null;
+  }
+}
+
+// ── View State (per narrative) ───────────────────────────────────────────────
+
+function getViewStateKey(narrativeId: string): string {
+  return `viewState:${narrativeId}`;
+}
+
+export async function saveViewState(narrativeId: string, viewState: NarrativeViewState): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await idbPut(META_STORE, getViewStateKey(narrativeId), viewState);
+  } catch (err) {
+    // Silently fail for view state persistence
+  }
+}
+
+export async function loadViewState(narrativeId: string): Promise<NarrativeViewState | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    return (await idbGet<NarrativeViewState | null>(META_STORE, getViewStateKey(narrativeId))) ?? null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function deleteViewState(narrativeId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await idbDelete(META_STORE, getViewStateKey(narrativeId));
+  } catch (err) {
+    // Silently fail
   }
 }

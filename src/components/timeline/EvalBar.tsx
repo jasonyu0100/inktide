@@ -14,7 +14,7 @@ export default function EvalBar() {
   const { state } = useStore();
   const narrative = state.activeNarrative;
   const resolvedEntryKeys = state.resolvedEntryKeys;
-  const currentSceneIndex = state.currentSceneIndex;
+  const currentSceneIndex = state.viewState.currentSceneIndex;
 
   const allScenes = useMemo(() => {
     if (!narrative) return [];

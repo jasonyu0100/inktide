@@ -567,10 +567,10 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                         // Resolve sampler generically from BEAT_PROFILE_PRESETS (no hardcoded preset keys)
                         const presetKey = settings.beatProfilePreset || 'storyteller';
                         const activeSampler = presetKey === 'self'
-                          ? (state.activeBranchId && narrative
+                          ? (state.viewState.activeBranchId && narrative
                               ? (computeSamplerFromResolvedScenes(
                                   Object.values(narrative.scenes ?? {}).filter((s) => state.resolvedEntryKeys.includes(s.id)),
-                                  state.activeBranchId,
+                                  state.viewState.activeBranchId,
                                   narrative.branches
                                 ) ?? DEFAULT_BEAT_SAMPLER)
                               : DEFAULT_BEAT_SAMPLER)

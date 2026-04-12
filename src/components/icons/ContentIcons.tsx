@@ -217,3 +217,70 @@ export function IconLightbulb({ size, ...rest }: P) {
     </svg>
   );
 }
+
+export function IconUser({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+export function IconUsers({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconMapPin({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+export function IconGitBranch({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <line x1="6" y1="3" x2="6" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="18" cy="6" r="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="2" />
+      <path d="M18 9a9 9 0 01-9 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconBox({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconDatabase({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <ellipse cx="12" cy="5" rx="9" ry="3" stroke="currentColor" strokeWidth="2" />
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" stroke="currentColor" strokeWidth="2" />
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+export function IconSystem({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}

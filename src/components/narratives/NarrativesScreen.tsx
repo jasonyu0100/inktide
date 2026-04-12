@@ -1,6 +1,7 @@
 'use client';
 
 import { useStore } from '@/lib/store';
+import { useWizard } from '@/lib/wizard-context';
 import { timeAgo } from '@/lib/ui-utils';
 import type { NarrativeEntry } from '@/types/narrative';
 
@@ -34,7 +35,8 @@ function NarrativeCard({ entry }: { entry: NarrativeEntry }) {
 }
 
 export function NarrativesScreen() {
-  const { state, dispatch } = useStore();
+  const { state } = useStore();
+  const { dispatch: wizardDispatch } = useWizard();
   const narratives = state.narratives;
 
   return (
@@ -46,7 +48,7 @@ export function NarrativesScreen() {
         <div className="flex flex-col items-center gap-4">
           <p className="text-text-dim text-sm">No narratives yet</p>
           <button
-            onClick={() => dispatch({ type: 'OPEN_WIZARD' })}
+            onClick={() => wizardDispatch({ type: 'OPEN' })}
             className="bg-bg-elevated hover:bg-bg-overlay text-text-secondary text-sm px-4 py-2 rounded-lg border border-border transition"
           >
             New Narrative
@@ -60,7 +62,7 @@ export function NarrativesScreen() {
             ))}
           </div>
           <button
-            onClick={() => dispatch({ type: 'OPEN_WIZARD' })}
+            onClick={() => wizardDispatch({ type: 'OPEN' })}
             className="bg-bg-elevated hover:bg-bg-overlay text-text-secondary text-sm px-4 py-2 rounded-lg border border-border mt-4 transition"
           >
             New Narrative

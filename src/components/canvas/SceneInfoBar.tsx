@@ -26,10 +26,10 @@ export default function SceneInfoBar() {
     }
     let currentArc = 0;
     for (let i = arcOrder.length - 1; i >= 0; i--) {
-      if (state.currentSceneIndex >= arcOrder[i].firstTlIdx) { currentArc = i + 1; break; }
+      if (state.viewState.currentSceneIndex >= arcOrder[i].firstTlIdx) { currentArc = i + 1; break; }
     }
     return { total: arcOrder.length, currentArc, arcOrder };
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   // Scene-only navigation (excludes world commits)
   const sceneNav = useMemo(() => {
@@ -40,10 +40,10 @@ export default function SceneInfoBar() {
     }
     let currentSceneNum = 0;
     for (let i = 0; i < sceneIndices.length; i++) {
-      if (sceneIndices[i] <= state.currentSceneIndex) currentSceneNum = i + 1;
+      if (sceneIndices[i] <= state.viewState.currentSceneIndex) currentSceneNum = i + 1;
     }
     return { sceneIndices, total: sceneIndices.length, currentSceneNum };
-  }, [narrative, state.resolvedEntryKeys, state.currentSceneIndex]);
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   // Inline editing
   const [editField, setEditField] = useState<'scene' | 'arc' | null>(null);

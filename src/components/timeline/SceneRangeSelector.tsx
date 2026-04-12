@@ -41,7 +41,7 @@ export default function SceneRangeSelector({
   const { state } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
   const branches = narrative?.branches ?? {};
 
   const [open, setOpen] = useState(false);

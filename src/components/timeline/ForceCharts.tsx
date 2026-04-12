@@ -71,10 +71,10 @@ export default function ForceCharts() {
     if (allScenes.length === 0 || !narrative) return -1;
     return Math.min(
       allScenes.length - 1,
-      resolvedEntryKeys.slice(0, state.currentSceneIndex + 1)
+      resolvedEntryKeys.slice(0, state.viewState.currentSceneIndex + 1)
         .filter((k) => resolveEntry(narrative, k)?.kind === 'scene').length - 1,
     );
-  }, [allScenes, state.currentSceneIndex, resolvedEntryKeys, narrative]);
+  }, [allScenes, state.viewState.currentSceneIndex, resolvedEntryKeys, narrative]);
 
   // Windowed forces
   const windowed = useMemo(() => {
@@ -187,7 +187,7 @@ export default function ForceCharts() {
     if (isLocal || globalWindow === null || fullChartData.fate.length <= globalWindow) {
       return { chartData: fullChartData, globalWindowOffset: 0 };
     }
-    const anchor = state.currentSceneIndex;
+    const anchor = state.viewState.currentSceneIndex;
     const half = Math.floor(globalWindow / 2);
     let start = anchor - half;
     let end = start + globalWindow;
@@ -203,7 +203,7 @@ export default function ForceCharts() {
       },
       globalWindowOffset: start,
     };
-  }, [isLocal, globalWindow, fullChartData, state.currentSceneIndex]);
+  }, [isLocal, globalWindow, fullChartData, state.viewState.currentSceneIndex]);
 
   // Moving averages for each force + swing
   const chartMA = useMemo(() => ({
@@ -237,7 +237,7 @@ export default function ForceCharts() {
 
   const chartCurrentIndex = isLocal
     ? (localForceData.fate.length - 1)
-    : state.currentSceneIndex - globalWindowOffset;
+    : state.viewState.currentSceneIndex - globalWindowOffset;
 
   // Local position + recent delivery sparkline from the trailing window
   const { currentPosition, recentSparkline } = useMemo(() => {
@@ -256,14 +256,14 @@ export default function ForceCharts() {
 
   // Cube corner at current scene (normalized forces)
   const cubeCorner = useMemo(() => {
-    const idx = Math.min(state.currentSceneIndex, globalForceData.fate.length - 1);
+    const idx = Math.min(state.viewState.currentSceneIndex, globalForceData.fate.length - 1);
     if (idx < 0 || globalForceData.fate.length === 0) return null;
     return detectCubeCorner({
       fate: globalForceData.fate[idx],
       world: globalForceData.world[idx],
       system: globalForceData.system[idx],
     });
-  }, [globalForceData, state.currentSceneIndex]);
+  }, [globalForceData, state.viewState.currentSceneIndex]);
 
   if (!narrative) {
     return (

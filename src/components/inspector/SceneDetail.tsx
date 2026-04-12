@@ -378,7 +378,7 @@ export default function SceneDetail({ sceneId }: Props) {
   }
 
   // ── Scene Commit view ───────────────────────────────────────────────────
-  const scene = entry;
+  const scene = entry as Scene;
   const location = narrative.locations[scene.locationId];
   const effectivePovId = scene.povId || scene.participantIds[0];
   const povCharacter = effectivePovId

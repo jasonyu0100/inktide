@@ -69,7 +69,7 @@ export default function LocationDetail({ locationId }: Props) {
 
   const parent = location.parentId ? narrative.locations[location.parentId] : null;
 
-  const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.currentSceneIndex + 1);
+  const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.viewState.currentSceneIndex + 1);
 
   // Knowledge filtered to current scene (location knowledge uses locationId as characterId
   // in the mutation replay — location-specific knowledge nodes aren't mutated by scenes,
@@ -79,7 +79,7 @@ export default function LocationDetail({ locationId }: Props) {
     locationId,
     narrative.scenes,
     state.resolvedEntryKeys,
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
   );
 
   // Threads filtered to current scene
@@ -87,7 +87,7 @@ export default function LocationDetail({ locationId }: Props) {
     location.threadIds,
     narrative.threads,
     state.resolvedEntryKeys,
-    state.currentSceneIndex,
+    state.viewState.currentSceneIndex,
   );
 
   // Lifecycle: only scenes up to current scene index
@@ -144,6 +144,60 @@ export default function LocationDetail({ locationId }: Props) {
           </button>
         </p>
       )}
+
+      {/* Spatial connections */}
+      {(() => {
+        const allLocations = Object.values(narrative.locations);
+        const children = allLocations.filter((l) => l.parentId === locationId);
+        const siblings = parent
+          ? allLocations.filter((l) => l.parentId === parent.id && l.id !== locationId)
+          : [];
+        if (children.length === 0 && siblings.length === 0) return null;
+        return (
+          <CollapsibleSection title="Spatial" count={children.length + siblings.length} defaultOpen>
+            <div className="flex flex-col gap-2">
+              {children.length > 0 && (
+                <div>
+                  <span className="text-[9px] text-text-dim uppercase tracking-wide">Contains</span>
+                  <ul className="flex flex-col gap-1 mt-1">
+                    {children.map((child) => (
+                      <li key={child.id}>
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: child.id } })}
+                          className="text-xs text-text-primary transition-colors hover:underline"
+                        >
+                          {child.name}
+                          <span className="ml-1.5 text-[9px] text-text-dim">{child.prominence}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {siblings.length > 0 && (
+                <div>
+                  <span className="text-[9px] text-text-dim uppercase tracking-wide">Nearby</span>
+                  <ul className="flex flex-col gap-1 mt-1">
+                    {siblings.map((sib) => (
+                      <li key={sib.id}>
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'location', locationId: sib.id } })}
+                          className="text-xs text-text-secondary transition-colors hover:underline"
+                        >
+                          {sib.name}
+                          <span className="ml-1.5 text-[9px] text-text-dim">{sib.prominence}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+        );
+      })()}
 
       {/* Ties — characters with a significant bond to this location */}
       {(location.tiedCharacterIds ?? []).length > 0 && (() => {

@@ -129,19 +129,19 @@ export default function TimelineStrip() {
   // Auto-scroll selected node into view
   useEffect(() => {
     if (!scrollRef.current || sceneKeys.length === 0) return;
-    const x = xOf(state.currentSceneIndex);
+    const x = xOf(state.viewState.currentSceneIndex);
     const container = scrollRef.current;
     const left = x - container.clientWidth / 2;
     container.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
-  }, [state.currentSceneIndex, sceneKeys.length, xOf]);
+  }, [state.viewState.currentSceneIndex, sceneKeys.length, xOf]);
 
   const branchList = useMemo(
     () => (narrative ? Object.values(narrative.branches) : []),
     [narrative],
   );
   const activeBranch =
-    narrative && state.activeBranchId
-      ? narrative.branches[state.activeBranchId]
+    narrative && state.viewState.activeBranchId
+      ? narrative.branches[state.viewState.activeBranchId]
       : null;
 
   // Find fork point index in resolved keys for visual indicator
@@ -166,7 +166,7 @@ export default function TimelineStrip() {
       {branchList.length > 1 && (
         <div className="flex items-center px-2 border-r border-border shrink-0 w-36">
           <select
-            value={state.activeBranchId ?? ""}
+            value={state.viewState.activeBranchId ?? ""}
             onChange={(e) =>
               dispatch({ type: "SWITCH_BRANCH", branchId: e.target.value })
             }
@@ -331,23 +331,25 @@ export default function TimelineStrip() {
           })}
 
           {/* Scene nodes */}
-          {scenes.map((scene, i) => {
+          {scenes.map((entry, i) => {
             const x = xOf(i);
             const y = PADDING_TOP + 8;
-            const isSelected = i === state.currentSceneIndex;
-            const isExpansion = scene.kind === "world_build";
+            const isSelected = i === state.viewState.currentSceneIndex;
+            const isExpansion = entry.kind === "world_build";
+
+            const handleClick = () => {
+              dispatch({ type: "SET_SCENE_INDEX", index: i });
+              dispatch({
+                type: "SET_INSPECTOR",
+                context: { type: "scene", sceneId: entry.id },
+              });
+            };
 
             return (
               <g
-                key={scene.id}
+                key={entry.id}
                 className="cursor-pointer"
-                onClick={() => {
-                  dispatch({ type: "SET_SCENE_INDEX", index: i });
-                  dispatch({
-                    type: "SET_INSPECTOR",
-                    context: { type: "scene", sceneId: scene.id },
-                  });
-                }}
+                onClick={handleClick}
               >
                 {/* Selected ring */}
                 {isSelected && !isExpansion && (
@@ -373,7 +375,7 @@ export default function TimelineStrip() {
                     transform={`rotate(45 ${x} ${y})`}
                   />
                 )}
-                {/* Node shape — diamond for expansion, circle for normal */}
+                {/* Node shape — diamond for expansion, circle for scene */}
                 {isExpansion ? (
                   <rect
                     x={x - NODE_RADIUS + 1}

@@ -23,7 +23,7 @@ export function NowPlayingPill() {
   }, [open]);
 
   // Current scene from timeline (what user is looking at)
-  const currentSceneKey = narrative ? state.resolvedEntryKeys[state.currentSceneIndex] : null;
+  const currentSceneKey = narrative ? state.resolvedEntryKeys[state.viewState.currentSceneIndex] : null;
   const currentScene = currentSceneKey && narrative ? narrative.scenes[currentSceneKey] ?? null : null;
   const playingScene = player.sceneId && narrative ? narrative.scenes[player.sceneId] ?? null : null;
   const scene = playingScene ?? currentScene;

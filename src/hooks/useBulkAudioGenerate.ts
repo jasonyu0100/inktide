@@ -44,7 +44,8 @@ export function useBulkAudioGenerate() {
 
   // Run bulk audio generation with sliding window concurrency
   const runBulk = useCallback(async (sceneIds: string[]) => {
-    const { activeNarrative, activeBranchId } = stateRef.current;
+    const { activeNarrative, viewState } = stateRef.current;
+    const { activeBranchId } = viewState;
     if (!activeNarrative || !activeBranchId || sceneIds.length === 0) return;
 
     const voice = activeNarrative.storySettings?.audioVoice || 'onyx';
@@ -136,7 +137,8 @@ export function useBulkAudioGenerate() {
   }, [dispatch, updateRunState]);
 
   const start = useCallback(() => {
-    const { activeNarrative, resolvedEntryKeys, activeBranchId } = stateRef.current;
+    const { activeNarrative, resolvedEntryKeys, viewState } = stateRef.current;
+    const { activeBranchId } = viewState;
     if (!activeNarrative || !activeBranchId) return;
 
     const branches = activeNarrative.branches;
@@ -194,7 +196,8 @@ export function useBulkAudioGenerate() {
 
   // Count how many scenes need audio
   const count = useCallback(() => {
-    const { activeNarrative, resolvedEntryKeys, activeBranchId } = stateRef.current;
+    const { activeNarrative, resolvedEntryKeys, viewState } = stateRef.current;
+    const { activeBranchId } = viewState;
     if (!activeNarrative || !activeBranchId) return 0;
 
     const branches = activeNarrative.branches;

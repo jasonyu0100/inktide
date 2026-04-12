@@ -256,7 +256,7 @@ export default function BranchEval({ sceneRange, onRangeChange }: { sceneRange?:
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
-  const branchId = state.activeBranchId;
+  const branchId = state.viewState.activeBranchId;
 
   // Filter resolvedKeys by scene range for evaluation
   const filteredKeys = useMemo(

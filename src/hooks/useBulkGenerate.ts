@@ -66,7 +66,7 @@ export function useBulkGenerate() {
 
       // Skip if already has content (using resolved versions)
       const branches = activeNarrative.branches;
-      const activeBranchId = stateRef.current.activeBranchId!;
+      const activeBranchId = stateRef.current.viewState.activeBranchId!;
       const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
       const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
       if (mode === 'plan' && resolvedPlan) return;
@@ -153,7 +153,7 @@ export function useBulkGenerate() {
 
       // Use resolved versions to check what needs generation
       const branches = activeNarrative.branches;
-      const activeBranchId = stateRef.current.activeBranchId!;
+      const activeBranchId = stateRef.current.viewState.activeBranchId!;
       const resolvedPlan = resolvePlanForBranch(scene, activeBranchId, branches);
       const { prose: resolvedProse } = resolveProseForBranch(scene, activeBranchId, branches);
 
@@ -204,7 +204,8 @@ export function useBulkGenerate() {
 
   // Count how many scenes need plan/prose (using resolved versions)
   const counts = useCallback(() => {
-    const { activeNarrative, resolvedEntryKeys, activeBranchId } = stateRef.current;
+    const { activeNarrative, resolvedEntryKeys, viewState } = stateRef.current;
+    const { activeBranchId } = viewState;
     if (!activeNarrative || !activeBranchId) return { needsPlan: 0, needsProse: 0 };
 
     const branches = activeNarrative.branches;

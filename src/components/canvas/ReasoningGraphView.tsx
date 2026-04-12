@@ -16,12 +16,12 @@ type ReasoningNodeType = ReasoningNodeSnapshot["type"];
 type ReasoningEdgeType = ReasoningEdgeSnapshot["type"];
 
 const NODE_COLORS: Record<ReasoningNodeType, { fill: string; stroke: string; text: string }> = {
+  fate: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },       // Red — Fate force
   character: { fill: "#166534", stroke: "#22c55e", text: "#dcfce7" },
   location: { fill: "#14532d", stroke: "#16a34a", text: "#bbf7d0" },
   artifact: { fill: "#15803d", stroke: "#4ade80", text: "#f0fdf4" },
   system: { fill: "#1e3a8a", stroke: "#3b82f6", text: "#dbeafe" },
   reasoning: { fill: "#374151", stroke: "#6b7280", text: "#f3f4f6" },
-  outcome: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },
   pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },
   warning: { fill: "#92400e", stroke: "#f59e0b", text: "#fef3c7" },
 };

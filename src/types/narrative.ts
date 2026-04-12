@@ -853,7 +853,7 @@ export type ReasoningGraphSnapshot = {
 export type ReasoningNodeSnapshot = {
   id: string;
   index: number;
-  type: "character" | "location" | "artifact" | "system" | "reasoning" | "outcome" | "pattern" | "warning";
+  type: "fate" | "character" | "location" | "artifact" | "system" | "reasoning" | "pattern" | "warning";
   label: string;
   detail?: string;
   entityId?: string;

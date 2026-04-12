@@ -13,8 +13,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 // ── Styling Constants ────────────────────────────────────────────────────────
 
-// Color language: World entities = green, Threads/Outcome = red (fate), System = blue, Reasoning = grey
+// Color language: Fate = red (threads/fate force), World entities = green, System = blue, Reasoning = grey
 const NODE_COLORS: Record<ReasoningNodeType, { fill: string; stroke: string; text: string }> = {
+  // Fate/Threads — red (Fate force) — can appear anywhere in reasoning chain
+  fate: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },       // Red
   // World entities — shades of green (World force)
   character: { fill: "#166534", stroke: "#22c55e", text: "#dcfce7" },  // Dark green
   location: { fill: "#14532d", stroke: "#16a34a", text: "#bbf7d0" },   // Darker green
@@ -23,8 +25,6 @@ const NODE_COLORS: Record<ReasoningNodeType, { fill: string; stroke: string; tex
   system: { fill: "#1e3a8a", stroke: "#3b82f6", text: "#dbeafe" },     // Blue
   // Reasoning — grey (neutral)
   reasoning: { fill: "#374151", stroke: "#6b7280", text: "#f3f4f6" },  // Grey
-  // Outcome/Threads — red (Fate force)
-  outcome: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },    // Red
   // Pattern — cyan/teal (positive reinforcement)
   pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },    // Teal
   // Warning — amber/orange (anti-pattern risk)

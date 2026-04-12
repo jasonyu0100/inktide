@@ -1,6 +1,14 @@
 "use client";
 
 import { API_LOG_STALE_THRESHOLD_MS } from "@/lib/constants";
+import {
+  loadApiLogs,
+  saveApiLogs,
+  saveAnalysisApiLogs,
+  loadSystemLogs,
+  saveSystemLogs,
+  saveAnalysisSystemLogs,
+} from "@/lib/persistence";
 import type { ApiLogEntry, SystemLogEntry } from "@/types/narrative";
 import React, {
   createContext,
@@ -32,8 +40,10 @@ const initialState: LogsState = {
 type LogsAction =
   | { type: "LOG_API_CALL"; entry: ApiLogEntry }
   | { type: "UPDATE_API_LOG"; id: string; updates: Partial<ApiLogEntry> }
+  | { type: "HYDRATE_API_LOGS"; logs: ApiLogEntry[] }
   | { type: "CLEAR_API_LOGS" }
   | { type: "LOG_SYSTEM"; entry: SystemLogEntry }
+  | { type: "HYDRATE_SYSTEM_LOGS"; logs: SystemLogEntry[] }
   | { type: "CLEAR_SYSTEM_LOGS" };
 
 // ── Reducer ──────────────────────────────────────────────────────────────────
@@ -57,6 +67,16 @@ function logsReducer(state: LogsState, action: LogsAction): LogsState {
         ),
       };
 
+    case "HYDRATE_API_LOGS": {
+      // Merge loaded logs with any existing in-memory logs (avoid duplicates)
+      const existingIds = new Set(state.apiLogs.map((l) => l.id));
+      const newLogs = action.logs.filter((l) => !existingIds.has(l.id));
+      const merged = [...newLogs, ...state.apiLogs];
+      // Sort by timestamp and keep within limit
+      merged.sort((a, b) => a.timestamp - b.timestamp);
+      return { ...state, apiLogs: merged.slice(-MAX_LOG_ENTRIES) };
+    }
+
     case "CLEAR_API_LOGS":
       return { ...state, apiLogs: [] };
 
@@ -67,6 +87,16 @@ function logsReducer(state: LogsState, action: LogsAction): LogsState {
         return { ...state, systemLogs: newLogs.slice(-MAX_LOG_ENTRIES) };
       }
       return { ...state, systemLogs: newLogs };
+    }
+
+    case "HYDRATE_SYSTEM_LOGS": {
+      // Merge loaded logs with any existing in-memory logs (avoid duplicates)
+      const existingIds = new Set(state.systemLogs.map((l) => l.id));
+      const newLogs = action.logs.filter((l) => !existingIds.has(l.id));
+      const merged = [...newLogs, ...state.systemLogs];
+      // Sort by timestamp and keep within limit
+      merged.sort((a, b) => a.timestamp - b.timestamp);
+      return { ...state, systemLogs: merged.slice(-MAX_LOG_ENTRIES) };
     }
 
     case "CLEAR_SYSTEM_LOGS":
@@ -96,15 +126,73 @@ export function LogsProvider({
   activeNarrativeId: string | null;
 }) {
   const [state, dispatch] = useReducer(logsReducer, initialState);
-  const prevActiveIdRef = useRef<string | null>(null);
+  const prevNarrativeIdRef = useRef<string | null>(null);
+  const activeNarrativeIdRef = useRef<string | null>(activeNarrativeId);
+  activeNarrativeIdRef.current = activeNarrativeId;
 
-  // Wire API logger to this context
+  // Load logs when narrative changes
+  useEffect(() => {
+    if (!activeNarrativeId) return;
+    if (activeNarrativeId === prevNarrativeIdRef.current) return;
+
+    prevNarrativeIdRef.current = activeNarrativeId;
+
+    // Load API logs for this narrative
+    loadApiLogs(activeNarrativeId).then((logs) => {
+      if (logs.length > 0) {
+        dispatch({ type: "HYDRATE_API_LOGS", logs });
+      }
+    });
+
+    // Load system logs for this narrative
+    loadSystemLogs(activeNarrativeId).then((logs) => {
+      if (logs.length > 0) {
+        dispatch({ type: "HYDRATE_SYSTEM_LOGS", logs });
+      }
+    });
+  }, [activeNarrativeId]);
+
+  // Refs to track current logs for immediate saves
+  const logsRef = useRef<ApiLogEntry[]>([]);
+  logsRef.current = state.apiLogs;
+
+  const systemLogsRef = useRef<SystemLogEntry[]>([]);
+  systemLogsRef.current = state.systemLogs;
+
+  // Wire API logger to this context - save immediately on each log
   useEffect(() => {
     import("@/lib/api-logger").then(({ onApiLog, onApiLogUpdate }) => {
-      onApiLog((entry) => dispatch({ type: "LOG_API_CALL", entry }));
-      onApiLogUpdate((id, updates) =>
-        dispatch({ type: "UPDATE_API_LOG", id, updates })
-      );
+      onApiLog((entry) => {
+        dispatch({ type: "LOG_API_CALL", entry });
+        // Save immediately - to narrative or analysis store
+        if (entry.narrativeId) {
+          const updated = [...logsRef.current.filter((l) => l.id !== entry.id), entry];
+          const forNarrative = updated.filter((l) => l.narrativeId === entry.narrativeId);
+          saveApiLogs(entry.narrativeId, forNarrative.slice(-MAX_LOG_ENTRIES));
+        } else if (entry.analysisId) {
+          const updated = [...logsRef.current.filter((l) => l.id !== entry.id), entry];
+          const forAnalysis = updated.filter((l) => l.analysisId === entry.analysisId);
+          saveAnalysisApiLogs(entry.analysisId, forAnalysis.slice(-MAX_LOG_ENTRIES));
+        }
+      });
+      onApiLogUpdate((id, updates) => {
+        dispatch({ type: "UPDATE_API_LOG", id, updates });
+        // Save immediately - find the log to determine which store
+        const log = logsRef.current.find((l) => l.id === id);
+        if (log?.narrativeId) {
+          const updated = logsRef.current.map((l) =>
+            l.id === id ? { ...l, ...updates } : l
+          );
+          const forNarrative = updated.filter((l) => l.narrativeId === log.narrativeId);
+          saveApiLogs(log.narrativeId, forNarrative);
+        } else if (log?.analysisId) {
+          const updated = logsRef.current.map((l) =>
+            l.id === id ? { ...l, ...updates } : l
+          );
+          const forAnalysis = updated.filter((l) => l.analysisId === log.analysisId);
+          saveAnalysisApiLogs(log.analysisId, forAnalysis);
+        }
+      });
     });
   }, []);
 
@@ -115,10 +203,22 @@ export function LogsProvider({
     });
   }, [activeNarrativeId]);
 
-  // Wire system logger to this context
+  // Wire system logger to this context - save immediately on each log
   useEffect(() => {
     import("@/lib/system-logger").then(({ onSystemLog }) => {
-      onSystemLog((entry) => dispatch({ type: "LOG_SYSTEM", entry }));
+      onSystemLog((entry) => {
+        dispatch({ type: "LOG_SYSTEM", entry });
+        // Save immediately - to narrative or analysis store
+        if (entry.narrativeId) {
+          const updated = [...systemLogsRef.current.filter((l) => l.id !== entry.id), entry];
+          const forNarrative = updated.filter((l) => l.narrativeId === entry.narrativeId);
+          saveSystemLogs(entry.narrativeId, forNarrative.slice(-MAX_LOG_ENTRIES));
+        } else if (entry.analysisId) {
+          const updated = [...systemLogsRef.current.filter((l) => l.id !== entry.id), entry];
+          const forAnalysis = updated.filter((l) => l.analysisId === entry.analysisId);
+          saveAnalysisSystemLogs(entry.analysisId, forAnalysis.slice(-MAX_LOG_ENTRIES));
+        }
+      });
     });
   }, []);
 

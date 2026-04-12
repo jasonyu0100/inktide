@@ -1,4 +1,4 @@
-import type { NarrativeState, NarrativeViewState, AnalysisJob, ApiLogEntry, SearchQuery } from '@/types/narrative';
+import type { NarrativeState, NarrativeViewState, AnalysisJob, ApiLogEntry, SystemLogEntry, SearchQuery } from '@/types/narrative';
 import { idbGet, idbPut, idbDelete, idbGetAll, NARRATIVES_STORE, META_STORE, API_LOGS_STORE } from '@/lib/idb';
 import { logInfo, logError } from '@/lib/system-logger';
 
@@ -175,6 +175,76 @@ export async function saveAnalysisApiLogs(analysisId: string, logs: ApiLogEntry[
 export async function deleteAnalysisApiLogs(analysisId: string): Promise<void> {
   try {
     await idbDelete(API_LOGS_STORE, analysisLogsKey(analysisId));
+  } catch (err) {
+    // Errors logged at caller level
+  }
+}
+
+// ── System Logs (per narrative) ───────────────────────────────────────────────
+
+function systemLogsKey(narrativeId: string): string {
+  return `system:${narrativeId}`;
+}
+
+/** Load all system logs for a given narrative */
+export async function loadSystemLogs(narrativeId: string): Promise<SystemLogEntry[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const logs = await idbGet<SystemLogEntry[]>(API_LOGS_STORE, systemLogsKey(narrativeId));
+    return logs ?? [];
+  } catch (err) {
+    return [];
+  }
+}
+
+/** Save all system logs for a given narrative */
+export async function saveSystemLogs(narrativeId: string, logs: SystemLogEntry[]): Promise<void> {
+  try {
+    await idbPut(API_LOGS_STORE, systemLogsKey(narrativeId), logs);
+  } catch (err) {
+    // Errors logged at caller level
+  }
+}
+
+/** Delete system logs for a narrative (used when deleting a narrative) */
+export async function deleteSystemLogs(narrativeId: string): Promise<void> {
+  try {
+    await idbDelete(API_LOGS_STORE, systemLogsKey(narrativeId));
+  } catch (err) {
+    // Errors logged at caller level
+  }
+}
+
+// ── System Logs (per analysis job) ────────────────────────────────────────────
+
+function analysisSystemLogsKey(analysisId: string): string {
+  return `system-analysis:${analysisId}`;
+}
+
+/** Load all system logs for a given analysis job */
+export async function loadAnalysisSystemLogs(analysisId: string): Promise<SystemLogEntry[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const logs = await idbGet<SystemLogEntry[]>(API_LOGS_STORE, analysisSystemLogsKey(analysisId));
+    return logs ?? [];
+  } catch (err) {
+    return [];
+  }
+}
+
+/** Save all system logs for a given analysis job */
+export async function saveAnalysisSystemLogs(analysisId: string, logs: SystemLogEntry[]): Promise<void> {
+  try {
+    await idbPut(API_LOGS_STORE, analysisSystemLogsKey(analysisId), logs);
+  } catch (err) {
+    // Errors logged at caller level
+  }
+}
+
+/** Delete system logs for an analysis job */
+export async function deleteAnalysisSystemLogs(analysisId: string): Promise<void> {
+  try {
+    await idbDelete(API_LOGS_STORE, analysisSystemLogsKey(analysisId));
   } catch (err) {
     // Errors logged at caller level
   }

@@ -84,14 +84,14 @@ export default function LocationDetail({ locationId }: Props) {
 
   // Threads filtered to current scene
   const threadIds = getThreadIdsAtScene(
-    location.threadIds,
+    location.threadIds ?? [],
     narrative.threads,
     state.resolvedEntryKeys,
     state.viewState.currentSceneIndex,
   );
 
   // Lifecycle: only scenes up to current scene index
-  const locationThreadIds = new Set(location.threadIds);
+  const locationThreadIds = new Set(location.threadIds ?? []);
   const lifecycle = sceneKeysUpToCurrent
     .map((k) => narrative.scenes[k])
     .filter((s) => s && s.locationId === locationId)

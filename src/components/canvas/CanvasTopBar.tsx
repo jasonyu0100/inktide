@@ -409,6 +409,19 @@ export function CanvasTopBar() {
     };
   }, [narrative, arcNav]);
 
+  // ── Current world build and reasoning graph ─────────────────────────
+  const currentWorldBuildData = useMemo(() => {
+    if (!narrative) return { worldBuild: null, hasReasoningGraph: false };
+    const key = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
+    if (!key) return { worldBuild: null, hasReasoningGraph: false };
+    const worldBuild = narrative.worldBuilds[key];
+    if (!worldBuild) return { worldBuild: null, hasReasoningGraph: false };
+    return {
+      worldBuild,
+      hasReasoningGraph: !!(worldBuild.reasoningGraph && worldBuild.reasoningGraph.nodes.length > 0),
+    };
+  }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
+
   // ── Inline editing ────────────────────────────────────────────────────
   const [editField, setEditField] = useState<'scene' | 'arc' | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -613,14 +626,16 @@ export function CanvasTopBar() {
         </div>
       )}
 
-      {canvasMode === 'reasoning' && currentArcData.arc?.reasoningGraph && (
+      {canvasMode === 'reasoning' && (currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph) && (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-cyan-400/60">Reasoning</span>
-          <span className="text-[9px] text-text-dim/50 font-mono tabular-nums">
-            {currentArcData.arc.reasoningGraph.nodes.length} nodes &middot; {currentArcData.arc.reasoningGraph.edges.length} edges
+          <span className="text-[10px] text-cyan-400/60">
+            {currentWorldBuildData.worldBuild?.reasoningGraph ? "Expansion" : "Reasoning"}
           </span>
-          <span className="text-[9px] text-text-dim/40 truncate max-w-50" title={currentArcData.arc.reasoningGraph.summary}>
-            {currentArcData.arc.reasoningGraph.summary}
+          <span className="text-[9px] text-text-dim/50 font-mono tabular-nums">
+            {(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.nodes.length} nodes &middot; {(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.edges.length} edges
+          </span>
+          <span className="text-[9px] text-text-dim/40 truncate max-w-50" title={(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.summary}>
+            {(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.summary}
           </span>
         </div>
       )}

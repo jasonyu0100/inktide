@@ -70,6 +70,7 @@ import type {
   ProseEvaluation,
   ProseProfile,
   ProseScore,
+  ReasoningGraphSnapshot,
   RelationshipEdge,
   RelationshipMutation,
   Scene,
@@ -376,26 +377,29 @@ function computeDerivedEntities(
     for (const anchor of thread.participants) {
       if (anchor.type === "character" && characters[anchor.id]) {
         const char = characters[anchor.id];
-        if (!char.threadIds.includes(thread.id)) {
+        const charThreadIds = char.threadIds ?? [];
+        if (!charThreadIds.includes(thread.id)) {
           characters[anchor.id] = {
             ...char,
-            threadIds: [...char.threadIds, thread.id],
+            threadIds: [...charThreadIds, thread.id],
           };
         }
       } else if (anchor.type === "location" && locations[anchor.id]) {
         const loc = locations[anchor.id];
-        if (!loc.threadIds.includes(thread.id)) {
+        const locThreadIds = loc.threadIds ?? [];
+        if (!locThreadIds.includes(thread.id)) {
           locations[anchor.id] = {
             ...loc,
-            threadIds: [...loc.threadIds, thread.id],
+            threadIds: [...locThreadIds, thread.id],
           };
         }
       } else if (anchor.type === "artifact" && artifacts[anchor.id]) {
         const art = artifacts[anchor.id];
-        if (!art.threadIds.includes(thread.id)) {
+        const artThreadIds = art.threadIds ?? [];
+        if (!artThreadIds.includes(thread.id)) {
           artifacts[anchor.id] = {
             ...art,
-            threadIds: [...art.threadIds, thread.id],
+            threadIds: [...artThreadIds, thread.id],
           };
         }
       }
@@ -717,6 +721,7 @@ export type Action =
       tieMutations?: TieMutation[];
       continuityMutations?: ContinuityMutation[];
       relationshipMutations?: RelationshipMutation[];
+      reasoningGraph?: ReasoningGraphSnapshot;
     }
   // Auto mode
   | { type: "SET_AUTO_CONFIG"; config: AutoConfig }
@@ -1786,6 +1791,7 @@ function reducer(state: AppState, action: Action): AppState {
           continuityMutations: action.continuityMutations,
           relationshipMutations: action.relationshipMutations,
         },
+        reasoningGraph: action.reasoningGraph,
       };
 
       const newState = updateNarrative(state, (n) => {

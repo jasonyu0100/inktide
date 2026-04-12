@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemMutation, SystemNodeType, Artifact, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation, WorldBuild } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemMutation, SystemNodeType, Artifact, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation, WorldBuild, ReasoningGraphSnapshot } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import type { ThreadLogNodeType } from '@/types/narrative';
@@ -11,6 +11,7 @@ import { parseJson } from './json';
 import { narrativeContext } from './context';
 import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, PROMPT_FORCE_STANDARDS } from './prompts';
 import { logInfo } from '@/lib/system-logger';
+import { generateExpansionReasoningGraph, buildSequentialPath, type ExpansionReasoningGraph } from './reasoning-graph';
 
 /**
  * Normalize LLM-emitted entity continuity into the Continuity graph shape
@@ -75,6 +76,8 @@ export type WorldExpansion = {
   tieMutations?: TieMutation[];
   continuityMutations?: ContinuityMutation[];
   relationshipMutations?: RelationshipMutation[];
+  /** Reasoning graph used to plan this expansion — stored for canvas viewing */
+  reasoningGraph?: ReasoningGraphSnapshot;
 };
 
 export type DirectionSuggestion = {
@@ -396,6 +399,19 @@ Return JSON with this exact structure:
   return parsed.suggestion;
 }
 
+export type ExpandWorldOptions = {
+  /** Verbatim plan document section — guides entity creation with specific character/location/system details */
+  sourceText?: string;
+  /** Callback for streaming reasoning/thinking tokens */
+  onReasoning?: (token: string) => void;
+  /** Filter which entity types to create — disabled types are excluded from prompt and stripped from output */
+  entityFilter?: ExpansionEntityFilter;
+  /** When true without reasoningGraph, generates a new reasoning graph. When false, skips reasoning. */
+  useReasoning?: boolean;
+  /** Pre-generated reasoning graph — if provided, uses this instead of generating a new one */
+  reasoningGraph?: ExpansionReasoningGraph;
+};
+
 export async function expandWorld(
   narrative: NarrativeState,
   resolvedKeys: string[],
@@ -403,12 +419,23 @@ export async function expandWorld(
   directive: string,
   size: WorldExpansionSize = 'medium',
   strategy: WorldExpansionStrategy = 'dynamic',
-  /** Verbatim plan document section — guides entity creation with specific character/location/system details */
-  sourceText?: string,
-  onReasoning?: (token: string) => void,
-  /** Filter which entity types to create — disabled types are excluded from prompt and stripped from output */
-  entityFilter?: ExpansionEntityFilter,
+  /** @deprecated Use options object instead */
+  sourceTextOrOptions?: string | ExpandWorldOptions,
+  /** @deprecated Use options object instead */
+  onReasoningLegacy?: (token: string) => void,
+  /** @deprecated Use options object instead */
+  entityFilterLegacy?: ExpansionEntityFilter,
 ): Promise<WorldExpansion> {
+  // Support both legacy positional args and new options object
+  const options: ExpandWorldOptions = typeof sourceTextOrOptions === 'object' && sourceTextOrOptions !== null
+    ? sourceTextOrOptions
+    : {
+        sourceText: sourceTextOrOptions,
+        onReasoning: onReasoningLegacy,
+        entityFilter: entityFilterLegacy,
+      };
+  const { sourceText, onReasoning, entityFilter, useReasoning, reasoningGraph: preGeneratedGraph } = options;
+
   logInfo('Starting world expansion', {
     source: 'world-expansion',
     operation: 'expand-world',
@@ -418,8 +445,24 @@ export async function expandWorld(
       strategy,
       hasDirective: !!directive,
       hasSourceText: !!sourceText,
+      useReasoning: !!useReasoning,
+      hasPreGeneratedGraph: !!preGeneratedGraph,
     },
   });
+
+  // Use pre-generated reasoning graph if provided, otherwise generate if requested
+  let reasoningGraph: ExpansionReasoningGraph | undefined = preGeneratedGraph;
+  if (!reasoningGraph && useReasoning) {
+    reasoningGraph = await generateExpansionReasoningGraph(
+      narrative,
+      resolvedKeys,
+      currentIndex,
+      directive,
+      size,
+      strategy,
+      onReasoning,
+    );
+  }
 
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
@@ -462,12 +505,34 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
     strategyBlock = EXPANSION_STRATEGY_PROMPTS[strategy];
   }
 
+  // Build reasoning graph section if available
+  const reasoningSection = reasoningGraph ? `REASONING GRAPH — THIS IS YOUR PRIMARY BRIEF. The graph below captures the strategic logic driving this expansion. Each node represents a piece of reasoning — gaps, entities, constraints, causal steps, and outcomes. Your expansion must execute this reasoning path exactly.
+
+Expansion Summary: ${reasoningGraph.summary}
+
+REASONING PATH (step through in order — each node shows its connections):
+${buildSequentialPath(reasoningGraph)}
+
+Read through every node. The reasoning nodes (REASONING:) are the core logic you must execute. Gap/system nodes show what's MISSING. Entity nodes (CHARACTER/LOCATION/ARTIFACT:) show what should be ADDED and how it connects. Outcome nodes (OUTCOME:) show thread effects you must deliver. Pattern nodes (PATTERN:) are opportunities to embrace. Warning nodes (WARNING:) are risks to avoid.
+
+Edge types tell you HOW nodes relate:
+- enables: A makes B possible
+- constrains: A limits/blocks B
+- risks: A creates danger for B
+- requires: A needs B
+- causes: A leads to B
+- reveals: A exposes information in B
+- develops: A deepens B
+- resolves: A concludes B
+
+` : '';
+
   const prompt = `${ctx}
 
 ${directive.trim() ? `EXPAND the world based on this directive: ${directive}` : 'EXPAND the world — analyze the current narrative state and add characters, locations, and threads that would create the most interesting new possibilities based on existing tensions and unexplored areas.'}
 ${sourceText ? `\nSOURCE MATERIAL (verbatim from plan document — use this as the authoritative guide for what characters, locations, systems, and entities to create. If the source names specific characters, places, or objects, create them with those exact names and roles. The source material takes priority over generic expansion.):\n${sourceText}` : ''}
 
-${strategyBlock}
+${reasoningSection}${strategyBlock}
 
 ${(() => {
   const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
@@ -664,18 +729,33 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedCharacters = (parsed.characters ?? []).map((c: any) => ({
     ...c,
+    threadIds: c.threadIds ?? [],
     continuity: normalizeInitialContinuity(c.id, c.continuity),
   }));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedLocations = (parsed.locations ?? []).map((l: any) => ({
     ...l,
+    threadIds: l.threadIds ?? [],
+    tiedCharacterIds: l.tiedCharacterIds ?? [],
     continuity: normalizeInitialContinuity(l.id, l.continuity),
   }));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedArtifacts = (parsed.artifacts ?? []).map((a: any) => ({
     ...a,
+    threadIds: a.threadIds ?? [],
     continuity: normalizeInitialContinuity(a.id, a.continuity),
   }));
+  // Convert expansion reasoning graph to snapshot format for storage
+  const reasoningGraphSnapshot: ReasoningGraphSnapshot | undefined = reasoningGraph
+    ? {
+        nodes: reasoningGraph.nodes,
+        edges: reasoningGraph.edges,
+        arcName: reasoningGraph.expansionName,
+        sceneCount: 0, // World expansions don't have scenes
+        summary: reasoningGraph.summary,
+      }
+    : undefined;
+
   const result: WorldExpansion = {
     characters: f.characters ? normalizedCharacters : [],
     locations: f.locations ? normalizedLocations : [],
@@ -687,6 +767,7 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
     tieMutations: f.tieMutations ? (parsed.tieMutations ?? []) : [],
     continuityMutations: f.continuityMutations ? (parsed.continuityMutations ?? []) : [],
     relationshipMutations: f.relationshipMutations ? (parsed.relationshipMutations ?? []) : [],
+    reasoningGraph: reasoningGraphSnapshot,
   };
 
   logInfo('Completed world expansion', {
@@ -879,12 +960,12 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
 
   const characters: NarrativeState['characters'] = {};
   for (const c of parsed.characters) {
-    characters[c.id] = { ...c, continuity: normalizeInitialContinuity(c.id, c.continuity) };
+    characters[c.id] = { ...c, threadIds: c.threadIds ?? [], continuity: normalizeInitialContinuity(c.id, c.continuity) };
   }
 
   const locations: NarrativeState['locations'] = {};
   for (const l of parsed.locations) {
-    locations[l.id] = { ...l, continuity: normalizeInitialContinuity(l.id, l.continuity) };
+    locations[l.id] = { ...l, threadIds: l.threadIds ?? [], tiedCharacterIds: l.tiedCharacterIds ?? [], continuity: normalizeInitialContinuity(l.id, l.continuity) };
   }
 
   const threads: NarrativeState['threads'] = {};
@@ -908,7 +989,7 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   const artifacts: NarrativeState['artifacts'] = Object.fromEntries(
     (parsed.artifacts ?? []).map((a: Artifact) => [
       a.id,
-      { ...a, continuity: normalizeInitialContinuity(a.id, a.continuity) },
+      { ...a, threadIds: a.threadIds ?? [], continuity: normalizeInitialContinuity(a.id, a.continuity) },
     ]),
   );
 

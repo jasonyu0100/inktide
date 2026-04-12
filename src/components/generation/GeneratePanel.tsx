@@ -5,10 +5,12 @@ import { IconChevronRight, IconDice } from "@/components/icons";
 import {
   DEFAULT_EXPANSION_FILTER,
   expandWorld,
+  generateExpansionReasoningGraph,
   generateReasoningGraph,
   generateScenes,
   suggestWorldExpansion,
   type ExpansionEntityFilter,
+  type ExpansionReasoningGraph,
   type ReasoningGraph,
   type WorldExpansionSize,
   type WorldExpansionStrategy,
@@ -125,10 +127,14 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     ...DEFAULT_EXPANSION_FILTER,
   });
 
-  // Reasoning graph state
+  // Reasoning graph state (for scene generation)
   const [reasoningGraph, setReasoningGraph] = useState<ReasoningGraph | null>(null);
   const [showReasoningModal, setShowReasoningModal] = useState(false);
   const [generatingGraph, setGeneratingGraph] = useState(false);
+
+  // Expansion reasoning graph state (for world expansion)
+  const [expansionReasoningGraph, setExpansionReasoningGraph] = useState<ExpansionReasoningGraph | null>(null);
+  const [showExpansionReasoningModal, setShowExpansionReasoningModal] = useState(false);
 
   // Shared
   const [loading, setLoading] = useState(false);
@@ -401,9 +407,42 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     }
   }
 
-  async function handleExpandWorld() {
+  // Generate expansion reasoning graph (similar to scene reasoning)
+  async function handleGenerateExpansionReasoningGraph() {
     if (!narrative) return;
+    setGeneratingGraph(true);
+    setStreamText("");
+    setError("");
+    try {
+      const graph = await generateExpansionReasoningGraph(
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
+        worldDirective,
+        worldSize,
+        worldStrategy,
+        (token) => setStreamText((prev) => prev + token),
+      );
+      setExpansionReasoningGraph(graph);
+      setShowExpansionReasoningModal(true);
+    } catch (err) {
+      logError("Expansion reasoning graph generation failed", err, {
+        source: "world-expansion",
+        operation: "generate-expansion-reasoning-graph",
+        details: { worldSize, worldStrategy },
+      });
+      setError(String(err));
+    } finally {
+      setGeneratingGraph(false);
+    }
+  }
+
+  // Confirm expansion reasoning graph and execute expansion
+  async function handleConfirmExpansionReasoningGraph() {
+    if (!narrative || !expansionReasoningGraph) return;
+    setShowExpansionReasoningModal(false);
     setLoading(true);
+    setStreamText("");
     setError("");
     try {
       const expansion = await expandWorld(
@@ -413,9 +452,61 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         worldDirective,
         worldSize,
         worldStrategy,
-        undefined,
-        (token) => setStreamText((prev) => prev + token),
-        entityFilter,
+        {
+          onReasoning: (token) => setStreamText((prev) => prev + token),
+          entityFilter,
+          reasoningGraph: expansionReasoningGraph, // Pass pre-generated reasoning graph
+        },
+      );
+      dispatch({
+        type: "EXPAND_WORLD",
+        worldBuildId: nextId("WB", Object.keys(narrative.worldBuilds), 3),
+        characters: expansion.characters,
+        locations: expansion.locations,
+        threads: expansion.threads,
+        relationships: expansion.relationships,
+        systemMutations: expansion.systemMutations,
+        artifacts: expansion.artifacts,
+        branchId: state.viewState.activeBranchId!,
+        ownershipMutations: expansion.ownershipMutations,
+        tieMutations: expansion.tieMutations,
+        continuityMutations: expansion.continuityMutations,
+        relationshipMutations: expansion.relationshipMutations,
+        reasoningGraph: expansion.reasoningGraph,
+      });
+      setExpansionReasoningGraph(null);
+      onClose();
+    } catch (err) {
+      logError("World expansion with reasoning failed", err, {
+        source: "world-expansion",
+        operation: "expand-world-with-reasoning",
+        details: { worldSize, worldStrategy },
+      });
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Quick expand without reasoning (for exact size or when user skips planning)
+  async function handleExpandWorld() {
+    if (!narrative) return;
+    setLoading(true);
+    setStreamText("");
+    setError("");
+    try {
+      const expansion = await expandWorld(
+        narrative,
+        state.resolvedEntryKeys,
+        headIndex,
+        worldDirective,
+        worldSize,
+        worldStrategy,
+        {
+          onReasoning: (token) => setStreamText((prev) => prev + token),
+          entityFilter,
+          useReasoning: false,
+        },
       );
       dispatch({
         type: "EXPAND_WORLD",
@@ -1035,13 +1126,33 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
                 </details>
-                <button
-                  onClick={handleExpandWorld}
-                  disabled={loading}
-                  className="bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30"
-                >
-                  {loading ? "Expanding..." : "Expand World"}
-                </button>
+                {/* For non-exact sizes, show Plan and Quick buttons */}
+                {worldSize !== "exact" ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleGenerateExpansionReasoningGraph}
+                      disabled={loading || generatingGraph}
+                      className="flex-1 bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30"
+                    >
+                      {generatingGraph ? "Planning..." : "Plan Expansion"}
+                    </button>
+                    <button
+                      onClick={handleExpandWorld}
+                      disabled={loading || generatingGraph}
+                      className="flex-1 bg-white/6 hover:bg-white/10 text-text-secondary font-medium px-4 py-2.5 rounded-lg transition disabled:opacity-30"
+                    >
+                      {loading ? "Expanding..." : "Quick"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleExpandWorld}
+                    disabled={loading}
+                    className="bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30"
+                  >
+                    {loading ? "Expanding..." : "Expand World"}
+                  </button>
+                )}
               </>
             )}
 
@@ -1055,7 +1166,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         )}
       </ModalBody>
 
-      {/* Reasoning Graph Modal */}
+      {/* Reasoning Graph Modal (for scene generation) */}
       {showReasoningModal && reasoningGraph && (
         <ReasoningGraphModal
           graph={reasoningGraph}
@@ -1066,6 +1177,25 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
             setShowReasoningModal(false);
             setReasoningGraph(null);
           }}
+        />
+      )}
+
+      {/* Expansion Reasoning Graph Modal (for world expansion) */}
+      {showExpansionReasoningModal && expansionReasoningGraph && (
+        <ReasoningGraphModal
+          graph={{
+            ...expansionReasoningGraph,
+            arcName: expansionReasoningGraph.expansionName,
+            sceneCount: 0,
+          }}
+          isLoading={generatingGraph}
+          onRegenerate={handleGenerateExpansionReasoningGraph}
+          onConfirm={handleConfirmExpansionReasoningGraph}
+          onClose={() => {
+            setShowExpansionReasoningModal(false);
+            setExpansionReasoningGraph(null);
+          }}
+          confirmLabel="Expand World"
         />
       )}
     </Modal>

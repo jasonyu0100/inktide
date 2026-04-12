@@ -65,10 +65,13 @@ interface LayoutEdge {
 
 type Props = {
   graph: ReasoningGraphSnapshot;
-  arcId: string;
+  /** Arc ID when viewing arc reasoning */
+  arcId?: string;
+  /** World build ID when viewing expansion reasoning */
+  worldBuildId?: string;
 };
 
-export function ReasoningGraphView({ graph, arcId }: Props) {
+export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
   const { state, dispatch } = useStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -81,19 +84,22 @@ export function ReasoningGraphView({ graph, arcId }: Props) {
   // Track selected node from inspector context
   const selectedNodeId = useMemo(() => {
     const ctx = state.viewState.inspectorContext;
-    if (ctx?.type === "reasoning" && ctx.arcId === arcId) {
-      return ctx.nodeId;
+    if (ctx?.type === "reasoning") {
+      // Match either by arcId or worldBuildId
+      if ((arcId && ctx.arcId === arcId) || (worldBuildId && ctx.worldBuildId === worldBuildId)) {
+        return ctx.nodeId;
+      }
     }
     return null;
-  }, [state.viewState.inspectorContext, arcId]);
+  }, [state.viewState.inspectorContext, arcId, worldBuildId]);
 
   // Handle clicking a node to open inspector
   const handleNodeClick = useCallback((node: ReasoningNodeSnapshot) => {
     dispatch({
       type: "SET_INSPECTOR",
-      context: { type: "reasoning", arcId, nodeId: node.id },
+      context: { type: "reasoning", arcId, worldBuildId, nodeId: node.id },
     });
-  }, [dispatch, arcId]);
+  }, [dispatch, arcId, worldBuildId]);
 
   // Watch for container size changes
   useEffect(() => {

@@ -41,25 +41,46 @@ const TYPE_DESCRIPTIONS: Record<ReasoningNodeType, string> = {
 };
 
 type Props = {
-  arcId: string;
+  arcId?: string;
+  worldBuildId?: string;
   nodeId: string;
 };
 
-export default function ReasoningNodeDetail({ arcId, nodeId }: Props) {
+export default function ReasoningNodeDetail({ arcId, worldBuildId, nodeId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
 
-  const { node, arc, graph, connectedEdges } = useMemo(() => {
-    if (!narrative) return { node: null, arc: null, graph: null, connectedEdges: [] };
-    const arc = narrative.arcs[arcId];
-    if (!arc?.reasoningGraph) return { node: null, arc, graph: null, connectedEdges: [] };
-    const graph = arc.reasoningGraph;
+  const { node, sourceName, graph, connectedEdges } = useMemo(() => {
+    if (!narrative) return { node: null, sourceName: null, graph: null, connectedEdges: [] };
+
+    // Try arc first, then world build
+    let graph = null;
+    let sourceName: string | null = null;
+
+    if (arcId) {
+      const arc = narrative.arcs[arcId];
+      if (arc?.reasoningGraph) {
+        graph = arc.reasoningGraph;
+        sourceName = arc.name;
+      }
+    }
+
+    if (!graph && worldBuildId) {
+      const worldBuild = narrative.worldBuilds[worldBuildId];
+      if (worldBuild?.reasoningGraph) {
+        graph = worldBuild.reasoningGraph;
+        sourceName = worldBuild.summary.slice(0, 50);
+      }
+    }
+
+    if (!graph) return { node: null, sourceName: null, graph: null, connectedEdges: [] };
+
     const node = graph.nodes.find((n) => n.id === nodeId);
     const connectedEdges = graph.edges.filter((e) => e.from === nodeId || e.to === nodeId);
-    return { node, arc, graph, connectedEdges };
-  }, [narrative, arcId, nodeId]);
+    return { node, sourceName, graph, connectedEdges };
+  }, [narrative, arcId, worldBuildId, nodeId]);
 
-  if (!node || !arc || !graph) {
+  if (!node || !graph) {
     return (
       <div className="text-text-dim text-sm">
         Reasoning node not found
@@ -70,7 +91,7 @@ export default function ReasoningNodeDetail({ arcId, nodeId }: Props) {
   const navigateToNode = (id: string) => {
     dispatch({
       type: "SET_INSPECTOR",
-      context: { type: "reasoning", arcId, nodeId: id },
+      context: { type: "reasoning", arcId, worldBuildId, nodeId: id },
     });
   };
 
@@ -225,11 +246,13 @@ export default function ReasoningNodeDetail({ arcId, nodeId }: Props) {
         </div>
       )}
 
-      {/* Arc context */}
+      {/* Source context */}
       <div className="pt-3 border-t border-border space-y-2">
-        <h3 className="text-[10px] uppercase tracking-wider text-text-dim">Arc</h3>
+        <h3 className="text-[10px] uppercase tracking-wider text-text-dim">
+          {arcId ? "Arc" : "World Expansion"}
+        </h3>
         <div className="text-xs text-text-secondary">
-          <span className="font-medium text-text-primary">{arc.name}</span>
+          <span className="font-medium text-text-primary">{sourceName}</span>
           <span className="text-text-dim"> &middot; {graph.nodes.length} nodes</span>
         </div>
         <p className="text-[10px] text-text-dim leading-relaxed">

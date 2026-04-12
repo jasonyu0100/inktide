@@ -118,7 +118,7 @@ export default function CharacterDetail({ characterId }: Props) {
 
   // Threads filtered to current scene
   const threadIds = getThreadIdsAtScene(
-    character.threadIds,
+    character.threadIds ?? [],
     narrative.threads,
     state.resolvedEntryKeys,
     state.viewState.currentSceneIndex,

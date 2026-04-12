@@ -131,7 +131,7 @@ export default function SidePanel() {
         );
       case "reasoning":
         return (
-          <ReasoningNodeDetail arcId={ctx.arcId} nodeId={ctx.nodeId} />
+          <ReasoningNodeDetail arcId={ctx.arcId} worldBuildId={ctx.worldBuildId} nodeId={ctx.nodeId} />
         );
       default:
         return <EmptyState />;

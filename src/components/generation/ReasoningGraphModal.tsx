@@ -77,6 +77,8 @@ type Props = {
   onRegenerate: (additionalPrompt?: string) => void;
   onConfirm: () => void;
   onClose: () => void;
+  /** Custom label for the confirm button. Defaults to "Generate N Scene(s)" */
+  confirmLabel?: string;
 };
 
 export function ReasoningGraphModal({
@@ -85,6 +87,7 @@ export function ReasoningGraphModal({
   onRegenerate,
   onConfirm,
   onClose,
+  confirmLabel,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -691,7 +694,7 @@ export function ReasoningGraphModal({
               disabled={isLoading}
               className="text-xs font-semibold px-5 py-2 rounded-lg bg-white/12 text-text-primary hover:bg-white/16 transition-colors disabled:opacity-50"
             >
-              Generate {graph.sceneCount} Scene{graph.sceneCount !== 1 ? "s" : ""} →
+              {confirmLabel ?? `Generate ${graph.sceneCount} Scene${graph.sceneCount !== 1 ? "s" : ""}`} →
             </button>
           </div>
         </div>

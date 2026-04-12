@@ -729,6 +729,8 @@ export type WorldBuild = {
   id: string;
   summary: string;
   expansionManifest: ExpansionManifest;
+  /** Reasoning graph used to plan this expansion — stored for canvas viewing */
+  reasoningGraph?: ReasoningGraphSnapshot;
 };
 
 // ── Branch Evaluation ─────────────────────────────────────────────────────
@@ -1447,7 +1449,7 @@ export type InspectorContext =
   | { type: "artifact"; artifactId: string }
   | { type: "continuity"; entityId: string; nodeId: string }
   | { type: "threadLog"; threadId: string; nodeId: string }
-  | { type: "reasoning"; arcId: string; nodeId: string };
+  | { type: "reasoning"; arcId?: string; worldBuildId?: string; nodeId: string };
 
 export type WizardStep = "form" | "details" | "generate";
 

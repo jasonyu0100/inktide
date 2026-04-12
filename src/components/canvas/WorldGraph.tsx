@@ -85,6 +85,16 @@ export default function WorldGraph() {
     return { arc, reasoningGraph: arc.reasoningGraph };
   }, [narrative, activeArcId]);
 
+  // Get current world build and its reasoning graph (for world commits with reasoning)
+  const currentWorldBuildWithReasoning = useMemo(() => {
+    if (!narrative) return null;
+    const key = resolvedEntryKeys[state.viewState.currentSceneIndex];
+    if (!key) return null;
+    const worldBuild = narrative.worldBuilds[key];
+    if (!worldBuild?.reasoningGraph || worldBuild.reasoningGraph.nodes.length === 0) return null;
+    return { worldBuild, reasoningGraph: worldBuild.reasoningGraph };
+  }, [narrative, resolvedEntryKeys, state.viewState.currentSceneIndex]);
+
   const currentScene = useMemo(() => {
     if (!narrative || !currentSceneKey) return null;
     return narrative.scenes[currentSceneKey] ?? null;
@@ -1064,14 +1074,20 @@ export default function WorldGraph() {
       ) : graphViewMode === 'search' ? (
         <SearchView />
       ) : graphViewMode === 'reasoning' ? (
-        currentArcWithReasoning ? (
+        // World build reasoning takes priority when viewing a world commit
+        currentWorldBuildWithReasoning ? (
+          <ReasoningGraphView
+            graph={currentWorldBuildWithReasoning.reasoningGraph}
+            worldBuildId={currentWorldBuildWithReasoning.worldBuild.id}
+          />
+        ) : currentArcWithReasoning ? (
           <ReasoningGraphView
             graph={currentArcWithReasoning.reasoningGraph}
             arcId={currentArcWithReasoning.arc.id}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
-            <p className="text-text-dim text-sm italic">No reasoning graph available for this arc.</p>
+            <p className="text-text-dim text-sm italic">No reasoning graph available for this arc or world commit.</p>
           </div>
         )
       ) : graphViewMode === 'spark' || graphViewMode === 'codex' ? (

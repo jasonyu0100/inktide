@@ -21,5 +21,5 @@ export { suggestPremise } from './premise';
 export { reviewBranch, reviewProseQuality, reviewPlanQuality, refreshDirection } from './review';
 
 // Reasoning graph
-export { generateReasoningGraph, buildSequentialPath } from './reasoning-graph';
-export type { ReasoningGraph, ReasoningNode, ReasoningEdge, ReasoningNodeType, ReasoningEdgeType } from './reasoning-graph';
+export { generateReasoningGraph, generateExpansionReasoningGraph, buildSequentialPath } from './reasoning-graph';
+export type { ReasoningGraph, ReasoningNode, ReasoningEdge, ReasoningNodeType, ReasoningEdgeType, ExpansionReasoningGraph } from './reasoning-graph';

@@ -92,14 +92,14 @@ export default function ArtifactDetail({ artifactId }: Props) {
 
   // Threads filtered to current scene
   const threadIds = getThreadIdsAtScene(
-    artifact.threadIds,
+    artifact.threadIds ?? [],
     narrative.threads,
     state.resolvedEntryKeys,
     state.viewState.currentSceneIndex,
   );
 
   // Scenes: where artifact was used, had continuity mutations, ownership transfers, or thread activity
-  const artifactThreadIds = new Set(artifact.threadIds);
+  const artifactThreadIds = new Set(artifact.threadIds ?? []);
   const lifecycle = sceneKeysUpToCurrent
     .map((k) => narrative.scenes[k])
     .filter((s) => {

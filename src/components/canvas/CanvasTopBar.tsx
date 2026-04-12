@@ -8,6 +8,7 @@ import { getResolvedProseVersion, getResolvedPlanVersion, resolveProseForBranch,
 import { VersionHistoryTree } from './VersionHistoryTree';
 import { RegenerateEmbeddingsModal } from '@/components/topbar/RegenerateEmbeddingsModal';
 import { IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch, IconReasoning } from '@/components/icons';
+import { buildSequentialPath } from '@/lib/ai';
 
 const GRAPH_DOMAINS = [
   {
@@ -429,6 +430,7 @@ export function CanvasTopBar() {
 
   // ── Regenerate Embeddings modal ────────────────────────────────────────
   const [showEmbeddingsModal, setShowEmbeddingsModal] = useState(false);
+  const [reasoningCopied, setReasoningCopied] = useState(false);
 
   useEffect(() => {
     if (editField) setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 30);
@@ -637,6 +639,25 @@ export function CanvasTopBar() {
           <span className="text-[9px] text-text-dim/40 truncate max-w-50" title={(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.summary}>
             {(currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph)!.summary}
           </span>
+          <div className="w-px h-3 bg-border" />
+          <button
+            onClick={() => {
+              const graph = currentWorldBuildData.worldBuild?.reasoningGraph || currentArcData.arc?.reasoningGraph;
+              if (graph) {
+                navigator.clipboard.writeText(buildSequentialPath(graph));
+                setReasoningCopied(true);
+                setTimeout(() => setReasoningCopied(false), 2000);
+              }
+            }}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-text-dim/60 hover:text-text-dim transition-colors"
+            title="Copy sequential reasoning path"
+          >
+            <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+            </svg>
+            <span>{reasoningCopied ? "Copied!" : "Copy"}</span>
+          </button>
         </div>
       )}
 

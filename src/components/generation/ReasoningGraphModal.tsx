@@ -7,6 +7,7 @@ import type {
   ReasoningNodeType,
   ReasoningEdgeType,
 } from "@/lib/ai";
+import { buildSequentialPath } from "@/lib/ai";
 import * as d3 from "d3";
 import dagre from "dagre";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -99,6 +100,7 @@ export function ReasoningGraphModal({
   const [layoutEdges, setLayoutEdges] = useState<LayoutEdge[]>([]);
   const [showRegenerateInput, setShowRegenerateInput] = useState(false);
   const [regeneratePrompt, setRegeneratePrompt] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const sortedNodes = useMemo(
     () => [...graph.nodes].sort((a, b) => a.index - b.index),
@@ -632,6 +634,16 @@ export function ReasoningGraphModal({
           </div>
 
           <div className="flex gap-2 items-center">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(buildSequentialPath(graph));
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="text-xs px-4 py-2 rounded-lg bg-white/4 text-text-secondary hover:bg-white/8 transition-colors"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
             {showRegenerateInput ? (
               <div className="flex gap-2 items-center">
                 <input

@@ -7,13 +7,13 @@ import type { ReasoningGraphSnapshot, WorldBuild, NarrativeState } from '@/types
 function createReasoningGraph(overrides: Partial<ReasoningGraph> = {}): ReasoningGraph {
   return {
     nodes: [
-      { id: 'R1', index: 0, type: 'reasoning', label: 'Initial reasoning', detail: 'Sets up the logic' },
-      { id: 'C1', index: 1, type: 'character', label: 'Character action', entityId: 'C-01' },
-      { id: 'O1', index: 2, type: 'outcome', label: 'Thread advances', threadId: 'T-01' },
+      { id: 'F1', index: 0, type: 'fate', label: 'Thread needs escalation', threadId: 'T-01', detail: 'Fate pulls toward confrontation' },
+      { id: 'R1', index: 1, type: 'reasoning', label: 'Character must act', detail: 'Sets up the logic' },
+      { id: 'C1', index: 2, type: 'character', label: 'Character action', entityId: 'C-01' },
     ],
     edges: [
-      { id: 'e1', from: 'R1', to: 'C1', type: 'enables' },
-      { id: 'e2', from: 'C1', to: 'O1', type: 'causes' },
+      { id: 'e1', from: 'F1', to: 'R1', type: 'requires' },
+      { id: 'e2', from: 'R1', to: 'C1', type: 'requires' },
     ],
     arcName: 'Test Arc',
     sceneCount: 3,
@@ -25,17 +25,17 @@ function createReasoningGraph(overrides: Partial<ReasoningGraph> = {}): Reasonin
 function createExpansionReasoningGraph(overrides: Partial<ExpansionReasoningGraph> = {}): ExpansionReasoningGraph {
   return {
     nodes: [
-      { id: 'G1', index: 0, type: 'system', label: 'Gap identified', detail: 'Missing antagonist faction' },
-      { id: 'C1', index: 1, type: 'character', label: 'New character fills gap', entityId: 'C-02' },
-      { id: 'R1', index: 2, type: 'reasoning', label: 'Faction provides conflict', detail: 'Creates opposition' },
-      { id: 'O1', index: 3, type: 'outcome', label: 'Thread gains dimension', threadId: 'T-01' },
+      { id: 'F1', index: 0, type: 'fate', label: 'Thread needs antagonist', threadId: 'T-01', detail: 'Fate demands opposition' },
+      { id: 'R1', index: 1, type: 'reasoning', label: 'Faction provides conflict', detail: 'Creates opposition' },
+      { id: 'G1', index: 2, type: 'system', label: 'Gap identified', detail: 'Missing antagonist faction' },
+      { id: 'C1', index: 3, type: 'character', label: 'New character fills gap', entityId: 'C-02' },
       { id: 'P1', index: 4, type: 'pattern', label: 'Variety opportunity', detail: 'Fresh direction' },
       { id: 'W1', index: 5, type: 'warning', label: 'Avoid repetition', detail: 'Risk of staleness' },
     ],
     edges: [
-      { id: 'e1', from: 'G1', to: 'R1', type: 'enables' },
-      { id: 'e2', from: 'C1', to: 'R1', type: 'requires' },
-      { id: 'e3', from: 'R1', to: 'O1', type: 'causes' },
+      { id: 'e1', from: 'F1', to: 'R1', type: 'requires' },
+      { id: 'e2', from: 'R1', to: 'C1', type: 'requires' },
+      { id: 'e3', from: 'G1', to: 'C1', type: 'enables' },
       { id: 'e4', from: 'P1', to: 'R1', type: 'enables' },
       { id: 'e5', from: 'W1', to: 'R1', type: 'constrains' },
     ],
@@ -76,14 +76,14 @@ describe('buildSequentialPath', () => {
     const graph = createReasoningGraph();
     const path = buildSequentialPath(graph);
 
-    // Should contain all nodes in order
-    expect(path).toContain('[0] REASONING: Initial reasoning');
-    expect(path).toContain('[1] CHARACTER: Character action');
-    expect(path).toContain('[2] OUTCOME: Thread advances');
+    // Should contain all nodes in order (backward reasoning: fate first)
+    expect(path).toContain('[0] FATE: Thread needs escalation');
+    expect(path).toContain('[1] REASONING: Character must act');
+    expect(path).toContain('[2] CHARACTER: Character action');
 
     // Should show outgoing edges
-    expect(path).toContain('enables→C1');
-    expect(path).toContain('causes→O1');
+    expect(path).toContain('requires→R1');
+    expect(path).toContain('requires→C1');
   });
 
   it('should include entity references', () => {
@@ -145,7 +145,7 @@ describe('ReasoningGraph structure', () => {
 
   it('should have valid node types', () => {
     const graph = createReasoningGraph();
-    const validTypes = ['character', 'location', 'artifact', 'system', 'reasoning', 'outcome', 'pattern', 'warning'];
+    const validTypes = ['fate', 'character', 'location', 'artifact', 'system', 'reasoning', 'pattern', 'warning'];
 
     for (const node of graph.nodes) {
       expect(validTypes).toContain(node.type);

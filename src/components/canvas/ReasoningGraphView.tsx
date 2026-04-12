@@ -12,19 +12,21 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 // ── Styling Constants ────────────────────────────────────────────────────────
 
-type ReasoningNodeType = ReasoningNodeSnapshot["type"];
 type ReasoningEdgeType = ReasoningEdgeSnapshot["type"];
 
-const NODE_COLORS: Record<ReasoningNodeType, { fill: string; stroke: string; text: string }> = {
+const NODE_COLORS: Record<string, { fill: string; stroke: string; text: string }> = {
+  fate: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },       // Red — Fate force
   character: { fill: "#166534", stroke: "#22c55e", text: "#dcfce7" },
   location: { fill: "#14532d", stroke: "#16a34a", text: "#bbf7d0" },
   artifact: { fill: "#15803d", stroke: "#4ade80", text: "#f0fdf4" },
   system: { fill: "#1e3a8a", stroke: "#3b82f6", text: "#dbeafe" },
   reasoning: { fill: "#374151", stroke: "#6b7280", text: "#f3f4f6" },
-  outcome: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },
   pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },
   warning: { fill: "#92400e", stroke: "#f59e0b", text: "#fef3c7" },
+  unknown: { fill: "#374151", stroke: "#6b7280", text: "#f3f4f6" },
 };
+
+const getNodeColor = (type: string) => NODE_COLORS[type] ?? NODE_COLORS.unknown;
 
 const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
   enables: "#22c55e",
@@ -269,8 +271,8 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
       .attr("height", (d) => d.height)
       .attr("rx", 8)
       .attr("ry", 8)
-      .attr("fill", (d) => NODE_COLORS[d.data.type].fill)
-      .attr("stroke", (d) => NODE_COLORS[d.data.type].stroke)
+      .attr("fill", (d) => getNodeColor(d.data.type).fill)
+      .attr("stroke", (d) => getNodeColor(d.data.type).stroke)
       .attr("stroke-width", 2);
 
     // Index badge (top-left)
@@ -313,7 +315,7 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
       .attr("dominant-baseline", "middle")
       .attr("font-size", "9px")
       .attr("font-weight", "500")
-      .attr("fill", (d) => NODE_COLORS[d.data.type].text)
+      .attr("fill", (d) => getNodeColor(d.data.type).text)
       .attr("text-transform", "uppercase")
       .attr("letter-spacing", "0.5px")
       .text((d) => d.data.type.slice(0, 9));
@@ -327,7 +329,7 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
       .attr("dominant-baseline", "middle")
       .attr("font-size", "11px")
       .attr("font-weight", "500")
-      .attr("fill", (d) => NODE_COLORS[d.data.type].text)
+      .attr("fill", (d) => getNodeColor(d.data.type).text)
       .attr("pointer-events", "none")
       .text((d) => {
         const label = d.data.label;
@@ -383,7 +385,7 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
 
       g.select("rect.node-rect")
         .attr("stroke-width", isSelected ? 4 : 2)
-        .attr("stroke", isSelected ? ACTIVE_NODE_COLOR : NODE_COLORS[d.data.type].stroke);
+        .attr("stroke", isSelected ? ACTIVE_NODE_COLOR : getNodeColor(d.data.type).stroke);
     });
   }, [selectedNodeId]);
 

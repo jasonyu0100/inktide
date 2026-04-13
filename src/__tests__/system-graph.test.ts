@@ -17,7 +17,7 @@ function node(id: string, concept: string, type: SystemNodeType = 'concept'): Sy
 function edge(from: string, to: string, relation = 'relates_to') {
   return { from, to, relation };
 }
-function mutation(
+function makeDelta(
   nodes: SystemNode[] = [],
   edges: { from: string; to: string; relation: string }[] = [],
 ): SystemDelta {
@@ -48,13 +48,13 @@ describe('systemEdgeKey', () => {
 // ── sanitizeSystemDelta ───────────────────────────────────────────
 describe('sanitizeSystemDelta', () => {
   it('filters self-loops (from === to)', () => {
-    const m = mutation([], [edge('SYS-01', 'SYS-01', 'enables'), edge('SYS-01', 'SYS-02', 'enables')]);
+    const m = makeDelta([], [edge('SYS-01', 'SYS-01', 'enables'), edge('SYS-01', 'SYS-02', 'enables')]);
     sanitizeSystemDelta(m, new Set(['SYS-01', 'SYS-02']), new Set());
     expect(m.addedEdges).toHaveLength(1);
     expect(m.addedEdges[0]).toEqual({ from: 'SYS-01', to: 'SYS-02', relation: 'enables' });
   });
   it('filters orphan edges (endpoint not in validIds)', () => {
-    const m = mutation([], [edge('SYS-01', 'SYS-02'), edge('SYS-01', 'SYS-99'), edge('SYS-88', 'SYS-02')]);
+    const m = makeDelta([], [edge('SYS-01', 'SYS-02'), edge('SYS-01', 'SYS-99'), edge('SYS-88', 'SYS-02')]);
     sanitizeSystemDelta(m, new Set(['SYS-01', 'SYS-02']), new Set());
     expect(m.addedEdges).toHaveLength(1);
     expect(m.addedEdges[0].to).toBe('SYS-02');
@@ -72,11 +72,11 @@ describe('sanitizeSystemDelta', () => {
     sanitizeSystemDelta(m, new Set(['SYS-01', 'SYS-02']), new Set());
     expect(m.addedEdges).toHaveLength(1);
   });
-  it('filters cross-mutation duplicates using the shared seenEdgeKeys set', () => {
+  it('filters cross-delta duplicates using the shared seenEdgeKeys set', () => {
     const valid = new Set(['SYS-01', 'SYS-02']);
     const seen = new Set<string>();
-    const m1 = mutation([], [edge('SYS-01', 'SYS-02', 'enables')]);
-    const m2 = mutation([], [edge('SYS-01', 'SYS-02', 'enables'), edge('SYS-02', 'SYS-01', 'enables')]);
+    const m1 = makeDelta([], [edge('SYS-01', 'SYS-02', 'enables')]);
+    const m2 = makeDelta([], [edge('SYS-01', 'SYS-02', 'enables'), edge('SYS-02', 'SYS-01', 'enables')]);
     sanitizeSystemDelta(m1, valid, seen);
     sanitizeSystemDelta(m2, valid, seen);
     // m1 keeps its one edge, m2 keeps only the reverse-direction one.
@@ -108,7 +108,7 @@ describe('sanitizeSystemDelta', () => {
     expect(m.addedEdges).toEqual([]);
   });
   it('returns the mutated object for chaining', () => {
-    const m = mutation();
+    const m = makeDelta();
     const result = sanitizeSystemDelta(m, new Set(), new Set());
     expect(result).toBe(m);
   });
@@ -117,18 +117,18 @@ describe('sanitizeSystemDelta', () => {
 describe('applySystemDelta', () => {
   it('adds new nodes to the graph', () => {
     const graph: SystemGraph = { nodes: {}, edges: [] };
-    applySystemDelta(graph, mutation([node('SYS-01', 'Magic', 'system')], []));
+    applySystemDelta(graph, makeDelta([node('SYS-01', 'Magic', 'system')], []));
     expect(graph.nodes['SYS-01']).toEqual({ id: 'SYS-01', concept: 'Magic', type: 'system' });
   });
   it('does not overwrite existing nodes', () => {
     const graph: SystemGraph = { nodes: { 'SYS-01': node('SYS-01', 'Magic', 'system') }, edges: [] };
-    applySystemDelta(graph, mutation([node('SYS-01', 'OTHER CONCEPT', 'principle')], []));
+    applySystemDelta(graph, makeDelta([node('SYS-01', 'OTHER CONCEPT', 'principle')], []));
     expect(graph.nodes['SYS-01'].concept).toBe('Magic');
     expect(graph.nodes['SYS-01'].type).toBe('system');
   });
   it('adds new edges', () => {
     const graph: SystemGraph = { nodes: {}, edges: [] };
-    applySystemDelta(graph, mutation([], [edge('SYS-01', 'SYS-02', 'enables')]));
+    applySystemDelta(graph, makeDelta([], [edge('SYS-01', 'SYS-02', 'enables')]));
     expect(graph.edges).toHaveLength(1);
   });
   it('does not duplicate existing edges', () => {
@@ -136,7 +136,7 @@ describe('applySystemDelta', () => {
       nodes: {},
       edges: [edge('SYS-01', 'SYS-02', 'enables')],
     };
-    applySystemDelta(graph, mutation([], [edge('SYS-01', 'SYS-02', 'enables')]));
+    applySystemDelta(graph, makeDelta([], [edge('SYS-01', 'SYS-02', 'enables')]));
     expect(graph.edges).toHaveLength(1);
   });
   it('treats different relations as different edges', () => {
@@ -144,7 +144,7 @@ describe('applySystemDelta', () => {
       nodes: {},
       edges: [edge('SYS-01', 'SYS-02', 'enables')],
     };
-    applySystemDelta(graph, mutation([], [edge('SYS-01', 'SYS-02', 'blocks')]));
+    applySystemDelta(graph, makeDelta([], [edge('SYS-01', 'SYS-02', 'blocks')]));
     expect(graph.edges).toHaveLength(2);
   });
 });

@@ -29,9 +29,9 @@ type TNode = d3.SimulationNodeDatum & {
   id: string;
   description: string;
   status: string;
-  activity: number; // mutation count — drives size
+  activity: number; // delta count — drives size
   participantNames: string[];
-  isMutatedAtScene: boolean; // whether this thread has a mutation at the current scene
+  hasDeltaAtScene: boolean; // whether this thread has a delta at the current scene
 };
 
 type TLink = d3.SimulationLinkDatum<TNode> & {
@@ -99,10 +99,10 @@ export default function ThreadGraphView({
     [narrative, currentIndex, resolvedKeys],
   );
 
-  // ── Compute mutation counts per thread and scene-specific mutations ──
-  const { mutationCounts, sceneMutatedThreads } = useMemo(() => {
+  // ── Compute delta counts per thread and scene-specific deltas ──
+  const { deltaCounts, sceneDeltaThreads } = useMemo(() => {
     const counts = new Map<string, number>();
-    const sceneMuts = new Set<string>();
+    const sceneDelts = new Set<string>();
 
     for (let i = 0; i <= currentIndex && i < resolvedKeys.length; i++) {
       const key = resolvedKeys[i];
@@ -111,16 +111,16 @@ export default function ThreadGraphView({
       if (entry.kind === 'scene') {
         for (const tm of entry.threadDeltas) {
           counts.set(tm.threadId, (counts.get(tm.threadId) ?? 0) + 1);
-          if (i === currentIndex) sceneMuts.add(tm.threadId);
+          if (i === currentIndex) sceneDelts.add(tm.threadId);
         }
       } else if (entry.kind === 'world_build') {
         for (const t of entry.expansionManifest.newThreads) {
           counts.set(t.id, (counts.get(t.id) ?? 0) + 1);
-          if (i === currentIndex) sceneMuts.add(t.id);
+          if (i === currentIndex) sceneDelts.add(t.id);
         }
       }
     }
-    return { mutationCounts: counts, sceneMutatedThreads: sceneMuts };
+    return { deltaCounts: counts, sceneDeltaThreads: sceneDelts };
   }, [narrative, resolvedKeys, currentIndex]);
 
   // ── Build graph data ──
@@ -132,9 +132,9 @@ export default function ThreadGraphView({
     const visibleKeys = new Set(resolvedKeys.slice(0, currentIndex + 1));
 
     const visibleThreads = mode === 'pulse'
-      ? allThreads.filter(t => sceneMutatedThreads.has(t.id))
+      ? allThreads.filter(t => sceneDeltaThreads.has(t.id))
       : allThreads.filter(t =>
-          mutationCounts.has(t.id) || visibleKeys.has(t.openedAt)
+          deltaCounts.has(t.id) || visibleKeys.has(t.openedAt)
         );
 
     const nodeIds = new Set(visibleThreads.map(t => t.id));
@@ -148,16 +148,16 @@ export default function ThreadGraphView({
         id: t.id,
         description: t.description,
         status,
-        activity: mutationCounts.get(t.id) ?? 0,
+        activity: deltaCounts.get(t.id) ?? 0,
         participantNames,
-        isMutatedAtScene: sceneMutatedThreads.has(t.id),
+        hasDeltaAtScene: sceneDeltaThreads.has(t.id),
       };
     });
 
     const links = buildLinks(narrative, nodeIds);
 
     return { nodes, links };
-  }, [narrative, resolvedKeys, currentIndex, mode, statuses, mutationCounts, sceneMutatedThreads]);
+  }, [narrative, resolvedKeys, currentIndex, mode, statuses, deltaCounts, sceneDeltaThreads]);
 
   // ── Initial SVG setup (once) ──
   useEffect(() => {
@@ -266,12 +266,12 @@ export default function ThreadGraphView({
       .attr('opacity', d => {
         if (mode === 'pulse') return 0.9;
         // threads mode: highlight scene-mutated, dim terminal
-        if (d.isMutatedAtScene) return 1;
+        if (d.hasDeltaAtScene) return 1;
         if (TERMINAL.has(d.status)) return 0.2;
         return 0.5;
       })
       .attr('stroke', d => {
-        if (mode === 'threads' && d.isMutatedAtScene) return '#fff';
+        if (mode === 'threads' && d.hasDeltaAtScene) return '#fff';
         return 'transparent';
       })
       .attr('stroke-width', 2);
@@ -316,7 +316,7 @@ export default function ThreadGraphView({
       .attr('display', showLabels ? 'block' : 'none')
       .attr('opacity', d => {
         if (mode === 'pulse') return 0.95;
-        if (d.isMutatedAtScene) return 1;
+        if (d.hasDeltaAtScene) return 1;
         if (TERMINAL.has(d.status)) return 0.2;
         return 0.5;
       })
@@ -497,7 +497,7 @@ export default function ThreadGraphView({
             {tooltip.participants.length > 0 && (
               <div className="text-[10px] text-text-secondary mb-0.5">{tooltip.participants.join(', ')}</div>
             )}
-            <div className="text-[10px] text-text-dim">{tooltip.activity} mutation{tooltip.activity !== 1 ? 's' : ''}</div>
+            <div className="text-[10px] text-text-dim">{tooltip.activity} delta{tooltip.activity !== 1 ? 's' : ''}</div>
           </div>
           <div className="flex justify-center"><div className="w-2.5 h-2.5 bg-bg-elevated border-r border-b border-border rotate-45 -mt-1.5" /></div>
         </div>

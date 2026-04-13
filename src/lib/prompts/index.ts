@@ -8,7 +8,7 @@
 // ── Core Prompts ────────────────────────────────────────────────────────────
 export { PROMPT_FORCE_STANDARDS, buildForceStandardsPrompt } from './core/forces';
 export { PROMPT_STRUCTURAL_RULES } from './core/structural-rules';
-export { PROMPT_DELTAS } from './core/mutations';
+export { PROMPT_DELTAS } from './core/deltas';
 export { PROMPT_BEAT_TAXONOMY } from './core/beat-taxonomy';
 
 // ── Entity Prompts ──────────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ export {
   SCHEMA_ANALYSIS_TIE_DELTAS,
   SCHEMA_ANALYSIS_CHARACTER_MOVEMENTS,
   SCHEMA_ANALYSIS_SYSTEM_DELTAS,
-} from './schemas/mutations';
+} from './schemas/deltas';
 
 export {
   // Entity creation schemas

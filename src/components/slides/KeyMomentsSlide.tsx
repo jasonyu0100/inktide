@@ -253,13 +253,13 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
           )}
         </div>
 
-        {/* Right: Mutations */}
+        {/* Right: Deltas */}
         <div className="space-y-5">
-          {/* Thread mutations */}
+          {/* Thread deltas */}
           {threadChanges.length > 0 && (
             <div>
               <div className="text-[9px] uppercase tracking-widest text-text-dim mb-2">
-                Thread Mutations <span className="text-text-dim/50">({threadChanges.length})</span>
+                Thread Deltas <span className="text-text-dim/50">({threadChanges.length})</span>
               </div>
               <div className="space-y-1">
                 {threadChanges.slice(0, 7).map((tc, i) => {
@@ -281,7 +281,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
             </div>
           )}
 
-          {/* Relationship mutations */}
+          {/* Relationship deltas */}
           {relationshipChanges.length > 0 && (
             <div>
               <div className="text-[9px] uppercase tracking-widest text-text-dim mb-2">
@@ -312,7 +312,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
 
           {threadChanges.length === 0 && relationshipChanges.length === 0 && (
             <div className="flex items-center justify-center h-32">
-              <p className="text-[11px] text-text-dim italic">No mutations in this scene</p>
+              <p className="text-[11px] text-text-dim italic">No deltas in this scene</p>
             </div>
           )}
         </div>

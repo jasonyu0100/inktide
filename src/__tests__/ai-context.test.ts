@@ -138,7 +138,7 @@ describe('getStateAtIndex', () => {
     expect(Object.keys(state.threadStatuses).length).toBe(0);
     expect(Object.keys(state.artifactOwnership).length).toBe(0);
   });
-  it('replays continuity mutations correctly (additive)', () => {
+  it('replays world deltas correctly (additive)', () => {
     const n = createMinimalNarrative({
       scenes: {
         's1': createScene('s1', {
@@ -162,7 +162,7 @@ describe('getStateAtIndex', () => {
     expect(stateAt1.liveNodeIds.has('node-1')).toBe(true);
     expect(stateAt1.liveNodeIds.has('node-2')).toBe(true);
   });
-  it('replays relationship mutations correctly', () => {
+  it('replays relationship deltas correctly', () => {
     const n = createMinimalNarrative({
       scenes: {
         's1': createScene('s1', {
@@ -200,7 +200,7 @@ describe('getStateAtIndex', () => {
     const state = getStateAtIndex(n, ['s1', 's2'], 1);
     expect(state.relationships[0].valence).toBe(1); // Clamped at 1
   });
-  it('replays thread mutations correctly', () => {
+  it('replays thread deltas correctly', () => {
     const n = createMinimalNarrative({
       scenes: {
         's1': createScene('s1', {
@@ -360,7 +360,7 @@ describe('sceneContext', () => {
     expect(ctx).toContain('The gate opens');
     expect(ctx).toContain('Guards appear');
   });
-  it('includes thread mutations', () => {
+  it('includes thread deltas', () => {
     const n = createMinimalNarrative({
       characters: { c1: createCharacter('c1', 'Hero') },
       locations: { loc1: createLocation('loc1', 'Castle') },
@@ -376,7 +376,7 @@ describe('sceneContext', () => {
     expect(ctx).toContain('latent');
     expect(ctx).toContain('active');
   });
-  it('includes relationship mutations', () => {
+  it('includes relationship deltas', () => {
     const n = createMinimalNarrative({
       characters: {
         c1: createCharacter('c1', 'Hero'),

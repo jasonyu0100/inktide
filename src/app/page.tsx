@@ -476,7 +476,7 @@ export default function HomePage() {
                 },
                 {
                   q: "What do the charts show?",
-                  a: "Force curves trace the shape of the text through time. Peaks are where threads resolve, worlds deepen, or transformations land. Valleys are buildup. A flat curve means the text lacks contrast. An all-peaks curve means it never lets the reader settle. The scores are computed from knowledge graph mutations, not from the prose directly.",
+                  a: "Force curves trace the shape of the text through time. Peaks are where threads resolve, worlds deepen, or transformations land. Valleys are buildup. A flat curve means the text lacks contrast. An all-peaks curve means it never lets the reader settle. The scores are computed from knowledge graph deltas, not from the prose directly.",
                 },
                 {
                   q: "What happens with each work I analyze?",

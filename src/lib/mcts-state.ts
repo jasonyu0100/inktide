@@ -10,10 +10,10 @@ import type { NarrativeState, Scene } from "@/types/narrative";
 import { isScene, resolveEntry } from "@/types/narrative";
 
 /**
- * Apply scene mutations (relationship + knowledge + thread) to a narrative state.
+ * Apply scene deltas (relationship + knowledge + thread) to a narrative state.
  * Duplicated from store.tsx to avoid importing React-heavy store module.
  */
-function applySceneMutations(
+function applySceneDeltas(
   n: NarrativeState,
   scenes: Scene[],
 ): NarrativeState {
@@ -130,7 +130,7 @@ export type VirtualState = {
 
 /**
  * Build a virtual NarrativeState by applying a chain of MCTS ancestor nodes
- * on top of the root narrative. Each node's scenes/arc are added, mutations applied,
+ * on top of the root narrative. Each node's scenes/arc are added, deltas applied,
  * and branch entryIds extended — producing the state as if those arcs were committed.
  */
 export function buildVirtualState(
@@ -140,7 +140,7 @@ export function buildVirtualState(
   ancestorNodes: Pick<MCTSNode, "scenes" | "arc">[],
   activeBranchId: string,
 ): VirtualState {
-  // Deep clone the root to avoid mutation
+  // Deep clone the root to avoid mutating the original
   let narrative: NarrativeState = JSON.parse(JSON.stringify(rootNarrative));
   let resolvedKeys = [...rootResolvedKeys];
   let currentIndex = rootCurrentIndex;
@@ -177,8 +177,8 @@ export function buildVirtualState(
       };
     }
 
-    // Apply mutations (relationships, knowledge, threads)
-    narrative = applySceneMutations(narrative, node.scenes);
+    // Apply deltas (relationships, knowledge, threads)
+    narrative = applySceneDeltas(narrative, node.scenes);
 
     // Update resolved keys and index
     const newKeys = node.scenes

@@ -2,23 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { applyThreadDelta, EMPTY_THREAD_LOG } from '@/lib/thread-log';
 import type { ThreadDelta } from '@/types/narrative';
 // Thread logs are the per-thread narrative history graph. Each scene's
-// threadMutation contributes a self-contained cluster of log nodes chained
+// threadDelta contributes a self-contained cluster of log nodes chained
 // by adjacency. These tests lock in the invariants the rest of the pipeline
 // (generateScenes TK remap, world.ts pilot, store replay) all depend on.
 describe('applyThreadDelta', () => {
   it('adds nodes to an empty log and preserves content/type', () => {
-    const mutation: ThreadDelta = {
+    const delta: ThreadDelta = {
       threadId: 'T-01', from: 'seeded', to: 'active',
       addedNodes: [
         { id: 'TK-01', content: 'Harry rejects Malfoy', type: 'transition' },
       ],
     };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, mutation);
+    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
     expect(log.nodes['TK-01']).toEqual({ id: 'TK-01', content: 'Harry rejects Malfoy', type: 'transition' });
     expect(log.edges).toHaveLength(0);
   });
-  it('chains multiple nodes in one mutation via co_occurs', () => {
-    const mutation: ThreadDelta = {
+  it('chains multiple nodes in one delta via co_occurs', () => {
+    const delta: ThreadDelta = {
       threadId: 'T-01', from: 'seeded', to: 'active',
       addedNodes: [
         { id: 'TK-01', content: 'setup', type: 'setup' },
@@ -26,7 +26,7 @@ describe('applyThreadDelta', () => {
         { id: 'TK-03', content: 'transition', type: 'transition' },
       ],
     };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, mutation);
+    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
     expect(Object.keys(log.nodes)).toHaveLength(3);
     // 3 nodes → 2 co_occurs chain edges (n-1)
     expect(log.edges).toHaveLength(2);
@@ -53,20 +53,20 @@ describe('applyThreadDelta', () => {
     // No new edge because no new nodes were added in the second call.
     expect(log.edges).toHaveLength(0);
   });
-  it('idempotent on re-application of the same mutation (supports store replay)', () => {
+  it('idempotent on re-application of the same delta (supports store replay)', () => {
     // computeDerivedEntities in the store rebuilds derived state from
-    // scratch on every mutation, meaning scenes' threadMutations get
+    // scratch on every delta, meaning scenes' threadDeltas get
     // applied repeatedly. applyThreadDelta must be idempotent with
-    // respect to the same mutation to avoid double-counting.
-    const mutation: ThreadDelta = {
+    // respect to the same delta to avoid double-counting.
+    const delta: ThreadDelta = {
       threadId: 'T-01', from: 'latent', to: 'seeded',
       addedNodes: [
         { id: 'TK-01', content: 'setup node', type: 'setup' },
         { id: 'TK-02', content: 'follow node', type: 'escalation' },
       ],
     };
-    const once = applyThreadDelta(EMPTY_THREAD_LOG, mutation);
-    const twice = applyThreadDelta(once, mutation);
+    const once = applyThreadDelta(EMPTY_THREAD_LOG, delta);
+    const twice = applyThreadDelta(once, delta);
     expect(Object.keys(twice.nodes)).toHaveLength(2);
     // Edges accumulate because the chain edge is appended on every call
     // without a dedup check — the invariant is only that nodes don't
@@ -77,7 +77,7 @@ describe('applyThreadDelta', () => {
     expect(twice.nodes['TK-02'].content).toBe('follow node');
   });
   it('drops nodes without id or content', () => {
-    const mutation: ThreadDelta = {
+    const delta: ThreadDelta = {
       threadId: 'T-01', from: 'active', to: 'active',
       addedNodes: [
         { id: 'TK-01', content: 'valid', type: 'pulse' },
@@ -85,33 +85,33 @@ describe('applyThreadDelta', () => {
         { id: 'TK-03', content: '', type: 'pulse' },
       ],
     };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, mutation);
+    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
     expect(Object.keys(log.nodes)).toEqual(['TK-01']);
   });
   it('handles empty addedNodes (no-op, no crash)', () => {
-    const mutation: ThreadDelta = {
+    const delta: ThreadDelta = {
       threadId: 'T-01', from: 'active', to: 'critical',
       addedNodes: [],
     };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, mutation);
+    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
     expect(Object.keys(log.nodes)).toHaveLength(0);
     expect(log.edges).toHaveLength(0);
   });
   it('handles missing addedNodes field defensively', () => {
     // ThreadDelta type requires addedNodes, but defensive code in
     // applyThreadDelta uses `?? []` to handle legacy/malformed input.
-    const mutation = {
+    const delta = {
       threadId: 'T-01', from: 'active', to: 'active',
     } as unknown as ThreadDelta;
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, mutation);
+    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
     expect(Object.keys(log.nodes)).toHaveLength(0);
   });
   it('defaults missing node type to pulse', () => {
-    const mutation = {
+    const delta = {
       threadId: 'T-01', from: 'active', to: 'active',
       addedNodes: [{ id: 'TK-01', content: 'no type' } as unknown as ThreadDelta['addedNodes'][number]],
     };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, mutation);
+    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
     expect(log.nodes['TK-01'].type).toBe('pulse');
   });
 });

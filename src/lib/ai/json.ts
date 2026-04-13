@@ -133,6 +133,22 @@ export function repairUnescapedQuotes(s: string): string {
   return out.join('');
 }
 
+/**
+ * Fix unquoted string values after colons, e.g. `"type": rule` → `"type": "rule"`.
+ * Only targets bare identifiers (letters, digits, underscores, hyphens) that are not
+ * `true`, `false`, `null`, or numbers — those are valid JSON without quotes.
+ */
+export function repairUnquotedValues(s: string): string {
+  // Match `: <bareword>` where bareword is not a JSON literal or number
+  return s.replace(
+    /:\s*([a-zA-Z_][a-zA-Z0-9_-]*)(\s*[,\}\]\n\r])/g,
+    (match, word: string, after: string) => {
+      if (word === 'true' || word === 'false' || word === 'null') return match;
+      return `: "${word}"${after}`;
+    },
+  );
+}
+
 /** Parse JSON with detailed error context for debugging truncated LLM responses */
 export function parseJson(raw: string, context: string): unknown {
   if (!raw || !raw.trim()) {
@@ -142,12 +158,13 @@ export function parseJson(raw: string, context: string): unknown {
   try {
     return JSON.parse(cleaned);
   } catch (firstErr) {
-    // Attempt repair: fix unescaped quotes inside string values
-    try {
-      const repaired = repairUnescapedQuotes(cleaned);
-      return JSON.parse(repaired);
-    } catch {
-      // Repair didn't help — throw with original error context
+    // Attempt repairs in sequence: unquoted values, then unescaped quotes
+    for (const repair of [repairUnquotedValues, repairUnescapedQuotes, (s: string) => repairUnescapedQuotes(repairUnquotedValues(s))]) {
+      try {
+        return JSON.parse(repair(cleaned));
+      } catch {
+        // Try next repair strategy
+      }
     }
     const preview = cleaned.length > 300
       ? `${cleaned.slice(0, 150)}…[${cleaned.length} chars total]…${cleaned.slice(-150)}`

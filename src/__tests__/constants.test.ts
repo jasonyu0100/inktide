@@ -21,7 +21,7 @@ import {
   // AI Temperature
   DEFAULT_TEMPERATURE,
   DENSE_ARC_THRESHOLD,
-  FORCE_CHARTS_WINDOW_DEFAULT,
+  FORCE_TIMELINE_WINDOW_DEFAULT,
   // AI Context
   FORCE_WINDOW_SIZE,
   GENERATE_MODEL,
@@ -193,9 +193,9 @@ describe("UI Constants", () => {
   it("DENSE_ARC_THRESHOLD is positive", () => {
     expect(DENSE_ARC_THRESHOLD).toBeGreaterThan(0);
   });
-  it("FORCE_CHARTS_WINDOW_DEFAULT is reasonable", () => {
-    expect(FORCE_CHARTS_WINDOW_DEFAULT).toBeGreaterThan(0);
-    expect(FORCE_CHARTS_WINDOW_DEFAULT).toBeLessThanOrEqual(1000);
+  it("FORCE_TIMELINE_WINDOW_DEFAULT is reasonable", () => {
+    expect(FORCE_TIMELINE_WINDOW_DEFAULT).toBeGreaterThan(0);
+    expect(FORCE_TIMELINE_WINDOW_DEFAULT).toBeLessThanOrEqual(1000);
   });
   it("MOMENT_SPARKLINE_WINDOW is positive", () => {
     expect(MOMENT_SPARKLINE_WINDOW).toBeGreaterThan(0);

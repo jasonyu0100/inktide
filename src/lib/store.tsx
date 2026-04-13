@@ -81,6 +81,7 @@ import type {
   SystemDelta,
   SystemNode,
   Thread,
+  ThreadDelta,
   TieDelta,
   WorldBuild,
 } from "@/types/narrative";
@@ -119,18 +120,18 @@ function computeDerivedEntities(
   const wkEdges: SystemEdge[] = [];
 
   // Graph derivation uses the shared sanitize→apply pipeline so that
-  // self-loops, orphans, bad fields, and cross-mutation duplicates are all
+  // self-loops, orphans, bad fields, and cross-delta duplicates are all
   // filtered consistently with the generation and analysis pipelines.
   const seenWkEdgeKeys = new Set<string>();
-  const applyWkMutation = (wkm: SystemDelta) => {
+  const applySystemDeltaEntry = (wkm: SystemDelta) => {
     if (!wkm) return;
-    // Clone so we don't mutate the entry's stored mutation in place during derivation.
+    // Clone so we don't mutate the entry's stored delta in place during derivation.
     const clone: SystemDelta = {
       addedNodes: [...(wkm.addedNodes ?? [])],
       addedEdges: [...(wkm.addedEdges ?? [])],
     };
     // Valid ids at this moment: everything already in the accumulating graph
-    // plus anything this mutation is about to contribute.
+    // plus anything this delta is about to contribute.
     const validIds = new Set<string>(Object.keys(wkNodes));
     for (const n of clone.addedNodes) if (n?.id) validIds.add(n.id);
     sanitizeSystemDelta(clone, validIds, seenWkEdgeKeys);
@@ -186,14 +187,24 @@ function computeDerivedEntities(
           };
         }
       }
-      // Collect world knowledge
-      applyWkMutation(
+      // Collect system knowledge deltas
+      applySystemDeltaEntry(
         wb.expansionManifest.systemDeltas ?? {
           addedNodes: [],
           addedEdges: [],
         },
       );
-      // Apply expansion mutations on existing entities
+      // Apply thread deltas on existing threads
+      for (const tm of wb.expansionManifest.threadDeltas ?? []) {
+        const thread = threads[tm.threadId];
+        if (!thread) continue;
+        threads[tm.threadId] = {
+          ...thread,
+          status: tm.to,
+          threadLog: applyThreadDelta(thread.threadLog, tm),
+        };
+      }
+      // Apply expansion deltas on existing entities
       for (const km of wb.expansionManifest.worldDeltas ?? []) {
         const char = characters[km.entityId];
         const loc = locations[km.entityId];
@@ -308,7 +319,7 @@ function computeDerivedEntities(
       }
 
       for (const km of scene.worldDeltas ?? []) {
-        // Continuity mutations can target characters, locations, or artifacts
+        // World deltas can target characters, locations, or artifacts
         const char = characters[km.entityId];
         const loc = locations[km.entityId];
         const art = artifacts[km.entityId];
@@ -338,7 +349,7 @@ function computeDerivedEntities(
           threadLog: applyThreadDelta(thread.threadLog, tm),
         };
       }
-      // Apply relationship mutations from scene
+      // Apply relationship deltas from scene
       for (const rm of scene.relationshipDeltas ?? []) {
         const idx = relationships.findIndex(
           (r) => r.from === rm.from && r.to === rm.to,
@@ -366,18 +377,18 @@ function computeDerivedEntities(
           });
         }
       }
-      // Apply world knowledge mutations from scene
+      // Apply system knowledge deltas from scene delta
       if (scene.systemDeltas) {
-        applyWkMutation(scene.systemDeltas);
+        applySystemDeltaEntry(scene.systemDeltas);
       }
-      // Apply ownership mutations from scene
+      // Apply ownership deltas from scene
       for (const om of scene.ownershipDeltas ?? []) {
         const art = artifacts[om.artifactId];
         if (art) {
           artifacts[om.artifactId] = { ...art, parentId: om.toId };
         }
       }
-      // Apply tie mutations from scene
+      // Apply tie deltas from scene
       for (const mm of scene.tieDeltas ?? []) {
         const loc = locations[mm.locationId];
         if (loc) {
@@ -671,7 +682,7 @@ export type Action =
   | { type: "CLEAR_SEARCH" }
   | { type: "TOGGLE_SEARCH_FOCUS" }
   | { type: "SWITCH_BRANCH"; branchId: string }
-  // Scene mutations
+  // Scene deltas
   | {
       type: "UPDATE_SCENE";
       sceneId: string;
@@ -741,17 +752,17 @@ export type Action =
   | {
       type: "EXPAND_WORLD";
       worldBuildId: string;
+      branchId: string;
       characters: Character[];
       locations: Location[];
+      artifacts: Artifact[];
       threads: Thread[];
-      relationships: RelationshipEdge[];
-      branchId: string;
+      threadDeltas?: ThreadDelta[];
+      worldDeltas?: WorldDelta[];
       systemDeltas?: SystemDelta;
-      artifacts?: Artifact[];
+      relationshipDeltas?: RelationshipDelta[];
       ownershipDeltas?: OwnershipDelta[];
       tieDeltas?: TieDelta[];
-      worldDeltas?: WorldDelta[];
-      relationshipDeltas?: RelationshipDelta[];
       reasoningGraph?: ReasoningGraphSnapshot;
     }
   // Auto mode
@@ -1328,7 +1339,7 @@ function reducer(state: AppState, action: Action): AppState {
           delete updates.plan;
         }
 
-        // Apply remaining updates (non-versioned fields like summary, events, mutations, etc.)
+        // Apply remaining updates (non-versioned fields like summary, events, deltas, etc.)
         updatedScene = { ...updatedScene, ...updates };
 
         // Update version pointers to point to newly created versions
@@ -1727,10 +1738,11 @@ function reducer(state: AppState, action: Action): AppState {
         parts.push(
           `${threadDescs.length} thread${threadDescs.length > 1 ? "s" : ""}`,
         );
-      const artifactNames = (action.artifacts ?? []).map((a) => a.name);
-      if (action.relationships.length > 0)
+      const artifactNames = action.artifacts.map((a) => a.name);
+      const relDeltaCount = action.relationshipDeltas?.length ?? 0;
+      if (relDeltaCount > 0)
         parts.push(
-          `${action.relationships.length} relationship${action.relationships.length > 1 ? "s" : ""}`,
+          `${relDeltaCount} relationship${relDeltaCount > 1 ? "s" : ""}`,
         );
       if (artifactNames.length > 0)
         parts.push(
@@ -1749,7 +1761,7 @@ function reducer(state: AppState, action: Action): AppState {
           ? `World expanded: added ${parts.join(", ")}`
           : "World expansion (no new elements)";
 
-      // Build manifest systemGraph: explicit mutations + auto-generated nodes for threads/locations
+      // Build manifest systemGraph: explicit deltas + auto-generated nodes for threads/locations
       const autoNodes: SystemDelta["addedNodes"] = [];
       let autoCounter = 0;
       for (const t of action.threads) {
@@ -1789,26 +1801,17 @@ function reducer(state: AppState, action: Action): AppState {
         expansionManifest: {
           newCharacters: action.characters,
           newLocations: action.locations,
+          newArtifacts: action.artifacts,
           newThreads: action.threads.map((t) => ({
             ...t,
             openedAt: worldBuildId,
           })),
-          newArtifacts: action.artifacts ?? [],
+          threadDeltas: action.threadDeltas,
+          worldDeltas: action.worldDeltas,
           systemDeltas: manifestWK,
+          relationshipDeltas: action.relationshipDeltas,
           ownershipDeltas: action.ownershipDeltas,
           tieDeltas: action.tieDeltas,
-          worldDeltas: action.worldDeltas,
-          relationshipDeltas: [
-            // Convert new relationships to deltas (valenceDelta = initial valence)
-            ...action.relationships.map((r) => ({
-              from: r.from,
-              to: r.to,
-              type: r.type,
-              valenceDelta: r.valence,
-            })),
-            // Include existing relationship deltas
-            ...(action.relationshipDeltas ?? []),
-          ],
         },
         reasoningGraph: action.reasoningGraph,
       };

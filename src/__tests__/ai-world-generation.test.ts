@@ -14,7 +14,7 @@ vi.mock('@/lib/ai/context', () => ({
 vi.mock('@/lib/ai/prompts', () => ({
   PROMPT_FORCE_STANDARDS: 'Mock force standards',
   PROMPT_STRUCTURAL_RULES: 'Mock structural rules',
-  PROMPT_DELTAS: 'Mock mutations',
+  PROMPT_DELTAS: 'Mock deltas',
   PROMPT_POV: 'Mock POV',
   PROMPT_WORLD: 'Mock continuity',
   PROMPT_SUMMARY_REQUIREMENT: 'Mock summary requirement',
@@ -106,8 +106,8 @@ function createMinimalNarrative(): NarrativeState {
 beforeEach(() => {
   vi.clearAllMocks();
 });
-// ── expandWorld: world knowledge mutation handling ──────────────────────────
-describe('expandWorld — systemMutations', () => {
+// ── expandWorld: system delta handling ──────────────────────────
+describe('expandWorld — systemDeltas', () => {
   const baseExpansion = {
     characters: [],
     locations: [],
@@ -455,7 +455,7 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
     // 3 nodes → 2 co_occurs chain edges
     expect(alice.world.edges.filter((e) => e.relation === 'co_occurs')).toHaveLength(2);
   });
-  it('filters self-loops from initial world knowledge edges', async () => {
+  it('filters self-loops from initial system knowledge edges', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseWorld(),
       characters: [
@@ -498,7 +498,7 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
     expect(s1.systemDeltas!.addedEdges).toHaveLength(1);
     expect(s1.systemDeltas!.addedEdges[0].from).not.toBe(s1.systemDeltas!.addedEdges[0].to);
   });
-  it('worldOnly mode processes top-level systemMutations block with concept dedup', async () => {
+  it('worldOnly mode processes top-level systemDeltas block with concept dedup', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseWorld(),
       characters: [
@@ -522,7 +522,7 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
     const result = await generateNarrative('Test', 'A plan', undefined, true);
     // The systemGraph is empty on initial generation — it's derived later via computeDerivedEntities
     expect(Object.keys(result.systemGraph!.nodes)).toHaveLength(0);
-    // The worldBuild's systemMutations has the deduplicated concepts — only 2 unique
+    // The worldBuild's systemDeltas has the deduplicated concepts — only 2 unique
     const worldBuild = Object.values(result.worldBuilds)[0];
     expect(worldBuild.expansionManifest.systemDeltas?.addedNodes).toHaveLength(2);
   });
@@ -550,7 +550,7 @@ describe('generateNarrative — pilot thread logs', () => {
       worldSystems: [],
     };
   }
-  it('populates thread logs from pilot scene threadMutations', async () => {
+  it('populates thread logs from pilot scene threadDeltas', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseWorld(),
       scenes: [
@@ -601,7 +601,7 @@ describe('generateNarrative — pilot thread logs', () => {
     expect(contents).toContain('Alice decides to pursue the crown');
     expect(contents).toContain('escalation');
   });
-  it('chains adjacent log nodes within a single mutation via co_occurs', async () => {
+  it('chains adjacent log nodes within a single delta via co_occurs', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseWorld(),
       scenes: [

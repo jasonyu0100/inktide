@@ -161,7 +161,7 @@ Three force dimensions, all **z-score normalised** (mean=0, units=standard devia
 - **System (S)** — `ΔN + √ΔE` — world knowledge graph complexity
 
 Derived metrics:
-- **Delivery** — `[tanh(F/1.5) + tanh(W/1.5) + tanh(S/1.5)] / 3` — mean of tanh-compressed forces, normalised to [-1, 1]
+- **Delivery** — `(F + W + S) / 3` — equal-weighted mean of z-scored forces
 - **Swing** — Euclidean distance between consecutive force snapshots
 
 Formulas in `src/lib/narrative-utils.ts`. The **cube** model maps forces into 3D space for trajectory analysis.

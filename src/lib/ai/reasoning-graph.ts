@@ -970,7 +970,7 @@ export async function generateCoordinationPlan(
     })
     .join("\n");
 
-  // World knowledge graph — principles, systems, constraints, tensions
+  // System knowledge graph — principles, systems, constraints, tensions
   const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
   const systemGraph = buildCumulativeSystemGraph(
     narrative.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, narrative.worldBuilds,
@@ -981,21 +981,21 @@ export async function generateCoordinationPlan(
   const constraints = systemNodes.filter(n => n.type === "constraint").slice(0, 4);
   const tensions = systemNodes.filter(n => n.type === "tension").slice(0, 4);
 
-  const worldKnowledgeLines: string[] = [];
+  const systemKnowledgeLines: string[] = [];
   if (principles.length > 0) {
-    worldKnowledgeLines.push(`  Principles: ${principles.map(n => n.concept).join("; ")}`);
+    systemKnowledgeLines.push(`  Principles: ${principles.map(n => n.concept).join("; ")}`);
   }
   if (systems.length > 0) {
-    worldKnowledgeLines.push(`  Systems: ${systems.map(n => n.concept).join("; ")}`);
+    systemKnowledgeLines.push(`  Systems: ${systems.map(n => n.concept).join("; ")}`);
   }
   if (constraints.length > 0) {
-    worldKnowledgeLines.push(`  Constraints: ${constraints.map(n => n.concept).join("; ")}`);
+    systemKnowledgeLines.push(`  Constraints: ${constraints.map(n => n.concept).join("; ")}`);
   }
   if (tensions.length > 0) {
-    worldKnowledgeLines.push(`  Tensions: ${tensions.map(n => n.concept).join("; ")}`);
+    systemKnowledgeLines.push(`  Tensions: ${tensions.map(n => n.concept).join("; ")}`);
   }
-  const worldKnowledge = worldKnowledgeLines.length > 0
-    ? worldKnowledgeLines.join("\n")
+  const systemKnowledge = systemKnowledgeLines.length > 0
+    ? systemKnowledgeLines.join("\n")
     : "";
 
   // Key artifacts with capabilities
@@ -1076,7 +1076,7 @@ KEY LOCATIONS:
 ${locations || "None"}
 
 ${relationships ? `KEY RELATIONSHIPS:\n${relationships}\n` : ""}
-${worldKnowledge ? `WORLD KNOWLEDGE:\n${worldKnowledge}\n` : ""}
+${systemKnowledge ? `SYSTEM KNOWLEDGE:\n${systemKnowledge}\n` : ""}
 ${artifacts ? `KEY ARTIFACTS:\n${artifacts}\n` : ""}
 ${recentScenes ? `RECENT STORY (what just happened):\n${recentScenes}\n` : ""}
 ${patternsSection}
@@ -1193,7 +1193,7 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
     // ═══════════════════════════════════════════════════════════════
     // REASONING NODES: causal chains (THE BACKBONE — use extensively)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "R1", "index": 9, "type": "reasoning", "label": "Resolution requires securing the inheritance first", "detail": "Backward induction step — reference specific world knowledge or relationships", "arcSlot": 2},
+    {"id": "R1", "index": 9, "type": "reasoning", "label": "Resolution requires securing the inheritance first", "detail": "Backward induction step — reference specific system knowledge or relationships", "arcSlot": 2},
     {"id": "R2", "index": 11, "type": "reasoning", "label": "Inheritance access requires Fang Yuan's knowledge", "detail": "Connect plot point to character agency", "arcSlot": 1},
     {"id": "R3", "index": 12, "type": "reasoning", "label": "Gu feeding rules constrain the timing", "detail": "Connect character to system rule", "arcSlot": 1},
     {"id": "R4", "index": 13, "type": "reasoning", "label": "Glacier setting enables private confrontation", "detail": "Connect constraint to location", "arcSlot": 2},
@@ -1246,7 +1246,7 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
 **FATE NODES** (thread pressure):
 - **fate**: Thread pressure on specific arcs. Has threadId, arcSlot. Label: what the thread demands in plain English (e.g., "Survival thread demands sanctuary").
 
-**ENTITY NODES** (grounding in specific world knowledge — USE ALL OF THESE):
+**ENTITY NODES** (grounding in specific system knowledge — USE ALL OF THESE):
 - **character**: WHO drives this transition. MUST have entityId. Label: character + their key action/knowledge (e.g., "Fang Yuan exploits his memory of the future").
 - **location**: WHERE things must happen. MUST have entityId. Label: location + what it enables (e.g., "The Glacier's isolation enables secret negotiation").
 - **artifact**: WHAT item shapes outcomes. MUST have entityId. Label: artifact + its role (e.g., "Spring Autumn Cicada enables time reversal").

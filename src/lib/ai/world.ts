@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild, ReasoningGraphSnapshot } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild, ReasoningGraphSnapshot } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import type { ThreadLogNodeType } from '@/types/narrative';
@@ -14,14 +14,14 @@ import { logInfo } from '@/lib/system-logger';
 import { generateExpansionReasoningGraph, buildSequentialPath, type ExpansionReasoningGraph } from './reasoning-graph';
 
 /**
- * Normalize LLM-emitted entity continuity into the Continuity graph shape
+ * Normalize LLM-emitted entity world into the World graph shape
  * (nodes keyed by id, edges chained via co_occurs). The schema requests a
  * Record but the LLM reliably returns an array with no edges. Route the
  * initial nodes through applyWorldDelta so nodes become a Record
  * keyed by id and get chained sequentially — matching how scene
- * continuityMutations build up entity graphs across the rest of the pipeline.
+ * worldDeltas build up entity graphs across the rest of the pipeline.
  */
-function normalizeInitialContinuity(
+function normalizeInitialWorld(
   entityId: string,
   raw: unknown,
 ): { nodes: Record<string, { id: string; type: WorldDelta['addedNodes'][number]['type']; content: string }>; edges: { from: string; to: string; relation: string }[] } {
@@ -45,43 +45,42 @@ function normalizeInitialContinuity(
   );
 }
 
+/** 1:1 with WorldExpansion fields — each toggle controls one field. */
 export type ExpansionEntityFilter = {
   characters: boolean;
   locations: boolean;
-  threads: boolean;
   artifacts: boolean;
-  relationships: boolean;
+  threads: boolean;
+  threadDeltas: boolean;
+  worldDeltas: boolean;
   systemDeltas: boolean;
+  relationshipDeltas: boolean;
   ownershipDeltas: boolean;
   tieDeltas: boolean;
-  worldDeltas: boolean;
-  relationshipDeltas: boolean;
 };
 
 export const DEFAULT_EXPANSION_FILTER: ExpansionEntityFilter = {
-  characters: true, locations: true, threads: true,
-  artifacts: true, relationships: true, systemDeltas: true,
+  characters: true, locations: true, artifacts: true,
+  threads: true, threadDeltas: true, worldDeltas: true,
+  systemDeltas: true, relationshipDeltas: true,
   ownershipDeltas: true, tieDeltas: true,
-  worldDeltas: true, relationshipDeltas: true,
 };
 
 /**
- * WorldExpansionResponse — raw LLM output format for world expansion.
- * The LLM returns this structure; it gets transformed to WorldExpansion
- * (narrative.ts) when stored, with relationships converted to relationshipDeltas.
+ * WorldExpansionResponse — mirrors WorldExpansion 1:1 plus reasoning graph.
+ * Field names match WorldExpansion so the store can spread directly.
  */
 export type WorldExpansionResponse = {
   characters: Character[];
   locations: Location[];
+  artifacts: Artifact[];
   threads: Thread[];
-  /** New relationships — converted to relationshipDeltas when stored */
-  relationships: RelationshipEdge[];
+  threadDeltas?: ThreadDelta[];
+  worldDeltas?: WorldDelta[];
   systemDeltas?: SystemDelta;
-  artifacts?: Artifact[];
+  relationshipDeltas?: RelationshipDelta[];
   ownershipDeltas?: OwnershipDelta[];
   tieDeltas?: TieDelta[];
-  worldDeltas?: WorldDelta[];
-  relationshipDeltas?: RelationshipDelta[];
   /** Reasoning graph used to plan this expansion — stored for canvas viewing */
   reasoningGraph?: ReasoningGraphSnapshot;
 };
@@ -340,7 +339,7 @@ const EXPANSION_STRATEGY_PROMPTS: Record<WorldExpansionStrategy, string> = {
 - Add threads that complicate EXISTING tensions rather than introducing new ones
 - Add rich knowledge per entity (3-4 per character, 2-3 per location) — secrets, hidden agendas, structural weaknesses, unexploited resources
 - Add artifacts that are locally relevant — tools, keys, resources that matter in the current sandbox
-- Focus world knowledge on the mechanics, economics, and power dynamics of the CURRENT setting
+- Focus system knowledge on the mechanics, economics, and power dynamics of the CURRENT setting
 The goal is to make the existing world feel richer, not bigger. One constrained sandbox with more detail beats a sprawling map.`,
 
   dynamic: `STRATEGY: DYNAMIC — analyse the current world state and choose the right balance. If the world is broad but shallow (many locations, few details), go deep. If the world is deep but narrow (rich detail in one area, nothing beyond), go broad. If balanced, lean toward deepening the active area where scenes are happening while seeding one or two distant elements for future arcs. State your reasoning in a brief comment before generating.`,
@@ -544,14 +543,14 @@ ${(() => {
   const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
   const disabled = Object.entries(f).filter(([, v]) => !v).map(([k]) => k);
   if (disabled.length === 0) return '';
-  const labels: Record<string, string> = { characters: 'characters', locations: 'locations', threads: 'threads', artifacts: 'artifacts', relationships: 'relationships', systemDeltas: 'system deltas', ownershipDeltas: 'ownership deltas (artifact transfers)', tieDeltas: 'tie deltas (character-location bonds)', worldDeltas: 'world deltas (changes to existing entities)', relationshipDeltas: 'relationship deltas (valence shifts on existing relationships)' };
+  const labels: Record<string, string> = { characters: 'characters', locations: 'locations', artifacts: 'artifacts', threads: 'threads', threadDeltas: 'thread deltas (status transitions on existing threads)', worldDeltas: 'world deltas (changes to existing entities)', systemDeltas: 'system deltas', relationshipDeltas: 'relationship deltas (new and shifted relationships)', ownershipDeltas: 'ownership deltas (artifact transfers)', tieDeltas: 'tie deltas (character-location bonds)' };
   return `ENTITY FILTER — DO NOT create the following types (return empty arrays for them):\n${disabled.map(k => `- NO ${labels[k]}`).join('\n')}\n`;
 })()}
 ${size === 'exact' ? `This is an EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.` : `This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
 - ${EXPANSION_SIZE_CONFIG[size].characters} new characters
 - ${EXPANSION_SIZE_CONFIG[size].locations} new locations
 - ${EXPANSION_SIZE_CONFIG[size].threads} new threads`}
-- Relationships connecting new characters to EXISTING characters (this is critical)
+- relationshipDeltas connecting new characters to EXISTING characters (this is critical — use valenceDelta as initial valence for new pairs)
 - Artifacts if the directive or narrative calls for them — objects that grant characters capabilities and drive acquisition, conflict, or discovery. Not every expansion needs artifacts, but consider whether the new world elements would benefit from tangible tools, relics, or items that characters can use and fight over.
 
 EXISTING ENTITIES (you MUST reference these to integrate new content):
@@ -572,7 +571,7 @@ Return JSON with this exact structure:
       "role": "anchor|recurring|transient",
       "threadIds": [],
       "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. Never use metaphors, similes, or figurative language — image generators interpret them literally.",
-      "continuity": {
+      "world": {
         "nodes": [{"id": "${nextKId}", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this character — trait, belief, capability, state, secret, goal, or weakness"}]
       }
     }
@@ -585,7 +584,7 @@ Return JSON with this exact structure:
       "tiedCharacterIds": ["character IDs with a significant tie to this location — residents, employees, faction members, students. Ties represent gravity and belonging, not just presence"],
       "threadIds": [],
       "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Use concrete physical details only — no metaphors, similes, or figurative language. Image generators interpret them literally.",
-      "continuity": {
+      "world": {
         "nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties"}]
       }
     }
@@ -600,27 +599,25 @@ Return JSON with this exact structure:
       "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
     }
   ],
-  "relationships": [
-    {"from": "character ID", "to": "character ID", "type": "description", "valence": 0.0}
-  ],
   "artifacts": [
     {
       "id": "${nextArtifactId}",
       "name": "Artifact name — concrete and specific to its function or origin",
       "significance": "key|notable|minor",
       "parentId": "owner — a character or location ID, or null for world-owned (communally available to all)",
-      "continuity": {"nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: what this artifact is, what it does, its history, powers, or limitations"}]},
+      "world": {"nodes": [{"id": "K-next", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: what this artifact is, what it does, its history, powers, or limitations"}]},
       "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"
     }
   ],
-  "systemMutations": {
+  "systemDeltas": {
     "addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}],
     "addedEdges": [{"from": "SYS-GEN-001", "to": "existing-SYS-ID", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]
   },
-  "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
-  "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
-  "continuityMutations": [{"entityId": "existing C-XX, L-XX, or A-XX", "addedNodes": [{"id": "K-next", "content": "15-25 words, PRESENT tense: a stable fact about the entity — what they experienced, became, or now possess", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}]
+  "threadDeltas": [{"threadId": "T-XX", "from": "latent", "to": "seeded", "addedNodes": [{"id": "TL-GEN-001", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "content": "10-20 words: what happened to this thread"}]}],
+  "worldDeltas": [{"entityId": "existing C-XX, L-XX, or A-XX", "addedNodes": [{"id": "K-next", "content": "15-25 words, PRESENT tense: a stable fact about the entity — what they experienced, became, or now possess", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+  "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
+  "ownershipDeltas": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
+  "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}]
 }
 
 ID RULES:
@@ -634,8 +631,8 @@ ID RULES:
 ${PROMPT_ENTITY_INTEGRATION}
 
 EXPANSION-SPECIFIC RULES:
-- Generate at MINIMUM ${EXPANSION_SIZE_CONFIG[size].characters === '1-2' ? '2' : EXPANSION_SIZE_CONFIG[size].characters === '3-5' ? '5' : '12'} relationships total. Most should connect new→existing. Include varied valences (allies, rivals, mentors, kin). At least one with tension.
-- Key artifacts should have 3-4 continuity nodes (what it does, its origin, its limitation). Only create artifacts when they meaningfully alter what characters can do.
+- Generate at MINIMUM ${EXPANSION_SIZE_CONFIG[size].characters === '1-2' ? '2' : EXPANSION_SIZE_CONFIG[size].characters === '3-5' ? '5' : '12'} relationshipDeltas total. Most should connect new→existing characters. Use valenceDelta as initial valence for new pairs. Include varied valences (allies, rivals, mentors, kin). At least one with tension.
+- Key artifacts should have 3-4 world nodes (what it does, its origin, its limitation). Only create artifacts when they meaningfully alter what characters can do.
 
 NAMING:
 - All new names must match the cultural palette and naming conventions already established in the world. Study the existing character and location names and produce names from the same linguistic roots.
@@ -659,12 +656,12 @@ THREAD CONVERGENCE (critical for long-form narrative):
 - Think: shared resources both factions need, events that affect multiple storylines, secrets that connect separated characters, external forces that compress multiple conflicts.
 - Empty dependents [] is acceptable for truly independent new threads, but at least one thread per expansion MUST bridge existing threads.
 
-WORLD KNOWLEDGE MUTATIONS:
-systemMutations define the FOUNDATIONAL abstractions this expansion establishes — the rules, systems, concepts, and tensions that the new characters, locations, and threads operate within. These are intentional world-building, not incidental discovery.
+SYSTEM KNOWLEDGE DELTAS:
+systemDeltas define the FOUNDATIONAL abstractions this expansion establishes — the rules, systems, concepts, and tensions that the new characters, locations, and threads operate within. These are intentional world-building, not incidental discovery.
 - Use "principle" for fundamental truths, "system" for mechanisms/institutions, "concept" for abstract ideas, "tension" for contradictions, "event" for world-level occurrences, "structure" for organizations/factions, "environment" for geography/climate, "convention" for customs/norms, "constraint" for scarcities/limitations.
 - Node IDs should be SYS-GEN-001, SYS-GEN-002, etc. (they will be re-mapped to real IDs).
-- Edges can reference both new SYS-GEN-* IDs and existing world knowledge IDs already in the narrative.
-- Generate ${size === 'small' ? '4-6' : size === 'medium' ? '8-12' : size === 'exact' ? 'as many as the directive calls for' : '15-25'} world knowledge nodes with a comparable number of edges. Each must be a genuine structural rule or system that the new entities operate within. EDGES ARE CRITICAL — an isolated node contributes 1 to system, but an edge connecting it to existing WK adds √1 more AND wires the expansion into the existing graph.
+- Edges can reference both new SYS-GEN-* IDs and existing system knowledge IDs already in the narrative.
+- Generate ${size === 'small' ? '4-6' : size === 'medium' ? '8-12' : size === 'exact' ? 'as many as the directive calls for' : '15-25'} system knowledge nodes with a comparable number of edges. Each must be a genuine structural rule or system that the new entities operate within. EDGES ARE CRITICAL — an isolated node contributes 1 to system, but an edge connecting it to existing WK adds √1 more AND wires the expansion into the existing graph.
 - At least HALF of your edges should cross the new/existing boundary — use existing WK IDs from the narrative context, not just SYS-GEN-* → SYS-GEN-*. This is how expansions deepen the foundation instead of floating free.
 - Focus on the structural WHY behind the expansion — what abstract rules, power structures, or tensions make these new entities meaningful?`;
 
@@ -729,27 +726,28 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
   }
 
   // Apply entity filter — strip types the user disabled. Freshly-created
-  // entities have their LLM-emitted continuity normalized (array → Record)
+  // entities have their LLM-emitted world normalized (array → Record)
   // and chained via co_occurs through applyWorldDelta.
+  // Fallback: accept legacy "continuity" field name if "world" is absent.
   const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedCharacters = (parsed.characters ?? []).map((c: any) => ({
     ...c,
     threadIds: c.threadIds ?? [],
-    world: normalizeInitialContinuity(c.id, c.world),
+    world: normalizeInitialWorld(c.id, c.world ?? c.continuity),
   }));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedLocations = (parsed.locations ?? []).map((l: any) => ({
     ...l,
     threadIds: l.threadIds ?? [],
     tiedCharacterIds: l.tiedCharacterIds ?? [],
-    world: normalizeInitialContinuity(l.id, l.world),
+    world: normalizeInitialWorld(l.id, l.world ?? l.continuity),
   }));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedArtifacts = (parsed.artifacts ?? []).map((a: any) => ({
     ...a,
     threadIds: a.threadIds ?? [],
-    world: normalizeInitialContinuity(a.id, a.world),
+    world: normalizeInitialWorld(a.id, a.world ?? a.continuity),
   }));
   // Convert expansion reasoning graph to snapshot format for storage
   const reasoningGraphSnapshot: ReasoningGraphSnapshot | undefined = reasoningGraph
@@ -762,17 +760,25 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
       }
     : undefined;
 
+  // Merge legacy "relationships" array (valence → valenceDelta) into relationshipDeltas
+  const mergedRelDeltas: RelationshipDelta[] = [
+    ...(parsed.relationships ?? []).map((r: RelationshipEdge) => ({
+      from: r.from, to: r.to, type: r.type, valenceDelta: r.valence,
+    })),
+    ...(parsed.relationshipDeltas ?? []),
+  ];
+
   const result: WorldExpansionResponse = {
     characters: f.characters ? normalizedCharacters : [],
     locations: f.locations ? normalizedLocations : [],
-    threads: f.threads ? threads : [],
-    relationships: f.relationships ? (parsed.relationships ?? []) : [],
-    systemDeltas: f.systemDeltas ? systemDeltas : undefined,
     artifacts: f.artifacts ? normalizedArtifacts : [],
+    threads: f.threads ? threads : [],
+    threadDeltas: f.threadDeltas ? (parsed.threadDeltas ?? []) : [],
+    worldDeltas: f.worldDeltas ? (parsed.worldDeltas ?? []) : [],
+    systemDeltas: f.systemDeltas ? systemDeltas : undefined,
+    relationshipDeltas: f.relationshipDeltas ? mergedRelDeltas : [],
     ownershipDeltas: f.ownershipDeltas ? (parsed.ownershipDeltas ?? []) : [],
     tieDeltas: f.tieDeltas ? (parsed.tieDeltas ?? []) : [],
-    worldDeltas: f.worldDeltas ? (parsed.worldDeltas ?? []) : [],
-    relationshipDeltas: f.relationshipDeltas ? (parsed.relationshipDeltas ?? []) : [],
     reasoningGraph: reasoningGraphSnapshot,
   };
 
@@ -784,8 +790,8 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
       charactersAdded: result.characters.length,
       locationsAdded: result.locations.length,
       threadsAdded: result.threads.length,
-      relationshipsAdded: result.relationships.length,
-      artifactsAdded: result.artifacts?.length ?? 0,
+      artifactsAdded: result.artifacts.length,
+      relationshipDeltaCount: result.relationshipDeltas?.length ?? 0,
       systemNodeCount: result.systemDeltas?.addedNodes.length ?? 0,
     },
   });
@@ -821,21 +827,21 @@ Return JSON with this exact structure:
   "worldSummary": "2-3 sentence world description",
   "imageStyle": "A concise visual style directive for all generated images (e.g. 'watercolour style with soft lighting'). Should capture the tone, medium, palette, and aesthetic that best fits this world.",
   "characters": [
-    {"id": "C-01", "name": "Full name matching the cultural palette of the world — rough, asymmetric, lived-in", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence LITERAL physical description — concrete traits (hair colour, build, clothing). No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "K-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this character — trait, belief, capability, state, secret, goal, or weakness"}]}}
+    {"id": "C-01", "name": "Full name matching the cultural palette of the world — rough, asymmetric, lived-in", "role": "anchor|recurring|transient", "threadIds": ["T-01"], "imagePrompt": "1-2 sentence LITERAL physical description — concrete traits (hair colour, build, clothing). No metaphors or figurative language; image generators interpret literally.", "world": {"nodes": [{"id": "K-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this character — trait, belief, capability, state, secret, goal, or weakness"}]}}
   ],
   "locations": [
-    {"id": "L-01", "name": "Location name from geography, founders, or corrupted older words — concrete and specific", "prominence": "domain|place|margin", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "continuity": {"nodes": [{"id": "LK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties"}]}}
+    {"id": "L-01", "name": "Location name from geography, founders, or corrupted older words — concrete and specific", "prominence": "domain|place|margin", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "world": {"nodes": [{"id": "LK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties"}]}}
   ],
   "threads": [
     {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific", "status": "latent", "openedAt": "S-001", "dependents": []}
   ],
-  "relationships": [
-    {"from": "C-01", "to": "C-02", "type": "description", "valence": 0.5}
+  "relationshipDeltas": [
+    {"from": "C-01", "to": "C-02", "type": "description", "valenceDelta": 0.5}
   ],
   "artifacts": [
-    {"id": "A-01", "name": "Artifact name — concrete and specific to its function or origin", "significance": "key|notable|minor", "threadIds": [], "parentId": "character or location ID, or null for world-owned", "continuity": {"nodes": [{"id": "AK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: what this artifact is, what it does, its history, powers, or limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
+    {"id": "A-01", "name": "Artifact name — concrete and specific to its function or origin", "significance": "key|notable|minor", "threadIds": [], "parentId": "character or location ID, or null for world-owned", "world": {"nodes": [{"id": "AK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: what this artifact is, what it does, its history, powers, or limitations"}]}, "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language"}
   ],${worldOnly ? `
-  "systemMutations": {"addedNodes": [{"id": "SYS-01", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-01", "to": "SYS-02", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},` : `
+  "systemDeltas": {"addedNodes": [{"id": "SYS-01", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-01", "to": "SYS-02", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},` : `
   "scenes": [
     {
       "id": "S-001",
@@ -845,10 +851,10 @@ Return JSON with this exact structure:
       "participantIds": ["C-01"],
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did — how it delivered utility"}],
       "events": ["event_tag"],
-      "threadMutations": [{"threadId": "T-01", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "15-25 words, PRESENT tense: a stable fact about the entity — what they experienced, became, or now possess", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-      "relationshipMutations": [],
-      "systemMutations": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-GEN-002", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
+      "threadDeltas": [{"threadId": "T-01", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+      "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "15-25 words, PRESENT tense: a stable fact about the entity — what they experienced, became, or now possess", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+      "relationshipDeltas": [],
+      "systemDeltas": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-GEN-002", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics: actions, consequences, dialogue snippets. Include any context that shapes how the scene is written (time span, technique, tone). No sentences ending in emotions or realizations."
     }
   ],
@@ -878,7 +884,7 @@ PILOT EPISODE — establish a tight, focused world. These are minimums; exceed w
 - AT LEAST 8 relationships (at least 1 hostile)
 - AT LEAST 1 artifact when the premise involves tools or objects of power
 - AT LEAST 12 system nodes with 8 edges — the systems, principles, tensions, and structures the world runs on. This is the foundational system graph every future scene draws from; a thin root means thin scenes forever. Each node MUST be 15-25 words describing a general rule or structural fact (how the world works). Include micro-rules (specific mechanics), mid-rules (institutional/economic), and macro-rules (cosmological/thematic). SHORT NAMES ARE FAILURES — "Aperture Grading" is wrong; "The sect grades disciples by aperture quality, with A-grade apertures receiving priority resource allocation and mentorship" is correct.${worldOnly ? '' : `
-- AT LEAST 8 scenes in 1 arc, AVERAGING ~12 continuity nodes and ~3 system nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with 10-14 continuity nodes and reveals 2-4 system concepts; climactic scenes push to 16-20+ continuity and 5-8 system.`}
+- AT LEAST 8 scenes in 1 arc, AVERAGING ~12 world nodes and ~3 system nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with 10-14 world nodes and reveals 2-4 system concepts; climactic scenes push to 16-20+ world and 5-8 system.`}
 
 SEEDING FATE — a great world is pregnant with story. Every entity you create should carry the seeds of future conflict:
 - Threads are fate's mechanism — each thread is a COMPELLING question (stakes + uncertainty + investment) the story MUST eventually answer
@@ -887,20 +893,20 @@ SEEDING FATE — a great world is pregnant with story. Every entity you create s
 - Artifacts have costs that WILL be paid, powers that WILL corrupt, origins that WILL be revealed
 - Systems create pressures that WILL force action — scarcity breeds conflict, power demands trade-offs
 - The reader should sense from page one that SOMETHING LARGER IS COMING. Every detail is a fuse; you're laying the powder trail
-- Plant surprises: at least 2 characters should have secrets even the reader doesn't know yet (these go in continuity nodes of type "secret")
+- Plant surprises: at least 2 characters should have secrets even the reader doesn't know yet (these go in world nodes of type "secret")
 - Create asymmetries: what Character A believes about Character B should differ from reality in ways that will explode later
 - Build pressure: threads should share participants so collision is INEVITABLE, not coincidental
 
 ENTITY DEFINITIONS:
 - Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.
 - Locations are spatial areas or regions — physical places you can be IN.
-- Artifacts are anything that delivers utility — active tools, not passive concepts. Concepts belong in world knowledge.
+- Artifacts are anything that delivers utility — active tools, not passive concepts. Concepts belong in system knowledge.
 - Threads are COMPELLING QUESTIONS that shape fate. A compelling question has stakes, uncertainty, and investment. BAD: "Will X succeed?" GOOD: "Can Marcus protect his daughter from the cult?" Thread logs track incremental answers.
 
-CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters. These initial continuity nodes become the first readings the grader sees, and anchor entities will be revisited for continuity mutations across every scene, so seed them richly. List each entity's nodes in the causal/temporal order they became true — adjacent nodes auto-chain into the entity's inner graph, no manual edges needed:
-- Anchors: 6-8 continuity nodes each — defining trait, goal, belief, weakness, secret, capability, relation, history.
-- Recurring: 3-4 continuity nodes each — role, relationship to an anchor, one hidden dimension, one capability or limitation.
-- Transient: 1-2 continuity nodes each — their function and a distinguishing trait.
+CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters. These initial world nodes become the first readings the grader sees, and anchor entities will be revisited for world deltas across every scene, so seed them richly. List each entity's nodes in the causal/temporal order they became true — adjacent nodes auto-chain into the entity's inner graph, no manual edges needed:
+- Anchors: 6-8 world nodes each — defining trait, goal, belief, weakness, secret, capability, relation, history.
+- Recurring: 3-4 world nodes each — role, relationship to an anchor, one hidden dimension, one capability or limitation.
+- Transient: 1-2 world nodes each — their function and a distinguishing trait.
 
 SEED DATA vs. BARE PREMISE:
 The premise may include user-provided characters, locations, threads, rules, and systems. Handle both cases:
@@ -927,9 +933,9 @@ LOCATION HIERARCHY & AGENCY:
 - Include contrasting environments: if the story starts safe, the world needs a dangerous frontier
 - A location is BOTH a place AND its people. The Shire is rolling hills AND hobbits. A city is infrastructure AND culture AND collective will. A kingdom is territory AND governance AND identity. Locations think, feel, and act through their inhabitants.
 - Prominence: "domain" locations are centers of power with deep inner worlds, "place" locations are recurring settings, "margin" locations are transitional.
-- Domain locations: 4-6 continuity nodes (history, traits, capabilities, weaknesses, goals, beliefs). They impose rules on characters and have collective agency — a kingdom demands fealty, a city mourns its dead, an organization pursues its agenda.
-- Place locations: 2-3 continuity nodes (history, state, trait).
-- Margin locations: 1 continuity node (trait or state).
+- Domain locations: 4-6 world nodes (history, traits, capabilities, weaknesses, goals, beliefs). They impose rules on characters and have collective agency — a kingdom demands fealty, a city mourns its dead, an organization pursues its agenda.
+- Place locations: 2-3 world nodes (history, state, trait).
+- Margin locations: 1 world node (trait or state).
 
 RELATIONSHIPS:
 - Connect anchors to MANY characters (6+ relationships per anchor)
@@ -938,10 +944,10 @@ RELATIONSHIPS:
 
 ARTIFACTS & TOOLS:
 - Artifacts are things that by themselves can provide utility. They extend what's possible — a magical weapon changes how someone fights, AI technology changes the scale of thought, a cursed ring slowly consumes its bearer. Artifacts modify their wielder's capabilities and constrain their choices.
-- Key artifact (1): a capability-altering entity. 5-7 continuity nodes (traits, capabilities, history, weaknesses, secrets, goals). Must connect to at least 2 threads. Its inner world should rival a recurring character's. Define HOW it changes what its wielder can do.
-- Notable artifact (1): a tool that grants a specific capability. 3-4 continuity nodes (capability, history, relation, weakness). Owned by a character who uses it — the character's capabilities should reflect the tool.
-- Minor artifact (1): a small object with narrative potential. 1-2 continuity nodes. Can be at a location.
-- Artifacts must feel integral to the world. Key artifacts should have continuity edges (capability motivated_by history, weakness caused_by trait).
+- Key artifact (1): a capability-altering entity. 5-7 world nodes (traits, capabilities, history, weaknesses, secrets, goals). Must connect to at least 2 threads. Its inner world should rival a recurring character's. Define HOW it changes what its wielder can do.
+- Notable artifact (1): a tool that grants a specific capability. 3-4 world nodes (capability, history, relation, weakness). Owned by a character who uses it — the character's capabilities should reflect the tool.
+- Minor artifact (1): a small object with narrative potential. 1-2 world nodes. Can be at a location.
+- Artifacts must feel integral to the world. Key artifacts should have world edges (capability motivated_by history, weakness caused_by trait).
 
 ${worldOnly ? '' : `Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
 
@@ -964,14 +970,15 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   const now = Date.now();
   const id = `N-${now}`;
 
+  // Normalize entities — accept legacy "continuity" field name if "world" is absent.
   const characters: NarrativeState['characters'] = {};
   for (const c of parsed.characters) {
-    characters[c.id] = { ...c, threadIds: c.threadIds ?? [], world: normalizeInitialContinuity(c.id, c.world) };
+    characters[c.id] = { ...c, threadIds: c.threadIds ?? [], world: normalizeInitialWorld(c.id, c.world ?? c.continuity) };
   }
 
   const locations: NarrativeState['locations'] = {};
   for (const l of parsed.locations) {
-    locations[l.id] = { ...l, threadIds: l.threadIds ?? [], tiedCharacterIds: l.tiedCharacterIds ?? [], world: normalizeInitialContinuity(l.id, l.world) };
+    locations[l.id] = { ...l, threadIds: l.threadIds ?? [], tiedCharacterIds: l.tiedCharacterIds ?? [], world: normalizeInitialWorld(l.id, l.world ?? l.continuity) };
   }
 
   const threads: NarrativeState['threads'] = {};
@@ -991,17 +998,18 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
     for (const a of (parsed.arcs ?? [])) arcs[a.id] = a;
   }
 
-  // Normalize artifacts with world
+  // Normalize artifacts — accept legacy "continuity" field name if "world" is absent.
   const artifacts: NarrativeState['artifacts'] = Object.fromEntries(
-    (parsed.artifacts ?? []).map((a: Artifact) => [
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (parsed.artifacts ?? []).map((a: any) => [
       a.id,
-      { ...a, threadIds: a.threadIds ?? [], world: normalizeInitialContinuity(a.id, a.world) },
+      { ...a, threadIds: a.threadIds ?? [], world: normalizeInitialWorld(a.id, a.world ?? a.continuity) },
     ]),
   );
 
-  // Create initial WorldBuild with entities and empty systemMutations
+  // Create initial WorldBuild with entities and empty systemDeltas
   // This mirrors the analysis pattern: entities are structural (in WorldBuild),
-  // all knowledge (system + continuity mutations) flows through scenes
+  // all knowledge (system + world deltas) flows through scenes
   const worldBuildId = `WB-${now}-INIT`;
   const initialWorldBuild: WorldBuild = {
     kind: 'world_build',
@@ -1013,12 +1021,17 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
       newThreads: Object.values(threads),
       newArtifacts: Object.values(artifacts),
       systemDeltas: { addedNodes: [], addedEdges: [] },
-      relationshipDeltas: (parsed.relationships ?? []).map((r: RelationshipEdge) => ({
-        from: r.from,
-        to: r.to,
-        type: r.type,
-        valenceDelta: r.valence,
-      })),
+      // Accept both legacy "relationships" (valence) and new "relationshipDeltas" (valenceDelta)
+      relationshipDeltas: [
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(parsed.relationships ?? []).map((r: any) => ({
+          from: r.from, to: r.to, type: r.type, valenceDelta: r.valence ?? r.valenceDelta ?? 0,
+        })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(parsed.relationshipDeltas ?? []).map((r: any) => ({
+          from: r.from, to: r.to, type: r.type, valenceDelta: r.valenceDelta ?? r.valence ?? 0,
+        })),
+      ],
     },
   };
 
@@ -1034,31 +1047,31 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
     },
   };
 
-  // Sanitize and re-ID world knowledge mutations on scenes. The system graph
+  // Sanitize and re-ID system knowledge deltas on scenes. The system graph
   // is derived on load by computeDerivedEntities replaying the timeline.
   const sceneList = Object.values(scenes);
 
-  // For worldOnly mode, system mutations go in the WorldBuild (seeded knowledge)
+  // For worldOnly mode, system deltas go in the WorldBuild (seeded knowledge)
   if (worldOnly && parsed.systemDeltas) {
-    const seededMutation: SystemDelta = {
+    const seededDelta: SystemDelta = {
       addedNodes: parsed.systemDeltas.addedNodes ?? [],
       addedEdges: parsed.systemDeltas.addedEdges ?? [],
     };
     // Resolve IDs and sanitize
     const allocator = makeSystemIdAllocator([]);
-    const resolved = resolveSystemConceptIds(seededMutation.addedNodes, {}, allocator);
-    seededMutation.addedNodes = resolved.newNodes;
+    const resolved = resolveSystemConceptIds(seededDelta.addedNodes, {}, allocator);
+    seededDelta.addedNodes = resolved.newNodes;
     const validIds = new Set(resolved.newNodes.map(n => n.id));
-    seededMutation.addedEdges = seededMutation.addedEdges.map(edge => ({
+    seededDelta.addedEdges = seededDelta.addedEdges.map(edge => ({
       from: resolved.idMap[edge.from] ?? edge.from,
       to: resolved.idMap[edge.to] ?? edge.to,
       relation: edge.relation,
     }));
-    sanitizeSystemDelta(seededMutation, validIds, new Set());
-    initialWorldBuild.expansionManifest.systemDeltas = seededMutation;
+    sanitizeSystemDelta(seededDelta, validIds, new Set());
+    initialWorldBuild.expansionManifest.systemDeltas = seededDelta;
   }
 
-  // Normalize and resolve IDs for scene system mutations
+  // Normalize and resolve IDs for scene system deltas
   const allocateFreshWkId = makeSystemIdAllocator([]);
   const accumulatedNodes: Record<string, SystemNode> = {};
   const validWKIds = new Set<string>();
@@ -1112,7 +1125,7 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   // Sanitize thread log entries and assign globally-unique TK-* IDs. The LLM
   // emits TK-GEN-* placeholders (or nothing) — we normalize each node (fill
   // type from pulse/transition fallback, drop empty content), synthesize a
-  // fallback log entry when the mutation has none so every threadMutation
+  // fallback log entry when the delta has none so every threadDelta
   // produces at least one log node, then remap to sequential TK-NNN IDs so
   // cross-scene collisions can't silently drop nodes in applyThreadDelta.
   // Also coerces invalid from/to statuses (e.g. the LLM emitting "pulse"
@@ -1156,7 +1169,7 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
     }
   }
 
-  // Build thread log graphs from initial scene mutations. Each scene's
+  // Build thread log graphs from initial scene deltas. Each scene's
   // contribution is a self-contained cluster — no cross-scene edges.
   for (const scene of sceneList) {
     for (const tm of scene.threadDeltas ?? []) {
@@ -1194,7 +1207,7 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
     scenes,
     worldBuilds: { [worldBuildId]: initialWorldBuild },
     branches,
-    relationships: parsed.relationships ?? [],
+    relationships: [], // Derived from WorldBuild.expansionManifest.relationshipDeltas by computeDerivedEntities
     systemGraph: { nodes: {}, edges: [] },
     worldSummary: parsed.worldSummary ?? premise,
     imageStyle: typeof parsed.imageStyle === 'string' ? parsed.imageStyle : undefined,

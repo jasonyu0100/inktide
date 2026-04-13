@@ -126,7 +126,7 @@ describe('getWorldNodesAtScene', () => {
     'K-01': { id: 'K-01', type: 'history', content: 'Initial knowledge' },
     'K-03': { id: 'K-03', type: 'history', content: 'Never mutated' },
   };
-  it('returns all nodes when no mutations exist', () => {
+  it('returns all nodes when no deltas exist', () => {
     const scenes: Record<string, Scene> = {};
     const result = getWorldNodesAtScene(nodes, 'C-01', scenes, [], 0);
     expect(result.length).toBe(2);
@@ -212,7 +212,7 @@ describe('getRelationshipsAtScene', () => {
     expect(result.length).toBe(1);
     expect(result[0].from).toBe('C-01');
   });
-  it('subtracts future mutation deltas from valence', () => {
+  it('subtracts future deltas from valence', () => {
     const narrative = createMinimalNarrative();
     narrative.worldBuilds['WB-01'] = createWorldBuild('WB-01', [{ id: 'C-01' }, { id: 'C-02' }]);
     // First scene establishes the relationship (so it's not "future created")
@@ -227,7 +227,7 @@ describe('getRelationshipsAtScene', () => {
       { from: 'C-01', to: 'C-02', type: 'rival', valence: 0.2 }, // Final valence after S-002
     ];
     const resolvedKeys = ['WB-01', 'S-001', 'S-002'];
-    // At index 1 (S-001), before S-002's mutation
+    // At index 1 (S-001), before S-002's delta
     const result = getRelationshipsAtScene(narrative, resolvedKeys, 1);
     expect(result.length).toBe(1);
     // Final valence is 0.2, future delta is -0.3, so valence at S-001 is 0.2 - (-0.3) = 0.5

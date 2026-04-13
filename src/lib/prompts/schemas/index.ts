@@ -2,5 +2,5 @@
  * Schema exports barrel
  */
 
-export * from './mutations';
+export * from './deltas';
 export * from './entities';

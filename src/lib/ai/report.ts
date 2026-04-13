@@ -92,7 +92,7 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
     if (participants.length > 0) block += ` | With: ${participants.join(', ')}`;
     if (delivery) block += `\n  Delivery: ${delivery.delivery.toFixed(2)} | Tension: ${delivery.tension.toFixed(2)}${delivery.isPeak ? ' [PEAK]' : ''}${delivery.isValley ? ' [VALLEY]' : ''}`;
     if (events) block += `\n${events}`;
-    if (threadMuts.length > 0) block += `\n  Thread mutations:\n${threadMuts.join('\n')}`;
+    if (threadMuts.length > 0) block += `\n  Thread deltas:\n${threadMuts.join('\n')}`;
     if (relMuts.length > 0) block += `\n  Relationship shifts:\n${relMuts.join('\n')}`;
     if (contMuts.length > 0) block += `\n  Character knowledge:\n${contMuts.join('\n')}`;
 

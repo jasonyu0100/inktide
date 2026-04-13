@@ -250,7 +250,7 @@ describe('AnalysisRunner — Phase 2: Structure', () => {
     // Structure phase populates chapterSummary from structure result
     expect(reconciledInput[0].chapterSummary).toBe('Alice explores the castle.');
   });
-  it('populates scene mutations from structure result', async () => {
+  it('populates scene deltas from structure result', async () => {
     const job = createMockJob();
     await analysisRunner.start(job, () => {});
     const reconciledInput = vi.mocked(reconcileResults).mock.calls[0][0];

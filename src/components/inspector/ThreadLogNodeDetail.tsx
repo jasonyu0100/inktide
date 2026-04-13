@@ -68,25 +68,25 @@ export default function ThreadLogNodeDetail({ threadId, nodeId }: Props) {
       });
   }, [edges, thread.threadLog, nodeId]);
 
-  // Find scenes where this node's thread mutation occurred
+  // Find scenes where this node's thread delta occurred
   // (derive from scene.threadDeltas, matching by position in the node list)
   const mentionedScenes = useMemo(() => {
     const nodeIds = Object.keys(thread.threadLog?.nodes ?? {});
     const nodeIndex = nodeIds.indexOf(nodeId);
     if (nodeIndex < 0) return [];
 
-    // Walk scenes in order, count thread mutations for this thread — the Nth mutation corresponds to the Nth node
+    // Walk scenes in order, count thread deltas for this thread — the Nth delta corresponds to the Nth node
     const scenes: string[] = [];
-    let mutationCount = 0;
+    let deltaCount = 0;
     for (let i = 0; i < state.resolvedEntryKeys.length; i++) {
       const scene = narrative.scenes[state.resolvedEntryKeys[i]];
       if (!scene) continue;
       for (const tm of scene.threadDeltas) {
         if (tm.threadId === threadId) {
-          if (mutationCount === nodeIndex) {
+          if (deltaCount === nodeIndex) {
             scenes.push(scene.id);
           }
-          mutationCount++;
+          deltaCount++;
         }
       }
     }

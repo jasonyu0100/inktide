@@ -132,7 +132,7 @@ describe("Graph Constants", () => {
       expect(val).toBeLessThanOrEqual(1);
     }
   });
-  it("WK_TYPE_COLORS has colors for world knowledge types", () => {
+  it("WK_TYPE_COLORS has colors for system knowledge types", () => {
     expect(WK_TYPE_COLORS.principle).toBeDefined();
     expect(WK_TYPE_COLORS.system).toBeDefined();
     expect(WK_TYPE_COLORS.concept).toBeDefined();

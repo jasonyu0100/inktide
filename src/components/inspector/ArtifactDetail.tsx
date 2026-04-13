@@ -97,7 +97,7 @@ export default function ArtifactDetail({ artifactId }: Props) {
     state.viewState.currentSceneIndex,
   );
 
-  // Scenes: where artifact was used, had continuity mutations, ownership transfers, or thread activity
+  // Scenes: where artifact was used, had world deltas, ownership transfers, or thread activity
   const artifactThreadIds = new Set(artifact.threadIds ?? []);
   const lifecycle = sceneKeysUpToCurrent
     .map((k) => narrative.scenes[k])

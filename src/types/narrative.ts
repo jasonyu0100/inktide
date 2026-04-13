@@ -467,7 +467,7 @@ export const BEAT_MECHANISM_LIST: BeatMechanism[] = [
   "comic",
 ];
 
-// ── World Knowledge Graph ───────────────────────────────────────────────────
+// ── System Knowledge Graph ──────────────────────────────────────────────────
 
 /** System node — a statement of how the world works.
  *  Written as a general present-tense rule or structural fact.
@@ -530,7 +530,7 @@ export type SystemDelta = {
  *  0 = average moment, positive = above average, negative = below average.
  *  - fate:   thread phase transitions (weighted by jump magnitude) + relationship valence deltas
  *  - world:  entity world graph complexity delta (ΔN_c + √ΔE_c per scene)
- *  - system: world knowledge graph complexity delta (new nodes + new edges per scene)
+ *  - system: system knowledge graph complexity delta (new nodes + new edges per scene)
  */
 export type ForceSnapshot = {
   fate: number;
@@ -629,7 +629,7 @@ export type WorldExpansion = {
   newLocations: Location[];
   newArtifacts?: Artifact[];
   newThreads: Thread[];
-  // ── Deltas (mutations to existing + new relationships via valenceDelta) ───
+  // ── Deltas (changes to existing + new relationships via valenceDelta) ───
   threadDeltas?: ThreadDelta[];
   worldDeltas?: WorldDelta[];
   systemDeltas?: SystemDelta;
@@ -711,7 +711,7 @@ export type Scene = {
   threadDeltas: ThreadDelta[];
   worldDeltas: WorldDelta[];
   relationshipDeltas: RelationshipDelta[];
-  /** World knowledge graph deltas — new concepts and connections about how the world works */
+  /** System knowledge graph deltas — new concepts and connections about how the world works */
   systemDeltas?: SystemDelta;
   /** Artifact ownership changes — objects changing hands between characters/locations */
   ownershipDeltas?: OwnershipDelta[];
@@ -1008,21 +1008,21 @@ export type NarrativeState = {
   id: string;
   title: string;
   description: string;
-  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
+  /** Derived cache — recomputed from world-build manifests + scene deltas via resolvedEntryKeys */
   characters: Record<string, Character>;
-  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
+  /** Derived cache — recomputed from world-build manifests + scene deltas via resolvedEntryKeys */
   locations: Record<string, Location>;
-  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
+  /** Derived cache — recomputed from world-build manifests + scene deltas via resolvedEntryKeys */
   threads: Record<string, Thread>;
-  /** Derived cache — recomputed from world-build manifests + scene ownership mutations */
+  /** Derived cache — recomputed from world-build manifests + scene ownership deltas */
   artifacts: Record<string, Artifact>;
   arcs: Record<string, Arc>;
   scenes: Record<string, Scene>;
   worldBuilds: Record<string, WorldBuild>;
   branches: Record<string, Branch>;
-  /** Derived cache — recomputed from world-build manifests + scene mutations via resolvedEntryKeys */
+  /** Derived cache — recomputed from world-build manifests + scene deltas via resolvedEntryKeys */
   relationships: RelationshipEdge[];
-  /** Derived cache — cumulative world knowledge graph built from world-build manifests + scene mutations */
+  /** Derived cache — cumulative system knowledge graph built from world-build manifests + scene deltas */
   systemGraph: SystemGraph;
   worldSummary: string;
   /** Authorial prose profile — voice, rhythm, and beat transition patterns for prose generation */
@@ -1454,6 +1454,8 @@ export type AnalysisJob = {
   narrativeId?: string;
   /** Embedding progress tracking */
   embeddingProgress?: { completed: number; total: number };
+  /** Skip the beat plan extraction phase (Phase 2) — structure-only analysis */
+  skipPlanExtraction?: boolean;
   createdAt: number;
   updatedAt: number;
 };

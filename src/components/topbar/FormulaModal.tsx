@@ -86,10 +86,9 @@ function DynamicsTab() {
       </S>
 
       <S title="Delivery" analogy="The dopamine hit — earned resolution lands hardest.">
-        <Block tex={String.raw`E_i = w \sum_{f \in \{F,W,S\}} \tanh\!\left(\frac{f_i}{\alpha}\right) + \gamma \cdot \text{contrast}_i`} />
-        <Block tex={String.raw`w = 0.3 \qquad \alpha = 1.5 \qquad \gamma = 0.2 \qquad \text{contrast}_i = \max(0,\; T_{i-1} - T_i)`} />
+        <Block tex={String.raw`D_i = \frac{F_i + W_i + S_i}{3}`} />
         <p className="text-[10px] text-text-dim">
-          All three forces treated symmetrically — same weight, same saturation. tanh compresses extremes while preserving relative ordering. Calibrated across HP, 1984, Gatsby, RI.
+          Equal-weighted mean of z-scored forces. Because each force is independently normalised to mean=0, std=1, all three contribute equally regardless of raw scale. Peaks emerge from structurally complete moments where all three forces fire together.
         </p>
       </S>
 

@@ -640,7 +640,7 @@ describe("evaluateNarrativeState", () => {
     narrative.threads = {
       "T-001": createThread("T-001", { status: "active" }),
     };
-    // Add scenes without any thread mutations
+    // Add scenes without any thread deltas
     for (let i = 0; i < 5; i++) {
       narrative.scenes[`S-${i}`] = createScene(`S-${i}`, {
         threadDeltas: [],

@@ -21,28 +21,28 @@ import type { SystemDelta, SystemGraph, SystemNode, SystemEdge, SystemNodeType }
 /** Canonical empty system graph — the "zero value" for narrative initialization. */
 export const EMPTY_SYSTEM_GRAPH: SystemGraph = { nodes: {}, edges: [] };
 
-/** Build the cross-mutation edge key used for dedup. */
+/** Build the cross-delta edge key used for dedup. */
 export function systemEdgeKey(edge: { from: string; to: string; relation: string }): string {
   return `${edge.from}→${edge.to}→${edge.relation}`;
 }
 
 /**
- * Sanitize a system mutation in place against a set of valid node IDs and a
- * cross-mutation seen-edges set. Returns the same mutation for convenience.
+ * Sanitize a system delta in place against a set of valid node IDs and a
+ * cross-delta seen-edges set. Returns the same delta for convenience.
  *
  * Callers are responsible for assigning stable IDs to nodes BEFORE calling
  * this (e.g. remapping LLM-assigned SYS-GEN-* ids to real SYS-XX ids). The
  * validIds set should already contain any newly-assigned ids.
  */
 export function sanitizeSystemDelta(
-  mutation: SystemDelta,
+  delta: SystemDelta,
   validIds: Set<string>,
   seenEdgeKeys: Set<string>,
 ): SystemDelta {
-  mutation.addedNodes = (mutation.addedNodes ?? []).filter(
+  delta.addedNodes = (delta.addedNodes ?? []).filter(
     (n) => n && n.id && n.concept && n.type,
   );
-  mutation.addedEdges = (mutation.addedEdges ?? []).filter((edge) => {
+  delta.addedEdges = (delta.addedEdges ?? []).filter((edge) => {
     if (!edge || !edge.from || !edge.to || !edge.relation) return false;
     if (edge.from === edge.to) return false;
     if (!validIds.has(edge.from) || !validIds.has(edge.to)) return false;
@@ -51,11 +51,11 @@ export function sanitizeSystemDelta(
     seenEdgeKeys.add(key);
     return true;
   });
-  return mutation;
+  return delta;
 }
 
 /**
- * Apply a system mutation to an accumulating graph. Additive — nodes are inserted
+ * Apply a system delta to an accumulating graph. Additive — nodes are inserted
  * if not already present (by id), edges if not already present (by key).
  * Does NOT re-validate — callers should sanitize first. Provided so that
  * pipelines can build the global graph through the same entry point that
@@ -63,14 +63,14 @@ export function sanitizeSystemDelta(
  */
 export function applySystemDelta(
   graph: { nodes: Record<string, SystemNode>; edges: SystemEdge[] },
-  mutation: SystemDelta,
+  delta: SystemDelta,
 ): void {
-  for (const n of mutation.addedNodes ?? []) {
+  for (const n of delta.addedNodes ?? []) {
     if (!graph.nodes[n.id]) {
       graph.nodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
     }
   }
-  for (const e of mutation.addedEdges ?? []) {
+  for (const e of delta.addedEdges ?? []) {
     if (!graph.edges.some((x) => x.from === e.from && x.to === e.to && x.relation === e.relation)) {
       graph.edges.push({ from: e.from, to: e.to, relation: e.relation });
     }

@@ -113,14 +113,14 @@
         "stark_children_practice",
         "arya_watches_from_window"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-02",
           "from": "latent",
           "to": "latent"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-08",
           "addedNodes": [
@@ -144,7 +144,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-08",
           "to": "C-GOT-05",
@@ -152,7 +152,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-01",
@@ -189,8 +189,8 @@
         "feast_in_great_hall",
         "firelight_and_laughter"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -214,7 +214,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-01",
           "to": "C-GOT-08",
@@ -222,7 +222,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-04",
@@ -259,14 +259,14 @@
         "solitude_among_old_gods",
         "bastard_reflections"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-04",
           "from": "latent",
           "to": "latent"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-05",
           "addedNodes": [
@@ -290,7 +290,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-05",
           "to": "C-GOT-01",
@@ -298,7 +298,7 @@
           "valenceDelta": -0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-06",
@@ -334,8 +334,8 @@
         "bran_climbs_walls",
         "winterfell_from_above"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-GOT-08",
           "addedNodes": [
@@ -348,7 +348,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [],
+      "relationshipDeltas": [],
       "summary": "Winterfell, the outer walls. Bran climbs. His mother has forbidden it a hundred times; his father twice, which in the arithmetic of childhood means his father does not truly mind. He goes up the First Keep — the oldest tower, abandoned and crumbling, where the stones have worn finger-holds as deep as cups. From the top he can see the wolfswood stretching north like a dark green sea, the kingsroad winding south until it vanishes, the glass gardens glinting in the afternoon light, and the smoke rising from the winter town where smallfolk go about their lives unaware that a boy is watching them from the sky. Winterfell looks different from up here. Smaller and larger at the same time — small enough to hold in his eye, large enough to hold everything he loves. A raven passes close enough to touch. Bran reaches for it and laughs when it wheels away. He is seven years old and the world is a thing to be climbed, not feared."
     },
     "S-GOT-005": {
@@ -364,8 +364,8 @@
         "ned_catelyn_chambers",
         "quiet_conversation_family"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -389,7 +389,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-01",
           "to": "C-GOT-05",
@@ -397,7 +397,7 @@
           "valenceDelta": -0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-08",
@@ -434,14 +434,14 @@
         "deserter_execution",
         "direwolf_pups_found"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-04",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -476,7 +476,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-01",
           "to": "C-GOT-05",
@@ -484,7 +484,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-10",
@@ -527,8 +527,8 @@
         "pups_in_winterfell",
         "children_bond_with_wolves"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-GOT-08",
           "addedNodes": [
@@ -563,7 +563,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-08",
           "to": "C-GOT-01",
@@ -577,7 +577,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-14",
@@ -614,14 +614,14 @@
         "jon_arryn_dead",
         "king_rides_north"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-02",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -645,7 +645,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-01",
           "to": "C-GOT-07",
@@ -653,7 +653,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-16",
@@ -688,14 +688,14 @@
         "robert_embraces_ned",
         "winterfell_greets_court"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-06",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -730,7 +730,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-01",
           "to": "C-GOT-07",
@@ -744,7 +744,7 @@
           "valenceDelta": -0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-18",
@@ -787,14 +787,14 @@
         "robert_drinks_deep",
         "old_war_stories"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-06",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -818,7 +818,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-07",
           "to": "C-GOT-02",
@@ -832,7 +832,7 @@
           "valenceDelta": -0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-21",
@@ -870,14 +870,14 @@
         "lyanna_statue",
         "robert_asks_ned_hand"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-02",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -912,7 +912,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-07",
           "to": "C-GOT-01",
@@ -920,7 +920,7 @@
           "valenceDelta": 0.2
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-23",
@@ -963,14 +963,14 @@
         "benjen_speaks_of_wall",
         "bastards_burden"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-04",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-05",
           "addedNodes": [
@@ -994,7 +994,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-05",
           "to": "C-GOT-01",
@@ -1002,7 +1002,7 @@
           "valenceDelta": -0.2
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-25",
@@ -1040,7 +1040,7 @@
         "lannisters_murdered_arryn",
         "seeds_of_suspicion"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-01",
           "from": "latent",
@@ -1052,7 +1052,7 @@
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -1076,7 +1076,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-01",
           "to": "C-GOT-02",
@@ -1090,7 +1090,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-27",
@@ -1134,7 +1134,7 @@
         "pushed_from_tower",
         "winterfell_shattered"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-02",
           "from": "active",
@@ -1146,7 +1146,7 @@
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -1181,7 +1181,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-01",
           "to": "C-GOT-02",
@@ -1195,7 +1195,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-GT-30",
@@ -1243,14 +1243,14 @@
         "different_road_home",
         "no_wolves_found"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-04",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -1274,7 +1274,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-05",
           "to": "C-GOT-01",
@@ -1299,8 +1299,8 @@
         "ordinary_evening",
         "something_missing"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-GOT-05",
           "addedNodes": [
@@ -1324,7 +1324,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-05",
           "to": "C-GOT-08",
@@ -1348,14 +1348,14 @@
         "no_omen",
         "unease_without_cause"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-GOT-02",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-GOT-01",
           "addedNodes": [
@@ -1379,7 +1379,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-GOT-01",
           "to": "C-GOT-07",
@@ -1396,7 +1396,7 @@
       "id": "WX-GOT-init",
       "summary": "World created: 8 characters (Eddard Stark, Cersei Lannister, Tyrion Lannister, Daenerys Targaryen, Jon Snow, Petyr Baelish, Robert Baratheon, Arya Stark), 8 locations (Westeros, King's Landing, The Red Keep, Winterfell, The Wall, The Narrow Sea, Pentos, The Kingsroad), 7 threads, 14 relationships",
       "expansionManifest": {
-        "characters": [
+        "newCharacters": [
           {
             "id": "C-GOT-01",
             "name": "Eddard Stark",
@@ -1406,7 +1406,7 @@
               "T-GOT-02",
               "T-GOT-05"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-GOT-01": {
                   "id": "K-GOT-01",
@@ -1487,7 +1487,7 @@
               "T-GOT-05",
               "T-GOT-06"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-GOT-10": {
                   "id": "K-GOT-10",
@@ -1557,7 +1557,7 @@
               "T-GOT-05",
               "T-GOT-07"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-GOT-20": {
                   "id": "K-GOT-20",
@@ -1616,7 +1616,7 @@
             "threadIds": [
               "T-GOT-03"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-GOT-30": {
                   "id": "K-GOT-30",
@@ -1675,7 +1675,7 @@
             "threadIds": [
               "T-GOT-04"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-GOT-40": {
                   "id": "K-GOT-40",
@@ -1735,7 +1735,7 @@
               "T-GOT-05",
               "T-GOT-07"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-GOT-50": {
                   "id": "K-GOT-50",
@@ -1785,7 +1785,7 @@
               "T-GOT-06",
               "T-GOT-02"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-GOT-60": {
                   "id": "K-GOT-60",
@@ -1834,7 +1834,7 @@
             "threadIds": [
               "T-GOT-02"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-GOT-70": {
                   "id": "K-GOT-70",
@@ -1867,13 +1867,14 @@
             }
           }
         ],
-        "locations": [
+        "newLocations": [
           {
             "id": "L-GOT-01",
             "name": "Westeros",
             "parentId": null,
             "threadIds": [],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-GOT-01": {
                   "id": "LK-GOT-01",
@@ -1893,8 +1894,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-GOT-02",
@@ -1904,7 +1904,8 @@
               "T-GOT-05",
               "T-GOT-06"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-GOT-03": {
                   "id": "LK-GOT-03",
@@ -1924,8 +1925,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-GOT-03",
@@ -1936,7 +1936,8 @@
               "T-GOT-05",
               "T-GOT-07"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-GOT-05": {
                   "id": "LK-GOT-05",
@@ -1966,8 +1967,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-GOT-04",
@@ -1976,7 +1976,8 @@
             "threadIds": [
               "T-GOT-02"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-GOT-08": {
                   "id": "LK-GOT-08",
@@ -1996,8 +1997,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-GOT-05",
@@ -2006,7 +2006,8 @@
             "threadIds": [
               "T-GOT-04"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-GOT-10": {
                   "id": "LK-GOT-10",
@@ -2026,8 +2027,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-GOT-06",
@@ -2036,7 +2036,8 @@
             "threadIds": [
               "T-GOT-03"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-GOT-12": {
                   "id": "LK-GOT-12",
@@ -2045,8 +2046,7 @@
                 }
               },
               "edges": []
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-GOT-07",
@@ -2055,7 +2055,8 @@
             "threadIds": [
               "T-GOT-03"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-GOT-13": {
                   "id": "LK-GOT-13",
@@ -2075,8 +2076,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-GOT-08",
@@ -2085,7 +2085,8 @@
             "threadIds": [
               "T-GOT-02"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-GOT-15": {
                   "id": "LK-GOT-15",
@@ -2105,11 +2106,10 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           }
         ],
-        "threads": [
+        "newThreads": [
           {
             "id": "T-GOT-01",
             "participants": [
@@ -2224,93 +2224,93 @@
             ]
           }
         ],
-        "relationships": [
+        "relationshipDeltas": [
           {
             "from": "C-GOT-01",
             "to": "C-GOT-07",
             "type": "Loves Robert as a brother forged in war, though he sees the man crumbling beneath the crown",
-            "valence": 0.7
+            "valenceDelta": 0.7
           },
           {
             "from": "C-GOT-07",
             "to": "C-GOT-01",
             "type": "The only man he trusts — Ned is the last clean thing in his rotting world",
-            "valence": 0.8
+            "valenceDelta": 0.8
           },
           {
             "from": "C-GOT-01",
             "to": "C-GOT-02",
             "type": "Distrusts the queen and her family — sees Lannister gold behind every curtain",
-            "valence": -0.5
+            "valenceDelta": -0.5
           },
           {
             "from": "C-GOT-02",
             "to": "C-GOT-01",
             "type": "Views the northern fool as a threat wrapped in honor — dangerous precisely because he cannot be bought",
-            "valence": -0.6
+            "valenceDelta": -0.6
           },
           {
             "from": "C-GOT-02",
             "to": "C-GOT-07",
             "type": "Despises the man who called another womans name on their wedding night — endures him for power alone",
-            "valence": -0.7
+            "valenceDelta": -0.7
           },
           {
             "from": "C-GOT-07",
             "to": "C-GOT-02",
             "type": "Indifferent bordering on contempt — she is a Lannister obligation, nothing more",
-            "valence": -0.4
+            "valenceDelta": -0.4
           },
           {
             "from": "C-GOT-06",
             "to": "C-GOT-01",
             "type": "Sees Ned as a pawn to be guided — his trust in Catelyn makes him pliable",
-            "valence": -0.3
+            "valenceDelta": -0.3
           },
           {
             "from": "C-GOT-01",
             "to": "C-GOT-06",
             "type": "Cautious trust born of Catelyns childhood friendship — a mistake he cannot yet see",
-            "valence": 0.3
+            "valenceDelta": 0.3
           },
           {
             "from": "C-GOT-03",
             "to": "C-GOT-02",
             "type": "Sardonic awareness of his sisters ruthlessness — she would burn the world for her children",
-            "valence": -0.2
+            "valenceDelta": -0.2
           },
           {
             "from": "C-GOT-02",
             "to": "C-GOT-03",
             "type": "Views her dwarf brother as the familys shame given flesh — tolerates him at best",
-            "valence": -0.5
+            "valenceDelta": -0.5
           },
           {
             "from": "C-GOT-01",
             "to": "C-GOT-05",
             "type": "A fathers love complicated by a secret he can never share — Jon is the weight he carries in silence",
-            "valence": 0.8
+            "valenceDelta": 0.8
           },
           {
             "from": "C-GOT-05",
             "to": "C-GOT-01",
             "type": "Loves his father but aches from the unanswered question — who was my mother?",
-            "valence": 0.6
+            "valenceDelta": 0.6
           },
           {
             "from": "C-GOT-01",
             "to": "C-GOT-08",
             "type": "Sees Lyannas fire reborn in his youngest daughter — it terrifies and delights him equally",
-            "valence": 0.7
+            "valenceDelta": 0.7
           },
           {
             "from": "C-GOT-08",
             "to": "C-GOT-01",
             "type": "Her father is the center of her world — the man who gave her Needle and permission to be herself",
-            "valence": 0.9
+            "valenceDelta": 0.9
           }
         ],
-        "systemGraph": {
+        "systemDeltas": {
           "addedNodes": [
             {
               "id": "WK-GT-WB-01",

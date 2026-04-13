@@ -535,17 +535,17 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       dispatch({
         type: "EXPAND_WORLD",
         worldBuildId: nextId("WB", Object.keys(narrative.worldBuilds), 3),
+        branchId: state.viewState.activeBranchId!,
         characters: expansion.characters,
         locations: expansion.locations,
-        threads: expansion.threads,
-        relationships: expansion.relationships,
-        systemDeltas: expansion.systemDeltas,
         artifacts: expansion.artifacts,
-        branchId: state.viewState.activeBranchId!,
+        threads: expansion.threads,
+        threadDeltas: expansion.threadDeltas,
+        worldDeltas: expansion.worldDeltas,
+        systemDeltas: expansion.systemDeltas,
+        relationshipDeltas: expansion.relationshipDeltas,
         ownershipDeltas: expansion.ownershipDeltas,
         tieDeltas: expansion.tieDeltas,
-        worldDeltas: expansion.worldDeltas,
-        relationshipDeltas: expansion.relationshipDeltas,
         reasoningGraph: expansion.reasoningGraph,
       });
       setExpansionReasoningGraph(null);
@@ -585,17 +585,17 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       dispatch({
         type: "EXPAND_WORLD",
         worldBuildId: nextId("WB", Object.keys(narrative.worldBuilds), 3),
+        branchId: state.viewState.activeBranchId!,
         characters: expansion.characters,
         locations: expansion.locations,
-        threads: expansion.threads,
-        relationships: expansion.relationships,
-        systemDeltas: expansion.systemDeltas,
         artifacts: expansion.artifacts,
-        branchId: state.viewState.activeBranchId!,
+        threads: expansion.threads,
+        threadDeltas: expansion.threadDeltas,
+        worldDeltas: expansion.worldDeltas,
+        systemDeltas: expansion.systemDeltas,
+        relationshipDeltas: expansion.relationshipDeltas,
         ownershipDeltas: expansion.ownershipDeltas,
         tieDeltas: expansion.tieDeltas,
-        worldDeltas: expansion.worldDeltas,
-        relationshipDeltas: expansion.relationshipDeltas,
       });
       onClose();
     } catch (err) {
@@ -1170,26 +1170,26 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                         {[
                           { key: "characters" as const, label: "Characters" },
                           { key: "locations" as const, label: "Locations" },
-                          { key: "threads" as const, label: "Threads" },
                           { key: "artifacts" as const, label: "Artifacts" },
+                          { key: "threads" as const, label: "Threads" },
                           {
-                            key: "relationships" as const,
-                            label: "Relationships",
+                            key: "threadDeltas" as const,
+                            label: "Thread Δ",
+                          },
+                          {
+                            key: "worldDeltas" as const,
+                            label: "World Δ",
                           },
                           { key: "systemDeltas" as const, label: "System" },
+                          {
+                            key: "relationshipDeltas" as const,
+                            label: "Relationships",
+                          },
                           {
                             key: "ownershipDeltas" as const,
                             label: "Ownership",
                           },
                           { key: "tieDeltas" as const, label: "Ties" },
-                          {
-                            key: "worldDeltas" as const,
-                            label: "World",
-                          },
-                          {
-                            key: "relationshipDeltas" as const,
-                            label: "Rel. Shifts",
-                          },
                         ].map((opt) => (
                           <button
                             key={opt.key}

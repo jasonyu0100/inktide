@@ -88,7 +88,7 @@ describe("computeMatrixFromNarrative", () => {
     }
   });
   it("computes transitions from scene sequence", () => {
-    // Create scenes with varying mutation profiles
+    // Create scenes with varying delta profiles
     const scenes = [
       createScene({
         id: "S-001",
@@ -299,7 +299,7 @@ describe("buildSequencePrompt", () => {
   it("includes force formula explanation", () => {
     const sequence = buildSequenceFromModes(["LLL"]);
     const prompt = buildSequencePrompt(sequence);
-    expect(prompt).toContain("Formulas compute forces FROM mutations");
+    expect(prompt).toContain("Formulas compute forces FROM deltas");
   });
 });
 // ── Presets ──────────────────────────────────────────────────────────────────

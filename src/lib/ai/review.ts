@@ -11,7 +11,7 @@ import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-uti
  *
  * Produces a per-scene verdict (ok / edit / merge / cut / insert / move) and an overall
  * critique covering structure, pacing, repetition, character arcs, and theme.
- * Designed to be cheap — no prose, no mutations, just summaries + arc names.
+ * Designed to be cheap — no prose, no deltas, just summaries + arc names.
  */
 export async function reviewBranch(
   narrative: NarrativeState,
@@ -106,7 +106,7 @@ Evaluate this branch on these dimensions:
 
 For EACH scene, assign a verdict. These map to concrete operations:
 - "ok" — scene works. No changes needed.
-- "edit" — scene should exist but needs revision. You may change ANYTHING: POV, location, participants, summary, events, mutations. Use for: wrong POV for this moment, repetitive beats that need variation, weak execution, continuity breaks, scenes that need restructuring while keeping their place in the timeline.
+- "edit" — scene should exist but needs revision. You may change ANYTHING: POV, location, participants, summary, events, deltas. Use for: wrong POV for this moment, repetitive beats that need variation, weak execution, continuity breaks, scenes that need restructuring while keeping their place in the timeline.
 - "merge" — this scene covers the same beat as another and should be ABSORBED into the stronger one. You MUST specify "mergeInto" with the target scene ID. The two become one denser scene. Use when two scenes advance the same thread with similar dramatic shape.
 - "cut" — scene is redundant and adds nothing. The story is tighter without it.
 - "move" — scene content is correct but it is in the wrong position. You MUST specify "moveAfter" with the scene ID it should follow. The scene is lifted from its current position and re-planted there with NO content changes. Use for sequencing adjustments: a scene that reveals information too early, a payoff arriving before its setup, an out-of-order character introduction. Combine with "edit" by using "move" on the scene and a separate "edit" if content also needs changing.
@@ -451,7 +451,7 @@ export async function reviewPlanQuality(
     `[${s.id}] POV: ${s.pov} | Loc: ${s.location}\n${s.beats}`
   ).join('\n\n────────────────────────────────\n\n');
 
-  const prompt = `You are a continuity editor reviewing beat plans. Each scene has a beat-by-beat blueprint and declared mutations. Your job: verify the BEATS are internally consistent, cross-scene continuous, and actually deliver the declared mutations.
+  const prompt = `You are a continuity editor reviewing beat plans. Each scene has a beat-by-beat blueprint and declared deltas. Your job: verify the BEATS are internally consistent, cross-scene continuous, and actually deliver the declared deltas.
 ${guidanceBlock}
 
 TITLE: "${narrative.title}"
@@ -466,21 +466,21 @@ SCENES WITH BEAT PLANS (${scenesWithPlans.length} scenes):
 ${sceneBlocks}
 
 For each scene, check:
-1. **BEAT-TO-MUTATION ALIGNMENT** — Do the beats actually show what the declared mutations claim? If a thread mutation says T-03 escalates, which specific beat delivers that escalation? If no beat does, flag it.
+1. **BEAT-TO-DELTA ALIGNMENT** — Do the beats actually show what the declared deltas claim? If a thread delta says T-03 escalates, which specific beat delivers that escalation? If no beat does, flag it.
 2. **CROSS-PLAN CONTINUITY** — Does this plan's opening beats follow logically from the previous plan's closing beats? Character positions, emotional states, knowledge, injuries.
 3. **INTERNAL BEAT LOGIC** — Do beats within the plan follow causally? Does beat 5 depend on something beat 3 established?
 4. **CHARACTER KNOWLEDGE** — Does any beat have a character act on information they haven't learned yet in prior scenes or earlier beats?
 5. **SPATIAL/TEMPORAL** — Are characters where they should be? Can all beats plausibly occur in one scene?
 
 Verdicts:
-- "ok" — beats are consistent, mutations are earned by specific beats
+- "ok" — beats are consistent, deltas are earned by specific beats
 - "edit" — issues found. Each issue must reference a specific beat number and what's wrong.
 
 Be precise: "Beat 4 declares Fang Yuan recognises the seal pattern, but no prior beat or scene establishes he has seen this pattern before" — not "continuity error."
 
 Return JSON:
 {
-  "overall": "2-3 paragraph analysis focused on beat quality and mutation alignment.",
+  "overall": "2-3 paragraph analysis focused on beat quality and delta alignment.",
   "sceneEvals": [
     { "sceneId": "S-001", "verdict": "ok|edit", "issues": ["Beat N: specific issue"] }
   ],

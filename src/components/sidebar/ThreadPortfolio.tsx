@@ -24,7 +24,7 @@ type ThreadMetrics = {
   age: number;
   transitions: number;
   pulses: number;
-  totalMutations: number;
+  totalDeltas: number;
   scenesSinceLastTransition: number;
   pulseRatio: number;
   velocity: number; // transitions per 10 scenes
@@ -69,7 +69,7 @@ function computeThreadMetrics(
       age,
       transitions: m.transitions,
       pulses: m.pulses,
-      totalMutations: m.total,
+      totalDeltas: m.total,
       scenesSinceLastTransition: m.sinceLast,
       pulseRatio: m.total > 0 ? m.pulses / m.total : 0,
       velocity: age > 0 ? (m.transitions / age) * 10 : 0,
@@ -106,7 +106,7 @@ function ThreadItem({
   const phase = LIFECYCLE_INDEX[statusLabel] ?? 0;
   const bandwidthRatio = totalArcs > 0 ? activeArcs / totalArcs : 0;
   const isStarved = bandwidthRatio < 0.3 && (statusLabel === 'active' || statusLabel === 'critical');
-  const isHighPulse = metrics && metrics.pulseRatio > 0.8 && metrics.totalMutations > 2;
+  const isHighPulse = metrics && metrics.pulseRatio > 0.8 && metrics.totalDeltas > 2;
 
   return (
     <button

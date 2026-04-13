@@ -94,7 +94,7 @@ export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; desc
     prompt: `Structure this arc as a gradual exhale — the aftermath of intensity.
 - THREADS: Pulse at current status rather than advancing — but every scene MUST still touch 2-3 threads. Use same→same pulses (0.25 each) to show threads simmering.
 - RELATIONSHIPS: Subtle recalibration — characters process what happened THROUGH each other. Shifts of ±0.1 to ±0.2 as bonds deepen or strain reveals itself quietly.
-- CONTINUITY: Characters reflect and notice things they missed during intensity — 2-3 continuity mutations per scene. Realisations, not revelations.
+- CONTINUITY: Characters reflect and notice things they missed during intensity — 2-3 world deltas per scene. Realisations, not revelations.
 - WORLD: The world's quieter systems emerge — domestic customs, social rituals, environmental rhythms. 1-2 WK nodes per scene showing the world at rest.
 - Stay with one POV in familiar settings.`,
   },
@@ -103,20 +103,20 @@ export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; desc
     description: 'Peak then fall — a single climactic moment',
     prompt: `Structure this arc around one explosive peak scene, bookended by build-up and aftermath.
 BUILD (early scenes):
-- Small thread advances (latent→seeded, seeded→active, pulses on active threads), characters noticing details (2-3 continuity mutations), 1-2 world concepts planted as seeds.
+- Small thread advances (latent→seeded, seeded→active, pulses on active threads), characters noticing details (2-3 world deltas), 1-2 world concepts planted as seeds.
 
-PEAK (one defining scene — load it with mutations):
+PEAK (one defining scene — load it with deltas):
 - THREADS reach critical/terminal phases. Multiple relationship shifts ±0.3-0.5. All participants learn critical information. World rules are TESTED — connections forged through action. This scene should be the densest in the arc.
 
 AFTERMATH (final scenes):
-- Threads pulse at their new statuses. Characters process what happened — continuity mutations capturing realisations. Relationships settle into new equilibria with small shifts. The world's established concepts are reaffirmed. Every scene still needs mutations — just quieter ones.`,
+- Threads pulse at their new statuses. Characters process what happened — world deltas capturing realisations. Relationships settle into new equilibria with small shifts. The world's established concepts are reaffirmed. Every scene still needs deltas — just quieter ones.`,
   },
   rebound: {
     name: 'Rebound',
     description: 'Fall then rise — stillness gives way to momentum',
     prompt: `Structure this arc as a valley that builds into forward momentum.
 OPENING (quiet scenes):
-- Threads pulse at current status (2-3 pulses per scene). Characters process and reflect (2-3 continuity mutations). Relationships hold or shift subtly (±0.1). World's quiet systems revealed (1 WK node per scene).
+- Threads pulse at current status (2-3 pulses per scene). Characters process and reflect (2-3 world deltas). Relationships hold or shift subtly (±0.1). World's quiet systems revealed (1 WK node per scene).
 
 TURN (middle):
 - One thread breaks the stillness with a real phase transition. A character learns something crucial — the catalyst. One world concept is revealed that changes the calculus.

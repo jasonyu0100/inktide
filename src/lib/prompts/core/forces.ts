@@ -8,7 +8,7 @@
 
 /** Force standards prompt using reference mean levels */
 export const PROMPT_FORCE_STANDARDS = `
-THE THREE FORCES — computed from mutations, normalised by reference mean, graded on curve (21/25 at reference).
+THE THREE FORCES — computed from deltas, normalised by reference mean, graded on curve (21/25 at reference).
 
 FATE — threads pulling toward resolution. Low fate = high friction (reality resists, solutions have costs). High fate = narrative cooperates (threads resolve when pushed).
   F = Σ √arcs × stageWeight × (1 + log(1 + investment)). Sustained threads earn superlinearly.
@@ -25,7 +25,7 @@ SYSTEM — rules and structures.
 BALANCE: Classic = fate-dominant | Show = world-dominant | Paper = system-dominant | Opus = balanced.
 
 SCALE: Beat ~100 words | Scene ~12 beats (~1200 words) | Arc ~4 scenes.
-DENSITY: Earn mutations from prose — never invent. REUSE existing node IDs.
+DENSITY: Earn deltas from prose — never invent. REUSE existing node IDs.
 `;
 
 /**

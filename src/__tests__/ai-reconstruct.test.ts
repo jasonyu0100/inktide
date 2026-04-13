@@ -703,7 +703,7 @@ describe('reconstructBranch', () => {
       cancelledRef,
     );
     // The edited scene must still carry its log entries — before the
-    // schema fix, the LLM would return threadMutations without addedNodes
+    // schema fix, the LLM would return threadDeltas without addedNodes
     // and the scene's thread log would go blank.
     const edited = result.scenes.find((s) => s.summary === 'Revised scene with log entries');
     expect(edited).toBeDefined();

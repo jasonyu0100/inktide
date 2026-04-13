@@ -139,7 +139,7 @@ export function splitCorpusIntoScenes(
 // ── Per-Scene Structure Extraction ──────────────────────────────────────────
 
 /**
- * Scene structure result — entities and mutations extracted from one scene's prose.
+ * Scene structure result — entities and deltas extracted from one scene's prose.
  */
 export type SceneStructureResult = {
   povName: string;
@@ -170,7 +170,7 @@ export type SceneStructureResult = {
 
 /**
  * Extract structure from a single scene's prose, informed by its beat plan.
- * The plan tells the LLM where beat boundaries are; the prose is the source of truth for mutations.
+ * The plan tells the LLM where beat boundaries are; the prose is the source of truth for deltas.
  */
 export async function extractSceneStructure(
   prose: string,
@@ -203,36 +203,36 @@ Return JSON:
   "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
   "threads": [{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words. BAD: 'Will X succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?'", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this question was advanced or answered in this scene"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
-  "threadMutations": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words: how this question was advanced or answered in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-  "continuityMutations": [{"entityName": "Name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipMutations": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
+  "threadDeltas": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words: how this question was advanced or answered in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "worldDeltas": [{"entityName": "Name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+  "relationshipDeltas": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
   "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
-  "ownershipMutations": [{"artifactName": "Name", "fromName": "prev", "toName": "new"}],
-  "tieMutations": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}],
+  "ownershipDeltas": [{"artifactName": "Name", "fromName": "prev", "toName": "new"}],
+  "tieDeltas": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}],
   "characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "15-25 words describing how they traveled — the journey, transport, or spatial transition"}],
-  "systemMutations": {"addedNodes": [{"concept": "15-25 words, PRESENT tense: a general rule or structural fact — how the world works, no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}
+  "systemDeltas": {"addedNodes": [{"concept": "15-25 words, PRESENT tense: a general rule or structural fact — how the world works, no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}
 }`;
 
   const fieldGuide = `
-EXTRACTION STANDARDS — every mutation must EARN its place. Low-value mutations flatten the force graph.
+EXTRACTION STANDARDS — every delta must EARN its place. Low-value deltas flatten the force graph. Each scene records structural deltas that feed the force formulas.
 
 DETECTING FATE — Threads are COMPELLING QUESTIONS that shape fate.
 - A compelling question has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), INVESTMENT (we care).
 - BAD: "Will Bob succeed?" (generic, no stakes). GOOD: "Can Marcus protect his daughter from the cult?" (specific, stakes, investment)
 - Fate is the intangible bigger picture. Threads are questions; fate is where the answers lead.
 - Read prose for MOMENTS THAT MATTER — when does this scene advance the larger story?
-- A thread mutation records your detection: "this moment moves the story closer to answering the question."
+- A thread delta records your detection: "this moment moves the story closer to answering the question."
 - Thread logs track incremental ANSWERS to these questions over time.
 - Fate is what pulls world and system toward meaning. Without it, nothing resolves.
 
-threadMutations — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
+threadDeltas — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
 - Escalating = POINT OF NO RETURN. Once detected, the story has promised resolution.
 - Abandoned = cleanup. Threads below escalating that go nowhere should be abandoned, not left hanging.
 - ONE step at a time. NEVER skip phases.
 - Most scenes: 1-2 PULSES (same→same). Real transitions are RARE: 0-1 per scene.
 - Only record a transition when the prose shows a clear, irreversible shift in tension.
 - Touching 2-3 threads per scene (mostly pulses) with at most one transition is typical.
-- THREAD LOG: each threadMutation MUST include 1-3 log entries (15-25 words each) recording how the question was advanced or answered.
+- THREAD LOG: each threadDelta MUST include 1-3 log entries (15-25 words each) recording how the question was advanced or answered.
   Log types: pulse (question maintained), transition (question urgency advanced), setup (groundwork laid for answer), escalation (stakes raised), payoff (question answered), twist (expectations subverted), callback (reference to earlier thread event), resistance (opposition to answer), stall (question stagnated).
   DENSITY STANDARDS (per thread touch):
     Pulse: 1 log node — what aspect of the thread was maintained or reinforced.
@@ -240,7 +240,7 @@ threadMutations — lifecycle: latent→seeded→active→escalating→critical�
     Critical/resolution scenes: 2-3 nodes — the payoff, its consequences, and any callbacks to earlier setup.
   Each log node describes a SPECIFIC observation about thread progression, not a restatement of the scene summary.
 
-continuityMutations — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
+worldDeltas — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
 - Characters: new behaviour, belief, capability, or inner state revealed. Not restating what's already known.
 - Locations: new history, rules, dangers, or properties revealed. A location revisited can still earn continuity if the scene reveals something new about it.
 - Artifacts: new capabilities, limitations, or properties demonstrated through usage.
@@ -254,10 +254,10 @@ continuityMutations — what we LEARN about an entity that wasn't known before. 
 - addedEdges: connect causally linked changes with "follows", "causes", "contradicts", "enables".
 - Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
 
-relationshipMutations — only when a relationship SHIFTS, not just exists.
+relationshipDeltas — only when a relationship SHIFTS, not just exists.
 - valenceDelta: ±0.1 subtle, ±0.2-0.3 meaningful, ±0.4-0.5 dramatic. Most scenes: 0-1.
 
-systemMutations — REVEALED world rules, not character observations. 15-25 words, PRESENT TENSE.
+systemDeltas — REVEALED world rules, not character observations. 15-25 words, PRESENT TENSE.
   FICTION: ✓ "Wizards cannot Apparate within Hogwarts grounds due to ancient protective enchantments."
   FICTION: ✓ "The One Ring corrupts its bearer over time, amplifying their desire for power."
   FICTION: ✗ "Magic" (too vague) — describe HOW it works
@@ -268,14 +268,14 @@ systemMutations — REVEALED world rules, not character observations. 15-25 word
 - Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
-ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). ALL continuity/lore MUST be emitted as scenes[].worldDeltas on the scene where it is revealed.
+ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). ALL world/lore MUST be emitted as scenes[].worldDeltas on the scene where it is revealed.
 
 - characters: conscious beings with agency. Role: anchor/recurring/transient.
   FICTION: ✓ Harry Potter, Gandalf, Elizabeth Bennet — people with agency
   FICTION: ✓ Hedwig, Shadowfax — named animals with personality
   NON-FICTION: ✓ Einstein, Vaswani et al., the lead researcher — people who act
   NON-FICTION: ✗ "The scientific community", "reviewers" — collectives, not characters
-  anchor: 3-5 continuityMutations on first appearance. recurring: 2-4. transient: 1-2.
+  anchor: 3-5 worldDeltas on first appearance. recurring: 2-4. transient: 1-2.
 
 - locations: PHYSICAL spatial areas you can STAND IN.
   FICTION: ✓ Hogwarts, the Shire, Pemberley — places you can walk into
@@ -283,7 +283,7 @@ ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). A
   NON-FICTION: ✓ Google's data center, Stanford lab, the conference room — physical places
   NON-FICTION: ✗ "The field of machine learning", "academia", "NeurIPS" — abstract domains (system knowledge)
   Nest via parentName. tiedCharacterNames: characters who BELONG (residents, members).
-  domain: 3-5 continuityMutations. place: 2-4. margin: 1-2.
+  domain: 3-5 worldDeltas. place: 2-4. margin: 1-2.
 
 - artifacts: economic goods you can USE — NOT techniques or concepts.
   FICTION: ✓ A wand, the One Ring, a ship, a letter — objects you wield or possess
@@ -292,7 +292,7 @@ ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). A
   NON-FICTION: ✗ "Transformer architecture", "attention mechanism", "BLEU score" — techniques/metrics (system knowledge)
   NON-FICTION: ✗ "Figure 3", "Table 2" — document references, NOT artifacts
   ownerName: character/location/null (world-owned for ubiquitous tools). significance: key/notable/minor.
-  key: 2-4 continuityMutations. notable: 1-3. minor: 1.
+  key: 2-4 worldDeltas. notable: 1-3. minor: 1.
 
 - threads: narrative tensions. development: what specifically happened.
 
@@ -307,8 +307,8 @@ If entities overlap, pick ONE canonical form. Do not extract duplicates.
 events — 2-4 word tags. 2-4 per scene. Each names a discrete beat.
 artifactUsages — when an artifact delivers utility. Every artifact referenced for what it DOES (not just mentioned by name) is a usage. Every usage MUST have a character who used it.
   usage: describe WHAT the artifact did — the specific utility delivered (searched for X, generated Y, computed Z).
-ownershipMutations — only when artifacts change hands.
-tieMutations — significant bond changes. NOT temporary visits.
+ownershipDeltas — only when artifacts change hands.
+tieDeltas — significant bond changes. NOT temporary visits.
 characterMovements — only physical relocation. Vivid transitions.
 
 VARIANCE IS SIGNAL:
@@ -317,7 +317,7 @@ VARIANCE IS SIGNAL:
 - If every scene has similar counts, you are extracting noise. The graph needs peaks and valleys.`;
 
   const fullPrompt = prompt + "\n" + fieldGuide;
-  const system = `You are a narrative structure extractor. Given a scene's exact prose and its beat plan, extract all entities, mutations, and structural data accurately. Dense prose deserves rich extraction; sparse prose deserves minimal extraction. Return only valid JSON.`;
+  const system = `You are a narrative structure extractor. Given a scene's exact prose and its beat plan, extract all entities, deltas, and structural data accurately. Dense prose deserves rich extraction; sparse prose deserves minimal extraction. Return only valid JSON.`;
   const raw = await callAnalysis(fullPrompt, system, onToken);
   const json = extractJSON(raw);
   const parsed = JSON.parse(json) as SceneStructureResult;
@@ -775,7 +775,7 @@ Empty object {} if no merges needed for a category.`;
           to: normalizeStatus(tm.to),
         })),
         (tm) => tm.threadDescription,
-        // When two mutations target the same thread in one scene, keep widest transition and merge logs
+        // When two deltas target the same thread in one scene, keep widest transition and merge logs
         (a, b) => ({
           ...a,
           from: a.from,
@@ -849,7 +849,7 @@ Empty object {} if no merges needed for a category.`;
 
   // Stitch thread continuity across chunks:
   // 1. Thread-level: statusAtStart of chunk N+1 matches statusAtEnd of chunk N
-  // 2. Scene-level: threadMutation.from values are consistent with the running status
+  // 2. Scene-level: threadDelta.from values are consistent with the running status
   const threadStatusTracker: Record<string, string> = {};
   for (const r of reconciled) {
     // Fix thread-level statuses
@@ -871,14 +871,14 @@ Empty object {} if no merges needed for a category.`;
       if (!sceneThreadStatus[desc]) sceneThreadStatus[desc] = status;
     }
 
-    // Fix scene-level threadMutation from/to values to chain correctly
+    // Fix scene-level threadDelta from/to values to chain correctly
     for (const scene of r.scenes) {
       for (const tm of scene.threadDeltas) {
         const currentStatus = sceneThreadStatus[tm.threadDescription];
         if (currentStatus && tm.from !== currentStatus) {
           tm.from = currentStatus;
         }
-        // Update running status for next scene/mutation
+        // Update running status for next scene/delta
         sceneThreadStatus[tm.threadDescription] = tm.to;
       }
     }
@@ -1111,7 +1111,7 @@ function buildMetaContext(
     );
   }
 
-  // ── World knowledge concepts — deduplicated, capped ──
+  // ── System knowledge concepts — deduplicated, capped ──
   const concepts = new Set<string>();
   for (const r of results) {
     for (const sc of r.scenes) {
@@ -1244,7 +1244,7 @@ export async function assembleNarrative(
 
   // Deferred knowledge: character/location knowledge extracted per-chunk will be
   // attributed to the first scene of that chunk so all knowledge flows through
-  // scene mutations (enabling temporal filtering).
+  // scene deltas (enabling temporal filtering).
   // No deferred knowledge — continuity is built directly on entities during creation
   // Track which chunk each entity was first introduced in (for per-batch world commits)
   const charFirstChunk = new Map<string, number>();
@@ -1435,7 +1435,7 @@ export async function assembleNarrative(
           const fallbackType: ThreadLogNodeType =
             safeFrom === safeTo ? "pulse" : "transition";
           // Assign IDs to log nodes. Chain edges are created deterministically
-          // by applyThreadMutation during store replay — same as continuity.
+          // by applyThreadDelta during store replay — same as world graph chain edges.
           const addedNodes = (tm.addedNodes ?? [])
             .filter(
               (e) => e && typeof e.content === "string" && e.content.trim(),
@@ -1448,7 +1448,7 @@ export async function assembleNarrative(
                 : fallbackType) as ThreadLogNodeType,
             }));
           // Synthesize a fallback log entry if the LLM omitted them — every
-          // threadMutation must produce at least one log node, otherwise the
+          // threadDelta must produce at least one log node, otherwise the
           // thread's history goes blank on a silent extraction miss.
           if (addedNodes.length === 0) {
             const desc = tm.threadDescription || "thread";
@@ -1470,7 +1470,7 @@ export async function assembleNarrative(
         }),
         worldDeltas: (s.worldDeltas ?? []).map((km) => {
           const entityId = getEntityId(km.entityName);
-          // Assign IDs in the order the LLM listed nodes — applyContinuityMutation
+          // Assign IDs in the order the LLM listed world nodes — applyWorldDelta
           // chains them sequentially via co_occurs during store replay.
           const nodes = (km.addedNodes ?? []).map((n) => ({
             id: nextKId(),
@@ -1660,7 +1660,7 @@ export async function assembleNarrative(
 
     // Distribute deferred knowledge across the chunk's scenes.
     // Each knowledge node goes to the first scene where that character participates,
-    // spreading mutations naturally instead of spiking the first scene.
+    // spreading deltas naturally instead of spiking the first scene.
     if (chScenes.length > 0) {
       // Continuity is built directly on entities — no deferred flush needed
     }
@@ -1816,9 +1816,9 @@ export async function assembleNarrative(
     }
   }
 
-  // Thread logs and continuity graphs are now derived from scene mutations by
-  // store.tsx/computeDerivedEntities via applyContinuityMutation on load. Entities
-  // start with empty continuity; the store builds them on replay with proper
+  // Thread logs and world graphs are now derived from scene deltas by
+  // store.tsx/computeDerivedEntities via applyWorldDelta on load. Entities start
+  // with empty world graphs; the store builds them on replay with proper
   // within-scene chain edges and no cross-scene links.
 
   const relationships = Object.values(relationshipMap);

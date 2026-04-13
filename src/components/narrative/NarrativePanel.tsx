@@ -98,7 +98,7 @@ export default function NarrativePanel() {
           {(m.systemDeltas?.addedNodes?.length ?? 0) > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">
-                World Knowledge
+                System Knowledge
               </span>
               {m.systemDeltas?.addedNodes.map((n) => n.concept).join(", ")}
             </div>

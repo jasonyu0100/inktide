@@ -77,7 +77,7 @@ function buildTimelineData(
 
   const totalScenes = scenes.length;
 
-  // Collect mutations per thread
+  // Collect deltas per thread
   const threadMuts = new Map<string, { sceneIdx: number; from: string; to: string }[]>();
   for (let i = 0; i < scenes.length; i++) {
     for (const tm of scenes[i].threadDeltas) {
@@ -96,14 +96,14 @@ function buildTimelineData(
   const rows: ThreadRow[] = [];
   for (const thread of Object.values(narrative.threads)) {
     const muts = threadMuts.get(thread.id) ?? [];
-    const firstMutationIdx = muts.length > 0 ? muts[0].sceneIdx : 0;
+    const firstDeltaIdx = muts.length > 0 ? muts[0].sceneIdx : 0;
     const lastScene = muts.length > 0 ? muts[muts.length - 1].sceneIdx : totalScenes - 1;
     const status = statuses[thread.id] ?? thread.status;
     const category = categorizeThread(status);
 
     // Find where fate was first detected (openedAt) — shows latent period
-    const openedAtIdx = sceneKeyToIdx.get(thread.openedAt) ?? firstMutationIdx;
-    const firstScene = Math.min(openedAtIdx, firstMutationIdx);
+    const openedAtIdx = sceneKeyToIdx.get(thread.openedAt) ?? firstDeltaIdx;
+    const firstScene = Math.min(openedAtIdx, firstDeltaIdx);
 
     const transitions: ThreadRow['transitions'] = [];
     const pulseScenes: number[] = [];
@@ -115,15 +115,15 @@ function buildTimelineData(
     // Build status segments — include latent period from openedAt
     const segments: ThreadRow['segments'] = [];
     if (muts.length > 0) {
-      const initialStatus = firstScene < firstMutationIdx ? thread.status : muts[0].from;
+      const initialStatus = firstScene < firstDeltaIdx ? thread.status : muts[0].from;
       let curStatus = initialStatus;
       let segStart = firstScene;
 
-      // Add latent segment if openedAt is before first mutation
-      if (firstScene < firstMutationIdx) {
-        segments.push({ start: firstScene, end: firstMutationIdx, status: curStatus });
+      // Add latent segment if openedAt is before first delta
+      if (firstScene < firstDeltaIdx) {
+        segments.push({ start: firstScene, end: firstDeltaIdx, status: curStatus });
         curStatus = muts[0].from;
-        segStart = firstMutationIdx;
+        segStart = firstDeltaIdx;
       }
 
       for (const m of muts) {

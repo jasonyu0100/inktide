@@ -412,7 +412,7 @@ export function CubeExplorer({
                         </div>
                       )}
 
-                      {/* Thread mutations */}
+                      {/* Thread deltas */}
                       {entry.scene.threadDeltas.length > 0 && (
                         <div className="mb-3">
                           <span className="text-[9px] uppercase tracking-wider text-text-dim block mb-1">

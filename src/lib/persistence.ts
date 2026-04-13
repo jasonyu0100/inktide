@@ -6,12 +6,73 @@ const ACTIVE_KEY = 'activeNarrativeId';
 const ACTIVE_BRANCH_KEY = 'activeBranchId';
 const LS_STORAGE_KEY = 'narrative-engine:narratives';
 
+// ── Schema Migration ────────────────────────────────────────────────────────
+// Persisted narratives may use old field names from before the terminology
+// refactor. This migration runs once per load and transforms old names to
+// current ones so the rest of the codebase can assume the canonical schema.
+// If data is already current, the function is a no-op.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function migrateNarrative(raw: any): NarrativeState {
+  // ── Entity inner graphs: "continuity" → "world" ──────────────────
+  function migrateEntity(e: Record<string, unknown>): void {
+    if (e.continuity && !e.world) {
+      e.world = e.continuity;
+      delete e.continuity;
+    }
+  }
+  for (const c of Object.values(raw.characters ?? {})) migrateEntity(c as Record<string, unknown>);
+  for (const l of Object.values(raw.locations ?? {})) migrateEntity(l as Record<string, unknown>);
+  for (const a of Object.values(raw.artifacts ?? {})) migrateEntity(a as Record<string, unknown>);
+
+  // ── Scenes: mutation → delta renames ─────────────────────────────
+  for (const s of Object.values(raw.scenes ?? {}) as Record<string, unknown>[]) {
+    if (s.threadMutations && !s.threadDeltas) { s.threadDeltas = s.threadMutations; delete s.threadMutations; }
+    if (s.continuityMutations && !s.worldDeltas) { s.worldDeltas = s.continuityMutations; delete s.continuityMutations; }
+    if (s.relationshipMutations && !s.relationshipDeltas) { s.relationshipDeltas = s.relationshipMutations; delete s.relationshipMutations; }
+    if (s.worldKnowledgeMutations && !s.systemDeltas) { s.systemDeltas = s.worldKnowledgeMutations; delete s.worldKnowledgeMutations; }
+    if (s.ownershipMutations && !s.ownershipDeltas) { s.ownershipDeltas = s.ownershipMutations; delete s.ownershipMutations; }
+    if (s.tieMutations && !s.tieDeltas) { s.tieDeltas = s.tieMutations; delete s.tieMutations; }
+  }
+
+  // ── WorldBuild expansion manifests: old entity field names ────────
+  for (const wb of Object.values(raw.worldBuilds ?? {}) as Record<string, unknown>[]) {
+    const em = wb.expansionManifest as Record<string, unknown> | undefined;
+    if (!em) continue;
+    if (em.characters && !em.newCharacters) { em.newCharacters = em.characters; delete em.characters; }
+    if (em.locations && !em.newLocations) { em.newLocations = em.locations; delete em.locations; }
+    if (em.threads && !em.newThreads) { em.newThreads = em.threads; delete em.threads; }
+    if (em.worldKnowledge && !em.systemDeltas) { em.systemDeltas = em.worldKnowledge; delete em.worldKnowledge; }
+    if (em.worldKnowledgeMutations && !em.systemDeltas) { em.systemDeltas = em.worldKnowledgeMutations; delete em.worldKnowledgeMutations; }
+    // Migrate entities within the manifest
+    for (const c of (em.newCharacters ?? []) as Record<string, unknown>[]) migrateEntity(c);
+    for (const l of (em.newLocations ?? []) as Record<string, unknown>[]) migrateEntity(l);
+    for (const a of ((em.newArtifacts ?? em.artifacts ?? []) as Record<string, unknown>[])) migrateEntity(a);
+    if (em.artifacts && !em.newArtifacts) { em.newArtifacts = em.artifacts; delete em.artifacts; }
+    // Relationship field rename
+    if (em.relationships && !em.relationshipDeltas) { em.relationshipDeltas = em.relationships; delete em.relationships; }
+    if (em.continuityMutations && !em.worldDeltas) { em.worldDeltas = em.continuityMutations; delete em.continuityMutations; }
+    if (em.relationshipMutations && !em.relationshipDeltas) { em.relationshipDeltas = em.relationshipMutations; delete em.relationshipMutations; }
+    if (em.ownershipMutations && !em.ownershipDeltas) { em.ownershipDeltas = em.ownershipMutations; delete em.ownershipMutations; }
+    if (em.tieMutations && !em.tieDeltas) { em.tieDeltas = em.tieMutations; delete em.tieMutations; }
+  }
+
+  // ── Top-level system graph: "worldKnowledge" → "systemGraph" ─────
+  if (raw.worldKnowledge && !raw.systemGraph) {
+    raw.systemGraph = raw.worldKnowledge;
+    delete raw.worldKnowledge;
+  }
+
+  return raw as NarrativeState;
+}
+
 // ── Narratives ───────────────────────────────────────────────────────────────
 
 export async function loadNarratives(): Promise<NarrativeState[]> {
   if (typeof window === 'undefined') return [];
   try {
-    return await idbGetAll<NarrativeState>(NARRATIVES_STORE);
+    const all = await idbGetAll<NarrativeState>(NARRATIVES_STORE);
+    return all.map(migrateNarrative);
   } catch (err) {
     throw new Error(`Failed to load narratives: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -36,7 +97,7 @@ export async function deleteNarrative(id: string): Promise<void> {
 export async function loadNarrative(id: string): Promise<NarrativeState | null> {
   try {
     const n = await idbGet<NarrativeState>(NARRATIVES_STORE, id);
-    return n ?? null;
+    return n ? migrateNarrative(n) : null;
   } catch (err) {
     return null;
   }

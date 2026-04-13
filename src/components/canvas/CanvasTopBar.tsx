@@ -23,7 +23,7 @@ const GRAPH_DOMAINS = [
     local: 'spark' as GraphViewMode,
     global: 'codex' as GraphViewMode,
     Icon: IconLightbulb,
-    description: 'World knowledge & systems',
+    description: 'System knowledge & rules',
   },
   {
     label: 'Threads',

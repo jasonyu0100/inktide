@@ -258,7 +258,7 @@ function buildDirectionFromCube(corner: CubeCornerKey): string {
   return `Steer the narrative toward "${cube.name}": ${cube.description}`;
 }
 
-// ── Tree Mutation (Immutable) ────────────────────────────────────────────────
+// ── Tree Update (Immutable) ──────────────────────────────────────────────────
 
 /**
  * Add a child node to the tree. Returns a new tree (immutable update).

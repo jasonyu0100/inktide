@@ -3,7 +3,6 @@
 import ChatPanel from "@/components/sidebar/ChatPanel";
 import NotesPanel from "@/components/sidebar/NotesPanel";
 import BranchEval from "@/components/timeline/BranchEval";
-import WorldEval from "@/components/timeline/WorldEval";
 import PlanEval from "@/components/timeline/PlanEval";
 import ProseEval from "@/components/timeline/ProseEval";
 import { type SceneRange } from "@/components/timeline/SceneRangeSelector";
@@ -99,7 +98,7 @@ export default function SidePanel() {
     if (state.viewState.inspectorContext) setTab("inspector");
   }, [state.viewState.inspectorContext]);
   const [evalMode, setEvalMode] = useState<
-    "branch" | "prose" | "plan" | "world"
+    "branch" | "prose" | "plan"
   >("branch");
   const [evalRange, setEvalRange] = useState<SceneRange>(null);
 
@@ -205,7 +204,7 @@ export default function SidePanel() {
         {tab === "eval" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 flex border-b border-white/5">
-              {(["branch", "plan", "prose", "world"] as const).map((m) => (
+              {(["branch", "plan", "prose"] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setEvalMode(m)}
@@ -216,7 +215,6 @@ export default function SidePanel() {
                       branch: "Structure",
                       plan: "Plan",
                       prose: "Prose",
-                      world: "Continuity",
                     }[m]
                   }
                 </button>
@@ -240,14 +238,6 @@ export default function SidePanel() {
                 className={`absolute inset-0 ${evalMode === "prose" ? "" : "hidden"}`}
               >
                 <ProseEval
-                  sceneRange={evalRange}
-                  onRangeChange={setEvalRange}
-                />
-              </div>
-              <div
-                className={`absolute inset-0 ${evalMode === "world" ? "" : "hidden"}`}
-              >
-                <WorldEval
                   sceneRange={evalRange}
                   onRangeChange={setEvalRange}
                 />

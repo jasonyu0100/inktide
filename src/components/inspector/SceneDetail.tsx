@@ -186,7 +186,7 @@ export default function SceneDetail({ sceneId }: Props) {
           {(m.systemDeltas?.addedNodes?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-                World Knowledge
+                System Knowledge
               </h3>
               <div className="flex flex-wrap gap-1.5">
                 {m.systemDeltas!.addedNodes.map((node) => (
@@ -787,7 +787,7 @@ export default function SceneDetail({ sceneId }: Props) {
         </div>
       )}
 
-      {/* Ownership Mutations */}
+      {/* Ownership Deltas */}
       {(scene.ownershipDeltas?.length ?? 0) > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
@@ -830,7 +830,7 @@ export default function SceneDetail({ sceneId }: Props) {
         </div>
       )}
 
-      {/* Ties Mutations */}
+      {/* Tie Deltas */}
       {(scene.tieDeltas?.length ?? 0) > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
@@ -887,13 +887,13 @@ export default function SceneDetail({ sceneId }: Props) {
         </div>
       )}
 
-      {/* World Knowledge Mutations */}
+      {/* System Knowledge Deltas */}
       {scene.systemDeltas &&
         ((scene.systemDeltas.addedNodes?.length ?? 0) > 0 ||
           (scene.systemDeltas.addedEdges?.length ?? 0) > 0) && (
           <div className="flex flex-col gap-1.5">
             <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-              World Knowledge
+              System Knowledge
             </h3>
             {(scene.systemDeltas.addedNodes ?? []).map((node, i) => (
               <div

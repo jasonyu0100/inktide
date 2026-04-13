@@ -27,7 +27,7 @@ const ACTIVE_STATUSES = new Set<string>(
 );
 const PRIMED_STATUSES = new Set<string>(["escalating", "critical"]);
 
-/** Threads without mutation for this many scenes are considered stale */
+/** Threads without delta for this many scenes are considered stale */
 const STALE_THRESHOLD = 5;
 
 /** Minimum continuity depth to consider an entity "developed" */
@@ -61,7 +61,7 @@ export type NarrativePressure = {
     neglected: Character[];
     recentGrowth: number;
   };
-  /** World knowledge pressure: system growth rate */
+  /** System knowledge pressure: system growth rate */
   knowledge: {
     recentGrowth: number;
     isStagnant: boolean;
@@ -94,16 +94,16 @@ function analyzeThreads(
     PRIMED_STATUSES.has(t.status.toLowerCase()),
   );
 
-  // Find stale threads (no mutation in recent scenes)
-  const lastMutation: Record<string, number> = {};
+  // Find stale threads (no delta in recent scenes)
+  const lastTouch: Record<string, number> = {};
   scenes.forEach((scene, idx) => {
     for (const tm of scene.threadDeltas) {
-      lastMutation[tm.threadId] = idx;
+      lastTouch[tm.threadId] = idx;
     }
   });
 
   const staleThreads = activeThreads.filter((t) => {
-    const last = lastMutation[t.id] ?? -1;
+    const last = lastTouch[t.id] ?? -1;
     return scenes.length - 1 - last >= STALE_THRESHOLD;
   });
 
@@ -142,8 +142,8 @@ function analyzeEntities(
   );
 
   // Calculate recent continuity growth
-  const recentMutations = recentScenes.flatMap((s) => s.worldDeltas);
-  const recentGrowth = recentMutations.reduce(
+  const recentDeltas = recentScenes.flatMap((s) => s.worldDeltas);
+  const recentGrowth = recentDeltas.reduce(
     (sum, m) => sum + m.addedNodes.length,
     0,
   );
@@ -163,7 +163,7 @@ function analyzeKnowledge(
 ): NarrativePressure["knowledge"] {
   const recentScenes = scenes.slice(-FORCE_WINDOW_SIZE);
 
-  // Calculate recent system growth from system mutations
+  // Calculate recent system growth from system deltas
   const recentGrowth = recentScenes.reduce((sum, s) => {
     const nodes = s.systemDeltas?.addedNodes?.length ?? 0;
     const edges = s.systemDeltas?.addedEdges?.length ?? 0;
@@ -466,11 +466,11 @@ function buildDirective(
     sections.push(`NEGLECTED ANCHORS — haven't appeared recently:\n${neglectedList}`);
   }
   if (pressure.entities.recentGrowth < 2) {
-    sections.push("LOW CHARACTER DEVELOPMENT — recent scenes lack continuity mutations. Deepen character inner worlds.");
+    sections.push("LOW CHARACTER DEVELOPMENT — recent scenes lack world deltas. Deepen character inner worlds.");
   }
 
-  // 4. World knowledge
-  sections.push("\n## World Knowledge");
+  // 4. System knowledge
+  sections.push("\n## System Knowledge Pressure");
   if (pressure.knowledge.isStagnant) {
     sections.push("WORLD-BUILDING STAGNANT — introduce new rules, systems, or concepts. Expand what we know about how this world works.");
   }

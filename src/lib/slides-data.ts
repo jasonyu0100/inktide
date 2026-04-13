@@ -40,7 +40,7 @@ export type Segment = {
   delivery: DeliveryPoint[];
   /** Dominant force in this segment */
   dominantForce: 'fate' | 'world' | 'system';
-  /** Key thread mutations in this segment */
+  /** Key thread deltas in this segment */
   threadChanges: { threadId: string; from: string; to: string; sceneIdx: number }[];
   /** Peaks within this segment */
   peakIndices: number[];
@@ -57,9 +57,9 @@ export type PeakInfo = {
   delivery: DeliveryPoint;
   forces: ForceSnapshot;
   cubeCorner: { key: CubeCornerKey; name: string; description: string };
-  /** Thread mutations at this scene */
+  /** Thread deltas at this scene */
   threadChanges: { threadId: string; from: string; to: string }[];
-  /** Relationship mutations at this scene */
+  /** Relationship deltas at this scene */
   relationshipChanges: { from: string; to: string; type: string; delta: number }[];
   /** Force decomposition: which force contributed most */
   dominantForce: 'fate' | 'world' | 'system';
@@ -583,36 +583,36 @@ function buildThreadLifecycles(
   }
 
   return threads.map((thread) => {
-    // Find all scenes that mutate this thread
-    const mutations: { sceneIdx: number; from: string; to: string }[] = [];
+    // Find all scenes that have deltas for this thread
+    const deltas: { sceneIdx: number; from: string; to: string }[] = [];
     for (let i = 0; i < scenes.length; i++) {
       for (const tm of scenes[i].threadDeltas) {
         if (tm.threadId === thread.id) {
-          mutations.push({ sceneIdx: i, from: tm.from, to: tm.to });
+          deltas.push({ sceneIdx: i, from: tm.from, to: tm.to });
         }
       }
     }
 
-    if (mutations.length === 0) return null;
+    if (deltas.length === 0) return null;
 
     // Find the scene where the thread was introduced (openedAt)
     // This captures the latent period — when fate was first detected
-    const openedAtIdx = sceneKeyToIdx.get(thread.openedAt) ?? mutations[0].sceneIdx;
-    const firstMutationIdx = mutations[0].sceneIdx;
+    const openedAtIdx = sceneKeyToIdx.get(thread.openedAt) ?? deltas[0].sceneIdx;
+    const firstDeltaIdx = deltas[0].sceneIdx;
 
-    // Start from when fate was first detected (openedAt), not first mutation
-    const startIdx = Math.min(openedAtIdx, firstMutationIdx);
+    // Start from when fate was first detected (openedAt), not first delta
+    const startIdx = Math.min(openedAtIdx, firstDeltaIdx);
     const statuses: { sceneIdx: number; status: string }[] = [];
 
     // Initial status is the thread's base status (usually 'latent')
-    // or the 'from' status of the first mutation if we start at that scene
-    let currentStatus = startIdx < firstMutationIdx ? thread.status : mutations[0].from;
+    // or the 'from' status of the first delta if we start at that scene
+    let currentStatus = startIdx < firstDeltaIdx ? thread.status : deltas[0].from;
     let mutIdx = 0;
 
     for (let i = startIdx; i < scenes.length; i++) {
-      // Apply all mutations at this scene index
-      while (mutIdx < mutations.length && mutations[mutIdx].sceneIdx === i) {
-        currentStatus = mutations[mutIdx].to;
+      // Apply all deltas at this scene index
+      while (mutIdx < deltas.length && deltas[mutIdx].sceneIdx === i) {
+        currentStatus = deltas[mutIdx].to;
         mutIdx++;
       }
       statuses.push({ sceneIdx: i, status: currentStatus });
@@ -620,9 +620,9 @@ function buildThreadLifecycles(
       // Stop after terminal status — thread is done
       if (terminalStatuses.has(currentStatus)) break;
 
-      // Stop if no more mutations and we've gone past the last one by a gap
-      // (thread goes silent — cap at last mutation + small buffer)
-      if (mutIdx >= mutations.length && i > mutations[mutations.length - 1].sceneIdx) break;
+      // Stop if no more deltas and we've gone past the last one by a gap
+      // (thread goes silent — cap at last delta + small buffer)
+      if (mutIdx >= deltas.length && i > deltas[deltas.length - 1].sceneIdx) break;
     }
 
     return {

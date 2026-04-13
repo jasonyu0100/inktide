@@ -24,7 +24,7 @@ vi.mock("@/lib/ai/context", () => ({
 vi.mock("@/lib/ai/prompts", () => ({
   PROMPT_FORCE_STANDARDS: "Mock force standards",
   PROMPT_STRUCTURAL_RULES: "Mock structural rules",
-  PROMPT_DELTAS: "Mock mutations",
+  PROMPT_DELTAS: "Mock deltas",
   PROMPT_ARTIFACTS: "Mock artifacts",
   PROMPT_LOCATIONS: "Mock locations",
   PROMPT_POV: "Mock POV",
@@ -326,7 +326,7 @@ describe("generateScenes", () => {
     // Invalid location should be replaced with first valid location
     expect(result.scenes[0].locationId).toBe("L-01");
   });
-  it("sanitizes invalid thread IDs in threadMutations", async () => {
+  it("sanitizes invalid thread IDs in threadDeltas", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
       scenes: [
@@ -355,7 +355,7 @@ describe("generateScenes", () => {
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-    // Only valid thread mutation should remain
+    // Only valid thread delta should remain
     expect(result.scenes[0].threadDeltas).toHaveLength(1);
     expect(result.scenes[0].threadDeltas[0].threadId).toBe("T-01");
   });
@@ -450,7 +450,7 @@ describe("generateScenes", () => {
     expect(result.arc.locationIds).toContain("L-01");
     expect(result.arc.locationIds).toContain("L-02");
   });
-  it("assigns sequential knowledge mutation IDs", async () => {
+  it("assigns sequential knowledge delta IDs", async () => {
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
       scenes: [
@@ -515,8 +515,8 @@ describe("generateScenes", () => {
     expect(result.scenes).toHaveLength(1);
     expect(vi.mocked(callGenerate)).toHaveBeenCalledTimes(2);
   });
-  // ── World knowledge mutation handling ──────────────────────────────────────
-  describe("systemMutations", () => {
+  // ── System delta handling ──────────────────────────────────────
+  describe("systemDeltas", () => {
     it("assigns sequential WK IDs to new concepts", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
@@ -1575,11 +1575,11 @@ describe("generateScenes — thread log TK ID remap", () => {
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
     const tms = result.scenes[0].threadDeltas;
-    // First mutation: "pulse" was coerced to T-01's current status ("active").
+    // First delta: "pulse" was coerced to T-01's current status ("active").
     // T-01 in the minimal narrative is created with status "active".
     expect(tms[0].from).toBe("active");
     expect(tms[0].to).toBe("active");
-    // Second mutation passes through unchanged.
+    // Second delta passes through unchanged.
     expect(tms[1].from).toBe("active");
     expect(tms[1].to).toBe("active");
     expect(tms[1].addedNodes![0].content).toBe("real pulse");

@@ -162,11 +162,11 @@ describe('buildVirtualState', () => {
     );
     expect(result.narrative.branches.main.entryIds).toEqual(['S-001', 'S-002']);
   });
-  it('applies thread mutations', () => {
+  it('applies thread deltas', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
-    const threadMutation: ThreadDelta = { threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] };
-    const scene = createScene('S-001', { threadDeltas: [threadMutation] });
+    const threadDelta: ThreadDelta = { threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] };
+    const scene = createScene('S-001', { threadDeltas: [threadDelta] });
     const arc = createArc('ARC-01', ['S-001']);
     const result = buildVirtualState(
       rootNarrative,
@@ -177,14 +177,14 @@ describe('buildVirtualState', () => {
     );
     expect(result.narrative.threads['T-01'].status).toBe('active');
   });
-  it('applies continuity mutations (added)', () => {
+  it('applies world deltas (added)', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.characters['C-01'] = createCharacter('C-01');
-    const continuityMutation: WorldDelta = {
+    const worldDelta: WorldDelta = {
       entityId: 'C-01',
       addedNodes: [{ id: 'K-01', content: 'Learned a secret', type: 'belief' }],
     };
-    const scene = createScene('S-001', { worldDeltas: [continuityMutation] });
+    const scene = createScene('S-001', { worldDeltas: [worldDelta] });
     const arc = createArc('ARC-01', ['S-001']);
     const result = buildVirtualState(
       rootNarrative,
@@ -196,17 +196,17 @@ describe('buildVirtualState', () => {
     const char = result.narrative.characters['C-01'];
     expect(char.world.nodes['K-01']).toBeDefined();
   });
-  it('applies continuity mutations with edges', () => {
+  it('applies world deltas with edges', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.characters['C-01'] = createCharacter('C-01');
-    const continuityMutation: WorldDelta = {
+    const worldDelta: WorldDelta = {
       entityId: 'C-01',
       addedNodes: [
         { id: 'K-01', content: 'Initial fact', type: 'belief' },
         { id: 'K-02', content: 'Connected fact', type: 'belief' },
       ],
     };
-    const scene = createScene('S-001', { worldDeltas: [continuityMutation] });
+    const scene = createScene('S-001', { worldDeltas: [worldDelta] });
     const arc = createArc('ARC-01', ['S-001']);
     const result = buildVirtualState(
       rootNarrative,
@@ -223,15 +223,15 @@ describe('buildVirtualState', () => {
     expect(char.world.edges).toHaveLength(1);
     expect(char.world.edges[0].relation).toBe('co_occurs');
   });
-  it('applies relationship mutations (new relationship)', () => {
+  it('applies relationship deltas (new relationship)', () => {
     const rootNarrative = createMinimalNarrative();
-    const relationshipMutation: RelationshipDelta = {
+    const relationshipDelta: RelationshipDelta = {
       from: 'C-01',
       to: 'C-02',
       type: 'trust',
       valenceDelta: 0.5,
     };
-    const scene = createScene('S-001', { relationshipDeltas: [relationshipMutation] });
+    const scene = createScene('S-001', { relationshipDeltas: [relationshipDelta] });
     const arc = createArc('ARC-01', ['S-001']);
     const result = buildVirtualState(
       rootNarrative,
@@ -245,16 +245,16 @@ describe('buildVirtualState', () => {
     expect(rel!.valence).toBe(0.5);
     expect(rel!.type).toBe('trust');
   });
-  it('applies relationship mutations (update existing)', () => {
+  it('applies relationship deltas (update existing)', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.relationships = [{ from: 'C-01', to: 'C-02', type: 'neutral', valence: 0.3 }];
-    const relationshipMutation: RelationshipDelta = {
+    const relationshipDelta: RelationshipDelta = {
       from: 'C-01',
       to: 'C-02',
       type: 'alliance',
       valenceDelta: 0.4,
     };
-    const scene = createScene('S-001', { relationshipDeltas: [relationshipMutation] });
+    const scene = createScene('S-001', { relationshipDeltas: [relationshipDelta] });
     const arc = createArc('ARC-01', ['S-001']);
     const result = buildVirtualState(
       rootNarrative,
@@ -270,13 +270,13 @@ describe('buildVirtualState', () => {
   it('clamps relationship valence to [-1, 1]', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.relationships = [{ from: 'C-01', to: 'C-02', type: 'trust', valence: 0.8 }];
-    const relationshipMutation: RelationshipDelta = {
+    const relationshipDelta: RelationshipDelta = {
       from: 'C-01',
       to: 'C-02',
       type: 'trust',
       valenceDelta: 0.5, // Would make it 1.3
     };
-    const scene = createScene('S-001', { relationshipDeltas: [relationshipMutation] });
+    const scene = createScene('S-001', { relationshipDeltas: [relationshipDelta] });
     const arc = createArc('ARC-01', ['S-001']);
     const result = buildVirtualState(
       rootNarrative,
@@ -288,7 +288,7 @@ describe('buildVirtualState', () => {
     const rel = result.narrative.relationships.find((r) => r.from === 'C-01' && r.to === 'C-02');
     expect(rel!.valence).toBe(1); // Clamped to max
   });
-  it('applies world knowledge mutations', () => {
+  it('applies system deltas', () => {
     const rootNarrative = createMinimalNarrative();
     const scene = createScene('S-001', {
       systemDeltas: {
@@ -350,7 +350,7 @@ describe('scoreArc', () => {
     const score = scoreArc([], []);
     expect(score).toBe(0);
   });
-  it('returns positive score for scenes with mutations', () => {
+  it('returns positive score for scenes with deltas', () => {
     const scene = createScene('S-001', {
       threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
       worldDeltas: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }],
@@ -371,11 +371,11 @@ describe('scoreArc', () => {
     const score = scoreArc([scene1, scene2], []);
     expect(score).toBeGreaterThanOrEqual(0);
   });
-  it('higher mutations lead to higher scores', () => {
-    const lowMutationScene = createScene('S-001', {
+  it('more deltas lead to higher scores', () => {
+    const lowDeltaScene = createScene('S-001', {
       events: ['minor_event'],
     });
-    const highMutationScene = createScene('S-002', {
+    const highDeltaScene = createScene('S-002', {
       threadDeltas: [
         { threadId: 'T-01', from: 'latent', to: 'resolved', addedNodes: [] },
         { threadId: 'T-02', from: 'active', to: 'critical', addedNodes: [] },
@@ -387,14 +387,14 @@ describe('scoreArc', () => {
         addedEdges: [{ from: 'SYS-01', to: 'WK-02', relation: 'x' }],
       },
     });
-    const lowScore = scoreArc([lowMutationScene], []);
-    const highScore = scoreArc([highMutationScene], []);
+    const lowScore = scoreArc([lowDeltaScene], []);
+    const highScore = scoreArc([highDeltaScene], []);
     expect(highScore).toBeGreaterThanOrEqual(lowScore);
   });
 });
 // ── Score Scene ──────────────────────────────────────────────────────────────
 describe('scoreScene', () => {
-  it('returns positive score for scene with mutations', () => {
+  it('returns positive score for scene with deltas', () => {
     const scene = createScene('S-001', {
       threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
       events: ['event1'],

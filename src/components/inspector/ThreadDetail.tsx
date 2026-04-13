@@ -233,7 +233,7 @@ export default function ThreadDetail({ threadId }: Props) {
           )
           .map((s) => ({
             sceneId: s.id,
-            mutations: s.threadDeltas.filter(
+            deltas: s.threadDeltas.filter(
               (tm) => tm.threadId === threadId,
             ),
           }));
@@ -245,7 +245,7 @@ export default function ThreadDetail({ threadId }: Props) {
         return (
           <CollapsibleSection title="Scenes" count={sceneTouches.length}>
             <ul className="flex flex-col gap-1.5">
-              {pageItems.map(({ sceneId, mutations }) => (
+              {pageItems.map(({ sceneId, deltas }) => (
                 <li key={sceneId} className="flex flex-col gap-0.5">
                   <button
                     type="button"
@@ -259,7 +259,7 @@ export default function ThreadDetail({ threadId }: Props) {
                   >
                     {sceneId}
                   </button>
-                  {mutations.map((tm, tmIdx) => (
+                  {deltas.map((tm, tmIdx) => (
                     <span
                       key={`${tm.from}-${tm.to}-${tmIdx}`}
                       className={`text-xs ${tm.from === tm.to ? "text-text-dim" : "text-fate"}`}

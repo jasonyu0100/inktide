@@ -978,7 +978,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             </div>
           )}
 
-          {/* Relationship Mutations */}
+          {/* Relationship Deltas */}
           {scene.relationshipDeltas.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Relationships</h3>
@@ -1002,7 +1002,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             </div>
           )}
 
-          {/* Continuity Mutations */}
+          {/* World Deltas */}
           {scene.worldDeltas.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World</h3>
@@ -1023,10 +1023,10 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             </div>
           )}
 
-          {/* World Knowledge Mutations */}
+          {/* System Knowledge Deltas */}
           {scene.systemDeltas && (scene.systemDeltas.addedNodes?.length > 0 || scene.systemDeltas.addedEdges?.length > 0) && (
             <div className="flex flex-col gap-1.5">
-              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World Knowledge</h3>
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">System Knowledge</h3>
               {scene.systemDeltas.addedNodes?.map((wkn, j) => (
                 <div key={`wkn-${j}`} className="flex items-center gap-1.5 text-xs">
                   <span className="text-world">+</span>

@@ -13,7 +13,7 @@ import FloatingPalette from '@/components/canvas/FloatingPalette';
 import { CanvasTopBar } from '@/components/canvas/CanvasTopBar';
 import { AudioPlayerProvider } from '@/hooks/useAudioPlayer';
 import TimelineStrip from '@/components/timeline/TimelineStrip';
-import ForceCharts from '@/components/timeline/ForceCharts';
+import ForceTimeline from '@/components/timeline/ForceTimeline';
 import { PropositionClassificationProvider } from '@/hooks/usePropositionClassification';
 import NarrativePanel from '@/components/narrative/NarrativePanel';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
@@ -267,7 +267,7 @@ export default function SeriesPage() {
               <>
                 <NarrativePanel />
                 <TimelineStrip />
-                <ForceCharts />
+                <ForceTimeline />
               </>
             )}
           </div>

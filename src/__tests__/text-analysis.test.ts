@@ -103,7 +103,7 @@ function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChun
     ...overrides,
   };
 }
-/** Create a rich fixture with artifacts, world knowledge, movements, etc. */
+/** Create a rich fixture with artifacts, system knowledge, movements, etc. */
 function createRichAnalysisResult(index: number): AnalysisChunkResult {
   return {
     chapterSummary: `Rich chunk ${index} summary`,
@@ -550,7 +550,7 @@ describe('reconcileResults', () => {
     expect(reconciled[0].artifacts![0].name).toBe('Elder Wand');
     expect(reconciled[0].scenes[0].artifactUsages![0].artifactName).toBe('Elder Wand');
   });
-  it('merges world knowledge concepts via LLM map', async () => {
+  it('merges system knowledge concepts via LLM map', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -593,7 +593,7 @@ describe('reconcileResults', () => {
     const reconciled = await reconcileResults(results);
     // Chunk 1's statusAtStart should be stitched to chunk 0's statusAtEnd
     expect(reconciled[1].threads[0].statusAtStart).toBe('active');
-    // Scene-level mutation from should also be corrected
+    // Scene-level delta from should also be corrected
     expect(reconciled[1].scenes[0].threadDeltas[0].from).toBe('active');
   });
   it('normalizes LLM status variants to canonical vocabulary', async () => {
@@ -683,7 +683,7 @@ describe('reconcileResults', () => {
     const aliceCount = participants.filter(n => n === 'Alice').length;
     expect(aliceCount).toBe(1);
   });
-  it('resolves relationship mutation names through character map', async () => {
+  it('resolves relationship delta names through character map', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -927,7 +927,7 @@ describe('assembleNarrative', () => {
     expect(mainBranch.versionPointers![sceneId].proseVersion).toBe('1');
     expect(mainBranch.versionPointers![sceneId].planVersion).toBe('1');
   });
-  // ── Rich assembly tests (artifacts, world knowledge, movements, etc.) ──
+  // ── Rich assembly tests (artifacts, system knowledge, movements, etc.) ──
   it('creates artifact entities with ownership', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
@@ -942,7 +942,7 @@ describe('assembleNarrative', () => {
     // Owned by Alice — parentId should be Alice's character ID
     expect(sword!.parentId).toBeTruthy();
   });
-  it('maps thread mutations to thread IDs in scenes', async () => {
+  it('maps thread deltas to thread IDs in scenes', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
@@ -951,12 +951,12 @@ describe('assembleNarrative', () => {
     expect(narrative.threads[threadId]).toBeDefined();
     expect(narrative.threads[threadId].description).toBe('The Quest for the Crown');
   });
-  it('maps continuity mutations to entity IDs', async () => {
+  it('maps world deltas to entity IDs', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
     expect(scene.worldDeltas.length).toBeGreaterThan(0);
-    // Each mutation should reference a valid entity
+    // Each delta should reference a valid entity
     for (const cm of scene.worldDeltas) {
       const isChar = !!narrative.characters[cm.entityId];
       const isLoc = !!narrative.locations[cm.entityId];
@@ -964,7 +964,7 @@ describe('assembleNarrative', () => {
       expect(isChar || isLoc || isArt).toBe(true);
     }
   });
-  it('maps relationship mutations to character IDs', async () => {
+  it('maps relationship deltas to character IDs', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
@@ -995,7 +995,7 @@ describe('assembleNarrative', () => {
       }
     }
   });
-  it('creates world knowledge mutations with concept IDs', async () => {
+  it('creates system deltas with concept IDs', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
@@ -1087,19 +1087,19 @@ describe('assembleNarrative', () => {
     expect(questA).toBeDefined();
     expect(questB!.dependents).toContain(questA!.id);
   });
-  it('records continuity mutations on scenes for later replay', async () => {
+  it('records world deltas on scenes for later replay', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const alice = Object.values(narrative.characters).find(c => c.name === 'Alice');
     expect(alice).toBeDefined();
     // Entity continuity starts empty — graphs are built at store replay time from
-    // scene.worldDeltas. Verify mutations landed on the scene instead.
+    // scene.worldDeltas. Verify deltas landed on the scene instead.
     const scenes = Object.values(narrative.scenes);
-    const aliceMutations = scenes.flatMap(s =>
+    const aliceDeltas = scenes.flatMap(s =>
       (s.worldDeltas ?? []).filter(m => m.entityId === alice!.id),
     );
-    expect(aliceMutations.length).toBeGreaterThan(0);
-    expect(aliceMutations[0].addedNodes.length).toBeGreaterThan(0);
+    expect(aliceDeltas.length).toBeGreaterThan(0);
+    expect(aliceDeltas[0].addedNodes.length).toBeGreaterThan(0);
   });
   it('extracts rules, systems, and prose profile', async () => {
     // assembleNarrative uses callAnalysis (fetch), not callGenerate for meta extraction
@@ -1198,17 +1198,17 @@ describe('assembleNarrative', () => {
     const narrative = await assembleNarrative('Test', results, {});
     const alices = Object.values(narrative.characters).filter(c => c.name === 'Alice');
     expect(alices).toHaveLength(1); // Single character entity
-    // Continuity is replayed from scene mutations at store load — assembly only
-    // preserves the mutations themselves. Verify each chunk's scene added a node.
+    // Continuity is replayed from scene deltas at store load — assembly only
+    // preserves the deltas themselves. Verify each chunk's scene added a node.
     const scenes = Object.values(narrative.scenes);
-    const aliceMutationNodes = scenes.flatMap(s =>
+    const aliceDeltaNodes = scenes.flatMap(s =>
       (s.worldDeltas ?? [])
         .filter(m => m.entityId === alices[0].id)
         .flatMap(m => m.addedNodes),
     );
-    expect(aliceMutationNodes.length).toBeGreaterThanOrEqual(3);
+    expect(aliceDeltaNodes.length).toBeGreaterThanOrEqual(3);
   });
-  it('handles tie mutations creating location-character bindings', async () => {
+  it('handles tie deltas creating location-character bindings', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
@@ -1220,7 +1220,7 @@ describe('assembleNarrative', () => {
       }
     }
   });
-  it('sets thread openedAt to first scene with a mutation', async () => {
+  it('sets thread openedAt to first scene with a delta', async () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     for (const thread of Object.values(narrative.threads)) {
@@ -1274,7 +1274,7 @@ describe('assembleNarrative', () => {
   });
   // ── Thread log mapper — synthesis fallback ────────────────────────────────
   // Locks in the fix for the bug where extractSceneStructure returned a
-  // threadMutation with empty addedNodes, and the assembleNarrative mapper
+  // threadDelta with empty addedNodes, and the assembleNarrative mapper
   // passed it through as-is, leaving the final thread log blank.
   it('synthesizes fallback log entries when analysis extraction omits addedNodes', async () => {
     const results: AnalysisChunkResult[] = [{

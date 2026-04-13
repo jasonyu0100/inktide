@@ -112,7 +112,7 @@
         "leia_hides_plans",
         "vader_boards"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-02",
           "from": "latent",
@@ -129,7 +129,7 @@
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-04",
           "addedNodes": [
@@ -164,7 +164,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-SW-04",
           "to": "C-SW-02",
@@ -178,7 +178,7 @@
           "valenceDelta": -0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-02",
@@ -220,8 +220,8 @@
         "vaporator_work",
         "owen_argues"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -234,8 +234,8 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-09",
@@ -277,8 +277,8 @@
         "yearning",
         "dreaming_of_the_academy"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -291,8 +291,8 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-11",
@@ -329,8 +329,8 @@
         "academy_request_denied",
         "tension"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -354,8 +354,8 @@
           ]
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-13",
@@ -398,8 +398,8 @@
         "biggs_leaving",
         "luke_left_behind"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -423,8 +423,8 @@
           ]
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-15",
@@ -472,14 +472,14 @@
         "droids_purchased",
         "r2_stubborn"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-02",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -503,7 +503,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-SW-01",
           "to": "C-SW-06",
@@ -511,7 +511,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-17",
@@ -549,14 +549,14 @@
         "obi_wan_name",
         "restless_yearning"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-01",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -580,7 +580,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-SW-01",
           "to": "C-SW-06",
@@ -588,7 +588,7 @@
           "valenceDelta": 0.2
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-19",
@@ -636,14 +636,14 @@
         "luke_pursues",
         "jundland_wastes"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-02",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -667,7 +667,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-SW-01",
           "to": "C-SW-06",
@@ -675,7 +675,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-20",
@@ -706,14 +706,14 @@
         "tusken_ambush",
         "knocked_unconscious"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-01",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -726,8 +726,8 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-21",
@@ -766,14 +766,14 @@
         "tuskens_scattered",
         "hermit_cave"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-03",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -797,7 +797,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-SW-01",
           "to": "C-SW-05",
@@ -811,7 +811,7 @@
           "valenceDelta": 0.2
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-22",
@@ -850,7 +850,7 @@
         "fathers_lightsaber",
         "the_force_introduced"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-05",
           "from": "latent",
@@ -862,7 +862,7 @@
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -896,7 +896,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-SW-01",
           "to": "C-SW-05",
@@ -910,7 +910,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-24",
@@ -954,7 +954,7 @@
         "plea_for_alderaan",
         "obi_wan_asks_luke"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-02",
           "from": "active",
@@ -966,7 +966,7 @@
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-05",
           "addedNodes": [
@@ -1001,7 +1001,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-SW-01",
           "to": "C-SW-02",
@@ -1009,7 +1009,7 @@
           "valenceDelta": 0.2
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-30",
@@ -1046,14 +1046,14 @@
         "quiet_ride_home",
         "smoke_on_horizon"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-05",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -1077,7 +1077,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-SW-05",
           "to": "C-SW-01",
@@ -1085,7 +1085,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-31",
@@ -1128,7 +1128,7 @@
         "owen_beru_killed",
         "point_of_no_return"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-01",
           "from": "active",
@@ -1140,7 +1140,7 @@
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -1164,7 +1164,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-SW-01",
           "to": "C-SW-05",
@@ -1172,7 +1172,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-SW-32",
@@ -1214,14 +1214,14 @@
         "beru_convinces",
         "luke_packs"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-01",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -1245,7 +1245,7 @@
           ]
         }
       ],
-      "relationshipMutations": [],
+      "relationshipDeltas": [],
       "summary": "After dinner, Beru finds Owen on the courtyard steps. She speaks quietly, the way she does when she means every word. \"You cannot keep him here forever. He is not his father.\" Owen stares at the dark. In the morning, he tells Luke he can apply to the Academy next season. Luke cannot believe it. He packs a bag that night — not much, because he does not own much — and lies awake listening to the wind against the dome, feeling the strange grief of getting what you wished for."
     },
     "S-SW-ALT-006": {
@@ -1262,14 +1262,14 @@
         "last_look_at_homestead",
         "transport_to_anchorhead"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-01",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -1293,7 +1293,7 @@
           ]
         }
       ],
-      "relationshipMutations": [],
+      "relationshipDeltas": [],
       "summary": "Luke drives toward Anchorhead in the pre-dawn dark, the homestead shrinking in the mirror. He has imagined this departure a hundred times, but in his imagination it felt like escape. In reality it feels like amputation — clean, necessary, and deeply wrong. The moisture farm disappears behind a dune. Somewhere behind him, a Jawa sandcrawler is grinding toward the homestead with two droids in its hold. Luke does not know this. He will never know this. The transport to the Academy leaves in three hours, and the boy who might have been a Jedi is about to become an Imperial cadet."
     },
     "S-SW-ALT-007": {
@@ -1310,14 +1310,14 @@
         "looking_up_at_stars",
         "wrong_path_taken"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-SW-01",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-SW-01",
           "addedNodes": [
@@ -1341,7 +1341,7 @@
           ]
         }
       ],
-      "relationshipMutations": [],
+      "relationshipDeltas": [],
       "summary": "Anchorhead transport depot. Luke sits on a bench with his bag between his feet, watching a freighter lift off in a column of dust and engine glow. He is going to fly. He is going to see the galaxy. The excitement is real, but underneath it, something nags — a feeling like a door closing behind him that he will not be able to reopen. He looks up at the brightening sky where, hours ago, a Star Destroyer swallowed a consular ship and changed the fate of the galaxy. The transport arrives. Luke boards. The story that was meant to be his moves on without him, and he does not feel it go."
     }
   },
@@ -1351,7 +1351,7 @@
       "id": "WX-SW-init",
       "summary": "World created: 8 characters (Luke Skywalker, Princess Leia Organa, Han Solo, Darth Vader, Obi-Wan Kenobi, R2-D2, Grand Moff Tarkin, Chewbacca), 8 locations (The Galaxy, Tatooine, The Death Star, Mos Eisley, Alderaan System, Yavin IV, The Tantive IV, Lars Homestead), 7 threads, 14 relationships",
       "expansionManifest": {
-        "characters": [
+        "newCharacters": [
           {
             "id": "C-SW-01",
             "name": "Luke Skywalker",
@@ -1361,7 +1361,7 @@
               "T-SW-05",
               "T-SW-02"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-SW-01": {
                   "id": "K-SW-01",
@@ -1421,7 +1421,7 @@
               "T-SW-06",
               "T-SW-02"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-SW-10": {
                   "id": "K-SW-10",
@@ -1480,7 +1480,7 @@
             "threadIds": [
               "T-SW-04"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-SW-20": {
                   "id": "K-SW-20",
@@ -1530,7 +1530,7 @@
               "T-SW-03",
               "T-SW-07"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-SW-30": {
                   "id": "K-SW-30",
@@ -1590,7 +1590,7 @@
               "T-SW-03",
               "T-SW-05"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-SW-40": {
                   "id": "K-SW-40",
@@ -1649,7 +1649,7 @@
             "threadIds": [
               "T-SW-02"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-SW-50": {
                   "id": "K-SW-50",
@@ -1688,7 +1688,7 @@
             "threadIds": [
               "T-SW-07"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-SW-60": {
                   "id": "K-SW-60",
@@ -1737,7 +1737,7 @@
             "threadIds": [
               "T-SW-04"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-SW-70": {
                   "id": "K-SW-70",
@@ -1770,13 +1770,14 @@
             }
           }
         ],
-        "locations": [
+        "newLocations": [
           {
             "id": "L-SW-01",
             "name": "The Galaxy",
             "parentId": null,
             "threadIds": [],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-SW-01": {
                   "id": "LK-SW-01",
@@ -1796,8 +1797,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-SW-02",
@@ -1807,7 +1807,8 @@
               "T-SW-01",
               "T-SW-05"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-SW-03": {
                   "id": "LK-SW-03",
@@ -1827,8 +1828,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-SW-03",
@@ -1838,7 +1838,8 @@
               "T-SW-07",
               "T-SW-03"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-SW-05": {
                   "id": "LK-SW-05",
@@ -1868,8 +1869,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-SW-04",
@@ -1878,7 +1878,8 @@
             "threadIds": [
               "T-SW-04"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-SW-08": {
                   "id": "LK-SW-08",
@@ -1898,8 +1899,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-SW-05",
@@ -1908,7 +1908,8 @@
             "threadIds": [
               "T-SW-06"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-SW-10": {
                   "id": "LK-SW-10",
@@ -1928,8 +1929,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-SW-06",
@@ -1939,7 +1939,8 @@
               "T-SW-02",
               "T-SW-06"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-SW-12": {
                   "id": "LK-SW-12",
@@ -1959,8 +1960,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-SW-07",
@@ -1969,7 +1969,8 @@
             "threadIds": [
               "T-SW-02"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-SW-14": {
                   "id": "LK-SW-14",
@@ -1989,8 +1990,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-SW-08",
@@ -1999,7 +1999,8 @@
             "threadIds": [
               "T-SW-01"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-SW-16": {
                   "id": "LK-SW-16",
@@ -2019,11 +2020,10 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           }
         ],
-        "threads": [
+        "newThreads": [
           {
             "id": "T-SW-01",
             "participants": [
@@ -2142,93 +2142,93 @@
             "dependents": []
           }
         ],
-        "relationships": [
+        "relationshipDeltas": [
           {
             "from": "C-SW-01",
             "to": "C-SW-05",
             "type": "Sees a mysterious old hermit who knew his father — yearns for the truth he senses Ben is withholding",
-            "valence": 0.5
+            "valenceDelta": 0.5
           },
           {
             "from": "C-SW-05",
             "to": "C-SW-01",
             "type": "Watches Anakins son with hope and dread in equal measure — this boy must not fall as his father did",
-            "valence": 0.7
+            "valenceDelta": 0.7
           },
           {
             "from": "C-SW-01",
             "to": "C-SW-02",
             "type": "Stunned by the holographic princess — she is everything Tatooine is not",
-            "valence": 0.4
+            "valenceDelta": 0.4
           },
           {
             "from": "C-SW-02",
             "to": "C-SW-01",
             "type": "A farm boy playing hero — but his eyes carry something earnest she has not seen in the Rebellion",
-            "valence": 0.3
+            "valenceDelta": 0.3
           },
           {
             "from": "C-SW-03",
             "to": "C-SW-01",
             "type": "Sees a naive kid who will get himself killed — a paying passenger, nothing more",
-            "valence": -0.1
+            "valenceDelta": -0.1
           },
           {
             "from": "C-SW-01",
             "to": "C-SW-03",
             "type": "Admires the swagger but distrusts the selfishness — wants Han to be better than he claims",
-            "valence": 0.2
+            "valenceDelta": 0.2
           },
           {
             "from": "C-SW-03",
             "to": "C-SW-02",
             "type": "A princess with a sharp tongue and sharper mind — infuriating and impossible to ignore",
-            "valence": 0.2
+            "valenceDelta": 0.2
           },
           {
             "from": "C-SW-02",
             "to": "C-SW-03",
             "type": "A scoundrel who hides decency behind bluster — useful, unreliable, and annoyingly charming",
-            "valence": 0.1
+            "valenceDelta": 0.1
           },
           {
             "from": "C-SW-04",
             "to": "C-SW-05",
             "type": "Senses Obi-Wan as a fading echo of the Jedi he once was — contempt mingled with something he refuses to name",
-            "valence": -0.6
+            "valenceDelta": -0.6
           },
           {
             "from": "C-SW-05",
             "to": "C-SW-04",
             "type": "Grieves for the man Anakin was, even as he steels himself to face what Anakin became",
-            "valence": -0.3
+            "valenceDelta": -0.3
           },
           {
             "from": "C-SW-04",
             "to": "C-SW-07",
             "type": "Tolerates Tarkins arrogance because the Emperor wills it — the Force is beyond his comprehension",
-            "valence": -0.2
+            "valenceDelta": -0.2
           },
           {
             "from": "C-SW-07",
             "to": "C-SW-04",
             "type": "Sees Vader as a useful weapon on a leash — sorcery subordinate to political power",
-            "valence": -0.1
+            "valenceDelta": -0.1
           },
           {
             "from": "C-SW-03",
             "to": "C-SW-08",
             "type": "Partner, co-pilot, conscience — the one being in the galaxy Han trusts without calculation",
-            "valence": 0.8
+            "valenceDelta": 0.8
           },
           {
             "from": "C-SW-08",
             "to": "C-SW-03",
             "type": "Bound by a life-debt that became something deeper — Han is family in the truest Wookiee sense",
-            "valence": 0.9
+            "valenceDelta": 0.9
           }
         ],
-        "systemGraph": {
+        "systemDeltas": {
           "addedNodes": [
             {
               "id": "WK-SW-WB-01",

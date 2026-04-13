@@ -378,7 +378,7 @@ export function computeThreadStatuses(
     statuses[id] = thread.status;
   }
 
-  // Replay mutations up to and including the current scene (skip world builds)
+  // Replay deltas up to and including the current scene (skip world builds)
   const sceneKeys = resolvedEntryKeys ?? Object.keys(narrative.scenes);
   for (let i = 0; i <= sceneIndex && i < sceneKeys.length; i++) {
     const scene = narrative.scenes[sceneKeys[i]];
@@ -633,7 +633,7 @@ export function zScoreNormalize(values: number[]): number[] {
 // S = ΔN + √ΔE                               (new world-knowledge nodes + sqrt edges)
 //
 // Swing = ‖f_i - f_{i-1}‖₂                   (Euclidean distance in FWS space)
-// E = [tanh(F/1.5) + tanh(W/1.5) + tanh(S/1.5)] / 3  (delivery, mean of tanh-compressed forces, [-1,1])
+// D = (F + W + S) / 3                                  (delivery, equal-weighted mean of z-scored forces)
 // g(x̃) = 25 - 17·e^{-kx̃}, k = ln(17/4)     (grade, μ = {1.5, 12, 3})
 //
 
@@ -706,7 +706,7 @@ function computeRawFate(scene: Scene): number {
  *  what we learn about ENTITIES (characters, locations, artifacts). */
 function rawWorld(scene: Scene): number {
   // Nodes contribute linearly; edges are derived from chain-by-order (one
-  // per pair of adjacent new nodes), so per mutation the edge count is
+  // per pair of adjacent new nodes), so per delta the edge count is
   // max(0, nodes - 1).
   const contNodes = scene.worldDeltas.reduce((sum, km) => sum + (km.addedNodes?.length ?? 0), 0);
   const contEdges = scene.worldDeltas.reduce((sum, km) => sum + Math.max(0, (km.addedNodes?.length ?? 0) - 1), 0);
@@ -715,7 +715,7 @@ function rawWorld(scene: Scene): number {
 
 /** Raw system: S = ΔN + √ΔE
  *
- *  World knowledge graph complexity delta per scene.
+ *  System knowledge graph complexity delta per scene.
  *  Nodes contribute linearly — each new concept is genuinely new information.
  *  Edges use sqrt — the first few connections between concepts matter more
  *  than the tenth. Prevents bulk edge additions from inflating System.
@@ -979,22 +979,19 @@ export interface DeliveryPoint {
 /**
  * Compute the delivery curve from z-score normalised force snapshots.
  *
- * Delivery = [tanh(F/α) + tanh(W/α) + tanh(S/α)] / 3
+ * D = (F + W + S) / 3
  *
- * where α = 1.5. Output is normalised to [-1, 1].
- *
- * All three forces are treated symmetrically — same weight, same saturation.
- * tanh(x/1.5) compresses extreme values while preserving the sign and relative
- * ordering of z-scored forces.
+ * Equal-weighted mean of z-scored forces. Because each force is independently
+ * z-score normalised (mean=0, std=1) before averaging, all three contribute
+ * equally regardless of their raw scale differences. Peaks emerge from scenes
+ * where all three forces fire together — structurally complete moments.
  */
 export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[] {
   if (snapshots.length === 0) return [];
   const n = snapshots.length;
 
-  const ALPHA = 1.5;       // tanh divisor — controls saturation speed
-
   const engValues = snapshots.map(({ fate, world, system }) =>
-    (Math.tanh(fate / ALPHA) + Math.tanh(world / ALPHA) + Math.tanh(system / ALPHA)) / 3,
+    (fate + world + system) / 3,
   );
 
   const smoothed = gaussianSmooth(engValues, 1.5);

@@ -50,7 +50,7 @@ export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
   directedLabels?: Record<string, string>;
 }
 
-// ── World Knowledge graph types ─────────────────────────────────────────────
+// ── System Knowledge Graph types ─────────────────────────────────────────────
 
 export type WKNode = d3.SimulationNodeDatum & {
   id: string;
@@ -177,7 +177,7 @@ export const THREAD_LOG_FILL: Record<string, string> = {
   stall: "#EF444488", // faded red — dysfunction
 };
 
-// ── World Knowledge type colors ─────────────────────────────────────────────
+// ── System Knowledge Type Colors ─────────────────────────────────────────────
 
 export const WK_TYPE_COLORS: Record<string, string> = {
   principle: "#FBBF24", // gold

@@ -113,8 +113,8 @@ export function getWorldEdgesAtScene(
 /**
  * Filter relationships to the state at currentSceneIndex.
  * Works backwards from the final state (narrative.relationships) by:
- *  1. Hiding relationships created by scene mutations that haven't happened yet.
- *  2. Subtracting future mutation deltas to recover the correct valence.
+ *  1. Hiding relationships created by scene relationship deltas that haven't happened yet.
+ *  2. Subtracting future relationship deltas to recover the correct valence.
  *  3. Hiding relationships where either character hasn't been introduced yet.
  */
 export function getRelationshipsAtScene(
@@ -128,37 +128,37 @@ export function getRelationshipsAtScene(
     currentSceneIndex,
   );
 
-  // Detect relationships CREATED (not just modified) by scene mutations.
-  // A scene "creates" a relationship when applySceneMutations finds no existing
+  // Detect relationships CREATED (not just modified) by scene deltas.
+  // A scene "creates" a relationship when applySceneDeltas finds no existing
   // edge for that from-to pair. We detect this by finding pairs whose first-ever
-  // scene mutation occurs AFTER currentSceneIndex — those don't exist yet.
-  const firstMutationIdx = new Map<string, number>();
+  // scene delta occurs AFTER currentSceneIndex — those don't exist yet.
+  const firstDeltaIdx = new Map<string, number>();
   for (let i = 0; i < resolvedEntryKeys.length; i++) {
     const scene = narrative.scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
     for (const rm of scene.relationshipDeltas) {
       const pk = `${rm.from}-${rm.to}`;
-      if (!firstMutationIdx.has(pk)) firstMutationIdx.set(pk, i);
+      if (!firstDeltaIdx.has(pk)) firstDeltaIdx.set(pk, i);
     }
   }
 
   // Collect relationships whose from-to pair ONLY exists because a scene created
   // it (i.e., it's NOT from a world build). A pair is world-build-originated if
-  // its first mutation modifies rather than creates — but we can't distinguish
-  // that from the mutation alone. Instead: if a pair's first scene mutation is
+  // its first delta modifies rather than creates — but we can't distinguish
+  // that from the delta alone. Instead: if a pair's first scene delta is
   // after currentSceneIndex AND the pair is not covered by any world build
-  // (both characters introduced but the pair has no scene mutation before
+  // (both characters introduced but the pair has no scene delta before
   // currentSceneIndex), we assume it was created by that future scene.
   //
   // Simpler heuristic: a relationship is world-build-originated if it has NO
-  // scene mutations at all, OR its first mutation is within [0, currentSceneIndex].
+  // scene deltas at all, OR its first delta is within [0, currentSceneIndex].
   const futureCreatedPairs = new Set<string>();
   for (const rel of narrative.relationships) {
     const pk = `${rel.from}-${rel.to}`;
-    const firstIdx = firstMutationIdx.get(pk);
-    // If first mutation is after current scene AND there was a mutation at all,
-    // this might be scene-created. Check if the pair existed before that mutation.
-    // If no mutations reference this pair before the first scene mutation, it was
+    const firstIdx = firstDeltaIdx.get(pk);
+    // If first delta is after current scene AND there was a delta at all,
+    // this might be scene-created. Check if the pair existed before that delta.
+    // If no deltas reference this pair before the first scene delta, it was
     // created by that scene.
     if (firstIdx !== undefined && firstIdx > currentSceneIndex) {
       futureCreatedPairs.add(pk);
@@ -210,7 +210,7 @@ export function getThreadIdsAtScene(
 
 /**
  * Progressive reveal for a thread's log: return only the nodes/edges that have
- * been added by scene thread mutations up to (and including) currentSceneIndex.
+ * been added by scene thread deltas up to (and including) currentSceneIndex.
  *
  * threadLog.nodes are appended sequentially by the store reducer as scenes play,
  * so we count how many entries each scene contributed and take the first N

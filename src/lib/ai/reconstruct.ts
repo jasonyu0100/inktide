@@ -539,7 +539,7 @@ export async function reconstructBranch(
 // ── Scene summary edit (lightweight) ─────────────────────────────────────────
 
 /**
- * Edit a scene — may change anything: POV, location, participants, summary, events, mutations.
+ * Edit a scene — may change anything: POV, location, participants, summary, events, deltas.
  * The scene keeps its position in the timeline but its content is revised to address the evaluation.
  */
 async function editScene(
@@ -588,15 +588,15 @@ ${JSON.stringify({
   summary: scene.summary,
 }, null, 2)}
 
-You may change ANYTHING — POV, location, participants, events, mutations, summary — to fix the issue. Return ONLY the fields you are changing (omit unchanged fields). If the fix requires structural changes (different POV, different location), make them.
+You may change ANYTHING — POV, location, participants, events, deltas, summary — to fix the issue. Return ONLY the fields you are changing (omit unchanged fields). If the fix requires structural changes (different POV, different location), make them.
 
 You MUST:
 - Keep the scene at this position in the timeline (between previous and next scene)
 - Use only existing character, location, and thread IDs from the context
 - Maintain continuity with surrounding scenes
 - Address the evaluation reason directly
-- Every threadMutation MUST include 1-2 addedNodes log entries describing what happened to THAT thread in THIS scene (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall). If you omit them the thread log goes blank.
-- Every continuityMutation should list its nodes in causal/temporal order — adjacent nodes auto-chain (no explicit edges).
+- Every threadDelta MUST include 1-2 addedNodes log entries describing what happened to THAT thread in THIS scene (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall). If you omit them the thread log goes blank.
+- Every worldDelta should list its nodes in causal/temporal order — adjacent nodes auto-chain (no explicit edges).
 
 Return JSON:
 {
@@ -605,8 +605,8 @@ Return JSON:
   "participantIds": ["C-XX"],
   "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
   "events": ["event_tag"],
-  "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+  "threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "systemDeltas": {"addedNodes": [], "addedEdges": []},
   "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
@@ -695,8 +695,8 @@ ${sourceBlock}
 MERGE RULES:
 - The output is ONE scene, not multiple. It replaces the target scene.
 - You may change POV, location, and participants if the absorbed content demands it.
-- Combine thread mutations from all scenes — if the target advances T-01 and a source advances T-03, the merged scene should advance both. Each threadMutation MUST include 1-2 addedNodes log entries describing what happened to THAT thread in the merged scene.
-- Combine continuity and relationship mutations — deduplicate but preserve unique knowledge. List continuity nodes in causal/temporal order (adjacent nodes auto-chain).
+- Combine thread deltas from all scenes — if the target advances T-01 and a source advances T-03, the merged scene should advance both. Each threadDelta MUST include 1-2 addedNodes log entries describing what happened to THAT thread in the merged scene.
+- Combine world and relationship deltas — deduplicate but preserve unique knowledge. List world nodes in causal/temporal order (adjacent nodes auto-chain).
 - The summary must use character NAMES and location NAMES (never raw IDs) and weave the best elements from all inputs into a cohesive narrative beat.
 - Do NOT simply concatenate summaries. Synthesize them into a single dramatic moment.
 - Use only existing character, location, and thread IDs from the context above.
@@ -708,8 +708,8 @@ Return JSON:
   "participantIds": ["C-XX"],
   "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
   "events": ["event_tag"],
-  "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+  "threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "systemDeltas": {"addedNodes": [], "addedEdges": []},
   "summary": "Rich prose sentences using character NAMES (never IDs) combining the strongest elements from all merged scenes."
@@ -761,8 +761,8 @@ ${evaluation.repetitions.length > 0 ? `PATTERNS TO AVOID: ${evaluation.repetitio
 Generate a complete scene that addresses the generation brief. The scene must:
 - Use only existing character, location, and thread IDs from the context
 - Advance at least one thread with a status transition
-- Every threadMutation MUST include 1-2 addedNodes log entries (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall) describing what happened to THAT thread in THIS scene. Missing log entries leave the thread log blank.
-- List each continuityMutation's nodes in causal/temporal order — adjacent nodes auto-chain into the entity's inner graph.
+- Every threadDelta MUST include 1-2 addedNodes log entries (pulse/transition/setup/escalation/payoff/twist/callback/resistance/stall) describing what happened to THAT thread in THIS scene. Missing log entries leave the thread log blank.
+- List each worldDelta's nodes in causal/temporal order — adjacent nodes auto-chain into the entity's world graph.
 
 Return JSON:
 {
@@ -771,8 +771,8 @@ Return JSON:
   "participantIds": ["C-XX"],
   "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
   "events": ["event_tag"],
-  "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-  "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+  "threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "systemDeltas": {"addedNodes": [], "addedEdges": []},
   "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],

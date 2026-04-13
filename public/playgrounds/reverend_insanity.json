@@ -119,14 +119,14 @@
         "village_waking",
         "fang_yuan_walks_alone"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-01",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-01",
           "addedNodes": [
@@ -150,8 +150,8 @@
           ]
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-01",
@@ -194,14 +194,14 @@
         "fang_zheng_chatter",
         "fang_yuan_performs_normalcy"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-03",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-01",
           "addedNodes": [
@@ -225,7 +225,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-01",
           "to": "C-02",
@@ -233,7 +233,7 @@
           "valenceDelta": -0.05
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-06",
@@ -282,14 +282,14 @@
         "gu_basics_explained",
         "shen_cui_observes_students"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-02",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-05",
           "addedNodes": [
@@ -313,7 +313,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-05",
           "to": "C-01",
@@ -321,7 +321,7 @@
           "valenceDelta": 0.05
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-09",
@@ -364,14 +364,14 @@
         "wild_gu_sighting",
         "fang_yuan_catalogs_terrain"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-06",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-01",
           "addedNodes": [
@@ -395,8 +395,8 @@
           ]
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-14",
@@ -455,14 +455,14 @@
         "fang_zheng_excels",
         "fang_yuan_conceals"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-02",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-05",
           "addedNodes": [
@@ -508,7 +508,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-05",
           "to": "C-02",
@@ -528,7 +528,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-16",
@@ -581,14 +581,14 @@
         "fang_zheng_guilt",
         "fang_yuan_mask"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-03",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-02",
           "addedNodes": [
@@ -612,7 +612,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-02",
           "to": "C-01",
@@ -626,7 +626,7 @@
           "valenceDelta": 0.05
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-19",
@@ -670,14 +670,14 @@
         "shen_cui_advises",
         "fang_zheng_eager"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-02",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-02",
           "addedNodes": [
@@ -701,7 +701,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-02",
           "to": "C-05",
@@ -715,7 +715,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-20",
@@ -758,14 +758,14 @@
         "fang_yuan_paces_perimeter",
         "old_memories"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-01",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-01",
           "addedNodes": [
@@ -789,8 +789,8 @@
           ]
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-22",
@@ -828,14 +828,14 @@
         "resource_debate",
         "tension_noted"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-04",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-03",
           "addedNodes": [
@@ -859,7 +859,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-06",
           "to": "C-03",
@@ -873,7 +873,7 @@
           "valenceDelta": -0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-23",
@@ -921,14 +921,14 @@
         "political_assessment",
         "silent_calculation"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-04",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-01",
           "addedNodes": [
@@ -952,7 +952,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-01",
           "to": "C-06",
@@ -966,7 +966,7 @@
           "valenceDelta": -0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-26",
@@ -1004,14 +1004,14 @@
         "primeval_essence_exercise",
         "fang_zheng_struggles"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-02",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-05",
           "addedNodes": [
@@ -1035,7 +1035,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-05",
           "to": "C-02",
@@ -1065,7 +1065,7 @@
         "past_life_navigation",
         "hidden_cache_found"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-01",
           "from": "active",
@@ -1077,7 +1077,7 @@
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-01",
           "addedNodes": [
@@ -1101,8 +1101,8 @@
           ]
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-28",
@@ -1155,14 +1155,14 @@
         "fang_zheng_ambitions",
         "fang_yuan_listens"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-03",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-02",
           "addedNodes": [
@@ -1186,7 +1186,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-02",
           "to": "C-01",
@@ -1200,7 +1200,7 @@
           "valenceDelta": 0.05
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-30",
@@ -1245,14 +1245,14 @@
         "fang_zheng_as_political_asset",
         "fang_yuan_watches"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-04",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-01",
           "addedNodes": [
@@ -1287,7 +1287,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-06",
           "to": "C-03",
@@ -1301,7 +1301,7 @@
           "valenceDelta": 0.05
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-31",
@@ -1338,14 +1338,14 @@
         "fang_zheng_follows",
         "midnight_village"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-03",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-02",
           "addedNodes": [
@@ -1369,7 +1369,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-02",
           "to": "C-01",
@@ -1383,7 +1383,7 @@
           "valenceDelta": -0.15
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-32",
@@ -1427,14 +1427,14 @@
         "fang_yuan_deflects",
         "careful_lie"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-03",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-02",
           "addedNodes": [
@@ -1458,7 +1458,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-02",
           "to": "C-01",
@@ -1488,7 +1488,7 @@
         "stone_slab_noticed",
         "retreats"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-03",
           "from": "active",
@@ -1500,7 +1500,7 @@
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-02",
           "addedNodes": [
@@ -1524,7 +1524,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-02",
           "to": "C-01",
@@ -1532,7 +1532,7 @@
           "valenceDelta": -0.2
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-RI-33",
@@ -1562,7 +1562,7 @@
       "id": "WX-init",
       "summary": "World created: 8 characters (Fang Yuan, Fang Zheng, Gu Yue Bo, Bai Ning Bing, Shen Cui, Mo Bei Liu, Chi Shan, Tie Ruo Nan), 8 locations (Qing Mao Mountain, Gu Yue Village, Academy, Clan Hall, Secret Tunnels, Bai Clan Territory, Mountain Wilderness, Flower Wine Monk's Inheritance Ground), 7 threads, 10 relationships",
       "expansionManifest": {
-        "characters": [
+        "newCharacters": [
           {
             "id": "C-01",
             "name": "Fang Yuan",
@@ -1572,7 +1572,7 @@
               "T-03",
               "T-06"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-01": {
                   "id": "K-01",
@@ -1672,7 +1672,7 @@
               "T-02",
               "T-03"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-10": {
                   "id": "K-10",
@@ -1731,7 +1731,7 @@
             "threadIds": [
               "T-04"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-20": {
                   "id": "K-20",
@@ -1780,7 +1780,7 @@
             "threadIds": [
               "T-05"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-30": {
                   "id": "K-30",
@@ -1829,7 +1829,7 @@
             "threadIds": [
               "T-02"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-40": {
                   "id": "K-40",
@@ -1868,7 +1868,7 @@
             "threadIds": [
               "T-04"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-50": {
                   "id": "K-50",
@@ -1917,7 +1917,7 @@
             "threadIds": [
               "T-06"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-60": {
                   "id": "K-60",
@@ -1956,7 +1956,7 @@
             "threadIds": [
               "T-07"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-70": {
                   "id": "K-70",
@@ -1989,13 +1989,14 @@
             }
           }
         ],
-        "locations": [
+        "newLocations": [
           {
             "id": "L-01",
             "name": "Qing Mao Mountain",
             "parentId": null,
             "threadIds": [],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-01": {
                   "id": "LK-01",
@@ -2015,8 +2016,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-02",
@@ -2025,7 +2025,8 @@
             "threadIds": [
               "T-04"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-03": {
                   "id": "LK-03",
@@ -2045,8 +2046,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-03",
@@ -2055,7 +2055,8 @@
             "threadIds": [
               "T-02"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-05": {
                   "id": "LK-05",
@@ -2064,8 +2065,7 @@
                 }
               },
               "edges": []
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-04",
@@ -2074,7 +2074,8 @@
             "threadIds": [
               "T-04"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-06": {
                   "id": "LK-06",
@@ -2094,8 +2095,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-05",
@@ -2104,7 +2104,8 @@
             "threadIds": [
               "T-01"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-08": {
                   "id": "LK-08",
@@ -2124,8 +2125,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-06",
@@ -2134,7 +2134,8 @@
             "threadIds": [
               "T-05"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-10": {
                   "id": "LK-10",
@@ -2154,8 +2155,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-07",
@@ -2164,7 +2164,8 @@
             "threadIds": [
               "T-06"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-12": {
                   "id": "LK-12",
@@ -2184,8 +2185,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-08",
@@ -2194,7 +2194,8 @@
             "threadIds": [
               "T-06"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-14": {
                   "id": "LK-14",
@@ -2224,11 +2225,10 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           }
         ],
-        "threads": [
+        "newThreads": [
           {
             "id": "T-01",
             "participants": [
@@ -2350,69 +2350,69 @@
             "dependents": []
           }
         ],
-        "relationships": [
+        "relationshipDeltas": [
           {
             "from": "C-01",
             "to": "C-02",
             "type": "Views brother as a useful shield — affection is a tool he wears like a mask",
-            "valence": 0.1
+            "valenceDelta": 0.1
           },
           {
             "from": "C-02",
             "to": "C-01",
             "type": "Loves his elder brother and worries about his mediocre talent",
-            "valence": 0.7
+            "valenceDelta": 0.7
           },
           {
             "from": "C-01",
             "to": "C-03",
             "type": "Feigns respect while cataloguing every weakness for future leverage",
-            "valence": -0.3
+            "valenceDelta": -0.3
           },
           {
             "from": "C-03",
             "to": "C-01",
             "type": "Barely registers the C-grade boy — just another unremarkable student",
-            "valence": -0.1
+            "valenceDelta": -0.1
           },
           {
             "from": "C-03",
             "to": "C-06",
             "type": "Senses Mo Bei Liu maneuvering against him but cannot yet prove it",
-            "valence": -0.4
+            "valenceDelta": -0.4
           },
           {
             "from": "C-06",
             "to": "C-03",
             "type": "Sees an aging leader clinging to tradition while the clan weakens",
-            "valence": -0.5
+            "valenceDelta": -0.5
           },
           {
             "from": "C-04",
             "to": "C-01",
             "type": "Has never met this person — no impression formed",
-            "valence": 0
+            "valenceDelta": 0
           },
           {
             "from": "C-01",
             "to": "C-04",
             "type": "Knows she is dangerous and desperate — a volatile element to monitor",
-            "valence": -0.2
+            "valenceDelta": -0.2
           },
           {
             "from": "C-05",
             "to": "C-01",
             "type": "Feels sorry for the talentless elder brother overshadowed by his sibling",
-            "valence": 0.2
+            "valenceDelta": 0.2
           },
           {
             "from": "C-05",
             "to": "C-02",
             "type": "Sees a bright future and wants to nurture his exceptional talent",
-            "valence": 0.6
+            "valenceDelta": 0.6
           }
         ],
-        "systemGraph": {
+        "systemDeltas": {
           "addedNodes": [
             {
               "id": "WK-RI-WB-01",

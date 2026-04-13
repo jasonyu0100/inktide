@@ -4,7 +4,7 @@
  *
  * Scene-first pipeline (bottom-up):
  *   Phase 1 — Plans: extract beat plans + embeddings per scene (parallel)
- *   Phase 2 — Structure: extract entities + mutations per scene from prose + plan (parallel)
+ *   Phase 2 — Structure: extract entities + deltas per scene from prose + plan (parallel)
  *   Phase 3 — Arcs: group every 4 scenes, name each arc
  *   Phase 4 — Reconciliation: deduplicate entities, stitch threads, merge name variants
  *   Phase 5 — Finalization: thread dependencies
@@ -122,7 +122,7 @@ class AnalysisRunner {
     };
 
     // ═════════════════════════════════════════════════════════════════════════
-    // Phase 1: STRUCTURE — entities + mutations per scene from raw prose (parallel)
+    // Phase 1: STRUCTURE — entities + deltas per scene from raw prose (parallel)
     // ═════════════════════════════════════════════════════════════════════════
     const structPending = job.chunks.map((_, i) => i).filter(i => !results[i]?.chapterSummary);
 
@@ -168,7 +168,7 @@ class AnalysisRunner {
               this.emitChunkStream(job.id, idx, acc);
             });
 
-            // Populate scene mutations
+            // Populate scene deltas
             scene.povName = s.povName || scene.povName;
             scene.locationName = s.locationName || scene.locationName;
             scene.participantNames = s.participantNames.length > 0 ? s.participantNames : scene.participantNames;
@@ -228,10 +228,17 @@ class AnalysisRunner {
 
     // ═════════════════════════════════════════════════════════════════════════
     // Phase 2: PLANS + EMBEDDINGS — beat plans per scene (parallel)
+    // Skipped when job.skipPlanExtraction is true — structure-only analysis.
     // ═════════════════════════════════════════════════════════════════════════
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'plans' } });
 
-    const planPending = job.chunks.map((_, i) => i).filter(i => !results[i]?.scenes?.[0]?.plan);
+    const planPending = job.skipPlanExtraction
+      ? []
+      : job.chunks.map((_, i) => i).filter(i => !results[i]?.scenes?.[0]?.plan);
+
+    if (job.skipPlanExtraction) {
+      this.emitStream(job.id, 'Plans: skipped (structure-only analysis)');
+    }
 
     if (planPending.length > 0) {
       this.emitStream(job.id, `Plans: ${planPending.length} scenes...`);

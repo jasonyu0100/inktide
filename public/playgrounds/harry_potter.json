@@ -131,7 +131,7 @@
         "letters_from_no_one",
         "hagrid_arrives"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-HP-02",
           "from": "latent",
@@ -143,9 +143,9 @@
           "to": "active"
         }
       ],
-      "continuityMutations": [],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "worldDeltas": [],
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-01",
@@ -198,8 +198,8 @@
         "gringotts_vault",
         "wand_chooses_wizard"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-HP-01",
           "addedNodes": [
@@ -223,8 +223,8 @@
           ]
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-04",
@@ -278,8 +278,8 @@
         "chocolate_frogs",
         "first_sight_of_castle"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-HP-03",
           "addedNodes": [
@@ -292,7 +292,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-01",
           "to": "C-HP-03",
@@ -306,7 +306,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-07",
@@ -361,8 +361,8 @@
         "gryffindor_chosen",
         "dumbledore_warning"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-HP-01",
           "addedNodes": [
@@ -386,7 +386,7 @@
           ]
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
@@ -394,7 +394,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-08",
@@ -439,14 +439,14 @@
         "malfoy_confrontation",
         "handshake_refused"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-HP-07",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-HP-07",
           "addedNodes": [
@@ -459,7 +459,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-01",
           "to": "C-HP-07",
@@ -473,7 +473,7 @@
           "valenceDelta": -0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-11",
@@ -517,10 +517,10 @@
         "castle_exploration",
         "talking_portraits"
       ],
-      "threadMutations": [],
-      "continuityMutations": [],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "threadDeltas": [],
+      "worldDeltas": [],
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-13",
@@ -555,10 +555,10 @@
         "matchstick_to_needle",
         "hermione_first"
       ],
-      "threadMutations": [],
-      "continuityMutations": [],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "threadDeltas": [],
+      "worldDeltas": [],
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-14",
@@ -602,14 +602,14 @@
         "snape_hostility",
         "scar_flicker"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-HP-03",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-HP-01",
           "addedNodes": [
@@ -622,7 +622,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-01",
           "to": "C-HP-05",
@@ -630,7 +630,7 @@
           "valenceDelta": -0.2
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-16",
@@ -674,9 +674,9 @@
         "fireside_talk",
         "ron_family_stories"
       ],
-      "threadMutations": [],
-      "continuityMutations": [],
-      "relationshipMutations": [],
+      "threadDeltas": [],
+      "worldDeltas": [],
+      "relationshipDeltas": [],
       "summary": "Evening in the Gryffindor common room. The fire crackles in the grate and the older students sprawl across armchairs with textbooks they are not reading. Ron sets up a battered wizard chess set — the pieces are his grandfather's, chipped and argumentative, and they shout contradictory advice at anyone who is not Ron. He teaches Harry to play. Harry is terrible. The pieces refuse to trust him. Ron's knight takes Harry's queen and does a small, contemptuous dance. Ron grins — chess is the one thing where he is better than everyone, and for once the comparison does not sting. They play three games. Harry loses all three. Outside, rain streaks the tower windows. Neither boy has anywhere else he would rather be."
     },
     "S-HP-010": {
@@ -696,10 +696,10 @@
         "natural_instinct",
         "malfoy_watches"
       ],
-      "threadMutations": [],
-      "continuityMutations": [],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "threadDeltas": [],
+      "worldDeltas": [],
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-18",
@@ -758,14 +758,14 @@
         "three_headed_dog",
         "trapdoor_noticed"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-HP-01",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-HP-01",
           "addedNodes": [
@@ -789,7 +789,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
@@ -797,7 +797,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-20",
@@ -851,8 +851,8 @@
         "gringotts_breakin_article",
         "vault_713_connection"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-HP-01",
           "addedNodes": [
@@ -865,8 +865,8 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-22",
@@ -915,10 +915,10 @@
         "brief_exchange",
         "outsider_recognition"
       ],
-      "threadMutations": [],
-      "continuityMutations": [],
-      "relationshipMutations": [],
-      "systemMutations": {
+      "threadDeltas": [],
+      "worldDeltas": [],
+      "relationshipDeltas": [],
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-23",
@@ -957,14 +957,14 @@
         "hermione_rescue",
         "friendship_forged"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-HP-04",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-HP-02",
           "addedNodes": [
@@ -977,7 +977,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-01",
           "to": "C-HP-02",
@@ -1003,7 +1003,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-24",
@@ -1046,14 +1046,14 @@
         "malfoy_extends_hand_again",
         "uneasy_acceptance"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-HP-07",
           "from": "active",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-HP-01",
           "addedNodes": [
@@ -1077,7 +1077,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-07",
           "to": "C-HP-01",
@@ -1091,7 +1091,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-26",
@@ -1134,14 +1134,14 @@
         "potions_favoritism",
         "slytherin_privilege"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-HP-03",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-HP-01",
           "addedNodes": [
@@ -1154,7 +1154,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-05",
           "to": "C-HP-01",
@@ -1168,7 +1168,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-28",
@@ -1208,14 +1208,14 @@
         "crosses_house_lines",
         "fragile_bridge"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-HP-04",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-HP-02",
           "addedNodes": [
@@ -1228,7 +1228,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-02",
           "to": "C-HP-01",
@@ -1242,7 +1242,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-29",
@@ -1290,14 +1290,14 @@
         "slytherin_information_network",
         "fluffy_discovery_different"
       ],
-      "threadMutations": [
+      "threadDeltas": [
         {
           "threadId": "T-HP-01",
           "from": "latent",
           "to": "active"
         }
       ],
-      "continuityMutations": [
+      "worldDeltas": [
         {
           "entityId": "C-HP-01",
           "addedNodes": [
@@ -1321,7 +1321,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-01",
           "to": "C-HP-07",
@@ -1329,7 +1329,7 @@
           "valenceDelta": 0.1
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-30",
@@ -1367,8 +1367,8 @@
         "loyalty_tested",
         "bridge_between_houses"
       ],
-      "threadMutations": [],
-      "continuityMutations": [
+      "threadDeltas": [],
+      "worldDeltas": [
         {
           "entityId": "C-HP-01",
           "addedNodes": [
@@ -1392,7 +1392,7 @@
           "addedEdges": []
         }
       ],
-      "relationshipMutations": [
+      "relationshipDeltas": [
         {
           "from": "C-HP-03",
           "to": "C-HP-01",
@@ -1406,7 +1406,7 @@
           "valenceDelta": 0.3
         }
       ],
-      "systemMutations": {
+      "systemDeltas": {
         "addedNodes": [
           {
             "id": "WK-HP-31",
@@ -1436,7 +1436,7 @@
       "id": "WX-HP-init",
       "summary": "World created: 8 characters (Harry Potter, Hermione Granger, Ron Weasley, Albus Dumbledore, Severus Snape, Rubeus Hagrid, Draco Malfoy, Quirinus Quirrell), 8 locations (Wizarding Britain, Hogwarts, Privet Drive, Diagon Alley, The Great Hall, The Third-Floor Corridor, The Forbidden Forest, Gringotts), 7 threads, 10 relationships",
       "expansionManifest": {
-        "characters": [
+        "newCharacters": [
           {
             "id": "C-HP-01",
             "name": "Harry Potter",
@@ -1446,7 +1446,7 @@
               "T-HP-02",
               "T-HP-06"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-HP-01": {
                   "id": "K-HP-01",
@@ -1506,7 +1506,7 @@
               "T-HP-01",
               "T-HP-04"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-HP-10": {
                   "id": "K-HP-10",
@@ -1566,7 +1566,7 @@
               "T-HP-04",
               "T-HP-07"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-HP-20": {
                   "id": "K-HP-20",
@@ -1616,7 +1616,7 @@
               "T-HP-01",
               "T-HP-05"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-HP-30": {
                   "id": "K-HP-30",
@@ -1676,7 +1676,7 @@
               "T-HP-03",
               "T-HP-01"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-HP-40": {
                   "id": "K-HP-40",
@@ -1726,7 +1726,7 @@
               "T-HP-02",
               "T-HP-06"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-HP-50": {
                   "id": "K-HP-50",
@@ -1775,7 +1775,7 @@
             "threadIds": [
               "T-HP-07"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-HP-60": {
                   "id": "K-HP-60",
@@ -1815,7 +1815,7 @@
               "T-HP-05",
               "T-HP-01"
             ],
-            "continuity": {
+            "world": {
               "nodes": {
                 "K-HP-70": {
                   "id": "K-HP-70",
@@ -1858,13 +1858,14 @@
             }
           }
         ],
-        "locations": [
+        "newLocations": [
           {
             "id": "L-HP-01",
             "name": "Wizarding Britain",
             "parentId": null,
             "threadIds": [],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-HP-01": {
                   "id": "LK-HP-01",
@@ -1884,8 +1885,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-HP-02",
@@ -1895,7 +1895,8 @@
               "T-HP-01",
               "T-HP-04"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-HP-03": {
                   "id": "LK-HP-03",
@@ -1915,8 +1916,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-HP-03",
@@ -1925,7 +1925,8 @@
             "threadIds": [
               "T-HP-06"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-HP-05": {
                   "id": "LK-HP-05",
@@ -1945,8 +1946,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-HP-04",
@@ -1955,7 +1955,8 @@
             "threadIds": [
               "T-HP-02"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-HP-07": {
                   "id": "LK-HP-07",
@@ -1975,8 +1976,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-HP-05",
@@ -1985,7 +1985,8 @@
             "threadIds": [
               "T-HP-07"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-HP-09": {
                   "id": "LK-HP-09",
@@ -2005,8 +2006,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-HP-06",
@@ -2016,7 +2016,8 @@
               "T-HP-01",
               "T-HP-05"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-HP-11": {
                   "id": "LK-HP-11",
@@ -2036,8 +2037,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-HP-07",
@@ -2046,7 +2046,8 @@
             "threadIds": [
               "T-HP-05"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-HP-13": {
                   "id": "LK-HP-13",
@@ -2066,8 +2067,7 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           },
           {
             "id": "L-HP-08",
@@ -2076,7 +2076,8 @@
             "threadIds": [
               "T-HP-01"
             ],
-            "continuity": {
+            "prominence": "place",
+            "world": {
               "nodes": {
                 "LK-HP-15": {
                   "id": "LK-HP-15",
@@ -2096,11 +2097,10 @@
                   "relation": "co_occurs"
                 }
               ]
-            },
-            "prominence": "place"
+            }
           }
         ],
-        "threads": [
+        "newThreads": [
           {
             "id": "T-HP-01",
             "participants": [
@@ -2222,69 +2222,69 @@
             "dependents": []
           }
         ],
-        "relationships": [
+        "relationshipDeltas": [
           {
             "from": "C-HP-01",
             "to": "C-HP-02",
             "type": "Finds her bossy and insufferable at first, but senses something familiar — an outsider trying too hard to belong",
-            "valence": 0.1
+            "valenceDelta": 0.1
           },
           {
             "from": "C-HP-02",
             "to": "C-HP-01",
             "type": "Disapproves of his rule-breaking but is drawn to his quiet bravery — he acts where she only reads",
-            "valence": 0.2
+            "valenceDelta": 0.2
           },
           {
             "from": "C-HP-01",
             "to": "C-HP-03",
             "type": "First real friend — Ron treats him like a normal boy, and that is the rarest gift Harry has ever received",
-            "valence": 0.6
+            "valenceDelta": 0.6
           },
           {
             "from": "C-HP-03",
             "to": "C-HP-01",
             "type": "Awed by Harry's fame but genuinely likes the quiet kid who shares his sweets on the train",
-            "valence": 0.5
+            "valenceDelta": 0.5
           },
           {
             "from": "C-HP-01",
             "to": "C-HP-04",
             "type": "Trusts Dumbledore implicitly — the first adult who spoke to him with honesty and warmth",
-            "valence": 0.7
+            "valenceDelta": 0.7
           },
           {
             "from": "C-HP-04",
             "to": "C-HP-01",
             "type": "Watches the boy with a mixture of hope and sorrow, knowing the weight that must eventually fall on those young shoulders",
-            "valence": 0.8
+            "valenceDelta": 0.8
           },
           {
             "from": "C-HP-01",
             "to": "C-HP-05",
             "type": "Convinced Snape despises him — the man's eyes carry a hatred Harry cannot explain or escape",
-            "valence": -0.6
+            "valenceDelta": -0.6
           },
           {
             "from": "C-HP-05",
             "to": "C-HP-01",
             "type": "Sees James Potter's arrogance in the boy's face, and Lily's eyes staring back — an unbearable contradiction",
-            "valence": -0.3
+            "valenceDelta": -0.3
           },
           {
             "from": "C-HP-01",
             "to": "C-HP-07",
             "type": "Rejected Draco's handshake and chose Ron — a choice that defined his Hogwarts life from the first day",
-            "valence": -0.4
+            "valenceDelta": -0.4
           },
           {
             "from": "C-HP-07",
             "to": "C-HP-01",
             "type": "Humiliated by the public rejection — Potter chose a Weasley over a Malfoy, and that insult will not be forgotten",
-            "valence": -0.5
+            "valenceDelta": -0.5
           }
         ],
-        "systemGraph": {
+        "systemDeltas": {
           "addedNodes": [
             {
               "id": "WK-HP-WB-01",

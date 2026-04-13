@@ -131,7 +131,7 @@ export default function CharacterDetail({ characterId }: Props) {
     state.viewState.currentSceneIndex,
   ).filter((r) => r.from === characterId || r.to === characterId);
 
-  // Current scene mutations for this character
+  // Current scene deltas for this character
   const currentSceneKey = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
   const currentScene = currentSceneKey
     ? narrative.scenes[currentSceneKey]
@@ -219,7 +219,7 @@ export default function CharacterDetail({ characterId }: Props) {
         </p>
       )}
 
-      {/* Recent — current scene mutations, open by default */}
+      {/* Recent — current scene deltas, open by default */}
       {hasRecentActivity &&
         currentScene &&
         (() => {

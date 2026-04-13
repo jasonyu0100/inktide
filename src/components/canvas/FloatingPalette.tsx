@@ -374,21 +374,6 @@ export default function FloatingPalette({
                     </button>
                     <button
                       type="button"
-                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-orange-400 bg-orange-500/10 hover:bg-orange-500/20"
-                      onClick={() =>
-                        window.dispatchEvent(
-                          new CustomEvent("canvas:check-continuity"),
-                        )
-                      }
-                      title="Check propositions for continuity violations"
-                    >
-                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                        <path d="M9 12l2 2 4-4" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
                       className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
                       onClick={() =>
                         window.dispatchEvent(

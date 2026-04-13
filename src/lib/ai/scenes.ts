@@ -309,11 +309,11 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST �
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did — how it delivered utility"}],
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition: 'Rode horseback through the night', 'Slipped through the back gate at dawn'"}},
       "events": ["event_tag_1", "event_tag_2"],
-      "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-      "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-      "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-      "systemMutations": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-XX", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
-      "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
+      "threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+      "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+      "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
+      "systemDeltas": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-XX", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
+      "ownershipDeltas": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
       "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
       "newCharacters": [{"id": "C-GEN-001", "name": "Full Name", "role": "anchor|recurring|transient", "threadIds": [], "imagePrompt": "1-2 sentence literal physical description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history|capability|secret|goal", "content": "key fact about this character"}}, "edges": []}}],
       "newLocations": [{"id": "L-GEN-001", "name": "Location Name", "parentId": "L-XX (existing parent) or null", "tiedCharacterIds": [], "threadIds": [], "imagePrompt": "1-2 sentence literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history", "content": "key fact about this location"}}, "edges": []}}],
@@ -330,20 +330,20 @@ INTRODUCING NEW ENTITIES — Scenes can introduce new characters, locations, art
 - New ARTIFACT: A tool, weapon, document, or object becomes relevant to the scene — discovered, created, or introduced. Give it significance and utility.
 - New THREAD: The scene opens a new tension that wasn't tracked before — a promise made, a debt created, a question raised, a rivalry sparked. Start it as "latent" or "seeded".
 
-Be liberal with entity introduction. If the scene needs a blacksmith, introduce one. If characters enter a tavern not yet in the world, introduce it. If someone finds a letter, introduce it as an artifact. These on-the-fly expansions make the world feel alive and responsive. Every new entity gets woven into the world immediately through the scene's mutations.
+Be liberal with entity introduction. If the scene needs a blacksmith, introduce one. If characters enter a tavern not yet in the world, introduce it. If someone finds a letter, introduce it as an artifact. These on-the-fly expansions make the world feel alive and responsive. Every new entity gets woven into the world immediately through the scene's deltas.
 
 Rules:
 - Use existing character IDs and location IDs from the narrative context when they exist
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
-- World knowledge node IDs for NEW concepts must be unique: SYS-GEN-001, SYS-GEN-002, etc. Reused nodes should keep their original ID.
+- System knowledge node IDs for NEW concepts must be unique: SYS-GEN-001, SYS-GEN-002, etc. Reused nodes should keep their original ID.
 
 DENSITY BAR (grading reference means — your arc averages must hit these or it grades in the 60s):
   Fate F ≈ 1.5 per scene · World W ≈ 12 per scene · System S ≈ 3 per scene
-  A typical scene: 3-5 entities touched, 10-14 continuity nodes (list in causal order — edges auto-chain), 2-4 world knowledge nodes + 1-3 edges, 2-4 thread pulses (0-1 transitions).
-  A climax scene: push to 16-20+ continuity, 5-8 knowledge, 1-2 transitions.
-  A quiet scene: 6-8 continuity, 0-1 knowledge, 0-1 pulses.
-  Every entity in participantIds that the scene VISIBLY CHANGES must have a continuityMutation. Scan the participant list before returning — any visible participant with zero nodes is a scoring leak.
+  A typical scene: 3-5 entities touched, 10-14 world nodes (list in causal order — edges auto-chain), 2-4 system knowledge nodes + 1-3 edges, 2-4 thread pulses (0-1 transitions).
+  A climax scene: push to 16-20+ world, 5-8 knowledge, 1-2 transitions.
+  A quiet scene: 6-8 world, 0-1 knowledge, 0-1 pulses.
+  Every entity in participantIds that the scene VISIBLY CHANGES must have a worldDelta. Scan the participant list before returning — any visible participant with zero nodes is a scoring leak.
   REUSE existing WK node IDs when reinforcing — only NEW concepts count as density.
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_SUMMARY_REQUIREMENT}
@@ -502,7 +502,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
     }
   }
 
-  // Fix continuity node IDs to be unique and sequential
+  // Fix world node IDs to be unique and sequential
   // Include both existing entities and newly introduced entities' world nodes
   const existingKIds = [
     ...Object.values(narrative.characters).flatMap((c) => Object.keys(c.world.nodes)),
@@ -510,14 +510,14 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
     ...Object.values(narrative.artifacts ?? {}).flatMap((a) => Object.keys(a.world.nodes)),
   ];
   // Count world nodes: worldDeltas + new entities' initial world nodes
-  const totalNodeMutations = scenes.reduce((sum, s) => {
-    const deltaMutations = s.worldDeltas.reduce((ns, km) => ns + (km.addedNodes?.length ?? 0), 0);
+  const totalNodeDeltas = scenes.reduce((sum, s) => {
+    const worldDeltaNodes = s.worldDeltas.reduce((ns, km) => ns + (km.addedNodes?.length ?? 0), 0);
     const newEntityNodes = (s.newCharacters ?? []).reduce((ns, c) => ns + Object.keys(c.world?.nodes ?? {}).length, 0)
       + (s.newLocations ?? []).reduce((ns, l) => ns + Object.keys(l.world?.nodes ?? {}).length, 0)
       + (s.newArtifacts ?? []).reduce((ns, a) => ns + Object.keys(a.world?.nodes ?? {}).length, 0);
-    return sum + deltaMutations + newEntityNodes;
+    return sum + worldDeltaNodes + newEntityNodes;
   }, 0);
-  const kIds = nextIds('K', existingKIds, totalNodeMutations);
+  const kIds = nextIds('K', existingKIds, totalNodeDeltas);
   let kIdx = 0;
   // Remap worldDelta node IDs
   for (const scene of scenes) {
@@ -574,7 +574,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
     }
   }
 
-  // Sanitize and re-ID world knowledge mutations. Concept-based resolution
+  // Sanitize and re-ID system knowledge deltas. Concept-based resolution
   // collapses re-mentioned concepts (existing-graph or earlier-in-batch) to
   // their canonical id so that re-asserting "mana-binding" across scenes
   // does not repeatedly count as a new node and inflate System scores.
@@ -766,7 +766,7 @@ ${sampledBeats.map((b, i) => `  ${i + 1}. ${b.fn}:${b.mechanism}`).join('\n')}\n
   // Build prose profile block
   const profileBlock = `\n${buildProseProfile(profile, { beatDensity: sampler.beatsPerKWord, targetBeats })}${beatSequenceHint}\n`;
 
-  const systemPrompt = `You are a scene architect. Given a scene's structural data (summary, mutations, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
+  const systemPrompt = `You are a scene architect. Given a scene's structural data (summary, deltas, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
 
 The scene context includes a PROSE PROFILE with rules and anti-patterns. Propositions MUST conform to the profile's style. If the profile forbids figurative language, propositions must be plain factual statements. If the profile allows poetic language, propositions can be evocative. Read the profile rules carefully.
 
@@ -790,7 +790,7 @@ ${PROMPT_BEAT_TAXONOMY}
 RULES:
 - Open with 1-3 breathe beats to ground the scene physically.
 - Produce AT LEAST ${targetBeats} beats. This is the minimum bar — you are free to add more beats if the scene's content warrants it. Do not produce fewer than ${targetBeats}.
-- Every structural mutation (thread, continuity, relationship, world knowledge) must map to at least one beat.
+- Every structural delta (thread, world, relationship, system knowledge) must map to at least one beat.
 - Thread transitions need a concrete trigger in the 'what' field.
 - Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed).
 - Relationship shifts need a catalytic moment.
@@ -1281,7 +1281,7 @@ NON-FICTION (exhaustive example from a technical paper):
 • {"content": "Sustained threads earn superlinearly: 5 arcs at critical→resolved earns ~34 vs 4 for single-arc", "type": "example"}
 • {"content": "Published works score 85-95", "type": "evidence"}
 • {"content": "C = √ΔM + √ΔE + √ΔR", "type": "formula"}
-• {"content": "ΔM counts continuity mutations", "type": "definition"}
+• {"content": "ΔM counts world deltas", "type": "definition"}
 • {"content": "ΔE counts events", "type": "definition"}
 • {"content": "ΔR = Σ|Δv|² sums squared valence shifts (L2)", "type": "formula"}
 • {"content": "Square roots give diminishing returns", "type": "mechanism"}
@@ -1763,12 +1763,12 @@ SHOW, DON'T TELL (non-negotiable):
 - NO info-dumping: never explain systems, concepts, or backstory in prose paragraphs
 - NO explicit emotion naming: show fear through trembling hands, not "He felt fear"
 - NO thematic statements: demonstrate themes through events, don't declare them
-- World knowledge reveals must emerge through demonstration, dialogue discovery, or consequence — never narrator explanation
+- System knowledge reveals must emerge through demonstration, dialogue discovery, or consequence — never narrator explanation
 
 THREE PILLARS — the prose must honour all three:
-1. CONTINUITY: POV character perceives only what their senses and existing knowledge allow. New continuity mutations discovered through specific mechanisms, never referenced before revelation.
+1. WORLD: POV character perceives only what their senses and existing knowledge allow. New world deltas discovered through specific mechanisms, never referenced before revelation.
 2. THREADS: Every thread shift lands at a dramatic moment through action, not narration.
-3. SYSTEM: New world concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
+3. SYSTEM: New system concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
 
 You must satisfy every logical requirement and achieve every proposition — but achieve them through craft, implication, and demonstration. Write at least ~${sceneScale(scene).estWords} words. If the scene demands more, write more.
 
@@ -1783,14 +1783,14 @@ SHOW, DON'T TELL (non-negotiable):
 - NO info-dumping or system explanations in prose paragraphs
 - NO explicit emotion naming — show through body language, action, dialogue subtext
 - NO thematic statements — demonstrate through events and contrasts
-- World knowledge reveals through demonstration, discovery, consequence — never narrator explanation
+- System knowledge reveals through demonstration, discovery, consequence — never narrator explanation
 
 THREE PILLARS — the prose must honour all three:
-1. CONTINUITY: POV character perceives only what senses and existing knowledge allow. New continuity mutations discovered through specific moments, never referenced before revelation.
+1. WORLD: POV character perceives only what senses and existing knowledge allow. New world deltas discovered through specific moments, never referenced before revelation.
 2. THREADS: Every thread shift lands at a dramatic moment through action, not narration.
-3. SYSTEM: New world concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
+3. SYSTEM: New system concepts feel EARNED — demonstrated through consequence, dialogue, or action. Never explain after showing. Established knowledge can be referenced. New knowledge cannot be pre-explained.
 
-Every thread shift, continuity change, relationship mutation, and world knowledge reveal must be dramatised through action and scene. Foreshadow through imagery, subtext, environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words, more if the scene demands it.
+Every thread shift, world change, relationship delta, and system knowledge reveal must be dramatised through action and scene. Foreshadow through imagery, subtext, environmental details — never telegraph. Write at least ~${sceneScale(scene).estWords} words, more if the scene demands it.
 
 PROSE PROFILE COMPLIANCE IS MANDATORY: Every sentence must conform to the voice, register, devices, and rules specified above. Match the profile exactly — if it forbids figures of speech, use ZERO. If it demands specific devices, use them.`;
 
@@ -1943,19 +1943,19 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       const thread = narrative.threads[tm.threadId];
       const currentStatus = thread?.status ?? 'latent';
       if (!validStatuses.has(tm.from)) {
-        stripped.push(`threadMutation "${tm.threadId}" in scene ${scene.id} had invalid from="${tm.from}" — coerced to "${currentStatus}"`);
+        stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid from="${tm.from}" — coerced to "${currentStatus}"`);
         tm.from = currentStatus;
       }
       if (!validStatuses.has(tm.to)) {
-        stripped.push(`threadMutation "${tm.threadId}" in scene ${scene.id} had invalid to="${tm.to}" — coerced to "${tm.from}" (status-hold)`);
+        stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid to="${tm.to}" — coerced to "${tm.from}" (status-hold)`);
         tm.to = tm.from;
       }
     }
     // Ensure thread log entries have required fields. IDs here are still
     // GEN-* placeholders — downstream remapping assigns real ones. Explicit
-    // edges are cleared — the chain is auto-generated by applyThreadMutation.
+    // edges are cleared — the chain is auto-generated by applyThreadDelta.
     // If the LLM omitted addedNodes entirely, synthesize one from the status
-    // transition so every threadMutation produces at least one log entry
+    // transition so every threadDelta produces at least one log entry
     // instead of silently dropping the thread's contribution to the log.
     for (const tm of scene.threadDeltas) {
       const fallbackType = tm.from === tm.to ? 'pulse' : 'transition';
@@ -1976,26 +1976,26 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
             : `Thread "${desc}" advanced from ${tm.from} to ${tm.to}`,
           type: fallbackType as ThreadLogNodeType,
         }];
-        stripped.push(`threadMutation "${tm.threadId}" in scene ${scene.id} missing log entries — synthesized fallback`);
+        stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} missing log entries — synthesized fallback`);
       }
     }
     scene.worldDeltas = scene.worldDeltas.filter((km) => {
       if (!km.entityId || allEntityIds.has(km.entityId)) return true;
-      stripped.push(`continuityMutation entityId "${km.entityId}" in scene ${scene.id}`);
+      stripped.push(`worldDelta entityId "${km.entityId}" in scene ${scene.id}`);
       return false;
     });
     scene.relationshipDeltas = scene.relationshipDeltas.filter((rm) => {
       if (rm.from === rm.to) {
-        stripped.push(`relationshipMutation self-loop "${rm.from}" in scene ${scene.id}`);
+        stripped.push(`relationshipDelta self-loop "${rm.from}" in scene ${scene.id}`);
         return false;
       }
       if (validCharIds.has(rm.from) && validCharIds.has(rm.to)) return true;
-      stripped.push(`relationshipMutation "${rm.from}" -> "${rm.to}" in scene ${scene.id}`);
+      stripped.push(`relationshipDelta "${rm.from}" -> "${rm.to}" in scene ${scene.id}`);
       return false;
     });
     scene.ownershipDeltas = (scene.ownershipDeltas ?? []).filter((om) => {
       const ok = validArtifactIds.has(om.artifactId) && allEntityIds.has(om.fromId) && allEntityIds.has(om.toId);
-      if (!ok) stripped.push(`ownershipMutation "${om.artifactId}" in scene ${scene.id}`);
+      if (!ok) stripped.push(`ownershipDelta "${om.artifactId}" in scene ${scene.id}`);
       return ok;
     });
     if (scene.ownershipDeltas.length === 0) delete scene.ownershipDeltas;
@@ -2016,7 +2016,7 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
     scene.tieDeltas = (scene.tieDeltas ?? []).filter((mm) => {
       const ok = validLocIds.has(mm.locationId) && validCharIds.has(mm.characterId) &&
                  (mm.action === 'add' || mm.action === 'remove');
-      if (!ok) stripped.push(`tieMutation "${mm.characterId}" at "${mm.locationId}" in scene ${scene.id}`);
+      if (!ok) stripped.push(`tieDelta "${mm.characterId}" at "${mm.locationId}" in scene ${scene.id}`);
       return ok;
     });
     if (scene.tieDeltas.length === 0) delete scene.tieDeltas;
@@ -2130,7 +2130,7 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       if (scene.newThreads.length === 0) delete scene.newThreads;
     }
 
-    // Sanitize systemMutations — ensure arrays exist, nodes have concept+type,
+    // Sanitize systemDeltas — ensure arrays exist, nodes have concept+type,
     // edges have valid refs, no self-loops, no intra-scene duplicates.
     if (scene.systemDeltas) {
       const wkm = scene.systemDeltas;
@@ -2158,13 +2158,13 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
     } else {
       scene.systemDeltas = { addedNodes: [], addedEdges: [] };
     }
-    // Ensure continuityMutations have required fields. Node ORDER defines
-    // the chain — no explicit edges are stored. Type sanitization in applyContinuityMutation.
+    // Ensure worldDeltas have required fields. Node ORDER defines
+    // the chain — no explicit edges are stored. Type sanitization in applyWorldDelta.
     scene.worldDeltas = scene.worldDeltas.filter((km) => {
-      if (!km.entityId) { stripped.push(`continuityMutation missing entityId in scene ${scene.id}`); return false; }
+      if (!km.entityId) { stripped.push(`worldDelta missing entityId in scene ${scene.id}`); return false; }
       km.addedNodes = (km.addedNodes ?? []).filter(n => n.content);
       if (km.addedNodes.length === 0) {
-        stripped.push(`continuityMutation empty (no nodes) in scene ${scene.id}`);
+        stripped.push(`worldDelta empty (no nodes) in scene ${scene.id}`);
         return false;
       }
       return true;

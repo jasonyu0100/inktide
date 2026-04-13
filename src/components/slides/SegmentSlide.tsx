@@ -205,7 +205,7 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
               <span className="font-mono text-text-primary font-semibold">{threadsTouched.size}</span>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-text-dim">Total mutations</span>
+              <span className="text-text-dim">Total deltas</span>
               <span className="font-mono text-text-secondary">{segment.threadChanges.length}</span>
             </div>
             {terminalCount > 0 && (

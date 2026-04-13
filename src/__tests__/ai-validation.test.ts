@@ -330,7 +330,7 @@ describe('ai-validation', () => {
     });
   });
   describe('validateSystemDelta', () => {
-    it('validates world knowledge with nodes and edges', () => {
+    it('validates system knowledge with nodes and edges', () => {
       const validKnowledge = {
         nodes: [
           { id: 'N-1', content: 'Magic System', type: 'system' },
@@ -344,7 +344,7 @@ describe('ai-validation', () => {
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
-    it('accepts world knowledge with only nodes', () => {
+    it('accepts system knowledge with only nodes', () => {
       const result = validateSystemDelta({
         nodes: [
           { id: 'N-1', content: 'Magic', type: 'system' },
@@ -359,7 +359,7 @@ describe('ai-validation', () => {
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('System delta result is not an object');
     });
-    it('rejects completely empty world knowledge', () => {
+    it('rejects completely empty system knowledge', () => {
       const result = validateSystemDelta({
         nodes: [],
         edges: [],

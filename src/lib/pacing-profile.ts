@@ -597,17 +597,17 @@ export function detectCurrentMode(
 // ── Prompt Generation ────────────────────────────────────────────────────────
 
 /**
- * Compact mutation guidance per cube corner — concise version for token efficiency.
+ * Compact delta guidance per cube corner — concise version for token efficiency.
  */
 const MODE_GUIDANCE: Record<CubeCornerKey, string> = {
-  HHH: `EPOCH — densest scene. 2+ terminal threads, 18-25+ continuity nodes across 4-6 entities, 6-10 world knowledge nodes with 3-5 edges. Everything spikes.`,
-  HHL: `CLIMAX — threads pay off, characters transform. 2+ terminal threads, 18-25+ continuity nodes across 4-6 entities, minimal new world knowledge (0-2 nodes).`,
-  HLH: `REVELATION — threads resolve via world-building. Thread transitions from discovery, lean continuity (4-8 nodes), 6-10 new world knowledge nodes with 4-6 edges.`,
-  HLL: `CLOSURE — quiet resolution. 1-2 terminal threads, sparse continuity (3-6 nodes), 0-2 world knowledge. Aftermath, not action.`,
-  LHH: `DISCOVERY — encounter something new. No terminals, 14-22 continuity nodes across 3-5 entities, 5-8 world knowledge nodes with 3-5 edges. Exploration.`,
-  LHL: `GROWTH — character development. No resolutions, 14-22 continuity nodes across 3-5 entities, 0-2 world knowledge. Relationships shift, interiors deepen.`,
-  LLH: `LORE — pure world-building. Pulses only, 3-6 continuity nodes, 6-12 world knowledge nodes with 4-8 edges. Plant seeds, reveal systems.`,
-  LLL: `REST — minimal everything. 0-1 pulses, 3-6 continuity nodes across 2-3 entities, 0-2 world knowledge. Breathing room — but still DOES something to whoever is present.`,
+  HHH: `EPOCH — densest scene. 2+ terminal threads, 18-25+ world nodes across 4-6 entities, 6-10 system knowledge nodes with 3-5 edges. Everything spikes.`,
+  HHL: `CLIMAX — threads pay off, characters transform. 2+ terminal threads, 18-25+ world nodes across 4-6 entities, minimal new system knowledge (0-2 nodes).`,
+  HLH: `REVELATION — threads resolve via world-building. Thread transitions from discovery, lean world (4-8 nodes), 6-10 new system knowledge nodes with 4-6 edges.`,
+  HLL: `CLOSURE — quiet resolution. 1-2 terminal threads, sparse world (3-6 nodes), 0-2 system knowledge. Aftermath, not action.`,
+  LHH: `DISCOVERY — encounter something new. No terminals, 14-22 world nodes across 3-5 entities, 5-8 system knowledge nodes with 3-5 edges. Exploration.`,
+  LHL: `GROWTH — character development. No resolutions, 14-22 world nodes across 3-5 entities, 0-2 system knowledge. Relationships shift, interiors deepen.`,
+  LLH: `LORE — pure world-building. Pulses only, 3-6 world nodes, 6-12 system knowledge nodes with 4-8 edges. Plant seeds, reveal systems.`,
+  LLL: `REST — minimal everything. 0-1 pulses, 3-6 world nodes across 2-3 entities, 0-2 system knowledge. Breathing room — but still DOES something to whoever is present.`,
 };
 
 /**
@@ -625,7 +625,7 @@ export function buildSingleStepPrompt(
   const targets = `P:${step.forces.fate[0]}-${step.forces.fate[1]} W:${step.forces.world[0]}-${step.forces.world[1]} S:${step.forces.system[0]}-${step.forces.system[1]}`;
   return `PACING — Scene ${sceneIndex + 1}/${totalScenes}: ${NARRATIVE_CUBE[step.mode].name} [P:${p} W:${c} S:${k}]
 ${MODE_GUIDANCE[step.mode]}
-Targets: ${targets}. Reference means: P≈1.5, W≈12, S≈3. Mutations ARE forces — match counts to targets, never hug the mean.`;
+Targets: ${targets}. Reference means: P≈1.5, W≈12, S≈3. Deltas ARE forces — match counts to targets, never hug the mean.`;
 }
 
 /**
@@ -638,10 +638,10 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
   lines.push(`PACING SEQUENCE (${sequence.pacingDescription})`);
   lines.push("");
   lines.push(
-    "Mode determines mutation profile. Formulas compute forces FROM mutations:",
+    "Mode determines delta profile. Formulas compute forces FROM deltas:",
   );
   lines.push(
-    "  P = Σ thread transitions (pulse=0.25) | W = ΔN_c + √ΔE_c (entity continuity) | S = ΔN + √ΔE (world knowledge)",
+    "  P = Σ thread transitions (pulse=0.25) | W = ΔN_c + √ΔE_c (entity world) | S = ΔN + √ΔE (system knowledge)",
   );
   lines.push(
     "  Reference means: P≈1.5, W≈12, S≈3. Scenes should breathe above/below these — not hug the mean.",
@@ -665,7 +665,7 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
   }
 
   lines.push(
-    "CRITICAL: Mutations ARE forces. Match counts to targets — dense/sparse variation creates pacing rhythm.",
+    "CRITICAL: Deltas ARE forces. Match counts to targets — dense/sparse variation creates pacing rhythm.",
   );
 
   return lines.join("\n");

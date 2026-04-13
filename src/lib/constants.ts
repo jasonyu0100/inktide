@@ -131,8 +131,8 @@ export const GRAPH_WORLD_LIMIT = 20;
 /** Arc count above which ForceAnalytics switches to dense mode */
 export const DENSE_ARC_THRESHOLD = 20;
 
-/** Default sliding window size for home-page ForceCharts */
-export const FORCE_CHARTS_WINDOW_DEFAULT = 100;
+/** Default sliding window size for ForceTimeline */
+export const FORCE_TIMELINE_WINDOW_DEFAULT = 100;
 
 /** Scene window for delivery sparklines on key moment cards (slides + report) */
 export const MOMENT_SPARKLINE_WINDOW = 50;

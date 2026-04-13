@@ -25,7 +25,7 @@ CHARACTER DISCIPLINE:
 - At least one plan per arc must go wrong.
 
 PACING DENSITY:
-- Battle: 4-5 events, 3+ mutations. Quiet: 1 event, 0-1 mutations.
+- Battle: 4-5 events, 3+ deltas. Quiet: 1 event, 0-1 deltas.
 - ONE scene per status transition. Thread appears 3x without transition = filler.
 - Scenes ending in retreat/recalculation have NOT earned existence. Write the ACTION.
 

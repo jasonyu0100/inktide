@@ -18,8 +18,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PlanCandidatesModal } from "./PlanCandidatesModal";
 import { usePropositionClassification } from "@/hooks/usePropositionClassification";
 import { classificationColor, classificationLabel, propKey, BASE_COLORS } from "@/lib/proposition-classify";
-import type { ConsistencyViolation } from "@/types/narrative";
-import { ConsistencyCheckModal } from "./ConsistencyCheckModal";
 
 const FN_COLORS: Record<string, string> = {
   breathe: "#6b7280",
@@ -75,8 +73,6 @@ export function ScenePlanView({
     estWords: number;
   } | null>(null);
   const [showCandidates, setShowCandidates] = useState(false);
-  const [violations, setViolations] = useState<ConsistencyViolation[]>([]);
-  const [checkingContinuity, setCheckingContinuity] = useState(false);
   const beatRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Sync when scene or resolved plan changes
@@ -88,7 +84,6 @@ export function ScenePlanView({
     );
     setReasoning("");
     setMeta(null);
-    setViolations([]);
   }, [scene.id, resolvedPlan]);
 
   // Listen for candidates open event from FloatingPalette
@@ -97,8 +92,6 @@ export function ScenePlanView({
     window.addEventListener("canvas:open-candidates", handleOpenCandidates);
     return () => window.removeEventListener("canvas:open-candidates", handleOpenCandidates);
   }, []);
-
-  const [showContinuityModal, setShowContinuityModal] = useState(false);
 
   // Listen for bulk plan streaming events (from useBulkGenerate)
   useEffect(() => {
@@ -128,15 +121,6 @@ export function ScenePlanView({
       window.removeEventListener("bulk:plan-complete", onComplete);
     };
   }, [scene.id]);
-
-  // Listen for continuity check event from FloatingPalette
-  useEffect(() => {
-    const handleCheckContinuity = () => {
-      if (planCache.plan) setShowContinuityModal(true);
-    };
-    window.addEventListener("canvas:check-continuity", handleCheckContinuity);
-    return () => window.removeEventListener("canvas:check-continuity", handleCheckContinuity);
-  }, [planCache.plan]);
 
   // Listen for scroll-to-beat event from search and proposition connections
   useEffect(() => {
@@ -571,14 +555,6 @@ export function ScenePlanView({
                                 {classificationLabel(cls.base, cls.reach)}
                               </button>
                             )}
-                            {violations.some(v => v.beatIndex === i && v.propIndex === j) && (
-                              <span
-                                className="shrink-0 text-[8px] leading-none font-medium text-red-400 mt-0.5"
-                                title={violations.find(v => v.beatIndex === i && v.propIndex === j)?.explanation}
-                              >
-                                ⚠ violation
-                              </span>
-                            )}
                             <p
                               contentEditable
                               suppressContentEditableWarning
@@ -715,16 +691,6 @@ export function ScenePlanView({
         />
       )}
 
-      {/* Continuity Check Modal */}
-      {showContinuityModal && planCache.plan && (
-        <ConsistencyCheckModal
-          narrative={narrative}
-          resolvedKeys={resolvedKeys}
-          plan={planCache.plan}
-          onClose={() => setShowContinuityModal(false)}
-          onViolationsFound={(v) => setViolations(v)}
-        />
-      )}
     </div>
   );
 }

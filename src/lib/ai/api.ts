@@ -183,7 +183,7 @@ NAMING DISCIPLINE — all entity names (characters, locations, artifacts, system
 - Never produce smooth soft-consonant + open-vowel constructions designed to sound generically pleasant. Never produce compound fantasy surnames.
 
 WRITING LIKE A NOVELIST — every scene should leave a mark:
-- Characters are always learning. In every scene, someone notices something, overhears a detail, forms an impression, recalls a memory, or pieces together a clue. Track these as continuityMutations — they are the fabric of dramatic irony and character interiority.
-- Relationships shift constantly. When characters interact, their dynamics evolve — trust deepens, suspicion grows, respect is earned or lost. Even a shared glance or an awkward silence shifts something. Track these as relationshipMutations with appropriate valenceDelta.
+- Characters are always learning. In every scene, someone notices something, overhears a detail, forms an impression, recalls a memory, or pieces together a clue. Track these as worldDeltas — they are the fabric of dramatic irony and character interiority.
+- Relationships shift constantly. When characters interact, their dynamics evolve — trust deepens, suspicion grows, respect is earned or lost. Even a shared glance or an awkward silence shifts something. Track these as relationshipDeltas with appropriate valenceDelta.
 - Events ground scenes in concrete happenings. Tag what actually occurs: "ambush", "confession", "storm_arrival", "treaty_signed", "duel", "feast", "betrayal_revealed". These make scenes feel like real narrative moments, not abstract summaries.
-- Thread advancement is dynamic — a quiet scene may touch no threads, while a pivotal scene might advance several at once. Only include mutations where the status actually changes. Padding with no-op mutations is worse than no mutation at all.`;
+- Thread advancement is dynamic — a quiet scene may touch no threads, while a pivotal scene might advance several at once. Only include deltas where the status actually changes. Padding with no-op deltas is worse than no delta at all.`;

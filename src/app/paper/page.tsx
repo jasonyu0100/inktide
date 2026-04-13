@@ -157,7 +157,7 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
         call: "generateScenes",
         count: "×1",
         model: "2.5 Flash",
-        note: "Scene structures & mutations",
+        note: "Scene structures & deltas",
         cost: "$0.03",
       },
       {
@@ -220,7 +220,7 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
         call: "editScene",
         count: "×~1",
         model: "2.5 Flash",
-        note: "Scene structure edit (summary + mutations)",
+        note: "Scene structure edit (summary + deltas)",
         cost: "$0.01",
       },
       {
@@ -255,7 +255,7 @@ const BREAKDOWN_CATEGORIES: BreakdownCategory[] = [
         call: "extractSceneStructure",
         count: "×N",
         model: "2.5 Flash",
-        note: "Entities & mutations from prose + plan",
+        note: "Entities & deltas from prose + plan",
         cost: "~$0.008/scene",
       },
       {
@@ -746,7 +746,7 @@ export default function PaperPage() {
             <P>
               This paper proposes an answer: model text as knowledge graphs that
               mutate section by section, and derive three forces from those
-              mutations. <B>System</B> measures the deepening of rules and
+              deltas. <B>System</B> measures the deepening of rules and
               structures. <B>World</B> measures transformation of entities.{" "}
               <B>Fate</B> measures thread progression toward resolution.
               Together they capture what readers perceive intuitively: a scene
@@ -964,17 +964,17 @@ export default function PaperPage() {
           <Section id="approach" label="Approach">
             <P>
               We model narratives as knowledge graphs that evolve scene by
-              scene. An LLM extracts structural mutations; deterministic
-              formulas compute forces from those mutations. This separates{" "}
+              scene. An LLM extracts structural deltas; deterministic
+              formulas compute forces from those deltas. This separates{" "}
               <em>comprehension</em> (LLM) from <em>measurement</em> (formulas),
               keeping the scoring fully transparent and reproducible.
             </P>
-            <P>The three mutation layers are:</P>
+            <P>The three delta layers are:</P>
             <ul className="mt-3 space-y-2 text-[13px] text-white/50 leading-[1.85]">
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">1.</span>
                 <span>
-                  <B>Thread mutations</B> — lifecycle transitions of narrative
+                  <B>Thread deltas</B> — lifecycle transitions of narrative
                   tensions (rivalries, secrets, quests) through discrete states:
                   latent &rarr; seeded &rarr; active &rarr; escalating &rarr;
                   critical &rarr; resolved/subverted. Abandoned resets a thread
@@ -986,7 +986,7 @@ export default function PaperPage() {
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">2.</span>
                 <span>
-                  <B>Continuity mutations</B> — permanent character
+                  <B>World deltas</B> — permanent character
                   transformations (learns, loses, becomes, realizes) plus
                   relationship valence shifts. These accumulate as persistent
                   state attached to characters.
@@ -995,7 +995,7 @@ export default function PaperPage() {
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">3.</span>
                 <span>
-                  <B>Knowledge graph mutations</B> — additions to the
+                  <B>System graph deltas</B> — additions to the
                   world-building graph: nodes (principles, systems, concepts,
                   tensions, events, structures, environments, conventions,
                   constraints) and typed edges. Depth emerges from connectivity,
@@ -1003,7 +1003,7 @@ export default function PaperPage() {
                 </span>
               </li>
             </ul>
-            <P>Three forces derive directly from these mutations:</P>
+            <P>Three forces derive directly from these deltas:</P>
             <ul className="space-y-2 text-[13px] text-white/60 leading-relaxed pl-4">
               <li>
                 <B>System</B> measures how the world&apos;s rules and structures
@@ -1032,7 +1032,7 @@ export default function PaperPage() {
           <Section id="hierarchy" label="Computational Hierarchy">
             <P>
               Narratives decompose into five nested layers. Structure generation
-              (scenes with mutations) runs independently of prose generation
+              (scenes with deltas) runs independently of prose generation
               (beats and propositions), enabling parallel processing and precise
               attribution.
             </P>
@@ -1403,7 +1403,7 @@ export default function PaperPage() {
             <div className="mt-4 space-y-4">
               <P>
                 <B>Narrative</B> — The full knowledge graph: all characters,
-                locations, threads, relationships, and world knowledge. Persists
+                locations, threads, relationships, and system knowledge. Persists
                 and grows across the entire timeline.
                 <span className="block text-white/25 text-[11px] mt-1 italic">
                   HP: Harry, Hogwarts, the Philosopher&apos;s Stone quest,
@@ -1422,13 +1422,13 @@ export default function PaperPage() {
                 </span>
               </P>
               <P>
-                <B>Scenes</B> — Atomic units of structural mutation. Each scene
-                records thread transitions, continuity mutations, and knowledge
-                graph additions. Forces derive from these mutations, not from
+                <B>Scenes</B> — Atomic units of structural delta. Each scene
+                records thread transitions, world deltas, and knowledge
+                graph additions. Forces derive from these deltas, not from
                 prose.
                 <span className="block text-white/25 text-[11px] mt-1 italic">
                   HP: The troll fight — &ldquo;friendship with Hermione&rdquo;
-                  thread jumps latent → seeded, relationship mutation between
+                  thread jumps latent → seeded, relationship delta between
                   Harry/Ron/Hermione, knowledge node for troll vulnerability.
                 </span>
               </P>
@@ -1455,7 +1455,7 @@ export default function PaperPage() {
             </div>
 
             <P>
-              Forces are computed from mutations without examining prose.
+              Forces are computed from deltas without examining prose.
               Revision edits beats without modifying scene structure. Every
               layer is independently auditable.
             </P>
@@ -1530,7 +1530,7 @@ export default function PaperPage() {
               while others ring hollow? The answer is investment — and here we
               make it precise. Three forces capture what readers perceive
               intuitively, derived deterministically from knowledge graph
-              mutations.
+              deltas.
             </p>
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
@@ -1635,14 +1635,13 @@ export default function PaperPage() {
                 converge.
               </P>
               <Eq
-                tex={String.raw`D_i = \frac{1}{3}\left[\tanh\!\left(\frac{F_i}{\alpha}\right) + \tanh\!\left(\frac{W_i}{\alpha}\right) + \tanh\!\left(\frac{S_i}{\alpha}\right)\right] \qquad \alpha{=}1.5`}
+                tex={String.raw`D_i = \frac{F_i + W_i + S_i}{3}`}
               />
               <P>
-                All three forces contribute symmetrically — same weight, same
-                saturation. <Tex>{"\\tanh(f/\\alpha)"}</Tex> compresses extreme
-                values while preserving their sign and relative ordering. The
-                division by 3 normalizes output to{" "}
-                <Tex>{String.raw`[-1, 1]`}</Tex>. Peaks emerge not from
+                Equal-weighted mean of z-scored forces. Because each force is
+                independently normalised to mean&thinsp;=&thinsp;0,
+                std&thinsp;=&thinsp;1, all three contribute equally regardless
+                of their raw scale differences. Peaks emerge not from
                 one-dimensional spikes but from scenes where all three forces
                 fire together — structurally complete moments.
               </P>
@@ -1655,7 +1654,7 @@ export default function PaperPage() {
               Do the formulas capture structural significance? We tested
               against <em>Harry Potter and the Sorcerer&apos;s Stone</em>. The
               delivery curve below was computed entirely from structural
-              mutations extracted at analysis time.
+              deltas extracted at analysis time.
             </P>
 
             {/* Annotated Delivery Curve — computed from /works/harry_potter JSON via the same formulas used in the app */}
@@ -1848,12 +1847,12 @@ export default function PaperPage() {
             <P>
               This is the core claim:{" "}
               <B>
-                deterministic formulas applied to structural mutations recover
+                deterministic formulas applied to structural deltas recover
                 the dramatic shape of a narrative
               </B>
-              . Mutations are extracted by an LLM at low temperature to maximize
+              . Deltas are extracted by an LLM at low temperature to maximize
               extraction consistency. The formulas themselves are fully
-              deterministic — given the same mutations, the same scores follow.
+              deterministic — given the same deltas, the same scores follow.
               Cross-run validation confirms stable rankings: published works
               reliably outscore AI output across independent extraction passes.
               The same formulas that analyze published works also drive
@@ -1955,9 +1954,9 @@ export default function PaperPage() {
             </P>
 
             <P>
-              We compute force vectors for each scene from raw mutation data —
+              We compute force vectors for each scene from raw delta data —
               thread phase transitions for Fate, continuity and relationship
-              mutations for World, world knowledge additions for System — then
+              deltas for World, system knowledge additions for System — then
               z-score normalise across the novel and classify each scene into
               its cube corner. Consecutive corners form the chain.
             </P>
@@ -2003,7 +2002,7 @@ export default function PaperPage() {
                       y: cy + r * Math.sin(angle),
                     };
                   });
-                  // All 49 transitions from HP mutation analysis
+                  // All 49 transitions from HP delta analysis
                   const edges: [number, number, number][] = [
                     [1, 2, 4],
                     [1, 0, 4],
@@ -2507,7 +2506,7 @@ export default function PaperPage() {
               Combining the Chains
             </h3>
             <P>
-              This separates <em>what happens</em> (scene mutations, generated
+              This separates <em>what happens</em> (scene deltas, generated
               by LLM from narrative logic) from <em>how intensely</em> (pacing
               chain, sampled from an 8-state Markov process) from{" "}
               <em>how it reads</em> (beat chain, sampled from a 10-state Markov
@@ -2559,7 +2558,7 @@ export default function PaperPage() {
               specify exact narrative scaffolding (this beat introduces a rule,
               this escalates conflict), while profiles provide
               empirically-grounded style (write like Rowling, like Orwell, like
-              your own past work). The same mutations and force profile can be
+              your own past work). The same deltas and force profile can be
               rendered in different authorial accents by swapping profiles — a
               thriller in Orwell&apos;s introspective voice produces
               psychological tension; the same story in Rowling&apos;s
@@ -3147,7 +3146,7 @@ export default function PaperPage() {
                 </span>
                 <span className="text-white/50">
                   Revise content — may change POV, location, participants,
-                  mutations, and summary.
+                  deltas, and summary.
                 </span>
               </div>
               <div className="flex gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2">
@@ -3503,7 +3502,7 @@ export default function PaperPage() {
             </h3>
             <P>
               World density measures narrative richness relative to length:
-              (characters + locations + threads + world knowledge nodes) /
+              (characters + locations + threads + system knowledge nodes) /
               scenes. Tier thresholds are derived from the same reference
               corpus, spanning genre fiction, literary fiction, and academic
               texts.

@@ -113,7 +113,7 @@ ${ctx}`;
       return `You are a narrative consultant for the story "${n.title}". You have a condensed outline of the entire story.
 ${sceneAnchor}
 
-Answer questions about story progression, recap events, identify patterns, or discuss where the narrative stands. You see the arc structure and scene summaries but not full mutation detail. Be concise and specific.
+Answer questions about story progression, recap events, identify patterns, or discuss where the narrative stands. You see the arc structure and scene summaries but not full delta detail. Be concise and specific.
 
 ${ctx}`;
     }

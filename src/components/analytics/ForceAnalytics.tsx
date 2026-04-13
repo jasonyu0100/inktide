@@ -976,7 +976,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   });
 
   // View mode: individual force charts or delivery curve
-  const [view, setView] = useState<'forces' | 'delivery'>('forces');
+  const [view, setView] = useState<'forces' | 'delivery'>('delivery');
 
   // Raw force toggle (absolute values vs z-score normalised)
   const [showRawForce, setShowRawForce] = useState(true);

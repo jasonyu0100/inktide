@@ -71,8 +71,8 @@ export default function LocationDetail({ locationId }: Props) {
   const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.viewState.currentSceneIndex + 1);
 
   // Knowledge filtered to current scene (location knowledge uses locationId as characterId
-  // in the mutation replay — location-specific knowledge nodes aren't mutated by scenes,
-  // so we pass the locationId and any matching mutations will be respected)
+  // in the delta replay — location-specific knowledge nodes aren't changed by scenes,
+  // so we pass the locationId and any matching deltas will be respected)
   const worldNodes = getWorldNodesAtScene(
     location.world.nodes,
     locationId,

@@ -219,7 +219,7 @@ describe("computeThreadStatuses", () => {
     expect(statuses["T-01"]).toBe("latent");
     expect(statuses["T-02"]).toBe("active");
   });
-  it("applies thread mutations from scenes", () => {
+  it("applies thread deltas from scenes", () => {
     const narrative = createNarrative({
       threads: {
         "T-01": {
@@ -599,7 +599,7 @@ describe("gradeForces", () => {
     expect(Math.abs(grades.overall - sum)).toBeLessThanOrEqual(2);
   });
 });
-// ── World Knowledge Graph ────────────────────────────────────────────────────
+// ── System Knowledge Graph ────────────────────────────────────────────────────
 describe("rankSystemNodes", () => {
   it("returns empty array for empty graph", () => {
     const graph: SystemGraph = { nodes: {}, edges: [] };
@@ -623,7 +623,7 @@ describe("rankSystemNodes", () => {
   });
 });
 describe("buildCumulativeSystemGraph", () => {
-  it("accumulates mutations from scenes", () => {
+  it("accumulates deltas from scenes", () => {
     const scenes: Record<string, Scene> = {
       "S-001": createScene({
         id: "S-001",

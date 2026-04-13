@@ -544,12 +544,12 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                 </div>
               )}
 
-              {/* World Knowledge */}
+              {/* System Knowledge */}
               {knowledge.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-violet-400/50" />
-                    <span className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-mono">World Knowledge ({knowledge.length})</span>
+                    <span className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-mono">System Knowledge ({knowledge.length})</span>
                   </div>
                   <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
                     {knowledge.map(renderNode)}
@@ -1031,9 +1031,9 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   </div>
                 </div>
 
-                {/* Column 3: World Knowledge */}
+                {/* Column 3: System Knowledge */}
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-2">World Knowledge</div>
+                  <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim font-mono mb-2">System Knowledge</div>
                   {wkNodes.length > 0 ? (
                     <div className="space-y-4">
                       <div className="space-y-1.5">
@@ -1058,7 +1058,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                       )}
                     </div>
                   ) : (
-                    <p className="text-[10px] text-text-dim italic">No world knowledge in this scene</p>
+                    <p className="text-[10px] text-text-dim italic">No system knowledge in this scene</p>
                   )}
                 </div>
               </div>
@@ -1074,7 +1074,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
           <div className="flex items-center gap-3 mb-2.5">
             {[
               { label: 'Structure', active: isStructuring, done: isPlanExtracting || isArcing || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-emerald-400' },
-              { label: 'Plans', active: isPlanExtracting, done: isArcing || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' },
+              ...(liveJob.skipPlanExtraction ? [] : [{ label: 'Plans', active: isPlanExtracting, done: isArcing || isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-indigo-400' }]),
               { label: 'Arcs', active: isArcing, done: isReconciling || isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-violet-400' },
               { label: 'Reconcile', active: isReconciling, done: isFinalizing || isAssembling || liveJob.status === 'completed', color: 'bg-sky-400' },
               { label: 'Finalize', active: isFinalizing, done: isAssembling || liveJob.status === 'completed', color: 'bg-purple-400' },
@@ -1100,11 +1100,13 @@ function JobDetail({ job }: { job: AnalysisJob }) {
             <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Structure</span>
             <span className="text-[9px] text-emerald-400/30 font-mono">{completedScenes} / {totalScenes}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className={`w-1 h-1 rounded-full ${isPlanExtracting ? 'bg-indigo-400/70 animate-pulse' : beatStats.planCount > 0 ? 'bg-indigo-400/40' : 'bg-white/15'}`} />
-            <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Plans</span>
-            <span className="text-[9px] text-indigo-400/30 font-mono">{beatStats.planCount} / {totalScenes}</span>
-          </div>
+          {!liveJob.skipPlanExtraction && (
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1 h-1 rounded-full ${isPlanExtracting ? 'bg-indigo-400/70 animate-pulse' : beatStats.planCount > 0 ? 'bg-indigo-400/40' : 'bg-white/15'}`} />
+              <span className="text-[9px] text-white/20 font-mono uppercase tracking-wider">Plans</span>
+              <span className="text-[9px] text-indigo-400/30 font-mono">{beatStats.planCount} / {totalScenes}</span>
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
           {isPlanExtracting ? (
@@ -1329,6 +1331,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
   const [detecting, setDetecting] = useState(true);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [extractPlans, setExtractPlans] = useState(true);
 
   const scenes = splitCorpusIntoScenes(sourceText);
   const chunks = scenes.map(s => ({ index: s.index, text: s.prose, sectionCount: Math.ceil(s.wordCount / 100) }));
@@ -1363,6 +1366,7 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         status: 'running', // Start as 'running' so JobDetail shows correct state immediately
         phase: 'structure',
         currentChunkIndex: 0,
+        ...(!extractPlans && { skipPlanExtraction: true }),
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -1422,7 +1426,26 @@ function NewJobSetup({ sourceText, onCreated }: { sourceText: string; onCreated:
         </div>
 
         <div className="text-[11px] text-white/20 leading-relaxed">
-          {chunks.length} scenes analyzed in parallel — extracts characters, locations, threads, scenes, world knowledge, and beat plans, then reconciles and assembles.
+          {chunks.length} scenes analyzed in parallel — extracts characters, locations, threads, scenes, system knowledge, and beat plans, then reconciles and assembles.
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={extractPlans}
+              onChange={(e) => setExtractPlans(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-emerald-500 cursor-pointer"
+            />
+            <span className="text-[11px] text-white/40 group-hover:text-white/60 transition select-none">
+              Extract beat plans
+            </span>
+          </label>
+          {!extractPlans && (
+            <p className="text-[10px] text-amber-400/60 leading-relaxed pl-5.5">
+              Beat plans power AI semantic search. Skipping saves time, but search over this narrative will be unavailable.
+            </p>
+          )}
         </div>
 
         {startError && (

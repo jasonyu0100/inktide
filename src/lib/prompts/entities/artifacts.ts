@@ -11,6 +11,6 @@ ARTIFACTS — economic goods you can USE.
   ✗ "Figure 3", "Table 2" — document references, NOT artifacts
 
 OWNERSHIP: character, location, or null (world-owned for ubiquitous tools like AI, internet).
-TRANSFER: ownershipMutation when artifacts change hands.
+TRANSFER: ownershipDelta when artifacts change hands.
 USAGE: artifactUsage with the character who used it. Every usage needs a character.
 `;

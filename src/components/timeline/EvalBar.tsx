@@ -101,8 +101,8 @@ export default function EvalBar() {
     : { top: '50%', height: `${extent}%` };
 
   const fillGradient = isPositive
-    ? 'linear-gradient(to top, rgba(45, 212, 191, 0.08), rgba(45, 212, 191, 0.55))'
-    : 'linear-gradient(to bottom, rgba(251, 113, 133, 0.08), rgba(251, 113, 133, 0.55))';
+    ? 'linear-gradient(to top, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.55))'
+    : 'linear-gradient(to bottom, rgba(147, 197, 253, 0.08), rgba(147, 197, 253, 0.55))';
 
   return (
     <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20 select-none"
@@ -127,15 +127,15 @@ export default function EvalBar() {
         className="absolute left-full pointer-events-none"
         style={{ bottom: `${displayPct}%`, transform: 'translateY(50%)' }}
       >
-        <span className={`ml-1.5 text-[10px] font-mono font-semibold whitespace-nowrap drop-shadow-md ${
-          calibrating ? 'text-white/40' : isPositive ? 'text-teal-400/80' : 'text-rose-400/80'
-        }`}>
+        <span className={`ml-1.5 text-[10px] font-mono font-semibold whitespace-nowrap drop-shadow-md`}
+          style={{ color: calibrating ? 'rgba(255,255,255,0.4)' : isPositive ? 'rgba(245,158,11,0.8)' : 'rgba(147,197,253,0.8)' }}
+        >
           {displayValue}
         </span>
         {tag && (
-          <span className={`ml-1 text-[9px] font-bold drop-shadow-md ${
-            isPositive ? 'text-teal-400/60' : 'text-rose-400/60'
-          }`}>
+          <span className="ml-1 text-[9px] font-bold drop-shadow-md"
+            style={{ color: isPositive ? 'rgba(245,158,11,0.6)' : 'rgba(147,197,253,0.6)' }}
+          >
             {tag}
           </span>
         )}

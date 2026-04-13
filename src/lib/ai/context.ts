@@ -39,7 +39,7 @@ export function buildProseProfile(profile: ProseProfile, options?: { beatDensity
 }
 
 /**
- * Replay mutations up to a given timeline index to get the state at that point.
+ * Replay deltas up to a given timeline index to get the state at that point.
  * Returns which continuity nodes exist, relationship states, thread statuses,
  * and artifact ownership at the specified position in the timeline.
  */
@@ -50,7 +50,7 @@ export function getStateAtIndex(
 ): {
   /** Continuity node IDs that existed at this point (added and not removed) */
   liveNodeIds: Set<string>;
-  /** Relationship states at this point (replayed from mutations) */
+  /** Relationship states at this point (replayed from deltas) */
   relationships: RelationshipEdge[];
   /** Thread statuses at this point */
   threadStatuses: Record<string, string>;
@@ -59,7 +59,7 @@ export function getStateAtIndex(
 } {
   const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
 
-  // Replay continuity mutations to get accumulated node IDs (additive only)
+  // Replay world deltas to get accumulated node IDs (additive only)
   const liveNodeIds = new Set<string>();
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
@@ -71,7 +71,7 @@ export function getStateAtIndex(
     }
   }
 
-  // Replay relationship mutations to get state at this point
+  // Replay relationship deltas to get state at this point
   const relMap = new Map<string, RelationshipEdge>();
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
@@ -96,7 +96,7 @@ export function getStateAtIndex(
     }
   }
 
-  // Replay thread mutations to get status at this point
+  // Replay thread deltas to get status at this point
   const threadStatuses: Record<string, string> = {};
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
@@ -106,7 +106,7 @@ export function getStateAtIndex(
     }
   }
 
-  // Replay artifact ownership: start with initial parentIds from worldBuilds, then apply ownershipMutations
+  // Replay artifact ownership: start with initial parentIds from worldBuilds, then apply ownershipDeltas
   const artifactOwnership: Record<string, string | null> = {};
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
@@ -142,7 +142,7 @@ export const THREAD_LIFECYCLE_DOC = (() => {
 })();
 
 /**
- * Build world knowledge block from SystemGraph.
+ * Build system knowledge block from SystemGraph.
  * Consolidates what was previously split between rules[] and worldSystems[].
  *
  * Node types map to:
@@ -152,7 +152,7 @@ export const THREAD_LIFECYCLE_DOC = (() => {
  * - convention: Norms (customs, practices, etiquette)
  * - Other types included for completeness
  */
-function buildWorldKnowledgeBlock(graph: SystemGraph): string {
+function buildSystemKnowledgeBlock(graph: SystemGraph): string {
   const nodes = Object.values(graph.nodes);
   if (nodes.length === 0) return '';
 
@@ -229,7 +229,7 @@ function buildWorldKnowledgeBlock(graph: SystemGraph): string {
 
   if (sections.length === 0) return '';
 
-  return `\n<world-graph hint="Established world knowledge. Scenes must operate within these truths.">\n${sections.join('\n\n')}\n</world-graph>\n`;
+  return `\n<world-graph hint="Established system knowledge. Scenes must operate within these truths.">\n${sections.join('\n\n')}\n</world-graph>\n`;
 }
 
 
@@ -375,7 +375,7 @@ export function narrativeContext(
     ? timelineState.relationships.filter((r) => referencedCharIds.has(r.from) && referencedCharIds.has(r.to))
     : timelineState.relationships;
 
-  // Knowledge: keep original (non-mutation) nodes + mutation nodes from the time horizon
+  // Knowledge: keep original (non-delta) nodes + delta nodes from the time horizon
   const introduced = getIntroducedIds(n.worldBuilds, resolvedKeys, currentIndex);
   const artifactEntries = Object.values(n.artifacts ?? {}).filter((a) => introduced.artifactIds.has(a.id));
   // Use timeline-scoped ownership (who owned each artifact at this point, not final state)
@@ -387,7 +387,7 @@ export function narrativeContext(
     artifactsByOwner.set(ownerId, list);
   }
 
-  // Helper: render continuity graph (nodes + edges) as XML — mirrors world knowledge rendering
+  // Helper: render continuity graph (nodes + edges) as XML — mirrors system knowledge rendering
   const renderContinuityXml = (nodes: { id: string; type: string; content: string }[], edges: WorldEdge[], indent: string) => {
     const nodeIds = new Set(nodes.map(n => n.id));
     const nodeLines = nodes.map((kn) => `${indent}<knowledge id="${kn.id}" type="${kn.type}">${kn.content}</knowledge>`);
@@ -434,27 +434,27 @@ export function narrativeContext(
     })
     .join('\n');
   // Build thread age context from scene history (within time horizon)
-  const threadFirstMutation: Record<string, number> = {};
-  const threadMutationCount: Record<string, number> = {};
+  const threadFirstDelta: Record<string, number> = {};
+  const threadDeltaCount: Record<string, number> = {};
   keysUpToCurrent.forEach((k, idx) => {
     const scene = n.scenes[k];
     if (!scene) return;
     for (const tm of scene.threadDeltas) {
-      threadMutationCount[tm.threadId] = (threadMutationCount[tm.threadId] ?? 0) + 1;
-      if (threadFirstMutation[tm.threadId] === undefined) threadFirstMutation[tm.threadId] = idx;
+      threadDeltaCount[tm.threadId] = (threadDeltaCount[tm.threadId] ?? 0) + 1;
+      if (threadFirstDelta[tm.threadId] === undefined) threadFirstDelta[tm.threadId] = idx;
     }
   });
   const totalScenes = keysUpToCurrent.length;
 
   const threads = branchThreads
     .map((t) => {
-      const firstMut = threadFirstMutation[t.id];
+      const firstMut = threadFirstDelta[t.id];
       const age = firstMut !== undefined ? totalScenes - firstMut : 0;
-      const mutations = threadMutationCount[t.id] ?? 0;
+      const deltas = threadDeltaCount[t.id] ?? 0;
       const participantNames = t.participants.map((a) => n.characters[a.id]?.name ?? n.locations[a.id]?.name ?? a.id).join(', ');
       const validDeps = t.dependents.filter((id) => n.threads[id]);
       const depsAttr = validDeps.length > 0 ? ` converges="${validDeps.join(',')}"` : '';
-      // Use timeline-scoped status, falling back to base status if no mutations yet
+      // Use timeline-scoped status, falling back to base status if no deltas yet
       const status = timelineState.threadStatuses[t.id] ?? t.status;
       // Filter out abandoned threads — they're cleaned up and shouldn't appear in generation context
       if (status === 'abandoned') return null;
@@ -464,7 +464,7 @@ export function narrativeContext(
       const logBlock = recentLogs.length > 0
         ? `\n  <log>${recentLogs.map((ln) => `[${ln.type}] ${ln.content}`).join(' | ')}</log>`
         : '';
-      return `<thread id="${t.id}" status="${status}"${age > 0 ? ` age="${age}" mutations="${mutations}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}>${t.description}${logBlock}\n</thread>`;
+      return `<thread id="${t.id}" status="${status}"${age > 0 ? ` age="${age}" deltas="${deltas}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}>${t.description}${logBlock}\n</thread>`;
     })
     .filter(Boolean)
     .join('\n');
@@ -475,7 +475,7 @@ export function narrativeContext(
       return `<relationship from="${fromName}" to="${toName}" valence="${Math.round(r.valence * 100) / 100}">${r.type}</relationship>`;
     })
     .join('\n');
-  // All scenes within the time horizon get full mutation detail
+  // All scenes within the time horizon get full delta detail
   const sceneHistory = keysUpToCurrent.map((k, i) => {
     const s = resolveEntry(n, k);
     if (!s) return '';
@@ -562,7 +562,7 @@ export function narrativeContext(
     ? `\n<current-state cube="${currentCube.name}" delivery="${localPos?.name ?? 'Stable'}">${currentCube.description}. ${localPos?.description ?? ''}</current-state>\n`
     : '';
 
-  // ── World Knowledge Graph (scoped to time horizon) ─────────────────
+  // ── System Knowledge Graph (scoped to time horizon) ────────────────
   const horizonSystemGraph = buildCumulativeSystemGraph(
     n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, n.worldBuilds,
   );
@@ -603,8 +603,8 @@ ${nodeLines.join('\n')}
   const threadIdList = activeThreads.map((t) => t.id).join(', ');
   const sysIdList = rankedSystemNodes.map(({ node }) => node.id).join(', ');
 
-  // Build world knowledge from SystemGraph (consolidates old rules + worldSystems)
-  const worldKnowledgeBlock = buildWorldKnowledgeBlock(horizonSystemGraph);
+  // Build system knowledge from SystemGraph (consolidates old rules + worldSystems)
+  const systemKnowledgeBlock = buildSystemKnowledgeBlock(horizonSystemGraph);
 
   const storySettingsBlock = buildStorySettingsBlock(n);
 
@@ -614,7 +614,7 @@ ${nodeLines.join('\n')}
 
   return `<narrative title="${n.title}">
 <world>${n.worldSummary}</world>
-${worldKnowledgeBlock}${storySettingsBlock}
+${systemKnowledgeBlock}${storySettingsBlock}
 <characters hint="Continuity tracks what each character knows. Use this to determine what they can reference, discover, or be surprised by.">
 ${characters}
 </characters>
@@ -635,7 +635,7 @@ ${relationships}
 ${arcs}
 </arcs>
 
-<scene-history scope="${historyNote}" hint="Full mutation detail for recent scenes. Check this before writing to avoid repeating beats, locations, or character patterns.">
+<scene-history scope="${historyNote}" hint="Full delta detail for recent scenes. Check this before writing to avoid repeating beats, locations, or character patterns.">
 ${sceneHistory}
 </scene-history>
 
@@ -751,18 +751,18 @@ export function sceneContext(
     return `  <thread id="${tid}" status="${status}" participants="${tParticipants.join(', ')}">${thread.description}${logBlock}\n  </thread>`;
   });
 
-  // ── Scene mutations ────────────────────────────────────────────────
-  const threadMutationLines = scene.threadDeltas.map((tm) => {
+  // ── Scene deltas ───────────────────────────────────────────────────
+  const threadDeltaLines = scene.threadDeltas.map((tm) => {
     const thread = narrative.threads[tm.threadId];
     return `  <shift thread="${thread?.description ?? tm.threadId}" from="${tm.from}" to="${tm.to}" />`;
   });
 
-  const continuityMutationLines = scene.worldDeltas.flatMap((km) => {
+  const worldDeltaLines = scene.worldDeltas.flatMap((km) => {
     const entityName = narrative.characters[km.entityId]?.name ?? narrative.locations[km.entityId]?.name ?? narrative.artifacts[km.entityId]?.name ?? km.entityId;
     return (km.addedNodes ?? []).map(node => `  <change entity="${entityName}" type="${node.type}">${node.content}</change>`);
   });
 
-  const relationshipMutationLines = scene.relationshipDeltas.map((rm) => {
+  const relationshipDeltaLines = scene.relationshipDeltas.map((rm) => {
     const fromName = narrative.characters[rm.from]?.name ?? rm.from;
     const toName = narrative.characters[rm.to]?.name ?? rm.to;
     return `  <shift from="${fromName}" to="${toName}" delta="${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100}">${rm.type}</shift>`;
@@ -784,14 +784,14 @@ export function sceneContext(
     return `  <usage artifact="${artName}" character="${charName}"${usageAttr} />`;
   });
 
-  const ownershipMutationLines = (scene.ownershipDeltas ?? []).map((om) => {
+  const ownershipDeltaLines = (scene.ownershipDeltas ?? []).map((om) => {
     const artName = narrative.artifacts?.[om.artifactId]?.name ?? om.artifactId;
     const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
     const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
     return `  <transfer artifact="${artName}" from="${fromName}" to="${toName}" />`;
   });
 
-  const tieMutationLines = (scene.tieDeltas ?? []).map((mm) => {
+  const tieDeltaLines = (scene.tieDeltas ?? []).map((mm) => {
     const locName = narrative.locations[mm.locationId]?.name ?? mm.locationId;
     const charName = narrative.characters[mm.characterId]?.name ?? mm.characterId;
     return `  <tie character="${charName}" action="${mm.action}" location="${locName}" />`;
@@ -810,8 +810,8 @@ export function sceneContext(
     return `\n<system-graph-reveals>\n${lines.join('\n')}\n</system-graph-reveals>`;
   })();
 
-  // ── World knowledge from SystemGraph ──────────────────────────────
-  const worldKnowledgeBlock = buildWorldKnowledgeBlock(narrative.systemGraph);
+  // ── System knowledge from SystemGraph ──────────────────────────────
+  const systemKnowledgeBlock = buildSystemKnowledgeBlock(narrative.systemGraph);
 
   return `<scene id="${scene.id}" arc="${arc?.name ?? 'standalone'}" pov="${pov?.name ?? 'Unknown'}" pov-role="${pov?.role ?? 'unknown'}">
 <summary>${scene.summary}</summary>
@@ -830,13 +830,13 @@ ${threadBlocks.length > 0 ? `\n<threads>\n${threadBlocks.join('\n')}\n</threads>
 <events>
 ${scene.events.map((e) => `  <event>${e}</event>`).join('\n')}
 </events>
-${threadMutationLines.length > 0 ? `\n<thread-shifts>\n${threadMutationLines.join('\n')}\n</thread-shifts>` : ''}
-${continuityMutationLines.length > 0 ? `\n<continuity-changes>\n${continuityMutationLines.join('\n')}\n</continuity-changes>` : ''}
-${relationshipMutationLines.length > 0 ? `\n<relationship-shifts>\n${relationshipMutationLines.join('\n')}\n</relationship-shifts>` : ''}${wkmBlock}
+${threadDeltaLines.length > 0 ? `\n<thread-shifts>\n${threadDeltaLines.join('\n')}\n</thread-shifts>` : ''}
+${worldDeltaLines.length > 0 ? `\n<continuity-changes>\n${worldDeltaLines.join('\n')}\n</continuity-changes>` : ''}
+${relationshipDeltaLines.length > 0 ? `\n<relationship-shifts>\n${relationshipDeltaLines.join('\n')}\n</relationship-shifts>` : ''}${wkmBlock}
 ${movementLines.length > 0 ? `\n<movements>\n${movementLines.join('\n')}\n</movements>` : ''}
 ${artifactUsageLines.length > 0 ? `\n<artifact-usages>\n${artifactUsageLines.join('\n')}\n</artifact-usages>` : ''}
-${ownershipMutationLines.length > 0 ? `\n<artifact-transfers>\n${ownershipMutationLines.join('\n')}\n</artifact-transfers>` : ''}
-${tieMutationLines.length > 0 ? `\n<tie-changes>\n${tieMutationLines.join('\n')}\n</tie-changes>` : ''}${worldKnowledgeBlock}
+${ownershipDeltaLines.length > 0 ? `\n<artifact-transfers>\n${ownershipDeltaLines.join('\n')}\n</artifact-transfers>` : ''}
+${tieDeltaLines.length > 0 ? `\n<tie-changes>\n${tieDeltaLines.join('\n')}\n</tie-changes>` : ''}${systemKnowledgeBlock}
 </scene>`;
 }
 
@@ -878,7 +878,7 @@ export function deriveLogicRules(
   // NOTE: Spatial constraints and POV-lock are NOT included here because:
   // - sceneContext already provides location, pov, and participants
   // - proseProfile's "stance" setting already establishes POV rules (close_third, etc.)
-  // Logic context focuses on scene-specific knowledge boundaries and mutations.
+  // Logic context focuses on scene-specific knowledge boundaries and deltas.
 
   // ═══════════════════════════════════════════════════════════════════════════
   // KNOWLEDGE STATE (POV's knowledge at scene start vs. what they learn)
@@ -983,7 +983,7 @@ ${threadLines.join('\n')}
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // RELATIONSHIPS (static state + mutations)
+  // RELATIONSHIPS (static state + deltas)
   // ═══════════════════════════════════════════════════════════════════════════
   const baseRelationships = timelineState?.relationships ?? narrative.relationships;
   const participantRelationships = baseRelationships.filter(
@@ -991,22 +991,22 @@ ${threadLines.join('\n')}
   );
 
   // Compute pre-scene valence by subtracting this scene's deltas
-  const mutationDeltaMap = new Map<string, number>();
+  const valenceDeltaMap = new Map<string, number>();
   for (const rm of scene.relationshipDeltas) {
     const key = `${rm.from}->${rm.to}`;
-    mutationDeltaMap.set(key, (mutationDeltaMap.get(key) ?? 0) + rm.valenceDelta);
+    valenceDeltaMap.set(key, (valenceDeltaMap.get(key) ?? 0) + rm.valenceDelta);
   }
 
   const relationshipLines: string[] = [];
 
-  // Static relationships (no mutation this scene) that are notably negative
+  // Static relationships (no delta this scene) that are notably negative
   for (const r of participantRelationships) {
     const fromName = narrative.characters[r.from]?.name;
     const toName = narrative.characters[r.to]?.name;
     if (!fromName || !toName) continue;
 
     const key = `${r.from}->${r.to}`;
-    const delta = mutationDeltaMap.get(key) ?? 0;
+    const delta = valenceDeltaMap.get(key) ?? 0;
     if (delta !== 0) continue; // handled below in shifts
 
     const preSceneValence = Math.round((r.valence - delta) * 100) / 100;
@@ -1017,7 +1017,7 @@ ${threadLines.join('\n')}
     }
   }
 
-  // Relationship mutations
+  // Relationship deltas
   for (const rm of scene.relationshipDeltas) {
     const fromName = narrative.characters[rm.from]?.name;
     const toName = narrative.characters[rm.to]?.name;
@@ -1186,7 +1186,7 @@ ${sections.join('\n\n')}
 /**
  * Summary context — a condensed running summary of the story up to the current scene.
  * Shows scene summaries grouped by arc with POV, location, and key thread activity.
- * Much lighter than branchContext — designed for quick orientation without full mutation detail.
+ * Much lighter than branchContext — designed for quick orientation without full delta detail.
  */
 export function outlineContext(
   n: NarrativeState,

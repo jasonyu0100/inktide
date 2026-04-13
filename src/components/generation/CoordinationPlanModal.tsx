@@ -31,11 +31,8 @@ const NODE_COLORS: Record<CoordinationNodeType, { fill: string; stroke: string; 
   pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },
   // Warning — amber/orange (anti-pattern risk)
   warning: { fill: "#92400e", stroke: "#f59e0b", text: "#fef3c7" },
-  // Plan-specific node types — yellows for planning nodes
-  terminal: { fill: "#713f12", stroke: "#ca8a04", text: "#fef9c3" },    // Deep gold — endpoint
-  waypoint: { fill: "#854d0e", stroke: "#eab308", text: "#fef08a" },    // Yellow — intermediate
-  arc: { fill: "#a16207", stroke: "#facc15", text: "#fefce8" },         // Bright yellow — arc slot
-  unanswered: { fill: "#581c87", stroke: "#a855f7", text: "#f3e8ff" },  // Purple — open question
+  // Plot — gold/yellow (key plot points the story must pass through)
+  plot: { fill: "#854d0e", stroke: "#eab308", text: "#fef08a" },
 };
 
 const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
@@ -496,8 +493,8 @@ export function CoordinationPlanModal({
   // Progress
   const progress = ((focusedIndex + 1) / sortedNodes.length) * 100;
 
-  // Arc nodes for summary
-  const arcNodes = plan.nodes.filter(n => n.type === "arc").sort((a, b) => (a.arcIndex ?? 0) - (b.arcIndex ?? 0));
+  // Arc-defining plot nodes for summary (plot nodes with arcIndex)
+  const arcNodes = plan.nodes.filter(n => n.type === "plot" && n.arcIndex !== undefined).sort((a, b) => (a.arcIndex ?? 0) - (b.arcIndex ?? 0));
 
   return (
     <div className="fixed inset-0 bg-black/95 z-60 flex flex-col">

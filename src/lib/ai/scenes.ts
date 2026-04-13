@@ -149,6 +149,22 @@ function parsePropositions(rawProps: unknown[]): Proposition[] {
     .filter((p) => p.content.length > 0);
 }
 
+/** Context from an active coordination plan, injected directly into generation. */
+export type CoordinationPlanContext = {
+  /** Current arc index (1-based) */
+  arcIndex: number;
+  /** Total arc count in the plan */
+  arcCount: number;
+  /** Arc label from the plan */
+  arcLabel: string;
+  /** Scene count for this arc */
+  sceneCount: number;
+  /** Force mode for this arc (e.g., 'fate', 'world', 'system') */
+  forceMode?: string;
+  /** Full directive built from the plan's reasoning graph */
+  directive: string;
+};
+
 export type GenerateScenesOptions = {
   existingArc?: Arc;
   /** Pre-sampled pacing sequence. When omitted, one is auto-sampled from the story's transition matrix. */
@@ -156,6 +172,8 @@ export type GenerateScenesOptions = {
   worldBuildFocus?: WorldBuild;
   /** Reasoning graph that guides scene generation. When provided, replaces direction with structured reasoning path. */
   reasoningGraph?: ReasoningGraph;
+  /** Coordination plan context. When provided, injects plan guidance into generation. */
+  coordinationPlanContext?: CoordinationPlanContext;
   onToken?: (token: string) => void;
   /** Callback for streaming reasoning/thinking tokens */
   onReasoning?: (token: string) => void;
@@ -171,7 +189,7 @@ export async function generateScenes(
   direction: string,
   options: GenerateScenesOptions = {},
 ): Promise<{ scenes: Scene[]; arc: Arc }> {
-  const { existingArc, pacingSequence, worldBuildFocus, reasoningGraph, onToken, onReasoning } = options;
+  const { existingArc, pacingSequence, worldBuildFocus, reasoningGraph, coordinationPlanContext, onToken, onReasoning } = options;
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
   const arcId = existingArc?.id ?? nextId('ARC', Object.keys(narrative.arcs));
 
@@ -238,7 +256,15 @@ Edge types tell you HOW nodes relate:
 - develops: A deepens B (character arc or theme)
 - resolves: A concludes/answers B
 
-Your scenes must walk this reasoning path — don't skip nodes, don't invent reasoning not in the graph.` : direction.trim() ? `DIRECTION — THIS IS YOUR PRIMARY BRIEF. Every scene you generate must execute the beats described here. Do not invent scenes that ignore, skip, or contradict these instructions.
+Your scenes must walk this reasoning path — don't skip nodes, don't invent reasoning not in the graph.` : coordinationPlanContext ? `COORDINATION PLAN — THIS IS YOUR PRIMARY BRIEF (Arc ${coordinationPlanContext.arcIndex}/${coordinationPlanContext.arcCount}: "${coordinationPlanContext.arcLabel}")
+
+This arc is part of a multi-arc coordination plan. The directive below was derived from backward-induction reasoning across the full plan. Execute it faithfully.
+${coordinationPlanContext.forceMode ? `\nForce Mode: ${coordinationPlanContext.forceMode.toUpperCase()} — lean into this narrative force for this arc.` : ''}
+
+${coordinationPlanContext.directive}${direction.trim() ? `
+
+ADDITIONAL DIRECTION — Layer this guidance on top of the coordination plan:
+${direction}` : ''}` : direction.trim() ? `DIRECTION — THIS IS YOUR PRIMARY BRIEF. Every scene you generate must execute the beats described here. Do not invent scenes that ignore, skip, or contradict these instructions.
 
 The direction may include prose-level guidance: how to write, not just what happens. Time compression, structural techniques, tone shifts, POV style, internal monologue approach, dialogue register, pacing rhythm — any of these can appear in the direction. When they do, they must flow through into your scene summaries. The summary is the last thing the prose writer sees — anything not in the summary is lost. If the direction says "montage of monthly vignettes," the summary must read as compressed monthly snapshots. If it says "black comedy through internal monologue," the summary must set up that register. If it says "formal, layered prose for the Central Plains," the summary must signal that shift.
 

@@ -7,7 +7,7 @@ import { buildCumulativeSystemGraph } from "@/lib/narrative-utils";
 
 // ── Plan Node Scaling ─────────────────────────────────────────────────────────
 // Coordination plans scale node counts based on arc budget to ensure proper
-// reasoning depth. More arcs = more waypoints, terminals, and reasoning nodes.
+// reasoning depth. More arcs = more plot points and reasoning nodes.
 
 /**
  * Calculate expected node counts for a coordination plan based on arc budget.
@@ -15,8 +15,7 @@ import { buildCumulativeSystemGraph } from "@/lib/narrative-utils";
  * Emphasizes DEPTH (chains of reasoning) not just BREADTH (many disconnected nodes).
  */
 function getPlanNodeGuidance(arcTarget: number, threadCount: number): {
-  minWaypoints: number;
-  minTerminals: number;
+  minPlotNodes: number;
   minReasoningNodes: number;
   minPatterns: number;
   minWarnings: number;
@@ -24,12 +23,9 @@ function getPlanNodeGuidance(arcTarget: number, threadCount: number): {
   minSystemNodes: number;
   minChainDepth: number;
 } {
-  // Each active thread needs at least 1 terminal + waypoints proportional to arcs
-  const waypointsPerThread = Math.max(2, Math.floor(arcTarget / 3));
-  const minWaypoints = Math.min(threadCount * waypointsPerThread, arcTarget * 2);
-
-  // Terminals scale with thread count (resolved/subverted/unanswered endpoints)
-  const minTerminals = Math.max(threadCount, Math.ceil(arcTarget / 2));
+  // Plot nodes: key story beats the narrative must pass through
+  // Scale with both arc count (structure) and thread count (resolution points)
+  const minPlotNodes = Math.max(arcTarget + threadCount, Math.floor(arcTarget * 1.5) + Math.floor(threadCount * 0.75));
 
   // Reasoning nodes scale with plan complexity — emphasis on DEEP chains
   // Formula: base + (arcs * threads factor) — want substantial reasoning
@@ -43,12 +39,11 @@ function getPlanNodeGuidance(arcTarget: number, threadCount: number): {
   const minCharacterNodes = Math.max(2, Math.floor(threadCount * 0.5));
   const minSystemNodes = Math.max(2, Math.floor(arcTarget / 4));
 
-  // Chain depth — minimum reasoning steps from terminal to earliest waypoint
+  // Chain depth — minimum reasoning steps between plot points
   const minChainDepth = Math.max(3, Math.floor(arcTarget / 2));
 
   return {
-    minWaypoints,
-    minTerminals,
+    minPlotNodes,
     minReasoningNodes,
     minPatterns,
     minWarnings,
@@ -179,6 +174,9 @@ export function buildSequentialPath(graph: ReasoningGraphBase): string {
 
 // ── Generation ───────────────────────────────────────────────────────────────
 
+// Import the shared CoordinationPlanContext type from scenes
+import type { CoordinationPlanContext } from './scenes';
+
 export async function generateReasoningGraph(
   narrative: NarrativeState,
   resolvedKeys: string[],
@@ -187,6 +185,8 @@ export async function generateReasoningGraph(
   direction: string,
   arcName: string,
   onReasoning?: (token: string) => void,
+  /** When provided, the coordination plan context guides the reasoning graph generation */
+  coordinationPlanContext?: CoordinationPlanContext,
 ): Promise<ReasoningGraph> {
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
@@ -266,7 +266,27 @@ ${antiPatternsSection}
 ## TASK
 
 Build a REASONING GRAPH for "${arcName}" to guide ${sceneCount} scene(s).
-Direction: ${direction}
+${coordinationPlanContext ? `
+═══════════════════════════════════════════════════════════════════════════════
+COORDINATION PLAN — THIS IS YOUR PRIMARY BRIEF (Arc ${coordinationPlanContext.arcIndex}/${coordinationPlanContext.arcCount})
+═══════════════════════════════════════════════════════════════════════════════
+
+This arc is part of a multi-arc coordination plan derived from backward induction. The plan below defines the KEY PLOT POINTS and REASONING that this arc must execute. Your reasoning graph must serve as a bridge between the coordination plan and scene generation.
+
+${coordinationPlanContext.forceMode ? `**Force Mode**: ${coordinationPlanContext.forceMode.toUpperCase()} — lean into this narrative force for this arc.\n` : ''}
+**Plan Directive**:
+${coordinationPlanContext.directive}
+
+**Your job**: Build a reasoning graph that EXECUTES the coordination plan for this specific arc. The graph should:
+1. Ground the plan's abstract plot points in SPECIFIC entities, locations, and mechanisms
+2. Fill in the HOW — the plan says WHAT must happen, you determine the specific path
+3. Maintain the plan's thread targets — if the plan says thread X should escalate, your graph must deliver that escalation
+4. Respect the force mode — if world-dominant, lean into character development; if fate-dominant, lean into thread resolution
+${direction.trim() ? `
+**Additional Direction** (layer on top of the plan):
+${direction}` : ''}
+═══════════════════════════════════════════════════════════════════════════════
+` : `Direction: ${direction}`}
 
 Use BACKWARD REASONING: Start from what threads NEED, then derive what must happen.
 Threads are FATE — they exert gravitational pull on events, but fate doesn't always go the expected direction. Threads can advance through twists, resistance, or subversion.
@@ -286,6 +306,12 @@ Threads are FATE — they exert gravitational pull on events, but fate doesn't a
 
 ## OUTPUT FORMAT
 
+**CRITICAL FORMAT REQUIREMENTS**:
+- **IDs**: Use SHORT, SIMPLE alphanumeric IDs: F1, F2, R1, R2, C1, L1, S1, PT1, WN1, etc. Do NOT use complex IDs like "FATE_THREAD_01" or "reasoning_step_3".
+- **Labels**: Must be PROPER ENGLISH descriptions (3-10 words). Describe what happens in natural language. NOT technical identifiers or codes.
+  - GOOD: "Fang Yuan exploits his future knowledge", "Alliance fractures over betrayal"
+  - BAD: "Thread escalation node", "R2_REQUIRES_C1", "fate pressure mechanism"
+
 Return a JSON object:
 
 {
@@ -295,7 +321,7 @@ Return a JSON object:
       "id": "F1",
       "index": 0,
       "type": "fate",
-      "label": "Thread needs escalation",
+      "label": "Survival thread demands immediate sanctuary",
       "detail": "What this thread requires to progress — the gravitational pull",
       "threadId": "thread-id"
     },
@@ -303,14 +329,14 @@ Return a JSON object:
       "id": "R1",
       "index": 1,
       "type": "reasoning",
-      "label": "For thread to escalate, X must happen",
+      "label": "Sanctuary requires alliance with rival faction",
       "detail": "Backward reasoning from thread requirement"
     },
     {
       "id": "C1",
       "index": 2,
       "type": "character",
-      "label": "Character positioned to act",
+      "label": "Fang Yuan knows the faction's secret weakness",
       "detail": "Who can fulfill this requirement",
       "entityId": "actual-character-id-from-narrative"
     },
@@ -318,7 +344,7 @@ Return a JSON object:
       "id": "S1",
       "index": 3,
       "type": "system",
-      "label": "World rule constrains how",
+      "label": "Clan hierarchy forbids direct negotiation",
       "detail": "What system/rule shapes the action"
     }
   ],
@@ -635,6 +661,12 @@ Threads are FATE — they exert gravitational pull on world-building. New entiti
 
 ## OUTPUT FORMAT
 
+**CRITICAL FORMAT REQUIREMENTS**:
+- **IDs**: Use SHORT, SIMPLE alphanumeric IDs: F1, F2, R1, R2, C1, L1, S1, PT1, WN1, etc. Do NOT use complex IDs like "EXPANSION_CHAR_01" or "new_location_thread".
+- **Labels**: Must be PROPER ENGLISH descriptions (3-10 words). Describe what happens in natural language. NOT technical identifiers or codes.
+  - GOOD: "New rival emerges from the northern clans", "Hidden faction controls the resource supply"
+  - BAD: "New character node", "expansion_antagonist", "world gap identifier"
+
 Return a JSON object:
 
 {
@@ -644,7 +676,7 @@ Return a JSON object:
       "id": "F1",
       "index": 0,
       "type": "fate",
-      "label": "Thread needs antagonist faction",
+      "label": "Power struggle thread needs external antagonist",
       "detail": "What this thread requires to progress",
       "threadId": "thread-id"
     },
@@ -652,14 +684,14 @@ Return a JSON object:
       "id": "R1",
       "index": 1,
       "type": "reasoning",
-      "label": "For thread to escalate, opposition needed",
+      "label": "External threat forces internal factions to unite",
       "detail": "Backward reasoning from thread requirement"
     },
     {
       "id": "C1",
       "index": 2,
       "type": "character",
-      "label": "New character fills opposition role",
+      "label": "Warlord from the northern wastes seeks conquest",
       "detail": "How they serve the thread's needs",
       "entityId": "existing-character-id-to-connect-to"
     },
@@ -667,7 +699,7 @@ Return a JSON object:
       "id": "S1",
       "index": 3,
       "type": "system",
-      "label": "Gap in world structure",
+      "label": "Northern territory is lawless and unexplored",
       "detail": "What's missing that enables new entity"
     }
   ],
@@ -828,10 +860,7 @@ const VALID_COORDINATION_NODE_TYPES = new Set<CoordinationNodeType>([
   "reasoning",
   "pattern",
   "warning",
-  "terminal",
-  "waypoint",
-  "arc",
-  "unanswered",
+  "plot",       // Key plot point the story must pass through (replaces terminal/waypoint/arc)
 ]);
 
 /** Thread target with status and optional timing */
@@ -1066,11 +1095,11 @@ ARC TARGET: ${arcTarget} arcs (plan exactly this many arcs)
 
 Build a COORDINATION PLAN using BACKWARD INDUCTION.
 
-1. Start from TERMINAL states — which threads must reach which endpoints
-2. Work BACKWARDS to derive WAYPOINTS — intermediate states threads must pass through
+1. Define PLOT POINTS — key story beats the narrative must pass through (thread resolutions, progressions, arc structures)
+2. Work BACKWARDS from endpoints to derive the plot points needed to reach them
 3. Determine OPTIMAL ARC COUNT — how many arcs needed to achieve goals (may be fewer than budget)
 4. Assign nodes to ARC SLOTS — which reasoning is relevant to which arc
-5. Create ARC nodes with DELIBERATE SIZING — determine how many scenes each arc needs (3-12 scenes)
+5. Create arc-defining plot points with DELIBERATE SIZING — determine how many scenes each arc needs (3-12 scenes)
 6. Set FORCE MODE for each arc to vary pacing
 
 The plan orchestrates multiple arcs WITHOUT micromanaging. Each arc will get its own reasoning graph; this plan just sets trajectory.
@@ -1106,7 +1135,7 @@ Each arc should be sized based on what it needs to accomplish:
 - **10-12 scenes (epic)**: Act finales, massive setpieces, resolution of multiple threads
 
 Consider:
-- Arcs with more waypoints/terminals to hit need more scenes
+- Arcs with more plot points to hit need more scenes
 - World-dominant arcs (breathing room) tend to be shorter
 - Fate-dominant arcs (thread resolution) need enough scenes for proper payoff
 - System-dominant arcs (worldbuilding) vary based on complexity to establish
@@ -1116,104 +1145,119 @@ Consider:
 
 Return a JSON object with RICH, DIVERSE nodes. Example showing all node types working together:
 
+**CRITICAL FORMAT REQUIREMENTS**:
+- **IDs**: Use SHORT, SIMPLE alphanumeric IDs: P1, P2, R1, R2, C1, F1, L1, AR1, S1, WN1, etc. Do NOT use complex IDs like "P_ARC2_PROG_T03" or "THREAD_RESOLVE_01".
+- **Labels**: Must be PROPER ENGLISH descriptions (3-10 words). Describe what happens in natural language. NOT technical identifiers or codes.
+
 {
   "summary": "1-2 sentence high-level plan summary grounded in specific world details",
   "arcCount": <number of arcs>,
   "nodes": [
     // ═══════════════════════════════════════════════════════════════
-    // STRUCTURAL NODES: terminals, waypoints, arcs, unanswered
+    // PLOT NODES: key story beats the narrative must pass through
     // ═══════════════════════════════════════════════════════════════
-    {"id": "T1", "index": 0, "type": "terminal", "label": "Thread reaches resolution through specific mechanism", "detail": "What must be true at plan end — reference specific knowledge or relationship", "threadId": "thread-id", "targetStatus": "resolved", "arcSlot": 4},
-    {"id": "W1", "index": 1, "type": "waypoint", "label": "Thread must escalate via specific event", "detail": "WHY this intermediate state is necessary for the terminal", "threadId": "thread-id", "targetStatus": "escalating", "arcSlot": 2},
-    {"id": "A1", "index": 10, "type": "arc", "label": "Arc name reflecting content", "detail": "WHY this arc needs N scenes — what must happen", "arcIndex": 1, "sceneCount": 5, "forceMode": "world-dominant", "arcSlot": 1},
-    {"id": "U1", "index": 20, "type": "unanswered", "label": "Specific tension left open", "detail": "Sequel hook — WHY this should remain open", "threadId": "thread-id", "arcSlot": 4},
+    // Thread resolution (endpoint)
+    {"id": "P1", "index": 0, "type": "plot", "label": "Fang Yuan secures the Spring Autumn Cicada", "detail": "What must be true at plan end — reference specific knowledge or relationship", "threadId": "thread-id", "targetStatus": "resolved", "arcSlot": 4},
+    // Thread progression (intermediate beat)
+    {"id": "P2", "index": 1, "type": "plot", "label": "Bai Ning Bing discovers the hidden inheritance", "detail": "WHY this intermediate state is necessary for the endpoint", "threadId": "thread-id", "targetStatus": "escalating", "arcSlot": 2},
+    // Arc structure (defines an arc's scope)
+    {"id": "P3", "index": 10, "type": "plot", "label": "The Glacier Confrontation", "detail": "WHY this arc needs N scenes — what must happen", "arcIndex": 1, "sceneCount": 5, "forceMode": "world-dominant", "arcSlot": 1},
 
     // ═══════════════════════════════════════════════════════════════
     // FATE NODES: thread pressure throughout the plan
     // ═══════════════════════════════════════════════════════════════
-    {"id": "F1", "index": 2, "type": "fate", "label": "Thread creates urgency through specific stakes", "detail": "How this thread's momentum shapes Arc 1 — reference thread log momentum", "threadId": "thread-id", "arcSlot": 1},
+    {"id": "F1", "index": 2, "type": "fate", "label": "Survival thread demands immediate action", "detail": "How this thread's momentum shapes Arc 1 — reference thread log momentum", "threadId": "thread-id", "arcSlot": 1},
 
     // ═══════════════════════════════════════════════════════════════
     // CHARACTER NODES: WHO drives the plan (reference specific knowledge)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "C1", "index": 3, "type": "character", "label": "Character's specific knowledge enables transition", "detail": "Reference their accumulated knowledge from context — 'knows X, therefore can Y'", "entityId": "char-id", "arcSlot": 1},
-    {"id": "C2", "index": 4, "type": "character", "label": "Character's choice drives escalation", "detail": "Their relationship with another character constrains options", "entityId": "char-id", "arcSlot": 2},
+    {"id": "C1", "index": 3, "type": "character", "label": "Fang Yuan knows the Gu's location", "detail": "Reference their accumulated knowledge from context — 'knows X, therefore can Y'", "entityId": "char-id", "arcSlot": 1},
+    {"id": "C2", "index": 4, "type": "character", "label": "Bai Ning Bing's ambition forces confrontation", "detail": "Their relationship with another character constrains options", "entityId": "char-id", "arcSlot": 2},
 
     // ═══════════════════════════════════════════════════════════════
     // LOCATION NODES: WHERE things must happen (reference continuity)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "L1", "index": 5, "type": "location", "label": "Location's properties enable confrontation", "detail": "Reference location's specific history or significance", "entityId": "loc-id", "arcSlot": 2},
+    {"id": "L1", "index": 5, "type": "location", "label": "The Glacier's isolation enables secrecy", "detail": "Reference location's specific history or significance", "entityId": "loc-id", "arcSlot": 2},
 
     // ═══════════════════════════════════════════════════════════════
     // ARTIFACT NODES: items that shape outcomes (reference capabilities)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "AR1", "index": 6, "type": "artifact", "label": "Artifact's capability creates possibility", "detail": "Reference specific capabilities from context", "entityId": "artifact-id", "arcSlot": 3},
+    {"id": "AR1", "index": 6, "type": "artifact", "label": "Spring Autumn Cicada enables time manipulation", "detail": "Reference specific capabilities from context", "entityId": "artifact-id", "arcSlot": 3},
 
     // ═══════════════════════════════════════════════════════════════
     // SYSTEM NODES: world rules that constrain (reference principles/systems/constraints)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "S1", "index": 7, "type": "system", "label": "World rule constrains approach", "detail": "Reference specific principle/system/constraint from WORLD KNOWLEDGE", "arcSlot": 1},
-    {"id": "S2", "index": 8, "type": "system", "label": "Tension creates opportunity", "detail": "Reference specific tension that can be exploited", "arcSlot": 3},
+    {"id": "S1", "index": 7, "type": "system", "label": "Gu feeding rules require specific resources", "detail": "Reference specific principle/system/constraint from WORLD KNOWLEDGE", "arcSlot": 1},
+    {"id": "S2", "index": 8, "type": "system", "label": "Clan hierarchy prevents direct challenge", "detail": "Reference specific tension that can be exploited", "arcSlot": 3},
 
     // ═══════════════════════════════════════════════════════════════
     // REASONING NODES: causal chains (THE BACKBONE — use extensively)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "R1", "index": 9, "type": "reasoning", "label": "For terminal T1, waypoint W1 is necessary because...", "detail": "Backward induction step — reference specific world knowledge or relationships", "arcSlot": 2},
-    {"id": "R2", "index": 11, "type": "reasoning", "label": "W1 requires C1's action because...", "detail": "Connect waypoint to character agency", "arcSlot": 1},
-    {"id": "R3", "index": 12, "type": "reasoning", "label": "C1's action is constrained by S1...", "detail": "Connect character to system rule", "arcSlot": 1},
-    {"id": "R4", "index": 13, "type": "reasoning", "label": "Therefore L1 is the necessary venue...", "detail": "Connect constraint to location", "arcSlot": 2},
+    {"id": "R1", "index": 9, "type": "reasoning", "label": "Resolution requires securing the inheritance first", "detail": "Backward induction step — reference specific world knowledge or relationships", "arcSlot": 2},
+    {"id": "R2", "index": 11, "type": "reasoning", "label": "Inheritance access requires Fang Yuan's knowledge", "detail": "Connect plot point to character agency", "arcSlot": 1},
+    {"id": "R3", "index": 12, "type": "reasoning", "label": "Gu feeding rules constrain the timing", "detail": "Connect character to system rule", "arcSlot": 1},
+    {"id": "R4", "index": 13, "type": "reasoning", "label": "Glacier setting enables private confrontation", "detail": "Connect constraint to location", "arcSlot": 2},
 
     // ═══════════════════════════════════════════════════════════════
     // PATTERN NODES: creative expansion (inject novelty and emergence)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "P1", "index": 14, "type": "pattern", "label": "Unexpected collision: X meets Y for first time", "detail": "What EMERGENT property arises when these unrelated elements interact?"},
-    {"id": "P2", "index": 15, "type": "pattern", "label": "Hidden implication of recent events", "detail": "Second-order effect: what does X actually mean for Y that no one has realized?"},
-    {"id": "P3", "index": 16, "type": "pattern", "label": "Expand world beyond current sandbox", "detail": "What exists at the edge of the known world? New faction, location, or system implied but unexplored"},
+    {"id": "PT1", "index": 14, "type": "pattern", "label": "Two rivals discover shared enemy", "detail": "What EMERGENT property arises when these unrelated elements interact?"},
+    {"id": "PT2", "index": 15, "type": "pattern", "label": "Recent victory hides a hidden cost", "detail": "Second-order effect: what does X actually mean for Y that no one has realized?"},
+    {"id": "PT3", "index": 16, "type": "pattern", "label": "Rumors of ancient Gu master's tomb", "detail": "What exists at the edge of the known world? New faction, location, or system implied but unexplored"},
 
     // ═══════════════════════════════════════════════════════════════
     // WARNING NODES: subvert predictability (challenge the obvious path)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "WN1", "index": 17, "type": "warning", "label": "Thread X is on predictable trajectory", "detail": "What's the LEAST obvious resolution that still feels inevitable? Subvert this."},
-    {"id": "WN2", "index": 18, "type": "warning", "label": "World is too stable — needs disruption", "detail": "What assumption should be challenged? What cost hasn't been paid?"}
+    {"id": "WN1", "index": 17, "type": "warning", "label": "Alliance is too convenient—needs betrayal", "detail": "What's the LEAST obvious resolution that still feels inevitable? Subvert this."},
+    {"id": "WN2", "index": 18, "type": "warning", "label": "Protagonist winning too easily", "detail": "What assumption should be challenged? What cost hasn't been paid?"}
   ],
   "edges": [
     // Dense connections showing causal flow
-    {"id": "e1", "from": "T1", "to": "R1", "type": "requires"},
-    {"id": "e2", "from": "R1", "to": "W1", "type": "requires"},
-    {"id": "e3", "from": "W1", "to": "R2", "type": "requires"},
+    {"id": "e1", "from": "P1", "to": "R1", "type": "requires"},
+    {"id": "e2", "from": "R1", "to": "P2", "type": "requires"},
+    {"id": "e3", "from": "P2", "to": "R2", "type": "requires"},
     {"id": "e4", "from": "R2", "to": "C1", "type": "requires"},
     {"id": "e5", "from": "S1", "to": "R3", "type": "constrains"},
     {"id": "e6", "from": "R3", "to": "C1", "type": "constrains"},
     {"id": "e7", "from": "R4", "to": "L1", "type": "enables"},
-    {"id": "e8", "from": "F1", "to": "A1", "type": "constrains"},
+    {"id": "e8", "from": "F1", "to": "P3", "type": "constrains"},
     {"id": "e9", "from": "AR1", "to": "R4", "type": "enables"},
-    {"id": "e10", "from": "C2", "to": "W1", "type": "causes"}
+    {"id": "e10", "from": "C2", "to": "P2", "type": "causes"}
   ]
 }
 
 ## NODE TYPES (all must be grounded in SPECIFIC context from above)
 
-**STRUCTURAL NODES** (plan skeleton):
-- **terminal**: Thread's required end state. MUST have threadId and targetStatus. arcSlot = final arc. Detail: HOW it resolves.
-- **waypoint**: Intermediate thread state. Has threadId, targetStatus, arcSlot. Detail: WHY this progression is necessary.
-- **arc**: Arc placeholder. MUST have arcIndex, sceneCount (3-12), forceMode. arcSlot = arcIndex. Detail: WHY N scenes.
-- **unanswered**: Thread deliberately left open. Has threadId. arcSlot = final arc. Detail: WHY this should remain open.
+**FORMAT RULES (CRITICAL)**:
+- **IDs**: Short alphanumeric codes only: P1, P2, R1, R2, C1, F1, L1, AR1, S1, PT1, WN1, etc.
+  - GOOD: "P1", "R3", "C2", "PT1"
+  - BAD: "P_ARC2_PROG_T03", "THREAD_RESOLVE", "plot_resolution_1"
+- **Labels**: Natural English phrases (3-10 words) describing WHAT happens.
+  - GOOD: "Fang Yuan discovers the hidden tomb", "Alliance fractures over resource dispute"
+  - BAD: "Thread progression node", "P2_ESCALATE", "resolution mechanism"
+
+**PLOT NODES** (plan skeleton — key story beats):
+- **plot**: A key plot point the story must pass through. Label: a concrete event in plain English (e.g., "The clan elder reveals the betrayal"). Can represent:
+  - **Thread resolution**: Has threadId, targetStatus (resolved/subverted). arcSlot = when it happens. Detail: HOW it resolves.
+  - **Thread progression**: Has threadId, targetStatus (escalating/critical/active). Detail: WHY this intermediate state is necessary.
+  - **Arc structure**: Has arcIndex, sceneCount (3-12), forceMode. arcSlot = arcIndex. Detail: WHY N scenes needed.
+  Use plot nodes for any concrete story beat that must happen — resolutions, escalations, major events, act breaks.
 
 **FATE NODES** (thread pressure):
-- **fate**: Thread pressure on specific arcs. Has threadId, arcSlot. Label: reference thread's MOMENTUM from context.
+- **fate**: Thread pressure on specific arcs. Has threadId, arcSlot. Label: what the thread demands in plain English (e.g., "Survival thread demands sanctuary").
 
 **ENTITY NODES** (grounding in specific world knowledge — USE ALL OF THESE):
-- **character**: WHO drives this transition. MUST have entityId. Label: reference their SPECIFIC KNOWLEDGE from context. Detail: "knows X, therefore can Y" or "relationship with Z constrains options".
-- **location**: WHERE things must happen. MUST have entityId. Label: reference location's SPECIFIC PROPERTIES from context. Detail: why this venue is necessary.
-- **artifact**: WHAT item shapes outcomes. MUST have entityId. Label: reference SPECIFIC CAPABILITIES from context. Detail: how it enables/constrains.
-- **system**: HOW world rules constrain. Label: reference SPECIFIC principle/system/constraint/tension from WORLD KNOWLEDGE. Detail: why this rule matters here.
+- **character**: WHO drives this transition. MUST have entityId. Label: character + their key action/knowledge (e.g., "Fang Yuan exploits his memory of the future").
+- **location**: WHERE things must happen. MUST have entityId. Label: location + what it enables (e.g., "The Glacier's isolation enables secret negotiation").
+- **artifact**: WHAT item shapes outcomes. MUST have entityId. Label: artifact + its role (e.g., "Spring Autumn Cicada enables time reversal").
+- **system**: HOW world rules constrain. Label: the rule stated plainly (e.g., "Gu worms require regular feeding to survive").
 
 **REASONING NODES** (causal chains — THE BACKBONE, use extensively):
-- **reasoning**: Logical step in backward induction. Has arcSlot. Label: causal inference (3-10 words). Detail: explain WHY this follows, referencing specific knowledge.
+- **reasoning**: Logical step in backward induction. Has arcSlot. Label: the inference in plain English (e.g., "Resolution requires controlling the inheritance first"). Detail: explain WHY this follows.
 
 **CREATIVE AGENT NODES** (inject novelty and subvert expectations):
-- **pattern**: EXPANSION AGENT — inject novelty. Label: unexpected collision, emergent property, hidden implication, or world expansion. Detail: what NEW dynamic or capability emerges? What's beyond the current sandbox?
-- **warning**: SUBVERSION AGENT — challenge predictability. Label: predictable trajectory that needs disruption, cost that hasn't been paid, assumption that should be challenged. Detail: what's the LEAST obvious path that still feels inevitable?
+- **pattern**: EXPANSION AGENT. Label: the opportunity in plain English (e.g., "Two rivals discover a common enemy").
+- **warning**: SUBVERSION AGENT. Label: the risk in plain English (e.g., "Victory is coming too easily—needs setback").
 
 ## EDGE TYPES
 
@@ -1226,18 +1270,18 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
 
 ## REQUIREMENTS
 
-1. **Backward induction**: Start from terminals, work backwards to derive what must happen
+1. **Backward induction**: Start from endpoint plot points, work backwards to derive what must happen
 2. **Arc count**: Plan exactly ${arcTarget} arcs
 3. **Arc slots**: Every node (except pattern/warning) needs arcSlot (1-N) indicating when it's relevant
 4. **CHRONOLOGICAL INDEXING**: Node indexes MUST be chronological by arc — Arc 1 nodes get indexes 0-N, Arc 2 nodes get N+1 to M, etc. Within each arc, order by causal flow.
 5. **Progressive revelation**: Nodes with arcSlot > currentArc are hidden from arc generation
-6. **One arc node per arc**: Exactly N arc nodes with arcIndex 1 through N
-7. **Deliberate arc sizing**: Each arc node MUST have sceneCount (3-12) with reasoning in detail
+6. **One arc-defining plot node per arc**: Exactly N plot nodes with arcIndex 1 through N
+7. **Deliberate arc sizing**: Each arc-defining plot node MUST have sceneCount (3-12) with reasoning in detail
 8. **Force rhythm**: Vary forceMode — don't make all arcs fate-dominant
-9. **Thread trajectories**: Each non-unanswered thread needs waypoints showing progression
-10. **Dense connections**: Terminals connect to waypoints, waypoints to reasoning, reasoning to more reasoning
+9. **Thread trajectories**: Each thread needs plot points showing its progression toward resolution
+10. **Dense connections**: Plot points connect to reasoning, reasoning to more reasoning, all grounded in entities
 11. **Pacing balance**: Mix arc sizes — not all arcs should be the same length
-12. **DEEP CHAINS**: Between each terminal and its earliest waypoint, there must be ${nodeGuidance.minChainDepth}+ reasoning nodes
+12. **DEEP CHAINS**: Between each endpoint and its earliest progression, there must be ${nodeGuidance.minChainDepth}+ reasoning nodes
 13. **GROUNDED REASONING**: Reference specific character knowledge, relationships, artifacts, or world rules in reasoning nodes
 14. **CHARACTER AGENCY**: Include character nodes that show WHO drives each major transition
 15. **SYSTEM CONSTRAINTS**: Include system nodes that show HOW world rules shape outcomes
@@ -1246,10 +1290,9 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
 
 For this ${arcTarget}-arc plan with ${activeThreadCount} active threads:
 
-**Structural nodes**:
-- **Terminals**: At least ${nodeGuidance.minTerminals}
-- **Waypoints**: At least ${nodeGuidance.minWaypoints}
-- **Arc nodes**: Exactly ${arcTarget} (one per arc)
+**Plot nodes** (key story beats):
+- **Plot nodes**: At least ${nodeGuidance.minPlotNodes} total (thread progressions, resolutions, and arc structures)
+- **Arc-defining plot nodes**: Exactly ${arcTarget} (one per arc, each with arcIndex and sceneCount)
 
 **Reasoning backbone** (THE MOST IMPORTANT):
 - **Reasoning nodes**: At least ${nodeGuidance.minReasoningNodes} — DEEP causal chains, not shallow links
@@ -1269,9 +1312,9 @@ For this ${arcTarget}-arc plan with ${activeThreadCount} active threads:
 **Each arc must have meaningful reasoning.** Variation is natural, but avoid extreme disparities.
 
 **Per-arc guidelines**:
-- Early/mid arcs: 5-10 nodes each (setup, waypoints, reasoning chains)
+- Early/mid arcs: 5-10 nodes each (setup, plot points, reasoning chains)
 - Late arcs: 4-8 nodes each (convergence, escalation)
-- Final arc: 3-6 nodes minimum (terminals, resolution reasoning)
+- Final arc: 3-6 nodes minimum (resolution plot points, final reasoning)
 
 **Allowed variation**: Arc 1 having 8 nodes while Arc 3 has 6 is fine.
 **Not allowed**: Arc 1 having 15 nodes while Arc 5 has 2 (extreme disparity).
@@ -1284,36 +1327,36 @@ For this ${arcTarget}-arc plan with ${activeThreadCount} active threads:
 
 ## DEPTH + BREADTH REQUIREMENTS (CRITICAL)
 
-**Chain depth**: Terminal → ${nodeGuidance.minChainDepth}+ reasoning/entity nodes → earliest waypoint
+**Chain depth**: Endpoint plot point → ${nodeGuidance.minChainDepth}+ reasoning/entity nodes → earliest progression plot point
 
 **Balanced breadth**: Use ALL entity node types (character, location, artifact, system) — not just reasoning.
 
 **Rich reasoning means**:
-1. **Multi-step chains**: Terminal → Reasoning → Character → Reasoning → System → Reasoning → Waypoint
+1. **Multi-step chains**: Plot (resolution) → Reasoning → Character → Reasoning → System → Reasoning → Plot (progression)
 2. **Entity nodes throughout**: Character/location/artifact/system nodes appear IN the chains, not as isolated leaves
 3. **Specific references**: Every entity node references SPECIFIC knowledge from the context above
 4. **Causal clarity**: Each step explains WHY, not just WHAT
 
 **BAD (shallow breadth-only)**:
 \`\`\`
-T1 → W1
-T2 → W2  (parallel disconnected threads, no reasoning)
+P1 → P2
+P3 → P4  (parallel disconnected threads, no reasoning)
 \`\`\`
 
 **BAD (depth without grounding)**:
 \`\`\`
-T1 → R1 → R2 → R3 → W1  (reasoning chain but no character/location/system nodes)
+P1 → R1 → R2 → R3 → P2  (reasoning chain but no character/location/system nodes)
 \`\`\`
 
 **GOOD (deep + grounded + diverse)**:
 \`\`\`
-T1 ("Rock Aperture Gu feeding resolved")
+P1 ("Rock Aperture Gu feeding resolved" — threadId, targetStatus: resolved)
   → R1 ("For resolution, Fang Yuan must secure resource X")
   → C1 ("Fang Yuan knows Bai Ning Bing has Y" — entityId: char-fy)
   → R2 ("This knowledge enables negotiation")
   → L1 ("Glacier's isolation constrains timing" — entityId: loc-glacier)
   → S1 ("Gu feeding rules require Z" — reference: Gu feeding system)
-  → W1 ("Thread escalates through confrontation")
+  → P2 ("Thread escalates through confrontation" — threadId, targetStatus: escalating)
 \`\`\`
 
 Return ONLY the JSON object.`;

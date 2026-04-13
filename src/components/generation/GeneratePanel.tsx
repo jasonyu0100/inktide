@@ -9,6 +9,7 @@ import {
   generateReasoningGraph,
   generateScenes,
   suggestWorldExpansion,
+  type CoordinationPlanContext,
   type ExpansionEntityFilter,
   type ExpansionReasoningGraph,
   type ReasoningGraph,
@@ -174,7 +175,20 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const planSceneCount = coordPlan ? getArcSceneCount(coordPlan, planArcIndex, 4) : 4;
   const planDirective = coordPlan ? buildPlanDirective(narrative, coordPlan, planArcIndex) : "";
 
-  // Pre-fill form from coordination plan on mount
+  // Build coordination plan context for direct injection into generation
+  const coordinationPlanContext: CoordinationPlanContext | undefined = useMemo(() => {
+    if (!hasActivePlan || !coordPlan) return undefined;
+    return {
+      arcIndex: planArcIndex,
+      arcCount: coordPlan.arcCount,
+      arcLabel: planArcName || `Arc ${planArcIndex}`,
+      sceneCount: planSceneCount,
+      forceMode: planArcNode?.forceMode,
+      directive: planDirective,
+    };
+  }, [hasActivePlan, coordPlan, planArcIndex, planArcName, planSceneCount, planArcNode?.forceMode, planDirective]);
+
+  // Pre-fill form from coordination plan on mount (arc name and scene count only — direction flows in directly)
   const initializedFromPlan = useRef(false);
   useEffect(() => {
     if (hasActivePlan && !initializedFromPlan.current) {
@@ -187,13 +201,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       if (planSceneCount > 0) {
         setDirectionCount(planSceneCount);
       }
-      // Pre-fill direction from plan directive
-      if (planDirective) {
-        setDirection(planDirective);
-        setGuidanceDirection(planDirective);
-      }
+      // Direction is NOT pre-filled — it flows directly via coordinationPlanContext
     }
-  }, [hasActivePlan, planArcName, planSceneCount, planDirective]);
+  }, [hasActivePlan, planArcName, planSceneCount]);
 
   const currentMode = useMemo(
     () => detectCurrentMode(narrative, state.resolvedEntryKeys),
@@ -259,6 +269,18 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
       const fullDirection = additionalPrompt
         ? `${baseDirection}\n\nAdditional guidance: ${additionalPrompt}`
         : baseDirection;
+
+      // Build coordination plan context for reasoning graph generation
+      const reasoningPlanContext: CoordinationPlanContext | undefined =
+        hasActivePlan && coordPlan ? {
+          arcIndex: planArcIndex,
+          arcCount: coordPlan.arcCount,
+          arcLabel: planArcName || `Arc ${planArcIndex}`,
+          sceneCount: planSceneCount,
+          forceMode: planArcNode?.forceMode,
+          directive: planDirective,
+        } : undefined;
+
       const graph = await generateReasoningGraph(
         narrative,
         state.resolvedEntryKeys,
@@ -267,6 +289,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         fullDirection,
         finalArcName,
         (token) => setStreamText((prev) => prev + token),
+        reasoningPlanContext,
       );
       setReasoningGraph(graph);
       setShowReasoningModal(true);
@@ -403,6 +426,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
           existingArc,
           pacingSequence: previewSequence ?? undefined,
           worldBuildFocus,
+          coordinationPlanContext,
           onReasoning: (token) => setStreamText((prev) => prev + token),
         },
       );
@@ -798,7 +822,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                       Arc {planArcIndex}/{coordPlan.arcCount}
                     </span>
                     <span className="text-[10px] text-sky-300/60">
-                      Pre-filled from coordination plan — you can modify settings
+                      Plan context active — your direction adds to the plan
                     </span>
                   </div>
                 )}

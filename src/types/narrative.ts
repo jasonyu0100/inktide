@@ -883,15 +883,12 @@ export type CoordinationNodeType =
   | "reasoning"    // Logical step (inherited)
   | "pattern"      // Cooperative agent (inherited)
   | "warning"      // Adversarial agent (inherited)
-  | "terminal"     // Thread's required end state — backward induction anchor
-  | "waypoint"     // Intermediate state a thread must pass through
-  | "arc"          // An arc slot with force mode constraints
-  | "unanswered";  // Thread deliberately left open (sequel hook, ambiguity)
+  | "plot";        // Key plot point the story must pass through (thread progressions, arc definitions, resolutions)
 
-/** Thread status targets for terminal/waypoint nodes */
+/** Thread status targets for plot nodes that track thread progression */
 export type ThreadStatusTarget = "seeded" | "active" | "escalating" | "critical" | "resolved" | "subverted" | "abandoned";
 
-/** Force mode for arc slots */
+/** Force mode for arc-defining plot nodes */
 export type ArcForceMode = "fate-dominant" | "world-dominant" | "system-dominant" | "balanced";
 
 /**
@@ -905,15 +902,15 @@ export type CoordinationNode = {
   detail?: string;
   /** Reference to entity (character/location/artifact) */
   entityId?: string;
-  /** Reference to thread (for fate/terminal/waypoint/unanswered nodes) */
+  /** Reference to thread (for fate/plot nodes tracking thread progression) */
   threadId?: string;
-  /** Target thread status (for terminal/waypoint nodes) */
+  /** Target thread status (for plot nodes tracking thread progression) */
   targetStatus?: ThreadStatusTarget;
-  /** Arc index 1-N (for arc nodes) */
+  /** Arc index 1-N (for plot nodes that define arc structure) */
   arcIndex?: number;
-  /** Suggested scene count (for arc nodes) */
+  /** Suggested scene count (for plot nodes that define arc structure) */
   sceneCount?: number;
-  /** Force mode constraint (for arc nodes) */
+  /** Force mode constraint (for plot nodes that define arc structure) */
   forceMode?: ArcForceMode;
   /**
    * Arc slot this node belongs to (1-indexed).

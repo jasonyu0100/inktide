@@ -12,7 +12,7 @@ import {
   getArcNode,
   isPlanComplete,
 } from '@/lib/auto-engine';
-import { generateScenes } from '@/lib/ai';
+import { generateScenes, type CoordinationPlanContext } from '@/lib/ai';
 import type { AutoRunLog } from '@/types/narrative';
 import { logError, logInfo } from '@/lib/system-logger';
 
@@ -86,8 +86,19 @@ export function useAutoPlay() {
           worldBuildFocus = activeNarrative.worldBuilds[activeNarrative.storySettings.worldFocusId];
         }
 
+        // Build coordination plan context for structured prompt injection
+        const coordinationPlanContext: CoordinationPlanContext = {
+          arcIndex: executingArc,
+          arcCount: plan.arcCount,
+          arcLabel,
+          sceneCount,
+          forceMode: arcNode?.forceMode,
+          directive,
+        };
+
         const { scenes, arc } = await generateScenes(
-          activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive, { worldBuildFocus },
+          activeNarrative, resolvedEntryKeys, headIndex, sceneCount, '', // Empty direction — context flows via coordinationPlanContext
+          { worldBuildFocus, coordinationPlanContext },
         );
 
         if (cancelledRef.current) return;

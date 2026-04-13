@@ -19,11 +19,11 @@ export function CoordinationPlanIndicator({ branchPlan, onClick }: Props) {
   const totalArcs = plan.arcCount;
   const isComplete = plan.currentArc >= totalArcs && plan.completedArcs.length >= totalArcs;
 
-  // Find current arc node for label
-  const arcNodes = plan.nodes.filter(n => n.type === "arc");
-  const currentArcNode = arcNodes.find(n => n.arcIndex === displayArc);
+  // Find arc-defining plot nodes (plot nodes with arcIndex)
+  const arcDefiningPlotNodes = plan.nodes.filter(n => n.type === "plot" && n.arcIndex !== undefined);
+  const currentArcNode = arcDefiningPlotNodes.find(n => n.arcIndex === displayArc);
   const arcLabel = currentArcNode?.label ?? `Arc ${displayArc}`;
-  const totalScenes = arcNodes.reduce((sum, n) => sum + (n.sceneCount ?? 4), 0);
+  const totalScenes = arcDefiningPlotNodes.reduce((sum, n) => sum + (n.sceneCount ?? 4), 0);
 
   return (
     <button

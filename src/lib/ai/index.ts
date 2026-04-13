@@ -2,7 +2,7 @@
 export { narrativeContext, sceneContext, outlineContext } from './context';
 
 // Scene generation
-export { generateScenes, generateScenePlan, rewriteScenePlan, generateSceneProse } from './scenes';
+export { generateScenes, generateScenePlan, rewriteScenePlan, generateSceneProse, type CoordinationPlanContext } from './scenes';
 
 // Plan candidates
 export { runPlanCandidates } from './candidates';

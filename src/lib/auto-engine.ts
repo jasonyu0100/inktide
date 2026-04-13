@@ -540,10 +540,11 @@ export function buildOutlineDirective(
 import type { BranchPlan, CoordinationNode, CoordinationPlan } from "@/types/narrative";
 
 /**
- * Get the arc node for a specific arc index from the plan.
+ * Get the arc-defining plot node for a specific arc index from the plan.
+ * Arc-defining plot nodes have type="plot" with arcIndex set.
  */
 export function getArcNode(plan: CoordinationPlan, arcIndex: number): CoordinationNode | undefined {
-  return plan.nodes.find(n => n.type === "arc" && n.arcIndex === arcIndex);
+  return plan.nodes.find(n => n.type === "plot" && n.arcIndex === arcIndex);
 }
 
 /**
@@ -582,16 +583,18 @@ export function buildPlanDirective(
     }
   }
 
-  // Thread targets (terminals and waypoints visible to this arc)
+  // Thread targets (plot nodes with threadId visible to this arc)
   const threadTargets = visibleNodes.filter(
-    n => (n.type === "terminal" || n.type === "waypoint") && n.threadId
+    n => n.type === "plot" && n.threadId
   );
   if (threadTargets.length > 0) {
     sections.push("\n## Thread Targets");
     for (const node of threadTargets) {
       const thread = narrative.threads[node.threadId!];
       const threadDesc = thread?.description ?? node.threadId;
-      const targetType = node.type === "terminal" ? "MUST REACH" : "WAYPOINT";
+      // Plot nodes with resolved/subverted are endpoints, others are progressions
+      const isResolution = node.targetStatus === "resolved" || node.targetStatus === "subverted";
+      const targetType = isResolution ? "MUST REACH" : "PROGRESSION";
       sections.push(`- [${node.targetStatus ?? "progress"}] ${threadDesc} — ${targetType}: ${node.label}`);
     }
   }

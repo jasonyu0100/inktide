@@ -17,16 +17,12 @@ const TABS: { label: string; value: Tab }[] = [
 export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; onStart: () => void }) {
   const { state, dispatch } = useStore();
   const [tab, setTab] = useState<Tab>('direction');
-  const hasPlanningQueue = !!(state.activeNarrative?.branches && Object.values(state.activeNarrative.branches).some(b => b.planningQueue));
+  const hasCoordinationPlan = !!(state.activeNarrative?.branches && state.viewState.activeBranchId && state.activeNarrative.branches[state.viewState.activeBranchId]?.coordinationPlan);
 
   const [config, setConfig] = useState<AutoConfig>(() => {
     const base = { ...state.autoConfig };
-    const storyDir = state.activeNarrative?.storySettings?.storyDirection?.trim();
-    const storyCon = state.activeNarrative?.storySettings?.storyConstraints?.trim();
-    if (!base.direction && storyDir) base.direction = storyDir;
-    if (!base.narrativeConstraints && storyCon) base.narrativeConstraints = storyCon;
-    // When planning queue is active, default to planning_complete instead of scene_count
-    if (hasPlanningQueue && !base.endConditions.some(c => c.type === 'planning_complete')) {
+    // When coordination plan is active, default to planning_complete instead of scene_count
+    if (hasCoordinationPlan && !base.endConditions.some(c => c.type === 'planning_complete')) {
       base.endConditions = [{ type: 'planning_complete' }];
     }
     return base;
@@ -154,7 +150,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
               )}
 
               {/* Planning complete */}
-              {state.activeNarrative?.branches && Object.values(state.activeNarrative.branches).some(b => b.planningQueue) && (
+              {hasCoordinationPlan && (
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -162,7 +158,7 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                     onChange={() => toggleEndCondition('planning_complete', { type: 'planning_complete' })}
                     className="accent-white/80"
                   />
-                  <span className="text-xs text-text-secondary">Stop when planning queue completes</span>
+                  <span className="text-xs text-text-secondary">Stop when coordination plan completes</span>
                 </label>
               )}
 
@@ -208,6 +204,35 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                 onDirectionChange={(v) => update({ direction: v })}
                 onConstraintsChange={(v) => update({ narrativeConstraints: v })}
               />
+
+              {/* Arc Reasoning Toggle */}
+              <div className="pt-3 border-t border-white/5">
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs text-text-secondary group-hover:text-text-primary transition-colors">
+                      Arc Reasoning
+                    </span>
+                    <span className="text-[10px] text-text-dim leading-relaxed">
+                      {config.useArcReasoning !== false
+                        ? "Uses reasoning graphs for deeper narrative planning"
+                        : "Direct generation for faster output"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => update({ useArcReasoning: config.useArcReasoning === false })}
+                    className={`relative w-9 h-5 rounded-full transition-colors ${
+                      config.useArcReasoning !== false ? 'bg-sky-500' : 'bg-white/10'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        config.useArcReasoning !== false ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </label>
+              </div>
             </>
           )}
         </div>

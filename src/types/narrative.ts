@@ -868,6 +868,101 @@ export type ReasoningEdgeSnapshot = {
   label?: string;
 };
 
+// ── Coordination Plan ────────────────────────────────────────────────────────
+
+/**
+ * Extended node types for multi-arc coordination plans.
+ * Reuses all reasoning node types plus plan-specific types.
+ */
+export type CoordinationNodeType =
+  | "fate"         // Thread's gravitational pull (inherited)
+  | "character"    // Active agent (inherited)
+  | "location"     // Setting (inherited)
+  | "artifact"     // Object (inherited)
+  | "system"       // World rule/principle (inherited)
+  | "reasoning"    // Logical step (inherited)
+  | "pattern"      // Cooperative agent (inherited)
+  | "warning"      // Adversarial agent (inherited)
+  | "terminal"     // Thread's required end state — backward induction anchor
+  | "waypoint"     // Intermediate state a thread must pass through
+  | "arc"          // An arc slot with force mode constraints
+  | "unanswered";  // Thread deliberately left open (sequel hook, ambiguity)
+
+/** Thread status targets for terminal/waypoint nodes */
+export type ThreadStatusTarget = "seeded" | "active" | "escalating" | "critical" | "resolved" | "subverted" | "abandoned";
+
+/** Force mode for arc slots */
+export type ArcForceMode = "fate-dominant" | "world-dominant" | "system-dominant" | "balanced";
+
+/**
+ * Node in a coordination plan — extends reasoning nodes with plan-specific fields.
+ */
+export type CoordinationNode = {
+  id: string;
+  index: number;
+  type: CoordinationNodeType;
+  label: string;
+  detail?: string;
+  /** Reference to entity (character/location/artifact) */
+  entityId?: string;
+  /** Reference to thread (for fate/terminal/waypoint/unanswered nodes) */
+  threadId?: string;
+  /** Target thread status (for terminal/waypoint nodes) */
+  targetStatus?: ThreadStatusTarget;
+  /** Arc index 1-N (for arc nodes) */
+  arcIndex?: number;
+  /** Suggested scene count (for arc nodes) */
+  sceneCount?: number;
+  /** Force mode constraint (for arc nodes) */
+  forceMode?: ArcForceMode;
+  /**
+   * Arc slot this node belongs to (1-indexed).
+   * Nodes with arcSlot <= currentArc are visible during arc generation.
+   * Allows progressive revelation — early arcs don't see late-plan reasoning.
+   */
+  arcSlot?: number;
+};
+
+/** Reuses the same edge types as reasoning graphs */
+export type CoordinationEdge = ReasoningEdgeSnapshot;
+
+/**
+ * A coordination plan that orchestrates multiple arcs through backward induction.
+ * Uses the same graph structure as arc reasoning but at a higher level of abstraction.
+ */
+export type CoordinationPlan = {
+  id: string;
+  /** All nodes in the plan */
+  nodes: CoordinationNode[];
+  /** All edges connecting nodes */
+  edges: CoordinationEdge[];
+  /** Total number of arcs in the plan */
+  arcCount: number;
+  /** High-level summary of the plan */
+  summary: string;
+  /**
+   * Node IDs grouped by arc slot.
+   * arcPartitions[0] = node IDs visible to arc 1
+   * arcPartitions[1] = node IDs visible to arcs 1-2 (cumulative)
+   * etc.
+   */
+  arcPartitions: string[][];
+  /** Current arc being executed (0 = not started, 1-N = executing arc N) */
+  currentArc: number;
+  /** Arcs that have been completed */
+  completedArcs: number[];
+  /** Timestamp when plan was created */
+  createdAt: number;
+};
+
+/** Stored plan state on a branch */
+export type BranchPlan = {
+  /** The coordination plan */
+  plan: CoordinationPlan;
+  /** Whether auto mode should execute this plan */
+  autoExecute: boolean;
+};
+
 // ── Branch ───────────────────────────────────────────────────────────────────
 
 /** Explicit version pointers for a scene — allows a branch to pin specific versions */
@@ -886,8 +981,8 @@ export type Branch = {
   forkEntryId: string | null;
   /** Ordered timeline entry IDs (scenes + world builds) owned by this branch */
   entryIds: string[];
-  /** Branch-scoped planning queue (optional — absent means no planning layer) */
-  planningQueue?: PlanningQueue;
+  /** Branch-scoped coordination plan (optional — absent means no plan layer) */
+  coordinationPlan?: BranchPlan;
   /** Explicit version pointers — sceneId → version pointers (optional, absent = auto-resolve) */
   versionPointers?: Record<string, SceneVersionPointers>;
   createdAt: number;
@@ -1051,6 +1146,8 @@ export type StorySettings = {
   usePacingChain: boolean;
   /** Whether to use the beat profile Markov chain for plan generation. */
   useBeatChain: boolean;
+  /** Whether to generate reasoning graphs for coordination plans (shows AI's planning process). Default true. */
+  useReasoningGraphs: boolean;
   /** OpenAI TTS voice — one of: alloy, echo, fable, onyx, nova, shimmer */
   audioVoice: string;
   /** OpenAI TTS model — tts-1 (faster/cheaper) or tts-1-hd (higher quality) */
@@ -1080,84 +1177,10 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   mechanismProfilePreset: "",
   usePacingChain: false,
   useBeatChain: false,
+  useReasoningGraphs: true,
   audioVoice: "onyx",
   audioModel: "tts-1",
   proseFormat: "prose",
-};
-
-// ── Planning Queue ──────────────────────────────────────────────────────────
-
-/** Completion status of a planning phase */
-export type PlanningPhaseStatus = "pending" | "active" | "completed";
-
-/** A single phase in the planning queue — an allocated block of scenes with objectives */
-export type PlanningPhase = {
-  id: string;
-  /** Display name (e.g. "Call to Adventure", "Ordeal") */
-  name: string;
-  /** What this phase should achieve */
-  objective: string;
-  /** Number of scenes allocated to this phase */
-  sceneAllocation: number;
-  /** Number of scenes generated so far in this phase */
-  scenesCompleted: number;
-  /** Current status */
-  status: PlanningPhaseStatus;
-  /** Phase-specific constraint overrides (empty = use story settings) */
-  constraints: string;
-  /** Structural mechanics rules — convergence, fate density, scene function variety, protagonist gravity */
-  structuralRules?: string;
-  /** AI-generated direction for this phase (set when phase becomes active) */
-  direction: string;
-  /** AI-generated completion report when phase finishes */
-  completionReport?: string;
-  /** World build ID created during transition into this phase */
-  worldBuildId?: string;
-  /** Hints for world expansion when transitioning into this phase */
-  worldExpansionHints: string;
-  /** Verbatim section from the plan document that maps to this phase — the source of truth for generation */
-  sourceText?: string;
-};
-
-/** A named superstructure template that populates the queue */
-export type PlanningProfile = {
-  id: string;
-  name: string;
-  description: string;
-  /** 'complete' for self-contained stories, 'episodic' for series volumes */
-  category: "complete" | "episodic";
-  /** Whether this is a built-in archetype or user-created */
-  builtIn: boolean;
-  /** Phase templates — no runtime state, just the blueprint */
-  phases: {
-    name: string;
-    objective: string;
-    sceneAllocation: number;
-    constraints: string;
-    /** Structural mechanics rules — convergence, fate density, scene function variety, protagonist gravity */
-    structuralRules?: string;
-    worldExpansionHints: string;
-    sourceText?: string;
-  }[];
-};
-
-/** Queue paradigm — determines how direction flows into scene generation */
-export type QueueMode = "outline" | "plan";
-
-/** Branch-scoped planning queue */
-export type PlanningQueue = {
-  /** The profile that populated this queue (null if manually built) */
-  profileId: string | null;
-  /** Queue paradigm: 'outline' = dynamic guidelines (cube framing + direction as secondary),
-   *  'plan' = explicit quotable instructions (direction bypasses cube, source text trickles down).
-   *  Defaults to 'outline'. */
-  mode?: QueueMode;
-  /** Ordered list of phases */
-  phases: PlanningPhase[];
-  /** Index of the currently active phase (-1 if none active yet) */
-  activePhaseIndex: number;
-  /** Whether to expand the world at phase boundaries using worldExpansionHints (default true) */
-  expandWorld?: boolean;
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────
@@ -1191,6 +1214,9 @@ export type AutoConfig = {
   narrativeConstraints: string;
   characterRotationEnabled: boolean;
   minScenesBetweenCharacterFocus: number;
+  /** Whether to use arc-level reasoning graphs for scene generation (default true).
+   *  When disabled, scenes are generated directly without reasoning graphs for faster generation. */
+  useArcReasoning?: boolean;
 };
 
 export type AutoRunLog = {

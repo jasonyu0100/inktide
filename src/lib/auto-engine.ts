@@ -340,17 +340,14 @@ export function checkEndConditions(
       }
       case "planning_complete": {
         const activeBranch = activeBranchId ? narrative.branches[activeBranchId] : undefined;
-        const pq = activeBranch?.planningQueue;
-        if (pq) {
-          const allDone = pq.phases.every((p) => p.status === "completed");
-          if (allDone) {
-            logInfo(`Auto-play end condition met: planning_complete`, {
-              source: "auto-play",
-              operation: "check-end-conditions",
-              details: { type: "planning_complete", phaseCount: pq.phases.length },
-            });
-            return cond;
-          }
+        const coordPlan = activeBranch?.coordinationPlan;
+        if (coordPlan && isPlanComplete(coordPlan)) {
+          logInfo(`Auto-play end condition met: planning_complete`, {
+            source: "auto-play",
+            operation: "check-end-conditions",
+            details: { type: "planning_complete", arcCount: coordPlan.plan.arcCount },
+          });
+          return cond;
         }
         break;
       }
@@ -536,4 +533,182 @@ export function buildOutlineDirective(
     balance: analyzeBalance(scenes),
   };
   return buildDirective(narrative, config, ctx.storyPhase.name, pressure);
+}
+
+// ── Coordination Plan Support ─────────────────────────────────────────────────
+
+import type { BranchPlan, CoordinationNode, CoordinationPlan } from "@/types/narrative";
+
+/**
+ * Get the arc node for a specific arc index from the plan.
+ */
+export function getArcNode(plan: CoordinationPlan, arcIndex: number): CoordinationNode | undefined {
+  return plan.nodes.find(n => n.type === "arc" && n.arcIndex === arcIndex);
+}
+
+/**
+ * Get all visible nodes for a specific arc (nodes with arcSlot <= arcIndex).
+ */
+export function getVisibleNodesForArc(plan: CoordinationPlan, arcIndex: number): CoordinationNode[] {
+  const visibleIds = new Set(plan.arcPartitions[arcIndex - 1] ?? []);
+  return plan.nodes.filter(n => visibleIds.has(n.id));
+}
+
+/**
+ * Build a directive from coordination plan nodes for the current arc.
+ * This replaces the pressure-based directive building when a plan is active.
+ */
+export function buildPlanDirective(
+  narrative: NarrativeState,
+  plan: CoordinationPlan,
+  arcIndex: number,
+): string {
+  const sections: string[] = [];
+  const visibleNodes = getVisibleNodesForArc(plan, arcIndex);
+  const arcNode = getArcNode(plan, arcIndex);
+
+  // Arc header
+  sections.push(`## Coordination Plan — Arc ${arcIndex} of ${plan.arcCount}`);
+  if (arcNode) {
+    sections.push(`Arc: ${arcNode.label}`);
+    if (arcNode.forceMode) {
+      sections.push(`Force Mode: ${arcNode.forceMode}`);
+    }
+    if (arcNode.sceneCount) {
+      sections.push(`Target Scenes: ${arcNode.sceneCount}`);
+    }
+    if (arcNode.detail) {
+      sections.push(`\n${arcNode.detail}`);
+    }
+  }
+
+  // Thread targets (terminals and waypoints visible to this arc)
+  const threadTargets = visibleNodes.filter(
+    n => (n.type === "terminal" || n.type === "waypoint") && n.threadId
+  );
+  if (threadTargets.length > 0) {
+    sections.push("\n## Thread Targets");
+    for (const node of threadTargets) {
+      const thread = narrative.threads[node.threadId!];
+      const threadDesc = thread?.description ?? node.threadId;
+      const targetType = node.type === "terminal" ? "MUST REACH" : "WAYPOINT";
+      sections.push(`- [${node.targetStatus ?? "progress"}] ${threadDesc} — ${targetType}: ${node.label}`);
+    }
+  }
+
+  // Fate pressures (fate nodes visible to this arc)
+  const fateNodes = visibleNodes.filter(n => n.type === "fate" && n.threadId);
+  if (fateNodes.length > 0) {
+    sections.push("\n## Fate Pressures");
+    for (const node of fateNodes) {
+      const thread = narrative.threads[node.threadId!];
+      const threadDesc = thread?.description ?? node.threadId;
+      sections.push(`- ${threadDesc}: ${node.label}`);
+      if (node.detail) {
+        sections.push(`  → ${node.detail}`);
+      }
+    }
+  }
+
+  // Reasoning nodes
+  const reasoningNodes = visibleNodes.filter(n => n.type === "reasoning");
+  if (reasoningNodes.length > 0) {
+    sections.push("\n## Strategic Reasoning");
+    for (const node of reasoningNodes) {
+      sections.push(`- ${node.label}`);
+      if (node.detail) {
+        sections.push(`  → ${node.detail}`);
+      }
+    }
+  }
+
+  // Pattern and warning nodes
+  const patterns = visibleNodes.filter(n => n.type === "pattern");
+  const warnings = visibleNodes.filter(n => n.type === "warning");
+
+  if (patterns.length > 0) {
+    sections.push("\n## Patterns to Embrace");
+    for (const node of patterns) {
+      sections.push(`+ ${node.label}`);
+    }
+  }
+
+  if (warnings.length > 0) {
+    sections.push("\n## Pitfalls to Avoid");
+    for (const node of warnings) {
+      sections.push(`! ${node.label}`);
+    }
+  }
+
+  // Entity constraints
+  const entityNodes = visibleNodes.filter(
+    n => ["character", "location", "artifact", "system"].includes(n.type) && n.entityId
+  );
+  if (entityNodes.length > 0) {
+    sections.push("\n## Entity Constraints");
+    for (const node of entityNodes) {
+      const entityName = getEntityName(narrative, node.entityId!, node.type);
+      sections.push(`- [${node.type}] ${entityName}: ${node.label}`);
+    }
+  }
+
+  return sections.join("\n");
+}
+
+/**
+ * Get the scene count for an arc from the plan.
+ */
+export function getArcSceneCount(plan: CoordinationPlan, arcIndex: number, defaultCount: number): number {
+  const arcNode = getArcNode(plan, arcIndex);
+  return arcNode?.sceneCount ?? defaultCount;
+}
+
+/**
+ * Build a simplified directive for fast generation (no detailed reasoning).
+ * Used when useArcReasoning is false.
+ */
+export function buildSimplePlanDirective(
+  plan: CoordinationPlan,
+  arcIndex: number,
+): string {
+  const arcNode = getArcNode(plan, arcIndex);
+  const lines: string[] = [];
+
+  lines.push(`Arc ${arcIndex} of ${plan.arcCount}`);
+  if (arcNode) {
+    lines.push(`Focus: ${arcNode.label}`);
+    if (arcNode.forceMode) {
+      lines.push(`Mode: ${arcNode.forceMode}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Check if the coordination plan is complete.
+ */
+export function isPlanComplete(branchPlan: BranchPlan): boolean {
+  const { plan } = branchPlan;
+  return plan.currentArc >= plan.arcCount && plan.completedArcs.length >= plan.arcCount;
+}
+
+/**
+ * Helper to get entity name from narrative.
+ */
+function getEntityName(
+  narrative: NarrativeState,
+  entityId: string,
+  nodeType: string,
+): string {
+  switch (nodeType) {
+    case "character":
+      return narrative.characters[entityId]?.name ?? entityId;
+    case "location":
+      return narrative.locations[entityId]?.name ?? entityId;
+    case "artifact":
+      return narrative.artifacts?.[entityId]?.name ?? entityId;
+    default:
+      return entityId;
+  }
 }

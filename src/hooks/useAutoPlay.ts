@@ -2,14 +2,19 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { evaluateNarrativeState, checkEndConditions, pickArcLength } from '@/lib/auto-engine';
-import { generateScenes, expandWorld } from '@/lib/ai';
-import { refreshDirection } from '@/lib/ai/review';
-import { generatePhaseDirection } from '@/lib/planning-engine';
-import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import {
+  evaluateNarrativeState,
+  checkEndConditions,
+  pickArcLength,
+  buildPlanDirective,
+  buildSimplePlanDirective,
+  getArcSceneCount,
+  getArcNode,
+  isPlanComplete,
+} from '@/lib/auto-engine';
+import { generateScenes } from '@/lib/ai';
 import type { AutoRunLog } from '@/types/narrative';
-import { nextId } from '@/lib/narrative-utils';
-import { logError } from '@/lib/system-logger';
+import { logError, logInfo } from '@/lib/system-logger';
 
 export function useAutoPlay() {
   const { state, dispatch } = useStore();
@@ -24,150 +29,127 @@ export function useAutoPlay() {
     const { activeBranchId, autoRunState } = viewState;
     if (!activeNarrative || !activeBranchId || !autoRunState) return;
 
-    // Always generate from the HEAD of the story (end of the resolved entries)
     const headIndex = resolvedEntryKeys.length - 1;
-
-    // Wait if a planning phase just completed — the planning queue hook needs time to
-    // run the transition (world expansion + direction generation) before we generate more scenes
     const branch = activeNarrative.branches[activeBranchId];
-    const pq = branch?.planningQueue;
-    if (pq) {
-      const ap = pq.phases[pq.activePhaseIndex];
-      if (ap?.status === 'active' && ap.scenesCompleted >= ap.sceneAllocation) {
-        // Check if this is the last phase — if so, stop immediately
-        const isLastPhase = pq.activePhaseIndex >= pq.phases.length - 1
-          || pq.phases.slice(pq.activePhaseIndex + 1).every((p) => p.status === 'completed');
-        if (isLastPhase) {
-          dispatch({
-            type: 'LOG_AUTO_CYCLE',
-            entry: {
-              cycle: autoRunState.currentCycle + 1, timestamp: Date.now(), action: 'resolution',
-              reason: 'Planning queue completed — all phases done',
-              scenesGenerated: 0, worldExpanded: false,
-              endConditionMet: { type: 'planning_complete' },
-            },
-          });
-          dispatch({ type: 'STOP_AUTO_RUN' });
-          return;
-        }
-        // Phase just completed — skip this tick, let usePlanningQueue handle transition
-        return;
-      }
-      // All phases completed — stop immediately regardless of end condition config
-      if (pq.phases.every((p) => p.status === 'completed')) {
+
+    // ── Coordination Plan Mode ────────────────────────────────────────────────
+    // When a coordination plan exists, use plan-based generation
+    const coordPlan = branch?.coordinationPlan;
+    if (coordPlan) {
+      const { plan } = coordPlan;
+
+      // Check if plan is complete
+      if (isPlanComplete(coordPlan)) {
         dispatch({
           type: 'LOG_AUTO_CYCLE',
           entry: {
-            cycle: autoRunState.currentCycle + 1, timestamp: Date.now(), action: 'resolution',
-            reason: 'Planning queue completed — all phases done',
-            scenesGenerated: 0, worldExpanded: false,
+            cycle: autoRunState.currentCycle + 1,
+            timestamp: Date.now(),
+            action: 'resolution',
+            reason: `Coordination plan completed — ${plan.arcCount} arcs done`,
+            scenesGenerated: 0,
+            worldExpanded: false,
             endConditionMet: { type: 'planning_complete' },
           },
         });
         dispatch({ type: 'STOP_AUTO_RUN' });
         return;
       }
+
+      // Arc indices are 1-based, but currentArc starts at 0 when plan is created
+      // Treat 0 as 1 (we're about to execute arc 1)
+      const executingArc = plan.currentArc === 0 ? 1 : plan.currentArc;
+      const arcNode = getArcNode(plan, executingArc);
+      const arcLabel = arcNode?.label ?? `Arc ${executingArc}`;
+      const useArcReasoning = autoConfig.useArcReasoning !== false;
+      const directive = useArcReasoning
+        ? buildPlanDirective(activeNarrative, plan, executingArc)
+        : buildSimplePlanDirective(plan, executingArc);
+      const sceneCount = getArcSceneCount(plan, executingArc, 4);
+
+      logInfo(`Coordination plan: executing arc ${executingArc}/${plan.arcCount}`, {
+        source: 'auto-play',
+        operation: 'plan-execution',
+        details: { arcIndex: executingArc, sceneCount, arcLabel },
+      });
+
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Arc ${executingArc}/${plan.arcCount}: ${arcLabel}` });
+
+      try {
+        // Resolve world focus
+        const worldFocusMode = activeNarrative.storySettings?.worldFocus ?? 'none';
+        let worldBuildFocus = undefined;
+        if (worldFocusMode === 'latest') {
+          const lastWbKey = [...resolvedEntryKeys].reverse().find((k) => activeNarrative.worldBuilds[k]);
+          if (lastWbKey) worldBuildFocus = activeNarrative.worldBuilds[lastWbKey];
+        } else if (worldFocusMode === 'custom' && activeNarrative.storySettings?.worldFocusId) {
+          worldBuildFocus = activeNarrative.worldBuilds[activeNarrative.storySettings.worldFocusId];
+        }
+
+        const { scenes, arc } = await generateScenes(
+          activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive, { worldBuildFocus },
+        );
+
+        if (cancelledRef.current) return;
+
+        dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: activeBranchId });
+
+        // Log the cycle
+        dispatch({
+          type: 'LOG_AUTO_CYCLE',
+          entry: {
+            cycle: autoRunState.currentCycle + 1,
+            timestamp: Date.now(),
+            action: 'setup',
+            reason: `Plan arc ${executingArc}: ${arc.name}`,
+            scenesGenerated: scenes.length,
+            worldExpanded: false,
+            endConditionMet: null,
+            arcName: arc.name,
+            direction: directive.substring(0, 200),
+          },
+        });
+
+        // Advance to next arc
+        dispatch({ type: 'ADVANCE_COORDINATION_PLAN', branchId: activeBranchId });
+
+        // Show next arc status or completion
+        const nextArc = executingArc + 1;
+        if (nextArc > plan.arcCount) {
+          dispatch({ type: 'SET_AUTO_STATUS', message: 'Plan complete' });
+        } else {
+          const nextArcNode = getArcNode(plan, nextArc);
+          const nextLabel = nextArcNode?.label ?? `Arc ${nextArc}`;
+          dispatch({ type: 'SET_AUTO_STATUS', message: `Next: ${nextLabel}` });
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logError(`Coordination plan arc ${executingArc} failed`, err, {
+          source: 'auto-play',
+          operation: 'plan-execution',
+          details: { arcIndex: executingArc },
+        });
+
+        dispatch({
+          type: 'LOG_AUTO_CYCLE',
+          entry: {
+            cycle: autoRunState.currentCycle + 1,
+            timestamp: Date.now(),
+            action: 'setup',
+            reason: `Arc ${executingArc} generation failed`,
+            scenesGenerated: 0,
+            worldExpanded: false,
+            endConditionMet: null,
+            error: errorMsg,
+          },
+        });
+      }
+
+      return;
     }
 
-    // First-phase init: if queue hasn't started yet or active phase has no direction, run world expansion + direction
-    if (pq) {
-      let ap = pq.phases[pq.activePhaseIndex];
-      let activeIdx = pq.activePhaseIndex;
-      // Queue not yet started (activePhaseIndex === -1 or phase still pending) — activate first phase
-      if (!ap || ap.status === 'pending') {
-        const firstPending = pq.phases.findIndex((p) => p.status === 'pending');
-        if (firstPending >= 0) {
-          activeIdx = firstPending;
-          ap = { ...pq.phases[firstPending], status: 'active' as const };
-          dispatch({ type: 'SET_PLANNING_QUEUE', branchId: activeBranchId, queue: { ...pq, activePhaseIndex: activeIdx, phases: pq.phases.map((p, i) => i === activeIdx ? ap! : p) } });
-        }
-      }
-      if (ap?.status === 'active' && !ap.direction && ap.scenesCompleted === 0) {
-        dispatch({ type: 'SET_AUTO_STATUS', message: 'Setting up phase...' });
-        try {
-          if (pq.expandWorld !== false) {
-            dispatch({ type: 'SET_AUTO_STATUS', message: 'Expanding world...' });
-            const strategy = activeNarrative.storySettings?.expansionStrategy ?? 'dynamic';
-            const expansion = await expandWorld(activeNarrative, resolvedEntryKeys, headIndex, ap.worldExpansionHints || '', 'medium', strategy);
-            dispatch({
-              type: 'EXPAND_WORLD',
-              worldBuildId: nextId('WB', Object.keys(activeNarrative.worldBuilds), 3),
-              characters: expansion.characters, locations: expansion.locations,
-              threads: expansion.threads, relationships: expansion.relationships,
-              systemMutations: expansion.systemMutations, artifacts: expansion.artifacts,
-              branchId: activeBranchId,
-              ownershipMutations: expansion.ownershipMutations, tieMutations: expansion.tieMutations,
-              continuityMutations: expansion.continuityMutations, relationshipMutations: expansion.relationshipMutations,
-            });
-          }
-          dispatch({ type: 'SET_AUTO_STATUS', message: 'Generating direction...' });
-          const freshNarrative = stateRef.current.activeNarrative ?? activeNarrative;
-          const { direction, constraints } = await generatePhaseDirection(freshNarrative, resolvedEntryKeys, headIndex, ap, pq);
-          dispatch({ type: 'UPDATE_PLANNING_PHASE', branchId: activeBranchId, phaseIndex: activeIdx, updates: { direction, constraints: constraints || ap.constraints } });
-          const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...freshNarrative.storySettings };
-          dispatch({ type: 'SET_STORY_SETTINGS', settings: { ...baseSettings, storyDirection: direction, storyConstraints: constraints || ap.constraints || baseSettings.storyConstraints, worldFocus: 'latest' as const } });
-          // Log the init as a cycle so the direction appears in the run log
-          dispatch({
-            type: 'LOG_AUTO_CYCLE',
-            entry: {
-              cycle: autoRunState.currentCycle + 1,
-              timestamp: Date.now(),
-              action: 'setup',
-              reason: `Phase "${ap.name}" initialized — world expanded, direction set`,
-              scenesGenerated: 0,
-              worldExpanded: pq.expandWorld !== false,
-              endConditionMet: null,
-              phaseName: ap.name,
-              direction,
-              constraints: constraints || ap.constraints || undefined,
-            },
-          });
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : String(err);
-          const isFetchError = errorMsg.includes('fetch failed');
-          const isTimeout = errorMsg.includes('timed out');
-
-          let detailedMsg = `[auto-play] Phase "${ap.name}" initialization failed`;
-          if (isFetchError) {
-            detailedMsg += ' - Network error (check API connectivity)';
-          } else if (isTimeout) {
-            detailedMsg += ' - Request timed out (LLM took too long)';
-          }
-          detailedMsg += `\nError: ${errorMsg}`;
-
-          // Log error with structured context
-          logError(
-            `Phase "${ap.name}" initialization failed`,
-            err,
-            {
-              source: 'auto-play',
-              operation: 'phase-init',
-              details: {
-                phaseName: ap.name,
-                sceneAllocation: ap.sceneAllocation,
-                cycle: autoRunState.currentCycle + 1,
-              },
-            }
-          );
-
-          // Log the failure to run log
-          dispatch({
-            type: 'LOG_AUTO_CYCLE',
-            entry: {
-              cycle: autoRunState.currentCycle + 1,
-              timestamp: Date.now(),
-              action: 'setup',
-              reason: `Phase init failed: ${errorMsg.split('\n')[0].substring(0, 100)}`,
-              scenesGenerated: 0,
-              worldExpanded: false,
-              endConditionMet: null,
-              error: errorMsg,
-            },
-          });
-        }
-        return; // Let the next tick proceed with generation
-      }
-    }
+    // ── Pressure-Based Auto Mode ────────────────────────────────────────────────
+    // No coordination plan — use narrative pressure analysis for guidance
 
     // Check end conditions
     const endMet = checkEndConditions(activeNarrative, resolvedEntryKeys, autoConfig, autoRunState.startingSceneCount, autoRunState.startingArcCount, activeBranchId);
@@ -190,7 +172,7 @@ export function useAutoPlay() {
 
     // Evaluate narrative state and get directive
     dispatch({ type: 'SET_AUTO_STATUS', message: 'Evaluating narrative state...' });
-    const { phase, pressure, directive: autoDirective } = evaluateNarrativeState(
+    const { phase, pressure, directive } = evaluateNarrativeState(
       activeNarrative,
       resolvedEntryKeys,
       headIndex,
@@ -198,14 +180,10 @@ export function useAutoPlay() {
       autoRunState.startingSceneCount,
       autoRunState.startingArcCount,
     );
+
     let scenesGenerated = 0;
-    let worldExpanded = false;
     let arcName = '';
-    let cycleDirection = '';
-    let cycleConstraints = '';
-    let courseCorrection: { direction: string; constraints: string } | undefined;
     let cycleError = '';
-    let sceneCount = 0;
 
     try {
       // Resolve world focus from story settings
@@ -218,186 +196,30 @@ export function useAutoPlay() {
         worldBuildFocus = activeNarrative.worldBuilds[activeNarrative.storySettings.worldFocusId];
       }
 
-      // Merge fresh story settings direction/constraints into auto config
-      // (planning queue may have updated these mid-run)
-      const freshConfig = { ...autoConfig };
-      const freshDir = activeNarrative.storySettings?.storyDirection?.trim();
-      const freshCon = activeNarrative.storySettings?.storyConstraints?.trim();
-      if (freshDir) freshConfig.direction = freshDir;
-      if (freshCon) freshConfig.narrativeConstraints = freshCon;
-
-      // Capture direction/constraints for logging
-      cycleDirection = freshConfig.direction;
-      cycleConstraints = freshConfig.narrativeConstraints;
-
-      // Build the directive that scene generation will follow.
-      // Plan mode: direction + constraints derived from plan source text are the
-      //   complete brief — passed directly, no outline directive needed.
-      // Plan mode: direction + constraints derived from plan source text are the
-      //   complete brief — passed directly, auto directive not used.
-      // Outline mode: use the auto directive which includes analytical signals
-      //   (thread pressure, entity development, force balance).
-      const freshPq = stateRef.current.activeNarrative?.branches[activeBranchId]?.planningQueue ?? pq;
-      const isPlanMode = freshPq?.mode === 'plan';
-      let directive: string;
-      if (isPlanMode && freshConfig.direction) {
-        directive = freshConfig.direction;
-        if (freshConfig.narrativeConstraints) {
-          directive += `\n\nCONSTRAINTS: ${freshConfig.narrativeConstraints}`;
-        }
-      } else {
-        directive = autoDirective;
-      }
-
-      // If a planning queue phase is active, use fixed arc length of 4
-      // (or remaining if less than 4). Otherwise use pressure-based arc length.
-      const DEFAULT_QUEUE_ARC_LENGTH = 4;
-      let phaseRemaining = Infinity;
-      if (pq) {
-        const ap = pq.phases[pq.activePhaseIndex];
-        if (ap?.status === 'active') {
-          phaseRemaining = ap.sceneAllocation - ap.scenesCompleted;
-          if (phaseRemaining <= 0) return; // Phase already full, let transition handle it
-
-          // Use 4 scenes per arc, or remaining if less than 4
-          sceneCount = Math.min(DEFAULT_QUEUE_ARC_LENGTH, phaseRemaining);
-        } else {
-          sceneCount = pickArcLength(autoConfig, pressure);
-        }
-      } else {
-        sceneCount = pickArcLength(autoConfig, pressure);
-      }
-
-      // Always generate from the HEAD of the story (end), not from the cursor position
-      const headIndex = resolvedEntryKeys.length - 1;
+      const sceneCount = pickArcLength(autoConfig, pressure);
 
       dispatch({ type: 'SET_AUTO_STATUS', message: `Writing ${sceneCount} scenes...` });
-      let { scenes, arc } = await generateScenes(
+      const { scenes, arc } = await generateScenes(
         activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive, { worldBuildFocus },
       );
-      // Truncate if LLM returned more scenes than requested
-      if (phaseRemaining < Infinity && scenes.length > phaseRemaining) {
-        scenes = scenes.slice(0, phaseRemaining);
-        arc = { ...arc, sceneIds: arc.sceneIds.slice(0, phaseRemaining) };
-      }
+
       if (cancelledRef.current) return;
       dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: activeBranchId });
 
-      if (cancelledRef.current) return;
       scenesGenerated = scenes.length;
       arcName = arc.name;
 
-      // Course-correct: refresh direction after each arc
-      if (pq && scenesGenerated > 0) {
-        dispatch({ type: 'SET_AUTO_STATUS', message: 'Course-correcting direction...' });
-        const freshState = stateRef.current;
-        const freshNarrative = freshState.activeNarrative;
-        const freshBranch = freshNarrative?.branches[activeBranchId];
-        const freshQueue = freshBranch?.planningQueue;
-        const freshPhase = freshQueue?.phases[freshQueue.activePhaseIndex];
-        // stateRef.current is always stale within the same runCycle — dispatch queues
-        // a re-render but doesn't update the ref until the component re-renders.
-        // So freshPhase.scenesCompleted is always the PRE-dispatch value.
-        const knownCompleted = (freshPhase?.scenesCompleted ?? 0) + scenesGenerated;
-        if (freshNarrative && freshPhase?.status === 'active' && knownCompleted < freshPhase.sceneAllocation) {
-          try {
-            const patchedPhase = { ...freshPhase, scenesCompleted: knownCompleted };
-            const currentDir = freshNarrative.storySettings?.storyDirection?.trim() ?? '';
-            const currentCon = freshNarrative.storySettings?.storyConstraints?.trim() ?? '';
-            const freshHeadIndex = freshState.resolvedEntryKeys.length - 1;
-            const { direction: newDir, constraints: newCon } = await refreshDirection(
-              freshNarrative, freshState.resolvedEntryKeys, freshHeadIndex, patchedPhase, currentDir, currentCon,
-            );
-            if (newDir !== currentDir || newCon !== currentCon) {
-              courseCorrection = { direction: newDir, constraints: newCon };
-              const baseSettings = { ...DEFAULT_STORY_SETTINGS, ...freshNarrative.storySettings };
-              dispatch({
-                type: 'SET_STORY_SETTINGS',
-                settings: { ...baseSettings, storyDirection: newDir, storyConstraints: newCon },
-              });
-            }
-          } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
-            const isFetchError = errorMsg.includes('fetch failed');
-            const isTimeout = errorMsg.includes('timed out');
-
-            let detailedMsg = `[auto-play] Course correction (direction refresh) failed for phase "${freshPhase?.name}"`;
-            if (isFetchError) {
-              detailedMsg += ' - Network error';
-            } else if (isTimeout) {
-              detailedMsg += ' - Request timed out';
-            }
-            detailedMsg += `\nPhase progress: ${knownCompleted}/${freshPhase?.sceneAllocation ?? 0} scenes`;
-            detailedMsg += `\nError: ${errorMsg}`;
-
-            // Log error with structured context
-            logError(
-              `Course correction failed for phase "${freshPhase?.name}"`,
-              err,
-              {
-                source: 'auto-play',
-                operation: 'course-correction',
-                details: {
-                  phaseName: freshPhase?.name,
-                  scenesCompleted: knownCompleted,
-                  sceneAllocation: freshPhase?.sceneAllocation,
-                },
-              }
-            );
-          }
-        }
-      }
-
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      const isFetchError = errorMsg.includes('fetch failed');
-      const isTimeout = errorMsg.includes('timed out');
-      const isJSON = errorMsg.includes('JSON') || errorMsg.includes('parse');
-
-      let detailedMsg = `[auto-play] Cycle ${autoRunState.currentCycle + 1} failed`;
-      detailedMsg += `\nPhase: ${phase}`;
-      detailedMsg += `\nTarget scenes: ${sceneCount}`;
-
-      if (isFetchError) {
-        detailedMsg += '\nCause: Network error - fetch failed (check API connectivity)';
-      } else if (isTimeout) {
-        detailedMsg += '\nCause: Request timed out (LLM took too long to respond)';
-      } else if (isJSON) {
-        detailedMsg += '\nCause: JSON parsing error (LLM returned malformed data)';
-      }
-
-      if (pq) {
-        const ap = pq.phases[pq.activePhaseIndex];
-        if (ap) {
-          detailedMsg += `\nPhase: "${ap.name}" (${ap.scenesCompleted}/${ap.sceneAllocation} completed)`;
-        }
-      }
-
-      detailedMsg += `\nError: ${errorMsg}`;
-
-      // Log error with structured context
-      logError(
-        `Generation cycle ${autoRunState.currentCycle + 1} failed`,
-        err,
-        {
-          source: 'auto-play',
-          operation: 'scene-generation',
-          details: {
-            storyPhase: phase,
-            phaseName: pq?.phases[pq.activePhaseIndex]?.name,
-            phaseProgress: pq ? `${pq.phases[pq.activePhaseIndex]?.scenesCompleted}/${pq.phases[pq.activePhaseIndex]?.sceneAllocation}` : undefined,
-          },
-        }
-      );
-
+      logError(`Generation cycle ${autoRunState.currentCycle + 1} failed`, err, {
+        source: 'auto-play',
+        operation: 'scene-generation',
+        details: { storyPhase: phase },
+      });
       cycleError = errorMsg;
     }
 
     if (cancelledRef.current) return;
-
-    // Log the cycle with full details
-    const phaseName = pq ? pq.phases[pq.activePhaseIndex]?.name : undefined;
-    const phaseProgress = pq ? `${pq.phases[pq.activePhaseIndex]?.scenesCompleted ?? 0}/${pq.phases[pq.activePhaseIndex]?.sceneAllocation ?? 0}` : undefined;
 
     // Build reason from pressure analysis
     const pressureReasons: string[] = [];
@@ -413,14 +235,9 @@ export function useAutoPlay() {
       action: phase,
       reason,
       scenesGenerated,
-      worldExpanded,
+      worldExpanded: false,
       endConditionMet: null,
       arcName: arcName || undefined,
-      phaseName,
-      phaseProgress,
-      direction: cycleDirection || undefined,
-      constraints: cycleConstraints || undefined,
-      courseCorrection,
       error: cycleError || undefined,
     };
     dispatch({ type: 'LOG_AUTO_CYCLE', entry: logEntry });
@@ -490,7 +307,6 @@ export function useAutoPlay() {
     cancelledRef.current = false;
     runningRef.current = true;
     dispatch({ type: 'START_AUTO_RUN' });
-    // Kick off after a brief delay to let state settle
     timeoutRef.current = setTimeout(() => tick(), 500);
   }, [dispatch, tick]);
 
@@ -542,4 +358,3 @@ export function useAutoPlay() {
     log: state.viewState.autoRunState?.log ?? [],
   };
 }
-

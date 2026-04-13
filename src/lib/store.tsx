@@ -52,6 +52,7 @@ import type {
   BeatPlan,
   BeatProseMap,
   Branch,
+  BranchPlan,
   Character,
   ChatMessage,
   ChatThread,
@@ -65,8 +66,6 @@ import type {
   Note,
   OwnershipMutation,
   PlanEvaluation,
-  PlanningPhase,
-  PlanningQueue,
   ProseEvaluation,
   ProseProfile,
   ProseScore,
@@ -608,6 +607,7 @@ const initialState: AppState = {
     narrativeConstraints: "",
     characterRotationEnabled: true,
     minScenesBetweenCharacterFocus: 3,
+    useArcReasoning: true,
   },
   viewState: defaultViewState,
   resolvedEntryKeys: [],
@@ -773,19 +773,10 @@ export type Action =
   | { type: "DELETE_NOTE"; noteId: string }
   | { type: "UPDATE_NOTE"; noteId: string; title?: string; content?: string }
   | { type: "SET_ACTIVE_NOTE"; noteId: string | null }
-  // Planning queue
-  | {
-      type: "SET_PLANNING_QUEUE";
-      branchId: string;
-      queue: PlanningQueue | undefined;
-    }
-  | {
-      type: "UPDATE_PLANNING_PHASE";
-      branchId: string;
-      phaseIndex: number;
-      updates: Partial<PlanningPhase>;
-    }
-  | { type: "ADVANCE_PLANNING_PHASE"; branchId: string }
+  // Coordination plan
+  | { type: "SET_COORDINATION_PLAN"; branchId: string; plan: BranchPlan | undefined }
+  | { type: "CLEAR_COORDINATION_PLAN"; branchId: string }
+  | { type: "ADVANCE_COORDINATION_PLAN"; branchId: string }
   // Reasoning graph
   | { type: "SET_ARC_REASONING_GRAPH"; arcId: string; reasoningGraph: Arc["reasoningGraph"] };
 
@@ -1648,26 +1639,9 @@ function reducer(state: AppState, action: Action): AppState {
           (id) => !existingEntrySet.has(id),
         );
 
-        // Auto-increment planning queue scene count
-        let updatedBranch = branch
+        const updatedBranch = branch
           ? { ...branch, entryIds: [...branch.entryIds, ...dedupedEntries] }
           : null;
-        if (updatedBranch?.planningQueue) {
-          const queue = updatedBranch.planningQueue;
-          const activePhase = queue.phases[queue.activePhaseIndex];
-          if (activePhase && activePhase.status === "active") {
-            const phases = [...queue.phases];
-            phases[queue.activePhaseIndex] = {
-              ...activePhase,
-              scenesCompleted:
-                activePhase.scenesCompleted + action.scenes.length,
-            };
-            updatedBranch = {
-              ...updatedBranch,
-              planningQueue: { ...queue, phases },
-            };
-          }
-        }
 
         const updatedBranches = updatedBranch
           ? { ...n.branches, [action.branchId]: updatedBranch }
@@ -2328,8 +2302,8 @@ function reducer(state: AppState, action: Action): AppState {
     case "SET_ACTIVE_NOTE":
       return { ...state, viewState: { ...state.viewState, activeNoteId: action.noteId } };
 
-    // ── Planning Queue ────────────────────────────────────────────────────
-    case "SET_PLANNING_QUEUE":
+    // ── Coordination Plan ─────────────────────────────────────────────────
+    case "SET_COORDINATION_PLAN":
       return updateNarrative(state, (n) => {
         const branch = n.branches[action.branchId];
         if (!branch) return n;
@@ -2337,51 +2311,42 @@ function reducer(state: AppState, action: Action): AppState {
           ...n,
           branches: {
             ...n.branches,
-            [action.branchId]: { ...branch, planningQueue: action.queue },
+            [action.branchId]: { ...branch, coordinationPlan: action.plan },
           },
         };
       });
 
-    case "UPDATE_PLANNING_PHASE":
+    case "CLEAR_COORDINATION_PLAN":
       return updateNarrative(state, (n) => {
         const branch = n.branches[action.branchId];
-        if (!branch?.planningQueue) return n;
-        const phases = [...branch.planningQueue.phases];
-        const phase = phases[action.phaseIndex];
-        if (!phase) return n;
-        phases[action.phaseIndex] = { ...phase, ...action.updates };
+        if (!branch) return n;
         return {
           ...n,
           branches: {
             ...n.branches,
-            [action.branchId]: {
-              ...branch,
-              planningQueue: { ...branch.planningQueue, phases },
-            },
+            [action.branchId]: { ...branch, coordinationPlan: undefined },
           },
         };
       });
 
-    case "ADVANCE_PLANNING_PHASE":
+    case "ADVANCE_COORDINATION_PLAN":
       return updateNarrative(state, (n) => {
         const branch = n.branches[action.branchId];
-        if (!branch?.planningQueue) return n;
-        const queue = branch.planningQueue;
-        const currentIdx = queue.activePhaseIndex;
-        const nextIdx = currentIdx + 1;
+        if (!branch?.coordinationPlan) return n;
+        const { plan } = branch.coordinationPlan;
+        // Arc indices are 1-based, but currentArc starts at 0 when plan is created
+        // Treat 0 as 1 (we just completed arc 1)
+        const executedArc = plan.currentArc === 0 ? 1 : plan.currentArc;
+        const nextArc = executedArc + 1;
 
-        // Mark current phase as completed
-        const phases = [...queue.phases];
-        if (currentIdx >= 0 && currentIdx < phases.length) {
-          phases[currentIdx] = { ...phases[currentIdx], status: "completed" };
+        // Mark executed arc as completed
+        const completedArcs = [...plan.completedArcs];
+        if (!completedArcs.includes(executedArc)) {
+          completedArcs.push(executedArc);
         }
 
-        // Activate next phase or exhaust queue
-        if (nextIdx < phases.length) {
-          phases[nextIdx] = { ...phases[nextIdx], status: "active" };
-        }
-
-        const isExhausted = nextIdx >= phases.length;
+        // Advance to next arc or mark plan as complete
+        const isComplete = nextArc > plan.arcCount;
 
         return {
           ...n,
@@ -2389,24 +2354,16 @@ function reducer(state: AppState, action: Action): AppState {
             ...n.branches,
             [action.branchId]: {
               ...branch,
-              // Keep queue with all phases completed so planning_complete end condition can detect it
-              planningQueue: {
-                ...queue,
-                phases,
-                activePhaseIndex: isExhausted ? currentIdx : nextIdx,
+              coordinationPlan: {
+                ...branch.coordinationPlan,
+                plan: {
+                  ...plan,
+                  currentArc: isComplete ? plan.arcCount : nextArc,
+                  completedArcs,
+                },
               },
             },
           },
-          // Clear direction/constraints when queue exhausts
-          ...(isExhausted && n.storySettings
-            ? {
-                storySettings: {
-                  ...n.storySettings,
-                  storyDirection: "",
-                  storyConstraints: "",
-                },
-              }
-            : {}),
         };
       });
 

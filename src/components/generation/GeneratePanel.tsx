@@ -15,6 +15,12 @@ import {
   type WorldExpansionSize,
   type WorldExpansionStrategy,
 } from "@/lib/ai";
+import {
+  buildPlanDirective,
+  getArcNode,
+  getArcSceneCount,
+  isPlanComplete,
+} from "@/lib/auto-engine";
 import { ReasoningGraphModal } from "./ReasoningGraphModal";
 import { nextId } from "@/lib/narrative-utils";
 import {
@@ -35,7 +41,7 @@ import {
   NARRATIVE_CUBE,
   resolveEntry,
 } from "@/types/narrative";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GuidanceFields } from "./GuidanceFields";
 import { MarkovGraph } from "./MarkovGraph";
 import { CubeBadge, PacingStrip } from "./PacingStrip";
@@ -152,6 +158,42 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
     headEntry?.kind === "scene" && narrative.arcs[headEntry.arcId]
       ? narrative.arcs[headEntry.arcId]
       : null;
+
+  // ── Coordination Plan Detection ─────────────────────────────────────────────
+  const activeBranchId = state.viewState.activeBranchId;
+  const branchPlan = activeBranchId
+    ? narrative.branches[activeBranchId]?.coordinationPlan
+    : null;
+  const hasActivePlan = branchPlan && !isPlanComplete(branchPlan);
+  const coordPlan = hasActivePlan ? branchPlan.plan : null;
+
+  // Pre-compute plan values for current arc (arc indices are 1-based, currentArc=0 means "about to start arc 1")
+  const planArcIndex = coordPlan ? (coordPlan.currentArc === 0 ? 1 : coordPlan.currentArc) : 0;
+  const planArcNode = coordPlan ? getArcNode(coordPlan, planArcIndex) : null;
+  const planArcName = planArcNode?.label ?? "";
+  const planSceneCount = coordPlan ? getArcSceneCount(coordPlan, planArcIndex, 4) : 4;
+  const planDirective = coordPlan ? buildPlanDirective(narrative, coordPlan, planArcIndex) : "";
+
+  // Pre-fill form from coordination plan on mount
+  const initializedFromPlan = useRef(false);
+  useEffect(() => {
+    if (hasActivePlan && !initializedFromPlan.current) {
+      initializedFromPlan.current = true;
+      // Pre-fill arc name from plan
+      if (planArcName) {
+        setArcName(planArcName);
+      }
+      // Pre-fill scene count from plan
+      if (planSceneCount > 0) {
+        setDirectionCount(planSceneCount);
+      }
+      // Pre-fill direction from plan directive
+      if (planDirective) {
+        setDirection(planDirective);
+        setGuidanceDirection(planDirective);
+      }
+    }
+  }, [hasActivePlan, planArcName, planSceneCount, planDirective]);
 
   const currentMode = useMemo(
     () => detectCurrentMode(narrative, state.resolvedEntryKeys),
@@ -302,6 +344,10 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
           summary: reasoningGraph.summary,
         },
       });
+      // Advance coordination plan if active (regardless of whether settings were changed)
+      if (hasActivePlan && activeBranchId) {
+        dispatch({ type: "ADVANCE_COORDINATION_PLAN", branchId: activeBranchId });
+      }
       onClose();
     } catch (err) {
       logError("Scene generation from reasoning graph failed", err, {
@@ -366,6 +412,10 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         arc,
         branchId: state.viewState.activeBranchId!,
       });
+      // Advance coordination plan if active (regardless of whether settings were changed)
+      if (hasActivePlan && activeBranchId) {
+        dispatch({ type: "ADVANCE_COORDINATION_PLAN", branchId: activeBranchId });
+      }
       onClose();
     } catch (err) {
       logError("Manual scene generation failed", err, {
@@ -740,6 +790,19 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
           <div className="flex flex-col gap-4">
             {mode === "continuation" ? (
               <>
+                {/* Coordination plan indicator */}
+                {hasActivePlan && coordPlan && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                    <div className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                    <span className="text-[11px] text-sky-300 font-medium">
+                      Arc {planArcIndex}/{coordPlan.arcCount}
+                    </span>
+                    <span className="text-[10px] text-sky-300/60">
+                      Pre-filled from coordination plan — you can modify settings
+                    </span>
+                  </div>
+                )}
+
                 {/* Arc toggle */}
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input

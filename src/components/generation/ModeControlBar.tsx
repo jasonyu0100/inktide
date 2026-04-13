@@ -25,6 +25,10 @@ type AutoModeProps = BaseProps & {
   log: AutoRunLog[];
   onOpenSettings: () => void;
   onOpenLog: () => void;
+  /** Whether a coordination plan is active */
+  hasCoordinationPlan?: boolean;
+  /** Whether arc reasoning is enabled */
+  useArcReasoning?: boolean;
 };
 
 type MCTSModeProps = BaseProps & {
@@ -169,6 +173,13 @@ export function ModeControlBar(props: Props) {
         {/* Mode-specific metrics */}
         {props.mode === 'auto' && (
           <>
+            {/* Arc reasoning indicator */}
+            {props.hasCoordinationPlan && props.useArcReasoning !== false && (
+              <>
+                <span className="text-[9px] text-sky-400/80 font-medium">Plan</span>
+                <div className="w-px h-3 bg-white/10" />
+              </>
+            )}
             {/* Show cycle number - add 1 when running first cycle to show "Arc 1" */}
             <span className="text-[9px] text-text-dim">Arc</span>
             <span className="text-[10px] text-text-secondary font-mono tabular-nums">
@@ -186,7 +197,7 @@ export function ModeControlBar(props: Props) {
             {lastEntry && (
               <>
                 <div className="w-px h-3 bg-white/10" />
-                <span className="text-[9px] text-text-dim truncate max-w-20">
+                <span className="text-[9px] text-text-dim truncate max-w-24">
                   {ACTION_LABELS[lastEntry.action] ?? lastEntry.action}
                 </span>
               </>

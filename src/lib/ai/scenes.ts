@@ -159,6 +159,8 @@ export type GenerateScenesOptions = {
   onToken?: (token: string) => void;
   /** Callback for streaming reasoning/thinking tokens */
   onReasoning?: (token: string) => void;
+  /** When true, skip extended reasoning even if story settings enable it */
+  disableReasoning?: boolean;
 };
 
 export async function generateScenes(

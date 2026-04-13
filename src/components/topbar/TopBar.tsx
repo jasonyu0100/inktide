@@ -192,7 +192,7 @@ function exportBranch(narrative: NarrativeState, branchId: string) {
     parentBranchId: null,
     forkEntryId: null,
     entryIds: resolvedKeys,
-    planningQueue: branch?.planningQueue,
+    coordinationPlan: branch?.coordinationPlan,
     createdAt: branch?.createdAt ?? Date.now(),
   };
   branches[branchId] = exportBranchObj;
@@ -719,7 +719,7 @@ export default function TopBar() {
       parentBranchId: null,
       forkEntryId: null,
       entryIds: resolvedKeys,
-      planningQueue: branch?.planningQueue,
+      coordinationPlan: branch?.coordinationPlan,
       createdAt: branch?.createdAt ?? Date.now(),
     };
     branches[state.viewState.activeBranchId] = exportBranchObj;

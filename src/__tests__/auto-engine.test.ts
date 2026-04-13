@@ -466,35 +466,21 @@ describe("checkEndConditions", () => {
     const result = checkEndConditions(narrative, [], config);
     expect(result).toBeNull();
   });
-  it("returns planning_complete when all phases done", () => {
+  it("returns planning_complete when all arcs complete", () => {
     const narrative = createMinimalNarrative();
-    narrative.branches.main.planningQueue = {
-      profileId: "test",
-      activePhaseIndex: 1,
-      phases: [
-        {
-          id: "p1",
-          name: "Phase 1",
-          objective: "Test",
-          status: "completed",
-          sceneAllocation: 5,
-          scenesCompleted: 5,
-          constraints: "",
-          direction: "",
-          worldExpansionHints: "",
-        },
-        {
-          id: "p2",
-          name: "Phase 2",
-          objective: "Test",
-          status: "completed",
-          sceneAllocation: 5,
-          scenesCompleted: 5,
-          constraints: "",
-          direction: "",
-          worldExpansionHints: "",
-        },
-      ],
+    narrative.branches.main.coordinationPlan = {
+      plan: {
+        id: "test-plan",
+        nodes: [],
+        edges: [],
+        arcCount: 2,
+        summary: "Test plan",
+        arcPartitions: [],
+        currentArc: 2,
+        completedArcs: [1, 2],
+        createdAt: Date.now(),
+      },
+      autoExecute: true,
     };
     const config = createAutoConfig({
       endConditions: [{ type: "planning_complete" }],
@@ -502,35 +488,21 @@ describe("checkEndConditions", () => {
     const result = checkEndConditions(narrative, [], config, 0, 0, "main");
     expect(result).toEqual({ type: "planning_complete" });
   });
-  it("returns null for planning_complete when phases incomplete", () => {
+  it("returns null for planning_complete when arcs incomplete", () => {
     const narrative = createMinimalNarrative();
-    narrative.branches.main.planningQueue = {
-      profileId: "test",
-      activePhaseIndex: 1,
-      phases: [
-        {
-          id: "p1",
-          name: "Phase 1",
-          objective: "Test",
-          status: "completed",
-          sceneAllocation: 5,
-          scenesCompleted: 5,
-          constraints: "",
-          direction: "",
-          worldExpansionHints: "",
-        },
-        {
-          id: "p2",
-          name: "Phase 2",
-          objective: "Test",
-          status: "active",
-          sceneAllocation: 5,
-          scenesCompleted: 2,
-          constraints: "",
-          direction: "",
-          worldExpansionHints: "",
-        },
-      ],
+    narrative.branches.main.coordinationPlan = {
+      plan: {
+        id: "test-plan",
+        nodes: [],
+        edges: [],
+        arcCount: 3,
+        summary: "Test plan",
+        arcPartitions: [],
+        currentArc: 1,
+        completedArcs: [1],
+        createdAt: Date.now(),
+      },
+      autoExecute: true,
     };
     const config = createAutoConfig({
       endConditions: [{ type: "planning_complete" }],

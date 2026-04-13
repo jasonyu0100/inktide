@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { useWizard } from '@/lib/wizard-context';
@@ -19,7 +19,6 @@ import NarrativePanel from '@/components/narrative/NarrativePanel';
 import { CreationWizard } from '@/components/wizard/CreationWizard';
 import { GeneratePanel } from '@/components/generation/GeneratePanel';
 import { BranchModal } from '@/components/generation/BranchModal';
-import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import { AutoSettingsPanel } from '@/components/auto/AutoSettingsPanel';
 import { AutoLogModal } from '@/components/auto/AutoLogModal';
 import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
@@ -33,9 +32,9 @@ import { MCTSPanel } from '@/components/mcts/MCTSPanel';
 import { ModeControlBar } from '@/components/generation/ModeControlBar';
 import { useMCTS } from '@/hooks/useMCTS';
 import { StorySettingsModal } from '@/components/settings/StorySettingsModal';
-import { PlanningIndicator } from '@/components/planning/PlanningIndicator';
-import { PlanningQueueEditor } from '@/components/planning/PlanningQueueEditor';
-import { usePlanningQueue } from '@/hooks/usePlanningQueue';
+import { CoordinationPlanIndicator } from '@/components/generation/CoordinationPlanIndicator';
+import { CoordinationPlanModal } from '@/components/generation/CoordinationPlanModal';
+import { CoordinationPlanSetupModal } from '@/components/generation/CoordinationPlanSetupModal';
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(false);
@@ -64,11 +63,19 @@ export default function SeriesPage() {
   const [proseProfileOpen, setProseProfileOpen] = useState(false);
   const [mctsOpen, setMctsOpen] = useState(false);
   const [storySettingsOpen, setStorySettingsOpen] = useState(false);
-  const [planningQueueOpen, setPlanningQueueOpen] = useState(false);
+  const [coordinationPlanOpen, setCoordinationPlanOpen] = useState(false);
+  const [coordinationSetupOpen, setCoordinationSetupOpen] = useState(false);
   const [bottomPanelCollapsed, setBottomPanelCollapsed] = useState(false);
+
+  // Ref to track current plan state for event handler (avoids stale closure)
+  const coordinationPlanRef = useRef<{ branchId: string | null; hasPlan: boolean }>({ branchId: null, hasPlan: false });
+  useEffect(() => {
+    const branchId = state.viewState.activeBranchId;
+    const hasPlan = !!(branchId && state.activeNarrative?.branches[branchId]?.coordinationPlan);
+    coordinationPlanRef.current = { branchId, hasPlan };
+  }, [state.viewState.activeBranchId, state.activeNarrative]);
   const autoPlay = useAutoPlay();
   const mcts = useMCTS();
-  const planning = usePlanningQueue();
   const bulk = useBulkGenerate();
   const bulkAudio = useBulkAudioGenerate();
   const id = params.id as string;
@@ -97,7 +104,15 @@ export default function SeriesPage() {
     function handleOpenProseProfile() { setProseProfileOpen(true); }
     function handleOpenMcts() { setMctsOpen(true); }
     function handleOpenStorySettings() { setStorySettingsOpen(true); }
-    function handleOpenPlanningQueue() { setPlanningQueueOpen(true); }
+    function handleOpenCoordinationPlan() {
+      // If plan exists, show it; otherwise open setup
+      // Uses ref to avoid stale closure issue
+      if (coordinationPlanRef.current.hasPlan) {
+        setCoordinationPlanOpen(true);
+      } else {
+        setCoordinationSetupOpen(true);
+      }
+    }
     window.addEventListener('open-generate-panel', handleOpenGenerate);
     window.addEventListener('open-branch-modal', handleOpenFork);
     window.addEventListener('open-auto-settings', handleOpenAutoSettings);
@@ -107,7 +122,7 @@ export default function SeriesPage() {
     window.addEventListener('open-prose-profile', handleOpenProseProfile);
     window.addEventListener('open-mcts-panel', handleOpenMcts);
     window.addEventListener('open-story-settings', handleOpenStorySettings);
-    window.addEventListener('open-planning-queue', handleOpenPlanningQueue);
+    window.addEventListener('open-coordination-plan', handleOpenCoordinationPlan);
     return () => {
       window.removeEventListener('open-generate-panel', handleOpenGenerate);
       window.removeEventListener('open-branch-modal', handleOpenFork);
@@ -118,7 +133,7 @@ export default function SeriesPage() {
       window.removeEventListener('open-prose-profile', handleOpenProseProfile);
       window.removeEventListener('open-mcts-panel', handleOpenMcts);
       window.removeEventListener('open-story-settings', handleOpenStorySettings);
-      window.removeEventListener('open-planning-queue', handleOpenPlanningQueue);
+      window.removeEventListener('open-coordination-plan', handleOpenCoordinationPlan);
     };
   }, []);
 
@@ -211,6 +226,8 @@ export default function SeriesPage() {
                 onStop={autoPlay.stop}
                 onOpenSettings={() => setAutoSettingsOpen(true)}
                 onOpenLog={() => setAutoLogOpen(true)}
+                hasCoordinationPlan={coordinationPlanRef.current.hasPlan}
+                useArcReasoning={state.autoConfig.useArcReasoning}
               />
             )}
 
@@ -221,9 +238,13 @@ export default function SeriesPage() {
                 isMctsActive={mcts.runState.status === 'running' || mcts.runState.status === 'paused'}
               />
             )}
-            {planning.queue && (
+            {/* Coordination Plan Indicator */}
+            {state.viewState.activeBranchId && state.activeNarrative.branches[state.viewState.activeBranchId]?.coordinationPlan && (
               <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10">
-                <PlanningIndicator queue={planning.queue} onClick={() => setPlanningQueueOpen(true)} />
+                <CoordinationPlanIndicator
+                  branchPlan={state.activeNarrative.branches[state.viewState.activeBranchId].coordinationPlan!}
+                  onClick={() => setCoordinationPlanOpen(true)}
+                />
               </div>
             )}
           </div>
@@ -274,55 +295,26 @@ export default function SeriesPage() {
       {castAnalyticsOpen && <CastAnalytics onClose={() => setCastAnalyticsOpen(false)} />}
       {proseProfileOpen && <ProseProfilePanel onClose={() => setProseProfileOpen(false)} />}
       {storySettingsOpen && <StorySettingsModal onClose={() => setStorySettingsOpen(false)} />}
-      {planningQueueOpen && (
-        <PlanningQueueEditor
-          onClose={() => setPlanningQueueOpen(false)}
-          onStartAuto={() => {
-            // When starting from planning queue, use planning_complete as the sole end condition
-            dispatch({
-              type: 'SET_AUTO_CONFIG',
-              config: { ...state.autoConfig, endConditions: [{ type: 'planning_complete' }] },
-            });
-            autoPlay.start();
-          }}
+      {coordinationSetupOpen && (
+        <CoordinationPlanSetupModal
+          onClose={() => setCoordinationSetupOpen(false)}
+          onPlanCreated={() => setCoordinationSetupOpen(false)}
         />
       )}
-      {planning.phaseJustCompleted && (
-        <Modal onClose={planning.dismissCompletion} size="sm">
-          <ModalHeader onClose={planning.dismissCompletion}>
-            <div>
-              <h2 className="text-sm font-semibold text-text-primary">Phase Complete</h2>
-              <p className="text-[10px] text-text-dim mt-0.5">{planning.phaseJustCompleted.name}</p>
-            </div>
-          </ModalHeader>
-          <ModalBody>
-            <p className="text-[11px] text-text-secondary leading-relaxed">{planning.phaseJustCompleted.summary}</p>
-            {planning.phaseJustCompleted.nextPhaseName && (
-              <div className="mt-4 rounded-lg border border-white/8 bg-white/3 p-3">
-                <p className="text-[10px] text-text-dim uppercase tracking-wider mb-1">Next Phase</p>
-                <p className="text-xs text-text-primary font-medium">{planning.phaseJustCompleted.nextPhaseName}</p>
-                <p className="text-[10px] text-text-dim mt-1">Generate world and direction for the next phase, or skip to generate scenes with existing settings.</p>
-              </div>
-            )}
-            {!planning.phaseJustCompleted.nextPhaseName && (
-              <div className="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                <p className="text-xs text-emerald-400 font-medium">All phases complete</p>
-              </div>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <button onClick={planning.dismissCompletion}
-              className="px-4 text-xs font-medium py-2 rounded-lg text-text-dim hover:text-text-secondary hover:bg-white/6 transition-colors">
-              Skip
-            </button>
-            {planning.phaseJustCompleted.nextPhaseName && (
-              <button onClick={() => { planning.dismissCompletion(); setPlanningQueueOpen(true); }}
-                className="px-4 text-xs font-semibold py-2 rounded-lg bg-white/12 text-text-primary hover:bg-white/16 transition-colors">
-                Set Up Next Phase
-              </button>
-            )}
-          </ModalFooter>
-        </Modal>
+      {coordinationPlanOpen && state.viewState.activeBranchId && state.activeNarrative.branches[state.viewState.activeBranchId]?.coordinationPlan && (
+        <CoordinationPlanModal
+          plan={state.activeNarrative.branches[state.viewState.activeBranchId].coordinationPlan!.plan}
+          onRegenerate={() => {
+            setCoordinationPlanOpen(false);
+            setCoordinationSetupOpen(true);
+          }}
+          onConfirm={() => setCoordinationPlanOpen(false)}
+          onClose={() => setCoordinationPlanOpen(false)}
+          onClear={() => {
+            dispatch({ type: 'CLEAR_COORDINATION_PLAN', branchId: state.viewState.activeBranchId! });
+            setCoordinationPlanOpen(false);
+          }}
+        />
       )}
       <MCTSPanel isOpen={mctsOpen} onClose={() => setMctsOpen(false)} mcts={mcts} />
       {isMobile && (

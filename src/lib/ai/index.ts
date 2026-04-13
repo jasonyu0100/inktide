@@ -17,9 +17,9 @@ export { rewriteSceneProse } from './prose';
 // Premise
 export { suggestPremise } from './premise';
 
-// Review & course correction
-export { reviewBranch, reviewProseQuality, reviewPlanQuality, refreshDirection } from './review';
+// Review
+export { reviewBranch, reviewProseQuality, reviewPlanQuality } from './review';
 
 // Reasoning graph
-export { generateReasoningGraph, generateExpansionReasoningGraph, buildSequentialPath } from './reasoning-graph';
-export type { ReasoningGraph, ReasoningNode, ReasoningEdge, ReasoningNodeType, ReasoningEdgeType, ExpansionReasoningGraph } from './reasoning-graph';
+export { generateReasoningGraph, generateExpansionReasoningGraph, buildSequentialPath, generateCoordinationPlan, buildPlanPathForArc } from './reasoning-graph';
+export type { ReasoningGraph, ReasoningNode, ReasoningEdge, ReasoningNodeType, ReasoningEdgeType, ExpansionReasoningGraph, PlanGuidance, ThreadTarget } from './reasoning-graph';

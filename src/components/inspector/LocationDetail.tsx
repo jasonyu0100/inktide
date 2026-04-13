@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { useImageUrl } from '@/hooks/useAssetUrl';
-import { getContinuityNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
-import type { ContinuityNodeType } from '@/types/narrative';
+import { getWorldNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
 import { CollapsibleSection } from './CollapsibleSection';
 import { INSPECTOR_PAGE_SIZE } from '@/lib/constants';
 
@@ -74,8 +73,8 @@ export default function LocationDetail({ locationId }: Props) {
   // Knowledge filtered to current scene (location knowledge uses locationId as characterId
   // in the mutation replay — location-specific knowledge nodes aren't mutated by scenes,
   // so we pass the locationId and any matching mutations will be respected)
-  const continuityNodes = getContinuityNodesAtScene(
-    location.continuity.nodes,
+  const worldNodes = getWorldNodesAtScene(
+    location.world.nodes,
     locationId,
     narrative.scenes,
     state.resolvedEntryKeys,
@@ -97,8 +96,8 @@ export default function LocationDetail({ locationId }: Props) {
     .filter((s) => s && s.locationId === locationId)
     .map((s) => ({
       sceneId: s.id,
-      threadMuts: s.threadMutations.filter((tm) => locationThreadIds.has(tm.threadId)),
-      continuityMuts: s.continuityMutations.filter((km) => km.entityId === locationId),
+      threadDeltas: s.threadDeltas.filter((tm) => locationThreadIds.has(tm.threadId)),
+      worldDeltas: s.worldDeltas.filter((km) => km.entityId === locationId),
       arrivals: Object.entries(s.characterMovements ?? {})
         .filter(([, mv]) => mv.locationId === locationId)
         .map(([charId]) => charId),
@@ -229,10 +228,10 @@ export default function LocationDetail({ locationId }: Props) {
       )}
 
       {/* Continuity — paginated, most recent first */}
-      {continuityNodes.length > 0 && (() => {
-        const { pageItems, totalPages, safePage } = paginateRecent(continuityNodes, continuityPage);
+      {worldNodes.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(worldNodes, continuityPage);
         return (
-          <CollapsibleSection title="Continuity" count={continuityNodes.length} defaultOpen>
+          <CollapsibleSection title="World" count={worldNodes.length} defaultOpen>
             <ul className="flex flex-col gap-1">
               {pageItems.map((node, i) => (
                 <li key={`${node.id}-${i}`} className="flex items-start gap-2">
@@ -303,7 +302,7 @@ export default function LocationDetail({ locationId }: Props) {
           <CollapsibleSection title="Scenes" count={lifecycle.length} defaultOpen>
             {pageItems.length > 0 && (
               <ul className="flex flex-col gap-2">
-                {pageItems.map(({ sceneId, threadMuts, continuityMuts, arrivals }) => (
+                {pageItems.map(({ sceneId, threadDeltas, worldDeltas, arrivals }) => (
                   <li key={sceneId} className="flex flex-col gap-0.5">
                     <button
                       type="button"
@@ -312,12 +311,12 @@ export default function LocationDetail({ locationId }: Props) {
                     >
                       {sceneId}
                     </button>
-                    {threadMuts.map((tm, tmIdx) => (
+                    {threadDeltas.map((tm, tmIdx) => (
                       <span key={`${tm.threadId}-${tmIdx}`} className="text-xs text-text-secondary">
                         {tm.threadId}: {tm.from} &rarr; {tm.to}
                       </span>
                     ))}
-                    {continuityMuts.flatMap((km, kmIdx) =>
+                    {worldDeltas.flatMap((km, kmIdx) =>
                       (km.addedNodes ?? []).map((node, nIdx) => (
                         <span key={`${km.entityId}-${node.id}-${kmIdx}-${nIdx}`} className="text-xs text-text-secondary">
                           <span className="text-world">+</span>{' '}

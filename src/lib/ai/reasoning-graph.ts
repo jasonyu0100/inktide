@@ -524,7 +524,7 @@ export async function generateExpansionReasoningGraph(
   // Get all characters with continuity depth
   const characters = Object.values(narrative.characters)
     .map((c) => {
-      const depth = Object.keys(c.continuity?.nodes ?? {}).length;
+      const depth = Object.keys(c.world?.nodes ?? {}).length;
       return `- [${c.id}] ${c.name} (${c.role}, ${depth} knowledge nodes)`;
     })
     .join("\n");
@@ -564,7 +564,7 @@ export async function generateExpansionReasoningGraph(
     .map((c) => c.name);
 
   const shallowChars = Object.values(narrative.characters)
-    .filter((c) => Object.keys(c.continuity?.nodes ?? {}).length < 3)
+    .filter((c) => Object.keys(c.world?.nodes ?? {}).length < 3)
     .map((c) => c.name);
 
   const leafLocations = Object.values(narrative.locations)
@@ -581,9 +581,9 @@ export async function generateExpansionReasoningGraph(
   const recentExpansionSection = recentWorldBuilds.length > 0
     ? `RECENT WORLD EXPANSIONS (DO NOT duplicate — build upon these instead):
 ${recentWorldBuilds.map((wb: WorldBuild) => {
-  const chars = wb.expansionManifest.characters.map((c: { name: string }) => c.name).join(", ");
-  const locs = wb.expansionManifest.locations.map((l: { name: string }) => l.name).join(", ");
-  const threads = wb.expansionManifest.threads.map((t: { description: string }) => t.description).slice(0, 3).join("; ");
+  const chars = wb.expansionManifest.newCharacters.map((c: { name: string }) => c.name).join(", ");
+  const locs = wb.expansionManifest.newLocations.map((l: { name: string }) => l.name).join(", ");
+  const threads = wb.expansionManifest.newThreads.map((t: { description: string }) => t.description).slice(0, 3).join("; ");
   return `- ${wb.summary}${chars ? `\n  Characters added: ${chars}` : ""}${locs ? `\n  Locations added: ${locs}` : ""}${threads ? `\n  Threads seeded: ${threads}` : ""}`;
 }).join("\n")}`
     : "";
@@ -928,7 +928,7 @@ export async function generateCoordinationPlan(
   const characters = keyCharacters
     .map((c) => {
       // Get character's accumulated knowledge
-      const knowledgeNodes = Object.values(c.continuity.nodes)
+      const knowledgeNodes = Object.values(c.world.nodes)
         .filter(kn => timelineState.liveNodeIds.has(kn.id))
         .slice(-5); // Last 5 knowledge items
       const knowledge = knowledgeNodes.map(kn => kn.content).join("; ");
@@ -944,7 +944,7 @@ export async function generateCoordinationPlan(
 
   const locations = keyLocations
     .map((l) => {
-      const knowledgeNodes = Object.values(l.continuity.nodes)
+      const knowledgeNodes = Object.values(l.world.nodes)
         .filter(kn => timelineState.liveNodeIds.has(kn.id))
         .slice(-3);
       const knowledge = knowledgeNodes.map(kn => kn.content).join("; ");
@@ -1007,7 +1007,7 @@ export async function generateCoordinationPlan(
       const ownerName = owner
         ? (narrative.characters[owner]?.name ?? narrative.locations[owner]?.name ?? owner)
         : "world";
-      const capabilityNodes = Object.values(a.continuity.nodes)
+      const capabilityNodes = Object.values(a.world.nodes)
         .filter(kn => timelineState.liveNodeIds.has(kn.id))
         .slice(-3);
       const capabilities = capabilityNodes.map(kn => kn.content).join("; ");

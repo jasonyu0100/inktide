@@ -1,13 +1,13 @@
 /**
- * Continuity Checking Engine
+ * Consistency Checking Engine
  *
  * Classifies candidate plan propositions against the existing narrative
- * and detects continuity violations via LLM binary checks.
+ * and detects consistency violations via LLM binary checks.
  *
  * Two operations:
  *   1. classifyCandidatePlan() — classify a plan's propositions against all prior
  *      (backward-only, since the candidate is at the narrative head)
- *   2. checkContinuityViolations() — LLM check on high-backward anchor/foundation/close/ending
+ *   2. checkConsistencyViolations() — LLM check on high-backward anchor/foundation/close/ending
  *      propositions for contradictions with their strongest activations
  */
 
@@ -22,7 +22,7 @@ import type {
   BeatPlan,
   PropositionBaseCategory,
   PropositionReach,
-  ContinuityViolation,
+  ConsistencyViolation,
   EmbeddingRef,
 } from '@/types/narrative';
 
@@ -33,7 +33,7 @@ const STRENGTH_PERCENTILE = 0.60;
 const REACH_RATIO = 0.15;
 const REACH_MIN = 5;
 
-/** Types that trigger LLM continuity check when high-backward */
+/** Types that trigger LLM consistency check when high-backward */
 const CHECK_LABELS = new Set(['anchor', 'foundation', 'close', 'ending']);
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -272,20 +272,20 @@ export async function classifyCandidatePlan(
   }
 
   const t1 = performance.now();
-  console.log(`[ContinuityCheck] Classified ${validCandidates.length} candidate propositions against ${priors.length} priors in ${(t1 - t0).toFixed(0)}ms`);
+  console.log(`[ConsistencyCheck] Classified ${validCandidates.length} candidate propositions against ${priors.length} priors in ${(t1 - t0).toFixed(0)}ms`);
 
   return { classifications, labels };
 }
 
-// ── Continuity violation detection ──────────────────────────────────────────
+// ── Consistency violation detection ──────────────────────────────────────────
 
 /**
- * Check high-backward propositions for continuity violations.
+ * Check high-backward propositions for consistency violations.
  * Only checks types that reference prior content: anchor, foundation, close, ending.
  * Uses LLM binary contradiction check.
  */
 /**
- * Check high-backward propositions for continuity violations.
+ * Check high-backward propositions for consistency violations.
  *
  * @param classifications - classified propositions (with topPriors populated)
  * @param candidateContents - map of "beatIdx:propIdx" → candidate proposition content
@@ -302,13 +302,13 @@ export type SceneCheckInput = {
 };
 
 /**
- * Check continuity per scene — one LLM call per scene, 10 concurrent.
+ * Check consistency per scene — one LLM call per scene, 10 concurrent.
  * Each call receives all high-value propositions in that scene + their activated priors.
  */
-export async function checkContinuityViolations(
+export async function checkConsistencyViolations(
   classifications: CandidateClassification[],
   candidateContents?: Record<string, string>,
-): Promise<ContinuityViolation[]> {
+): Promise<ConsistencyViolation[]> {
   const toCheck = classifications.filter(c =>
     CHECK_LABELS.has(c.label) && c.topPriors.length > 0
   );
@@ -327,7 +327,7 @@ export async function checkContinuityViolations(
 
   const scenes = Array.from(sceneGroups.entries());
 
-  async function checkScene(sceneId: string, props: CandidateClassification[]): Promise<ContinuityViolation[]> {
+  async function checkScene(sceneId: string, props: CandidateClassification[]): Promise<ConsistencyViolation[]> {
     // Build prompt: scene's new propositions vs their activated priors
     const propositionBlock = props.map((c, idx) => {
       const content = candidateContents?.[`${c.beatIndex}:${c.propIndex}`] ?? `[${c.label}]`;
@@ -335,30 +335,30 @@ export async function checkContinuityViolations(
       return `[${idx + 1}] (${c.label}) "${content}"\n  Activated priors:\n${priors}`;
     }).join('\n\n');
 
-    const prompt = `You are checking narrative continuity for a scene. Below are high-value propositions from this scene, each with the prior established facts they most strongly activate.
+    const prompt = `You are checking narrative consistency for a scene. Below are high-value propositions from this scene, each with the prior established facts they most strongly activate.
 
 For each proposition, determine if it contradicts or conflicts with its activated priors.
 
 ${propositionBlock}
 
-Respond with a JSON array. For each proposition that HAS a continuity issue, include:
+Respond with a JSON array. For each proposition that HAS a consistency issue, include:
 {"idx": <number>, "issue": true, "explanation": "<one sentence describing the contradiction>", "suggestion": "<one sentence fix>"}
 If all propositions are consistent, return [].`;
 
     try {
       const result = await callGenerate(
         prompt,
-        'Check narrative continuity for a scene. Respond only with a JSON array. Include suggestion for fixes.',
+        'Check narrative consistency for a scene. Respond only with a JSON array. Include suggestion for fixes.',
         800,
-        'continuity-check-scene',
+        'consistency-check-scene',
         ANALYSIS_MODEL,
         undefined,
         true,
         ANALYSIS_TEMPERATURE,
       );
 
-      const parsed = parseJson(result, 'continuity-check-scene') as Array<{ idx?: number; issue?: boolean; explanation?: string; suggestion?: string }>;
-      const violations: ContinuityViolation[] = [];
+      const parsed = parseJson(result, 'consistency-check-scene') as Array<{ idx?: number; issue?: boolean; explanation?: string; suggestion?: string }>;
+      const violations: ConsistencyViolation[] = [];
 
       if (Array.isArray(parsed)) {
         for (const entry of parsed) {
@@ -373,7 +373,7 @@ If all propositions are consistent, return [].`;
             priorContent: c.topPriors.slice(0, 3).map(p => p.content),
             priorSceneIds: c.topPriors.slice(0, 3).map(p => p.sceneId),
             isViolation: true,
-            explanation: (entry.explanation ?? 'Continuity issue') + (entry.suggestion ? ` → ${entry.suggestion}` : ''),
+            explanation: (entry.explanation ?? 'Consistency issue') + (entry.suggestion ? ` → ${entry.suggestion}` : ''),
             activationScore: c.backwardScore,
             label: c.label,
           });
@@ -381,13 +381,13 @@ If all propositions are consistent, return [].`;
       }
       return violations;
     } catch (err) {
-      console.warn(`[ContinuityCheck] Scene ${sceneId} check failed:`, err);
+      console.warn(`[ConsistencyCheck] Scene ${sceneId} check failed:`, err);
       return [];
     }
   }
 
   // Sliding window: 10 scenes in parallel
-  const allViolations: ContinuityViolation[] = [];
+  const allViolations: ConsistencyViolation[] = [];
 
   for (let i = 0; i < scenes.length; i += CONCURRENCY) {
     const window = scenes.slice(i, i + CONCURRENCY);
@@ -398,7 +398,7 @@ If all propositions are consistent, return [].`;
   }
 
   const t1 = performance.now();
-  console.log(`[ContinuityCheck] Checked ${scenes.length} scenes (${toCheck.length} propositions), concurrency ${CONCURRENCY}, in ${(t1 - t0).toFixed(0)}ms, found ${allViolations.length} violations`);
+  console.log(`[ConsistencyCheck] Checked ${scenes.length} scenes (${toCheck.length} propositions), concurrency ${CONCURRENCY}, in ${(t1 - t0).toFixed(0)}ms, found ${allViolations.length} violations`);
 
   return allViolations;
 }

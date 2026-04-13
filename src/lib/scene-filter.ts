@@ -1,6 +1,6 @@
 import type {
-  ContinuityNode,
-  ContinuityEdge,
+  WorldNode,
+  WorldEdge,
   RelationshipEdge,
   Scene,
   WorldBuild,
@@ -26,10 +26,10 @@ export function getIntroducedIds(
   for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
     const wb = worldBuilds[resolvedEntryKeys[i]];
     if (!wb) continue;
-    for (const c of wb.expansionManifest.characters) characterIds.add(c.id);
-    for (const l of wb.expansionManifest.locations) locationIds.add(l.id);
-    for (const t of wb.expansionManifest.threads) threadIds.add(t.id);
-    for (const a of wb.expansionManifest.artifacts ?? []) artifactIds.add(a.id);
+    for (const c of wb.expansionManifest.newCharacters) characterIds.add(c.id);
+    for (const l of wb.expansionManifest.newLocations) locationIds.add(l.id);
+    for (const t of wb.expansionManifest.newThreads) threadIds.add(t.id);
+    for (const a of wb.expansionManifest.newArtifacts ?? []) artifactIds.add(a.id);
   }
 
   return { characterIds, locationIds, threadIds, artifactIds };
@@ -38,50 +38,50 @@ export function getIntroducedIds(
 // ── Knowledge filtering ─────────────────────────────────────────────────────
 
 /**
- * Compute which continuity nodes exist at a given scene index by replaying
- * additive mutations forward. All initial nodes (from world-builds) plus
+ * Compute which world nodes exist at a given scene index by replaying
+ * additive deltas forward. All initial nodes (from world-builds) plus
  * any nodes added by scenes up to currentSceneIndex.
  */
-export function getContinuityNodesAtScene(
-  allNodes: Record<string, ContinuityNode>,
+export function getWorldNodesAtScene(
+  allNodes: Record<string, WorldNode>,
   entityId: string,
   scenes: Record<string, Scene>,
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
-): ContinuityNode[] {
-  // Collect nodes added by scene mutations up to currentSceneIndex
-  const addedByMutations = new Map<string, ContinuityNode>();
+): WorldNode[] {
+  // Collect nodes added by scene deltas up to currentSceneIndex
+  const addedByDeltas = new Map<string, WorldNode>();
   for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
     const scene = scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
-    for (const km of scene.continuityMutations) {
-      if (km.entityId !== entityId) continue;
-      for (const node of km.addedNodes ?? []) {
-        addedByMutations.set(node.id, { id: node.id, type: (node.type || 'trait') as ContinuityNode['type'], content: node.content });
+    for (const wd of scene.worldDeltas) {
+      if (wd.entityId !== entityId) continue;
+      for (const node of wd.addedNodes ?? []) {
+        addedByDeltas.set(node.id, { id: node.id, type: (node.type || 'trait') as WorldNode['type'], content: node.content });
       }
     }
   }
 
   // Collect ALL node IDs added across the full timeline
-  const allMutatedNodeIds = new Set<string>();
+  const allDeltaNodeIds = new Set<string>();
   for (const key of resolvedEntryKeys) {
     const scene = scenes[key];
     if (!scene) continue;
-    for (const km of scene.continuityMutations) {
-      if (km.entityId !== entityId) continue;
-      for (const node of km.addedNodes ?? []) allMutatedNodeIds.add(node.id);
+    for (const wd of scene.worldDeltas) {
+      if (wd.entityId !== entityId) continue;
+      for (const node of wd.addedNodes ?? []) allDeltaNodeIds.add(node.id);
     }
   }
 
-  // Initial nodes = those in allNodes but never referenced by any mutation (seeded on world build)
+  // Initial nodes = those in allNodes but never referenced by any delta (seeded on world build)
   // These are visible from the start (they existed before any scene)
-  const result: ContinuityNode[] = Object.values(allNodes).filter((node) => {
-    if (!allMutatedNodeIds.has(node.id)) return true; // initial node — always visible
-    return addedByMutations.has(node.id); // scene-added — only if mutation reached
+  const result: WorldNode[] = Object.values(allNodes).filter((node) => {
+    if (!allDeltaNodeIds.has(node.id)) return true; // initial node — always visible
+    return addedByDeltas.has(node.id); // scene-added — only if delta reached
   });
 
-  // Include mutation-added nodes that aren't in allNodes yet (not yet applied to entity graph)
-  for (const [id, node] of addedByMutations) {
+  // Include delta-added nodes that aren't in allNodes yet (not yet applied to entity graph)
+  for (const [id, node] of addedByDeltas) {
     if (!allNodes[id]) result.push(node);
   }
 
@@ -89,20 +89,20 @@ export function getContinuityNodesAtScene(
 }
 
 /**
- * Compute which continuity edges exist at a given scene index.
+ * Compute which world edges exist at a given scene index.
  * Filters the entity's accumulated edges to only those where both
  * endpoints are visible at the current scene index.
  */
-export function getContinuityEdgesAtScene(
-  allEdges: ContinuityEdge[],
+export function getWorldEdgesAtScene(
+  allEdges: WorldEdge[],
   entityId: string,
   scenes: Record<string, Scene>,
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
-  allNodes: Record<string, ContinuityNode>,
-): ContinuityEdge[] {
+  allNodes: Record<string, WorldNode>,
+): WorldEdge[] {
   // Get the set of visible node IDs at this point in the timeline
-  const visibleNodes = getContinuityNodesAtScene(allNodes, entityId, scenes, resolvedEntryKeys, currentSceneIndex);
+  const visibleNodes = getWorldNodesAtScene(allNodes, entityId, scenes, resolvedEntryKeys, currentSceneIndex);
   const visibleIds = new Set(visibleNodes.map(n => n.id));
   // Only include edges where both endpoints are visible
   return allEdges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to));
@@ -136,7 +136,7 @@ export function getRelationshipsAtScene(
   for (let i = 0; i < resolvedEntryKeys.length; i++) {
     const scene = narrative.scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
-    for (const rm of scene.relationshipMutations) {
+    for (const rm of scene.relationshipDeltas) {
       const pk = `${rm.from}-${rm.to}`;
       if (!firstMutationIdx.has(pk)) firstMutationIdx.set(pk, i);
     }
@@ -170,7 +170,7 @@ export function getRelationshipsAtScene(
   for (let i = currentSceneIndex + 1; i < resolvedEntryKeys.length; i++) {
     const scene = narrative.scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
-    for (const rm of scene.relationshipMutations) {
+    for (const rm of scene.relationshipDeltas) {
       const pk = `${rm.from}-${rm.to}`;
       futureDeltas.set(pk, (futureDeltas.get(pk) ?? 0) + rm.valenceDelta);
     }
@@ -227,7 +227,7 @@ export function getThreadLogAtScene(
   for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
     const scene = scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
-    for (const tm of scene.threadMutations ?? []) {
+    for (const tm of scene.threadDeltas ?? []) {
       if (tm.threadId !== threadId) continue;
       visibleCount += (tm.addedNodes && tm.addedNodes.length > 0) ? tm.addedNodes.length : 1;
     }

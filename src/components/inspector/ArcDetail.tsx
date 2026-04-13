@@ -118,7 +118,7 @@ export default function ArcDetail({ arcId }: Props) {
             {arc.develops.map((threadId) => {
               const thread = narrative.threads[threadId];
               const transitions = arcScenes.flatMap((s) =>
-                s.kind === 'scene' ? s.threadMutations.filter((tm) => tm.threadId === threadId) : []
+                s.kind === 'scene' ? s.threadDeltas.filter((tm) => tm.threadId === threadId) : []
               );
               return (
                 <button

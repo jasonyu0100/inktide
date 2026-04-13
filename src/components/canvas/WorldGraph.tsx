@@ -12,7 +12,7 @@ import type {
 } from '@/types/narrative';
 import EvalBar from '@/components/timeline/EvalBar';
 import KnowledgeGraphView, { FullscreenButton } from './KnowledgeGraphView';
-import ContinuityGraphView from './ContinuityGraphView';
+import EntityWorldGraphView from './EntityWorldGraphView';
 import ThreadGraphView from './ThreadGraphView';
 import ThreadLogGraphView from './ThreadLogGraphView';
 import { ScenePlanView } from './ScenePlanView';
@@ -34,9 +34,9 @@ import {
   LOCATION_SIZE,
   LOCATION_RX,
   LOCATION_FILL,
-  CONTINUITY_FILL,
+  WORLD_FILL,
   KNOWLEDGE_OPACITY,
-  DEFAULT_CONTINUITY_FILL,
+  DEFAULT_WORLD_FILL,
   DEFAULT_KNOWLEDGE_OPACITY,
 } from './graph-utils';
 import { useImageUrlMap } from '@/hooks/useAssetUrl';
@@ -199,7 +199,7 @@ export default function WorldGraph() {
       for (const au of currentSceneForArtifacts.artifactUsages ?? []) visibleArtifactIds.add(au.artifactId);
     }
     if (currentWBForArtifacts) {
-      for (const a of currentWBForArtifacts.expansionManifest.artifacts ?? []) visibleArtifactIds.add(a.id);
+      for (const a of currentWBForArtifacts.expansionManifest.newArtifacts ?? []) visibleArtifactIds.add(a.id);
     }
     const usedArtifacts = Object.fromEntries(
       Object.entries(narrative.artifacts ?? {}).filter(([id]) => visibleArtifactIds.has(id))
@@ -232,8 +232,8 @@ export default function WorldGraph() {
       if (currentWorldBuild) {
         // Expansion mode: show expansion elements + connected existing entities
         const manifest = currentWorldBuild.expansionManifest;
-        const expandedCharIds = new Set(manifest.characters.map((c) => c.id));
-        const expandedLocIds = new Set(manifest.locations.map((l) => l.id));
+        const expandedCharIds = new Set(manifest.newCharacters.map((c: Character) => c.id));
+        const expandedLocIds = new Set(manifest.newLocations.map((l: Location) => l.id));
 
         // Relationships filtered to current timeline position, then to expansion entities
         const timelineRels = getRelationshipsAtScene(narrative, resolvedEntryKeys, state.viewState.currentSceneIndex);
@@ -249,7 +249,7 @@ export default function WorldGraph() {
         }
 
         // Include characters/locations that own artifacts from this expansion
-        for (const art of manifest.artifacts ?? []) {
+        for (const art of manifest.newArtifacts ?? []) {
           if (art.parentId && narrative.characters[art.parentId]) connectedCharIds.add(art.parentId);
           if (art.parentId && narrative.locations[art.parentId]) expandedLocIds.add(art.parentId);
         }
@@ -691,8 +691,8 @@ export default function WorldGraph() {
       .filter((d) => d.kind === 'knowledge')
       .append('circle')
       .attr('r', 8)
-      .attr('fill', (d) => CONTINUITY_FILL[d.continuityType ?? 'trait'] ?? DEFAULT_CONTINUITY_FILL)
-      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.continuityType ?? 'trait'] ?? DEFAULT_KNOWLEDGE_OPACITY);
+      .attr('fill', (d) => WORLD_FILL[d.worldType ?? 'trait'] ?? DEFAULT_WORLD_FILL)
+      .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.worldType ?? 'trait'] ?? DEFAULT_KNOWLEDGE_OPACITY);
 
     // Artifact diamonds — sized by significance
     const ARTIFACT_SIZES: Record<string, number> = { key: 14, notable: 10, minor: 7 };
@@ -822,7 +822,7 @@ export default function WorldGraph() {
   }, [showEdgeLabels]);
 
   // ── Lightweight: toggle knowledge subgraph without full rebuild ──
-  // Entity continuity graphs are rendered by ContinuityGraphView (separate component).
+  // Entity continuity graphs are rendered by EntityWorldGraphView (separate component).
   // No inline D3 manipulation needed — the SVG is simply hidden when an entity is selected.
   // (Old inline knowledge expansion code removed — was corrupting D3 simulation on back nav)
 
@@ -1099,10 +1099,10 @@ export default function WorldGraph() {
           hideControls hideLegend
         />
       ) : selectedKnowledgeEntity ? (
-        <ContinuityGraphView
+        <EntityWorldGraphView
           entityId={selectedKnowledgeEntity}
           entityName={(narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity] ?? narrative.artifacts[selectedKnowledgeEntity])?.name ?? selectedKnowledgeEntity}
-          continuity={(narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity] ?? narrative.artifacts[selectedKnowledgeEntity])?.continuity ?? { nodes: {}, edges: [] }}
+          world={(narrative.characters[selectedKnowledgeEntity] ?? narrative.locations[selectedKnowledgeEntity] ?? narrative.artifacts[selectedKnowledgeEntity])?.world ?? { nodes: {}, edges: [] }}
           scenes={narrative.scenes}
           resolvedKeys={resolvedEntryKeys}
           currentIndex={state.viewState.currentSceneIndex}

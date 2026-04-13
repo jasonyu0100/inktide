@@ -6,10 +6,10 @@ Knowledge-graph-based text analysis, querying, and generation platform. Primary 
 
 Narrative is a composition of three forces in flux: **fate** (the accumulated commitment of threads pulling the story toward resolution), **world** (the inner transformation of entities), and **system** (the deepening of rules and structures). Different works weight these forces differently — a Classic is fate-dominant, a Show is world-dominant, a Paper is system-dominant, and an Opus balances all three. Fate is the unifying force: it pulls world and system toward narrative resolution. A story without fate has no resolution; a story without world has no people; a story without system has no physics.
 
-Text is modelled as a **knowledge graph** that mutates section by section. An LLM records structural mutations (threads, continuity, knowledge) at each section, and the three forces are derived deterministically from these mutations. Each analyzed work contributes to a growing network — pacing patterns become reusable, prose profiles capture authorial rhythm, and propositions are embedded for cross-corpus search. This enables:
+Text is modelled as a **knowledge graph** that mutates section by section. An LLM records structural deltas (threads, world, system) at each section, and the three forces are derived deterministically from these deltas. Each analyzed work contributes to a growing network — pacing patterns become reusable, prose profiles capture authorial rhythm, and propositions are embedded for cross-corpus search. This enables:
 
 ### Analysis
-- **Force analysis** — Fate, World, System derived from graph mutations via deterministic z-score normalised formulas
+- **Force analysis** — Fate, World, System derived from graph deltas via deterministic z-score normalised formulas
 - **Embedding analysis** — vector embeddings over every beat and proposition for meaning-based search and propositional logic
 - **Pacing analysis** — Markov transition matrices on scene-level cube modes and beat-level prose rhythm, derived from published works
 - **Scale & density** — story scale metrics and world knowledge interconnection depth
@@ -78,7 +78,7 @@ src/
 │   │   ├── world.ts        # expandWorld, suggestDirection, generateNarrative
 │   │   ├── review.ts       # reviewBranch, reviewProseQuality, reviewPlanQuality — branch evaluation with guided feedback
 │   │   ├── reconstruct.ts  # reconstructBranch — versioned branch reconstruction from verdicts
-│   │   ├── prompts.ts      # Modular prompt sections (force standards, pacing, mutations, POV, continuity)
+│   │   ├── prompts.ts      # Modular prompt sections (force standards, pacing, deltas, POV, world)
 │   │   └── json.ts         # JSON parsing utilities
 │   ├── beat-profiles.ts    # Beat Markov matrices, profile presets, sampleBeatSequence
 │   ├── narrative-utils.ts  # Force calculation formulas, cube logic, graph algorithms
@@ -106,11 +106,11 @@ src/
 ## Domain Model (src/types/narrative.ts)
 
 - **NarrativeState** — top-level: characters, locations, artifacts, threads, arcs, scenes, worldBuilds, branches, structureEvaluations
-- **Character** — `role: anchor|recurring|transient`, continuity graph (inner world), threadIds
-- **Location** — `prominence: domain|place|margin`, continuity graph (accumulated history), threadIds
-- **Artifact** — `significance: key|notable|minor`, continuity graph (provenance, properties), threadIds
-- **Scene** — povId, locationId, participantIds, events, threadMutations, continuityMutations, relationshipMutations, characterMovements, plan, prose, proseScore
-- **Thread** — participants can be `character|location|artifact`; lifecycle status; mutations record fate/world per scene
+- **Character** — `role: anchor|recurring|transient`, world graph (inner world), threadIds
+- **Location** — `prominence: domain|place|margin`, world graph (accumulated history), threadIds
+- **Artifact** — `significance: key|notable|minor`, world graph (provenance, properties), threadIds
+- **Scene** — povId, locationId, participantIds, events, threadDeltas, worldDeltas, relationshipDeltas, characterMovements, plan, prose, proseScore
+- **Thread** — participants can be `character|location|artifact`; lifecycle status; deltas record fate/world per scene
 - **Branch** — git-like branching for story timelines; entryIds interleave scenes + world commits
 - **StructureEvaluation** — per-scene verdicts (ok/edit/merge/insert/cut), overall critique, repetition patterns, thematic question
 - **Arc** — world-building arcs that group scenes and expand the narrative world
@@ -139,25 +139,25 @@ Future capabilities: plot hole detection (missing causal links), tone drift anal
 
 Files: `src/lib/search.ts`, `src/lib/embeddings.ts`, `src/lib/ai/search-synthesis.ts`, `src/components/canvas/SearchView.tsx`
 
-## Scene Mutations
+## Scene Deltas
 
-Every scene records structural changes to the knowledge graph. These mutations are the raw inputs to the force formulas — the forces are computed *from* the mutations, not from the prose.
+Every scene records structural changes to the knowledge graph. These deltas are the raw inputs to the force formulas — the forces are computed *from* the deltas, not from the prose.
 
-### Thread Mutations → Fate
-Threads are narrative tensions with a lifecycle: `latent → seeded → active → escalating → critical → resolved/subverted`. Abandoned moves a thread to the done pile cleanly — it earns zero fate and can be picked back up later as latent. Each scene records thread mutations as `{threadId, from, to}` status transitions. Fate is the sum of stage weights: `F = Σ stageWeight(from, to)`. Transitions: seeded=1.0, active=1.5, escalating=2.0, critical=3.0, resolved=4.0. Pulses scale by lifecycle stage: latent=0.25, seeded=0.5, active=1.0, escalating=1.5, critical=2.0 — sustaining tension at higher stages contributes more fate. Each thread maintains a `threadLog` — an accumulated graph of lifecycle events using nine perceptual primitives (pulse, transition, setup, escalation, payoff, twist, callback, resistance, stall).
+### Thread Deltas → Fate
+Threads are narrative tensions with a lifecycle: `latent → seeded → active → escalating → critical → resolved/subverted`. Abandoned moves a thread to the done pile cleanly — it earns zero fate and can be picked back up later as latent. Each scene records thread deltas as `{threadId, from, to}` status transitions. Fate is the sum of stage weights: `F = Σ stageWeight(from, to)`. Transitions: seeded=1.0, active=1.5, escalating=2.0, critical=3.0, resolved=4.0. Pulses scale by lifecycle stage: latent=0.25, seeded=0.5, active=1.0, escalating=1.5, critical=2.0 — sustaining tension at higher stages contributes more fate. Each thread maintains a `threadLog` — an accumulated graph of lifecycle events using nine perceptual primitives (pulse, transition, setup, escalation, payoff, twist, callback, resistance, stall).
 
-### Continuity Mutations → World
-Continuity mutations are additive changes to any entity's inner knowledge graph: `{entityId, addedNodes: [{id, content, type}], addedEdges: [{from, to, relation}]}`. Entities are characters, locations, or artifacts — each maintains its own continuity graph parallel to the world knowledge graph. World mirrors System but for entity inner worlds: `W = ΔN_c + √ΔE_c` — continuity nodes linear, continuity edges sqrt.
+### World Deltas
+World deltas are additive changes to any entity's inner knowledge graph: `{entityId, addedNodes: [{id, content, type}], addedEdges: [{from, to, relation}]}`. Entities are characters, locations, or artifacts — each maintains its own world graph parallel to the system knowledge graph. World mirrors System but for entity inner worlds: `W = ΔN_w + √ΔE_w` — world nodes linear, world edges sqrt.
 
-### World Knowledge Mutations → System
-The world knowledge graph tracks laws, systems, concepts, and tensions as nodes with typed edges. System is computed as `S = ΔN + √ΔE` — nodes linear, edges sqrt.
+### System Deltas
+The system knowledge graph tracks laws, systems, concepts, and tensions as nodes with typed edges. System is computed as `S = ΔN + √ΔE` — nodes linear, edges sqrt.
 
 ## Narrative Forces & Formulas
 
 Three force dimensions, all **z-score normalised** (mean=0, units=standard deviations):
 
 - **Fate (F)** — `Σ stageWeight(from, to)` — sum of thread transition weights; resolution earns more than setup
-- **World (W)** — `ΔN_c + √ΔE_c` — entity continuity graph complexity
+- **World (W)** — `ΔN_w + √ΔE_w` — entity world graph complexity
 - **System (S)** — `ΔN + √ΔE` — world knowledge graph complexity
 
 Derived metrics:
@@ -173,8 +173,8 @@ Scene generation is guided by **Markov chain sequences** sampled as per-scene di
 **Flow:**
 1. Detect current mode from the last scene's force snapshot
 2. Sample a sequence of cube modes from a transition matrix (or use a preset)
-3. Build a prompt with per-scene mode assignments and mutation guidance
-4. LLM generates scenes with mutations matching each mode's targets
+3. Build a prompt with per-scene mode assignments and delta guidance
+4. LLM generates scenes with deltas matching each mode's targets
 
 **Transition matrices** are computed from analysed works (Harry Potter is the default). Each matrix captures the pacing fingerprint of a published work.
 
@@ -226,7 +226,7 @@ Stories are divided into **phases** with objectives and scene allocations. When 
 
 **Evaluation** reads scene summaries and assigns per-scene verdicts:
 - **ok** — structurally sound, continuity intact
-- **edit** — revise content — may change POV, location, participants, mutations, summary
+- **edit** — revise content — may change POV, location, participants, deltas, summary
 - **merge** — absorbed into another scene, combining both into one denser beat
 - **insert** — new scene generated to fill a pacing gap, missing transition, or stalled thread
 - **cut** — redundant, remove entirely (to relocate a scene: cut + insert at new position)
@@ -246,7 +246,7 @@ InkTide implements two distinct versioning systems:
 
 This is document-style version history. You can edit the original text while keeping all previous versions safe. Resolution functions (`resolveProseForBranch`, `resolvePlanForBranch`) determine which version each branch sees based on lineage, fork timestamps, and optional branch-specific version pointers.
 
-**Structural Branching**: Beneath both versioning systems, scenes themselves are structurally immutable (POV, location, participants, mutations fixed). Branches fork from parents and inherit their timeline via `entryIds` arrays. Storage is efficient — shared scenes are referenced, not copied. Only structurally different scenes (new generations, structural edits) create new scene objects. Descendants dynamically resolve their view through parent lineage at read time, enabling git-like cloning with minimal storage overhead.
+**Structural Branching**: Beneath both versioning systems, scenes themselves are structurally immutable (POV, location, participants, deltas fixed). Branches fork from parents and inherit their timeline via `entryIds` arrays. Storage is efficient — shared scenes are referenced, not copied. Only structurally different scenes (new generations, structural edits) create new scene objects. Descendants dynamically resolve their view through parent lineage at read time, enabling git-like cloning with minimal storage overhead.
 
 ## Auto Mode Engine (src/lib/auto-engine.ts)
 
@@ -255,8 +255,8 @@ Automated story generation guided by **narrative pressure analysis** across the 
 **Story Phases**: Progress maps to six phases — `setup → rising → midpoint → escalation → climax → resolution`. Each phase has guidance for what should happen structurally (e.g., "setup" plants seeds, "climax" resolves critical threads).
 
 **Pressure Analysis** evaluates:
-- **Threads** — stale threads (no recent mutation), primed threads (escalating/critical ready for payoff), active count vs ideal range
-- **Entities** — shallow characters (low continuity depth), neglected anchors (not appearing recently), recent continuity growth
+- **Threads** — stale threads (no recent delta), primed threads (escalating/critical ready for payoff), active count vs ideal range
+- **Entities** — shallow characters (low world depth), neglected anchors (not appearing recently), recent world growth
 - **Knowledge** — system growth rate, world-building stagnation
 - **Balance** — which force is dominant, recommendation to rebalance
 
@@ -272,7 +272,7 @@ All LLM calls go through `callGenerate` (non-streaming) or `callGenerateStream` 
 
 Key functions:
 - `generateNarrative()` — full world + 8-scene introduction arc (wizard)
-- `generateScenes()` — scene structures with mutations, paced by Markov sequence
+- `generateScenes()` — scene structures with deltas, paced by Markov sequence
 - `generateScenePlan()` — beat-by-beat blueprint (streaming)
 - `generateSceneProse()` — full prose from plan (streaming)
 - `rewriteSceneProse()` — rewrite guided by critique or custom analysis

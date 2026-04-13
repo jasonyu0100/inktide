@@ -3,7 +3,7 @@
 import { useImageUrl } from "@/hooks/useAssetUrl";
 import { INSPECTOR_PAGE_SIZE } from "@/lib/constants";
 import {
-  getContinuityNodesAtScene,
+  getWorldNodesAtScene,
   getRelationshipsAtScene,
   getThreadIdsAtScene,
 } from "@/lib/scene-filter";
@@ -108,8 +108,8 @@ export default function CharacterDetail({ characterId }: Props) {
   );
 
   // Knowledge filtered to current scene
-  const continuityNodes = getContinuityNodesAtScene(
-    character.continuity.nodes,
+  const worldNodes = getWorldNodesAtScene(
+    character.world.nodes,
     characterId,
     narrative.scenes,
     state.resolvedEntryKeys,
@@ -136,16 +136,16 @@ export default function CharacterDetail({ characterId }: Props) {
   const currentScene = currentSceneKey
     ? narrative.scenes[currentSceneKey]
     : null;
-  const recentContinuityMuts = currentScene
-    ? currentScene.continuityMutations.filter((m) => m.entityId === characterId)
+  const recentWorldDeltas = currentScene
+    ? currentScene.worldDeltas.filter((m) => m.entityId === characterId)
     : [];
-  const recentRelationshipMuts = currentScene
-    ? currentScene.relationshipMutations.filter(
+  const recentRelationshipDeltas = currentScene
+    ? currentScene.relationshipDeltas.filter(
         (rm) => rm.from === characterId || rm.to === characterId,
       )
     : [];
-  const recentThreadMuts = currentScene
-    ? currentScene.threadMutations.filter((tm) =>
+  const recentThreadDeltas = currentScene
+    ? currentScene.threadDeltas.filter((tm) =>
         narrative.threads[tm.threadId]?.participants?.some(
           (a) => a.id === characterId,
         ),
@@ -158,9 +158,9 @@ export default function CharacterDetail({ characterId }: Props) {
       ? currentScene.events
       : [];
   const hasRecentActivity =
-    recentContinuityMuts.length > 0 ||
-    recentRelationshipMuts.length > 0 ||
-    recentThreadMuts.length > 0 ||
+    recentWorldDeltas.length > 0 ||
+    recentRelationshipDeltas.length > 0 ||
+    recentThreadDeltas.length > 0 ||
     recentMovement !== null ||
     recentEvents.length > 0;
 
@@ -170,13 +170,13 @@ export default function CharacterDetail({ characterId }: Props) {
     .filter((s) => s && s.participantIds.includes(characterId))
     .map((s) => ({
       sceneId: s.id,
-      continuityMuts: s.continuityMutations.filter(
+      worldDeltas: s.worldDeltas.filter(
         (km) => km.entityId === characterId,
       ),
-      relationshipMuts: s.relationshipMutations.filter(
+      relationshipDeltas: s.relationshipDeltas.filter(
         (rm) => rm.from === characterId || rm.to === characterId,
       ),
-      threadMuts: s.threadMutations.filter((tm) =>
+      threadDeltas: s.threadDeltas.filter((tm) =>
         narrative.threads[tm.threadId]?.participants?.some(
           (a) => a.id === characterId,
         ),
@@ -224,9 +224,9 @@ export default function CharacterDetail({ characterId }: Props) {
         currentScene &&
         (() => {
           const totalCount =
-            recentContinuityMuts.length +
-            recentRelationshipMuts.length +
-            recentThreadMuts.length +
+            recentWorldDeltas.length +
+            recentRelationshipDeltas.length +
+            recentThreadDeltas.length +
             (recentMovement ? 1 : 0);
           const groups: React.ReactNode[] = [];
 
@@ -241,10 +241,10 @@ export default function CharacterDetail({ characterId }: Props) {
               </ul>,
             );
           }
-          if (recentThreadMuts.length > 0) {
+          if (recentThreadDeltas.length > 0) {
             groups.push(
               <ul key="threads" className="flex flex-col gap-0.5">
-                {recentThreadMuts.map((tm, i) => (
+                {recentThreadDeltas.map((tm, i) => (
                   <li key={i} className="flex flex-col gap-0.5">
                     <button
                       type="button"
@@ -273,10 +273,10 @@ export default function CharacterDetail({ characterId }: Props) {
               </ul>,
             );
           }
-          if (recentContinuityMuts.length > 0) {
+          if (recentWorldDeltas.length > 0) {
             groups.push(
               <ul key="continuity" className="flex flex-col gap-0.5">
-                {recentContinuityMuts.flatMap((km, kmIdx) =>
+                {recentWorldDeltas.flatMap((km, kmIdx) =>
                   (km.addedNodes ?? []).map((node, nIdx) => (
                     <li
                       key={`${node.id}-${kmIdx}-${nIdx}`}
@@ -292,10 +292,10 @@ export default function CharacterDetail({ characterId }: Props) {
               </ul>,
             );
           }
-          if (recentRelationshipMuts.length > 0) {
+          if (recentRelationshipDeltas.length > 0) {
             groups.push(
               <ul key="relationships" className="flex flex-col gap-0.5">
-                {recentRelationshipMuts.map((rm, rmIdx) => {
+                {recentRelationshipDeltas.map((rm, rmIdx) => {
                   const otherId = rm.from === characterId ? rm.to : rm.from;
                   const otherName =
                     narrative.characters[otherId]?.name ?? otherId;
@@ -362,16 +362,16 @@ export default function CharacterDetail({ characterId }: Props) {
         })()}
 
       {/* Continuity — paginated, most recent first */}
-      {continuityNodes.length > 0 &&
+      {worldNodes.length > 0 &&
         (() => {
           const { pageItems, totalPages, safePage } = paginateRecent(
-            continuityNodes,
+            worldNodes,
             continuityPage,
           );
           return (
             <CollapsibleSection
-              title="Continuity"
-              count={continuityNodes.length}
+              title="World"
+              count={worldNodes.length}
             >
               <ul className="flex flex-col gap-1">
                 {pageItems.map((node, i) => (
@@ -614,9 +614,9 @@ export default function CharacterDetail({ characterId }: Props) {
                 {pageItems.map(
                   ({
                     sceneId,
-                    continuityMuts,
-                    relationshipMuts,
-                    threadMuts,
+                    worldDeltas,
+                    relationshipDeltas,
+                    threadDeltas,
                     movement,
                   }) => (
                     <li key={sceneId} className="flex flex-col gap-0.5">
@@ -632,7 +632,7 @@ export default function CharacterDetail({ characterId }: Props) {
                       >
                         {sceneId}
                       </button>
-                      {threadMuts.map((tm, tmIdx) => (
+                      {threadDeltas.map((tm, tmIdx) => (
                         <span
                           key={`${tm.threadId}-${tmIdx}`}
                           className="text-xs text-text-secondary"
@@ -640,7 +640,7 @@ export default function CharacterDetail({ characterId }: Props) {
                           {tm.threadId}: {tm.from} &rarr; {tm.to}
                         </span>
                       ))}
-                      {continuityMuts.flatMap((km, kmIdx) =>
+                      {worldDeltas.flatMap((km, kmIdx) =>
                         (km.addedNodes ?? []).map((node, nIdx) => (
                           <span
                             key={`${node.id}-${kmIdx}-${nIdx}`}
@@ -650,7 +650,7 @@ export default function CharacterDetail({ characterId }: Props) {
                           </span>
                         )),
                       )}
-                      {relationshipMuts.map((rm, rmIdx) => {
+                      {relationshipDeltas.map((rm, rmIdx) => {
                         const otherId =
                           rm.from === characterId ? rm.to : rm.from;
                         const otherName =

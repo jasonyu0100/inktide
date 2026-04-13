@@ -52,12 +52,11 @@ function createWorldBuildWithReasoning(): WorldBuild {
     id: 'WB-001',
     summary: 'Test world expansion',
     expansionManifest: {
-      characters: [],
-      locations: [],
-      threads: [],
-      artifacts: [],
-      relationships: [],
-      systemMutations: { addedNodes: [], addedEdges: [] },
+      newCharacters: [],
+      newLocations: [],
+      newThreads: [],
+      newArtifacts: [],
+      systemDeltas: { addedNodes: [], addedEdges: [] },
     },
     reasoningGraph: {
       nodes: expansionGraph.nodes,

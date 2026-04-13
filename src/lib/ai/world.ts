@@ -1,15 +1,15 @@
-import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemMutation, SystemNodeType, Artifact, OwnershipMutation, TieMutation, ContinuityMutation, RelationshipMutation, WorldBuild, ReasoningGraphSnapshot } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild, ReasoningGraphSnapshot } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import type { ThreadLogNodeType } from '@/types/narrative';
-import { applyThreadMutation } from '@/lib/thread-log';
-import { applyContinuityMutation } from '@/lib/continuity-graph';
-import { sanitizeSystemMutation, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
+import { applyThreadDelta } from '@/lib/thread-log';
+import { applyWorldDelta } from '@/lib/world-graph';
+import { sanitizeSystemDelta, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext } from './context';
-import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, PROMPT_FORCE_STANDARDS } from './prompts';
+import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, PROMPT_FORCE_STANDARDS } from './prompts';
 import { logInfo } from '@/lib/system-logger';
 import { generateExpansionReasoningGraph, buildSequentialPath, type ExpansionReasoningGraph } from './reasoning-graph';
 
@@ -17,14 +17,14 @@ import { generateExpansionReasoningGraph, buildSequentialPath, type ExpansionRea
  * Normalize LLM-emitted entity continuity into the Continuity graph shape
  * (nodes keyed by id, edges chained via co_occurs). The schema requests a
  * Record but the LLM reliably returns an array with no edges. Route the
- * initial nodes through applyContinuityMutation so nodes become a Record
+ * initial nodes through applyWorldDelta so nodes become a Record
  * keyed by id and get chained sequentially — matching how scene
  * continuityMutations build up entity graphs across the rest of the pipeline.
  */
 function normalizeInitialContinuity(
   entityId: string,
   raw: unknown,
-): { nodes: Record<string, { id: string; type: ContinuityMutation['addedNodes'][number]['type']; content: string }>; edges: { from: string; to: string; relation: string }[] } {
+): { nodes: Record<string, { id: string; type: WorldDelta['addedNodes'][number]['type']; content: string }>; edges: { from: string; to: string; relation: string }[] } {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rawObj = raw as any;
   const rawNodes: unknown[] = Array.isArray(rawObj?.nodes)
@@ -37,9 +37,9 @@ function normalizeInitialContinuity(
     .map((n: any, i: number) => ({
       id: n.id || `K-${entityId}-${String(i + 1).padStart(3, '0')}`,
       content: n.content,
-      type: (n.type || 'trait') as ContinuityMutation['addedNodes'][number]['type'],
+      type: (n.type || 'trait') as WorldDelta['addedNodes'][number]['type'],
     }));
-  return applyContinuityMutation(
+  return applyWorldDelta(
     { nodes: {}, edges: [] },
     { entityId, addedNodes },
   );
@@ -51,31 +51,37 @@ export type ExpansionEntityFilter = {
   threads: boolean;
   artifacts: boolean;
   relationships: boolean;
-  systemMutations: boolean;
-  ownershipMutations: boolean;
-  tieMutations: boolean;
-  continuityMutations: boolean;
-  relationshipMutations: boolean;
+  systemDeltas: boolean;
+  ownershipDeltas: boolean;
+  tieDeltas: boolean;
+  worldDeltas: boolean;
+  relationshipDeltas: boolean;
 };
 
 export const DEFAULT_EXPANSION_FILTER: ExpansionEntityFilter = {
   characters: true, locations: true, threads: true,
-  artifacts: true, relationships: true, systemMutations: true,
-  ownershipMutations: true, tieMutations: true,
-  continuityMutations: true, relationshipMutations: true,
+  artifacts: true, relationships: true, systemDeltas: true,
+  ownershipDeltas: true, tieDeltas: true,
+  worldDeltas: true, relationshipDeltas: true,
 };
 
-export type WorldExpansion = {
+/**
+ * WorldExpansionResponse — raw LLM output format for world expansion.
+ * The LLM returns this structure; it gets transformed to WorldExpansion
+ * (narrative.ts) when stored, with relationships converted to relationshipDeltas.
+ */
+export type WorldExpansionResponse = {
   characters: Character[];
   locations: Location[];
   threads: Thread[];
+  /** New relationships — converted to relationshipDeltas when stored */
   relationships: RelationshipEdge[];
-  systemMutations?: SystemMutation;
+  systemDeltas?: SystemDelta;
   artifacts?: Artifact[];
-  ownershipMutations?: OwnershipMutation[];
-  tieMutations?: TieMutation[];
-  continuityMutations?: ContinuityMutation[];
-  relationshipMutations?: RelationshipMutation[];
+  ownershipDeltas?: OwnershipDelta[];
+  tieDeltas?: TieDelta[];
+  worldDeltas?: WorldDelta[];
+  relationshipDeltas?: RelationshipDelta[];
   /** Reasoning graph used to plan this expansion — stored for canvas viewing */
   reasoningGraph?: ReasoningGraphSnapshot;
 };
@@ -234,7 +240,7 @@ export function computeWorldMetrics(
   const staleCharacters = Array.from(charScenes.values()).filter((c) => (totalScenes - 1 - c.last) > staleThreshold).length;
 
   const avgKnowledgePerCharacter = totalCharacters > 0
-    ? Object.values(narrative.characters).reduce((sum, c) => sum + Object.keys(c.continuity?.nodes ?? {}).length, 0) / totalCharacters
+    ? Object.values(narrative.characters).reduce((sum, c) => sum + Object.keys(c.world?.nodes ?? {}).length, 0) / totalCharacters
     : 0;
 
   // ── Location metrics ──────────────────────────────────────────────
@@ -425,7 +431,7 @@ export async function expandWorld(
   onReasoningLegacy?: (token: string) => void,
   /** @deprecated Use options object instead */
   entityFilterLegacy?: ExpansionEntityFilter,
-): Promise<WorldExpansion> {
+): Promise<WorldExpansionResponse> {
   // Support both legacy positional args and new options object
   const options: ExpandWorldOptions = typeof sourceTextOrOptions === 'object' && sourceTextOrOptions !== null
     ? sourceTextOrOptions
@@ -472,8 +478,8 @@ export async function expandWorld(
   const nextThreadId = nextId('T', Object.keys(narrative.threads));
   const nextArtifactId = nextId('A', Object.keys(narrative.artifacts ?? {}));
   const existingKIds = [
-    ...Object.values(narrative.characters).flatMap((c) => Object.keys(c.continuity?.nodes ?? {})),
-    ...Object.values(narrative.locations).flatMap((l) => Object.keys(l.continuity?.nodes ?? {})),
+    ...Object.values(narrative.characters).flatMap((c) => Object.keys(c.world?.nodes ?? {})),
+    ...Object.values(narrative.locations).flatMap((l) => Object.keys(l.world?.nodes ?? {})),
   ];
   const nextKId = nextId('K', existingKIds);
 
@@ -538,7 +544,7 @@ ${(() => {
   const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
   const disabled = Object.entries(f).filter(([, v]) => !v).map(([k]) => k);
   if (disabled.length === 0) return '';
-  const labels: Record<string, string> = { characters: 'characters', locations: 'locations', threads: 'threads', artifacts: 'artifacts', relationships: 'relationships', systemMutations: 'system mutations', ownershipMutations: 'ownership mutations (artifact transfers)', tieMutations: 'tie mutations (character-location bonds)', continuityMutations: 'continuity mutations (changes to existing entities)', relationshipMutations: 'relationship mutations (valence shifts on existing relationships)' };
+  const labels: Record<string, string> = { characters: 'characters', locations: 'locations', threads: 'threads', artifacts: 'artifacts', relationships: 'relationships', systemDeltas: 'system deltas', ownershipDeltas: 'ownership deltas (artifact transfers)', tieDeltas: 'tie deltas (character-location bonds)', worldDeltas: 'world deltas (changes to existing entities)', relationshipDeltas: 'relationship deltas (valence shifts on existing relationships)' };
   return `ENTITY FILTER — DO NOT create the following types (return empty arrays for them):\n${disabled.map(k => `- NO ${labels[k]}`).join('\n')}\n`;
 })()}
 ${size === 'exact' ? `This is an EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.` : `This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
@@ -683,11 +689,11 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
     return { ...rest, participants: rest.participants ?? anchors ?? [], dependents, status: THREAD_ACTIVE_STATUSES[0] };
   });
 
-  // Process systemMutations: concept-based resolution collapses
+  // Process systemDeltas: concept-based resolution collapses
   // re-mentioned concepts to their existing id, then sanitize filters self-
   // loops, orphans, and edges that duplicate ones already in the graph.
-  let systemMutations: SystemMutation | undefined;
-  const rawWKM = parsed.systemMutations;
+  let systemDeltas: SystemDelta | undefined;
+  const rawWKM = parsed.systemDeltas;
   if (rawWKM && Array.isArray(rawWKM.addedNodes) && rawWKM.addedNodes.length > 0) {
     const existingWkNodes = narrative.systemGraph?.nodes ?? {};
 
@@ -718,32 +724,32 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
     const seenEdgeKeys = new Set<string>();
     for (const e of narrative.systemGraph?.edges ?? []) seenEdgeKeys.add(systemEdgeKey(e));
 
-    systemMutations = { addedNodes: resolved.newNodes, addedEdges: remappedEdges };
-    sanitizeSystemMutation(systemMutations, validWKIds, seenEdgeKeys);
+    systemDeltas = { addedNodes: resolved.newNodes, addedEdges: remappedEdges };
+    sanitizeSystemDelta(systemDeltas, validWKIds, seenEdgeKeys);
   }
 
   // Apply entity filter — strip types the user disabled. Freshly-created
   // entities have their LLM-emitted continuity normalized (array → Record)
-  // and chained via co_occurs through applyContinuityMutation.
+  // and chained via co_occurs through applyWorldDelta.
   const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedCharacters = (parsed.characters ?? []).map((c: any) => ({
     ...c,
     threadIds: c.threadIds ?? [],
-    continuity: normalizeInitialContinuity(c.id, c.continuity),
+    world: normalizeInitialContinuity(c.id, c.world),
   }));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedLocations = (parsed.locations ?? []).map((l: any) => ({
     ...l,
     threadIds: l.threadIds ?? [],
     tiedCharacterIds: l.tiedCharacterIds ?? [],
-    continuity: normalizeInitialContinuity(l.id, l.continuity),
+    world: normalizeInitialContinuity(l.id, l.world),
   }));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedArtifacts = (parsed.artifacts ?? []).map((a: any) => ({
     ...a,
     threadIds: a.threadIds ?? [],
-    continuity: normalizeInitialContinuity(a.id, a.continuity),
+    world: normalizeInitialContinuity(a.id, a.world),
   }));
   // Convert expansion reasoning graph to snapshot format for storage
   const reasoningGraphSnapshot: ReasoningGraphSnapshot | undefined = reasoningGraph
@@ -756,17 +762,17 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
       }
     : undefined;
 
-  const result: WorldExpansion = {
+  const result: WorldExpansionResponse = {
     characters: f.characters ? normalizedCharacters : [],
     locations: f.locations ? normalizedLocations : [],
     threads: f.threads ? threads : [],
     relationships: f.relationships ? (parsed.relationships ?? []) : [],
-    systemMutations: f.systemMutations ? systemMutations : undefined,
+    systemDeltas: f.systemDeltas ? systemDeltas : undefined,
     artifacts: f.artifacts ? normalizedArtifacts : [],
-    ownershipMutations: f.ownershipMutations ? (parsed.ownershipMutations ?? []) : [],
-    tieMutations: f.tieMutations ? (parsed.tieMutations ?? []) : [],
-    continuityMutations: f.continuityMutations ? (parsed.continuityMutations ?? []) : [],
-    relationshipMutations: f.relationshipMutations ? (parsed.relationshipMutations ?? []) : [],
+    ownershipDeltas: f.ownershipDeltas ? (parsed.ownershipDeltas ?? []) : [],
+    tieDeltas: f.tieDeltas ? (parsed.tieDeltas ?? []) : [],
+    worldDeltas: f.worldDeltas ? (parsed.worldDeltas ?? []) : [],
+    relationshipDeltas: f.relationshipDeltas ? (parsed.relationshipDeltas ?? []) : [],
     reasoningGraph: reasoningGraphSnapshot,
   };
 
@@ -780,7 +786,7 @@ systemMutations define the FOUNDATIONAL abstractions this expansion establishes 
       threadsAdded: result.threads.length,
       relationshipsAdded: result.relationships.length,
       artifactsAdded: result.artifacts?.length ?? 0,
-      systemNodeCount: result.systemMutations?.addedNodes.length ?? 0,
+      systemNodeCount: result.systemDeltas?.addedNodes.length ?? 0,
     },
   });
 
@@ -942,8 +948,8 @@ ${worldOnly ? '' : `Every anchor must appear in at least 3 scenes. Use at least 
 ${PROMPT_POV}
 ${PROMPT_FORCE_STANDARDS}
 ${PROMPT_STRUCTURAL_RULES}
-${PROMPT_MUTATIONS}
-${PROMPT_CONTINUITY}
+${PROMPT_DELTAS}
+${PROMPT_WORLD}
 ${PROMPT_SUMMARY_REQUIREMENT}`}
 
 `;
@@ -960,12 +966,12 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
 
   const characters: NarrativeState['characters'] = {};
   for (const c of parsed.characters) {
-    characters[c.id] = { ...c, threadIds: c.threadIds ?? [], continuity: normalizeInitialContinuity(c.id, c.continuity) };
+    characters[c.id] = { ...c, threadIds: c.threadIds ?? [], world: normalizeInitialContinuity(c.id, c.world) };
   }
 
   const locations: NarrativeState['locations'] = {};
   for (const l of parsed.locations) {
-    locations[l.id] = { ...l, threadIds: l.threadIds ?? [], tiedCharacterIds: l.tiedCharacterIds ?? [], continuity: normalizeInitialContinuity(l.id, l.continuity) };
+    locations[l.id] = { ...l, threadIds: l.threadIds ?? [], tiedCharacterIds: l.tiedCharacterIds ?? [], world: normalizeInitialContinuity(l.id, l.world) };
   }
 
   const threads: NarrativeState['threads'] = {};
@@ -985,11 +991,11 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
     for (const a of (parsed.arcs ?? [])) arcs[a.id] = a;
   }
 
-  // Normalize artifacts with continuity
+  // Normalize artifacts with world
   const artifacts: NarrativeState['artifacts'] = Object.fromEntries(
     (parsed.artifacts ?? []).map((a: Artifact) => [
       a.id,
-      { ...a, threadIds: a.threadIds ?? [], continuity: normalizeInitialContinuity(a.id, a.continuity) },
+      { ...a, threadIds: a.threadIds ?? [], world: normalizeInitialContinuity(a.id, a.world) },
     ]),
   );
 
@@ -1002,12 +1008,17 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
     id: worldBuildId,
     summary: `Initial world: ${Object.keys(characters).length} characters, ${Object.keys(locations).length} locations, ${Object.keys(threads).length} threads`,
     expansionManifest: {
-      characters: Object.values(characters),
-      locations: Object.values(locations),
-      threads: Object.values(threads),
-      artifacts: Object.values(artifacts),
-      relationships: parsed.relationships ?? [],
-      systemMutations: { addedNodes: [], addedEdges: [] },
+      newCharacters: Object.values(characters),
+      newLocations: Object.values(locations),
+      newThreads: Object.values(threads),
+      newArtifacts: Object.values(artifacts),
+      systemDeltas: { addedNodes: [], addedEdges: [] },
+      relationshipDeltas: (parsed.relationships ?? []).map((r: RelationshipEdge) => ({
+        from: r.from,
+        to: r.to,
+        type: r.type,
+        valenceDelta: r.valence,
+      })),
     },
   };
 
@@ -1028,10 +1039,10 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   const sceneList = Object.values(scenes);
 
   // For worldOnly mode, system mutations go in the WorldBuild (seeded knowledge)
-  if (worldOnly && parsed.systemMutations) {
-    const seededMutation: SystemMutation = {
-      addedNodes: parsed.systemMutations.addedNodes ?? [],
-      addedEdges: parsed.systemMutations.addedEdges ?? [],
+  if (worldOnly && parsed.systemDeltas) {
+    const seededMutation: SystemDelta = {
+      addedNodes: parsed.systemDeltas.addedNodes ?? [],
+      addedEdges: parsed.systemDeltas.addedEdges ?? [],
     };
     // Resolve IDs and sanitize
     const allocator = makeSystemIdAllocator([]);
@@ -1043,8 +1054,8 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
       to: resolved.idMap[edge.to] ?? edge.to,
       relation: edge.relation,
     }));
-    sanitizeSystemMutation(seededMutation, validIds, new Set());
-    initialWorldBuild.expansionManifest.systemMutations = seededMutation;
+    sanitizeSystemDelta(seededMutation, validIds, new Set());
+    initialWorldBuild.expansionManifest.systemDeltas = seededMutation;
   }
 
   // Normalize and resolve IDs for scene system mutations
@@ -1054,32 +1065,32 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   const seenWkEdgeKeys = new Set<string>();
 
   for (const scene of sceneList) {
-    if (!scene.systemMutations) {
-      scene.systemMutations = { addedNodes: [], addedEdges: [] };
+    if (!scene.systemDeltas) {
+      scene.systemDeltas = { addedNodes: [], addedEdges: [] };
       continue;
     }
-    scene.systemMutations.addedNodes = scene.systemMutations.addedNodes ?? [];
-    scene.systemMutations.addedEdges = scene.systemMutations.addedEdges ?? [];
+    scene.systemDeltas.addedNodes = scene.systemDeltas.addedNodes ?? [];
+    scene.systemDeltas.addedEdges = scene.systemDeltas.addedEdges ?? [];
 
     // Concept-based resolution: re-mentioned concepts collapse to the same id
     const resolved = resolveSystemConceptIds(
-      scene.systemMutations.addedNodes,
+      scene.systemDeltas.addedNodes,
       accumulatedNodes,
       allocateFreshWkId,
     );
-    scene.systemMutations.addedNodes = resolved.newNodes;
+    scene.systemDeltas.addedNodes = resolved.newNodes;
     for (const n of resolved.newNodes) {
       validWKIds.add(n.id);
       accumulatedNodes[n.id] = n;
     }
 
     // Remap edge references and sanitize
-    scene.systemMutations.addedEdges = scene.systemMutations.addedEdges.map((edge) => ({
+    scene.systemDeltas.addedEdges = scene.systemDeltas.addedEdges.map((edge) => ({
       from: resolved.idMap[edge.from] ?? edge.from,
       to: resolved.idMap[edge.to] ?? edge.to,
       relation: edge.relation,
     }));
-    sanitizeSystemMutation(scene.systemMutations, validWKIds, seenWkEdgeKeys);
+    sanitizeSystemDelta(scene.systemDeltas, validWKIds, seenWkEdgeKeys);
   }
 
   // Generate embeddings for scene summaries
@@ -1103,13 +1114,13 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   // type from pulse/transition fallback, drop empty content), synthesize a
   // fallback log entry when the mutation has none so every threadMutation
   // produces at least one log node, then remap to sequential TK-NNN IDs so
-  // cross-scene collisions can't silently drop nodes in applyThreadMutation.
+  // cross-scene collisions can't silently drop nodes in applyThreadDelta.
   // Also coerces invalid from/to statuses (e.g. the LLM emitting "pulse"
   // as a status when pulse is actually a log node type).
   const validStatuses = new Set<string>([...THREAD_ACTIVE_STATUSES, ...THREAD_TERMINAL_STATUSES, 'abandoned']);
   let totalTkNodes = 0;
   for (const scene of sceneList) {
-    for (const tm of scene.threadMutations ?? []) {
+    for (const tm of scene.threadDeltas ?? []) {
       const thread = threads[tm.threadId];
       const currentStatus = thread?.status ?? 'latent';
       if (!validStatuses.has(tm.from)) tm.from = currentStatus;
@@ -1138,7 +1149,7 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   const tkIds = nextIds('TK', [], totalTkNodes);
   let tkIdx = 0;
   for (const scene of sceneList) {
-    for (const tm of scene.threadMutations ?? []) {
+    for (const tm of scene.threadDeltas ?? []) {
       for (const node of tm.addedNodes ?? []) {
         node.id = tkIds[tkIdx++];
       }
@@ -1148,10 +1159,10 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   // Build thread log graphs from initial scene mutations. Each scene's
   // contribution is a self-contained cluster — no cross-scene edges.
   for (const scene of sceneList) {
-    for (const tm of scene.threadMutations ?? []) {
+    for (const tm of scene.threadDeltas ?? []) {
       const thread = threads[tm.threadId];
       if (!thread) continue;
-      thread.threadLog = applyThreadMutation(thread.threadLog, tm);
+      thread.threadLog = applyThreadDelta(thread.threadLog, tm);
     }
   }
 

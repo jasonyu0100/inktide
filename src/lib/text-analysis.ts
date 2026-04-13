@@ -22,7 +22,7 @@ import type {
   BeatPlan,
   Branch,
   Character,
-  ContinuityNodeType,
+  WorldNodeType,
   Location,
   NarrativeState,
   ProseProfile,
@@ -152,20 +152,20 @@ export type SceneStructureResult = {
   artifacts: NonNullable<AnalysisChunkResult["artifacts"]>;
   threads: AnalysisChunkResult["threads"];
   relationships: AnalysisChunkResult["relationships"];
-  threadMutations: AnalysisChunkResult["scenes"][0]["threadMutations"];
-  continuityMutations: AnalysisChunkResult["scenes"][0]["continuityMutations"];
-  relationshipMutations: AnalysisChunkResult["scenes"][0]["relationshipMutations"];
+  threadDeltas: AnalysisChunkResult["scenes"][0]["threadDeltas"];
+  worldDeltas: AnalysisChunkResult["scenes"][0]["worldDeltas"];
+  relationshipDeltas: AnalysisChunkResult["scenes"][0]["relationshipDeltas"];
   artifactUsages: NonNullable<
     AnalysisChunkResult["scenes"][0]["artifactUsages"]
   >;
-  ownershipMutations: NonNullable<
-    AnalysisChunkResult["scenes"][0]["ownershipMutations"]
+  ownershipDeltas: NonNullable<
+    AnalysisChunkResult["scenes"][0]["ownershipDeltas"]
   >;
-  tieMutations: NonNullable<AnalysisChunkResult["scenes"][0]["tieMutations"]>;
+  tieDeltas: NonNullable<AnalysisChunkResult["scenes"][0]["tieDeltas"]>;
   characterMovements: NonNullable<
     AnalysisChunkResult["scenes"][0]["characterMovements"]
   >;
-  systemMutations?: AnalysisChunkResult["scenes"][0]["systemMutations"];
+  systemDeltas?: AnalysisChunkResult["scenes"][0]["systemDeltas"];
 };
 
 /**
@@ -268,7 +268,7 @@ systemMutations — REVEALED world rules, not character observations. 15-25 word
 - Types: principle, system, concept, tension, event, structure, environment, convention, constraint.
 - Edges: enables, governs, opposes, extends, created_by, constrains, exist_within.
 
-ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). ALL continuity/lore MUST be emitted as scenes[].continuityMutations on the scene where it is revealed.
+ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). ALL continuity/lore MUST be emitted as scenes[].worldDeltas on the scene where it is revealed.
 
 - characters: conscious beings with agency. Role: anchor/recurring/transient.
   FICTION: ✓ Harry Potter, Gandalf, Elizabeth Bennet — people with agency
@@ -333,14 +333,14 @@ VARIANCE IS SIGNAL:
     artifacts: parsed.artifacts ?? [],
     threads: parsed.threads ?? [],
     relationships: parsed.relationships ?? [],
-    threadMutations: parsed.threadMutations ?? [],
-    continuityMutations: parsed.continuityMutations ?? [],
-    relationshipMutations: parsed.relationshipMutations ?? [],
+    threadDeltas: parsed.threadDeltas ?? [],
+    worldDeltas: parsed.worldDeltas ?? [],
+    relationshipDeltas: parsed.relationshipDeltas ?? [],
     artifactUsages: parsed.artifactUsages ?? [],
-    ownershipMutations: parsed.ownershipMutations ?? [],
-    tieMutations: parsed.tieMutations ?? [],
+    ownershipDeltas: parsed.ownershipDeltas ?? [],
+    tieDeltas: parsed.tieDeltas ?? [],
     characterMovements: parsed.characterMovements ?? [],
-    systemMutations: parsed.systemMutations,
+    systemDeltas: parsed.systemDeltas,
   };
 }
 
@@ -563,7 +563,7 @@ export async function reconcileResults(
     for (const l of r.locations ?? []) allLocNames.add(l.name);
     for (const a of r.artifacts ?? []) allArtifactNames.add(a.name);
     for (const s of r.scenes ?? []) {
-      for (const n of s.systemMutations?.addedNodes ?? [])
+      for (const n of s.systemDeltas?.addedNodes ?? [])
         allWKConcepts.add(n.concept);
     }
   }
@@ -767,8 +767,8 @@ Empty object {} if no merges needed for a category.`;
       povName: resolveEntity(s.povName),
       locationName: resolveEntity(s.locationName),
       participantNames: [...new Set(s.participantNames.map(resolveEntity))],
-      threadMutations: deduplicateBy(
-        (s.threadMutations ?? []).map((tm) => ({
+      threadDeltas: deduplicateBy(
+        (s.threadDeltas ?? []).map((tm) => ({
           ...tm,
           threadDescription: resolveThread(tm.threadDescription),
           from: normalizeStatus(tm.from),
@@ -783,8 +783,8 @@ Empty object {} if no merges needed for a category.`;
           addedNodes: [...(a.addedNodes ?? []), ...(b.addedNodes ?? [])],
         }),
       ),
-      continuityMutations: deduplicateBy(
-        (s.continuityMutations ?? []).map((km) => ({
+      worldDeltas: deduplicateBy(
+        (s.worldDeltas ?? []).map((km) => ({
           ...km,
           entityName: resolveEntity(km.entityName),
         })),
@@ -794,7 +794,7 @@ Empty object {} if no merges needed for a category.`;
           addedNodes: mergeContinuity(a.addedNodes, b.addedNodes),
         }),
       ),
-      relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
+      relationshipDeltas: (s.relationshipDeltas ?? []).map((rm) => ({
         ...rm,
         from: resolveEntity(rm.from),
         to: resolveEntity(rm.to),
@@ -806,13 +806,13 @@ Empty object {} if no merges needed for a category.`;
           ? resolveEntity(au.characterName)
           : null,
       })),
-      ownershipMutations: (s.ownershipMutations ?? []).map((om) => ({
+      ownershipDeltas: (s.ownershipDeltas ?? []).map((om) => ({
         ...om,
         artifactName: resolveArt(om.artifactName),
         fromName: resolveEntity(om.fromName),
         toName: resolveEntity(om.toName),
       })),
-      tieMutations: (s.tieMutations ?? []).map((tm) => ({
+      tieDeltas: (s.tieDeltas ?? []).map((tm) => ({
         ...tm,
         locationName: resolveEntity(tm.locationName),
         characterName: resolveEntity(tm.characterName),
@@ -822,13 +822,13 @@ Empty object {} if no merges needed for a category.`;
         characterName: resolveEntity(cm.characterName),
         locationName: resolveEntity(cm.locationName),
       })),
-      systemMutations: s.systemMutations
+      systemDeltas: s.systemDeltas
         ? {
-            addedNodes: (s.systemMutations.addedNodes ?? []).map((n) => ({
+            addedNodes: (s.systemDeltas.addedNodes ?? []).map((n) => ({
               ...n,
               concept: resolveWK(n.concept),
             })),
-            addedEdges: (s.systemMutations.addedEdges ?? []).map((e) => ({
+            addedEdges: (s.systemDeltas.addedEdges ?? []).map((e) => ({
               ...e,
               fromConcept: resolveWK(e.fromConcept),
               toConcept: resolveWK(e.toConcept),
@@ -873,7 +873,7 @@ Empty object {} if no merges needed for a category.`;
 
     // Fix scene-level threadMutation from/to values to chain correctly
     for (const scene of r.scenes) {
-      for (const tm of scene.threadMutations) {
+      for (const tm of scene.threadDeltas) {
         const currentStatus = sceneThreadStatus[tm.threadDescription];
         if (currentStatus && tm.from !== currentStatus) {
           tm.from = currentStatus;
@@ -1115,7 +1115,7 @@ function buildMetaContext(
   const concepts = new Set<string>();
   for (const r of results) {
     for (const sc of r.scenes) {
-      for (const n of sc.systemMutations?.addedNodes ?? []) {
+      for (const n of sc.systemDeltas?.addedNodes ?? []) {
         if (n.concept) concepts.add(`${n.concept} (${n.type})`);
       }
     }
@@ -1267,7 +1267,7 @@ export async function assembleNarrative(
           name: c.name,
           role: c.role as Character["role"],
           threadIds: [],
-          continuity: { nodes: {}, edges: [] },
+          world: { nodes: {}, edges: [] },
           ...(c.imagePrompt ? { imagePrompt: c.imagePrompt } : {}),
         };
         charFirstChunk.set(id, chunkIdx);
@@ -1284,7 +1284,7 @@ export async function assembleNarrative(
       }
     }
 
-    // Locations — identity only; all lore flows through scene.continuityMutations
+    // Locations — identity only; all lore flows through scene.worldDeltas
     for (const loc of ch.locations ?? []) {
       const id = getLocId(loc.name);
       if (!locations[id]) {
@@ -1302,7 +1302,7 @@ export async function assembleNarrative(
           parentId,
           tiedCharacterIds,
           threadIds: [],
-          continuity: { nodes: {}, edges: [] },
+          world: { nodes: {}, edges: [] },
           ...(loc.imagePrompt ? { imagePrompt: loc.imagePrompt } : {}),
         };
         locFirstChunk.set(id, chunkIdx);
@@ -1350,7 +1350,7 @@ export async function assembleNarrative(
           significance: (["key", "notable", "minor"].includes(a.significance)
             ? a.significance
             : "notable") as Artifact["significance"],
-          continuity: { nodes: {}, edges: [] },
+          world: { nodes: {}, edges: [] },
           threadIds: [],
           parentId,
           ...(a.imagePrompt ? { imagePrompt: a.imagePrompt } : {}),
@@ -1420,7 +1420,7 @@ export async function assembleNarrative(
         povId,
         participantIds,
         events: s.events ?? [],
-        threadMutations: (s.threadMutations ?? []).map((tm) => {
+        threadDeltas: (s.threadDeltas ?? []).map((tm) => {
           // Coerce invalid from/to statuses — extraction sometimes returns
           // log node type vocabulary (e.g. "pulse") in the status fields.
           // Anything outside the lifecycle vocabulary collapses to a
@@ -1468,18 +1468,18 @@ export async function assembleNarrative(
             addedNodes,
           };
         }),
-        continuityMutations: (s.continuityMutations ?? []).map((km) => {
+        worldDeltas: (s.worldDeltas ?? []).map((km) => {
           const entityId = getEntityId(km.entityName);
           // Assign IDs in the order the LLM listed nodes — applyContinuityMutation
           // chains them sequentially via co_occurs during store replay.
           const nodes = (km.addedNodes ?? []).map((n) => ({
             id: nextKId(),
             content: n.content,
-            type: (n.type || "trait") as ContinuityNodeType,
+            type: (n.type || "trait") as WorldNodeType,
           }));
           return { entityId, addedNodes: nodes };
         }),
-        relationshipMutations: (s.relationshipMutations ?? []).map((rm) => ({
+        relationshipDeltas: (s.relationshipDeltas ?? []).map((rm) => ({
           from: getCharId(rm.from),
           to: getCharId(rm.to),
           type: rm.type,
@@ -1518,9 +1518,9 @@ export async function assembleNarrative(
               }))
               .filter((au) => artifactEntities[au.artifactId]);
           })() || undefined,
-        ownershipMutations:
+        ownershipDeltas:
           (() => {
-            const oms = s.ownershipMutations ?? [];
+            const oms = s.ownershipDeltas ?? [];
             if (oms.length === 0) return undefined;
             return oms
               .map((om) => ({
@@ -1536,9 +1536,9 @@ export async function assembleNarrative(
               }))
               .filter((om) => artifactEntities[om.artifactId]);
           })() || undefined,
-        tieMutations:
+        tieDeltas:
           (() => {
-            const mms = s.tieMutations ?? [];
+            const mms = s.tieDeltas ?? [];
             if (mms.length === 0) return undefined;
             return mms
               .map(
@@ -1558,8 +1558,8 @@ export async function assembleNarrative(
                   (mm.action === "add" || mm.action === "remove"),
               );
           })() || undefined,
-        systemMutations: (() => {
-          const wkm = s.systemMutations;
+        systemDeltas: (() => {
+          const wkm = s.systemDeltas;
           if (!wkm) return undefined;
           // Only add nodes not already seen in prior scenes
           const addedNodes = (wkm.addedNodes ?? [])
@@ -1668,7 +1668,7 @@ export async function assembleNarrative(
     // Track scene order for arc group assignment below
     allOrderedSceneIds.push(...chScenes.map((s) => s.id));
 
-    for (const tm of chScenes.flatMap((s) => s.threadMutations)) {
+    for (const tm of chScenes.flatMap((s) => s.threadDeltas)) {
       if (threads[tm.threadId] && !threads[tm.threadId].openedAt) {
         threads[tm.threadId].openedAt = chScenes[0]?.id;
       }
@@ -1725,7 +1725,7 @@ export async function assembleNarrative(
       const arcScenes = sceneIds.map((id) => scenes[id]).filter(Boolean);
       const develops = [
         ...new Set(
-          arcScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)),
+          arcScenes.flatMap((s) => s.threadDeltas.map((tm) => tm.threadId)),
         ),
       ];
       const locationIds = [...new Set(arcScenes.map((s) => s.locationId))];
@@ -1758,7 +1758,7 @@ export async function assembleNarrative(
       const arcScenes = sceneIds.map((id) => scenes[id]).filter(Boolean);
       const develops = [
         ...new Set(
-          arcScenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)),
+          arcScenes.flatMap((s) => s.threadDeltas.map((tm) => tm.threadId)),
         ),
       ];
       const locationIds = [...new Set(arcScenes.map((s) => s.locationId))];
@@ -1879,14 +1879,14 @@ export async function assembleNarrative(
       id: worldBuildId,
       summary,
       expansionManifest: {
-        characters: newCharIds.map((id) => characters[id]).filter(Boolean),
-        locations: newLocIds.map((id) => locations[id]).filter(Boolean),
-        threads: newThreadIds.map((id) => threads[id]).filter(Boolean),
-        relationships: [],
-        systemMutations: { addedNodes: [], addedEdges: [] },
-        artifacts: newArtifactIds
+        newCharacters: newCharIds.map((id) => characters[id]).filter(Boolean),
+        newLocations: newLocIds.map((id) => locations[id]).filter(Boolean),
+        newThreads: newThreadIds.map((id) => threads[id]).filter(Boolean),
+        newArtifacts: newArtifactIds
           .map((id) => artifactEntities[id])
           .filter(Boolean),
+        systemDeltas: { addedNodes: [], addedEdges: [] },
+        relationshipDeltas: [],
       },
     };
 

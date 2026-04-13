@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   getIntroducedIds,
-  getContinuityNodesAtScene,
+  getWorldNodesAtScene,
   getRelationshipsAtScene,
   getThreadIdsAtScene,
 } from '@/lib/scene-filter';
-import type { WorldBuild, Scene, ContinuityNode, ContinuityNodeType, NarrativeState, Thread } from '@/types/narrative';
+import type { WorldBuild, Scene, WorldNode, WorldNodeType, NarrativeState, Thread } from '@/types/narrative';
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 function createWorldBuild(
   id: string,
@@ -19,19 +19,18 @@ function createWorldBuild(
     id,
     summary: `World build ${id}`,
     expansionManifest: {
-      characters: characters.map((c) => ({ id: c.id, name: `Char ${c.id}`, role: 'anchor' as const, continuity: { nodes: {}, edges: [] }, threadIds: [] })),
-      locations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, prominence: 'place' as const, parentId: null, tiedCharacterIds: [] as string[], continuity: { nodes: {}, edges: [] }, threadIds: [] })),
-      threads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, status: 'latent' as const, participants: [], dependents: [], openedAt: 'S-001', threadLog: { nodes: {}, edges: [] } })),
-      artifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key' as const, parentId: 'C-01', continuity: { nodes: {}, edges: [] }, threadIds: [] })),
-      relationships: [],
-      systemMutations: { addedNodes: [], addedEdges: [] },
+      newCharacters: characters.map((c) => ({ id: c.id, name: `Char ${c.id}`, role: 'anchor' as const, world: { nodes: {}, edges: [] }, threadIds: [] })),
+      newLocations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, prominence: 'place' as const, parentId: null, tiedCharacterIds: [] as string[], world: { nodes: {}, edges: [] }, threadIds: [] })),
+      newThreads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, status: 'latent' as const, participants: [], dependents: [], openedAt: 'S-001', threadLog: { nodes: {}, edges: [] } })),
+      newArtifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key' as const, parentId: 'C-01', world: { nodes: {}, edges: [] }, threadIds: [] })),
+      systemDeltas: { addedNodes: [], addedEdges: [] },
     },
   };
 }
 function createScene(
   id: string,
-  continuityMutations: { entityId: string; addedNodes: { id: string; content: string; type: ContinuityNodeType }[] }[] = [],
-  relationshipMutations: { from: string; to: string; type: string; valenceDelta: number }[] = [],
+  worldDeltas: { entityId: string; addedNodes: { id: string; content: string; type: WorldNodeType }[] }[] = [],
+  relationshipDeltas: { from: string; to: string; type: string; valenceDelta: number }[] = [],
 ): Scene {
   return {
     kind: 'scene',
@@ -41,12 +40,12 @@ function createScene(
     locationId: 'L-01',
     participantIds: ['C-01'],
     events: [],
-    threadMutations: [],
-    continuityMutations: continuityMutations.map((km) => ({
+    threadDeltas: [],
+    worldDeltas: worldDeltas.map((km) => ({
       ...km,
       addedEdges: [],
     })),
-    relationshipMutations: relationshipMutations.map((rm) => ({
+    relationshipDeltas: relationshipDeltas.map((rm) => ({
       ...rm,
     })),
     summary: `Scene ${id}`,
@@ -121,15 +120,15 @@ describe('getIntroducedIds', () => {
     expect(result.characterIds.size).toBe(0);
   });
 });
-// ── getContinuityNodesAtScene ────────────────────────────────────────────────
-describe('getContinuityNodesAtScene', () => {
-  const nodes: Record<string, ContinuityNode> = {
+// ── getWorldNodesAtScene ────────────────────────────────────────────────
+describe('getWorldNodesAtScene', () => {
+  const nodes: Record<string, WorldNode> = {
     'K-01': { id: 'K-01', type: 'history', content: 'Initial knowledge' },
     'K-03': { id: 'K-03', type: 'history', content: 'Never mutated' },
   };
   it('returns all nodes when no mutations exist', () => {
     const scenes: Record<string, Scene> = {};
-    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, [], 0);
+    const result = getWorldNodesAtScene(nodes, 'C-01', scenes, [], 0);
     expect(result.length).toBe(2);
   });
   it('includes nodes added up to current index', () => {
@@ -138,7 +137,7 @@ describe('getContinuityNodesAtScene', () => {
       'S-002': createScene('S-002'),
     };
     const resolvedKeys = ['S-001', 'S-002'];
-    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 1);
+    const result = getWorldNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 1);
     expect(result.map((n) => n.id)).toContain('K-02');
   });
   it('does not include nodes added after current index', () => {
@@ -148,10 +147,10 @@ describe('getContinuityNodesAtScene', () => {
     };
     const resolvedKeys = ['S-001', 'S-002'];
     // At index 0, K-04 hasn't been added yet
-    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
+    const result = getWorldNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
     expect(result.map((n) => n.id)).not.toContain('K-04');
     // At index 1, K-04 is added
-    const result2 = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 1);
+    const result2 = getWorldNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 1);
     expect(result2.map((n) => n.id)).toContain('K-04');
   });
   it('accumulates nodes across scenes', () => {
@@ -160,7 +159,7 @@ describe('getContinuityNodesAtScene', () => {
       'S-002': createScene('S-002', [{ entityId: 'C-01', addedNodes: [{ id: 'K-06', content: 'Second', type: 'history' }] }]),
     };
     const resolvedKeys = ['S-001', 'S-002'];
-    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 1);
+    const result = getWorldNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 1);
     expect(result.map((n) => n.id)).toContain('K-05');
     expect(result.map((n) => n.id)).toContain('K-06');
   });
@@ -173,7 +172,7 @@ describe('getContinuityNodesAtScene', () => {
     };
     const resolvedKeys = ['S-001'];
     // C-01 should see K-07 but not K-08 (different entity)
-    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
+    const result = getWorldNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
     expect(result.map((n) => n.id)).toContain('K-07');
     expect(result.map((n) => n.id)).not.toContain('K-08');
   });
@@ -182,7 +181,7 @@ describe('getContinuityNodesAtScene', () => {
       'S-001': createScene('S-001', [{ entityId: 'C-01', addedNodes: [{ id: 'K-09', content: 'New', type: 'history' }] }]),
     };
     const resolvedKeys = ['S-001'];
-    const result = getContinuityNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
+    const result = getWorldNodesAtScene(nodes, 'C-01', scenes, resolvedKeys, 0);
     expect(result.map((n) => n.id)).toContain('K-03'); // Never mutated
   });
 });

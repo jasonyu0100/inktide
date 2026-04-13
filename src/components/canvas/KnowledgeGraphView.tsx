@@ -82,7 +82,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       const key = resolvedKeys[currentIndex];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds[key];
-      const wkm = scene?.systemMutations ?? wb?.expansionManifest.systemMutations;
+      const wkm = scene?.systemDeltas ?? wb?.expansionManifest.systemDeltas;
       if (!wkm) return { nodes: {}, edges: [] };
       const nodes: Record<string, SystemNode> = {};
       for (const n of wkm.addedNodes ?? []) {
@@ -104,7 +104,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       const key = resolvedKeys[currentIndex];
       const scene = narrative.scenes[key];
       const wb = narrative.worldBuilds[key];
-      const wkm = scene?.systemMutations ?? wb?.expansionManifest.systemMutations;
+      const wkm = scene?.systemDeltas ?? wb?.expansionManifest.systemDeltas;
       for (const n of wkm?.addedNodes ?? []) ids.add(n.id);
     }
     return ids;

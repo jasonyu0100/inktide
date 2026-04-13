@@ -54,9 +54,9 @@ function createMinimalScene(id: string): Scene {
     locationId: 'L-01',
     participantIds: ['C-01'],
     events: [],
-    threadMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
+    threadDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
     summary: 'Test scene',
   };
 }

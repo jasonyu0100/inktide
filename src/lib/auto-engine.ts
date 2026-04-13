@@ -97,7 +97,7 @@ function analyzeThreads(
   // Find stale threads (no mutation in recent scenes)
   const lastMutation: Record<string, number> = {};
   scenes.forEach((scene, idx) => {
-    for (const tm of scene.threadMutations) {
+    for (const tm of scene.threadDeltas) {
       lastMutation[tm.threadId] = idx;
     }
   });
@@ -127,8 +127,8 @@ function analyzeEntities(
 
   // Find shallow characters (low continuity depth)
   const shallowChars = anchors.filter((c) => {
-    const nodeCount = Object.keys(c.continuity.nodes).length;
-    const edgeCount = c.continuity.edges.length;
+    const nodeCount = Object.keys(c.world.nodes).length;
+    const edgeCount = c.world.edges.length;
     return nodeCount + Math.sqrt(edgeCount) < DEVELOPED_THRESHOLD;
   });
 
@@ -142,7 +142,7 @@ function analyzeEntities(
   );
 
   // Calculate recent continuity growth
-  const recentMutations = recentScenes.flatMap((s) => s.continuityMutations);
+  const recentMutations = recentScenes.flatMap((s) => s.worldDeltas);
   const recentGrowth = recentMutations.reduce(
     (sum, m) => sum + m.addedNodes.length,
     0,
@@ -165,8 +165,8 @@ function analyzeKnowledge(
 
   // Calculate recent system growth from system mutations
   const recentGrowth = recentScenes.reduce((sum, s) => {
-    const nodes = s.systemMutations?.addedNodes?.length ?? 0;
-    const edges = s.systemMutations?.addedEdges?.length ?? 0;
+    const nodes = s.systemDeltas?.addedNodes?.length ?? 0;
+    const edges = s.systemDeltas?.addedEdges?.length ?? 0;
     return sum + nodes + Math.sqrt(edges);
   }, 0);
 

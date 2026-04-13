@@ -1,4 +1,4 @@
-import { applyContinuityMutation } from "@/lib/continuity-graph";
+import { applyWorldDelta } from "@/lib/world-graph";
 import {
   computeRawForceTotals,
   computeSwingMagnitudes,
@@ -28,7 +28,7 @@ function applySceneMutations(
   };
 
   for (const scene of scenes) {
-    for (const rm of scene.relationshipMutations) {
+    for (const rm of scene.relationshipDeltas) {
       const idx = relationships.findIndex(
         (r) => r.from === rm.from && r.to === rm.to,
       );
@@ -55,31 +55,31 @@ function applySceneMutations(
         });
       }
     }
-    for (const km of scene.continuityMutations) {
+    for (const km of scene.worldDeltas) {
       const char = characters[km.entityId];
       const loc = locations[km.entityId];
       const art = artifacts[km.entityId];
       if (char)
         characters[km.entityId] = {
           ...char,
-          continuity: applyContinuityMutation(char.continuity, km),
+          world: applyWorldDelta(char.world, km),
         };
       else if (loc)
         locations[km.entityId] = {
           ...loc,
-          continuity: applyContinuityMutation(loc.continuity, km),
+          world: applyWorldDelta(loc.world, km),
         };
       else if (art)
         artifacts[km.entityId] = {
           ...art,
-          continuity: applyContinuityMutation(art.continuity, km),
+          world: applyWorldDelta(art.world, km),
         };
     }
-    for (const tm of scene.threadMutations) {
+    for (const tm of scene.threadDeltas) {
       const thread = threads[tm.threadId];
       if (thread) threads[tm.threadId] = { ...thread, status: tm.to };
     }
-    const wkm = scene.systemMutations;
+    const wkm = scene.systemDeltas;
     if (wkm) {
       for (const node of wkm.addedNodes ?? []) {
         if (!systemGraph.nodes[node.id]) {

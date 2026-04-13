@@ -39,7 +39,7 @@ vi.mock('@/lib/system-logger', () => ({
 // Mock validation
 vi.mock('@/lib/ai/validation', () => ({
   validateExtractionResult: vi.fn(() => []),
-  validateSystemMutation: vi.fn(() => []),
+  validateSystemDelta: vi.fn(() => []),
 }));
 import { splitCorpusIntoScenes, extractSceneStructure, groupScenesIntoArcs, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
 import { callGenerate } from '@/lib/ai/api';
@@ -80,16 +80,16 @@ function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChun
         summary: `Scene ${index} summary`,
         sections: [0],
         prose: `Scene ${index} prose content here.`,
-        threadMutations: [
+        threadDeltas: [
           { threadDescription: `Main quest ${index}`, from: 'dormant', to: 'active', addedNodes: [] },
         ],
-        continuityMutations: [
+        worldDeltas: [
           {
             entityName: `Character${index}`,
             addedNodes: [{ content: 'Learned something important', type: 'belief' }],
           },
         ],
-        relationshipMutations: [],
+        relationshipDeltas: [],
       },
     ],
     relationships: [
@@ -138,21 +138,21 @@ function createRichAnalysisResult(index: number): AnalysisChunkResult {
           ],
         },
         beatProseMap: { chunks: [{ beatIndex: 0, prose: 'Castle atmosphere prose' }, { beatIndex: 1, prose: 'Quest progress prose' }], createdAt: Date.now() },
-        threadMutations: [
+        threadDeltas: [
           { threadDescription: 'The Quest for the Crown', from: index === 0 ? 'dormant' : 'active', to: 'active', addedNodes: [] },
         ],
-        continuityMutations: [
+        worldDeltas: [
           { entityName: 'Alice', addedNodes: [{ content: 'Discovered a secret passage', type: 'history' }] },
           { entityName: 'Castle', addedNodes: [{ content: 'Secret passage found in east wing', type: 'history' }] },
         ],
-        relationshipMutations: [
+        relationshipDeltas: [
           { from: 'Alice', to: 'Bob', type: 'growing trust', valenceDelta: 0.2 },
         ],
         artifactUsages: [{ artifactName: 'Magic Sword', characterName: 'Alice', usage: 'cut through the ward barrier' }],
-        ownershipMutations: [],
-        tieMutations: [{ locationName: 'Castle', characterName: 'Alice', action: 'add' as const }],
+        ownershipDeltas: [],
+        tieDeltas: [{ locationName: 'Castle', characterName: 'Alice', action: 'add' as const }],
         characterMovements: [{ characterName: 'Bob', locationName: 'Forest', transition: 'walked into the forest' }],
-        systemMutations: {
+        systemDeltas: {
           addedNodes: [{ concept: 'Ancient Magic', type: 'system' }, { concept: 'Royal Bloodline', type: 'concept' }],
           addedEdges: [{ fromConcept: 'Ancient Magic', toConcept: 'Royal Bloodline', relation: 'enables' }],
         },
@@ -175,7 +175,7 @@ beforeEach(() => {
         characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true, continuity: [] }],
         locations: [{ name: 'Castle', parentName: null, description: 'A castle', lore: [] }],
         threads: [{ description: 'Main quest', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
-        scenes: [{ locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'], events: ['event1'], summary: 'Test scene', sections: [0], prose: 'Test prose', threadMutations: [], continuityMutations: [], relationshipMutations: [] }],
+        scenes: [{ locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'], events: ['event1'], summary: 'Test scene', sections: [0], prose: 'Test prose', threadDeltas: [], worldDeltas: [], relationshipDeltas: [] }],
         relationships: [],
       }),
     }),
@@ -278,14 +278,14 @@ describe('extractSceneStructure', () => {
       artifacts: [{ name: 'Pocket Watch', significance: 'notable', continuity: [], ownerName: null }],
       threads: [{ description: 'Alice finding her way home', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Alice realizes she is lost' }],
       relationships: [{ from: 'Alice', to: 'Cheshire Cat', type: 'uneasy acquaintance', valence: 2 }],
-      threadMutations: [{ threadDescription: 'Alice finding her way home', from: 'dormant', to: 'active', addedNodes: [] }],
-      continuityMutations: [{ entityName: 'Alice', addedNodes: [{ content: 'Fell down the rabbit hole', type: 'history' }] }],
-      relationshipMutations: [{ from: 'Alice', to: 'Cheshire Cat', type: 'uneasy acquaintance', valenceDelta: 0.2 }],
+      threadDeltas: [{ threadDescription: 'Alice finding her way home', from: 'dormant', to: 'active', addedNodes: [] }],
+      worldDeltas: [{ entityName: 'Alice', addedNodes: [{ content: 'Fell down the rabbit hole', type: 'history' }] }],
+      relationshipDeltas: [{ from: 'Alice', to: 'Cheshire Cat', type: 'uneasy acquaintance', valenceDelta: 0.2 }],
       artifactUsages: [{ artifactName: 'Pocket Watch', characterName: null, usage: 'ticked ominously marking the deadline' }],
-      ownershipMutations: [],
-      tieMutations: [],
+      ownershipDeltas: [],
+      tieDeltas: [],
       characterMovements: [{ characterName: 'Alice', locationName: 'Wonderland', transition: 'fell through' }],
-      systemMutations: { addedNodes: [{ concept: 'Size-Altering', type: 'system' }] },
+      systemDeltas: { addedNodes: [{ concept: 'Size-Altering', type: 'system' }] },
     };
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -303,12 +303,12 @@ describe('extractSceneStructure', () => {
     expect(result.locations).toHaveLength(1);
     expect(result.artifacts).toHaveLength(1);
     expect(result.threads).toHaveLength(1);
-    expect(result.threadMutations).toHaveLength(1);
-    expect(result.continuityMutations).toHaveLength(1);
-    expect(result.relationshipMutations).toHaveLength(1);
+    expect(result.threadDeltas).toHaveLength(1);
+    expect(result.worldDeltas).toHaveLength(1);
+    expect(result.relationshipDeltas).toHaveLength(1);
     expect(result.artifactUsages).toHaveLength(1);
     expect(result.characterMovements).toHaveLength(1);
-    expect(result.systemMutations?.addedNodes).toHaveLength(1);
+    expect(result.systemDeltas?.addedNodes).toHaveLength(1);
   });
   it('defaults missing fields to empty arrays/strings', async () => {
     // LLM returns partial JSON — function should fill defaults
@@ -326,12 +326,12 @@ describe('extractSceneStructure', () => {
     expect(result.locations).toEqual([]);
     expect(result.artifacts).toEqual([]);
     expect(result.threads).toEqual([]);
-    expect(result.threadMutations).toEqual([]);
-    expect(result.continuityMutations).toEqual([]);
-    expect(result.relationshipMutations).toEqual([]);
+    expect(result.threadDeltas).toEqual([]);
+    expect(result.worldDeltas).toEqual([]);
+    expect(result.relationshipDeltas).toEqual([]);
     expect(result.artifactUsages).toEqual([]);
-    expect(result.ownershipMutations).toEqual([]);
-    expect(result.tieMutations).toEqual([]);
+    expect(result.ownershipDeltas).toEqual([]);
+    expect(result.tieDeltas).toEqual([]);
     expect(result.characterMovements).toEqual([]);
   });
   it('handles LLM response wrapped in markdown code fence', async () => {
@@ -339,8 +339,8 @@ describe('extractSceneStructure', () => {
       povName: 'Bob', locationName: 'Library', participantNames: ['Bob'],
       events: ['reads_book'], summary: 'Bob reads', characters: [], locations: [],
       artifacts: [], threads: [], relationships: [],
-      threadMutations: [], continuityMutations: [], relationshipMutations: [],
-      artifactUsages: [], ownershipMutations: [], tieMutations: [], characterMovements: [],
+      threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
+      artifactUsages: [], ownershipDeltas: [], tieDeltas: [], characterMovements: [],
     });
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
@@ -493,13 +493,13 @@ describe('reconcileResults', () => {
         threads: [{ description: "Harry's distrust of Snape", participantNames: ['Harry'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
         scenes: [{
           ...createMockAnalysisResult(0).scenes[0],
-          threadMutations: [{ threadDescription: "Harry's distrust of Snape", from: 'dormant', to: 'active', addedNodes: [] }],
+          threadDeltas: [{ threadDescription: "Harry's distrust of Snape", from: 'dormant', to: 'active', addedNodes: [] }],
         }],
       },
     ];
     const reconciled = await reconcileResults(results);
     expect(reconciled[0].threads[0].description).toBe("Harry and Snape's antagonism");
-    expect(reconciled[0].scenes[0].threadMutations[0].threadDescription).toBe("Harry and Snape's antagonism");
+    expect(reconciled[0].scenes[0].threadDeltas[0].threadDescription).toBe("Harry and Snape's antagonism");
   });
   it('merges location names via LLM map', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
@@ -567,47 +567,47 @@ describe('reconcileResults', () => {
       ...createMockAnalysisResult(0),
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
-        systemMutations: {
+        systemDeltas: {
           addedNodes: [{ concept: 'Magical System', type: 'system' }],
           addedEdges: [{ fromConcept: 'Magical System', toConcept: 'Energy', relation: 'enables' }],
         },
       }],
     }];
     const reconciled = await reconcileResults(results);
-    expect(reconciled[0].scenes[0].systemMutations!.addedNodes[0].concept).toBe('Magic System');
-    expect(reconciled[0].scenes[0].systemMutations!.addedEdges[0].fromConcept).toBe('Magic System');
+    expect(reconciled[0].scenes[0].systemDeltas!.addedNodes[0].concept).toBe('Magic System');
+    expect(reconciled[0].scenes[0].systemDeltas!.addedEdges[0].fromConcept).toBe('Magic System');
   });
   it('stitches thread continuity across chunks', async () => {
     const results: AnalysisChunkResult[] = [
       {
         ...createMockAnalysisResult(0),
         threads: [{ description: 'Main quest', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
-        scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadMutations: [{ threadDescription: 'Main quest', from: 'dormant', to: 'active', addedNodes: [] }] }],
+        scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadDeltas: [{ threadDescription: 'Main quest', from: 'dormant', to: 'active', addedNodes: [] }] }],
       },
       {
         ...createMockAnalysisResult(1),
         threads: [{ description: 'Main quest', participantNames: ['Alice', 'Bob'], statusAtStart: 'dormant', statusAtEnd: 'escalating', development: 'Continued' }],
-        scenes: [{ ...createMockAnalysisResult(1).scenes[0], threadMutations: [{ threadDescription: 'Main quest', from: 'dormant', to: 'escalating', addedNodes: [] }] }],
+        scenes: [{ ...createMockAnalysisResult(1).scenes[0], threadDeltas: [{ threadDescription: 'Main quest', from: 'dormant', to: 'escalating', addedNodes: [] }] }],
       },
     ];
     const reconciled = await reconcileResults(results);
     // Chunk 1's statusAtStart should be stitched to chunk 0's statusAtEnd
     expect(reconciled[1].threads[0].statusAtStart).toBe('active');
     // Scene-level mutation from should also be corrected
-    expect(reconciled[1].scenes[0].threadMutations[0].from).toBe('active');
+    expect(reconciled[1].scenes[0].threadDeltas[0].from).toBe('active');
   });
   it('normalizes LLM status variants to canonical vocabulary', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       threads: [{ description: 'Quest', participantNames: ['Hero'], statusAtStart: 'inactive', statusAtEnd: 'developing', development: 'Started' }],
-      scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadMutations: [{ threadDescription: 'Quest', from: 'inactive', to: 'developing', addedNodes: [] }] }],
+      scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadDeltas: [{ threadDescription: 'Quest', from: 'inactive', to: 'developing', addedNodes: [] }] }],
     }];
     const reconciled = await reconcileResults(results);
     // 'inactive' → 'latent', 'developing' → 'seeded'
     expect(reconciled[0].threads[0].statusAtStart).toBe('latent');
     expect(reconciled[0].threads[0].statusAtEnd).toBe('seeded');
-    expect(reconciled[0].scenes[0].threadMutations[0].from).toBe('latent');
-    expect(reconciled[0].scenes[0].threadMutations[0].to).toBe('seeded');
+    expect(reconciled[0].scenes[0].threadDeltas[0].from).toBe('latent');
+    expect(reconciled[0].scenes[0].threadDeltas[0].to).toBe('seeded');
   });
   it('deduplicates characters within same chunk by name', async () => {
     const results: AnalysisChunkResult[] = [{
@@ -698,11 +698,11 @@ describe('reconcileResults', () => {
       ...createMockAnalysisResult(0),
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
-        relationshipMutations: [{ from: 'Al', to: 'Bob', type: 'trust', valenceDelta: 0.3 }],
+        relationshipDeltas: [{ from: 'Al', to: 'Bob', type: 'trust', valenceDelta: 0.3 }],
       }],
     }];
     const reconciled = await reconcileResults(results);
-    expect(reconciled[0].scenes[0].relationshipMutations[0].from).toBe('Alice');
+    expect(reconciled[0].scenes[0].relationshipDeltas[0].from).toBe('Alice');
   });
 });
 // ══════════════════════════════════════════════════════════════════════════════
@@ -839,7 +839,7 @@ describe('assembleNarrative', () => {
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Test', sections: [0],
-        threadMutations: [], continuityMutations: [], relationshipMutations: [],
+        threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
       }],
     }];
     const narrative = await assembleNarrative('Test', results, {});
@@ -855,7 +855,7 @@ describe('assembleNarrative', () => {
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Test', sections: [0],
-        threadMutations: [], continuityMutations: [], relationshipMutations: [],
+        threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
       }],
     }];
     const narrative = await assembleNarrative('Test', results, {});
@@ -871,7 +871,7 @@ describe('assembleNarrative', () => {
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Test', sections: [0],
-        threadMutations: [], continuityMutations: [], relationshipMutations: [],
+        threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
         plan: mockPlan, beatProseMap: mockBeatProseMap, prose: 'Scene prose',
       }],
     }];
@@ -914,7 +914,7 @@ describe('assembleNarrative', () => {
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Test scene', sections: [0], prose: 'Scene prose',
-        threadMutations: [], continuityMutations: [], relationshipMutations: [],
+        threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
         plan: mockPlan, beatProseMap: mockBeatProseMap,
       }],
     }];
@@ -937,8 +937,8 @@ describe('assembleNarrative', () => {
     expect(sword).toBeDefined();
     expect(sword!.significance).toBe('key');
     // Entity continuity graphs start empty — they're built at store replay from
-    // scene.continuityMutations, not during assembly.
-    expect(sword!.continuity).toBeDefined();
+    // scene.worldDeltas, not during assembly.
+    expect(sword!.world).toBeDefined();
     // Owned by Alice — parentId should be Alice's character ID
     expect(sword!.parentId).toBeTruthy();
   });
@@ -946,8 +946,8 @@ describe('assembleNarrative', () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-    expect(scene.threadMutations.length).toBeGreaterThan(0);
-    const threadId = scene.threadMutations[0].threadId;
+    expect(scene.threadDeltas.length).toBeGreaterThan(0);
+    const threadId = scene.threadDeltas[0].threadId;
     expect(narrative.threads[threadId]).toBeDefined();
     expect(narrative.threads[threadId].description).toBe('The Quest for the Crown');
   });
@@ -955,9 +955,9 @@ describe('assembleNarrative', () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-    expect(scene.continuityMutations.length).toBeGreaterThan(0);
+    expect(scene.worldDeltas.length).toBeGreaterThan(0);
     // Each mutation should reference a valid entity
-    for (const cm of scene.continuityMutations) {
+    for (const cm of scene.worldDeltas) {
       const isChar = !!narrative.characters[cm.entityId];
       const isLoc = !!narrative.locations[cm.entityId];
       const isArt = !!narrative.artifacts[cm.entityId];
@@ -968,8 +968,8 @@ describe('assembleNarrative', () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-    expect(scene.relationshipMutations.length).toBeGreaterThan(0);
-    const rm = scene.relationshipMutations[0];
+    expect(scene.relationshipDeltas.length).toBeGreaterThan(0);
+    const rm = scene.relationshipDeltas[0];
     expect(narrative.characters[rm.from]).toBeDefined();
     expect(narrative.characters[rm.to]).toBeDefined();
   });
@@ -999,14 +999,14 @@ describe('assembleNarrative', () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-    expect(scene.systemMutations).toBeDefined();
-    expect(scene.systemMutations!.addedNodes.length).toBeGreaterThan(0);
+    expect(scene.systemDeltas).toBeDefined();
+    expect(scene.systemDeltas!.addedNodes.length).toBeGreaterThan(0);
     // Nodes should have WK- prefixed IDs
-    for (const node of scene.systemMutations!.addedNodes) {
+    for (const node of scene.systemDeltas!.addedNodes) {
       expect(node.id).toMatch(/^WK-/);
     }
     // Edges should reference valid WK IDs
-    for (const edge of scene.systemMutations!.addedEdges) {
+    for (const edge of scene.systemDeltas!.addedEdges) {
       expect(edge.from).toMatch(/^WK-/);
       expect(edge.to).toMatch(/^WK-/);
     }
@@ -1018,8 +1018,8 @@ describe('assembleNarrative', () => {
     expect(worldBuilds.length).toBeGreaterThan(0);
     const firstBuild = worldBuilds[0];
     expect(firstBuild.kind).toBe('world_build');
-    expect(firstBuild.expansionManifest.characters.length).toBeGreaterThan(0);
-    expect(firstBuild.expansionManifest.locations.length).toBeGreaterThan(0);
+    expect(firstBuild.expansionManifest.newCharacters.length).toBeGreaterThan(0);
+    expect(firstBuild.expansionManifest.newLocations.length).toBeGreaterThan(0);
   });
   it('interleaves world builds before their batch scenes in entry IDs', async () => {
     const results = [createRichAnalysisResult(0)];
@@ -1093,10 +1093,10 @@ describe('assembleNarrative', () => {
     const alice = Object.values(narrative.characters).find(c => c.name === 'Alice');
     expect(alice).toBeDefined();
     // Entity continuity starts empty — graphs are built at store replay time from
-    // scene.continuityMutations. Verify mutations landed on the scene instead.
+    // scene.worldDeltas. Verify mutations landed on the scene instead.
     const scenes = Object.values(narrative.scenes);
     const aliceMutations = scenes.flatMap(s =>
-      (s.continuityMutations ?? []).filter(m => m.entityId === alice!.id),
+      (s.worldDeltas ?? []).filter(m => m.entityId === alice!.id),
     );
     expect(aliceMutations.length).toBeGreaterThan(0);
     expect(aliceMutations[0].addedNodes.length).toBeGreaterThan(0);
@@ -1185,7 +1185,7 @@ describe('assembleNarrative', () => {
         ...createMockAnalysisResult(index).scenes[0],
         povName: 'Alice',
         participantNames: ['Alice'],
-        continuityMutations: [
+        worldDeltas: [
           { entityName: 'Alice', addedNodes: [{ content: nodeContent, type: nodeType }] },
         ],
       }],
@@ -1202,7 +1202,7 @@ describe('assembleNarrative', () => {
     // preserves the mutations themselves. Verify each chunk's scene added a node.
     const scenes = Object.values(narrative.scenes);
     const aliceMutationNodes = scenes.flatMap(s =>
-      (s.continuityMutations ?? [])
+      (s.worldDeltas ?? [])
         .filter(m => m.entityId === alices[0].id)
         .flatMap(m => m.addedNodes),
     );
@@ -1212,8 +1212,8 @@ describe('assembleNarrative', () => {
     const results = [createRichAnalysisResult(0)];
     const narrative = await assembleNarrative('Rich Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-    if (scene.tieMutations && scene.tieMutations.length > 0) {
-      for (const tm of scene.tieMutations) {
+    if (scene.tieDeltas && scene.tieDeltas.length > 0) {
+      for (const tm of scene.tieDeltas) {
         expect(narrative.locations[tm.locationId]).toBeDefined();
         expect(narrative.characters[tm.characterId]).toBeDefined();
         expect(['add', 'remove']).toContain(tm.action);
@@ -1251,7 +1251,7 @@ describe('assembleNarrative', () => {
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Test', sections: [0],
-        threadMutations: [], continuityMutations: [], relationshipMutations: [],
+        threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
         // No prose, no plan
       }],
     }];
@@ -1285,18 +1285,18 @@ describe('assembleNarrative', () => {
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Alice sets off', sections: [0],
-        threadMutations: [
+        threadDeltas: [
           // LLM-returned extraction with no log entries — should be synthesized.
           { threadDescription: 'The Quest', from: 'latent', to: 'active', addedNodes: [] },
         ],
-        continuityMutations: [],
-        relationshipMutations: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
       }],
     }];
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-    expect(scene.threadMutations).toHaveLength(1);
-    const tm = scene.threadMutations[0];
+    expect(scene.threadDeltas).toHaveLength(1);
+    const tm = scene.threadDeltas[0];
     expect(tm.addedNodes).toHaveLength(1);
     // Synthesized from the from→to status change.
     expect(tm.addedNodes![0].content).toMatch(/advanced from latent to active/);
@@ -1317,17 +1317,17 @@ describe('assembleNarrative', () => {
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Alice', sections: [0],
-        threadMutations: [
+        threadDeltas: [
           // Invalid: "pulse" is a log node type, never a status.
           { threadDescription: 'The Quest', from: 'pulse', to: 'active', addedNodes: [] },
         ],
-        continuityMutations: [],
-        relationshipMutations: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
       }],
     }];
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-    const tm = scene.threadMutations[0];
+    const tm = scene.threadDeltas[0];
     // "pulse" coerces to "latent" (the safeFrom default), then "active"
     // remains valid — but the synthesized fallback message reflects the
     // coerced statuses, not the invalid input.
@@ -1345,16 +1345,16 @@ describe('assembleNarrative', () => {
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Alice reflects', sections: [0],
-        threadMutations: [
+        threadDeltas: [
           { threadDescription: 'The Quest', from: 'active', to: 'active', addedNodes: [] },
         ],
-        continuityMutations: [],
-        relationshipMutations: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
       }],
     }];
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-    const tm = scene.threadMutations[0];
+    const tm = scene.threadDeltas[0];
     expect(tm.addedNodes).toHaveLength(1);
     expect(tm.addedNodes![0].content).toMatch(/held active without transition/);
     expect(tm.addedNodes![0].type).toBe('pulse');
@@ -1368,7 +1368,7 @@ describe('assembleNarrative', () => {
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Alice sets off', sections: [0],
-        threadMutations: [{
+        threadDeltas: [{
           threadDescription: 'The Quest',
           from: 'dormant',
           to: 'active',
@@ -1377,13 +1377,13 @@ describe('assembleNarrative', () => {
             { content: 'She weighs the cost', type: 'escalation' },
           ],
         }],
-        continuityMutations: [],
-        relationshipMutations: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
       }],
     }];
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
-    const tm = scene.threadMutations[0];
+    const tm = scene.threadDeltas[0];
     // Two LLM-provided nodes — no synthesis, no duplication.
     expect(tm.addedNodes).toHaveLength(2);
     expect(tm.addedNodes![0].content).toBe('Alice receives the mandate');

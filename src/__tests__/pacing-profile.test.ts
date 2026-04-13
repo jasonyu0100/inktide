@@ -25,9 +25,9 @@ function createScene(overrides: Partial<Scene> = {}): Scene {
     locationId: "L-01",
     participantIds: ["C-01"],
     events: [],
-    threadMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
+    threadDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
     summary: "Test scene",
     ...overrides,
   };
@@ -92,16 +92,16 @@ describe("computeMatrixFromNarrative", () => {
     const scenes = [
       createScene({
         id: "S-001",
-        threadMutations: [],
-        continuityMutations: [],
+        threadDeltas: [],
+        worldDeltas: [],
         events: [],
       }),
       createScene({
         id: "S-002",
-        threadMutations: [
+        threadDeltas: [
           { threadId: "T-01", from: "dormant", to: "active", addedNodes: [] },
         ],
-        continuityMutations: [
+        worldDeltas: [
           {
             entityId: "C-01",
             addedNodes: [{ id: "K-01", content: "x", type: "history" }],
@@ -111,10 +111,10 @@ describe("computeMatrixFromNarrative", () => {
       }),
       createScene({
         id: "S-003",
-        threadMutations: [
+        threadDeltas: [
           { threadId: "T-01", from: "active", to: "critical", addedNodes: [] },
         ],
-        continuityMutations: [
+        worldDeltas: [
           {
             entityId: "C-01",
             addedNodes: [{ id: "K-02", content: "y", type: "belief" }],
@@ -237,16 +237,16 @@ describe("detectCurrentMode", () => {
     const scenes = [
       createScene({
         id: "S-001",
-        threadMutations: [
+        threadDeltas: [
           { threadId: "T-01", from: "dormant", to: "resolved", addedNodes: [] },
           { threadId: "T-02", from: "dormant", to: "resolved", addedNodes: [] },
         ],
-        continuityMutations: Array(10).fill({
+        worldDeltas: Array(10).fill({
           entityId: "C-01",
           addedNodes: [{ id: "K-01", content: "x", type: "history" }],
         }),
         events: Array(10).fill("event"),
-        systemMutations: {
+        systemDeltas: {
           addedNodes: Array(5).fill({
             id: "K-01",
             concept: "x",
@@ -352,13 +352,13 @@ describe("initMatrixPresets", () => {
     const workNarrative = createNarrative([
       createScene({
         id: "S-001",
-        threadMutations: [
+        threadDeltas: [
           { threadId: "T-01", from: "dormant", to: "active", addedNodes: [] },
         ],
       }),
       createScene({
         id: "S-002",
-        threadMutations: [
+        threadDeltas: [
           {
             threadId: "T-01",
             from: "active",
@@ -369,7 +369,7 @@ describe("initMatrixPresets", () => {
       }),
       createScene({
         id: "S-003",
-        threadMutations: [
+        threadDeltas: [
           {
             threadId: "T-01",
             from: "escalating",
@@ -380,7 +380,7 @@ describe("initMatrixPresets", () => {
       }),
       createScene({
         id: "S-004",
-        threadMutations: [
+        threadDeltas: [
           {
             threadId: "T-01",
             from: "critical",

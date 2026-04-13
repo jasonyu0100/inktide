@@ -26,12 +26,12 @@ function createMinimalNarrative(): NarrativeState {
     description: 'A test story',
     worldSummary: 'A test world with magic and adventure.',
     characters: {
-      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
-      'C-02': { id: 'C-02', name: 'Mentor', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] },
+      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', world: { nodes: {}, edges: [] }, threadIds: [] },
+      'C-02': { id: 'C-02', name: 'Mentor', role: 'recurring', world: { nodes: {}, edges: [] }, threadIds: [] },
     },
     locations: {
-      'L-01': { id: 'L-01', name: 'Village', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
-      'L-02': { id: 'L-02', name: 'Forest', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
+      'L-01': { id: 'L-01', name: 'Village', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], world: { nodes: {}, edges: [] }, threadIds: [] },
+      'L-02': { id: 'L-02', name: 'Forest', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], world: { nodes: {}, edges: [] }, threadIds: [] },
     },
     threads: {
       'T-01': { id: 'T-01', description: 'Save the kingdom', status: 'active', participants: [], dependents: [], openedAt: 'S-01', threadLog: { nodes: {}, edges: [] } },
@@ -48,9 +48,9 @@ function createMinimalNarrative(): NarrativeState {
         povId: 'C-01',
         participantIds: ['C-01'],
         events: ['Wakes up'],
-        threadMutations: [],
-        continuityMutations: [],
-        relationshipMutations: [],
+        threadDeltas: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
         summary: 'Hero wakes in village',
         proseVersions: [{
           prose: 'The morning sun crept through the window. Hero stretched and yawned, ready for adventure.',
@@ -68,9 +68,9 @@ function createMinimalNarrative(): NarrativeState {
         povId: 'C-01',
         participantIds: ['C-01', 'C-02'],
         events: ['Meets mentor'],
-        threadMutations: [],
-        continuityMutations: [],
-        relationshipMutations: [],
+        threadDeltas: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
         summary: 'Hero meets mentor',
         proseVersions: [{
           prose: 'Mentor appeared at the door. "Your journey begins today," he said.',
@@ -88,9 +88,9 @@ function createMinimalNarrative(): NarrativeState {
         povId: 'C-01',
         participantIds: ['C-01'],
         events: ['Enters forest'],
-        threadMutations: [],
-        continuityMutations: [],
-        relationshipMutations: [],
+        threadDeltas: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
         summary: 'Hero enters the dark forest',
         proseVersions: [{
           prose: 'The trees closed around Hero as he stepped into the forest. Shadows moved.',
@@ -353,9 +353,9 @@ describe('rewriteSceneProse', () => {
       povId: 'C-01',
       participantIds: ['C-01'],
       events: [],
-      threadMutations: [],
-      continuityMutations: [],
-      relationshipMutations: [],
+      threadDeltas: [],
+      worldDeltas: [],
+      relationshipDeltas: [],
       summary: 'Orphan scene',
     };
     narrative.scenes['S-ORPHAN'] = orphanScene;

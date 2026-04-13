@@ -1074,7 +1074,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
         swing: 0,
         corner: corner.name,
         cornerKey: corner.key as CubeCornerKey,
-        threadChanges: scene.threadMutations.map(
+        threadChanges: scene.threadDeltas.map(
           (tm) => `${narrative.threads[tm.threadId]?.description?.slice(0, 50) ?? tm.threadId}: ${tm.from} → ${tm.to}`
         ),
       };

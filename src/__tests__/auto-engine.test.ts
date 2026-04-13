@@ -29,9 +29,9 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     participantIds: ["char-1"],
     summary: `Scene ${id} summary`,
     events: ["Event 1"],
-    threadMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
+    threadDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
     characterMovements: {},
     ...overrides,
   };
@@ -57,7 +57,7 @@ function createCharacter(
     name: `Character ${id}`,
     role: "recurring",
     threadIds: [],
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -72,7 +72,7 @@ function createLocation(
     parentId: null,
     tiedCharacterIds: [],
     threadIds: [],
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -643,7 +643,7 @@ describe("evaluateNarrativeState", () => {
     // Add scenes without any thread mutations
     for (let i = 0; i < 5; i++) {
       narrative.scenes[`S-${i}`] = createScene(`S-${i}`, {
-        threadMutations: [],
+        threadDeltas: [],
       });
     }
     const config = createAutoConfig({

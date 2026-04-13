@@ -31,11 +31,11 @@ export type ReconstructionCallbacks = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Normalize systemMutations with safe defaults for addedNodes/addedEdges */
-function normalizeSystemMutations(
-  parsed: Scene['systemMutations'] | undefined,
-  fallback: Scene['systemMutations'] | undefined,
-): NonNullable<Scene['systemMutations']> {
+/** Normalize systemDeltas with safe defaults for addedNodes/addedEdges */
+function normalizeSystemDeltas(
+  parsed: Scene['systemDeltas'] | undefined,
+  fallback: Scene['systemDeltas'] | undefined,
+): NonNullable<Scene['systemDeltas']> {
   const source = parsed ?? fallback;
   return {
     addedNodes: source?.addedNodes ?? [],
@@ -198,9 +198,9 @@ export async function reconstructBranch(
         povId: ref?.povId ?? '',
         participantIds: [],
         events: [],
-        threadMutations: [],
-        continuityMutations: [],
-        relationshipMutations: [],
+        threadDeltas: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
         summary: ins.reason,
       };
       const insertItem: Extract<TimelineItem, { type: 'scene' }> = {
@@ -298,9 +298,9 @@ export async function reconstructBranch(
         povId: ref?.povId ?? '',
         participantIds: [],
         events: [],
-        threadMutations: [],
-        continuityMutations: [],
-        relationshipMutations: [],
+        threadDeltas: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
         summary: ins.reason,
       };
       items.push({ type: 'scene', index: sceneEntries.length, scene: placeholder, verdict: 'insert', reason: ins.reason, newId: insertId });
@@ -581,10 +581,10 @@ ${JSON.stringify({
   participantIds: scene.participantIds,
   artifactUsages: scene.artifactUsages ?? [],
   events: scene.events,
-  threadMutations: scene.threadMutations,
-  continuityMutations: scene.continuityMutations,
-  relationshipMutations: scene.relationshipMutations,
-  systemMutations: scene.systemMutations,
+  threadDeltas: scene.threadDeltas,
+  worldDeltas: scene.worldDeltas,
+  relationshipDeltas: scene.relationshipDeltas,
+  systemDeltas: scene.systemDeltas,
   summary: scene.summary,
 }, null, 2)}
 
@@ -607,9 +607,9 @@ Return JSON:
   "events": ["event_tag"],
   "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "systemMutations": {"addedNodes": [], "addedEdges": []},
-  "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
+  "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
+  "systemDeltas": {"addedNodes": [], "addedEdges": []},
+  "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
   "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."
 }`;
 
@@ -624,11 +624,11 @@ Return JSON:
     participantIds: parsed.participantIds ?? scene.participantIds,
     artifactUsages: parsed.artifactUsages ?? scene.artifactUsages,
     events: parsed.events ?? scene.events,
-    threadMutations: parsed.threadMutations ?? scene.threadMutations,
-    continuityMutations: parsed.continuityMutations ?? scene.continuityMutations,
-    relationshipMutations: parsed.relationshipMutations ?? scene.relationshipMutations,
-    systemMutations: normalizeSystemMutations(parsed.systemMutations, scene.systemMutations),
-    tieMutations: parsed.tieMutations ?? scene.tieMutations,
+    threadDeltas: parsed.threadDeltas ?? scene.threadDeltas,
+    worldDeltas: parsed.worldDeltas ?? scene.worldDeltas,
+    relationshipDeltas: parsed.relationshipDeltas ?? scene.relationshipDeltas,
+    systemDeltas: normalizeSystemDeltas(parsed.systemDeltas, scene.systemDeltas),
+    tieDeltas: parsed.tieDeltas ?? scene.tieDeltas,
     summary: parsed.summary ?? scene.summary,
     audioUrl: undefined,
   };
@@ -664,7 +664,7 @@ async function mergeScenes(
   ].filter(Boolean).join('\n');
 
   const sourceBlock = sourcesToAbsorb
-    .map((s, i) => `SOURCE ${i + 1} (${s.id}):\n  Summary: ${s.summary}\n  Events: ${s.events.join(', ')}\n  Threads: ${s.threadMutations.map((tm) => `${tm.threadId}: ${tm.from}→${tm.to}`).join(', ')}`)
+    .map((s, i) => `SOURCE ${i + 1} (${s.id}):\n  Summary: ${s.summary}\n  Events: ${s.events.join(', ')}\n  Threads: ${s.threadDeltas.map((tm) => `${tm.threadId}: ${tm.from}→${tm.to}`).join(', ')}`)
     .join('\n\n');
 
   const prompt = `${ctx}
@@ -683,9 +683,9 @@ ${JSON.stringify({
   povId: targetScene.povId,
   participantIds: targetScene.participantIds,
   events: targetScene.events,
-  threadMutations: targetScene.threadMutations,
-  continuityMutations: targetScene.continuityMutations,
-  relationshipMutations: targetScene.relationshipMutations,
+  threadDeltas: targetScene.threadDeltas,
+  worldDeltas: targetScene.worldDeltas,
+  relationshipDeltas: targetScene.relationshipDeltas,
   summary: targetScene.summary,
 }, null, 2)}
 
@@ -710,8 +710,8 @@ Return JSON:
   "events": ["event_tag"],
   "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "systemMutations": {"addedNodes": [], "addedEdges": []},
+  "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
+  "systemDeltas": {"addedNodes": [], "addedEdges": []},
   "summary": "Rich prose sentences using character NAMES (never IDs) combining the strongest elements from all merged scenes."
 }`;
 
@@ -725,10 +725,10 @@ Return JSON:
     povId: parsed.povId ?? targetScene.povId,
     participantIds: parsed.participantIds ?? targetScene.participantIds,
     events: parsed.events ?? targetScene.events,
-    threadMutations: parsed.threadMutations ?? targetScene.threadMutations,
-    continuityMutations: parsed.continuityMutations ?? targetScene.continuityMutations,
-    relationshipMutations: parsed.relationshipMutations ?? targetScene.relationshipMutations,
-    systemMutations: normalizeSystemMutations(parsed.systemMutations, targetScene.systemMutations),
+    threadDeltas: parsed.threadDeltas ?? targetScene.threadDeltas,
+    worldDeltas: parsed.worldDeltas ?? targetScene.worldDeltas,
+    relationshipDeltas: parsed.relationshipDeltas ?? targetScene.relationshipDeltas,
+    systemDeltas: normalizeSystemDeltas(parsed.systemDeltas, targetScene.systemDeltas),
     summary: parsed.summary ?? targetScene.summary,
     audioUrl: undefined,
   };
@@ -773,9 +773,9 @@ Return JSON:
   "events": ["event_tag"],
   "threadMutations": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
   "continuityMutations": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
-  "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-  "systemMutations": {"addedNodes": [], "addedEdges": []},
-  "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
+  "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
+  "systemDeltas": {"addedNodes": [], "addedEdges": []},
+  "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
   "summary": "Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings."
 }`;
 
@@ -791,10 +791,10 @@ Return JSON:
     povId: parsed.povId ?? '',
     participantIds: parsed.participantIds ?? [],
     events: parsed.events ?? [],
-    threadMutations: parsed.threadMutations ?? [],
-    continuityMutations: parsed.continuityMutations ?? [],
-    relationshipMutations: parsed.relationshipMutations ?? [],
-    systemMutations: normalizeSystemMutations(parsed.systemMutations, undefined),
+    threadDeltas: parsed.threadDeltas ?? [],
+    worldDeltas: parsed.worldDeltas ?? [],
+    relationshipDeltas: parsed.relationshipDeltas ?? [],
+    systemDeltas: normalizeSystemDeltas(parsed.systemDeltas, undefined),
     summary: parsed.summary ?? brief,
   };
 }

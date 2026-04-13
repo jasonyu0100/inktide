@@ -8,14 +8,14 @@
 // ── Core Prompts ────────────────────────────────────────────────────────────
 export { PROMPT_FORCE_STANDARDS, buildForceStandardsPrompt } from './core/forces';
 export { PROMPT_STRUCTURAL_RULES } from './core/structural-rules';
-export { PROMPT_MUTATIONS } from './core/mutations';
+export { PROMPT_DELTAS } from './core/mutations';
 export { PROMPT_BEAT_TAXONOMY } from './core/beat-taxonomy';
 
 // ── Entity Prompts ──────────────────────────────────────────────────────────
 export { PROMPT_ARTIFACTS } from './entities/artifacts';
 export { PROMPT_LOCATIONS } from './entities/locations';
 export { PROMPT_ENTITY_INTEGRATION } from './entities/integration';
-export { PROMPT_CONTINUITY } from './entities/continuity';
+export { PROMPT_WORLD } from './entities/continuity';
 
 // ── Scene Prompts ───────────────────────────────────────────────────────────
 export { PROMPT_POV } from './scenes/pov';
@@ -29,35 +29,35 @@ export {
 // ── Schemas ─────────────────────────────────────────────────────────────────
 export {
   // Generation schemas (ID-based)
-  SCHEMA_THREAD_MUTATIONS,
-  SCHEMA_CONTINUITY_MUTATIONS,
-  SCHEMA_RELATIONSHIP_MUTATIONS,
-  SCHEMA_SYSTEM_MUTATIONS,
+  SCHEMA_THREAD_DELTAS,
+  SCHEMA_WORLD_DELTAS,
+  SCHEMA_RELATIONSHIP_DELTAS,
+  SCHEMA_SYSTEM_DELTAS,
   SCHEMA_ARTIFACT_USAGES,
-  SCHEMA_OWNERSHIP_MUTATIONS,
-  SCHEMA_TIE_MUTATIONS,
+  SCHEMA_OWNERSHIP_DELTAS,
+  SCHEMA_TIE_DELTAS,
   SCHEMA_CHARACTER_MOVEMENTS,
   SCHEMA_EVENTS,
-  SCHEMA_SCENE_MUTATIONS,
+  SCHEMA_SCENE_DELTAS,
   // Analysis schemas (name-based)
-  SCHEMA_ANALYSIS_THREAD_MUTATIONS,
-  SCHEMA_ANALYSIS_CONTINUITY_MUTATIONS,
-  SCHEMA_ANALYSIS_RELATIONSHIP_MUTATIONS,
+  SCHEMA_ANALYSIS_THREAD_DELTAS,
+  SCHEMA_ANALYSIS_WORLD_DELTAS,
+  SCHEMA_ANALYSIS_RELATIONSHIP_DELTAS,
   SCHEMA_ANALYSIS_ARTIFACT_USAGES,
-  SCHEMA_ANALYSIS_OWNERSHIP_MUTATIONS,
-  SCHEMA_ANALYSIS_TIE_MUTATIONS,
+  SCHEMA_ANALYSIS_OWNERSHIP_DELTAS,
+  SCHEMA_ANALYSIS_TIE_DELTAS,
   SCHEMA_ANALYSIS_CHARACTER_MOVEMENTS,
-  SCHEMA_ANALYSIS_SYSTEM_MUTATIONS,
+  SCHEMA_ANALYSIS_SYSTEM_DELTAS,
 } from './schemas/mutations';
 
 export {
   // Entity creation schemas
   SCHEMA_CHARACTER_CREATION,
-  SCHEMA_CHARACTER_CONTINUITY_NODE,
+  SCHEMA_CHARACTER_WORLD_NODE,
   SCHEMA_LOCATION_CREATION,
-  SCHEMA_LOCATION_CONTINUITY_NODE,
+  SCHEMA_LOCATION_WORLD_NODE,
   SCHEMA_ARTIFACT_CREATION,
-  SCHEMA_ARTIFACT_CONTINUITY_NODE,
+  SCHEMA_ARTIFACT_WORLD_NODE,
   SCHEMA_THREAD_CREATION,
   SCHEMA_RELATIONSHIP_CREATION,
   // Analysis entity schemas

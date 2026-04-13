@@ -1,4 +1,4 @@
-import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, SystemGraph, SystemNode, SystemEdge, SystemMutation, WorldBuild, Character, Location, Artifact } from '@/types/narrative';
+import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, SystemGraph, SystemNode, SystemEdge, SystemDelta, WorldBuild, Character, Location, Artifact } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX } from '@/lib/constants';
 
@@ -364,7 +364,7 @@ function getResolvedPlanVersionAtTime(
 }
 
 /**
- * Compute thread statuses at a given scene index by replaying threadMutations.
+ * Compute thread statuses at a given scene index by replaying threadDeltas.
  * Returns a map of threadId → current status.
  */
 export function computeThreadStatuses(
@@ -383,7 +383,7 @@ export function computeThreadStatuses(
   for (let i = 0; i <= sceneIndex && i < sceneKeys.length; i++) {
     const scene = narrative.scenes[sceneKeys[i]];
     if (!scene) continue;
-    for (const tm of scene.threadMutations) {
+    for (const tm of scene.threadDeltas) {
       statuses[tm.threadId] = tm.to;
     }
   }
@@ -395,7 +395,7 @@ export function computeThreadStatuses(
 export function computeActiveArcs(threadId: string, scenes: Record<string, Scene>): number {
   const arcIds = new Set<string>();
   for (const scene of Object.values(scenes)) {
-    if (scene.threadMutations.some((tm) => tm.threadId === threadId)) {
+    if (scene.threadDeltas.some((tm) => tm.threadId === threadId)) {
       arcIds.add(scene.arcId);
     }
   }
@@ -437,21 +437,21 @@ export function detectStaleThreads(
 
   // Track last transition scene for each thread
   const lastTransition: Record<string, number> = {};
-  const mutationCounts: Record<string, { transitions: number; pulses: number }> = {};
+  const deltaCounts: Record<string, { transitions: number; pulses: number }> = {};
 
   for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
     const scene = narrative.scenes[resolvedEntryKeys[i]];
     if (!scene) continue;
 
-    for (const tm of scene.threadMutations) {
-      if (!mutationCounts[tm.threadId]) {
-        mutationCounts[tm.threadId] = { transitions: 0, pulses: 0 };
+    for (const tm of scene.threadDeltas) {
+      if (!deltaCounts[tm.threadId]) {
+        deltaCounts[tm.threadId] = { transitions: 0, pulses: 0 };
       }
       if (tm.from !== tm.to) {
         lastTransition[tm.threadId] = i;
-        mutationCounts[tm.threadId].transitions++;
+        deltaCounts[tm.threadId].transitions++;
       } else {
-        mutationCounts[tm.threadId].pulses++;
+        deltaCounts[tm.threadId].pulses++;
       }
     }
   }
@@ -465,7 +465,7 @@ export function detectStaleThreads(
 
     const lastTrans = lastTransition[threadId] ?? -1;
     const scenesSince = lastTrans >= 0 ? currentSceneIndex - lastTrans : currentSceneIndex + 1;
-    const counts = mutationCounts[threadId] ?? { transitions: 0, pulses: 0 };
+    const counts = deltaCounts[threadId] ?? { transitions: 0, pulses: 0 };
     const totalMuts = counts.transitions + counts.pulses;
     const pulseRatio = totalMuts > 0 ? counts.pulses / totalMuts : 0;
 
@@ -689,7 +689,7 @@ function getStageWeight(from: string, to: string): number {
  */
 function computeRawFate(scene: Scene): number {
   let score = 0;
-  for (const tm of scene.threadMutations) {
+  for (const tm of scene.threadDeltas) {
     const from = tm.from.toLowerCase();
     const to = tm.to.toLowerCase();
     score += getStageWeight(from, to);
@@ -708,8 +708,8 @@ function rawWorld(scene: Scene): number {
   // Nodes contribute linearly; edges are derived from chain-by-order (one
   // per pair of adjacent new nodes), so per mutation the edge count is
   // max(0, nodes - 1).
-  const contNodes = scene.continuityMutations.reduce((sum, km) => sum + (km.addedNodes?.length ?? 0), 0);
-  const contEdges = scene.continuityMutations.reduce((sum, km) => sum + Math.max(0, (km.addedNodes?.length ?? 0) - 1), 0);
+  const contNodes = scene.worldDeltas.reduce((sum, km) => sum + (km.addedNodes?.length ?? 0), 0);
+  const contEdges = scene.worldDeltas.reduce((sum, km) => sum + Math.max(0, (km.addedNodes?.length ?? 0) - 1), 0);
   return contNodes + Math.sqrt(contEdges);
 }
 
@@ -728,7 +728,7 @@ function rawWorld(scene: Scene): number {
  *    0 nodes, 4 edges → S = 2        (pure reconnection)
  *    0 nodes, 10 edges → S = 3.2     (diminishing returns) */
 function rawSystem(scene: Scene): number {
-  const wkm = scene.systemMutations;
+  const wkm = scene.systemDeltas;
   if (!wkm) return 0;
   const n = wkm.addedNodes?.length ?? 0;
   const e = wkm.addedEdges?.length ?? 0;
@@ -751,7 +751,7 @@ export function rankSystemNodes(graph: SystemGraph): { node: SystemNode; degree:
 }
 
 /** Build the cumulative system graph up to a given scene index
- *  by replaying systemMutations from both scenes and world build commits. */
+ *  by replaying systemDeltas from both scenes and world build commits. */
 export function buildCumulativeSystemGraph(
   scenes: Record<string, Scene>,
   resolvedKeys: string[],
@@ -761,7 +761,7 @@ export function buildCumulativeSystemGraph(
   const nodes: Record<string, SystemNode> = {};
   const edges: SystemEdge[] = [];
 
-  const applyMutation = (wkm: SystemMutation) => {
+  const applyDelta = (wkm: SystemDelta) => {
     for (const n of wkm.addedNodes ?? []) {
       if (!nodes[n.id]) nodes[n.id] = { id: n.id, concept: n.concept, type: n.type };
     }
@@ -775,12 +775,12 @@ export function buildCumulativeSystemGraph(
   for (let i = 0; i <= upToIndex && i < resolvedKeys.length; i++) {
     const key = resolvedKeys[i];
     const scene = scenes[key];
-    if (scene?.systemMutations) {
-      applyMutation(scene.systemMutations);
+    if (scene?.systemDeltas) {
+      applyDelta(scene.systemDeltas);
     }
     const wb = worldBuilds?.[key];
-    if (wb?.expansionManifest.systemMutations) {
-      applyMutation(wb.expansionManifest.systemMutations);
+    if (wb?.expansionManifest.systemDeltas) {
+      applyDelta(wb.expansionManifest.systemDeltas);
     }
   }
   return { nodes, edges };

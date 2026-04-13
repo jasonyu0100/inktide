@@ -72,12 +72,12 @@ const mockStructureResult = {
   artifacts: [],
   threads: [{ description: 'Exploration', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
   relationships: [],
-  threadMutations: [{ threadDescription: 'Exploration', from: 'dormant', to: 'active', addedNodes: [] }],
-  continuityMutations: [],
-  relationshipMutations: [],
+  threadDeltas: [{ threadDescription: 'Exploration', from: 'dormant', to: 'active', addedNodes: [] }],
+  worldDeltas: [],
+  relationshipDeltas: [],
   artifactUsages: [],
-  ownershipMutations: [],
-  tieMutations: [],
+  ownershipDeltas: [],
+  tieDeltas: [],
   characterMovements: [],
 };
 // Speed up tests: eliminate all setTimeout delays (retries, backoffs, afterEach cleanup)
@@ -194,7 +194,7 @@ describe('AnalysisRunner — Phase 1: Plans', () => {
             events: ['event'], summary: 'Existing', sections: [],
             prose: 'Existing prose',
             plan: { beats: [{ fn: 'advance', mechanism: 'action', what: 'existing', propositions: [] }] },
-            threadMutations: [], continuityMutations: [], relationshipMutations: [],
+            threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
           }],
           relationships: [],
         },
@@ -257,8 +257,8 @@ describe('AnalysisRunner — Phase 2: Structure', () => {
     const scene = reconciledInput[0].scenes[0];
     expect(scene.povName).toBe('Alice');
     expect(scene.locationName).toBe('Castle');
-    expect(scene.threadMutations).toHaveLength(1);
-    expect(scene.threadMutations[0].threadDescription).toBe('Exploration');
+    expect(scene.threadDeltas).toHaveLength(1);
+    expect(scene.threadDeltas[0].threadDescription).toBe('Exploration');
   });
   it('populates chunk-level entities from structure result', async () => {
     const job = createMockJob();
@@ -332,7 +332,7 @@ describe('AnalysisRunner — Phase 4: Reconciliation', () => {
     const reconciledResult: AnalysisChunkResult = {
       chapterSummary: 'RECONCILED',
       characters: [], locations: [], threads: [],
-      scenes: [{ locationName: '', povName: '', participantNames: [], events: [], summary: '', sections: [], threadMutations: [], continuityMutations: [], relationshipMutations: [] }],
+      scenes: [{ locationName: '', povName: '', participantNames: [], events: [], summary: '', sections: [], threadDeltas: [], worldDeltas: [], relationshipDeltas: [] }],
       relationships: [],
     };
     vi.mocked(reconcileResults).mockResolvedValue([reconciledResult, reconciledResult]);
@@ -643,7 +643,7 @@ describe('AnalysisRunner — Edge Cases', () => {
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Done', sections: [], prose: 'Done prose',
         plan: { beats: [{ fn: 'advance', mechanism: 'action', what: 'done', propositions: [] }] },
-        threadMutations: [], continuityMutations: [], relationshipMutations: [],
+        threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
       }],
       relationships: [],
     };

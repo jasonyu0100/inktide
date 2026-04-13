@@ -3,18 +3,18 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
-import { getContinuityNodesAtScene, getContinuityEdgesAtScene } from '@/lib/scene-filter';
-import { CONTINUITY_FILL } from './graph-utils';
-import type { ContinuityNode, ContinuityEdge, Continuity } from '@/types/narrative';
-import { CONTINUITY_NODE_TYPES } from '@/types/narrative';
+import { getWorldNodesAtScene, getWorldEdgesAtScene } from '@/lib/scene-filter';
+import { WORLD_FILL } from './graph-utils';
+import type { WorldNode, WorldEdge, World } from '@/types/narrative';
+import { WORLD_NODE_TYPES } from '@/types/narrative';
 
 type CNode = d3.SimulationNodeDatum & { id: string; content: string; type: string; degree: number };
 type CLink = d3.SimulationLinkDatum<CNode> & { relation: string };
 
-export default function ContinuityGraphView({ entityId, entityName, continuity, scenes, resolvedKeys, currentIndex }: {
+export default function EntityWorldGraphView({ entityId, entityName, world, scenes, resolvedKeys, currentIndex }: {
   entityId: string;
   entityName: string;
-  continuity: Continuity;
+  world: World;
   scenes: Record<string, import('@/types/narrative').Scene>;
   resolvedKeys: string[];
   currentIndex: number;
@@ -31,10 +31,10 @@ export default function ContinuityGraphView({ entityId, entityName, continuity, 
   const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string; type: string; degree: number } | null>(null);
 
   const graphData = useMemo(() => {
-    const nodes = getContinuityNodesAtScene(continuity.nodes, entityId, scenes, resolvedKeys, currentIndex);
-    const edges = getContinuityEdgesAtScene(continuity.edges, entityId, scenes, resolvedKeys, currentIndex, continuity.nodes);
+    const nodes = getWorldNodesAtScene(world.nodes, entityId, scenes, resolvedKeys, currentIndex);
+    const edges = getWorldEdgesAtScene(world.edges, entityId, scenes, resolvedKeys, currentIndex, world.nodes);
     return { nodes, edges };
-  }, [continuity, entityId, scenes, resolvedKeys, currentIndex]);
+  }, [world, entityId, scenes, resolvedKeys, currentIndex]);
 
   // Initial setup
   useEffect(() => {
@@ -47,8 +47,8 @@ export default function ContinuityGraphView({ entityId, entityName, continuity, 
 
     // Glow filters per type
     const defs = svg.append('defs');
-    for (const type of CONTINUITY_NODE_TYPES) {
-      const color = CONTINUITY_FILL[type] ?? '#fff';
+    for (const type of WORLD_NODE_TYPES) {
+      const color = WORLD_FILL[type] ?? '#fff';
       const filter = defs.append('filter').attr('id', `c-glow-${type}`).attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
       filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
       filter.append('feFlood').attr('flood-color', color).attr('flood-opacity', '0.5').attr('result', 'color');
@@ -129,7 +129,7 @@ export default function ContinuityGraphView({ entityId, entityName, continuity, 
     const nodeAll = nodeSel.enter().append('circle').style('cursor', 'pointer').merge(nodeSel);
     nodeAll
       .attr('r', nodeRadius)
-      .attr('fill', (d) => showTypes ? (CONTINUITY_FILL[d.type] ?? '#888') : '#888')
+      .attr('fill', (d) => showTypes ? (WORLD_FILL[d.type] ?? '#888') : '#888')
       .attr('filter', (d) => showTypes ? `url(#c-glow-${d.type})` : 'none')
       .attr('opacity', 0.9);
 
@@ -149,7 +149,7 @@ export default function ContinuityGraphView({ entityId, entityName, continuity, 
       .on('mouseleave', () => setTooltip(null))
       .on('click', (_event, d) => {
         _event.stopPropagation();
-        dispatch({ type: 'SET_INSPECTOR', context: { type: 'continuity', entityId, nodeId: d.id } });
+        dispatch({ type: 'SET_INSPECTOR', context: { type: 'world', entityId, nodeId: d.id } });
       });
 
     // Labels
@@ -159,7 +159,7 @@ export default function ContinuityGraphView({ entityId, entityName, continuity, 
     labelSel.exit().remove();
     const labelAll = labelSel.enter().append('text').attr('text-anchor', 'middle').merge(labelSel);
     labelAll
-      .attr('fill', (d) => showTypes ? (CONTINUITY_FILL[d.type] ?? '#ccc') : '#ccc')
+      .attr('fill', (d) => showTypes ? (WORLD_FILL[d.type] ?? '#ccc') : '#ccc')
       .attr('font-size', (d) => `${Math.max(9, 9 + (d.degree / maxDegree) * 4)}px`)
       .attr('font-weight', (d) => d.degree >= maxDegree * 0.5 ? '600' : '400')
       .attr('display', showLabels ? 'block' : 'none')
@@ -228,9 +228,9 @@ export default function ContinuityGraphView({ entityId, entityName, continuity, 
           <>
             <div className="w-px h-3 bg-border mx-1" />
             <div className="flex items-center gap-1.5 overflow-x-auto">
-              {CONTINUITY_NODE_TYPES.map((t) => (
+              {WORLD_NODE_TYPES.map((t) => (
                 <div key={t} className="flex items-center gap-1 shrink-0">
-                  <div className="w-2 h-2 rounded-full" style={{ background: CONTINUITY_FILL[t] }} />
+                  <div className="w-2 h-2 rounded-full" style={{ background: WORLD_FILL[t] }} />
                   <span className="text-[8px] text-text-dim/60 capitalize">{t}</span>
                 </div>
               ))}
@@ -252,7 +252,7 @@ export default function ContinuityGraphView({ entityId, entityName, continuity, 
           >
             <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl w-72">
               <div className="flex items-start gap-2 mb-1">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: CONTINUITY_FILL[tooltip.type] ?? '#888', boxShadow: `0 0 6px ${CONTINUITY_FILL[tooltip.type] ?? '#888'}80` }} />
+                <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: WORLD_FILL[tooltip.type] ?? '#888', boxShadow: `0 0 6px ${WORLD_FILL[tooltip.type] ?? '#888'}80` }} />
                 <div>
                   <span className="text-xs font-semibold text-text-primary">{tooltip.content.slice(0, 80)}{tooltip.content.length > 80 ? '...' : ''}</span>
                   <span className="text-[10px] text-text-dim capitalize ml-1">({tooltip.type})</span>

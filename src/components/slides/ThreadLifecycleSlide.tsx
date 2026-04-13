@@ -52,7 +52,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
       // Pulses
       const pulseScenes: number[] = [];
       for (let i = 0; i < data.scenes.length; i++) {
-        for (const tm of data.scenes[i].threadMutations) {
+        for (const tm of data.scenes[i].threadDeltas) {
           if (tm.threadId === tl.threadId && tm.from === tm.to) pulseScenes.push(i);
         }
       }

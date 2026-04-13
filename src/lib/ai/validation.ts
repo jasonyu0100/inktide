@@ -257,13 +257,13 @@ export function validateExtractionResult(data: any): ValidationResult {
 }
 
 /**
- * Validates system mutation extraction results
+ * Validates system delta extraction results
  */
-export function validateSystemMutation(data: any): ValidationResult {
+export function validateSystemDelta(data: any): ValidationResult {
   const errors: string[] = [];
 
   if (!data || typeof data !== 'object') {
-    return { valid: false, errors: ['System mutation result is not an object'] };
+    return { valid: false, errors: ['System delta result is not an object'] };
   }
 
   // Should have at least nodes or edges

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { validateBeatPlan, validateBeatProseMap, validateExtractionResult, validateSystemMutation, retryWithValidation } from '@/lib/ai/validation';
+import { validateBeatPlan, validateBeatProseMap, validateExtractionResult, validateSystemDelta, retryWithValidation } from '@/lib/ai/validation';
 import type { BeatPlan } from '@/types/narrative';
 describe('ai-validation', () => {
   describe('validateBeatPlan', () => {
@@ -329,7 +329,7 @@ describe('ai-validation', () => {
       expect(result.errors.some((e) => e.includes('scenes field exists but is not an array'))).toBe(true);
     });
   });
-  describe('validateSystemMutation', () => {
+  describe('validateSystemDelta', () => {
     it('validates world knowledge with nodes and edges', () => {
       const validKnowledge = {
         nodes: [
@@ -340,12 +340,12 @@ describe('ai-validation', () => {
           { source: 'N-1', target: 'N-2', type: 'contains' },
         ],
       };
-      const result = validateSystemMutation(validKnowledge);
+      const result = validateSystemDelta(validKnowledge);
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
     it('accepts world knowledge with only nodes', () => {
-      const result = validateSystemMutation({
+      const result = validateSystemDelta({
         nodes: [
           { id: 'N-1', content: 'Magic', type: 'system' },
         ],
@@ -355,12 +355,12 @@ describe('ai-validation', () => {
       expect(result.errors).toHaveLength(0);
     });
     it('rejects non-object input', () => {
-      const result = validateSystemMutation(null);
+      const result = validateSystemDelta(null);
       expect(result.valid).toBe(false);
-      expect(result.errors).toContain('System mutation result is not an object');
+      expect(result.errors).toContain('System delta result is not an object');
     });
     it('rejects completely empty world knowledge', () => {
-      const result = validateSystemMutation({
+      const result = validateSystemDelta({
         nodes: [],
         edges: [],
       });
@@ -368,7 +368,7 @@ describe('ai-validation', () => {
       expect(result.errors).toContain('No system data extracted - both nodes and edges are empty');
     });
     it('rejects invalid node structure', () => {
-      const result = validateSystemMutation({
+      const result = validateSystemDelta({
         nodes: [
           { id: 'N-1', content: 'Valid', type: 'system' },
           { id: 'N-2', content: 'Missing type' }, // missing type
@@ -379,7 +379,7 @@ describe('ai-validation', () => {
       expect(result.errors.some((e) => e.includes('Node 1: missing or invalid type'))).toBe(true);
     });
     it('rejects invalid edge structure', () => {
-      const result = validateSystemMutation({
+      const result = validateSystemDelta({
         nodes: [{ id: 'N-1', content: 'Node', type: 'system' }],
         edges: [
           { source: 'N-1', target: 'N-2', type: 'contains' },

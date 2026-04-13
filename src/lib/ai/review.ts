@@ -439,8 +439,8 @@ export async function reviewPlanQuality(
     .map((t) => `${t.id}: ${t.description} [${t.status}]`).join('\n');
 
   const charBlock = Object.values(narrative.characters)
-    .filter((c) => Object.keys(c.continuity?.nodes ?? {}).length)
-    .map((c) => `${c.name}: ${Object.values(c.continuity!.nodes).map((n) => `${n.type}: ${n.content}`).join('; ')}`)
+    .filter((c) => Object.keys(c.world?.nodes ?? {}).length)
+    .map((c) => `${c.name}: ${Object.values(c.world!.nodes).map((n) => `${n.type}: ${n.content}`).join('; ')}`)
     .join('\n');
 
   const guidanceBlock = guidance?.trim()

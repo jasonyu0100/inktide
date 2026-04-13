@@ -207,8 +207,8 @@ export function computeSlidesData(
       delivery: maxPoint,
       forces: f,
       cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
-      threadChanges: scene.threadMutations.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })),
-      relationshipChanges: scene.relationshipMutations.map((rm) => ({
+      threadChanges: scene.threadDeltas.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })),
+      relationshipChanges: scene.relationshipDeltas.map((rm) => ({
         from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
       })),
       dominantForce: dominantForce(f.fate, f.world, f.system),
@@ -466,7 +466,7 @@ function buildSegments(
     // Thread changes in this segment
     const threadChanges: Segment['threadChanges'] = [];
     for (let si = startIdx; si <= endIdx; si++) {
-      for (const tm of scenes[si].threadMutations) {
+      for (const tm of scenes[si].threadDeltas) {
         threadChanges.push({ threadId: tm.threadId, from: tm.from, to: tm.to, sceneIdx: si });
       }
     }
@@ -515,8 +515,8 @@ function buildPeakInfos(
         delivery: e,
         forces: f,
         cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
-        threadChanges: scene.threadMutations.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })),
-        relationshipChanges: scene.relationshipMutations.map((rm) => ({
+        threadChanges: scene.threadDeltas.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })),
+        relationshipChanges: scene.relationshipDeltas.map((rm) => ({
           from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
         })),
         dominantForce: dominantForce(f.fate, f.world, f.system),
@@ -586,7 +586,7 @@ function buildThreadLifecycles(
     // Find all scenes that mutate this thread
     const mutations: { sceneIdx: number; from: string; to: string }[] = [];
     for (let i = 0; i < scenes.length; i++) {
-      for (const tm of scenes[i].threadMutations) {
+      for (const tm of scenes[i].threadDeltas) {
         if (tm.threadId === thread.id) {
           mutations.push({ sceneIdx: i, from: tm.from, to: tm.to });
         }

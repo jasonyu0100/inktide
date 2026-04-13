@@ -51,64 +51,56 @@ export default function NarrativePanel() {
           </span>
         </div>
         <div className="flex flex-col gap-1.5">
-          {m.characters.length > 0 && (
+          {m.newCharacters.length > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">
                 Characters
               </span>
-              {m.characters
+              {m.newCharacters
                 .map((c) => narrative.characters[c.id]?.name ?? c.name)
                 .join(", ")}
             </div>
           )}
-          {m.locations.length > 0 && (
+          {m.newLocations.length > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">
                 Locations
               </span>
-              {m.locations
+              {m.newLocations
                 .map((l) => narrative.locations[l.id]?.name ?? l.name)
                 .join(", ")}
             </div>
           )}
-          {m.threads.length > 0 && (
+          {m.newThreads.length > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">
                 Threads
               </span>
-              {m.threads
+              {m.newThreads
                 .map(
                   (t) => narrative.threads[t.id]?.description ?? t.description,
                 )
                 .join(", ")}
             </div>
           )}
-          {(m.relationships?.length ?? 0) > 0 && (
-            <div className="text-xs text-text-secondary">
-              <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">
-                Relationships
-              </span>
-              {m.relationships.length} new
-            </div>
-          )}
-          {(m.artifacts?.length ?? 0) > 0 && (
+          {(m.newArtifacts?.length ?? 0) > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">
                 Artifacts
               </span>
               {m
-                .artifacts!.map(
+                .newArtifacts!.map(
                   (a) => narrative.artifacts?.[a.id]?.name ?? a.name,
                 )
                 .join(", ")}
             </div>
           )}
-          {(m.systemMutations?.addedNodes?.length ?? 0) > 0 && (
+          {(m.systemDeltas?.addedNodes?.length ?? 0) > 0 && (
             <div className="text-xs text-text-secondary">
               <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">
                 World Knowledge
               </span>
-              {m.systemMutations.addedNodes.map((n) => n.concept).join(", ")}
+              {m.systemDeltas?.addedNodes.map((n) => n.concept).join(", ")}
             </div>
           )}
         </div>

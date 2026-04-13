@@ -1,9 +1,9 @@
 /**
- * System graph utilities — mutation sanitization and application.
+ * System graph utilities — delta sanitization and application.
  *
- * Mirrors continuity-graph.ts and thread-log.ts: a single source of truth for
+ * Mirrors world-graph.ts and thread-log.ts: a single source of truth for
  * the invariants that every pipeline (generation, analysis, store derivation)
- * must enforce on system mutations. Prevents the class of bugs fixed
+ * must enforce on system deltas. Prevents the class of bugs fixed
  * by commit 5eb90f0 from recurring by centralising the rules.
  *
  * Invariants:
@@ -16,7 +16,7 @@
  *   - Nodes must carry concept + type.
  */
 
-import type { SystemMutation, SystemGraph, SystemNode, SystemEdge, SystemNodeType } from '@/types/narrative';
+import type { SystemDelta, SystemGraph, SystemNode, SystemEdge, SystemNodeType } from '@/types/narrative';
 
 /** Canonical empty system graph — the "zero value" for narrative initialization. */
 export const EMPTY_SYSTEM_GRAPH: SystemGraph = { nodes: {}, edges: [] };
@@ -34,11 +34,11 @@ export function systemEdgeKey(edge: { from: string; to: string; relation: string
  * this (e.g. remapping LLM-assigned SYS-GEN-* ids to real SYS-XX ids). The
  * validIds set should already contain any newly-assigned ids.
  */
-export function sanitizeSystemMutation(
-  mutation: SystemMutation,
+export function sanitizeSystemDelta(
+  mutation: SystemDelta,
   validIds: Set<string>,
   seenEdgeKeys: Set<string>,
-): SystemMutation {
+): SystemDelta {
   mutation.addedNodes = (mutation.addedNodes ?? []).filter(
     (n) => n && n.id && n.concept && n.type,
   );
@@ -61,9 +61,9 @@ export function sanitizeSystemMutation(
  * pipelines can build the global graph through the same entry point that
  * store derivation uses.
  */
-export function applySystemMutation(
+export function applySystemDelta(
   graph: { nodes: Record<string, SystemNode>; edges: SystemEdge[] },
-  mutation: SystemMutation,
+  mutation: SystemDelta,
 ): void {
   for (const n of mutation.addedNodes ?? []) {
     if (!graph.nodes[n.id]) {

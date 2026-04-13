@@ -2,8 +2,8 @@
 
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { getContinuityNodesAtScene, getContinuityEdgesAtScene } from '@/lib/scene-filter';
-import { CONTINUITY_FILL } from '@/components/canvas/graph-utils';
+import { getWorldNodesAtScene, getWorldEdgesAtScene } from '@/lib/scene-filter';
+import { WORLD_FILL } from '@/components/canvas/graph-utils';
 
 type Props = { entityId: string; nodeId: string };
 
@@ -13,7 +13,7 @@ const TYPE_TEXT: Record<string, string> = {
   secret: 'text-amber-500', goal: 'text-sky-400', weakness: 'text-red-400',
 };
 
-export default function ContinuityNodeDetail({ entityId, nodeId }: Props) {
+export default function WorldNodeDetail({ entityId, nodeId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
   if (!narrative) return null;
@@ -24,12 +24,12 @@ export default function ContinuityNodeDetail({ entityId, nodeId }: Props) {
   const entityType = narrative.characters[entityId] ? 'character' : narrative.locations[entityId] ? 'location' : 'artifact';
 
   const nodes = useMemo(() =>
-    getContinuityNodesAtScene(entity.continuity.nodes, entityId, narrative.scenes, state.resolvedEntryKeys, state.viewState.currentSceneIndex),
+    getWorldNodesAtScene(entity.world.nodes, entityId, narrative.scenes, state.resolvedEntryKeys, state.viewState.currentSceneIndex),
     [entity, entityId, narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex],
   );
 
   const edges = useMemo(() =>
-    getContinuityEdgesAtScene(entity.continuity.edges, entityId, narrative.scenes, state.resolvedEntryKeys, state.viewState.currentSceneIndex, entity.continuity.nodes),
+    getWorldEdgesAtScene(entity.world.edges, entityId, narrative.scenes, state.resolvedEntryKeys, state.viewState.currentSceneIndex, entity.world.nodes),
     [entity, entityId, narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex],
   );
 
@@ -55,7 +55,7 @@ export default function ContinuityNodeDetail({ entityId, nodeId }: Props) {
       const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
       if (!scene) continue;
-      for (const km of scene.continuityMutations) {
+      for (const km of scene.worldDeltas) {
         if (km.entityId === entityId && (km.addedNodes ?? []).some(n => n.id === nodeId)) {
           sceneIndices.push(i);
         }
@@ -69,7 +69,7 @@ export default function ContinuityNodeDetail({ entityId, nodeId }: Props) {
       {/* Header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full shrink-0" style={{ background: CONTINUITY_FILL[node.type] ?? '#888' }} />
+          <div className="w-3 h-3 rounded-full shrink-0" style={{ background: WORLD_FILL[node.type] ?? '#888' }} />
           <span className={`text-[10px] uppercase tracking-widest ${TYPE_TEXT[node.type] ?? 'text-text-dim'}`}>{node.type}</span>
         </div>
         <p className="text-sm text-text-primary leading-relaxed">{node.content}</p>
@@ -106,7 +106,7 @@ export default function ContinuityNodeDetail({ entityId, nodeId }: Props) {
                     <button
                       onClick={() => dispatch({
                         type: 'SET_INSPECTOR',
-                        context: { type: 'continuity', entityId, nodeId: c.otherId },
+                        context: { type: 'world', entityId, nodeId: c.otherId },
                       })}
                       className="text-xs text-text-secondary hover:text-text-primary transition-colors text-left"
                     >

@@ -110,11 +110,11 @@ function exportBranch(narrative: NarrativeState, branchId: string) {
       referencedCharIds.add(scene.povId);
       for (const pid of scene.participantIds) referencedCharIds.add(pid);
       referencedLocIds.add(scene.locationId);
-      for (const tm of scene.threadMutations)
+      for (const tm of scene.threadDeltas)
         referencedThreadIds.add(tm.threadId);
-      for (const cm of scene.continuityMutations)
+      for (const cm of scene.worldDeltas)
         referencedCharIds.add(cm.entityId);
-      for (const rm of scene.relationshipMutations) {
+      for (const rm of scene.relationshipDeltas) {
         referencedCharIds.add(rm.from);
         referencedCharIds.add(rm.to);
       }
@@ -124,7 +124,7 @@ function exportBranch(narrative: NarrativeState, branchId: string) {
           referencedLocIds.add(mv.locationId);
         }
       }
-      for (const om of scene.ownershipMutations ?? [])
+      for (const om of scene.ownershipDeltas ?? [])
         referencedArtifactIds.add(om.artifactId);
       // Find arc containing this scene
       for (const [arcId, arc] of Object.entries(narrative.arcs)) {
@@ -139,10 +139,10 @@ function exportBranch(narrative: NarrativeState, branchId: string) {
   for (const wb of Object.values(worldBuilds)) {
     const m = wb.expansionManifest;
     if (m) {
-      for (const c of m.characters ?? []) referencedCharIds.add(c.id);
-      for (const l of m.locations ?? []) referencedLocIds.add(l.id);
-      for (const t of m.threads ?? []) referencedThreadIds.add(t.id);
-      for (const a of m.artifacts ?? []) referencedArtifactIds.add(a.id);
+      for (const c of m.newCharacters ?? []) referencedCharIds.add(c.id);
+      for (const l of m.newLocations ?? []) referencedLocIds.add(l.id);
+      for (const t of m.newThreads ?? []) referencedThreadIds.add(t.id);
+      for (const a of m.newArtifacts ?? []) referencedArtifactIds.add(a.id);
     }
   }
 
@@ -644,11 +644,11 @@ export default function TopBar() {
         referencedCharIds.add(scene.povId);
         for (const pid of scene.participantIds) referencedCharIds.add(pid);
         referencedLocIds.add(scene.locationId);
-        for (const tm of scene.threadMutations)
+        for (const tm of scene.threadDeltas)
           referencedThreadIds.add(tm.threadId);
-        for (const cm of scene.continuityMutations)
+        for (const cm of scene.worldDeltas)
           referencedCharIds.add(cm.entityId);
-        for (const rm of scene.relationshipMutations) {
+        for (const rm of scene.relationshipDeltas) {
           referencedCharIds.add(rm.from);
           referencedCharIds.add(rm.to);
         }
@@ -658,7 +658,7 @@ export default function TopBar() {
             referencedLocIds.add(mv.locationId);
           }
         }
-        for (const om of scene.ownershipMutations ?? [])
+        for (const om of scene.ownershipDeltas ?? [])
           referencedArtifactIds.add(om.artifactId);
         for (const [arcId, arc] of Object.entries(narrative.arcs)) {
           if (arc.sceneIds.includes(key)) referencedArcIds.add(arcId);
@@ -671,10 +671,10 @@ export default function TopBar() {
     for (const wb of Object.values(worldBuilds)) {
       const m = wb.expansionManifest;
       if (m) {
-        for (const c of m.characters ?? []) referencedCharIds.add(c.id);
-        for (const l of m.locations ?? []) referencedLocIds.add(l.id);
-        for (const t of m.threads ?? []) referencedThreadIds.add(t.id);
-        for (const a of m.artifacts ?? []) referencedArtifactIds.add(a.id);
+        for (const c of m.newCharacters ?? []) referencedCharIds.add(c.id);
+        for (const l of m.newLocations ?? []) referencedLocIds.add(l.id);
+        for (const t of m.newThreads ?? []) referencedThreadIds.add(t.id);
+        for (const a of m.newArtifacts ?? []) referencedArtifactIds.add(a.id);
       }
     }
 

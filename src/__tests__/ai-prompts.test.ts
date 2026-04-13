@@ -4,11 +4,11 @@ import {
   buildThreadHealthPrompt,
   PROMPT_ARTIFACTS,
   PROMPT_BEAT_TAXONOMY,
-  PROMPT_CONTINUITY,
+  PROMPT_WORLD,
   PROMPT_ENTITY_INTEGRATION,
   PROMPT_FORCE_STANDARDS,
   PROMPT_LOCATIONS,
-  PROMPT_MUTATIONS,
+  PROMPT_DELTAS,
   PROMPT_POV,
   PROMPT_STRUCTURAL_RULES,
   PROMPT_SUMMARY_REQUIREMENT,
@@ -51,7 +51,7 @@ function createMinimalNarrative(
 }
 function createScene(
   id: string,
-  threadMutations: Array<{
+  threadDeltas: Array<{
     threadId: string;
     from: string;
     to: string;
@@ -69,14 +69,14 @@ function createScene(
     participantIds: ["c1"],
     summary: `Scene ${id} summary`,
     events: ["event_1"],
-    threadMutations: threadMutations.map((tm) => ({
+    threadDeltas: threadDeltas.map((tm) => ({
       threadId: tm.threadId,
       from: tm.from,
       to: tm.to,
       addedNodes: [],
     })),
-    continuityMutations: [],
-    relationshipMutations: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
     ...overrides,
   };
 }
@@ -139,53 +139,53 @@ describe("Static Prompt Constants", () => {
       expect(PROMPT_STRUCTURAL_RULES).toContain("SCAN");
     });
   });
-  describe("PROMPT_MUTATIONS", () => {
-    it("describes threadMutations with status lifecycle", () => {
-      expect(PROMPT_MUTATIONS).toContain("threadMutations");
+  describe("PROMPT_DELTAS", () => {
+    it("describes threadDeltas with status lifecycle", () => {
+      expect(PROMPT_DELTAS).toContain("threadDeltas");
       // Status axis explicitly enumerates the lifecycle vocabulary so the
       // LLM can't slot in "pulse" (a log node type) as a status.
-      expect(PROMPT_MUTATIONS).toContain(
+      expect(PROMPT_DELTAS).toContain(
         "latent | seeded | active | escalating | critical | resolved | subverted | abandoned",
       );
       // And the prompt must explicitly forbid the pulse-as-status confusion.
-      expect(PROMPT_MUTATIONS).toContain('"pulse" is NOT a status');
+      expect(PROMPT_DELTAS).toContain('"pulse" is NOT a status');
     });
     it("describes thread log types", () => {
-      expect(PROMPT_MUTATIONS).toContain("LOG TYPE");
-      expect(PROMPT_MUTATIONS).toContain("pulse");
-      expect(PROMPT_MUTATIONS).toContain("transition");
-      expect(PROMPT_MUTATIONS).toContain("payoff");
+      expect(PROMPT_DELTAS).toContain("LOG TYPE");
+      expect(PROMPT_DELTAS).toContain("pulse");
+      expect(PROMPT_DELTAS).toContain("transition");
+      expect(PROMPT_DELTAS).toContain("payoff");
     });
     it("describes commitment concept", () => {
-      expect(PROMPT_MUTATIONS).toContain("COMMITMENT");
-      expect(PROMPT_MUTATIONS).toContain("escalating");
+      expect(PROMPT_DELTAS).toContain("COMMITMENT");
+      expect(PROMPT_DELTAS).toContain("escalating");
     });
-    it("describes continuityMutations", () => {
-      expect(PROMPT_MUTATIONS).toContain("continuityMutations");
-      expect(PROMPT_MUTATIONS).toContain("PRESENT TENSE facts");
+    it("describes worldDeltas", () => {
+      expect(PROMPT_DELTAS).toContain("worldDeltas");
+      expect(PROMPT_DELTAS).toContain("PRESENT TENSE facts");
     });
-    it("describes relationshipMutations with valence scale", () => {
-      expect(PROMPT_MUTATIONS).toContain("relationshipMutations");
-      expect(PROMPT_MUTATIONS).toContain("valenceDelta");
-      expect(PROMPT_MUTATIONS).toContain("±0.1");
-      expect(PROMPT_MUTATIONS).toContain("±0.3");
-      expect(PROMPT_MUTATIONS).toContain("±0.5");
+    it("describes relationshipDeltas with valence scale", () => {
+      expect(PROMPT_DELTAS).toContain("relationshipDeltas");
+      expect(PROMPT_DELTAS).toContain("valenceDelta");
+      expect(PROMPT_DELTAS).toContain("±0.1");
+      expect(PROMPT_DELTAS).toContain("±0.3");
+      expect(PROMPT_DELTAS).toContain("±0.5");
     });
-    it("describes systemMutations with node types", () => {
-      expect(PROMPT_MUTATIONS).toContain("systemMutations");
-      expect(PROMPT_MUTATIONS).toContain("principle");
-      expect(PROMPT_MUTATIONS).toContain("concept");
-      expect(PROMPT_MUTATIONS).toContain("tension");
-      expect(PROMPT_MUTATIONS).toContain("constraint");
+    it("describes systemDeltas with node types", () => {
+      expect(PROMPT_DELTAS).toContain("systemDeltas");
+      expect(PROMPT_DELTAS).toContain("principle");
+      expect(PROMPT_DELTAS).toContain("concept");
+      expect(PROMPT_DELTAS).toContain("tension");
+      expect(PROMPT_DELTAS).toContain("constraint");
     });
     it("includes density targets", () => {
-      expect(PROMPT_MUTATIONS).toContain("DENSITY TARGETS");
-      expect(PROMPT_MUTATIONS).toContain("Breather");
-      expect(PROMPT_MUTATIONS).toContain("Typical");
-      expect(PROMPT_MUTATIONS).toContain("Climactic");
+      expect(PROMPT_DELTAS).toContain("DENSITY TARGETS");
+      expect(PROMPT_DELTAS).toContain("Breather");
+      expect(PROMPT_DELTAS).toContain("Typical");
+      expect(PROMPT_DELTAS).toContain("Climactic");
     });
     it("includes force formulas", () => {
-      expect(PROMPT_MUTATIONS).toContain("FORMULAS");
+      expect(PROMPT_DELTAS).toContain("FORMULAS");
     });
   });
   describe("PROMPT_ARTIFACTS", () => {
@@ -209,22 +209,22 @@ describe("Static Prompt Constants", () => {
       expect(PROMPT_POV).toContain("Single POV");
     });
   });
-  describe("PROMPT_CONTINUITY", () => {
+  describe("PROMPT_WORLD", () => {
     it("includes teleportation warning", () => {
-      expect(PROMPT_CONTINUITY).toContain("NEVER teleport");
+      expect(PROMPT_WORLD).toContain("NEVER teleport");
     });
     it("includes character movements instruction", () => {
-      expect(PROMPT_CONTINUITY).toContain("characterMovements");
+      expect(PROMPT_WORLD).toContain("characterMovements");
     });
     it("includes consequence persistence", () => {
-      expect(PROMPT_CONTINUITY).toContain("Injuries");
-      expect(PROMPT_CONTINUITY).toContain("persist");
+      expect(PROMPT_WORLD).toContain("Injuries");
+      expect(PROMPT_WORLD).toContain("persist");
     });
     it("includes information asymmetry rule", () => {
-      expect(PROMPT_CONTINUITY).toContain("cannot act on information");
+      expect(PROMPT_WORLD).toContain("cannot act on information");
     });
     it("includes time gap signaling", () => {
-      expect(PROMPT_CONTINUITY).toContain("time gaps");
+      expect(PROMPT_WORLD).toContain("time gaps");
     });
   });
   describe("PROMPT_SUMMARY_REQUIREMENT", () => {

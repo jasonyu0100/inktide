@@ -7,7 +7,7 @@
 
 // ── Character Schemas ───────────────────────────────────────────────────────
 
-export const SCHEMA_CHARACTER_CONTINUITY_NODE = `{"id": "K-XX", "content": "15-25 words, PRESENT tense: a stable fact about this character — trait, belief, capability, state, secret, goal, or weakness", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}`;
+export const SCHEMA_CHARACTER_WORLD_NODE = `{"id": "K-XX", "content": "15-25 words, PRESENT tense: a stable fact about this character — trait, belief, capability, state, secret, goal, or weakness", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}`;
 
 export const SCHEMA_CHARACTER_CREATION = `{
   "id": "C-XX",
@@ -15,14 +15,14 @@ export const SCHEMA_CHARACTER_CREATION = `{
   "role": "anchor|recurring|transient",
   "threadIds": ["T-XX"],
   "imagePrompt": "1-2 sentence LITERAL physical description — concrete traits (hair colour, build, clothing). No metaphors or figurative language; image generators interpret literally.",
-  "continuity": {
-    "nodes": [${SCHEMA_CHARACTER_CONTINUITY_NODE}]
+  "world": {
+    "nodes": [${SCHEMA_CHARACTER_WORLD_NODE}]
   }
 }`;
 
 // ── Location Schemas ────────────────────────────────────────────────────────
 
-export const SCHEMA_LOCATION_CONTINUITY_NODE = `{"id": "LK-XX", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}`;
+export const SCHEMA_LOCATION_WORLD_NODE = `{"id": "LK-XX", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}`;
 
 export const SCHEMA_LOCATION_CREATION = `{
   "id": "L-XX",
@@ -32,14 +32,14 @@ export const SCHEMA_LOCATION_CREATION = `{
   "threadIds": [],
   "tiedCharacterIds": ["character IDs with significant ties — residents, employees, faction members, students"],
   "imagePrompt": "1-2 sentence LITERAL visual description — architecture, landscape, lighting, weather. Concrete physical details only.",
-  "continuity": {
-    "nodes": [${SCHEMA_LOCATION_CONTINUITY_NODE}]
+  "world": {
+    "nodes": [${SCHEMA_LOCATION_WORLD_NODE}]
   }
 }`;
 
 // ── Artifact Schemas ────────────────────────────────────────────────────────
 
-export const SCHEMA_ARTIFACT_CONTINUITY_NODE = `{"id": "AK-XX", "content": "15-25 words, PRESENT tense: what this artifact is, what it does, its history, powers, or limitations", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}`;
+export const SCHEMA_ARTIFACT_WORLD_NODE = `{"id": "AK-XX", "content": "15-25 words, PRESENT tense: what this artifact is, what it does, its history, powers, or limitations", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}`;
 
 export const SCHEMA_ARTIFACT_CREATION = `{
   "id": "A-XX",
@@ -48,8 +48,8 @@ export const SCHEMA_ARTIFACT_CREATION = `{
   "parentId": "owner — a character or location ID, or null for world-owned (universally accessible)",
   "threadIds": [],
   "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language.",
-  "continuity": {
-    "nodes": [${SCHEMA_ARTIFACT_CONTINUITY_NODE}]
+  "world": {
+    "nodes": [${SCHEMA_ARTIFACT_WORLD_NODE}]
   }
 }`;
 

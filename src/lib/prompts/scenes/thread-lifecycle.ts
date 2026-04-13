@@ -65,7 +65,7 @@ export function buildThreadHealthPrompt(
     const scene = narrative.scenes[resolvedKeys[i]];
     if (!scene) continue;
     sceneCount++;
-    for (const tm of scene.threadMutations) {
+    for (const tm of scene.threadDeltas) {
       if (threadFirstSeen[tm.threadId] === undefined) threadFirstSeen[tm.threadId] = sceneCount;
       threadLastSeen[tm.threadId] = sceneCount;
       if (!threadArcSets[tm.threadId]) threadArcSets[tm.threadId] = new Set();
@@ -145,7 +145,7 @@ export function buildCompletedBeatsPrompt(
     if (!scene) continue;
     sceneIdx++;
 
-    for (const tm of scene.threadMutations) {
+    for (const tm of scene.threadDeltas) {
       if (tm.from === tm.to) continue;
       if (!threadBeats[tm.threadId]) threadBeats[tm.threadId] = [];
       threadBeats[tm.threadId].push({

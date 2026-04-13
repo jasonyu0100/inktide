@@ -24,11 +24,11 @@ vi.mock("@/lib/ai/context", () => ({
 vi.mock("@/lib/ai/prompts", () => ({
   PROMPT_FORCE_STANDARDS: "Mock force standards",
   PROMPT_STRUCTURAL_RULES: "Mock structural rules",
-  PROMPT_MUTATIONS: "Mock mutations",
+  PROMPT_DELTAS: "Mock mutations",
   PROMPT_ARTIFACTS: "Mock artifacts",
   PROMPT_LOCATIONS: "Mock locations",
   PROMPT_POV: "Mock POV",
-  PROMPT_CONTINUITY: "Mock continuity",
+  PROMPT_WORLD: "Mock continuity",
   PROMPT_SUMMARY_REQUIREMENT: "Mock summary requirement",
   PROMPT_BEAT_TAXONOMY: "Mock beat taxonomy",
   promptThreadLifecycle: vi.fn().mockReturnValue("Mock thread lifecycle"),
@@ -97,9 +97,9 @@ function createScene(
     participantIds: ["C-01"],
     summary: `Scene ${id} summary`,
     events: ["event_1"],
-    threadMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
+    threadDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
     characterMovements: {},
     ...rest,
     ...(plan
@@ -126,7 +126,7 @@ function createCharacter(
     name: `Character ${id}`,
     role: "recurring",
     threadIds: [],
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -141,7 +141,7 @@ function createLocation(
     parentId: null,
     tiedCharacterIds: [],
     threadIds: [],
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -213,11 +213,11 @@ describe("generateScenes", () => {
           povId: "C-01",
           participantIds: ["C-01", "C-02"],
           events: ["battle_prep"],
-          threadMutations: [
+          threadDeltas: [
             { threadId: "T-01", from: "active", to: "active", addedNodes: [] },
           ],
-          continuityMutations: [],
-          relationshipMutations: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Alice prepares the castle defenses while Bob rides out.",
         },
       ],
@@ -240,9 +240,9 @@ describe("generateScenes", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [],
-          continuityMutations: [],
-          relationshipMutations: [],
+          threadDeltas: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene 1",
         },
         {
@@ -252,9 +252,9 @@ describe("generateScenes", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [],
-          continuityMutations: [],
-          relationshipMutations: [],
+          threadDeltas: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene 2",
         },
         {
@@ -264,9 +264,9 @@ describe("generateScenes", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [],
-          continuityMutations: [],
-          relationshipMutations: [],
+          threadDeltas: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene 3",
         },
       ],
@@ -289,9 +289,9 @@ describe("generateScenes", () => {
           povId: "C-01",
           participantIds: ["C-01", "C-INVALID", "C-02"],
           events: [],
-          threadMutations: [],
-          continuityMutations: [],
-          relationshipMutations: [],
+          threadDeltas: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Test scene",
         },
       ],
@@ -313,9 +313,9 @@ describe("generateScenes", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [],
-          continuityMutations: [],
-          relationshipMutations: [],
+          threadDeltas: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Test scene",
         },
       ],
@@ -337,7 +337,7 @@ describe("generateScenes", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [
+          threadDeltas: [
             { threadId: "T-01", from: "active", to: "active", addedNodes: [] },
             {
               threadId: "T-INVALID",
@@ -346,8 +346,8 @@ describe("generateScenes", () => {
               addedNodes: [],
             },
           ],
-          continuityMutations: [],
-          relationshipMutations: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Test scene",
         },
       ],
@@ -356,8 +356,8 @@ describe("generateScenes", () => {
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
     // Only valid thread mutation should remain
-    expect(result.scenes[0].threadMutations).toHaveLength(1);
-    expect(result.scenes[0].threadMutations[0].threadId).toBe("T-01");
+    expect(result.scenes[0].threadDeltas).toHaveLength(1);
+    expect(result.scenes[0].threadDeltas[0].threadId).toBe("T-01");
   });
   it("builds arc with correct metadata", async () => {
     const mockResponse = JSON.stringify({
@@ -371,11 +371,11 @@ describe("generateScenes", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [
+          threadDeltas: [
             { threadId: "T-01", from: "active", to: "active", addedNodes: [] },
           ],
-          continuityMutations: [],
-          relationshipMutations: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene 1",
         },
         {
@@ -385,7 +385,7 @@ describe("generateScenes", () => {
           povId: "C-02",
           participantIds: ["C-02"],
           events: [],
-          threadMutations: [
+          threadDeltas: [
             {
               threadId: "T-02",
               from: "active",
@@ -393,8 +393,8 @@ describe("generateScenes", () => {
               addedNodes: [],
             },
           ],
-          continuityMutations: [],
-          relationshipMutations: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene 2",
         },
       ],
@@ -422,9 +422,9 @@ describe("generateScenes", () => {
           povId: "C-02",
           participantIds: ["C-02"],
           events: [],
-          threadMutations: [],
-          continuityMutations: [],
-          relationshipMutations: [],
+          threadDeltas: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Continuation scene",
         },
       ],
@@ -461,8 +461,8 @@ describe("generateScenes", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [],
-          continuityMutations: [
+          threadDeltas: [],
+          worldDeltas: [
             {
               entityId: "C-01",
               addedNodes: [
@@ -475,7 +475,7 @@ describe("generateScenes", () => {
               ],
             },
           ],
-          relationshipMutations: [],
+          relationshipDeltas: [],
           summary: "Test scene",
         },
       ],
@@ -484,7 +484,7 @@ describe("generateScenes", () => {
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
     // Knowledge node IDs should be sequential K-01, K-02 (2-digit padding)
-    const nodes = result.scenes[0].continuityMutations[0].addedNodes;
+    const nodes = result.scenes[0].worldDeltas[0].addedNodes;
     expect(nodes[0].id).toBe("K-01");
     expect(nodes[1].id).toBe("K-02");
   });
@@ -502,9 +502,9 @@ describe("generateScenes", () => {
               povId: "C-01",
               participantIds: ["C-01"],
               events: [],
-              threadMutations: [],
-              continuityMutations: [],
-              relationshipMutations: [],
+              threadDeltas: [],
+              worldDeltas: [],
+              relationshipDeltas: [],
               summary: "Test",
             },
           ],
@@ -528,10 +528,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [
                 { id: "SYS-GEN-1", concept: "Mana Binding", type: "system" },
                 { id: "SYS-GEN-2", concept: "Leylines", type: "concept" },
@@ -547,7 +547,7 @@ describe("generateScenes", () => {
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, "Test");
-      const wkm = result.scenes[0].systemMutations!;
+      const wkm = result.scenes[0].systemDeltas!;
       expect(wkm.addedNodes).toHaveLength(2);
       expect(wkm.addedNodes[0].id).toBe("SYS-01");
       expect(wkm.addedNodes[1].id).toBe("SYS-02");
@@ -570,10 +570,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [
                 { id: "SYS-GEN-1", concept: "Mana Binding", type: "principle" },
               ],
@@ -594,7 +594,7 @@ describe("generateScenes", () => {
       };
       const result = await generateScenes(narrative, [], 0, 1, "Test");
       // The re-asserted concept does not earn a new node.
-      expect(result.scenes[0].systemMutations!.addedNodes).toHaveLength(0);
+      expect(result.scenes[0].systemDeltas!.addedNodes).toHaveLength(0);
     });
     it("collapses within-batch duplicate concepts across scenes", async () => {
       const mockResponse = JSON.stringify({
@@ -607,10 +607,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [
                 { id: "SYS-GEN-1", concept: "Mana Binding", type: "system" },
               ],
@@ -625,10 +625,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [
                 { id: "SYS-GEN-2", concept: "mana binding", type: "principle" },
               ],
@@ -642,9 +642,9 @@ describe("generateScenes", () => {
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 2, "Test");
       // Scene 1 adds the node; scene 2 does not (re-mention).
-      expect(result.scenes[0].systemMutations!.addedNodes).toHaveLength(1);
-      expect(result.scenes[0].systemMutations!.addedNodes[0].id).toBe("SYS-01");
-      expect(result.scenes[1].systemMutations!.addedNodes).toHaveLength(0);
+      expect(result.scenes[0].systemDeltas!.addedNodes).toHaveLength(1);
+      expect(result.scenes[0].systemDeltas!.addedNodes[0].id).toBe("SYS-01");
+      expect(result.scenes[1].systemDeltas!.addedNodes).toHaveLength(0);
     });
     it("remaps edges in a later scene to reference nodes added by an earlier scene", async () => {
       const mockResponse = JSON.stringify({
@@ -657,10 +657,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [
                 { id: "SYS-GEN-1", concept: "Mana Binding", type: "system" },
               ],
@@ -675,10 +675,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [
                 { id: "SYS-GEN-2", concept: "Leylines", type: "concept" },
               ],
@@ -694,9 +694,9 @@ describe("generateScenes", () => {
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 2, "Test");
-      expect(result.scenes[1].systemMutations!.addedEdges).toHaveLength(1);
+      expect(result.scenes[1].systemDeltas!.addedEdges).toHaveLength(1);
       // SYS-GEN-1 from scene 1 was resolved to SYS-01; scene 2's edge points to it.
-      expect(result.scenes[1].systemMutations!.addedEdges[0]).toEqual({
+      expect(result.scenes[1].systemDeltas!.addedEdges[0]).toEqual({
         from: "SYS-02",
         to: "SYS-01",
         relation: "draws_from",
@@ -713,10 +713,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [
                 { id: "SYS-GEN-1", concept: "Mana", type: "concept" },
                 { id: "SYS-GEN-2", concept: "Runes", type: "concept" },
@@ -733,7 +733,7 @@ describe("generateScenes", () => {
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, "Test");
-      const edges = result.scenes[0].systemMutations!.addedEdges;
+      const edges = result.scenes[0].systemDeltas!.addedEdges;
       expect(edges).toHaveLength(1);
       expect(edges[0].from).not.toBe(edges[0].to);
     });
@@ -748,10 +748,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [
                 { id: "SYS-GEN-1", concept: "Mana", type: "concept" },
                 { id: "SYS-GEN-2", concept: "Runes", type: "concept" },
@@ -769,10 +769,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [],
               // Both concepts collapse to existing WK ids; the edge is a dup of S1.
               addedEdges: [
@@ -787,8 +787,8 @@ describe("generateScenes", () => {
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 2, "Test");
       // First scene keeps its edge; second scene's duplicate is dropped.
-      expect(result.scenes[0].systemMutations!.addedEdges).toHaveLength(1);
-      expect(result.scenes[1].systemMutations!.addedEdges).toHaveLength(0);
+      expect(result.scenes[0].systemDeltas!.addedEdges).toHaveLength(1);
+      expect(result.scenes[1].systemDeltas!.addedEdges).toHaveLength(0);
     });
     it("drops orphan edges referencing unknown WK ids", async () => {
       const mockResponse = JSON.stringify({
@@ -801,10 +801,10 @@ describe("generateScenes", () => {
             povId: "C-01",
             participantIds: ["C-01"],
             events: [],
-            threadMutations: [],
-            continuityMutations: [],
-            relationshipMutations: [],
-            systemMutations: {
+            threadDeltas: [],
+            worldDeltas: [],
+            relationshipDeltas: [],
+            systemDeltas: {
               addedNodes: [
                 { id: "SYS-GEN-1", concept: "Mana", type: "concept" },
               ],
@@ -820,7 +820,7 @@ describe("generateScenes", () => {
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, "Test");
-      expect(result.scenes[0].systemMutations!.addedEdges).toHaveLength(0);
+      expect(result.scenes[0].systemDeltas!.addedEdges).toHaveLength(0);
     });
   });
 });
@@ -1433,12 +1433,12 @@ Third beat prose.
 });
 // ── Thread Log (TK) ID Handling ──────────────────────────────────────────────
 // These tests lock in the fix for the bug where the LLM emits TK-GEN-0 in
-// every scene of an arc and applyThreadMutation's duplicate-id guard
+// every scene of an arc and applyThreadDelta's duplicate-id guard
 // silently drops every log entry after the first scene for each thread.
 describe("generateScenes — thread log TK ID remap", () => {
   it("assigns globally unique TK-* IDs when LLM re-uses GEN placeholders across scenes", async () => {
     // LLM emits TK-GEN-1 and TK-GEN-2 in BOTH scenes for the same thread —
-    // without a remap, applyThreadMutation would silently drop scene 2's
+    // without a remap, applyThreadDelta would silently drop scene 2's
     // contribution during store replay.
     const mockResponse = JSON.stringify({
       arcName: "Test Arc",
@@ -1450,7 +1450,7 @@ describe("generateScenes — thread log TK ID remap", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [
+          threadDeltas: [
             {
               threadId: "T-01",
               from: "active",
@@ -1461,8 +1461,8 @@ describe("generateScenes — thread log TK ID remap", () => {
               ],
             },
           ],
-          continuityMutations: [],
-          relationshipMutations: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene 1",
         },
         {
@@ -1472,7 +1472,7 @@ describe("generateScenes — thread log TK ID remap", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [
+          threadDeltas: [
             {
               threadId: "T-01",
               from: "active",
@@ -1483,8 +1483,8 @@ describe("generateScenes — thread log TK ID remap", () => {
               ],
             },
           ],
-          continuityMutations: [],
-          relationshipMutations: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene 2",
         },
       ],
@@ -1494,7 +1494,7 @@ describe("generateScenes — thread log TK ID remap", () => {
     const result = await generateScenes(narrative, [], 0, 2, "Test");
     // Collect all TK IDs across both scenes — they must all be unique.
     const allTkIds = result.scenes.flatMap((s) =>
-      s.threadMutations.flatMap((tm) => tm.addedNodes?.map((n) => n.id) ?? []),
+      s.threadDeltas.flatMap((tm) => tm.addedNodes?.map((n) => n.id) ?? []),
     );
     expect(allTkIds).toHaveLength(4);
     expect(new Set(allTkIds).size).toBe(4); // all unique
@@ -1514,14 +1514,14 @@ describe("generateScenes — thread log TK ID remap", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [
+          threadDeltas: [
             // Status transition with no log entries — should synthesize one.
             { threadId: "T-01", from: "seeded", to: "active", addedNodes: [] },
             // Pulse with no log entries — should synthesize one too.
             { threadId: "T-02", from: "active", to: "active", addedNodes: [] },
           ],
-          continuityMutations: [],
-          relationshipMutations: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene",
         },
       ],
@@ -1529,7 +1529,7 @@ describe("generateScenes — thread log TK ID remap", () => {
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-    const [t1, t2] = result.scenes[0].threadMutations;
+    const [t1, t2] = result.scenes[0].threadDeltas;
     expect(t1.addedNodes).toHaveLength(1);
     expect(t1.addedNodes![0].content).toMatch(/advanced from seeded to active/);
     expect(t1.addedNodes![0].type).toBe("transition");
@@ -1552,7 +1552,7 @@ describe("generateScenes — thread log TK ID remap", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [
+          threadDeltas: [
             // Invalid: "pulse" is a log node type, never a status.
             { threadId: "T-01", from: "pulse", to: "active", addedNodes: [] },
             // Valid pulse pattern: same→same status with a pulse log entry.
@@ -1565,8 +1565,8 @@ describe("generateScenes — thread log TK ID remap", () => {
               ],
             },
           ],
-          continuityMutations: [],
-          relationshipMutations: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene",
         },
       ],
@@ -1574,7 +1574,7 @@ describe("generateScenes — thread log TK ID remap", () => {
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-    const tms = result.scenes[0].threadMutations;
+    const tms = result.scenes[0].threadDeltas;
     // First mutation: "pulse" was coerced to T-01's current status ("active").
     // T-01 in the minimal narrative is created with status "active".
     expect(tms[0].from).toBe("active");
@@ -1596,7 +1596,7 @@ describe("generateScenes — thread log TK ID remap", () => {
           povId: "C-01",
           participantIds: ["C-01"],
           events: [],
-          threadMutations: [
+          threadDeltas: [
             {
               threadId: "T-01",
               from: "active",
@@ -1605,8 +1605,8 @@ describe("generateScenes — thread log TK ID remap", () => {
             },
             { threadId: "T-02", from: "seeded", to: "active", addedNodes: [] },
           ],
-          continuityMutations: [],
-          relationshipMutations: [],
+          worldDeltas: [],
+          relationshipDeltas: [],
           summary: "Scene",
         },
       ],
@@ -1614,7 +1614,7 @@ describe("generateScenes — thread log TK ID remap", () => {
     vi.mocked(callGenerate).mockResolvedValue(mockResponse);
     const narrative = createMinimalNarrative();
     const result = await generateScenes(narrative, [], 0, 1, "Test");
-    const allTkIds = result.scenes[0].threadMutations.flatMap(
+    const allTkIds = result.scenes[0].threadDeltas.flatMap(
       (tm) => tm.addedNodes?.map((n) => n.id) ?? [],
     );
     expect(allTkIds).toHaveLength(2);

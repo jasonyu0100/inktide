@@ -69,7 +69,7 @@ export default function ThreadLogNodeDetail({ threadId, nodeId }: Props) {
   }, [edges, thread.threadLog, nodeId]);
 
   // Find scenes where this node's thread mutation occurred
-  // (derive from scene.threadMutations, matching by position in the node list)
+  // (derive from scene.threadDeltas, matching by position in the node list)
   const mentionedScenes = useMemo(() => {
     const nodeIds = Object.keys(thread.threadLog?.nodes ?? {});
     const nodeIndex = nodeIds.indexOf(nodeId);
@@ -81,7 +81,7 @@ export default function ThreadLogNodeDetail({ threadId, nodeId }: Props) {
     for (let i = 0; i < state.resolvedEntryKeys.length; i++) {
       const scene = narrative.scenes[state.resolvedEntryKeys[i]];
       if (!scene) continue;
-      for (const tm of scene.threadMutations) {
+      for (const tm of scene.threadDeltas) {
         if (tm.threadId === threadId) {
           if (mutationCount === nodeIndex) {
             scenes.push(scene.id);

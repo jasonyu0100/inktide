@@ -46,7 +46,7 @@ function createCharacter(id: string, name: string, role: string = 'recurring'): 
     id,
     name,
     role: role as 'anchor' | 'recurring' | 'transient',
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     threadIds: [],
   };
 }
@@ -57,7 +57,7 @@ function createLocation(id: string, name: string, parentId?: string): Location {
     prominence: 'place' as const,
     parentId: parentId ?? null,
     tiedCharacterIds: [],
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     threadIds: [],
   };
 }
@@ -82,9 +82,9 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     participantIds: ['char-1'],
     summary: 'Test scene summary',
     events: [],
-    threadMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
+    threadDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
     characterMovements: {},
     ...overrides,
   };
@@ -95,12 +95,11 @@ function createWorldBuild(id: string, summary: string): WorldBuild {
     id,
     summary,
     expansionManifest: {
-      characters: [],
-      locations: [],
-      threads: [],
-      artifacts: [],
-      relationships: [],
-      systemMutations: { addedNodes: [], addedEdges: [] },
+      newCharacters: [],
+      newLocations: [],
+      newThreads: [],
+      newArtifacts: [],
+      systemDeltas: { addedNodes: [], addedEdges: [] },
     },
   };
 }
@@ -143,12 +142,12 @@ describe('getStateAtIndex', () => {
     const n = createMinimalNarrative({
       scenes: {
         's1': createScene('s1', {
-          continuityMutations: [
+          worldDeltas: [
             { entityId: 'c1', addedNodes: [{ id: 'node-1', content: 'Knowledge 1', type: 'belief' }] },
           ],
         }),
         's2': createScene('s2', {
-          continuityMutations: [
+          worldDeltas: [
             { entityId: 'c1', addedNodes: [{ id: 'node-2', content: 'Knowledge 2', type: 'belief' }] },
           ],
         }),
@@ -167,12 +166,12 @@ describe('getStateAtIndex', () => {
     const n = createMinimalNarrative({
       scenes: {
         's1': createScene('s1', {
-          relationshipMutations: [
+          relationshipDeltas: [
             { from: 'c1', to: 'c2', type: 'ally', valenceDelta: 0.5 },
           ],
         }),
         's2': createScene('s2', {
-          relationshipMutations: [
+          relationshipDeltas: [
             { from: 'c1', to: 'c2', type: 'rival', valenceDelta: -0.3 },
           ],
         }),
@@ -187,12 +186,12 @@ describe('getStateAtIndex', () => {
     const n = createMinimalNarrative({
       scenes: {
         's1': createScene('s1', {
-          relationshipMutations: [
+          relationshipDeltas: [
             { from: 'c1', to: 'c2', type: 'ally', valenceDelta: 0.8 },
           ],
         }),
         's2': createScene('s2', {
-          relationshipMutations: [
+          relationshipDeltas: [
             { from: 'c1', to: 'c2', type: 'ally', valenceDelta: 0.5 },
           ],
         }),
@@ -205,12 +204,12 @@ describe('getStateAtIndex', () => {
     const n = createMinimalNarrative({
       scenes: {
         's1': createScene('s1', {
-          threadMutations: [
+          threadDeltas: [
             { threadId: 't1', from: 'latent', to: 'active', addedNodes: [] },
           ],
         }),
         's2': createScene('s2', {
-          threadMutations: [
+          threadDeltas: [
             { threadId: 't1', from: 'active', to: 'active', addedNodes: [] },
             { threadId: 't2', from: 'latent', to: 'active', addedNodes: [] },
           ],
@@ -229,18 +228,17 @@ describe('getStateAtIndex', () => {
           id: 'wb1',
           summary: 'World build 1',
           expansionManifest: {
-            characters: [],
-            locations: [],
-            threads: [],
-            artifacts: [{ id: 'art-1', name: 'Artifact', significance: 'minor' as const, continuity: { nodes: {}, edges: [] }, parentId: 'c1', threadIds: [] }],
-            relationships: [],
-            systemMutations: { addedNodes: [], addedEdges: [] },
+            newCharacters: [],
+            newLocations: [],
+            newThreads: [],
+            newArtifacts: [{ id: 'art-1', name: 'Artifact', significance: 'minor' as const, world: { nodes: {}, edges: [] }, parentId: 'c1', threadIds: [] }],
+            systemDeltas: { addedNodes: [], addedEdges: [] },
           },
         },
       },
       scenes: {
         's1': createScene('s1', {
-          ownershipMutations: [
+          ownershipDeltas: [
             { artifactId: 'art-1', fromId: 'c1', toId: 'c2' },
           ],
         }),
@@ -310,9 +308,9 @@ describe('sceneScale', () => {
   it('returns minimum 600 words for simple scene', () => {
     const scene = createScene('s1', {
       events: [],
-      threadMutations: [],
-      continuityMutations: [],
-      relationshipMutations: [],
+      threadDeltas: [],
+      worldDeltas: [],
+      relationshipDeltas: [],
       participantIds: ['c1'],
       summary: 'A short summary',
     });
@@ -371,7 +369,7 @@ describe('sceneContext', () => {
     const scene = createScene('s1', {
       povId: 'c1',
       locationId: 'loc1',
-      threadMutations: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
+      threadDeltas: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
     });
     const ctx = sceneContext(n, scene);
     expect(ctx).toContain('Quest for the Sword');
@@ -390,7 +388,7 @@ describe('sceneContext', () => {
       povId: 'c1',
       locationId: 'loc1',
       participantIds: ['c1', 'c2'],
-      relationshipMutations: [
+      relationshipDeltas: [
         { from: 'c1', to: 'c2', type: 'mentor', valenceDelta: 0.3 },
       ],
     });

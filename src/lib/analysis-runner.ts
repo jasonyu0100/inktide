@@ -144,9 +144,9 @@ class AnalysisRunner {
               summary: `Scene ${idx + 1}`,
               sections: [],
               prose: chunk.text,
-              threadMutations: [],
-              continuityMutations: [],
-              relationshipMutations: [],
+              threadDeltas: [],
+              worldDeltas: [],
+              relationshipDeltas: [],
             }],
             relationships: [],
           };
@@ -174,14 +174,14 @@ class AnalysisRunner {
             scene.participantNames = s.participantNames.length > 0 ? s.participantNames : scene.participantNames;
             scene.events = s.events.length > 0 ? s.events : scene.events;
             scene.summary = s.summary || scene.summary;
-            scene.threadMutations = s.threadMutations;
-            scene.continuityMutations = s.continuityMutations;
-            scene.relationshipMutations = s.relationshipMutations;
+            scene.threadDeltas = s.threadDeltas;
+            scene.worldDeltas = s.worldDeltas;
+            scene.relationshipDeltas = s.relationshipDeltas;
             scene.artifactUsages = s.artifactUsages;
-            scene.ownershipMutations = s.ownershipMutations;
-            scene.tieMutations = s.tieMutations;
+            scene.ownershipDeltas = s.ownershipDeltas;
+            scene.tieDeltas = s.tieDeltas;
             scene.characterMovements = s.characterMovements;
-            scene.systemMutations = s.systemMutations;
+            scene.systemDeltas = s.systemDeltas;
 
             // Populate chunk-level entities
             const r = results[idx]!;

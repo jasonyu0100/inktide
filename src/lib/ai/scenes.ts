@@ -5,7 +5,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, sceneScale, buildProseProfile } from './context';
-import { PROMPT_STRUCTURAL_RULES, PROMPT_MUTATIONS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_CONTINUITY, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS } from './prompts';
+import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, PROMPT_BEAT_TAXONOMY, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from './prose';
@@ -13,7 +13,7 @@ import { logWarning, logError, logInfo } from '@/lib/system-logger';
 import type { ReasoningGraph } from './reasoning-graph';
 import { buildSequentialPath } from './reasoning-graph';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
-import { sanitizeSystemMutation, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
+import { sanitizeSystemDelta, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 
 /**
  * Split text into sentences, handling edge cases like abbreviations, decimals, and ellipsis.
@@ -271,9 +271,9 @@ The direction may include prose-level guidance: how to write, not just what happ
 ${direction}` : 'DIRECTION: Use your own judgment — analyze the branch context above and choose the most compelling next development based on unresolved threads, character tensions, and narrative momentum.'}
 ${worldBuildFocus ? (() => {
   const wb = worldBuildFocus;
-  const chars = wb.expansionManifest.characters.map((c) => `${c.name} (${c.role})`);
-  const locs = wb.expansionManifest.locations.map((l) => l.name);
-  const threads = wb.expansionManifest.threads.map((t) => {
+  const chars = wb.expansionManifest.newCharacters.map((c) => `${c.name} (${c.role})`);
+  const locs = wb.expansionManifest.newLocations.map((l) => l.name);
+  const threads = wb.expansionManifest.newThreads.map((t) => {
     const live = narrative.threads[t.id];
     return `${t.description} [${live?.status ?? t.status}]`;
   });
@@ -314,14 +314,26 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST �
       "relationshipMutations": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
       "systemMutations": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-XX", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
       "ownershipMutations": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
-      "tieMutations": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
+      "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
+      "newCharacters": [{"id": "C-GEN-001", "name": "Full Name", "role": "anchor|recurring|transient", "threadIds": [], "imagePrompt": "1-2 sentence literal physical description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history|capability|secret|goal", "content": "key fact about this character"}}, "edges": []}}],
+      "newLocations": [{"id": "L-GEN-001", "name": "Location Name", "parentId": "L-XX (existing parent) or null", "tiedCharacterIds": [], "threadIds": [], "imagePrompt": "1-2 sentence literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history", "content": "key fact about this location"}}, "edges": []}}],
+      "newArtifacts": [{"id": "A-GEN-001", "name": "Artifact Name", "significance": "key|notable|minor", "description": "What it is and does", "utility": "What capability it grants", "threadIds": [], "world": {"nodes": {}, "edges": []}}],
+      "newThreads": [{"id": "T-GEN-001", "description": "What this tension is about", "status": "latent", "participants": [{"id": "C-XX", "type": "character", "role": "active|passive|catalyst"}], "threadLog": {"nodes": {}, "edges": []}}],
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES — never raw IDs (no C-01, T-XX, L-03, WK-GEN, A-01 etc). Write as if for a reader: 'Fang Yuan acquires the Liquor worm' not 'C-01 acquires A-05'. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations."
     }
   ]
 }
 
+INTRODUCING NEW ENTITIES — Scenes can introduce new characters, locations, artifacts, or threads on the fly. This is a miniature world expansion that happens naturally during the scene:
+- New CHARACTER: Someone appears who isn't in the existing cast — a shopkeeper, a messenger, an ambusher, a bystander who becomes relevant. Give them a name, role, and at least one world node.
+- New LOCATION: The scene visits somewhere not yet in the world — a specific room, a hidden spot, a shop, a landmark. Connect it to an existing parent location.
+- New ARTIFACT: A tool, weapon, document, or object becomes relevant to the scene — discovered, created, or introduced. Give it significance and utility.
+- New THREAD: The scene opens a new tension that wasn't tracked before — a promise made, a debt created, a question raised, a rivalry sparked. Start it as "latent" or "seeded".
+
+Be liberal with entity introduction. If the scene needs a blacksmith, introduce one. If characters enter a tavern not yet in the world, introduce it. If someone finds a letter, introduce it as an artifact. These on-the-fly expansions make the world feel alive and responsive. Every new entity gets woven into the world immediately through the scene's mutations.
+
 Rules:
-- Use ONLY existing character IDs and location IDs from the narrative context above
+- Use existing character IDs and location IDs from the narrative context when they exist
 - Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
 - World knowledge node IDs for NEW concepts must be unique: SYS-GEN-001, SYS-GEN-002, etc. Reused nodes should keep their original ID.
@@ -336,11 +348,11 @@ DENSITY BAR (grading reference means — your arc averages must hit these or it 
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_SUMMARY_REQUIREMENT}
 ${PROMPT_FORCE_STANDARDS}
-${PROMPT_MUTATIONS}
+${PROMPT_DELTAS}
 ${PROMPT_LOCATIONS}
 ${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
 ${PROMPT_POV}
-${PROMPT_CONTINUITY}
+${PROMPT_WORLD}
 ${promptThreadLifecycle()}
 ${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex)}
 ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
@@ -385,30 +397,177 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
 
   sanitizeScenes(scenes, narrative, 'generateScenes');
 
+  // Allocate real IDs for introduced entities (C-GEN-* → C-XX, etc.)
+  // Collect all introduced entities across scenes and assign sequential IDs
+  const allNewChars = scenes.flatMap((s) => s.newCharacters ?? []);
+  const allNewLocs = scenes.flatMap((s) => s.newLocations ?? []);
+  const allNewArts = scenes.flatMap((s) => s.newArtifacts ?? []);
+  const allNewThreads = scenes.flatMap((s) => s.newThreads ?? []);
+
+  const charIdMap: Record<string, string> = {};
+  const locIdMap: Record<string, string> = {};
+  const artIdMap: Record<string, string> = {};
+  const threadIdMap: Record<string, string> = {};
+
+  if (allNewChars.length > 0) {
+    const realCharIds = nextIds('C', Object.keys(narrative.characters), allNewChars.length);
+    allNewChars.forEach((c, i) => {
+      charIdMap[c.id] = realCharIds[i];
+      c.id = realCharIds[i];
+    });
+  }
+  if (allNewLocs.length > 0) {
+    const realLocIds = nextIds('L', Object.keys(narrative.locations), allNewLocs.length);
+    allNewLocs.forEach((l, i) => {
+      locIdMap[l.id] = realLocIds[i];
+      l.id = realLocIds[i];
+      // Remap parentId if it references another new location
+      if (l.parentId && locIdMap[l.parentId]) {
+        l.parentId = locIdMap[l.parentId];
+      }
+    });
+  }
+  if (allNewArts.length > 0) {
+    const realArtIds = nextIds('A', Object.keys(narrative.artifacts ?? {}), allNewArts.length);
+    allNewArts.forEach((a, i) => {
+      artIdMap[a.id] = realArtIds[i];
+      a.id = realArtIds[i];
+    });
+  }
+  if (allNewThreads.length > 0) {
+    const realThreadIds = nextIds('T', Object.keys(narrative.threads), allNewThreads.length);
+    allNewThreads.forEach((t, i) => {
+      threadIdMap[t.id] = realThreadIds[i];
+      t.id = realThreadIds[i];
+    });
+  }
+
+  // Remap references in scenes to use real IDs
+  for (const scene of scenes) {
+    // Remap participant IDs, POV, location
+    scene.participantIds = scene.participantIds.map((id) => charIdMap[id] ?? id);
+    scene.povId = charIdMap[scene.povId] ?? scene.povId;
+    scene.locationId = locIdMap[scene.locationId] ?? scene.locationId;
+    // Remap worldDeltas entity IDs
+    for (const km of scene.worldDeltas ?? []) {
+      km.entityId = charIdMap[km.entityId] ?? locIdMap[km.entityId] ?? artIdMap[km.entityId] ?? km.entityId;
+    }
+    // Remap threadDeltas thread IDs
+    for (const tm of scene.threadDeltas ?? []) {
+      tm.threadId = threadIdMap[tm.threadId] ?? tm.threadId;
+    }
+    // Remap relationshipDeltas character IDs
+    for (const rm of scene.relationshipDeltas ?? []) {
+      rm.from = charIdMap[rm.from] ?? rm.from;
+      rm.to = charIdMap[rm.to] ?? rm.to;
+    }
+    // Remap artifact usages
+    for (const au of scene.artifactUsages ?? []) {
+      au.artifactId = artIdMap[au.artifactId] ?? au.artifactId;
+      if (au.characterId) au.characterId = charIdMap[au.characterId] ?? au.characterId;
+    }
+    // Remap ownership deltas
+    for (const om of scene.ownershipDeltas ?? []) {
+      om.artifactId = artIdMap[om.artifactId] ?? om.artifactId;
+      om.fromId = charIdMap[om.fromId] ?? locIdMap[om.fromId] ?? om.fromId;
+      om.toId = charIdMap[om.toId] ?? locIdMap[om.toId] ?? om.toId;
+    }
+    // Remap tie deltas
+    for (const td of scene.tieDeltas ?? []) {
+      td.locationId = locIdMap[td.locationId] ?? td.locationId;
+      td.characterId = charIdMap[td.characterId] ?? td.characterId;
+    }
+    // Remap character movements
+    if (scene.characterMovements) {
+      const remapped: typeof scene.characterMovements = {};
+      for (const [charId, mv] of Object.entries(scene.characterMovements)) {
+        const newCharId = charIdMap[charId] ?? charId;
+        remapped[newCharId] = {
+          ...mv,
+          locationId: locIdMap[mv.locationId] ?? mv.locationId,
+        };
+      }
+      scene.characterMovements = remapped;
+    }
+    // Remap tiedCharacterIds in new locations
+    for (const l of scene.newLocations ?? []) {
+      l.tiedCharacterIds = l.tiedCharacterIds.map((id) => charIdMap[id] ?? id);
+    }
+    // Remap thread participants
+    for (const t of scene.newThreads ?? []) {
+      t.participants = t.participants.map((p) => ({
+        ...p,
+        id: charIdMap[p.id] ?? locIdMap[p.id] ?? artIdMap[p.id] ?? p.id,
+      }));
+    }
+  }
+
   // Fix continuity node IDs to be unique and sequential
+  // Include both existing entities and newly introduced entities' world nodes
   const existingKIds = [
-    ...Object.values(narrative.characters).flatMap((c) => Object.keys(c.continuity.nodes)),
-    ...Object.values(narrative.locations).flatMap((l) => Object.keys(l.continuity.nodes)),
-    ...Object.values(narrative.artifacts ?? {}).flatMap((a) => Object.keys(a.continuity.nodes)),
+    ...Object.values(narrative.characters).flatMap((c) => Object.keys(c.world.nodes)),
+    ...Object.values(narrative.locations).flatMap((l) => Object.keys(l.world.nodes)),
+    ...Object.values(narrative.artifacts ?? {}).flatMap((a) => Object.keys(a.world.nodes)),
   ];
-  const totalNodeMutations = scenes.reduce((sum, s) => sum + s.continuityMutations.reduce((ns, km) => ns + (km.addedNodes?.length ?? 0), 0), 0);
+  // Count world nodes: worldDeltas + new entities' initial world nodes
+  const totalNodeMutations = scenes.reduce((sum, s) => {
+    const deltaMutations = s.worldDeltas.reduce((ns, km) => ns + (km.addedNodes?.length ?? 0), 0);
+    const newEntityNodes = (s.newCharacters ?? []).reduce((ns, c) => ns + Object.keys(c.world?.nodes ?? {}).length, 0)
+      + (s.newLocations ?? []).reduce((ns, l) => ns + Object.keys(l.world?.nodes ?? {}).length, 0)
+      + (s.newArtifacts ?? []).reduce((ns, a) => ns + Object.keys(a.world?.nodes ?? {}).length, 0);
+    return sum + deltaMutations + newEntityNodes;
+  }, 0);
   const kIds = nextIds('K', existingKIds, totalNodeMutations);
   let kIdx = 0;
+  // Remap worldDelta node IDs
   for (const scene of scenes) {
-    for (const km of scene.continuityMutations) {
+    for (const km of scene.worldDeltas) {
       for (const node of km.addedNodes ?? []) {
         node.id = kIds[kIdx++];
+      }
+    }
+  }
+  // Remap new entity world node IDs
+  for (const scene of scenes) {
+    for (const c of scene.newCharacters ?? []) {
+      if (c.world?.nodes) {
+        const remappedNodes: typeof c.world.nodes = {};
+        for (const [, node] of Object.entries(c.world.nodes)) {
+          const newId = kIds[kIdx++];
+          remappedNodes[newId] = { ...node, id: newId };
+        }
+        c.world.nodes = remappedNodes;
+      }
+    }
+    for (const l of scene.newLocations ?? []) {
+      if (l.world?.nodes) {
+        const remappedNodes: typeof l.world.nodes = {};
+        for (const [, node] of Object.entries(l.world.nodes)) {
+          const newId = kIds[kIdx++];
+          remappedNodes[newId] = { ...node, id: newId };
+        }
+        l.world.nodes = remappedNodes;
+      }
+    }
+    for (const a of scene.newArtifacts ?? []) {
+      if (a.world?.nodes) {
+        const remappedNodes: typeof a.world.nodes = {};
+        for (const [, node] of Object.entries(a.world.nodes)) {
+          const newId = kIds[kIdx++];
+          remappedNodes[newId] = { ...node, id: newId };
+        }
+        a.world.nodes = remappedNodes;
       }
     }
   }
 
   // Fix thread log node IDs to be unique and sequential
   const existingTkIds = Object.values(narrative.threads).flatMap((t) => Object.keys(t.threadLog?.nodes ?? {}));
-  const totalLogNodes = scenes.reduce((sum, s) => sum + (s.threadMutations ?? []).reduce((ns, tm) => ns + (tm.addedNodes?.length ?? 0), 0), 0);
+  const totalLogNodes = scenes.reduce((sum, s) => sum + (s.threadDeltas ?? []).reduce((ns, tm) => ns + (tm.addedNodes?.length ?? 0), 0), 0);
   const tkIds = nextIds('TK', existingTkIds, totalLogNodes);
   let tkIdx = 0;
   for (const scene of scenes) {
-    for (const tm of scene.threadMutations ?? []) {
+    for (const tm of scene.threadDeltas ?? []) {
       for (const node of tm.addedNodes ?? []) {
         node.id = tkIds[tkIdx++];
       }
@@ -434,37 +593,37 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
   for (const e of narrative.systemGraph?.edges ?? []) seenWkEdgeKeys.add(systemEdgeKey(e));
 
   for (const scene of scenes) {
-    if (!scene.systemMutations) {
-      scene.systemMutations = { addedNodes: [], addedEdges: [] };
+    if (!scene.systemDeltas) {
+      scene.systemDeltas = { addedNodes: [], addedEdges: [] };
     }
-    scene.systemMutations.addedNodes = scene.systemMutations.addedNodes ?? [];
-    scene.systemMutations.addedEdges = scene.systemMutations.addedEdges ?? [];
+    scene.systemDeltas.addedNodes = scene.systemDeltas.addedNodes ?? [];
+    scene.systemDeltas.addedEdges = scene.systemDeltas.addedEdges ?? [];
     // Resolve concepts: existing wins, then within-scene dupes collapse,
     // then genuinely new concepts get fresh SYS-XX ids.
     const resolved = resolveSystemConceptIds(
-      scene.systemMutations.addedNodes,
+      scene.systemDeltas.addedNodes,
       cumulativeWkNodes,
       allocateFreshWkId,
     );
     Object.assign(wkIdMap, resolved.idMap);
-    scene.systemMutations.addedNodes = resolved.newNodes;
+    scene.systemDeltas.addedNodes = resolved.newNodes;
     for (const n of resolved.newNodes) {
       cumulativeWkNodes[n.id] = n;
       validWKIds.add(n.id);
     }
     // Remap edge references using the cumulative map (LLM GEN ids, prior-
     // scene real ids, and existing graph ids all pass through correctly).
-    scene.systemMutations.addedEdges = scene.systemMutations.addedEdges.map((edge) => ({
+    scene.systemDeltas.addedEdges = scene.systemDeltas.addedEdges.map((edge) => ({
       from: wkIdMap[edge.from] ?? edge.from,
       to: wkIdMap[edge.to] ?? edge.to,
       relation: edge.relation,
     }));
     // Centralised sanitization: self-loops, orphans, cross-scene dupes, bad fields
-    sanitizeSystemMutation(scene.systemMutations, validWKIds, seenWkEdgeKeys);
+    sanitizeSystemDelta(scene.systemDeltas, validWKIds, seenWkEdgeKeys);
   }
 
   const newSceneIds = scenes.map((s) => s.id);
-  const newDevelops = [...new Set(scenes.flatMap((s) => s.threadMutations.map((tm) => tm.threadId)))];
+  const newDevelops = [...new Set(scenes.flatMap((s) => s.threadDeltas.map((tm) => tm.threadId)))];
   const newLocationIds = [...new Set(scenes.map((s) => s.locationId))];
   const newCharacterIds = [...new Set(scenes.flatMap((s) => s.participantIds))];
 
@@ -1734,7 +1893,7 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
   // to real SYS-XX ids using a cumulative map.
   const batchWkNodeIds = new Set<string>(Object.keys(narrative.systemGraph?.nodes ?? {}));
   for (const s of scenes) {
-    for (const n of s.systemMutations?.addedNodes ?? []) {
+    for (const n of s.systemDeltas?.addedNodes ?? []) {
       if (n?.id) batchWkNodeIds.add(n.id);
     }
   }
@@ -1763,10 +1922,10 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
     if (!scene.participantIds.includes(scene.povId)) {
       scene.povId = scene.participantIds[0] ?? fallbackCharId;
     }
-    if (!Array.isArray(scene.threadMutations)) scene.threadMutations = [];
-    if (!Array.isArray(scene.continuityMutations)) scene.continuityMutations = [];
-    if (!Array.isArray(scene.relationshipMutations)) scene.relationshipMutations = [];
-    scene.threadMutations = scene.threadMutations.filter((tm) => {
+    if (!Array.isArray(scene.threadDeltas)) scene.threadDeltas = [];
+    if (!Array.isArray(scene.worldDeltas)) scene.worldDeltas = [];
+    if (!Array.isArray(scene.relationshipDeltas)) scene.relationshipDeltas = [];
+    scene.threadDeltas = scene.threadDeltas.filter((tm) => {
       if (validThreadIds.has(tm.threadId)) return true;
       stripped.push(`threadId "${tm.threadId}" in scene ${scene.id}`);
       return false;
@@ -1780,7 +1939,7 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
     // "pulse → active" becomes "active → active" with the log entry's
     // type still set correctly downstream.
     const validStatuses = new Set<string>([...THREAD_ACTIVE_STATUSES, ...THREAD_TERMINAL_STATUSES, 'abandoned']);
-    for (const tm of scene.threadMutations) {
+    for (const tm of scene.threadDeltas) {
       const thread = narrative.threads[tm.threadId];
       const currentStatus = thread?.status ?? 'latent';
       if (!validStatuses.has(tm.from)) {
@@ -1798,7 +1957,7 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
     // If the LLM omitted addedNodes entirely, synthesize one from the status
     // transition so every threadMutation produces at least one log entry
     // instead of silently dropping the thread's contribution to the log.
-    for (const tm of scene.threadMutations) {
+    for (const tm of scene.threadDeltas) {
       const fallbackType = tm.from === tm.to ? 'pulse' : 'transition';
       tm.addedNodes = (tm.addedNodes ?? [])
         .filter((n) => n && typeof n.content === 'string' && n.content.trim())
@@ -1820,12 +1979,12 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
         stripped.push(`threadMutation "${tm.threadId}" in scene ${scene.id} missing log entries — synthesized fallback`);
       }
     }
-    scene.continuityMutations = scene.continuityMutations.filter((km) => {
+    scene.worldDeltas = scene.worldDeltas.filter((km) => {
       if (!km.entityId || allEntityIds.has(km.entityId)) return true;
       stripped.push(`continuityMutation entityId "${km.entityId}" in scene ${scene.id}`);
       return false;
     });
-    scene.relationshipMutations = scene.relationshipMutations.filter((rm) => {
+    scene.relationshipDeltas = scene.relationshipDeltas.filter((rm) => {
       if (rm.from === rm.to) {
         stripped.push(`relationshipMutation self-loop "${rm.from}" in scene ${scene.id}`);
         return false;
@@ -1834,12 +1993,12 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       stripped.push(`relationshipMutation "${rm.from}" -> "${rm.to}" in scene ${scene.id}`);
       return false;
     });
-    scene.ownershipMutations = (scene.ownershipMutations ?? []).filter((om) => {
+    scene.ownershipDeltas = (scene.ownershipDeltas ?? []).filter((om) => {
       const ok = validArtifactIds.has(om.artifactId) && allEntityIds.has(om.fromId) && allEntityIds.has(om.toId);
       if (!ok) stripped.push(`ownershipMutation "${om.artifactId}" in scene ${scene.id}`);
       return ok;
     });
-    if (scene.ownershipMutations.length === 0) delete scene.ownershipMutations;
+    if (scene.ownershipDeltas.length === 0) delete scene.ownershipDeltas;
     // Validate artifact usages — artifact must exist, character must be a participant,
     // character-owned artifacts can only be used by their owner, location-owned are communal
     scene.artifactUsages = (scene.artifactUsages ?? []).filter((au) => {
@@ -1854,13 +2013,13 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       return true;
     });
     if (scene.artifactUsages.length === 0) delete scene.artifactUsages;
-    scene.tieMutations = (scene.tieMutations ?? []).filter((mm) => {
+    scene.tieDeltas = (scene.tieDeltas ?? []).filter((mm) => {
       const ok = validLocIds.has(mm.locationId) && validCharIds.has(mm.characterId) &&
                  (mm.action === 'add' || mm.action === 'remove');
       if (!ok) stripped.push(`tieMutation "${mm.characterId}" at "${mm.locationId}" in scene ${scene.id}`);
       return ok;
     });
-    if (scene.tieMutations.length === 0) delete scene.tieMutations;
+    if (scene.tieDeltas.length === 0) delete scene.tieDeltas;
     if (scene.characterMovements) {
       const sanitized: Record<string, { locationId: string; transition: string }> = {};
       for (const [charId, mv] of Object.entries(scene.characterMovements)) {
@@ -1871,10 +2030,110 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       }
       scene.characterMovements = Object.keys(sanitized).length > 0 ? sanitized : undefined;
     }
+
+    // Validate introduced entities — normalize world graphs, add to valid ID sets
+    // so that deltas within the same scene can reference them
+    if (Array.isArray(scene.newCharacters)) {
+      scene.newCharacters = scene.newCharacters.filter((c) => {
+        if (!c.id || !c.name || !c.role) {
+          stripped.push(`newCharacter missing required fields in scene ${scene.id}`);
+          return false;
+        }
+        if (validCharIds.has(c.id)) {
+          stripped.push(`newCharacter "${c.id}" collides with existing character in scene ${scene.id}`);
+          return false;
+        }
+        return true;
+      }).map((c) => ({
+        ...c,
+        threadIds: c.threadIds ?? [],
+        world: c.world ?? { nodes: {}, edges: [] },
+      }));
+      // Add to valid sets so deltas can reference them
+      for (const c of scene.newCharacters) {
+        validCharIds.add(c.id);
+        allEntityIds.add(c.id);
+      }
+      if (scene.newCharacters.length === 0) delete scene.newCharacters;
+    }
+    if (Array.isArray(scene.newLocations)) {
+      scene.newLocations = scene.newLocations.filter((l) => {
+        if (!l.id || !l.name) {
+          stripped.push(`newLocation missing required fields in scene ${scene.id}`);
+          return false;
+        }
+        if (validLocIds.has(l.id)) {
+          stripped.push(`newLocation "${l.id}" collides with existing location in scene ${scene.id}`);
+          return false;
+        }
+        // Parent validation: must be null or existing location (including newly introduced ones)
+        if (l.parentId && !validLocIds.has(l.parentId)) {
+          stripped.push(`newLocation "${l.id}" has invalid parentId "${l.parentId}" in scene ${scene.id}`);
+          l.parentId = null;
+        }
+        return true;
+      }).map((l) => ({
+        ...l,
+        tiedCharacterIds: l.tiedCharacterIds ?? [],
+        threadIds: l.threadIds ?? [],
+        world: l.world ?? { nodes: {}, edges: [] },
+      }));
+      for (const l of scene.newLocations) {
+        validLocIds.add(l.id);
+        allEntityIds.add(l.id);
+      }
+      if (scene.newLocations.length === 0) delete scene.newLocations;
+    }
+    if (Array.isArray(scene.newArtifacts)) {
+      scene.newArtifacts = scene.newArtifacts.filter((a) => {
+        if (!a.id || !a.name) {
+          stripped.push(`newArtifact missing required fields in scene ${scene.id}`);
+          return false;
+        }
+        if (validArtifactIds.has(a.id)) {
+          stripped.push(`newArtifact "${a.id}" collides with existing artifact in scene ${scene.id}`);
+          return false;
+        }
+        return true;
+      }).map((a) => ({
+        ...a,
+        significance: a.significance ?? 'minor',
+        threadIds: a.threadIds ?? [],
+        world: a.world ?? { nodes: {}, edges: [] },
+      }));
+      for (const a of scene.newArtifacts) {
+        validArtifactIds.add(a.id);
+        allEntityIds.add(a.id);
+      }
+      if (scene.newArtifacts.length === 0) delete scene.newArtifacts;
+    }
+    if (Array.isArray(scene.newThreads)) {
+      scene.newThreads = scene.newThreads.filter((t) => {
+        if (!t.id || !t.description) {
+          stripped.push(`newThread missing required fields in scene ${scene.id}`);
+          return false;
+        }
+        if (validThreadIds.has(t.id)) {
+          stripped.push(`newThread "${t.id}" collides with existing thread in scene ${scene.id}`);
+          return false;
+        }
+        return true;
+      }).map((t) => ({
+        ...t,
+        status: 'latent' as const, // Force latent for new threads
+        participants: t.participants ?? [],
+        threadLog: t.threadLog ?? { nodes: {}, edges: [] },
+      }));
+      for (const t of scene.newThreads) {
+        validThreadIds.add(t.id);
+      }
+      if (scene.newThreads.length === 0) delete scene.newThreads;
+    }
+
     // Sanitize systemMutations — ensure arrays exist, nodes have concept+type,
     // edges have valid refs, no self-loops, no intra-scene duplicates.
-    if (scene.systemMutations) {
-      const wkm = scene.systemMutations;
+    if (scene.systemDeltas) {
+      const wkm = scene.systemDeltas;
       const beforeNodes = (wkm.addedNodes ?? []).length;
       const beforeEdges = (wkm.addedEdges ?? []).length;
       // Ensure each node carries an id (LLM may omit when emitting arrays) so
@@ -1889,7 +2148,7 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
       }
       // Valid targets for edges: any WK-GEN id anywhere in the batch plus
       // existing graph ids — edges can legitimately cross scene boundaries.
-      sanitizeSystemMutation(wkm, batchWkNodeIds, new Set<string>());
+      sanitizeSystemDelta(wkm, batchWkNodeIds, new Set<string>());
       if (wkm.addedNodes.length < beforeNodes) {
         stripped.push(`system nodes (${beforeNodes - wkm.addedNodes.length}) missing concept/type in scene ${scene.id}`);
       }
@@ -1897,11 +2156,11 @@ function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label: strin
         stripped.push(`system edges (${beforeEdges - wkm.addedEdges.length}) invalid/self-loop/dup in scene ${scene.id}`);
       }
     } else {
-      scene.systemMutations = { addedNodes: [], addedEdges: [] };
+      scene.systemDeltas = { addedNodes: [], addedEdges: [] };
     }
     // Ensure continuityMutations have required fields. Node ORDER defines
     // the chain — no explicit edges are stored. Type sanitization in applyContinuityMutation.
-    scene.continuityMutations = scene.continuityMutations.filter((km) => {
+    scene.worldDeltas = scene.worldDeltas.filter((km) => {
       if (!km.entityId) { stripped.push(`continuityMutation missing entityId in scene ${scene.id}`); return false; }
       km.addedNodes = (km.addedNodes ?? []).filter(n => n.content);
       if (km.addedNodes.length === 0) {

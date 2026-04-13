@@ -34,21 +34,20 @@ export default function SceneDetail({ sceneId }: Props) {
   // ── World Build Commit view ─────────────────────────────────────────────
   if (entry.kind === "world_build") {
     const m = entry.expansionManifest;
-    const totalContinuityNodes = (m.continuityMutations ?? []).reduce(
+    const totalWorldNodes = (m.worldDeltas ?? []).reduce(
       (acc, cm) => acc + (cm.addedNodes?.length ?? 0),
       0,
     );
     const isEmpty =
-      m.characters.length === 0 &&
-      m.locations.length === 0 &&
-      m.threads.length === 0 &&
-      (m.artifacts?.length ?? 0) === 0 &&
-      (m.relationships?.length ?? 0) === 0 &&
-      (m.systemMutations?.addedNodes?.length ?? 0) === 0 &&
-      (m.continuityMutations?.length ?? 0) === 0 &&
-      (m.relationshipMutations?.length ?? 0) === 0 &&
-      (m.ownershipMutations?.length ?? 0) === 0 &&
-      (m.tieMutations?.length ?? 0) === 0;
+      m.newCharacters.length === 0 &&
+      m.newLocations.length === 0 &&
+      m.newThreads.length === 0 &&
+      (m.newArtifacts?.length ?? 0) === 0 &&
+      (m.systemDeltas?.addedNodes?.length ?? 0) === 0 &&
+      (m.worldDeltas?.length ?? 0) === 0 &&
+      (m.relationshipDeltas?.length ?? 0) === 0 &&
+      (m.ownershipDeltas?.length ?? 0) === 0 &&
+      (m.tieDeltas?.length ?? 0) === 0;
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-baseline gap-2">
@@ -68,13 +67,13 @@ export default function SceneDetail({ sceneId }: Props) {
               This expansion added nothing new.
             </p>
           )}
-          {m.characters.length > 0 && (
+          {m.newCharacters.length > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
                 Characters
               </h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.characters.map((mc) => {
+                {m.newCharacters.map((mc) => {
                   const char = narrative.characters[mc.id];
                   return (
                     <button
@@ -95,13 +94,13 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {m.locations.length > 0 && (
+          {m.newLocations.length > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
                 Locations
               </h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.locations.map((ml) => {
+                {m.newLocations.map((ml) => {
                   const loc = narrative.locations[ml.id];
                   return (
                     <button
@@ -122,13 +121,13 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {m.threads.length > 0 && (
+          {m.newThreads.length > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
                 Threads
               </h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.threads.map((mt) => {
+                {m.newThreads.map((mt) => {
                   const thread = narrative.threads[mt.id];
                   const depCount =
                     thread?.dependents?.filter((id) => narrative.threads[id])
@@ -157,21 +156,13 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {(m.relationships?.length ?? 0) > 0 && (
-            <div className="text-xs text-text-secondary">
-              <span className="text-text-dim uppercase text-[10px] tracking-wider mr-2">
-                Relationships
-              </span>
-              {m.relationships.length} new
-            </div>
-          )}
-          {(m.artifacts?.length ?? 0) > 0 && (
+          {(m.newArtifacts?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
                 Artifacts
               </h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.artifacts!.map((ma) => {
+                {m.newArtifacts!.map((ma) => {
                   const art = narrative.artifacts?.[ma.id];
                   return (
                     <button
@@ -192,13 +183,13 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {(m.systemMutations?.addedNodes?.length ?? 0) > 0 && (
+          {(m.systemDeltas?.addedNodes?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
                 World Knowledge
               </h3>
               <div className="flex flex-wrap gap-1.5">
-                {m.systemMutations!.addedNodes.map((node) => (
+                {m.systemDeltas!.addedNodes.map((node) => (
                   <button
                     key={node.id}
                     type="button"
@@ -214,13 +205,13 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {(m.continuityMutations?.length ?? 0) > 0 && (
+          {(m.worldDeltas?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-                Continuity ({totalContinuityNodes})
+                World ({totalWorldNodes})
               </h3>
               <div className="flex flex-col gap-0.5">
-                {m.continuityMutations!.map((cm, i) => {
+                {m.worldDeltas!.map((cm, i) => {
                   const char = narrative.characters[cm.entityId];
                   const loc = narrative.locations[cm.entityId];
                   const art = narrative.artifacts?.[cm.entityId];
@@ -280,13 +271,13 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {(m.relationshipMutations?.length ?? 0) > 0 && (
+          {(m.relationshipDeltas?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
                 Relationship Shifts
               </h3>
               <div className="flex flex-col gap-0.5">
-                {m.relationshipMutations!.map((rm, i) => {
+                {m.relationshipDeltas!.map((rm, i) => {
                   const from = narrative.characters[rm.from]?.name ?? rm.from;
                   const to = narrative.characters[rm.to]?.name ?? rm.to;
                   const sign = rm.valenceDelta > 0 ? "+" : "";
@@ -309,13 +300,13 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {(m.ownershipMutations?.length ?? 0) > 0 && (
+          {(m.ownershipDeltas?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
                 Ownership
               </h3>
               <div className="flex flex-col gap-0.5">
-                {m.ownershipMutations!.map((om, i) => {
+                {m.ownershipDeltas!.map((om, i) => {
                   const art = narrative.artifacts?.[om.artifactId];
                   const fromName =
                     narrative.characters[om.fromId]?.name ??
@@ -343,13 +334,13 @@ export default function SceneDetail({ sceneId }: Props) {
               </div>
             </div>
           )}
-          {(m.tieMutations?.length ?? 0) > 0 && (
+          {(m.tieDeltas?.length ?? 0) > 0 && (
             <div className="flex flex-col gap-1">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
                 Ties
               </h3>
               <div className="flex flex-col gap-0.5">
-                {m.tieMutations!.map((tm, i) => {
+                {m.tieDeltas!.map((tm, i) => {
                   const loc = narrative.locations[tm.locationId];
                   const char = narrative.characters[tm.characterId];
                   return (
@@ -654,13 +645,13 @@ export default function SceneDetail({ sceneId }: Props) {
           </div>
         )}
 
-      {/* Thread Mutations */}
-      {scene.threadMutations.length > 0 && (
+      {/* Thread Deltas */}
+      {scene.threadDeltas.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Thread Mutations
+            Thread Deltas
           </h3>
-          {scene.threadMutations.map((tm, tmIdx) => {
+          {scene.threadDeltas.map((tm, tmIdx) => {
             const thread = narrative.threads[tm.threadId];
             return (
               <div
@@ -693,13 +684,13 @@ export default function SceneDetail({ sceneId }: Props) {
         </div>
       )}
 
-      {/* Continuity Mutations */}
-      {scene.continuityMutations.length > 0 && (
+      {/* World Deltas */}
+      {scene.worldDeltas.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Continuity Mutations
+            World Deltas
           </h3>
-          {scene.continuityMutations.flatMap((km, kmIdx) => {
+          {scene.worldDeltas.flatMap((km, kmIdx) => {
             const entityName =
               narrative.characters[km.entityId]?.name ??
               narrative.locations[km.entityId]?.name ??
@@ -740,13 +731,13 @@ export default function SceneDetail({ sceneId }: Props) {
         </div>
       )}
 
-      {/* Relationship Mutations */}
-      {scene.relationshipMutations.length > 0 && (
+      {/* Relationship Deltas */}
+      {scene.relationshipDeltas.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
-            Relationship Mutations
+            Relationship Deltas
           </h3>
-          {scene.relationshipMutations.map((rm, i) => {
+          {scene.relationshipDeltas.map((rm, i) => {
             const fromName = narrative.characters[rm.from]?.name ?? rm.from;
             const toName = narrative.characters[rm.to]?.name ?? rm.to;
             return (
@@ -797,12 +788,12 @@ export default function SceneDetail({ sceneId }: Props) {
       )}
 
       {/* Ownership Mutations */}
-      {(scene.ownershipMutations?.length ?? 0) > 0 && (
+      {(scene.ownershipDeltas?.length ?? 0) > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Artifact Transfers
           </h3>
-          {scene.ownershipMutations!.map((om, i) => {
+          {scene.ownershipDeltas!.map((om, i) => {
             const artName =
               narrative.artifacts?.[om.artifactId]?.name ?? om.artifactId;
             const fromName =
@@ -840,12 +831,12 @@ export default function SceneDetail({ sceneId }: Props) {
       )}
 
       {/* Ties Mutations */}
-      {(scene.tieMutations?.length ?? 0) > 0 && (
+      {(scene.tieDeltas?.length ?? 0) > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
             Ties
           </h3>
-          {scene.tieMutations!.map((mm, i) => {
+          {scene.tieDeltas!.map((mm, i) => {
             const charName =
               narrative.characters[mm.characterId]?.name ?? mm.characterId;
             const locName =
@@ -897,14 +888,14 @@ export default function SceneDetail({ sceneId }: Props) {
       )}
 
       {/* World Knowledge Mutations */}
-      {scene.systemMutations &&
-        ((scene.systemMutations.addedNodes?.length ?? 0) > 0 ||
-          (scene.systemMutations.addedEdges?.length ?? 0) > 0) && (
+      {scene.systemDeltas &&
+        ((scene.systemDeltas.addedNodes?.length ?? 0) > 0 ||
+          (scene.systemDeltas.addedEdges?.length ?? 0) > 0) && (
           <div className="flex flex-col gap-1.5">
             <h3 className="text-[10px] uppercase tracking-widest text-text-dim">
               World Knowledge
             </h3>
-            {(scene.systemMutations.addedNodes ?? []).map((node, i) => (
+            {(scene.systemDeltas.addedNodes ?? []).map((node, i) => (
               <div
                 key={`wk-node-${node.id}-${i}`}
                 className="flex items-center gap-1.5 text-xs"
@@ -914,7 +905,7 @@ export default function SceneDetail({ sceneId }: Props) {
                 <span className="text-[10px] text-text-dim">({node.type})</span>
               </div>
             ))}
-            {(scene.systemMutations.addedEdges ?? []).map((edge, i) => {
+            {(scene.systemDeltas.addedEdges ?? []).map((edge, i) => {
               const fromNode = narrative.systemGraph.nodes[edge.from];
               const toNode = narrative.systemGraph.nodes[edge.to];
               const shortName = (concept: string) => {

@@ -23,7 +23,7 @@ export interface GraphNode extends d3.SimulationNodeDatum {
   /** Thread count badge */
   threadCount?: number;
   /** Only for knowledge nodes */
-  continuityType?: string;
+  worldType?: string;
   /** Parent character id for knowledge nodes */
   parentCharacterId?: string;
   /** Usage count for overview mode */
@@ -137,7 +137,7 @@ export function heatColor(t: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-export const CONTINUITY_FILL: Record<string, string> = {
+export const WORLD_FILL: Record<string, string> = {
   trait: "#A78BFA", // violet
   state: "#34D399", // emerald
   history: "#FBBF24", // amber
@@ -161,7 +161,7 @@ export const KNOWLEDGE_OPACITY: Record<string, number> = {
   weakness: 0.9,
 };
 
-export const DEFAULT_CONTINUITY_FILL = "#FFFFFF";
+export const DEFAULT_WORLD_FILL = "#FFFFFF";
 export const DEFAULT_KNOWLEDGE_OPACITY = 0.7;
 
 // ── Thread log node type colors ─────────────────────────────────────────────
@@ -352,10 +352,10 @@ export function buildOverviewGraphData(
     const wb = worldBuilds[key];
     if (wb) {
       // World builds introduce elements — count manifest IDs so they appear in overview
-      for (const c of wb.expansionManifest.characters) {
+      for (const c of wb.expansionManifest.newCharacters) {
         charUsage[c.id] = (charUsage[c.id] ?? 0) + 1;
       }
-      for (const l of wb.expansionManifest.locations) {
+      for (const l of wb.expansionManifest.newLocations) {
         locUsage[l.id] = (locUsage[l.id] ?? 0) + 1;
       }
     } else {

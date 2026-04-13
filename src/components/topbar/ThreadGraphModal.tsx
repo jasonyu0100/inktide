@@ -80,7 +80,7 @@ function buildTimelineData(
   // Collect mutations per thread
   const threadMuts = new Map<string, { sceneIdx: number; from: string; to: string }[]>();
   for (let i = 0; i < scenes.length; i++) {
-    for (const tm of scenes[i].threadMutations) {
+    for (const tm of scenes[i].threadDeltas) {
       if (!threadMuts.has(tm.threadId)) threadMuts.set(tm.threadId, []);
       threadMuts.get(tm.threadId)!.push({ sceneIdx: i, from: tm.from.toLowerCase(), to: tm.to.toLowerCase() });
     }

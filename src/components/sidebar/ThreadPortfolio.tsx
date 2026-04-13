@@ -43,7 +43,7 @@ function computeThreadMetrics(
     if (!scene) continue;
     sceneCount++;
 
-    for (const tm of scene.threadMutations) {
+    for (const tm of scene.threadDeltas) {
       if (!metrics[tm.threadId]) {
         metrics[tm.threadId] = { transitions: 0, pulses: 0, total: 0, sinceLast: 0, firstSeen: sceneCount };
       }
@@ -256,9 +256,9 @@ export default function ThreadPortfolio() {
     const mutatedThreadIds = new Set(
       Array.from(visibleKeys).flatMap((k) => {
         const scene = narrative.scenes[k];
-        if (scene) return scene.threadMutations.map((tm) => tm.threadId);
+        if (scene) return scene.threadDeltas.map((tm) => tm.threadId);
         const wb = narrative.worldBuilds[k];
-        if (wb) return wb.expansionManifest.threads.map((t) => t.id);
+        if (wb) return wb.expansionManifest.newThreads.map((t) => t.id);
         return [];
       })
     );

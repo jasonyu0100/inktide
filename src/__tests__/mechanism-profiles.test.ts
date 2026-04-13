@@ -58,9 +58,9 @@ function createSceneWithPlan(
     locationId: 'loc1',
     participantIds: ['c1'],
     events: [],
-    threadMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
+    threadDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
     characterMovements: {},
     summary: 'Test scene',
     planVersions: plan ? [{

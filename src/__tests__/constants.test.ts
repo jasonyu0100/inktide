@@ -25,7 +25,7 @@ import {
   // AI Context
   FORCE_WINDOW_SIZE,
   GENERATE_MODEL,
-  GRAPH_CONTINUITY_LIMIT,
+  GRAPH_WORLD_LIMIT,
   // UI
   INSPECTOR_PAGE_SIZE,
   MAX_TOKENS_DEFAULT,
@@ -187,8 +187,8 @@ describe("UI Constants", () => {
     expect(INSPECTOR_PAGE_SIZE).toBeGreaterThanOrEqual(5);
     expect(INSPECTOR_PAGE_SIZE).toBeLessThanOrEqual(100);
   });
-  it("GRAPH_CONTINUITY_LIMIT is positive", () => {
-    expect(GRAPH_CONTINUITY_LIMIT).toBeGreaterThan(0);
+  it("GRAPH_WORLD_LIMIT is positive", () => {
+    expect(GRAPH_WORLD_LIMIT).toBeGreaterThan(0);
   });
   it("DENSE_ARC_THRESHOLD is positive", () => {
     expect(DENSE_ARC_THRESHOLD).toBeGreaterThan(0);

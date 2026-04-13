@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import type { SystemMutation, SystemGraph, SystemNode, SystemNodeType } from '@/types/narrative';
+import type { SystemDelta, SystemGraph, SystemNode, SystemNodeType } from '@/types/narrative';
 import {
   EMPTY_SYSTEM_GRAPH,
   systemEdgeKey,
-  sanitizeSystemMutation,
-  applySystemMutation,
+  sanitizeSystemDelta,
+  applySystemDelta,
   seenSystemEdgeKeysFromGraph,
   normalizeSystemConcept,
   makeSystemIdAllocator,
@@ -20,7 +20,7 @@ function edge(from: string, to: string, relation = 'relates_to') {
 function mutation(
   nodes: SystemNode[] = [],
   edges: { from: string; to: string; relation: string }[] = [],
-): SystemMutation {
+): SystemDelta {
   return { addedNodes: nodes.slice(), addedEdges: edges.slice() };
 }
 // ── EMPTY_SYSTEM_GRAPH ────────────────────────────────────────────────────
@@ -45,22 +45,22 @@ describe('systemEdgeKey', () => {
     expect(a).not.toBe(b);
   });
 });
-// ── sanitizeSystemMutation ───────────────────────────────────────────
-describe('sanitizeSystemMutation', () => {
+// ── sanitizeSystemDelta ───────────────────────────────────────────
+describe('sanitizeSystemDelta', () => {
   it('filters self-loops (from === to)', () => {
     const m = mutation([], [edge('SYS-01', 'SYS-01', 'enables'), edge('SYS-01', 'SYS-02', 'enables')]);
-    sanitizeSystemMutation(m, new Set(['SYS-01', 'SYS-02']), new Set());
+    sanitizeSystemDelta(m, new Set(['SYS-01', 'SYS-02']), new Set());
     expect(m.addedEdges).toHaveLength(1);
     expect(m.addedEdges[0]).toEqual({ from: 'SYS-01', to: 'SYS-02', relation: 'enables' });
   });
   it('filters orphan edges (endpoint not in validIds)', () => {
     const m = mutation([], [edge('SYS-01', 'SYS-02'), edge('SYS-01', 'SYS-99'), edge('SYS-88', 'SYS-02')]);
-    sanitizeSystemMutation(m, new Set(['SYS-01', 'SYS-02']), new Set());
+    sanitizeSystemDelta(m, new Set(['SYS-01', 'SYS-02']), new Set());
     expect(m.addedEdges).toHaveLength(1);
     expect(m.addedEdges[0].to).toBe('SYS-02');
   });
   it('filters edges missing from, to, or relation', () => {
-    const m: SystemMutation = {
+    const m: SystemDelta = {
       addedNodes: [],
       addedEdges: [
         { from: 'SYS-01', to: 'SYS-02', relation: '' },
@@ -69,7 +69,7 @@ describe('sanitizeSystemMutation', () => {
         { from: 'SYS-01', to: 'SYS-02', relation: 'enables' },
       ],
     };
-    sanitizeSystemMutation(m, new Set(['SYS-01', 'SYS-02']), new Set());
+    sanitizeSystemDelta(m, new Set(['SYS-01', 'SYS-02']), new Set());
     expect(m.addedEdges).toHaveLength(1);
   });
   it('filters cross-mutation duplicates using the shared seenEdgeKeys set', () => {
@@ -77,15 +77,15 @@ describe('sanitizeSystemMutation', () => {
     const seen = new Set<string>();
     const m1 = mutation([], [edge('SYS-01', 'SYS-02', 'enables')]);
     const m2 = mutation([], [edge('SYS-01', 'SYS-02', 'enables'), edge('SYS-02', 'SYS-01', 'enables')]);
-    sanitizeSystemMutation(m1, valid, seen);
-    sanitizeSystemMutation(m2, valid, seen);
+    sanitizeSystemDelta(m1, valid, seen);
+    sanitizeSystemDelta(m2, valid, seen);
     // m1 keeps its one edge, m2 keeps only the reverse-direction one.
     expect(m1.addedEdges).toHaveLength(1);
     expect(m2.addedEdges).toHaveLength(1);
     expect(m2.addedEdges[0]).toEqual({ from: 'SYS-02', to: 'SYS-01', relation: 'enables' });
   });
   it('filters nodes missing concept or type', () => {
-    const m: SystemMutation = {
+    const m: SystemDelta = {
       addedNodes: [
         { id: 'SYS-01', concept: 'Magic', type: 'system' },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,38 +97,38 @@ describe('sanitizeSystemMutation', () => {
       ],
       addedEdges: [],
     };
-    sanitizeSystemMutation(m, new Set(['SYS-01', 'SYS-02', 'SYS-03']), new Set());
+    sanitizeSystemDelta(m, new Set(['SYS-01', 'SYS-02', 'SYS-03']), new Set());
     expect(m.addedNodes).toHaveLength(1);
     expect(m.addedNodes[0].id).toBe('SYS-01');
   });
   it('handles undefined addedNodes/addedEdges gracefully', () => {
-    const m = { addedNodes: undefined, addedEdges: undefined } as unknown as SystemMutation;
-    sanitizeSystemMutation(m, new Set(), new Set());
+    const m = { addedNodes: undefined, addedEdges: undefined } as unknown as SystemDelta;
+    sanitizeSystemDelta(m, new Set(), new Set());
     expect(m.addedNodes).toEqual([]);
     expect(m.addedEdges).toEqual([]);
   });
   it('returns the mutated object for chaining', () => {
     const m = mutation();
-    const result = sanitizeSystemMutation(m, new Set(), new Set());
+    const result = sanitizeSystemDelta(m, new Set(), new Set());
     expect(result).toBe(m);
   });
 });
-// ── applySystemMutation ──────────────────────────────────────────────
-describe('applySystemMutation', () => {
+// ── applySystemDelta ──────────────────────────────────────────────
+describe('applySystemDelta', () => {
   it('adds new nodes to the graph', () => {
     const graph: SystemGraph = { nodes: {}, edges: [] };
-    applySystemMutation(graph, mutation([node('SYS-01', 'Magic', 'system')], []));
+    applySystemDelta(graph, mutation([node('SYS-01', 'Magic', 'system')], []));
     expect(graph.nodes['SYS-01']).toEqual({ id: 'SYS-01', concept: 'Magic', type: 'system' });
   });
   it('does not overwrite existing nodes', () => {
     const graph: SystemGraph = { nodes: { 'SYS-01': node('SYS-01', 'Magic', 'system') }, edges: [] };
-    applySystemMutation(graph, mutation([node('SYS-01', 'OTHER CONCEPT', 'principle')], []));
+    applySystemDelta(graph, mutation([node('SYS-01', 'OTHER CONCEPT', 'principle')], []));
     expect(graph.nodes['SYS-01'].concept).toBe('Magic');
     expect(graph.nodes['SYS-01'].type).toBe('system');
   });
   it('adds new edges', () => {
     const graph: SystemGraph = { nodes: {}, edges: [] };
-    applySystemMutation(graph, mutation([], [edge('SYS-01', 'SYS-02', 'enables')]));
+    applySystemDelta(graph, mutation([], [edge('SYS-01', 'SYS-02', 'enables')]));
     expect(graph.edges).toHaveLength(1);
   });
   it('does not duplicate existing edges', () => {
@@ -136,7 +136,7 @@ describe('applySystemMutation', () => {
       nodes: {},
       edges: [edge('SYS-01', 'SYS-02', 'enables')],
     };
-    applySystemMutation(graph, mutation([], [edge('SYS-01', 'SYS-02', 'enables')]));
+    applySystemDelta(graph, mutation([], [edge('SYS-01', 'SYS-02', 'enables')]));
     expect(graph.edges).toHaveLength(1);
   });
   it('treats different relations as different edges', () => {
@@ -144,7 +144,7 @@ describe('applySystemMutation', () => {
       nodes: {},
       edges: [edge('SYS-01', 'SYS-02', 'enables')],
     };
-    applySystemMutation(graph, mutation([], [edge('SYS-01', 'SYS-02', 'blocks')]));
+    applySystemDelta(graph, mutation([], [edge('SYS-01', 'SYS-02', 'blocks')]));
     expect(graph.edges).toHaveLength(2);
   });
 });

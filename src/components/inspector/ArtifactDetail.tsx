@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { getContinuityNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
-import type { ContinuityNodeType } from '@/types/narrative';
+import { getWorldNodesAtScene, getThreadIdsAtScene } from '@/lib/scene-filter';
 import { CollapsibleSection } from './CollapsibleSection';
 import { INSPECTOR_PAGE_SIZE } from '@/lib/constants';
 
@@ -82,8 +81,8 @@ export default function ArtifactDetail({ artifactId }: Props) {
   const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(0, state.viewState.currentSceneIndex + 1);
 
   // Continuity filtered to current scene
-  const continuityNodes = getContinuityNodesAtScene(
-    artifact.continuity.nodes,
+  const worldNodes = getWorldNodesAtScene(
+    artifact.world.nodes,
     artifactId,
     narrative.scenes,
     state.resolvedEntryKeys,
@@ -105,17 +104,17 @@ export default function ArtifactDetail({ artifactId }: Props) {
     .filter((s) => {
       if (!s) return false;
       const hasUsage = (s.artifactUsages ?? []).some((au) => au.artifactId === artifactId);
-      const hasContinuity = s.continuityMutations.some((km) => km.entityId === artifactId);
-      const hasOwnership = (s.ownershipMutations ?? []).some((om) => om.artifactId === artifactId);
-      const hasThreadMut = s.threadMutations.some((tm) => artifactThreadIds.has(tm.threadId));
+      const hasContinuity = s.worldDeltas.some((km) => km.entityId === artifactId);
+      const hasOwnership = (s.ownershipDeltas ?? []).some((om) => om.artifactId === artifactId);
+      const hasThreadMut = s.threadDeltas.some((tm) => artifactThreadIds.has(tm.threadId));
       return hasUsage || hasContinuity || hasOwnership || hasThreadMut;
     })
     .map((s) => ({
       sceneId: s.id,
       usages: (s.artifactUsages ?? []).filter((au) => au.artifactId === artifactId),
-      continuityMuts: s.continuityMutations.filter((km) => km.entityId === artifactId),
-      ownershipMuts: (s.ownershipMutations ?? []).filter((om) => om.artifactId === artifactId),
-      threadMuts: s.threadMutations.filter((tm) => artifactThreadIds.has(tm.threadId)),
+      worldMuts: s.worldDeltas.filter((km) => km.entityId === artifactId),
+      ownershipDeltas: (s.ownershipDeltas ?? []).filter((om) => om.artifactId === artifactId),
+      threadDeltas: s.threadDeltas.filter((tm) => artifactThreadIds.has(tm.threadId)),
     }));
 
   return (
@@ -158,10 +157,10 @@ export default function ArtifactDetail({ artifactId }: Props) {
       </p>
 
       {/* Continuity — paginated, most recent first */}
-      {continuityNodes.length > 0 && (() => {
-        const { pageItems, totalPages, safePage } = paginateRecent(continuityNodes, continuityPage);
+      {worldNodes.length > 0 && (() => {
+        const { pageItems, totalPages, safePage } = paginateRecent(worldNodes, continuityPage);
         return (
-          <CollapsibleSection title="Continuity" count={continuityNodes.length} defaultOpen>
+          <CollapsibleSection title="World" count={worldNodes.length} defaultOpen>
             <ul className="flex flex-col gap-1">
               {pageItems.map((node, i) => (
                 <li key={`${node.id}-${i}`} className="flex items-start gap-2">
@@ -210,7 +209,7 @@ export default function ArtifactDetail({ artifactId }: Props) {
         return (
           <CollapsibleSection title="Scenes" count={lifecycle.length} defaultOpen>
             <ul className="flex flex-col gap-2">
-              {pageItems.map(({ sceneId, usages, continuityMuts, ownershipMuts, threadMuts }) => (
+              {pageItems.map(({ sceneId, usages, worldMuts, ownershipDeltas, threadDeltas }) => (
                 <li key={sceneId} className="flex flex-col gap-0.5">
                   <button
                     type="button"
@@ -229,12 +228,12 @@ export default function ArtifactDetail({ artifactId }: Props) {
                       {au.usage && <span className="text-[10px] text-text-dim">{au.usage}</span>}
                     </div>
                   ))}
-                  {threadMuts.map((tm, tmIdx) => (
+                  {threadDeltas.map((tm, tmIdx) => (
                     <span key={`${tm.threadId}-${tmIdx}`} className="text-xs text-text-secondary">
                       {tm.threadId}: {tm.from} &rarr; {tm.to}
                     </span>
                   ))}
-                  {continuityMuts.flatMap((km, kmIdx) =>
+                  {worldMuts.flatMap((km, kmIdx) =>
                     (km.addedNodes ?? []).map((node, nIdx) => (
                       <span key={`${km.entityId}-${node.id}-${kmIdx}-${nIdx}`} className="text-xs text-text-secondary">
                         <span className="text-world">+</span>{' '}
@@ -242,7 +241,7 @@ export default function ArtifactDetail({ artifactId }: Props) {
                       </span>
                     ))
                   )}
-                  {ownershipMuts.map((om, omIdx) => {
+                  {ownershipDeltas.map((om, omIdx) => {
                     const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
                     const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
                     return (

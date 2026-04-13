@@ -431,7 +431,7 @@ export default function BranchEval({ sceneRange, onRangeChange }: { sceneRange?:
       if (!inserts) return;
       for (const ins of inserts) {
         scenes.push({
-          scene: { kind: 'scene', id: ins.sceneId, arcId, locationId: '', povId: '', participantIds: [], events: [], threadMutations: [], continuityMutations: [], relationshipMutations: [], summary: ins.reason },
+          scene: { kind: 'scene', id: ins.sceneId, arcId, locationId: '', povId: '', participantIds: [], events: [], threadDeltas: [], worldDeltas: [], relationshipDeltas: [], summary: ins.reason },
         });
         injectInserts(ins.sceneId, arcId);
       }

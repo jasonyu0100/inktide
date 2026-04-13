@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, StorySettings, RelationshipEdge, ContinuityEdge, ProseProfile, SystemGraph } from '@/types/narrative';
+import type { NarrativeState, Scene, StorySettings, RelationshipEdge, WorldEdge, ProseProfile, SystemGraph } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeSystemGraph, rankSystemNodes } from '@/lib/narrative-utils';
 import { WORDS_PER_SCENE, BEATS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
@@ -64,7 +64,7 @@ export function getStateAtIndex(
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
     if (entry?.kind !== 'scene') continue;
-    for (const km of entry.continuityMutations) {
+    for (const km of entry.worldDeltas) {
       for (const node of km.addedNodes ?? []) {
         if (node.id) liveNodeIds.add(node.id);
       }
@@ -76,7 +76,7 @@ export function getStateAtIndex(
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
     if (entry?.kind !== 'scene') continue;
-    for (const rm of entry.relationshipMutations) {
+    for (const rm of entry.relationshipDeltas) {
       const key = `${rm.from}:${rm.to}`;
       const existing = relMap.get(key);
       if (existing) {
@@ -101,7 +101,7 @@ export function getStateAtIndex(
   for (const k of keysUpToCurrent) {
     const entry = resolveEntry(n, k);
     if (entry?.kind !== 'scene') continue;
-    for (const tm of entry.threadMutations) {
+    for (const tm of entry.threadDeltas) {
       threadStatuses[tm.threadId] = tm.to;
     }
   }
@@ -112,13 +112,13 @@ export function getStateAtIndex(
     const entry = resolveEntry(n, k);
     // WorldBuilds introduce artifacts with initial parentIds
     if (entry?.kind === 'world_build') {
-      for (const a of entry.expansionManifest.artifacts ?? []) {
+      for (const a of entry.expansionManifest.newArtifacts ?? []) {
         artifactOwnership[a.id] = a.parentId;
       }
     }
     // Scenes can transfer ownership
     if (entry?.kind === 'scene') {
-      for (const om of entry.ownershipMutations ?? []) {
+      for (const om of entry.ownershipDeltas ?? []) {
         artifactOwnership[om.artifactId] = om.toId;
       }
     }
@@ -318,12 +318,12 @@ export function narrativeContext(
       referencedCharIds.add(entry.povId);
       for (const pid of entry.participantIds) referencedCharIds.add(pid);
       referencedLocIds.add(entry.locationId);
-      for (const tm of entry.threadMutations) referencedThreadIds.add(tm.threadId);
-      for (const km of entry.continuityMutations) {
+      for (const tm of entry.threadDeltas) referencedThreadIds.add(tm.threadId);
+      for (const km of entry.worldDeltas) {
         referencedCharIds.add(km.entityId);
         for (const node of km.addedNodes ?? []) horizonContinuityNodeIds.add(node.id);
       }
-      for (const rm of entry.relationshipMutations) {
+      for (const rm of entry.relationshipDeltas) {
         referencedCharIds.add(rm.from);
         referencedCharIds.add(rm.to);
       }
@@ -334,9 +334,9 @@ export function narrativeContext(
         }
       }
     } else if (entry.kind === 'world_build') {
-      for (const c of entry.expansionManifest.characters) referencedCharIds.add(c.id);
-      for (const l of entry.expansionManifest.locations) referencedLocIds.add(l.id);
-      for (const t of entry.expansionManifest.threads) referencedThreadIds.add(t.id);
+      for (const c of entry.expansionManifest.newCharacters) referencedCharIds.add(c.id);
+      for (const l of entry.expansionManifest.newLocations) referencedLocIds.add(l.id);
+      for (const t of entry.expansionManifest.newThreads) referencedThreadIds.add(t.id);
     }
   }
   // Also include threads that anchor to referenced characters/locations
@@ -388,7 +388,7 @@ export function narrativeContext(
   }
 
   // Helper: render continuity graph (nodes + edges) as XML — mirrors world knowledge rendering
-  const renderContinuityXml = (nodes: { id: string; type: string; content: string }[], edges: ContinuityEdge[], indent: string) => {
+  const renderContinuityXml = (nodes: { id: string; type: string; content: string }[], edges: WorldEdge[], indent: string) => {
     const nodeIds = new Set(nodes.map(n => n.id));
     const nodeLines = nodes.map((kn) => `${indent}<knowledge id="${kn.id}" type="${kn.type}">${kn.content}</knowledge>`);
     const relevantEdges = edges.filter(e => nodeIds.has(e.from) && nodeIds.has(e.to));
@@ -398,14 +398,14 @@ export function narrativeContext(
 
   const characters = branchCharacters
     .map((c) => {
-      const relevantNodes = Object.values(c.continuity.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
+      const relevantNodes = Object.values(c.world.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
       const recentNodes = relevantNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-      const continuityLines = renderContinuityXml(recentNodes, c.continuity.edges, '  ');
+      const continuityLines = renderContinuityXml(recentNodes, c.world.edges, '  ');
       const owned = artifactsByOwner.get(c.id) ?? [];
       const artifactLines = owned.map((a) => {
-        const scopedNodes = Object.values(a.continuity.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
+        const scopedNodes = Object.values(a.world.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
         const recentArtNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-        const inner = renderContinuityXml(recentArtNodes, a.continuity.edges, '    ').join('\n');
+        const inner = renderContinuityXml(recentArtNodes, a.world.edges, '    ').join('\n');
         return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
       const continuityBlock = continuityLines.length > 0 ? `\n${continuityLines.join('\n')}` : '';
@@ -415,15 +415,15 @@ export function narrativeContext(
     .join('\n');
   const locations = branchLocations
     .map((l) => {
-      const relevantNodes = Object.values(l.continuity.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
+      const relevantNodes = Object.values(l.world.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
       const recentNodes = relevantNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-      const continuityLines = renderContinuityXml(recentNodes, l.continuity.edges, '  ');
+      const continuityLines = renderContinuityXml(recentNodes, l.world.edges, '  ');
       const parent = l.parentId ? ` parent="${n.locations[l.parentId]?.name ?? l.parentId}"` : '';
       const owned = artifactsByOwner.get(l.id) ?? [];
       const artifactLines = owned.map((a) => {
-        const scopedNodes = Object.values(a.continuity.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
+        const scopedNodes = Object.values(a.world.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
         const recentArtNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-        const inner = renderContinuityXml(recentArtNodes, a.continuity.edges, '    ').join('\n');
+        const inner = renderContinuityXml(recentArtNodes, a.world.edges, '    ').join('\n');
         return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
       const continuityBlock = continuityLines.length > 0 ? `\n${continuityLines.join('\n')}` : '';
@@ -439,7 +439,7 @@ export function narrativeContext(
   keysUpToCurrent.forEach((k, idx) => {
     const scene = n.scenes[k];
     if (!scene) return;
-    for (const tm of scene.threadMutations) {
+    for (const tm of scene.threadDeltas) {
       threadMutationCount[tm.threadId] = (threadMutationCount[tm.threadId] ?? 0) + 1;
       if (threadFirstMutation[tm.threadId] === undefined) threadFirstMutation[tm.threadId] = idx;
     }
@@ -485,21 +485,21 @@ export function narrativeContext(
     }
     const loc = n.locations[s.locationId]?.name ?? s.locationId;
     const participants = s.participantIds.map((pid) => n.characters[pid]?.name ?? pid).join(', ');
-    const threadChanges = s.threadMutations.map((tm) => {
+    const threadChanges = s.threadDeltas.map((tm) => {
       const thr = n.threads[tm.threadId];
       const desc = thr ? thr.description : tm.threadId;
       return `${desc}: ${tm.from}->${tm.to}`;
     }).join('; ');
-    const continuityChanges = s.continuityMutations.flatMap((km) => {
+    const continuityChanges = s.worldDeltas.flatMap((km) => {
       const entityName = n.characters[km.entityId]?.name ?? n.locations[km.entityId]?.name ?? n.artifacts[km.entityId]?.name ?? km.entityId;
       return (km.addedNodes ?? []).map(node => `${entityName} learned [${node.type}]: ${node.content}`);
     }).join('; ');
-    const relChanges = s.relationshipMutations.map((rm) => {
+    const relChanges = s.relationshipDeltas.map((rm) => {
       const fromName = n.characters[rm.from]?.name ?? rm.from;
       const toName = n.characters[rm.to]?.name ?? rm.to;
       return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
     }).join('; ');
-    const ownershipChanges = (s.ownershipMutations ?? []).map((om) => {
+    const ownershipChanges = (s.ownershipDeltas ?? []).map((om) => {
       const artName = n.artifacts?.[om.artifactId]?.name ?? om.artifactId;
       const fromName = n.characters[om.fromId]?.name ?? n.locations[om.fromId]?.name ?? om.fromId;
       const toName = n.characters[om.toId]?.name ?? n.locations[om.toId]?.name ?? om.toId;
@@ -512,7 +512,7 @@ export function narrativeContext(
       const charName = n.characters[au.characterId]?.name ?? au.characterId;
       return `${charName} uses ${artName}${usageDesc}`;
     }).join('; ');
-    const tieChanges = (s.tieMutations ?? []).map((mm) => {
+    const tieChanges = (s.tieDeltas ?? []).map((mm) => {
       const locName = n.locations[mm.locationId]?.name ?? mm.locationId;
       const charName = n.characters[mm.characterId]?.name ?? mm.characterId;
       return `${charName} ${mm.action === 'add' ? 'joins' : 'leaves'} ${locName}`;
@@ -671,7 +671,7 @@ export function sceneContext(
   // ── Characters: knowledge scoped to timeline when available ──────────
   const characterBlocks = participants.map((p) => {
     // Filter to nodes that existed at this point in the timeline
-    const allNodes = Object.values(p.continuity.nodes);
+    const allNodes = Object.values(p.world.nodes);
     const scopedNodes = timelineState
       ? allNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
       : allNodes;
@@ -684,7 +684,7 @@ export function sceneContext(
   // ── Location: continuity scoped to timeline when available ────────────────────────────────────
   const locationBlock = (() => {
     if (!location) return '<location name="Unknown" />';
-    const allLocNodes = Object.values(location.continuity.nodes);
+    const allLocNodes = Object.values(location.world.nodes);
     const scopedNodes = timelineState
       ? allLocNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
       : allLocNodes;
@@ -700,7 +700,7 @@ export function sceneContext(
   // ── Artifacts referenced in this scene (usages + transfers) ─────────────────
   const sceneArtifactIds = new Set<string>();
   for (const au of scene.artifactUsages ?? []) sceneArtifactIds.add(au.artifactId);
-  for (const om of scene.ownershipMutations ?? []) sceneArtifactIds.add(om.artifactId);
+  for (const om of scene.ownershipDeltas ?? []) sceneArtifactIds.add(om.artifactId);
 
   const artifactBlocks = [...sceneArtifactIds].map((artId) => {
     const artifact = narrative.artifacts?.[artId];
@@ -710,7 +710,7 @@ export function sceneContext(
       ? (narrative.characters[artifact.parentId]?.name ?? narrative.locations[artifact.parentId]?.name ?? artifact.parentId)
       : 'world';
     // Filter continuity nodes to timeline
-    const allNodes = Object.values(artifact.continuity.nodes);
+    const allNodes = Object.values(artifact.world.nodes);
     const scopedNodes = timelineState
       ? allNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
       : allNodes;
@@ -732,7 +732,7 @@ export function sceneContext(
   });
 
   // ── Threads involved in this scene (status scoped to timeline when available) ─────────────────────────────────
-  const threadIds = new Set(scene.threadMutations.map((tm) => tm.threadId));
+  const threadIds = new Set(scene.threadDeltas.map((tm) => tm.threadId));
   const threadBlocks = [...threadIds].map((tid) => {
     const thread = narrative.threads[tid];
     if (!thread) return `  <thread id="${tid}">unknown</thread>`;
@@ -752,17 +752,17 @@ export function sceneContext(
   });
 
   // ── Scene mutations ────────────────────────────────────────────────
-  const threadMutationLines = scene.threadMutations.map((tm) => {
+  const threadMutationLines = scene.threadDeltas.map((tm) => {
     const thread = narrative.threads[tm.threadId];
     return `  <shift thread="${thread?.description ?? tm.threadId}" from="${tm.from}" to="${tm.to}" />`;
   });
 
-  const continuityMutationLines = scene.continuityMutations.flatMap((km) => {
+  const continuityMutationLines = scene.worldDeltas.flatMap((km) => {
     const entityName = narrative.characters[km.entityId]?.name ?? narrative.locations[km.entityId]?.name ?? narrative.artifacts[km.entityId]?.name ?? km.entityId;
     return (km.addedNodes ?? []).map(node => `  <change entity="${entityName}" type="${node.type}">${node.content}</change>`);
   });
 
-  const relationshipMutationLines = scene.relationshipMutations.map((rm) => {
+  const relationshipMutationLines = scene.relationshipDeltas.map((rm) => {
     const fromName = narrative.characters[rm.from]?.name ?? rm.from;
     const toName = narrative.characters[rm.to]?.name ?? rm.to;
     return `  <shift from="${fromName}" to="${toName}" delta="${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100}">${rm.type}</shift>`;
@@ -784,21 +784,21 @@ export function sceneContext(
     return `  <usage artifact="${artName}" character="${charName}"${usageAttr} />`;
   });
 
-  const ownershipMutationLines = (scene.ownershipMutations ?? []).map((om) => {
+  const ownershipMutationLines = (scene.ownershipDeltas ?? []).map((om) => {
     const artName = narrative.artifacts?.[om.artifactId]?.name ?? om.artifactId;
     const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
     const toName = narrative.characters[om.toId]?.name ?? narrative.locations[om.toId]?.name ?? om.toId;
     return `  <transfer artifact="${artName}" from="${fromName}" to="${toName}" />`;
   });
 
-  const tieMutationLines = (scene.tieMutations ?? []).map((mm) => {
+  const tieMutationLines = (scene.tieDeltas ?? []).map((mm) => {
     const locName = narrative.locations[mm.locationId]?.name ?? mm.locationId;
     const charName = narrative.characters[mm.characterId]?.name ?? mm.characterId;
     return `  <tie character="${charName}" action="${mm.action}" location="${locName}" />`;
   });
 
   const wkmBlock = (() => {
-    const wkm = scene.systemMutations;
+    const wkm = scene.systemDeltas;
     if (!wkm || ((wkm.addedNodes?.length ?? 0) === 0 && (wkm.addedEdges?.length ?? 0) === 0)) return '';
     const lines: string[] = [];
     for (const node of wkm.addedNodes ?? []) {
@@ -865,7 +865,7 @@ export function deriveLogicRules(
   const getCharacterKnowledge = (charId: string) => {
     const char = narrative.characters[charId];
     if (!char) return [];
-    const allCharNodes = Object.values(char.continuity.nodes);
+    const allCharNodes = Object.values(char.world.nodes);
     return timelineState
       ? allCharNodes.filter((kn) => timelineState.liveNodeIds.has(kn.id))
       : allCharNodes;
@@ -886,7 +886,7 @@ export function deriveLogicRules(
   if (pov) {
     const povKnowledge = getCharacterKnowledge(pov.id);
     // Knowledge being added to POV this scene — they don't have it at the START
-    const povLearnsNodes = scene.continuityMutations
+    const povLearnsNodes = scene.worldDeltas
       .filter((km) => km.entityId === pov.id)
       .flatMap((km) => km.addedNodes ?? []);
     const povLearnsNodeIds = new Set(povLearnsNodes.map((n) => n.id));
@@ -912,7 +912,7 @@ ${knowledgeLines.join('\n')}
 
     // Other entities learning this scene (non-POV)
     const grouped = new Map<string, string[]>();
-    for (const km of scene.continuityMutations) {
+    for (const km of scene.worldDeltas) {
       if (km.entityId === pov.id) continue;
       const entity = narrative.characters[km.entityId] ?? narrative.locations[km.entityId] ?? narrative.artifacts[km.entityId];
       if (!entity) continue;
@@ -938,7 +938,7 @@ ${knowledgeLines.join('\n')}
     const povKnowledge = getCharacterKnowledge(pov.id);
     const povKnowledgeIds = new Set(povKnowledge.map((kn) => kn.id));
     const povLearnsNodeIds = new Set(
-      scene.continuityMutations
+      scene.worldDeltas
         .filter((km) => km.entityId === pov.id)
         .flatMap((km) => (km.addedNodes ?? []).map(n => n.id)),
     );
@@ -971,8 +971,8 @@ ${asymmetryLines.join('\n')}
   // ═══════════════════════════════════════════════════════════════════════════
   // THREAD TRANSITIONS
   // ═══════════════════════════════════════════════════════════════════════════
-  if (scene.threadMutations.length > 0) {
-    const threadLines = scene.threadMutations.map((tm) => {
+  if (scene.threadDeltas.length > 0) {
+    const threadLines = scene.threadDeltas.map((tm) => {
       const thread = narrative.threads[tm.threadId];
       const desc = thread?.description ?? tm.threadId;
       return `  <thread name="${desc}" from="${tm.from}" to="${tm.to}" />`;
@@ -992,7 +992,7 @@ ${threadLines.join('\n')}
 
   // Compute pre-scene valence by subtracting this scene's deltas
   const mutationDeltaMap = new Map<string, number>();
-  for (const rm of scene.relationshipMutations) {
+  for (const rm of scene.relationshipDeltas) {
     const key = `${rm.from}->${rm.to}`;
     mutationDeltaMap.set(key, (mutationDeltaMap.get(key) ?? 0) + rm.valenceDelta);
   }
@@ -1018,7 +1018,7 @@ ${threadLines.join('\n')}
   }
 
   // Relationship mutations
-  for (const rm of scene.relationshipMutations) {
+  for (const rm of scene.relationshipDeltas) {
     const fromName = narrative.characters[rm.from]?.name;
     const toName = narrative.characters[rm.to]?.name;
     if (!fromName || !toName) continue;
@@ -1048,8 +1048,8 @@ ${eventLines.join('\n')}
   // ═══════════════════════════════════════════════════════════════════════════
   // WORLD KNOWLEDGE (reveals + connections + established references)
   // ═══════════════════════════════════════════════════════════════════════════
-  if (scene.systemMutations) {
-    const wkm = scene.systemMutations;
+  if (scene.systemDeltas) {
+    const wkm = scene.systemDeltas;
     const newNodeIds = new Set((wkm.addedNodes ?? []).map((n) => n.id));
     const worldLines: string[] = [];
 
@@ -1117,8 +1117,8 @@ ${movementLines.join('\n')}
   const artifacts = narrative.artifacts ?? {};
   const getArtifactOwner = (a: { id: string; parentId: string | null }) =>
     timelineState?.artifactOwnership[a.id] ?? a.parentId;
-  const getArtifactCapabilities = (a: { continuity: { nodes: Record<string, { id: string; content: string }> } }) => {
-    const allArtNodes = Object.values(a.continuity.nodes);
+  const getArtifactCapabilities = (a: { world: { nodes: Record<string, { id: string; content: string }> } }) => {
+    const allArtNodes = Object.values(a.world.nodes);
     const nodes = timelineState
       ? allArtNodes.filter((n) => timelineState.liveNodeIds.has(n.id))
       : allArtNodes;
@@ -1156,7 +1156,7 @@ ${movementLines.join('\n')}
   }
 
   // Ownership transfers
-  for (const om of scene.ownershipMutations ?? []) {
+  for (const om of scene.ownershipDeltas ?? []) {
     const art = artifacts[om.artifactId];
     if (!art) continue;
     const fromName = narrative.characters[om.fromId]?.name ?? narrative.locations[om.fromId]?.name ?? om.fromId;
@@ -1232,7 +1232,7 @@ export function outlineContext(
 
     const povName = n.characters[entry.povId]?.name ?? entry.povId;
     const locName = n.locations[entry.locationId]?.name ?? entry.locationId;
-    const threadChanges = entry.threadMutations
+    const threadChanges = entry.threadDeltas
       .map((tm) => {
         const t = n.threads[tm.threadId];
         return t ? `${t.description}: ${tm.from}→${tm.to}` : '';

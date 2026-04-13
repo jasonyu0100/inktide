@@ -743,7 +743,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
               const thread = node.virtualNarrative.threads[threadId];
               // Collect all transitions for this thread across path scenes
               const transitions = allPathScenes.flatMap((s) =>
-                s.threadMutations.filter((tm) => tm.threadId === threadId)
+                s.threadDeltas.filter((tm) => tm.threadId === threadId)
               );
               return (
                 <div key={threadId} className="flex flex-col gap-1 rounded bg-white/3 px-2 py-1.5">
@@ -961,11 +961,11 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
             </div>
           )}
 
-          {/* Thread Mutations */}
-          {scene.threadMutations.length > 0 && (
+          {/* Thread Deltas */}
+          {scene.threadDeltas.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Thread Mutations</h3>
-              {scene.threadMutations.map((tm, j) => {
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Thread Deltas</h3>
+              {scene.threadDeltas.map((tm, j) => {
                 const thread = node.virtualNarrative.threads[tm.threadId];
                 return (
                   <div key={j} className="flex items-center gap-1.5 text-xs">
@@ -979,10 +979,10 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           )}
 
           {/* Relationship Mutations */}
-          {scene.relationshipMutations.length > 0 && (
+          {scene.relationshipDeltas.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Relationships</h3>
-              {scene.relationshipMutations.map((rm, j) => {
+              {scene.relationshipDeltas.map((rm, j) => {
                 const fromName = node.virtualNarrative.characters[rm.from]?.name ?? rm.from;
                 const toName = node.virtualNarrative.characters[rm.to]?.name ?? rm.to;
                 return (
@@ -1003,10 +1003,10 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           )}
 
           {/* Continuity Mutations */}
-          {scene.continuityMutations.length > 0 && (
+          {scene.worldDeltas.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Continuity</h3>
-              {scene.continuityMutations.flatMap((km, j) => {
+              <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World</h3>
+              {scene.worldDeltas.flatMap((km, j) => {
                 const n = node.virtualNarrative;
                 const entityName = n.characters[km.entityId]?.name ?? n.locations[km.entityId]?.name ?? n.artifacts[km.entityId]?.name ?? km.entityId;
                 return (km.addedNodes ?? []).map((nd, k) => (
@@ -1024,17 +1024,17 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
           )}
 
           {/* World Knowledge Mutations */}
-          {scene.systemMutations && (scene.systemMutations.addedNodes?.length > 0 || scene.systemMutations.addedEdges?.length > 0) && (
+          {scene.systemDeltas && (scene.systemDeltas.addedNodes?.length > 0 || scene.systemDeltas.addedEdges?.length > 0) && (
             <div className="flex flex-col gap-1.5">
               <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World Knowledge</h3>
-              {scene.systemMutations.addedNodes?.map((wkn, j) => (
+              {scene.systemDeltas.addedNodes?.map((wkn, j) => (
                 <div key={`wkn-${j}`} className="flex items-center gap-1.5 text-xs">
                   <span className="text-world">+</span>
                   <span className="text-text-primary">{wkn.concept}</span>
                   <span className="text-[10px] text-text-dim">({wkn.type})</span>
                 </div>
               ))}
-              {scene.systemMutations.addedEdges?.map((wke, j) => {
+              {scene.systemDeltas.addedEdges?.map((wke, j) => {
                 const fromNode = node.virtualNarrative.systemGraph?.nodes?.[wke.from];
                 const toNode = node.virtualNarrative.systemGraph?.nodes?.[wke.to];
                 const shortName = (concept: string) => { const d = concept.indexOf(' — '); return d > 0 ? concept.slice(0, d) : concept; };
@@ -1395,9 +1395,9 @@ export function MCTSPanel({ isOpen, onClose, mcts }: { isOpen: boolean; onClose:
                         {worldBuildEntries.map((wb) => {
                           const manifest = wb.expansionManifest;
                           const parts: string[] = [];
-                          if (manifest.characters.length > 0) parts.push(`${manifest.characters.length} char${manifest.characters.length > 1 ? 's' : ''}`);
-                          if (manifest.locations.length > 0) parts.push(`${manifest.locations.length} loc${manifest.locations.length > 1 ? 's' : ''}`);
-                          if (manifest.threads.length > 0) parts.push(`${manifest.threads.length} thread${manifest.threads.length > 1 ? 's' : ''}`);
+                          if (manifest.newCharacters.length > 0) parts.push(`${manifest.newCharacters.length} char${manifest.newCharacters.length > 1 ? 's' : ''}`);
+                          if (manifest.newLocations.length > 0) parts.push(`${manifest.newLocations.length} loc${manifest.newLocations.length > 1 ? 's' : ''}`);
+                          if (manifest.newThreads.length > 0) parts.push(`${manifest.newThreads.length} thread${manifest.newThreads.length > 1 ? 's' : ''}`);
                           const isSelected = config.worldBuildFocusId === wb.id;
                           return (
                             <button

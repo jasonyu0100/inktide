@@ -158,9 +158,9 @@ export function PlanCandidatesView({ narrative, scene, resolvedKeys, candidateCo
                       <div className={`text-xl font-bold font-mono tabular-nums ${scoreColorClass(score)}`}>
                         {(score * 100).toFixed(1)}%
                       </div>
-                      {(candidate.continuityViolations?.length ?? 0) > 0 && (
+                      {(candidate.consistencyViolations?.length ?? 0) > 0 && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-medium">
-                          {candidate.continuityViolations!.length} violation{candidate.continuityViolations!.length !== 1 ? 's' : ''}
+                          {candidate.consistencyViolations!.length} violation{candidate.consistencyViolations!.length !== 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
@@ -209,7 +209,7 @@ export function PlanCandidatesView({ narrative, scene, resolvedKeys, candidateCo
                               {beat.propositions.map((prop, pi) => {
                                 const key = `${beatIndex}:${pi}`;
                                 const label = candidate.propositionLabels?.[key];
-                                const violation = candidate.continuityViolations?.find(v => v.beatIndex === beatIndex && v.propIndex === pi);
+                                const violation = candidate.consistencyViolations?.find(v => v.beatIndex === beatIndex && v.propIndex === pi);
                                 return (
                                   <div
                                     key={pi}

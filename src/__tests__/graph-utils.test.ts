@@ -3,7 +3,7 @@ import {
   buildOverviewGraphData,
   computeCharacterPositions,
   computeGroups,
-  CONTINUITY_FILL,
+  WORLD_FILL,
   heatColor,
   KNOWLEDGE_OPACITY,
   LOCATION_FILL,
@@ -33,7 +33,7 @@ function createCharacter(
     id,
     name: `Character ${id}`,
     role: "recurring",
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     threadIds: [],
     ...overrides,
   };
@@ -48,7 +48,7 @@ function createLocation(
     prominence: "place" as const,
     parentId: null,
     tiedCharacterIds: [],
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     threadIds: [],
     ...overrides,
   };
@@ -63,7 +63,7 @@ function createArtifact(
     parentId,
     name: `Artifact ${id}`,
     significance: "minor",
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     threadIds: [],
     ...overrides,
   };
@@ -78,9 +78,9 @@ function createScene(id: string, overrides: Partial<Scene> = {}): Scene {
     participantIds: ["char-1"],
     summary: "Test scene",
     events: [],
-    threadMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
+    threadDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
     characterMovements: {},
     ...overrides,
   };
@@ -115,16 +115,16 @@ describe("Graph Constants", () => {
     expect(LOCATION_SIZE).toBeGreaterThan(0);
     expect(LOCATION_FILL).toMatch(/^#[0-9A-Fa-f]{6}$/);
   });
-  it("CONTINUITY_FILL has colors for continuity types", () => {
-    expect(CONTINUITY_FILL.trait).toBeDefined();
-    expect(CONTINUITY_FILL.state).toBeDefined();
-    expect(CONTINUITY_FILL.history).toBeDefined();
-    expect(CONTINUITY_FILL.capability).toBeDefined();
-    expect(CONTINUITY_FILL.belief).toBeDefined();
-    expect(CONTINUITY_FILL.relation).toBeDefined();
-    expect(CONTINUITY_FILL.secret).toBeDefined();
-    expect(CONTINUITY_FILL.goal).toBeDefined();
-    expect(CONTINUITY_FILL.weakness).toBeDefined();
+  it("WORLD_FILL has colors for continuity types", () => {
+    expect(WORLD_FILL.trait).toBeDefined();
+    expect(WORLD_FILL.state).toBeDefined();
+    expect(WORLD_FILL.history).toBeDefined();
+    expect(WORLD_FILL.capability).toBeDefined();
+    expect(WORLD_FILL.belief).toBeDefined();
+    expect(WORLD_FILL.relation).toBeDefined();
+    expect(WORLD_FILL.secret).toBeDefined();
+    expect(WORLD_FILL.goal).toBeDefined();
+    expect(WORLD_FILL.weakness).toBeDefined();
   });
   it("KNOWLEDGE_OPACITY has values between 0 and 1", () => {
     for (const val of Object.values(KNOWLEDGE_OPACITY)) {
@@ -555,20 +555,19 @@ describe("buildOverviewGraphData", () => {
         id: "wb-1",
         summary: "Expansion",
         expansionManifest: {
-          characters: [
+          newCharacters: [
             {
               id: "char-1",
               name: "Alice",
               role: "recurring",
-              continuity: { nodes: {}, edges: [] },
+              world: { nodes: {}, edges: [] },
               threadIds: [],
             },
           ],
-          locations: [],
-          threads: [],
-          relationships: [],
-          systemMutations: { addedNodes: [], addedEdges: [] },
-          artifacts: [],
+          newLocations: [],
+          newThreads: [],
+          newArtifacts: [],
+          systemDeltas: { addedNodes: [], addedEdges: [] },
         },
       },
     };

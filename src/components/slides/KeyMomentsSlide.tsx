@@ -101,8 +101,8 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
   const forces = peakInfo?.forces ?? troughInfo?.forces ?? { fate: 0, world: 0, system: 0 };
   const delivery = peakInfo?.delivery ?? troughInfo?.delivery;
   const cubeCorner = peakInfo?.cubeCorner ?? troughInfo?.cubeCorner;
-  const threadChanges = peakInfo?.threadChanges ?? scene.threadMutations?.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })) ?? [];
-  const relationshipChanges = peakInfo?.relationshipChanges ?? scene.relationshipMutations?.map((rm) => ({ from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta })) ?? [];
+  const threadChanges = peakInfo?.threadChanges ?? scene.threadDeltas?.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })) ?? [];
+  const relationshipChanges = peakInfo?.relationshipChanges ?? scene.relationshipDeltas?.map((rm) => ({ from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta })) ?? [];
 
   const maxForce = Math.max(Math.abs(forces.fate), Math.abs(forces.world), Math.abs(forces.system), 0.5);
   const povName = data.characterNames[scene.povId] ?? scene.povId;
@@ -111,7 +111,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
     .filter((id) => id !== scene.povId)
     .map((id) => data.characterNames[id] ?? id);
 
-  const knowledgeGains = (scene.continuityMutations ?? []).flatMap((km) =>
+  const knowledgeGains = (scene.worldDeltas ?? []).flatMap((km) =>
     (km.addedNodes ?? []).map((node) => ({ entityId: km.entityId, content: node.content }))
   );
 

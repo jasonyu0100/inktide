@@ -539,13 +539,13 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         locations: expansion.locations,
         threads: expansion.threads,
         relationships: expansion.relationships,
-        systemMutations: expansion.systemMutations,
+        systemDeltas: expansion.systemDeltas,
         artifacts: expansion.artifacts,
         branchId: state.viewState.activeBranchId!,
-        ownershipMutations: expansion.ownershipMutations,
-        tieMutations: expansion.tieMutations,
-        continuityMutations: expansion.continuityMutations,
-        relationshipMutations: expansion.relationshipMutations,
+        ownershipDeltas: expansion.ownershipDeltas,
+        tieDeltas: expansion.tieDeltas,
+        worldDeltas: expansion.worldDeltas,
+        relationshipDeltas: expansion.relationshipDeltas,
         reasoningGraph: expansion.reasoningGraph,
       });
       setExpansionReasoningGraph(null);
@@ -589,13 +589,13 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         locations: expansion.locations,
         threads: expansion.threads,
         relationships: expansion.relationships,
-        systemMutations: expansion.systemMutations,
+        systemDeltas: expansion.systemDeltas,
         artifacts: expansion.artifacts,
         branchId: state.viewState.activeBranchId!,
-        ownershipMutations: expansion.ownershipMutations,
-        tieMutations: expansion.tieMutations,
-        continuityMutations: expansion.continuityMutations,
-        relationshipMutations: expansion.relationshipMutations,
+        ownershipDeltas: expansion.ownershipDeltas,
+        tieDeltas: expansion.tieDeltas,
+        worldDeltas: expansion.worldDeltas,
+        relationshipDeltas: expansion.relationshipDeltas,
       });
       onClose();
     } catch (err) {
@@ -1176,18 +1176,18 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                             key: "relationships" as const,
                             label: "Relationships",
                           },
-                          { key: "systemMutations" as const, label: "System" },
+                          { key: "systemDeltas" as const, label: "System" },
                           {
-                            key: "ownershipMutations" as const,
+                            key: "ownershipDeltas" as const,
                             label: "Ownership",
                           },
-                          { key: "tieMutations" as const, label: "Ties" },
+                          { key: "tieDeltas" as const, label: "Ties" },
                           {
-                            key: "continuityMutations" as const,
-                            label: "Continuity",
+                            key: "worldDeltas" as const,
+                            label: "World",
                           },
                           {
-                            key: "relationshipMutations" as const,
+                            key: "relationshipDeltas" as const,
                             label: "Rel. Shifts",
                           },
                         ].map((opt) => (

@@ -14,9 +14,9 @@ vi.mock('@/lib/ai/context', () => ({
 vi.mock('@/lib/ai/prompts', () => ({
   PROMPT_FORCE_STANDARDS: 'Mock force standards',
   PROMPT_STRUCTURAL_RULES: 'Mock structural rules',
-  PROMPT_MUTATIONS: 'Mock mutations',
+  PROMPT_DELTAS: 'Mock mutations',
   PROMPT_POV: 'Mock POV',
-  PROMPT_CONTINUITY: 'Mock continuity',
+  PROMPT_WORLD: 'Mock continuity',
   PROMPT_SUMMARY_REQUIREMENT: 'Mock summary requirement',
   PROMPT_ENTITY_INTEGRATION: 'Mock entity integration',
   buildForceStandardsPrompt: vi.fn().mockReturnValue('Mock force standards prompt'),
@@ -49,7 +49,7 @@ function createCharacter(id: string, overrides: Partial<Character> = {}): Charac
     name: `Character ${id}`,
     role: 'recurring',
     threadIds: [],
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -61,7 +61,7 @@ function createLocation(id: string, overrides: Partial<Location> = {}): Location
     parentId: null,
     tiedCharacterIds: [],
     threadIds: [],
-    continuity: { nodes: {}, edges: [] },
+    world: { nodes: {}, edges: [] },
     ...overrides,
   };
 }
@@ -114,15 +114,15 @@ describe('expandWorld — systemMutations', () => {
     threads: [],
     relationships: [],
     artifacts: [],
-    ownershipMutations: [],
-    tieMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
+    ownershipDeltas: [],
+    tieDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
   };
   it('assigns fresh WK ids to new concepts', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseExpansion,
-      systemMutations: {
+      systemDeltas: {
         addedNodes: [
           { id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' },
           { id: 'SYS-GEN-2', concept: 'Leylines', type: 'concept' },
@@ -132,7 +132,7 @@ describe('expandWorld — systemMutations', () => {
     }));
     const narrative = createMinimalNarrative();
     const result = await expandWorld(narrative, [], 0, 'Expand the magic system');
-    const wkm = result.systemMutations!;
+    const wkm = result.systemDeltas!;
     expect(wkm.addedNodes).toHaveLength(2);
     expect(wkm.addedNodes.map((n) => n.id)).toEqual(['SYS-01', 'SYS-02']);
     expect(wkm.addedEdges).toHaveLength(1);
@@ -141,7 +141,7 @@ describe('expandWorld — systemMutations', () => {
   it('collapses re-mentioned concepts to existing SYS ids', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseExpansion,
-      systemMutations: {
+      systemDeltas: {
         addedNodes: [
           { id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'principle' },
           { id: 'SYS-GEN-2', concept: 'Blood Runes', type: 'concept' },
@@ -156,7 +156,7 @@ describe('expandWorld — systemMutations', () => {
       edges: [],
     };
     const result = await expandWorld(narrative, [], 0, 'Expand');
-    const wkm = result.systemMutations!;
+    const wkm = result.systemDeltas!;
     // Only Blood Runes is genuinely new; Mana Binding collapses to WK-42.
     expect(wkm.addedNodes).toHaveLength(1);
     expect(wkm.addedNodes[0].concept).toBe('Blood Runes');
@@ -170,7 +170,7 @@ describe('expandWorld — systemMutations', () => {
   it('filters self-loops', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseExpansion,
-      systemMutations: {
+      systemDeltas: {
         addedNodes: [
           { id: 'SYS-GEN-1', concept: 'Mana', type: 'concept' },
           { id: 'SYS-GEN-2', concept: 'Runes', type: 'concept' },
@@ -183,14 +183,14 @@ describe('expandWorld — systemMutations', () => {
     }));
     const narrative = createMinimalNarrative();
     const result = await expandWorld(narrative, [], 0, 'Expand');
-    const edges = result.systemMutations!.addedEdges;
+    const edges = result.systemDeltas!.addedEdges;
     expect(edges).toHaveLength(1);
     expect(edges[0].from).not.toBe(edges[0].to);
   });
   it('drops edges that duplicate ones already in the existing graph', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseExpansion,
-      systemMutations: {
+      systemDeltas: {
         addedNodes: [{ id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' }],
         // Tries to re-add an edge that already exists.
         addedEdges: [{ from: 'SYS-GEN-1', to: 'WK-99', relation: 'enables' }],
@@ -204,8 +204,8 @@ describe('expandWorld — systemMutations', () => {
       edges: [],
     };
     const result = await expandWorld(narrative, [], 0, 'Expand');
-    expect(result.systemMutations!.addedNodes).toHaveLength(1);
-    expect(result.systemMutations!.addedEdges).toHaveLength(1);
+    expect(result.systemDeltas!.addedNodes).toHaveLength(1);
+    expect(result.systemDeltas!.addedEdges).toHaveLength(1);
   });
 });
 // ── expandWorld: entity continuity normalization + chaining ─────────────────
@@ -215,11 +215,11 @@ describe('expandWorld — entity continuity', () => {
     threads: [],
     relationships: [],
     artifacts: [],
-    ownershipMutations: [],
-    tieMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
-    systemMutations: { addedNodes: [], addedEdges: [] },
+    ownershipDeltas: [],
+    tieDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
+    systemDeltas: { addedNodes: [], addedEdges: [] },
   };
   it('normalizes LLM array-shaped character continuity into a Record', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
@@ -228,7 +228,7 @@ describe('expandWorld — entity continuity', () => {
         {
           id: 'C-02', name: 'Bob', role: 'recurring', threadIds: [],
           // LLM emits nodes as an array (the common shape in practice).
-          continuity: {
+          world: {
             nodes: [
               { id: 'K-01', content: 'Former soldier', type: 'history' },
               { id: 'K-02', content: 'Carries a grudge', type: 'belief' },
@@ -242,10 +242,10 @@ describe('expandWorld — entity continuity', () => {
     const result = await expandWorld(narrative, [], 0, 'Add Bob');
     const bob = result.characters[0];
     // nodes is now a Record keyed by id, not an array with numeric keys.
-    expect(bob.continuity.nodes['K-01']).toBeDefined();
-    expect(bob.continuity.nodes['K-02']).toBeDefined();
-    expect(bob.continuity.nodes['K-03']).toBeDefined();
-    expect(Object.keys(bob.continuity.nodes).sort()).toEqual(['K-01', 'K-02', 'K-03']);
+    expect(bob.world.nodes['K-01']).toBeDefined();
+    expect(bob.world.nodes['K-02']).toBeDefined();
+    expect(bob.world.nodes['K-03']).toBeDefined();
+    expect(Object.keys(bob.world.nodes).sort()).toEqual(['K-01', 'K-02', 'K-03']);
   });
   it('chains initial character continuity nodes via co_occurs edges', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
@@ -253,7 +253,7 @@ describe('expandWorld — entity continuity', () => {
       characters: [
         {
           id: 'C-02', name: 'Bob', role: 'recurring', threadIds: [],
-          continuity: {
+          world: {
             nodes: [
               { id: 'K-01', content: 'Former soldier', type: 'history' },
               { id: 'K-02', content: 'Carries a grudge', type: 'belief' },
@@ -267,7 +267,7 @@ describe('expandWorld — entity continuity', () => {
     const result = await expandWorld(narrative, [], 0, 'Add Bob');
     const bob = result.characters[0];
     // 3 nodes → 2 co_occurs chain edges
-    const coOccursEdges = bob.continuity.edges.filter((e) => e.relation === 'co_occurs');
+    const coOccursEdges = bob.world.edges.filter((e) => e.relation === 'co_occurs');
     expect(coOccursEdges).toHaveLength(2);
     expect(coOccursEdges[0]).toEqual({ from: 'K-01', to: 'K-02', relation: 'co_occurs' });
     expect(coOccursEdges[1]).toEqual({ from: 'K-02', to: 'K-03', relation: 'co_occurs' });
@@ -279,7 +279,7 @@ describe('expandWorld — entity continuity', () => {
       locations: [
         {
           id: 'L-02', name: 'Forest', prominence: 'place', parentId: null, threadIds: [],
-          continuity: {
+          world: {
             nodes: [
               { id: 'LK-01', content: 'Ancient grove', type: 'trait' },
               { id: 'LK-02', content: 'Haunted by spirits', type: 'state' },
@@ -290,7 +290,7 @@ describe('expandWorld — entity continuity', () => {
       artifacts: [
         {
           id: 'A-01', name: 'Sword', significance: 'key', threadIds: [], parentId: null,
-          continuity: {
+          world: {
             nodes: [
               { id: 'AK-01', content: 'Forged in dragonfire', type: 'history' },
               { id: 'AK-02', content: 'Cuts through stone', type: 'capability' },
@@ -303,14 +303,14 @@ describe('expandWorld — entity continuity', () => {
     const result = await expandWorld(narrative, [], 0, 'Add stuff');
     // Location continuity normalized + chained
     const forest = result.locations[0];
-    expect(forest.continuity.nodes['LK-01']).toBeDefined();
-    expect(forest.continuity.nodes['LK-02']).toBeDefined();
-    expect(forest.continuity.edges.filter((e) => e.relation === 'co_occurs')).toHaveLength(1);
+    expect(forest.world.nodes['LK-01']).toBeDefined();
+    expect(forest.world.nodes['LK-02']).toBeDefined();
+    expect(forest.world.edges.filter((e) => e.relation === 'co_occurs')).toHaveLength(1);
     // Artifact continuity normalized + chained
     const sword = result.artifacts![0];
-    expect(sword.continuity.nodes['AK-01']).toBeDefined();
-    expect(sword.continuity.nodes['AK-02']).toBeDefined();
-    expect(sword.continuity.edges.filter((e) => e.relation === 'co_occurs')).toHaveLength(1);
+    expect(sword.world.nodes['AK-01']).toBeDefined();
+    expect(sword.world.nodes['AK-02']).toBeDefined();
+    expect(sword.world.edges.filter((e) => e.relation === 'co_occurs')).toHaveLength(1);
   });
   it('handles missing continuity gracefully', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
@@ -322,7 +322,7 @@ describe('expandWorld — entity continuity', () => {
     const narrative = createMinimalNarrative();
     const result = await expandWorld(narrative, [], 0, 'Add Bob');
     const bob = result.characters[0];
-    expect(bob.continuity).toEqual({ nodes: {}, edges: [] });
+    expect(bob.world).toEqual({ nodes: {}, edges: [] });
   });
   it('assigns fallback ids to nodes missing ids', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
@@ -330,7 +330,7 @@ describe('expandWorld — entity continuity', () => {
       characters: [
         {
           id: 'C-02', name: 'Bob', role: 'recurring', threadIds: [],
-          continuity: {
+          world: {
             nodes: [
               { content: 'Former soldier', type: 'history' },
               { content: 'Carries a grudge', type: 'belief' },
@@ -342,11 +342,11 @@ describe('expandWorld — entity continuity', () => {
     const narrative = createMinimalNarrative();
     const result = await expandWorld(narrative, [], 0, 'Add Bob');
     const bob = result.characters[0];
-    const ids = Object.keys(bob.continuity.nodes);
+    const ids = Object.keys(bob.world.nodes);
     expect(ids).toHaveLength(2);
     // Fallback ids should still be unique and produce a valid chain.
     expect(new Set(ids).size).toBe(2);
-    expect(bob.continuity.edges.filter((e) => e.relation === 'co_occurs')).toHaveLength(1);
+    expect(bob.world.edges.filter((e) => e.relation === 'co_occurs')).toHaveLength(1);
   });
 });
 // ── generateNarrative: initial world generation ─────────────────────────────
@@ -381,8 +381,8 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
         {
           id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
-          threadMutations: [], continuityMutations: [], relationshipMutations: [],
-          systemMutations: {
+          threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
+          systemDeltas: {
             addedNodes: [{ id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' }],
             addedEdges: [],
           },
@@ -391,8 +391,8 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
         {
           id: 'S-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
-          threadMutations: [], continuityMutations: [], relationshipMutations: [],
-          systemMutations: {
+          threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
+          systemDeltas: {
             addedNodes: [{ id: 'SYS-GEN-2', concept: 'mana binding', type: 'principle' }],
             addedEdges: [],
           },
@@ -410,8 +410,8 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
     // Scene-level deduplication still works: scene 1 owns the node, scene 2 collapses to existing
     const s1 = result.scenes['S-001'];
     const s2 = result.scenes['S-002'];
-    expect(s1.systemMutations!.addedNodes).toHaveLength(1);
-    expect(s2.systemMutations!.addedNodes).toHaveLength(0);
+    expect(s1.systemDeltas!.addedNodes).toHaveLength(1);
+    expect(s2.systemDeltas!.addedNodes).toHaveLength(0);
   });
   it('normalizes and chains initial character continuity', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
@@ -419,7 +419,7 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
       characters: [
         {
           id: 'C-01', name: 'Alice', role: 'anchor', threadIds: [],
-          continuity: {
+          world: {
             nodes: [
               { id: 'K-01', content: 'Royal heir', type: 'history' },
               { id: 'K-02', content: 'Reluctant leader', type: 'trait' },
@@ -438,7 +438,7 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
         {
           id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
-          threadMutations: [], continuityMutations: [], relationshipMutations: [],
+          threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
           summary: 'Alice arrives.',
         },
       ],
@@ -449,11 +449,11 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
     const result = await generateNarrative('Test', 'A story');
     const alice = result.characters['C-01'];
     // Nodes became a Record keyed by id, not an array.
-    expect(alice.continuity.nodes['K-01']).toBeDefined();
-    expect(alice.continuity.nodes['K-02']).toBeDefined();
-    expect(alice.continuity.nodes['K-03']).toBeDefined();
+    expect(alice.world.nodes['K-01']).toBeDefined();
+    expect(alice.world.nodes['K-02']).toBeDefined();
+    expect(alice.world.nodes['K-03']).toBeDefined();
     // 3 nodes → 2 co_occurs chain edges
-    expect(alice.continuity.edges.filter((e) => e.relation === 'co_occurs')).toHaveLength(2);
+    expect(alice.world.edges.filter((e) => e.relation === 'co_occurs')).toHaveLength(2);
   });
   it('filters self-loops from initial world knowledge edges', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
@@ -471,8 +471,8 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
         {
           id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
-          threadMutations: [], continuityMutations: [], relationshipMutations: [],
-          systemMutations: {
+          threadDeltas: [], worldDeltas: [], relationshipDeltas: [],
+          systemDeltas: {
             addedNodes: [
               { id: 'SYS-GEN-1', concept: 'Mana', type: 'concept' },
               { id: 'SYS-GEN-2', concept: 'Runes', type: 'concept' },
@@ -495,8 +495,8 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
     expect(Object.keys(result.systemGraph!.nodes)).toHaveLength(0);
     // Scene-level sanitization filters self-loops — only the valid edge remains
     const s1 = result.scenes['S-001'];
-    expect(s1.systemMutations!.addedEdges).toHaveLength(1);
-    expect(s1.systemMutations!.addedEdges[0].from).not.toBe(s1.systemMutations!.addedEdges[0].to);
+    expect(s1.systemDeltas!.addedEdges).toHaveLength(1);
+    expect(s1.systemDeltas!.addedEdges[0].from).not.toBe(s1.systemDeltas!.addedEdges[0].to);
   });
   it('worldOnly mode processes top-level systemMutations block with concept dedup', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
@@ -510,7 +510,7 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
       threads: [
         { id: 'T-01', participants: [{ id: 'C-01', type: 'character' }], description: 'Quest', status: 'latent', openedAt: 'S-001', dependents: [] },
       ],
-      systemMutations: {
+      systemDeltas: {
         addedNodes: [
           { id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' },
           { id: 'SYS-GEN-2', concept: 'mana binding', type: 'principle' }, // duplicate
@@ -524,7 +524,7 @@ describe('generateNarrative — systemGraph + initial continuity', () => {
     expect(Object.keys(result.systemGraph!.nodes)).toHaveLength(0);
     // The worldBuild's systemMutations has the deduplicated concepts — only 2 unique
     const worldBuild = Object.values(result.worldBuilds)[0];
-    expect(worldBuild.expansionManifest.systemMutations.addedNodes).toHaveLength(2);
+    expect(worldBuild.expansionManifest.systemDeltas?.addedNodes).toHaveLength(2);
   });
 });
 // ── generateNarrative: pilot thread logs ────────────────────────────────────
@@ -557,26 +557,26 @@ describe('generateNarrative — pilot thread logs', () => {
         {
           id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
-          threadMutations: [{
+          threadDeltas: [{
             threadId: 'T-01', from: 'latent', to: 'seeded',
             addedNodes: [
               { id: 'TK-GEN-001', content: 'Alice hears rumour of the crown', type: 'setup' },
             ],
           }],
-          continuityMutations: [], relationshipMutations: [],
+          worldDeltas: [], relationshipDeltas: [],
           summary: 'Alice hears of the crown.',
         },
         {
           id: 'S-002', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
-          threadMutations: [{
+          threadDeltas: [{
             threadId: 'T-01', from: 'seeded', to: 'active',
             addedNodes: [
               { id: 'TK-GEN-001', content: 'Alice decides to pursue the crown', type: 'transition' },
               { id: 'TK-GEN-002', content: 'escalation', type: 'escalation' },
             ],
           }],
-          continuityMutations: [], relationshipMutations: [],
+          worldDeltas: [], relationshipDeltas: [],
           summary: 'Alice decides to pursue.',
         },
       ],
@@ -608,7 +608,7 @@ describe('generateNarrative — pilot thread logs', () => {
         {
           id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
-          threadMutations: [{
+          threadDeltas: [{
             threadId: 'T-01', from: 'latent', to: 'seeded',
             addedNodes: [
               { id: 'TK-GEN-001', content: 'setup', type: 'setup' },
@@ -616,7 +616,7 @@ describe('generateNarrative — pilot thread logs', () => {
               { id: 'TK-GEN-003', content: 'transition', type: 'transition' },
             ],
           }],
-          continuityMutations: [], relationshipMutations: [],
+          worldDeltas: [], relationshipDeltas: [],
           summary: 'Scene',
         },
       ],
@@ -634,12 +634,12 @@ describe('generateNarrative — pilot thread logs', () => {
         {
           id: 'S-001', arcId: 'ARC-01', locationId: 'L-01', povId: 'C-01',
           participantIds: ['C-01'], events: [],
-          threadMutations: [
+          threadDeltas: [
             // LLM omitted addedNodes — pilot fallback should synthesize one.
             { threadId: 'T-01', from: 'latent', to: 'seeded', addedNodes: [] },
             { threadId: 'T-02', from: 'latent', to: 'latent', addedNodes: [] },
           ],
-          continuityMutations: [], relationshipMutations: [],
+          worldDeltas: [], relationshipDeltas: [],
           summary: 'Scene',
         },
       ],

@@ -219,7 +219,7 @@ export default function ThreadDetail({ threadId }: Props) {
           );
         })()}
 
-      {/* Scenes — derived from scene.threadMutations, up to current index */}
+      {/* Scenes — derived from scene.threadDeltas, up to current index */}
       {(() => {
         const sceneKeysUpToCurrent = state.resolvedEntryKeys.slice(
           0,
@@ -229,11 +229,11 @@ export default function ThreadDetail({ threadId }: Props) {
           .map((k) => narrative.scenes[k])
           .filter(
             (s) =>
-              s && s.threadMutations.some((tm) => tm.threadId === threadId),
+              s && s.threadDeltas.some((tm) => tm.threadId === threadId),
           )
           .map((s) => ({
             sceneId: s.id,
-            mutations: s.threadMutations.filter(
+            mutations: s.threadDeltas.filter(
               (tm) => tm.threadId === threadId,
             ),
           }));

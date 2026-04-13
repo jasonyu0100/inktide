@@ -126,7 +126,7 @@ export const SHAPE_TROUGH_BAND_HI = 0.8;
 export const INSPECTOR_PAGE_SIZE = 20;
 
 /** Knowledge nodes shown in the WorldGraph per entity */
-export const GRAPH_CONTINUITY_LIMIT = 20;
+export const GRAPH_WORLD_LIMIT = 20;
 
 /** Arc count above which ForceAnalytics switches to dense mode */
 export const DENSE_ARC_THRESHOLD = 20;

@@ -9,7 +9,7 @@ export { runPlanCandidates } from './candidates';
 
 // World building & direction
 export { suggestArcDirection, suggestAutoDirection, suggestWorldExpansion, expandWorld, generateNarrative, computeWorldMetrics, DEFAULT_EXPANSION_FILTER, detectPatterns } from './world';
-export type { WorldExpansion, WorldExpansionSize, WorldExpansionStrategy, WorldMetrics, DirectionSuggestion, ExpansionEntityFilter, DetectedPatterns } from './world';
+export type { WorldExpansionResponse, WorldExpansionSize, WorldExpansionStrategy, WorldMetrics, DirectionSuggestion, ExpansionEntityFilter, DetectedPatterns } from './world';
 
 // Prose rewriting
 export { rewriteSceneProse } from './prose';

@@ -413,13 +413,13 @@ export function CubeExplorer({
                       )}
 
                       {/* Thread mutations */}
-                      {entry.scene.threadMutations.length > 0 && (
+                      {entry.scene.threadDeltas.length > 0 && (
                         <div className="mb-3">
                           <span className="text-[9px] uppercase tracking-wider text-text-dim block mb-1">
                             Threads
                           </span>
                           <div className="space-y-1">
-                            {entry.scene.threadMutations.map((tm, i) => {
+                            {entry.scene.threadDeltas.map((tm, i) => {
                               const thread = Object.values(
                                 narrative.threads,
                               ).find((t) => t.id === tm.threadId);

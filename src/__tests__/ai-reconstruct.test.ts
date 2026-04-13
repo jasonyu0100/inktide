@@ -22,12 +22,12 @@ function createMinimalNarrative(): NarrativeState {
     description: 'A test story',
     worldSummary: 'A test world.',
     characters: {
-      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', continuity: { nodes: {}, edges: [] }, threadIds: [] },
-      'C-02': { id: 'C-02', name: 'Mentor', role: 'recurring', continuity: { nodes: {}, edges: [] }, threadIds: [] },
+      'C-01': { id: 'C-01', name: 'Hero', role: 'anchor', world: { nodes: {}, edges: [] }, threadIds: [] },
+      'C-02': { id: 'C-02', name: 'Mentor', role: 'recurring', world: { nodes: {}, edges: [] }, threadIds: [] },
     },
     locations: {
-      'L-01': { id: 'L-01', name: 'Village', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
-      'L-02': { id: 'L-02', name: 'Forest', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], continuity: { nodes: {}, edges: [] }, threadIds: [] },
+      'L-01': { id: 'L-01', name: 'Village', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], world: { nodes: {}, edges: [] }, threadIds: [] },
+      'L-02': { id: 'L-02', name: 'Forest', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], world: { nodes: {}, edges: [] }, threadIds: [] },
     },
     threads: {
       'T-01': { id: 'T-01', description: 'Main quest', status: 'active', participants: [], dependents: [], openedAt: 'S-01', threadLog: { nodes: {}, edges: [] } },
@@ -44,9 +44,9 @@ function createMinimalNarrative(): NarrativeState {
         povId: 'C-01',
         participantIds: ['C-01'],
         events: ['wakes'],
-        threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
-        continuityMutations: [],
-        relationshipMutations: [],
+        threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
+        worldDeltas: [],
+        relationshipDeltas: [],
         summary: 'Hero wakes in village',
       },
       'S-02': {
@@ -57,9 +57,9 @@ function createMinimalNarrative(): NarrativeState {
         povId: 'C-01',
         participantIds: ['C-01', 'C-02'],
         events: ['meets_mentor'],
-        threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [] }],
-        continuityMutations: [],
-        relationshipMutations: [],
+        threadDeltas: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [] }],
+        worldDeltas: [],
+        relationshipDeltas: [],
         summary: 'Hero meets mentor',
       },
       'S-03': {
@@ -70,9 +70,9 @@ function createMinimalNarrative(): NarrativeState {
         povId: 'C-01',
         participantIds: ['C-01'],
         events: ['enters_forest'],
-        threadMutations: [],
-        continuityMutations: [],
-        relationshipMutations: [],
+        threadDeltas: [],
+        worldDeltas: [],
+        relationshipDeltas: [],
         summary: 'Hero enters forest',
       },
     },
@@ -176,9 +176,9 @@ describe('reconstructBranch', () => {
       povId: 'C-01',
       participantIds: ['C-01', 'C-02'],
       events: ['revised_event'],
-      threadMutations: [],
-      continuityMutations: [],
-      relationshipMutations: [],
+      threadDeltas: [],
+      worldDeltas: [],
+      relationshipDeltas: [],
       summary: 'Revised scene with fixes',
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(editedScene));
@@ -218,9 +218,9 @@ describe('reconstructBranch', () => {
       povId: 'C-02',
       participantIds: ['C-02'],
       events: ['new_event'],
-      threadMutations: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [] }],
-      continuityMutations: [],
-      relationshipMutations: [],
+      threadDeltas: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [] }],
+      worldDeltas: [],
+      relationshipDeltas: [],
       summary: 'New transition scene',
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(insertedScene));
@@ -287,9 +287,9 @@ describe('reconstructBranch', () => {
       povId: 'C-01',
       participantIds: ['C-01', 'C-02'],
       events: ['combined_event'],
-      threadMutations: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
-      continuityMutations: [],
-      relationshipMutations: [],
+      threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
+      worldDeltas: [],
+      relationshipDeltas: [],
       summary: 'Combined scene with both beats',
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(mergedScene));
@@ -356,12 +356,11 @@ describe('reconstructBranch', () => {
       kind: 'world_build',
       summary: 'World expansion',
       expansionManifest: {
-        characters: [],
-        locations: [],
-        threads: [],
-        artifacts: [],
-        relationships: [],
-        systemMutations: { addedNodes: [], addedEdges: [] },
+        newCharacters: [],
+        newLocations: [],
+        newThreads: [],
+        newArtifacts: [],
+        systemDeltas: { addedNodes: [], addedEdges: [] },
       },
     };
     narrative.worldBuilds['WB-01'] = worldBuild;
@@ -427,9 +426,9 @@ describe('reconstructBranch', () => {
       povId: 'C-01',
       participantIds: ['C-01'],
       events: ['opening'],
-      threadMutations: [],
-      continuityMutations: [],
-      relationshipMutations: [],
+      threadDeltas: [],
+      worldDeltas: [],
+      relationshipDeltas: [],
       summary: 'Opening scene',
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(insertedScene));
@@ -665,7 +664,7 @@ describe('reconstructBranch', () => {
       povId: 'C-01',
       participantIds: ['C-01'],
       events: ['revised'],
-      threadMutations: [{
+      threadDeltas: [{
         threadId: 'T-01',
         from: 'active',
         to: 'critical',
@@ -674,8 +673,8 @@ describe('reconstructBranch', () => {
           { id: 'TK-NEW-002', content: 'Stakes rise', type: 'escalation' },
         ],
       }],
-      continuityMutations: [],
-      relationshipMutations: [],
+      worldDeltas: [],
+      relationshipDeltas: [],
       summary: 'Revised scene with log entries',
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(editedScene));
@@ -708,10 +707,10 @@ describe('reconstructBranch', () => {
     // and the scene's thread log would go blank.
     const edited = result.scenes.find((s) => s.summary === 'Revised scene with log entries');
     expect(edited).toBeDefined();
-    expect(edited!.threadMutations).toHaveLength(1);
-    expect(edited!.threadMutations[0].addedNodes).toHaveLength(2);
-    expect(edited!.threadMutations[0].addedNodes![0].content).toMatch(/commits to the final stand/);
-    expect(edited!.threadMutations[0].addedNodes![1].content).toBe('Stakes rise');
+    expect(edited!.threadDeltas).toHaveLength(1);
+    expect(edited!.threadDeltas[0].addedNodes).toHaveLength(2);
+    expect(edited!.threadDeltas[0].addedNodes![0].content).toMatch(/commits to the final stand/);
+    expect(edited!.threadDeltas[0].addedNodes![1].content).toBe('Stakes rise');
   });
   it('preserves addedNodes from LLM when inserting a new scene', async () => {
     const insertedScene = {
@@ -719,7 +718,7 @@ describe('reconstructBranch', () => {
       povId: 'C-02',
       participantIds: ['C-02'],
       events: ['bridge_beat'],
-      threadMutations: [{
+      threadDeltas: [{
         threadId: 'T-01',
         from: 'active',
         to: 'active',
@@ -727,8 +726,8 @@ describe('reconstructBranch', () => {
           { id: 'TK-NEW-001', content: 'Mentor checks in on the hero', type: 'pulse' },
         ],
       }],
-      continuityMutations: [],
-      relationshipMutations: [],
+      worldDeltas: [],
+      relationshipDeltas: [],
       summary: 'Inserted transition scene',
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(insertedScene));
@@ -759,9 +758,9 @@ describe('reconstructBranch', () => {
     );
     const inserted = result.scenes.find((s) => s.summary === 'Inserted transition scene');
     expect(inserted).toBeDefined();
-    expect(inserted!.threadMutations).toHaveLength(1);
-    expect(inserted!.threadMutations[0].addedNodes).toHaveLength(1);
-    expect(inserted!.threadMutations[0].addedNodes![0].content).toMatch(/Mentor checks in/);
-    expect(inserted!.threadMutations[0].addedNodes![0].type).toBe('pulse');
+    expect(inserted!.threadDeltas).toHaveLength(1);
+    expect(inserted!.threadDeltas[0].addedNodes).toHaveLength(1);
+    expect(inserted!.threadDeltas[0].addedNodes![0].content).toMatch(/Mentor checks in/);
+    expect(inserted!.threadDeltas[0].addedNodes![0].type).toBe('pulse');
   });
 });

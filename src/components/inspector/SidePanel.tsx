@@ -3,7 +3,7 @@
 import ChatPanel from "@/components/sidebar/ChatPanel";
 import NotesPanel from "@/components/sidebar/NotesPanel";
 import BranchEval from "@/components/timeline/BranchEval";
-import ContinuityEval from "@/components/timeline/ContinuityEval";
+import WorldEval from "@/components/timeline/WorldEval";
 import PlanEval from "@/components/timeline/PlanEval";
 import ProseEval from "@/components/timeline/ProseEval";
 import { type SceneRange } from "@/components/timeline/SceneRangeSelector";
@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import ArcDetail from "./ArcDetail";
 import ArtifactDetail from "./ArtifactDetail";
 import CharacterDetail from "./CharacterDetail";
-import ContinuityNodeDetail from "./ContinuityNodeDetail";
+import WorldNodeDetail from "./WorldNodeDetail";
 import EmptyState from "./EmptyState";
 import KnowledgeDetail from "./KnowledgeDetail";
 import LocationDetail from "./LocationDetail";
@@ -54,11 +54,11 @@ function getDefaultContext(state: ReturnType<typeof useStore>["state"]) {
     }
   } else if (entry) {
     const wb = entry as WorldBuild;
-    const firstChar = wb.expansionManifest?.characters?.[0]?.id;
+    const firstChar = wb.expansionManifest?.newCharacters?.[0]?.id;
     if (firstChar && narrative.characters[firstChar]) {
       return { type: "character" as const, characterId: firstChar };
     }
-    const firstLoc = wb.expansionManifest?.locations?.[0]?.id;
+    const firstLoc = wb.expansionManifest?.newLocations?.[0]?.id;
     if (firstLoc && narrative.locations[firstLoc]) {
       return { type: "location" as const, locationId: firstLoc };
     }
@@ -99,7 +99,7 @@ export default function SidePanel() {
     if (state.viewState.inspectorContext) setTab("inspector");
   }, [state.viewState.inspectorContext]);
   const [evalMode, setEvalMode] = useState<
-    "branch" | "prose" | "plan" | "continuity"
+    "branch" | "prose" | "plan" | "world"
   >("branch");
   const [evalRange, setEvalRange] = useState<SceneRange>(null);
 
@@ -121,9 +121,9 @@ export default function SidePanel() {
         return <KnowledgeDetail nodeId={ctx.nodeId} />;
       case "artifact":
         return <ArtifactDetail artifactId={ctx.artifactId} />;
-      case "continuity":
+      case "world":
         return (
-          <ContinuityNodeDetail entityId={ctx.entityId} nodeId={ctx.nodeId} />
+          <WorldNodeDetail entityId={ctx.entityId} nodeId={ctx.nodeId} />
         );
       case "threadLog":
         return (
@@ -205,7 +205,7 @@ export default function SidePanel() {
         {tab === "eval" && (
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="shrink-0 flex border-b border-white/5">
-              {(["branch", "plan", "prose", "continuity"] as const).map((m) => (
+              {(["branch", "plan", "prose", "world"] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setEvalMode(m)}
@@ -216,7 +216,7 @@ export default function SidePanel() {
                       branch: "Structure",
                       plan: "Plan",
                       prose: "Prose",
-                      continuity: "Continuity",
+                      world: "Continuity",
                     }[m]
                   }
                 </button>
@@ -245,9 +245,9 @@ export default function SidePanel() {
                 />
               </div>
               <div
-                className={`absolute inset-0 ${evalMode === "continuity" ? "" : "hidden"}`}
+                className={`absolute inset-0 ${evalMode === "world" ? "" : "hidden"}`}
               >
-                <ContinuityEval
+                <WorldEval
                   sceneRange={evalRange}
                   onRangeChange={setEvalRange}
                 />

@@ -18,8 +18,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PlanCandidatesModal } from "./PlanCandidatesModal";
 import { usePropositionClassification } from "@/hooks/usePropositionClassification";
 import { classificationColor, classificationLabel, propKey, BASE_COLORS } from "@/lib/proposition-classify";
-import type { ContinuityViolation } from "@/types/narrative";
-import { ContinuityCheckModal } from "./ContinuityCheckModal";
+import type { ConsistencyViolation } from "@/types/narrative";
+import { ConsistencyCheckModal } from "./ConsistencyCheckModal";
 
 const FN_COLORS: Record<string, string> = {
   breathe: "#6b7280",
@@ -75,7 +75,7 @@ export function ScenePlanView({
     estWords: number;
   } | null>(null);
   const [showCandidates, setShowCandidates] = useState(false);
-  const [violations, setViolations] = useState<ContinuityViolation[]>([]);
+  const [violations, setViolations] = useState<ConsistencyViolation[]>([]);
   const [checkingContinuity, setCheckingContinuity] = useState(false);
   const beatRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -717,7 +717,7 @@ export function ScenePlanView({
 
       {/* Continuity Check Modal */}
       {showContinuityModal && planCache.plan && (
-        <ContinuityCheckModal
+        <ConsistencyCheckModal
           narrative={narrative}
           resolvedKeys={resolvedKeys}
           plan={planCache.plan}

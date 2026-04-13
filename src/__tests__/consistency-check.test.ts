@@ -5,10 +5,10 @@
  * - Check label filtering (which types trigger LLM check)
  * - Scene grouping for per-scene checks
  * - CandidateClassification structure
- * - ContinuityViolation structure
+ * - ConsistencyViolation structure
  */
 import { describe, it, expect } from 'vitest';
-import type { ContinuityViolation, PropositionBaseCategory } from '@/types/narrative';
+import type { ConsistencyViolation, PropositionBaseCategory } from '@/types/narrative';
 import { classificationLabel } from '@/lib/proposition-classify';
 // ── Check label filtering ───────────────────────────────────────────────────
 describe('check label filtering', () => {
@@ -82,10 +82,10 @@ describe('scene grouping for per-scene checks', () => {
     expect(groups.get('S-003')!.length).toBe(1);
   });
 });
-// ── ContinuityViolation structure ───────────────────────────────────────────
-describe('ContinuityViolation type', () => {
+// ── ConsistencyViolation structure ───────────────────────────────────────────
+describe('ConsistencyViolation type', () => {
   it('has all required fields', () => {
-    const violation: ContinuityViolation = {
+    const violation: ConsistencyViolation = {
       beatIndex: 2,
       propIndex: 1,
       candidateContent: 'Harry had many friends at school.',

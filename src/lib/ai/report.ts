@@ -69,18 +69,18 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
     const corner = detectCubeCorner(data.forceSnapshots[idx]);
     const delivery = data.deliveryCurve[idx];
 
-    const threadMuts = scene.threadMutations.map((tm) => {
+    const threadMuts = scene.threadDeltas.map((tm) => {
       const desc = narrative.threads[tm.threadId]?.description ?? tm.threadId;
       return `  ${desc.slice(0, 60)}: ${tm.from} → ${tm.to}`;
     });
 
-    const relMuts = scene.relationshipMutations.map((rm) => {
+    const relMuts = scene.relationshipDeltas.map((rm) => {
       const fromName = narrative.characters[rm.from]?.name ?? rm.from;
       const toName = narrative.characters[rm.to]?.name ?? rm.to;
       return `  ${fromName} ↔ ${toName} (${rm.type}): ${rm.valenceDelta > 0 ? '+' : ''}${rm.valenceDelta.toFixed(1)}`;
     });
 
-    const contMuts = scene.continuityMutations.slice(0, 4).flatMap((cm) => {
+    const contMuts = scene.worldDeltas.slice(0, 4).flatMap((cm) => {
       const entityName = narrative.characters[cm.entityId]?.name ?? narrative.locations[cm.entityId]?.name ?? narrative.artifacts[cm.entityId]?.name ?? cm.entityId;
       return (cm.addedNodes ?? []).map(node => `  ${entityName} +: ${node.content.slice(0, 60)}`);
     });
@@ -102,7 +102,7 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
   // ── Character profiles ──
   const charBlock = data.topCharacters.slice(0, 10).map((c) => {
     const char = c.character;
-    const knowledge = Object.values(char.continuity.nodes).slice(0, 6).map((n) => `${n.type}: ${n.content.slice(0, 50)}`).join('; ');
+    const knowledge = Object.values(char.world.nodes).slice(0, 6).map((n) => `${n.type}: ${n.content.slice(0, 50)}`).join('; ');
     const threadDescs = char.threadIds
       .map((tid) => narrative.threads[tid]?.description)
       .filter(Boolean)
@@ -170,7 +170,7 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
   // ── Location context ──
   const locBlock = data.topLocations.slice(0, 6).map((l) => {
     const loc = l.location;
-    const knowledge = Object.values(loc.continuity?.nodes ?? {}).slice(0, 3).map((n) => n.content.slice(0, 40)).join('; ');
+    const knowledge = Object.values(loc.world?.nodes ?? {}).slice(0, 3).map((n) => n.content.slice(0, 40)).join('; ');
     const tiedNames = loc.tiedCharacterIds
       .map((id) => narrative.characters[id]?.name)
       .filter(Boolean);

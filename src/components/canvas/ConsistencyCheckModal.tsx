@@ -2,19 +2,19 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
-import { checkContinuityViolations, type CandidateClassification } from '@/lib/continuity-check';
+import { checkConsistencyViolations, type CandidateClassification } from '@/lib/consistency-check';
 import { usePropositionClassification } from '@/hooks/usePropositionClassification';
 import { classificationColor, classificationLabel, BASE_COLORS } from '@/lib/proposition-classify';
 import { resolveEmbeddingsBatch } from '@/lib/embeddings';
 import { resolveEntry, isScene } from '@/types/narrative';
-import type { NarrativeState, BeatPlan, ContinuityViolation, EmbeddingRef, PropositionBaseCategory } from '@/types/narrative';
+import type { NarrativeState, BeatPlan, ConsistencyViolation, EmbeddingRef, PropositionBaseCategory } from '@/types/narrative';
 
 type Props = {
   narrative: NarrativeState;
   resolvedKeys: string[];
   plan: BeatPlan;
   onClose: () => void;
-  onViolationsFound: (violations: ContinuityViolation[]) => void;
+  onViolationsFound: (violations: ConsistencyViolation[]) => void;
 };
 
 type Stage = 'classifying' | 'checking' | 'done';
@@ -23,11 +23,11 @@ const TOP_K = 5;
 const CHECK_LABELS = new Set(['anchor', 'foundation', 'close', 'ending']);
 const DIMS = 1536;
 
-export function ContinuityCheckModal({ narrative, resolvedKeys, plan, onClose, onViolationsFound }: Props) {
+export function ConsistencyCheckModal({ narrative, resolvedKeys, plan, onClose, onViolationsFound }: Props) {
   const { getClassification } = usePropositionClassification();
   const [stage, setStage] = useState<Stage>('classifying');
   const [classifications, setClassifications] = useState<CandidateClassification[]>([]);
-  const [violations, setViolations] = useState<ContinuityViolation[]>([]);
+  const [violations, setViolations] = useState<ConsistencyViolation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [totalToCheck, setTotalToCheck] = useState(0);
 
@@ -146,7 +146,7 @@ export function ContinuityCheckModal({ narrative, resolvedKeys, plan, onClose, o
         simMat.dispose(); checkMat.dispose(); priorMat.dispose();
 
         const t1 = performance.now();
-        console.log(`[ContinuityCheck] Similarity matrix (${checkCount}×${priorCount}) in ${(t1 - t0).toFixed(0)}ms`);
+        console.log(`[ConsistencyCheck] Similarity matrix (${checkCount}×${priorCount}) in ${(t1 - t0).toFixed(0)}ms`);
 
         if (cancelled) return;
 
@@ -192,7 +192,7 @@ export function ContinuityCheckModal({ narrative, resolvedKeys, plan, onClose, o
         for (const e of propEntries) {
           candidateContents[`${e.bi}:${e.pi}`] = e.content;
         }
-        const found = await checkContinuityViolations(cls, candidateContents);
+        const found = await checkConsistencyViolations(cls, candidateContents);
         if (cancelled) return;
 
         for (const v of found) {
@@ -215,7 +215,7 @@ export function ContinuityCheckModal({ narrative, resolvedKeys, plan, onClose, o
   return (
     <Modal onClose={onClose} size="lg">
       <ModalHeader onClose={onClose}>
-        <h2 className="text-[13px] font-semibold text-text-primary">Continuity Check</h2>
+        <h2 className="text-[13px] font-semibold text-text-primary">Consistency Check</h2>
       </ModalHeader>
       <ModalBody className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
         {/* Progress */}
@@ -261,7 +261,7 @@ export function ContinuityCheckModal({ narrative, resolvedKeys, plan, onClose, o
                   <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                 )}
                 <span className={`text-[12px] font-semibold ${violations.length === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {violations.length === 0 ? 'No continuity violations detected' : `${violations.length} violation${violations.length !== 1 ? 's' : ''} found`}
+                  {violations.length === 0 ? 'No consistency violations detected' : `${violations.length} violation${violations.length !== 1 ? 's' : ''} found`}
                 </span>
               </div>
               <p className="text-[10px] text-text-dim ml-6">

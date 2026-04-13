@@ -104,7 +104,7 @@ export type Thread = {
 // ── Character ────────────────────────────────────────────────────────────────
 export type CharacterRole = "anchor" | "recurring" | "transient";
 
-/** Continuity node — a statement of stable fact about an entity's nature, identity, or permanent condition.
+/** World node — a statement of stable fact about an entity's nature, identity, or permanent condition.
  *  Written in simple present tense. No events, no causation. Works across characters, locations, and artifacts.
  *
  *  Examples:
@@ -114,7 +114,7 @@ export type CharacterRole = "anchor" | "recurring" | "transient";
  *  - "Gandalf carries the elven ring Narya, the Ring of Fire." (relation)
  *  - "The Iron Throne is forged from a thousand surrendered swords." (history)
  */
-export type ContinuityNodeType =
+export type WorldNodeType =
   | "trait" // Inherent characteristic — personality, atmosphere, physical property
   | "state" // Current condition — wounded, ruined, activated, contested
   | "history" // Past experience — memory, founding event, provenance
@@ -125,7 +125,7 @@ export type ContinuityNodeType =
   | "goal" // Orientation — ambition, purpose, intended use
   | "weakness"; // Vulnerability — fear, structural flaw, limitation
 
-export const CONTINUITY_NODE_TYPES: ContinuityNodeType[] = [
+export const WORLD_NODE_TYPES: WorldNodeType[] = [
   "trait",
   "state",
   "history",
@@ -137,28 +137,28 @@ export const CONTINUITY_NODE_TYPES: ContinuityNodeType[] = [
   "weakness",
 ];
 
-export type ContinuityNode = {
+export type WorldNode = {
   id: string;
-  type: ContinuityNodeType;
+  type: WorldNodeType;
   content: string;
 };
 
-export type ContinuityEdge = {
-  from: string; // ContinuityNode id
-  to: string; // ContinuityNode id
+export type WorldEdge = {
+  from: string; // WorldNode id
+  to: string; // WorldNode id
   relation: string;
 };
 
-export type Continuity = {
-  nodes: Record<string, ContinuityNode>;
-  edges: ContinuityEdge[];
+export type World = {
+  nodes: Record<string, WorldNode>;
+  edges: WorldEdge[];
 };
 
 export type Character = {
   id: string;
   name: string;
   role: CharacterRole;
-  continuity: Continuity;
+  world: World;
   threadIds: string[];
   /** AI-generated visual description used as image prompt seed */
   imagePrompt?: string;
@@ -180,7 +180,7 @@ export type Location = {
   /** Characters with a significant tie to this location — residents, faction members, students. Not casual visitors. */
   tiedCharacterIds: string[];
   threadIds: string[];
-  continuity: Continuity;
+  world: World;
   /** AI-generated visual description used as image prompt seed */
   imagePrompt?: string;
   imageUrl?: ImageRef;
@@ -201,8 +201,8 @@ export type Artifact = {
   name: string;
   /** Narrative weight: key artifacts alter plots, notable ones recur, minor ones are set dressing */
   significance: ArtifactSignificance;
-  /** Continuity graph — what is known about this artifact (lore, history, properties, state changes) */
-  continuity: Continuity;
+  /** World graph — what is known about this artifact (lore, history, properties, state changes) */
+  world: World;
   threadIds: string[];
   /** Current owner — a character or location ID, or null for world-owned (communally available to all) */
   parentId: string | null;
@@ -210,7 +210,7 @@ export type Artifact = {
   imageUrl?: ImageRef;
 };
 
-export type OwnershipMutation = {
+export type OwnershipDelta = {
   artifactId: string;
   fromId: string;
   toId: string;
@@ -224,38 +224,38 @@ export type ArtifactUsage = {
   usage: string;
 };
 
-export type TieMutation = {
+export type TieDelta = {
   locationId: string;
   characterId: string;
   action: "add" | "remove";
 };
 
 // ── Scene & Arc ─────────────────────────────────────────────────────────────
-/** Parallels ContinuityMutation. `from`/`to` record the status transition;
- *  `addedNodes` lists log entries in order. applyThreadMutation chains them
+/** Parallels WorldDelta. `from`/`to` record the status transition;
+ *  `addedNodes` lists log entries in order. applyThreadDelta chains them
  *  sequentially via 'co_occurs' edges — node order alone defines the linkage.
- *  A scene-level thread mutation genuinely mutates the thread: `from`/`to`
+ *  A scene-level thread delta genuinely mutates the thread: `from`/`to`
  *  advance its lifecycle status, and `addedNodes` are the log entries that
  *  record what happened. The two behaviours are coupled — you cannot advance
  *  a thread without logging why, and every log entry lives inside a
  *  transition record. */
-export type ThreadMutation = {
+export type ThreadDelta = {
   threadId: string;
   from: string;
   to: string;
   addedNodes: ThreadLogNode[];
 };
 
-/** Additive continuity mutation. `addedNodes` lists the entity's new
- *  continuity entries in causal/temporal order — applyContinuityMutation
+/** Additive world delta. `addedNodes` lists the entity's new
+ *  world entries in causal/temporal order — applyWorldDelta
  *  chains them sequentially via 'co_occurs'. Node order defines the linkage;
  *  no explicit edges are stored. */
-export type ContinuityMutation = {
+export type WorldDelta = {
   entityId: string;
-  addedNodes: { id: string; content: string; type: ContinuityNodeType }[];
+  addedNodes: { id: string; content: string; type: WorldNodeType }[];
 };
 
-export type RelationshipMutation = {
+export type RelationshipDelta = {
   from: string;
   to: string;
   type: string;
@@ -521,7 +521,7 @@ export type SystemGraph = {
   edges: SystemEdge[];
 };
 
-export type SystemMutation = {
+export type SystemDelta = {
   addedNodes: { id: string; concept: string; type: SystemNodeType }[];
   addedEdges: { from: string; to: string; relation: string }[];
 };
@@ -529,7 +529,7 @@ export type SystemMutation = {
 /** Force values are z-score normalized (mean = 0, units = standard deviations).
  *  0 = average moment, positive = above average, negative = below average.
  *  - fate:   thread phase transitions (weighted by jump magnitude) + relationship valence deltas
- *  - world:  entity continuity graph complexity delta (ΔN_c + √ΔE_c per scene)
+ *  - world:  entity world graph complexity delta (ΔN_c + √ΔE_c per scene)
  *  - system: world knowledge graph complexity delta (new nodes + new edges per scene)
  */
 export type ForceSnapshot = {
@@ -616,18 +616,26 @@ export const NARRATIVE_CUBE: Record<CubeCornerKey, CubeCorner> = {
   },
 };
 
-export type ExpansionManifest = {
-  characters: Character[];
-  locations: Location[];
-  artifacts?: Artifact[];
-  threads: Thread[];
-  relationships: RelationshipEdge[];
-  /** Mutations on existing entities — same as scene-level mutations but applied at world-build time */
-  systemMutations: SystemMutation;
-  ownershipMutations?: OwnershipMutation[];
-  tieMutations?: TieMutation[];
-  continuityMutations?: ContinuityMutation[];
-  relationshipMutations?: RelationshipMutation[];
+/**
+ * WorldExpansion — unified structure for introducing new entities and applying deltas.
+ * Used by both WorldBuild (world expansion) and Scene (scene-level entity introduction).
+ *
+ * New relationships are created via relationshipDeltas: when no existing relationship
+ * is found, the delta creates a new one with valenceDelta as the initial valence.
+ */
+export type WorldExpansion = {
+  // ── New Entities ──────────────────────────────────────────────────────────
+  newCharacters: Character[];
+  newLocations: Location[];
+  newArtifacts?: Artifact[];
+  newThreads: Thread[];
+  // ── Deltas (mutations to existing + new relationships via valenceDelta) ───
+  threadDeltas?: ThreadDelta[];
+  worldDeltas?: WorldDelta[];
+  systemDeltas?: SystemDelta;
+  relationshipDeltas?: RelationshipDelta[];
+  ownershipDeltas?: OwnershipDelta[];
+  tieDeltas?: TieDelta[];
 };
 
 export type CharacterMovement = {
@@ -700,15 +708,24 @@ export type Scene = {
   /** Characters who move in this scene — characterId → movement details. Only include deltas. */
   characterMovements?: Record<string, CharacterMovement>;
   events: string[];
-  threadMutations: ThreadMutation[];
-  continuityMutations: ContinuityMutation[];
-  relationshipMutations: RelationshipMutation[];
-  /** World knowledge graph mutations — new concepts and connections about how the world works */
-  systemMutations?: SystemMutation;
+  threadDeltas: ThreadDelta[];
+  worldDeltas: WorldDelta[];
+  relationshipDeltas: RelationshipDelta[];
+  /** World knowledge graph deltas — new concepts and connections about how the world works */
+  systemDeltas?: SystemDelta;
   /** Artifact ownership changes — objects changing hands between characters/locations */
-  ownershipMutations?: OwnershipMutation[];
+  ownershipDeltas?: OwnershipDelta[];
   /** Tie changes — characters forming or breaking ties with locations */
-  tieMutations?: TieMutation[];
+  tieDeltas?: TieDelta[];
+  // ── New Entities (optional — most scenes don't introduce entities) ────────
+  /** New characters introduced in this scene */
+  newCharacters?: Character[];
+  /** New locations introduced in this scene */
+  newLocations?: Location[];
+  /** New artifacts introduced in this scene */
+  newArtifacts?: Artifact[];
+  /** New threads introduced in this scene (status forced to latent) */
+  newThreads?: Thread[];
   /** Version history for prose — enables branch isolation. Resolution uses branch lineage + fork time. */
   proseVersions?: ProseVersion[];
   /** Version history for plan — enables branch isolation. Resolution uses branch lineage + fork time. */
@@ -728,7 +745,7 @@ export type WorldBuild = {
   kind: "world_build";
   id: string;
   summary: string;
-  expansionManifest: ExpansionManifest;
+  expansionManifest: WorldExpansion;
   /** Reasoning graph used to plan this expansion — stored for canvas viewing */
   reasoningGraph?: ReasoningGraphSnapshot;
 };
@@ -1361,17 +1378,17 @@ export type AnalysisChunkResult = {
     summary: string;
     sections: number[];
     prose?: string;
-    threadMutations: {
+    threadDeltas: {
       threadDescription: string;
       from: string;
       to: string;
       addedNodes: { content: string; type: string }[];
     }[];
-    continuityMutations: {
+    worldDeltas: {
       entityName: string;
       addedNodes: { content: string; type: string }[];
     }[];
-    relationshipMutations: {
+    relationshipDeltas: {
       from: string;
       to: string;
       type: string;
@@ -1382,12 +1399,12 @@ export type AnalysisChunkResult = {
       characterName: string | null;
       usage: string;
     }[];
-    ownershipMutations?: {
+    ownershipDeltas?: {
       artifactName: string;
       fromName: string;
       toName: string;
     }[];
-    tieMutations?: {
+    tieDeltas?: {
       locationName: string;
       characterName: string;
       action: "add" | "remove";
@@ -1397,7 +1414,7 @@ export type AnalysisChunkResult = {
       locationName: string;
       transition: string;
     }[];
-    systemMutations?: {
+    systemDeltas?: {
       addedNodes: { concept: string; type: string }[];
       addedEdges: {
         fromConcept: string;
@@ -1470,7 +1487,7 @@ export type InspectorContext =
   | { type: "arc"; arcId: string }
   | { type: "knowledge"; nodeId: string }
   | { type: "artifact"; artifactId: string }
-  | { type: "continuity"; entityId: string; nodeId: string }
+  | { type: "world"; entityId: string; nodeId: string }
   | { type: "threadLog"; threadId: string; nodeId: string }
   | { type: "reasoning"; arcId?: string; worldBuildId?: string; nodeId: string };
 
@@ -1573,8 +1590,8 @@ export type MechanismProfilePreset = {
 
 // ─── Plan Candidates Types ──────────────────────────────────────────
 
-/** A continuity violation — a proposition that contradicts prior established content */
-export type ContinuityViolation = {
+/** A consistency violation — a proposition that contradicts prior established content */
+export type ConsistencyViolation = {
   /** Beat index of the violating proposition */
   beatIndex: number;
   /** Proposition index within the beat */
@@ -1604,8 +1621,8 @@ export type PlanCandidate = {
   timestamp: number;
   /** Proposition classifications for this candidate (computed against existing narrative) */
   propositionLabels?: Record<string, string>;
-  /** Continuity violations detected in this candidate */
-  continuityViolations?: ContinuityViolation[];
+  /** Consistency violations detected in this candidate */
+  consistencyViolations?: ConsistencyViolation[];
 };
 
 export type PlanCandidates = {

@@ -3,11 +3,11 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene } from '@/types/narrative';
-import type { Scene, ContinuityViolation, PropositionBaseCategory, EmbeddingRef } from '@/types/narrative';
+import type { Scene, ConsistencyViolation, PropositionBaseCategory, EmbeddingRef } from '@/types/narrative';
 import { usePropositionClassification } from '@/hooks/usePropositionClassification';
 import { classificationColor, classificationLabel, BASE_COLORS } from '@/lib/proposition-classify';
 import { resolveEmbeddingsBatch } from '@/lib/embeddings';
-import { checkContinuityViolations, type CandidateClassification } from '@/lib/continuity-check';
+import { checkConsistencyViolations, type CandidateClassification } from '@/lib/consistency-check';
 import SceneRangeSelector, { filterKeysBySceneRange, type SceneRange } from './SceneRangeSelector';
 
 const TOP_K = 5;
@@ -18,12 +18,12 @@ type Props = {
   onRangeChange: (range: SceneRange) => void;
 };
 
-type ViolationResult = ContinuityViolation & {
+type ViolationResult = ConsistencyViolation & {
   sceneId: string;
   sceneSummary: string;
 };
 
-export default function ContinuityEval({ sceneRange, onRangeChange }: Props) {
+export default function WorldEval({ sceneRange, onRangeChange }: Props) {
   const { state } = useStore();
   const narrative = state.activeNarrative;
   const resolvedKeys = state.resolvedEntryKeys;
@@ -188,7 +188,7 @@ export default function ContinuityEval({ sceneRange, onRangeChange }: Props) {
       const propContents: Record<string, string> = {};
       for (const c of allCls) propContents[`${c.beatIndex}:${c.propIndex}`] = c.content;
 
-      const found = await checkContinuityViolations(allCls, propContents);
+      const found = await checkConsistencyViolations(allCls, propContents);
 
       // 7. Map violations back to scenes
       const allViolations: ViolationResult[] = found.map(v => {

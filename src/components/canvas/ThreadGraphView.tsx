@@ -109,12 +109,12 @@ export default function ThreadGraphView({
       const entry = resolveEntry(narrative, key);
       if (!entry) continue;
       if (entry.kind === 'scene') {
-        for (const tm of entry.threadMutations) {
+        for (const tm of entry.threadDeltas) {
           counts.set(tm.threadId, (counts.get(tm.threadId) ?? 0) + 1);
           if (i === currentIndex) sceneMuts.add(tm.threadId);
         }
       } else if (entry.kind === 'world_build') {
-        for (const t of entry.expansionManifest.threads) {
+        for (const t of entry.expansionManifest.newThreads) {
           counts.set(t.id, (counts.get(t.id) ?? 0) + 1);
           if (i === currentIndex) sceneMuts.add(t.id);
         }

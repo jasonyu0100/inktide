@@ -42,9 +42,9 @@ function createScene(overrides: Partial<Scene> = {}): Scene {
     locationId: "L-01",
     participantIds: ["C-01"],
     events: [],
-    threadMutations: [],
-    continuityMutations: [],
-    relationshipMutations: [],
+    threadDeltas: [],
+    worldDeltas: [],
+    relationshipDeltas: [],
     characterMovements: {},
     summary: "Test scene",
     ...overrides,
@@ -235,13 +235,13 @@ describe("computeThreadStatuses", () => {
       scenes: {
         "S-001": createScene({
           id: "S-001",
-          threadMutations: [
+          threadDeltas: [
             { threadId: "T-01", from: "latent", to: "active", addedNodes: [] },
           ],
         }),
         "S-002": createScene({
           id: "S-002",
-          threadMutations: [
+          threadDeltas: [
             { threadId: "T-01", from: "active", to: "active", addedNodes: [] },
           ],
         }),
@@ -352,18 +352,18 @@ describe("computeForceSnapshots", () => {
     const scenes: Scene[] = [
       createScene({
         id: "S-001",
-        threadMutations: [
+        threadDeltas: [
           { threadId: "T-01", from: "latent", to: "seeded", addedNodes: [] },
         ],
-        continuityMutations: [],
+        worldDeltas: [],
         events: ["event1"],
       }),
       createScene({
         id: "S-002",
-        threadMutations: [
+        threadDeltas: [
           { threadId: "T-01", from: "seeded", to: "active", addedNodes: [] },
         ],
-        continuityMutations: [
+        worldDeltas: [
           {
             entityId: "C-01",
             addedNodes: [{ id: "K-01", content: "secret", type: "secret" }],
@@ -387,7 +387,7 @@ describe("computeRawForceTotals", () => {
     const scenes: Scene[] = [
       createScene({
         id: "S-001",
-        threadMutations: [
+        threadDeltas: [
           { threadId: "T-01", from: "latent", to: "seeded", addedNodes: [] },
         ],
       }),
@@ -627,14 +627,14 @@ describe("buildCumulativeSystemGraph", () => {
     const scenes: Record<string, Scene> = {
       "S-001": createScene({
         id: "S-001",
-        systemMutations: {
+        systemDeltas: {
           addedNodes: [{ id: "K-01", concept: "Magic", type: "system" }],
           addedEdges: [],
         },
       }),
       "S-002": createScene({
         id: "S-002",
-        systemMutations: {
+        systemDeltas: {
           addedNodes: [{ id: "K-02", concept: "Wands", type: "system" }],
           addedEdges: [{ from: "K-01", to: "K-02", relation: "enables" }],
         },

@@ -273,17 +273,22 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
     }
   }
 
-  function handleRestartPlan() {
+  function handleSetArc(arcIndex: number) {
     if (!state.viewState.activeBranchId) return;
     dispatch({
-      type: "RESET_COORDINATION_PLAN",
+      type: "SET_COORDINATION_PLAN_ARC",
       branchId: state.viewState.activeBranchId,
+      arcIndex,
     });
-    // Mirror the rewound pointer in the local plan so the fullscreen
-    // modal re-renders with progress cleared.
-    setPlan((prev) =>
-      prev ? { ...prev, currentArc: 0, completedArcs: [] } : prev,
-    );
+    // Mirror the pointer move in the local plan so the fullscreen
+    // modal re-renders with progress in sync.
+    setPlan((prev) => {
+      if (!prev) return prev;
+      const clamped = Math.max(0, Math.min(prev.arcCount, arcIndex));
+      const completedArcs: number[] = [];
+      for (let i = 1; i < clamped; i++) completedArcs.push(i);
+      return { ...prev, currentArc: clamped, completedArcs };
+    });
   }
 
   return (
@@ -465,7 +470,7 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
           isLoading={loading}
           onRegenerate={handleGeneratePlan}
           onConfirm={handleConfirmPlan}
-          onRestart={handleRestartPlan}
+          onSetArc={handleSetArc}
           onClose={() => {
             setShowPlanModal(false);
             setPlan(null);

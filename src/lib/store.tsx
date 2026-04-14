@@ -820,6 +820,7 @@ export type Action =
   | { type: "CLEAR_COORDINATION_PLAN"; branchId: string }
   | { type: "ADVANCE_COORDINATION_PLAN"; branchId: string }
   | { type: "RESET_COORDINATION_PLAN"; branchId: string }
+  | { type: "SET_COORDINATION_PLAN_ARC"; branchId: string; arcIndex: number }
   // Reasoning graph
   | { type: "SET_ARC_REASONING_GRAPH"; arcId: string; reasoningGraph: Arc["reasoningGraph"] };
 
@@ -2435,6 +2436,37 @@ function reducer(state: AppState, action: Action): AppState {
                   ...plan,
                   currentArc: 0,
                   completedArcs: [],
+                },
+              },
+            },
+          },
+        };
+      });
+
+    case "SET_COORDINATION_PLAN_ARC":
+      // Manually set the plan pointer to any arc. Treats arcs before the
+      // pointer as completed and arcs at/after as pending. `arcIndex` is
+      // 1-based; pass 0 to rewind to "not started" (equivalent to reset).
+      return updateNarrative(state, (n) => {
+        const branch = n.branches[action.branchId];
+        if (!branch?.coordinationPlan) return n;
+        const { plan } = branch.coordinationPlan;
+        const clampedArc = Math.max(0, Math.min(plan.arcCount, action.arcIndex));
+        // Every arc strictly before the pointer is considered completed.
+        const completedArcs: number[] = [];
+        for (let i = 1; i < clampedArc; i++) completedArcs.push(i);
+        return {
+          ...n,
+          branches: {
+            ...n.branches,
+            [action.branchId]: {
+              ...branch,
+              coordinationPlan: {
+                ...branch.coordinationPlan,
+                plan: {
+                  ...plan,
+                  currentArc: clampedArc,
+                  completedArcs,
                 },
               },
             },

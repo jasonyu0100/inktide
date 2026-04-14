@@ -88,8 +88,12 @@ type Props = {
   onConfirm: () => void;
   onClose: () => void;
   onClear?: () => void;
-  /** Rewind the plan pointer to arc 1 and clear completed arcs. */
-  onRestart?: () => void;
+  /**
+   * Manually move the plan pointer. `arcIndex` is 1-based (1..arcCount);
+   * pass 0 to rewind to "not started". Arcs before the pointer are treated
+   * as completed; arcs at/after are pending.
+   */
+  onSetArc?: (arcIndex: number) => void;
 };
 
 export function CoordinationPlanModal({
@@ -99,7 +103,7 @@ export function CoordinationPlanModal({
   onConfirm,
   onClose,
   onClear,
-  onRestart,
+  onSetArc,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -871,15 +875,41 @@ export function CoordinationPlanModal({
                 Regenerate
               </button>
             )}
-            {onRestart && (
-              <button
-                onClick={onRestart}
-                disabled={isLoading}
-                className="text-xs px-4 py-2 rounded-lg bg-white/4 text-text-secondary hover:bg-white/8 transition-colors disabled:opacity-50"
-                title="Rewind the plan pointer to arc 1 and clear completed arcs"
+            {onSetArc && (
+              <div
+                className="flex items-center gap-0 rounded-lg bg-white/4 overflow-hidden"
+                title="Move the plan pointer"
               >
-                Restart Plan
-              </button>
+                <button
+                  onClick={() => onSetArc(Math.max(0, (plan.currentArc || 1) - 1))}
+                  disabled={isLoading || plan.currentArc <= 0}
+                  className="text-xs px-2.5 py-2 text-text-secondary hover:bg-white/8 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                  title="Move pointer back one arc"
+                >
+                  ←
+                </button>
+                <span className="text-[10px] px-2 py-2 text-text-dim font-mono tabular-nums select-none">
+                  Arc {plan.currentArc === 0 ? 1 : plan.currentArc}
+                  <span className="text-text-dim/50">/{plan.arcCount}</span>
+                </span>
+                <button
+                  onClick={() => onSetArc(Math.min(plan.arcCount, (plan.currentArc || 1) + 1))}
+                  disabled={isLoading || plan.currentArc >= plan.arcCount}
+                  className="text-xs px-2.5 py-2 text-text-secondary hover:bg-white/8 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                  title="Move pointer forward one arc"
+                >
+                  →
+                </button>
+                <span className="w-px h-4 bg-white/8" />
+                <button
+                  onClick={() => onSetArc(0)}
+                  disabled={isLoading || (plan.currentArc === 0 && plan.completedArcs.length === 0)}
+                  className="text-xs px-2.5 py-2 text-text-secondary hover:bg-white/8 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+                  title="Rewind to the start"
+                >
+                  ⟲
+                </button>
+              </div>
             )}
             {onClear && (
               <button

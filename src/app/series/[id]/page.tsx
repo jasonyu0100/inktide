@@ -314,8 +314,12 @@ export default function SeriesPage() {
             dispatch({ type: 'CLEAR_COORDINATION_PLAN', branchId: state.viewState.activeBranchId! });
             setCoordinationPlanOpen(false);
           }}
-          onRestart={() => {
-            dispatch({ type: 'RESET_COORDINATION_PLAN', branchId: state.viewState.activeBranchId! });
+          onSetArc={(arcIndex) => {
+            dispatch({
+              type: 'SET_COORDINATION_PLAN_ARC',
+              branchId: state.viewState.activeBranchId!,
+              arcIndex,
+            });
           }}
         />
       )}

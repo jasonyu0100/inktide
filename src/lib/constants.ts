@@ -185,3 +185,17 @@ export const PLAN_CANDIDATES_COUNT = 5;
 
 /** Limit for continuity nodes and thread logs per entity in LLM context */
 export const ENTITY_LOG_CONTEXT_LIMIT = 25;
+
+// ── Tiered recency zones for narrative context ──────────────────────────────
+// Scene history is rendered at progressively lower resolution based on
+// distance from the current scene:
+//   Near  (0 .. NEAR_RECENCY_ZONE)                 → full delta detail
+//   Mid   (NEAR .. NEAR + MID)                     → summary + thread transitions + movements
+//   Far   (NEAR + MID .. branchTimeHorizon)        → summary + POV/location only
+//   Beyond (outside horizon)                       → arc-level recap (one line per omitted arc)
+
+/** Most recent scenes rendered with full delta detail. */
+export const NEAR_RECENCY_ZONE = 5;
+
+/** Scenes after NEAR rendered with thread transitions and movements only. */
+export const MID_RECENCY_ZONE = 15;

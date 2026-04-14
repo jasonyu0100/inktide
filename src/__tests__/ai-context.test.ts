@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest';
 import {
   getStateAtIndex,
   buildStorySettingsBlock,
+  classifyTier,
   narrativeContext,
   sceneContext,
   sceneScale,
   outlineContext,
   THREAD_LIFECYCLE_DOC,
+  tierOfOrigin,
 } from '@/lib/ai/context';
+import { NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
 import type { NarrativeState, Scene, Character, Location, Thread, Arc, WorldBuild } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 // ── Test Fixtures ────────────────────────────────────────────────────────────
@@ -443,12 +446,13 @@ describe('narrativeContext', () => {
     const ctx = narrativeContext(n, [], 0);
     expect(ctx).toContain('Epic Adventure');
   });
-  it('includes world summary', () => {
+  it('omits the standalone world-summary prose block (structured context is preferred)', () => {
     const n = createMinimalNarrative({
       worldSummary: 'A land of mystery and magic',
     });
     const ctx = narrativeContext(n, [], 0);
-    expect(ctx).toContain('mystery and magic');
+    expect(ctx).not.toContain('<world>');
+    expect(ctx).not.toContain('mystery and magic');
   });
   it('includes characters', () => {
     const n = createMinimalNarrative({
@@ -515,5 +519,244 @@ describe('narrativeContext', () => {
     const ctx = narrativeContext(n, ['s1', 's2'], 1);
     expect(ctx).toContain('Hero enters the castle');
     expect(ctx).toContain('Hero meets the king');
+  });
+
+  it('omits the force-trajectory and current-state blocks', () => {
+    const n = createMinimalNarrative();
+    const ctx = narrativeContext(n, [], 0);
+    expect(ctx).not.toContain('<force-trajectory');
+    expect(ctx).not.toContain('<current-state');
+  });
+
+  it('frames scene-history as the source of truth in its hint', () => {
+    const n = createMinimalNarrative();
+    const ctx = narrativeContext(n, [], 0);
+    expect(ctx).toMatch(/<scene-history[^>]*source of truth/i);
+  });
+
+  it('reports tier counts in the scene-history scope', () => {
+    const n = createMinimalNarrative({
+      characters: { c1: createCharacter('c1', 'Hero') },
+      locations: { loc1: createLocation('loc1', 'Castle') },
+      scenes: {
+        s1: createScene('s1', { povId: 'c1', locationId: 'loc1' }),
+        s2: createScene('s2', { povId: 'c1', locationId: 'loc1' }),
+      },
+    });
+    const ctx = narrativeContext(n, ['s1', 's2'], 1);
+    expect(ctx).toMatch(/\d+ near, \d+ mid, \d+ far/);
+  });
+});
+
+// ── Tiered recency classification ────────────────────────────────────────────
+describe('classifyTier', () => {
+  it('assigns near to the most recent scenes', () => {
+    expect(classifyTier(0, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
+    expect(classifyTier(NEAR_RECENCY_ZONE - 1, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
+  });
+
+  it('assigns mid to the next band back', () => {
+    expect(classifyTier(NEAR_RECENCY_ZONE, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('mid');
+    expect(
+      classifyTier(NEAR_RECENCY_ZONE + MID_RECENCY_ZONE - 1, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE),
+    ).toBe('mid');
+  });
+
+  it('assigns far to scenes beyond both zones', () => {
+    expect(
+      classifyTier(NEAR_RECENCY_ZONE + MID_RECENCY_ZONE, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE),
+    ).toBe('far');
+    expect(classifyTier(1_000, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('far');
+  });
+
+  it('promotes important scenes one tier up', () => {
+    // far → mid
+    expect(
+      classifyTier(NEAR_RECENCY_ZONE + MID_RECENCY_ZONE + 5, true, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE),
+    ).toBe('mid');
+    // mid → near
+    expect(classifyTier(NEAR_RECENCY_ZONE, true, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
+    // near → near (already floor)
+    expect(classifyTier(0, true, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
+  });
+});
+
+describe('tierOfOrigin', () => {
+  it('returns seed for nodes without a recorded origin scene', () => {
+    expect(tierOfOrigin(undefined, 10, [], NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('seed');
+  });
+
+  it('maps origin index to the tier containing it', () => {
+    const total = 30;
+    const sceneImportance = new Array<boolean>(total).fill(false);
+    // Origin at the current scene → near.
+    expect(tierOfOrigin(total - 1, total, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
+    // Origin far back → far.
+    expect(tierOfOrigin(0, total, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('far');
+  });
+
+  it('promotes a far-origin node if its origin scene is important', () => {
+    const total = 30;
+    const sceneImportance = new Array<boolean>(total).fill(false);
+    sceneImportance[0] = true;
+    expect(tierOfOrigin(0, total, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('mid');
+  });
+});
+
+// ── Tiered scene-history rendering ───────────────────────────────────────────
+describe('narrativeContext scene-history tiers', () => {
+  function makeSceneRun(count: number, opts: { participantIds?: string[]; summaryBase?: string } = {}): Record<string, Scene> {
+    const scenes: Record<string, Scene> = {};
+    for (let i = 0; i < count; i++) {
+      const id = `s${i + 1}`;
+      scenes[id] = createScene(id, {
+        povId: 'c1',
+        locationId: 'loc1',
+        participantIds: opts.participantIds ?? ['c1'],
+        summary: `${opts.summaryBase ?? 'summary'}-${i + 1}`,
+      });
+    }
+    return scenes;
+  }
+
+  it('tags the most recent scene as near tier', () => {
+    const n = createMinimalNarrative({
+      characters: { c1: createCharacter('c1', 'Hero') },
+      locations: { loc1: createLocation('loc1', 'Castle') },
+      scenes: makeSceneRun(3),
+    });
+    const keys = Object.keys(n.scenes);
+    const ctx = narrativeContext(n, keys, keys.length - 1);
+    expect(ctx).toMatch(/tier="near"[^>]*>summary-3/);
+  });
+
+  it('renders a far-tier entry with only summary + POV + location (no participants, threads, deltas)', () => {
+    // Push the first scene into far: need > NEAR + MID scenes total.
+    const count = NEAR_RECENCY_ZONE + MID_RECENCY_ZONE + 2;
+    const scenes = makeSceneRun(count, { participantIds: ['c1', 'c2'] });
+    const n = createMinimalNarrative({
+      characters: {
+        c1: createCharacter('c1', 'Hero'),
+        c2: createCharacter('c2', 'Sidekick'),
+      },
+      locations: { loc1: createLocation('loc1', 'Castle') },
+      scenes,
+    });
+    const keys = Object.keys(n.scenes);
+    const ctx = narrativeContext(n, keys, keys.length - 1);
+    const farMatch = ctx.match(/<entry index="1"[^>]*>summary-1<\/entry>/);
+    expect(farMatch).not.toBeNull();
+    const entry = farMatch![0];
+    expect(entry).toContain('tier="far"');
+    expect(entry).not.toContain('participants=');
+    expect(entry).not.toContain('threads=');
+    expect(entry).not.toContain('continuity=');
+  });
+
+  it('mid-tier entries omit the participants attribute (threads imply names)', () => {
+    // Put a scene squarely in mid: index < NEAR from end, but inside NEAR+MID.
+    const count = NEAR_RECENCY_ZONE + 3;
+    const scenes = makeSceneRun(count, { participantIds: ['c1', 'c2'] });
+    const n = createMinimalNarrative({
+      characters: {
+        c1: createCharacter('c1', 'Hero'),
+        c2: createCharacter('c2', 'Sidekick'),
+      },
+      locations: { loc1: createLocation('loc1', 'Castle') },
+      scenes,
+    });
+    const keys = Object.keys(n.scenes);
+    const ctx = narrativeContext(n, keys, keys.length - 1);
+    const midEntry = ctx.match(/<entry index="1"[^>]*tier="mid"[^>]*>[^<]*<\/entry>/);
+    expect(midEntry).not.toBeNull();
+    expect(midEntry![0]).not.toContain('participants=');
+  });
+
+  it('important scenes (thread transitions into critical/resolved) survive in higher tiers', () => {
+    // Place an important scene far back and verify its worldDeltas / relationships survive.
+    const totalScenes = NEAR_RECENCY_ZONE + MID_RECENCY_ZONE + 5;
+    const scenes: Record<string, Scene> = {};
+    for (let i = 0; i < totalScenes; i++) {
+      const id = `s${i + 1}`;
+      scenes[id] = createScene(id, { povId: 'c1', locationId: 'loc1', summary: `summary-${i + 1}` });
+    }
+    // Mark the first scene as important via a thread transition → critical.
+    scenes.s1 = createScene('s1', {
+      povId: 'c1',
+      locationId: 'loc1',
+      summary: 'summary-1',
+      threadDeltas: [{ threadId: 't1', from: 'escalating', to: 'critical', addedNodes: [] }],
+    });
+    const n = createMinimalNarrative({
+      characters: { c1: createCharacter('c1', 'Hero') },
+      locations: { loc1: createLocation('loc1', 'Castle') },
+      threads: { t1: createThread('t1', 'Can Hero survive?', ['c1']) },
+      scenes,
+    });
+    const keys = Object.keys(n.scenes);
+    const ctx = narrativeContext(n, keys, keys.length - 1);
+    // Far by distance, but promoted to mid due to importance — so the entry
+    // must include thread transitions and the mid tier label.
+    const entryMatch = ctx.match(/<entry index="1"[\s\S]*?<\/entry>/);
+    expect(entryMatch).not.toBeNull();
+    const entry = entryMatch![0];
+    expect(entry).toContain('summary-1');
+    expect(entry).toContain('tier="mid"');
+    expect(entry).toContain('threads=');
+  });
+});
+
+// ── Relationship recency filter ──────────────────────────────────────────────
+describe('narrativeContext relationship recency', () => {
+  it('keeps relationships whose most recent delta is in near/mid tier', () => {
+    const scenes: Record<string, Scene> = {};
+    for (let i = 0; i < NEAR_RECENCY_ZONE; i++) {
+      scenes[`s${i + 1}`] = createScene(`s${i + 1}`, { povId: 'c1', locationId: 'loc1' });
+    }
+    // Latest scene has a relationship delta → relationship is in near tier.
+    scenes.s1 = createScene('s1', {
+      povId: 'c1',
+      locationId: 'loc1',
+      relationshipDeltas: [{ from: 'c1', to: 'c2', type: 'ally', valenceDelta: 0.3 }],
+    });
+    const n = createMinimalNarrative({
+      characters: {
+        c1: createCharacter('c1', 'Hero'),
+        c2: createCharacter('c2', 'Ally'),
+      },
+      locations: { loc1: createLocation('loc1', 'Castle') },
+      scenes,
+      relationships: [{ from: 'c1', to: 'c2', type: 'ally', valence: 0.5 }],
+    });
+    const keys = Object.keys(n.scenes);
+    const ctx = narrativeContext(n, keys, keys.length - 1);
+    expect(ctx).toContain('<relationship from="Hero" to="Ally"');
+  });
+
+  it('drops relationships whose most recent delta is in far tier', () => {
+    // Build enough scenes to push scene 1 into far tier (> NEAR + MID).
+    const total = NEAR_RECENCY_ZONE + MID_RECENCY_ZONE + 3;
+    const scenes: Record<string, Scene> = {};
+    for (let i = 0; i < total; i++) {
+      scenes[`s${i + 1}`] = createScene(`s${i + 1}`, { povId: 'c1', locationId: 'loc1' });
+    }
+    // Only scene 1 (far) has the relationship delta.
+    scenes.s1 = createScene('s1', {
+      povId: 'c1',
+      locationId: 'loc1',
+      relationshipDeltas: [{ from: 'c1', to: 'c2', type: 'rival', valenceDelta: -0.2 }],
+    });
+    const n = createMinimalNarrative({
+      characters: {
+        c1: createCharacter('c1', 'Hero'),
+        c2: createCharacter('c2', 'Foe'),
+      },
+      locations: { loc1: createLocation('loc1', 'Castle') },
+      scenes,
+      relationships: [{ from: 'c1', to: 'c2', type: 'rival', valence: -0.4 }],
+    });
+    const keys = Object.keys(n.scenes);
+    const ctx = narrativeContext(n, keys, keys.length - 1);
+    expect(ctx).not.toContain('<relationship from="Hero" to="Foe"');
   });
 });

@@ -1,7 +1,7 @@
 import type { NarrativeState, Scene, StorySettings, RelationshipEdge, WorldEdge, ProseProfile, SystemGraph } from '@/types/narrative';
 import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { computeForceSnapshots, computeSwingMagnitudes, detectCubeCorner, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, buildCumulativeSystemGraph, rankSystemNodes } from '@/lib/narrative-utils';
-import { WORDS_PER_SCENE, BEATS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
+import { buildCumulativeSystemGraph, rankSystemNodes } from '@/lib/narrative-utils';
+import { WORDS_PER_SCENE, BEATS_PER_SCENE, ENTITY_LOG_CONTEXT_LIMIT, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 
 // ── Prose Profile Builder ─────────────────────────────────────────────────────
@@ -43,6 +43,162 @@ export function buildProseProfile(profile: ProseProfile, options?: { beatDensity
  * Returns which continuity nodes exist, relationship states, thread statuses,
  * and artifact ownership at the specified position in the timeline.
  */
+
+// ── Tiered scene-history resolution ───────────────────────────────────────────
+// Scene history is rendered at progressively lower resolution the further back
+// a scene sits from the current one. The floor is a scene summary (plus POV /
+// location) — we never drop a scene entirely. Important scenes (thread
+// transitions into or out of a load-bearing status) are promoted one tier so
+// critical beats survive aggressive truncation in long narratives.
+//
+// To add a tier: extend `RecencyTier`, add a row to `TIER_FIELDS`, and update
+// `classifyTier`. `renderSceneEntry` reads TIER_FIELDS and needs no changes.
+
+export type RecencyTier = 'near' | 'mid' | 'far';
+
+/** Which delta categories each tier reveals. Lower tiers strictly include the floor. */
+interface TierFields {
+  participants: boolean;
+  threadTransitions: boolean;
+  movements: boolean;          // tieDeltas (characters entering/leaving locations)
+  worldDeltas: boolean;
+  relationshipShifts: boolean;
+  artifactUsages: boolean;
+  ownershipChanges: boolean;
+}
+
+const TIER_FIELDS: Record<RecencyTier, TierFields> = {
+  near: { participants: true,  threadTransitions: true,  movements: true,  worldDeltas: true,  relationshipShifts: true,  artifactUsages: true,  ownershipChanges: true  },
+  // Mid drops participants — thread-transition names already imply who's present.
+  mid:  { participants: false, threadTransitions: true,  movements: true,  worldDeltas: false, relationshipShifts: false, artifactUsages: false, ownershipChanges: false },
+  far:  { participants: false, threadTransitions: false, movements: false, worldDeltas: false, relationshipShifts: false, artifactUsages: false, ownershipChanges: false },
+};
+
+/** Thread statuses whose transitions mark load-bearing scenes. */
+const IMPORTANT_THREAD_STATUSES = new Set(['escalating', 'critical', 'resolved', 'subverted']);
+
+/** A scene is important if a thread delta touches an escalating/critical/resolved/subverted status. */
+function isImportantScene(s: Scene): boolean {
+  return s.threadDeltas.some((tm) =>
+    IMPORTANT_THREAD_STATUSES.has(tm.from) || IMPORTANT_THREAD_STATUSES.has(tm.to),
+  );
+}
+
+/** Pick a tier from distance-to-current, then promote one step if the scene is important. */
+export function classifyTier(
+  distanceFromCurrent: number,
+  important: boolean,
+  nearZone: number,
+  midZone: number,
+): RecencyTier {
+  const base: RecencyTier =
+    distanceFromCurrent < nearZone ? 'near' :
+    distanceFromCurrent < nearZone + midZone ? 'mid' :
+    'far';
+  if (!important) return base;
+  if (base === 'far') return 'mid';
+  if (base === 'mid') return 'near';
+  return 'near';
+}
+
+/**
+ * Return the tier a knowledge or log node belongs to, based on the scene it
+ * was introduced in. Seed nodes (introduced by a pre-timeline world build or
+ * otherwise untracked) are treated as 'seed' and always kept.
+ */
+export function tierOfOrigin(
+  sceneOriginIndex: number | undefined,
+  totalScenes: number,
+  sceneImportance: boolean[],
+  nearZone: number,
+  midZone: number,
+): RecencyTier | 'seed' {
+  if (sceneOriginIndex === undefined) return 'seed';
+  const distance = totalScenes - 1 - sceneOriginIndex;
+  return classifyTier(distance, sceneImportance[sceneOriginIndex] ?? false, nearZone, midZone);
+}
+
+/** Render a single scene at the given tier. Fields are gated by TIER_FIELDS. */
+function renderSceneEntry(
+  n: NarrativeState,
+  s: Scene,
+  globalIdx: number,
+  tier: RecencyTier,
+): string {
+  const fields = TIER_FIELDS[tier];
+  const loc = n.locations[s.locationId]?.name ?? s.locationId;
+  const povName = n.characters[s.povId]?.name ?? s.povId;
+  const attrs: string[] = [
+    `index="${globalIdx}"`,
+    `tier="${tier}"`,
+    `location="${loc}"`,
+    `pov="${povName}"`,
+  ];
+
+  if (fields.participants) {
+    const participants = s.participantIds.map((pid) => n.characters[pid]?.name ?? pid).join(', ');
+    if (participants) attrs.push(`participants="${participants}"`);
+  }
+
+  if (fields.threadTransitions) {
+    const threadChanges = s.threadDeltas.map((tm) => {
+      const thr = n.threads[tm.threadId];
+      const desc = thr ? thr.description : tm.threadId;
+      return `${desc}: ${tm.from}->${tm.to}`;
+    }).join('; ');
+    if (threadChanges) attrs.push(`threads="${threadChanges}"`);
+  }
+
+  if (fields.worldDeltas) {
+    const continuityChanges = s.worldDeltas.flatMap((km) => {
+      const entityName = n.characters[km.entityId]?.name ?? n.locations[km.entityId]?.name ?? n.artifacts[km.entityId]?.name ?? km.entityId;
+      return (km.addedNodes ?? []).map((node) => `${entityName} learned [${node.type}]: ${node.content}`);
+    }).join('; ');
+    if (continuityChanges) attrs.push(`continuity="${continuityChanges}"`);
+  }
+
+  if (fields.relationshipShifts) {
+    const relChanges = s.relationshipDeltas.map((rm) => {
+      const fromName = n.characters[rm.from]?.name ?? rm.from;
+      const toName = n.characters[rm.to]?.name ?? rm.to;
+      return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
+    }).join('; ');
+    if (relChanges) attrs.push(`relationships="${relChanges}"`);
+  }
+
+  if (fields.ownershipChanges) {
+    const ownershipChanges = (s.ownershipDeltas ?? []).map((om) => {
+      const artName = n.artifacts?.[om.artifactId]?.name ?? om.artifactId;
+      const fromName = n.characters[om.fromId]?.name ?? n.locations[om.fromId]?.name ?? om.fromId;
+      const toName = n.characters[om.toId]?.name ?? n.locations[om.toId]?.name ?? om.toId;
+      return `${artName}: ${fromName}→${toName}`;
+    }).join('; ');
+    if (ownershipChanges) attrs.push(`artifact-transfers="${ownershipChanges}"`);
+  }
+
+  if (fields.artifactUsages) {
+    const artifactUsages = (s.artifactUsages ?? []).map((au) => {
+      const artName = n.artifacts?.[au.artifactId]?.name ?? au.artifactId;
+      const usageDesc = au.usage ? ` (${au.usage})` : '';
+      if (!au.characterId) return `${artName} used${usageDesc}`;
+      const charName = n.characters[au.characterId]?.name ?? au.characterId;
+      return `${charName} uses ${artName}${usageDesc}`;
+    }).join('; ');
+    if (artifactUsages) attrs.push(`artifact-usages="${artifactUsages}"`);
+  }
+
+  if (fields.movements) {
+    const tieChanges = (s.tieDeltas ?? []).map((mm) => {
+      const locName = n.locations[mm.locationId]?.name ?? mm.locationId;
+      const charName = n.characters[mm.characterId]?.name ?? mm.characterId;
+      return `${charName} ${mm.action === 'add' ? 'joins' : 'leaves'} ${locName}`;
+    }).join('; ');
+    if (tieChanges) attrs.push(`ties="${tieChanges}"`);
+  }
+
+  return `<entry ${attrs.join(' ')}>${s.summary}</entry>`;
+}
+
 export function getStateAtIndex(
   n: NarrativeState,
   resolvedKeys: string[],
@@ -163,14 +319,16 @@ function buildSystemKnowledgeBlock(graph: SystemGraph): string {
     byType[node.type].push(node);
   }
 
-  // Build adjacency for showing connections
+  // Build adjacency for showing connections — reference target IDs, not target text.
+  // The target concept is already written once on its own node; inlining the full
+  // text per edge can duplicate the world-graph block several times over.
   const connections: Record<string, string[]> = {};
   for (const edge of graph.edges) {
     const fromNode = graph.nodes[edge.from];
     const toNode = graph.nodes[edge.to];
     if (!fromNode || !toNode) continue;
     if (!connections[edge.from]) connections[edge.from] = [];
-    connections[edge.from].push(`${edge.relation} → ${toNode.concept}`);
+    connections[edge.from].push(`${edge.relation}→${edge.to}`);
   }
 
   const sections: string[] = [];
@@ -299,33 +457,53 @@ export function narrativeContext(
   resolvedKeys: string[],
   currentIndex: number,
 ): string {
-  // Apply time horizon from story settings (default: 50)
-  const horizon = n.storySettings?.branchTimeHorizon ?? DEFAULT_STORY_SETTINGS.branchTimeHorizon;
-  const allKeysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
-  const horizonStart = Math.max(0, allKeysUpToCurrent.length - horizon);
-  const keysUpToCurrent = allKeysUpToCurrent.slice(horizonStart);
-  const skippedCount = horizonStart;
+  // The entire branch up to the current scene is included. Resolution is
+  // tiered by distance from the current scene (see NEAR_RECENCY_ZONE /
+  // MID_RECENCY_ZONE) rather than by a hard cutoff.
+  const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
 
-  // Collect entity IDs and knowledge node IDs referenced within the time horizon
+  // Collect entity IDs, knowledge node IDs, and per-scene metadata on one pass.
+  // sceneImportance / knowledgeOriginScene / threadLogOriginScene drive the
+  // tiered continuity pruning below — knowledge and thread-log nodes are
+  // rendered only if the scene they came from is still in near/mid tier
+  // (important scenes get promoted, so load-bearing history survives).
   const referencedCharIds = new Set<string>();
   const referencedLocIds = new Set<string>();
   const referencedThreadIds = new Set<string>();
   const horizonContinuityNodeIds = new Set<string>();
-  for (const k of keysUpToCurrent) {
+  const totalEntries = keysUpToCurrent.length;
+  const sceneImportance: boolean[] = new Array(totalEntries).fill(false);
+  const knowledgeOriginScene = new Map<string, number>();
+  const threadLogOriginScene = new Map<string, number>();
+  const relationshipLatestDeltaScene = new Map<string, number>();
+  keysUpToCurrent.forEach((k, i) => {
     const entry = resolveEntry(n, k);
-    if (!entry) continue;
+    if (!entry) return;
     if (entry.kind === 'scene') {
+      sceneImportance[i] = isImportantScene(entry);
       referencedCharIds.add(entry.povId);
       for (const pid of entry.participantIds) referencedCharIds.add(pid);
       referencedLocIds.add(entry.locationId);
-      for (const tm of entry.threadDeltas) referencedThreadIds.add(tm.threadId);
+      for (const tm of entry.threadDeltas) {
+        referencedThreadIds.add(tm.threadId);
+        for (const node of tm.addedNodes ?? []) {
+          if (!threadLogOriginScene.has(node.id)) threadLogOriginScene.set(node.id, i);
+        }
+      }
       for (const km of entry.worldDeltas) {
         referencedCharIds.add(km.entityId);
-        for (const node of km.addedNodes ?? []) horizonContinuityNodeIds.add(node.id);
+        for (const node of km.addedNodes ?? []) {
+          horizonContinuityNodeIds.add(node.id);
+          if (!knowledgeOriginScene.has(node.id)) knowledgeOriginScene.set(node.id, i);
+        }
       }
       for (const rm of entry.relationshipDeltas) {
         referencedCharIds.add(rm.from);
         referencedCharIds.add(rm.to);
+        // Track latest delta scene per undirected relationship pair so we can
+        // drop relationships whose last change lives in far tier.
+        const pairKey = rm.from < rm.to ? `${rm.from}|${rm.to}` : `${rm.to}|${rm.from}`;
+        relationshipLatestDeltaScene.set(pairKey, i);
       }
       if (entry.characterMovements) {
         for (const [charId, mv] of Object.entries(entry.characterMovements)) {
@@ -338,7 +516,16 @@ export function narrativeContext(
       for (const l of entry.expansionManifest.newLocations) referencedLocIds.add(l.id);
       for (const t of entry.expansionManifest.newThreads) referencedThreadIds.add(t.id);
     }
-  }
+  });
+
+  // A knowledge/log node survives pruning if its origin scene is in near/mid tier.
+  // Seed nodes (no recorded origin — typically introduced by a world build) always survive.
+  const keepByRecency = (originMap: Map<string, number>) => (id: string): boolean => {
+    const tier = tierOfOrigin(originMap.get(id), totalEntries, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
+    return tier !== 'far';
+  };
+  const keepKnowledgeNode = keepByRecency(knowledgeOriginScene);
+  const keepThreadLogNode = keepByRecency(threadLogOriginScene);
   // Also include threads that anchor to referenced characters/locations
   for (const t of Object.values(n.threads)) {
     if (referencedThreadIds.has(t.id)) continue;
@@ -396,15 +583,22 @@ export function narrativeContext(
     return [...nodeLines, ...edgeLines];
   };
 
+  // Recency-tiered continuity: keep nodes that are alive at the current index
+  // AND whose origin scene is still in near/mid tier. Slicing by
+  // ENTITY_LOG_CONTEXT_LIMIT guards against runaway early-story world dumps
+  // on entities with many seed nodes.
+  const tieredContinuity = (nodes: Record<string, { id: string; type: string; content: string }>) =>
+    Object.values(nodes)
+      .filter((kn) => timelineState.liveNodeIds.has(kn.id) && keepKnowledgeNode(kn.id))
+      .slice(-ENTITY_LOG_CONTEXT_LIMIT);
+
   const characters = branchCharacters
     .map((c) => {
-      const relevantNodes = Object.values(c.world.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
-      const recentNodes = relevantNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
+      const recentNodes = tieredContinuity(c.world.nodes);
       const continuityLines = renderContinuityXml(recentNodes, c.world.edges, '  ');
       const owned = artifactsByOwner.get(c.id) ?? [];
       const artifactLines = owned.map((a) => {
-        const scopedNodes = Object.values(a.world.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
-        const recentArtNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
+        const recentArtNodes = tieredContinuity(a.world.nodes);
         const inner = renderContinuityXml(recentArtNodes, a.world.edges, '    ').join('\n');
         return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
@@ -415,14 +609,12 @@ export function narrativeContext(
     .join('\n');
   const locations = branchLocations
     .map((l) => {
-      const relevantNodes = Object.values(l.world.nodes).filter((kn) => timelineState.liveNodeIds.has(kn.id));
-      const recentNodes = relevantNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
+      const recentNodes = tieredContinuity(l.world.nodes);
       const continuityLines = renderContinuityXml(recentNodes, l.world.edges, '  ');
       const parent = l.parentId ? ` parent="${n.locations[l.parentId]?.name ?? l.parentId}"` : '';
       const owned = artifactsByOwner.get(l.id) ?? [];
       const artifactLines = owned.map((a) => {
-        const scopedNodes = Object.values(a.world.nodes).filter((nd) => timelineState.liveNodeIds.has(nd.id));
-        const recentArtNodes = scopedNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
+        const recentArtNodes = tieredContinuity(a.world.nodes);
         const inner = renderContinuityXml(recentArtNodes, a.world.edges, '    ').join('\n');
         return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
@@ -458,67 +650,48 @@ export function narrativeContext(
       const status = timelineState.threadStatuses[t.id] ?? t.status;
       // Filter out abandoned threads — they're cleaned up and shouldn't appear in generation context
       if (status === 'abandoned') return null;
-      // Include recent thread log entries (last 5) to show thread momentum
-      const logNodes = Object.values(t.threadLog?.nodes ?? {});
-      const recentLogs = logNodes.slice(-ENTITY_LOG_CONTEXT_LIMIT);
-      const logBlock = recentLogs.length > 0
-        ? `\n  <log>${recentLogs.map((ln) => `[${ln.type}] ${ln.content}`).join(' | ')}</log>`
+      // Recency-tiered log entries: keep logs from near/mid scenes only. Older
+      // log detail is carried by scene-history summaries.
+      const logNodes = Object.values(t.threadLog?.nodes ?? {})
+        .filter((ln) => keepThreadLogNode(ln.id))
+        .slice(-ENTITY_LOG_CONTEXT_LIMIT);
+      const logBlock = logNodes.length > 0
+        ? `\n  <log>${logNodes.map((ln) => `[${ln.type}] ${ln.content}`).join(' | ')}</log>`
         : '';
       return `<thread id="${t.id}" status="${status}"${age > 0 ? ` age="${age}" deltas="${deltas}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}>${t.description}${logBlock}\n</thread>`;
     })
     .filter(Boolean)
     .join('\n');
+  // Recency-tiered relationships: keep only pairs whose latest delta is in
+  // near/mid tier. Scene-history summaries carry stable long-term dynamics.
   const relationships = branchRelationships
+    .filter((r) => {
+      const pairKey = r.from < r.to ? `${r.from}|${r.to}` : `${r.to}|${r.from}`;
+      const tier = tierOfOrigin(relationshipLatestDeltaScene.get(pairKey), totalEntries, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
+      return tier !== 'far';
+    })
     .map((r) => {
       const fromName = n.characters[r.from]?.name ?? r.from;
       const toName = n.characters[r.to]?.name ?? r.to;
       return `<relationship from="${fromName}" to="${toName}" valence="${Math.round(r.valence * 100) / 100}">${r.type}</relationship>`;
     })
     .join('\n');
-  // All scenes within the time horizon get full delta detail
+  // Tiered scene history — see classifyTier / renderSceneEntry at the top of
+  // this file. World-build entries always render as a single summary line
+  // (their structural content lives in the characters/locations/threads
+  // blocks above).
+  const tierCounts = { near: 0, mid: 0, far: 0 };
   const sceneHistory = keysUpToCurrent.map((k, i) => {
     const s = resolveEntry(n, k);
     if (!s) return '';
-    const globalIdx = horizonStart + i + 1;
+    const globalIdx = i + 1;
+    const distanceFromCurrent = totalEntries - 1 - i;
     if (s.kind === 'world_build') {
       return `<entry index="${globalIdx}" type="world-build">${s.summary}</entry>`;
     }
-    const loc = n.locations[s.locationId]?.name ?? s.locationId;
-    const participants = s.participantIds.map((pid) => n.characters[pid]?.name ?? pid).join(', ');
-    const threadChanges = s.threadDeltas.map((tm) => {
-      const thr = n.threads[tm.threadId];
-      const desc = thr ? thr.description : tm.threadId;
-      return `${desc}: ${tm.from}->${tm.to}`;
-    }).join('; ');
-    const continuityChanges = s.worldDeltas.flatMap((km) => {
-      const entityName = n.characters[km.entityId]?.name ?? n.locations[km.entityId]?.name ?? n.artifacts[km.entityId]?.name ?? km.entityId;
-      return (km.addedNodes ?? []).map(node => `${entityName} learned [${node.type}]: ${node.content}`);
-    }).join('; ');
-    const relChanges = s.relationshipDeltas.map((rm) => {
-      const fromName = n.characters[rm.from]?.name ?? rm.from;
-      const toName = n.characters[rm.to]?.name ?? rm.to;
-      return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
-    }).join('; ');
-    const ownershipChanges = (s.ownershipDeltas ?? []).map((om) => {
-      const artName = n.artifacts?.[om.artifactId]?.name ?? om.artifactId;
-      const fromName = n.characters[om.fromId]?.name ?? n.locations[om.fromId]?.name ?? om.fromId;
-      const toName = n.characters[om.toId]?.name ?? n.locations[om.toId]?.name ?? om.toId;
-      return `${artName}: ${fromName}→${toName}`;
-    }).join('; ');
-    const artifactUsages = (s.artifactUsages ?? []).map((au) => {
-      const artName = n.artifacts?.[au.artifactId]?.name ?? au.artifactId;
-      const usageDesc = au.usage ? ` (${au.usage})` : '';
-      if (!au.characterId) return `${artName} used${usageDesc}`;
-      const charName = n.characters[au.characterId]?.name ?? au.characterId;
-      return `${charName} uses ${artName}${usageDesc}`;
-    }).join('; ');
-    const tieChanges = (s.tieDeltas ?? []).map((mm) => {
-      const locName = n.locations[mm.locationId]?.name ?? mm.locationId;
-      const charName = n.characters[mm.characterId]?.name ?? mm.characterId;
-      return `${charName} ${mm.action === 'add' ? 'joins' : 'leaves'} ${locName}`;
-    }).join('; ');
-    const povName = n.characters[s.povId]?.name ?? s.povId;
-    return `<entry index="${globalIdx}" location="${loc}" pov="${povName}" participants="${participants}"${threadChanges ? ` threads="${threadChanges}"` : ''}${continuityChanges ? ` continuity="${continuityChanges}"` : ''}${relChanges ? ` relationships="${relChanges}"` : ''}${ownershipChanges ? ` artifact-transfers="${ownershipChanges}"` : ''}${artifactUsages ? ` artifact-usages="${artifactUsages}"` : ''}${tieChanges ? ` ties="${tieChanges}"` : ''}>${s.summary}</entry>`;
+    const tier = classifyTier(distanceFromCurrent, isImportantScene(s), NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
+    tierCounts[tier]++;
+    return renderSceneEntry(n, s, globalIdx, tier);
   }).filter(Boolean).join('\n');
 
   // Arcs context — only arcs with scenes within the time horizon
@@ -530,37 +703,6 @@ export function narrativeContext(
       return `<arc id="${a.id}" name="${a.name}" scenes="${a.sceneIds.length}">${developsNames}</arc>`;
     })
     .join('\n');
-
-  // Force trajectory — computed from all scenes for correct normalization,
-  // but only the time horizon is included in the output
-  const allScenes = keysUpToCurrent
-    .map((k) => resolveEntry(n, k))
-    .filter((e): e is Scene => e?.kind === 'scene');
-  const forceMap = computeForceSnapshots(allScenes);
-  const forceSnapshots = allScenes.map((s) => forceMap[s.id] ?? { fate: 0, world: 0, system: 0 });
-  const swings = computeSwingMagnitudes(forceSnapshots);
-  const fateMA = movingAverage(forceSnapshots.map(f => f.fate), FORCE_WINDOW_SIZE);
-  const worldMA = movingAverage(forceSnapshots.map(f => f.world), FORCE_WINDOW_SIZE);
-  const systemMA = movingAverage(forceSnapshots.map(f => f.system), FORCE_WINDOW_SIZE);
-  const swingMA = movingAverage(swings, FORCE_WINDOW_SIZE);
-  const forceTrajectory = allScenes.map((s, i) => {
-    const f = forceMap[s.id];
-    if (!f) return null;
-    const corner = detectCubeCorner(f);
-    return `[${horizonStart + i + 1}] F:${f.fate >= 0 ? '+' : ''}${f.fate.toFixed(1)} W:${f.world >= 0 ? '+' : ''}${f.world.toFixed(1)} S:${f.system >= 0 ? '+' : ''}${f.system.toFixed(1)} Sw:${swings[i].toFixed(1)} MA(F:${fateMA[i].toFixed(1)} W:${worldMA[i].toFixed(1)} S:${systemMA[i].toFixed(1)} Sw:${swingMA[i].toFixed(1)}) (${corner.name})`;
-  }).filter(Boolean).join('\n');
-
-  // Current cube position and local delivery position
-  const currentForces = allScenes.length > 0 ? forceMap[allScenes[allScenes.length - 1].id] : null;
-  const currentCube = currentForces ? detectCubeCorner(currentForces) : null;
-  const windowScenes = allScenes.slice(-FORCE_WINDOW_SIZE);
-  const windowMap = computeForceSnapshots(windowScenes);
-  const windowOrdered = windowScenes.map((s) => windowMap[s.id]).filter(Boolean);
-  const engPts = computeDeliveryCurve(windowOrdered);
-  const localPos = engPts.length > 0 ? classifyCurrentPosition(engPts) : null;
-  const currentStateBlock = currentCube
-    ? `\n<current-state cube="${currentCube.name}" delivery="${localPos?.name ?? 'Stable'}">${currentCube.description}. ${localPos?.description ?? ''}</current-state>\n`
-    : '';
 
   // ── System Knowledge Graph (scoped to time horizon) ────────────────
   const horizonSystemGraph = buildCumulativeSystemGraph(
@@ -608,12 +750,9 @@ ${nodeLines.join('\n')}
 
   const storySettingsBlock = buildStorySettingsBlock(n);
 
-  const historyNote = skippedCount > 0
-    ? `${keysUpToCurrent.length} scenes in time horizon, ${skippedCount} earlier omitted`
-    : `${keysUpToCurrent.length} scenes on current branch`;
+  const historyNote = `${keysUpToCurrent.length} scenes — ${tierCounts.near} near, ${tierCounts.mid} mid, ${tierCounts.far} far (resolution falls with distance from current)`;
 
   return `<narrative title="${n.title}">
-<world>${n.worldSummary}</world>
 ${systemKnowledgeBlock}${storySettingsBlock}
 <characters hint="Continuity tracks what each character knows. Use this to determine what they can reference, discover, or be surprised by.">
 ${characters}
@@ -635,13 +774,9 @@ ${relationships}
 ${arcs}
 </arcs>
 
-<scene-history scope="${historyNote}" hint="Full delta detail for recent scenes. Check this before writing to avoid repeating beats, locations, or character patterns.">
+<scene-history scope="${historyNote}" hint="Source of truth for long-term continuity. Summaries carry the branch; near/mid entries expose deltas for recent scenes.">
 ${sceneHistory}
 </scene-history>
-
-<force-trajectory hint="F=Fate (thread resolution) W=World (entity transformation) S=System (world deepening). Vary density between scenes.">
-${forceTrajectory || '(no scenes yet)'}
-${currentStateBlock}</force-trajectory>
 ${systemGraphBlock}
 <valid-ids hint="You MUST use ONLY these exact IDs — do NOT invent new ones.">
   <characters>${charIdList}</characters>

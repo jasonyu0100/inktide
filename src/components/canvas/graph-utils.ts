@@ -374,6 +374,18 @@ export function buildOverviewGraphData(
       for (const au of scene.artifactUsages ?? []) {
         artUsage[au.artifactId] = (artUsage[au.artifactId] ?? 0) + 1;
       }
+      for (const om of scene.ownershipDeltas ?? []) {
+        artUsage[om.artifactId] = (artUsage[om.artifactId] ?? 0) + 1;
+      }
+      for (const c of scene.newCharacters ?? []) {
+        charUsage[c.id] = (charUsage[c.id] ?? 0) + 1;
+      }
+      for (const l of scene.newLocations ?? []) {
+        locUsage[l.id] = (locUsage[l.id] ?? 0) + 1;
+      }
+      for (const a of scene.newArtifacts ?? []) {
+        artUsage[a.id] = (artUsage[a.id] ?? 0) + 1;
+      }
     }
   }
 

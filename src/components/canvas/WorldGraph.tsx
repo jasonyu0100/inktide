@@ -197,6 +197,11 @@ export default function WorldGraph() {
     const currentWBForArtifacts = currentKey ? narrative.worldBuilds[currentKey] : null;
     if (currentSceneForArtifacts) {
       for (const au of currentSceneForArtifacts.artifactUsages ?? []) sceneArtifactIds.add(au.artifactId);
+      for (const om of currentSceneForArtifacts.ownershipDeltas ?? []) sceneArtifactIds.add(om.artifactId);
+      for (const a of currentSceneForArtifacts.newArtifacts ?? []) sceneArtifactIds.add(a.id);
+      for (const wd of currentSceneForArtifacts.worldDeltas ?? []) {
+        if (narrative.artifacts?.[wd.entityId]) sceneArtifactIds.add(wd.entityId);
+      }
     }
     if (currentWBForArtifacts) {
       for (const a of currentWBForArtifacts.expansionManifest.newArtifacts ?? []) sceneArtifactIds.add(a.id);

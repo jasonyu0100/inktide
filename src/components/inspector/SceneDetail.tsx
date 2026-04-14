@@ -28,10 +28,9 @@ export default function SceneDetail({ sceneId }: Props) {
     entry && isScene(entry) ? entry.imageUrl : undefined,
   );
 
-  // First appearances — entities whose first occurrence on the timeline is
-  // this scene. Walks the resolved branch up to (but not including) the
-  // current entry, collects every entity ID seen, then diffs against the
-  // current scene's referenced entities.
+  // Entities introduced by this scene — taken directly from the authoritative
+  // new* arrays. IDs are filtered against narrative.* so stale introductions
+  // (e.g. an entity removed during revision) don't render as dead links.
   const firstAppearances = useMemo<{
     characters: string[];
     locations: string[];
@@ -40,84 +39,21 @@ export default function SceneDetail({ sceneId }: Props) {
   }>(() => {
     const empty = { characters: [], locations: [], artifacts: [], threads: [] };
     if (!narrative || !entry || entry.kind !== "scene") return empty;
-    const scene = entry;
-
-    const priorCharacters = new Set<string>();
-    const priorLocations = new Set<string>();
-    const priorArtifacts = new Set<string>();
-    const priorThreads = new Set<string>();
-
-    for (const key of state.resolvedEntryKeys) {
-      if (key === sceneId) break;
-      const e = resolveEntry(narrative, key);
-      if (!e) continue;
-      if (e.kind === "scene") {
-        priorLocations.add(e.locationId);
-        e.participantIds.forEach((id) => priorCharacters.add(id));
-        (e.artifactUsages ?? []).forEach((au) =>
-          priorArtifacts.add(au.artifactId),
-        );
-        e.threadDeltas.forEach((td) => priorThreads.add(td.threadId));
-        e.worldDeltas.forEach((wd) => {
-          if (narrative.characters[wd.entityId]) priorCharacters.add(wd.entityId);
-          else if (narrative.locations[wd.entityId]) priorLocations.add(wd.entityId);
-          else if (narrative.artifacts[wd.entityId]) priorArtifacts.add(wd.entityId);
-        });
-        e.relationshipDeltas.forEach((rd) => {
-          priorCharacters.add(rd.from);
-          priorCharacters.add(rd.to);
-        });
-        Object.keys(e.characterMovements ?? {}).forEach((id) =>
-          priorCharacters.add(id),
-        );
-      } else if (e.kind === "world_build") {
-        const m = e.expansionManifest;
-        m.newCharacters.forEach((c) => priorCharacters.add(c.id));
-        m.newLocations.forEach((l) => priorLocations.add(l.id));
-        m.newThreads.forEach((t) => priorThreads.add(t.id));
-        (m.newArtifacts ?? []).forEach((a) => priorArtifacts.add(a.id));
-      }
-    }
-
-    const sceneCharacters = new Set<string>();
-    const sceneLocations = new Set<string>();
-    const sceneArtifacts = new Set<string>();
-    const sceneThreads = new Set<string>();
-
-    if (scene.locationId) sceneLocations.add(scene.locationId);
-    scene.participantIds.forEach((id) => sceneCharacters.add(id));
-    (scene.artifactUsages ?? []).forEach((au) =>
-      sceneArtifacts.add(au.artifactId),
-    );
-    scene.threadDeltas.forEach((td) => sceneThreads.add(td.threadId));
-    scene.worldDeltas.forEach((wd) => {
-      if (narrative.characters[wd.entityId]) sceneCharacters.add(wd.entityId);
-      else if (narrative.locations[wd.entityId]) sceneLocations.add(wd.entityId);
-      else if (narrative.artifacts[wd.entityId]) sceneArtifacts.add(wd.entityId);
-    });
-    scene.relationshipDeltas.forEach((rd) => {
-      sceneCharacters.add(rd.from);
-      sceneCharacters.add(rd.to);
-    });
-    Object.keys(scene.characterMovements ?? {}).forEach((id) =>
-      sceneCharacters.add(id),
-    );
-
     return {
-      characters: [...sceneCharacters].filter(
-        (id) => narrative.characters[id] && !priorCharacters.has(id),
-      ),
-      locations: [...sceneLocations].filter(
-        (id) => narrative.locations[id] && !priorLocations.has(id),
-      ),
-      artifacts: [...sceneArtifacts].filter(
-        (id) => narrative.artifacts[id] && !priorArtifacts.has(id),
-      ),
-      threads: [...sceneThreads].filter(
-        (id) => narrative.threads[id] && !priorThreads.has(id),
-      ),
+      characters: (entry.newCharacters ?? [])
+        .map((c) => c.id)
+        .filter((id) => narrative.characters[id]),
+      locations: (entry.newLocations ?? [])
+        .map((l) => l.id)
+        .filter((id) => narrative.locations[id]),
+      artifacts: (entry.newArtifacts ?? [])
+        .map((a) => a.id)
+        .filter((id) => narrative.artifacts[id]),
+      threads: (entry.newThreads ?? [])
+        .map((t) => t.id)
+        .filter((id) => narrative.threads[id]),
     };
-  }, [narrative, state.resolvedEntryKeys, sceneId, entry]);
+  }, [narrative, entry]);
 
   if (!narrative) return null;
   if (!entry) return null;

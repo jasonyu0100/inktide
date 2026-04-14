@@ -346,6 +346,7 @@ export function buildOverviewGraphData(
   // Count usage up to current scene index
   const charUsage: Record<string, number> = {};
   const locUsage: Record<string, number> = {};
+  const artUsage: Record<string, number> = {};
 
   for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
     const key = resolvedEntryKeys[i];
@@ -358,6 +359,9 @@ export function buildOverviewGraphData(
       for (const l of wb.expansionManifest.newLocations) {
         locUsage[l.id] = (locUsage[l.id] ?? 0) + 1;
       }
+      for (const a of wb.expansionManifest.newArtifacts ?? []) {
+        artUsage[a.id] = (artUsage[a.id] ?? 0) + 1;
+      }
     } else {
       const scene = scenes[key];
       if (!scene) continue;
@@ -366,6 +370,9 @@ export function buildOverviewGraphData(
       }
       if (scene.locationId) {
         locUsage[scene.locationId] = (locUsage[scene.locationId] ?? 0) + 1;
+      }
+      for (const au of scene.artifactUsages ?? []) {
+        artUsage[au.artifactId] = (artUsage[au.artifactId] ?? 0) + 1;
       }
     }
   }
@@ -431,9 +438,10 @@ export function buildOverviewGraphData(
     }
   }
 
-  // Artifact nodes + ownership edges
-  // Artifact nodes + ownership edges (pre-filtered to used artifacts by caller)
+  // Artifact nodes + ownership edges — include every artifact introduced or
+  // used in any scene up to the current index.
   for (const art of Object.values(artifacts ?? {})) {
+    if (!artUsage[art.id]) continue;
     const ownerInGraph =
       art.parentId &&
       (activeCharIds.has(art.parentId) || activeLocIds.has(art.parentId));
@@ -444,6 +452,7 @@ export function buildOverviewGraphData(
       imageUrl: art.imageUrl,
       imagePrompt: art.imagePrompt,
       significance: art.significance,
+      usageCount: artUsage[art.id],
     });
     if (ownerInGraph) {
       links.push({

@@ -189,29 +189,30 @@ export default function WorldGraph() {
     let nodes: GraphNode[];
     let links: GraphLink[];
 
-    // Filter artifacts to only those used in the current scene
-    // Artifacts: show those used in current scene, or introduced in current world build
-    const visibleArtifactIds = new Set<string>();
+    // Scene-local artifact set: only those used in, or introduced at, the current scene.
+    // Overview mode accumulates across the full timeline inside buildOverviewGraphData.
+    const sceneArtifactIds = new Set<string>();
     const currentKey = resolvedEntryKeys[state.viewState.currentSceneIndex];
     const currentSceneForArtifacts = currentKey ? narrative.scenes[currentKey] : null;
     const currentWBForArtifacts = currentKey ? narrative.worldBuilds[currentKey] : null;
     if (currentSceneForArtifacts) {
-      for (const au of currentSceneForArtifacts.artifactUsages ?? []) visibleArtifactIds.add(au.artifactId);
+      for (const au of currentSceneForArtifacts.artifactUsages ?? []) sceneArtifactIds.add(au.artifactId);
     }
     if (currentWBForArtifacts) {
-      for (const a of currentWBForArtifacts.expansionManifest.newArtifacts ?? []) visibleArtifactIds.add(a.id);
+      for (const a of currentWBForArtifacts.expansionManifest.newArtifacts ?? []) sceneArtifactIds.add(a.id);
     }
-    const usedArtifacts = Object.fromEntries(
-      Object.entries(narrative.artifacts ?? {}).filter(([id]) => visibleArtifactIds.has(id))
+    const sceneArtifacts = Object.fromEntries(
+      Object.entries(narrative.artifacts ?? {}).filter(([id]) => sceneArtifactIds.has(id))
     );
 
     // Entity visibility filters
     const filteredCharacters = showCharacters ? narrative.characters : {};
     const filteredLocations = showLocations ? narrative.locations : {};
-    const filteredArtifacts = showArtifacts ? usedArtifacts : {};
+    const filteredArtifacts = showArtifacts ? sceneArtifacts : {};
+    const filteredArtifactsAll = showArtifacts ? (narrative.artifacts ?? {}) : {};
 
     if (graphViewMode === 'overview') {
-      // Overview mode: all characters/locations sized by usage
+      // Overview mode: all characters/locations/artifacts sized by usage across the timeline
       const result = buildOverviewGraphData(
         filteredCharacters,
         filteredLocations,
@@ -220,7 +221,7 @@ export default function WorldGraph() {
         narrative.worldBuilds,
         resolvedEntryKeys,
         resolvedEntryKeys.length - 1,
-        filteredArtifacts,
+        filteredArtifactsAll,
       );
       nodes = result.nodes;
       links = result.links;

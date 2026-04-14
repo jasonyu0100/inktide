@@ -28,6 +28,97 @@ export default function SceneDetail({ sceneId }: Props) {
     entry && isScene(entry) ? entry.imageUrl : undefined,
   );
 
+  // First appearances — entities whose first occurrence on the timeline is
+  // this scene. Walks the resolved branch up to (but not including) the
+  // current entry, collects every entity ID seen, then diffs against the
+  // current scene's referenced entities.
+  const firstAppearances = useMemo<{
+    characters: string[];
+    locations: string[];
+    artifacts: string[];
+    threads: string[];
+  }>(() => {
+    const empty = { characters: [], locations: [], artifacts: [], threads: [] };
+    if (!narrative || !entry || entry.kind !== "scene") return empty;
+    const scene = entry;
+
+    const priorCharacters = new Set<string>();
+    const priorLocations = new Set<string>();
+    const priorArtifacts = new Set<string>();
+    const priorThreads = new Set<string>();
+
+    for (const key of state.resolvedEntryKeys) {
+      if (key === sceneId) break;
+      const e = resolveEntry(narrative, key);
+      if (!e) continue;
+      if (e.kind === "scene") {
+        priorLocations.add(e.locationId);
+        e.participantIds.forEach((id) => priorCharacters.add(id));
+        (e.artifactUsages ?? []).forEach((au) =>
+          priorArtifacts.add(au.artifactId),
+        );
+        e.threadDeltas.forEach((td) => priorThreads.add(td.threadId));
+        e.worldDeltas.forEach((wd) => {
+          if (narrative.characters[wd.entityId]) priorCharacters.add(wd.entityId);
+          else if (narrative.locations[wd.entityId]) priorLocations.add(wd.entityId);
+          else if (narrative.artifacts[wd.entityId]) priorArtifacts.add(wd.entityId);
+        });
+        e.relationshipDeltas.forEach((rd) => {
+          priorCharacters.add(rd.from);
+          priorCharacters.add(rd.to);
+        });
+        Object.keys(e.characterMovements ?? {}).forEach((id) =>
+          priorCharacters.add(id),
+        );
+      } else if (e.kind === "world_build") {
+        const m = e.expansionManifest;
+        m.newCharacters.forEach((c) => priorCharacters.add(c.id));
+        m.newLocations.forEach((l) => priorLocations.add(l.id));
+        m.newThreads.forEach((t) => priorThreads.add(t.id));
+        (m.newArtifacts ?? []).forEach((a) => priorArtifacts.add(a.id));
+      }
+    }
+
+    const sceneCharacters = new Set<string>();
+    const sceneLocations = new Set<string>();
+    const sceneArtifacts = new Set<string>();
+    const sceneThreads = new Set<string>();
+
+    if (scene.locationId) sceneLocations.add(scene.locationId);
+    scene.participantIds.forEach((id) => sceneCharacters.add(id));
+    (scene.artifactUsages ?? []).forEach((au) =>
+      sceneArtifacts.add(au.artifactId),
+    );
+    scene.threadDeltas.forEach((td) => sceneThreads.add(td.threadId));
+    scene.worldDeltas.forEach((wd) => {
+      if (narrative.characters[wd.entityId]) sceneCharacters.add(wd.entityId);
+      else if (narrative.locations[wd.entityId]) sceneLocations.add(wd.entityId);
+      else if (narrative.artifacts[wd.entityId]) sceneArtifacts.add(wd.entityId);
+    });
+    scene.relationshipDeltas.forEach((rd) => {
+      sceneCharacters.add(rd.from);
+      sceneCharacters.add(rd.to);
+    });
+    Object.keys(scene.characterMovements ?? {}).forEach((id) =>
+      sceneCharacters.add(id),
+    );
+
+    return {
+      characters: [...sceneCharacters].filter(
+        (id) => narrative.characters[id] && !priorCharacters.has(id),
+      ),
+      locations: [...sceneLocations].filter(
+        (id) => narrative.locations[id] && !priorLocations.has(id),
+      ),
+      artifacts: [...sceneArtifacts].filter(
+        (id) => narrative.artifacts[id] && !priorArtifacts.has(id),
+      ),
+      threads: [...sceneThreads].filter(
+        (id) => narrative.threads[id] && !priorThreads.has(id),
+      ),
+    };
+  }, [narrative, state.resolvedEntryKeys, sceneId, entry]);
+
   if (!narrative) return null;
   if (!entry) return null;
 
@@ -479,6 +570,159 @@ export default function SceneDetail({ sceneId }: Props) {
       <p className="text-xs text-text-secondary leading-relaxed">
         {scene.summary || "No summary available."}
       </p>
+
+      {/* First Appearances — entities introduced for the first time in this scene */}
+      {(firstAppearances.characters.length > 0 ||
+        firstAppearances.locations.length > 0 ||
+        firstAppearances.artifacts.length > 0 ||
+        firstAppearances.threads.length > 0) && (
+        <div className="flex flex-col gap-2.5 rounded-lg border border-emerald-400/15 bg-emerald-400/5 px-3 py-2.5">
+          <div className="flex items-center gap-1.5">
+            <svg
+              className="w-3 h-3 shrink-0 text-emerald-400/80"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M12 2l1.8 5.5L19 9l-5 3.5L15.5 19 12 15.5 8.5 19 10 12.5 5 9l5.2-1.5z" />
+            </svg>
+            <h3 className="text-[10px] uppercase tracking-widest font-semibold text-emerald-400/80">
+              First Appearances
+            </h3>
+            <span className="ml-auto text-[10px] text-emerald-400/40 font-mono tabular-nums">
+              {firstAppearances.characters.length +
+                firstAppearances.locations.length +
+                firstAppearances.artifacts.length +
+                firstAppearances.threads.length}
+            </span>
+          </div>
+          {firstAppearances.characters.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] uppercase tracking-wider text-text-dim">
+                Characters · {firstAppearances.characters.length}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {firstAppearances.characters.map((cid) => {
+                  const c = narrative.characters[cid];
+                  if (!c) return null;
+                  return (
+                    <button
+                      key={cid}
+                      type="button"
+                      onClick={() =>
+                        dispatch({
+                          type: "SET_INSPECTOR",
+                          context: { type: "character", characterId: cid },
+                        })
+                      }
+                      className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] text-emerald-100 transition-colors hover:bg-emerald-400/20"
+                    >
+                      <span>{c.name}</span>
+                      <span className="text-[8px] uppercase tracking-wider text-emerald-400/60">
+                        {c.role}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {firstAppearances.locations.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] uppercase tracking-wider text-text-dim">
+                Locations · {firstAppearances.locations.length}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {firstAppearances.locations.map((lid) => {
+                  const l = narrative.locations[lid];
+                  if (!l) return null;
+                  return (
+                    <button
+                      key={lid}
+                      type="button"
+                      onClick={() =>
+                        dispatch({
+                          type: "SET_INSPECTOR",
+                          context: { type: "location", locationId: lid },
+                        })
+                      }
+                      className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] text-emerald-100 transition-colors hover:bg-emerald-400/20"
+                    >
+                      <span>{l.name}</span>
+                      <span className="text-[8px] uppercase tracking-wider text-emerald-400/60">
+                        {l.prominence}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {firstAppearances.artifacts.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] uppercase tracking-wider text-text-dim">
+                Artifacts · {firstAppearances.artifacts.length}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {firstAppearances.artifacts.map((aid) => {
+                  const a = narrative.artifacts[aid];
+                  if (!a) return null;
+                  return (
+                    <button
+                      key={aid}
+                      type="button"
+                      onClick={() =>
+                        dispatch({
+                          type: "SET_INSPECTOR",
+                          context: { type: "artifact", artifactId: aid },
+                        })
+                      }
+                      className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] text-emerald-100 transition-colors hover:bg-emerald-400/20"
+                    >
+                      <span>{a.name}</span>
+                      <span className="text-[8px] uppercase tracking-wider text-emerald-400/60">
+                        {a.significance}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {firstAppearances.threads.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] uppercase tracking-wider text-text-dim">
+                Threads · {firstAppearances.threads.length}
+              </span>
+              <div className="flex flex-col gap-1">
+                {firstAppearances.threads.map((tid) => {
+                  const t = narrative.threads[tid];
+                  if (!t) return null;
+                  return (
+                    <button
+                      key={tid}
+                      type="button"
+                      onClick={() =>
+                        dispatch({
+                          type: "SET_INSPECTOR",
+                          context: { type: "thread", threadId: tid },
+                        })
+                      }
+                      className="group flex items-start gap-1.5 rounded bg-emerald-400/10 px-2 py-1 text-left transition-colors hover:bg-emerald-400/20"
+                    >
+                      <span className="shrink-0 font-mono text-[9px] text-emerald-400/60">
+                        {tid}
+                      </span>
+                      <span className="text-[10px] leading-tight text-emerald-100">
+                        {t.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Participants */}
       {scene.participantIds.length > 0 && (

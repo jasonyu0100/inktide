@@ -286,25 +286,72 @@ function forcePreferenceBlock(
   const scopeLower = scopeNoun.toLowerCase();
   const unit = scope === "plan" ? "plan's arcs" : "arc's scenes";
 
-  // Freeform: no bias, no composition targets. Just list the tools the LLM
-  // has available and let it pick whatever fits the prose. This is the
-  // default — it trusts the model's judgment over a prescribed quota.
+  const model = `
+### MODEL
+
+The reasoning graph is the AUTHOR's meta-reasoning about the work — the writer, analyst, or researcher thinking about what they're building. (This is why the framework works in fiction and non-fiction alike: in both, the reasoner is outside the system they're constructing.) The graph is a **cause-and-effect structure**: upstream nodes cause, downstream nodes are effect. Direction is the primary semantic signal — the same two nodes in opposite causal positions assert opposite claims.
+
+Three structural forces run through the work:
+
+- **FATE** — the work's current momentum, pushing its existing agenda toward what the threads demand. The default operating system: what's in motion continues, what's promised gets paid off.
+- **WORLD** — character, location, artifact change. Entities deepen, bonds shift, things accrue history.
+- **SYSTEM** — the rules and principles constraining fate and world.
+
+**CHAOS is adversarial reasoning**, not a fourth structural peer. It is the red-team inside the graph: what could go wrong, what defies expectations, where the current agenda breaks, what the work is not accounting for. Chaos is crucial for research-type thinking — a graph that only pulls toward fate is a graph that never questions itself. Chaos is an EVENT (something that happens at a moment and couldn't be predicted from the rules alone); adversarial system nodes are RULES (a loophole that was always in the mechanics). Test: could it have been in the rulebook before this moment? If yes → system. If no → chaos.
+
+### FIVE CAUSAL PATTERNS
+
+Different patterns mean different things. Read the direction, then read what it's saying.
+
+- **Default — reason→fate**: \`reasoning/system/character\` causes \`fate\`. Deliberation advances the agenda.
+- **Chaos as cause**: \`chaos\` causes \`reasoning/character/system\`. A disruption forces adaptation; downstream is the reaction.
+- **Chaos chain**: \`chaos → chaos → chaos\`. One disruption spawns the next (troll arrives → cast scatters → Hermione alone). Chaos develops its own internal causality.
+- **Subversion — fate→chaos**: the agenda inadvertently produces its own disruption. Harry's pride drives him to confront Quirrell alone → the overreach creates the worst-case reveal. Fate authored the chaos it now has to face. This is one of the most productive patterns in research-type reasoning.
+- **Adaptation — chaos→(reasoning/character)→fate**: the work absorbs a disruption into a new or subverted thread. Note the intermediate step: chaos doesn't directly service an existing thread; the adaptation does, and the downstream fate node usually reflects a subverted transition rather than the resolution fate had been pushing for.
+
+Cross-direction edges are how subversions and adaptations work. Don't ban them; be deliberate — every cross-direction edge asserts one of these patterns.
+
+### WHAT DIFFERS BY MODE
+
+A fate-dominant graph leans into the agenda; a chaos-dominant graph leans into adversarial reasoning; a world- or system-dominant graph leans into expanding those layers. **Every mode can create** — new characters, locations, artifacts, threads — but the flavor of creation serves the mode's master:
+
+- **Fate** creates things that extend the agenda (destined figures, prophesied artifacts, hidden threads surfacing).
+- **World** creates things that grow from existing entities (offspring, apprentices, a newly-discovered chamber, an artefact forged by a character).
+- **System** creates things that extend the rules (new principles following from established ones, new institutions consistent with the world's logic).
+- **Chaos** creates things that go against the grain (intruders, adversaries, disruptive artefacts, places defying the known map).
+
+Creations are real — they become part of the work once the graph is executed. When the logic wants a new piece on the board, add it; match the creation to the mode.
+
+### BAD GRAPH SIGNALS
+
+A graph is failing when: reasoning nodes don't connect to anchors (disconnected components); the dominant force has fewer nodes than its complement combined; chaos nodes only have incoming \`requires\` edges (chaos being serviced, not driving); a "subversion" claims fate→chaos but the upstream fate is contrived rather than the real agenda; cross-direction edges only flow one way in balanced mode (no real tension); system nodes have no outgoing edges (lore dumps); new entities lack an edge rooting them into existing context (drop-ins). Bad graphs aren't less detailed — they're structurally misrepresenting what the reasoning is claiming.
+`;
+
+  // Freeform: narrative quality first. No force bias — the LLM picks
+  // whatever node mix the story actually needs. This is the default.
   if (!pref || pref === "freeform") {
     return `
 ## FORCE PREFERENCE: FREEFORM ${scopeNoun}
 
-No prescribed composition ratios. Compose the reasoning graph from whichever node types the ${scopeLower} genuinely needs — pick whatever best serves the prose. Use the full toolbox:
+**Master:** the narrative itself — quality of the ${scopeLower} is the only bias.
+**Flavor of reasoning:** adaptive, situational, unopinionated. Picks whatever the story earns, beat by beat.
+${model}
+### NARRATIVE-QUALITY-FIRST
 
-- **fate** — a thread's gravitational pull toward a target status (references an existing threadId).
-- **character / location / artifact** — an existing entity whose world graph grows this ${scopeLower} (references an entityId).
+**Freeform has no master beyond the story itself.** There is no force bias here: not fate, not chaos, not any structural force. The only question is "what would make this ${scopeLower} best?" — and the answer comes from the prose, not from a preference. Pick the node mix that serves the narrative.
+
+Full toolbox:
+
+- **fate** — a thread advancing; references an existing threadId and its target status.
+- **character / location / artifact** — an existing entity whose world graph grows this ${scopeLower}; references an entityId.
 - **system** — a rule or principle; reuse existing SYS-XX ids where possible, or introduce a new rule that connects to one.
-- **chaos** — an outside-force creative node that authorises net-new entities or new threads the existing world couldn't have produced on its own.
+- **chaos** — a realtime disruption that warps fate; introduces new entities, new threads, or subverts existing ones. Use when the story earns a perturbation, not to hit a ratio.
 - **reasoning** — an explicit logical step linking other nodes.
 - **pattern / warning** — positive patterns to reinforce, anti-patterns to avoid.
 
-**A good mixture still matters for coherent reasoning.** A graph that's all one type tends to read as thin: all-fate lacks grounding, all-character lacks momentum, all-system lacks consequence. Aim for a reasoning chain where forces CAUSE each other — a system rule ENABLES a character choice that ADVANCES a fate thread. The mix isn't a quota; it's what makes the graph tell a story instead of listing facts. A scene-heavy reveal may still skew fate-heavy; a world-introduction may skew character-heavy — but each should touch other node types enough to stay causally connected.
+**A good mixture matters for coherent reasoning.** A graph that's all one type reads as thin: all-fate lacks grounding, all-character lacks momentum, all-system lacks consequence, all-chaos lacks stakes. Aim for a reasoning chain where forces CAUSE each other — a system rule ENABLES a character choice that ADVANCES a fate thread; a chaos event REVEALS a character's hidden side that RECASTS a thread. The mix isn't a quota; it's what makes the graph tell a story rather than list facts.
 
-What matters most: every node earns its place via an edge into another node, and the graph as a whole shows cause crossing force boundaries at least a few times.
+What matters: every node earns its place via an edge, and the composition reflects what the ${scopeLower} genuinely is — not what any preference says it should be.
 `;
   }
 
@@ -312,15 +359,19 @@ What matters most: every node earns its place via an edge into another node, and
     return `
 ## FORCE PREFERENCE: BALANCED ${scopeNoun}
 
-**Three primary forces, co-equal: FATE, WORLD, SYSTEM.** Compose the reasoning graph so these three share the spotlight — no single force carries the plot alone. Threads advance (fate), entities change (world), and the setting's rules matter (system), all within the same causal chain.
+**Master:** fate (lead), with world and system in support, and adversarial reasoning (chaos) as pushback.
+**Flavor of reasoning:** fate-positive and structural, with a contained strand of devil's-advocate critique. The graph mostly pulls toward the current agenda; a minority of nodes ask "what could go wrong."
+${model}
+### FATE-POSITIVE WITH ADVERSARIAL PUSHBACK
 
-- **fate** nodes — each references an existing threadId and the status it's pushing toward.
-- **character/location/artifact** nodes — each references an existing entityId whose world graph grows this ${scopeLower}.
-- **system** nodes — each REUSES an existing system concept id or explicitly extends one, and is used by at least one downstream step.
+Balanced does NOT mean "all four forces equal". Fate leads; world and system support the agenda; chaos supplies adversarial/critical reasoning as a minority of the graph.
 
-**Chaos is secondary / fallback.** Not a primary here — chaos is the relief valve used when the three primary forces genuinely cannot carry a beat on their own (a real outside-force moment), not filler.
+- **fate** nodes lead the composition — reference existing threadIds and the statuses being pushed toward.
+- **character/location/artifact** nodes serve fate by default in this mode: entities change in ways that advance the existing threads.
+- **system** nodes provide the constraints fate has to navigate. Reuse existing SYS-XX ids or extend them.
+- **chaos** nodes — a small cluster (2-4) of adversarial nodes asking what the agenda is missing, what would subvert it, what adversarial move the world could make. Their downstream stays among chaos/reasoning nodes; cross-direction edges (fate→chaos subversion, chaos→fate adaptation) are welcome where the reasoning genuinely earns them.
 
-**Signals you got the balance right**: every arc/scene touches each primary force; no primary drowns out the others; chaos appears only where the existing fabric cannot generate the beat.
+**Signals**: fate clearly leads; a recognisable strand of adversarial reasoning exists; omitting the chaos entirely would leave the ${scopeLower} over-determined.
 `;
   }
 
@@ -328,93 +379,119 @@ What matters most: every node earns its place via an edge into another node, and
     return `
 ## FORCE PREFERENCE: FATE-DOMINANT ${scopeNoun}
 
-**Primary force: FATE.** The ${scopeLower} is driven by the existing threads of fate — the tensions already pulling the story toward resolution. Plot moves because threads demand it: they escalate, converge, resolve, or subvert.
+**Master:** fate, amplified. This mode **expands the fate layer** of the universe.
+**Flavor of reasoning:** inevitability, momentum, gravitational pull. Beats feel like they had to happen. The reader senses the agenda closing in.
+${model}
+### WHAT FATE DOMINANCE MEANS HERE
 
-**Fate should dominate — it makes up many of the nodes and clearly out-numbers every other force.** If character, system, or chaos counts approach fate's, the preference isn't being honoured.
+The ${scopeLower} is where fate's momentum is amplified — threads escalate, promises resolve, hidden pieces surface to be answered. Chaos is minimal; the agenda pushes through.
+
+**Fate should dominate — it makes up many of the nodes and clearly out-numbers every other force.** If character, system, or chaos counts approach fate's, the preference isn't being honoured. This is the mode for **expanding the fate layer of the universe** — tightening the web of threads, concentrating momentum, letting the current agenda carry the ${scopeLower}.
 
 - Read the active thread list and each thread's recent log entries. Every fate node must reference an existing threadId and the exact targetStatus it advances toward.
-- Favour threads already at \`escalating\` or \`critical\` — these have momentum you can convert. Don't open new threads here (that's chaos).
+- Favour threads already at \`escalating\` or \`critical\` — these have the strongest momentum to convert.
+- **Fate is creative.** A destined arrival, a long-promised revelation, a prophesied figure, a hidden artefact surfacing — fate spawns new entities that extend its agenda. The new piece arrives TO advance what's already in motion; its existence rhymes with the momentum that was already there. Every fate-dominant ${scopeLower} should be willing to introduce new entities when the agenda calls for them.
 - Peak and valley anchors should BE thread transitions: a peak is a critical→resolved moment on a load-bearing thread; a valley is an escalating pulse that refuses to break.
 
-**Secondary and complementary forces welcome** (fate needs something to act on):
-- character as thread-carriers — the people whose choices move the thread.
-- system for the constraints that make resolution hard.
-- chaos sparingly when a thread needs an outside push to crack open.
+**Adversarial reasoning is minimal in this mode** — at most 1-2 chaos nodes that stress-test fate's agenda. Fate dominance doesn't mean chaos vanishes; it means chaos is a quiet minority voice next to the lead.
+
+**Other structural forces in support**:
+- character as thread-carriers serving fate — the people whose choices move the thread.
+- system for the constraints that make the journey hard (and the resolution meaningful).
 - reasoning/pattern/warning as the connective tissue.
 
-The ${unit} should feel like inevitability unfolding — every beat answers to an existing thread, and the supporting forces exist to give fate something to push against.
+The ${unit} should feel like inevitability unfolding — fate pushing its agenda through the ${scopeLower}.
 `;
   }
   if (pref === "world") {
     return `
 ## FORCE PREFERENCE: WORLD-DOMINANT ${scopeNoun}
 
-**Primary force: WORLD (character / location / artifact).** The ${scopeLower} is driven by inner change, shifting bonds, places accruing meaning, objects gaining history.
+**Master:** world (character / location / artifact transformation). This mode **expands the world layer** of the universe.
+**Flavor of reasoning:** intimate, transformative, grounded. Beats feel like people and places becoming something new — the reader grows closer to the cast.
+${model}
+### WHAT WORLD DOMINANCE MEANS HERE
+
+The ${scopeLower} is focused on the world layer: existing entities transforming AND new entities emerging organically from the existing cast/map. Inner change, shifting bonds, places accruing meaning, objects gaining history, new life taking root where the old has made room for it. Fate still operates underneath (it's the OS), but the ${scopeLower}'s spotlight is on the world layer.
 
 **World should dominate — character, location, and artifact nodes make up many of the nodes and clearly out-number every other force.** If fate, system, or chaos counts approach world's, the preference isn't being honoured.
 
-- For each world node, reference an existing entityId and identify which of its existing world graph nodes (trait, history, capability, etc.) this beat extends or contradicts. Plot moves because the entity changes in a way rooted in what it already was.
-- Favour entities with rich existing world graphs — more material to riff on, more opportunities for contradiction or deepening. A thin-graph entity should only anchor a beat if that beat is the scene where its graph grows substantially.
+- For each world node, either (a) reference an existing entityId and identify which of its existing world graph nodes this beat extends or contradicts, or (b) INTRODUCE a new entity that grows from what's there — a child or apprentice of an existing character, a newly-discovered chamber in a known stronghold, an artefact a character has forged, a location a journey has uncovered. New entities are welcome when the reasoning earns them; they should rhyme with the existing world rather than drop in from nowhere (that would be chaos).
+- Favour entities with rich existing world graphs — more material to riff on for the deepening path. A thin-graph entity is best anchored when the beat is the one where its graph substantially grows.
 - Relationship deltas, POV-character world deltas, and location-tied transformations are the core currency.
 
-**Secondary and complementary forces welcome** (character needs stakes and context):
+**Entity arcs usually serve fate's agenda** (the character changes in a way that advances an existing thread) — this is the default because fate is the OS. But SOME entity arcs in this ${scopeLower} can be chaos-touched: a character's growth goes against the grain, a location takes on a disruptive new meaning, an artifact reveals an unsettling property. That contrast keeps the ${scopeLower} from reading as programmatic.
+
+**Other forces in support**:
 - fate as consequence of character change — the thread moves BECAUSE someone changed.
 - system for the constraints that force the change.
-- chaos sparingly when an outside event is the catalyst.
+- chaos sparingly when an outside event is the catalyst for the entity's shift.
 - reasoning/pattern/warning as the connective tissue.
 
-The ${unit} should deepen who and what already exists — character is the engine, the other forces are the track it runs on.
+The ${unit} should deepen what already exists AND grow new things organically from it — world is the layer being expanded.
 `;
   }
   if (pref === "system") {
     return `
 ## FORCE PREFERENCE: SYSTEM-DOMINANT ${scopeNoun}
 
-**Primary force: SYSTEM.** The ${scopeLower} is driven by world mechanics and lore — rules, constraints, principles, tensions in how the world works.
+**Master:** system (rules, principles, mechanics). This mode **expands the system layer** of the universe.
+**Flavor of reasoning:** lawful, consequential, testing. Beats feel like the world's rules asserting themselves — the reader learns how reality works as the cast does.
+${model}
+### WHAT SYSTEM DOMINANCE MEANS HERE
+
+The ${scopeLower} is focused on rules, constraints, principles, mechanics — both surfacing existing rules AND extending them with new principles, institutions, or domains that follow from what's already established. Fate still operates underneath; system is the layer being expanded.
 
 **System should dominate — it makes up many of the nodes and clearly out-numbers every other force.** If character, fate, or chaos counts approach system's, the preference isn't being honoured.
 
-- Each system node must either (a) REUSE an existing system concept id (cite it by SYS-XX) and extend it with a new edge or implication, or (b) introduce a genuinely new rule that connects to at least one existing concept. Free-floating lore dumps are a failure mode.
-- Downstream nodes (fate, character, reasoning) should DEPEND on system nodes — the \`requires\` / \`enables\` / \`constrains\` edges should point from system to consequences. If a system node has no outgoing edge, it wasn't used.
-- Read the existing cumulative system graph first; the ${scopeLower} should test, stress, or exploit principles already established, not ignore them.
+- Each system node does one of: (a) REUSES an existing system concept id (cite it by SYS-XX) and extends it with a new edge or implication; (b) introduces a genuinely new rule that connects to at least one existing concept; or (c) INTRODUCES a new institution, faction, or domain that extends the world's rule-layer (a legal structure, a craft, a governing body, a named principle). New rules and institutions are welcome when the reasoning earns them — system mode grows the rules layer, not just surfaces it. Free-floating lore dumps disconnected from the existing graph are a failure mode.
+- Downstream nodes (fate, character, chaos, reasoning) should DEPEND on system nodes — the \`requires\` / \`enables\` / \`constrains\` edges should point from system to consequences. If a system node has no outgoing edge, it wasn't used.
+- Read the existing cumulative system graph first; the ${scopeLower} should test, stress, or exploit principles already established as a foundation for any new ones.
 
-**Secondary and complementary forces welcome** (system needs something to act on):
+**Rules primarily enable fate's agenda** (the system makes the existing threads' progression possible) — but a good system-dominant ${scopeLower} also shows **rules creating cracks chaos can slip through**: a loophole, an unintended consequence, a limit that cuts both ways. When rules only enable one side, the system layer reads as rigged.
+
+**Other forces in support**:
 - character as system-testers — the cast discovering what the rules mean.
 - fate as system-driven consequence — the thread moves BECAUSE the rule said so.
-- chaos sparingly when a new rule shakes loose from outside.
+- chaos as system-driven consequence — an event the rules permitted but didn't foresee.
 - reasoning/pattern/warning as the connective tissue.
 
-The ${unit} should surface, test, or exploit the mechanics of the setting — the reader learns the world as the cast does.
+The ${unit} should surface, test, AND extend the mechanics — the reader learns the world's rules and watches new ones emerge as deductive growth.
 `;
   }
   if (pref === "chaos") {
     return `
 ## FORCE PREFERENCE: CHAOS-DOMINANT ${scopeNoun}
 
-**Primary force: CHAOS.** The ${scopeLower} is driven by the outside-force creative engine. Chaos is the one force that is fundamentally generative: it operates OUTSIDE the existing fabric of fate, world, and system and brings new problems, new solutions, new entities, and — crucially — **new fates** (new threads) that didn't exist before.
+**Master:** chaos — adversarial reasoning takes the lead. Fate is present but weakened.
+**Flavor of reasoning:** red-team, devil's-advocate, stress-test. Beats ask "what could go wrong", "what defies expectations", "where does the current agenda break" — and follow those questions into consequences the existing story didn't plan for.
+${model}
+### WHAT CHAOS DOMINANCE MEANS HERE
 
-**Chaos is NOT driven by fate.** Chaos does not serve existing threads. Chaos does not wait for a thread to need something. Chaos acts on its own terms, and fate reacts TO chaos by absorbing what chaos creates. A chaos node that exists only to satisfy an existing thread is a chaos-flavoured fate node, not chaos. When in doubt: chaos SEEDS new fate (opens brand-new threads); it does not FULFIL old fate.
+This is the mode for adversarial and critical reasoning: stress-testing the agenda, exploring subversions, pursuing the counterfactuals the story has been ignoring.
 
 **Chaos should dominate — it makes up many of the nodes and clearly out-numbers every other force.** If fate, character, or system counts approach chaos's, the preference isn't being honoured.
 
-- Chaos is not randomness: each chaos node must CAUSE something the existing world could not have produced on its own.
-- Injects problems the cast cannot anticipate (a troll in the dungeon, an ambush, a plague, a cancelled funding round).
-- Injects solutions the cast did not build (a stranger with answers, a dormant artefact waking, a forgotten ally surfacing, a found manuscript).
-- **Introduces net-new entities** — new characters, locations, or artifacts the existing world didn't contain. Each chaos node should authorise a spawn with a name and a reason to exist.
-- **Seeds new fate** — opens threads that didn't exist. The new thread BECOMES a fate strand after chaos plants it, but its parent is chaos, not an existing arc.
+- Chaos is not randomness: each chaos node produces a consequence — adversarial, subversive, critical — that the existing agenda would not have reached on its own.
+- Explore "what could go wrong?" from multiple angles: internal fractures in the cast, external threats the story isn't accounting for, rule edge-cases, arrivals the cast didn't prepare for.
+- **Introduces new entities against the grain** — a hostile actor the cast hasn't anticipated, a place that defies expectations, an artefact whose utility is disruption.
+- **Subverts existing threads** — chaos's signature move: escalating threads that won't resolve the way the story expects, critical threads that get forked or broken open.
 
-**Secondary and complementary forces welcome** (chaos needs a world to disturb, not a world to serve):
-- character as the cast caught in the wake of chaos — how they react, adapt, or fail.
-- fate nodes that represent NEW threads chaos has just opened (not existing threads chaos is servicing).
-- system nodes for new rules the chaos event reveals about how the world works.
-- reasoning/pattern/warning as the connective tissue.
+**Chaos is the primary CAUSE in this mode** — most chaos nodes sit upstream, driving downstream adaptation. Chaos→chaos chaining is a core pattern.
 
-Every chaos node should root downstream into something — a new entity, a reaction in the cast, a new rule exposed, a new thread opened. Root edges point FROM chaos INTO the world, not the other way around. Chaos never has incoming \`requires\` edges from existing fate/system — that would mean fate or system summoned it, which is a contradiction.
+**Fate appears in two ways**: (a) downstream as threads chaos is actively subverting or newly opening (subverted status, not the resolution fate had been pushing for); (b) **upstream as the subversion pattern** — the agenda causing its own disruption (Harry's pride → confronts Quirrell alone → worst-case reveal). The second is one of the most potent patterns in chaos mode: fate authoring the chaos it now has to face.
+
+**Other nodes in support**:
+- character nodes used adversarially — "what if they betrayed us?", "what breaks them?", "who is the cast not prepared to deal with?"
+- system nodes as loopholes, violations, or edge-cases — rules fate relied on, weaponised the other way.
+- reasoning/pattern/warning as connective tissue for the stress-test.
+
+**Dominance check**: chaos is the majority; chaos nodes sit upstream driving the reasoning; fate nodes appear either as downstream effects of chaos or as upstream overreach causes that PROVOKED chaos — not as the beneficiary of chaos's output.
 
 **Behaviour in this ${scopeLower}**:
 ${scope === "plan"
-  ? "- Expect several chaos-dominant arcs across the plan (HP's troll arc, HP's Norbert arc). Roughly 25-40% of arcs should be anchored on chaos.\n- Seed 5-10 chaos nodes across the plan.\n- Let chaos open new threads that become part of the plan's trajectory — a new fate strand introduced in arc 2 might resolve in arc 5, but it exists BECAUSE chaos put it there."
-  : "- Build the arc around 3-5 chaos nodes rather than the default 1-2.\n- The arc's peak or valley may itself be chaos-anchored (its prime mover is outside the current world).\n- A chaos node can inject a new thread that becomes part of this arc's causal chain and carries into future arcs."}
+  ? "- Expect several chaos-dominant arcs across the plan (HP's troll arc, HP's Norbert arc). Roughly 25-40% of arcs should be anchored on chaos.\n- Seed 5-10 chaos nodes across the plan.\n- Chaos-dominant arcs should leave the plan's fate trajectory MORE uncertain, not less — they are where the reader should feel the story could go multiple ways."
+  : "- Build the arc around 3-5 chaos nodes rather than the default 1-2.\n- The arc's peak or valley may itself be chaos-anchored (its prime mover is outside the current agenda).\n- A chaos node can subvert an existing thread or introduce an adversarial situation the cast must improvise around, reshaping the ${scopeLower}'s arc."}
 `;
   }
   return "";

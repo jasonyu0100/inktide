@@ -168,12 +168,14 @@ export const EMBEDDING_BATCH_SIZE = 50;
 /** Concurrent embedding generation batches */
 export const EMBEDDING_CONCURRENCY = 10;
 
-/** Scene-summary-level results (thematic context). Top 10 of the scene
- *  embedding pool feed the synthesis. */
-export const SEARCH_TOP_K_SCENES = 10;
+/** Direct scene-summary matches (thematic widener). Small on purpose —
+ *  aggregate scene summaries derived from proposition membership already
+ *  supply the per-proposition scene context; this pool only catches
+ *  thematic queries where propositions genuinely miss. */
+export const SEARCH_TOP_K_SCENES = 3;
 
-/** Proposition-level results (atomic facts). Top 10 of the proposition
- *  embedding pool feed the synthesis. */
+/** Proposition-level results — the primary RAG signal. Top 10 of the
+ *  proposition embedding pool feed the synthesis. */
 export const SEARCH_TOP_K_PROPOSITIONS = 10;
 
 /** Minimum cosine similarity threshold for search results (0-1) */

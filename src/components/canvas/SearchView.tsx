@@ -117,18 +117,16 @@ export function SearchView() {
       if (!narrative || !resolvedKeys || question.trim().length === 0) return;
 
       setIsSearching(true);
+      // Stage 1 — embed the query string via the embedding API.
       setSearchStage("Embedding query");
       setErrorMessage(null);
       setResponse(null);
       setStreamingAnswer("");
 
       try {
-        const sceneCount = resolvedKeys.length;
-
-        // Stage 1: Searching
-        setSearchStage(
-          `Searching ${sceneCount} scene${sceneCount !== 1 ? "s" : ""}`,
-        );
+        // Stage 2 — rank both pools (propositions primary, scene
+        // summaries supplementary) against the query embedding.
+        setSearchStage("Ranking propositions and scene summaries");
         const result = await searchNarrative(
           narrative,
           resolvedKeys,
@@ -166,8 +164,13 @@ export function SearchView() {
         }
 
         if (result.sceneResults.length > 0 || result.detailResults.length > 0) {
-          // Stage 2: Found results, generating AI summary
-          setSearchStage("Weaving through scenes and details");
+          // Stage 3 — build synthesis prompt from the top matches and
+          // wait for the first streamed token.
+          const propCount = result.detailResults.length;
+          const sceneCount = result.sceneResults.length;
+          setSearchStage(
+            `Synthesizing answer from ${propCount} proposition${propCount === 1 ? "" : "s"} + ${sceneCount} scene summar${sceneCount === 1 ? "y" : "ies"}`,
+          );
 
           const synthesis = await synthesizeSearchResults(
             narrative,
@@ -189,10 +192,9 @@ export function SearchView() {
             },
           );
 
-          // Guaranteed representation: top 5 summaries + top 10 details, then sort by similarity
-          const topScenes = result.sceneResults.slice(0, 5);
-          const topDetails = result.detailResults.slice(0, 10);
-          const combined = [...topScenes, ...topDetails]
+          // Flat citation list — whatever the search returned, sorted by
+          // similarity. search.ts already caps the pools at SEARCH_TOP_K_*.
+          const combined = [...result.sceneResults, ...result.detailResults]
             .sort((a, b) => b.similarity - a.similarity)
             .map((res, idx) => ({
               id: idx + 1,

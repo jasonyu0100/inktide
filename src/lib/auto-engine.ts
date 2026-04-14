@@ -702,9 +702,10 @@ export function buildPlanDirective(
     }
   }
 
-  // Pattern and warning nodes
+  // Pattern, warning, and chaos (creative agent) nodes
   const patterns = visibleNodes.filter(n => n.type === "pattern");
   const warnings = visibleNodes.filter(n => n.type === "warning");
+  const chaos = visibleNodes.filter(n => n.type === "chaos");
 
   if (patterns.length > 0) {
     sections.push("\n## Patterns to Embrace");
@@ -717,6 +718,18 @@ export function buildPlanDirective(
     sections.push("\n## Pitfalls to Avoid");
     for (const node of warnings) {
       sections.push(`! ${node.label}`);
+    }
+  }
+
+  if (chaos.length > 0) {
+    sections.push(
+      "\n## Chaos Injections (outside-force events the arc must honour)",
+    );
+    for (const node of chaos) {
+      sections.push(`✦ ${node.label}`);
+      if (node.detail) {
+        sections.push(`  → ${node.detail}`);
+      }
     }
   }
 

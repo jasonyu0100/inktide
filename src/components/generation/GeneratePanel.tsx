@@ -43,6 +43,12 @@ import {
   resolveEntry,
 } from "@/types/narrative";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ForcePreference } from "@/lib/ai";
+import {
+  ForcePreferencePicker,
+  ReasoningSizePicker,
+  type ReasoningSize,
+} from "./ForcePreferencePicker";
 import { GuidanceFields } from "./GuidanceFields";
 import { MarkovGraph } from "./MarkovGraph";
 import { CubeBadge, PacingStrip } from "./PacingStrip";
@@ -138,6 +144,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [reasoningGraph, setReasoningGraph] = useState<ReasoningGraph | null>(null);
   const [showReasoningModal, setShowReasoningModal] = useState(false);
   const [generatingGraph, setGeneratingGraph] = useState(false);
+  // Arc reasoning options — force preference + reasoning effort
+  const [forcePreference, setForcePreference] = useState<ForcePreference>("balanced");
+  const [reasoningSize, setReasoningSize] = useState<ReasoningSize>("medium");
 
   // Expansion reasoning graph state (for world expansion)
   const [expansionReasoningGraph, setExpansionReasoningGraph] = useState<ExpansionReasoningGraph | null>(null);
@@ -290,6 +299,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         finalArcName,
         (token) => setStreamText((prev) => prev + token),
         reasoningPlanContext,
+        { forcePreference, reasoningLevel: reasoningSize },
       );
       setReasoningGraph(graph);
       setShowReasoningModal(true);
@@ -496,6 +506,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         worldSize,
         worldStrategy,
         (token) => setStreamText((prev) => prev + token),
+        { forcePreference, reasoningLevel: reasoningSize },
       );
       setExpansionReasoningGraph(graph);
       setShowExpansionReasoningModal(true);
@@ -914,6 +925,16 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                   </button>
                   {advancedOpen && (
                     <div className="mt-3 flex flex-col gap-3">
+                      {/* Force preference & reasoning size — control arc planning style */}
+                      <ForcePreferencePicker
+                        value={forcePreference}
+                        onChange={setForcePreference}
+                      />
+                      <ReasoningSizePicker
+                        value={reasoningSize}
+                        onChange={setReasoningSize}
+                      />
+
                       {/* Pacing presets — only shown when Markov pacing is enabled */}
                       {narrative.storySettings?.usePacingChain && (
                         <div>
@@ -1120,6 +1141,14 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     Advanced
                   </summary>
                   <div className="mt-2 space-y-3">
+                    <ForcePreferencePicker
+                      value={forcePreference}
+                      onChange={setForcePreference}
+                    />
+                    <ReasoningSizePicker
+                      value={reasoningSize}
+                      onChange={setReasoningSize}
+                    />
                     <div>
                       <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">
                         Strategy
@@ -1174,22 +1203,22 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                           { key: "threads" as const, label: "Threads" },
                           {
                             key: "threadDeltas" as const,
-                            label: "Thread Δ",
+                            label: "Thread Delta",
                           },
                           {
                             key: "worldDeltas" as const,
-                            label: "World Δ",
+                            label: "World Delta",
                           },
-                          { key: "systemDeltas" as const, label: "System" },
+                          { key: "systemDeltas" as const, label: "System Delta" },
                           {
                             key: "relationshipDeltas" as const,
-                            label: "Relationships",
+                            label: "Relationship Delta",
                           },
                           {
                             key: "ownershipDeltas" as const,
-                            label: "Ownership",
+                            label: "Ownership Delta",
                           },
-                          { key: "tieDeltas" as const, label: "Ties" },
+                          { key: "tieDeltas" as const, label: "Tie Delta" },
                         ].map((opt) => (
                           <button
                             key={opt.key}

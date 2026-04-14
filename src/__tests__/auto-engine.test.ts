@@ -1,16 +1,23 @@
 import {
   applyDerivedForceModes,
   buildOutlineDirective,
+  buildPlanDirective,
   checkEndConditions,
   computeStoryProgress,
   deriveArcForceMode,
   evaluateNarrativeState,
   getArcNode,
+  getVisibleNodesForArc,
   getStoryPhase,
   pickArcLength,
   type DirectiveContext,
   type StoryPhase,
 } from "@/lib/auto-engine";
+import {
+  reasoningScale,
+  VALID_COORDINATION_NODE_TYPES,
+} from "@/lib/ai/reasoning-graph";
+import type { CoordinationNodeType } from "@/types/narrative";
 import { AUTO_STOP_CYCLE_LENGTH } from "@/lib/constants";
 import type {
   AutoConfig,
@@ -1029,5 +1036,340 @@ describe("applyDerivedForceModes", () => {
     expect(second.nodes.find((n) => n.id === "PK1")?.forceMode).toBe(
       first.nodes.find((n) => n.id === "PK1")?.forceMode,
     );
+  });
+});
+
+// ── VALID_COORDINATION_NODE_TYPES — regression guard ───────────────────────
+// Sanitization silently retypes unknown types to "reasoning". A missing
+// entry in this Set "disguises" nodes of that type in rendered plans —
+// that was the chaos-node bug. Every CoordinationNodeType literal must be
+// present here; if the union gains a new member, add it to the Set.
+describe("VALID_COORDINATION_NODE_TYPES", () => {
+  it("includes every CoordinationNodeType so sanitization never disguises valid nodes", () => {
+    const expected: CoordinationNodeType[] = [
+      "fate",
+      "character",
+      "location",
+      "artifact",
+      "system",
+      "reasoning",
+      "pattern",
+      "warning",
+      "chaos",
+      "peak",
+      "valley",
+      "moment",
+    ];
+    for (const t of expected) {
+      expect(VALID_COORDINATION_NODE_TYPES.has(t)).toBe(true);
+    }
+  });
+
+  it("includes chaos (regression for the disguised-as-reasoning bug)", () => {
+    expect(VALID_COORDINATION_NODE_TYPES.has("chaos")).toBe(true);
+  });
+});
+
+// ── reasoningScale ───────────────────────────────────────────────────────────
+describe("reasoningScale", () => {
+  it("returns 0.6 for small", () => {
+    expect(reasoningScale("small")).toBe(0.6);
+  });
+  it("returns 1 for medium", () => {
+    expect(reasoningScale("medium")).toBe(1);
+  });
+  it("returns 1.6 for large", () => {
+    expect(reasoningScale("large")).toBe(1.6);
+  });
+  it("returns 1 (medium) for undefined / unknown", () => {
+    expect(reasoningScale(undefined)).toBe(1);
+  });
+  it("is monotonically increasing small → medium → large", () => {
+    expect(reasoningScale("small")).toBeLessThan(reasoningScale("medium"));
+    expect(reasoningScale("medium")).toBeLessThan(reasoningScale("large"));
+  });
+});
+
+// ── getVisibleNodesForArc ────────────────────────────────────────────────────
+describe("getVisibleNodesForArc", () => {
+  function mkNode(
+    overrides: Partial<CoordinationNode> & { id: string },
+  ): CoordinationNode {
+    return { index: 0, type: "reasoning", label: "node", ...overrides };
+  }
+  function mkPlan(
+    nodes: CoordinationNode[],
+    arcPartitions: string[][],
+  ): CoordinationPlan {
+    return {
+      id: "plan-test",
+      nodes,
+      edges: [],
+      arcCount: arcPartitions.length,
+      summary: "test",
+      arcPartitions,
+      currentArc: 0,
+      completedArcs: [],
+      createdAt: 0,
+    };
+  }
+
+  it("returns nodes listed in the arc's partition", () => {
+    const plan = mkPlan(
+      [
+        mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+        mkNode({ id: "F1", type: "fate", arcSlot: 1 }),
+        mkNode({ id: "PK2", type: "peak", arcIndex: 2, arcSlot: 2 }),
+      ],
+      [
+        ["PK1", "F1"],
+        ["PK1", "F1", "PK2"],
+      ],
+    );
+    const arc1 = getVisibleNodesForArc(plan, 1).map((n) => n.id);
+    const arc2 = getVisibleNodesForArc(plan, 2).map((n) => n.id);
+    expect(arc1).toEqual(["PK1", "F1"]);
+    expect(arc2).toEqual(["PK1", "F1", "PK2"]);
+  });
+
+  it("returns empty array when arc partition is missing", () => {
+    const plan = mkPlan(
+      [mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 })],
+      [["PK1"]],
+    );
+    // Ask for arc 5 — no partition
+    expect(getVisibleNodesForArc(plan, 5)).toEqual([]);
+  });
+});
+
+// ── buildPlanDirective ───────────────────────────────────────────────────────
+describe("buildPlanDirective", () => {
+  function mkNode(
+    overrides: Partial<CoordinationNode> & { id: string },
+  ): CoordinationNode {
+    return { index: 0, type: "reasoning", label: "node", ...overrides };
+  }
+  function mkPlan(
+    nodes: CoordinationNode[],
+    arcPartitions: string[][],
+  ): CoordinationPlan {
+    return {
+      id: "plan-test",
+      nodes,
+      edges: [],
+      arcCount: arcPartitions.length,
+      summary: "test",
+      arcPartitions,
+      currentArc: 0,
+      completedArcs: [],
+      createdAt: 0,
+    };
+  }
+
+  function emptyNarrative(): NarrativeState {
+    return {
+      id: "N-TEST",
+      title: "Test",
+      description: "",
+      characters: {},
+      locations: {},
+      artifacts: {},
+      threads: {
+        "T-1": {
+          id: "T-1",
+          description: "A thread",
+          status: "active",
+          kind: "external",
+          participants: [],
+          dependents: [],
+          seedNodeIds: [],
+          terminalNodeIds: [],
+          peakNodeIds: [],
+          valleyNodeIds: [],
+          pulseNodeIds: [],
+          reversalNodeIds: [],
+          threadLog: { nodes: {}, edges: [] },
+        } as unknown as Thread,
+      },
+      arcs: {},
+      scenes: {},
+      worldBuilds: {},
+      branches: {},
+      structureEvaluations: {},
+      systemGraph: { nodes: {}, edges: [] },
+      patterns: [],
+      antiPatterns: [],
+    } as unknown as NarrativeState;
+  }
+
+  it("includes the arc anchor header and scene count", () => {
+    const plan = mkPlan(
+      [
+        mkNode({
+          id: "PK1",
+          type: "peak",
+          label: "Fang Yuan claims the Stone",
+          arcIndex: 1,
+          sceneCount: 6,
+          forceMode: "fate-dominant",
+          arcSlot: 1,
+        }),
+      ],
+      [["PK1"]],
+    );
+    const directive = buildPlanDirective(emptyNarrative(), plan, 1);
+    expect(directive).toContain("Arc 1 of 1");
+    expect(directive).toContain("Fang Yuan claims the Stone");
+    expect(directive).toContain("Force Mode: fate-dominant");
+    expect(directive).toContain("Target Scenes: 6");
+  });
+
+  it("renders a Chaos Injections section when chaos nodes are visible", () => {
+    const plan = mkPlan(
+      [
+        mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+        mkNode({
+          id: "CH1",
+          type: "chaos",
+          label: "A troll bursts into the dungeon",
+          detail: "Outside-force injection that forces an alliance",
+          arcSlot: 1,
+        }),
+      ],
+      [["PK1", "CH1"]],
+    );
+    const directive = buildPlanDirective(emptyNarrative(), plan, 1);
+    expect(directive).toContain("Chaos Injections");
+    expect(directive).toContain("A troll bursts into the dungeon");
+    expect(directive).toContain("Outside-force injection that forces an alliance");
+  });
+
+  it("omits the Chaos section when no chaos nodes are visible", () => {
+    const plan = mkPlan(
+      [mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 })],
+      [["PK1"]],
+    );
+    const directive = buildPlanDirective(emptyNarrative(), plan, 1);
+    expect(directive).not.toContain("Chaos Injections");
+  });
+
+  it("labels thread-bearing peaks as 'PEAK — MUST REACH' when resolving", () => {
+    const plan = mkPlan(
+      [
+        mkNode({
+          id: "PK1",
+          type: "peak",
+          label: "Resolution peak",
+          threadId: "T-1",
+          targetStatus: "resolved",
+          arcIndex: 1,
+          arcSlot: 1,
+        }),
+      ],
+      [["PK1"]],
+    );
+    const directive = buildPlanDirective(emptyNarrative(), plan, 1);
+    expect(directive).toContain("PEAK — MUST REACH");
+  });
+
+  it("labels thread-bearing valleys as 'VALLEY — PIVOT'", () => {
+    const plan = mkPlan(
+      [
+        mkNode({
+          id: "V1",
+          type: "valley",
+          label: "Pivot valley",
+          threadId: "T-1",
+          targetStatus: "escalating",
+          arcIndex: 1,
+          arcSlot: 1,
+        }),
+      ],
+      [["V1"]],
+    );
+    const directive = buildPlanDirective(emptyNarrative(), plan, 1);
+    expect(directive).toContain("VALLEY — PIVOT");
+  });
+
+  it("labels moments as 'MOMENT'", () => {
+    const plan = mkPlan(
+      [
+        mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+        mkNode({
+          id: "M1",
+          type: "moment",
+          label: "Intermediate reveal",
+          threadId: "T-1",
+          targetStatus: "active",
+          arcSlot: 1,
+        }),
+      ],
+      [["PK1", "M1"]],
+    );
+    const directive = buildPlanDirective(emptyNarrative(), plan, 1);
+    expect(directive).toContain("MOMENT");
+    expect(directive).toContain("Intermediate reveal");
+  });
+
+  it("includes Patterns, Warnings, and Chaos sections alongside each other when all present", () => {
+    const plan = mkPlan(
+      [
+        mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+        mkNode({
+          id: "PT1",
+          type: "pattern",
+          label: "Unexpected collision",
+          arcSlot: 1,
+        }),
+        mkNode({
+          id: "WN1",
+          type: "warning",
+          label: "Obvious resolution trap",
+          arcSlot: 1,
+        }),
+        mkNode({
+          id: "CH1",
+          type: "chaos",
+          label: "A stranger arrives",
+          arcSlot: 1,
+        }),
+      ],
+      [["PK1", "PT1", "WN1", "CH1"]],
+    );
+    const directive = buildPlanDirective(emptyNarrative(), plan, 1);
+    expect(directive).toContain("Patterns to Embrace");
+    expect(directive).toContain("Pitfalls to Avoid");
+    expect(directive).toContain("Chaos Injections");
+    expect(directive).toContain("Unexpected collision");
+    expect(directive).toContain("Obvious resolution trap");
+    expect(directive).toContain("A stranger arrives");
+  });
+
+  it("only includes nodes from the arc's partition", () => {
+    const plan = mkPlan(
+      [
+        mkNode({ id: "PK1", type: "peak", arcIndex: 1, arcSlot: 1 }),
+        mkNode({
+          id: "CH_arc1",
+          type: "chaos",
+          label: "Arc 1 chaos",
+          arcSlot: 1,
+        }),
+        mkNode({ id: "PK2", type: "peak", arcIndex: 2, arcSlot: 2 }),
+        mkNode({
+          id: "CH_arc2",
+          type: "chaos",
+          label: "Arc 2 chaos",
+          arcSlot: 2,
+        }),
+      ],
+      [
+        ["PK1", "CH_arc1"],       // arc 1 partition
+        ["PK2", "CH_arc2"],       // arc 2 partition (not cumulative here)
+      ],
+    );
+    const directive = buildPlanDirective(emptyNarrative(), plan, 2);
+    expect(directive).toContain("Arc 2 chaos");
+    expect(directive).not.toContain("Arc 1 chaos");
   });
 });

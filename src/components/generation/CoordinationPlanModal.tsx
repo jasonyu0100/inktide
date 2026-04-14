@@ -119,11 +119,15 @@ export function CoordinationPlanModal({
       return new Set(plan.nodes.map(n => n.id));
     }
     // Arc view: show only nodes specific to this arc (not cumulative)
-    // Include: nodes with arcSlot === selectedArc, plus global pattern/warning nodes
+    // Include: nodes with arcSlot === selectedArc, plus global creative-agent
+    // nodes (pattern / warning / chaos) that aren't pinned to any arc.
     const arcSpecificIds = plan.nodes
       .filter(n =>
         n.arcSlot === selectedArc ||
-        (n.arcSlot === undefined && (n.type === "pattern" || n.type === "warning"))
+        (n.arcSlot === undefined &&
+          (n.type === "pattern" ||
+            n.type === "warning" ||
+            n.type === "chaos"))
       )
       .map(n => n.id);
     return new Set(arcSpecificIds);

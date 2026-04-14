@@ -17,42 +17,93 @@ import { applyDerivedForceModes } from "@/lib/auto-engine";
  * Returns guidance for minimum nodes per category.
  * Emphasizes DEPTH (chains of reasoning) not just BREADTH (many disconnected nodes).
  */
-function getPlanNodeGuidance(arcTarget: number, threadCount: number): {
+function getPlanNodeGuidance(
+  arcTarget: number,
+  threadCount: number,
+  scale: number = 1,
+): {
   minSpineNodes: number;
   minReasoningNodes: number;
   minPatterns: number;
   minWarnings: number;
+  minChaos: number;
   minCharacterNodes: number;
+  minLocationNodes: number;
+  minArtifactNodes: number;
   minSystemNodes: number;
   minChainDepth: number;
+  minEdges: number;
+  totalMin: number;
 } {
-  // Spine nodes (peaks + valleys + moments): key story beats. Every arc
-  // contributes exactly one peak or valley anchor, plus moments for
-  // subordinate beats and thread progressions.
-  const minSpineNodes = Math.max(arcTarget + threadCount, Math.floor(arcTarget * 1.5) + Math.floor(threadCount * 0.75));
+  const s = (n: number) => Math.max(1, Math.round(n * scale));
 
-  // Reasoning nodes scale with plan complexity — emphasis on DEEP chains
-  const minReasoningNodes = Math.max(5, Math.floor(arcTarget * 1.5) + Math.floor(threadCount * 0.5));
+  // A coordination plan orchestrates the whole story — it needs wide AND
+  // deep reasoning. Per-arc plans can be tighter; plans cannot.
 
-  // Patterns and warnings scale moderately
-  const minPatterns = Math.max(2, Math.floor(arcTarget / 4));
-  const minWarnings = Math.max(2, Math.floor(arcTarget / 4));
+  // Spine nodes (peaks + valleys + moments). Every arc contributes one
+  // anchor (peak or valley) PLUS supporting moments. Threads each need
+  // multiple spine nodes to show progression (seeded → escalating → peak).
+  const minSpineNodes = s(
+    Math.max(
+      arcTarget * 2 + threadCount,          // 2 spine nodes per arc + 1 per thread
+      Math.floor(arcTarget * 2.5) + threadCount,
+    ),
+  );
 
-  // Character and system nodes ground reasoning in the world
-  const minCharacterNodes = Math.max(2, Math.floor(threadCount * 0.5));
-  const minSystemNodes = Math.max(2, Math.floor(arcTarget / 4));
+  // Reasoning backbone — branched, not chained. Each arc needs 3-4
+  // reasoning nodes, plus 2 per thread for causal cross-arc chains.
+  const minReasoningNodes = s(
+    Math.max(
+      8,
+      Math.floor(arcTarget * 3) + Math.floor(threadCount * 1.5),
+    ),
+  );
 
-  // Chain depth — minimum reasoning steps between spine nodes
-  const minChainDepth = Math.max(3, Math.floor(arcTarget / 2));
+  // Patterns and warnings — creative agents
+  const minPatterns = s(Math.max(2, Math.floor(arcTarget / 2)));
+  const minWarnings = s(Math.max(2, Math.floor(arcTarget / 2)));
+
+  // Chaos — baseline 1-2 per plan even when balanced; more under chaos preference
+  // (the preference block bumps this further in the prompt itself).
+  const minChaos = s(Math.max(1, Math.floor(arcTarget / 4)));
+
+  // Entity grounding — MUST appear (plans without entities are abstract)
+  const minCharacterNodes = s(Math.max(3, Math.floor(threadCount * 0.75)));
+  const minLocationNodes = s(Math.max(2, Math.floor(arcTarget / 3)));
+  const minArtifactNodes = s(Math.max(1, Math.floor(arcTarget / 4)));
+  const minSystemNodes = s(Math.max(2, Math.floor(arcTarget / 2)));
+
+  // Chain depth — minimum reasoning steps between spine nodes (through
+  // converging reasoning, not a single chain)
+  const minChainDepth = s(Math.max(3, Math.floor(arcTarget / 2)));
+
+  const totalMin =
+    minSpineNodes +
+    minReasoningNodes +
+    minPatterns +
+    minWarnings +
+    minChaos +
+    minCharacterNodes +
+    minLocationNodes +
+    minArtifactNodes +
+    minSystemNodes;
+
+  // Enforce edge density — a branched graph has ~1.6× more edges than nodes
+  const minEdges = Math.round(totalMin * 1.6);
 
   return {
     minSpineNodes,
     minReasoningNodes,
     minPatterns,
     minWarnings,
+    minChaos,
     minCharacterNodes,
+    minLocationNodes,
+    minArtifactNodes,
     minSystemNodes,
     minChainDepth,
+    minEdges,
+    totalMin,
   };
 }
 
@@ -182,6 +233,100 @@ export function buildSequentialPath(graph: ReasoningGraphBase): string {
 // Import the shared CoordinationPlanContext type from scenes
 import type { CoordinationPlanContext } from './scenes';
 
+export type ArcReasoningOptions = {
+  /**
+   * Which force category to bias this arc toward. Default "balanced".
+   * When "chaos", chaos becomes the arc's primary creative engine.
+   */
+  forcePreference?: ForcePreference;
+  /**
+   * Reasoning effort for this generation. Overrides the narrative's
+   * storySettings.reasoningLevel. "small" | "medium" | "large" map to
+   * low / medium / high REASONING_BUDGETS.
+   */
+  reasoningLevel?: "small" | "medium" | "large";
+};
+
+/** Default reasoning-token budget tied to narrative settings. */
+function defaultReasoningBudget(narrative: NarrativeState): number | undefined {
+  return (
+    REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? "low"] ||
+    undefined
+  );
+}
+
+/**
+ * Multiplier applied to graph node-count targets based on the reasoning
+ * slider. Small compresses the graph, medium is default, large expands.
+ * Used to scale density of reasoning graphs and coordination plans.
+ */
+export function reasoningScale(
+  size: "small" | "medium" | "large" | undefined,
+): number {
+  if (size === "small") return 0.6;
+  if (size === "large") return 1.6;
+  return 1; // medium / undefined
+}
+
+/**
+ * Build a force-preference guidance block for the prompt. Returns "" for
+ * balanced (default, no bias) or an undefined preference.
+ *
+ * The block is written from the perspective of either a per-arc reasoning
+ * graph ("arc") or the multi-arc coordination plan ("plan"), since the
+ * same preferences mean slightly different things at each level.
+ */
+function forcePreferenceBlock(
+  scope: "arc" | "plan",
+  pref: "balanced" | "fate" | "world" | "system" | "chaos" | undefined,
+): string {
+  if (!pref || pref === "balanced") return "";
+
+  const scopeNoun = scope === "plan" ? "PLAN" : "ARC";
+  const unit = scope === "plan" ? "plan's arcs" : "arc's scenes";
+
+  if (pref === "fate") {
+    return `
+## FORCE PREFERENCE: FATE-DOMINANT ${scopeNoun}
+
+Drive the ${scopeNoun.toLowerCase()} through **the threads of fate** — the existing tensions pulling the story toward resolution. Plot moves because threads demand it: they escalate, converge, resolve, or subvert. Favour fate nodes and peak/valley anchors that carry thread progressions (threadId + targetStatus). The ${unit} should feel like inevitability unfolding — every beat answers to an existing thread. Avoid leaning on new entities or deep world mechanics; this is a plot driven by what's already been set in motion.
+`;
+  }
+  if (pref === "world") {
+    return `
+## FORCE PREFERENCE: WORLD-DOMINANT ${scopeNoun}
+
+Drive the ${scopeNoun.toLowerCase()} through **character and relationship development** — inner change, shifting bonds, locations accruing meaning, artifacts gaining history. Plot moves because people (and places, and objects) change: someone learns something, a rivalry deepens, a trust breaks. Favour character/location/artifact nodes and let their interactions generate momentum. The ${unit} should deepen who and what already exists rather than resolve threads or teach the reader new rules — character is the engine here.
+`;
+  }
+  if (pref === "system") {
+    return `
+## FORCE PREFERENCE: SYSTEM-DOMINANT ${scopeNoun}
+
+Drive the ${scopeNoun.toLowerCase()} through **world mechanics and lore** — rules, constraints, principles, tensions in how the world works. Plot moves because the world's physics push back: a magic system has limits the cast discovers, an economy rewards certain behaviour, a hierarchy forces compromises. Favour system nodes and reasoning that turns on HOW the world works. The ${unit} should surface, test, or exploit the mechanics of the setting — the reader learns the world as the cast does.
+`;
+  }
+  if (pref === "chaos") {
+    return `
+## FORCE PREFERENCE: CHAOS-DOMINANT ${scopeNoun}
+
+Drive the ${scopeNoun.toLowerCase()} through **chaos — the outside-force creative engine**. Chaos operates OUTSIDE the existing fabric of fate, world, and system: it brings new problems, new solutions, new characters, new locations, new artifacts, and — crucially — **new fates** (new threads) that didn't exist before. Chaos is how a plot stays unpredictable, how a world expands, how a story surprises. It is not randomness; each chaos injection must CAUSE something the existing world could not have produced on its own.
+
+**What chaos does in this mode**:
+- Injects problems the cast cannot anticipate (a troll in the dungeon, an ambush from elsewhere, a plague arriving).
+- Injects solutions the cast did not build (a stranger with answers, a dormant artefact waking, a forgotten ally surfacing).
+- **Seeds new fate** — opens threads that didn't exist. Chaos sits outside fate, but it SHAPES fate by creating fresh strands that later arcs develop and resolve.
+
+**Behaviour in this ${scopeNoun.toLowerCase()}**:
+${scope === "plan"
+  ? "- Expect several chaos-dominant arcs across the plan (HP's troll arc, HP's Norbert arc). Roughly 25-40% of arcs should be anchored on chaos.\n- Seed 5-10 chaos nodes across the plan.\n- Let chaos open new threads that become part of the plan's trajectory — a new fate strand introduced in arc 2 might resolve in arc 5."
+  : "- Build the arc around 3-5 chaos nodes rather than the default 1-2.\n- The arc's peak or valley may itself be chaos-anchored (its prime mover is outside the current world).\n- A chaos node can inject a new thread that becomes part of this arc's causal chain and carries into future arcs."}
+- Mix chaos with the existing cast — chaos CREATES room for character/system/fate development; it doesn't replace them. The troll-in-the-dungeon arc matters because it forges Harry, Ron, and Hermione's friendship: the chaos event opens character development the fate threads couldn't reach on their own.
+`;
+  }
+  return "";
+}
+
 export async function generateReasoningGraph(
   narrative: NarrativeState,
   resolvedKeys: string[],
@@ -192,6 +337,8 @@ export async function generateReasoningGraph(
   onReasoning?: (token: string) => void,
   /** When provided, the coordination plan context guides the reasoning graph generation */
   coordinationPlanContext?: CoordinationPlanContext,
+  /** Arc-level options (chaos-driven, reasoning effort). */
+  options?: ArcReasoningOptions,
 ): Promise<ReasoningGraph> {
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
@@ -295,7 +442,7 @@ ${direction}` : ''}
 
 Use BACKWARD REASONING: Start from what threads NEED, then derive what must happen.
 Threads are FATE — they exert gravitational pull on events, but fate doesn't always go the expected direction. Threads can advance through twists, resistance, or subversion.
-
+${forcePreferenceBlock("arc", options?.forcePreference)}
 ## CREATIVE MANDATE
 
 **The context above is INSPIRATION, not a script.** Do NOT continue trajectories predictably.
@@ -351,12 +498,20 @@ Return a JSON object:
       "type": "system",
       "label": "Clan hierarchy forbids direct negotiation",
       "detail": "What system/rule shapes the action"
+    },
+    {
+      "id": "CH1",
+      "index": 4,
+      "type": "chaos",
+      "label": "An exile from a rival clan arrives seeking asylum",
+      "detail": "OUTSIDE FORCE — a NEW character arrives from beyond the current world, bringing either a problem (their pursuers) or a solution (their knowledge). The scene generator will spawn this character. No entityId."
     }
   ],
   "edges": [
     {"id": "e1", "from": "F1", "to": "R1", "type": "requires"},
     {"id": "e2", "from": "R1", "to": "C1", "type": "requires"},
-    {"id": "e3", "from": "S1", "to": "C1", "type": "constrains"}
+    {"id": "e3", "from": "S1", "to": "C1", "type": "constrains"},
+    {"id": "e4", "from": "CH1", "to": "R1", "type": "enables"}
   ]
 }
 
@@ -370,7 +525,7 @@ Return a JSON object:
 - **reasoning**: A logical step deriving what must happen. Label = the inference (3-8 words).
 - **pattern**: EXPANSION AGENT — inject novelty. Unexpected collisions, emergent properties, hidden implications within the current sandbox. Label = the creative opportunity.
 - **warning**: SUBVERSION AGENT — challenge predictability. Predictable trajectories, missing costs, assumptions to challenge. Label = what must be disrupted.
-- **chaos**: OUTSIDE FORCE — an injection that is FOREIGN to the current world. Spawns entirely new entities (characters/locations/artifacts) or new fates (new threads) that didn't exist before. Chaos brings solutions or problems WITHOUT requiring setup — the mechanism for creativity when the existing world is too sparse to answer what fate demands. The scene generator honours chaos nodes by invoking world expansion. Label = what arrives and its role (e.g., "A troll bursts into the dungeon", "A dormant artefact wakes in the library", "A new rumour of a hidden order spreads"). DO NOT set entityId or threadId — the entity/thread does not yet exist. Chaos can inject new FATES (new threads) just as fate can demand resolution: fate and chaos work together — fate from within, chaos from without.
+- **chaos**: OUTSIDE FORCE — operates outside the existing fabric of fate, world, and system. Chaos has two everyday modes: as a **deus-ex-machina**, it brings problems the cast couldn't anticipate or solutions the cast couldn't build (a troll bursts into the dungeon, a stranger arrives with a fragmentary map, a dormant artefact wakes); as a **creative engine**, it seeds entirely new fates — new threads that didn't exist, which later arcs develop and resolve. Chaos sits OUTSIDE fate, but shapes fate by creating fresh strands. A well-used chaos node is balanced: it breaks a stalemate the existing forces couldn't, and it plants something the story can reuse. Use sparingly in balanced mode; use extensively under chaos-preference. Label = what arrives and its role. DO NOT set entityId or threadId — the entity/thread is spawned via world expansion.
 
 ## EDGE TYPES
 
@@ -386,25 +541,28 @@ Return a JSON object:
 ## REQUIREMENTS
 
 1. **Backward reasoning**: Start from FATE (what threads need) and derive what must happen. The graph flows from thread requirements → reasoning → entities that fulfill them.
-2. **Fate throughout**: Fate nodes can appear ANYWHERE — they influence events at any point. A fate node can connect to characters, locations, reasoning, even other fate nodes. Fate is the gravitational force pulling the narrative.
-3. **Unexpected directions**: Fate doesn't always pull toward obvious resolution. Include fate nodes that demand twists, resistance, or subversion. A thread at "escalating" might need a setback before payoff.
-4. **Sequential indexing**: Nodes are indexed 0, 1, 2... in logical reading order
-5. **Entity references**: character/location/artifact nodes MUST use entityId with actual IDs
-6. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
-7. **Dense connections**: Each reasoning node should connect to 2+ other nodes
-8. **Node count**: Target ${4 + sceneCount * 3}-${8 + sceneCount * 4} nodes. ${sceneCount <= 2 ? "Focused reasoning chains." : sceneCount <= 6 ? "Branching logic with multiple thread pressures." : "Complex causality with parallel fate lines."}
-9. **Pattern nodes**: 1-2 nodes with GENUINE creativity — unexpected collisions, emergent properties within the existing cast
-10. **Warning nodes**: Flag predictable trajectories and missing costs — what assumption needs challenging?
-11. **Chaos nodes (0-2)**: Use sparingly, only when the arc genuinely benefits from something entirely new. Do NOT reference existing entityIds — chaos describes an entity that will be spawned. A chaos node signals the scene generator to invoke world expansion.
-12. **Non-deterministic**: Each reasoning path should contain at least one SURPRISE — something that doesn't follow obviously from context
+2. **Causal complexity**: The arc is a causal reasoning diagram — capture the REAL complexity of how it unfolds. Threads pull on multiple things, entities influence multiple moments, rules constrain several choices. When you add a node, show all the places it matters.
+3. **Fate throughout**: Fate nodes can appear ANYWHERE — they influence events at any point. A fate node can connect to characters, locations, reasoning, even other fate nodes. Fate is the gravitational force pulling the narrative.
+4. **Unexpected directions**: Fate doesn't always pull toward obvious resolution. Include fate nodes that demand twists, resistance, or subversion. A thread at "escalating" might need a setback before payoff.
+5. **Sequential indexing**: Nodes are indexed 0, 1, 2... in logical reading order
+6. **Entity references**: character/location/artifact nodes MUST use entityId with actual IDs
+7. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
+8. **Single entity node per entity**: If the same character or system matters in multiple places, create ONE node with multiple edges — don't duplicate.
+9. **Node count**: Target ${Math.round((6 + sceneCount * 4) * reasoningScale(options?.reasoningLevel))}-${Math.round((12 + sceneCount * 5) * reasoningScale(options?.reasoningLevel))} nodes across all types.
+10. **Pattern nodes**: 1-2 nodes with GENUINE creativity — unexpected collisions, emergent properties within the existing cast
+11. **Warning nodes**: Flag predictable trajectories and missing costs — what assumption needs challenging?
+12. **Chaos nodes (1-2 default, more under chaos preference)**: Inject at least one outside-force element — a new character arriving, a dormant artefact waking, a new fate appearing. Do NOT reference existing entityIds — chaos describes an entity that will be spawned. A chaos node signals the scene generator to invoke world expansion.
+13. **Non-deterministic**: Each reasoning path should contain at least one SURPRISE — something that doesn't follow obviously from context
+
+## SHAPE OF A GOOD ARC GRAPH
+
+An arc reasoning graph is a causal diagram, not a chain of justifications. A good graph captures how the arc actually works: key characters connect to several reasoning nodes, rules constrain multiple choices, the arc's climax is the convergence of several setups rather than the end of a single line. When you finish, scan the graph — if it reads like a vertical list, the story's complexity is being under-represented.
 
 The graph should reveal the strategic logic: what threads demand, and how events must unfold to serve fate.
 
 Return ONLY the JSON object.`;
 
-  const reasoningBudget =
-    REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? "low"] ||
-    undefined;
+  const reasoningBudget = defaultReasoningBudget(narrative);
 
   const raw = onReasoning
     ? await callGenerateStream(
@@ -517,6 +675,8 @@ export async function generateExpansionReasoningGraph(
   size: "small" | "medium" | "large" | "exact",
   strategy: "depth" | "breadth" | "dynamic",
   onReasoning?: (token: string) => void,
+  /** Force preference + reasoning size (graph density). */
+  options?: ArcReasoningOptions,
 ): Promise<ExpansionReasoningGraph> {
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
@@ -614,12 +774,16 @@ ${recentWorldBuilds.map((wb: WorldBuild) => {
     exact: "as specified in directive",
   }[size];
 
-  // Scale node count based on expansion size
+  // Scale node count based on expansion size AND the reasoning slider
+  // (graph density, not token budget).
+  const densityScale = reasoningScale(options?.reasoningLevel);
+  const scaleRange = (lo: number, hi: number) =>
+    `${Math.max(1, Math.round(lo * densityScale))}-${Math.max(2, Math.round(hi * densityScale))}`;
   const nodeCountTarget = {
-    small: "5-8 nodes for focused reasoning",
-    medium: "8-15 nodes for comprehensive reasoning",
-    large: "15-25 nodes for complex multi-faceted reasoning",
-    exact: "6-12 nodes scaled to directive scope",
+    small: `${scaleRange(5, 8)} nodes for focused reasoning`,
+    medium: `${scaleRange(8, 15)} nodes for comprehensive reasoning`,
+    large: `${scaleRange(15, 25)} nodes for complex multi-faceted reasoning`,
+    exact: `${scaleRange(6, 12)} nodes scaled to directive scope`,
   }[size];
 
   const prompt = `${ctx}
@@ -665,7 +829,7 @@ Strategy: ${strategy.toUpperCase()}
 
 Use BACKWARD REASONING: Start from what threads NEED (fate), then derive what entities must exist.
 Threads are FATE — they exert gravitational pull on world-building. New entities should serve thread requirements.
-
+${forcePreferenceBlock("arc", options?.forcePreference)}
 ## OUTPUT FORMAT
 
 **CRITICAL FORMAT REQUIREMENTS**:
@@ -708,12 +872,20 @@ Return a JSON object:
       "type": "system",
       "label": "Northern territory is lawless and unexplored",
       "detail": "What's missing that enables new entity"
+    },
+    {
+      "id": "CH1",
+      "index": 4,
+      "type": "chaos",
+      "label": "A foreign envoy arrives bearing a fragmentary map",
+      "detail": "OUTSIDE FORCE — an entity that could not have been produced by the existing world. The envoy brings knowledge from beyond the current sandbox."
     }
   ],
   "edges": [
     {"id": "e1", "from": "F1", "to": "R1", "type": "requires"},
     {"id": "e2", "from": "R1", "to": "C1", "type": "requires"},
-    {"id": "e3", "from": "S1", "to": "C1", "type": "enables"}
+    {"id": "e3", "from": "S1", "to": "C1", "type": "enables"},
+    {"id": "e4", "from": "CH1", "to": "R1", "type": "enables"}
   ]
 }
 
@@ -727,6 +899,7 @@ Return a JSON object:
 - **reasoning**: A logical step explaining WHY this entity serves fate. Label = the inference (3-8 words).
 - **pattern**: COOPERATIVE AGENT — positive reinforcement. What variety does this expansion introduce? Label = the opportunity.
 - **warning**: ADVERSARIAL AGENT — negative reinforcement. What staleness risks must be avoided? Label = the risk.
+- **chaos**: OUTSIDE FORCE — operates outside the existing fabric. Injects entities or new fates that are FOREIGN to the current world. Two modes: deus-ex-machina (a sudden problem or solution) and creative seeding (a new thread the story can later develop). Use when the expansion brings something the existing world could not have produced — a stranger from elsewhere, a dormant artefact waking, a rumour arriving unprompted. Do NOT set entityId — chaos represents a net-new entity.
 
 ## EDGE TYPES
 
@@ -745,19 +918,18 @@ Return a JSON object:
 2. **Fate throughout**: Fate nodes can appear anywhere — they justify WHY entities are added
 3. **Entity references**: character/location/artifact nodes connecting to existing entities MUST use entityId
 4. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
-5. **Dense connections**: Each reasoning node should connect to 2+ other nodes
+5. **Causal complexity**: The graph is a causal reasoning diagram. Every new entity should show the full web of how it connects — who it serves, what it constrains, what it enables. Not a single line.
 6. **Integration focus**: Every new entity should show HOW it serves existing threads via edges
 7. **Node count**: Target ${nodeCountTarget}
 8. **Pattern nodes**: 1-2 nodes highlighting fresh directions
 9. **Warning nodes**: 1-2 nodes flagging staleness risks
+10. **Chaos nodes**: Include at least one chaos node. Expansion is ITSELF an outside-force event — something new is arriving. Chaos nodes represent the entities coming from beyond the current world that the expansion is bringing in.
 
-The graph should reveal: what threads demand from the world, and what entities must exist to serve fate.
+The graph should reveal: what threads demand from the world, what entities must exist to serve fate, and what outside-world additions (chaos) unblock what the existing cast cannot.
 
 Return ONLY the JSON object.`;
 
-  const reasoningBudget =
-    REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? "low"] ||
-    undefined;
+  const reasoningBudget = defaultReasoningBudget(narrative);
 
   const raw = onReasoning
     ? await callGenerateStream(
@@ -857,8 +1029,12 @@ import type {
   ArcForceMode,
 } from "@/types/narrative";
 
-/** Valid coordination node types */
-const VALID_COORDINATION_NODE_TYPES = new Set<CoordinationNodeType>([
+/**
+ * Valid coordination node types. Must include every `CoordinationNodeType`
+ * member — sanitization silently retypes unknown types to "reasoning", so a
+ * missing entry here "disguises" nodes of that type in rendered plans.
+ */
+export const VALID_COORDINATION_NODE_TYPES = new Set<CoordinationNodeType>([
   "fate",
   "character",
   "location",
@@ -867,6 +1043,7 @@ const VALID_COORDINATION_NODE_TYPES = new Set<CoordinationNodeType>([
   "reasoning",
   "pattern",
   "warning",
+  "chaos",      // Outside-force agent — spawns new entities / new fates
   "peak",       // Structural peak — forces converge, thread culminates; arc anchors here
   "valley",     // Structural valley — turning point, tension seeded; can anchor arcs
   "moment",     // Key beat in the plan that isn't a peak or valley
@@ -881,6 +1058,22 @@ export type ThreadTarget = {
   timing?: "early" | "mid" | "late" | "final";
 };
 
+/**
+ * Force preference for a generation. Biases the LLM toward a particular
+ * force category as the arc/plan's prime mover. Default is "balanced".
+ *  - balanced: let the content decide — no bias
+ *  - fate: favour thread-driven arcs (internal pressure, resolutions)
+ *  - world: favour entity-driven arcs (character/location/artifact development)
+ *  - system: favour mechanic-driven arcs (world rules, constraints, physics)
+ *  - chaos: favour outside-force arcs (new entities / new fates via chaos)
+ */
+export type ForcePreference =
+  | "balanced"
+  | "fate"
+  | "world"
+  | "system"
+  | "chaos";
+
 /** Guidance for which threads should reach which states */
 export type PlanGuidance = {
   /** Thread targets with status and timing */
@@ -891,6 +1084,18 @@ export type PlanGuidance = {
   direction?: string;
   /** Constraints — what must NOT happen, restrictions on the narrative */
   constraints?: string;
+  /**
+   * Which force category to bias the plan toward. Default "balanced".
+   * When "chaos", chaos is elevated from sparingly-used deus-ex-machina
+   * to a primary creative engine driving the story through novelty.
+   */
+  forcePreference?: ForcePreference;
+  /**
+   * Reasoning effort for this single generation. Overrides the narrative's
+   * default storySettings.reasoningLevel when provided. "small" | "medium"
+   * | "large" map to low / medium / high REASONING_BUDGETS.
+   */
+  reasoningLevel?: "small" | "medium" | "large";
 };
 
 /**
@@ -1055,7 +1260,11 @@ export async function generateCoordinationPlan(
   // Arc target — exact number of arcs to plan (default 5)
   const arcTarget = guidance.arcTarget ?? 5;
   const activeThreadCount = threads.filter(t => !["resolved", "subverted", "abandoned"].includes(t.status)).length;
-  const nodeGuidance = getPlanNodeGuidance(arcTarget, activeThreadCount);
+  const nodeGuidance = getPlanNodeGuidance(
+    arcTarget,
+    activeThreadCount,
+    reasoningScale(guidance.reasoningLevel),
+  );
   const userDirection = guidance.direction ? `\nDIRECTION (end fate goals to achieve):\n${guidance.direction}` : "";
   const userConstraints = guidance.constraints ? `\nCONSTRAINTS (what must NOT happen):\n${guidance.constraints}` : "";
 
@@ -1099,7 +1308,7 @@ ${userDirection}
 ${userConstraints}
 
 ARC TARGET: ${arcTarget} arcs (plan exactly this many arcs)
-
+${forcePreferenceBlock("plan", guidance.forcePreference)}
 ## TASK
 
 Build a COORDINATION PLAN using BACKWARD INDUCTION, organised around the narrative's STRUCTURAL SPINE.
@@ -1182,8 +1391,9 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
     {"id": "M1", "index": 1, "type": "moment", "label": "Fang Yuan uncovers the clan's betrayal", "detail": "WHY this intermediate beat matters for the next peak", "threadId": "thread-id", "targetStatus": "escalating", "arcSlot": 1},
     // Setpiece moment:
     {"id": "M2", "index": 2, "type": "moment", "label": "Gu master's tomb first glimpsed", "detail": "Plants information or raises stakes for a later peak", "arcSlot": 1},
-    // CHAOS — spawns a NEW entity during the arc (don't set entityId or threadId; entity is created on scene expansion)
-    {"id": "CH1", "index": 17, "type": "chaos", "label": "A rival scholar arrives from a hidden order", "detail": "Introduces a new character who will challenge Fang Yuan's authority — spawned via world expansion", "arcSlot": 3},
+    // CHAOS — outside-force injection (new character / location / artifact /
+    // thread that didn't exist). Don't set entityId or threadId.
+    {"id": "CH1", "index": 17, "type": "chaos", "label": "A rival scholar arrives from a hidden order", "detail": "Spawned via world expansion — introduces a new character whose knowledge unblocks the Glacier approach", "arcSlot": 3},
 
     // ═══════════════════════════════════════════════════════════════
     // FATE NODES: thread pressure throughout the plan
@@ -1295,7 +1505,7 @@ Shape an arc's force character through its node composition: a fate-dominant arc
 **CREATIVE AGENT NODES** (inject novelty and subvert expectations):
 - **pattern**: EXPANSION AGENT. Combine existing entities in unexpected ways. Label: the opportunity in plain English (e.g., "Two rivals discover a common enemy").
 - **warning**: SUBVERSION AGENT. Flag predictable paths and unpaid costs. Label: the risk (e.g., "Victory is coming too easily—needs setback").
-- **chaos**: OUTSIDE FORCE — an injection that is FOREIGN to the current world. The creativity mechanism when the existing world is too sparse for what fate demands. Chaos can spawn entirely NEW characters, locations, or artifacts, OR inject NEW FATES (new threads) that didn't exist before. Think of it as an external event that brings solutions or problems without setup — a troll bursting through the dungeon door, a stranger arriving with foreign knowledge, a dormant artefact waking unprompted. An arc can be CHAOS-DOMINANT when its core movement comes from outside the established world (e.g., Harry Potter's troll-in-the-dungeon arc is chaos-dominant; Norbert the dragon arc is chaos-dominant; the welcoming feast is world-dominant; the Quirrell climax is fate-dominant). Label: what arrives and its role (e.g., "A troll crashes into the dungeon during the feast", "A rival scholar arrives from a hidden order bearing a fragmentary clue"). DO NOT set entityId or threadId — the entity/thread does not yet exist; the scene generator will spawn it through world expansion. Chaos and fate are complementary: fate is the gravitational pull from within, chaos is the force from without. Chaos can seed new fate — a new thread that then develops into future peaks.
+- **chaos**: OUTSIDE FORCE — operates outside the existing fabric of fate, world, and system. Chaos has two faces: **deus-ex-machina** (brings an unexpected problem the cast must solve, or an unexpected solution the cast couldn't build — a troll crashes into the dungeon, a stranger arrives with the missing clue, a dormant artefact wakes), and **creative engine** (seeds new fate — opens threads that didn't exist, which later arcs develop and resolve). Balance is the key: a plan with a couple of chaos moments is alive; a plan without any is inert; a plan of nothing but chaos has no spine to hold onto. An arc can be CHAOS-ANCHORED when its core movement comes from outside the established world (HP's troll-in-the-dungeon and Norbert arcs are chaos-anchored; the welcoming feast is world-driven; the Quirrell climax is fate-driven). Label: what arrives and its role. DO NOT set entityId or threadId — the entity/thread is spawned via world expansion. Remember: chaos sits outside fate, but it SHAPES fate by creating new strands.
 
 ## EDGE TYPES
 
@@ -1318,35 +1528,36 @@ Shape an arc's force character through its node composition: a fate-dominant arc
 8. **Force rhythm via composition**: Shape each arc's force character through node mix — more fate nodes for a fate-dominant arc, more entities for a world-dominant arc, more system nodes for a system-dominant arc. Don't write forceMode; vary node composition.
 9. **Peak/valley rhythm**: A plan of all peaks is exhausting; a plan of all valleys is all setup. Aim for alternation — roughly ~60/40 mix, with the final arc typically peak-anchored.
 10. **Thread trajectories**: Each thread needs spine nodes (peaks for resolutions/culminations, valleys for pivots, moments for intermediate escalations) showing its progression.
-11. **Chaos sparingly**: 0-2 chaos nodes per plan. Use only when the plan genuinely benefits from a new entity that doesn't yet exist — a fresh character arriving, a hidden location surfacing, a dormant artifact waking, a new thread emerging. Chaos nodes have arcSlot but NO entityId/threadId.
-12. **Dense connections**: Anchors connect to reasoning, reasoning to more reasoning, all grounded in entities
-13. **Pacing balance**: Mix arc sizes — not all arcs should be the same length
-14. **DEEP CHAINS**: Between each peak and the valley/moments that seed it, there must be ${nodeGuidance.minChainDepth}+ reasoning nodes
+11. **Chaos present**: Include chaos nodes where the plan benefits from something the existing world cannot produce — a fresh character arriving, a hidden location surfacing, a dormant artifact waking, a new thread emerging. Chaos nodes have arcSlot but NO entityId/threadId.
+12. **Causal complexity**: The graph must represent the REAL causal complexity of the plan. Story causation is a web — threads pull on many things at once, entities influence multiple reasoning lines, rules constrain several choices. Every time you add a node, consider what it connects TO and what connects INTO it. If a node only touches the story at one point, you're missing how it actually matters.
+13. **Every entity, fully connected**: When a character, location, artifact, or system genuinely shapes the plan, show all the places it shapes. Capture the full role, not just one role.
+14. **Pacing balance**: Mix arc sizes — not all arcs should be the same length
 15. **GROUNDED REASONING**: Reference specific character knowledge, relationships, artifacts, or world rules in reasoning nodes
 16. **CHARACTER AGENCY**: Include character nodes that show WHO drives each major transition
 17. **SYSTEM CONSTRAINTS**: Include system nodes that show HOW world rules shape outcomes
 
 ## NODE COUNT TARGETS (MANDATORY MINIMUMS)
 
-For this ${arcTarget}-arc plan with ${activeThreadCount} active threads:
+For this ${arcTarget}-arc plan with ${activeThreadCount} active threads, target **at least ${nodeGuidance.totalMin} nodes** across all types.
 
 **Spine nodes** (peaks + valleys + moments):
 - **Total spine nodes**: At least ${nodeGuidance.minSpineNodes} (one anchor per arc + thread progressions + supporting moments)
-- **Arc anchors**: Exactly ${arcTarget} total — a mix of peaks and valleys, each with arcIndex, sceneCount, and forceMode
-- **Moments**: Use freely for thread escalations, setpieces, reveals, and setups worth flagging at plan level (no arcIndex)
+- **Arc anchors**: Exactly ${arcTarget} total — a mix of peaks and valleys, each with arcIndex and sceneCount
+- **Moments**: Use freely — every thread needs 2-3 moment nodes showing its progression between peaks
 
-**Reasoning backbone** (THE MOST IMPORTANT):
-- **Reasoning nodes**: At least ${nodeGuidance.minReasoningNodes} — DEEP causal chains, not shallow links
+**Reasoning backbone**:
+- **Reasoning nodes**: At least ${nodeGuidance.minReasoningNodes}
 
-**Entity grounding** (USE ALL FOUR TYPES):
-- **Character nodes**: At least ${nodeGuidance.minCharacterNodes} — reference SPECIFIC knowledge from context
-- **Location nodes**: At least 1 — reference SPECIFIC location properties
-- **Artifact nodes**: At least 1 (if artifacts exist in context)
-- **System nodes**: At least ${nodeGuidance.minSystemNodes} — reference SPECIFIC principles/systems/constraints
+**Entity grounding** (use all four types):
+- **Character nodes**: At least ${nodeGuidance.minCharacterNodes}
+- **Location nodes**: At least ${nodeGuidance.minLocationNodes}
+- **Artifact nodes**: At least ${nodeGuidance.minArtifactNodes} (if artifacts exist in context)
+- **System nodes**: At least ${nodeGuidance.minSystemNodes}
 
 **Agent nodes**:
 - **Pattern nodes**: At least ${nodeGuidance.minPatterns} — COOPERATIVE agent encouraging variety
 - **Warning nodes**: At least ${nodeGuidance.minWarnings} — ADVERSARIAL agent preventing staleness
+- **Chaos nodes**: At least ${nodeGuidance.minChaos} — outside-force injections spawning new entities or new fates (HP had troll, Norbert, mirror, Fluffy). DO NOT set entityId or threadId on chaos nodes.
 
 ## PER-ARC BALANCE (CRITICAL)
 
@@ -1366,46 +1577,17 @@ For this ${arcTarget}-arc plan with ${activeThreadCount} active threads:
 **Good (balanced with natural variation)**:
 - Arc 1: 8 nodes, Arc 2: 7 nodes, Arc 3: 6 nodes, Arc 4: 7 nodes, Arc 5: 5 nodes
 
-## DEPTH + BREADTH REQUIREMENTS (CRITICAL)
+## SHAPE OF A GOOD PLAN
 
-**Chain depth**: Peak anchor → ${nodeGuidance.minChainDepth}+ reasoning/entity nodes → valley or earlier moment that seeds it
+A coordination plan is a **causal reasoning diagram**, not a proof outline. It represents how the story actually works: peaks don't just follow from one cause — they converge from several. Entities don't appear once — they matter in multiple places. Threads don't run straight — they pull on other threads and get pulled by systems and chaos.
 
-**Balanced breadth**: Use ALL entity node types (character, location, artifact, system) — not just reasoning.
+A plan that looks like a vertical list of nodes each with a single cause and a single effect is failing to capture the story's complexity. A good plan has entities that are shared substrate across arcs, peaks that are the convergence of multiple setups, and threads that interact with rules, locations, and each other.
 
-**Rich reasoning means**:
-1. **Multi-step chains**: Peak → Reasoning → Character → Reasoning → System → Reasoning → Valley (or Moment)
-2. **Entity nodes throughout**: Character/location/artifact/system nodes appear IN the chains, not as isolated leaves
-3. **Specific references**: Every entity node references SPECIFIC knowledge from the context above
-4. **Causal clarity**: Each step explains WHY, not just WHAT
-
-**BAD (shallow breadth-only)**:
-\`\`\`
-PK1 → PK2
-V1 → PK3  (parallel disconnected spine nodes, no reasoning in between)
-\`\`\`
-
-**BAD (depth without grounding)**:
-\`\`\`
-PK1 → R1 → R2 → R3 → V1  (reasoning chain but no character/location/system nodes)
-\`\`\`
-
-**GOOD (deep + grounded + diverse)**:
-\`\`\`
-PK1 ("Rock Aperture Gu feeding resolved" — peak anchor, threadId, targetStatus: resolved, arcIndex: 3)
-  → R1 ("For resolution, Fang Yuan must secure resource X")
-  → C1 ("Fang Yuan knows Bai Ning Bing has Y" — entityId: char-fy)
-  → R2 ("This knowledge enables negotiation")
-  → L1 ("Glacier's isolation constrains timing" — entityId: loc-glacier)
-  → S1 ("Gu feeding rules require Z" — reference: Gu feeding system)
-  → V1 ("Alliance forms through reluctant compromise" — valley anchor, arcIndex: 2, targetStatus: escalating)
-  → M1 ("Bai Ning Bing overhears the betrayal plot" — moment, targetStatus: active)
-\`\`\`
+When you finish, scan the graph: do the key characters appear once and connect to several things? Does each peak feel like several pressures coming together? Or does every node live in isolation on a single line? If the latter, the plan is under-representing the story.
 
 Return ONLY the JSON object.`;
 
-  const reasoningBudget =
-    REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? "low"] ||
-    undefined;
+  const reasoningBudget = defaultReasoningBudget(narrative);
 
   const raw = onReasoning
     ? await callGenerateStream(
@@ -1513,9 +1695,16 @@ Return ONLY the JSON object.`;
       const partition = reindexedNodes
         .filter((n) => n.arcSlot !== undefined && n.arcSlot <= arc)
         .map((n) => n.id);
-      // Also include pattern/warning nodes (no arcSlot)
+      // Also include pattern/warning/chaos agent nodes without arcSlot
+      // (creative agents can be global to the plan).
       const globalAgentNodes = reindexedNodes
-        .filter((n) => n.arcSlot === undefined && (n.type === "pattern" || n.type === "warning"))
+        .filter(
+          (n) =>
+            n.arcSlot === undefined &&
+            (n.type === "pattern" ||
+              n.type === "warning" ||
+              n.type === "chaos"),
+        )
         .map((n) => n.id);
       arcPartitions.push([...new Set([...partition, ...globalAgentNodes])]);
     }

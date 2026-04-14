@@ -1,7 +1,7 @@
 "use client";
 
 import { Modal, ModalBody, ModalHeader } from "@/components/Modal";
-import { generateCoordinationPlan, type PlanGuidance, type ThreadTarget } from "@/lib/ai";
+import { generateCoordinationPlan, type ForcePreference, type PlanGuidance, type ThreadTarget } from "@/lib/ai";
 import { useStore } from "@/lib/store";
 import { logError } from "@/lib/system-logger";
 import type { CoordinationPlan, Thread } from "@/types/narrative";
@@ -9,6 +9,11 @@ import { THREAD_ACTIVE_STATUSES } from "@/types/narrative";
 import { useCallback, useMemo, useState } from "react";
 import { GuidanceFields } from "./GuidanceFields";
 import { CoordinationPlanModal } from "./CoordinationPlanModal";
+import {
+  ForcePreferencePicker,
+  ReasoningSizePicker,
+  type ReasoningSize,
+} from "./ForcePreferencePicker";
 
 // ── Streaming Output ─────────────────────────────────────────────────────────
 
@@ -135,7 +140,7 @@ type Props = {
   onPlanCreated?: (plan: CoordinationPlan) => void;
 };
 
-type Tab = "general" | "threads";
+type Tab = "general" | "threads" | "advanced";
 
 export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
   const { state, dispatch } = useStore();
@@ -146,8 +151,10 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
   // Setup form state
   const [direction, setDirection] = useState("");
   const [constraints, setConstraints] = useState("");
-  const [arcTarget, setArcTarget] = useState(5);
+  const [arcTarget, setArcTarget] = useState(3);
   const [threadConfigs, setThreadConfigs] = useState<Record<string, ThreadConfig>>({});
+  const [forcePreference, setForcePreference] = useState<ForcePreference>("balanced");
+  const [reasoningLevel, setReasoningLevel] = useState<ReasoningSize>("medium");
 
   // Generation state
   const [loading, setLoading] = useState(false);
@@ -193,8 +200,10 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
       arcTarget,
       direction: direction.trim() || undefined,
       constraints: constraints.trim() || undefined,
+      forcePreference,
+      reasoningLevel,
     };
-  }, [threadConfigs, arcTarget, direction, constraints]);
+  }, [threadConfigs, arcTarget, direction, constraints, forcePreference, reasoningLevel]);
 
   async function handleGeneratePlan(additionalPrompt?: string) {
     if (!narrative) return;
@@ -285,6 +294,7 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
                 {[
                   { label: "General", value: "general" as Tab },
                   { label: "Threads", value: "threads" as Tab, count: Object.values(threadConfigs).filter(c => c.status !== "auto").length },
+                  { label: "Advanced", value: "advanced" as Tab },
                 ].map((tab) => (
                   <button
                     key={tab.value}
@@ -336,6 +346,20 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
                     </div>
                     <span className="text-[9px] text-text-dim/60">arcs</span>
                   </div>
+                </div>
+              )}
+
+              {/* Advanced tab */}
+              {activeTab === "advanced" && (
+                <div className="space-y-4">
+                  <ForcePreferencePicker
+                    value={forcePreference}
+                    onChange={setForcePreference}
+                  />
+                  <ReasoningSizePicker
+                    value={reasoningLevel}
+                    onChange={setReasoningLevel}
+                  />
                 </div>
               )}
 

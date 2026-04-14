@@ -244,11 +244,13 @@ worldDeltas — what we LEARN about an entity that wasn't known before. Applies 
 - Characters: new behaviour, belief, capability, or inner state revealed. Not restating what's already known.
 - Locations: new history, rules, dangers, or properties revealed. A location revisited can still earn continuity if the scene reveals something new about it.
 - Artifacts: new capabilities, limitations, or properties demonstrated through usage.
+- Short-lived artifacts (tables, figures, equations, embedded letters/notes/documents): the worldDelta captures the CONTENTS revealed — the data shown, the claim plotted, the text quoted. This is the artifact's entire knowledge graph; it will rarely be extended by later scenes.
 - QUALITY BAR: each node must describe something NOT KNOWN before this scene.
   BAD: "Alice is curious" (observation). BAD: "The White Rabbit has pink eyes" (already established).
   GOOD: "Alice abandons caution entirely, chasing the Rabbit without considering how to return" (new behaviour).
   GOOD: "The forest conceals an ancient boundary ward that repels outsiders" (new location property).
   GOOD: "The wand backfires when used against its maker" (new artifact limitation).
+  GOOD: "Table 2 reports a 2.3 BLEU drop on EN-DE when positional encoding is removed" (short-lived artifact contents).
 - MAX 2-3 nodes per entity per scene. Most scenes: POV character + one other entity.
 - Entities that appear without revealing anything new: ZERO nodes.
 - addedEdges: connect causally linked changes with "follows", "causes", "contradicts", "enables".
@@ -287,12 +289,19 @@ ENTITY EXTRACTION — entities carry ONLY identity (name, role, significance). A
 
 - artifacts: economic goods you can USE — NOT techniques or concepts.
   FICTION: ✓ A wand, the One Ring, a ship, a letter — objects you wield or possess
-  FICTION: ✗ "Magic", "swordsmanship", "prophecy" — concepts (system knowledge)
+  FICTION: ✓ A diary entry, a newspaper clipping, a map, a prophecy scroll — in-text DOCUMENTS surfaced in the scene (short-lived: usually appear once, significance=minor/notable)
+  FICTION: ✗ "Magic", "swordsmanship", "prophecy-as-concept" — concepts (system knowledge)
   NON-FICTION: ✓ GPT-4, TensorFlow, WMT dataset, P100 GPU — software/hardware you USE
+  NON-FICTION: ✓ Figure 3, Table 2, Equation 4, Algorithm 1, Appendix B — in-text ARTEFACTS the author presents (short-lived: typically cited once, significance=minor/notable). Name them explicitly ("Figure 3: BLEU by length", "Table 2: ablation results").
   NON-FICTION: ✗ "Transformer architecture", "attention mechanism", "BLEU score" — techniques/metrics (system knowledge)
-  NON-FICTION: ✗ "Figure 3", "Table 2" — document references, NOT artifacts
-  ownerName: character/location/null (world-owned for ubiquitous tools). significance: key/notable/minor.
+  ownerName: character/location/null (world-owned for ubiquitous tools; for figures/tables/documents the author or paper is the owner, or null).
+  significance: key (load-bearing throughout) / notable (referenced across multiple scenes) / minor (short-lived — appears once, including most tables/figures/embedded documents).
   key: 2-4 worldDeltas. notable: 1-3. minor: 1.
+  SHORT-LIVED ARTIFACTS (tables, figures, equations, embedded letters/diaries/notes, charts, algorithm listings, maps): the artifact's worldDeltas MUST capture the CONTENTS — what the table shows, what the figure plots, what the letter says, what the equation computes. One dense node is usually enough. Do NOT promote the contents to systemDeltas unless the paper/text itself generalises them into a rule.
+    GOOD (Table 2): "Ablation removes positional encoding and BLEU drops 2.3 points on EN-DE, showing positional signal is load-bearing."
+    GOOD (Figure 4): "Plots attention weights across layers: lower layers attend locally, upper layers attend globally across 200-token windows."
+    GOOD (letter): "Contains Dumbledore's instructions to leave Harry with the Dursleys and a warning that Voldemort may return."
+    BAD: "Table 2 shows results" (no contents). BAD: "A letter from Dumbledore" (no contents).
 
 - threads: narrative tensions. development: what specifically happened.
 
@@ -540,11 +549,208 @@ function extractJSON(raw: string): string {
 
 type CharacterNameMap = Record<string, string>; // variant → canonical
 
+type EntityMerges = {
+  characterMerges: CharacterNameMap;
+  locationMerges: Record<string, string>;
+  artifactMerges: Record<string, string>;
+};
+
+type SemanticMerges = {
+  threadMerges: Record<string, string>;
+  systemMerges: Record<string, string>;
+};
+
+function parseMergeJSON<T extends object>(raw: string): T {
+  const json = extractJSON(raw);
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    const repaired = json
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\x00-\x1F\x7F]/g, (ch) =>
+        ch === "\n" || ch === "\t" ? ch : "",
+      );
+    return JSON.parse(repaired) as T;
+  }
+}
+
+/**
+ * Phase 3a — Entity reconciliation (characters, locations, artifacts).
+ * Entities are proper-named and referentially unique: the same person, place,
+ * or object appears under multiple surface forms. Resolve aggressively to the
+ * fullest canonical name.
+ */
+async function reconcileEntities(
+  allCharNames: Set<string>,
+  allLocNames: Set<string>,
+  allArtifactNames: Set<string>,
+  onToken?: (token: string, accumulated: string) => void,
+): Promise<EntityMerges> {
+  if (
+    allCharNames.size === 0 &&
+    allLocNames.size === 0 &&
+    allArtifactNames.size === 0
+  ) {
+    return { characterMerges: {}, locationMerges: {}, artifactMerges: {} };
+  }
+
+  const prompt = `Reconcile named entities extracted independently from different scenes of the same story. The same person, place, or object often appears under different surface forms (title, first name, nickname, full name). Your job: collapse every variant of the same entity onto its fullest canonical form.
+
+CHARACTERS (${allCharNames.size}):
+${[...allCharNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
+
+LOCATIONS (${allLocNames.size}):
+${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
+
+ARTIFACTS (${allArtifactNames.size}):
+${[...allArtifactNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
+
+For each category, map every variant to its canonical form. Only include entries where variant ≠ canonical.
+
+Return JSON:
+{
+  "characterMerges": { "variant": "canonical" },
+  "locationMerges": { "variant": "canonical" },
+  "artifactMerges": { "variant": "canonical" }
+}
+
+═══ PRINCIPLE ═══
+Entities are unique referents — a character, place, or object exists once in the story world. If two surface forms clearly denote the same referent, they MUST be merged. Prefer the fullest, most identifying canonical form.
+
+═══ CHARACTER MERGING ═══
+MERGE aggressively when it is the same person:
+  ✓ "Harry" / "Harry Potter" → "Harry Potter" (pick fullest)
+  ✓ "Professor McGonagall" / "Minerva McGonagall" / "McGonagall" → "Professor Minerva McGonagall"
+  ✓ "Mr. Dursley" / "Vernon Dursley" / "Uncle Vernon" → "Vernon Dursley"
+  ✓ "Hagrid" / "Rubeus Hagrid" → "Rubeus Hagrid"
+  ✓ "Dumbledore" / "Albus Dumbledore" / "Professor Dumbledore" → "Albus Dumbledore"
+
+Canonical choice: pick the form that is most uniquely identifying. Full name > title + last name > first name alone. If a title is part of how the character is known (Professor, Lord), prefer including it.
+
+DO NOT MERGE: Different people who share a surname or title.
+  ✗ "Mr. Dursley" + "Dudley Dursley" — different people, same family
+  ✗ "Professor Snape" + "Professor McGonagall" — different professors
+  ✗ "Fred Weasley" + "George Weasley" — twins, different people
+
+═══ LOCATION MERGING ═══
+MERGE aggressively when it is the same place:
+  ✓ "The Great Hall" / "Great Hall" / "Hogwarts Great Hall" → "Great Hall"
+  ✓ "Platform Nine and Three-Quarters" / "Platform 9¾" → "Platform 9¾"
+  ✓ "Diagon Alley" / "the Alley" (if context makes it unambiguous)
+
+DO NOT MERGE: Distinct places even if adjacent or nested.
+  ✗ "The Great Hall" + "The Entrance Hall" — different rooms in Hogwarts
+  ✗ "Diagon Alley" + "Knockturn Alley" — different streets
+  ✗ "Hogwarts" + "Hogsmeade" — different locations
+
+═══ ARTIFACT MERGING ═══
+MERGE aggressively when it is the same object:
+  ✓ "the Elder Wand" / "Elder Wand" / "Dumbledore's wand" → "the Elder Wand"
+  ✓ "Marauder's Map" / "The Marauder's Map" → "the Marauder's Map"
+  ✓ "the Sorcerer's Stone" / "the Philosopher's Stone" (if clearly the same object)
+
+DO NOT MERGE: Different instances of the same type.
+  ✗ "Harry's wand" + "Voldemort's wand" — different wands
+  ✗ "The Invisibility Cloak" + "The Elder Wand" — different Hallows
+
+Empty object {} if no merges needed for a category.`;
+
+  const system = `You resolve surface-form variants of named entities (characters, locations, artifacts) to their canonical full forms. Entities are unique referents: when two variants clearly denote the same person/place/object, you MUST merge them. Prefer the fullest identifying name. Return only valid JSON.`;
+
+  const raw = await callAnalysis(prompt, system, onToken);
+  const parsed = parseMergeJSON<Partial<EntityMerges>>(raw);
+  return {
+    characterMerges: parsed.characterMerges ?? {},
+    locationMerges: parsed.locationMerges ?? {},
+    artifactMerges: parsed.artifactMerges ?? {},
+  };
+}
+
+/**
+ * Phase 3b — Semantic reconciliation (threads, system knowledge).
+ * Threads and knowledge nodes are full propositions, not proper names. Two
+ * items that look similar often capture distinct nuances. Default stance is
+ * to PRESERVE. Only collapse when meaning, scope, and stakes are effectively
+ * identical and one phrasing is just a restatement of the other.
+ */
+async function reconcileSemantic(
+  allThreadDescs: Set<string>,
+  allWKConcepts: Set<string>,
+  onToken?: (token: string, accumulated: string) => void,
+): Promise<SemanticMerges> {
+  if (allThreadDescs.size === 0 && allWKConcepts.size === 0) {
+    return { threadMerges: {}, systemMerges: {} };
+  }
+
+  const prompt = `Reconcile narrative THREADS and SYSTEM KNOWLEDGE concepts extracted independently from different scenes of the same story. Unlike named entities, these are propositions — full sentences that encode nuance. Your job: preserve distinct nuances. Only merge when two items are genuine restatements of the same proposition.
+
+THREADS (${allThreadDescs.size}):
+${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join("\n")}
+
+SYSTEM KNOWLEDGE (${allWKConcepts.size}):
+${[...allWKConcepts].map((c, i) => `${i + 1}. "${c}"`).join("\n")}
+
+For each category, map every variant to its canonical form. Only include entries where variant ≠ canonical.
+
+Return JSON:
+{
+  "threadMerges": { "variant": "canonical" },
+  "systemMerges": { "variant": "canonical" }
+}
+
+═══ GUIDING PRINCIPLE ═══
+DEFAULT IS TO KEEP SEPARATE. Threads and knowledge concepts are deliberately fine-grained. A typical story has dozens of distinct threads and system concepts — squashing them loses narrative texture. Only merge when you would be embarrassed to present both items in a final analysis because they say the exact same thing.
+
+Test for merging: if I resolved the canonical form, would every variant also be resolved as a natural consequence? If there's any distinguishing element (different participants, different stakes, different scope, different mechanism), the answer is NO — keep separate.
+
+═══ THREAD MERGING ═══
+MERGE only when two descriptions are the same narrative tension restated:
+  ✓ "Who is trying to steal the Stone?" + "The mystery of who wants the Sorcerer's Stone" — identical question, different wording
+  ✓ "Snape's antagonism toward Harry" + "Snape's hostility toward Harry" — same relational tension
+  ✓ "Will Harry survive Voldemort?" + "Harry's survival against Voldemort" — same question
+
+KEEP SEPARATE — any of these distinctions is enough:
+  ✗ Different participants: "Harry's conflict with Snape" vs "Harry's conflict with Malfoy"
+  ✗ Different scope: "Harry's fear of Voldemort" vs "The wizarding world's fear of Voldemort"
+  ✗ Different stakes: "Harry learns he is a wizard" vs "Harry adjusts to Hogwarts life"
+  ✗ Different antagonists: "Harry vs Voldemort" vs "Harry vs the Dursleys"
+  ✗ Different phases of related arcs: "Discovering the Stone is hidden" vs "Reaching the Stone"
+  ✗ Seemingly-related mysteries that are actually distinct: "Who opened the Chamber?" vs "Who is the Heir of Slytherin?"
+  ✗ A thread from two characters' perspectives where each has their own arc: "Snape's loyalty to Dumbledore" vs "Dumbledore's trust in Snape" — linked but they are distinct internal arcs
+
+═══ SYSTEM KNOWLEDGE MERGING ═══
+MERGE only when two concepts state the same rule or fact in different words:
+  ✓ "Magic requires a wand to channel" + "Wands are required to cast spells" — same rule
+  ✓ "The house point system rewards behavior" + "Houses earn and lose points based on student conduct" — same mechanism
+
+KEEP SEPARATE — any of these is a distinction:
+  ✗ Different mechanisms in the same domain: "Unforgivable Curses are illegal" vs "Dark magic is dangerous" — one is a legal rule, the other is a physical principle
+  ✗ Related but distinct facts: "Hogwarts has four houses" vs "The Sorting Hat assigns students" — both about the house system, but different claims
+  ✗ Parent and child concepts: "Magic exists" vs "Spells require incantations" — the second is more specific
+  ✗ Different types in the same family: "World models enable planning" vs "World models enable reasoning" — these share a subject but make distinct claims
+  ✗ Claims about the same subject with different predicates: "AI systems require large datasets" vs "AI systems are unreliable without supervision" — same topic, different propositions
+
+═══ WHEN IN DOUBT — DO NOT MERGE ═══
+Losing a distinction is worse than keeping a duplicate. The downstream pipeline can still work with slight redundancy, but it cannot recover lost nuance. If you are even slightly unsure, leave both items intact.
+
+Empty object {} if no merges needed for a category.`;
+
+  const system = `You reconcile narrative threads and system knowledge concepts. These are propositions, not proper names — apparent duplicates frequently encode real nuance. Your default stance is to PRESERVE. Only merge two items when one is clearly a restatement of the other with the same participants, scope, stakes, and claim. When in doubt, keep separate. Return only valid JSON.`;
+
+  const raw = await callAnalysis(prompt, system, onToken);
+  const parsed = parseMergeJSON<Partial<SemanticMerges>>(raw);
+  return {
+    threadMerges: parsed.threadMerges ?? {},
+    systemMerges: parsed.systemMerges ?? {},
+  };
+}
+
 /**
  * Reconcile independently-extracted chunk results:
- * - Merge character name variants into canonical names
+ * - Phase 3a (entities): aggressive merging of character/location/artifact name variants
+ * - Phase 3b (semantic): nuanced merging of threads and system knowledge, default-preserve
  * - Stitch thread continuity across chunks (connect same threads, fix status chains)
- * - Deduplicate locations
  */
 export async function reconcileResults(
   results: AnalysisChunkResult[],
@@ -568,118 +774,35 @@ export async function reconcileResults(
     }
   }
 
-  // Ask LLM to identify duplicates and merge them
-  const reconciliationPrompt = `Reconcile narrative data extracted independently from ${results.length} scenes of the same story. Each scene was analyzed in isolation — the same entity may appear under different names. Your job: find TRUE duplicates and merge them conservatively.
+  // Two sequential streaming calls — entities first, then threads + knowledge.
+  // Sequential keeps the stream viewer readable (one phase at a time) and lets
+  // the entities phase finish before the semantic phase begins.
+  let phaseLog = "";
+  const phaseStream = (tag: string) =>
+    onToken
+      ? (token: string, accumulated: string) =>
+          onToken(token, `${phaseLog}[${tag}]\n${accumulated}`)
+      : undefined;
 
-CHARACTERS (${allCharNames.size}):
-${[...allCharNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
-
-THREADS (${allThreadDescs.size}):
-${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join("\n")}
-
-LOCATIONS (${allLocNames.size}):
-${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
-
-ARTIFACTS (${allArtifactNames.size}):
-${[...allArtifactNames].map((n, i) => `${i + 1}. "${n}"`).join("\n")}
-
-WORLD KNOWLEDGE (${allWKConcepts.size}):
-${[...allWKConcepts].map((c, i) => `${i + 1}. "${c}"`).join("\n")}
-
-For each category, map every variant to its canonical form. Only include entries where variant ≠ canonical.
-
-Return JSON:
-{
-  "characterMerges": { "variant": "canonical" },
-  "threadMerges": { "variant": "canonical" },
-  "locationMerges": { "variant": "canonical" },
-  "artifactMerges": { "variant": "canonical" },
-  "systemMerges": { "variant": "canonical" }
-}
-
-═══ CHARACTER MERGING ═══
-MERGE: Same person, different name forms.
-  ✓ "Professor McGonagall" / "Minerva McGonagall" / "McGonagall" → pick fullest name
-  ✓ "Mr. Dursley" / "Vernon Dursley" / "Uncle Vernon" → pick most identifiable
-  ✓ "Hagrid" / "Rubeus Hagrid" → pick full name
-
-DO NOT MERGE: Different characters who share a surname or title.
-  ✗ "Mr. Dursley" + "Dudley" — different people
-  ✗ "Professor Snape" + "Professor McGonagall" — different people
-
-═══ THREAD MERGING ═══
-MERGE: Same narrative tension with different wording.
-  ✓ "Who is trying to steal the Stone?" + "The mystery of who wants the Sorcerer's Stone" — identical question
-  ✓ "Snape's antagonism toward Harry" + "Harry's conflict with Snape" — same relationship from two perspectives
-
-DO NOT MERGE: Related but distinct threads. Test: would resolving one automatically resolve the other? If not, keep separate.
-  ✗ "Harry's fear of Voldemort" + "Harry's conflict with Snape" — different antagonists, different stakes
-  ✗ "Harry learns he is a wizard" + "Harry adjusts to Hogwarts life" — discovery vs adaptation, different arcs
-  ✗ "Ron's jealousy of Harry" + "Hermione's academic pressure" — different characters, different internal conflicts
-  ✗ "The Dursleys suppress Harry" + "Harry must defeat Voldemort" — different obstacles, different scales
-  ✗ "Who opened the Chamber?" + "Who is the Heir of Slytherin?" — seem related but are genuinely distinct mysteries
-
-═══ LOCATION MERGING ═══
-MERGE: Same place, different formatting.
-  ✓ "The Great Hall" / "Great Hall" / "Hogwarts Great Hall"
-  ✓ "Platform Nine and Three-Quarters" / "Platform 9¾"
-
-DO NOT MERGE: Distinct places even if nearby or related.
-  ✗ "The Great Hall" + "The Entrance Hall" — different rooms
-  ✗ "Diagon Alley" + "Knockturn Alley" — different streets
-
-═══ ARTIFACT MERGING ═══
-MERGE: Same object, different names.
-  ✓ "the Elder Wand" / "Elder Wand" / "Dumbledore's wand"
-  ✓ "Marauder's Map" / "The Marauder's Map"
-
-DO NOT MERGE: Related but distinct objects.
-  ✗ "Harry's wand" + "Voldemort's wand" — different wands
-  ✗ "The Invisibility Cloak" + "The Elder Wand" — different Hallows
-
-═══ WORLD KNOWLEDGE MERGING ═══
-MERGE: Same concept, different phrasing.
-  ✓ "Magic requires wands" / "Wands are required for spellcasting"
-  ✓ "The house point system" / "Houses earn and lose points for behavior"
-
-DO NOT MERGE: Related but distinct concepts.
-  ✗ "Unforgivable Curses are illegal" + "Dark magic is dangerous" — different claims
-  ✗ "Hogwarts has four houses" + "The Sorting Hat assigns students" — related but distinct facts
-
-Empty object {} if no merges needed for a category.`;
-
-  const reconciliationSystem = `You deduplicate entities extracted independently from different scenes of the same story. Be conservative: only merge when entities are truly identical (same person, same tension, same place). Related but distinct entities must stay separate. Return only valid JSON.`;
-
-  const raw = await callAnalysis(
-    reconciliationPrompt,
-    reconciliationSystem,
-    onToken,
+  const entityMerges = await reconcileEntities(
+    allCharNames,
+    allLocNames,
+    allArtifactNames,
+    phaseStream("entities"),
   );
-  const json = extractJSON(raw);
-  let merges: {
-    characterMerges: CharacterNameMap;
-    threadMerges: Record<string, string>;
-    locationMerges: Record<string, string>;
-    artifactMerges?: Record<string, string>;
-    systemMerges?: Record<string, string>;
-  };
-  try {
-    merges = JSON.parse(json);
-  } catch {
-    const repaired = json
-      .replace(/[\u201C\u201D]/g, '"')
-      .replace(/[\u2018\u2019]/g, "'")
-      .replace(/[\x00-\x1F\x7F]/g, (ch) =>
-        ch === "\n" || ch === "\t" ? ch : "",
-      );
-    merges = JSON.parse(repaired);
-  }
+  phaseLog = `[entities] done\n\n`;
 
-  const charMap = merges.characterMerges ?? {};
-  const threadMap = merges.threadMerges ?? {};
-  const locMap = merges.locationMerges ?? {};
-  const artMap = merges.artifactMerges ?? {};
-  const wkMap = merges.systemMerges ?? {};
+  const semanticMerges = await reconcileSemantic(
+    allThreadDescs,
+    allWKConcepts,
+    phaseStream("threads+knowledge"),
+  );
+
+  const charMap = entityMerges.characterMerges;
+  const locMap = entityMerges.locationMerges;
+  const artMap = entityMerges.artifactMerges;
+  const threadMap = semanticMerges.threadMerges;
+  const wkMap = semanticMerges.systemMerges;
 
   const resolveChar = (name: string) => charMap[name] ?? name;
   const resolveThread = (desc: string) => threadMap[desc] ?? desc;

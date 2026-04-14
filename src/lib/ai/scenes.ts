@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode, Artifact, Character, Location as LocationEntity, LocationProminence } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
@@ -316,9 +316,9 @@ Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST �
       "ownershipDeltas": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
       "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
       "newCharacters": [{"id": "C-GEN-001", "name": "Full Name", "role": "anchor|recurring|transient", "threadIds": [], "imagePrompt": "1-2 sentence literal physical description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history|capability|secret|goal", "content": "key fact about this character"}}, "edges": []}}],
-      "newLocations": [{"id": "L-GEN-001", "name": "Location Name", "parentId": "L-XX (existing parent) or null", "tiedCharacterIds": [], "threadIds": [], "imagePrompt": "1-2 sentence literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history", "content": "key fact about this location"}}, "edges": []}}],
-      "newArtifacts": [{"id": "A-GEN-001", "name": "Artifact Name", "significance": "key|notable|minor", "description": "What it is and does", "utility": "What capability it grants", "threadIds": [], "world": {"nodes": {}, "edges": []}}],
-      "newThreads": [{"id": "T-GEN-001", "description": "What this tension is about", "status": "latent", "participants": [{"id": "C-XX", "type": "character", "role": "active|passive|catalyst"}], "threadLog": {"nodes": {}, "edges": []}}],
+      "newLocations": [{"id": "L-GEN-001", "name": "Location Name", "prominence": "domain|place|margin", "parentId": "L-XX (existing parent) or null", "tiedCharacterIds": [], "threadIds": [], "imagePrompt": "1-2 sentence literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history", "content": "key fact about this location"}}, "edges": []}}],
+      "newArtifacts": [{"id": "A-GEN-001", "name": "Artifact Name", "significance": "key|notable|minor", "parentId": "C-XX or L-XX or null (current owner)", "threadIds": [], "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|capability|history|state", "content": "what the artifact is, what it does — one fact per node, same world-graph format as characters and locations"}}, "edges": []}}],
+      "newThreads": [{"id": "T-GEN-001", "description": "What this tension is about", "status": "latent", "participants": [{"id": "C-XX", "type": "character|location|artifact"}], "threadLog": {"nodes": {}, "edges": []}}],
       "summary": "REQUIRED: Rich prose sentences using character NAMES and location NAMES — never raw IDs (no C-01, T-XX, L-03, WK-GEN, A-01 etc). Write as if for a reader: 'Fang Yuan acquires the Liquor worm' not 'C-01 acquires A-05'. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations."
     }
   ]
@@ -1646,11 +1646,29 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           return false;
         }
         return true;
-      }).map((c) => ({
-        ...c,
-        threadIds: c.threadIds ?? [],
-        world: c.world ?? { nodes: {}, edges: [] },
-      }));
+      }).map((c) => {
+        const validRoles: Character['role'][] = ['anchor', 'recurring', 'transient'];
+        const role: Character['role'] = validRoles.includes(c.role)
+          ? c.role
+          : 'transient';
+        if (role !== c.role) {
+          stripped.push(`newCharacter "${c.id}" role coerced to "transient" in scene ${scene.id}`);
+        }
+        const world = c.world ?? { nodes: {}, edges: [] };
+        if (Object.keys(world.nodes).length === 0) {
+          stripped.push(`newCharacter "${c.id}" introduced with empty world in scene ${scene.id}`);
+        }
+        const cleaned: Character = {
+          id: c.id,
+          name: c.name,
+          role,
+          threadIds: c.threadIds ?? [],
+          world,
+          ...(c.imagePrompt ? { imagePrompt: c.imagePrompt } : {}),
+          ...(c.imageUrl ? { imageUrl: c.imageUrl } : {}),
+        };
+        return cleaned;
+      });
       for (const c of scene.newCharacters) {
         validCharIds.add(c.id);
         allEntityIds.add(c.id);
@@ -1672,17 +1690,37 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           l.parentId = null;
         }
         return true;
-      }).map((l) => ({
-        ...l,
-        tiedCharacterIds: l.tiedCharacterIds ?? [],
-        threadIds: l.threadIds ?? [],
-        world: l.world ?? { nodes: {}, edges: [] },
-      }));
-      for (const l of scene.newLocations) {
+      }).map((l) => {
+        const legacy = l as LocationEntity & { prominence?: string };
+        const validProminences: LocationProminence[] = ['domain', 'place', 'margin'];
+        const prominence: LocationProminence = validProminences.includes(legacy.prominence as LocationProminence)
+          ? (legacy.prominence as LocationProminence)
+          : 'place';
+        if (prominence !== legacy.prominence) {
+          stripped.push(`newLocation "${l.id}" prominence coerced to "place" in scene ${scene.id}`);
+        }
+        const world = l.world ?? { nodes: {}, edges: [] };
+        if (Object.keys(world.nodes).length === 0) {
+          stripped.push(`newLocation "${l.id}" introduced with empty world in scene ${scene.id}`);
+        }
+        const cleaned: LocationEntity = {
+          id: l.id,
+          name: l.name,
+          prominence,
+          parentId: l.parentId ?? null,
+          tiedCharacterIds: l.tiedCharacterIds ?? [],
+          threadIds: l.threadIds ?? [],
+          world,
+          ...(l.imagePrompt ? { imagePrompt: l.imagePrompt } : {}),
+          ...(l.imageUrl ? { imageUrl: l.imageUrl } : {}),
+        };
+        return cleaned;
+      });
+      for (const l of scene.newLocations!) {
         validLocIds.add(l.id);
         allEntityIds.add(l.id);
       }
-      if (scene.newLocations.length === 0) delete scene.newLocations;
+      if (scene.newLocations!.length === 0) delete scene.newLocations;
     }
     if (Array.isArray(scene.newArtifacts)) {
       scene.newArtifacts = scene.newArtifacts.filter((a) => {
@@ -1695,12 +1733,30 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           return false;
         }
         return true;
-      }).map((a) => ({
-        ...a,
-        significance: a.significance ?? 'minor',
-        threadIds: a.threadIds ?? [],
-        world: a.world ?? { nodes: {}, edges: [] },
-      }));
+      }).map((a) => {
+        const validSignificances: Artifact['significance'][] = ['key', 'notable', 'minor'];
+        const significance: Artifact['significance'] = validSignificances.includes(a.significance)
+          ? a.significance
+          : 'minor';
+        if (significance !== a.significance) {
+          stripped.push(`newArtifact "${a.id}" significance coerced to "minor" in scene ${scene.id}`);
+        }
+        const world = a.world ?? { nodes: {}, edges: [] };
+        if (Object.keys(world.nodes).length === 0) {
+          stripped.push(`newArtifact "${a.id}" introduced with empty world in scene ${scene.id}`);
+        }
+        const cleaned: Artifact = {
+          id: a.id,
+          name: a.name,
+          significance,
+          parentId: a.parentId ?? null,
+          threadIds: a.threadIds ?? [],
+          world,
+          ...(a.imagePrompt ? { imagePrompt: a.imagePrompt } : {}),
+          ...(a.imageUrl ? { imageUrl: a.imageUrl } : {}),
+        };
+        return cleaned;
+      });
       for (const a of scene.newArtifacts) {
         validArtifactIds.add(a.id);
         allEntityIds.add(a.id);
@@ -1719,17 +1775,28 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
         }
         return true;
       }).map((t) => {
-        const validParticipants = (t.participants ?? []).filter((p) => {
-          if (p.type === 'character' && validCharIds.has(p.id)) return true;
-          if (p.type === 'location' && validLocIds.has(p.id)) return true;
-          if (p.type === 'artifact' && validArtifactIds.has(p.id)) return true;
-          stripped.push(`newThread "${t.id}" participant ${p.type} "${p.id}" in scene ${scene.id}`);
-          return false;
+        // ThreadParticipant only has {id, type}. Canonicalise to drop any
+        // extra fields the LLM emits (e.g. a phantom `role` left over from
+        // prior schema drafts) and filter against the right entity set per
+        // anchor type so dangling ids never reach the narrative.
+        const validParticipants = (t.participants ?? []).flatMap((p) => {
+          const ok =
+            (p.type === 'character' && validCharIds.has(p.id)) ||
+            (p.type === 'location' && validLocIds.has(p.id)) ||
+            (p.type === 'artifact' && validArtifactIds.has(p.id));
+          if (!ok) {
+            stripped.push(`newThread "${t.id}" participant ${p.type} "${p.id}" in scene ${scene.id}`);
+            return [];
+          }
+          return [{ id: p.id, type: p.type }];
         });
         return {
-          ...t,
+          id: t.id,
+          description: t.description,
           status: 'latent' as const,
           participants: validParticipants,
+          openedAt: t.openedAt ?? scene.id,
+          dependents: t.dependents ?? [],
           threadLog: t.threadLog ?? { nodes: {}, edges: [] },
         };
       });
@@ -1756,6 +1823,16 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
       stripped.push(`participantId "${pid}" in scene ${scene.id}`);
       return false;
     });
+    // A character introduced in this scene is, by definition, participating
+    // in it — otherwise the LLM wouldn't have grounds to introduce them. If
+    // the LLM omitted them from participantIds, splice them in rather than
+    // leaving the scene with a dangling newCharacter that never appears.
+    for (const c of scene.newCharacters ?? []) {
+      if (!validParticipants.includes(c.id)) {
+        validParticipants.push(c.id);
+        stripped.push(`newCharacter "${c.id}" auto-added to participantIds in scene ${scene.id}`);
+      }
+    }
     scene.participantIds = validParticipants.length > 0 ? validParticipants : [fallbackCharId];
     if (!scene.participantIds.includes(scene.povId)) {
       scene.povId = scene.participantIds[0] ?? fallbackCharId;

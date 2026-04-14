@@ -1793,4 +1793,319 @@ describe("sanitizeScenes — introduced entities survive reference validation", 
     expect(scene.participantIds).toContain("C-01");
     expect(scene.participantIds).not.toContain("C-DOES-NOT-EXIST");
   });
+
+  it("auto-adds newCharacter ids to participantIds when the LLM forgot", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newCharacters: [
+        {
+          id: "C-GEN-777",
+          name: "Side Character",
+          role: "transient",
+          threadIds: [],
+          world: {
+            nodes: {
+              "K-1": { id: "K-1", type: "trait", content: "Quiet, observant." },
+            },
+            edges: [],
+          },
+        },
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.participantIds).toContain("C-GEN-777");
+  });
+});
+
+// ── sanitizeScenes — delta null-id edge cases ───────────────────────────────
+describe("sanitizeScenes — delta null handling", () => {
+  it("keeps ownershipDelta with null fromId (artifact introduced from nowhere)", () => {
+    const narrative = createMinimalNarrative();
+    narrative.artifacts = {
+      "A-01": {
+        id: "A-01",
+        name: "Relic",
+        significance: "notable",
+        parentId: null,
+        threadIds: [],
+        world: { nodes: {}, edges: [] },
+      },
+    };
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      ownershipDeltas: [{ artifactId: "A-01", fromId: null, toId: "C-01" } as unknown as { artifactId: string; fromId: string; toId: string }],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.ownershipDeltas?.[0]).toEqual(
+      expect.objectContaining({ artifactId: "A-01", fromId: null, toId: "C-01" }),
+    );
+  });
+
+  it("keeps ownershipDelta with null toId (artifact discarded to nowhere)", () => {
+    const narrative = createMinimalNarrative();
+    narrative.artifacts = {
+      "A-01": {
+        id: "A-01",
+        name: "Relic",
+        significance: "notable",
+        parentId: "C-01",
+        threadIds: [],
+        world: { nodes: {}, edges: [] },
+      },
+    };
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      ownershipDeltas: [{ artifactId: "A-01", fromId: "C-01", toId: null } as unknown as { artifactId: string; fromId: string; toId: string }],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.ownershipDeltas?.[0]).toEqual(
+      expect.objectContaining({ artifactId: "A-01", fromId: "C-01", toId: null }),
+    );
+  });
+
+  it("strips worldDelta entries with missing entityId", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      worldDeltas: [
+        { entityId: "C-01", addedNodes: [{ id: "K-1", type: "trait", content: "x" }] },
+        { entityId: "", addedNodes: [{ id: "K-2", type: "trait", content: "y" }] } as never,
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.worldDeltas).toHaveLength(1);
+    expect(scene.worldDeltas[0].entityId).toBe("C-01");
+  });
+
+  it("strips newThread participants that reference unknown entities", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newThreads: [
+        {
+          id: "T-GEN-1",
+          description: "A tension",
+          status: "latent",
+          participants: [
+            { id: "C-01", type: "character" },
+            { id: "C-GHOST", type: "character" },
+          ],
+          dependents: [],
+          openedAt: "S-1",
+          threadLog: { nodes: {}, edges: [] },
+        },
+      ],
+    } as unknown as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.newThreads?.[0].participants).toEqual([
+      { id: "C-01", type: "character" },
+    ]);
+  });
+
+  it("drops phantom fields from newThread participants", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newThreads: [
+        {
+          id: "T-GEN-1",
+          description: "A tension",
+          status: "latent",
+          participants: [
+            { id: "C-01", type: "character", role: "active" } as unknown as { id: string; type: "character" },
+          ],
+          threadLog: { nodes: {}, edges: [] },
+        },
+      ],
+    } as unknown as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.newThreads?.[0].participants[0]).toEqual({
+      id: "C-01",
+      type: "character",
+    });
+    expect(scene.newThreads?.[0].participants[0]).not.toHaveProperty("role");
+  });
+
+  it("defaults newThread openedAt and dependents when missing", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-7", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newThreads: [
+        {
+          id: "T-GEN-1",
+          description: "A tension",
+          status: "latent",
+          participants: [],
+          threadLog: { nodes: {}, edges: [] },
+        } as unknown as never,
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.newThreads?.[0].openedAt).toBe("S-7");
+    expect(scene.newThreads?.[0].dependents).toEqual([]);
+  });
+});
+
+// ── sanitizeScenes — entity shape defaults ──────────────────────────────────
+describe("sanitizeScenes — new entity shape", () => {
+  it("defaults newLocation prominence to 'place' when missing", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newLocations: [
+        {
+          id: "L-GEN-1",
+          name: "Hidden Grove",
+          parentId: null,
+          tiedCharacterIds: [],
+          threadIds: [],
+          world: {
+            nodes: { "K-1": { id: "K-1", type: "trait", content: "Moss-carpeted." } },
+            edges: [],
+          },
+        } as unknown as never,
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.newLocations?.[0].prominence).toBe("place");
+  });
+
+  it("coerces invalid newLocation prominence to 'place'", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newLocations: [
+        {
+          id: "L-GEN-1",
+          name: "Ambiguous Spot",
+          prominence: "nonsense" as unknown as "place",
+          parentId: null,
+          tiedCharacterIds: [],
+          threadIds: [],
+          world: {
+            nodes: { "K-1": { id: "K-1", type: "trait", content: "Strange." } },
+            edges: [],
+          },
+        },
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.newLocations?.[0].prominence).toBe("place");
+  });
+
+  it("defaults newArtifact parentId to null when missing", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newArtifacts: [
+        {
+          id: "A-GEN-1",
+          name: "Odd Relic",
+          significance: "notable",
+          threadIds: [],
+          world: {
+            nodes: { "K-1": { id: "K-1", type: "trait", content: "Glows faintly." } },
+            edges: [],
+          },
+        } as unknown as never,
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.newArtifacts?.[0].parentId).toBeNull();
+  });
+
+  it("coerces invalid newArtifact significance to 'minor'", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newArtifacts: [
+        {
+          id: "A-GEN-1",
+          name: "Odd Relic",
+          significance: "super-duper" as unknown as "minor",
+          parentId: null,
+          threadIds: [],
+          world: {
+            nodes: { "K-1": { id: "K-1", type: "trait", content: "Glows faintly." } },
+            edges: [],
+          },
+        },
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.newArtifacts?.[0].significance).toBe("minor");
+  });
+
+  it("drops phantom fields the LLM emits outside the Artifact type", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newArtifacts: [
+        {
+          id: "A-GEN-1",
+          name: "Blood-Siphon Gu",
+          significance: "notable",
+          parentId: null,
+          threadIds: [],
+          description: "A translucent red worm.",
+          utility: "Drains primeval essence.",
+          world: {
+            nodes: { "K-1": { id: "K-1", type: "trait", content: "Translucent red worm." } },
+            edges: [],
+          },
+        } as unknown as never,
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.newArtifacts?.[0]).not.toHaveProperty("description");
+    expect(scene.newArtifacts?.[0]).not.toHaveProperty("utility");
+  });
+
+  it("coerces invalid newCharacter role to 'transient'", () => {
+    const narrative = createMinimalNarrative();
+    const scene = createScene("S-1", {
+      participantIds: ["C-01"],
+      povId: "C-01",
+      locationId: "L-01",
+      newCharacters: [
+        {
+          id: "C-GEN-1",
+          name: "Nameless",
+          role: "sidekick" as unknown as "transient",
+          threadIds: [],
+          world: {
+            nodes: { "K-1": { id: "K-1", type: "trait", content: "Watchful." } },
+            edges: [],
+          },
+        },
+      ],
+    } as Partial<Scene>);
+    sanitizeScenes([scene], narrative, "test");
+    expect(scene.newCharacters?.[0].role).toBe("transient");
+  });
 });

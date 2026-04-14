@@ -312,16 +312,15 @@ What matters most: every node earns its place via an edge into another node, and
     return `
 ## FORCE PREFERENCE: BALANCED ${scopeNoun}
 
-**Three primary forces, co-equal: FATE, WORLD, SYSTEM.** Compose the reasoning graph so these three share the spotlight roughly equally — aim for ~1/3 of type-significant nodes in each. A balanced ${scopeLower} is one where no single force carries the plot alone: threads advance (fate), entities change (world), and the setting's rules matter (system), all within the same causal chain.
+**Three primary forces, co-equal: FATE, WORLD, SYSTEM.** Compose the reasoning graph so these three share the spotlight — no single force carries the plot alone. Threads advance (fate), entities change (world), and the setting's rules matter (system), all within the same causal chain.
 
-**Composition targets** (type-significant nodes, excluding \`reasoning\`/\`pattern\`/\`warning\`):
-- ~30% **fate** nodes — each references an existing threadId and the status it's pushing toward.
-- ~30% **character/location/artifact** nodes — each references an existing entityId whose world graph grows this ${scopeLower}.
-- ~30% **system** nodes — each REUSES an existing system concept id or explicitly extends one, and is used by at least one downstream reasoning/fate step.
+- **fate** nodes — each references an existing threadId and the status it's pushing toward.
+- **character/location/artifact** nodes — each references an existing entityId whose world graph grows this ${scopeLower}.
+- **system** nodes — each REUSES an existing system concept id or explicitly extends one, and is used by at least one downstream step.
 
-**Chaos is secondary / fallback (~10%).** Chaos is not a primary in balanced mode; it is the relief valve used when the three primary forces genuinely cannot carry a beat on their own (a real outside-force moment), not filler. Chaos here is the exception, not a target.
+**Chaos is secondary / fallback.** Not a primary here — chaos is the relief valve used when the three primary forces genuinely cannot carry a beat on their own (a real outside-force moment), not filler.
 
-**Signals you got the balance right**: every arc/scene has ≥1 node per primary force; no primary has more than 2× the nodes of any other primary; chaos appears only where the existing fabric cannot generate the beat.
+**Signals you got the balance right**: every arc/scene touches each primary force; no primary drowns out the others; chaos appears only where the existing fabric cannot generate the beat.
 `;
   }
 
@@ -331,17 +330,17 @@ What matters most: every node earns its place via an edge into another node, and
 
 **Primary force: FATE.** The ${scopeLower} is driven by the existing threads of fate — the tensions already pulling the story toward resolution. Plot moves because threads demand it: they escalate, converge, resolve, or subvert.
 
-**Primary must be distinctly dominant**:
-- Fate nodes are the majority (~50% of type-significant nodes) and clearly out-number every other force. If character or system node counts approach fate's count, the preference isn't being honoured.
+**Fate should dominate — it makes up many of the nodes and clearly out-numbers every other force.** If character, system, or chaos counts approach fate's, the preference isn't being honoured.
+
 - Read the active thread list and each thread's recent log entries. Every fate node must reference an existing threadId and the exact targetStatus it advances toward.
 - Favour threads already at \`escalating\` or \`critical\` — these have momentum you can convert. Don't open new threads here (that's chaos).
 - Peak and valley anchors should BE thread transitions: a peak is a critical→resolved moment on a load-bearing thread; a valley is an escalating pulse that refuses to break.
 
 **Secondary and complementary forces welcome** (fate needs something to act on):
-- ~20% character as thread-carriers — the people whose choices move the thread.
-- ~10% system for the constraints that make resolution hard.
-- ~5% chaos sparingly when a thread needs an outside push to crack open.
-- Rest: reasoning/pattern/warning.
+- character as thread-carriers — the people whose choices move the thread.
+- system for the constraints that make resolution hard.
+- chaos sparingly when a thread needs an outside push to crack open.
+- reasoning/pattern/warning as the connective tissue.
 
 The ${unit} should feel like inevitability unfolding — every beat answers to an existing thread, and the supporting forces exist to give fate something to push against.
 `;
@@ -352,17 +351,17 @@ The ${unit} should feel like inevitability unfolding — every beat answers to a
 
 **Primary force: WORLD (character / location / artifact).** The ${scopeLower} is driven by inner change, shifting bonds, places accruing meaning, objects gaining history.
 
-**Primary must be distinctly dominant**:
-- Character/location/artifact nodes are the majority (~50% of type-significant nodes) and clearly out-number every other force. If fate or system counts approach world's count, the preference isn't being honoured.
+**World should dominate — character, location, and artifact nodes make up many of the nodes and clearly out-number every other force.** If fate, system, or chaos counts approach world's, the preference isn't being honoured.
+
 - For each world node, reference an existing entityId and identify which of its existing world graph nodes (trait, history, capability, etc.) this beat extends or contradicts. Plot moves because the entity changes in a way rooted in what it already was.
 - Favour entities with rich existing world graphs — more material to riff on, more opportunities for contradiction or deepening. A thin-graph entity should only anchor a beat if that beat is the scene where its graph grows substantially.
 - Relationship deltas, POV-character world deltas, and location-tied transformations are the core currency.
 
 **Secondary and complementary forces welcome** (character needs stakes and context):
-- ~20% fate as consequence of character change — the thread moves BECAUSE someone changed.
-- ~10% system for the constraints that force the change.
-- ~5% chaos sparingly when an outside event is the catalyst.
-- Rest: reasoning/pattern/warning.
+- fate as consequence of character change — the thread moves BECAUSE someone changed.
+- system for the constraints that force the change.
+- chaos sparingly when an outside event is the catalyst.
+- reasoning/pattern/warning as the connective tissue.
 
 The ${unit} should deepen who and what already exists — character is the engine, the other forces are the track it runs on.
 `;
@@ -373,17 +372,17 @@ The ${unit} should deepen who and what already exists — character is the engin
 
 **Primary force: SYSTEM.** The ${scopeLower} is driven by world mechanics and lore — rules, constraints, principles, tensions in how the world works.
 
-**Primary must be distinctly dominant**:
-- System nodes are the majority (~50% of type-significant nodes) and clearly out-number every other force. If character or fate counts approach system's count, the preference isn't being honoured.
+**System should dominate — it makes up many of the nodes and clearly out-numbers every other force.** If character, fate, or chaos counts approach system's, the preference isn't being honoured.
+
 - Each system node must either (a) REUSE an existing system concept id (cite it by SYS-XX) and extend it with a new edge or implication, or (b) introduce a genuinely new rule that connects to at least one existing concept. Free-floating lore dumps are a failure mode.
 - Downstream nodes (fate, character, reasoning) should DEPEND on system nodes — the \`requires\` / \`enables\` / \`constrains\` edges should point from system to consequences. If a system node has no outgoing edge, it wasn't used.
 - Read the existing cumulative system graph first; the ${scopeLower} should test, stress, or exploit principles already established, not ignore them.
 
 **Secondary and complementary forces welcome** (system needs something to act on):
-- ~20% character as system-testers — the cast discovering what the rules mean.
-- ~10% fate as system-driven consequence — the thread moves BECAUSE the rule said so.
-- ~5% chaos sparingly when a new rule shakes loose from outside.
-- Rest: reasoning/pattern/warning.
+- character as system-testers — the cast discovering what the rules mean.
+- fate as system-driven consequence — the thread moves BECAUSE the rule said so.
+- chaos sparingly when a new rule shakes loose from outside.
+- reasoning/pattern/warning as the connective tissue.
 
 The ${unit} should surface, test, or exploit the mechanics of the setting — the reader learns the world as the cast does.
 `;
@@ -396,8 +395,8 @@ The ${unit} should surface, test, or exploit the mechanics of the setting — th
 
 **Chaos is NOT driven by fate.** Chaos does not serve existing threads. Chaos does not wait for a thread to need something. Chaos acts on its own terms, and fate reacts TO chaos by absorbing what chaos creates. A chaos node that exists only to satisfy an existing thread is a chaos-flavoured fate node, not chaos. When in doubt: chaos SEEDS new fate (opens brand-new threads); it does not FULFIL old fate.
 
-**Primary must be distinctly dominant**:
-- Chaos nodes are the majority (~40% of type-significant nodes) and clearly out-number every other force. If fate or character counts approach chaos's count, the preference isn't being honoured.
+**Chaos should dominate — it makes up many of the nodes and clearly out-numbers every other force.** If fate, character, or system counts approach chaos's, the preference isn't being honoured.
+
 - Chaos is not randomness: each chaos node must CAUSE something the existing world could not have produced on its own.
 - Injects problems the cast cannot anticipate (a troll in the dungeon, an ambush, a plague, a cancelled funding round).
 - Injects solutions the cast did not build (a stranger with answers, a dormant artefact waking, a forgotten ally surfacing, a found manuscript).
@@ -405,10 +404,10 @@ The ${unit} should surface, test, or exploit the mechanics of the setting — th
 - **Seeds new fate** — opens threads that didn't exist. The new thread BECOMES a fate strand after chaos plants it, but its parent is chaos, not an existing arc.
 
 **Secondary and complementary forces welcome** (chaos needs a world to disturb, not a world to serve):
-- ~20% character as the cast caught in the wake of chaos — how they react, adapt, or fail.
-- ~15% fate nodes that represent NEW threads chaos has just opened (not existing threads chaos is servicing).
-- ~10% system nodes for new rules the chaos event reveals about how the world works.
-- Rest: reasoning/pattern/warning.
+- character as the cast caught in the wake of chaos — how they react, adapt, or fail.
+- fate nodes that represent NEW threads chaos has just opened (not existing threads chaos is servicing).
+- system nodes for new rules the chaos event reveals about how the world works.
+- reasoning/pattern/warning as the connective tissue.
 
 Every chaos node should root downstream into something — a new entity, a reaction in the cast, a new rule exposed, a new thread opened. Root edges point FROM chaos INTO the world, not the other way around. Chaos never has incoming \`requires\` edges from existing fate/system — that would mean fate or system summoned it, which is a contradiction.
 

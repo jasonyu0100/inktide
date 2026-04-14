@@ -116,6 +116,16 @@ export default function FloatingPalette({
     return !!resolveProseForBranch(currentScene, branchId, branches).prose;
   }, [currentScene, branchId, branches]);
 
+  // Plan extraction source gates whether the Generate Plan button is available.
+  // In 'prose' mode the plan is reverse-engineered from existing prose, so
+  // prose must exist for the button to do anything meaningful — disable it
+  // otherwise to make the requirement visible.
+  const planSource = narrative?.storySettings?.planExtractionSource ?? 'structure';
+  const canGeneratePlan = planSource === 'structure' || hasProse;
+  const generatePlanDisabledReason = !canGeneratePlan
+    ? 'Plan extraction is set to "prose". Generate prose first — the plan will be reverse-engineered from it.'
+    : undefined;
+
   const hasAudio = !!currentScene?.audioUrl;
   const wrapperClasses = isActive ? "" : "opacity-30 pointer-events-none";
   const [generateOpen, setGenerateOpen] = useState(false);
@@ -320,11 +330,14 @@ export default function FloatingPalette({
                   <>
                     <button
                       type="button"
-                      className="text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider text-world bg-world/10 hover:bg-world/20"
+                      className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${!canGeneratePlan ? "text-text-dim/30 bg-white/3 cursor-not-allowed" : "text-world bg-world/10 hover:bg-world/20"}`}
                       onClick={() => {
-                        setGenerateOpen((v) => !v);
-                        setRewriteOpen(false);
+                        if (canGeneratePlan) {
+                          setGenerateOpen((v) => !v);
+                          setRewriteOpen(false);
+                        }
                       }}
+                      title={canGeneratePlan ? undefined : generatePlanDisabledReason}
                     >
                       Generate
                     </button>

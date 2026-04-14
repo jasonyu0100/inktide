@@ -62,8 +62,12 @@ export function ScenePlanView({
 
   // When planExtractionSource === 'prose', plan generation reverse-engineers
   // from existing prose instead of forward-generating from scene structure.
+  // Without prose, there is nothing to reverse-engineer — the Generate Plan
+  // button is disabled upstream (FloatingPalette) and this guard is a
+  // defence-in-depth in case a bulk event still arrives on this scene.
   const planSource = narrative.storySettings?.planExtractionSource ?? 'structure';
   const canReverseEngineer = planSource === 'prose' && !!resolvedProse?.trim();
+  const planBlockedByMissingProse = planSource === 'prose' && !resolvedProse?.trim();
 
   const [planCache, setPlanCache] = useState<{
     plan: BeatPlan | null;
@@ -158,6 +162,19 @@ export function ScenePlanView({
 
   const generatePlan = useCallback(
     async (guidance?: string) => {
+      // Guard: in 'prose' mode without prose yet, there is nothing to
+      // reverse-engineer. The Generate Plan button is disabled upstream;
+      // this catches any stray programmatic calls so we don't silently
+      // switch modes.
+      if (planBlockedByMissingProse) {
+        setPlanCache({
+          plan: null,
+          status: 'error',
+          error: 'Plan extraction is set to "prose" but no prose exists yet. Generate prose first — the plan will be reverse-engineered from it.',
+        });
+        return;
+      }
+
       setPlanCache({ plan: null, status: "loading" });
       setReasoning("");
       setMeta(null);
@@ -171,10 +188,6 @@ export function ScenePlanView({
         //                             the currently-pointed prose version (the
         //                             reducer handles the attachment) so the
         //                             UI can align beats to the existing prose.
-        // In 'prose' mode without prose yet, fall through to forward generation
-        // so the plan button still works — prose-first workflows just haven't
-        // reached the prose step yet, and forcing reverse on empty prose would
-        // block the user.
         let plan: BeatPlan;
         let beatProseMap: BeatProseMap | undefined;
         if (canReverseEngineer) {
@@ -211,7 +224,7 @@ export function ScenePlanView({
         setMeta(null);
       }
     },
-    [narrative, scene, resolvedKeys, dispatch, canReverseEngineer, resolvedProse],
+    [narrative, scene, resolvedKeys, dispatch, canReverseEngineer, resolvedProse, planBlockedByMissingProse],
   );
 
   const rewritePlan = useCallback(

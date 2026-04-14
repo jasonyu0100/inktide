@@ -388,12 +388,13 @@ describe('Semantic Search', () => {
     const query = 'magical discovery';
     const results = await searchNarrative(narrative, ['scene1', 'scene2'], query);
     expect(results.query).toBe(query);
-    expect(results.embedding).toHaveLength(EMBEDDING_DIMENSIONS);
-    expect(results.results.length).toBeGreaterThan(0);
-    // Results should be sorted by similarity
-    for (let i = 1; i < results.results.length; i++) {
-      expect(results.results[i - 1].similarity).toBeGreaterThanOrEqual(results.results[i].similarity);
-    }
+    // Search is proposition-primary — scene-only narratives (no plans)
+    // short-circuit with an empty result plus availability metadata so the
+    // UI can prompt the user to generate scene plans.
+    expect(results.availability.summaryEmbeddingsReady).toBe(true);
+    expect(results.availability.propositionsReady).toBe(false);
+    expect(results.availability.scenesWithPlans).toBe(0);
+    expect(results.results.length).toBe(0);
   });
   it('should search propositions within beats', async () => {
     // Use fixture embeddings stored as asset references

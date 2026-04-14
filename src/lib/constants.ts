@@ -168,13 +168,12 @@ export const EMBEDDING_BATCH_SIZE = 50;
 /** Concurrent embedding generation batches */
 export const EMBEDDING_CONCURRENCY = 10;
 
-/** Scene-level results (broad thematic context — guaranteed slots) */
-export const SEARCH_TOP_K_SCENES = 2;
+/** Scene-summary-level results (thematic context). Top 10 of the scene
+ *  embedding pool feed the synthesis. */
+export const SEARCH_TOP_K_SCENES = 10;
 
-/** Beat-level results (intermediate summaries) */
-export const SEARCH_TOP_K_BEATS = 3;
-
-/** Proposition-level results (most specific — atomic facts with classifications) */
+/** Proposition-level results (atomic facts). Top 10 of the proposition
+ *  embedding pool feed the synthesis. */
 export const SEARCH_TOP_K_PROPOSITIONS = 10;
 
 /** Minimum cosine similarity threshold for search results (0-1) */

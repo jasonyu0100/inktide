@@ -87,10 +87,11 @@ describe('synthesizeSearchResults', () => {
         context: 'Beat 1: Hero enters the castle',
       },
       {
-        type: 'beat',
-        id: 'scene1-1',
+        type: 'proposition',
+        id: 'scene1-1-0',
         sceneId: 'scene1',
         beatIndex: 1,
+        propIndex: 0,
         content: 'King reveals the prophecy',
         similarity: 0.88,
         context: 'Beat 2: King reveals the prophecy',
@@ -147,7 +148,7 @@ describe('synthesizeSearchResults', () => {
     const callArgs = vi.mocked(apiModule.callGenerateStream).mock.calls[0];
     const [prompt] = callArgs;
     expect(prompt).toContain('SEARCH QUERY');
-    expect(prompt).toContain('SEARCH RESULTS');
+    expect(prompt).toContain('TOP 2 PROPOSITIONS');
     expect(prompt).toContain(query);
   });
   it('should stream tokens to callback', async () => {
@@ -263,7 +264,6 @@ describe('synthesizeSearchResults', () => {
       mockTimeline
     );
     // Should return fallback synthesis
-    expect(result.overview).toContain('Found 3 results');
     expect(result.overview).toContain('test query');
     expect(result.overview).toContain('Act I');
     expect(result.citations.length).toBeLessThanOrEqual(3);
@@ -342,7 +342,7 @@ describe('synthesizeSearchResults', () => {
     // Citations are extracted from combined results sorted by similarity
     // Order depends on which citations the LLM referenced in the synthesis
     expect(result.citations.length).toBeGreaterThan(0);
-    expect(['scene', 'beat', 'proposition']).toContain(result.citations[0].type);
+    expect(['scene', 'proposition']).toContain(result.citations[0].type);
   });
   it('should not call onToken if not provided', async () => {
     // Should not throw error when onToken is undefined

@@ -1,21 +1,39 @@
 /**
- * Semantic Search Engine - Search narrative content using embeddings
- * Supports both inline and decoupled (reference-based) embeddings
+ * Semantic Search Engine — two-pool architecture.
+ *
+ * Ranks scene summary embeddings and proposition embeddings independently,
+ * takes the top-K of each pool, and surfaces availability metadata so the
+ * UI can guide the user when a pool is unpopulated.
  */
 
 import { generateEmbeddings, cosineSimilarity, resolveEmbedding } from './embeddings';
-import type { NarrativeState, SearchQuery, SearchResult, EmbeddingRef } from '@/types/narrative';
-import { SEARCH_TOP_K_SCENES, SEARCH_TOP_K_BEATS, SEARCH_TOP_K_PROPOSITIONS } from './constants';
+import type { NarrativeState, SearchQuery, SearchResult, EmbeddingRef, SearchAvailability } from '@/types/narrative';
+import { SEARCH_TOP_K_SCENES, SEARCH_TOP_K_PROPOSITIONS } from './constants';
 import { resolveEntry, isScene } from '@/types/narrative';
-import { logInfo, logError } from './system-logger';
+import { logInfo } from './system-logger';
+
+type PoolItem = {
+  type: 'proposition' | 'scene';
+  sceneId: string;
+  sceneIndex: number;
+  arcId?: string;
+  beatIndex?: number;
+  propIndex?: number;
+  content: string;
+  embeddingRef: EmbeddingRef;
+  context: string;
+};
 
 /**
- * Search narrative content semantically using embeddings
+ * Search narrative content semantically using embeddings.
  *
- * @param narrative - Current narrative state
- * @param resolvedKeys - Resolved entry keys for the active branch
- * @param query - Search query text
- * @returns SearchQuery with results, timeline heatmap, and top results
+ * Uses two pools: scene summaries (thematic context) and beat propositions
+ * (atomic facts). Beat centroids are intentionally omitted — summary and
+ * proposition levels already cover the useful granularity.
+ *
+ * When a pool has no embeddings the result includes availability metadata
+ * so the UI can point the user at the generate-embeddings / generate-plans
+ * affordance rather than returning an opaque empty set.
  */
 export async function searchNarrative(
   narrative: NarrativeState,
@@ -28,36 +46,29 @@ export async function searchNarrative(
     details: { narrativeId: narrative.id, query: query.substring(0, 100), entryCount: resolvedKeys.length },
   });
 
-  // Generate query embedding
-  const embeddings = await generateEmbeddings([query], narrative.id);
-  const queryEmbedding = embeddings[0];
+  // ── Availability audit — measure coverage before searching ────────────
+  let totalScenes = 0;
+  let scenesWithSummaryEmbedding = 0;
+  let scenesWithPlans = 0;
+  let totalPropositions = 0;
+  let propositionsWithEmbedding = 0;
 
-  // Collect all searchable items with embedding references
-  const itemsWithRefs: Array<{
-    type: 'proposition' | 'beat' | 'scene';
-    sceneId: string;
-    sceneIndex: number;
-    arcId?: string;
-    beatIndex?: number;
-    propIndex?: number;
-    content: string;
-    embeddingRef: EmbeddingRef;
-    context: string;
-  }> = [];
+  const sceneItems: PoolItem[] = [];
+  const propositionItems: PoolItem[] = [];
 
   for (let entryIndex = 0; entryIndex < resolvedKeys.length; entryIndex++) {
     const key = resolvedKeys[entryIndex];
     const entry = resolveEntry(narrative, key);
     if (!entry || !isScene(entry)) continue;
-
     const scene = entry;
+    totalScenes += 1;
 
-    // Scene summary embedding
     if (scene.summaryEmbedding) {
-      itemsWithRefs.push({
+      scenesWithSummaryEmbedding += 1;
+      sceneItems.push({
         type: 'scene',
         sceneId: scene.id,
-        sceneIndex: entryIndex,  // Use position in resolvedKeys, not scene count
+        sceneIndex: entryIndex,
         arcId: scene.arcId,
         content: scene.summary,
         embeddingRef: scene.summaryEmbedding,
@@ -65,146 +76,120 @@ export async function searchNarrative(
       });
     }
 
-    // Beat propositions - use latest plan version
     const latestPlan = scene.planVersions?.[scene.planVersions.length - 1]?.plan;
-    if (latestPlan) {
-      for (let beatIndex = 0; beatIndex < latestPlan.beats.length; beatIndex++) {
-        const beat = latestPlan.beats[beatIndex];
+    if (!latestPlan) continue;
+    scenesWithPlans += 1;
 
-        // Beat-level search using centroid
-        if (beat.embeddingCentroid) {
-          itemsWithRefs.push({
-            type: 'beat',
-            sceneId: scene.id,
-            sceneIndex: entryIndex,  // Use position in resolvedKeys
-            arcId: scene.arcId,
-            beatIndex,
-            content: beat.what,
-            embeddingRef: beat.embeddingCentroid,
-            context: `Beat ${beatIndex + 1}: ${beat.what}`,
-          });
-        }
-
-        // Proposition-level search
-        for (let propIndex = 0; propIndex < beat.propositions.length; propIndex++) {
-          const prop = beat.propositions[propIndex];
-          if (prop.embedding) {
-            itemsWithRefs.push({
-              type: 'proposition',
-              sceneId: scene.id,
-              sceneIndex: entryIndex,  // Use position in resolvedKeys
-              arcId: scene.arcId,
-              beatIndex,
-              propIndex,
-              content: prop.content,
-              embeddingRef: prop.embedding,
-              context: `${beat.what} → ${prop.content}`,
-            });
-          }
-        }
+    for (let beatIndex = 0; beatIndex < latestPlan.beats.length; beatIndex++) {
+      const beat = latestPlan.beats[beatIndex];
+      for (let propIndex = 0; propIndex < beat.propositions.length; propIndex++) {
+        const prop = beat.propositions[propIndex];
+        totalPropositions += 1;
+        if (!prop.embedding) continue;
+        propositionsWithEmbedding += 1;
+        propositionItems.push({
+          type: 'proposition',
+          sceneId: scene.id,
+          sceneIndex: entryIndex,
+          arcId: scene.arcId,
+          beatIndex,
+          propIndex,
+          content: prop.content,
+          embeddingRef: prop.embedding,
+          context: `${beat.what} → ${prop.content}`,
+        });
       }
     }
   }
 
-  // Resolve all embedding references (batch operation)
-  const resolvedEmbeddings = await Promise.all(
-    itemsWithRefs.map(item => resolveEmbedding(item.embeddingRef))
-  );
+  const availability: SearchAvailability = {
+    totalScenes,
+    scenesWithSummaryEmbedding,
+    scenesWithPlans,
+    totalPropositions,
+    propositionsWithEmbedding,
+    summaryEmbeddingsReady: scenesWithSummaryEmbedding > 0,
+    propositionsReady: propositionsWithEmbedding > 0,
+  };
 
-  // Filter out items where embedding resolution failed
-  const items: Array<{
-    type: 'proposition' | 'beat' | 'scene';
-    sceneId: string;
-    sceneIndex: number;
-    arcId?: string;
-    beatIndex?: number;
-    propIndex?: number;
-    content: string;
-    embedding: number[];
-    context: string;
-  }> = [];
-
-  for (let i = 0; i < itemsWithRefs.length; i++) {
-    const embedding = resolvedEmbeddings[i];
-    if (embedding) {
-      items.push({
-        ...itemsWithRefs[i],
-        embedding,
-      });
-    }
+  // Propositions are the primary RAG signal — search is proposition-first,
+  // scene summaries are supplementary context. Without a proposition bank
+  // (i.e. plans generated and embedded) vector search cannot function,
+  // even if every scene has a summary embedding. Short-circuit here and
+  // let the UI surface the availability payload to prompt plan generation.
+  if (!availability.propositionsReady) {
+    logInfo('Search unavailable: no proposition embeddings (plans not generated)', {
+      source: 'search',
+      operation: 'search-unavailable',
+      details: { narrativeId: narrative.id, ...availability },
+    });
+    return emptyResult(query, [], resolvedKeys.length, availability);
   }
 
-  // Compute similarities in-memory (linear scan)
-  const scored = items.map(item => ({
-    ...item,
-    similarity: cosineSimilarity(queryEmbedding, item.embedding),
-  }));
+  // Generate query embedding only when there is at least one pool to search.
+  const embeddings = await generateEmbeddings([query], narrative.id);
+  const queryEmbedding = embeddings[0];
 
-  // Split into three pools — proportional to granularity
-  const scoredScenes = scored.filter(item => item.type === 'scene');
-  const scoredBeats = scored.filter(item => item.type === 'beat');
-  const scoredPropositions = scored.filter(item => item.type === 'proposition');
+  // ── Resolve embeddings for both pools in one batch ───────────────────
+  const allItems = [...sceneItems, ...propositionItems];
+  const resolvedEmbeddings = await Promise.all(
+    allItems.map((item) => resolveEmbedding(item.embeddingRef)),
+  );
 
-  const toResult = ({ type, sceneId, beatIndex, propIndex, content, similarity, context }: typeof scored[0]): SearchResult => ({
-    type, id: `${sceneId}-${beatIndex ?? 'scene'}-${propIndex ?? ''}`,
-    sceneId, beatIndex, propIndex, content, similarity, context,
+  const scoredScenes: Array<PoolItem & { similarity: number }> = [];
+  const scoredPropositions: Array<PoolItem & { similarity: number }> = [];
+  for (let i = 0; i < allItems.length; i++) {
+    const embedding = resolvedEmbeddings[i];
+    if (!embedding) continue;
+    const item = allItems[i];
+    const scored = { ...item, similarity: cosineSimilarity(queryEmbedding, embedding) };
+    if (item.type === 'scene') scoredScenes.push(scored);
+    else scoredPropositions.push(scored);
+  }
+
+  // ── Take top-K of each pool independently ────────────────────────────
+  const toResult = (item: PoolItem & { similarity: number }): SearchResult => ({
+    type: item.type,
+    id: `${item.sceneId}-${item.beatIndex ?? 'scene'}-${item.propIndex ?? ''}`,
+    sceneId: item.sceneId,
+    beatIndex: item.beatIndex,
+    propIndex: item.propIndex,
+    content: item.content,
+    similarity: item.similarity,
+    context: item.context,
   });
 
-  // Top K per pool — propositions get the most slots, scenes the fewest
-  const sceneResults: SearchResult[] = scoredScenes
+  const sceneResults = scoredScenes
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, SEARCH_TOP_K_SCENES)
     .map(toResult);
-
-  const beatResults = scoredBeats
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, SEARCH_TOP_K_BEATS)
-    .map(toResult);
-
-  const propositionResults = scoredPropositions
+  const detailResults = scoredPropositions
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, SEARCH_TOP_K_PROPOSITIONS)
     .map(toResult);
+  const results = [...sceneResults, ...detailResults].sort((a, b) => b.similarity - a.similarity);
 
-  // Detail results = propositions first, then beats (propositions dominate)
-  const detailResults: SearchResult[] = [...propositionResults, ...beatResults]
-    .sort((a, b) => b.similarity - a.similarity);
-
-  // Combined results = all three pools merged
-  const results: SearchResult[] = [...sceneResults, ...detailResults]
-    .sort((a, b) => b.similarity - a.similarity);
-
-  // Build scene summary timeline (direct similarity values from scene embeddings)
-  // Include ALL entries (scenes and world commits) to preserve timeline structure
-  // World commits will have 0 similarity
+  // ── Timelines — one heat value per resolved entry ────────────────────
   const sceneSimilarityMap = new Map<number, number>();
-  for (const item of scoredScenes) {
-    sceneSimilarityMap.set(item.sceneIndex, item.similarity);
-  }
-
+  for (const item of scoredScenes) sceneSimilarityMap.set(item.sceneIndex, item.similarity);
   const sceneTimeline = Array.from({ length: resolvedKeys.length }, (_, i) => ({
     sceneIndex: i,
     similarity: sceneSimilarityMap.get(i) ?? 0,
   }));
 
-  // Build detail timeline (max similarity from beats/propositions per scene)
-  // Include ALL entries to preserve timeline structure
   const detailMaxSimilarity = new Map<number, number>();
-  for (const item of [...scoredBeats, ...scoredPropositions]) {
+  for (const item of scoredPropositions) {
     const current = detailMaxSimilarity.get(item.sceneIndex) ?? 0;
-    if (item.similarity > current) {
-      detailMaxSimilarity.set(item.sceneIndex, item.similarity);
-    }
+    if (item.similarity > current) detailMaxSimilarity.set(item.sceneIndex, item.similarity);
   }
-
   const detailTimeline = Array.from({ length: resolvedKeys.length }, (_, i) => ({
     sceneIndex: i,
     maxSimilarity: detailMaxSimilarity.get(i) ?? 0,
   }));
 
-  // Find top arc (highest average similarity)
+  // ── Top arc (highest average similarity across both pools) ───────────
   const arcSimilarities = new Map<string, { sum: number; count: number }>();
-  for (const item of scored) {
+  for (const item of [...scoredScenes, ...scoredPropositions]) {
     if (!item.arcId) continue;
     const current = arcSimilarities.get(item.arcId) ?? { sum: 0, count: 0 };
     arcSimilarities.set(item.arcId, {
@@ -212,7 +197,6 @@ export async function searchNarrative(
       count: current.count + 1,
     });
   }
-
   let topArc: { arcId: string; avgSimilarity: number } | null = null;
   for (const [arcId, { sum, count }] of arcSimilarities) {
     const avgSimilarity = sum / count;
@@ -221,23 +205,9 @@ export async function searchNarrative(
     }
   }
 
-  // Find top scene (highest max similarity)
-  let topScene: { sceneId: string; similarity: number } | null = null;
-  for (const item of scored) {
-    if (item.type === 'scene' && (!topScene || item.similarity > topScene.similarity)) {
-      topScene = { sceneId: item.sceneId, similarity: item.similarity };
-    }
-  }
-
-  // Find top beat (highest similarity from beat-level items)
-  let topBeat: { sceneId: string; beatIndex: number; similarity: number } | null = null;
-  for (const item of scored) {
-    if (item.type === 'beat' && item.beatIndex !== undefined) {
-      if (!topBeat || item.similarity > topBeat.similarity) {
-        topBeat = { sceneId: item.sceneId, beatIndex: item.beatIndex, similarity: item.similarity };
-      }
-    }
-  }
+  const topScene = scoredScenes.length > 0
+    ? { sceneId: scoredScenes[0].sceneId, similarity: scoredScenes[0].similarity }
+    : null;
 
   logInfo('Completed semantic search', {
     source: 'search',
@@ -245,8 +215,8 @@ export async function searchNarrative(
     details: {
       narrativeId: narrative.id,
       query: query.substring(0, 100),
-      totalItems: items.length,
-      resultsFound: results.length,
+      sceneResults: sceneResults.length,
+      detailResults: detailResults.length,
       topScore: results[0]?.similarity ?? 0,
     },
   });
@@ -261,6 +231,32 @@ export async function searchNarrative(
     detailTimeline,
     topArc,
     topScene,
-    topBeat,
+    availability,
+  };
+}
+
+function emptyResult(
+  query: string,
+  embedding: number[],
+  resolvedLength: number,
+  availability: SearchAvailability,
+): SearchQuery {
+  return {
+    query,
+    embedding,
+    results: [],
+    sceneResults: [],
+    detailResults: [],
+    sceneTimeline: Array.from({ length: resolvedLength }, (_, i) => ({
+      sceneIndex: i,
+      similarity: 0,
+    })),
+    detailTimeline: Array.from({ length: resolvedLength }, (_, i) => ({
+      sceneIndex: i,
+      maxSimilarity: 0,
+    })),
+    topArc: null,
+    topScene: null,
+    availability,
   };
 }

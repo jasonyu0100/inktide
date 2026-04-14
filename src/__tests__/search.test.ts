@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { searchNarrative } from '@/lib/search';
 import type { NarrativeState, Scene, BeatPlan } from '@/types/narrative';
 import * as embeddingsModule from '@/lib/embeddings';
-import { SEARCH_TOP_K_SCENES, SEARCH_TOP_K_BEATS, SEARCH_TOP_K_PROPOSITIONS } from '@/lib/constants';
+import { SEARCH_TOP_K_SCENES, SEARCH_TOP_K_PROPOSITIONS } from '@/lib/constants';
 // Mock embeddings module
 vi.mock('@/lib/embeddings');
 vi.mock('@/lib/system-logger');
@@ -213,7 +213,7 @@ describe('searchNarrative', () => {
       return Promise.resolve(embeddings[ref] || [0.1, 0.2, 0.3]);
     });
     // Mock cosine similarity to return descending similarities
-    vi.mocked(embeddingsModule.cosineSimilarity).mockImplementation((a: number[], b: number[]) => {
+    vi.mocked(embeddingsModule.cosineSimilarity).mockImplementation((_a: number[], b: number[]) => {
       // Simple mock: higher similarity for closer embeddings
       const sum = b.reduce((acc, val) => acc + val, 0);
       return 1 - Math.abs(0.6 - sum);
@@ -236,7 +236,7 @@ describe('searchNarrative', () => {
   it('should limit results to SEARCH_TOP_K', async () => {
     const query = 'battle';
     const result = await searchNarrative(mockNarrative, mockResolvedKeys, query);
-    expect(result.results.length).toBeLessThanOrEqual(SEARCH_TOP_K_SCENES + SEARCH_TOP_K_BEATS + SEARCH_TOP_K_PROPOSITIONS);
+    expect(result.results.length).toBeLessThanOrEqual(SEARCH_TOP_K_SCENES + SEARCH_TOP_K_PROPOSITIONS);
   });
   it('should sort results by similarity descending', async () => {
     const query = 'prophecy';
@@ -299,6 +299,5 @@ describe('searchNarrative', () => {
     expect(result.detailTimeline.length).toBe(0);
     expect(result.topArc).toBeNull();
     expect(result.topScene).toBeNull();
-    expect(result.topBeat).toBeNull();
   });
 });

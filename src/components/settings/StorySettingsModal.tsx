@@ -631,26 +631,6 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   </div>
                 )}
 
-                {/* ── REASONING GRAPHS ── */}
-                <div className="mt-6 pt-4 border-t border-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-[10px] text-text-dim uppercase tracking-wider">Reasoning Graphs</label>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={settings.useReasoningGraphs}
-                      onClick={() => update({ useReasoningGraphs: !settings.useReasoningGraphs })}
-                      className={`w-7 h-4 rounded-full transition-colors relative ${settings.useReasoningGraphs ? 'bg-white/25' : 'bg-white/8'}`}
-                    >
-                      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${settings.useReasoningGraphs ? 'left-3.5' : 'left-0.5'}`} />
-                    </button>
-                  </div>
-                  <p className="text-[9px] text-text-dim/50">
-                    {settings.useReasoningGraphs
-                      ? 'Coordination plans generate reasoning graphs showing the AI\'s planning process. You can view and explore these graphs.'
-                      : 'Off — plans generate without visible reasoning graphs. Faster, but less insight into the planning process.'}
-                  </p>
-                </div>
               </>
             );
           })()}

@@ -1216,8 +1216,6 @@ export type StorySettings = {
   usePacingChain: boolean;
   /** Whether to use the beat profile Markov chain for plan generation. */
   useBeatChain: boolean;
-  /** Whether to generate reasoning graphs for coordination plans (shows AI's planning process). Default true. */
-  useReasoningGraphs: boolean;
   /** OpenAI TTS voice — one of: alloy, echo, fable, onyx, nova, shimmer */
   audioVoice: string;
   /** OpenAI TTS model — tts-1 (faster/cheaper) or tts-1-hd (higher quality) */
@@ -1254,7 +1252,6 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   mechanismProfilePreset: "",
   usePacingChain: false,
   useBeatChain: false,
-  useReasoningGraphs: true,
   audioVoice: "onyx",
   audioModel: "tts-1",
   proseFormat: "prose",
@@ -1715,10 +1712,12 @@ export type PlanCandidates = {
 // ─── Semantic Search Types ──────────────────────────────────────────
 
 export type SearchResult = {
-  type: "proposition" | "beat" | "scene";
+  type: "proposition" | "scene";
   id: string;
   sceneId: string;
+  /** Beat index within the scene's plan — only set for proposition results. */
   beatIndex?: number;
+  /** Proposition index within the beat — only set for proposition results. */
   propIndex?: number;
   content: string;
   similarity: number;
@@ -1732,27 +1731,43 @@ export type SearchSynthesis = {
   citations: Array<{
     id: number;
     sceneId: string;
-    type: "arc" | "scene" | "beat" | "proposition";
+    type: "scene" | "proposition";
     title: string;
     similarity: number;
   }>;
+};
+
+/** Coverage audit surfaced to the UI when search can't run on one or both
+ *  pools. Lets the UI point the user at the generate-embeddings or
+ *  generate-plans affordance rather than returning an opaque empty set. */
+export type SearchAvailability = {
+  totalScenes: number;
+  scenesWithSummaryEmbedding: number;
+  scenesWithPlans: number;
+  totalPropositions: number;
+  propositionsWithEmbedding: number;
+  /** True when at least one scene has a summary embedding. */
+  summaryEmbeddingsReady: boolean;
+  /** True when at least one proposition has an embedding. */
+  propositionsReady: boolean;
 };
 
 export type SearchQuery = {
   query: string;
   embedding: number[];
   synthesis?: SearchSynthesis;
-  /** Combined results across all embedding types */
+  /** Combined results across both pools (scene summaries + propositions), sorted by similarity. */
   results: SearchResult[];
-  /** Scene-level results (thematic, high-level context) */
+  /** Scene-summary pool results (thematic, high-level context). Top 10. */
   sceneResults: SearchResult[];
-  /** Detail-level results (propositions and beats, specific facts) */
+  /** Proposition pool results (specific facts). Top 10. */
   detailResults: SearchResult[];
-  /** Timeline showing scene summary activation (direct similarity values) */
+  /** Timeline showing scene summary activation (direct similarity values). */
   sceneTimeline: { sceneIndex: number; similarity: number }[];
-  /** Timeline showing detail fact activation (max similarity across beats/propositions per scene) */
+  /** Timeline showing proposition activation (max similarity per scene). */
   detailTimeline: { sceneIndex: number; maxSimilarity: number }[];
   topArc: { arcId: string; avgSimilarity: number } | null;
   topScene: { sceneId: string; similarity: number } | null;
-  topBeat: { sceneId: string; beatIndex: number; similarity: number } | null;
+  /** Coverage audit — populated on every search so the UI can guide the user when a pool is empty. */
+  availability: SearchAvailability;
 };

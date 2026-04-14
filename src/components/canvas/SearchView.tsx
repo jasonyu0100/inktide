@@ -22,7 +22,7 @@ type QueryResponse = {
     propIndex?: number;
     content: string;
     similarity: number;
-    type: "scene" | "beat" | "proposition";
+    type: "scene" | "proposition";
   }>;
 };
 
@@ -135,6 +135,36 @@ export function SearchView() {
           question.trim(),
         );
 
+        // Availability gate — vector search is proposition-first. Without
+        // a proposition bank (plans generated and embedded) search cannot
+        // run; surface a targeted prompt to generate the missing artefacts.
+        const availability = result.availability;
+        if (availability && !availability.propositionsReady) {
+          const hasPlans = availability.scenesWithPlans > 0;
+          const hasSummaryEmbeds = availability.summaryEmbeddingsReady;
+          const parts: string[] = ["Search needs a proposition bank to run."];
+          if (!hasPlans) {
+            parts.push(
+              `None of your ${availability.totalScenes} scene${availability.totalScenes === 1 ? "" : "s"} has a plan yet — generate scene plans to populate propositions.`,
+            );
+          } else if (availability.totalPropositions === 0) {
+            parts.push(
+              `${availability.scenesWithPlans} scene${availability.scenesWithPlans === 1 ? " has" : "s have"} plans, but no propositions have been extracted. Re-generate plans with propositions enabled.`,
+            );
+          } else {
+            parts.push(
+              `${availability.totalPropositions} proposition${availability.totalPropositions === 1 ? "" : "s"} extracted, but none are embedded yet. Run the embedding step to enable search.`,
+            );
+          }
+          if (!hasSummaryEmbeds) {
+            parts.push(
+              "Scene summary embeddings are also missing — generate embeddings for richer thematic context.",
+            );
+          }
+          setErrorMessage(parts.join(" "));
+          return;
+        }
+
         if (result.sceneResults.length > 0 || result.detailResults.length > 0) {
           // Stage 2: Found results, generating AI summary
           setSearchStage("Weaving through scenes and details");
@@ -198,12 +228,19 @@ export function SearchView() {
               detailTimeline: result.detailTimeline,
               topArc: result.topArc,
               topScene: result.topScene,
-              topBeat: result.topBeat,
+              availability: result.availability,
             },
           });
         } else {
+          // Propositions exist but nothing matched the query. If summary
+          // embeddings are also missing, generating them would broaden
+          // thematic coverage; otherwise it's genuinely a low-match query.
+          const missingSummaries =
+            availability && !availability.summaryEmbeddingsReady;
           setErrorMessage(
-            "No relevant content found. Try a different question or generate embeddings.",
+            missingSummaries
+              ? "No matches found. Scene summary embeddings are not generated yet — generating them would broaden thematic coverage. Otherwise, try rephrasing the query."
+              : "No relevant content found. Try rephrasing the question.",
           );
         }
       } catch (err) {
@@ -609,9 +646,7 @@ export function SearchView() {
                   const profileColor = cls ? classificationColor(cls.base, cls.reach) : undefined;
 
                   // Source type label
-                  const sourceType = cit.type === 'proposition' ? 'proposition'
-                    : cit.type === 'beat' ? 'beat'
-                    : 'scene';
+                  const sourceType = cit.type === 'proposition' ? 'proposition' : 'scene';
 
                   // Build structured source path
                   const pathParts: string[] = [];
@@ -658,9 +693,7 @@ export function SearchView() {
                           <div className="flex items-center gap-3 mt-2.5 text-[9px]">
                             {/* Source type badge */}
                             <span className={`px-1.5 py-0.5 rounded font-mono uppercase tracking-wider ${
-                              sourceType === 'proposition' ? 'bg-white/8 text-text-dim/70' :
-                              sourceType === 'beat' ? 'bg-white/5 text-text-dim/50' :
-                              'bg-white/4 text-text-dim/40'
+                              sourceType === 'proposition' ? 'bg-white/8 text-text-dim/70' : 'bg-white/4 text-text-dim/40'
                             }`}>
                               {sourceType}
                             </span>

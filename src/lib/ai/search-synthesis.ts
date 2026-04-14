@@ -1,6 +1,11 @@
 /**
- * AI Search Synthesis - Generate Google-style AI overview from search results
- * Streams synthesized text with inline citations linking to results
+ * AI Search Synthesis — proposition-primary RAG with scene-aggregate context.
+ *
+ * RAG is driven by the top-K propositions. For high-level context the
+ * synthesis also receives (a) the summaries of scenes that the top
+ * propositions come from (aggregate scene membership — "where do these
+ * propositions live?") and (b) the top-K scene summaries ranked by direct
+ * similarity to the query (supplementary thematic context).
  */
 
 import { callGenerateStream } from './api';
@@ -8,83 +13,123 @@ import { ANALYSIS_MODEL } from '../constants';
 import { logInfo, logError } from '../system-logger';
 import type { NarrativeState, SearchResult, SearchSynthesis } from '@/types/narrative';
 
-/**
- * Build search context for LLM synthesis with dual-level architecture
- */
+type AggregateScene = {
+  sceneId: string;
+  summary: string;
+  propositionCount: number;
+  maxPropSimilarity: number;
+};
+
+/** Aggregate scenes from proposition results. Sorted by proposition density,
+ *  then max similarity — scenes with the most relevant propositions come first. */
+function aggregateScenesFromPropositions(
+  propositionResults: SearchResult[],
+  narrative: NarrativeState,
+): AggregateScene[] {
+  const bySceneId = new Map<string, { count: number; maxSim: number }>();
+  for (const p of propositionResults) {
+    const current = bySceneId.get(p.sceneId) ?? { count: 0, maxSim: 0 };
+    bySceneId.set(p.sceneId, {
+      count: current.count + 1,
+      maxSim: Math.max(current.maxSim, p.similarity),
+    });
+  }
+  const out: AggregateScene[] = [];
+  for (const [sceneId, { count, maxSim }] of bySceneId) {
+    const scene = narrative.scenes[sceneId];
+    if (!scene) continue;
+    out.push({
+      sceneId,
+      summary: scene.summary,
+      propositionCount: count,
+      maxPropSimilarity: maxSim,
+    });
+  }
+  return out.sort((a, b) => {
+    if (b.propositionCount !== a.propositionCount) return b.propositionCount - a.propositionCount;
+    return b.maxPropSimilarity - a.maxPropSimilarity;
+  });
+}
+
 function buildSearchContext(
   query: string,
-  combinedResults: SearchResult[],
-  sceneCount: number,
-  detailCount: number,
+  propositionResults: SearchResult[],
+  aggregateScenes: AggregateScene[],
+  directSceneResults: SearchResult[],
   topArc: { arcId: string; avgSimilarity: number } | null,
   timeline: Array<{ sceneIndex: number; maxSimilarity: number }>,
   narrative: NarrativeState,
-): string {
+): { context: string; citationIndex: SearchResult[] } {
   let context = `═══ SEARCH QUERY ═══\n"${query}"\n\n`;
 
-  // Combined results sorted by similarity (mix of scenes and details)
-  context += `═══ SEARCH RESULTS (${sceneCount} scene summaries + ${detailCount} detail facts, top ${combinedResults.length} by similarity) ═══\n`;
-  combinedResults.forEach((result, idx) => {
-    const citationNum = idx + 1;
-    if (result.type === 'scene') {
-      context += `[${citationNum}] SCENE SUMMARY — ${(result.similarity * 100).toFixed(1)}% match\n`;
-      context += `    Summary: ${result.content}\n`;
-      context += `    Scene: ${result.sceneId}\n`;
-    } else {
-      context += `[${citationNum}] ${result.type.toUpperCase()} — ${(result.similarity * 100).toFixed(1)}% match\n`;
-      context += `    Content: ${result.content}\n`;
-      context += `    Context: ${result.context}\n`;
-      context += `    Scene: ${result.sceneId}\n`;
-      if (result.beatIndex !== undefined) {
-        context += `    Beat: ${result.beatIndex + 1}\n`;
-      }
-    }
+  // Citation index is the flat list the synthesis cites against. Propositions
+  // come first (primary signal), then direct scene matches. Aggregate scenes
+  // are rendered as context but don't get their own citation numbers — they
+  // annotate where the propositions live.
+  const citationIndex: SearchResult[] = [...propositionResults, ...directSceneResults];
+
+  // ── Primary: top propositions ─────────────────────────────────────────
+  context += `═══ TOP ${propositionResults.length} PROPOSITIONS (primary RAG signal) ═══\n`;
+  propositionResults.forEach((p, i) => {
+    context += `[${i + 1}] PROPOSITION — ${(p.similarity * 100).toFixed(1)}% match\n`;
+    context += `    Content: ${p.content}\n`;
+    context += `    Context: ${p.context}\n`;
+    context += `    Scene: ${p.sceneId}\n`;
+    if (p.beatIndex !== undefined) context += `    Beat: ${p.beatIndex + 1}\n`;
     context += `\n`;
   });
 
-  // Arc relevance
+  // ── Aggregate scene membership — where the top propositions live ──────
+  if (aggregateScenes.length > 0) {
+    context += `═══ AGGREGATE SCENE MEMBERSHIP (scenes containing the top propositions above) ═══\n`;
+    aggregateScenes.forEach((s) => {
+      context += `  • ${s.sceneId} — ${s.propositionCount} relevant proposition${s.propositionCount !== 1 ? 's' : ''}, top match ${(s.maxPropSimilarity * 100).toFixed(1)}%\n`;
+      context += `    Summary: ${s.summary}\n\n`;
+    });
+  }
+
+  // ── Supplementary: direct scene-summary matches ───────────────────────
+  if (directSceneResults.length > 0) {
+    const offset = propositionResults.length;
+    context += `═══ TOP ${directSceneResults.length} SCENE SUMMARIES (direct match on summary embeddings, supplementary thematic context) ═══\n`;
+    directSceneResults.forEach((s, i) => {
+      context += `[${offset + i + 1}] SCENE SUMMARY — ${(s.similarity * 100).toFixed(1)}% match\n`;
+      context += `    Summary: ${s.content}\n`;
+      context += `    Scene: ${s.sceneId}\n\n`;
+    });
+  }
+
   if (topArc) {
     const arc = narrative.arcs[topArc.arcId];
     if (arc) {
       context += `═══ TOP ARC ═══\n`;
-      context += `Arc: "${arc.name}"\n`;
-      context += `Average relevance: ${(topArc.avgSimilarity * 100).toFixed(1)}%\n`;
-      context += `Scenes: ${arc.sceneIds.length}\n\n`;
+      context += `Arc: "${arc.name}" (${(topArc.avgSimilarity * 100).toFixed(1)}% avg relevance, ${arc.sceneIds.length} scenes)\n\n`;
     }
   }
 
-  // Timeline pattern
   if (timeline.length > 0) {
-    context += `═══ TIMELINE PATTERN ═══\n`;
     const peaks = timeline
-      .filter(p => p.maxSimilarity > 0.7)
+      .filter((p) => p.maxSimilarity > 0.7)
       .sort((a, b) => b.maxSimilarity - a.maxSimilarity)
       .slice(0, 5);
-
     if (peaks.length > 0) {
-      context += `Peak matches at scenes: ${peaks.map(p => `${p.sceneIndex + 1} (${(p.maxSimilarity * 100).toFixed(0)}%)`).join(', ')}\n`;
+      context += `═══ TIMELINE PATTERN ═══\n`;
+      context += `Peak matches at scenes: ${peaks.map((p) => `${p.sceneIndex + 1} (${(p.maxSimilarity * 100).toFixed(0)}%)`).join(', ')}\n`;
+      const highRelevanceCount = timeline.filter((p) => p.maxSimilarity > 0.6).length;
+      context += `High-relevance scenes: ${highRelevanceCount} out of ${timeline.length}\n`;
     }
-
-    const highRelevanceCount = timeline.filter(p => p.maxSimilarity > 0.6).length;
-    const totalScenes = timeline.length;
-    context += `High-relevance scenes: ${highRelevanceCount} out of ${totalScenes}\n`;
   }
 
-  return context;
+  return { context, citationIndex };
 }
 
 /**
- * Synthesize search results into an AI overview with inline citations
+ * Synthesize search results into an AI overview with inline citations.
  *
- * @param narrative - Current narrative state
- * @param query - Search query text
- * @param sceneResults - Scene-level search results (high-level context)
- * @param detailResults - Detail-level search results (specific facts)
- * @param topArc - Top matching arc (if any)
- * @param topScene - Top matching scene (if any)
- * @param timeline - Timeline heatmap data
- * @param onToken - Optional callback for streaming tokens
- * @returns SearchSynthesis with overview text and citation metadata
+ * Proposition-primary: the top-K propositions drive the answer. Scene
+ * context enters two ways — aggregate scene summaries (for scenes the top
+ * propositions live in) and direct scene-summary matches (for thematic
+ * context the propositions may not cover).
  */
 export async function synthesizeSearchResults(
   narrative: NarrativeState,
@@ -96,78 +141,47 @@ export async function synthesizeSearchResults(
   timeline: Array<{ sceneIndex: number; maxSimilarity: number }>,
   onToken?: (token: string) => void,
 ): Promise<SearchSynthesis> {
-  // 2 scenes + up to 13 details (10 propositions + 3 beats)
-  const topScenes = (sceneResults ?? []).slice(0, 2);
-  const topDetails = (detailResults ?? []).slice(0, 13);
+  const propositionResults = detailResults.filter((r) => r.type === 'proposition');
+  const aggregateScenes = aggregateScenesFromPropositions(propositionResults, narrative);
 
-  // Combine and sort by similarity for final ordering
-  const topResults = [...topScenes, ...topDetails].sort((a, b) => b.similarity - a.similarity);
-
-  // Count breakdown
-  const sceneCount = topResults.filter(r => r.type === 'scene').length;
-  const beatCount = topResults.filter(r => r.type === 'beat').length;
-  const propCount = topResults.filter(r => r.type === 'proposition').length;
-  const detailCount = beatCount + propCount;
+  const { context, citationIndex } = buildSearchContext(
+    query,
+    propositionResults,
+    aggregateScenes,
+    sceneResults,
+    topArc,
+    timeline,
+    narrative,
+  );
 
   logInfo('Starting search synthesis', {
     source: 'search',
     operation: 'synthesize-search',
     details: {
       query: query.substring(0, 100),
-      scenePoolSize: sceneResults?.length ?? 0,
-      detailPoolSize: detailResults?.length ?? 0,
-      topResultsCount: topResults.length,
-      sceneCount,
-      detailCount,
+      propCount: propositionResults.length,
+      aggregateSceneCount: aggregateScenes.length,
+      directSceneCount: sceneResults.length,
     },
   });
 
-  // Build context from combined top results
-  const context = buildSearchContext(query, topResults, sceneCount, detailCount, topArc, timeline, narrative);
-
-  // Count unique scenes across top results
-  const uniqueScenes = new Set(topResults.map(r => r.sceneId)).size;
-
-  // Detect if this is a thematic pattern query or specific content query
-  const isThematicQuery = sceneCount > detailCount || uniqueScenes > topResults.length * 0.6;
-  const isLocalizedContent = uniqueScenes <= 3 && propCount > sceneCount;
-
-  // Create synthesis prompt - plain text with inline citations
   const prompt = `${context}
 
 You are a narrative analysis assistant. The user has searched for: "${query}"
 
-Based on the search results above, provide a concise 2-3 paragraph synthesis that directly answers the user's search query.
+**Retrieval architecture:** proposition-primary. The top ${propositionResults.length} propositions above are the primary evidence. The "aggregate scene membership" section shows the ${aggregateScenes.length} scene${aggregateScenes.length === 1 ? '' : 's'} those propositions come from — use them to locate propositions in narrative context. The "scene summaries" section (${sceneResults.length} entr${sceneResults.length === 1 ? 'y' : 'ies'}) is supplementary thematic context from direct summary matching.
 
-**Dual-Level Search Architecture:**
-The search retrieves from two pools (${sceneResults?.length ?? 0} scene summaries + ${detailResults?.length ?? 0} detail facts), then combines and sorts by similarity.
-Results shown: top ${topResults.length} by activation strength (${sceneCount} scenes + ${detailCount} details competing for mindshare).
-
-**Result Composition:**
-- Scene summaries: ${sceneCount} (high-level thematic context)
-- Detail facts: ${detailCount} (${beatCount} beats + ${propCount} propositions - specific moments)
-- Unique scenes represented: ${uniqueScenes} out of ${topResults.length} results
-${isThematicQuery ? '- Pattern detected: THEMATIC (results span multiple scenes, query is abstract)' : ''}
-${isLocalizedContent ? '- Pattern detected: LOCALIZED (results cluster in few scenes, query is specific)' : ''}
-
-**Guidelines:**
-- Intelligently balance high-level themes (scene summaries) AND specific details (propositions/beats) based on the query
-- Scene summaries provide thematic context across the narrative - use them to identify patterns
-- Detail facts ground claims with specific moments - use them for concrete evidence
-- Detect whether the user wants high-level thematic analysis or specific details, and bias accordingly
-- Only cite the most relevant results using inline citations like [1], [2], [3]
-- You don't need to reference every result—focus on the strongest matches
-- Write in a clear, informative style (similar to a Google AI Overview)
-${isThematicQuery ? '- This appears to be a thematic query - prioritize scene summaries to emphasize patterns ACROSS scenes' : ''}
-${isLocalizedContent ? '- This appears to be a specific content query - prioritize detail facts for concrete evidence' : ''}
-- If the query asks about patterns but results are localized, acknowledge that the content is concentrated
-- If the query asks for specific content but results are scattered, note which scenes are most relevant
-- Identify which arcs and scenes are most relevant
-- Note timeline patterns if applicable
+**Synthesis guidelines:**
+- Ground claims in propositions [1]–[${propositionResults.length}]. These are the specific, atomic facts.
+- Use aggregate scene summaries to place propositions — "this claim emerges in the scene where X happens" — without necessarily citing the scene separately.
+- Use direct scene-summary citations (numbered after the propositions) only when the thematic framing they provide isn't already captured by the propositions.
+- Cite the strongest matches with inline citations like [1], [3]; don't cite every result.
+- Write 2-3 paragraphs, Google AI Overview style: plain text, clear, informative.
+- Note timeline patterns where applicable; mention which arcs and scenes carry the weight.
+- If propositions cluster in a few scenes, say so (the content is localized). If they spread across many, say so (the pattern is thematic).
 
 Write your response as plain text with inline citations.`;
 
-  // Stream the synthesis as plain text
   let accumulatedText = '';
 
   try {
@@ -176,40 +190,30 @@ Write your response as plain text with inline citations.`;
       'You are a narrative analysis assistant. Provide concise, accurate synthesis of search results with inline citations.',
       (token) => {
         accumulatedText += token;
-        // Stream clean text to the UI
-        if (onToken) {
-          onToken(token);
-        }
+        if (onToken) onToken(token);
       },
-      2048, // maxTokens
-      'synthesizeSearchResults', // caller
-      ANALYSIS_MODEL, // model
-      undefined, // reasoningBudget
-      undefined, // onReasoning
-      0.3, // temperature
+      2048,
+      'synthesizeSearchResults',
+      ANALYSIS_MODEL,
+      undefined,
+      undefined,
+      0.3,
     );
 
-    // Extract citation numbers from the text using regex
     const citationMatches = accumulatedText.match(/\[(\d+)\]/g) || [];
-    const citationIds = Array.from(new Set(
-      citationMatches.map(match => parseInt(match.replace(/\[|\]/g, ''), 10))
-    )).sort((a, b) => a - b);
+    const citationIds = Array.from(
+      new Set(citationMatches.map((match) => parseInt(match.replace(/\[|\]/g, ''), 10))),
+    ).sort((a, b) => a - b);
 
-    // Map citation IDs to result metadata
     const citations = citationIds
-      .filter(id => id >= 1 && id <= topResults.length)
-      .map(id => {
-        const result = topResults[id - 1]; // Convert 1-indexed to 0-indexed
+      .filter((id) => id >= 1 && id <= citationIndex.length)
+      .map((id) => {
+        const result = citationIndex[id - 1];
         return {
           id,
           sceneId: result.sceneId,
-          type: (result.type === 'scene' ? 'scene'
-            : result.type === 'beat' ? 'beat'
-            : result.type === 'proposition' ? 'proposition'
-            : 'scene') as 'arc' | 'scene' | 'beat' | 'proposition',
-          title: result.content.length > 60
-            ? result.content.substring(0, 57) + '...'
-            : result.content,
+          type: result.type,
+          title: result.content.length > 60 ? result.content.substring(0, 57) + '...' : result.content,
           similarity: result.similarity,
         };
       });
@@ -226,11 +230,7 @@ Write your response as plain text with inline citations.`;
       },
     });
 
-    return {
-      overview,
-      citations,
-    };
-
+    return { overview, citations };
   } catch (error) {
     logError('Search synthesis failed', error, {
       source: 'search',
@@ -238,21 +238,15 @@ Write your response as plain text with inline citations.`;
       details: { query: query.substring(0, 100) },
     });
 
-    // Return fallback synthesis
+    const fallback = citationIndex[0];
     return {
-      overview: `Found ${topResults.length} results matching "${query}". ${
-        topArc
-          ? `The arc "${narrative.arcs[topArc.arcId]?.name}" shows the highest relevance. `
-          : ''
-      }${
-        topResults.length > 0
-          ? `Top match: ${topResults[0].content.substring(0, 100)}...`
-          : 'Try refining your search query.'
-      }`,
-      citations: topResults.slice(0, 3).map((result, idx) => ({
+      overview: `Found ${propositionResults.length} proposition${propositionResults.length === 1 ? '' : 's'} and ${sceneResults.length} scene summar${sceneResults.length === 1 ? 'y' : 'ies'} matching "${query}". ${
+        topArc ? `Arc "${narrative.arcs[topArc.arcId]?.name}" is most relevant. ` : ''
+      }${fallback ? `Top match: ${fallback.content.substring(0, 100)}...` : 'Try refining your search query.'}`,
+      citations: citationIndex.slice(0, 3).map((result, idx) => ({
         id: idx + 1,
         sceneId: result.sceneId,
-        type: result.type === 'scene' ? 'scene' : result.type === 'beat' ? 'beat' : 'proposition',
+        type: result.type,
         title: result.content.substring(0, 60),
         similarity: result.similarity,
       })),

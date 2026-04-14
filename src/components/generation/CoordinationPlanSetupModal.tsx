@@ -153,7 +153,7 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
   const [constraints, setConstraints] = useState("");
   const [arcTarget, setArcTarget] = useState(3);
   const [threadConfigs, setThreadConfigs] = useState<Record<string, ThreadConfig>>({});
-  const [forcePreference, setForcePreference] = useState<ForcePreference>("balanced");
+  const [forcePreference, setForcePreference] = useState<ForcePreference>("freeform");
   const [reasoningLevel, setReasoningLevel] = useState<ReasoningSize>("medium");
 
   // Generation state

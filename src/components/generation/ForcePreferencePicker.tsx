@@ -8,10 +8,15 @@ export const FORCE_PREFERENCE_META: Record<
   ForcePreference,
   { label: string; color: string; description: string }
 > = {
+  freeform: {
+    label: "Freeform",
+    color: "#f5f5f5",
+    description: "No bias. Full toolbox, LLM picks the mix.",
+  },
   balanced: {
     label: "Balanced",
     color: "#e5e7eb",
-    description: "Let the content decide. No single force is biased.",
+    description: "Explicit ~1/3 fate, ~1/3 world, ~1/3 system.",
   },
   fate: {
     label: "Fate",
@@ -36,6 +41,7 @@ export const FORCE_PREFERENCE_META: Record<
 };
 
 const PREFERENCE_ORDER: ForcePreference[] = [
+  "freeform",
   "balanced",
   "fate",
   "world",

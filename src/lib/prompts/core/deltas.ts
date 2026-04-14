@@ -11,7 +11,7 @@ FORMULAS: F = Σ √arcs × stageWeight × (1 + log(1 + investment)) | W = ΔN_c
 
 ALL NODE CONTENT: 15-25 words, PRESENT TENSE, specific and concrete.
 
-DENSITY TARGETS (21/25 at reference — fate 1.5, world 12, system 3):
+DENSITY TARGETS (21/25 at reference — fate 2.5, world 12, system 3):
   Breather:  0 transitions, 6-8 world, 0-1 system
   Typical:   0-1 transitions, 10-14 world, 2-4 system + edges
   Climactic: 1-2 transitions, 16-20+ world, 4-6 system + edges

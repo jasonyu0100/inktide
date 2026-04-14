@@ -145,7 +145,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [showReasoningModal, setShowReasoningModal] = useState(false);
   const [generatingGraph, setGeneratingGraph] = useState(false);
   // Arc reasoning options — force preference + reasoning effort
-  const [forcePreference, setForcePreference] = useState<ForcePreference>("balanced");
+  const [forcePreference, setForcePreference] = useState<ForcePreference>("freeform");
   const [reasoningSize, setReasoningSize] = useState<ReasoningSize>("medium");
 
   // Expansion reasoning graph state (for world expansion)

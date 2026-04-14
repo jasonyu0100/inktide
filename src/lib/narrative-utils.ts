@@ -693,10 +693,20 @@ export type EntityContext = {
 };
 
 /** Stage weight for thread lifecycle transitions.
- *  Pulses scale by lifecycle stage — maintaining a critical thread is more significant.
- *  Forward transitions earn progressively more. Resolution is weighted highest.
- *  Abandoned earns 0 — it's cleanup, moving threads to the done pile without contributing to fate.
- *  Escalating is the point of no return — active threads can still be forgotten, escalating must resolve.
+ *
+ *  Pulses scale by lifecycle stage — maintaining a critical thread is more
+ *  significant than holding a latent one.
+ *
+ *  Forward transitions earn the weight of their DESTINATION stage, so a
+ *  single-scene jump that genuinely crosses multiple phases (e.g. a scene
+ *  that both surfaces and commits a thread, latent→escalating) earns the
+ *  full 2.0 — not zero for falling through a table gap. This invariant
+ *  also keeps every forward transition strictly above the pulse at its
+ *  source stage (forward weight = target-stage weight ≥ 2× source pulse),
+ *  so advancement always out-earns holding.
+ *
+ *  Abandoned earns 0 — it's cleanup, moving threads to the done pile
+ *  without contributing to fate.
  *  Backward transitions and unrecognized statuses earn 0. */
 function getStageWeight(from: string, to: string): number {
   if (to === 'abandoned') return 0;  // cleanup, not resolution — no fate
@@ -713,15 +723,39 @@ function getStageWeight(from: string, to: string): number {
     return PULSE_WEIGHTS[from] ?? 0.25;
   }
 
+  // Forward transitions cover every legal stage-crossing path. Weight is
+  // determined by the destination stage — a multi-stage jump earns the
+  // same as a single-step arrival at the same stage.
   const key = `${from}->${to}`;
   const WEIGHTS: Record<string, number> = {
+    // → seeded
     'latent->seeded': 1.0,
+    // → active
+    'latent->active': 1.5,
     'seeded->active': 1.5,
-    'active->escalating': 2.0,    // point of no return — thread now committed
-    'escalating->critical': 3.0,  // peak tension approaches
-    'active->critical': 3.0,      // legacy direct jump (prefer escalating path)
-    'critical->resolved': 4.0,
-    'critical->subverted': 4.0,   // subverted = fate defied, same weight as resolved
+    // → escalating — point of no return; thread now committed
+    'latent->escalating': 2.0,
+    'seeded->escalating': 2.0,
+    'active->escalating': 2.0,
+    // → critical — peak tension approaches
+    'latent->critical': 3.0,
+    'seeded->critical': 3.0,
+    'active->critical': 3.0,
+    'escalating->critical': 3.0,
+    // → resolved / subverted — payoff. Worth 5.0 (vs critical at 3.0) so the
+    // denouement pops clearly above the escalating buildup (+67%, not +33%).
+    // Subverted matches resolved: fate defied terminates the thread just as
+    // decisively as fate fulfilled.
+    'latent->resolved': 5.0,
+    'seeded->resolved': 5.0,
+    'active->resolved': 5.0,
+    'escalating->resolved': 5.0,
+    'critical->resolved': 5.0,
+    'latent->subverted': 5.0,
+    'seeded->subverted': 5.0,
+    'active->subverted': 5.0,
+    'escalating->subverted': 5.0,
+    'critical->subverted': 5.0,
   };
   return WEIGHTS[key] ?? 0;
 }
@@ -731,8 +765,9 @@ function getStageWeight(from: string, to: string): number {
  *
  * F = Σ stageWeight(from, to)
  *
- * Simple sum of transition weights. Pulses (from === to) score 0.
- * Resolution weights more than setup (critical→resolved = 4.0, latent→seeded = 0.5).
+ * Pulses earn a small weight scaled by lifecycle stage (0.25–2.0);
+ * forward transitions earn the weight of their destination stage (1.0–4.0).
+ * Abandonment and backward moves score 0.
  */
 function computeRawFate(scene: Scene): number {
   let score = 0;
@@ -1503,9 +1538,13 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
 /** Reference means per force — the expected mean for a well-structured narrative.
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
- *  Originally calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
- *  Reference means: fate 1.5, world 12, system 3. */
-export const FORCE_REFERENCE_MEANS = { fate: 1.5, world: 12, system: 3 } as const;
+ *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
+ *  Reference means: fate 2.5, world 12, system 3. Fate bumped from the
+ *  original 1.5 after the stage-weight table was filled in for multi-stage
+ *  jumps and payoffs raised to 5.0 — HP Book 1 averages ~4.3 fate/scene under
+ *  the current weights, which grades 23/25 with headroom for fate-dominant
+ *  masterworks. */
+export const FORCE_REFERENCE_MEANS = { fate: 2.5, world: 12, system: 3 } as const;
 
 /** Per-scene density targets by archetype — what the LLM should aim for during generation.
  *  "High" forces use the opus-level reference; "low" forces use relaxed targets.

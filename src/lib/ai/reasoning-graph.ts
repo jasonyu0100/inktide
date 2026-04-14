@@ -236,8 +236,9 @@ import type { CoordinationPlanContext } from './scenes';
 
 export type ArcReasoningOptions = {
   /**
-   * Which force category to bias this arc toward. Default "balanced".
-   * When "chaos", chaos becomes the arc's primary creative engine.
+   * Which force category to bias this arc toward. Default "freeform"
+   * (no bias — LLM picks composition). "chaos" elevates chaos from
+   * sparing deus-ex-machina to the arc's primary creative engine.
    */
   forcePreference?: ForcePreference;
   /**
@@ -279,50 +280,142 @@ export function reasoningScale(
  */
 function forcePreferenceBlock(
   scope: "arc" | "plan",
-  pref: "balanced" | "fate" | "world" | "system" | "chaos" | undefined,
+  pref: ForcePreference | undefined,
 ): string {
-  if (!pref || pref === "balanced") return "";
-
   const scopeNoun = scope === "plan" ? "PLAN" : "ARC";
+  const scopeLower = scopeNoun.toLowerCase();
   const unit = scope === "plan" ? "plan's arcs" : "arc's scenes";
+
+  // Freeform: no bias, no composition targets. Just list the tools the LLM
+  // has available and let it pick whatever fits the prose. This is the
+  // default — it trusts the model's judgment over a prescribed quota.
+  if (!pref || pref === "freeform") {
+    return `
+## FORCE PREFERENCE: FREEFORM ${scopeNoun}
+
+No prescribed composition ratios. Compose the reasoning graph from whichever node types the ${scopeLower} genuinely needs — pick whatever best serves the prose. Use the full toolbox:
+
+- **fate** — a thread's gravitational pull toward a target status (references an existing threadId).
+- **character / location / artifact** — an existing entity whose world graph grows this ${scopeLower} (references an entityId).
+- **system** — a rule or principle; reuse existing SYS-XX ids where possible, or introduce a new rule that connects to one.
+- **chaos** — an outside-force creative node that authorises net-new entities or new threads the existing world couldn't have produced on its own.
+- **reasoning** — an explicit logical step linking other nodes.
+- **pattern / warning** — positive patterns to reinforce, anti-patterns to avoid.
+
+**A good mixture still matters for coherent reasoning.** A graph that's all one type tends to read as thin: all-fate lacks grounding, all-character lacks momentum, all-system lacks consequence. Aim for a reasoning chain where forces CAUSE each other — a system rule ENABLES a character choice that ADVANCES a fate thread. The mix isn't a quota; it's what makes the graph tell a story instead of listing facts. A scene-heavy reveal may still skew fate-heavy; a world-introduction may skew character-heavy — but each should touch other node types enough to stay causally connected.
+
+What matters most: every node earns its place via an edge into another node, and the graph as a whole shows cause crossing force boundaries at least a few times.
+`;
+  }
+
+  if (pref === "balanced") {
+    return `
+## FORCE PREFERENCE: BALANCED ${scopeNoun}
+
+**Three primary forces, co-equal: FATE, WORLD, SYSTEM.** Compose the reasoning graph so these three share the spotlight roughly equally — aim for ~1/3 of type-significant nodes in each. A balanced ${scopeLower} is one where no single force carries the plot alone: threads advance (fate), entities change (world), and the setting's rules matter (system), all within the same causal chain.
+
+**Composition targets** (type-significant nodes, excluding \`reasoning\`/\`pattern\`/\`warning\`):
+- ~30% **fate** nodes — each references an existing threadId and the status it's pushing toward.
+- ~30% **character/location/artifact** nodes — each references an existing entityId whose world graph grows this ${scopeLower}.
+- ~30% **system** nodes — each REUSES an existing system concept id or explicitly extends one, and is used by at least one downstream reasoning/fate step.
+
+**Chaos is secondary / fallback (~10%).** Chaos is not a primary in balanced mode; it is the relief valve used when the three primary forces genuinely cannot carry a beat on their own (a real outside-force moment), not filler. Chaos here is the exception, not a target.
+
+**Signals you got the balance right**: every arc/scene has ≥1 node per primary force; no primary has more than 2× the nodes of any other primary; chaos appears only where the existing fabric cannot generate the beat.
+`;
+  }
 
   if (pref === "fate") {
     return `
 ## FORCE PREFERENCE: FATE-DOMINANT ${scopeNoun}
 
-Drive the ${scopeNoun.toLowerCase()} through **the threads of fate** — the existing tensions pulling the story toward resolution. Plot moves because threads demand it: they escalate, converge, resolve, or subvert. Favour fate nodes and peak/valley anchors that carry thread progressions (threadId + targetStatus). The ${unit} should feel like inevitability unfolding — every beat answers to an existing thread. Avoid leaning on new entities or deep world mechanics; this is a plot driven by what's already been set in motion.
+**Primary force: FATE.** The ${scopeLower} is driven by the existing threads of fate — the tensions already pulling the story toward resolution. Plot moves because threads demand it: they escalate, converge, resolve, or subvert.
+
+**Primary must be distinctly dominant**:
+- Fate nodes are the majority (~50% of type-significant nodes) and clearly out-number every other force. If character or system node counts approach fate's count, the preference isn't being honoured.
+- Read the active thread list and each thread's recent log entries. Every fate node must reference an existing threadId and the exact targetStatus it advances toward.
+- Favour threads already at \`escalating\` or \`critical\` — these have momentum you can convert. Don't open new threads here (that's chaos).
+- Peak and valley anchors should BE thread transitions: a peak is a critical→resolved moment on a load-bearing thread; a valley is an escalating pulse that refuses to break.
+
+**Secondary and complementary forces welcome** (fate needs something to act on):
+- ~20% character as thread-carriers — the people whose choices move the thread.
+- ~10% system for the constraints that make resolution hard.
+- ~5% chaos sparingly when a thread needs an outside push to crack open.
+- Rest: reasoning/pattern/warning.
+
+The ${unit} should feel like inevitability unfolding — every beat answers to an existing thread, and the supporting forces exist to give fate something to push against.
 `;
   }
   if (pref === "world") {
     return `
 ## FORCE PREFERENCE: WORLD-DOMINANT ${scopeNoun}
 
-Drive the ${scopeNoun.toLowerCase()} through **character and relationship development** — inner change, shifting bonds, locations accruing meaning, artifacts gaining history. Plot moves because people (and places, and objects) change: someone learns something, a rivalry deepens, a trust breaks. Favour character/location/artifact nodes and let their interactions generate momentum. The ${unit} should deepen who and what already exists rather than resolve threads or teach the reader new rules — character is the engine here.
+**Primary force: WORLD (character / location / artifact).** The ${scopeLower} is driven by inner change, shifting bonds, places accruing meaning, objects gaining history.
+
+**Primary must be distinctly dominant**:
+- Character/location/artifact nodes are the majority (~50% of type-significant nodes) and clearly out-number every other force. If fate or system counts approach world's count, the preference isn't being honoured.
+- For each world node, reference an existing entityId and identify which of its existing world graph nodes (trait, history, capability, etc.) this beat extends or contradicts. Plot moves because the entity changes in a way rooted in what it already was.
+- Favour entities with rich existing world graphs — more material to riff on, more opportunities for contradiction or deepening. A thin-graph entity should only anchor a beat if that beat is the scene where its graph grows substantially.
+- Relationship deltas, POV-character world deltas, and location-tied transformations are the core currency.
+
+**Secondary and complementary forces welcome** (character needs stakes and context):
+- ~20% fate as consequence of character change — the thread moves BECAUSE someone changed.
+- ~10% system for the constraints that force the change.
+- ~5% chaos sparingly when an outside event is the catalyst.
+- Rest: reasoning/pattern/warning.
+
+The ${unit} should deepen who and what already exists — character is the engine, the other forces are the track it runs on.
 `;
   }
   if (pref === "system") {
     return `
 ## FORCE PREFERENCE: SYSTEM-DOMINANT ${scopeNoun}
 
-Drive the ${scopeNoun.toLowerCase()} through **world mechanics and lore** — rules, constraints, principles, tensions in how the world works. Plot moves because the world's physics push back: a magic system has limits the cast discovers, an economy rewards certain behaviour, a hierarchy forces compromises. Favour system nodes and reasoning that turns on HOW the world works. The ${unit} should surface, test, or exploit the mechanics of the setting — the reader learns the world as the cast does.
+**Primary force: SYSTEM.** The ${scopeLower} is driven by world mechanics and lore — rules, constraints, principles, tensions in how the world works.
+
+**Primary must be distinctly dominant**:
+- System nodes are the majority (~50% of type-significant nodes) and clearly out-number every other force. If character or fate counts approach system's count, the preference isn't being honoured.
+- Each system node must either (a) REUSE an existing system concept id (cite it by SYS-XX) and extend it with a new edge or implication, or (b) introduce a genuinely new rule that connects to at least one existing concept. Free-floating lore dumps are a failure mode.
+- Downstream nodes (fate, character, reasoning) should DEPEND on system nodes — the \`requires\` / \`enables\` / \`constrains\` edges should point from system to consequences. If a system node has no outgoing edge, it wasn't used.
+- Read the existing cumulative system graph first; the ${scopeLower} should test, stress, or exploit principles already established, not ignore them.
+
+**Secondary and complementary forces welcome** (system needs something to act on):
+- ~20% character as system-testers — the cast discovering what the rules mean.
+- ~10% fate as system-driven consequence — the thread moves BECAUSE the rule said so.
+- ~5% chaos sparingly when a new rule shakes loose from outside.
+- Rest: reasoning/pattern/warning.
+
+The ${unit} should surface, test, or exploit the mechanics of the setting — the reader learns the world as the cast does.
 `;
   }
   if (pref === "chaos") {
     return `
 ## FORCE PREFERENCE: CHAOS-DOMINANT ${scopeNoun}
 
-Drive the ${scopeNoun.toLowerCase()} through **chaos — the outside-force creative engine**. Chaos operates OUTSIDE the existing fabric of fate, world, and system: it brings new problems, new solutions, new characters, new locations, new artifacts, and — crucially — **new fates** (new threads) that didn't exist before. Chaos is how a plot stays unpredictable, how a world expands, how a story surprises. It is not randomness; each chaos injection must CAUSE something the existing world could not have produced on its own.
+**Primary force: CHAOS.** The ${scopeLower} is driven by the outside-force creative engine. Chaos is the one force that is fundamentally generative: it operates OUTSIDE the existing fabric of fate, world, and system and brings new problems, new solutions, new entities, and — crucially — **new fates** (new threads) that didn't exist before.
 
-**What chaos does in this mode**:
-- Injects problems the cast cannot anticipate (a troll in the dungeon, an ambush from elsewhere, a plague arriving).
-- Injects solutions the cast did not build (a stranger with answers, a dormant artefact waking, a forgotten ally surfacing).
-- **Seeds new fate** — opens threads that didn't exist. Chaos sits outside fate, but it SHAPES fate by creating fresh strands that later arcs develop and resolve.
+**Chaos is NOT driven by fate.** Chaos does not serve existing threads. Chaos does not wait for a thread to need something. Chaos acts on its own terms, and fate reacts TO chaos by absorbing what chaos creates. A chaos node that exists only to satisfy an existing thread is a chaos-flavoured fate node, not chaos. When in doubt: chaos SEEDS new fate (opens brand-new threads); it does not FULFIL old fate.
 
-**Behaviour in this ${scopeNoun.toLowerCase()}**:
+**Primary must be distinctly dominant**:
+- Chaos nodes are the majority (~40% of type-significant nodes) and clearly out-number every other force. If fate or character counts approach chaos's count, the preference isn't being honoured.
+- Chaos is not randomness: each chaos node must CAUSE something the existing world could not have produced on its own.
+- Injects problems the cast cannot anticipate (a troll in the dungeon, an ambush, a plague, a cancelled funding round).
+- Injects solutions the cast did not build (a stranger with answers, a dormant artefact waking, a forgotten ally surfacing, a found manuscript).
+- **Introduces net-new entities** — new characters, locations, or artifacts the existing world didn't contain. Each chaos node should authorise a spawn with a name and a reason to exist.
+- **Seeds new fate** — opens threads that didn't exist. The new thread BECOMES a fate strand after chaos plants it, but its parent is chaos, not an existing arc.
+
+**Secondary and complementary forces welcome** (chaos needs a world to disturb, not a world to serve):
+- ~20% character as the cast caught in the wake of chaos — how they react, adapt, or fail.
+- ~15% fate nodes that represent NEW threads chaos has just opened (not existing threads chaos is servicing).
+- ~10% system nodes for new rules the chaos event reveals about how the world works.
+- Rest: reasoning/pattern/warning.
+
+Every chaos node should root downstream into something — a new entity, a reaction in the cast, a new rule exposed, a new thread opened. Root edges point FROM chaos INTO the world, not the other way around. Chaos never has incoming \`requires\` edges from existing fate/system — that would mean fate or system summoned it, which is a contradiction.
+
+**Behaviour in this ${scopeLower}**:
 ${scope === "plan"
-  ? "- Expect several chaos-dominant arcs across the plan (HP's troll arc, HP's Norbert arc). Roughly 25-40% of arcs should be anchored on chaos.\n- Seed 5-10 chaos nodes across the plan.\n- Let chaos open new threads that become part of the plan's trajectory — a new fate strand introduced in arc 2 might resolve in arc 5."
+  ? "- Expect several chaos-dominant arcs across the plan (HP's troll arc, HP's Norbert arc). Roughly 25-40% of arcs should be anchored on chaos.\n- Seed 5-10 chaos nodes across the plan.\n- Let chaos open new threads that become part of the plan's trajectory — a new fate strand introduced in arc 2 might resolve in arc 5, but it exists BECAUSE chaos put it there."
   : "- Build the arc around 3-5 chaos nodes rather than the default 1-2.\n- The arc's peak or valley may itself be chaos-anchored (its prime mover is outside the current world).\n- A chaos node can inject a new thread that becomes part of this arc's causal chain and carries into future arcs."}
-- Mix chaos with the existing cast — chaos CREATES room for character/system/fate development; it doesn't replace them. The troll-in-the-dungeon arc matters because it forges Harry, Ron, and Hermione's friendship: the chaos event opens character development the fate threads couldn't reach on their own.
 `;
   }
   return "";
@@ -1069,14 +1162,17 @@ export type ThreadTarget = {
 
 /**
  * Force preference for a generation. Biases the LLM toward a particular
- * force category as the arc/plan's prime mover. Default is "balanced".
- *  - balanced: let the content decide — no bias
+ * force category as the arc/plan's prime mover. Default is "freeform".
+ *  - freeform: no bias — every node type is on the table and the LLM picks
+ *              composition purely from what the prose needs (DEFAULT)
+ *  - balanced: explicit ~1/3 fate, ~1/3 world, ~1/3 system, chaos as fallback
  *  - fate: favour thread-driven arcs (internal pressure, resolutions)
  *  - world: favour entity-driven arcs (character/location/artifact development)
  *  - system: favour mechanic-driven arcs (world rules, constraints, physics)
  *  - chaos: favour outside-force arcs (new entities / new fates via chaos)
  */
 export type ForcePreference =
+  | "freeform"
   | "balanced"
   | "fate"
   | "world"
@@ -1094,9 +1190,9 @@ export type PlanGuidance = {
   /** Constraints — what must NOT happen, restrictions on the narrative */
   constraints?: string;
   /**
-   * Which force category to bias the plan toward. Default "balanced".
-   * When "chaos", chaos is elevated from sparingly-used deus-ex-machina
-   * to a primary creative engine driving the story through novelty.
+   * Which force category to bias the plan toward. Default "freeform"
+   * (no bias — LLM picks composition). "chaos" elevates chaos from
+   * sparing deus-ex-machina to a primary creative engine.
    */
   forcePreference?: ForcePreference;
   /**

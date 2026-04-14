@@ -397,6 +397,96 @@ describe("computeRawForceTotals", () => {
     expect(result.fate[0]).toBe(1.0); // latent→seeded = 1.0 weight
   });
 });
+
+// ── Fate weight invariants ──────────────────────────────────────────────────
+// The stage-weight table is the spine of the Fate formula. Every legal
+// forward transition must earn nonzero fate — if the table has a gap, the
+// LLM's valid multi-stage jumps (e.g. latent→escalating in a scene that
+// both surfaces and commits a thread) silently contribute zero and the
+// fate curve flattens. These invariants lock the table shape so future
+// edits can't accidentally reintroduce gaps or let holding out-earn
+// advancement.
+describe("fate weight invariants", () => {
+  const STAGES = ['latent', 'seeded', 'active', 'escalating', 'critical'] as const;
+  const STAGE_INDEX: Record<string, number> = {
+    latent: 0, seeded: 1, active: 2, escalating: 3, critical: 4,
+    resolved: 5, subverted: 5,
+  };
+  const fate = (from: string, to: string) =>
+    computeRawForceTotals([
+      createScene({
+        threadDeltas: [{ threadId: 'T-01', from: from as Scene['threadDeltas'][0]['from'], to: to as Scene['threadDeltas'][0]['to'], addedNodes: [] }],
+      }),
+    ]).fate[0];
+
+  it("every forward transition earns nonzero fate", () => {
+    const gaps: string[] = [];
+    const terminals = ['resolved', 'subverted'] as const;
+    for (const from of STAGES) {
+      for (const to of [...STAGES, ...terminals]) {
+        if (STAGE_INDEX[to] > STAGE_INDEX[from]) {
+          if (fate(from, to) === 0) gaps.push(`${from}->${to}`);
+        }
+      }
+    }
+    expect(gaps).toEqual([]);
+  });
+
+  it("forward transitions earn the weight of their destination stage", () => {
+    // A multi-stage jump earns the same as a single-step arrival at the
+    // same stage — the LLM shouldn't be penalised for compressing stages
+    // into one scene when the prose genuinely earns it.
+    const DEST_WEIGHT: Record<string, number> = {
+      seeded: 1.0, active: 1.5, escalating: 2.0, critical: 3.0,
+      resolved: 5.0, subverted: 5.0,
+    };
+    const violations: string[] = [];
+    for (const from of STAGES) {
+      for (const [to, expected] of Object.entries(DEST_WEIGHT)) {
+        if (STAGE_INDEX[to] <= STAGE_INDEX[from]) continue;
+        const w = fate(from, to);
+        if (w !== expected) violations.push(`${from}->${to}: ${w} (expected ${expected})`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("advancement always out-earns holding at the same stage", () => {
+    // Every forward transition from stage S must earn strictly more than
+    // a pulse at stage S — otherwise the LLM can farm fate by coasting.
+    const violations: string[] = [];
+    const terminals = ['resolved', 'subverted'] as const;
+    for (const from of STAGES) {
+      const pulse = fate(from, from);
+      for (const to of [...STAGES, ...terminals]) {
+        if (STAGE_INDEX[to] > STAGE_INDEX[from]) {
+          const forward = fate(from, to);
+          if (forward <= pulse) violations.push(`${from}->${to} (${forward}) ≤ pulse@${from} (${pulse})`);
+        }
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("abandonment earns zero fate (cleanup, not resolution)", () => {
+    for (const from of STAGES) {
+      expect(fate(from, 'abandoned')).toBe(0);
+    }
+  });
+
+  it("backward transitions earn zero fate (regression is not fate)", () => {
+    expect(fate('escalating', 'active')).toBe(0);
+    expect(fate('critical', 'active')).toBe(0);
+    expect(fate('resolved', 'escalating')).toBe(0);
+  });
+
+  it("pulses are monotonically non-decreasing by stage", () => {
+    const pulses = STAGES.map((s) => fate(s, s));
+    for (let i = 1; i < pulses.length; i++) {
+      expect(pulses[i]).toBeGreaterThanOrEqual(pulses[i - 1]);
+    }
+  });
+});
 // ── Moving Average ───────────────────────────────────────────────────────────
 describe("movingAverage", () => {
   it("returns same array for window size 1", () => {
@@ -583,7 +673,7 @@ describe("gradeForce", () => {
 describe("gradeForces", () => {
   it("returns grades for each force and overall", () => {
     const grades = gradeForces(
-      [1.5, 1.5], // fate at reference
+      [2.5, 2.5], // fate at reference
       [7, 7], // world at reference
       [4, 4], // system at reference
       [1, 1], // swing

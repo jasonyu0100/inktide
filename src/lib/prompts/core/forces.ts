@@ -3,7 +3,7 @@
  *
  * Reference means aligned to grading formulas. When updating, check
  * src/lib/narrative-utils.ts FORCE_REFERENCE_MEANS to keep in sync.
- * Reference means: { fate: 1.5, world: 12, system: 3 }
+ * Reference means: { fate: 2.5, world: 12, system: 3 }
  */
 
 /** Force standards prompt using reference mean levels */
@@ -12,7 +12,7 @@ THE THREE FORCES — computed from deltas, normalised by reference mean, graded 
 
 FATE — threads pulling toward resolution. Low fate = high friction (problems resist, solutions have costs, claims need defending). High fate = text cooperates (threads resolve when pushed).
   F = Σ √arcs × stageWeight × (1 + log(1 + investment)). Sustained threads earn superlinearly.
-  Target: ~1.5 per scene. Don't manufacture resolutions, deus ex machina, or premature conclusions to hit numbers.
+  Target: ~2.5 per scene. Don't manufacture resolutions, deus ex machina, or premature conclusions to hit numbers.
 
 WORLD — entity transformation. In fiction: characters, locations, artifacts change. In non-fiction: ideas, institutions, methods, datasets accrue history and take on new properties.
   W = ΔN_c + √ΔE_c. Continuity nodes mark lasting changes: traits, beliefs, capabilities, wounds (fiction); refinements, qualifications, demonstrated properties (non-fiction).

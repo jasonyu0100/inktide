@@ -28,7 +28,7 @@ SCENE PROSE:
 ${prose}${beatSection}
 
 FORCE FORMULAS — your extractions are the direct inputs:
-- FATE = Σ √arcs × stageWeight × (1 + log(1 + investment)) (thread commitment toward resolution). Ref: ~1.5/scene.
+- FATE = Σ √arcs × stageWeight × (1 + log(1 + investment)) (thread commitment toward resolution). Ref: ~2.5/scene.
 - WORLD = ΔN_c + √ΔE_c (entity transformation — what we learn about characters, locations, artifacts). Ref: ~12/scene.
 - SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~3/scene.
 

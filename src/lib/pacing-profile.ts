@@ -284,7 +284,7 @@ export function initMatrixPresets(
 
 /**
  * Force target ranges per cube corner.
- * High = above reference mean (fate 1.5, world 12, system 3), Low = below or near zero.
+ * High = above reference mean (fate 2.5, world 12, system 3), Low = below or near zero.
  * Ranges are [min, max] raw force values to guide generation.
  * "High" anchors above reference (dominance territory); "Low" stays near the floor
  * so the LLM produces real contrast instead of hugging the mean.
@@ -294,21 +294,21 @@ const FORCE_TARGETS: Record<
   { fate: [number, number]; world: [number, number]; system: [number, number] }
 > = {
   // Epoch: everything high
-  HHH: { fate: [1.5, 4], world: [12, 20], system: [3, 8] },
+  HHH: { fate: [2.5, 6], world: [12, 20], system: [3, 8] },
   // Climax: high fate + world, low system
-  HHL: { fate: [1.5, 4], world: [12, 20], system: [0, 2] },
+  HHL: { fate: [2.5, 6], world: [12, 20], system: [0, 2] },
   // Revelation: high fate + system, low world
-  HLH: { fate: [1.5, 4], world: [0, 6], system: [3, 8] },
+  HLH: { fate: [2.5, 6], world: [0, 6], system: [3, 8] },
   // Closure: high fate, low world + system
-  HLL: { fate: [1.5, 4], world: [0, 6], system: [0, 2] },
+  HLL: { fate: [2.5, 6], world: [0, 6], system: [0, 2] },
   // Discovery: high world + system, low fate
-  LHH: { fate: [0, 1], world: [12, 20], system: [3, 8] },
+  LHH: { fate: [0, 1.5], world: [12, 20], system: [3, 8] },
   // Growth: high world, low fate + system
-  LHL: { fate: [0, 1], world: [12, 20], system: [0, 2] },
+  LHL: { fate: [0, 1.5], world: [12, 20], system: [0, 2] },
   // Lore: high system, low fate + world
-  LLH: { fate: [0, 1], world: [0, 6], system: [3, 8] },
+  LLH: { fate: [0, 1.5], world: [0, 6], system: [3, 8] },
   // Rest: everything low
-  LLL: { fate: [0, 1], world: [0, 6], system: [0, 2] },
+  LLL: { fate: [0, 1.5], world: [0, 6], system: [0, 2] },
 };
 
 // ── Pacing Presets ───────────────────────────────────────────────────────────

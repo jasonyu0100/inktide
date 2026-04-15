@@ -453,11 +453,31 @@ consequences. You generate EXPLANATIONS. Every fate node is treated
 as already TRUE — the only question is what prior setup makes it
 feel inevitable given what currently exists.
 
-Failure mode to guard against: abduction can degenerate into post-hoc
-rationalisation ("it happened because it was meant to"). Guard
-against this by generating COMPETING hypotheses (at least 2–3 per
-fate node) and scoring them explicitly before selecting one. An
-explanation that doesn't survive comparison is not an explanation.
+ANCHOR DISCIPLINE (CRITICAL — abductive chains silently drift
+deductive mid-chain if you don't enforce this):
+
+At every new node, your reference point is the FATE TERMINAL, not
+the previously generated node. Ask "WHAT EXPLAINS THE FATE?" — NOT
+"what follows from the last node I generated?"
+
+The failure mode: you correctly generate node N-1 by reasoning back
+from the terminal, but then you generate N-2 by reasoning FORWARD
+from N-1. The chain starts abductive and silently converts to
+deductive halfway through. The terminal stops anchoring anything.
+The result looks like an explanation but is actually a forward
+derivation dressed as one.
+
+Every time you add a node, ask yourself: does this new node still
+directly help explain the TERMINAL FATE, or has it become a
+consequence of the last prior I wrote? If the latter, discard it
+and reanchor to the fate.
+
+Failure mode (separate, also to guard against): abduction can
+degenerate into post-hoc rationalisation ("it happened because it
+was meant to"). Guard against this by generating COMPETING
+hypotheses (at least 2–3 per fate node) and scoring them explicitly
+before selecting one. An explanation that doesn't survive comparison
+is not an explanation.
 
 THE ABDUCTIVE PROCEDURE (apply to every fate node):
 
@@ -566,12 +586,27 @@ reasons backward to the SHARED principle or structural pattern
 underlying them. Abduction explains one outcome with a specific
 prior; induction explains several outcomes with a general rule.
 
-Failure mode to guard against: induction locks onto the first
-coherent pattern and stops exploring. Once a principle "fits"
-several observations, it becomes attractive to stop — but the same
-evidence often supports multiple patterns. Hold at least one
-alternative pattern in the graph as a minor branch, so the
-induction isn't premature.
+ANCHOR DISCIPLINE (CRITICAL — inductive chains silently drift
+deductive once a principle is sketched):
+
+At every new node, your reference point is the OBSERVATION CLUSTER,
+not the last principle you sketched. Ask "DOES THIS ACCOUNT FOR THE
+OBSERVATIONS?" — NOT "what follows from the principle I just wrote?"
+
+The failure mode: you correctly sketch a principle that fits the
+first observations, then you start deriving new principle nodes as
+logical consequences of the first. The chain starts inductive and
+silently converts to deductive — you stop generalising from evidence
+and start extending a theoretical frame. Every principle node must
+earn its place by explaining observations, not by extending another
+principle.
+
+Failure mode (separate, also to guard against): induction locks
+onto the first coherent pattern and stops exploring. Once a
+principle "fits" several observations, it becomes attractive to
+stop — but the same evidence often supports multiple patterns.
+Hold at least one alternative pattern in the graph as a minor
+branch, so the induction isn't premature.
 
 HOW TO THINK ABOUT THE GRAPH:
 

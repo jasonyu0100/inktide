@@ -1194,8 +1194,6 @@ export type StorySettings = {
   proseVoice: string;
   /** Guidance for how scene plans should be structured */
   planGuidance: string;
-  /** How many recent scenes the LLM sees when building context (time horizon) */
-  branchTimeHorizon: number;
   /** Optional custom prompt for cover image generation */
   coverPrompt: string;
   /** World focus mode — which world commit to seed generations with */
@@ -1231,8 +1229,6 @@ export type StorySettings = {
   planExtractionSource: PlanExtractionSource;
 };
 
-export const BRANCH_TIME_HORIZON_OPTIONS = [25, 50, 100, 200] as const;
-
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
   povMode: "free",
   povCharacterIds: [],
@@ -1242,7 +1238,6 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   rhythmPreset: "",
   proseVoice: "",
   planGuidance: "",
-  branchTimeHorizon: 50,
   coverPrompt: "",
   worldFocus: "none",
   narrativeGuidance: "",

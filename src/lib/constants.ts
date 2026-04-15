@@ -192,8 +192,7 @@ export const ENTITY_LOG_CONTEXT_LIMIT = 25;
 // distance from the current scene:
 //   Near  (0 .. NEAR_RECENCY_ZONE)                 → full delta detail
 //   Mid   (NEAR .. NEAR + MID)                     → summary + thread transitions + movements
-//   Far   (NEAR + MID .. branchTimeHorizon)        → summary + POV/location only
-//   Beyond (outside horizon)                       → arc-level recap (one line per omitted arc)
+//   Far   (beyond NEAR + MID)                      → summary + POV/location only
 
 /** Most recent scenes rendered with full delta detail. */
 export const NEAR_RECENCY_ZONE = 5;

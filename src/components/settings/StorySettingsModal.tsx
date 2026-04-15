@@ -6,7 +6,7 @@ import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { useStore } from '@/lib/store';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 import type { StorySettings, POVMode, WorldFocusMode, ReasoningLevel, NarrativeState, ProseFormat, PlanExtractionSource } from '@/types/narrative';
-import { DEFAULT_STORY_SETTINGS, BRANCH_TIME_HORIZON_OPTIONS, REASONING_BUDGETS } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS } from '@/types/narrative';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import type { CubeCornerKey } from '@/types/narrative';
 import { MATRIX_PRESETS, STORYTELLER_PRESET, computeMatrixFromNarrative, type TransitionMatrix } from '@/lib/pacing-profile';
@@ -96,31 +96,6 @@ function AdvancedSection({ settings, update, narrative, resolvedEntryKeys }: {
                 </div>
               );
             })()}
-          </div>
-
-          {/* Branch Time Horizon */}
-          <div>
-            <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-              Branch Time Horizon
-            </label>
-            <div className="space-y-1.5">
-              {BRANCH_TIME_HORIZON_OPTIONS.map((v) => (
-                <button
-                  key={v}
-                  onClick={() => update({ branchTimeHorizon: v })}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
-                    settings.branchTimeHorizon === v
-                      ? 'border-blue-500/50 bg-blue-500/10'
-                      : 'border-white/5 bg-white/2 hover:bg-white/5'
-                  }`}
-                >
-                  <span className="text-[11px] font-semibold text-text-primary">{v} scenes</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-[9px] text-text-dim/50 mt-2">
-              How many recent scenes the AI sees when generating. Lower values reduce cost and keep focus tight. Higher values give the AI more narrative history to draw from.
-            </p>
           </div>
 
           {/* Prose Format */}

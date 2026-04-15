@@ -1486,7 +1486,24 @@ Example structure for a 3-beat scene:
 [Prose for beat 2...]
 
 MECHANISMS define delivery mode:
-- dialogue → quoted speech between characters
+- dialogue → a substantive EXCHANGE of quoted speech between characters. A dialogue beat is NOT a single line with a tag. Unfold it: at least 3–5 turns, distinct voices, subtext (what is NOT said), interruptions or silences that carry weight, non-verbal business (glances, gestures, pauses) interleaved between lines. Dialogue carries the bulk of the beat's word budget. A "dialogue" beat that resolves in one or two quoted sentences has failed the mechanism — either expand it into a real conversation or switch the mechanism. In dramatic registers, dialogue is where character and conflict live; treat it accordingly.
+
+  WORKED EXAMPLE — beat: "Shen Lin confronts Meng Song about the missing ledger"
+
+  FAILURE (one-line exchange, mechanism collapsed):
+    Shen Lin demanded to know where the ledger was. "Don't play dumb," he said. Meng Song shrugged. "I have no idea what you're talking about."
+
+  SUCCESS (multi-turn exchange, subtext, non-verbal business, distinct voices):
+    "The ledger." Shen Lin didn't sit. He set his palms flat on the table, as though the wood might lie if he didn't hold it down. "The one from the eastern storehouse."
+    Meng Song looked up from his tea. "You'll have to be more specific. I've signed off on four ledgers this week."
+    "You know which one."
+    "I know which one you've been losing sleep over." Meng Song tilted the cup, watched a leaf fold in on itself. "That's a different question."
+    Silence. Outside, a guard's footfall receded down the corridor, then returned, paused, moved on.
+    "If the inspector finds discrepancies —"
+    "He won't." Meng Song set the cup down. His fingers were steady. "Because the ledger he sees will be the correct one." A small, almost fond smile. "I thought you trusted me, Shen Lin."
+    Shen Lin's palms left marks on the wood. He didn't answer. He didn't need to.
+
+  Notice the elements: each character has a distinct cadence (Shen Lin clipped, Meng Song elliptical); the subtext (accusation, evasion, power inversion) is carried by what is implied rather than stated; the non-verbal business (palms on table, the tea leaf, the footsteps outside, the withheld answer) does as much work as the quoted lines; the silence at the midpoint is a turn. THIS is a dialogue beat. Aim for this level of density and texture whenever dialogue is the declared mechanism — adapted, of course, to the prose profile's register and voice.
 - thought → internal monologue, POV character's private reasoning
 - action → physical movement, gesture, interaction with objects
 - environment → setting, weather, sensory details of the space

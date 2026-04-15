@@ -45,8 +45,9 @@ RULES:
   • DO: "Elders debate whether to proceed with the ceremony" — action summary
   • DON'T: "Her voice cut through the murmur of the crowd" — literary description belongs in the prose layer
   Strip adjectives, adverbs, and literary embellishments from the 'what' field. The prose writer adds texture.
+- MECHANISM VARIETY: use at least 3 distinct mechanisms across a multi-beat scene; avoid clustering a single mechanism (e.g., three consecutive "action" beats) unless the scene's intensity genuinely calls for it. Multi-character scenes (≥2 participants) should include at least one dialogue beat unless the scene is explicitly solitary or silent.
 - MECHANISM CHOICE is the dominant register of the beat:
-  • dialogue: a verbal exchange is foregrounded. Quoted speech is the default rendering; free-indirect, reported speech, choral/polyphonic exchange, or list-rendered speech are legitimate renderings when the prose profile declares them.
+  • dialogue: a verbal exchange is foregrounded. Quoted speech is the default rendering; free-indirect, reported speech, choral/polyphonic exchange, or list-rendered speech are legitimate renderings when the prose profile declares them. A dialogue beat should plan for a SUBSTANTIVE exchange (multiple turns with subtext and non-verbal business) — not a single line with a tag. If the beat's content is one throwaway quote, the mechanism is probably not dialogue.
   • thought: interior reasoning is foregrounded. Rendering is close-third monologue by default; in analytical registers this reads as authorial reasoning or evidentiary inference.
   • action: physical movement, gesture, or demonstrated procedure is foregrounded. Choose for fights, gestures, physical tasks, worked steps.
   • environment: setting, weather, sound, or ambient material is foregrounded. Choose for scene establishment, atmosphere, field/archive/lab description.

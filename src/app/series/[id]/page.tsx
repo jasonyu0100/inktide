@@ -227,7 +227,6 @@ export default function SeriesPage() {
                 onOpenSettings={() => setAutoSettingsOpen(true)}
                 onOpenLog={() => setAutoLogOpen(true)}
                 hasCoordinationPlan={coordinationPlanRef.current.hasPlan}
-                useArcReasoning={state.autoConfig.useArcReasoning}
               />
             )}
 

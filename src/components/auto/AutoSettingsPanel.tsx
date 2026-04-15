@@ -204,35 +204,6 @@ export function AutoSettingsPanel({ onClose, onStart }: { onClose: () => void; o
                 onDirectionChange={(v) => update({ direction: v })}
                 onConstraintsChange={(v) => update({ narrativeConstraints: v })}
               />
-
-              {/* Arc Reasoning Toggle */}
-              <div className="pt-3 border-t border-white/5">
-                <label className="flex items-center justify-between cursor-pointer group">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs text-text-secondary group-hover:text-text-primary transition-colors">
-                      Arc Reasoning
-                    </span>
-                    <span className="text-[10px] text-text-dim leading-relaxed">
-                      {config.useArcReasoning !== false
-                        ? "Uses reasoning graphs for deeper narrative planning"
-                        : "Direct generation for faster output"}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => update({ useArcReasoning: config.useArcReasoning === false })}
-                    className={`relative w-9 h-5 rounded-full transition-colors ${
-                      config.useArcReasoning !== false ? 'bg-sky-500' : 'bg-white/10'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                        config.useArcReasoning !== false ? 'translate-x-4' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </label>
-              </div>
             </>
           )}
         </div>

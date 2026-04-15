@@ -786,28 +786,6 @@ export function getArcSceneCount(plan: CoordinationPlan, arcIndex: number, defau
 }
 
 /**
- * Build a simplified directive for fast generation (no detailed reasoning).
- * Used when useArcReasoning is false.
- */
-export function buildSimplePlanDirective(
-  plan: CoordinationPlan,
-  arcIndex: number,
-): string {
-  const arcNode = getArcNode(plan, arcIndex);
-  const lines: string[] = [];
-
-  lines.push(`Arc ${arcIndex} of ${plan.arcCount}`);
-  if (arcNode) {
-    lines.push(`Focus: ${arcNode.label}`);
-    if (arcNode.forceMode) {
-      lines.push(`Mode: ${arcNode.forceMode}`);
-    }
-  }
-
-  return lines.join("\n");
-}
-
-/**
  * Check if the coordination plan is complete.
  */
 export function isPlanComplete(branchPlan: BranchPlan): boolean {

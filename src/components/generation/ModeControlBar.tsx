@@ -27,8 +27,6 @@ type AutoModeProps = BaseProps & {
   onOpenLog: () => void;
   /** Whether a coordination plan is active */
   hasCoordinationPlan?: boolean;
-  /** Whether arc reasoning is enabled */
-  useArcReasoning?: boolean;
 };
 
 type MCTSModeProps = BaseProps & {
@@ -142,7 +140,7 @@ export function ModeControlBar(props: Props) {
   })() : null;
 
   return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
+    <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
       {/* Main pill */}
       <div className={`
         flex items-center gap-2 px-2 py-1 rounded-full
@@ -173,8 +171,8 @@ export function ModeControlBar(props: Props) {
         {/* Mode-specific metrics */}
         {props.mode === 'auto' && (
           <>
-            {/* Arc reasoning indicator */}
-            {props.hasCoordinationPlan && props.useArcReasoning !== false && (
+            {/* Plan indicator */}
+            {props.hasCoordinationPlan && (
               <>
                 <span className="text-[9px] text-sky-400/80 font-medium">Plan</span>
                 <div className="w-px h-3 bg-white/10" />

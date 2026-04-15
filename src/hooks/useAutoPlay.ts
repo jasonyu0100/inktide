@@ -7,12 +7,11 @@ import {
   checkEndConditions,
   pickArcLength,
   buildPlanDirective,
-  buildSimplePlanDirective,
   getArcSceneCount,
   getArcNode,
   isPlanComplete,
 } from '@/lib/auto-engine';
-import { generateScenes, type CoordinationPlanContext } from '@/lib/ai';
+import { generateScenes, generateReasoningGraph, type CoordinationPlanContext } from '@/lib/ai';
 import type { AutoRunLog } from '@/types/narrative';
 import { logError, logInfo } from '@/lib/system-logger';
 
@@ -72,10 +71,7 @@ export function useAutoPlay() {
       const executingArc = plan.currentArc === 0 ? 1 : plan.currentArc;
       const arcNode = getArcNode(plan, executingArc);
       const arcLabel = arcNode?.label ?? `Arc ${executingArc}`;
-      const useArcReasoning = autoConfig.useArcReasoning !== false;
-      const directive = useArcReasoning
-        ? buildPlanDirective(activeNarrative, plan, executingArc)
-        : buildSimplePlanDirective(plan, executingArc);
+      const directive = buildPlanDirective(activeNarrative, plan, executingArc);
       const sceneCount = getArcSceneCount(plan, executingArc, 4);
 
       logInfo(`Coordination plan: executing arc ${executingArc}/${plan.arcCount}`, {
@@ -84,7 +80,7 @@ export function useAutoPlay() {
         details: { arcIndex: executingArc, sceneCount, arcLabel },
       });
 
-      dispatch({ type: 'SET_AUTO_STATUS', message: `Arc ${executingArc}/${plan.arcCount}: ${arcLabel}` });
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Arc ${executingArc}/${plan.arcCount}: reasoning…` });
 
       try {
         // Resolve world focus
@@ -107,12 +103,54 @@ export function useAutoPlay() {
           directive,
         };
 
-        const { scenes, arc } = await generateScenes(
-          activeNarrative, resolvedEntryKeys, headIndex, sceneCount, '', // Empty direction — context flows via coordinationPlanContext
-          { worldBuildFocus, coordinationPlanContext },
+        logInfo(`Arc ${executingArc}/${plan.arcCount}: building reasoning graph (${sceneCount} scenes)`, {
+          source: 'auto-play',
+          operation: 'reasoning-graph',
+          details: { arcIndex: executingArc, sceneCount, arcLabel },
+        });
+
+        const reasoningGraph = await generateReasoningGraph(
+          activeNarrative,
+          resolvedEntryKeys,
+          headIndex,
+          sceneCount,
+          directive,
+          arcLabel,
+          undefined,
+          coordinationPlanContext,
         );
 
         if (cancelledRef.current) return;
+
+        logInfo(`Arc ${executingArc}/${plan.arcCount}: reasoning graph ready (${reasoningGraph.nodes.length} nodes, ${reasoningGraph.edges.length} edges) — generating scenes`, {
+          source: 'auto-play',
+          operation: 'reasoning-graph',
+          details: {
+            arcIndex: executingArc,
+            nodeCount: reasoningGraph.nodes.length,
+            edgeCount: reasoningGraph.edges.length,
+          },
+        });
+
+        dispatch({ type: 'SET_AUTO_STATUS', message: `Arc ${executingArc}/${plan.arcCount}: writing ${sceneCount} scenes…` });
+
+        const { scenes, arc: baseArc } = await generateScenes(
+          activeNarrative, resolvedEntryKeys, headIndex, sceneCount, '', // Empty direction — context flows via coordinationPlanContext
+          { worldBuildFocus, coordinationPlanContext, reasoningGraph },
+        );
+
+        if (cancelledRef.current) return;
+
+        const arc = {
+          ...baseArc,
+          reasoningGraph: {
+            nodes: reasoningGraph.nodes,
+            edges: reasoningGraph.edges,
+            arcName: reasoningGraph.arcName,
+            sceneCount: reasoningGraph.sceneCount,
+            summary: reasoningGraph.summary,
+          },
+        };
 
         dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: activeBranchId });
 
@@ -220,12 +258,51 @@ export function useAutoPlay() {
 
       const sceneCount = pickArcLength(autoConfig, pressure);
 
-      dispatch({ type: 'SET_AUTO_STATUS', message: `Writing ${sceneCount} scenes...` });
-      const { scenes, arc } = await generateScenes(
-        activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive, { worldBuildFocus },
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Reasoning ${sceneCount}-scene arc…` });
+      logInfo(`Building reasoning graph (${sceneCount} scenes, ${phase} phase)`, {
+        source: 'auto-play',
+        operation: 'reasoning-graph',
+        details: { sceneCount, storyPhase: phase },
+      });
+
+      const reasoningGraph = await generateReasoningGraph(
+        activeNarrative,
+        resolvedEntryKeys,
+        headIndex,
+        sceneCount,
+        directive,
+        'Continuation',
       );
 
       if (cancelledRef.current) return;
+
+      logInfo(`Reasoning graph ready (${reasoningGraph.nodes.length} nodes, ${reasoningGraph.edges.length} edges) — generating scenes`, {
+        source: 'auto-play',
+        operation: 'reasoning-graph',
+        details: {
+          nodeCount: reasoningGraph.nodes.length,
+          edgeCount: reasoningGraph.edges.length,
+        },
+      });
+
+      dispatch({ type: 'SET_AUTO_STATUS', message: `Writing ${sceneCount} scenes…` });
+      const { scenes, arc: baseArc } = await generateScenes(
+        activeNarrative, resolvedEntryKeys, headIndex, sceneCount, directive, { worldBuildFocus, reasoningGraph },
+      );
+
+      if (cancelledRef.current) return;
+
+      const arc = {
+        ...baseArc,
+        reasoningGraph: {
+          nodes: reasoningGraph.nodes,
+          edges: reasoningGraph.edges,
+          arcName: reasoningGraph.arcName,
+          sceneCount: reasoningGraph.sceneCount,
+          summary: reasoningGraph.summary,
+        },
+      };
+
       dispatch({ type: 'BULK_ADD_SCENES', scenes, arc, branchId: activeBranchId });
 
       scenesGenerated = scenes.length;

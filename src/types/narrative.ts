@@ -1284,9 +1284,6 @@ export type AutoConfig = {
   narrativeConstraints: string;
   characterRotationEnabled: boolean;
   minScenesBetweenCharacterFocus: number;
-  /** Whether to use arc-level reasoning graphs for scene generation (default true).
-   *  When disabled, scenes are generated directly without reasoning graphs for faster generation. */
-  useArcReasoning?: boolean;
 };
 
 export type AutoRunLog = {

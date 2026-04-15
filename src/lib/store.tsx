@@ -649,7 +649,6 @@ const initialState: AppState = {
     narrativeConstraints: "",
     characterRotationEnabled: true,
     minScenesBetweenCharacterFocus: 3,
-    useArcReasoning: true,
   },
   viewState: defaultViewState,
   resolvedEntryKeys: [],

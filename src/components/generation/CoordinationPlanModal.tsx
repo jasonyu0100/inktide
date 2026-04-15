@@ -16,30 +16,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // ── Styling Constants ────────────────────────────────────────────────────────
 
 // Extended color language for coordination node types
-const NODE_COLORS: Record<CoordinationNodeType, { fill: string; stroke: string; text: string }> = {
-  // Fate/Threads — red (Fate force)
-  fate: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },
-  // World entities — shades of green (World force)
-  character: { fill: "#166534", stroke: "#22c55e", text: "#dcfce7" },
-  location: { fill: "#14532d", stroke: "#16a34a", text: "#bbf7d0" },
-  artifact: { fill: "#15803d", stroke: "#4ade80", text: "#f0fdf4" },
-  // System — blue (System force)
-  system: { fill: "#1e3a8a", stroke: "#3b82f6", text: "#dbeafe" },
-  // Reasoning — grey (neutral)
-  reasoning: { fill: "#374151", stroke: "#6b7280", text: "#f3f4f6" },
-  // Pattern — cyan/teal (positive reinforcement)
-  pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },
-  // Warning — rose (adversarial agent)
-  warning: { fill: "#881337", stroke: "#f43f5e", text: "#ffe4e6" },
-  // Chaos — purple (creative agent; spawns new threads / characters / locations / artifacts)
-  chaos: { fill: "#581c87", stroke: "#a855f7", text: "#f3e8ff" },
-  // Peak — matches delivery-curve PEAK_COLOR (#FCD34D); arc commits here
-  peak: { fill: "#78350f", stroke: "#fcd34d", text: "#fef3c7" },
-  // Valley — matches delivery-curve VALLEY_COLOR (#93C5FD); arc pivots here
-  valley: { fill: "#1e3a8a", stroke: "#93c5fd", text: "#dbeafe" },
-  // Moment — slate (plan-level beat that isn't a peak or valley)
-  moment: { fill: "#334155", stroke: "#94a3b8", text: "#e2e8f0" },
-};
+import { REASONING_NODE_COLORS_PLAN } from "@/lib/reasoning-node-colors";
+
+const NODE_COLORS: Record<CoordinationNodeType, { fill: string; stroke: string; text: string }> = REASONING_NODE_COLORS_PLAN;
 
 const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
   enables: "#22c55e",

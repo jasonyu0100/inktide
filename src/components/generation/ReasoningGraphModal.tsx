@@ -12,27 +12,11 @@ import * as d3 from "d3";
 import dagre from "dagre";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { REASONING_NODE_COLORS } from "@/lib/reasoning-node-colors";
+
 // ── Styling Constants ────────────────────────────────────────────────────────
 
-// Color language: Fate = red (threads/fate force), World entities = green, System = blue, Reasoning = grey
-const NODE_COLORS: Record<ReasoningNodeType, { fill: string; stroke: string; text: string }> = {
-  // Fate/Threads — red (Fate force) — can appear anywhere in reasoning chain
-  fate: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },       // Red
-  // World entities — shades of green (World force)
-  character: { fill: "#166534", stroke: "#22c55e", text: "#dcfce7" },  // Dark green
-  location: { fill: "#14532d", stroke: "#16a34a", text: "#bbf7d0" },   // Darker green
-  artifact: { fill: "#15803d", stroke: "#4ade80", text: "#f0fdf4" },   // Medium green
-  // System — blue (System force)
-  system: { fill: "#1e3a8a", stroke: "#3b82f6", text: "#dbeafe" },     // Blue
-  // Reasoning — grey (neutral)
-  reasoning: { fill: "#374151", stroke: "#6b7280", text: "#f3f4f6" },  // Grey
-  // Pattern — cyan/teal (positive reinforcement)
-  pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },    // Teal
-  // Warning — rose (anti-pattern risk)
-  warning: { fill: "#881337", stroke: "#f43f5e", text: "#ffe4e6" },    // Rose
-  // Chaos — purple (outside force; spawns new entities into the arc)
-  chaos: { fill: "#581c87", stroke: "#a855f7", text: "#f3e8ff" },      // Purple
-};
+const NODE_COLORS: Record<ReasoningNodeType, { fill: string; stroke: string; text: string }> = REASONING_NODE_COLORS;
 
 const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
   enables: "#22c55e",

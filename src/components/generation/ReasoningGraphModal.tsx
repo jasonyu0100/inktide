@@ -328,6 +328,42 @@ export function ReasoningGraphModal({
       .attr("pointer-events", "none")
       .text(d => d.data.index);
 
+    // Generation-order pill — only when it differs from the presentation
+    // index (backward thinking modes). Presentation is primary; generation
+    // shows as a small corner badge so the thinking signature is visible.
+    const divergentNodes = nodeGroups.filter(
+      d =>
+        typeof d.data.generationOrder === "number" &&
+        d.data.generationOrder !== d.data.index,
+    );
+
+    divergentNodes
+      .append("rect")
+      .attr("x", 8)
+      .attr("y", 6)
+      .attr("width", 16)
+      .attr("height", 10)
+      .attr("rx", 2)
+      .attr("fill", "rgba(15,23,42,0.9)")
+      .attr("stroke", "rgba(148,163,184,0.4)")
+      .attr("stroke-width", 0.5);
+
+    divergentNodes
+      .append("text")
+      .attr("x", 16)
+      .attr("y", 11)
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .attr("font-size", "7px")
+      .attr("font-weight", "500")
+      .attr("fill", "#94a3b8")
+      .attr("pointer-events", "none")
+      .text(d => `g${d.data.generationOrder}`);
+
+    divergentNodes
+      .append("title")
+      .text(d => `Presented at index ${d.data.index} · Generated ${(d.data.generationOrder ?? 0) + 1}`);
+
     // Type badge (top-right)
     nodeGroups
       .append("rect")

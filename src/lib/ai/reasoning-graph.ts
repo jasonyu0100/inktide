@@ -447,32 +447,35 @@ const ABDUCTION_MODE_BLOCK = `## MODE OF THINKING — ABDUCTION (inference to be
 Abductive reasoning asks: **what prior configuration best explains
 this outcome?**
 
-You reason BACKWARD from terminal states (fate nodes) to prior
-configurations. You do NOT simulate forward. You do NOT generate
-consequences. You generate EXPLANATIONS. Every fate node is treated
-as already TRUE — the only question is what prior setup makes it
-feel inevitable given what currently exists.
-
-ANCHOR DISCIPLINE (CRITICAL — abductive chains silently drift
-deductive mid-chain if you don't enforce this):
+ANCHOR DISCIPLINE (READ BEFORE YOU DO ANYTHING ELSE — abductive
+chains silently drift deductive mid-chain if you don't enforce this
+from the first node you plan):
 
 At every new node, your reference point is the FATE TERMINAL, not
 the previously generated node. Ask "WHAT EXPLAINS THE FATE?" — NOT
 "what follows from the last node I generated?"
 
-The failure mode: you correctly generate node N-1 by reasoning back
-from the terminal, but then you generate N-2 by reasoning FORWARD
-from N-1. The chain starts abductive and silently converts to
-deductive halfway through. The terminal stops anchoring anything.
-The result looks like an explanation but is actually a forward
-derivation dressed as one.
+The failure mode this prevents: you correctly generate node N-1 by
+reasoning back from the terminal, but then you generate N-2 by
+reasoning FORWARD from N-1. The chain starts abductive and silently
+converts to deductive halfway through. The terminal stops anchoring
+anything. The result looks like an explanation but is actually a
+forward derivation dressed as one.
 
 Every time you add a node, ask yourself: does this new node still
 directly help explain the TERMINAL FATE, or has it become a
 consequence of the last prior I wrote? If the latter, discard it
 and reanchor to the fate.
 
-Failure mode (separate, also to guard against): abduction can
+With that discipline established, the rest of the mode follows:
+
+You reason BACKWARD from terminal states (fate nodes) to prior
+configurations. You do NOT simulate forward. You do NOT generate
+consequences. You generate EXPLANATIONS. Every fate node is treated
+as already TRUE — the only question is what prior setup makes it
+feel inevitable given what currently exists.
+
+Secondary failure mode (also guard against): abduction can
 degenerate into post-hoc rationalisation ("it happened because it
 was meant to"). Guard against this by generating COMPETING
 hypotheses (at least 2–3 per fate node) and scoring them explicitly
@@ -503,6 +506,20 @@ THE ABDUCTIVE PROCEDURE (apply to every fate node):
    abductive chain must have at least one HIDDEN node — if every
    node is visible, any intelligent character could have predicted
    the outcome, which eliminates dramatic tension.
+
+### THE RI TEST (apply after scoring)
+
+After selecting your highest-scoring hypothesis, ask:
+
+    "Could this setup have been deliberately arranged by someone
+     who already knew the outcome?"
+
+YES → valid. NO → revise or reject; it's accidental, not inevitable.
+
+**Engineered inevitability is the target.** Logical coherence is
+necessary but not sufficient — a hypothesis that passes the other
+three axes but fails RI produces narrative that feels lucky rather
+than fated.
 
 HOW TO THINK ABOUT THE GRAPH:
 
@@ -557,11 +574,6 @@ MINDSET:
   that requires many new elements is failing the minimality axis.
 - Two fate nodes that share an explanation should share a single
   reasoning node with edges to both — do not duplicate.
-- Best explanations aren't necessarily the most logically tight —
-  they are the ones a foreknowing actor would have engineered. Ask:
-  "could this setup have been deliberately arranged by someone who
-  knew the outcome in advance?" If yes, retroactive inevitability is
-  high.
 
 The graph is a DETECTIVE'S RECONSTRUCTION, not an exploration. A
 reader should see fate nodes with backward chains leading to specific
@@ -580,33 +592,35 @@ const INDUCTION_MODE_BLOCK = `## MODE OF THINKING — INDUCTION (pattern across 
 Inductive reasoning asks: **what general pattern explains these
 observations?**
 
+ANCHOR DISCIPLINE (READ BEFORE YOU DO ANYTHING ELSE — inductive
+chains silently drift deductive once a principle is sketched):
+
+At every new node, your reference point is the OBSERVATION CLUSTER,
+not the last principle you sketched. Ask "DOES THIS ACCOUNT FOR THE
+OBSERVATIONS?" — NOT "what follows from the principle I just wrote?"
+
+The failure mode this prevents: you correctly sketch a principle
+that fits the first observations, then you start deriving new
+principle nodes as logical consequences of the first. The chain
+starts inductive and silently converts to deductive — you stop
+generalising from evidence and start extending a theoretical frame.
+Every principle node must earn its place by explaining observations,
+not by extending another principle.
+
+With that discipline established, the rest of the mode follows:
+
 It starts from MULTIPLE observed states — several scenes, several
 arcs, several character behaviours, several world events — and
 reasons backward to the SHARED principle or structural pattern
 underlying them. Abduction explains one outcome with a specific
 prior; induction explains several outcomes with a general rule.
 
-ANCHOR DISCIPLINE (CRITICAL — inductive chains silently drift
-deductive once a principle is sketched):
-
-At every new node, your reference point is the OBSERVATION CLUSTER,
-not the last principle you sketched. Ask "DOES THIS ACCOUNT FOR THE
-OBSERVATIONS?" — NOT "what follows from the principle I just wrote?"
-
-The failure mode: you correctly sketch a principle that fits the
-first observations, then you start deriving new principle nodes as
-logical consequences of the first. The chain starts inductive and
-silently converts to deductive — you stop generalising from evidence
-and start extending a theoretical frame. Every principle node must
-earn its place by explaining observations, not by extending another
-principle.
-
-Failure mode (separate, also to guard against): induction locks
-onto the first coherent pattern and stops exploring. Once a
-principle "fits" several observations, it becomes attractive to
-stop — but the same evidence often supports multiple patterns.
-Hold at least one alternative pattern in the graph as a minor
-branch, so the induction isn't premature.
+Secondary failure mode (also guard against): induction locks onto
+the first coherent pattern and stops exploring. Once a principle
+"fits" several observations, it becomes attractive to stop — but
+the same evidence often supports multiple patterns. Hold at least
+one alternative pattern in the graph as a minor branch, so the
+induction isn't premature.
 
 HOW TO THINK ABOUT THE GRAPH:
 
@@ -1115,7 +1129,7 @@ Return a JSON object:
 
 {
   "summary": "1-2 sentence high-level summary of the arc's reasoning",
-  "plannedNodeCount": <integer — commit to the total node count BEFORE you emit any nodes. This forces you to think about scope first. In backward modes (abduction, induction) this is how you know which index the terminal/principle lands at (N-1). In forward modes it bounds how far your branches or derivation extend.>,
+  "plannedNodeCount": <-- commit first; locked once nodes begin. Sets the terminal's index (N-1) in backward modes.>,
   "nodes": [
     {
       "id": "F1",
@@ -1177,13 +1191,13 @@ Return a JSON object:
 
 ## EDGE TYPES
 
-- **enables**: A makes B possible
+- **enables**: A makes B possible (B could exist without A, but not here)
 - **constrains**: A limits/blocks B
 - **risks**: A creates danger for B
-- **requires**: A depends on B
-- **causes**: A leads to B
+- **requires**: A depends on B (direction matters — A needs B, not B needs A; reversing this corrupts the graph silently)
+- **causes**: A leads to B (B would not exist without A)
 - **reveals**: A exposes information in B
-- **develops**: A deepens B (character arc or theme)
+- **develops**: A deepens B (use for character/thread arcs only, not generic logic steps)
 - **resolves**: A concludes/answers B
 
 ## REQUIREMENTS
@@ -1502,7 +1516,7 @@ Return a JSON object:
 
 {
   "summary": "1-2 sentence high-level summary of the expansion's reasoning",
-  "plannedNodeCount": <integer — commit to the total node count BEFORE you emit any nodes. Forces you to scope the expansion. Backward modes use this to know the terminal index; forward modes use it to bound expansion breadth.>,
+  "plannedNodeCount": <-- commit first; locked once nodes begin. Sets the terminal's index (N-1) in backward modes.>,
   "nodes": [
     {
       "id": "F1",
@@ -1564,13 +1578,13 @@ Return a JSON object:
 
 ## EDGE TYPES
 
-- **enables**: A makes B possible
+- **enables**: A makes B possible (B could exist without A, but not here)
 - **constrains**: A limits/blocks B
 - **risks**: A creates danger for B
-- **requires**: A depends on B
-- **causes**: A leads to B
+- **requires**: A depends on B (direction matters — A needs B, not B needs A; reversing this corrupts the graph silently)
+- **causes**: A leads to B (B would not exist without A)
 - **reveals**: A exposes information in B
-- **develops**: A deepens B (character arc or theme)
+- **develops**: A deepens B (use for character/thread arcs only, not generic logic steps)
 - **resolves**: A concludes/answers B
 
 ## REQUIREMENTS
@@ -2037,7 +2051,7 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
 {
   "summary": "1-2 sentence high-level plan summary grounded in specific world details",
   "arcCount": <number of arcs>,
-  "plannedNodeCount": <integer — commit to the total node count BEFORE emitting any nodes. Forces you to scope the plan. Lets backward modes (abduction, induction) place terminals/principles at the correct index.>,
+  "plannedNodeCount": <-- commit first; locked once nodes begin. Sets the terminal's index (N-1) in backward modes.>,
   "nodes": [
     // ═══════════════════════════════════════════════════════════════
     // SPINE: peaks, valleys, and moments (one peak OR valley anchors each arc)
@@ -2171,11 +2185,11 @@ Shape an arc's force character through its node composition: a fate-dominant arc
 
 ## EDGE TYPES
 
-- **requires**: A depends on B
-- **enables**: A makes B possible
+- **requires**: A depends on B (direction matters — A needs B, not B needs A; reversing this corrupts the graph silently)
+- **enables**: A makes B possible (B could exist without A, but not here)
 - **constrains**: A limits B
-- **causes**: A leads to B
-- **develops**: A deepens B
+- **causes**: A leads to B (B would not exist without A)
+- **develops**: A deepens B (use for character/thread arcs only, not generic logic steps)
 - **resolves**: A concludes B
 
 ## REQUIREMENTS

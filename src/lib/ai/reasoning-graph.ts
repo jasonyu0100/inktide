@@ -543,30 +543,55 @@ ARROW COMPOSITION (dominant, not exclusive):
   hypothesis genuinely leans on a rule or information disclosure.
 - **Situational** — \`risks\`, \`resolves\`: as the chain calls.
 
-NODE ORDER — generation and presentation DIVERGE:
-- PLAN FIRST: Decide the total node count (emit it as plannedNodeCount
-  BEFORE the nodes array). This is load-bearing for abduction: you
-  need to know N so you can give the TERMINAL fate node index N-1
-  while generating it first in the JSON.
-- GENERATION: You start THINKING at the terminal fate. The first
-  node you emit in the JSON is the terminal; the later nodes you
-  emit are the priors you hypothesise, working BACKWARD. This order
-  is automatically captured as \`generationOrder\` (the JSON array
-  position).
-- PRESENTATION (the \`index\` field — this is what downstream consumers
-  use): Chronological/causal. Assign the LOWEST indices to the
-  earliest priors in story-time; assign the HIGHEST index (N-1) to
-  the terminal fate node. Downstream consumers reading by ascending
-  index walk forward in story-time, from prior to fate.
-- Generation and presentation DIVERGE — generation runs backward
-  (terminal first), presentation runs forward (terminal last). This
-  inversion is the visible signature of abductive thinking: when the
-  UI shows generationOrder alongside index, a reader can see that the
-  detective started at the outcome.
-- Example: for a 4-node abductive chain, emit in JSON order
-  [fate, prior-A, prior-B, prior-C] but assign indices
-  [3, 2, 1, 0] (or whatever the chronological order of the priors
-  is). The fate gets generationOrder=0 but index=3.
+NODE ORDER — generation and presentation DIVERGE. Presentation must
+be coherent, not scattered:
+
+PLAN FIRST: Decide the total node count (emit it as plannedNodeCount
+BEFORE the nodes array). This is load-bearing for abduction: you need
+N so you can give the TERMINAL fate node index N-1 while generating it
+first in the JSON.
+
+GENERATION (the order you emit nodes in the JSON array, auto-captured
+as \`generationOrder\`): You start THINKING at the terminal fate and
+reason backward. Emit the terminal first, then the priors you
+hypothesise, in discovery order.
+
+PRESENTATION (the \`index\` field — what every downstream consumer uses
+for display, scene generation, and reasoning walks): This must follow
+a TOPOLOGICAL ORDER over the edges. Concretely:
+  1. Read the causal direction of each edge you emit. \`A requires B\`
+     means B is causally prior to A; \`A causes B\` means A is prior
+     to B; \`S constrains E\` means S is prior to E.
+  2. Assign index 0 to a node with NO causal predecessors under your
+     chosen edges — the earliest-in-story-time prior.
+  3. Assign each subsequent index to a node ALL of whose predecessors
+     already have lower indices. Continue until the terminal fate
+     node, which should be the LAST node (highest index, N-1),
+     because every prior feeds into it.
+  4. When two nodes are causally parallel (neither precedes the
+     other), order them by which naturally introduces its shared
+     downstream consequence first. Avoid scattering — a reader
+     walking the graph by ascending index should feel a single
+     coherent sweep from earliest prior to the terminal fate.
+
+Generation runs backward (terminal first) while presentation runs
+forward (terminal last). This inversion is the visible signature of
+abductive thinking: \`generationOrder\` shows the detective's path
+from outcome back to cause; \`index\` shows the chronology the graph
+actually presents.
+
+DO NOT SCATTER — if walking ascending indices requires jumping between
+unrelated subgraphs, your presentation order is wrong. Re-sort so each
+step flows naturally from the last.
+
+Example: 4-node abductive chain. You emit in JSON order
+[fate, prior-A, prior-B, prior-C]. If edges read
+\`fate requires prior-A\`, \`prior-A requires prior-B\`,
+\`prior-A requires prior-C\` — then B and C are both causally prior
+to A, which is prior to fate. Valid presentation indices:
+[fate=3, A=2, B=0, C=1] or [fate=3, A=2, B=1, C=0]. Walking 0→3
+reads: earliest prior → the other parallel prior → A which they
+both enable → the fate they together produce.
 
 MINDSET:
 - Fate is input, not output. You receive it; you explain it.
@@ -643,31 +668,49 @@ ARROW COMPOSITION (dominant, not exclusive):
 - **Situational** — \`causes\`, \`enables\`, \`risks\`, \`resolves\`: as
   the pattern calls.
 
-NODE ORDER — generation and presentation DIVERGE:
-- PLAN FIRST: Decide the total node count (emit it as plannedNodeCount
-  BEFORE the nodes array). You need N to know which index the
-  inferred principle lands at — it comes last in presentation order
-  despite being thought of last in generation order too.
-- GENERATION: You start THINKING at the cluster of observations.
-  The first nodes you emit in the JSON are the observed states —
-  the evidence you're generalising from. The later nodes are the
-  principle/pattern you infer. Emission order captures the
-  scientist's assembly of the argument.
-- PRESENTATION (the \`index\` field — this is what downstream consumers
-  use): Causal. The PRINCIPLE is logically prior to what it explains,
-  so it gets the LOWEST index. The observed states — which exist
-  because of the principle — get higher indices. Downstream consumers
-  reading by ascending index walk rule → manifestations.
-- Generation and presentation DIVERGE — generation starts at
-  observations (inductive discovery order), presentation starts at
-  the principle (causal order). When the UI shows generationOrder
-  alongside index, the reader sees a signature inversion: scientist
-  reasoned upward from evidence, but the graph shows the rule
-  producing its cases.
-- Example: for a 4-node inductive chain with 3 observations and 1
-  principle, emit in JSON order [obs-A, obs-B, obs-C, principle]
-  but assign indices [1, 2, 3, 0] — the principle gets
-  generationOrder=3 (emitted last) but index=0 (presented first).
+NODE ORDER — generation and presentation DIVERGE. Presentation must
+be coherent, not scattered:
+
+PLAN FIRST: Decide the total node count (emit it as plannedNodeCount
+BEFORE the nodes array). You need N to place the inferred principle
+at index 0 while emitting it last in the JSON.
+
+GENERATION (auto-captured as \`generationOrder\`): You start THINKING
+at the cluster of observations and reason backward to the pattern.
+Emit observations first, principle last — the scientist's assembly
+of the argument.
+
+PRESENTATION (the \`index\` field — what every downstream consumer uses
+for display and reasoning walks): This must follow a TOPOLOGICAL ORDER
+over the edges. The principle is causally prior to the observations it
+explains (\`principle constrains observation\` or \`observation requires
+principle\`), so:
+  1. Read the causal direction of each edge. A principle that
+     \`constrains\` or is \`required by\` an observation is prior.
+  2. Assign index 0 to the root principle — the node every
+     observation ultimately traces back to.
+  3. Assign each subsequent index so a node's predecessors all have
+     lower indices. The observations come last, in whatever order
+     best shows the pattern cascading into its manifestations.
+  4. If you inferred multiple principles, order them root-first:
+     most-general at the lowest index, sub-patterns after, then
+     observations. Never scatter a principle between its cases.
+
+Generation runs up from observations; presentation runs down from the
+principle. \`generationOrder\` shows the scientist's path; \`index\`
+shows the rule producing its cases in order.
+
+DO NOT SCATTER — if walking ascending indices requires jumping between
+the principle and unrelated observations, your presentation order is
+wrong. Re-sort so the graph reads principle → manifestations
+coherently.
+
+Example: 4-node inductive chain with 3 observations generalised into
+1 principle. Emit JSON order [obs-A, obs-B, obs-C, principle]. If
+edges read \`obs-A requires principle\`, \`obs-B requires principle\`,
+\`obs-C requires principle\` — the principle is prior to all three.
+Presentation indices: principle=0, then obs-A, obs-B, obs-C at 1/2/3
+in whatever order the pattern naturally cascades.
 
 MINDSET:
 - Observations are EVIDENCE, in plural. Induction needs multiple
@@ -1208,7 +1251,7 @@ Return a JSON object:
 2. **Causal complexity**: The arc is a causal reasoning diagram — capture the REAL complexity of how it unfolds. Threads pull on multiple things, entities influence multiple moments, rules constrain several choices. When you add a node, show all the places it matters.
 3. **Fate throughout**: Fate nodes can appear ANYWHERE — they influence events at any point. A fate node can connect to characters, locations, reasoning, even other fate nodes. Fate is the gravitational force pulling the narrative.
 4. **Unexpected directions**: Fate doesn't always pull toward obvious resolution. Include fate nodes that demand twists, resistance, or subversion. A thread at "escalating" might need a setback before payoff.
-5. **Sequential indexing**: Follow the NODE ORDER rule in the active mode block. The \`index\` field is always CAUSAL/CHRONOLOGICAL (index 0 is logically earliest, highest index is logically latest) — this is what downstream consumers use. The \`generationOrder\` field is filled automatically from JSON array position and captures the order you THOUGHT of nodes — which may differ from \`index\` in backward modes (abduction/induction). Emit \`plannedNodeCount\` before the nodes array to commit to a count first.
+5. **Sequential indexing (TOPOLOGICAL, NOT SCATTERED)**: The \`index\` field is always CAUSAL — it must form a topological order over the edges you emit. Index 0 goes to a node with no causal predecessors; every later index goes to a node whose predecessors all have lower indices; the terminal or convergence point sits at the highest index. A reader walking ascending indices should feel a single coherent sweep through the graph, never a jump to an unrelated subgraph. The \`generationOrder\` field is auto-captured from JSON array position and records the order you THOUGHT of nodes — it may differ from \`index\` in backward modes (abduction, induction), which is the whole point. Emit \`plannedNodeCount\` before the nodes array to commit to a count first. See the active mode block for mode-specific ordering rules.
 6. **Entity references**: character/location/artifact nodes MUST use entityId with actual IDs
 7. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
 8. **Single entity node per entity**: If the same character or system matters in multiple places, create ONE node with multiple edges — don't duplicate.

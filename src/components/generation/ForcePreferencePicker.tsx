@@ -1,6 +1,6 @@
 "use client";
 
-import type { ForcePreference } from "@/lib/ai";
+import type { ForcePreference, ReasoningMode } from "@/lib/ai";
 
 // ── Force preference metadata ────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ const REASONING_SIZE_META: Record<
 export function ReasoningSizePicker({
   value,
   onChange,
-  label = "Reasoning",
+  label = "Density",
 }: {
   value: ReasoningSize;
   onChange: (size: ReasoningSize) => void;
@@ -163,6 +163,120 @@ export function ReasoningSizePicker({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── Reasoning-mode picker ────────────────────────────────────────────────────
+
+const REASONING_MODE_ORDER: ReasoningMode[] = [
+  "divergent",
+  "deduction",
+  "abduction",
+  "induction",
+];
+
+const REASONING_MODE_META: Record<
+  ReasoningMode,
+  { label: string; color: string; description: string }
+> = {
+  divergent: {
+    label: "Divergent",
+    color: "#fbbf24",
+    description: "What else could be true? Expands the space forward.",
+  },
+  deduction: {
+    label: "Deduction",
+    color: "#e5e7eb",
+    description: "If the premise holds, what must follow? Forward necessity.",
+  },
+  abduction: {
+    label: "Abduction",
+    color: "#f472b6",
+    description: "What prior best explains this outcome? Backward to a specific cause.",
+  },
+  induction: {
+    label: "Induction",
+    color: "#60a5fa",
+    description: "What pattern explains these observations? Backward to a principle.",
+  },
+};
+
+export function ReasoningModePicker({
+  value,
+  onChange,
+  label = "Mode",
+}: {
+  value: ReasoningMode;
+  onChange: (mode: ReasoningMode) => void;
+  label?: string;
+}) {
+  const current = REASONING_MODE_META[value];
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between">
+        <label className="text-[10px] uppercase tracking-widest text-text-dim">
+          {label}
+        </label>
+        <span className="text-[10px] text-text-dim/60">
+          {current.description}
+        </span>
+      </div>
+      <div className="flex gap-0.5 rounded-md bg-white/4 p-0.5">
+        {REASONING_MODE_ORDER.map((mode) => {
+          const meta = REASONING_MODE_META[mode];
+          const selected = mode === value;
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onChange(mode)}
+              className="flex-1 rounded px-2 py-1 text-[10px] font-medium transition-colors"
+              style={{
+                background: selected ? "rgba(255,255,255,0.08)" : "transparent",
+                color: selected ? meta.color : "rgba(255,255,255,0.5)",
+              }}
+              title={meta.description}
+            >
+              {meta.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Thinking settings wrapper ────────────────────────────────────────────────
+
+/**
+ * Groups the three thinking-related dials (mode, force, density) under a
+ * single `THINKING` header. Maximum control — none of the dials are
+ * collapsed — but visually unified so they read as one control panel.
+ */
+export function ThinkingSettings({
+  mode,
+  onModeChange,
+  force,
+  onForceChange,
+  size,
+  onSizeChange,
+}: {
+  mode: ReasoningMode;
+  onModeChange: (m: ReasoningMode) => void;
+  force: ForcePreference;
+  onForceChange: (f: ForcePreference) => void;
+  size: ReasoningSize;
+  onSizeChange: (s: ReasoningSize) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-white/6 bg-white/2 p-3">
+      <div className="text-[10px] uppercase tracking-widest text-text-dim/80 font-semibold">
+        Thinking
+      </div>
+      <ReasoningModePicker value={mode} onChange={onModeChange} />
+      <ForcePreferencePicker value={force} onChange={onForceChange} />
+      <ReasoningSizePicker value={size} onChange={onSizeChange} />
     </div>
   );
 }

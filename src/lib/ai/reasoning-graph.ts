@@ -148,7 +148,15 @@ export type ReasoningEdgeType =
 
 export interface ReasoningNode {
   id: string;
-  index: number;           // Sequential index for stepping through
+  /** Presentation order — causal/chronological position used for display and downstream consumption. Nodes are sorted and stepped through by this field. */
+  index: number;
+  /**
+   * Generation order — the order in which the reasoner thought of this
+   * node (the JSON array position at parse time). Bookkeeping only;
+   * `index` is what's used by callers. Differs from `index` in backward
+   * modes (abduction/induction) where thinking runs opposite to display.
+   */
+  generationOrder?: number;
   type: ReasoningNodeType;
   label: string;           // Short label (3-8 words)
   detail?: string;         // Expanded explanation
@@ -170,6 +178,15 @@ export interface ReasoningGraph {
   arcName: string;
   sceneCount: number;
   summary: string;         // High-level summary of the reasoning
+  /**
+   * Node count the LLM committed to BEFORE generating any nodes. Forces
+   * planning — since LLMs emit tokens sequentially, placing this field
+   * before `nodes` in the output schema means the LLM must decide how
+   * many nodes to think through before it starts thinking. Transient;
+   * not persisted to snapshots. Informational — may differ from the
+   * final `nodes.length` if the LLM revised mid-generation.
+   */
+  plannedNodeCount?: number;
 }
 
 // ── Sequential Path Builder ──────────────────────────────────────────────────
@@ -190,6 +207,53 @@ export type ReasoningGraphBase = {
   nodes: ReasoningNodeBase[];
   edges: ReasoningEdge[];
 };
+
+/**
+ * Extract pattern + warning directives from a reasoning graph as
+ * actionable guidance for downstream consumers (arc-scene generation,
+ * plan-to-arc propagation). Patterns become novel-shape instructions;
+ * warnings become repetition-avoidance instructions. Returns empty
+ * string when no pattern/warning nodes exist.
+ */
+export function extractPatternWarningDirectives(
+  graph: ReasoningGraphBase,
+): string {
+  const patterns = graph.nodes.filter((n) => n.type === "pattern");
+  const warnings = graph.nodes.filter((n) => n.type === "warning");
+  if (patterns.length === 0 && warnings.length === 0) return "";
+
+  const sections: string[] = [];
+
+  if (warnings.length > 0) {
+    const warningLines = warnings
+      .map((w) => {
+        const detail = w.detail ? ` — ${w.detail}` : "";
+        return `- ${w.label}${detail}`;
+      })
+      .join("\n");
+    sections.push(
+      `REPETITION WARNINGS — the reasoning graph flagged these shapes as already-seen patterns. Do NOT drift toward them in your output. Route around each explicitly:\n${warningLines}`,
+    );
+  }
+
+  if (patterns.length > 0) {
+    const patternLines = patterns
+      .map((p) => {
+        const detail = p.detail ? ` — ${p.detail}` : "";
+        return `- ${p.label}${detail}`;
+      })
+      .join("\n");
+    sections.push(
+      `NOVEL PATTERNS — the reasoning graph proposes these shapes as fresh to this narrative. Your output MUST actively introduce them (not merely mention them):\n${patternLines}`,
+    );
+  }
+
+  sections.push(
+    `These are course-corrections, not suggestions. If your output recreates a warned pattern or fails to introduce a proposed pattern, the reasoning graph has been ignored.`,
+  );
+
+  return sections.join("\n\n");
+}
 
 /**
  * Build a sequential reasoning path from the graph for LLM consumption.
@@ -234,6 +298,30 @@ export function buildSequentialPath(graph: ReasoningGraphBase): string {
 // Import the shared CoordinationPlanContext type from scenes
 import type { CoordinationPlanContext } from './scenes';
 
+/**
+ * Mode of thinking for reasoning-graph generation.
+ *
+ * - **divergent** (default): "what else could be true from here?" Branches
+ *   outward from the current state, expanding the solution space. Forward
+ *   and exploratory. Risk: never terminates without external selection.
+ * - **deduction**: "if this premise is true, what must follow?" Forward-
+ *   simulates necessary consequences from a committed premise. Forward and
+ *   deterministic. Risk: only as good as the premise.
+ * - **abduction**: "what prior configuration best explains this outcome?"
+ *   Reasons backward from a committed terminal state (a fate node) to the
+ *   specific prior setup that makes it feel inevitable. Backward and
+ *   specific. Risk: post-hoc rationalisation of what the plot needed.
+ * - **induction**: "what general pattern explains these observations?"
+ *   Reasons backward from multiple observed states to the shared principle
+ *   underlying them. Backward and general. Risk: locks onto the first
+ *   coherent pattern and stops exploring alternatives.
+ */
+export type ReasoningMode =
+  | "divergent"
+  | "deduction"
+  | "abduction"
+  | "induction";
+
 export type ArcReasoningOptions = {
   /**
    * Which force category to bias this arc toward. Default "freeform"
@@ -247,6 +335,13 @@ export type ArcReasoningOptions = {
    * low / medium / high REASONING_BUDGETS.
    */
   reasoningLevel?: "small" | "medium" | "large";
+  /**
+   * How the reasoner thinks. Defaults to "divergent" — branches outward
+   * from the current state to expand the solution space. Alternatives:
+   * "deduction" (premise → necessary consequence) and "induction"
+   * (observation → inferred principle). See ReasoningMode for details.
+   */
+  reasoningMode?: ReasoningMode;
 };
 
 /** Default reasoning-token budget tied to narrative settings. */
@@ -268,6 +363,365 @@ export function reasoningScale(
   if (size === "small") return 0.6;
   if (size === "large") return 1.6;
   return 1; // medium / undefined
+}
+
+/**
+ * Divergent mode — "what else could be true from here?" Branches outward
+ * from the current state, expanding the solution space rather than
+ * finding one answer. Risk: never terminates without external selection.
+ */
+const DIVERGENT_MODE_BLOCK = `## MODE OF THINKING — DIVERGENT (branching, solution-space expansion)
+
+Divergent reasoning asks: **what else could be true from here?**
+
+It starts from the current state and branches OUTWARD — generating
+multiple possible extensions without committing to any. The goal is
+not to find the one correct answer; it is to EXPAND the solution
+space so alternatives exist to choose between.
+
+Failure mode to guard against: divergent reasoning can run forever.
+Every node you write should either open a new branch or give a
+downstream node a reason to exist. If you're not widening the space
+or feeding something that will, you're filling whitespace.
+
+HOW TO THINK ABOUT THE GRAPH:
+
+Picture the graph as a delta — many channels spreading outward from
+a shared source. A single node at the present often forks into two,
+three, four possible consequences. Those consequences fork again.
+Convergent arrows (two branches recombining into one) appear only
+where the divergence genuinely meets — never to force coherence.
+
+ARROW COMPOSITION (dominant, not exclusive):
+- **Primary** — \`causes\`, \`enables\`, \`reveals\`, \`develops\`: forward
+  arrows, used at HIGH branching factor. A single source node should
+  often carry 2–4 outgoing forward arrows into distinct possibilities.
+  The shape is not a chain; it is a tree.
+- **Secondary** — \`requires\`, \`constrains\`: use sparingly and only
+  when a branch genuinely surfaces a prerequisite. These arrows should
+  feel like late discoveries, not the engine.
+- **Situational** — \`risks\`, \`resolves\`: as the branches call for
+  them.
+
+NODE ORDER — generation and presentation ALIGN:
+- PLAN FIRST: Decide the total node count (emit it as plannedNodeCount
+  BEFORE the nodes array). This forces you to scope your branching up
+  front.
+- GENERATION: You start THINKING at the present state and branch
+  outward, thinking forward to consequences.
+- PRESENTATION (the \`index\` field — this is what downstream consumers
+  use): Index 0 is the present-state source. Later indices are the
+  consequences and branches flowing outward. Highest index is the
+  furthest-downstream consequence.
+- Here generation and presentation point the SAME direction. Nodes
+  appear in the JSON in the order you thought of them, and each
+  node's \`index\` matches its presentation position — they coincide.
+- \`generationOrder\` (which the parser auto-assigns from JSON
+  position) will match \`index\` in this mode — useful as a visible
+  signature that divergent thinking was forward-aligned.
+
+MINDSET:
+- Treat the current state as a source, not a target spec. Your job is
+  to reveal what it COULD generate, not to pick a winner.
+- Prefer producing branches over elaborating one chain deeply.
+- Contradictory branches are welcome — they are the point. Two
+  incompatible consequences both following from the same premise is a
+  wider solution space, not a flaw.
+- If you find yourself committing to a single narrative through-line,
+  you have drifted into deduction. Back off and branch again.
+
+The graph is an EXPANSION, not a solution. A reader should see many
+possible futures hanging off the current state, with the arc free to
+select among them later.
+`;
+
+/**
+ * Abduction mode — "what prior configuration best explains this
+ * outcome?" Reasons backward from a committed terminal (fate node) to
+ * the specific prior setup that makes it feel inevitable. Generates
+ * competing hypotheses, scores them, selects the best. Backward and
+ * specific. Risk: post-hoc rationalisation.
+ */
+const ABDUCTION_MODE_BLOCK = `## MODE OF THINKING — ABDUCTION (inference to best explanation)
+
+Abductive reasoning asks: **what prior configuration best explains
+this outcome?**
+
+You reason BACKWARD from terminal states (fate nodes) to prior
+configurations. You do NOT simulate forward. You do NOT generate
+consequences. You generate EXPLANATIONS. Every fate node is treated
+as already TRUE — the only question is what prior setup makes it
+feel inevitable given what currently exists.
+
+Failure mode to guard against: abduction can degenerate into post-hoc
+rationalisation ("it happened because it was meant to"). Guard
+against this by generating COMPETING hypotheses (at least 2–3 per
+fate node) and scoring them explicitly before selecting one. An
+explanation that doesn't survive comparison is not an explanation.
+
+THE ABDUCTIVE PROCEDURE (apply to every fate node):
+
+1. TREAT THE FATE AS COMMITTED. Do not question whether it occurs. It
+   will. Your only question is what makes it feel inevitable.
+2. GENERATE 2–3 COMPETING HYPOTHESES. Label them H1, H2, H3. Each is
+   a candidate reasoning node or chain explaining the fate.
+3. SCORE EACH ON FOUR AXES:
+   - **Coherence**: does it contradict any existing node or edge?
+   - **Sufficiency**: does it fully account for the fate without gaps?
+   - **Minimality**: does it introduce the fewest new nodes?
+   - **Retroactive inevitability**: would a reader, seeing the setup
+     AFTER knowing the outcome, feel it was engineered rather than
+     accidental?
+4. SELECT the highest-scoring hypothesis; record WHY the others were
+   rejected (cite specific axis failures, not generic reasons).
+5. ANOMALIES FIRST. Chaos and warning nodes are the highest-priority
+   evidence. Any hypothesis that fails to explain them is incomplete,
+   regardless of other scores.
+6. CHECK INFORMATION ASYMMETRY. Tag each node in the selected chain
+   as VISIBLE (observable by any character) or HIDDEN (only by
+   characters with specific knowledge or foreknowledge). A valid
+   abductive chain must have at least one HIDDEN node — if every
+   node is visible, any intelligent character could have predicted
+   the outcome, which eliminates dramatic tension.
+
+HOW TO THINK ABOUT THE GRAPH:
+
+Picture the graph as a detective's evidence board read in reverse.
+You start with the outcome (the fate node) and trace backward to the
+specific prior configuration that produced it. Unlike induction (which
+generalises to a principle), abduction settles on ONE specific prior
+— the particular setup, the particular character, the particular
+artefact — that best explains this particular outcome.
+
+ARROW COMPOSITION (dominant, not exclusive):
+- **Primary** — \`requires\`, \`develops\`, \`causes\`: the abductive
+  backward arrows. \`requires\` encodes "the fate depends on this
+  prior"; \`develops\` encodes "this configuration matured into the
+  fate"; \`causes\` encodes "this prior state produced the fate".
+- **Avoid** \`enables\` as the terminal edge into a fate — it implies
+  optionality, and abductive conclusions are not optional.
+- **Secondary** — \`constrains\`, \`reveals\`: used where the selected
+  hypothesis genuinely leans on a rule or information disclosure.
+- **Situational** — \`risks\`, \`resolves\`: as the chain calls.
+
+NODE ORDER — generation and presentation DIVERGE:
+- PLAN FIRST: Decide the total node count (emit it as plannedNodeCount
+  BEFORE the nodes array). This is load-bearing for abduction: you
+  need to know N so you can give the TERMINAL fate node index N-1
+  while generating it first in the JSON.
+- GENERATION: You start THINKING at the terminal fate. The first
+  node you emit in the JSON is the terminal; the later nodes you
+  emit are the priors you hypothesise, working BACKWARD. This order
+  is automatically captured as \`generationOrder\` (the JSON array
+  position).
+- PRESENTATION (the \`index\` field — this is what downstream consumers
+  use): Chronological/causal. Assign the LOWEST indices to the
+  earliest priors in story-time; assign the HIGHEST index (N-1) to
+  the terminal fate node. Downstream consumers reading by ascending
+  index walk forward in story-time, from prior to fate.
+- Generation and presentation DIVERGE — generation runs backward
+  (terminal first), presentation runs forward (terminal last). This
+  inversion is the visible signature of abductive thinking: when the
+  UI shows generationOrder alongside index, a reader can see that the
+  detective started at the outcome.
+- Example: for a 4-node abductive chain, emit in JSON order
+  [fate, prior-A, prior-B, prior-C] but assign indices
+  [3, 2, 1, 0] (or whatever the chronological order of the priors
+  is). The fate gets generationOrder=0 but index=3.
+
+MINDSET:
+- Fate is input, not output. You receive it; you explain it.
+- Your primary output is new reasoning nodes that bridge existing
+  nodes to fate nodes.
+- Limit yourself to ~3 new nodes per fate node. An abductive chain
+  that requires many new elements is failing the minimality axis.
+- Two fate nodes that share an explanation should share a single
+  reasoning node with edges to both — do not duplicate.
+- Best explanations aren't necessarily the most logically tight —
+  they are the ones a foreknowing actor would have engineered. Ask:
+  "could this setup have been deliberately arranged by someone who
+  knew the outcome in advance?" If yes, retroactive inevitability is
+  high.
+
+The graph is a DETECTIVE'S RECONSTRUCTION, not an exploration. A
+reader should see fate nodes with backward chains leading to specific
+prior configurations — each chain chosen over competitors and
+annotated with what it explains.
+`;
+
+/**
+ * Induction mode — "what general pattern explains these observations?"
+ * Reasons backward from multiple observed states to the shared
+ * principle underlying them. Backward and general. Risk: locks onto
+ * the first coherent pattern and stops exploring.
+ */
+const INDUCTION_MODE_BLOCK = `## MODE OF THINKING — INDUCTION (pattern across observations)
+
+Inductive reasoning asks: **what general pattern explains these
+observations?**
+
+It starts from MULTIPLE observed states — several scenes, several
+arcs, several character behaviours, several world events — and
+reasons backward to the SHARED principle or structural pattern
+underlying them. Abduction explains one outcome with a specific
+prior; induction explains several outcomes with a general rule.
+
+Failure mode to guard against: induction locks onto the first
+coherent pattern and stops exploring. Once a principle "fits"
+several observations, it becomes attractive to stop — but the same
+evidence often supports multiple patterns. Hold at least one
+alternative pattern in the graph as a minor branch, so the
+induction isn't premature.
+
+HOW TO THINK ABOUT THE GRAPH:
+
+Picture the graph as many rivers traced back to their shared
+watershed. Multiple observed nodes (events, behaviours, outcomes)
+converge on a small number of principle nodes that explain them
+collectively. The pattern is valuable precisely because it
+generalises — it predicts similar outcomes in situations not yet
+observed.
+
+ARROW COMPOSITION (dominant, not exclusive):
+- **Primary** — \`requires\`, \`constrains\`: the backward arrows that
+  carry the induction. \`A requires B\` encodes "observed A is
+  explained by the prior pattern B". \`constrains\` points from the
+  general rule back onto the specific instances that obey it.
+- **Secondary** — \`reveals\`, \`develops\`: used where the pattern
+  itself has downstream implications worth naming.
+- **Situational** — \`causes\`, \`enables\`, \`risks\`, \`resolves\`: as
+  the pattern calls.
+
+NODE ORDER — generation and presentation DIVERGE:
+- PLAN FIRST: Decide the total node count (emit it as plannedNodeCount
+  BEFORE the nodes array). You need N to know which index the
+  inferred principle lands at — it comes last in presentation order
+  despite being thought of last in generation order too.
+- GENERATION: You start THINKING at the cluster of observations.
+  The first nodes you emit in the JSON are the observed states —
+  the evidence you're generalising from. The later nodes are the
+  principle/pattern you infer. Emission order captures the
+  scientist's assembly of the argument.
+- PRESENTATION (the \`index\` field — this is what downstream consumers
+  use): Causal. The PRINCIPLE is logically prior to what it explains,
+  so it gets the LOWEST index. The observed states — which exist
+  because of the principle — get higher indices. Downstream consumers
+  reading by ascending index walk rule → manifestations.
+- Generation and presentation DIVERGE — generation starts at
+  observations (inductive discovery order), presentation starts at
+  the principle (causal order). When the UI shows generationOrder
+  alongside index, the reader sees a signature inversion: scientist
+  reasoned upward from evidence, but the graph shows the rule
+  producing its cases.
+- Example: for a 4-node inductive chain with 3 observations and 1
+  principle, emit in JSON order [obs-A, obs-B, obs-C, principle]
+  but assign indices [1, 2, 3, 0] — the principle gets
+  generationOrder=3 (emitted last) but index=0 (presented first).
+
+MINDSET:
+- Observations are EVIDENCE, in plural. Induction needs multiple
+  cases; a single observation is abduction, not induction.
+- The goal is a PATTERN that generalises, not an explanation that
+  fits one case. If your proposed principle only explains one
+  observation, it isn't inductive.
+- Resist the first fit. If you land a coherent pattern in the first
+  few nodes, try to break it — what observation doesn't this pattern
+  account for?
+- When evidence points to multiple possible patterns, keep them both
+  in the graph as competing generalisations rather than collapsing.
+
+The graph is a GENERALISATION, not an explanation of a single event.
+A reader should see many observed states at the leaves converging
+on a small number of principle nodes that explain them all.
+`;
+
+/**
+ * Deduction mode — "if this premise is true, what must follow?"
+ * Starts from a committed premise and forward-simulates consequences
+ * with logical necessity. Deterministic in direction. Risk: only as
+ * good as the premise — wrong starting assumption, wrong everything.
+ */
+const DEDUCTION_MODE_BLOCK = `## MODE OF THINKING — DEDUCTION (premise → necessary consequence)
+
+Deductive reasoning asks: **if this premise is true, what must follow?**
+
+It starts from a committed assumption — an active thread, a
+character's stated goal, a rule the world has established — and
+forward-simulates its consequences with logical necessity. Given
+input X, derive output Y. The chain is deterministic: each step
+follows unavoidably from the previous one.
+
+Failure mode to guard against: deduction is only as good as its
+premise. Choose the wrong starting assumption and every consequence
+downstream is wrong. Before building the chain, NAME the premise
+explicitly as a fate/system/character node at the root. If the
+premise itself is shaky, the whole graph is.
+
+HOW TO THINK ABOUT THE GRAPH:
+
+Picture the graph as a logical chain or narrow tree. Start with the
+premise node. Each forward arrow must represent a NECESSARY step —
+"given the premise, this must follow". High branching factor is a
+red flag here (that is divergent, not deductive); low branching with
+tight causal linkage is the signature shape.
+
+ARROW COMPOSITION (dominant, not exclusive):
+- **Primary** — \`causes\`, \`enables\`, \`requires\`, \`resolves\`: the
+  tight logical arrows of deduction. Each arrow should feel
+  necessary, not optional. A deductive \`requires\` still points from
+  consequence to premise (the derived state depends on the premise)
+  but here it tightens the chain rather than reversing it.
+- **Secondary** — \`constrains\`, \`develops\`: used when the logical
+  chain genuinely hits a rule or deepens a consequence, not as
+  decoration.
+- **Situational** — \`reveals\`, \`risks\`: as the derivation calls.
+
+NODE ORDER — generation and presentation ALIGN:
+- PLAN FIRST: Decide the total node count (emit it as plannedNodeCount
+  BEFORE the nodes array). A deductive chain should have a specific
+  length; commit to it.
+- GENERATION: You start THINKING at the premise and derive forward,
+  thinking through each necessary consequence in order.
+- PRESENTATION (the \`index\` field): Index 0 is the premise. Later
+  indices are the derived consequences, in the order they are
+  necessarily entailed. Highest index is the final conclusion.
+- Here generation and presentation ALIGN. \`generationOrder\` will
+  match \`index\` — a visible signature that deductive thinking
+  walked premise-to-conclusion.
+
+MINDSET:
+- The premise is load-bearing. Name it clearly. If you cannot state
+  the premise in one sentence, the graph has no foundation.
+- Each node should answer: "given the previous node, what MUST be
+  true next?" If the answer is "something from a list of options",
+  you are in divergent mode, not deductive.
+- Logical necessity over narrative interestingness. If a consequence
+  feels flat but follows necessarily, keep it — the flatness may be
+  signalling that the premise isn't generative enough.
+- When the chain produces an absurd or unworkable conclusion, that
+  is useful: it's evidence the premise needs revision. Do not patch
+  the consequence to avoid the absurdity.
+
+The graph is a DERIVATION, not an exploration. A reader should be
+able to read it top-to-bottom and feel each step lock into the next,
+arriving at a conclusion the premise made inevitable.
+`;
+
+/**
+ * Dispatch the reasoning-mode block. Defaults to divergent.
+ */
+function reasoningModeBlock(mode: ReasoningMode | undefined): string {
+  switch (mode) {
+    case "induction":
+      return INDUCTION_MODE_BLOCK;
+    case "abduction":
+      return ABDUCTION_MODE_BLOCK;
+    case "deduction":
+      return DEDUCTION_MODE_BLOCK;
+    case "divergent":
+    default:
+      return DIVERGENT_MODE_BLOCK;
+  }
 }
 
 /**
@@ -610,21 +1064,9 @@ ${direction}` : ''}
 ═══════════════════════════════════════════════════════════════════════════════
 ` : `Direction: ${direction}`}
 
-Use BACKWARD REASONING: Start from what threads NEED, then derive what must happen.
 Threads are FATE — they exert gravitational pull on events, but fate doesn't always go the expected direction. Threads can advance through twists, resistance, or subversion.
 ${forcePreferenceBlock("arc", options?.forcePreference)}
-## CREATIVE MANDATE
-
-**The context above is INSPIRATION, not a script.** Do NOT continue trajectories predictably.
-
-**REQUIRED CREATIVE ELEMENTS** (include at least 2 in your reasoning):
-1. **UNEXPECTED COLLISION**: Combine elements that have never interacted — what emerges?
-2. **SUBVERT THE OBVIOUS**: What's the least expected path that still serves fate?
-3. **HIDDEN COST**: What must be sacrificed or lost to achieve progress?
-4. **EMERGENT PROPERTY**: When X meets Y, what new capability or dynamic appears?
-5. **SECOND-ORDER EFFECT**: What does a recent event ACTUALLY mean that no one has realized?
-
-**AVOID**: Continuing threads on obvious trajectories, using expected combinations, progress without setbacks.
+${reasoningModeBlock(options?.reasoningMode)}
 
 ## OUTPUT FORMAT
 
@@ -638,6 +1080,7 @@ Return a JSON object:
 
 {
   "summary": "1-2 sentence high-level summary of the arc's reasoning",
+  "plannedNodeCount": <integer — commit to the total node count BEFORE you emit any nodes. This forces you to think about scope first. In backward modes (abduction, induction) this is how you know which index the terminal/principle lands at (N-1). In forward modes it bounds how far your branches or derivation extend.>,
   "nodes": [
     {
       "id": "F1",
@@ -693,8 +1136,8 @@ Return a JSON object:
 - **artifact**: An object. Use entityId to reference actual artifact. Label = its role in reasoning.
 - **system**: A world rule/principle/constraint. Label = the rule as it applies here.
 - **reasoning**: A logical step deriving what must happen. Label = the inference (3-8 words).
-- **pattern**: EXPANSION AGENT — inject novelty. Unexpected collisions, emergent properties, hidden implications within the current sandbox. Label = the creative opportunity.
-- **warning**: SUBVERSION AGENT — challenge predictability. Predictable trajectories, missing costs, assumptions to challenge. Label = what must be disrupted.
+- **pattern**: NOVEL-PATTERN GENERATOR. Proposes a story shape this narrative HAS NOT used before — a fresh configuration, rhythm, or relational geometry that is absent from prior arcs and scenes. Not generic creativity: a specific structural move the story hasn't made. Every pattern node answers "what has this story never done that it could do here?" Example labels: "First arc resolved through a non-POV character's choice", "Two anchors separated across the arc — no shared scenes", "Fate subverts by succeeding too completely". Scan prior arcs before proposing; do not repeat a shape already used.
+- **warning**: PATTERN-REPETITION DETECTOR. Scans prior arcs and scenes and FLAGS shapes the reader has already seen — resolution rhythms, conflict geometries, character dynamics, arc cadences — that this arc is drifting toward repeating. Humans are powerful pattern recognisers: once a shape repeats (same resolution twice, same beat three times, same dominant force four arcs running) the reader notices and the move loses weight. The warning's job is to name the repetition explicitly so the graph can route around it. Example labels: "Third arc ending with external rescue — reader will feel the pattern", "A and B have now used the tension-then-reconciliation beat three times", "Fourth consecutive fate-dominant arc — rhythm is becoming monotone".
 - **chaos**: OUTSIDE FORCE — operates outside the existing fabric of fate, world, and system. Chaos has two everyday modes: as a **deus-ex-machina**, it brings problems the cast couldn't anticipate or solutions the cast couldn't build (a troll bursts into the dungeon, a stranger arrives with a fragmentary map, a dormant artefact wakes); as a **creative engine**, it seeds entirely new fates — new threads that didn't exist, which later arcs develop and resolve. Chaos sits OUTSIDE fate, but shapes fate by creating fresh strands. A well-used chaos node is balanced: it breaks a stalemate the existing forces couldn't, and it plants something the story can reuse. Use sparingly in balanced mode; use extensively under chaos-preference. Label = what arrives and its role. DO NOT set entityId or threadId — the entity/thread is spawned via world expansion.
 
 ## EDGE TYPES
@@ -714,15 +1157,16 @@ Return a JSON object:
 2. **Causal complexity**: The arc is a causal reasoning diagram — capture the REAL complexity of how it unfolds. Threads pull on multiple things, entities influence multiple moments, rules constrain several choices. When you add a node, show all the places it matters.
 3. **Fate throughout**: Fate nodes can appear ANYWHERE — they influence events at any point. A fate node can connect to characters, locations, reasoning, even other fate nodes. Fate is the gravitational force pulling the narrative.
 4. **Unexpected directions**: Fate doesn't always pull toward obvious resolution. Include fate nodes that demand twists, resistance, or subversion. A thread at "escalating" might need a setback before payoff.
-5. **Sequential indexing**: Nodes are indexed 0, 1, 2... in logical reading order
+5. **Sequential indexing**: Follow the NODE ORDER rule in the active mode block. The \`index\` field is always CAUSAL/CHRONOLOGICAL (index 0 is logically earliest, highest index is logically latest) — this is what downstream consumers use. The \`generationOrder\` field is filled automatically from JSON array position and captures the order you THOUGHT of nodes — which may differ from \`index\` in backward modes (abduction/induction). Emit \`plannedNodeCount\` before the nodes array to commit to a count first.
 6. **Entity references**: character/location/artifact nodes MUST use entityId with actual IDs
 7. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
 8. **Single entity node per entity**: If the same character or system matters in multiple places, create ONE node with multiple edges — don't duplicate.
 9. **Node count**: Target ${Math.round((6 + sceneCount * 4) * reasoningScale(options?.reasoningLevel))}-${Math.round((12 + sceneCount * 5) * reasoningScale(options?.reasoningLevel))} nodes across all types.
-10. **Pattern nodes**: 1-2 nodes with GENUINE creativity — unexpected collisions, emergent properties within the existing cast
-11. **Warning nodes**: Flag predictable trajectories and missing costs — what assumption needs challenging?
+10. **Pattern nodes**: 1-2 nodes, each introducing a story shape the narrative has NOT used before. Scan prior arcs; name the new pattern; make sure the arc actually uses it.
+11. **Warning nodes**: 1-2 nodes, each naming a specific repetition risk drawn from prior arcs/scenes — "we have ended the last two arcs this way", "this dynamic between A and B has already happened N times". Vague warnings are worthless; the warning must cite what is actually repeating.
 12. **Chaos nodes (1-2 default, more under chaos preference)**: Inject at least one outside-force element — a new character arriving, a dormant artefact waking, a new fate appearing. Do NOT reference existing entityIds — chaos describes an entity that will be spawned. A chaos node signals the scene generator to invoke world expansion.
 13. **Non-deterministic**: Each reasoning path should contain at least one SURPRISE — something that doesn't follow obviously from context
+14. **Warning/pattern response (CRITICAL)**: Warnings and patterns are course-corrections, not ornaments. When a warning names a repetition, the rest of the graph MUST visibly route around it — a chaos node that breaks the pattern, a reasoning chain that subverts it, a fate node pulling a different direction, a character/entity node introducing an unused dynamic. When a pattern proposes a novel shape, the graph's actual nodes MUST use that shape — not merely mention it. Edges should connect warning/pattern nodes into the body of the graph so the course-correction is structural, not advisory. An orphaned warning or pattern (no outgoing edges, no downstream response) is dead weight — cut it or wire it in.
 
 ## SHAPE OF A GOOD ARC GRAPH
 
@@ -772,10 +1216,13 @@ Return ONLY the JSON object.`;
       data.edges = [];
     }
 
-    // Ensure all nodes have required fields and valid types
+    // Ensure all nodes have required fields and valid types. The JSON
+    // array position (i) becomes generationOrder — the order the LLM
+    // emitted/thought of each node, distinct from its presentation index.
     const nodes: ReasoningNode[] = data.nodes.map((n: Partial<ReasoningNode>, i: number) => ({
       id: typeof n.id === "string" ? n.id : `N${i}`,
       index: typeof n.index === "number" ? n.index : i,
+      generationOrder: i,
       type: (typeof n.type === "string" && VALID_NODE_TYPES.has(n.type)) ? n.type as ReasoningNodeType : "reasoning",
       label: typeof n.label === "string" ? n.label.slice(0, 200) : "Unlabeled node",
       detail: typeof n.detail === "string" ? n.detail.slice(0, 500) : undefined,
@@ -801,6 +1248,7 @@ Return ONLY the JSON object.`;
       arcName,
       sceneCount,
       summary: typeof data.summary === "string" ? data.summary.slice(0, 500) : `Reasoning graph for ${arcName}`,
+      plannedNodeCount: typeof data.plannedNodeCount === "number" ? data.plannedNodeCount : undefined,
     };
   } catch (err) {
     logError("Failed to parse reasoning graph", err, {
@@ -834,6 +1282,9 @@ export type ExpansionReasoningGraph = {
   edges: ReasoningEdge[];
   expansionName: string;
   summary: string;
+  /** See ReasoningGraph.plannedNodeCount — forces the LLM to commit a
+   *  node count before generating. Transient. */
+  plannedNodeCount?: number;
 };
 
 /**
@@ -1001,9 +1452,9 @@ Directive: ${directive || "Natural expansion based on current world state"}
 Size: ${sizeLabel}
 Strategy: ${strategy.toUpperCase()}
 
-Use BACKWARD REASONING: Start from what threads NEED (fate), then derive what entities must exist.
-Threads are FATE — they exert gravitational pull on world-building. New entities should serve thread requirements.
+Threads are FATE — they exert gravitational pull on world-building. New entities should serve thread requirements when threads pull, but under divergent mode new entities may also emerge from collisions the threads did not demand.
 ${forcePreferenceBlock("arc", options?.forcePreference)}
+${reasoningModeBlock(options?.reasoningMode)}
 ## OUTPUT FORMAT
 
 **CRITICAL FORMAT REQUIREMENTS**:
@@ -1016,6 +1467,7 @@ Return a JSON object:
 
 {
   "summary": "1-2 sentence high-level summary of the expansion's reasoning",
+  "plannedNodeCount": <integer — commit to the total node count BEFORE you emit any nodes. Forces you to scope the expansion. Backward modes use this to know the terminal index; forward modes use it to bound expansion breadth.>,
   "nodes": [
     {
       "id": "F1",
@@ -1071,8 +1523,8 @@ Return a JSON object:
 - **artifact**: A new or existing artifact. Use entityId. Label = its role serving fate.
 - **system**: A world gap, rule, or opportunity. Label = the gap or rule being established.
 - **reasoning**: A logical step explaining WHY this entity serves fate. Label = the inference (3-8 words).
-- **pattern**: COOPERATIVE AGENT — positive reinforcement. What variety does this expansion introduce? Label = the opportunity.
-- **warning**: ADVERSARIAL AGENT — negative reinforcement. What staleness risks must be avoided? Label = the risk.
+- **pattern**: NOVEL-PATTERN GENERATOR. Names the fresh direction this expansion introduces — a kind of entity, relationship geometry, or world-rule shape the narrative has NOT established yet. Not a vague "variety"; a concrete new pattern. Example labels: "First faction whose power comes from information asymmetry, not force", "A location that shifts allegiance between arcs — no other location has this property".
+- **warning**: PATTERN-REPETITION DETECTOR. Flags where this expansion risks recreating a shape already present — the Nth rival faction, the Nth mentor figure, the Nth hidden-ruin location. Humans detect these quickly; once a category repeats, new instances lose weight. Label the repetition specifically: "Would be the third 'exiled heir' character", "Third artifact whose power is memory-related".
 - **chaos**: OUTSIDE FORCE — operates outside the existing fabric. Injects entities or new fates that are FOREIGN to the current world. Two modes: deus-ex-machina (a sudden problem or solution) and creative seeding (a new thread the story can later develop). Use when the expansion brings something the existing world could not have produced — a stranger from elsewhere, a dormant artefact waking, a rumour arriving unprompted. Do NOT set entityId — chaos represents a net-new entity.
 
 ## EDGE TYPES
@@ -1095,9 +1547,10 @@ Return a JSON object:
 5. **Causal complexity**: The graph is a causal reasoning diagram. Every new entity should show the full web of how it connects — who it serves, what it constrains, what it enables. Not a single line.
 6. **Integration focus**: Every new entity should show HOW it serves existing threads via edges
 7. **Node count**: Target ${nodeCountTarget}
-8. **Pattern nodes**: 1-2 nodes highlighting fresh directions
-9. **Warning nodes**: 1-2 nodes flagging staleness risks
+8. **Pattern nodes**: 1-2 nodes, each naming a specific new direction the expansion opens — a category, relationship, or world-rule the narrative hasn't used.
+9. **Warning nodes**: 1-2 nodes, each citing a specific repetition risk from prior entities — "would be the Nth X", "this dynamic already exists between A and B".
 10. **Chaos nodes**: Include at least one chaos node. Expansion is ITSELF an outside-force event — something new is arriving. Chaos nodes represent the entities coming from beyond the current world that the expansion is bringing in.
+11. **Warning/pattern response (CRITICAL)**: Warnings and patterns must change what the rest of the graph produces. When a warning flags a repetition risk (e.g., "would be the third X"), the new entities in this expansion MUST be shaped so they break that repetition — different category, different relationship geometry, different power source. When a pattern proposes a novel direction, the actual new entities MUST embody that direction. A warning/pattern with no edges into the rest of the graph is dead weight; wire them in.
 
 The graph should reveal: what threads demand from the world, what entities must exist to serve fate, and what outside-world additions (chaos) unblock what the existing cast cannot.
 
@@ -1143,10 +1596,13 @@ Return ONLY the JSON object.`;
       data.edges = [];
     }
 
-    // Ensure all nodes have required fields and valid types
+    // Ensure all nodes have required fields and valid types. The JSON
+    // array position (i) becomes generationOrder — the order the LLM
+    // emitted/thought of each node, distinct from its presentation index.
     const nodes: ReasoningNode[] = data.nodes.map((n: Partial<ReasoningNode>, i: number) => ({
       id: typeof n.id === "string" ? n.id : `N${i}`,
       index: typeof n.index === "number" ? n.index : i,
+      generationOrder: i,
       type: (typeof n.type === "string" && VALID_NODE_TYPES.has(n.type)) ? n.type as ReasoningNodeType : "reasoning",
       label: typeof n.label === "string" ? n.label.slice(0, 200) : "Unlabeled node",
       detail: typeof n.detail === "string" ? n.detail.slice(0, 500) : undefined,
@@ -1171,6 +1627,7 @@ Return ONLY the JSON object.`;
       edges,
       expansionName: directive ? directive.slice(0, 50) : "World Expansion",
       summary: typeof data.summary === "string" ? data.summary.slice(0, 500) : "Reasoning graph for world expansion",
+      plannedNodeCount: typeof data.plannedNodeCount === "number" ? data.plannedNodeCount : undefined,
     };
   } catch (err) {
     logError("Failed to parse expansion reasoning graph", err, {
@@ -1277,6 +1734,13 @@ export type PlanGuidance = {
    * | "large" map to low / medium / high REASONING_BUDGETS.
    */
   reasoningLevel?: "small" | "medium" | "large";
+  /**
+   * How the reasoner thinks. Defaults to "divergent" — branches outward
+   * from the current state to expand the solution space. Alternatives:
+   * "deduction" (premise → necessary consequence) and "induction"
+   * (observation → inferred principle). See ReasoningMode for details.
+   */
+  reasoningMode?: ReasoningMode;
 };
 
 /**
@@ -1510,24 +1974,7 @@ The plan orchestrates multiple arcs WITHOUT micromanaging. Each arc gets its own
 
 **EFFICIENCY PRINCIPLE**: If the spine closes in fewer arcs than the budget, use fewer arcs. Don't pad to fill.
 
-## CREATIVE MANDATE
-
-**Real stories evolve non-deterministically.** Do NOT simply continue existing trajectories. The context above is INSPIRATION, not a script to follow.
-
-**REQUIREMENTS FOR CREATIVITY**:
-1. **UNEXPECTED COMBINATIONS**: What happens when two unrelated elements collide? Combine characters, locations, or systems that have never interacted.
-2. **EMERGENT PROPERTIES**: When X meets Y, what NEW capability or dynamic emerges that neither had alone?
-3. **SUBVERT EXPECTATIONS**: For each thread, consider: what's the LEAST obvious path to resolution? The most surprising twist that still feels inevitable in hindsight?
-4. **HIDDEN CONNECTIONS**: What relationships or dependencies exist that haven't been made explicit? What's the second-order effect of recent events?
-5. **WORLD EXPANSION**: What aspects of the world are implied but unexplored? What's beyond the current sandbox?
-6. **COST AND SACRIFICE**: What must be LOST to achieve each goal? Every gain should have a price that creates new tensions.
-
-**ANTI-PATTERNS TO AVOID**:
-- Continuing threads on their "obvious" trajectory
-- Resolving tensions through expected mechanisms
-- Using the same character combinations repeatedly
-- Keeping the world static while only threads change
-- Making progress without setbacks or costs
+${reasoningModeBlock(guidance.reasoningMode)}
 
 ## ARC SIZING GUIDE
 
@@ -1555,6 +2002,7 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
 {
   "summary": "1-2 sentence high-level plan summary grounded in specific world details",
   "arcCount": <number of arcs>,
+  "plannedNodeCount": <integer — commit to the total node count BEFORE emitting any nodes. Forces you to scope the plan. Lets backward modes (abduction, induction) place terminals/principles at the correct index.>,
   "nodes": [
     // ═══════════════════════════════════════════════════════════════
     // SPINE: peaks, valleys, and moments (one peak OR valley anchors each arc)
@@ -1682,8 +2130,8 @@ Shape an arc's force character through its node composition: a fate-dominant arc
 - **reasoning**: Logical step in backward induction. Has arcSlot. Label: the inference in plain English (e.g., "Resolution requires controlling the inheritance first"). Detail: explain WHY this follows.
 
 **CREATIVE AGENT NODES** (inject novelty and subvert expectations):
-- **pattern**: EXPANSION AGENT. Combine existing entities in unexpected ways. Label: the opportunity in plain English (e.g., "Two rivals discover a common enemy").
-- **warning**: SUBVERSION AGENT. Flag predictable paths and unpaid costs. Label: the risk (e.g., "Victory is coming too easily—needs setback").
+- **pattern**: NOVEL-PATTERN GENERATOR. Proposes a structural shape this plan has NOT used in prior arcs — a fresh arc cadence, a new relational geometry between threads, an unusual anchor type, a rhythm variation. Not generic creativity: a specific pattern the plan hasn't produced yet. Label: the new pattern (e.g., "First valley-anchored arc where the pivot comes from a peripheral character", "Two threads converge without either resolving — a shape no prior arc uses"). Before proposing, scan the plan's existing arcs for shapes already present, then propose something genuinely absent.
+- **warning**: PATTERN-REPETITION DETECTOR. Flags where the plan is drifting toward shapes it has already used — three peak-anchored arcs in a row, two consecutive fate-dominant arcs, resolutions that follow the same rhythm. Humans detect structural repetition powerfully; once the plan's rhythm becomes predictable, each subsequent arc lands softer. Name the repetition concretely: "Arcs 2, 4, and 5 would all resolve via external force — reader will feel it", "Three valley-anchored arcs stacked — rhythm is flatlining".
 - **chaos**: OUTSIDE FORCE — operates outside the existing fabric of fate, world, and system. Chaos has two faces: **deus-ex-machina** (brings an unexpected problem the cast must solve, or an unexpected solution the cast couldn't build — a troll crashes into the dungeon, a stranger arrives with the missing clue, a dormant artefact wakes), and **creative engine** (seeds new fate — opens threads that didn't exist, which later arcs develop and resolve). Balance is the key: a plan with a couple of chaos moments is alive; a plan without any is inert; a plan of nothing but chaos has no spine to hold onto. An arc can be CHAOS-ANCHORED when its core movement comes from outside the established world (HP's troll-in-the-dungeon and Norbert arcs are chaos-anchored; the welcoming feast is world-driven; the Quirrell climax is fate-driven). Label: what arrives and its role. DO NOT set entityId or threadId — the entity/thread is spawned via world expansion. Remember: chaos sits outside fate, but it SHAPES fate by creating new strands.
 
 ## EDGE TYPES
@@ -1714,6 +2162,7 @@ Shape an arc's force character through its node composition: a fate-dominant arc
 15. **GROUNDED REASONING**: Reference specific character knowledge, relationships, artifacts, or world rules in reasoning nodes
 16. **CHARACTER AGENCY**: Include character nodes that show WHO drives each major transition
 17. **SYSTEM CONSTRAINTS**: Include system nodes that show HOW world rules shape outcomes
+18. **Warning/pattern response (CRITICAL)**: Warnings and patterns are plan-level course-corrections. When a warning names a structural repetition across arcs ("three arcs in a row would resolve via external force", "rhythm is going flat — four consecutive fate-dominant arcs"), the spine anchors, arc sizing, and composition MUST change to break it — alternate peak/valley rhythms, vary arc lengths, shift force dominance, insert a chaos-anchored arc. When a pattern proposes a novel structural shape ("valley-anchored arc pivoting on a peripheral character", "two threads converge without either resolving"), at least one actual arc in the plan MUST adopt that shape. Wire warnings/patterns to the arcs they're correcting via edges. An orphaned warning/pattern with no structural consequence is dead weight.
 
 ## NODE COUNT TARGETS (MANDATORY MINIMUMS)
 
@@ -1734,8 +2183,8 @@ For this ${arcTarget}-arc plan with ${activeThreadCount} active threads, target 
 - **System nodes**: At least ${nodeGuidance.minSystemNodes}
 
 **Agent nodes**:
-- **Pattern nodes**: At least ${nodeGuidance.minPatterns} — COOPERATIVE agent encouraging variety
-- **Warning nodes**: At least ${nodeGuidance.minWarnings} — ADVERSARIAL agent preventing staleness
+- **Pattern nodes**: At least ${nodeGuidance.minPatterns} — each introducing a structural shape absent from prior arcs in this plan
+- **Warning nodes**: At least ${nodeGuidance.minWarnings} — each naming a specific repetition risk (e.g., "arcs X, Y, Z would share rhythm Q") so the plan actively routes around it
 - **Chaos nodes**: At least ${nodeGuidance.minChaos} — outside-force injections spawning new entities or new fates (HP had troll, Norbert, mirror, Fluffy). DO NOT set entityId or threadId on chaos nodes.
 
 ## PER-ARC BALANCE (CRITICAL)

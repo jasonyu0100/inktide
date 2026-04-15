@@ -30,6 +30,15 @@ const EDGE_COLORS: Record<ReasoningEdgeType, string> = {
   resolves: "#10b981",
 };
 
+function ordinalSuffix(n: number): string {
+  const j = n % 10;
+  const k = n % 100;
+  if (j === 1 && k !== 11) return "st";
+  if (j === 2 && k !== 12) return "nd";
+  if (j === 3 && k !== 13) return "rd";
+  return "th";
+}
+
 const TYPE_DESCRIPTIONS: Record<ReasoningNodeType, string> = {
   fate: "Thread's gravitational pull — influences events toward resolution or unexpected turns",
   character: "An active agent in the reasoning chain",
@@ -134,10 +143,23 @@ export default function ReasoningNodeDetail({ arcId, worldBuildId, nodeId }: Pro
       {/* Header */}
       <div className="flex items-start gap-3">
         <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
+          className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 relative"
           style={{ backgroundColor: colors.fill, color: colors.text }}
+          title={
+            typeof node.generationOrder === "number" && node.generationOrder !== node.index
+              ? `Presentation index ${node.index} · Generated ${node.generationOrder + 1}${ordinalSuffix(node.generationOrder + 1)}`
+              : `Index ${node.index}`
+          }
         >
           {node.index}
+          {typeof node.generationOrder === "number" && node.generationOrder !== node.index && (
+            <span
+              className="absolute -bottom-1 -right-1 px-1 rounded text-[8px] font-mono bg-bg-base/90 border border-white/15 text-text-dim leading-tight"
+              title={`Generated ${node.generationOrder + 1}${ordinalSuffix(node.generationOrder + 1)} (thinking order)`}
+            >
+              g{node.generationOrder}
+            </span>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">

@@ -11,7 +11,7 @@ import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-p
 import { FORMAT_INSTRUCTIONS } from '@/lib/prompts';
 import { logWarning, logError, logInfo } from '@/lib/system-logger';
 import type { ReasoningGraph } from './reasoning-graph';
-import { buildSequentialPath } from './reasoning-graph';
+import { buildSequentialPath, extractPatternWarningDirectives } from './reasoning-graph';
 import { retryWithValidation, validateBeatPlan, validateBeatProseMap } from './validation';
 import { sanitizeSystemDelta, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 
@@ -243,7 +243,10 @@ Arc Summary: ${reasoningGraph.summary}
 
 REASONING PATH (step through in order — each node shows its connections):
 ${buildSequentialPath(reasoningGraph)}
-
+${(() => {
+  const directives = extractPatternWarningDirectives(reasoningGraph);
+  return directives ? `\n## COURSE-CORRECTION DIRECTIVES (FROM REASONING GRAPH)\n\n${directives}\n` : "";
+})()}
 Read through every node. The reasoning nodes (REASONING:) are the core logic you must execute. Entity nodes (CHARACTER/LOCATION/ARTIFACT/SYSTEM:) provide the grounding. Outcome nodes (OUTCOME:) show thread effects you must deliver.
 
 Edge types tell you HOW nodes relate:

@@ -43,10 +43,9 @@ import {
   resolveEntry,
 } from "@/types/narrative";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ForcePreference } from "@/lib/ai";
+import type { ForcePreference, ReasoningMode } from "@/lib/ai";
 import {
-  ForcePreferencePicker,
-  ReasoningSizePicker,
+  ThinkingSettings,
   type ReasoningSize,
 } from "./ForcePreferencePicker";
 import { GuidanceFields } from "./GuidanceFields";
@@ -144,9 +143,18 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [reasoningGraph, setReasoningGraph] = useState<ReasoningGraph | null>(null);
   const [showReasoningModal, setShowReasoningModal] = useState(false);
   const [generatingGraph, setGeneratingGraph] = useState(false);
-  // Arc reasoning options — force preference + reasoning effort
-  const [forcePreference, setForcePreference] = useState<ForcePreference>("freeform");
-  const [reasoningSize, setReasoningSize] = useState<ReasoningSize>("medium");
+  // Arc reasoning options — initialized from story-level defaults so the
+  // user doesn't have to re-pick their preferred thinking style each time.
+  const thinkingDefaults = state.activeNarrative?.storySettings;
+  const [forcePreference, setForcePreference] = useState<ForcePreference>(
+    thinkingDefaults?.defaultForcePreference ?? "freeform",
+  );
+  const [reasoningSize, setReasoningSize] = useState<ReasoningSize>(
+    thinkingDefaults?.defaultReasoningSize ?? "medium",
+  );
+  const [reasoningMode, setReasoningMode] = useState<ReasoningMode>(
+    thinkingDefaults?.defaultReasoningMode ?? "divergent",
+  );
 
   // Expansion reasoning graph state (for world expansion)
   const [expansionReasoningGraph, setExpansionReasoningGraph] = useState<ExpansionReasoningGraph | null>(null);
@@ -299,7 +307,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         finalArcName,
         (token) => setStreamText((prev) => prev + token),
         reasoningPlanContext,
-        { forcePreference, reasoningLevel: reasoningSize },
+        { forcePreference, reasoningLevel: reasoningSize, reasoningMode },
       );
       setReasoningGraph(graph);
       setShowReasoningModal(true);
@@ -506,7 +514,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         worldSize,
         worldStrategy,
         (token) => setStreamText((prev) => prev + token),
-        { forcePreference, reasoningLevel: reasoningSize },
+        { forcePreference, reasoningLevel: reasoningSize, reasoningMode },
       );
       setExpansionReasoningGraph(graph);
       setShowExpansionReasoningModal(true);
@@ -925,14 +933,14 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                   </button>
                   {advancedOpen && (
                     <div className="mt-3 flex flex-col gap-3">
-                      {/* Force preference & reasoning size — control arc planning style */}
-                      <ForcePreferencePicker
-                        value={forcePreference}
-                        onChange={setForcePreference}
-                      />
-                      <ReasoningSizePicker
-                        value={reasoningSize}
-                        onChange={setReasoningSize}
+                      {/* Thinking settings — mode, force, density */}
+                      <ThinkingSettings
+                        mode={reasoningMode}
+                        onModeChange={setReasoningMode}
+                        force={forcePreference}
+                        onForceChange={setForcePreference}
+                        size={reasoningSize}
+                        onSizeChange={setReasoningSize}
                       />
 
                       {/* Pacing presets — only shown when Markov pacing is enabled */}
@@ -1141,13 +1149,13 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                     Advanced
                   </summary>
                   <div className="mt-2 space-y-3">
-                    <ForcePreferencePicker
-                      value={forcePreference}
-                      onChange={setForcePreference}
-                    />
-                    <ReasoningSizePicker
-                      value={reasoningSize}
-                      onChange={setReasoningSize}
+                    <ThinkingSettings
+                      mode={reasoningMode}
+                      onModeChange={setReasoningMode}
+                      force={forcePreference}
+                      onForceChange={setForcePreference}
+                      size={reasoningSize}
+                      onSizeChange={setReasoningSize}
                     />
                     <div>
                       <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">

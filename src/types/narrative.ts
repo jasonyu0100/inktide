@@ -869,7 +869,10 @@ export type ReasoningGraphSnapshot = {
 
 export type ReasoningNodeSnapshot = {
   id: string;
+  /** Presentation order — causal/chronological position used for display. */
   index: number;
+  /** Generation order — the order the reasoner thought of this node (JSON emission position). Differs from `index` in backward modes, which lets the UI surface the thinking pattern. */
+  generationOrder?: number;
   type:
     | "fate"
     | "character"
@@ -1227,6 +1230,28 @@ export type StorySettings = {
    * auto flows.
    */
   planExtractionSource: PlanExtractionSource;
+  /**
+   * Default thinking mode pre-populated into the reasoning-graph pickers.
+   * User can override per-generation. Mirrors ReasoningMode in lib/ai.
+   */
+  defaultReasoningMode: "divergent" | "deduction" | "abduction" | "induction";
+  /**
+   * Default force preference pre-populated into the reasoning-graph
+   * pickers. User can override per-generation. Mirrors ForcePreference
+   * in lib/ai.
+   */
+  defaultForcePreference:
+    | "freeform"
+    | "balanced"
+    | "fate"
+    | "world"
+    | "system"
+    | "chaos";
+  /**
+   * Default graph density pre-populated into the reasoning-graph
+   * pickers. User can override per-generation.
+   */
+  defaultReasoningSize: "small" | "medium" | "large";
 };
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
@@ -1251,6 +1276,9 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   audioModel: "tts-1",
   proseFormat: "prose",
   planExtractionSource: "structure",
+  defaultReasoningMode: "divergent",
+  defaultForcePreference: "freeform",
+  defaultReasoningSize: "medium",
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────

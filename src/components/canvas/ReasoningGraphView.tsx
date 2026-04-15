@@ -14,6 +14,15 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 type ReasoningEdgeType = ReasoningEdgeSnapshot["type"];
 
+function ordinalSuffix(n: number): string {
+  const j = n % 10;
+  const k = n % 100;
+  if (j === 1 && k !== 11) return "st";
+  if (j === 2 && k !== 12) return "nd";
+  if (j === 3 && k !== 13) return "rd";
+  return "th";
+}
+
 const NODE_COLORS: Record<string, { fill: string; stroke: string; text: string }> = {
   fate: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },       // Red — Fate force
   character: { fill: "#166534", stroke: "#22c55e", text: "#dcfce7" },
@@ -297,6 +306,45 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
       .attr("fill", "#e2e8f0")
       .attr("pointer-events", "none")
       .text((d) => d.data.index);
+
+    // Generation-order pill — only when it differs from index (backward
+    // thinking modes). Small, bottom-right of the index circle, visible
+    // signature of abductive/inductive thinking.
+    const divergentNodes = nodeGroups.filter(
+      (d) =>
+        typeof d.data.generationOrder === "number" &&
+        d.data.generationOrder !== d.data.index,
+    );
+
+    divergentNodes
+      .append("rect")
+      .attr("x", 8)
+      .attr("y", 6)
+      .attr("width", 16)
+      .attr("height", 10)
+      .attr("rx", 2)
+      .attr("fill", "rgba(15,23,42,0.9)")
+      .attr("stroke", "rgba(148,163,184,0.4)")
+      .attr("stroke-width", 0.5);
+
+    divergentNodes
+      .append("text")
+      .attr("x", 16)
+      .attr("y", 11)
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .attr("font-size", "7px")
+      .attr("font-weight", "500")
+      .attr("fill", "#94a3b8")
+      .attr("pointer-events", "none")
+      .text((d) => `g${d.data.generationOrder}`);
+
+    divergentNodes
+      .append("title")
+      .text(
+        (d) =>
+          `Presented at index ${d.data.index} · Generated ${(d.data.generationOrder ?? 0) + 1}${ordinalSuffix((d.data.generationOrder ?? 0) + 1)}`,
+      );
 
     // Type badge (top-right)
     nodeGroups

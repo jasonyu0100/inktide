@@ -13,14 +13,16 @@ import { MATRIX_PRESETS, STORYTELLER_PRESET, computeMatrixFromNarrative, type Tr
 import { DEFAULT_BEAT_SAMPLER, BEAT_PROFILE_PRESETS, computeSamplerFromResolvedScenes } from '@/lib/beat-profiles';
 import { MECHANISM_PROFILE_PRESETS, computeMechanismDist, DEFAULT_MECHANISM_DIST } from '@/lib/mechanism-profiles';
 import { IconChevronDown } from '@/components/icons';
+import { ThinkingSettings } from '@/components/generation/ForcePreferencePicker';
 
-type Tab = 'direction' | 'style' | 'pov' | 'audio' | 'other';
+type Tab = 'direction' | 'style' | 'pov' | 'audio' | 'thinking' | 'other';
 
 const TABS: { label: string; value: Tab }[] = [
   { label: 'Direction', value: 'direction' },
   { label: 'Style', value: 'style' },
   { label: 'POV', value: 'pov' },
   { label: 'Audio', value: 'audio' },
+  { label: 'Thinking', value: 'thinking' },
   { label: 'Other', value: 'other' },
 ];
 
@@ -749,30 +751,9 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
             </>
           )}
 
-          {tab === 'other' && (
+          {tab === 'thinking' && (
             <>
-              {/* Target Arc Length */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
-                  Target Arc Length
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={2}
-                    max={8}
-                    step={1}
-                    value={settings.targetArcLength}
-                    onChange={(e) => update({ targetArcLength: Number(e.target.value) })}
-                    className="flex-1 accent-blue-500"
-                  />
-                  <span className="text-[11px] text-text-primary font-mono w-16 text-right">
-                    {settings.targetArcLength} scenes
-                  </span>
-                </div>
-              </div>
-
-              {/* Reasoning Level */}
+              {/* Reasoning Level — thinking token budget for structural calls */}
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
                   Reasoning Level
@@ -801,6 +782,49 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 <p className="text-[9px] text-text-dim/50 mt-2">
                   Applies to structural calls (scene skeletons, direction, evaluation, planning) — not prose. Reasoning tokens are billed as output tokens.
                 </p>
+              </div>
+
+              {/* Thinking Defaults — pre-populate the reasoning-graph pickers */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Reasoning-Graph Defaults
+                </label>
+                <ThinkingSettings
+                  mode={settings.defaultReasoningMode ?? "divergent"}
+                  onModeChange={(m) => update({ defaultReasoningMode: m })}
+                  force={settings.defaultForcePreference ?? "freeform"}
+                  onForceChange={(f) => update({ defaultForcePreference: f })}
+                  size={settings.defaultReasoningSize ?? "medium"}
+                  onSizeChange={(s) => update({ defaultReasoningSize: s })}
+                />
+                <p className="text-[9px] text-text-dim/50 mt-2">
+                  Pre-populates the reasoning-graph pickers (mode of thinking, force bias, graph density). Always overridable per-generation.
+                </p>
+              </div>
+            </>
+          )}
+
+          {tab === 'other' && (
+            <>
+              {/* Target Arc Length */}
+              <div>
+                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
+                  Target Arc Length
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={2}
+                    max={8}
+                    step={1}
+                    value={settings.targetArcLength}
+                    onChange={(e) => update({ targetArcLength: Number(e.target.value) })}
+                    className="flex-1 accent-blue-500"
+                  />
+                  <span className="text-[11px] text-text-primary font-mono w-16 text-right">
+                    {settings.targetArcLength} scenes
+                  </span>
+                </div>
               </div>
 
               {/* Expansion Strategy */}

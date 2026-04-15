@@ -1,7 +1,7 @@
 "use client";
 
 import { Modal, ModalBody, ModalHeader } from "@/components/Modal";
-import { generateCoordinationPlan, type ForcePreference, type PlanGuidance, type ThreadTarget } from "@/lib/ai";
+import { generateCoordinationPlan, type ForcePreference, type PlanGuidance, type ReasoningMode, type ThreadTarget } from "@/lib/ai";
 import { useStore } from "@/lib/store";
 import { logError } from "@/lib/system-logger";
 import type { CoordinationPlan, Thread } from "@/types/narrative";
@@ -10,8 +10,7 @@ import { useCallback, useMemo, useState } from "react";
 import { GuidanceFields } from "./GuidanceFields";
 import { CoordinationPlanModal } from "./CoordinationPlanModal";
 import {
-  ForcePreferencePicker,
-  ReasoningSizePicker,
+  ThinkingSettings,
   type ReasoningSize,
 } from "./ForcePreferencePicker";
 
@@ -153,8 +152,18 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
   const [constraints, setConstraints] = useState("");
   const [arcTarget, setArcTarget] = useState(3);
   const [threadConfigs, setThreadConfigs] = useState<Record<string, ThreadConfig>>({});
-  const [forcePreference, setForcePreference] = useState<ForcePreference>("freeform");
-  const [reasoningLevel, setReasoningLevel] = useState<ReasoningSize>("medium");
+  // Initialized from story-level defaults so user doesn't have to re-pick
+  // their preferred thinking style each time.
+  const thinkingDefaults = state.activeNarrative?.storySettings;
+  const [forcePreference, setForcePreference] = useState<ForcePreference>(
+    thinkingDefaults?.defaultForcePreference ?? "freeform",
+  );
+  const [reasoningLevel, setReasoningLevel] = useState<ReasoningSize>(
+    thinkingDefaults?.defaultReasoningSize ?? "medium",
+  );
+  const [reasoningMode, setReasoningMode] = useState<ReasoningMode>(
+    thinkingDefaults?.defaultReasoningMode ?? "divergent",
+  );
 
   // Generation state
   const [loading, setLoading] = useState(false);
@@ -202,8 +211,9 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
       constraints: constraints.trim() || undefined,
       forcePreference,
       reasoningLevel,
+      reasoningMode,
     };
-  }, [threadConfigs, arcTarget, direction, constraints, forcePreference, reasoningLevel]);
+  }, [threadConfigs, arcTarget, direction, constraints, forcePreference, reasoningLevel, reasoningMode]);
 
   async function handleGeneratePlan(additionalPrompt?: string) {
     if (!narrative) return;
@@ -370,13 +380,13 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
               {/* Advanced tab */}
               {activeTab === "advanced" && (
                 <div className="space-y-4">
-                  <ForcePreferencePicker
-                    value={forcePreference}
-                    onChange={setForcePreference}
-                  />
-                  <ReasoningSizePicker
-                    value={reasoningLevel}
-                    onChange={setReasoningLevel}
+                  <ThinkingSettings
+                    mode={reasoningMode}
+                    onModeChange={setReasoningMode}
+                    force={forcePreference}
+                    onForceChange={setForcePreference}
+                    size={reasoningLevel}
+                    onSizeChange={setReasoningLevel}
                   />
                 </div>
               )}

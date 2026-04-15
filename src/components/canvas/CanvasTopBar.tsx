@@ -46,6 +46,8 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
 type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'search' | 'reasoning';
+type ScenePrimaryMode = 'plan' | 'prose' | 'audio';
+const SCENE_MODES: ScenePrimaryMode[] = ['plan', 'prose', 'audio'];
 
 // Module-level state shared with SceneProseView
 let beatPlanLinkedModeGlobal = false;
@@ -255,6 +257,16 @@ export function CanvasTopBar() {
   useEffect(() => {
     if (GRAPH_MODES.has(graphViewMode)) lastGraphModeRef.current = graphViewMode;
   }, [graphViewMode]);
+
+  // Remember last scene sub-mode so "Scene" returns to the user's choice
+  const lastSceneModeRef = useRef<ScenePrimaryMode>('plan');
+  useEffect(() => {
+    if ((SCENE_MODES as string[]).includes(graphViewMode)) {
+      lastSceneModeRef.current = graphViewMode as ScenePrimaryMode;
+    }
+  }, [graphViewMode]);
+
+  const inSceneMode = (SCENE_MODES as string[]).includes(graphViewMode);
 
   // ── Current scene ──────────────────────────────────────────────────────
   const currentScene = useMemo<Scene | null>(() => {
@@ -727,22 +739,15 @@ export function CanvasTopBar() {
           </>
         )}
 
-        {/* Main canvas mode selector */}
-        <div className="flex items-center rounded-md overflow-hidden border border-white/10">
-          {[
-            { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const },
-            { mode: 'reasoning' as CanvasMode, Icon: IconReasoning, label: 'Reasoning', condition: 'hasReasoning' as const },
-            { mode: 'plan' as CanvasMode, Icon: IconNotepad, label: 'Plan', condition: 'sceneOnly' as const },
-            { mode: 'prose' as CanvasMode, Icon: IconDocument, label: 'Prose', condition: 'sceneOnly' as const },
-            { mode: 'audio' as CanvasMode, Icon: IconWaveform, label: 'Audio', condition: 'sceneOnly' as const },
-            { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const },
-          ]
-            .filter(({ condition }) => {
-              if (condition === 'sceneOnly' && !currentScene) return false;
-              if (condition === 'hasReasoning' && !currentArcData.hasReasoningGraph) return false;
-              return true;
-            })
-            .map(({ mode, Icon, label }, idx) => {
+        {/* Scene sub-mode toggle (renders to the LEFT of primary, matching
+            the graph scope/domain toggle pattern). Only shown in Scene mode. */}
+        {inSceneMode && currentScene && (
+          <div className="flex items-center rounded-md overflow-hidden border border-white/10">
+            {[
+              { mode: 'plan' as ScenePrimaryMode, Icon: IconNotepad, label: 'Plan' },
+              { mode: 'prose' as ScenePrimaryMode, Icon: IconDocument, label: 'Prose' },
+              { mode: 'audio' as ScenePrimaryMode, Icon: IconWaveform, label: 'Audio' },
+            ].map(({ mode, Icon, label }, idx) => {
               const isActive = canvasMode === mode;
               return (
                 <div key={mode} className="flex items-center">
@@ -753,7 +758,48 @@ export function CanvasTopBar() {
                         ? 'bg-white/10 text-text-primary'
                         : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
                     }`}
-                    onClick={() => switchMode(mode)}
+                    onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode })}
+                  >
+                    <Icon size={12} />
+                    {label}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Main canvas mode selector. Plan/Prose/Audio collapse into a single
+            "Scene" button; the sub-mode toggle renders to its left above. */}
+        <div className="flex items-center rounded-md overflow-hidden border border-white/10">
+          {[
+            { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const, activeWhen: canvasMode === 'graph' },
+            { mode: 'reasoning' as CanvasMode, Icon: IconReasoning, label: 'Reasoning', condition: 'hasReasoning' as const, activeWhen: canvasMode === 'reasoning' },
+            { mode: 'scene' as const, Icon: IconNotepad, label: 'Scene', condition: 'sceneOnly' as const, activeWhen: inSceneMode },
+            { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const, activeWhen: canvasMode === 'search' },
+          ]
+            .filter(({ condition }) => {
+              if (condition === 'sceneOnly' && !currentScene) return false;
+              if (condition === 'hasReasoning' && !currentArcData.hasReasoningGraph) return false;
+              return true;
+            })
+            .map(({ mode, Icon, label, activeWhen }, idx) => {
+              return (
+                <div key={mode} className="flex items-center">
+                  {idx > 0 && <div className="w-px h-4 bg-white/10" />}
+                  <button
+                    className={`flex items-center gap-1 px-2 py-1 text-[10px] font-medium transition-colors ${
+                      activeWhen
+                        ? 'bg-white/10 text-text-primary'
+                        : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
+                    }`}
+                    onClick={() => {
+                      if (mode === 'scene') {
+                        dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: lastSceneModeRef.current });
+                      } else {
+                        switchMode(mode);
+                      }
+                    }}
                   >
                     <Icon size={12} />
                     {label}

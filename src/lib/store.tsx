@@ -830,9 +830,15 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, narratives: action.entries };
     }
     case "ADD_NARRATIVE_ENTRY": {
-      // Add entry if not already present (by ID)
-      if (state.narratives.some((n) => n.id === action.entry.id)) {
-        return state;
+      // Upsert entry. We replace even if present because bundled-load dispatches
+      // this after mutating SEED_IDS/PLAYGROUND_IDS/ANALYSIS_IDS — the reference
+      // change forces a re-render so the UI filters (which read those Sets) pick
+      // up the new classification.
+      const existing = state.narratives.findIndex((n) => n.id === action.entry.id);
+      if (existing >= 0) {
+        const next = [...state.narratives];
+        next[existing] = action.entry;
+        return { ...state, narratives: next };
       }
       return { ...state, narratives: [...state.narratives, action.entry] };
     }
@@ -2741,9 +2747,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             : `/${dir}/${file}`;
           const r = await fetch(fetchUrl);
           if (!r.ok) {
-            console.error(
-              `[loadManifest] Failed to fetch ${fetchUrl}:`,
-              r.status,
+            logError(
+              `Failed to fetch bundled narrative ${fetchUrl}`,
+              `HTTP ${r.status} ${r.statusText}`,
+              {
+                source: "other",
+                operation: "load-manifest",
+                details: { directory: dir, file, status: r.status, url: fetchUrl },
+              },
             );
             return null;
           }
@@ -2813,9 +2824,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
             // Import assets in background (non-blocking)
             importAssetsInBackground(zip, file).catch((err) => {
-              console.warn(
-                `[loadManifest] Background asset import failed for ${file}:`,
+              logWarning(
+                `Background asset import failed for ${file}`,
                 err,
+                {
+                  source: "asset",
+                  operation: "import-assets",
+                  details: { directory: dir, file },
+                },
               );
             });
           } else {
@@ -2851,9 +2867,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             // Import directory assets in background
             if (isDir) {
               importDirAssetsInBackground(dir, file).catch((err) => {
-                console.warn(
-                  `[loadManifest] Background dir asset import failed for ${file}:`,
+                logWarning(
+                  `Background dir asset import failed for ${file}`,
                   err,
+                  {
+                    source: "asset",
+                    operation: "import-assets",
+                    details: { directory: dir, file },
+                  },
                 );
               });
             }
@@ -2864,7 +2885,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           );
           return narrative;
         } catch (err) {
-          console.error(`[loadManifest] Error loading ${dir}/${file}:`, err);
+          logError(
+            `Failed to load bundled narrative ${dir}/${file}`,
+            err,
+            {
+              source: "other",
+              operation: "load-manifest",
+              details: { directory: dir, file },
+            },
+          );
           return null;
         }
       }
@@ -2906,12 +2935,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             files.map((file) => loadBundledFile(dir, file, idSet)),
           );
 
+          const loaded = results.filter((n): n is NarrativeState => n !== null);
+          const missing = files.filter((_, i) => results[i] === null);
           console.log(
-            `[loadManifest] Loaded ${results.filter(Boolean).length} narratives from ${dir}`,
+            `[loadManifest] Loaded ${loaded.length}/${files.length} narratives from ${dir}`,
           );
-          return results.filter((n): n is NarrativeState => n !== null);
+          if (missing.length > 0) {
+            logError(
+              `${missing.length}/${files.length} bundled narratives in "${dir}" failed to load`,
+              `Missing: ${missing.join(", ")}`,
+              {
+                source: "other",
+                operation: "load-manifest",
+                details: {
+                  directory: dir,
+                  missingCount: missing.length,
+                  totalCount: files.length,
+                  missing: missing.join(", "),
+                },
+              },
+            );
+          }
+          return loaded;
         } catch (err) {
-          logWarning(`Failed to load manifest for ${dir}`, err, {
+          logError(`Failed to load manifest for ${dir}`, err, {
             source: "other",
             operation: "load-manifest",
             details: { directory: dir },
@@ -2956,7 +3003,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "SET_ACTIVE_NARRATIVE", id: savedActiveId });
       }
     }
-    hydrate();
+    hydrate().catch((err) => {
+      logError("Hydration failed — narratives may not appear", err, {
+        source: "other",
+        operation: "hydrate-narratives",
+      });
+    });
   }, []);
 
   // Load narrative from IndexedDB when activeNarrativeId changes

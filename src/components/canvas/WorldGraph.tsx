@@ -487,8 +487,8 @@ export default function WorldGraph() {
     const locRange = Math.max(1, maxLocUsage - minLocUsage);
     const normChar = (d: GraphNode) => ((d.usageCount ?? 1) - minCharUsage) / charRange;
     const normLoc = (d: GraphNode) => ((d.usageCount ?? 1) - minLocUsage) / locRange;
-    const CHAR_MIN_R = 12;
-    const CHAR_MAX_R = 30;
+    const CHAR_MIN_R = 20;
+    const CHAR_MAX_R = 44;
     const LOC_MIN_SCALE = 0.6;
     const LOC_MAX_SCALE = 1.4;
 
@@ -510,7 +510,7 @@ export default function WorldGraph() {
         'collide',
         d3.forceCollide<GraphNode>().radius((d) => {
           if (d.kind === 'knowledge') return 28;
-          if (d.kind === 'artifact') return (d.significance === 'key' ? 14 : d.significance === 'minor' ? 7 : 10) + 14;
+          if (d.kind === 'artifact') return (d.significance === 'key' ? 22 : d.significance === 'minor' ? 11 : 16) + 14;
           if (scaleByUsage) {
             if (d.kind === 'character') {
               const t = charRange > 0 ? ((d.usageCount ?? 1) - minCharUsage) / charRange : 0;
@@ -724,7 +724,7 @@ export default function WorldGraph() {
       .attr('opacity', (d) => KNOWLEDGE_OPACITY[d.worldType ?? 'trait'] ?? DEFAULT_KNOWLEDGE_OPACITY);
 
     // Artifact diamonds — sized by significance
-    const ARTIFACT_SIZES: Record<string, number> = { key: 14, notable: 10, minor: 7 };
+    const ARTIFACT_SIZES: Record<string, number> = { key: 22, notable: 16, minor: 11 };
     const ARTIFACT_FILLS: Record<string, string> = { key: '#F59E0B', notable: '#D97706', minor: '#92400E' };
     nodeGroup
       .filter((d) => d.kind === 'artifact')
@@ -737,6 +737,31 @@ export default function WorldGraph() {
       .attr('transform', 'rotate(45)')
       .attr('fill', (d) => ARTIFACT_FILLS[d.significance ?? 'notable'] ?? '#D97706')
       .attr('opacity', 0.85);
+
+    // Artifact images — clipped to diamond shape
+    // The diamond is a rect rotated 45°. To fill it fully the image must
+    // cover the diagonal, so we scale by √2 and counter-rotate it upright
+    // inside the rotated clip region.
+    nodeGroup
+      .filter((d) => d.kind === 'artifact' && !!d.imageUrl && resolvedImageUrls.has(d.imageUrl))
+      .each(function (d) {
+        const sel = d3.select(this);
+        const sz = ARTIFACT_SIZES[d.significance ?? 'notable'] ?? 16;
+        const imgSz = sz * Math.SQRT2; // cover the full diagonal
+        const clipId = `clip-${d.id}`;
+        defs.append('clipPath').attr('id', clipId)
+          .append('rect')
+          .attr('x', -sz).attr('y', -sz)
+          .attr('width', sz * 2).attr('height', sz * 2)
+          .attr('rx', 2)
+          .attr('transform', 'rotate(45)');
+        sel.append('image')
+          .attr('href', resolvedImageUrls.get(d.imageUrl!)!)
+          .attr('x', -imgSz).attr('y', -imgSz)
+          .attr('width', imgSz * 2).attr('height', imgSz * 2)
+          .attr('preserveAspectRatio', 'xMidYMid slice')
+          .attr('clip-path', `url(#${clipId})`);
+      });
 
     // Character / location labels
     nodeGroup

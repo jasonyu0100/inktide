@@ -173,9 +173,9 @@ export function computeGroups<
 // ── Constants ───────────────────────────────────────────────────────────────
 
 export const ROLE_RADIUS: Record<CharacterRole, number> = {
-  anchor: 22,
-  recurring: 18,
-  transient: 14,
+  anchor: 32,
+  recurring: 26,
+  transient: 20,
 };
 
 export const ROLE_FILL: Record<CharacterRole, string> = {
@@ -184,7 +184,7 @@ export const ROLE_FILL: Record<CharacterRole, string> = {
   transient: "#555555",
 };
 
-export const LOCATION_SIZE = 24;
+export const LOCATION_SIZE = 34;
 export const LOCATION_RX = 6;
 export const LOCATION_FILL = "#333333";
 

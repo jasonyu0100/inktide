@@ -1,10 +1,13 @@
 "use client";
 
 import { ARCHETYPE_COLORS, ArchetypeIcon } from "@/components/ArchetypeIcon";
+import { REASONING_NODE_COLORS } from "@/lib/reasoning-node-colors";
+import * as d3 from "d3";
+import dagre from "dagre";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /* ── LaTeX helpers ───────────────────────────────────────────────────────── */
 
@@ -33,6 +36,270 @@ function Eq({ tex, label }: { tex: string; label?: string }) {
       <div className="text-center">
         <Tex display>{tex}</Tex>
       </div>
+    </div>
+  );
+}
+
+/* ── Reasoning graph diagram ─────────────────────────────────────────────── */
+
+type RGNodeType =
+  | "fate"
+  | "reasoning"
+  | "character"
+  | "location"
+  | "artifact"
+  | "system"
+  | "pattern"
+  | "warning";
+
+type RGEdgeType =
+  | "requires"
+  | "enables"
+  | "constrains"
+  | "risks"
+  | "causes"
+  | "reveals"
+  | "develops"
+  | "resolves";
+
+const RG_EDGE_COLORS: Record<RGEdgeType, string> = {
+  enables: "#22c55e",
+  constrains: "#ef4444",
+  risks: "#f59e0b",
+  requires: "#3b82f6",
+  causes: "#64748b",
+  reveals: "#a855f7",
+  develops: "#06b6d4",
+  resolves: "#10b981",
+};
+
+const RG_NODES: Array<{ id: string; idx: number; type: RGNodeType; label: string }> = [
+  { id: "F1",  idx: 0,  type: "fate",      label: "Stone must be claimed" },
+  { id: "F2",  idx: 1,  type: "fate",      label: "Betrayal must resolve" },
+  { id: "R1",  idx: 2,  type: "reasoning", label: "Solve the chamber trials" },
+  { id: "A1",  idx: 3,  type: "artifact",  label: "Mirror of Erised" },
+  { id: "F3",  idx: 4,  type: "fate",      label: "Harry's agency tested" },
+  { id: "R4",  idx: 5,  type: "reasoning", label: "Unmask Quirrell late" },
+  { id: "L1",  idx: 6,  type: "location",  label: "Third-floor chamber" },
+  { id: "S1",  idx: 7,  type: "system",    label: "Protections test virtue" },
+  { id: "PT1", idx: 8,  type: "pattern",   label: "Mirror reads desire" },
+  { id: "R3",  idx: 9,  type: "reasoning", label: "Pass the guardian trio" },
+  { id: "C2",  idx: 10, type: "character", label: "Hermione — logic" },
+  { id: "C3",  idx: 11, type: "character", label: "Ron — sacrifice" },
+  { id: "C1",  idx: 12, type: "character", label: "Harry — desire-pure" },
+  { id: "C4",  idx: 13, type: "character", label: "Quirrell — concealed host" },
+  { id: "WN1", idx: 14, type: "warning",   label: "No adult shortcut" },
+  { id: "WN2", idx: 15, type: "warning",   label: "Avoid obvious Snape" },
+  { id: "PT2", idx: 16, type: "pattern",   label: "Sacrifice earns passage" },
+  { id: "R5",  idx: 17, type: "reasoning", label: "Trials test a trait each" },
+];
+
+const RG_EDGES: Array<{ from: string; to: string; type: RGEdgeType }> = [
+  { from: "F1",  to: "F2",  type: "risks"      },
+  { from: "F1",  to: "R1",  type: "requires"   },
+  { from: "F1",  to: "L1",  type: "causes"     },
+  { from: "F1",  to: "R3",  type: "requires"   },
+  { from: "F2",  to: "R4",  type: "requires"   },
+  { from: "F2",  to: "C4",  type: "reveals"    },
+  { from: "R1",  to: "A1",  type: "requires"   },
+  { from: "R1",  to: "R5",  type: "enables"    },
+  { from: "A1",  to: "F1",  type: "resolves"   },
+  { from: "A1",  to: "C1",  type: "develops"   },
+  { from: "S1",  to: "A1",  type: "constrains" },
+  { from: "S1",  to: "R1",  type: "constrains" },
+  { from: "PT1", to: "A1",  type: "reveals"    },
+  { from: "F3",  to: "C1",  type: "develops"   },
+  { from: "F3",  to: "R3",  type: "requires"   },
+  { from: "R4",  to: "C4",  type: "requires"   },
+  { from: "R4",  to: "F2",  type: "resolves"   },
+  { from: "C4",  to: "F3",  type: "risks"      },
+  { from: "R3",  to: "C1",  type: "requires"   },
+  { from: "R3",  to: "C2",  type: "requires"   },
+  { from: "R3",  to: "C3",  type: "requires"   },
+  { from: "R5",  to: "R3",  type: "causes"     },
+  { from: "R5",  to: "C2",  type: "enables"    },
+  { from: "WN1", to: "R1",  type: "constrains" },
+  { from: "WN1", to: "C1",  type: "risks"      },
+  { from: "WN2", to: "R4",  type: "constrains" },
+  { from: "WN2", to: "F2",  type: "risks"      },
+  { from: "PT2", to: "C3",  type: "reveals"    },
+  { from: "PT2", to: "R3",  type: "develops"   },
+  { from: "C1",  to: "F3",  type: "develops"   },
+];
+
+const RG_NODE_WIDTH = 200;
+const RG_NODE_HEIGHT = 56;
+
+function ReasoningGraphDiagram() {
+  // Dagre layout — same library + options as the in-app ReasoningGraphView.
+  const layout = useMemo(() => {
+    const g = new dagre.graphlib.Graph();
+    g.setGraph({ rankdir: "TB", nodesep: 50, ranksep: 80, marginx: 24, marginy: 24 });
+    g.setDefaultEdgeLabel(() => ({}));
+    for (const n of RG_NODES) g.setNode(n.id, { width: RG_NODE_WIDTH, height: RG_NODE_HEIGHT });
+    for (const e of RG_EDGES) g.setEdge(e.from, e.to);
+    dagre.layout(g);
+
+    const nodes = RG_NODES.map((n) => {
+      const nd = g.node(n.id);
+      return { ...n, x: nd.x, y: nd.y };
+    });
+    const edges = RG_EDGES.map((e) => {
+      const ed = g.edge(e.from, e.to);
+      return { ...e, points: ed?.points ?? [] };
+    });
+    const graph = g.graph();
+    const width = (graph.width ?? 1200) as number;
+    const height = (graph.height ?? 800) as number;
+    return { nodes, edges, width, height };
+  }, []);
+
+  // Smooth path generator — same curve as the in-app view (curveBasis).
+  const line = useMemo(
+    () =>
+      d3
+        .line<{ x: number; y: number }>()
+        .x((p) => p.x)
+        .y((p) => p.y)
+        .curve(d3.curveBasis),
+    [],
+  );
+
+  const { nodes, edges, width, height } = layout;
+
+  return (
+    <div className="mt-6 mb-3 rounded-xl border border-white/8 bg-linear-to-b from-white/2 to-white/4 px-3 py-4 overflow-x-auto shadow-lg">
+      <svg
+        width="100%"
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="block mx-auto min-w-[820px]"
+      >
+        <defs>
+          {Object.entries(RG_EDGE_COLORS).map(([type, color]) => (
+            <marker
+              key={type}
+              id={`rg-arrow-${type}`}
+              viewBox="0 -5 10 10"
+              refX="8"
+              refY="0"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto"
+            >
+              <path d="M0,-4L10,0L0,4" fill={color} />
+            </marker>
+          ))}
+        </defs>
+
+        {/* Edges — curveBasis paths through dagre's edge points */}
+        {edges.map((e, ei) => {
+          const color = RG_EDGE_COLORS[e.type];
+          const d = line(e.points) ?? "";
+          return (
+            <path
+              key={`e-${ei}`}
+              d={d}
+              fill="none"
+              stroke={color}
+              strokeWidth={1.75}
+              opacity={0.7}
+              markerEnd={`url(#rg-arrow-${e.type})`}
+            />
+          );
+        })}
+
+        {/* Edge labels — midpoint of the polyline */}
+        {edges.map((e, ei) => {
+          if (e.points.length < 2) return null;
+          const mid = e.points[Math.floor(e.points.length / 2)];
+          return (
+            <text
+              key={`elbl-${ei}`}
+              x={mid.x}
+              y={mid.y - 6}
+              fill={RG_EDGE_COLORS[e.type]}
+              fontSize="9"
+              fontFamily="ui-monospace, SFMono-Regular, monospace"
+              textAnchor="middle"
+              opacity={0.9}
+            >
+              {e.type}
+            </text>
+          );
+        })}
+
+        {/* Nodes */}
+        {nodes.map((n) => {
+          const c = REASONING_NODE_COLORS[n.type];
+          const x = n.x - RG_NODE_WIDTH / 2;
+          const y = n.y - RG_NODE_HEIGHT / 2;
+          return (
+            <g key={n.id}>
+              <rect
+                x={x}
+                y={y}
+                width={RG_NODE_WIDTH}
+                height={RG_NODE_HEIGHT}
+                rx={8}
+                ry={8}
+                fill={c.fill}
+                stroke={c.stroke}
+                strokeWidth={2}
+              />
+              {/* Index badge (top-left) */}
+              <circle cx={x} cy={y} r={12} fill="#0f172a" stroke="#475569" strokeWidth={1} />
+              <text
+                x={x}
+                y={y + 1}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="10"
+                fontWeight="700"
+                fill="#e2e8f0"
+                fontFamily="ui-monospace, SFMono-Regular, monospace"
+              >
+                {n.idx}
+              </text>
+              {/* Type badge (top-right) */}
+              <rect
+                x={x + RG_NODE_WIDTH - 60}
+                y={y + 6}
+                width={54}
+                height={16}
+                rx={4}
+                fill="rgba(0,0,0,0.3)"
+              />
+              <text
+                x={x + RG_NODE_WIDTH - 33}
+                y={y + 14}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="9"
+                fontFamily="ui-monospace, SFMono-Regular, monospace"
+                fontWeight="500"
+                fill={c.text}
+                style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}
+              >
+                {n.type.slice(0, 9)}
+              </text>
+              {/* Main label */}
+              <text
+                x={n.x}
+                y={n.y + 6}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="11"
+                fontWeight="500"
+                fill={c.text}
+                fontFamily="system-ui"
+              >
+                {n.label.length > 28 ? n.label.slice(0, 26) + "…" : n.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -612,10 +879,10 @@ const NAV = [
   { id: "problem", label: "The Problem" },
   { id: "approach", label: "Approach" },
   { id: "hierarchy", label: "Hierarchy" },
-  { id: "embeddings", label: "Embeddings" },
   { id: "forces", label: "Forces" },
   { id: "validation", label: "Validation" },
   { id: "grading", label: "Grading" },
+  { id: "embeddings", label: "Embeddings" },
   { id: "planning", label: "Causal Reasoning" },
   { id: "mcts", label: "MCTS" },
   { id: "prose-profiles", label: "Prose Profiles" },
@@ -983,9 +1250,9 @@ export default function PaperPage() {
                   tensions (rivalries, secrets, quests) through discrete states:
                   latent &rarr; seeded &rarr; active &rarr; escalating &rarr;
                   critical &rarr; resolved/subverted. Abandoned resets a thread
-                  for repickup. Fate is investment-weighted: threads resolving
-                  around deeply-developed entities earn more than those with
-                  shallow participants.
+                  for repickup. Fate is the sum of stage weights across each
+                  transition — forward moves earn their destination-stage
+                  weight, and pulses scale by current lifecycle stage.
                 </span>
               </li>
               <li className="flex gap-2">
@@ -1466,68 +1733,6 @@ export default function PaperPage() {
             </P>
           </Section>
 
-          {/* ── Embeddings & Proposition Classification ─────────────────── */}
-          <Section id="embeddings" label="Embeddings">
-            <P>
-              Forces operate at the scene level. But readers experience{" "}
-              <B>prose</B>, composed of <B>propositions</B> — atomic claims that
-              must be accepted as true within the narrative world. &ldquo;Harry
-              has a lightning-bolt scar.&rdquo; &ldquo;The wand chooses the
-              wizard.&rdquo; Each is a temporally bounded statement whose
-              structural significance is determined by its relationships to
-              every other proposition.
-            </P>
-            <P>
-              Forces measure <B>what changes</B> in the knowledge graph.
-              Propositions measure <B>what is stated</B> in the prose. Every
-              proposition is embedded as a 1536-dimensional vector (OpenAI
-              text-embedding-3-small), transforming prose into a geometric space
-              where similarity is distance and structural relationships become
-              computable.
-            </P>
-            <P>
-              Coherent writing is a <B>proof graph</B>. Each proposition
-              introduces, derives from, or resolves prior content. A plot hole
-              is a broken inference chain; a satisfying resolution is a deep
-              proof tree resolving. Quality is structural — how propositions
-              relate across time — and that structure is now computable.
-            </P>
-
-            <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
-              Activation
-            </h3>
-            <P>
-              The full pairwise similarity structure is computed via matrix
-              multiplication —{" "}
-              <Tex>{"\\mathbf{S} = \\hat{E} \\hat{E}^\\top"}</Tex> where{" "}
-              <Tex>{"\\hat{E}"}</Tex> is the L2-normalized embedding matrix —
-              accelerated by TensorFlow.js. From this matrix, each proposition
-              receives two scores: <B>backward activation</B> (how strongly it
-              connects to prior content) and <B>forward activation</B> (how
-              strongly future content builds upon it).
-            </P>
-            <Eq
-              label="Hybrid activation score"
-              tex="A(p_i, D) = 0.5 \cdot \max_{j \in D} S_{ij} + 0.5 \cdot \frac{1}{k} \sum_{j \in \text{top}_k(D)} S_{ij}"
-            />
-            <P>
-              The hybrid of maximum (depth — strongest single dependency) and
-              mean-top-<Tex>{"k"}</Tex> (breadth — cluster of strong
-              connections) with <Tex>{"k=5"}</Tex> produces a robust activation
-              score. A proposition is <B>HI</B> if its score exceeds an absolute
-              threshold of 0.65, determined by systematic parameter sweep
-              maximizing cross-work distributional variance (
-              <Tex>{"\\Sigma \\text{var} = 225"}</Tex> across four reference
-              works). The backward/forward binary produces four structural
-              categories — <B>Anchor</B>, <B>Seed</B>, <B>Close</B>,{" "}
-              <B>Texture</B> — detailed in the{" "}
-              <a href="#classification" className="text-accent hover:underline">
-                Classification
-              </a>{" "}
-              section.
-            </P>
-          </Section>
-
           {/* ── The Three Forces ──────────────────────────────────────── */}
           <Section id="forces" label="The Three Forces">
             <p className="text-[15px] leading-relaxed text-white/50 italic mb-8">
@@ -1598,33 +1803,33 @@ export default function PaperPage() {
                 and System alone. But when threads accumulate and resolve, when
                 circumstances become extraordinary, that&apos;s fate at work.
               </P>
-              <Eq tex="F = \sum_{t} \sqrt{\text{arcs}(t)} \times w(t) \times (1 + \ln(1 + I(t)))" />
+              <Eq tex="F = \sum_{t} w(\text{from}_t, \text{to}_t)" />
               <P>
-                Three factors combine. <B>Arc span</B> uses{" "}
-                <Tex>{String.raw`\sqrt{\text{arcs}}`}</Tex> &mdash; sublinear
-                scaling that rewards persistence without penalizing short works.
-                <B>Stage weight</B> <Tex>w(t)</Tex> reflects lifecycle position:
-                pulse = 0.25, seeded = 0.5, active = 1.0, escalating = 1.5,
-                critical = 2.0, resolved = 4.0. Abandoned threads earn zero
-                &mdash; cleanup, not resolution.
+                Fate is the sum of stage weights across every thread transition
+                in the scene. The weight{" "}
+                <Tex>{String.raw`w(\text{from}, \text{to})`}</Tex> depends only
+                on the lifecycle transition itself &mdash; no arc span, no
+                investment factor, no participant depth lookup. A scene earns
+                fate by moving threads forward or sustaining them at high
+                stages, and that&apos;s it.
               </P>
               <P>
-                <B>Investment</B> <Tex>I(t)</Tex> is what distinguishes earned
-                fate from red herrings. It measures what the story has built
-                into the thread&apos;s participants &mdash; their continuity
-                depth (accumulated knowledge, relationships, history). A thread
-                resolving around a deeply-developed character earns more fate
-                than one involving transient figures:
+                <B>Forward transitions</B> earn the weight of their destination
+                stage, so a multi-stage jump (e.g. latent &rarr; escalating)
+                earns the same as a single-step arrival at that stage: seeded =
+                1.0, active = 1.5, escalating = 2.0, critical = 3.0,
+                resolved/subverted = 5.0. <B>Pulses</B> (holding a thread at
+                its current stage) scale by lifecycle position: latent = 0.25,
+                seeded = 0.5, active = 1.0, escalating = 1.5, critical = 2.0
+                &mdash; sustaining tension at higher stages matters more.
+                Abandoned earns zero &mdash; cleanup, not resolution.
               </P>
-              <Eq tex="I(t) = \max_p(\text{depth}_p) \times (1 + 0.15 \times \text{breadth})" />
               <P>
-                Fate can be powerful on a single individual (high depth, low
-                breadth) or across many people (moderate depth, high breadth). A
-                prophecy about a chosen one and a fellowship converging at a
-                climax both earn high fate &mdash; through different paths. In
-                fiction those nodes are characters, locations, artifacts. In a
-                paper they&apos;re theorems, concepts, arguments. The formula
-                works universally.
+                The payoff weight (5.0) sits well above the critical buildup
+                (3.0), so denouements pop clearly against the escalation that
+                preceded them. In fiction threads are rivalries, quests,
+                secrets. In a paper they&apos;re open questions, contested
+                claims, unresolved arguments. The formula works universally.
               </P>
             </div>
 
@@ -1976,6 +2181,68 @@ export default function PaperPage() {
             </P>
           </Section>
 
+          {/* ── Embeddings & Proposition Classification ─────────────────── */}
+          <Section id="embeddings" label="Embeddings">
+            <P>
+              Forces operate at the scene level. But readers experience{" "}
+              <B>prose</B>, composed of <B>propositions</B> — atomic claims that
+              must be accepted as true within the narrative world. &ldquo;Harry
+              has a lightning-bolt scar.&rdquo; &ldquo;The wand chooses the
+              wizard.&rdquo; Each is a temporally bounded statement whose
+              structural significance is determined by its relationships to
+              every other proposition.
+            </P>
+            <P>
+              Forces measure <B>what changes</B> in the knowledge graph.
+              Propositions measure <B>what is stated</B> in the prose. Every
+              proposition is embedded as a 1536-dimensional vector (OpenAI
+              text-embedding-3-small), transforming prose into a geometric space
+              where similarity is distance and structural relationships become
+              computable.
+            </P>
+            <P>
+              Coherent writing is a <B>proof graph</B>. Each proposition
+              introduces, derives from, or resolves prior content. A plot hole
+              is a broken inference chain; a satisfying resolution is a deep
+              proof tree resolving. Quality is structural — how propositions
+              relate across time — and that structure is now computable.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
+              Activation
+            </h3>
+            <P>
+              The full pairwise similarity structure is computed via matrix
+              multiplication —{" "}
+              <Tex>{"\\mathbf{S} = \\hat{E} \\hat{E}^\\top"}</Tex> where{" "}
+              <Tex>{"\\hat{E}"}</Tex> is the L2-normalized embedding matrix —
+              accelerated by TensorFlow.js. From this matrix, each proposition
+              receives two scores: <B>backward activation</B> (how strongly it
+              connects to prior content) and <B>forward activation</B> (how
+              strongly future content builds upon it).
+            </P>
+            <Eq
+              label="Hybrid activation score"
+              tex="A(p_i, D) = 0.5 \cdot \max_{j \in D} S_{ij} + 0.5 \cdot \frac{1}{k} \sum_{j \in \text{top}_k(D)} S_{ij}"
+            />
+            <P>
+              The hybrid of maximum (depth — strongest single dependency) and
+              mean-top-<Tex>{"k"}</Tex> (breadth — cluster of strong
+              connections) with <Tex>{"k=5"}</Tex> produces a robust activation
+              score. A proposition is <B>HI</B> if its score exceeds an absolute
+              threshold of 0.65, determined by systematic parameter sweep
+              maximizing cross-work distributional variance (
+              <Tex>{"\\Sigma \\text{var} = 225"}</Tex> across four reference
+              works). The backward/forward binary produces four structural
+              categories — <B>Anchor</B>, <B>Seed</B>, <B>Close</B>,{" "}
+              <B>Texture</B> — detailed in the{" "}
+              <a href="#classification" className="text-accent hover:underline">
+                Classification
+              </a>{" "}
+              section.
+            </P>
+          </Section>
+
           {/* ── Causal Reasoning ──────────────────────────────────────── */}
           <Section id="planning" label="Causal Reasoning">
             <P>
@@ -2094,346 +2361,8 @@ export default function PaperPage() {
             </P>
 
             {/* ── Reasoning graph diagram ───────────────────────────── */}
-            {(() => {
-              // Styling matches the in-app ReasoningGraphView component.
-              // Layout is intentionally organic — narrative causality is a
-              // tangle, not a ladder.
-              type NodeType =
-                | "fate"
-                | "reasoning"
-                | "character"
-                | "location"
-                | "artifact"
-                | "system"
-                | "pattern"
-                | "warning";
-              type EdgeType =
-                | "requires"
-                | "enables"
-                | "constrains"
-                | "risks"
-                | "causes"
-                | "reveals"
-                | "develops"
-                | "resolves";
+            <ReasoningGraphDiagram />
 
-              const NODE_COLORS: Record<
-                NodeType,
-                { fill: string; stroke: string; text: string }
-              > = {
-                fate: { fill: "#991b1b", stroke: "#ef4444", text: "#fee2e2" },
-                character: { fill: "#166534", stroke: "#22c55e", text: "#dcfce7" },
-                location: { fill: "#14532d", stroke: "#16a34a", text: "#bbf7d0" },
-                artifact: { fill: "#15803d", stroke: "#4ade80", text: "#f0fdf4" },
-                system: { fill: "#1e3a8a", stroke: "#3b82f6", text: "#dbeafe" },
-                reasoning: { fill: "#4c1d95", stroke: "#a855f7", text: "#ede9fe" },
-                pattern: { fill: "#115e59", stroke: "#14b8a6", text: "#ccfbf1" },
-                warning: { fill: "#92400e", stroke: "#f59e0b", text: "#fef3c7" },
-              };
-              const EDGE_COLORS: Record<EdgeType, string> = {
-                enables: "#22c55e",
-                constrains: "#ef4444",
-                risks: "#f59e0b",
-                requires: "#3b82f6",
-                causes: "#64748b",
-                reveals: "#a855f7",
-                develops: "#06b6d4",
-                resolves: "#10b981",
-              };
-
-              type GNode = {
-                id: string;
-                idx: number;
-                x: number;
-                y: number;
-                type: NodeType;
-                label: string;
-              };
-              type GEdge = { from: string; to: string; type: EdgeType };
-
-              // TB cascade with long reach-back arcs — mirrors the
-              // silhouette of real graphs produced in-app. Vertical flow
-              // on the right, scattered hub bottom-left, long edges that
-              // sweep across the canvas.
-              const nodes: GNode[] = [
-                // Right-side cascade — fate spine
-                { id: "F1",  idx: 0,  x: 860, y:  80, type: "fate",      label: "Stone must be claimed" },
-                { id: "F2",  idx: 1,  x: 860, y: 220, type: "fate",      label: "Betrayal must resolve" },
-                { id: "R1",  idx: 2,  x: 860, y: 360, type: "reasoning", label: "Solve the chamber trials" },
-                { id: "A1",  idx: 3,  x: 860, y: 500, type: "artifact",  label: "Mirror of Erised" },
-                { id: "F3",  idx: 4,  x: 860, y: 640, type: "fate",      label: "Harry's agency tested" },
-                { id: "R4",  idx: 5,  x: 860, y: 780, type: "reasoning", label: "Unmask Quirrell late" },
-                // Far-right satellites
-                { id: "L1",  idx: 6,  x: 1060, y:  80, type: "location",  label: "Third-floor chamber" },
-                { id: "S1",  idx: 7,  x: 1060, y: 500, type: "system",    label: "Protections test virtue" },
-                { id: "PT1", idx: 8,  x: 1060, y: 640, type: "pattern",   label: "Mirror reads desire" },
-                // Lower-left hub — the guardians cluster
-                { id: "R3",  idx: 9,  x: 380, y: 430, type: "reasoning", label: "Pass the guardian trio" },
-                { id: "C2",  idx: 10, x: 160, y: 560, type: "character", label: "Hermione — logic" },
-                { id: "C3",  idx: 11, x: 380, y: 600, type: "character", label: "Ron — sacrifice" },
-                { id: "C1",  idx: 12, x: 600, y: 560, type: "character", label: "Harry — desire-pure" },
-                // Bottom cluster — antagonist and warnings
-                { id: "C4",  idx: 13, x: 560, y: 780, type: "character", label: "Quirrell — concealed host" },
-                { id: "WN1", idx: 14, x: 220, y: 740, type: "warning",   label: "No adult shortcut" },
-                { id: "WN2", idx: 15, x: 340, y: 260, type: "warning",   label: "Avoid obvious Snape" },
-                // Upper-left meta — patterns injected by LLM
-                { id: "PT2", idx: 16, x: 160, y:  80, type: "pattern",   label: "Sacrifice earns passage" },
-                { id: "R5",  idx: 17, x: 160, y: 240, type: "reasoning", label: "Trials test a trait each" },
-              ];
-
-              // Dense, crossing edges — many sweep across the canvas.
-              const edges: GEdge[] = [
-                { from: "F1",  to: "F2",  type: "risks"      },
-                { from: "F1",  to: "R1",  type: "requires"   },
-                { from: "F1",  to: "L1",  type: "causes"     },
-                { from: "F1",  to: "R3",  type: "requires"   },
-                { from: "F2",  to: "R4",  type: "requires"   },
-                { from: "F2",  to: "C4",  type: "reveals"    },
-                { from: "R1",  to: "A1",  type: "requires"   },
-                { from: "R1",  to: "R5",  type: "enables"    },
-                { from: "A1",  to: "F1",  type: "resolves"   },
-                { from: "A1",  to: "C1",  type: "develops"   },
-                { from: "S1",  to: "A1",  type: "constrains" },
-                { from: "S1",  to: "R1",  type: "constrains" },
-                { from: "PT1", to: "A1",  type: "reveals"    },
-                { from: "F3",  to: "C1",  type: "develops"   },
-                { from: "F3",  to: "R3",  type: "requires"   },
-                { from: "R4",  to: "C4",  type: "requires"   },
-                { from: "R4",  to: "F2",  type: "resolves"   },
-                { from: "C4",  to: "F3",  type: "risks"      },
-                { from: "R3",  to: "C1",  type: "requires"   },
-                { from: "R3",  to: "C2",  type: "requires"   },
-                { from: "R3",  to: "C3",  type: "requires"   },
-                { from: "R5",  to: "R3",  type: "causes"     },
-                { from: "R5",  to: "C2",  type: "enables"    },
-                { from: "WN1", to: "R1",  type: "constrains" },
-                { from: "WN1", to: "C1",  type: "risks"      },
-                { from: "WN2", to: "R4",  type: "constrains" },
-                { from: "WN2", to: "F2",  type: "risks"      },
-                { from: "PT2", to: "C3",  type: "reveals"    },
-                { from: "PT2", to: "R3",  type: "develops"   },
-                { from: "C1",  to: "F3",  type: "develops"   },
-              ];
-
-              const NODE_W = 190;
-              const NODE_H = 52;
-              const W = 1200;
-              const H = 880;
-              const byId = new Map(nodes.map((n) => [n.id, n]));
-
-              // Intersect line from center (cx,cy) with rounded-rect border.
-              // For a simple rect, clip to half-width/height along the line angle.
-              const rectBoundary = (
-                cx: number,
-                cy: number,
-                tx: number,
-                ty: number,
-              ) => {
-                const dx = tx - cx;
-                const dy = ty - cy;
-                if (dx === 0 && dy === 0) return { x: cx, y: cy };
-                const halfW = NODE_W / 2;
-                const halfH = NODE_H / 2;
-                const sx = halfW / Math.abs(dx || 1e-9);
-                const sy = halfH / Math.abs(dy || 1e-9);
-                const s = Math.min(sx, sy);
-                return { x: cx + dx * s, y: cy + dy * s };
-              };
-
-              return (
-                <div className="mt-6 mb-3 rounded-xl border border-white/8 bg-linear-to-b from-white/2 to-white/4 px-3 py-4 overflow-x-auto shadow-lg">
-                  <svg
-                    width="100%"
-                    height={H}
-                    viewBox={`0 0 ${W} ${H}`}
-                    className="block mx-auto min-w-[820px]"
-                  >
-                    <defs>
-                      {Object.entries(EDGE_COLORS).map(([type, color]) => (
-                        <marker
-                          key={type}
-                          id={`rg-arrow-${type}`}
-                          viewBox="0 -5 10 10"
-                          refX="9"
-                          refY="0"
-                          markerWidth="6"
-                          markerHeight="6"
-                          orient="auto"
-                        >
-                          <path d="M0,-4L10,0L0,4" fill={color} />
-                        </marker>
-                      ))}
-                    </defs>
-
-                    {/* Edges — drawn first so nodes sit on top */}
-                    {edges.map((e, ei) => {
-                      const a = byId.get(e.from);
-                      const b = byId.get(e.to);
-                      if (!a || !b) return null;
-                      const color = EDGE_COLORS[e.type];
-                      const start = rectBoundary(a.x, a.y, b.x, b.y);
-                      const end = rectBoundary(b.x, b.y, a.x, a.y);
-                      // Perpendicular bend for visual separation when many
-                      // edges run between nearby nodes
-                      const dx = end.x - start.x;
-                      const dy = end.y - start.y;
-                      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-                      // Deterministic bend per edge index
-                      const bend = (((ei * 37) % 5) - 2) * 22;
-                      const nx = -dy / len;
-                      const ny = dx / len;
-                      const cx = (start.x + end.x) / 2 + nx * bend;
-                      const cy = (start.y + end.y) / 2 + ny * bend;
-                      const d = `M ${start.x} ${start.y} Q ${cx} ${cy} ${end.x} ${end.y}`;
-                      return (
-                        <g key={ei}>
-                          <path
-                            d={d}
-                            fill="none"
-                            stroke={color}
-                            strokeWidth={1.6}
-                            opacity={0.55}
-                            markerEnd={`url(#rg-arrow-${e.type})`}
-                          />
-                        </g>
-                      );
-                    })}
-
-                    {/* Edge labels — bare colored text, like the in-app UI */}
-                    {edges.map((e, ei) => {
-                      const a = byId.get(e.from);
-                      const b = byId.get(e.to);
-                      if (!a || !b) return null;
-                      const color = EDGE_COLORS[e.type];
-                      const start = rectBoundary(a.x, a.y, b.x, b.y);
-                      const end = rectBoundary(b.x, b.y, a.x, a.y);
-                      const dx = end.x - start.x;
-                      const dy = end.y - start.y;
-                      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-                      const bend = (((ei * 37) % 5) - 2) * 22;
-                      const nx = -dy / len;
-                      const ny = dx / len;
-                      const mx =
-                        0.25 * start.x +
-                        0.5 * ((start.x + end.x) / 2 + nx * bend) +
-                        0.25 * end.x;
-                      const my =
-                        0.25 * start.y +
-                        0.5 * ((start.y + end.y) / 2 + ny * bend) +
-                        0.25 * end.y;
-                      return (
-                        <text
-                          key={`lbl-${ei}`}
-                          x={mx}
-                          y={my - 4}
-                          fill={color}
-                          fontSize="9"
-                          fontFamily="ui-monospace, SFMono-Regular, monospace"
-                          textAnchor="middle"
-                          opacity={0.9}
-                        >
-                          {e.type}
-                        </text>
-                      );
-                    })}
-
-                    {/* Nodes */}
-                    {nodes.map((n) => {
-                      const c = NODE_COLORS[n.type];
-                      const x = n.x - NODE_W / 2;
-                      const y = n.y - NODE_H / 2;
-                      return (
-                        <g key={n.id}>
-                          <rect
-                            x={x}
-                            y={y}
-                            width={NODE_W}
-                            height={NODE_H}
-                            rx={8}
-                            ry={8}
-                            fill={c.fill}
-                            stroke={c.stroke}
-                            strokeWidth={1.5}
-                          />
-                          {/* Index badge (top-left) */}
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={10}
-                            fill="#0f172a"
-                            stroke={c.stroke}
-                            strokeWidth={1}
-                          />
-                          <text
-                            x={x}
-                            y={y + 1}
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            fontSize="9"
-                            fontWeight="700"
-                            fill={c.text}
-                            fontFamily="ui-monospace, SFMono-Regular, monospace"
-                          >
-                            {n.idx}
-                          </text>
-                          {/* Type badge (top-right) */}
-                          <rect
-                            x={x + NODE_W - 66}
-                            y={y + 5}
-                            width={60}
-                            height={13}
-                            rx={3}
-                            fill="rgba(0,0,0,0.35)"
-                          />
-                          <text
-                            x={x + NODE_W - 36}
-                            y={y + 12}
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            fontSize="8"
-                            fontFamily="ui-monospace, SFMono-Regular, monospace"
-                            fill={c.text}
-                            style={{
-                              textTransform: "uppercase",
-                              letterSpacing: "0.08em",
-                            }}
-                          >
-                            {n.type}
-                          </text>
-                          {/* ID (bottom-right) */}
-                          <text
-                            x={x + NODE_W - 8}
-                            y={y + NODE_H - 6}
-                            textAnchor="end"
-                            fontSize="8"
-                            fill={c.text}
-                            opacity={0.5}
-                            fontFamily="ui-monospace, SFMono-Regular, monospace"
-                          >
-                            {n.id}
-                          </text>
-                          {/* Main label */}
-                          <text
-                            x={n.x}
-                            y={n.y + 4}
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            fontSize="11"
-                            fontWeight="500"
-                            fill={c.text}
-                            fontFamily="system-ui"
-                          >
-                            {n.label.length > 27
-                              ? n.label.slice(0, 26) + "…"
-                              : n.label}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </svg>
-                </div>
-              );
-            })()}
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
               World Expansion

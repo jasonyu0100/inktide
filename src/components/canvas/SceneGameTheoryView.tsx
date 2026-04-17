@@ -370,16 +370,62 @@ function PlayersHeader({ game }: { game: BeatGame }) {
 
   return (
     <div className="flex items-baseline gap-2 text-[12px]">
-      <span className={`font-semibold ${nameClass(aWins, bWins)}`}>
-        {game.playerAName}
-      </span>
+      <PlayerLink
+        id={game.playerAId}
+        name={game.playerAName}
+        className={`font-semibold ${nameClass(aWins, bWins)}`}
+      />
       <span className="font-mono text-[12px] text-text-dim/80 tabular-nums">
         {chosen.payoffA}&ndash;{chosen.payoffB}
       </span>
-      <span className={`font-semibold ${nameClass(bWins, aWins)}`}>
-        {game.playerBName}
-      </span>
+      <PlayerLink
+        id={game.playerBId}
+        name={game.playerBName}
+        className={`font-semibold ${nameClass(bWins, aWins)}`}
+      />
     </div>
+  );
+}
+
+/**
+ * Clickable player name — opens the entity in the inspector panel.
+ * Resolves kind (character/location/artifact) from the narrative registry;
+ * falls back to plain text if the entity isn't in the registry (deleted).
+ */
+function PlayerLink({
+  id,
+  name,
+  className,
+}: {
+  id: string;
+  name: string;
+  className?: string;
+}) {
+  const { state, dispatch } = useStore();
+  const narrative = state.activeNarrative;
+
+  const context = useMemo(() => {
+    if (!narrative) return null;
+    if (narrative.characters[id]) return { type: "character" as const, characterId: id };
+    if (narrative.locations[id]) return { type: "location" as const, locationId: id };
+    if (narrative.artifacts[id]) return { type: "artifact" as const, artifactId: id };
+    return null;
+  }, [narrative, id]);
+
+  if (!context) {
+    // Entity deleted or phantom — render as plain text, not a button
+    return <span className={className}>{name}</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => dispatch({ type: "SET_INSPECTOR", context })}
+      className={`${className ?? ""} hover:underline underline-offset-[3px] decoration-1 cursor-pointer`}
+      title={`Open ${name} in inspector`}
+    >
+      {name}
+    </button>
   );
 }
 
@@ -434,6 +480,7 @@ function OptimalMoves({ game }: { game: BeatGame }) {
       </div>
       <div className="flex flex-col gap-1.5">
         <OptimalRow
+          playerId={game.playerAId}
           playerName={game.playerAName}
           dominant={aDominant}
           againstC={aAgainstC}
@@ -445,6 +492,7 @@ function OptimalMoves({ game }: { game: BeatGame }) {
           side="A"
         />
         <OptimalRow
+          playerId={game.playerBId}
           playerName={game.playerBName}
           dominant={bDominant}
           againstC={bAgainstC}
@@ -461,6 +509,7 @@ function OptimalMoves({ game }: { game: BeatGame }) {
 }
 
 function OptimalRow({
+  playerId,
   playerName,
   dominant,
   againstC,
@@ -471,6 +520,7 @@ function OptimalRow({
   choseOptimal,
   side,
 }: {
+  playerId: string;
   playerName: string;
   dominant: string | null;
   againstC: string;
@@ -486,7 +536,7 @@ function OptimalRow({
   return (
     <div className="flex items-start gap-2 text-[12px]">
       <div className="flex-1">
-        <span className={`font-semibold ${nameColor}`}>{playerName}</span>
+        <PlayerLink id={playerId} name={playerName} className={`font-semibold ${nameColor}`} />
         <span className="text-text-dim/75"> should </span>
         {dominant ? (
           <>
@@ -617,12 +667,18 @@ function MatrixBoard({ game }: { game: BeatGame }) {
               }}
             />
             <div className="relative flex flex-col items-end gap-2">
-              <span className="text-[12px] font-medium text-text-primary">
-                {game.playerBName}
-              </span>
-              <span className="text-[12px] font-medium text-text-secondary self-start">
-                {game.playerAName}
-              </span>
+              <PlayerLink
+                id={game.playerBId}
+                name={game.playerBName}
+                className="text-[12px] font-medium text-text-primary"
+              />
+              <div className="self-start">
+                <PlayerLink
+                  id={game.playerAId}
+                  name={game.playerAName}
+                  className="text-[12px] font-medium text-text-secondary"
+                />
+              </div>
             </div>
           </th>
           <th className="px-3 py-2 text-center">

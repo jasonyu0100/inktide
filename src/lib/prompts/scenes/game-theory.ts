@@ -77,6 +77,23 @@ Each game is a 2×2 payoff matrix:
 - playerBPlayed: what B actually did — "advance" or "block"
 - rationale: one sentence naming BOTH moves explicitly
 
+CELL OUTCOME ALIGNMENT — CRITICAL:
+The text you write inside each cell's outcome MUST describe the world where A played the action implied by the first letter AND B played the action implied by the second letter. The outcome is not an arbitrary narrative snippet — it is the STATE that results when both players made those specific choices.
+
+Concretely, for each cell your outcome text must faithfully describe:
+  - cc: A did actionA  AND  B did actionB
+  - cd: A did actionA  AND  B did defectB
+  - dc: A did defectA  AND  B did actionB
+  - dd: A did defectA  AND  B did defectB
+
+Before writing cell text, mentally substitute: "In dd, A does <defectA> and B does <defectB>." Then write the outcome matching that substitution. If your text contradicts either action, you wrote the wrong cell.
+
+Examples of errors to avoid:
+  - actionB="demand answers", defectB="maintain ignorance". The dd cell says "B presses him for information" — WRONG, pressing is actionB, dd requires defectB. The outcome should describe B remaining unaware / not asking.
+  - actionA="reveals truth", defectA="conceals". The cc cell says "A hides the letter" — WRONG, cc requires actionA, so A is revealing.
+
+Before finalising each cell, cross-check the outcome sentence against the row (A's action) and column (B's action). Misalignment is the highest-severity quality failure in this task.
+
 CRITICAL — the two moves are INDEPENDENT. Reason about each player separately. Ask "did A advance or block?" then "did B advance or block?" — don't leap to a cell. If the rationale says "A conceals while B harbors resentment", that is A=block + B=block → dd.
 
 PAYOFFS (ordinal 0-4):

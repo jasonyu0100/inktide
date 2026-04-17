@@ -70,10 +70,14 @@ PAYOFF MATRICES — REQUIRED for every thread with 2+ participants.
 - Each pair of participants has a 2×2 game with TWO named actions per player.
 - actionA/actionB = each player's ADVANCING action (progresses the thread)
 - defectA/defectB = each player's BLOCKING action (resists, exploits, or diverts)
-- These are real choices, not abstract labels:
+- These are real choices grounded in the prose, not abstract labels:
     Fiction: "reveals voluntarily" vs "maintains concealment" / "trusts appearances" vs "investigates actively"
     Non-fiction: "adopts the framework" vs "retains the prior model" / "shares data" vs "restricts access"
-- Payoffs are 0-4 per player per cell. Fill all four cells (cc, cd, dc, dd) with outcomes.
+- Location/artifact participants: model them as environmental forces with agency over the thread.
+    Location actions: "provides shelter" vs "becomes hostile" / "remains stable" vs "collapses"
+    Artifact actions: "functions reliably" vs "malfunctions" / "sustains user" vs "drains user"
+- Payoffs are 0-4 per player per cell. Fill all four cells (cc, cd, dc, dd) with outcomes and BOTH payoffs.
+- One matrix per participant PAIR. DO NOT SKIP — every thread with 2+ participants MUST have payoffMatrices.
 
 - Fiction example — "Can Ruo Lan uncover Fang Yuan's secret?"
     actionA: "reveals voluntarily"    defectA: "maintains concealment"
@@ -91,14 +95,18 @@ PAYOFF MATRICES — REQUIRED for every thread with 2+ participants.
     dc(1,3): mixed result
     dd(0,0): field remains fragmented
 
-- One matrix per participant PAIR. DO NOT SKIP — every thread with 2+ participants MUST have payoffMatrices.
-
 matrixCell ON LOG ENTRIES — every threadDelta addedNode MUST declare matrixCell.
 - matrixCell = which cell of the payoff matrix this move represents.
 - First letter = ACTOR's action (c = advancing action, d = blocking action)
 - Second letter = TARGET's action (c = advancing, d = blocking)
 - Even self-directed moves (no target) MUST declare: cc for advancing, dc for blocking.
 - This is how we track which decisions were made at each moment in the story.
+- CONSTRAINT: actorName and targetName on log entries MUST correspond to a playerA/playerB pair
+  from one of the thread's payoffMatrices. If there is no matrix for that pair, the log entry is orphaned.
+- VARY THE CELLS — if a thread's log has multiple entries, they should NOT all be cc.
+  Read the prose: is someone blocking, resisting, exploiting? That's cd or dc or dd.
+  A thread where every move is cc (mutual cooperation) means nothing is contested — check the prose again.
+  Monotone cc across multiple scenes is almost always a detection failure.
 
 threadDeltas — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
 

@@ -177,7 +177,7 @@ export default function GameView({ narrative }: Props) {
         <div className="shrink-0 flex border-b border-border">
           {(['turn', 'thread', 'entity', 'dashboard'] as const).map((m) => (
             <button key={m} onClick={() => setViewMode(m)}
-              className={`flex-1 py-1.5 text-[8px] font-semibold uppercase tracking-wider transition-colors ${viewMode === m ? 'text-text-primary bg-white/5' : 'text-text-dim/30 hover:text-text-dim/50'}`}
+              className={`flex-1 py-1.5 text-[8px] font-semibold uppercase tracking-wider transition-colors ${viewMode === m ? 'text-text-primary bg-white/5' : 'text-text-dim/50 hover:text-text-dim/50'}`}
             >{m === 'dashboard' ? 'Dash' : m}</button>
           ))}
         </div>
@@ -187,7 +187,7 @@ export default function GameView({ narrative }: Props) {
             {entities.map((e) => (
               <button key={e.id} onClick={() => { setSelectedEntity(e.id); setSelectedGame(null); dispatch({ type: 'SET_INSPECTOR', context: narrative.characters[e.id] ? { type: 'character', characterId: e.id } : narrative.locations[e.id] ? { type: 'location', locationId: e.id } : { type: 'artifact', artifactId: e.id } }); }}
                 className={`w-full text-left px-3 py-1.5 text-[10px] transition-colors ${selectedEntity === e.id ? 'bg-white/8 text-text-primary' : 'text-text-dim/50 hover:bg-white/3'}`}
-              >{e.name} <span className="text-text-dim/25">({e.games})</span></button>
+              >{e.name} <span className="text-text-dim/60">({e.games})</span></button>
             ))}
           </div>
         )}
@@ -197,14 +197,14 @@ export default function GameView({ narrative }: Props) {
           {viewMode !== 'dashboard' && displayGames.map((g) => {
             const active = activeGame?.threadId === g.threadId;
             const movesForDots = viewMode === 'turn' ? g.moves.filter((m: GameMove) => sceneMoveIds.has(m.nodeId)) : g.moves;
-            const stateColor = g.gameState === 'endgame' ? 'text-fate' : g.gameState === 'committed' ? 'text-orange-400' : g.gameState === 'midgame' ? 'text-blue-400' : g.gameState === 'resolved' ? 'text-world' : g.gameState === 'broken' ? 'text-violet-400' : 'text-text-dim/30';
+            const stateColor = g.gameState === 'endgame' ? 'text-fate' : g.gameState === 'committed' ? 'text-orange-400' : g.gameState === 'midgame' ? 'text-blue-400' : g.gameState === 'resolved' ? 'text-world' : g.gameState === 'broken' ? 'text-violet-400' : 'text-text-dim/50';
             return (
               <button key={g.threadId} onClick={() => { setSelectedGame(g.threadId); setOverridePair(null); setShowFullHistory(false); setActiveMoveIdx(0); dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: g.threadId } }); }}
                 className={`w-full text-left px-3 py-2 border-b border-white/5 transition-colors ${active ? 'bg-white/8' : 'hover:bg-white/3'}`}
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className={`text-[8px] font-semibold uppercase ${stateColor}`}>{g.gameState}</span>
-                  {g.trajectory !== 'developing' && <span className={`text-[8px] ${g.trajectory === 'volatile' ? 'text-orange-400/60' : g.trajectory === 'contested' ? 'text-amber-400/60' : g.trajectory === 'momentum' ? 'text-emerald-400/60' : 'text-text-dim/20'}`}>{g.trajectory}</span>}
+                  {g.trajectory !== 'developing' && <span className={`text-[8px] ${g.trajectory === 'volatile' ? 'text-orange-400/80' : g.trajectory === 'contested' ? 'text-amber-400/80' : g.trajectory === 'momentum' ? 'text-emerald-400/80' : 'text-text-dim/20'}`}>{g.trajectory}</span>}
                 </div>
                 <div className="text-[10px] text-text-secondary leading-snug line-clamp-2">{g.question}</div>
                 {movesForDots.length > 0 && (
@@ -212,14 +212,14 @@ export default function GameView({ narrative }: Props) {
                     {movesForDots.slice(-8).map((m: GameMove, i: number) => (
                       <span key={i} className={`w-1.5 h-1.5 rounded-full ${m.stance === 'cooperative' ? 'bg-emerald-400' : m.stance === 'competitive' ? 'bg-red-400' : 'bg-white/15'}`} />
                     ))}
-                    <span className="text-[8px] text-text-dim/30 ml-auto">{movesForDots.length}</span>
+                    <span className="text-[8px] text-text-dim/50 ml-auto">{movesForDots.length}</span>
                   </div>
                 )}
               </button>
             );
           })}
           {viewMode !== 'dashboard' && displayGames.length === 0 && (
-            <p className="text-[10px] text-text-dim/30 italic p-4 text-center">
+            <p className="text-[10px] text-text-dim/50 italic p-4 text-center">
               {viewMode === 'turn' ? 'No games this turn' : viewMode === 'entity' && !selectedEntity ? 'Select an entity' : 'No games'}
             </p>
           )}
@@ -231,18 +231,19 @@ export default function GameView({ narrative }: Props) {
               stateDist[g.gameState as keyof typeof stateDist] = (stateDist[g.gameState as keyof typeof stateDist] ?? 0) + 1;
             }
             const stateEntries = (['endgame', 'committed', 'midgame', 'setup', 'resolved', 'broken'] as const).filter((s) => stateDist[s] > 0);
+            const gtoMap = new Map(computePlayerGTO(fullState).map((p) => [p.id, p]));
             return (
               <>
                 {/* Game states */}
                 <div className="px-3 py-2 border-b border-border">
-                  <div className="text-[8px] uppercase tracking-[0.15em] text-text-dim/30 font-semibold mb-1.5">Game States</div>
+                  <div className="text-[8px] uppercase tracking-[0.15em] text-text-dim/70 font-semibold mb-1.5">Game States</div>
                   <div className="flex flex-col gap-0.5">
                     {stateEntries.map((gs) => {
-                      const color = gs === 'endgame' ? 'text-fate' : gs === 'committed' ? 'text-orange-400' : gs === 'midgame' ? 'text-blue-400' : gs === 'resolved' ? 'text-world' : gs === 'broken' ? 'text-violet-400' : 'text-text-dim/40';
+                      const color = gs === 'endgame' ? 'text-fate' : gs === 'committed' ? 'text-orange-400' : gs === 'midgame' ? 'text-blue-400' : gs === 'resolved' ? 'text-world' : gs === 'broken' ? 'text-violet-400' : 'text-text-dim/60';
                       return (
                         <div key={gs} className="flex items-center justify-between">
                           <span className={`text-[9px] ${color}`}>{gs}</span>
-                          <span className="text-[9px] text-text-dim/40 tabular-nums">{stateDist[gs]}</span>
+                          <span className="text-[9px] text-text-dim/60 tabular-nums">{stateDist[gs]}</span>
                         </div>
                       );
                     })}
@@ -251,25 +252,20 @@ export default function GameView({ narrative }: Props) {
 
                 {/* Player roster */}
                 <div className="px-3 py-1.5 border-b border-border">
-                  <div className="text-[8px] uppercase tracking-[0.15em] text-text-dim/30 font-semibold">Players</div>
+                  <div className="text-[8px] uppercase tracking-[0.15em] text-text-dim/70 font-semibold">Players</div>
                 </div>
                 {entities.map((e) => {
-                  const pos = fullState.playerPositions.find((p) => p.id === e.id);
-                  const postureColor = pos?.overallPosture === 'dominant' ? 'text-emerald-400' : pos?.overallPosture === 'pressured' ? 'text-amber-400' : pos?.overallPosture === 'embattled' ? 'text-red-400' : 'text-text-dim/30';
+                  const gto = gtoMap.get(e.id);
+                  const desc = gto ? describePlayer(gto) : '';
                   return (
                     <button key={e.id} onClick={() => dispatch({ type: 'SET_INSPECTOR', context: narrative.characters[e.id] ? { type: 'character', characterId: e.id } : narrative.locations[e.id] ? { type: 'location', locationId: e.id } : { type: 'artifact', artifactId: e.id } })}
                       className="w-full text-left px-3 py-1.5 border-b border-white/5 hover:bg-white/3 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-text-secondary">{e.name}</span>
-                        <span className="text-[9px] text-text-dim/30 tabular-nums">{e.games}</span>
+                        <span className="text-[9px] text-text-dim/50 tabular-nums">{gto?.totalMoves ?? 0}</span>
                       </div>
-                      {pos && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className={`text-[8px] ${postureColor}`}>{pos.overallPosture}</span>
-                          {pos.endgameGames > 0 && <span className="text-[8px] text-fate/60">{pos.endgameGames} endgame</span>}
-                        </div>
-                      )}
+                      {desc && <div className="text-[8px] text-text-dim/70 font-medium mt-0.5">{desc}</div>}
                     </button>
                   );
                 })}
@@ -281,7 +277,7 @@ export default function GameView({ narrative }: Props) {
 
       {/* Main panel */}
       {viewMode === 'dashboard' && dashboardData ? (
-        <DashboardPanel data={dashboardData} state={fullState} nameOf={nameOf} dispatch={dispatch} />
+        <DashboardPanel data={dashboardData} state={fullState} nameOf={nameOf} dispatch={dispatch} narrative={narrative} />
       ) : activeGame && activePw ? (
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
@@ -290,23 +286,23 @@ export default function GameView({ narrative }: Props) {
             {/* Scene stepper */}
             <div className="flex items-center gap-1">
               <button onClick={() => dispatch({ type: 'PREV_SCENE' })}
-                className="p-1 rounded text-text-dim/40 hover:text-text-primary transition-colors disabled:opacity-15"
+                className="p-1 rounded text-text-dim/60 hover:text-text-primary transition-colors disabled:opacity-15"
                 disabled={state.viewState.currentSceneIndex <= 0}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
               <span className="text-[12px] text-text-primary tabular-nums font-medium px-1">
-                {state.viewState.currentSceneIndex + 1}<span className="text-text-dim/25 font-normal">/{state.resolvedEntryKeys.length}</span>
+                {state.viewState.currentSceneIndex + 1}<span className="text-text-dim/60 font-normal">/{state.resolvedEntryKeys.length}</span>
               </span>
               <button onClick={() => dispatch({ type: 'NEXT_SCENE' })}
-                className="p-1 rounded text-text-dim/40 hover:text-text-primary transition-colors disabled:opacity-15"
+                className="p-1 rounded text-text-dim/60 hover:text-text-primary transition-colors disabled:opacity-15"
                 disabled={state.viewState.currentSceneIndex >= state.resolvedEntryKeys.length - 1}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5.5 3L9.5 7l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
             </div>
 
-            {/* Game state + trajectory — centre */}
+            {/* Game state + trajectory */}
             <div className="flex items-center gap-2 ml-4">
               <span className={`text-[10px] font-semibold uppercase tracking-wide ${
                 activeGame.gameState === 'endgame' ? 'text-fate' :
@@ -317,27 +313,62 @@ export default function GameView({ narrative }: Props) {
                 'text-text-dim/50'
               }`}>{activeGame.gameState}</span>
               <span className={`text-[10px] ${
-                activeGame.trajectory === 'volatile' ? 'text-orange-400/60' :
-                activeGame.trajectory === 'momentum' ? 'text-emerald-400/60' :
-                activeGame.trajectory === 'contested' ? 'text-amber-400/60' :
+                activeGame.trajectory === 'volatile' ? 'text-orange-400/80' :
+                activeGame.trajectory === 'momentum' ? 'text-emerald-400/80' :
+                activeGame.trajectory === 'contested' ? 'text-amber-400/80' :
                 activeGame.trajectory === 'stalled' ? 'text-red-400/60' :
-                'text-text-dim/30'
+                'text-text-dim/50'
               }`}>{activeGame.trajectory}</span>
             </div>
 
-            {/* Right side: history toggle */}
-            <div className="ml-auto">
-              <button
-                onClick={() => setShowFullHistory(!showFullHistory)}
-                className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
-                  showFullHistory
-                    ? 'bg-white/8 text-text-secondary'
-                    : 'text-text-dim/35 hover:text-text-dim/60'
-                }`}
-              >
-                {showFullHistory ? 'All' : 'Turn'}
-              </button>
-            </div>
+            {/* Stats */}
+            {(() => {
+              const bal = activeGame.moveBalance;
+              const temp = bal.total > 0 ? bal.competitive / bal.total : 0;
+              return (
+                <div className="flex items-center gap-4 ml-auto">
+                  {/* Temperature */}
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[11px] font-mono font-semibold tabular-nums ${
+                      temp > 0.5 ? 'text-red-400' : temp > 0.3 ? 'text-amber-400' : 'text-emerald-400'
+                    }`}>{(temp * 100).toFixed(0)}%</span>
+                    <span className="text-[9px] text-text-dim/60">temp</span>
+                  </div>
+
+                  {/* Move balance bar */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-mono font-semibold tabular-nums text-text-primary">{bal.total}</span>
+                    <div className="flex gap-px h-1.5 rounded-full overflow-hidden bg-white/5 w-14">
+                      {bal.total > 0 && <>
+                        {bal.cooperative > 0 && <div className="bg-emerald-400/60 h-full" style={{ width: `${(bal.cooperative / bal.total) * 100}%` }} />}
+                        {bal.neutral > 0 && <div className="bg-white/15 h-full" style={{ width: `${(bal.neutral / bal.total) * 100}%` }} />}
+                        {bal.competitive > 0 && <div className="bg-red-400/60 h-full" style={{ width: `${(bal.competitive / bal.total) * 100}%` }} />}
+                      </>}
+                    </div>
+                  </div>
+
+                  {/* Momentum */}
+                  <div className="flex items-center gap-1">
+                    <span className={`text-[11px] font-mono font-semibold tabular-nums ${
+                      activeGame.momentum > 0.3 ? 'text-emerald-400' : activeGame.momentum < -0.3 ? 'text-red-400' : 'text-text-dim/50'
+                    }`}>{activeGame.momentum > 0 ? '+' : ''}{activeGame.momentum.toFixed(1)}</span>
+                    {activeGame.volatility > 0.3 && <span className="text-[9px] text-text-dim/60">{activeGame.volatility.toFixed(1)}v</span>}
+                  </div>
+
+                  {/* History toggle */}
+                  <button
+                    onClick={() => setShowFullHistory(!showFullHistory)}
+                    className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+                      showFullHistory
+                        ? 'bg-white/8 text-text-secondary'
+                        : 'text-text-dim/55 hover:text-text-dim/60'
+                    }`}
+                  >
+                    {showFullHistory ? 'All' : 'Turn'}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
 
           {/* ── Scrollable content ── */}
@@ -353,27 +384,27 @@ export default function GameView({ narrative }: Props) {
                     <p className="text-[15px] text-text-primary leading-relaxed">{m.content}</p>
                     <div className="flex items-center gap-2 mt-2">
                       {m.attributed && (
-                        <span className="text-[11px] text-text-secondary/60">{nameOf(m.actorId!)}{m.targetId ? ` \u2192 ${nameOf(m.targetId)}` : ''}</span>
+                        <span className="text-[11px] text-text-secondary">{nameOf(m.actorId!)}{m.targetId ? ` \u2192 ${nameOf(m.targetId)}` : ''}</span>
                       )}
-                      <span className={`text-[10px] ${m.stance === 'cooperative' ? 'text-emerald-400/70' : m.stance === 'competitive' ? 'text-red-400/70' : 'text-text-dim/30'}`}>{m.stance}</span>
+                      <span className={`text-[10px] ${m.stance === 'cooperative' ? 'text-emerald-400/70' : m.stance === 'competitive' ? 'text-red-400/70' : 'text-text-dim/50'}`}>{m.stance}</span>
                       {m.matrixCell && (
                         <span className={`text-[10px] font-mono font-medium ${
-                          m.matrixCell === 'cc' ? 'text-emerald-400/60' :
+                          m.matrixCell === 'cc' ? 'text-emerald-400/80' :
                           m.matrixCell === 'dd' ? 'text-red-400/60' :
-                          'text-amber-400/60'
+                          'text-amber-400/80'
                         }`}>{m.matrixCell}</span>
                       )}
                       {/* Move stepper — only when multiple */}
                       {displayMoves.length > 1 && (
                         <div className="flex items-center gap-1 ml-auto">
                           <button onClick={() => setActiveMoveIdx(Math.max(0, idx - 1))} disabled={idx === 0}
-                            className="p-0.5 rounded text-text-dim/30 hover:text-text-primary transition-colors disabled:opacity-15"
+                            className="p-0.5 rounded text-text-dim/50 hover:text-text-primary transition-colors disabled:opacity-15"
                           >
                             <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </button>
-                          <span className="text-[11px] text-text-dim/40 tabular-nums">{idx + 1}/{displayMoves.length}</span>
+                          <span className="text-[11px] text-text-dim/60 tabular-nums">{idx + 1}/{displayMoves.length}</span>
                           <button onClick={() => setActiveMoveIdx(Math.min(displayMoves.length - 1, idx + 1))} disabled={idx >= displayMoves.length - 1}
-                            className="p-0.5 rounded text-text-dim/30 hover:text-text-primary transition-colors disabled:opacity-15"
+                            className="p-0.5 rounded text-text-dim/50 hover:text-text-primary transition-colors disabled:opacity-15"
                           >
                             <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5.5 3L9.5 7l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </button>
@@ -385,44 +416,7 @@ export default function GameView({ narrative }: Props) {
               })()}
 
               {/* Thread question */}
-              <p className="text-[10px] text-text-dim/35 leading-snug">{activeGame.question}</p>
-
-              {/* Game stats — inline cards instead of a toolbar strip */}
-              {(() => {
-                const temp = activeGame.moveBalance.total > 0 ? activeGame.moveBalance.competitive / activeGame.moveBalance.total : 0;
-                const bal = activeGame.moveBalance;
-                return (
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-lg bg-white/3 px-3 py-2">
-                      <div className={`text-[16px] font-mono font-semibold tabular-nums ${
-                        temp > 0.5 ? 'text-red-400' : temp > 0.3 ? 'text-amber-400' : 'text-emerald-400'
-                      }`}>{(temp * 100).toFixed(0)}%</div>
-                      <div className="text-[9px] text-text-dim/35 mt-0.5">temperature</div>
-                    </div>
-                    <div className="rounded-lg bg-white/3 px-3 py-2">
-                      <div className="flex items-end gap-1">
-                        <span className="text-[16px] font-mono font-semibold tabular-nums text-text-primary">{bal.total}</span>
-                        <span className="text-[10px] text-text-dim/30 mb-0.5">{bal.cooperative}c {bal.competitive}d</span>
-                      </div>
-                      <div className="flex gap-px h-1.5 rounded-full overflow-hidden bg-white/5 mt-1.5 w-full">
-                        {bal.total > 0 && <>
-                          {bal.cooperative > 0 && <div className="bg-emerald-400/60 h-full" style={{ width: `${(bal.cooperative / bal.total) * 100}%` }} />}
-                          {bal.neutral > 0 && <div className="bg-white/15 h-full" style={{ width: `${(bal.neutral / bal.total) * 100}%` }} />}
-                          {bal.competitive > 0 && <div className="bg-red-400/60 h-full" style={{ width: `${(bal.competitive / bal.total) * 100}%` }} />}
-                        </>}
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-white/3 px-3 py-2">
-                      <div className={`text-[16px] font-mono font-semibold tabular-nums ${
-                        activeGame.momentum > 0.3 ? 'text-emerald-400' : activeGame.momentum < -0.3 ? 'text-red-400' : 'text-text-dim/60'
-                      }`}>{activeGame.momentum > 0 ? '+' : ''}{activeGame.momentum.toFixed(1)}</div>
-                      <div className="text-[9px] text-text-dim/35 mt-0.5">
-                        momentum{activeGame.volatility > 0.3 ? ` \u00b7 ${activeGame.volatility.toFixed(1)} vol` : ''}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+              <p className="text-[10px] text-text-dim/55 leading-snug">{activeGame.question}</p>
 
               {/* THE MATRIX */}
               {activePw.matrix && activePw.properties && (() => {
@@ -469,10 +463,10 @@ export default function GameView({ narrative }: Props) {
                         <span className="text-[11px] text-text-primary font-medium">{p.name}</span>
                         <span className={`text-[9px] ${
                           p.posture === 'strategist' ? 'text-sky-400/60' :
-                          p.posture === 'operator' ? 'text-emerald-400/60' :
-                          p.posture === 'reactive' ? 'text-amber-400/60' :
+                          p.posture === 'operator' ? 'text-emerald-400/80' :
+                          p.posture === 'reactive' ? 'text-amber-400/80' :
                           p.posture === 'vulnerable' ? 'text-red-400/60' :
-                          'text-text-dim/30'
+                          'text-text-dim/50'
                         }`}>{p.posture}</span>
                         <div className="flex-1" />
                         {pTotal > 0 && (
@@ -481,7 +475,7 @@ export default function GameView({ narrative }: Props) {
                             {pComp > 0 && <div className="bg-red-400/60 h-full" style={{ width: `${(pComp / pTotal) * 100}%` }} />}
                           </div>
                         )}
-                        <span className="text-[10px] tabular-nums text-text-dim/40">{pTotal}</span>
+                        <span className="text-[10px] tabular-nums text-text-dim/60">{pTotal}</span>
                       </div>
                     );
                   })}
@@ -496,7 +490,7 @@ export default function GameView({ narrative }: Props) {
                     return (
                       <button key={idx} onClick={() => setOverridePair(overridePair === idx ? null : idx)}
                         className={`text-[10px] px-2 py-1 rounded-md transition-colors ${
-                          overridePair === idx ? 'bg-white/10 text-text-secondary' : 'bg-white/3 text-text-dim/40 hover:text-text-dim/60'
+                          overridePair === idx ? 'bg-white/10 text-text-secondary' : 'bg-white/3 text-text-dim/60 hover:text-text-dim/60'
                         }`}
                       >{nameOf(pw.playerA)} vs {nameOf(pw.playerB)}</button>
                     );
@@ -508,7 +502,7 @@ export default function GameView({ narrative }: Props) {
               {displayMoves.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-text-dim/40 font-medium">
+                    <span className="text-[10px] text-text-dim/60 font-medium">
                       {showFullHistory ? 'Full history' : viewMode === 'entity' ? 'Entity moves' : 'This turn'} ({displayMoves.length})
                     </span>
                   </div>
@@ -524,7 +518,7 @@ export default function GameView({ narrative }: Props) {
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-[11px] text-text-dim/30 italic">Select a game</p>
+          <p className="text-[11px] text-text-dim/50 italic">Select a game</p>
         </div>
       )}
     </div>
@@ -575,7 +569,7 @@ function Board({ matrix, props, aName, bName, perspectiveA, playedCell, stakeA, 
           </div>
         </div>
         {/* Outcome */}
-        <p className="text-[9px] text-text-dim/40 leading-snug">{cell.outcome}</p>
+        <p className="text-[9px] text-text-dim/70 leading-snug">{cell.outcome}</p>
       </td>
     );
   };
@@ -585,30 +579,33 @@ function Board({ matrix, props, aName, bName, perspectiveA, playedCell, stakeA, 
       <table className="border-collapse w-full rounded-lg overflow-hidden" style={{ borderSpacing: 0 }}>
         <thead>
           <tr>
-            <th className="p-2 w-24" />
-            <th className="p-2 text-center border-l border-white/5">
-              <div className="text-[10px] font-medium text-text-dim/50 mb-0.5">{bName}</div>
-              <div className="text-[9px] text-emerald-400/40">{coopB}</div>
+            <th className="relative px-3 py-3 w-28 border-r border-b border-white/6 overflow-hidden">
+              {/* Diagonal divider — A bottom-left, B top-right */}
+              <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to top right, transparent calc(50% - 0.5px), rgba(255,255,255,0.06) calc(50% - 0.5px), rgba(255,255,255,0.06) calc(50% + 0.5px), transparent calc(50% + 0.5px))' }} />
+              <div className="relative flex flex-col items-end gap-3">
+                <span className="text-[10px] font-medium text-text-dim/50">{bName}</span>
+                <span className="text-[10px] font-medium text-text-dim/50 self-start">{aName}</span>
+              </div>
             </th>
-            <th className="p-2 text-center border-l border-white/5">
-              <div className="text-[10px] font-medium text-text-dim/50 mb-0.5">{bName}</div>
-              <div className="text-[9px] text-red-400/40">{defB}</div>
+            <th className="px-4 py-2 text-center border-b border-white/6">
+              <div className="text-[9px] text-emerald-400/70">{coopB}</div>
+            </th>
+            <th className="px-4 py-2 text-center border-l border-b border-white/6">
+              <div className="text-[9px] text-red-400/70">{defB}</div>
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr className="border-t border-white/6">
-            <th className="p-2 text-right border-r border-white/6">
-              <div className="text-[10px] font-medium text-text-dim/50 mb-0.5">{aName}</div>
-              <div className="text-[9px] text-emerald-400/40">{coopA}</div>
+          <tr>
+            <th className="px-3 py-2 text-right border-r border-white/6 align-middle">
+              <div className="text-[9px] text-emerald-400/70 leading-snug">{coopA}</div>
             </th>
             <Cell cell={matrix.cc} cellKey="cc" row={0} col={0} />
             <Cell cell={matrix.cd} cellKey="cd" row={0} col={1} />
           </tr>
           <tr className="border-t border-white/6">
-            <th className="p-2 text-right border-r border-white/6">
-              <div className="text-[10px] font-medium text-text-dim/50 mb-0.5">{aName}</div>
-              <div className="text-[9px] text-red-400/40">{defA}</div>
+            <th className="px-3 py-2 text-right border-r border-white/6 align-middle">
+              <div className="text-[9px] text-red-400/70 leading-snug">{defA}</div>
             </th>
             <Cell cell={matrix.dc} cellKey="dc" row={1} col={0} />
             <Cell cell={matrix.dd} cellKey="dd" row={1} col={1} />
@@ -637,7 +634,7 @@ function AnalysisBlock({ props, aName, bName }: { props: GameProperties; aName: 
   if (lines.length === 0) return null;
   return (
     <div className="rounded-lg bg-white/3 px-3 py-2.5">
-      {lines.map((l, i) => <p key={i} className="text-[10px] text-text-dim/45 leading-relaxed">{l}</p>)}
+      {lines.map((l, i) => <p key={i} className="text-[10px] text-text-secondary leading-relaxed">{l}</p>)}
     </div>
   );
 }
@@ -670,7 +667,7 @@ function MoveRow({ move, pairwise, active, onSelect }: { move: GameMove; index?:
         'bg-white/15'
       }`} />
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-text-secondary/80 leading-snug">{move.content}</p>
+        <p className="text-[11px] text-text-secondary leading-snug">{move.content}</p>
         <div className="flex items-center gap-1.5 mt-1 text-[9px]">
           {move.matrixCell && <span className={`font-mono font-medium ${
             move.matrixCell === 'cc' ? 'text-emerald-400/50' :
@@ -685,6 +682,47 @@ function MoveRow({ move, pairwise, active, onSelect }: { move: GameMove; index?:
   );
 }
 
+// ── Player description ──────────────────────────────────────────────────────
+
+/**
+ * Classify a player into a strategic archetype from their GTO stats.
+ * Uses rates (not counts) so it scales from 5 moves to 500.
+ * Returns a primary label + a qualifying trait.
+ */
+function describePlayer(p: PlayerGTO): string {
+  if (p.totalMoves === 0) return 'no recorded moves';
+  if (p.declaredMoves === 0) return 'undeclared';
+
+  // Rates — all 0-1
+  const coopRate = p.coopRate;                                           // how often they advance
+  const nashRate = p.gtoRate;                                            // how often they play Nash
+  const initRate = p.initiated / Math.max(p.initiated + p.targeted, 1); // how often they act vs react
+  const exploitRate = p.declaredMoves > 0                                // net exploitation as a rate
+    ? p.netExploitation / p.declaredMoves
+    : 0;
+
+  // Primary archetype — the dominant pattern
+  let primary: string;
+  if (coopRate > 0.7 && nashRate > 0.6) primary = 'cooperative strategist';
+  else if (coopRate > 0.7 && nashRate <= 0.6) primary = 'idealist';
+  else if (coopRate < 0.3 && nashRate > 0.6) primary = 'calculated aggressor';
+  else if (coopRate < 0.3 && nashRate <= 0.6) primary = 'disruptor';
+  else if (nashRate > 0.8) primary = 'equilibrium player';
+  else if (nashRate < 0.25 && p.declaredMoves >= 3) primary = 'wild card';
+  else if (coopRate > 0.5) primary = 'cooperative';
+  else primary = 'competitive';
+
+  // Qualifying trait — the most distinctive secondary signal
+  let trait = '';
+  if (exploitRate > 0.15) trait = 'predatory edge';
+  else if (exploitRate < -0.15) trait = 'frequently targeted';
+  else if (initRate > 0.75) trait = 'drives action';
+  else if (initRate < 0.25) trait = 'reactive';
+  else if (Math.abs(coopRate - 0.5) < 0.1) trait = 'balanced play';
+
+  return trait ? `${primary} · ${trait}` : primary;
+}
+
 // ── Dashboard panel ─────────────────────────────────────────────────────────
 
 type DashboardData = {
@@ -694,9 +732,9 @@ type DashboardData = {
   trustPairs: ReturnType<typeof computeTrustPairs>;
 };
 
-function DashboardPanel({ data, state, nameOf, dispatch }: {
+function DashboardPanel({ data, state, nameOf, dispatch, narrative }: {
   data: DashboardData; state: GameState; nameOf: (id: string) => string;
-  dispatch: ReturnType<typeof useStore>['dispatch'];
+  dispatch: ReturnType<typeof useStore>['dispatch']; narrative: NarrativeState;
 }) {
   const s = state.summary;
   const totalMoves = state.threadGames.reduce((n, g) => n + g.moveBalance.total, 0);
@@ -735,7 +773,7 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
         {/* Row 2: Game state + Move cell distribution */}
         <div className="grid grid-cols-2 gap-5">
           <div>
-            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Game States</h3>
+            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/70 font-semibold mb-2">Game States</h3>
             <div className="flex flex-col gap-1">
               {(['endgame', 'committed', 'midgame', 'setup', 'broken', 'resolved'] as const).map((gs) => {
                 const count = stateDist[gs];
@@ -756,15 +794,15 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
           </div>
 
           <div>
-            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Move Distribution</h3>
+            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/70 font-semibold mb-2">Move Distribution</h3>
             <div className="flex flex-col gap-1">
               {([['cc', 'Both advance', 'bg-emerald-400'], ['cd', 'Actor advances, target blocks', 'bg-sky-400'], ['dc', 'Actor blocks, target advances', 'bg-amber-400'], ['dd', 'Both block', 'bg-red-400']] as const).map(([cell, label, color]) => {
                 const count = cellDist[cell];
                 const pct = cellTotal > 0 ? count / cellTotal : 0;
                 return (
                   <div key={cell} className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-text-dim/40 w-6">{cell}</span>
-                    <span className="text-[9px] text-text-dim/40 w-36 truncate">{label}</span>
+                    <span className="text-[10px] font-mono text-text-dim/60 w-6">{cell}</span>
+                    <span className="text-[9px] text-text-dim/60 w-36 truncate">{label}</span>
                     <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
                       <div className={`h-full rounded-full ${color} opacity-50`} style={{ width: `${pct * 100}%` }} />
                     </div>
@@ -778,7 +816,7 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
 
         {/* Row 3: Player rankings */}
         <div>
-          <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Player Rankings</h3>
+          <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/70 font-semibold mb-2">Player Rankings</h3>
           <div className="rounded-lg border border-white/8 overflow-hidden">
             <table className="w-full text-[11px]">
               <thead>
@@ -789,7 +827,7 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
                   <th className="text-center py-2 px-3 font-medium">Strategy</th>
                   <th className="text-right py-2 px-3 font-medium">Nash</th>
                   <th className="text-right py-2 px-3 font-medium">Advance</th>
-                  <th className="text-right py-2 px-3 font-medium">Exploit</th>
+                  <th className="text-right py-2 px-3 font-medium">Edge</th>
                 </tr>
               </thead>
               <tbody>
@@ -800,11 +838,12 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
                   return (
                     <tr key={p.id}
                       className="border-t border-white/5 hover:bg-white/3 transition-colors cursor-pointer"
-                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: p.id } })}
+                      onClick={() => dispatch({ type: 'SET_INSPECTOR', context: narrative.characters[p.id] ? { type: 'character', characterId: p.id } : narrative.locations[p.id] ? { type: 'location', locationId: p.id } : { type: 'artifact', artifactId: p.id } })}
                     >
-                      <td className="py-2.5 px-3 text-text-dim/30 tabular-nums">{i + 1}</td>
+                      <td className="py-2.5 px-3 text-text-dim/50 tabular-nums">{i + 1}</td>
                       <td className="py-2.5 px-3">
                         <div className="text-text-primary font-medium">{p.name}</div>
+                        <div className="text-[9px] text-text-dim/70 font-medium mt-0.5">{describePlayer(p)}</div>
                       </td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-text-secondary">{p.totalMoves}</td>
                       <td className="py-2.5 px-3">
@@ -815,13 +854,13 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
                         </div>
                       </td>
                       <td className={`py-2.5 px-3 text-right tabular-nums font-medium ${
-                        nashPct === '—' ? 'text-text-dim/30' :
+                        nashPct === '—' ? 'text-text-dim/50' :
                         Number(nashPct) > 70 ? 'text-emerald-400' :
                         Number(nashPct) > 40 ? 'text-amber-400' : 'text-red-400'
                       }`}>{nashPct}{nashPct !== '—' ? '%' : ''}</td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-text-secondary">{coopPct}{coopPct !== '—' ? '%' : ''}</td>
                       <td className={`py-2.5 px-3 text-right tabular-nums font-medium ${
-                        p.netExploitation > 0 ? 'text-emerald-400' : p.netExploitation < 0 ? 'text-red-400' : 'text-text-dim/30'
+                        p.netExploitation > 0 ? 'text-emerald-400' : p.netExploitation < 0 ? 'text-red-400' : 'text-text-dim/50'
                       }`}>{p.netExploitation > 0 ? '+' : ''}{p.netExploitation}</td>
                     </tr>
                   );
@@ -831,18 +870,18 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
           </div>
         </div>
 
-        {/* Row 4: Hottest games + Trust & Betrayal */}
+        {/* Row 4: Hottest games + Cooperation & Defection */}
         <div className="grid grid-cols-2 gap-5">
           <div>
-            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Hottest Games</h3>
+            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/70 font-semibold mb-2">Highest Tension</h3>
             <div className="flex flex-col gap-1.5">
               {data.threats.slice(0, 5).map((t) => (
                 <button key={t.threadId} onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: t.threadId } })}
                   className="text-left p-2.5 rounded-lg border border-white/5 hover:bg-white/3 transition-colors"
                 >
                   <div className="flex items-center gap-1.5 mb-1">
-                    <span className={`text-[9px] font-semibold ${t.gameState === 'endgame' ? 'text-fate' : t.gameState === 'committed' ? 'text-orange-400' : 'text-text-dim/40'}`}>{t.gameState}</span>
-                    <span className={`text-[9px] ${t.trajectory === 'volatile' ? 'text-orange-400' : t.trajectory === 'contested' ? 'text-amber-400' : 'text-text-dim/30'}`}>{t.trajectory}</span>
+                    <span className={`text-[9px] font-semibold ${t.gameState === 'endgame' ? 'text-fate' : t.gameState === 'committed' ? 'text-orange-400' : 'text-text-dim/60'}`}>{t.gameState}</span>
+                    <span className={`text-[9px] ${t.trajectory === 'volatile' ? 'text-orange-400' : t.trajectory === 'contested' ? 'text-amber-400' : 'text-text-dim/50'}`}>{t.trajectory}</span>
                     <div className="flex gap-px ml-auto">
                       {Array.from({ length: Math.round(t.heatScore * 5) }).map((_, j) => (
                         <span key={j} className="w-1.5 h-3 rounded-sm bg-red-400/60" />
@@ -853,17 +892,17 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
                     </div>
                   </div>
                   <p className="text-[10px] text-text-secondary leading-snug line-clamp-2">{t.question}</p>
-                  <div className="flex gap-1 mt-1 text-[8px] text-text-dim/30">{t.players.slice(0, 3).join(' · ')}</div>
+                  <div className="flex gap-1 mt-1 text-[8px] text-text-dim/50">{t.players.slice(0, 3).join(' · ')}</div>
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Trust & Betrayal</h3>
+            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/70 font-semibold mb-2">Cooperation & Defection</h3>
             {data.trustPairs.filter((t) => t.ccCount > 0).length > 0 && (
               <div className="mb-4">
-                <div className="text-[9px] text-text-dim/40 mb-1.5">Strongest alliances</div>
+                <div className="text-[9px] text-text-dim/60 mb-1.5">Aligned pairs</div>
                 {data.trustPairs.filter((t) => t.ccCount > 0).slice(0, 5).map((t, i) => (
                   <div key={i} className="flex items-center justify-between py-1 text-[10px]">
                     <span className="text-text-secondary">{t.nameA} × {t.nameB}</span>
@@ -871,7 +910,7 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
                       <div className="w-16 h-1.5 rounded-full bg-white/5 overflow-hidden">
                         <div className="h-full bg-emerald-400/60 rounded-full" style={{ width: `${(t.ccCount / Math.max(t.totalMoves, 1)) * 100}%` }} />
                       </div>
-                      <span className="text-[9px] text-text-dim/40 tabular-nums w-8 text-right">{t.ccCount}/{t.totalMoves}</span>
+                      <span className="text-[9px] text-text-dim/60 tabular-nums w-8 text-right">{t.ccCount}/{t.totalMoves}</span>
                     </div>
                   </div>
                 ))}
@@ -879,11 +918,11 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
             )}
             {data.betrayals.length > 0 && (
               <div>
-                <div className="text-[9px] text-text-dim/40 mb-1.5">Betrayal moments</div>
+                <div className="text-[9px] text-text-dim/60 mb-1.5">Defection events</div>
                 {data.betrayals.slice(0, 4).map((b, i) => (
                   <div key={i} className="py-1.5 border-b border-white/5 last:border-0">
-                    <div className="text-[10px]"><span className="text-red-400 font-medium">{b.betrayerName}</span> <span className="text-text-dim/30">broke cooperation</span></div>
-                    <p className="text-[9px] text-text-dim/40 leading-snug mt-0.5">{b.afterContent.slice(0, 80)}</p>
+                    <div className="text-[10px]"><span className="text-red-400 font-medium">{b.betrayerName}</span> <span className="text-text-dim/50">defected from cc</span></div>
+                    <p className="text-[9px] text-text-dim/60 leading-snug mt-0.5">{b.afterContent.slice(0, 80)}</p>
                   </div>
                 ))}
               </div>
@@ -899,8 +938,8 @@ function DashStat({ label, value, sub, color }: { label: string; value: string |
   return (
     <div className="rounded-lg border border-white/8 bg-white/3 px-3 py-2.5">
       <div className={`text-[20px] font-mono font-bold tabular-nums ${color ?? 'text-text-primary'}`}>{value}</div>
-      <div className="text-[9px] uppercase tracking-wider text-text-dim/40 mt-1">{label}</div>
-      {sub && <div className="text-[8px] text-text-dim/25 mt-0.5">{sub}</div>}
+      <div className="text-[9px] uppercase tracking-wider text-text-dim/60 mt-1">{label}</div>
+      {sub && <div className="text-[8px] text-text-dim/60 mt-0.5">{sub}</div>}
     </div>
   );
 }

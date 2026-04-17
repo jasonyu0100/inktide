@@ -1896,6 +1896,11 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           }
           return [{ id: p.id, type: p.type }];
         });
+        // Preserve payoffMatrices — filter to only include matrices whose players survived validation
+        const validPIds = new Set(validParticipants.map((p) => p.id));
+        const validMatrices = (t.payoffMatrices ?? []).filter(
+          (m: { playerA: string; playerB: string }) => validPIds.has(m.playerA) && validPIds.has(m.playerB),
+        );
         return {
           id: t.id,
           description: t.description,
@@ -1904,6 +1909,7 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           openedAt: t.openedAt ?? scene.id,
           dependents: t.dependents ?? [],
           threadLog: t.threadLog ?? { nodes: {}, edges: [] },
+          ...(validMatrices.length > 0 ? { payoffMatrices: validMatrices } : {}),
         };
       });
       for (const t of scene.newThreads) {

@@ -1223,7 +1223,9 @@ export async function assembleNarrative(
           ? { id: charNameToId[name], type: "character" as const }
           : locNameToId[name]
             ? { id: locNameToId[name], type: "location" as const }
-            : { id: getCharId(name), type: "character" as const };
+            : artifactNameToId[name]
+              ? { id: artifactNameToId[name], type: "artifact" as const }
+              : { id: getCharId(name), type: "character" as const };
         const stake = typeof stakes[idx] === "string" && stakes[idx].trim() ? stakes[idx].trim() : undefined;
         if (stake) base.stake = stake;
         return base;
@@ -1231,8 +1233,8 @@ export async function assembleNarrative(
       // Resolve payoff matrices from name-based to ID-based
       const resolvedMatrices: import("@/types/narrative").PayoffMatrix[] = [];
       for (const pm of t.payoffMatrices ?? []) {
-        const aId = charNameToId[pm.playerAName] ?? locNameToId[pm.playerAName] ?? getCharId(pm.playerAName);
-        const bId = charNameToId[pm.playerBName] ?? locNameToId[pm.playerBName] ?? getCharId(pm.playerBName);
+        const aId = getEntityId(pm.playerAName);
+        const bId = getEntityId(pm.playerBName);
         const clamp = (v: unknown): number => {
           const n = typeof v === "number" ? Math.round(v) : 2;
           return Math.max(0, Math.min(4, n));
@@ -1277,6 +1279,24 @@ export async function assembleNarrative(
           if (!existingAnchorIds.has(anchor.id)) {
             threads[id].participants.push(anchor);
             existingAnchorIds.add(anchor.id);
+          }
+        }
+        // Accumulate payoff matrices from later chunks (new participant pairs)
+        if (resolvedMatrices.length > 0) {
+          const existing = threads[id].payoffMatrices ?? [];
+          const existingPairs = new Set(
+            existing.map((m) => `${m.playerA}|${m.playerB}`),
+          );
+          for (const m of resolvedMatrices) {
+            const fwd = `${m.playerA}|${m.playerB}`;
+            const rev = `${m.playerB}|${m.playerA}`;
+            if (!existingPairs.has(fwd) && !existingPairs.has(rev)) {
+              existing.push(m);
+              existingPairs.add(fwd);
+            }
+          }
+          if (existing.length > 0) {
+            threads[id].payoffMatrices = existing;
           }
         }
       }

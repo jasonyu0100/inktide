@@ -67,41 +67,38 @@ DETECTING FATE — Threads are COMPELLING QUESTIONS that shape fate.
 - Fate is what pulls world and system toward meaning. Without it, nothing resolves.
 
 PAYOFF MATRICES — REQUIRED for every thread with 2+ participants.
-- Each pair of participants creates a 2×2 game: what are each player's two choices? What happens under each combination?
-- Payoffs are 0-4 (4 = maximum payoff, 0 = no payoff / total loss). Each player scores each cell independently.
-- Each player has TWO concrete actions — not abstract "cooperate/defect" but real choices that make sense in context:
+- Each pair of participants has a 2×2 game with TWO named actions per player.
+- actionA/actionB = each player's ADVANCING action (progresses the thread)
+- defectA/defectB = each player's BLOCKING action (resists, exploits, or diverts)
+- These are real choices, not abstract labels:
+    Fiction: "reveals voluntarily" vs "maintains concealment" / "trusts appearances" vs "investigates actively"
+    Non-fiction: "adopts the framework" vs "retains the prior model" / "shares data" vs "restricts access"
+- Payoffs are 0-4 per player per cell. Fill all four cells (cc, cd, dc, dd) with outcomes.
 
-  FICTION — actions are character decisions in the world:
-    actionA: "reveals his cultivation" / defectA: "maintains concealment"
-    actionA: "allocates resources fairly" / defectA: "hoards for loyalists"
-    actionA: "submits to refinement" / defectA: "resists and consumes"
+- Fiction example — "Can Ruo Lan uncover Fang Yuan's secret?"
+    actionA: "reveals voluntarily"    defectA: "maintains concealment"
+    actionB: "trusts appearances"     defectB: "investigates actively"
+    cc(1,3): truth emerges without conflict
+    cd(0,2): FY reveals, RL investigates anyway — redundant
+    dc(4,0): deception succeeds
+    dd(2,4): cat-and-mouse escalation
 
-  NON-FICTION — actions are intellectual or methodological choices:
-    actionA: "adopts the new framework" / defectA: "retains the prior model"
-    actionA: "shares data openly" / defectA: "restricts to collaborators"
-    actionA: "accepts the boundary condition" / defectA: "challenges the assumption"
-    actionA: "cites and builds on prior work" / defectA: "ignores and replaces it"
+- Non-fiction example — "Does attention outperform recurrence?"
+    actionA: "demonstrates advantage"  defectA: "fails on edge cases"
+    actionB: "concedes limitations"    defectB: "presents counter-strengths"
+    cc(4,2): clean paradigm shift
+    cd(3,1): contested but attention prevails
+    dc(1,3): mixed result
+    dd(0,0): field remains fragmented
 
-  The actions should feel like genuine decisions within the work's register — a character choosing whether to reveal or conceal, a researcher choosing whether to adopt or challenge a framework, a hypothesis surviving or failing under new evidence.
+- One matrix per participant PAIR. DO NOT SKIP — every thread with 2+ participants MUST have payoffMatrices.
 
-- Fiction example: "Can Ruo Lan uncover Fang Yuan's secret?"
-    Fang Yuan: "reveals voluntarily" vs "maintains concealment"
-    Ruo Lan: "trusts appearances" vs "investigates actively"
-    CC: FY reveals, RL trusts → truth emerges without conflict (FY:1, RL:3)
-    CD: FY reveals, RL investigates → redundant effort (FY:0, RL:2)
-    DC: FY conceals, RL trusts → deception succeeds (FY:4, RL:0)
-    DD: FY conceals, RL investigates → cat-and-mouse escalation (FY:2, RL:4)
-
-- Non-fiction example: "Does attention mechanism outperform recurrence for sequence modelling?"
-    Attention: "demonstrates clear advantage" vs "fails on edge cases"
-    Recurrence: "concedes limitations gracefully" vs "presents compensating strengths"
-    CC: Attention wins clearly, recurrence acknowledged → clean paradigm shift (Attn:4, Rec:2)
-    CD: Attention wins, recurrence fights back → contested but attention prevails (Attn:3, Rec:1)
-    DC: Attention stumbles, recurrence concedes → mixed result, both weaken (Attn:1, Rec:3)
-    DD: Both fight, neither conclusive → field remains fragmented (Attn:0, Rec:0)
-
-- One matrix per participant PAIR. A thread with 3 participants has 3 matrices (A×B, A×C, B×C).
-- DO NOT SKIP THIS. Every thread with 2+ participants MUST have payoffMatrices. A thread without matrices is incomplete.
+matrixCell ON LOG ENTRIES — every threadDelta addedNode MUST declare matrixCell.
+- matrixCell = which cell of the payoff matrix this move represents.
+- First letter = ACTOR's action (c = advancing action, d = blocking action)
+- Second letter = TARGET's action (c = advancing, d = blocking)
+- Even self-directed moves (no target) MUST declare: cc for advancing, dc for blocking.
+- This is how we track which decisions were made at each moment in the story.
 
 threadDeltas — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
 

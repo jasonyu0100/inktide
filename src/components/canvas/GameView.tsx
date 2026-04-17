@@ -298,9 +298,7 @@ function Board({ matrix, props, aName, bName, perspectiveA, playedCell, stakeA, 
 
     return (
       <td className={`relative p-4 ${
-        isPlayed && isNash ? 'bg-emerald-400/10 ring-2 ring-inset ring-emerald-400/30' :
         isPlayed ? 'bg-amber-400/12 ring-2 ring-inset ring-amber-400/40' :
-        isNash ? 'bg-sky-400/8 ring-1 ring-inset ring-sky-400/20' :
         isLight ? 'bg-white/4' : 'bg-black/15'
       }`}>
         {/* Badges — top right */}

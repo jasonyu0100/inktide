@@ -198,9 +198,8 @@ export default function GameView({ narrative }: Props) {
             {activePw.matrix && activePw.properties && (() => {
               const idx = Math.min(activeMoveIdx, displayMoves.length - 1);
               const activeMove = displayMoves[idx];
-              // Use LLM-declared matrixCell, but normalise to the matrix's A/B ordering.
-              // The LLM may write the cell from the actor's perspective (actor's action first),
-              // but the matrix is always playerA × playerB. If the actor is playerB, flip cd↔dc.
+              // Determine played cell: declared matrixCell first, stance inference as fallback.
+              // matrixCell is actor-relative — normalise to matrix A/B ordering.
               let playedCell: 'cc' | 'cd' | 'dc' | 'dd' | null = null;
               const raw = activeMove?.matrixCell;
               if (raw === 'cc' || raw === 'cd' || raw === 'dc' || raw === 'dd') {
@@ -208,6 +207,14 @@ export default function GameView({ narrative }: Props) {
                 if (actorIsB && raw === 'dc') playedCell = 'cd';
                 else if (actorIsB && raw === 'cd') playedCell = 'dc';
                 else playedCell = raw;
+              } else if (activeMove?.attributed) {
+                // Fallback: infer from stance for legacy data without matrixCell
+                const isA = activeMove.actorId === activePw.playerA;
+                const isB = activeMove.actorId === activePw.playerB;
+                const defects = activeMove.stance === 'competitive';
+                if (isA) playedCell = defects ? 'dc' : 'cc';
+                else if (isB) playedCell = defects ? 'cd' : 'cc';
+                else playedCell = defects ? 'dd' : 'cc';
               }
               return (
                 <Board

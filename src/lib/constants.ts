@@ -33,12 +33,11 @@ export const GENERATE_MODEL = "google/gemini-3-flash-preview";
 
 export const MODEL_PRICING: Record<string, { input: number; output: number }> =
   {
-    "google/gemini-2.5-flash": { input: 0.3, output: 2.5 },
     "google/gemini-3-flash-preview": { input: 0.5, output: 3.0 },
   };
 
 /** Fallback pricing when model is unknown */
-export const DEFAULT_PRICING = { input: 0.3, output: 2.5 };
+export const DEFAULT_PRICING = { input: 0.5, output: 3.0 };
 
 // ── AI Temperature ───────────────────────────────────────────────────────────
 

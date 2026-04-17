@@ -527,22 +527,81 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
   const totalMoves = state.threadGames.reduce((n, g) => n + g.moveBalance.total, 0);
   const totalComp = state.threadGames.reduce((n, g) => n + g.moveBalance.competitive, 0);
   const temperature = totalMoves > 0 ? totalComp / totalMoves : 0;
-  const endgameCount = state.threadGames.filter((g) => g.gameState === 'endgame' || g.gameState === 'committed').length;
   const avgGTO = data.playerGTO.filter((p) => p.declaredMoves > 0).length > 0
     ? data.playerGTO.filter((p) => p.declaredMoves > 0).reduce((n, p) => n + p.gtoRate, 0) / data.playerGTO.filter((p) => p.declaredMoves > 0).length
     : 0;
 
+  // Game state distribution
+  const stateDist = { setup: 0, midgame: 0, committed: 0, endgame: 0, resolved: 0, broken: 0 };
+  for (const g of state.threadGames) stateDist[g.gameState as keyof typeof stateDist] = (stateDist[g.gameState as keyof typeof stateDist] ?? 0) + 1;
+
+  // Move cell distribution
+  const cellDist = { cc: 0, cd: 0, dc: 0, dd: 0, none: 0 };
+  for (const g of state.threadGames) for (const m of g.moves) {
+    if (m.matrixCell && m.matrixCell in cellDist) cellDist[m.matrixCell as keyof typeof cellDist]++;
+    else cellDist.none++;
+  }
+  const cellTotal = cellDist.cc + cellDist.cd + cellDist.dc + cellDist.dd;
+
+  // Matrices coverage
+  const matricesTotal = state.threadGames.reduce((n, g) => n + g.pairwiseGames.filter((pw) => pw.matrix).length, 0);
+
   return (
     <div className="flex-1 min-w-0 overflow-y-auto">
       <div className="max-w-3xl mx-auto px-6 py-5 flex flex-col gap-6">
-        {/* Headline metrics */}
-        <div className="grid grid-cols-3 gap-3">
-          <DashStat label="Temperature" value={`${(temperature * 100).toFixed(0)}%`} sub={`${totalComp} competitive of ${totalMoves} moves`} color={temperature > 0.5 ? 'text-red-400' : temperature > 0.3 ? 'text-amber-400' : 'text-emerald-400'} />
-          <DashStat label="Nash Compliance" value={`${(avgGTO * 100).toFixed(0)}%`} sub="average across all players" color={avgGTO > 0.7 ? 'text-emerald-400' : avgGTO > 0.4 ? 'text-amber-400' : 'text-red-400'} />
-          <DashStat label="Pressure" value={`${endgameCount} / ${s.activeGames}`} sub="endgame+committed of active" color={endgameCount > 3 ? 'text-red-400' : undefined} />
+        {/* Row 1: Key metrics */}
+        <div className="grid grid-cols-4 gap-3">
+          <DashStat label="Temperature" value={`${(temperature * 100).toFixed(0)}%`} sub="competitive ratio" color={temperature > 0.5 ? 'text-red-400' : temperature > 0.3 ? 'text-amber-400' : 'text-emerald-400'} />
+          <DashStat label="Nash Rate" value={`${(avgGTO * 100).toFixed(0)}%`} sub="avg compliance" color={avgGTO > 0.7 ? 'text-emerald-400' : avgGTO > 0.4 ? 'text-amber-400' : 'text-red-400'} />
+          <DashStat label="Threads" value={s.totalGames} sub={`${s.activeGames} active · ${s.challenges} challenges`} />
+          <DashStat label="Matrices" value={matricesTotal} sub={`${totalMoves} moves · ${cellTotal} declared`} />
         </div>
 
-        {/* Player rankings */}
+        {/* Row 2: Game state + Move cell distribution */}
+        <div className="grid grid-cols-2 gap-5">
+          <div>
+            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Game States</h3>
+            <div className="flex flex-col gap-1">
+              {(['endgame', 'committed', 'midgame', 'setup', 'broken', 'resolved'] as const).map((gs) => {
+                const count = stateDist[gs];
+                if (count === 0) return null;
+                const pct = s.totalGames > 0 ? count / s.totalGames : 0;
+                const color = gs === 'endgame' ? 'bg-fate' : gs === 'committed' ? 'bg-orange-400' : gs === 'midgame' ? 'bg-blue-400' : gs === 'resolved' ? 'bg-world' : gs === 'broken' ? 'bg-violet-400' : 'bg-white/20';
+                return (
+                  <div key={gs} className="flex items-center gap-2">
+                    <span className="text-[10px] text-text-dim/50 w-20">{gs}</span>
+                    <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                      <div className={`h-full rounded-full ${color} opacity-60`} style={{ width: `${pct * 100}%` }} />
+                    </div>
+                    <span className="text-[10px] text-text-secondary tabular-nums w-6 text-right">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Move Distribution</h3>
+            <div className="flex flex-col gap-1">
+              {([['cc', 'Both advance', 'bg-emerald-400'], ['cd', 'Actor advances, target blocks', 'bg-sky-400'], ['dc', 'Actor blocks, target advances', 'bg-amber-400'], ['dd', 'Both block', 'bg-red-400']] as const).map(([cell, label, color]) => {
+                const count = cellDist[cell];
+                const pct = cellTotal > 0 ? count / cellTotal : 0;
+                return (
+                  <div key={cell} className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-text-dim/40 w-6">{cell}</span>
+                    <span className="text-[9px] text-text-dim/40 w-36 truncate">{label}</span>
+                    <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                      <div className={`h-full rounded-full ${color} opacity-50`} style={{ width: `${pct * 100}%` }} />
+                    </div>
+                    <span className="text-[10px] text-text-secondary tabular-nums w-6 text-right">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Row 3: Player rankings */}
         <div>
           <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Player Rankings</h3>
           <div className="rounded-lg border border-white/8 overflow-hidden">
@@ -552,6 +611,7 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
                   <th className="text-left py-2 px-3 font-medium w-8">#</th>
                   <th className="text-left py-2 px-3 font-medium">Player</th>
                   <th className="text-right py-2 px-3 font-medium">Moves</th>
+                  <th className="text-center py-2 px-3 font-medium">Strategy</th>
                   <th className="text-right py-2 px-3 font-medium">Nash</th>
                   <th className="text-right py-2 px-3 font-medium">Advance</th>
                   <th className="text-right py-2 px-3 font-medium">Exploit</th>
@@ -561,33 +621,32 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
                 {data.playerGTO.slice(0, 12).map((p, i) => {
                   const nashPct = p.declaredMoves > 0 ? (p.gtoRate * 100).toFixed(0) : '—';
                   const coopPct = p.declaredMoves > 0 ? (p.coopRate * 100).toFixed(0) : '—';
+                  const blockPct = p.declaredMoves > 0 ? ((1 - p.coopRate) * 100).toFixed(0) : '0';
                   return (
                     <tr key={p.id}
                       className="border-t border-white/5 hover:bg-white/3 transition-colors cursor-pointer"
                       onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: p.id } })}
                     >
-                      <td className="py-2 px-3 text-text-dim/30 tabular-nums">{i + 1}</td>
-                      <td className="py-2 px-3">
+                      <td className="py-2.5 px-3 text-text-dim/30 tabular-nums">{i + 1}</td>
+                      <td className="py-2.5 px-3">
                         <div className="text-text-primary font-medium">{p.name}</div>
-                        <div className={`text-[9px] ${
-                          p.overallPosture === 'dominant' ? 'text-emerald-400/70' :
-                          p.overallPosture === 'embattled' ? 'text-amber-400/70' :
-                          p.overallPosture === 'pressured' ? 'text-red-400/70' :
-                          'text-text-dim/40'
-                        }`}>{p.overallPosture} · {p.posture}</div>
                       </td>
-                      <td className="py-2 px-3 text-right tabular-nums text-text-secondary">{p.totalMoves}</td>
-                      <td className={`py-2 px-3 text-right tabular-nums font-medium ${
+                      <td className="py-2.5 px-3 text-right tabular-nums text-text-secondary">{p.totalMoves}</td>
+                      <td className="py-2.5 px-3">
+                        {/* Strategy bar: green=advance, red=block */}
+                        <div className="flex gap-px h-1.5 rounded-full overflow-hidden bg-white/5 w-20 mx-auto">
+                          {Number(coopPct) > 0 && <div className="bg-emerald-400/70 h-full" style={{ width: `${coopPct}%` }} />}
+                          {Number(blockPct) > 0 && <div className="bg-red-400/70 h-full" style={{ width: `${blockPct}%` }} />}
+                        </div>
+                      </td>
+                      <td className={`py-2.5 px-3 text-right tabular-nums font-medium ${
                         nashPct === '—' ? 'text-text-dim/30' :
                         Number(nashPct) > 70 ? 'text-emerald-400' :
-                        Number(nashPct) > 40 ? 'text-amber-400' :
-                        'text-red-400'
+                        Number(nashPct) > 40 ? 'text-amber-400' : 'text-red-400'
                       }`}>{nashPct}{nashPct !== '—' ? '%' : ''}</td>
-                      <td className="py-2 px-3 text-right tabular-nums text-text-secondary">{coopPct}{coopPct !== '—' ? '%' : ''}</td>
-                      <td className={`py-2 px-3 text-right tabular-nums font-medium ${
-                        p.netExploitation > 0 ? 'text-emerald-400' :
-                        p.netExploitation < 0 ? 'text-red-400' :
-                        'text-text-dim/30'
+                      <td className="py-2.5 px-3 text-right tabular-nums text-text-secondary">{coopPct}{coopPct !== '—' ? '%' : ''}</td>
+                      <td className={`py-2.5 px-3 text-right tabular-nums font-medium ${
+                        p.netExploitation > 0 ? 'text-emerald-400' : p.netExploitation < 0 ? 'text-red-400' : 'text-text-dim/30'
                       }`}>{p.netExploitation > 0 ? '+' : ''}{p.netExploitation}</td>
                     </tr>
                   );
@@ -597,7 +656,7 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
           </div>
         </div>
 
-        {/* Hottest games + Trust */}
+        {/* Row 4: Hottest games + Trust & Betrayal */}
         <div className="grid grid-cols-2 gap-5">
           <div>
             <h3 className="text-[10px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold mb-2">Hottest Games</h3>
@@ -619,6 +678,7 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
                     </div>
                   </div>
                   <p className="text-[10px] text-text-secondary leading-snug line-clamp-2">{t.question}</p>
+                  <div className="flex gap-1 mt-1 text-[8px] text-text-dim/30">{t.players.slice(0, 3).join(' · ')}</div>
                 </button>
               ))}
             </div>
@@ -629,7 +689,7 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
             {data.trustPairs.filter((t) => t.ccCount > 0).length > 0 && (
               <div className="mb-4">
                 <div className="text-[9px] text-text-dim/40 mb-1.5">Strongest alliances</div>
-                {data.trustPairs.filter((t) => t.ccCount > 0).slice(0, 4).map((t, i) => (
+                {data.trustPairs.filter((t) => t.ccCount > 0).slice(0, 5).map((t, i) => (
                   <div key={i} className="flex items-center justify-between py-1 text-[10px]">
                     <span className="text-text-secondary">{t.nameA} × {t.nameB}</span>
                     <div className="flex items-center gap-1.5">
@@ -645,10 +705,10 @@ function DashboardPanel({ data, state, nameOf, dispatch }: {
             {data.betrayals.length > 0 && (
               <div>
                 <div className="text-[9px] text-text-dim/40 mb-1.5">Betrayal moments</div>
-                {data.betrayals.slice(0, 3).map((b, i) => (
+                {data.betrayals.slice(0, 4).map((b, i) => (
                   <div key={i} className="py-1.5 border-b border-white/5 last:border-0">
                     <div className="text-[10px]"><span className="text-red-400 font-medium">{b.betrayerName}</span> <span className="text-text-dim/30">broke cooperation</span></div>
-                    <p className="text-[9px] text-text-dim/40 leading-snug mt-0.5">{b.afterContent.slice(0, 70)}</p>
+                    <p className="text-[9px] text-text-dim/40 leading-snug mt-0.5">{b.afterContent.slice(0, 80)}</p>
                   </div>
                 ))}
               </div>

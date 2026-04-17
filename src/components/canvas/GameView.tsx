@@ -17,19 +17,28 @@ import { useStore } from '@/lib/store';
 import type { NarrativeState, PayoffMatrix, Scene } from '@/types/narrative';
 import {
   extractGameState,
+  computePlayerGTO,
+  computeThreatMap,
+  computeBetrayals,
+  computeTrustPairs,
+  type GameState,
   type ThreadGame,
   type PairwiseGame,
   type GameMove,
   type GameProperties,
+  type PlayerGTO,
 } from '@/lib/game-extract';
 
 type Props = { narrative: NarrativeState };
+type ViewMode = 'turn' | 'thread' | 'entity' | 'dashboard';
 
 export default function GameView({ narrative }: Props) {
   const { state, dispatch } = useStore();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [showFullHistory, setShowFullHistory] = useState(false);
   const [activeMoveIdx, setActiveMoveIdx] = useState(0);
+  const [viewMode, setViewMode] = useState<ViewMode>('turn');
+  const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
 
   const currentScene: Scene | null = useMemo(() => {
     const key = state.resolvedEntryKeys[state.viewState.currentSceneIndex];
@@ -115,13 +124,34 @@ export default function GameView({ narrative }: Props) {
   const activeGameId = activeGame?.threadId;
   useMemo(() => { setOverridePair(null); setShowFullHistory(false); setActiveMoveIdx(0); }, [activeGameId]);
 
+  // Dashboard data (computed lazily)
+  const dashboardData = useMemo(() => {
+    if (viewMode !== 'dashboard') return null;
+    return {
+      playerGTO: computePlayerGTO(fullState),
+      threats: computeThreatMap(fullState),
+      betrayals: computeBetrayals(fullState),
+      trustPairs: computeTrustPairs(fullState),
+    };
+  }, [viewMode, fullState]);
+
   return (
     <div className="flex h-full w-full overflow-hidden">
-      {/* Left: thread list */}
+      {/* Left panel */}
       <div className="w-56 shrink-0 border-r border-border flex flex-col">
+        {/* View mode tabs */}
+        <div className="shrink-0 flex border-b border-border">
+          {(['turn', 'thread', 'entity', 'dashboard'] as const).map((m) => (
+            <button key={m} onClick={() => setViewMode(m)}
+              className={`flex-1 py-1.5 text-[8px] font-semibold uppercase tracking-wider transition-colors ${viewMode === m ? 'text-text-primary bg-white/5' : 'text-text-dim/30 hover:text-text-dim/50'}`}
+            >{m === 'dashboard' ? 'Dash' : m}</button>
+          ))}
+        </div>
         <div className="shrink-0 px-3 py-2 border-b border-border">
           <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold">
-            {sceneThreadIds ? `Turn · ${currentScene?.id}` : 'All Games'}
+            {viewMode === 'dashboard' ? 'Overview' :
+             viewMode === 'entity' && selectedEntity ? nameOf(selectedEntity) :
+             sceneThreadIds ? `Turn · ${currentScene?.id}` : 'All Games'}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -149,7 +179,9 @@ export default function GameView({ narrative }: Props) {
       </div>
 
       {/* Main panel */}
-      {activeGame && activePw ? (
+      {viewMode === 'dashboard' && dashboardData ? (
+        <DashboardPanel data={dashboardData} state={fullState} nameOf={nameOf} dispatch={dispatch} />
+      ) : activeGame && activePw ? (
         <div className="flex-1 min-w-0 overflow-y-auto">
           <div className="max-w-xl mx-auto px-6 py-5 flex flex-col gap-4">
 
@@ -430,6 +462,171 @@ function MoveRow({ move, index, nameOf, pairwise }: { move: GameMove; index: num
           {blunder && <span className="font-bold px-0.5 rounded bg-red-400/15 text-red-400 text-[6px]">?!</span>}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Dashboard panel ─────────────────────────────────────────────────────────
+
+type DashboardData = {
+  playerGTO: PlayerGTO[];
+  threats: ReturnType<typeof computeThreatMap>;
+  betrayals: ReturnType<typeof computeBetrayals>;
+  trustPairs: ReturnType<typeof computeTrustPairs>;
+};
+
+function DashboardPanel({ data, state, nameOf, dispatch }: {
+  data: DashboardData; state: GameState; nameOf: (id: string) => string;
+  dispatch: ReturnType<typeof useStore>['dispatch'];
+}) {
+  const s = state.summary;
+  const totalMoves = state.threadGames.reduce((n, g) => n + g.moveBalance.total, 0);
+  const totalComp = state.threadGames.reduce((n, g) => n + g.moveBalance.competitive, 0);
+  const temperature = totalMoves > 0 ? totalComp / totalMoves : 0;
+  const endgameCount = state.threadGames.filter((g) => g.gameState === 'endgame' || g.gameState === 'committed').length;
+  const avgGTO = data.playerGTO.length > 0
+    ? data.playerGTO.reduce((n, p) => n + p.gtoRate, 0) / data.playerGTO.filter((p) => p.declaredMoves > 0).length
+    : 0;
+  const hubShare = s.mostConnectedPlayer ? s.mostConnectedPlayer.gameCount / Math.max(s.totalGames, 1) : 0;
+
+  return (
+    <div className="flex-1 min-w-0 overflow-y-auto">
+      <div className="max-w-3xl mx-auto px-6 py-5 flex flex-col gap-5">
+        {/* Band 1: Headline metrics */}
+        <div className="grid grid-cols-6 gap-2">
+          <DashStat label="Temperature" value={`${(temperature * 100).toFixed(0)}%`} sub="competitive" color={temperature > 0.5 ? 'text-red-400' : 'text-emerald-400'} />
+          <DashStat label="Games" value={s.activeGames} sub={`of ${s.totalGames}`} />
+          <DashStat label="Cooperation" value={`${(s.globalCooperationRatio * 100).toFixed(0)}%`} sub="overall" />
+          <DashStat label="Nash Rate" value={`${(avgGTO * 100).toFixed(0)}%`} sub="compliance" />
+          <DashStat label="Hub Share" value={`${(hubShare * 100).toFixed(0)}%`} sub={s.mostConnectedPlayer?.name ?? ''} />
+          <DashStat label="Pressure" value={endgameCount} sub="endgame+committed" color={endgameCount > 3 ? 'text-red-400' : undefined} />
+        </div>
+
+        {/* Band 2: Power table */}
+        <div>
+          <div className="text-[8px] uppercase tracking-wider text-text-dim/40 font-semibold mb-1.5">Player Rankings</div>
+          <table className="w-full text-[9px]">
+            <thead>
+              <tr className="text-text-dim/40 border-b border-white/5">
+                <th className="text-left py-1 font-medium">Player</th>
+                <th className="text-left py-1 font-medium">Posture</th>
+                <th className="text-right py-1 font-medium">Games</th>
+                <th className="text-right py-1 font-medium">Nash%</th>
+                <th className="text-right py-1 font-medium">Coop%</th>
+                <th className="text-right py-1 font-medium">Init</th>
+                <th className="text-right py-1 font-medium">Net Expl</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.playerGTO.slice(0, 10).map((p) => (
+                <tr key={p.id} className="border-b border-white/3 hover:bg-white/3 transition-colors cursor-pointer"
+                  onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'character', characterId: p.id } })}
+                >
+                  <td className="py-1.5 text-text-primary font-medium">{p.name}</td>
+                  <td className={`py-1.5 ${p.overallPosture === 'dominant' ? 'text-emerald-400' : p.overallPosture === 'embattled' ? 'text-amber-400' : p.overallPosture === 'pressured' ? 'text-red-400' : 'text-text-dim/50'}`}>{p.overallPosture}</td>
+                  <td className="py-1.5 text-right tabular-nums text-text-dim/60">{p.totalMoves}</td>
+                  <td className={`py-1.5 text-right tabular-nums ${p.gtoRate > 0.7 ? 'text-emerald-400' : p.gtoRate > 0.4 ? 'text-amber-400' : 'text-red-400/60'}`}>{p.declaredMoves > 0 ? `${(p.gtoRate * 100).toFixed(0)}` : '—'}</td>
+                  <td className="py-1.5 text-right tabular-nums text-text-dim/60">{p.declaredMoves > 0 ? `${(p.coopRate * 100).toFixed(0)}` : '—'}</td>
+                  <td className="py-1.5 text-right tabular-nums text-text-dim/60">{p.initiativeRatio === Infinity ? '∞' : p.initiativeRatio.toFixed(1)}</td>
+                  <td className={`py-1.5 text-right tabular-nums ${p.netExploitation > 0 ? 'text-emerald-400' : p.netExploitation < 0 ? 'text-red-400' : 'text-text-dim/40'}`}>{p.netExploitation > 0 ? '+' : ''}{p.netExploitation}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Band 3: Threat map + Cooperation */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Threat map */}
+          <div>
+            <div className="text-[8px] uppercase tracking-wider text-text-dim/40 font-semibold mb-1.5">Hottest Games</div>
+            <div className="flex flex-col gap-1">
+              {data.threats.slice(0, 6).map((t) => (
+                <button key={t.threadId} onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: t.threadId } })}
+                  className="text-left p-2 rounded border border-white/5 hover:bg-white/3 transition-colors"
+                >
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <span className={`text-[8px] font-semibold ${t.gameState === 'endgame' ? 'text-fate' : t.gameState === 'committed' ? 'text-orange-400' : 'text-text-dim/40'}`}>{t.gameState}</span>
+                    <span className={`text-[8px] ${t.trajectory === 'volatile' ? 'text-orange-400' : t.trajectory === 'contested' ? 'text-amber-400' : 'text-text-dim/30'}`}>{t.trajectory}</span>
+                    <span className="text-[7px] text-text-dim/25 ml-auto tabular-nums">{(t.heatScore * 100).toFixed(0)}°</span>
+                  </div>
+                  <p className="text-[9px] text-text-secondary/70 leading-snug line-clamp-2">{t.question}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Cooperation map */}
+          <div>
+            <div className="text-[8px] uppercase tracking-wider text-text-dim/40 font-semibold mb-1.5">Trust & Coalitions</div>
+            {/* Trust pairs */}
+            {data.trustPairs.filter((t) => t.ccCount > 0).length > 0 && (
+              <div className="mb-3">
+                <div className="text-[8px] text-text-dim/30 mb-1">Most trusted pairs</div>
+                {data.trustPairs.filter((t) => t.ccCount > 0).slice(0, 4).map((t, i) => (
+                  <div key={i} className="text-[9px] text-text-dim/60 py-0.5">
+                    {t.nameA} × {t.nameB}: <span className="text-emerald-400/60">{t.ccCount} cc</span> / {t.totalMoves}
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Coalitions */}
+            {state.coalitions.length > 0 && (
+              <div className="mb-3">
+                <div className="text-[8px] text-text-dim/30 mb-1">Coalitions</div>
+                {state.coalitions.slice(0, 5).map((c, i) => (
+                  <div key={i} className="text-[9px] text-text-dim/60 py-0.5">
+                    {c.members.map((m) => m.name).join(' × ')}: {c.sharedGames.length} shared
+                    {c.hasInternalTension && <span className="text-red-400/50 ml-1">tension</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Betrayals */}
+            {data.betrayals.length > 0 && (
+              <div>
+                <div className="text-[8px] text-text-dim/30 mb-1">Betrayal moments</div>
+                {data.betrayals.slice(0, 3).map((b, i) => (
+                  <div key={i} className="text-[9px] py-0.5">
+                    <span className="text-red-400/60">{b.betrayerName}</span>
+                    <span className="text-text-dim/30 ml-1">{b.afterContent.slice(0, 50)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Band 4: Recent move flow */}
+        <div>
+          <div className="text-[8px] uppercase tracking-wider text-text-dim/40 font-semibold mb-1.5">Recent Moves</div>
+          <div className="flex flex-col">
+            {state.threadGames.flatMap((g) => g.moves.map((m) => ({ ...m, threadQ: g.question, threadId: g.threadId }))).slice(-12).reverse().map((m, i) => (
+              <div key={`${m.nodeId}-${i}`} className="flex items-start gap-2 py-1 border-b border-white/3 last:border-0">
+                <span className={`w-2 h-2 rounded-full mt-1 shrink-0 ${m.stance === 'cooperative' ? 'bg-emerald-400' : m.stance === 'competitive' ? 'bg-red-400' : 'bg-white/15'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] text-text-secondary/70 leading-snug truncate">{m.content}</p>
+                  <div className="flex items-center gap-1 text-[8px] text-text-dim/30">
+                    {m.attributed && <span>{nameOf(m.actorId!)}</span>}
+                    {m.matrixCell && <span className="font-mono">{m.matrixCell}</span>}
+                    <span className="truncate ml-auto">{m.threadQ?.slice(0, 30)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashStat({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
+  return (
+    <div className="rounded border border-white/5 bg-white/2 px-2 py-1.5">
+      <div className={`text-[15px] font-mono font-bold tabular-nums ${color ?? 'text-text-primary'}`}>{value}</div>
+      <div className="text-[7px] uppercase tracking-wider text-text-dim/35 mt-0.5">{label}</div>
+      {sub && <div className="text-[7px] text-text-dim/25">{sub}</div>}
     </div>
   );
 }

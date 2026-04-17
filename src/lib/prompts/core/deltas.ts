@@ -55,17 +55,30 @@ threadDeltas — Threads are CONTESTED GAMES between participants who want diffe
       dc = actor takes defect action, target takes cooperative action
       dd = actor takes defect action, target takes defect action
     "Cooperate" and "defect" are defined by the thread's payoff matrix — each player has specific named actions (actionA/defectA, actionB/defectB). Map the move to the cell that matches what actually happened.
-    Every log entry MUST declare matrixCell. Always write from the ACTOR's perspective.
+    EVERY log entry MUST declare matrixCell — no exceptions, even when targetId is null.
+
+    WHEN TARGET IS NULL (self-directed, environmental, observational moves):
+    - The actor is still making a strategic choice within the thread. Map it to the actor's axis:
+      cc = actor takes cooperative action (advancing the thread toward resolution)
+      dc = actor takes defect action (blocking, exploiting, or disrupting the thread)
+    - Use cc for cooperative/neutral self-advancement. Use dc for competitive self-advancement.
+    - Example: "Fang Yuan cultivates in secret" → no target, but matrixCell: dc (he defects against the thread's status quo by advancing covertly)
+    - Example: "The wolf tide ebbs, leaving the path clear" → environmental, matrixCell: cc (conditions cooperate with the thread)
+
+    WHEN TARGET EXISTS:
+    - First letter = actor's action, second = target's action. Map to the payoff matrix.
 
   Fiction examples:
-    "Chi Lian challenges Bo's leadership" → matrixCell: dc (Chi Lian takes his defect action: seizes control; Bo takes his cooperative action: maintains order)
-    "Fang Yuan cedes the wolf carcass to Mo Bei" → matrixCell: cd (Fang Yuan takes his cooperative action: yields; Mo Bei takes his defect action: claims it)
-    "Both clans agree to shared patrol routes" → matrixCell: cc (both take cooperative actions)
+    "Chi Lian challenges Bo's leadership" → matrixCell: dc
+    "Fang Yuan cedes the wolf carcass to Mo Bei" → matrixCell: cd
+    "Both clans agree to shared patrol routes" → matrixCell: cc
+    "Fang Yuan observes the mountain's qi becoming volatile" → no target, matrixCell: cc (environmental observation, neutral)
+    "Ruo Lan's wariness flares as she detects anomalies" → matrixCell: dc (she defects against Fang Yuan's concealment)
 
   Non-fiction examples:
-    "The authors demonstrate attention outperforms recurrence on all benchmarks" → matrixCell: dc (attention takes its defect action: displaces recurrence; recurrence takes its cooperative action: concedes the benchmark)
-    "Both approaches show complementary strengths on different tasks" → matrixCell: cc (both take cooperative actions: coexist productively)
-    "The new method fails to replicate on out-of-distribution data" → matrixCell: cd (new method takes cooperative action: submits to evaluation; evaluation takes defect action: reveals failure)
+    "The authors demonstrate attention outperforms recurrence" → matrixCell: dc
+    "Both approaches show complementary strengths" → matrixCell: cc
+    "The researcher notes a boundary condition in the model" → no target, matrixCell: dc (challenges the framework)
   COMMITMENT: escalating = an irreversible strategic investment (must resolve / subvert / formally abandon).
   Prune stale threads (5+ scenes without transition). Keep thread count lean — 10+ threads = noise.
 

@@ -1,9 +1,11 @@
 /**
  * Thread Lifecycle Prompts and Helper Functions
  *
- * CONCEPTUAL MODEL: Threads are QUESTIONS that have yet to be answered.
- * They actively shape fate by pulling the story toward resolution.
- * Thread logs track how these questions are being answered over time.
+ * CONCEPTUAL MODEL: Threads are CONTESTED GAMES.
+ * Each thread is a question with multiple participants who have different
+ * optimal answers. The lifecycle tracks the game state; the log tracks
+ * the moves. Resolution is the equilibrium — the answer the game
+ * converges toward. Subversion is an equilibrium break.
  */
 
 import { THREAD_TERMINAL_STATUSES } from '@/types/narrative';
@@ -16,8 +18,8 @@ import { ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
  */
 export function promptThreadLifecycle(): string {
   return `
-THREADS ARE COMPELLING QUESTIONS — each thread is an unanswered question that actively shapes fate.
-A compelling question has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), and INVESTMENT (we care about the answer).
+THREADS ARE CONTESTED GAMES — each thread is a question whose participants want different answers.
+A compelling thread has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), INVESTMENT (we care about the answer), and ASYMMETRY (participants have different optimal outcomes).
 The register of the question adapts to the work:
   - Narrative (fiction, memoir): dramatic questions about consequence, identity, choice.
   - Argument (paper, essay, criticism): claims whose truth, scope, or priority is in contention.
@@ -28,24 +30,80 @@ The register of the question adapts to the work:
   Strong (argument): "Does the proposed mechanism explain the anomalies the prior model cannot?" (falsifiable, non-obvious)
   Strong (argument, criticism): "Can poststructuralist close reading account for silence as resistance in this corpus?" (disputed, high investment)
   Strong (inquiry): "What role did diaspora networks play in the movement before digital coordination?" (open, evidence-driven)
-Frame threads as questions. Thread logs track incremental answers over time.
+Frame threads as questions. Thread logs track incremental answers — the moves in the game — over time.
 
-THREAD LIFECYCLE: latent → seeded → active → escalating → critical → resolved/subverted
+GAME-THEORETIC THINKING — every thread is a game between its participants.
+
+  Each participant wants a different resolution. The register determines who the players are:
+  - Narrative: characters with incompatible goals. In "Can Fang Yuan navigate the shifting political landscape?", Fang Yuan wants freedom of action; Chi Lian wants clan control; Fang Zheng wants moral vindication. Incompatible equilibria.
+  - Argument: competing claims, methods, or frameworks. In "Does the proposed mechanism explain the anomalies?", the new model and the prior model are players — evidence that supports one weakens the other. The thread resolves when one framework dominates or a synthesis reconciles both.
+  - Inquiry: hypotheses, evidence streams, or stakeholders. In "What role did diaspora networks play?", different explanatory threads compete — economic, cultural, political accounts each pull toward a different conclusion.
+
+  The thread resolves when one player's strategy dominates, a coalition forces a compromise, or a synthesis absorbs the competing positions.
+
+  COOPERATION vs DEFECTION within threads:
+  - Two participants COOPERATE when both benefit from the thread advancing (two characters sharing resources for different reasons; two lines of evidence converging on the same conclusion; two methods producing consistent results).
+  - A participant DEFECTS when they benefit from the thread stalling or subverting (a character sabotaging progress; a counterexample that undermines the emerging thesis; a stakeholder blocking inquiry to protect interests).
+  - The richest threads have MIXED equilibria — participants cooperate on some dimensions and defect on others simultaneously. A character gives aid while quietly gathering intelligence against the recipient. A piece of evidence supports the main claim but introduces a qualifier that weakens a supporting argument. A method validates the hypothesis but reveals a boundary condition the framework can't explain.
+
+  INFORMATION ASYMMETRY — the most powerful game-theoretic force:
+  - Who knows what? An agent acting on private information is making a strategic move others can't counter. In fiction: hidden knowledge, secrets, concealed motives. In argument: evidence not yet presented, unpublished findings, unstated assumptions. In inquiry: sources not yet consulted, data not yet analysed.
+  - Hidden knowledge creates LEVERAGE — possessing what others lack changes the payoff matrix.
+  - Reveals and twists are symmetry-breaking events — suddenly all players see the same board, and the equilibrium shifts. In fiction: a secret exposed. In argument: a decisive experiment published. In inquiry: a key document surfacing.
+
+  COMMITMENT as strategic move — escalating isn't just "stakes rising", it's a player making an IRREVERSIBLE investment. In fiction: a public declaration, a burned bridge, a sacrifice. In argument: a strong claim that narrows future positions ("we argue X is the ONLY explanation"). In inquiry: a methodological choice that forecloses alternative approaches. The commitment constrains the player's OWN future moves (which paradoxically strengthens their position by making threats or claims credible).
+
+  COALITION and DEFECTION across threads — participants in overlapping threads form implicit alliances. Advancing one thread may affect the game state of another where participants overlap. Defection is when a coalition partner breaks alignment for private gain — in fiction, betrayal; in argument, an author's own evidence undermining their earlier claim; in inquiry, a source contradicting their prior testimony.
+
+PAIRWISE PAYOFF THINKING — every thread decomposes into pairwise 2-player games. Each player has two concrete actions (not abstract "cooperate/defect" — real choices in context). The four combinations create a 2×2 payoff matrix. Each player scores each outcome 0-4.
+
+  FICTION — players are characters with competing or aligned goals:
+    Thread: "Can Ruo Lan uncover Fang Yuan's secret?"
+    Fang Yuan: "maintains concealment" vs "reveals voluntarily"
+    Ruo Lan: "trusts appearances" vs "investigates actively"
+    The payoff matrix captures what happens under each combination — deception succeeds, investigation pays off, redundant effort, or cat-and-mouse escalation.
+
+  NON-FICTION — players are claims, methods, frameworks, or stakeholders:
+    Thread: "Does attention outperform recurrence for sequence modelling?"
+    Attention mechanism: "demonstrates clear advantage" vs "fails on edge cases"
+    Recurrence: "concedes limitations" vs "presents compensating strengths"
+    The matrix captures the evidence landscape — clean paradigm shift, contested result, mixed findings, or inconclusive fragmentation.
+
+    Thread: "Can the proposed taxonomy capture the full range of narrative structures?"
+    New taxonomy: "covers all observed cases" vs "misses critical edge cases"
+    Prior framework: "acknowledged as incomplete" vs "shown to handle what new one misses"
+
+  In both registers: the payoff ordering IS the strategic structure. Don't label the game — reason about who prefers which outcomes and why. The structure may SHIFT across the lifecycle — an escalation changes the cost of each action.
+
+  A single-participant thread (player vs environment/difficulty) is NOT a game — it's a challenge. No strategic opponent, only obstacles.
+
+THREAD LIFECYCLE AS GAME STATE: latent → seeded → active → escalating → critical → resolved/subverted
 ${THREAD_LIFECYCLE_DOC}
 Terminal: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}.
 
-STAGES (single lifecycle, reframe per register):
-  latent (whisper / hint / gap)        → the question is implicit, unposed
-  seeded (posed / claim stated / question raised) → the reader/auditor now holds the question
-  active (pursued / evidenced / developed) → the work is actively working the question
-  escalating (COMMITTED / dominant / contested) → it has become unavoidable; it must be settled
-  critical (demands resolution now / decisive evidence at hand) → the settling is imminent
-Terminal forms scale too: resolved = conclusively answered / thesis affirmed / finding confirmed;
-subverted = reversed / thesis overturned / finding contradicted / superseded by newer evidence.
+STAGES (as game progression):
+  latent (game defined, not yet played)  → the strategic situation exists but players haven't engaged
+  seeded (opening moves made)            → players have taken initial positions; the game is live
+  active (mid-game, moves accumulating)  → strategies are being pursued, payoffs are becoming visible
+  escalating (COMMITTED, high stakes)    → players have invested enough that retreat is costlier than pressing on
+  critical (endgame, resolution imminent) → the equilibrium is about to be determined
+Terminal: resolved = stable equilibrium reached (one strategy dominated, or players settled on a cooperative outcome);
+subverted = equilibrium broken (a defection, twist, or information reveal overturned what seemed settled).
 
-COMMITMENT: Below escalating = can abandon. At escalating+ = must resolve.
+COMMITMENT: Below escalating = players can exit cheaply (abandon). At escalating+ = exit costs exceed continuation costs; must resolve.
   Prune stale threads (5+ scenes silent, below escalating). Keep 3-6 committed; 10+ = noise.
   Touch 2-4 threads per scene. Committed threads have priority.
+
+THREAD LOG PRIMITIVES AS GAME MOVES:
+  pulse       → position maintained (no player moved; tension holds)
+  transition  → game state changed (a player made a move that shifted the board)
+  setup       → a player is investing in future payoff (forward-looking commitment)
+  escalation  → stakes raised (a player is making retreat costlier for everyone)
+  payoff      → a prior investment pays off (cooperative return on commitment)
+  twist       → information asymmetry exploited or revealed (the board changes shape)
+  callback    → reputation effect (a past move constraining present options)
+  resistance  → defensive play (a player is blocking another's strategy)
+  stall       → deadlock (no player has a profitable move; the game is stuck)
 `;
 }
 

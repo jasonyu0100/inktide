@@ -49,18 +49,23 @@ threadDeltas — Threads are CONTESTED GAMES between participants who want diffe
   - actorId: the single entity whose action drives this event.
   - targetId: the single entity primarily affected. Omit for self-directed or environmental events.
   - stance: cooperative (advancing actor's interests), competitive (opposing target's), or neutral.
-  - matrixCell: REQUIRED. The first letter is the ACTOR's action, the second letter is the TARGET's action:
-      cc = actor cooperates, target cooperates (both advance the thread)
-      cd = actor cooperates, target defects (actor advances, target blocks/exploits)
-      dc = actor defects, target cooperates (actor blocks/exploits, target advances)
-      dd = actor defects, target defects (both block)
-    Cooperate = advance the thread toward resolution. Defect = block, exploit, or divert.
-    Every log entry MUST declare matrixCell. Always write from the ACTOR's perspective: first letter = what the actor did, second letter = what the target did (or would do given the actor's move).
-  Examples:
-    "Chi Lian challenges Bo's leadership" → actorId: Chi Lian, targetId: Bo, matrixCell: dc (Chi Lian defects by challenging, Bo cooperates by maintaining order)
-    "Fang Yuan cedes the wolf carcass to Mo Bei" → actorId: Fang Yuan, targetId: Mo Bei, matrixCell: cd (Fang Yuan cooperates by ceding, Mo Bei defects by taking)
-    "Both clans agree to shared patrol routes" → matrixCell: cc (both cooperate)
-    "Ruo Lan investigates Fang Yuan's concealment" → actorId: Ruo Lan, targetId: Fang Yuan, matrixCell: dc (Ruo Lan defects against the status quo, Fang Yuan cooperates by maintaining his cover)
+  - matrixCell: REQUIRED. First letter = ACTOR's action, second letter = TARGET's action:
+      cc = actor takes cooperative action, target takes cooperative action
+      cd = actor takes cooperative action, target takes defect action
+      dc = actor takes defect action, target takes cooperative action
+      dd = actor takes defect action, target takes defect action
+    "Cooperate" and "defect" are defined by the thread's payoff matrix — each player has specific named actions (actionA/defectA, actionB/defectB). Map the move to the cell that matches what actually happened.
+    Every log entry MUST declare matrixCell. Always write from the ACTOR's perspective.
+
+  Fiction examples:
+    "Chi Lian challenges Bo's leadership" → matrixCell: dc (Chi Lian takes his defect action: seizes control; Bo takes his cooperative action: maintains order)
+    "Fang Yuan cedes the wolf carcass to Mo Bei" → matrixCell: cd (Fang Yuan takes his cooperative action: yields; Mo Bei takes his defect action: claims it)
+    "Both clans agree to shared patrol routes" → matrixCell: cc (both take cooperative actions)
+
+  Non-fiction examples:
+    "The authors demonstrate attention outperforms recurrence on all benchmarks" → matrixCell: dc (attention takes its defect action: displaces recurrence; recurrence takes its cooperative action: concedes the benchmark)
+    "Both approaches show complementary strengths on different tasks" → matrixCell: cc (both take cooperative actions: coexist productively)
+    "The new method fails to replicate on out-of-distribution data" → matrixCell: cd (new method takes cooperative action: submits to evaluation; evaluation takes defect action: reveals failure)
   COMMITMENT: escalating = an irreversible strategic investment (must resolve / subvert / formally abandon).
   Prune stale threads (5+ scenes without transition). Keep thread count lean — 10+ threads = noise.
 

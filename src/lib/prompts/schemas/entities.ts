@@ -54,11 +54,12 @@ export const SCHEMA_ARTIFACT_CREATION = `{
 }`;
 
 // ── Thread Schemas ──────────────────────────────────────────────────────────
-// Threads are COMPELLING QUESTIONS that shape fate. A compelling question has:
-// - STAKES: what's at risk if the question is answered one way vs another
-// - UNCERTAINTY: the outcome is not obvious, multiple answers are plausible
-// - INVESTMENT: we care about the answer because of character attachment or thematic weight
-// Thread logs track incremental answers to these questions over time.
+// Threads are CONTESTED QUESTIONS that shape fate. In fiction: dramatic questions
+// about consequence, identity, choice. In non-fiction: claims whose truth, scope,
+// or priority is in contention; hypotheses under evaluation; research questions.
+// A compelling thread has STAKES, UNCERTAINTY, INVESTMENT, and ASYMMETRY
+// (participants want different outcomes). Thread logs track incremental answers.
+// Payoff matrices capture the 2×2 strategic structure between each participant pair.
 
 export const SCHEMA_THREAD_CREATION = `{
   "id": "T-XX",
@@ -68,10 +69,10 @@ export const SCHEMA_THREAD_CREATION = `{
   "openedAt": "S-001 or 'new'",
   "dependents": ["T-YY"],
   "payoffMatrices": [{"playerA": "C-XX", "playerB": "C-YY",
-    "actionA": "2-5 words: what A does when cooperating (e.g. 'pursues integration')",
-    "defectA": "2-5 words: what A does when defecting (e.g. 'abandons integration')",
-    "actionB": "2-5 words: what B does when cooperating (e.g. 'submits to refinement')",
-    "defectB": "2-5 words: what B does when defecting (e.g. 'resists and consumes')",
+    "actionA": "2-5 words: A's cooperative action. Fiction: 'reveals voluntarily'. Non-fiction: 'adopts the framework'",
+    "defectA": "2-5 words: A's defect action. Fiction: 'maintains concealment'. Non-fiction: 'challenges the assumption'",
+    "actionB": "2-5 words: B's cooperative action. Fiction: 'trusts appearances'. Non-fiction: 'concedes limitations'",
+    "defectB": "2-5 words: B's defect action. Fiction: 'investigates actively'. Non-fiction: 'presents counter-evidence'",
     "cc": {"outcome": "5-15 words: both cooperate", "payoffA": "0-4", "payoffB": "0-4"},
     "cd": {"outcome": "5-15 words: A cooperates B defects", "payoffA": "0-4", "payoffB": "0-4"},
     "dc": {"outcome": "5-15 words: A defects B cooperates", "payoffA": "0-4", "payoffB": "0-4"},

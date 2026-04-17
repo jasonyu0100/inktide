@@ -67,32 +67,52 @@ DETECTING FATE — Threads are COMPELLING QUESTIONS that shape fate.
 - Fate is what pulls world and system toward meaning. Without it, nothing resolves.
 
 PAYOFF MATRICES — REQUIRED for every thread with 2+ participants.
-- Each pair of participants creates a 2×2 game: what happens if both cooperate, if one defects, if both defect.
-- Payoffs are 0-4 (4 = maximum payoff, 0 = no payoff / total loss). Each player scores each cell independently — different players can score the same cell differently.
-- Think: what does EACH player want? What are the concrete choices they face? What happens under each combination?
-- Each player has TWO actions — not abstract "cooperate/defect" but real choices in the world:
-    actionA / defectA: "submits to refinement" vs "resists and consumes" (an artifact)
-    actionA / defectA: "reveals his cultivation" vs "maintains concealment" (a character)
-    actionA / defectA: "allocates resources fairly" vs "hoards for loyalists" (a leader)
-  Make the actions feel like decisions in a lived world, not game theory jargon.
-- Example: "Can Ruo Lan uncover Fang Yuan's secret?" — Fang Yuan cooperates (reveals) vs defects (conceals); Ruo Lan cooperates (trusts) vs defects (investigates).
-  CC: both open = Fang Yuan reveals voluntarily, Ruo Lan trusts (FY:1, RL:3)
-  CD: FY reveals, RL investigates anyway = redundant effort (FY:0, RL:2)
-  DC: FY conceals, RL trusts = deception succeeds (FY:4, RL:0)
-  DD: FY conceals, RL investigates = cat-and-mouse (FY:2, RL:4)
+- Each pair of participants creates a 2×2 game: what are each player's two choices? What happens under each combination?
+- Payoffs are 0-4 (4 = maximum payoff, 0 = no payoff / total loss). Each player scores each cell independently.
+- Each player has TWO concrete actions — not abstract "cooperate/defect" but real choices that make sense in context:
+
+  FICTION — actions are character decisions in the world:
+    actionA: "reveals his cultivation" / defectA: "maintains concealment"
+    actionA: "allocates resources fairly" / defectA: "hoards for loyalists"
+    actionA: "submits to refinement" / defectA: "resists and consumes"
+
+  NON-FICTION — actions are intellectual or methodological choices:
+    actionA: "adopts the new framework" / defectA: "retains the prior model"
+    actionA: "shares data openly" / defectA: "restricts to collaborators"
+    actionA: "accepts the boundary condition" / defectA: "challenges the assumption"
+    actionA: "cites and builds on prior work" / defectA: "ignores and replaces it"
+
+  The actions should feel like genuine decisions within the work's register — a character choosing whether to reveal or conceal, a researcher choosing whether to adopt or challenge a framework, a hypothesis surviving or failing under new evidence.
+
+- Fiction example: "Can Ruo Lan uncover Fang Yuan's secret?"
+    Fang Yuan: "reveals voluntarily" vs "maintains concealment"
+    Ruo Lan: "trusts appearances" vs "investigates actively"
+    CC: FY reveals, RL trusts → truth emerges without conflict (FY:1, RL:3)
+    CD: FY reveals, RL investigates → redundant effort (FY:0, RL:2)
+    DC: FY conceals, RL trusts → deception succeeds (FY:4, RL:0)
+    DD: FY conceals, RL investigates → cat-and-mouse escalation (FY:2, RL:4)
+
+- Non-fiction example: "Does attention mechanism outperform recurrence for sequence modelling?"
+    Attention: "demonstrates clear advantage" vs "fails on edge cases"
+    Recurrence: "concedes limitations gracefully" vs "presents compensating strengths"
+    CC: Attention wins clearly, recurrence acknowledged → clean paradigm shift (Attn:4, Rec:2)
+    CD: Attention wins, recurrence fights back → contested but attention prevails (Attn:3, Rec:1)
+    DC: Attention stumbles, recurrence concedes → mixed result, both weaken (Attn:1, Rec:3)
+    DD: Both fight, neither conclusive → field remains fragmented (Attn:0, Rec:0)
+
 - One matrix per participant PAIR. A thread with 3 participants has 3 matrices (A×B, A×C, B×C).
 - DO NOT SKIP THIS. Every thread with 2+ participants MUST have payoffMatrices. A thread without matrices is incomplete.
 
 threadDeltas — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
 
   STAGE DEFINITIONS — these are NOT interchangeable. Each has a specific structural meaning:
-    latent: the question EXISTS in the world but NO CHARACTER has voiced it or acted on it yet. The reader might not even notice it. Test: could you delete this thread and the scene reads the same? If yes, it's latent.
-    seeded: the question has been PLANTED — a character has done or said something that raises the issue. The reader now holds the question. But no one is actively pursuing an answer. Test: has someone taken a deliberate action toward answering this question? If no, it's still seeded.
-    active: someone is ACTIVELY WORKING the question. Resources, attention, or effort are being spent on it. The thread is consuming narrative bandwidth. Test: are characters making choices specifically because of this thread? If yes, it's active.
-    escalating: the thread has reached a POINT OF NO RETURN. The question can no longer be dropped — too much has been invested, too many consequences depend on the answer. Abandoning it would feel like a broken promise. Test: would the reader feel cheated if this thread just disappeared? If yes, it's escalating.
-    critical: resolution is IMMINENT. The answer is about to be determined — within 1-3 scenes. The thread dominates the narrative moment. Test: is this the most urgent question in the current scene? If yes, it might be critical. If three other threads feel equally urgent, it's probably still escalating.
-    resolved: the question has been ANSWERED. The thread is done.
-    subverted: the question was answered in a way that REVERSES expectations. The thread is done but its resolution defied the trajectory.
+    latent: the question EXISTS but no one has acted on it yet. In fiction: no character has voiced it. In non-fiction: the gap or tension is implicit, not yet articulated. Test: could you remove this thread and the text reads the same? If yes, it's latent.
+    seeded: the question has been PLANTED — someone has raised the issue. In fiction: a character acts or speaks in a way that creates the question. In non-fiction: a claim is stated, a gap is identified, a hypothesis is posed. The audience now holds the question. Test: has someone taken deliberate action toward answering it? If no, it's still seeded.
+    active: someone is ACTIVELY WORKING the question. In fiction: resources, attention, or effort spent on it. In non-fiction: evidence is being gathered, experiments run, arguments constructed. Test: are participants making choices specifically because of this thread?
+    escalating: POINT OF NO RETURN. In fiction: too much invested to drop — abandoning it would feel like a broken promise. In non-fiction: the argument has been staked on this — the paper's thesis depends on the answer, the experiment has been run, the evidence is in. Test: would the reader feel cheated if the text just moved on?
+    critical: resolution is IMMINENT — within 1-3 scenes/sections. In fiction: the thread dominates the scene. In non-fiction: the decisive evidence, the final experiment, the conclusive argument is being presented.
+    resolved: the question has been ANSWERED. In fiction: the tension is settled. In non-fiction: the claim is supported or refuted, the hypothesis confirmed or rejected.
+    subverted: the answer REVERSES expectations. In fiction: resolution defied the trajectory. In non-fiction: the evidence contradicts the expected conclusion, the framework is overturned.
 
   TRANSITION DISCIPLINE — be extremely conservative:
     - ONE step at a time. latent→seeded→active→escalating→critical. NEVER skip.

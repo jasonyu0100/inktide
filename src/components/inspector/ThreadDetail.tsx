@@ -160,6 +160,29 @@ export default function ThreadDetail({ threadId }: Props) {
                   const actorName = node.actorId ? resolveName(node.actorId) : null;
                   const targetName = node.targetId ? resolveName(node.targetId) : null;
                   const sceneId = nodeToScene.get(node.id);
+
+                  // Resolve action labels from payoff matrix
+                  let actorAction: string | null = null;
+                  let targetAction: string | null = null;
+                  if (node.matrixCell && node.actorId && thread.payoffMatrices) {
+                    const cell = node.matrixCell;
+                    const matrix = thread.payoffMatrices.find((m) =>
+                      (m.playerA === node.actorId && m.playerB === node.targetId) ||
+                      (m.playerB === node.actorId && m.playerA === node.targetId)
+                    );
+                    if (matrix) {
+                      const actorIsA = matrix.playerA === node.actorId;
+                      // First letter = actor's action, second = target's action
+                      const actorCoops = cell[0] === 'c';
+                      const targetCoops = cell[1] === 'c';
+                      actorAction = actorIsA
+                        ? (actorCoops ? matrix.actionA : matrix.defectA) ?? null
+                        : (actorCoops ? matrix.actionB : matrix.defectB) ?? null;
+                      targetAction = actorIsA
+                        ? (targetCoops ? matrix.actionB : matrix.defectB) ?? null
+                        : (targetCoops ? matrix.actionA : matrix.defectA) ?? null;
+                    }
+                  }
                   return (
                     <li
                       key={`${node.id}-${i}`}
@@ -243,6 +266,18 @@ export default function ThreadDetail({ threadId }: Props) {
                               <span className={`ml-0.5 ${stanceClasses[node.stance] ?? "text-text-dim"}`}>
                                 {node.stance}
                               </span>
+                            )}
+                          </div>
+                        )}
+                        {/* Concrete actions taken */}
+                        {(actorAction || targetAction) && (
+                          <div className="flex items-center gap-1.5 text-[9px] mt-0.5">
+                            {actorAction && (
+                              <span className="text-text-dim/50 italic">{actorName}: {actorAction}</span>
+                            )}
+                            {actorAction && targetAction && <span className="text-text-dim/20">·</span>}
+                            {targetAction && (
+                              <span className="text-text-dim/50 italic">{targetName}: {targetAction}</span>
                             )}
                           </div>
                         )}

@@ -77,6 +77,22 @@ export default function ThreadDetail({ threadId }: Props) {
     state.viewState.currentSceneIndex,
   ]);
 
+  // Build log node → scene mapping
+  const nodeToScene = useMemo(() => {
+    if (!narrative) return new Map<string, string>();
+    const map = new Map<string, string>();
+    for (const scene of Object.values(narrative.scenes)) {
+      for (const td of scene.threadDeltas ?? []) {
+        if (td.threadId === threadId) {
+          for (const n of td.addedNodes ?? []) {
+            if (n.id) map.set(n.id, scene.id);
+          }
+        }
+      }
+    }
+    return map;
+  }, [narrative, threadId]);
+
   if (!narrative || !thread) return null;
 
   const currentStatus = currentStatuses[threadId] ?? thread.status;
@@ -135,61 +151,105 @@ export default function ThreadDetail({ threadId }: Props) {
               count={visibleLog.nodes.length}
               defaultOpen
             >
-              <ul className="flex flex-col gap-1">
-                {pageItems.map((node, i) => (
-                  <li
-                    key={`${node.id}-${i}`}
-                    className="flex items-start gap-2"
-                  >
-                    <span
-                      className={`mt-1 h-2 w-2 shrink-0 rounded-full ${threadLogDotColors[node.type] ?? "bg-white/40"}`}
-                    />
-                    <div className="flex flex-col">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          dispatch({
-                            type: "SET_INSPECTOR",
-                            context: {
-                              type: "threadLog",
-                              threadId,
-                              nodeId: node.id,
-                            },
-                          })
-                        }
-                        className="text-xs text-text-primary hover:text-white transition-colors text-left"
-                      >
-                        {node.content}
-                      </button>
-                      {(node.actorId || node.stance) && (
-                        <span className="text-[9px] text-text-dim/70 ml-0">
-                          {node.actorId && (
-                            <span>
-                              {narrative.characters[node.actorId]?.name ??
-                                narrative.locations[node.actorId]?.name ??
-                                narrative.artifacts[node.actorId]?.name ??
-                                node.actorId}
-                            </span>
+              <ul className="flex flex-col gap-2">
+                {pageItems.map((node, i) => {
+                  const resolveName = (id: string) =>
+                    narrative.characters[id]?.name ?? narrative.locations[id]?.name ?? narrative.artifacts[id]?.name ?? id;
+                  const resolveKind = (id: string) =>
+                    narrative.characters[id] ? "character" as const : narrative.locations[id] ? "location" as const : "artifact" as const;
+                  const actorName = node.actorId ? resolveName(node.actorId) : null;
+                  const targetName = node.targetId ? resolveName(node.targetId) : null;
+                  const sceneId = nodeToScene.get(node.id);
+                  return (
+                    <li
+                      key={`${node.id}-${i}`}
+                      className="flex items-start gap-2 pb-2 border-b border-white/5 last:border-0 last:pb-0"
+                    >
+                      <span
+                        className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${threadLogDotColors[node.type] ?? "bg-white/40"}`}
+                      />
+                      <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                        {/* Header: type + scene + matrix cell */}
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[9px] font-semibold uppercase tracking-wider ${
+                            node.type === "payoff" ? "text-emerald-400" :
+                            node.type === "twist" ? "text-violet-400" :
+                            node.type === "resistance" ? "text-red-400" :
+                            node.type === "escalation" ? "text-orange-400" :
+                            node.type === "setup" ? "text-amber-400" :
+                            node.type === "callback" ? "text-sky-400" :
+                            node.type === "stall" ? "text-red-400/50" :
+                            "text-text-dim/60"
+                          }`}>
+                            {node.type}
+                          </span>
+                          {node.matrixCell && (
+                            <span className="text-[8px] font-mono px-1 py-px rounded bg-white/5 text-text-dim/40 uppercase">{node.matrixCell}</span>
                           )}
-                          {node.actorId && node.targetId && <span> → </span>}
-                          {node.targetId && (
-                            <span>
-                              {narrative.characters[node.targetId]?.name ??
-                                narrative.locations[node.targetId]?.name ??
-                                narrative.artifacts[node.targetId]?.name ??
-                                node.targetId}
-                            </span>
+                          {sceneId && (
+                            <button
+                              type="button"
+                              onClick={() => dispatch({ type: "SET_INSPECTOR", context: { type: "scene", sceneId } })}
+                              className="text-[8px] font-mono text-text-dim/30 hover:text-text-dim/50 transition-colors ml-auto"
+                            >
+                              {sceneId}
+                            </button>
                           )}
-                          {node.stance && (
-                            <span className={`ml-1.5 ${stanceClasses[node.stance] ?? "text-text-dim"}`}>
-                              {node.stance}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                ))}
+                        </div>
+                        {/* Content */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            dispatch({
+                              type: "SET_INSPECTOR",
+                              context: { type: "threadLog", threadId, nodeId: node.id },
+                            })
+                          }
+                          className="text-xs text-text-primary hover:text-white transition-colors text-left leading-snug"
+                        >
+                          {node.content}
+                        </button>
+                        {/* Actor → Target + Stance */}
+                        {(actorName || node.stance) && (
+                          <div className="flex items-center gap-1 text-[9px] flex-wrap">
+                            {actorName && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const id = node.actorId!;
+                                  const kind = resolveKind(id);
+                                  dispatch({ type: "SET_INSPECTOR", context: kind === "character" ? { type: "character", characterId: id } : kind === "location" ? { type: "location", locationId: id } : { type: "artifact", artifactId: id } });
+                                }}
+                                className="text-text-secondary/80 hover:text-text-primary transition-colors font-medium"
+                              >
+                                {actorName}
+                              </button>
+                            )}
+                            {actorName && targetName && <span className="text-text-dim/25">→</span>}
+                            {targetName && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const id = node.targetId!;
+                                  const kind = resolveKind(id);
+                                  dispatch({ type: "SET_INSPECTOR", context: kind === "character" ? { type: "character", characterId: id } : kind === "location" ? { type: "location", locationId: id } : { type: "artifact", artifactId: id } });
+                                }}
+                                className="text-text-secondary/80 hover:text-text-primary transition-colors font-medium"
+                              >
+                                {targetName}
+                              </button>
+                            )}
+                            {node.stance && (
+                              <span className={`ml-0.5 ${stanceClasses[node.stance] ?? "text-text-dim"}`}>
+                                {node.stance}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
               <Paginator
                 page={safePage}

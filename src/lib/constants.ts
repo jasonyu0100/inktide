@@ -96,6 +96,9 @@ export const PROSE_CONCURRENCY = 10;
 /** Concurrent audio generation slots (Story modal bulk audio) */
 export const AUDIO_CONCURRENCY = 10;
 
+/** Concurrent scene game-theory analysis slots (bulk game analyse) */
+export const GAME_CONCURRENCY = 10;
+
 /** Concurrent prose rewrite slots */
 export const REWRITE_CONCURRENCY = 10;
 

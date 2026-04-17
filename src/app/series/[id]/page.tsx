@@ -141,13 +141,16 @@ export default function SeriesPage() {
   useEffect(() => {
     function handleBulkPlan() { bulk.start('plan'); }
     function handleBulkProse() { bulk.start('prose'); }
+    function handleBulkGame() { bulk.start('game'); }
     function handleBulkAudio() { bulkAudio.start(); }
     window.addEventListener('canvas:bulk-plan', handleBulkPlan);
     window.addEventListener('canvas:bulk-prose', handleBulkProse);
+    window.addEventListener('canvas:bulk-game', handleBulkGame);
     window.addEventListener('canvas:bulk-audio', handleBulkAudio);
     return () => {
       window.removeEventListener('canvas:bulk-plan', handleBulkPlan);
       window.removeEventListener('canvas:bulk-prose', handleBulkProse);
+      window.removeEventListener('canvas:bulk-game', handleBulkGame);
       window.removeEventListener('canvas:bulk-audio', handleBulkAudio);
     };
   }, [bulk, bulkAudio]);
@@ -192,7 +195,11 @@ export default function SeriesPage() {
             )}
             {!showBulkAudioBar && showBulkBar && bulk.runState && (
               <ModeControlBar
-                mode={bulk.runState.mode === 'plan' ? 'bulk-plan' : 'bulk-prose'}
+                mode={
+                  bulk.runState.mode === 'plan' ? 'bulk-plan' :
+                  bulk.runState.mode === 'prose' ? 'bulk-prose' :
+                  'bulk-game'
+                }
                 isRunning={bulk.runState.isRunning}
                 isPaused={bulk.runState.isPaused}
                 progress={bulk.runState.progress}
@@ -233,7 +240,8 @@ export default function SeriesPage() {
             {(GRAPH_MODES.has(state.graphViewMode) ||
               state.graphViewMode === 'plan' ||
               state.graphViewMode === 'prose' ||
-              state.graphViewMode === 'audio') && (
+              state.graphViewMode === 'audio' ||
+              state.graphViewMode === 'game') && (
               <FloatingPalette
                 isBulkActive={!!(bulk.runState?.isRunning || bulk.runState?.isPaused)}
                 isBulkAudioActive={!!(bulkAudio.runState?.isRunning || bulkAudio.runState?.isPaused)}

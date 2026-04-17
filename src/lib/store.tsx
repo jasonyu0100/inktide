@@ -75,6 +75,7 @@ import type {
   RelationshipEdge,
   RelationshipDelta,
   Scene,
+  SceneGameAnalysis,
   SearchQuery,
   StorySettings,
   StructureReview,
@@ -743,6 +744,15 @@ export type Action =
       type: "SET_PLAN_EVALUATION";
       branchId: string;
       evaluation: PlanEvaluation;
+    }
+  | {
+      type: "SET_GAME_ANALYSIS";
+      sceneId: string;
+      analysis: SceneGameAnalysis;
+    }
+  | {
+      type: "CLEAR_GAME_ANALYSIS";
+      sceneId: string;
     }
   // Bulk AI-generated content
   | { type: "BULK_ADD_SCENES"; scenes: Scene[]; arc: Arc; branchId: string }
@@ -1753,6 +1763,30 @@ function reducer(state: AppState, action: Action): AppState {
           [action.branchId]: action.evaluation,
         },
       }));
+
+    case "SET_GAME_ANALYSIS":
+      return updateNarrative(state, (n) => {
+        const scene = n.scenes[action.sceneId];
+        if (!scene) return n;
+        return {
+          ...n,
+          scenes: {
+            ...n.scenes,
+            [action.sceneId]: { ...scene, gameAnalysis: action.analysis },
+          },
+        };
+      });
+
+    case "CLEAR_GAME_ANALYSIS":
+      return updateNarrative(state, (n) => {
+        const scene = n.scenes[action.sceneId];
+        if (!scene) return n;
+        const { gameAnalysis: _removed, ...rest } = scene;
+        return {
+          ...n,
+          scenes: { ...n.scenes, [action.sceneId]: rest },
+        };
+      });
 
     case "RECONSTRUCT_BRANCH": {
       return updateNarrative(state, (n) => {

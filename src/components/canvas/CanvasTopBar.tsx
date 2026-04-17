@@ -7,7 +7,7 @@ import type { GraphViewMode } from '@/types/narrative';
 import { getResolvedProseVersion, getResolvedPlanVersion, resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
 import { VersionHistoryTree } from './VersionHistoryTree';
 import { RegenerateEmbeddingsModal } from '@/components/topbar/RegenerateEmbeddingsModal';
-import { IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch, IconReasoning } from '@/components/icons';
+import { IconDice, IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch, IconReasoning } from '@/components/icons';
 import { buildSequentialPath } from '@/lib/ai';
 
 const GRAPH_DOMAINS = [
@@ -45,9 +45,9 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 
 export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'search' | 'reasoning';
-type ScenePrimaryMode = 'reasoning' | 'plan' | 'prose' | 'audio';
-const SCENE_MODES: ScenePrimaryMode[] = ['reasoning', 'plan', 'prose', 'audio'];
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning';
+type ScenePrimaryMode = 'reasoning' | 'plan' | 'prose' | 'audio' | 'game';
+const SCENE_MODES: ScenePrimaryMode[] = ['reasoning', 'plan', 'prose', 'audio', 'game'];
 
 // Module-level state shared with SceneProseView
 let beatPlanLinkedModeGlobal = false;
@@ -237,6 +237,7 @@ function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'plan') return 'plan';
   if (graphViewMode === 'prose') return 'prose';
   if (graphViewMode === 'audio') return 'audio';
+  if (graphViewMode === 'game') return 'game';
   if (graphViewMode === 'search') return 'search';
   if (graphViewMode === 'reasoning') return 'reasoning';
   return 'graph';
@@ -748,6 +749,7 @@ export function CanvasTopBar() {
               { mode: 'plan' as ScenePrimaryMode, Icon: IconNotepad, label: 'Plan', hidden: false },
               { mode: 'prose' as ScenePrimaryMode, Icon: IconDocument, label: 'Prose', hidden: false },
               { mode: 'audio' as ScenePrimaryMode, Icon: IconWaveform, label: 'Audio', hidden: false },
+              { mode: 'game' as ScenePrimaryMode, Icon: IconDice, label: 'Game', hidden: false },
             ]
               .filter(({ hidden }) => !hidden)
               .map(({ mode, Icon, label }, idx) => {

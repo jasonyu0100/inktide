@@ -4,6 +4,9 @@ export { narrativeContext, sceneContext, outlineContext } from './context';
 // Scene generation
 export { generateScenes, generateScenePlan, rewriteScenePlan, generateSceneProse, reverseEngineerScenePlan, type CoordinationPlanContext } from './scenes';
 
+// Game-theoretic analysis (opt-in, post-hoc layer)
+export { generateSceneGameAnalysis } from './game-analysis';
+
 // Plan candidates
 export { runPlanCandidates } from './candidates';
 

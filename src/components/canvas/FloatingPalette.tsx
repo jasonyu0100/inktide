@@ -93,7 +93,8 @@ export default function FloatingPalette({
   const isEditingMode =
     graphViewMode === "plan" ||
     graphViewMode === "prose" ||
-    graphViewMode === "audio";
+    graphViewMode === "audio" ||
+    graphViewMode === "game";
 
   // Branch context for version resolution
   const branchId = state.viewState.activeBranchId;
@@ -467,6 +468,52 @@ export default function FloatingPalette({
                         )
                       }
                       title="Bulk generate all missing prose (requires plans)"
+                    >
+                      <IconAutoLoop size={14} />
+                    </button>
+                  </>
+                )}
+
+                {/* Game palette actions — Generate / Clear / Auto */}
+                {graphViewMode === "game" && (
+                  <>
+                    <button
+                      type="button"
+                      className={`text-xs font-semibold px-2 py-1 rounded-md transition-colors uppercase tracking-wider ${hasPlan || hasProse ? "text-world bg-world/10 hover:bg-world/20" : "text-text-dim/30 bg-white/3 cursor-not-allowed"}`}
+                      onClick={() =>
+                        (hasPlan || hasProse) &&
+                        window.dispatchEvent(
+                          new CustomEvent("canvas:generate-game"),
+                        )
+                      }
+                      title={hasPlan || hasProse ? undefined : "Generate a plan or prose first"}
+                    >
+                      Generate
+                    </button>
+                    {currentScene?.gameAnalysis && (
+                      <button
+                        type="button"
+                        className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-text-dim bg-white/5 hover:bg-white/10 hover:text-text-secondary"
+                        onClick={() =>
+                          window.dispatchEvent(
+                            new CustomEvent("canvas:clear-game"),
+                          )
+                        }
+                        title="Clear analysis"
+                      >
+                        <IconClose size={14} />
+                      </button>
+                    )}
+                    <div className="w-px h-4 bg-white/12 mx-0.5" />
+                    <button
+                      type="button"
+                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("canvas:bulk-game"),
+                        )
+                      }
+                      title="Analyse all scenes with plans or prose (sliding-window parallel)"
                     >
                       <IconAutoLoop size={14} />
                     </button>

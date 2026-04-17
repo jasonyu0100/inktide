@@ -730,6 +730,8 @@ export type Scene = {
   proseVersions?: ProseVersion[];
   /** Version history for plan — enables branch isolation. Resolution uses branch lineage + fork time. */
   planVersions?: PlanVersion[];
+  /** Game-theoretic analysis — opt-in, additive layer derived from the beat plan. Single current analysis; regenerate to replace. */
+  gameAnalysis?: SceneGameAnalysis;
   summary: string;
   imageUrl?: ImageRef;
   audioUrl?: AudioRef;
@@ -1100,6 +1102,51 @@ export type NarrativeState = {
   antiPatterns?: string[];
   createdAt: number;
   updatedAt: number;
+};
+
+// ── Game Theory Analysis (opt-in, post-hoc) ───────────────────────────────────
+// A scene's beats are decomposed into a sequence of 2×2 strategic games.
+// This is layered analysis — additive to the scene, not part of its core deltas.
+
+/** A single 2×2 game extracted from a beat: two players, four outcomes, one chosen. */
+export type BeatGame = {
+  /** Which beat in the scene's BeatPlan.beats this game corresponds to. */
+  beatIndex: number;
+  /** Short excerpt of the beat for context (what the beat says). */
+  beatExcerpt: string;
+  /** Participant A — character, location, or artifact ID (or a label if unresolved). */
+  playerAId: string;
+  playerAName: string;
+  /** Participant B. */
+  playerBId: string;
+  playerBName: string;
+  /** A's advancing/cooperative action (2-5 words). */
+  actionA: string;
+  /** A's blocking/defect action (2-5 words). */
+  defectA: string;
+  /** B's advancing/cooperative action. */
+  actionB: string;
+  /** B's blocking/defect action. */
+  defectB: string;
+  /** Four outcomes, payoffs 0-4 per player. */
+  cc: { outcome: string; payoffA: number; payoffB: number };
+  cd: { outcome: string; payoffA: number; payoffB: number };
+  dc: { outcome: string; payoffA: number; payoffB: number };
+  dd: { outcome: string; payoffA: number; payoffB: number };
+  /** The cell the beat actually landed on. */
+  chosenCell: "cc" | "cd" | "dc" | "dd";
+  /** One sentence explaining why this cell was chosen from the beat prose. */
+  rationale: string;
+};
+
+/** Full game-theoretic analysis for a single scene. */
+export type SceneGameAnalysis = {
+  /** Sequential games extracted from the scene's beats — order matters. */
+  games: BeatGame[];
+  /** When this analysis was generated (ms since epoch). */
+  generatedAt: number;
+  /** Optional one-line summary of the scene's strategic shape. */
+  summary?: string;
 };
 
 /** Look up a timeline entry (scene or world build) by ID */
@@ -1626,6 +1673,7 @@ export type GraphViewMode =
   | "prose"
   | "plan"
   | "audio"
+  | "game"
   | "spark"
   | "codex"
   | "pulse"

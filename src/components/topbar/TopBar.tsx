@@ -30,6 +30,7 @@ import { PatternsModal } from "@/components/topbar/PatternsModal";
 import { PropositionAnalysisModal } from "@/components/topbar/PropositionAnalysisModal";
 import SystemLogModal from "@/components/topbar/SystemLogModal";
 import { ThreadGraphModal } from "@/components/topbar/ThreadGraphModal";
+import { GameTheoryDashboard } from "@/components/topbar/GameTheoryDashboard";
 import {
   UsageDropdown,
   computeTotalCost,
@@ -356,6 +357,7 @@ export default function TopBar() {
   const [beatProfileOpen, setBeatProfileOpen] = useState(false);
   const [propositionAnalysisOpen, setPropositionAnalysisOpen] = useState(false);
   const [threadGraphOpen, setThreadGraphOpen] = useState(false);
+  const [gameTheoryOpen, setGameTheoryOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -1211,6 +1213,11 @@ export default function TopBar() {
             {
               label: "Propositions",
               onClick: () => setPropositionAnalysisOpen(true),
+              disabled: !hasNarrative,
+            },
+            {
+              label: "Game Theory",
+              onClick: () => setGameTheoryOpen(true),
               disabled: !hasNarrative,
             },
           ]}
@@ -2195,6 +2202,16 @@ export default function TopBar() {
               context: { type: "thread", threadId: id },
             });
             setThreadGraphOpen(false);
+          }}
+        />
+      )}
+      {gameTheoryOpen && narrative && (
+        <GameTheoryDashboard
+          narrative={narrative}
+          resolvedKeys={state.resolvedEntryKeys}
+          onClose={() => setGameTheoryOpen(false)}
+          onSelectScene={(index) => {
+            dispatch({ type: "SET_SCENE_INDEX", index });
           }}
         />
       )}

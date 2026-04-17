@@ -19,6 +19,7 @@ import ThreadLogGraphView from './ThreadLogGraphView';
 import { ScenePlanView } from './ScenePlanView';
 import { SceneProseView } from './SceneProseView';
 import { SceneAudioView } from './SceneAudioView';
+import { SceneGameTheoryView } from './SceneGameTheoryView';
 import { SearchView } from './SearchView';
 import { ReasoningGraphView } from './ReasoningGraphView';
 import {
@@ -1097,6 +1098,14 @@ export default function WorldGraph() {
       ) : graphViewMode === 'audio' ? (
         currentScene ? (
           <SceneAudioView narrative={narrative} scene={currentScene} />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-text-dim text-sm italic">No scene selected.</p>
+          </div>
+        )
+      ) : graphViewMode === 'game' ? (
+        currentScene ? (
+          <SceneGameTheoryView narrative={narrative} scene={currentScene} />
         ) : (
           <div className="flex items-center justify-center h-full">
             <p className="text-text-dim text-sm italic">No scene selected.</p>

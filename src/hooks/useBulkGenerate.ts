@@ -3,12 +3,13 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenePlan, generateSceneProse, reverseEngineerScenePlan } from '@/lib/ai/scenes';
+import { generateSceneGameAnalysis } from '@/lib/ai/game-analysis';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { PLAN_CONCURRENCY, PROSE_CONCURRENCY } from '@/lib/constants';
+import { PLAN_CONCURRENCY, PROSE_CONCURRENCY, GAME_CONCURRENCY } from '@/lib/constants';
 import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
 import { logError } from '@/lib/system-logger';
 
-type BulkMode = 'plan' | 'prose';
+type BulkMode = 'plan' | 'prose' | 'game';
 
 type BulkProgress = {
   completed: number;
@@ -49,7 +50,10 @@ export function useBulkGenerate() {
     const { activeNarrative, resolvedEntryKeys } = stateRef.current;
     if (!activeNarrative || sceneIds.length === 0) return;
 
-    const concurrency = mode === 'plan' ? PLAN_CONCURRENCY : PROSE_CONCURRENCY;
+    const concurrency =
+      mode === 'plan' ? PLAN_CONCURRENCY :
+      mode === 'prose' ? PROSE_CONCURRENCY :
+      GAME_CONCURRENCY;
     const total = sceneIds.length;
     let completed = 0;
     let nextIndex = 0;
@@ -82,14 +86,35 @@ export function useBulkGenerate() {
       //   'prose' + 'structure' source: forward prose generation requires a plan.
       if (mode === 'plan' && planSource === 'prose' && !resolvedProse) return;
       if (mode === 'prose' && planSource === 'structure' && !resolvedPlan) return;
+      // Game analysis requires something to read — prefer plan, accept prose.
+      // Skip scenes that already have an analysis: unlike plan/prose, game
+      // analyses aren't versioned, so re-running would just overwrite. Users
+      // can Clear + Generate per-scene to force regeneration.
+      if (mode === 'game' && !resolvedPlan && !resolvedProse) return;
+      if (mode === 'game' && scene.gameAnalysis) return;
 
+      const statusVerb =
+        mode === 'plan' ? (planSource === 'prose' ? 'Reverse-engineering plan for' : 'Planning') :
+        mode === 'prose' ? 'Writing' :
+        'Analysing games in';
       updateRunState({
-        statusMessage: `${mode === 'plan' ? (planSource === 'prose' ? 'Reverse-engineering plan for' : 'Planning') : 'Writing'} "${scene.summary.slice(0, 40)}..."`,
+        statusMessage: `${statusVerb} "${scene.summary.slice(0, 40)}..."`,
         progress: { completed, total, currentSceneId: sceneId },
       });
 
       try {
-        if (mode === 'plan') {
+        if (mode === 'game') {
+          window.dispatchEvent(new CustomEvent('bulk:game-start', { detail: { sceneId } }));
+          const analysis = await generateSceneGameAnalysis(
+            activeNarrative,
+            scene,
+            stateRef.current.viewState.activeBranchId,
+            (token) => window.dispatchEvent(new CustomEvent('bulk:game-token', { detail: { sceneId, token } })),
+            (token) => window.dispatchEvent(new CustomEvent('bulk:game-reasoning', { detail: { sceneId, token } })),
+          );
+          window.dispatchEvent(new CustomEvent('bulk:game-complete', { detail: { sceneId } }));
+          dispatch({ type: 'SET_GAME_ANALYSIS', sceneId, analysis });
+        } else if (mode === 'plan') {
           window.dispatchEvent(new CustomEvent('bulk:plan-start', { detail: { sceneId } }));
           const plan = planSource === 'prose'
             ? (await reverseEngineerScenePlan(
@@ -137,7 +162,10 @@ export function useBulkGenerate() {
         }
       } catch (err) {
         logError(`Failed to generate ${mode} for scene`, err, {
-          source: mode === 'plan' ? 'plan-generation' : 'prose-generation',
+          source:
+            mode === 'plan' ? 'plan-generation' :
+            mode === 'prose' ? 'prose-generation' :
+            'game-analysis',
           operation: 'bulk-generate',
           details: { sceneId, mode, sceneNumber: completed + 1, totalScenes: total }
         });
@@ -210,6 +238,13 @@ export function useBulkGenerate() {
         if (planSource === 'prose' || resolvedPlan) {
           scenesToProcess.push(scene.id);
         }
+      } else if (mode === 'game') {
+        // Game analysis prefers a plan; accepts prose as fallback input.
+        // Skip scenes that already have an analysis — unlike plan/prose,
+        // game analyses aren't versioned.
+        if ((resolvedPlan || resolvedProse) && !scene.gameAnalysis) {
+          scenesToProcess.push(scene.id);
+        }
       }
     }
 
@@ -258,12 +293,13 @@ export function useBulkGenerate() {
   const counts = useCallback(() => {
     const { activeNarrative, resolvedEntryKeys, viewState } = stateRef.current;
     const { activeBranchId } = viewState;
-    if (!activeNarrative || !activeBranchId) return { needsPlan: 0, needsProse: 0 };
+    if (!activeNarrative || !activeBranchId) return { needsPlan: 0, needsProse: 0, needsGame: 0 };
 
     const planSource = activeNarrative.storySettings?.planExtractionSource ?? 'structure';
     const branches = activeNarrative.branches;
     let needsPlan = 0;
     let needsProse = 0;
+    let needsGame = 0;
 
     for (const key of resolvedEntryKeys) {
       const entry = resolveEntry(activeNarrative, key);
@@ -275,9 +311,10 @@ export function useBulkGenerate() {
 
       if (planSource === 'structure' || resolvedProse) needsPlan++;
       if (planSource === 'prose' || resolvedPlan) needsProse++;
+      if ((resolvedPlan || resolvedProse) && !scene.gameAnalysis) needsGame++;
     }
 
-    return { needsPlan, needsProse };
+    return { needsPlan, needsProse, needsGame };
   }, []);
 
   // Cleanup on unmount

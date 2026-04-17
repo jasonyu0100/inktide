@@ -27,6 +27,7 @@ import {
   type GameMove,
   type GameProperties,
   type PlayerGTO,
+
 } from '@/lib/game-extract';
 
 type Props = { narrative: NarrativeState };
@@ -109,10 +110,17 @@ export default function GameView({ narrative }: Props) {
     return activeGame.moves.filter((m) => sceneMoveIds.has(m.nodeId));
   }, [activeGame, sceneMoveIds]);
 
-  // Auto-select the best pairwise game: the one whose players appear in this turn's moves
+  // Auto-select the best pairwise game: prioritise selected entity in entity mode, then turn moves
   const bestPair = useMemo((): PairwiseGame | null => {
     if (!activeGame) return null;
     const moveActors = new Set(turnMoves.flatMap((m) => [m.actorId, m.targetId].filter(Boolean)));
+    // Entity mode: prioritise pairs involving the selected entity
+    if (viewMode === 'entity' && selectedEntity) {
+      const entityWithMatrix = activeGame.pairwiseGames.find((pw) => pw.matrix && (pw.playerA === selectedEntity || pw.playerB === selectedEntity));
+      if (entityWithMatrix) return entityWithMatrix;
+      const entityAny = activeGame.pairwiseGames.find((pw) => pw.playerA === selectedEntity || pw.playerB === selectedEntity);
+      if (entityAny) return entityAny;
+    }
     // First: pair with matrix whose players are in this turn's moves
     const active = activeGame.pairwiseGames.find((pw) => pw.matrix && (moveActors.has(pw.playerA) || moveActors.has(pw.playerB)));
     if (active) return active;
@@ -122,7 +130,7 @@ export default function GameView({ narrative }: Props) {
     // Third: pair whose players are in moves
     const fromMoves = activeGame.pairwiseGames.find((pw) => moveActors.has(pw.playerA) || moveActors.has(pw.playerB));
     return fromMoves ?? activeGame.pairwiseGames[0] ?? null;
-  }, [activeGame, turnMoves]);
+  }, [activeGame, turnMoves, viewMode, selectedEntity]);
 
   // Moves depend on view mode
   const displayMoves = useMemo(() => {
@@ -173,15 +181,6 @@ export default function GameView({ narrative }: Props) {
             >{m === 'dashboard' ? 'Dash' : m}</button>
           ))}
         </div>
-        <div className="shrink-0 px-3 py-2 border-b border-border">
-          <div className="text-[9px] uppercase tracking-[0.15em] text-text-dim/50 font-semibold">
-            {viewMode === 'dashboard' ? 'Overview' :
-             viewMode === 'turn' && sceneThreadIds ? `Turn · ${currentScene?.id}` :
-             viewMode === 'entity' ? 'Select Entity' :
-             `${displayGames.length} threads`}
-          </div>
-        </div>
-
         {/* Entity selector — shown in entity mode */}
         {viewMode === 'entity' && (
           <div className="shrink-0 border-b border-border max-h-36 overflow-y-auto">
@@ -193,15 +192,20 @@ export default function GameView({ narrative }: Props) {
           </div>
         )}
 
-        {/* Game list */}
+        {/* Game list — turn, thread, entity modes */}
         <div className="flex-1 overflow-y-auto">
           {viewMode !== 'dashboard' && displayGames.map((g) => {
             const active = activeGame?.threadId === g.threadId;
             const movesForDots = viewMode === 'turn' ? g.moves.filter((m: GameMove) => sceneMoveIds.has(m.nodeId)) : g.moves;
+            const stateColor = g.gameState === 'endgame' ? 'text-fate' : g.gameState === 'committed' ? 'text-orange-400' : g.gameState === 'midgame' ? 'text-blue-400' : g.gameState === 'resolved' ? 'text-world' : g.gameState === 'broken' ? 'text-violet-400' : 'text-text-dim/30';
             return (
               <button key={g.threadId} onClick={() => { setSelectedGame(g.threadId); setOverridePair(null); setShowFullHistory(false); setActiveMoveIdx(0); dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: g.threadId } }); }}
                 className={`w-full text-left px-3 py-2 border-b border-white/5 transition-colors ${active ? 'bg-white/8' : 'hover:bg-white/3'}`}
               >
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className={`text-[8px] font-semibold uppercase ${stateColor}`}>{g.gameState}</span>
+                  {g.trajectory !== 'developing' && <span className={`text-[8px] ${g.trajectory === 'volatile' ? 'text-orange-400/60' : g.trajectory === 'contested' ? 'text-amber-400/60' : g.trajectory === 'momentum' ? 'text-emerald-400/60' : 'text-text-dim/20'}`}>{g.trajectory}</span>}
+                </div>
                 <div className="text-[10px] text-text-secondary leading-snug line-clamp-2">{g.question}</div>
                 {movesForDots.length > 0 && (
                   <div className="flex items-center gap-1 mt-1">
@@ -216,9 +220,62 @@ export default function GameView({ narrative }: Props) {
           })}
           {viewMode !== 'dashboard' && displayGames.length === 0 && (
             <p className="text-[10px] text-text-dim/30 italic p-4 text-center">
-              {viewMode === 'turn' ? 'No games this turn' : viewMode === 'entity' && !selectedEntity ? 'Select an entity above' : 'No games'}
+              {viewMode === 'turn' ? 'No games this turn' : viewMode === 'entity' && !selectedEntity ? 'Select an entity' : 'No games'}
             </p>
           )}
+
+          {/* Dashboard sidebar — game state summary + player roster */}
+          {viewMode === 'dashboard' && (() => {
+            const stateDist = { endgame: 0, committed: 0, midgame: 0, setup: 0, resolved: 0, broken: 0 };
+            for (const g of fullState.threadGames.filter((g: ThreadGame) => !g.isChallenge)) {
+              stateDist[g.gameState as keyof typeof stateDist] = (stateDist[g.gameState as keyof typeof stateDist] ?? 0) + 1;
+            }
+            const stateEntries = (['endgame', 'committed', 'midgame', 'setup', 'resolved', 'broken'] as const).filter((s) => stateDist[s] > 0);
+            return (
+              <>
+                {/* Game states */}
+                <div className="px-3 py-2 border-b border-border">
+                  <div className="text-[8px] uppercase tracking-[0.15em] text-text-dim/30 font-semibold mb-1.5">Game States</div>
+                  <div className="flex flex-col gap-0.5">
+                    {stateEntries.map((gs) => {
+                      const color = gs === 'endgame' ? 'text-fate' : gs === 'committed' ? 'text-orange-400' : gs === 'midgame' ? 'text-blue-400' : gs === 'resolved' ? 'text-world' : gs === 'broken' ? 'text-violet-400' : 'text-text-dim/40';
+                      return (
+                        <div key={gs} className="flex items-center justify-between">
+                          <span className={`text-[9px] ${color}`}>{gs}</span>
+                          <span className="text-[9px] text-text-dim/40 tabular-nums">{stateDist[gs]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Player roster */}
+                <div className="px-3 py-1.5 border-b border-border">
+                  <div className="text-[8px] uppercase tracking-[0.15em] text-text-dim/30 font-semibold">Players</div>
+                </div>
+                {entities.map((e) => {
+                  const pos = fullState.playerPositions.find((p) => p.id === e.id);
+                  const postureColor = pos?.overallPosture === 'dominant' ? 'text-emerald-400' : pos?.overallPosture === 'pressured' ? 'text-amber-400' : pos?.overallPosture === 'embattled' ? 'text-red-400' : 'text-text-dim/30';
+                  return (
+                    <button key={e.id} onClick={() => dispatch({ type: 'SET_INSPECTOR', context: narrative.characters[e.id] ? { type: 'character', characterId: e.id } : narrative.locations[e.id] ? { type: 'location', locationId: e.id } : { type: 'artifact', artifactId: e.id } })}
+                      className="w-full text-left px-3 py-1.5 border-b border-white/5 hover:bg-white/3 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-text-secondary">{e.name}</span>
+                        <span className="text-[9px] text-text-dim/30 tabular-nums">{e.games}</span>
+                      </div>
+                      {pos && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`text-[8px] ${postureColor}`}>{pos.overallPosture}</span>
+                          {pos.endgameGames > 0 && <span className="text-[8px] text-fate/60">{pos.endgameGames} endgame</span>}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </>
+            );
+          })()}
         </div>
       </div>
 
@@ -226,123 +283,248 @@ export default function GameView({ narrative }: Props) {
       {viewMode === 'dashboard' && dashboardData ? (
         <DashboardPanel data={dashboardData} state={fullState} nameOf={nameOf} dispatch={dispatch} />
       ) : activeGame && activePw ? (
-        <div className="flex-1 min-w-0 overflow-y-auto">
-          <div className="max-w-xl mx-auto px-6 py-5 flex flex-col gap-4">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
-            {/* Move stepper — navigate through this turn's moves */}
-            {displayMoves.length > 0 && (() => {
-              const idx = Math.min(activeMoveIdx, displayMoves.length - 1);
-              const m = displayMoves[idx];
-              return (
-                <div>
-                  {/* Move navigation */}
-                  {displayMoves.length > 1 && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <button
-                        onClick={() => setActiveMoveIdx(Math.max(0, idx - 1))}
-                        disabled={idx === 0}
-                        className="text-[10px] text-text-dim/40 hover:text-text-dim/60 disabled:opacity-20 transition-colors"
-                      >&larr;</button>
-                      <span className="text-[9px] text-text-dim/40 tabular-nums">{idx + 1} / {displayMoves.length}</span>
-                      <button
-                        onClick={() => setActiveMoveIdx(Math.min(displayMoves.length - 1, idx + 1))}
-                        disabled={idx >= displayMoves.length - 1}
-                        className="text-[10px] text-text-dim/40 hover:text-text-dim/60 disabled:opacity-20 transition-colors"
-                      >&rarr;</button>
+          {/* ── Navigation bar — single strip ── */}
+          <div className="shrink-0 border-b border-border px-5 h-10 flex items-center">
+            {/* Scene stepper */}
+            <div className="flex items-center gap-1">
+              <button onClick={() => dispatch({ type: 'PREV_SCENE' })}
+                className="p-1 rounded text-text-dim/40 hover:text-text-primary transition-colors disabled:opacity-15"
+                disabled={state.viewState.currentSceneIndex <= 0}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+              <span className="text-[12px] text-text-primary tabular-nums font-medium px-1">
+                {state.viewState.currentSceneIndex + 1}<span className="text-text-dim/25 font-normal">/{state.resolvedEntryKeys.length}</span>
+              </span>
+              <button onClick={() => dispatch({ type: 'NEXT_SCENE' })}
+                className="p-1 rounded text-text-dim/40 hover:text-text-primary transition-colors disabled:opacity-15"
+                disabled={state.viewState.currentSceneIndex >= state.resolvedEntryKeys.length - 1}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5.5 3L9.5 7l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+            </div>
+
+            {/* Game state + trajectory — centre */}
+            <div className="flex items-center gap-2 ml-4">
+              <span className={`text-[10px] font-semibold uppercase tracking-wide ${
+                activeGame.gameState === 'endgame' ? 'text-fate' :
+                activeGame.gameState === 'committed' ? 'text-orange-400' :
+                activeGame.gameState === 'midgame' ? 'text-blue-400' :
+                activeGame.gameState === 'resolved' ? 'text-world' :
+                activeGame.gameState === 'broken' ? 'text-violet-400' :
+                'text-text-dim/50'
+              }`}>{activeGame.gameState}</span>
+              <span className={`text-[10px] ${
+                activeGame.trajectory === 'volatile' ? 'text-orange-400/60' :
+                activeGame.trajectory === 'momentum' ? 'text-emerald-400/60' :
+                activeGame.trajectory === 'contested' ? 'text-amber-400/60' :
+                activeGame.trajectory === 'stalled' ? 'text-red-400/60' :
+                'text-text-dim/30'
+              }`}>{activeGame.trajectory}</span>
+            </div>
+
+            {/* Right side: history toggle */}
+            <div className="ml-auto">
+              <button
+                onClick={() => setShowFullHistory(!showFullHistory)}
+                className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+                  showFullHistory
+                    ? 'bg-white/8 text-text-secondary'
+                    : 'text-text-dim/35 hover:text-text-dim/60'
+                }`}
+              >
+                {showFullHistory ? 'All' : 'Turn'}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Scrollable content ── */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-xl mx-auto px-6 py-5 flex flex-col gap-5">
+
+              {/* Move display */}
+              {displayMoves.length > 0 && (() => {
+                const idx = Math.min(activeMoveIdx, displayMoves.length - 1);
+                const m = displayMoves[idx];
+                return (
+                  <div>
+                    <p className="text-[15px] text-text-primary leading-relaxed">{m.content}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      {m.attributed && (
+                        <span className="text-[11px] text-text-secondary/60">{nameOf(m.actorId!)}{m.targetId ? ` \u2192 ${nameOf(m.targetId)}` : ''}</span>
+                      )}
+                      <span className={`text-[10px] ${m.stance === 'cooperative' ? 'text-emerald-400/70' : m.stance === 'competitive' ? 'text-red-400/70' : 'text-text-dim/30'}`}>{m.stance}</span>
                       {m.matrixCell && (
-                        <span className="text-[8px] font-mono text-text-dim/30 ml-1 uppercase">{m.matrixCell}</span>
+                        <span className={`text-[10px] font-mono font-medium ${
+                          m.matrixCell === 'cc' ? 'text-emerald-400/60' :
+                          m.matrixCell === 'dd' ? 'text-red-400/60' :
+                          'text-amber-400/60'
+                        }`}>{m.matrixCell}</span>
+                      )}
+                      {/* Move stepper — only when multiple */}
+                      {displayMoves.length > 1 && (
+                        <div className="flex items-center gap-1 ml-auto">
+                          <button onClick={() => setActiveMoveIdx(Math.max(0, idx - 1))} disabled={idx === 0}
+                            className="p-0.5 rounded text-text-dim/30 hover:text-text-primary transition-colors disabled:opacity-15"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M8.5 3L4.5 7l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </button>
+                          <span className="text-[11px] text-text-dim/40 tabular-nums">{idx + 1}/{displayMoves.length}</span>
+                          <button onClick={() => setActiveMoveIdx(Math.min(displayMoves.length - 1, idx + 1))} disabled={idx >= displayMoves.length - 1}
+                            className="p-0.5 rounded text-text-dim/30 hover:text-text-primary transition-colors disabled:opacity-15"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5.5 3L9.5 7l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </button>
+                        </div>
                       )}
                     </div>
-                  )}
-                  {/* The move */}
-                  <p className="text-[15px] text-text-primary leading-snug">{m.content}</p>
-                  {m.attributed && (
-                    <div className="flex items-center gap-1.5 mt-1 text-[10px]">
-                      <span className="text-text-dim/50">{nameOf(m.actorId!)}</span>
-                      {m.targetId && <><span className="text-text-dim/20">→</span><span className="text-text-dim/50">{nameOf(m.targetId)}</span></>}
-                      <span className={m.stance === 'cooperative' ? 'text-emerald-400/60' : m.stance === 'competitive' ? 'text-red-400/60' : 'text-text-dim/30'}>{m.stance}</span>
+                  </div>
+                );
+              })()}
+
+              {/* Thread question */}
+              <p className="text-[10px] text-text-dim/35 leading-snug">{activeGame.question}</p>
+
+              {/* Game stats — inline cards instead of a toolbar strip */}
+              {(() => {
+                const temp = activeGame.moveBalance.total > 0 ? activeGame.moveBalance.competitive / activeGame.moveBalance.total : 0;
+                const bal = activeGame.moveBalance;
+                return (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-lg bg-white/3 px-3 py-2">
+                      <div className={`text-[16px] font-mono font-semibold tabular-nums ${
+                        temp > 0.5 ? 'text-red-400' : temp > 0.3 ? 'text-amber-400' : 'text-emerald-400'
+                      }`}>{(temp * 100).toFixed(0)}%</div>
+                      <div className="text-[9px] text-text-dim/35 mt-0.5">temperature</div>
                     </div>
-                  )}
+                    <div className="rounded-lg bg-white/3 px-3 py-2">
+                      <div className="flex items-end gap-1">
+                        <span className="text-[16px] font-mono font-semibold tabular-nums text-text-primary">{bal.total}</span>
+                        <span className="text-[10px] text-text-dim/30 mb-0.5">{bal.cooperative}c {bal.competitive}d</span>
+                      </div>
+                      <div className="flex gap-px h-1.5 rounded-full overflow-hidden bg-white/5 mt-1.5 w-full">
+                        {bal.total > 0 && <>
+                          {bal.cooperative > 0 && <div className="bg-emerald-400/60 h-full" style={{ width: `${(bal.cooperative / bal.total) * 100}%` }} />}
+                          {bal.neutral > 0 && <div className="bg-white/15 h-full" style={{ width: `${(bal.neutral / bal.total) * 100}%` }} />}
+                          {bal.competitive > 0 && <div className="bg-red-400/60 h-full" style={{ width: `${(bal.competitive / bal.total) * 100}%` }} />}
+                        </>}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-white/3 px-3 py-2">
+                      <div className={`text-[16px] font-mono font-semibold tabular-nums ${
+                        activeGame.momentum > 0.3 ? 'text-emerald-400' : activeGame.momentum < -0.3 ? 'text-red-400' : 'text-text-dim/60'
+                      }`}>{activeGame.momentum > 0 ? '+' : ''}{activeGame.momentum.toFixed(1)}</div>
+                      <div className="text-[9px] text-text-dim/35 mt-0.5">
+                        momentum{activeGame.volatility > 0.3 ? ` \u00b7 ${activeGame.volatility.toFixed(1)} vol` : ''}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* THE MATRIX */}
+              {activePw.matrix && activePw.properties && (() => {
+                const idx = Math.min(activeMoveIdx, displayMoves.length - 1);
+                const activeMove = displayMoves[idx];
+                let playedCell: 'cc' | 'cd' | 'dc' | 'dd' | null = null;
+                const raw = activeMove?.matrixCell;
+                if (raw === 'cc' || raw === 'cd' || raw === 'dc' || raw === 'dd') {
+                  const actorIsB = activeMove?.actorId === activePw.playerB;
+                  if (actorIsB && raw === 'dc') playedCell = 'cd';
+                  else if (actorIsB && raw === 'cd') playedCell = 'dc';
+                  else playedCell = raw;
+                }
+                return (
+                  <Board
+                    matrix={activePw.matrix!}
+                    props={activePw.properties!}
+                    aName={nameOf(activePw.playerA)}
+                    bName={nameOf(activePw.playerB)}
+                    perspectiveA={activePw.playerA}
+                    playedCell={playedCell}
+                    stakeA={activePw.stakeA}
+                    stakeB={activePw.stakeB}
+                  />
+                );
+              })()}
+
+              {/* Analysis */}
+              {activePw.properties && <AnalysisBlock props={activePw.properties} aName={nameOf(activePw.playerA)} bName={nameOf(activePw.playerB)} />}
+
+              {/* Players — compact inline */}
+              {activeGame.players.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  {activeGame.players.map((p) => {
+                    const pMoves = activeGame.moves.filter((m) => m.actorId === p.id);
+                    const pCoop = pMoves.filter((m) => m.stance === 'cooperative').length;
+                    const pComp = pMoves.filter((m) => m.stance === 'competitive').length;
+                    const pTotal = pMoves.length;
+                    return (
+                      <div key={p.id}
+                        className="flex items-center gap-3 rounded-lg bg-white/3 px-3 py-2 hover:bg-white/5 transition-colors cursor-pointer"
+                        onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: p.kind === 'character' ? 'character' : p.kind === 'location' ? 'location' : 'artifact', [`${p.kind}Id`]: p.id } as any })}
+                      >
+                        <span className="text-[11px] text-text-primary font-medium">{p.name}</span>
+                        <span className={`text-[9px] ${
+                          p.posture === 'strategist' ? 'text-sky-400/60' :
+                          p.posture === 'operator' ? 'text-emerald-400/60' :
+                          p.posture === 'reactive' ? 'text-amber-400/60' :
+                          p.posture === 'vulnerable' ? 'text-red-400/60' :
+                          'text-text-dim/30'
+                        }`}>{p.posture}</span>
+                        <div className="flex-1" />
+                        {pTotal > 0 && (
+                          <div className="flex gap-px h-1.5 rounded-full overflow-hidden bg-white/5 w-12">
+                            {pCoop > 0 && <div className="bg-emerald-400/60 h-full" style={{ width: `${(pCoop / pTotal) * 100}%` }} />}
+                            {pComp > 0 && <div className="bg-red-400/60 h-full" style={{ width: `${(pComp / pTotal) * 100}%` }} />}
+                          </div>
+                        )}
+                        <span className="text-[10px] tabular-nums text-text-dim/40">{pTotal}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })()}
+              )}
 
-            {/* Thread context — small */}
-            <p className="text-[9px] text-text-dim/40 leading-snug">{activeGame.question}</p>
-
-            {/* THE MATRIX */}
-            {activePw.matrix && activePw.properties && (() => {
-              const idx = Math.min(activeMoveIdx, displayMoves.length - 1);
-              const activeMove = displayMoves[idx];
-              // Only use LLM-declared matrixCell — no inference.
-              // Normalise actor-relative cell to matrix A/B ordering.
-              let playedCell: 'cc' | 'cd' | 'dc' | 'dd' | null = null;
-              const raw = activeMove?.matrixCell;
-              if (raw === 'cc' || raw === 'cd' || raw === 'dc' || raw === 'dd') {
-                const actorIsB = activeMove?.actorId === activePw.playerB;
-                if (actorIsB && raw === 'dc') playedCell = 'cd';
-                else if (actorIsB && raw === 'cd') playedCell = 'dc';
-                else playedCell = raw;
-              }
-              return (
-                <Board
-                  matrix={activePw.matrix!}
-                  props={activePw.properties!}
-                  aName={nameOf(activePw.playerA)}
-                  bName={nameOf(activePw.playerB)}
-                  perspectiveA={activePw.playerA}
-                  playedCell={playedCell}
-                  stakeA={activePw.stakeA}
-                  stakeB={activePw.stakeB}
-                />
-              );
-            })(
-            )}
-
-            {/* Analysis */}
-            {activePw.properties && <AnalysisBlock props={activePw.properties} aName={nameOf(activePw.playerA)} bName={nameOf(activePw.playerB)} />}
-
-            {/* Other matrices — subtle toggle */}
-            {otherMatrices.length > 0 && (
-              <div className="flex gap-1 flex-wrap">
-                <span className="text-[8px] text-text-dim/25 self-center mr-1">also:</span>
-                {otherMatrices.map((pw) => {
-                  const idx = activeGame.pairwiseGames.indexOf(pw);
-                  return (
-                    <button key={idx} onClick={() => setOverridePair(overridePair === idx ? null : idx)}
-                      className={`text-[8px] px-1.5 py-0.5 rounded transition-colors ${
-                        overridePair === idx ? 'bg-white/10 text-text-secondary' : 'text-text-dim/30 hover:text-text-dim/50'
-                      }`}
-                    >{nameOf(pw.playerA)} vs {nameOf(pw.playerB)}</button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Move log */}
-            {displayMoves.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[8px] uppercase tracking-wider text-text-dim/30 font-semibold">
-                    {showFullHistory ? 'Full History' : 'This Turn'} · {displayMoves.length}
-                  </span>
-                  <button
-                    onClick={() => setShowFullHistory(!showFullHistory)}
-                    className="text-[8px] text-text-dim/30 hover:text-text-dim/50 transition-colors"
-                  >
-                    {showFullHistory ? 'show turn only' : 'show full history'}
-                  </button>
+              {/* Other matrices */}
+              {otherMatrices.length > 0 && (
+                <div className="flex gap-1.5 flex-wrap">
+                  {otherMatrices.map((pw) => {
+                    const idx = activeGame.pairwiseGames.indexOf(pw);
+                    return (
+                      <button key={idx} onClick={() => setOverridePair(overridePair === idx ? null : idx)}
+                        className={`text-[10px] px-2 py-1 rounded-md transition-colors ${
+                          overridePair === idx ? 'bg-white/10 text-text-secondary' : 'bg-white/3 text-text-dim/40 hover:text-text-dim/60'
+                        }`}
+                      >{nameOf(pw.playerA)} vs {nameOf(pw.playerB)}</button>
+                    );
+                  })}
                 </div>
-                {displayMoves.map((m, i) => (
-                  <MoveRow key={m.nodeId} move={m} index={i} nameOf={nameOf} pairwise={activePw} />
-                ))}
-              </div>
-            )}
+              )}
+
+              {/* Move log */}
+              {displayMoves.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] text-text-dim/40 font-medium">
+                      {showFullHistory ? 'Full history' : viewMode === 'entity' ? 'Entity moves' : 'This turn'} ({displayMoves.length})
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    {displayMoves.map((m, i) => (
+                      <MoveRow key={m.nodeId} move={m} index={i} nameOf={nameOf} pairwise={activePw} active={i === Math.min(activeMoveIdx, displayMoves.length - 1)} onSelect={() => setActiveMoveIdx(i)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-[11px] text-text-dim/25 italic">Select a game</p>
+          <p className="text-[11px] text-text-dim/30 italic">Select a game</p>
         </div>
       )}
     </div>
@@ -373,85 +555,66 @@ function Board({ matrix, props, aName, bName, perspectiveA, playedCell, stakeA, 
     const isLight = (row + col) % 2 === 0;
 
     return (
-      <td className={`relative p-4 ${
-        isPlayed ? 'bg-amber-400/12 ring-2 ring-inset ring-amber-400/40' :
-        isLight ? 'bg-white/4' : 'bg-black/15'
+      <td className={`relative px-4 py-3 ${
+        isPlayed ? 'bg-amber-400/10 ring-1 ring-inset ring-amber-400/30' :
+        isLight ? 'bg-white/3' : ''
       }`}>
-        {/* Badges — top right */}
-        <div className="absolute top-1 right-1 flex gap-0.5">
-          {isPlayed && isNash && <span className="text-[6px] font-bold px-1 rounded bg-emerald-400/20 text-emerald-400">NASH · PLAYED</span>}
-          {isPlayed && !isNash && <span className="text-[6px] font-bold px-1 rounded bg-amber-400/20 text-amber-400">PLAYED</span>}
-          {isNash && !isPlayed && <span className="text-[6px] font-bold px-1 rounded bg-sky-400/15 text-sky-400/80">NASH</span>}
+        {/* Badges */}
+        <div className="absolute top-1.5 right-1.5 flex gap-1">
+          {isNash && <span className={`text-[7px] font-semibold px-1 py-px rounded ${isPlayed ? 'bg-sky-400/20 text-sky-400' : 'bg-sky-400/10 text-sky-400/60'}`}>NASH</span>}
         </div>
         {/* Payoffs */}
-        <div className="flex items-center gap-3 mb-1.5">
+        <div className="flex items-baseline gap-2.5 mb-1">
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-white shadow-sm" />
-            <span className="text-[20px] font-mono font-bold text-white leading-none">{pA(cell)}</span>
+            <div className="w-2.5 h-2.5 rounded bg-white" />
+            <span className="text-[18px] font-mono font-bold text-white leading-none">{pA(cell)}</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-neutral-900 border border-white/25" />
-            <span className="text-[20px] font-mono font-bold text-white/55 leading-none">{pB(cell)}</span>
+            <div className="w-2.5 h-2.5 rounded bg-white/15" />
+            <span className="text-[18px] font-mono font-bold text-white/45 leading-none">{pB(cell)}</span>
           </div>
         </div>
         {/* Outcome */}
-        <p className="text-[9px] text-text-dim/50 leading-snug">{cell.outcome}</p>
+        <p className="text-[9px] text-text-dim/40 leading-snug">{cell.outcome}</p>
       </td>
     );
   };
 
   return (
     <div>
-      <table className="border-collapse border border-white/8 rounded-lg overflow-hidden w-full">
+      <table className="border-collapse w-full rounded-lg overflow-hidden" style={{ borderSpacing: 0 }}>
         <thead>
           <tr>
-            <th className="bg-white/3 p-2 w-28" />
-            <th className="bg-white/3 p-2 border-l border-white/5 text-center">
-              <span className="flex items-center justify-center gap-1 mb-0.5">
-                <span className="w-2.5 h-2.5 rounded bg-neutral-900 border border-white/25" />
-                <span className="text-[9px] font-semibold text-white/45 uppercase tracking-wider">{bName}</span>
-              </span>
-              <span className="text-[8px] text-emerald-400/40">{coopB}</span>
+            <th className="p-2 w-24" />
+            <th className="p-2 text-center border-l border-white/5">
+              <div className="text-[10px] font-medium text-text-dim/50 mb-0.5">{bName}</div>
+              <div className="text-[9px] text-emerald-400/40">{coopB}</div>
             </th>
-            <th className="bg-white/3 p-2 border-l border-white/5 text-center">
-              <span className="flex items-center justify-center gap-1 mb-0.5">
-                <span className="w-2.5 h-2.5 rounded bg-neutral-900 border border-white/25" />
-                <span className="text-[9px] font-semibold text-white/45 uppercase tracking-wider">{bName}</span>
-              </span>
-              <span className="text-[8px] text-red-400/40">{defB}</span>
+            <th className="p-2 text-center border-l border-white/5">
+              <div className="text-[10px] font-medium text-text-dim/50 mb-0.5">{bName}</div>
+              <div className="text-[9px] text-red-400/40">{defB}</div>
             </th>
           </tr>
         </thead>
         <tbody>
-          <tr className="border-t border-white/5">
-            <th className="bg-white/3 p-2 text-right border-r border-white/5">
-              <span className="flex items-center justify-end gap-1 mb-0.5">
-                <span className="w-2.5 h-2.5 rounded bg-white shadow-sm" />
-                <span className="text-[9px] font-semibold text-white/45 uppercase tracking-wider">{aName}</span>
-              </span>
-              <span className="text-[8px] text-emerald-400/40">{coopA}</span>
+          <tr className="border-t border-white/6">
+            <th className="p-2 text-right border-r border-white/6">
+              <div className="text-[10px] font-medium text-text-dim/50 mb-0.5">{aName}</div>
+              <div className="text-[9px] text-emerald-400/40">{coopA}</div>
             </th>
             <Cell cell={matrix.cc} cellKey="cc" row={0} col={0} />
             <Cell cell={matrix.cd} cellKey="cd" row={0} col={1} />
           </tr>
-          <tr className="border-t border-white/5">
-            <th className="bg-white/3 p-2 text-right border-r border-white/5">
-              <span className="flex items-center justify-end gap-1 mb-0.5">
-                <span className="w-2.5 h-2.5 rounded bg-white shadow-sm" />
-                <span className="text-[9px] font-semibold text-white/45 uppercase tracking-wider">{aName}</span>
-              </span>
-              <span className="text-[8px] text-red-400/40">{defA}</span>
+          <tr className="border-t border-white/6">
+            <th className="p-2 text-right border-r border-white/6">
+              <div className="text-[10px] font-medium text-text-dim/50 mb-0.5">{aName}</div>
+              <div className="text-[9px] text-red-400/40">{defA}</div>
             </th>
             <Cell cell={matrix.dc} cellKey="dc" row={1} col={0} />
             <Cell cell={matrix.dd} cellKey="dd" row={1} col={1} />
           </tr>
         </tbody>
       </table>
-      <div className="flex items-center gap-3 mt-1.5 text-[7px] text-text-dim/25">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-white" /> {aName}</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-neutral-900 border border-white/15" /> {bName}</span>
-        <span>4=max 0=none</span>
-      </div>
     </div>
   );
 }
@@ -473,15 +636,15 @@ function AnalysisBlock({ props, aName, bName }: { props: GameProperties; aName: 
   if (inefficient.length > 0) lines.push('Equilibrium is Pareto-inefficient.');
   if (lines.length === 0) return null;
   return (
-    <div className="rounded border border-white/6 bg-white/2 px-3 py-2">
-      {lines.map((l, i) => <p key={i} className="text-[9px] text-text-dim/50 leading-snug">{l}</p>)}
+    <div className="rounded-lg bg-white/3 px-3 py-2.5">
+      {lines.map((l, i) => <p key={i} className="text-[10px] text-text-dim/45 leading-relaxed">{l}</p>)}
     </div>
   );
 }
 
 // ── Move row ────────────────────────────────────────────────────────────────
 
-function MoveRow({ move, index, nameOf, pairwise }: { move: GameMove; index: number; nameOf: (id: string) => string; pairwise: PairwiseGame }) {
+function MoveRow({ move, pairwise, active, onSelect }: { move: GameMove; index?: number; nameOf?: (id: string) => string; pairwise: PairwiseGame; active?: boolean; onSelect?: () => void }) {
   const ne = pairwise.properties?.nashEquilibria[0] ?? null;
   const isA = move.actorId === pairwise.playerA;
   const isB = move.actorId === pairwise.playerB;
@@ -492,18 +655,30 @@ function MoveRow({ move, index, nameOf, pairwise }: { move: GameMove; index: num
   const blunder = gto && move.stance !== gto && move.stance !== 'neutral';
 
   return (
-    <div className={`flex items-start gap-2 py-1.5 border-b border-white/4 last:border-0 ${blunder ? 'bg-red-400/5 -mx-2 px-2 rounded' : ''}`}>
-      {isA ? <div className="w-2.5 h-2.5 rounded bg-white mt-1 shrink-0" /> :
-       isB ? <div className="w-2.5 h-2.5 rounded bg-neutral-900 border border-white/20 mt-1 shrink-0" /> :
-       <div className="w-2.5 h-2.5 rounded bg-white/10 mt-1 shrink-0" />}
+    <div
+      className={`flex items-start gap-2.5 px-3 py-2 rounded-md transition-colors ${
+        active ? 'bg-white/8' :
+        blunder ? 'bg-red-400/4' :
+        'hover:bg-white/3 cursor-pointer'
+      }`}
+      onClick={onSelect}
+    >
+      {/* Stance dot */}
+      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+        move.stance === 'cooperative' ? 'bg-emerald-400/70' :
+        move.stance === 'competitive' ? 'bg-red-400/70' :
+        'bg-white/15'
+      }`} />
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] text-text-secondary/70 leading-snug">{move.content}</p>
-        <div className="flex items-center gap-1 mt-0.5 text-[8px]">
-          <span className="text-text-dim/35">{move.attributed ? nameOf(move.actorId!) : '?'}</span>
-          {move.targetId && <><span className="text-text-dim/15">→</span><span className="text-text-dim/35">{nameOf(move.targetId)}</span></>}
-          <span className={move.stance === 'cooperative' ? 'text-emerald-400/50' : move.stance === 'competitive' ? 'text-red-400/50' : 'text-text-dim/20'}>{move.stance}</span>
-          {optimal && <span className="font-bold px-0.5 rounded bg-emerald-400/15 text-emerald-400 text-[6px]">!</span>}
-          {blunder && <span className="font-bold px-0.5 rounded bg-red-400/15 text-red-400 text-[6px]">?!</span>}
+        <p className="text-[11px] text-text-secondary/80 leading-snug">{move.content}</p>
+        <div className="flex items-center gap-1.5 mt-1 text-[9px]">
+          {move.matrixCell && <span className={`font-mono font-medium ${
+            move.matrixCell === 'cc' ? 'text-emerald-400/50' :
+            move.matrixCell === 'dd' ? 'text-red-400/50' :
+            'text-amber-400/50'
+          }`}>{move.matrixCell}</span>}
+          {optimal && <span className="font-semibold text-emerald-400/70">optimal</span>}
+          {blunder && <span className="font-semibold text-red-400/70">blunder</span>}
         </div>
       </div>
     </div>

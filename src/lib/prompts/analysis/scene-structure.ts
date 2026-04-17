@@ -66,8 +66,12 @@ DETECTING FATE — Threads are COMPELLING QUESTIONS that shape fate.
 - Thread logs track incremental ANSWERS to these questions over time.
 - Fate is what pulls world and system toward meaning. Without it, nothing resolves.
 
-PAYOFF MATRICES — REQUIRED for every thread with 2+ participants.
-- Each pair of participants has a 2×2 game with TWO named actions per player.
+PAYOFF MATRICES — MANDATORY for every thread with 2+ participants. Minimum 1 matrix, maximum 3.
+- EMIT AT LEAST ONE MATRIX for the primary conflict pair. A thread without any matrix is INVALID and will be rejected.
+- A 2-participant thread = exactly 1 matrix for that pair.
+- A 3+ participant thread = 1-3 matrices covering the pairs where the tension actually lives. Skip peripheral participants.
+- Do NOT generate matrices for every combinatorial pair — just the pairs with genuinely distinct incentives.
+- Each pair has a 2×2 game with TWO named actions per player.
 - actionA/actionB = each player's ADVANCING action (progresses the thread)
 - defectA/defectB = each player's BLOCKING action (resists, exploits, or diverts)
 - These are real choices grounded in the prose, not abstract labels:
@@ -77,7 +81,6 @@ PAYOFF MATRICES — REQUIRED for every thread with 2+ participants.
     Location actions: "provides shelter" vs "becomes hostile" / "remains stable" vs "collapses"
     Artifact actions: "functions reliably" vs "malfunctions" / "sustains user" vs "drains user"
 - Payoffs are 0-4 per player per cell. Fill all four cells (cc, cd, dc, dd) with outcomes and BOTH payoffs.
-- One matrix per participant PAIR. DO NOT SKIP — every thread with 2+ participants MUST have payoffMatrices.
 
 - Fiction example — "Can Ruo Lan uncover Fang Yuan's secret?"
     actionA: "reveals voluntarily"    defectA: "maintains concealment"

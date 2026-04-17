@@ -42,9 +42,12 @@ threadDeltas — Threads are CONTESTED GAMES between participants who want diffe
   - WHAT INFORMATION CHANGED? A twist or reveal reshapes the game — everyone recalculates. In fiction: a secret exposed. In argument: a decisive finding published. In inquiry: a key source surfacing.
   - CROSS-THREAD EFFECTS: Advancing Thread A may cost Thread B. When scenes touch 2-4 threads, think about how moves in one thread affect the games in others. In argument: evidence supporting one claim may undermine a different claim the author also needs.
 
-  STATUS (from/to): latent | seeded | active | escalating | critical | resolved | subverted | abandoned
-    "pulse" is NOT a status. Transitions move ONE step. 0-1 transitions per scene.
-  LOG TYPE: pulse | transition | setup | escalation | payoff | twist | callback | resistance | stall
+  STATUS (from/to) — PICK EXACTLY ONE from this list: latent | seeded | active | escalating | critical | resolved | subverted | abandoned
+    DO NOT confuse status with log type. These are DIFFERENT enums:
+    - "escalating" is a STATUS (thread stage). "escalation" is a LOG TYPE (move primitive). Use "escalating" for from/to.
+    - "pulse" is a LOG TYPE only — NEVER a status. A thread holding its position is still at its current status (same from/to).
+    Transitions move ONE step in the status sequence. 0-1 transitions per scene.
+  LOG TYPE — for addedNodes[].type, PICK EXACTLY ONE: pulse | transition | setup | escalation | payoff | twist | callback | resistance | stall
   DENSITY: 1 node per thread touch — the decisive game move. A second node only when the scene contains a genuine multi-step sequence (e.g., twist → counter-move). 3 is the hard cap for pivotal resolutions. Most scenes: 1 node per thread.
   ATTRIBUTION — every log entry records ONE actor, ONE target, and the MATRIX CELL played:
   - actorId: the single entity whose action drives this event.

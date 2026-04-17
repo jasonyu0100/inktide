@@ -333,7 +333,7 @@ INTRODUCING NEW ENTITIES — Scenes can introduce new characters, locations, art
 - New CHARACTER: Someone appears who isn't in the existing cast — a shopkeeper, a messenger, an ambusher, a bystander who becomes relevant. Give them a name, role, and at least one world node.
 - New LOCATION: The scene visits somewhere not yet in the world — a specific room, a hidden spot, a shop, a landmark. Connect it to an existing parent location.
 - New ARTIFACT: A tool, weapon, document, or object becomes relevant to the scene — discovered, created, or introduced. Give it significance and utility.
-- New THREAD: The scene opens a new tension that wasn't tracked before — a promise made, a debt created, a question raised, a rivalry sparked. Start it as "latent" or "seeded". Threads with 2+ participants MUST include payoffMatrices — one 2×2 matrix per participant pair with cooperate/defect outcomes and ordinal payoffs 1-4.
+- New THREAD: The scene opens a new tension that wasn't tracked before — a promise made, a debt created, a question raised, a rivalry sparked. Start it as "latent" or "seeded". Threads with 2+ participants MUST include a non-empty payoffMatrices array — minimum 1, maximum 3. A thread without any matrix is INVALID. Cover the primary conflict pair at minimum; add up to 2 more if additional pairs have genuinely distinct incentives. Cooperate/defect outcomes with ordinal payoffs 1-4.
 
 Be liberal with entity introduction. If the scene needs a blacksmith, introduce one. If characters enter a tavern not yet in the world, introduce it. If someone finds a letter, introduce it as an artifact. These on-the-fly expansions make the world feel alive and responsive. Every new entity gets woven into the world immediately through the scene's deltas.
 
@@ -1901,6 +1901,9 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
         const validMatrices = (t.payoffMatrices ?? []).filter(
           (m: { playerA: string; playerB: string }) => validPIds.has(m.playerA) && validPIds.has(m.playerB),
         );
+        if (validParticipants.length >= 2 && validMatrices.length === 0) {
+          stripped.push(`newThread "${t.id}" in scene ${scene.id} has ${validParticipants.length} participants but NO payoffMatrices — LLM omitted or all players invalid`);
+        }
         return {
           id: t.id,
           description: t.description,
@@ -1966,16 +1969,41 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
     // "pulse → active" becomes "active → active" with the log entry's
     // type still set correctly downstream.
     const validStatuses = new Set<string>([...THREAD_ACTIVE_STATUSES, ...THREAD_TERMINAL_STATUSES, 'abandoned']);
+    // Near-miss recovery: LLMs frequently confuse the status enum with the
+    // log-type enum. When we see a log-type value in a status field, map it
+    // to its likely intended status rather than dropping the transition.
+    const nearMissStatus = (raw: string): string | null => {
+      switch (raw) {
+        case 'escalation':  return 'escalating';  // log type → status
+        case 'pulse':       return null;          // not a status at all — hold at current
+        case 'resolving':   return 'resolved';
+        case 'subverting':  return 'subverted';
+        case 'seeding':     return 'seeded';
+        default:            return null;
+      }
+    };
     for (const tm of scene.threadDeltas) {
       const thread = narrative.threads[tm.threadId];
       const currentStatus = thread?.status ?? 'latent';
       if (!validStatuses.has(tm.from)) {
-        stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid from="${tm.from}" — coerced to "${currentStatus}"`);
-        tm.from = currentStatus;
+        const recovered = nearMissStatus(tm.from);
+        if (recovered) {
+          stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid from="${tm.from}" — recovered to "${recovered}"`);
+          tm.from = recovered;
+        } else {
+          stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid from="${tm.from}" — coerced to "${currentStatus}"`);
+          tm.from = currentStatus;
+        }
       }
       if (!validStatuses.has(tm.to)) {
-        stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid to="${tm.to}" — coerced to "${tm.from}" (status-hold)`);
-        tm.to = tm.from;
+        const recovered = nearMissStatus(tm.to);
+        if (recovered) {
+          stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid to="${tm.to}" — recovered to "${recovered}"`);
+          tm.to = recovered;
+        } else {
+          stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid to="${tm.to}" — coerced to "${tm.from}" (status-hold)`);
+          tm.to = tm.from;
+        }
       }
     }
     // Ensure thread log entries have required fields. IDs here are still

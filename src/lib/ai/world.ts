@@ -654,7 +654,7 @@ CONTENT RULES:
 - Location knowledge should establish what makes each place narratively distinct (2-3 nodes per location — its defining atmosphere, a constraint or danger, and a resource or opportunity it offers)
 - Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
 - ALL new threads MUST have status "latent" — they are seeds for future arcs, not active storylines yet
-- ALL new threads with 2+ participants MUST have payoffMatrices — one 2×2 matrix per participant pair. Cooperate = advance the thread; Defect = block/exploit. Payoffs are 1-4 (4=best). Think about what each participant wants and how outcomes differ when they cooperate vs defect against each other.
+- ALL new threads with 2+ participants MUST have payoffMatrices — minimum 1, maximum 3. A thread without any matrix is INVALID. 2-participant thread = exactly 1 matrix for that pair. 3+ participant thread = 1-3 matrices covering the pairs where tension lives. Not every combinatorial pair. Cooperate = advance the thread; Defect = block/exploit. Payoffs are 1-4 (4=best).
 - Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)
 
 THREAD CONVERGENCE (critical for long-form narrative):
@@ -905,7 +905,7 @@ SEEDING FATE — a great world is pregnant with story. Every entity you create s
 - Plant surprises: at least 2 characters should have secrets even the reader doesn't know yet (these go in world nodes of type "secret")
 - Create asymmetries: what Character A believes about Character B should differ from reality in ways that will explode later
 - Build pressure: threads should share participants so collision is INEVITABLE, not coincidental
-- PAYOFF MATRICES: every thread with 2+ participants MUST include a payoffMatrices array — one 2×2 game per participant pair. Think: what does each player want? If both cooperate (advance the thread), what happens? If one defects (blocks/exploits), what happens? If both defect, what happens? Rank the four outcomes 1-4 for each player (4=best). This is how we capture the strategic structure of fate.
+- PAYOFF MATRICES: every thread with 2+ participants MUST include a non-empty payoffMatrices array — minimum 1 matrix, maximum 3. A thread without any matrix is INVALID. Cover the primary conflict pair at minimum; add up to 2 more for additional pairs with distinct incentive structures. Not every combinatorial pair. Rank outcomes 1-4 per player (4=best).
 
 ENTITY DEFINITIONS:
 - Characters are conscious beings with agency — people, named animals, sentient AI (AGI). Non-sentient AI systems are artifacts.

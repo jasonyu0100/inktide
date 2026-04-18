@@ -1147,8 +1147,9 @@ export type ActionAxis =
   | "timing";          // act ↔ wait
 
 /** Classical strategic structure of the beat. Consolidated taxonomy —
- *  war-of-attrition folds into chicken; screening folds into principal-agent;
- *  ultimatum folds into bargaining. */
+ *  war-of-attrition folds into chicken; ultimatum folds into bargaining.
+ *  Screening is kept separate from principal-agent because conflating them
+ *  drives principal-agent overuse (any asymmetric-info beat drifts into it). */
 export type GameType =
   // — Symmetric payoff structures —
   | "coordination"       // both want the same outcome; alignment problem
@@ -1157,14 +1158,15 @@ export type GameType =
   | "dilemma"            // mutual cooperation pareto-optimal but each tempted to defect
   | "stag-hunt"          // coordination with payoff-dominant vs risk-dominant trade-off
   | "chicken"            // mutual yielding vs mutual collision (incl. time-extended war-of-attrition)
-  | "zero-sum"           // one gains exactly what the other loses
-  | "pure-opposition"    // conflict over incommensurable values (honor vs survival)
+  | "zero-sum"           // one gains exactly what the other loses (payoff grid sums to zero)
+  | "pure-opposition"    // conflict over incommensurable values (honor vs survival, love vs duty)
 
   // — Asymmetric / structural —
   | "contest"            // n-player competition for rank-ordered prize
   | "collective-action"  // n-player threshold contribution; free-rider dynamics
-  | "principal-agent"    // delegation with hidden action or sorting among types
-  | "signaling"          // informed party reveals type through costly action
+  | "principal-agent"    // delegation with HIDDEN action — principal can't directly observe what agent did
+  | "screening"          // uninformed party structures choices to sort agent types (evaluations, tests, auctions)
+  | "signaling"          // informed party reveals type through costly, hard-to-fake action
   | "stackelberg"        // sequential; leader commits visibly, follower best-responds
 
   // — Communication / mechanism layers —
@@ -1203,12 +1205,13 @@ export const GAME_TYPE_LABELS: Record<GameType, string> = {
   "dilemma":           "Cooperation would be best for both, but each has a private incentive to betray — prisoner's-dilemma shape.",
   "stag-hunt":         "Team up for a big shared prize, or play it safe alone. Trust and risk-appetite decide.",
   "chicken":           "Both want the other to yield. If neither does, both crash — escalation contest.",
-  "zero-sum":          "Pie is fixed. Anything I gain, you lose — and vice versa.",
-  "pure-opposition":   "Values clash with no shared currency (honor vs survival, love vs duty). Stakes aren't commensurable.",
+  "zero-sum":          "The payoff grid literally sums to zero — anything I gain, you lose, same magnitude. If any cell leaves both positive (or both negative), this is NOT zero-sum.",
+  "pure-opposition":   "Values clash with NO SHARED CURRENCY — honor vs survival, love vs duty, faith vs reason. If both parties care about the same axis (power, reputation, resources) and just want different amounts, that's zero-sum or anti-coordination, not this.",
   "contest":           "Multiple players compete for a ranked prize — tournament, auction, scramble for status.",
   "collective-action": "A group needs enough contributors to pull something off. Each is tempted to free-ride on others' effort.",
-  "principal-agent":   "One party delegates or hires another whose effort or type can't be directly seen. Incentives must be designed.",
-  "signaling":         "One side knows something the other doesn't, and proves it through a costly, hard-to-fake action.",
+  "principal-agent":   "Requires BOTH (a) explicit delegation — one party hands a task to another — AND (b) hidden action — the principal can't directly observe what the agent does and must rely on outcomes or design incentives. If either is missing, it's something else. Not a sink for asymmetric-info beats.",
+  "screening":         "Uninformed party structures choices to sort agents by type — evaluations, tests, auctions, interview questions designed to reveal who is who. Choose this over principal-agent when the beat is about sorting candidates, not monitoring a delegated task.",
+  "signaling":         "Informed party reveals their type through a costly, hard-to-fake action. The signal is only credible if weaker types couldn't afford to send it.",
   "stackelberg":       "One moves first and commits visibly; the other watches, then responds. First-mover advantage or trap.",
   "cheap-talk":        "Words exchanged but nothing binds. Persuasion, posturing, bluffing — the talk itself is the move.",
   "commitment-game":   "Can one party bind themselves to act (vow, burned bridge, hostage)? Credibility of the promise is the whole game.",

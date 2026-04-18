@@ -51,52 +51,53 @@ Each strategic beat becomes a GAME with:
     dilemma            — mutual cooperation best, each tempted to defect
     stag-hunt          — payoff-dominant vs risk-dominant coordination
     chicken            — mutual yielding vs mutual collision (includes time-extended war-of-attrition)
-    zero-sum           — one gains exactly what the other loses (closed numeric)
-    pure-opposition    — conflict over incommensurable values (honor vs survival, love vs duty)
+    zero-sum           — the payoff grid LITERALLY sums to zero across every cell. If any cell leaves both players positive (or both negative), the beat is not zero-sum — don't use this as a synonym for "adversarial"
+    pure-opposition    — conflict over INCOMMENSURABLE values (honor vs survival, love vs duty, faith vs reason). Not for cases where both parties care about the same resource and just want different shares — that's zero-sum or anti-coordination
 
     # Asymmetric / structural
     contest            — n-player competition for rank-ordered prize (tournament, auction, scramble)
     collective-action  — n-player threshold contribution; free-rider dynamics
-    principal-agent    — delegation with hidden action, or one party sorting types by structuring choices
-    signaling          — informed party reveals type through costly action
+    principal-agent    — requires BOTH (a) explicit delegation — one party hands a task to another — AND (b) hidden action — the principal cannot directly observe what the agent does and must rely on outcomes or incentive design. If either gate fails, pick a different label
+    screening          — uninformed party STRUCTURES CHOICES to sort agent types — evaluations, tests, auctions, interview questions designed to reveal who is who. This is the right label for examinations, trials, entrance tests — NOT principal-agent
+    signaling          — informed party reveals their type through a costly, hard-to-fake action
     stackelberg        — sequential; leader commits visibly, follower best-responds
 
     # Communication / mechanism layers (use when the mechanism is the primary driver)
     cheap-talk         — non-binding communication shapes the beat
     commitment-game    — binding vs non-binding promise is the crux
-    bargaining         — propose / counter / accept dynamics (includes one-shot ultimatum)
+    bargaining         — propose / counter / accept dynamics (includes one-shot ultimatum — use bargaining and let the grid size indicate whether it's one round or several)
 
     # Degenerate
     trivial            — no meaningful strategic content; flag and skip on a second pass
 
 - actionAxis: one of
     # Information & self-presentation
-    disclosure         — reveal ↔ conceal
-    identity           — claim ↔ disown
+    disclosure         — reveal ↔ conceal (what information is shown or hidden)
+    identity           — claim ↔ disown (declaring or distancing from WHO ONE IS, as an individual)
 
     # Stance toward other party
-    trust              — extend ↔ guard
-    alliance           — ally ↔ separate (factional / group)
-    confrontation      — engage ↔ evade (whether to interact)
-    status             — assert ↔ defer (relative rank)
+    trust              — extend ↔ guard (individual vulnerability)
+    alliance           — ally ↔ separate — FACTIONAL / GROUP membership. Use this over identity when the beat is about side-taking, coalition building, or signalling where one stands within a group. Silent observation during a public dispute, crossing the floor in an argument, standing beside one faction over another — alliance
+    confrontation      — engage ↔ evade (whether to interact at all)
+    status             — assert ↔ defer — relative RANK and positioning. Use this over pressure when the beat is specifically about who outranks whom, probing social position, challenging or accepting deference. Not about force intensity — about social order
 
     # Force & magnitude within interaction
-    pressure           — press ↔ yield (intensity)
-    stakes             — escalate ↔ deescalate (magnitude of consequence)
-    control            — bind ↔ release (constraint imposed)
+    pressure           — press ↔ yield (intensity of push and give — force applied or absorbed)
+    stakes             — escalate ↔ deescalate (magnitude of consequence on the table)
+    control            — bind ↔ release (constraint imposed or lifted)
 
     # Resource & obligation flow
-    acquisition        — take ↔ give (resources, lives, knowledge)
-    obligation         — incur ↔ discharge (debt / favor)
+    acquisition        — take ↔ give (resources, lives, knowledge FLOW)
+    obligation         — incur ↔ discharge — DEBT / FAVOR economy. When a character saves another specifically to create a debt, or repays an old favor, or calls in a debt, or refuses to incur one — obligation. This is distinct from acquisition: acquisition is about the physical transfer; obligation is about the owed-ness that survives the transfer
 
     # Moral / normative
     moral              — transgress ↔ uphold (acts against a principle or against another person — use when the normative weight of the choice is the primary trade)
 
     # Self-binding & tempo
-    commitment         — commit ↔ withdraw / hedge
+    commitment         — commit ↔ withdraw / hedge (self-binding vs keeping options open)
     timing             — act ↔ wait
 
-  Both players' actions are organised on the SAME axis. Pick the axis that best captures what's being traded in this beat.
+  Both players' actions are organised on the SAME axis. Pick the axis that best captures what's being traded in this beat. When multiple axes seem to apply, ask: what is the thing the players are specifically NEGOTIATING OVER? That's your axis.
 
 - playerAActions and playerBActions: each an array of 1-4 concrete actions the player could have taken, all drawn from the chosen axis. Each action has a "name" (2-5 words, specific to the scene). Example on disclosure axis: ["volunteers the letter", "shows only the envelope", "conceals the letter"].
 
@@ -205,6 +206,54 @@ OUTPUT JSON
   "summary": "one sentence describing the scene's strategic shape",
   "games": [ <one object per game-bearing beat, matching the example above> ]
 }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMMON MISAPPLICATIONS — READ BEFORE PICKING A GAME TYPE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+A handful of game types are magnets for lazy coding. Before you commit to
+one, run it through its gate check.
+
+principal-agent — THE BIGGEST SINK.
+  Gate checks (BOTH must pass):
+    1. Is there explicit delegation — one party handing a specific task to another?
+    2. Is the action hidden — principal cannot directly observe what the agent does?
+  If EITHER gate fails, this is not principal-agent. Common miscodes:
+    ✗ A leader pivots resources to a rising talent → no delegation, no hidden action. Use coordination or commitment-game.
+    ✗ A character saves another to create a debt → obligation dynamics, not delegation. Use bargaining / commitment-game; axis: obligation.
+    ✗ Two parties with asymmetric information manoeuvre against each other → signaling or cheap-talk, not PA.
+    ✗ A character allocates attention under constraint → zero-sum or coordination. Not PA.
+    ✗ A character demands compliance — "accept my terms or I walk" → bargaining (one-shot ultimatum), not PA.
+
+screening — THE RIGHT LABEL FOR EVALUATIONS.
+  If the beat is an examination, test, trial, audition, entrance rite, or
+  any structured choice designed to sort one party by type, this is
+  screening — NOT principal-agent. Look for this pattern specifically:
+  one party designs the mechanism, another party reveals themselves
+  through their response to it.
+
+zero-sum — ONLY WHEN THE GRID LITERALLY SUMS TO ZERO.
+  If any cell in your outcomes grid has both stakeDeltaA and stakeDeltaB
+  positive, OR both negative, the beat is not zero-sum. "Adversarial in
+  tone" ≠ zero-sum. Check your grid before picking this label.
+
+pure-opposition — ONLY FOR INCOMMENSURABLE VALUES.
+  Use this when the parties are weighing trade-offs that cannot be
+  reduced to a common currency — honor vs survival, faith vs reason,
+  love vs duty. When both parties care about the SAME resource (clan
+  authority, reputation, control) and just want different shares, it's
+  ordinary zero-sum or anti-coordination.
+
+UNDER-USED AXES — DO NOT DEFAULT TO PRESSURE / ACQUISITION.
+  Three axes are easy to miss and commonly mis-assigned:
+    • obligation — debt/favor economies. Saving someone to create a debt,
+      calling in an old favor, refusing to incur one. Axis is obligation,
+      NOT acquisition (which is about physical transfer).
+    • alliance — factional side-taking, silent observation during a
+      public dispute, publicly dissenting. Axis is alliance, NOT identity
+      (which is about individual self-definition).
+    • status — probing or asserting rank, testing the social order.
+      Axis is status, NOT pressure (which is about force intensity).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HARD CONSTRAINTS

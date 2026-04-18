@@ -122,7 +122,9 @@ describe('getIntroducedIds', () => {
   it('collects IDs from scene-introduced entities', () => {
     const scenes: Record<string, Scene> = {
       'S-001': {
+        kind: 'scene',
         id: 'S-001',
+        arcId: 'ARC-01',
         summary: 'Test scene',
         povId: 'C-01',
         locationId: 'L-01',
@@ -131,10 +133,8 @@ describe('getIntroducedIds', () => {
         threadDeltas: [],
         worldDeltas: [],
         relationshipDeltas: [],
-        newCharacters: [{ id: 'C-NEW', name: 'New Character', role: 'transient', threadIds: [] }],
-        newLocations: [{ id: 'L-NEW', name: 'New Location', prominence: 'margin', threadIds: [], tiedCharacterIds: [] }],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        newCharacters: [{ id: 'C-NEW', name: 'New Character', role: 'transient', threadIds: [], world: { nodes: {}, edges: [] } }],
+        newLocations: [{ id: 'L-NEW', name: 'New Location', prominence: 'margin', threadIds: [], tiedCharacterIds: [], parentId: null, world: { nodes: {}, edges: [] } }],
       },
     };
     const result = getIntroducedIds({}, scenes, ['S-001'], 0);

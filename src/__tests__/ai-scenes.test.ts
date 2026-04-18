@@ -78,6 +78,37 @@ vi.mock("@/lib/beat-profiles", () => ({
     { fn: "turn", mechanism: "dialogue" },
   ]),
 }));
+// Mock embeddings module — dynamic imports in ai/scenes.ts would otherwise
+// hit a real fetch('/api/embeddings') which fails with Invalid URL in the
+// Node test env. Stub returns 1536-dim zero vectors so downstream code is
+// happy.
+vi.mock("@/lib/embeddings", () => ({
+  generateEmbeddings: vi.fn(async (texts: string[]) =>
+    texts.map(() => new Array(1536).fill(0)),
+  ),
+  generateEmbeddingsBatch: vi.fn(async (texts: string[]) =>
+    texts.map(() => new Array(1536).fill(0)),
+  ),
+  embedPropositions: vi.fn(async (props: unknown[]) => props),
+  computeCentroid: vi.fn(() => new Array(1536).fill(0)),
+  resolveEmbedding: vi.fn(async () => null),
+  resolveEmbeddingsBatch: vi.fn(async () => new Map()),
+  cosineSimilarity: vi.fn(() => 0),
+}));
+// AssetManager reads from IndexedDB and must be init()'d before use. Scene
+// generation stores every embedding through it — stub storage so the assertions
+// don't require a running DB.
+vi.mock("@/lib/asset-manager", () => {
+  let counter = 0;
+  return {
+    assetManager: {
+      init: vi.fn(async () => {}),
+      storeEmbedding: vi.fn(async () => `EMB-${++counter}`),
+      getEmbedding: vi.fn(async () => null),
+      getEmbeddingsBatch: vi.fn(async () => new Map()),
+    },
+  };
+});
 import { callGenerate, callGenerateStream } from "@/lib/ai/api";
 import {
   editScenePlan,

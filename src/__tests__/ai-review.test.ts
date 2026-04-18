@@ -243,17 +243,19 @@ describe('evaluateBranch', () => {
     const result = await reviewBranch(narrative, ['S-001'], 'main');
     expect(result.sceneEvals[0].verdict).toBe('ok');
   });
-  it('handles parse failure gracefully', async () => {
+  it('throws when the LLM response is not valid JSON', async () => {
+    // reviewBranch intentionally surfaces parse failures rather than silently
+    // defaulting — a mangled response usually means the model hit max_tokens
+    // and ate the closing brace. Swallowing it would mask data loss.
     vi.mocked(callGenerate).mockResolvedValue('Not valid JSON at all');
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001'),
       'S-002': createScene('S-002'),
     };
-    const result = await reviewBranch(narrative, ['S-001', 'S-002'], 'main');
-    expect(result.overall).toContain('parse failed');
-    expect(result.sceneEvals.length).toBe(2);
-    expect(result.sceneEvals.every((e) => e.verdict === 'ok')).toBe(true);
+    await expect(reviewBranch(narrative, ['S-001', 'S-002'], 'main')).rejects.toThrow(
+      /Failed to parse JSON/,
+    );
   });
   it('uses streaming when onReasoning callback provided', async () => {
     const mockResponse = JSON.stringify({
@@ -351,17 +353,15 @@ describe('evaluateProseQuality', () => {
     expect(result.sceneEvals[1].issues).toContain('Dialogue too formal');
     expect(result.patterns).toContain('Overuse of adverbs');
   });
-  it('handles parse failure gracefully', async () => {
+  it('throws when the LLM response is not valid JSON', async () => {
     vi.mocked(callGenerate).mockResolvedValue('Invalid JSON');
     const narrative = createMinimalNarrative();
     narrative.scenes = {
       'S-001': createScene('S-001', { prose: 'Some prose text.' }),
     };
-    const result = await reviewProseQuality(narrative, ['S-001'], 'main');
-    expect(result.overall).toContain('parse failed');
-    expect(result.sceneEvals.length).toBe(1);
-    expect(result.sceneEvals[0].verdict).toBe('ok');
-    expect(result.sceneEvals[0].issues).toContain('Parse failed — defaulted');
+    await expect(reviewProseQuality(narrative, ['S-001'], 'main')).rejects.toThrow(
+      /Failed to parse JSON/,
+    );
   });
   it('includes prose profile in prompt when available', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
@@ -479,7 +479,7 @@ describe('evaluatePlanQuality', () => {
     expect(result.sceneEvals[1].issues).toContain('Beat 3: Character knowledge leak');
     expect(result.patterns).toContain('Rushed transitions between beats');
   });
-  it('handles parse failure gracefully', async () => {
+  it('throws when the LLM response is not valid JSON', async () => {
     vi.mocked(callGenerate).mockResolvedValue('Not JSON');
     const narrative = createMinimalNarrative();
     narrative.scenes = {
@@ -487,10 +487,9 @@ describe('evaluatePlanQuality', () => {
         plan: { beats: [{ fn: 'breathe', mechanism: 'environment', what: 'Test', propositions: [{ content: 'Anchor' }] }] },
       }),
     };
-    const result = await reviewPlanQuality(narrative, ['S-001'], 'main');
-    expect(result.overall).toContain('parse failed');
-    expect(result.sceneEvals.length).toBe(1);
-    expect(result.sceneEvals[0].verdict).toBe('ok');
+    await expect(reviewPlanQuality(narrative, ['S-001'], 'main')).rejects.toThrow(
+      /Failed to parse JSON/,
+    );
   });
   it('includes character knowledge in prompt', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({

@@ -549,16 +549,69 @@ describe("classifyNarrativeShape", () => {
 });
 // ── Archetype Classification ─────────────────────────────────────────────────
 describe("classifyArchetype", () => {
-  it("returns opus for balanced high grades", () => {
-    const grades = { fate: 24, world: 23, system: 22, swing: 20, overall: 89 };
-    expect(classifyArchetype(grades).key).toBe("opus");
+  it("returns opus only when all three forces clear the strict floor (≥23)", () => {
+    // All three at 23 or higher → opus
+    expect(
+      classifyArchetype({ fate: 23, world: 23, system: 23, swing: 20, overall: 89 }).key,
+    ).toBe("opus");
+    expect(
+      classifyArchetype({ fate: 24, world: 25, system: 23, swing: 20, overall: 92 }).key,
+    ).toBe("opus");
+  });
+  it("demotes three-way nominal dominance that misses the opus floor", () => {
+    // fate 24 + world 23 + system 22 — nominally all dominant (all ≥21, all
+    // within 5 of max), but system 22 < opus floor 23. Weakest force (system)
+    // is dropped, leaving fate+world → series. This guards against
+    // character-driven works landing in opus on incidental fate/system.
+    expect(
+      classifyArchetype({ fate: 24, world: 23, system: 22, swing: 20, overall: 89 }).key,
+    ).toBe("series");
+    // world weakest of the three-way → atlas (fate + system)
+    expect(
+      classifyArchetype({ fate: 24, world: 21, system: 24, swing: 20, overall: 89 }).key,
+    ).toBe("atlas");
+    // fate weakest of the three-way → chronicle (world + system)
+    expect(
+      classifyArchetype({ fate: 21, world: 24, system: 24, swing: 20, overall: 89 }).key,
+    ).toBe("chronicle");
+  });
+  it("returns series for co-dominant fate + world", () => {
+    const grades = { fate: 24, world: 23, system: 15, swing: 18, overall: 80 };
+    expect(classifyArchetype(grades).key).toBe("series");
+  });
+  it("returns atlas for co-dominant fate + system", () => {
+    const grades = { fate: 24, world: 15, system: 22, swing: 18, overall: 79 };
+    expect(classifyArchetype(grades).key).toBe("atlas");
+  });
+  it("returns chronicle for co-dominant world + system", () => {
+    const grades = { fate: 15, world: 23, system: 22, swing: 18, overall: 78 };
+    expect(classifyArchetype(grades).key).toBe("chronicle");
   });
   it("returns classic for fate-dominant", () => {
     const grades = { fate: 24, world: 15, system: 15, swing: 18, overall: 72 };
     expect(classifyArchetype(grades).key).toBe("classic");
   });
+  it("returns stage for world-dominant", () => {
+    const grades = { fate: 15, world: 24, system: 15, swing: 18, overall: 72 };
+    expect(classifyArchetype(grades).key).toBe("stage");
+  });
+  it("returns paper for system-dominant", () => {
+    const grades = { fate: 15, world: 15, system: 24, swing: 18, overall: 72 };
+    expect(classifyArchetype(grades).key).toBe("paper");
+  });
+  it("requires ≥21 to count as dominant even if within 5 of max", () => {
+    // fate 20 is within 5 of max but below the dominance floor → no fate
+    // dominance. With world 20 below floor too, only system dominates → paper.
+    const grades = { fate: 20, world: 20, system: 22, swing: 12, overall: 70 };
+    expect(classifyArchetype(grades).key).toBe("paper");
+  });
   it("returns emerging for low grades", () => {
     const grades = { fate: 10, world: 12, system: 8, swing: 10, overall: 40 };
+    expect(classifyArchetype(grades).key).toBe("emerging");
+  });
+  it("returns emerging when all forces are below the dominance floor", () => {
+    // All within 5 of each other, all below 21 — no dominant force
+    const grades = { fate: 19, world: 20, system: 18, swing: 14, overall: 68 };
     expect(classifyArchetype(grades).key).toBe("emerging");
   });
 });

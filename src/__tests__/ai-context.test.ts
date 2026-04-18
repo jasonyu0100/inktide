@@ -5,7 +5,6 @@ import {
   classifyTier,
   narrativeContext,
   sceneContext,
-  sceneScale,
   outlineContext,
   THREAD_LIFECYCLE_DOC,
   tierOfOrigin,
@@ -304,30 +303,6 @@ describe('buildStorySettingsBlock', () => {
     const block = buildStorySettingsBlock(n);
     expect(block).toContain('NARRATIVE GUIDANCE');
     expect(block).toContain('tight and focused');
-  });
-});
-// ── sceneScale ───────────────────────────────────────────────────────────────
-describe('sceneScale', () => {
-  it('returns minimum 600 words for simple scene', () => {
-    const scene = createScene('s1', {
-      events: [],
-      threadDeltas: [],
-      worldDeltas: [],
-      relationshipDeltas: [],
-      participantIds: ['c1'],
-      summary: 'A short summary',
-    });
-    const scale = sceneScale(scene);
-    expect(scale.estWords).toBeGreaterThanOrEqual(600);
-  });
-  it('returns standard scale values', () => {
-    const scene = createScene('s1');
-    const scale = sceneScale(scene);
-    expect(scale.estWords).toBe(1200);
-    expect(scale.planWords).toMatch(/^\d+-\d+$/);
-    const [min, max] = scale.planWords.split('-').map(Number);
-    expect(min).toBe(360);
-    expect(max).toBe(600);
   });
 });
 // ── sceneContext ─────────────────────────────────────────────────────────────

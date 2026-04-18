@@ -15,6 +15,22 @@ vi.mock('@/lib/ai/context', () => ({
 vi.mock('@/lib/ai/json', () => ({
   parseJson: vi.fn(),
 }));
+// Mock embeddings module — dynamic imports in ai/prose.ts would otherwise hit
+// a real fetch('/api/embeddings') which fails with Invalid URL in the Node
+// test env. Stub returns 1536-dim zero vectors so downstream code is happy.
+vi.mock('@/lib/embeddings', () => ({
+  generateEmbeddings: vi.fn(async (texts: string[]) =>
+    texts.map(() => new Array(1536).fill(0)),
+  ),
+  generateEmbeddingsBatch: vi.fn(async (texts: string[]) =>
+    texts.map(() => new Array(1536).fill(0)),
+  ),
+  embedPropositions: vi.fn(async (props: unknown[]) => props),
+  computeCentroid: vi.fn(() => new Array(1536).fill(0)),
+  resolveEmbedding: vi.fn(async () => null),
+  resolveEmbeddingsBatch: vi.fn(async () => new Map()),
+  cosineSimilarity: vi.fn(() => 0),
+}));
 import { callGenerate, callGenerateStream } from '@/lib/ai/api';
 import { sceneContext } from '@/lib/ai/context';
 import { parseJson } from '@/lib/ai/json';
@@ -293,7 +309,9 @@ describe('rewriteSceneProse', () => {
     );
     expect(result.changelog).toBe('• First change\n• Second change');
   });
-  it('continues gracefully when changelog generation fails', async () => {
+  it('propagates errors when changelog generation fails', async () => {
+    // A changelog call failure surfaces from rewriteSceneProse rather than
+    // being swallowed — the caller is expected to retry or surface the error.
     const mockProse = 'Good prose.';
     const proseResponse = JSON.stringify({ prose: mockProse });
     vi.mocked(callGenerate)
@@ -302,15 +320,9 @@ describe('rewriteSceneProse', () => {
     vi.mocked(parseJson).mockImplementation((raw: string) => JSON.parse(raw));
     const narrative = createMinimalNarrative();
     const scene = narrative.scenes['S-02']!;
-    const result = await rewriteSceneProse(
-      narrative,
-      scene,
-      ['S-01', 'S-02', 'S-03'],
-      'Original prose',
-      'Analysis',
-    );
-    expect(result.prose).toBe(mockProse);
-    expect(result.changelog).toBe('');
+    await expect(
+      rewriteSceneProse(narrative, scene, ['S-01', 'S-02', 'S-03'], 'Original prose', 'Analysis'),
+    ).rejects.toThrow('Changelog failed');
   });
   it('uses default paragraph context when no expanded context', async () => {
     const mockProse = 'Prose with default context.';

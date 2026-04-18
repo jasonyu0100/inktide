@@ -1326,11 +1326,13 @@ export const ARCHETYPES = {
 /**
  * Classify a narrative's archetype based on its force grade profile.
  *
- * Uses the relative gap between forces rather than a fixed threshold:
- * - If all three forces are within 5 points of each other → balanced
- * - Otherwise, forces ≥ (max - 5) are "co-dominant"
- * - The combination of dominant forces determines the archetype
- * - Balanced + high (avg ≥ 18) = Masterwork; balanced + low = Intimate
+ * - OPUS is strict: all three forces must be genuinely exceptional (≥ 23/25).
+ *   This prevents character-driven works with incidental fate/system activity
+ *   from landing in the rarest archetype.
+ * - Below the Opus bar, a force must score ≥ 21 AND be within 5 of the max to
+ *   be "dominant". The combination of dominant forces picks the archetype.
+ * - If three forces nominally co-dominate but don't clear the Opus bar, we
+ *   demote to the strongest pair by dropping the weakest force.
  */
 export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   const f = grades.fate;
@@ -1339,13 +1341,26 @@ export function classifyArchetype(grades: ForceGrades): NarrativeArchetype {
   const max = Math.max(f, w, s);
   const gap = 5;
   const floor = 21;
+  const opusFloor = 23;
 
-  // A force must score ≥ 21 AND be within 5 of the max to be dominant
+  // Opus — rare, requires all three forces at exceptional level
+  if (f >= opusFloor && w >= opusFloor && s >= opusFloor) {
+    return ARCHETYPES.opus;
+  }
+
   const fDom = f >= floor && f >= max - gap;
   const wDom = w >= floor && w >= max - gap;
   const sDom = s >= floor && s >= max - gap;
 
-  if (fDom && wDom && sDom) return ARCHETYPES.opus;
+  // Three-way nominal dominance without clearing the Opus bar — pick the
+  // strongest pair by dropping the weakest force (first in ties: s > w > f,
+  // so a tied three-way falls to series as the most common prestige shape).
+  if (fDom && wDom && sDom) {
+    if (s <= f && s <= w)      return ARCHETYPES.series;    // drop system
+    if (w <= f && w <= s)      return ARCHETYPES.atlas;     // drop world
+    return ARCHETYPES.chronicle;                             // drop fate
+  }
+
   if (fDom && wDom)         return ARCHETYPES.series;
   if (fDom && sDom)         return ARCHETYPES.atlas;
   if (wDom && sDom)         return ARCHETYPES.chronicle;
@@ -1539,12 +1554,18 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  Raw force values are divided by these to produce a unit-free normalized value
  *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
  *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
- *  Reference means: fate 2.5, world 12, system 3. Fate bumped from the
- *  original 1.5 after the stage-weight table was filled in for multi-stage
- *  jumps and payoffs raised to 5.0 — HP Book 1 averages ~4.3 fate/scene under
- *  the current weights, which grades 23/25 with headroom for fate-dominant
- *  masterworks. */
-export const FORCE_REFERENCE_MEANS = { fate: 2.5, world: 12, system: 3 } as const;
+ *
+ *  Fate bumped to 3.5: raw fate counts thread-stage activity, and the
+ *  thread-creation gate (analysis/scene-structure.ts) now disqualifies
+ *  scene-level tensions and recurring character dynamics. Under the
+ *  tightened bar, a fate-forward work should still earn ~21-22 and a
+ *  truly fate-dominant one ~23+ while mundane work lands in the high
+ *  teens.
+ *
+ *  System held at 4: the raw formula (ΔN + √ΔE) measures rule/structure density
+ *  per scene; a reference of 4 means a typical scene must introduce substantive
+ *  rules/systems to grade well, not just incidental worldbuilding nodes. */
+export const FORCE_REFERENCE_MEANS = { fate: 3.5, world: 12, system: 4 } as const;
 
 /** Per-scene density targets by archetype — what the LLM should aim for during generation.
  *  "High" forces use the opus-level reference; "low" forces use relaxed targets.

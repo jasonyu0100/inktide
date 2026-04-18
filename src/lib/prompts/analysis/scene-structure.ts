@@ -27,10 +27,13 @@ export function buildSceneStructurePrompt(prose: string, plan: BeatPlan | null):
 SCENE PROSE:
 ${prose}${beatSection}
 
-FORCE FORMULAS — your extractions are the direct inputs:
-- FATE = Σ √arcs × stageWeight × (1 + log(1 + investment)) (thread commitment toward resolution). Ref: ~2.5/scene.
-- WORLD = ΔN_c + √ΔE_c (entity transformation — what we learn about characters, locations, artifacts). Ref: ~12/scene.
-- SYSTEM = ΔN + √ΔE (world deepening — rules, structures, concepts). Ref: ~3/scene.
+THREE ORTHOGONAL PLANES — extract each independently:
+- WORLD (MATERIAL plane): tangible, embodied. People, places, objects — characters, locations, artifacts; in non-fiction: institutions, datasets, figures, charts, embedded documents. Every new stable fact about an entity.
+  W = ΔN_c + √ΔE_c. Ref: ~12/scene.
+- SYSTEM (ABSTRACT plane): rules, mechanisms, principles — how the world works, not the things themselves. Magic systems, physics, social order; or theorems, methods, constraints. Rule and knowledge density — NOT incidental setting.
+  S = ΔN + √ΔE. Ref: ~4/scene.
+- FATE (METAPHYSICAL plane): the higher-order pull that governs what material and abstract can't account for alone. Only fires when action or outcome exceeds what traits and rules would predict.
+  F = Σ √arcs × stageWeight × (1 + log(1 + investment)). Ref: ~3.5/scene.
 
 Return JSON:
 {
@@ -57,14 +60,34 @@ Return JSON:
   const fieldGuide = `
 EXTRACTION STANDARDS — every delta must EARN its place. Low-value deltas flatten the force graph. Each scene records structural deltas that feed the force formulas.
 
-DETECTING FATE — Threads are COMPELLING QUESTIONS that shape fate.
+DETECTING FATE — Fate is a HIGHER-ORDER force that compels the world and system to bend toward narrative meaning. It is NOT the ordinary running of threads; it is what pulls arcs toward resolution against or beyond the local logic of rules and character traits.
 - A compelling question has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), INVESTMENT (we care).
 - Weak: "Will [Name] succeed?" (too plain to carry an arc on its own, unless the form is picaresque or satirical). Strong (narrative): "Can Ayesha clear her grandfather's name before the tribunal ends?" Strong (argument): "Does the proposed mechanism explain anomalies the prior model cannot?" Strong (inquiry): "What role did diaspora networks play in the movement before digital coordination?"
-- Fate is the intangible bigger picture. Threads are questions; fate is where the answers lead.
-- Read prose for MOMENTS THAT MATTER — when does this scene advance the larger story?
-- A thread delta records your detection: "this moment moves the story closer to answering the question."
+- Key test: if a character's action in this scene can be fully explained by their traits, their constraints, and the system's rules — that is ordinary world/system activity, NOT fate. Fate earns its weight when actions OUTRUN those explanations: a vow kept at cost the trait-profile would not predict, a coincidence that ratifies itself into pattern, a thread resolving because the story required it rather than because causation forced it.
+- Read prose for MOMENTS THAT MATTER — where does the arc advance against the local pull?
+- BE SELECTIVE. Routine lifecycle movement of minor threads (meetings arranged, letters delivered, small-stakes plans proceeding) does NOT earn fate weight. Reserve transitions and payoffs for arc-central threads where the story's larger pull is visibly acting.
+- A thread delta records your detection: "this moment moves the story closer to answering an arc-level question."
 - Thread logs track incremental ANSWERS to these questions over time.
-- Fate is what pulls world and system toward meaning. Without it, nothing resolves.
+- Fate is what pulls world and system toward meaning. Without it, nothing resolves — but not every beat has it, and forcing it where it isn't present inflates the signal and dilutes the archetype read downstream.
+
+THREAD CREATION — WHICH QUESTIONS BECOME THREADS.
+Threads are EXPENSIVE — arc-spanning tensions the story promises to resolve. Creating too many flattens the signal. Err toward FEWER, BIGGER threads. A full work typically has 5-15; a TV season 3-8. Extracting 10+ per scene means you're coding scene tensions as threads — collapse them into worldDeltas instead.
+
+A candidate becomes a thread only if ALL three pass:
+  1. MULTI-SCENE SPAN — takes many scenes (ideally arcs) to answer; anything that resolves within a scene is scene-level tension, not a thread.
+  2. ARC-CENTRAL — resolving it moves the story's larger trajectory, not just describes a character's day-to-day.
+  3. IRREVERSIBLE — answering it commits the narrative to a new state; recurring dynamics that reset every scene are character texture, not threads.
+
+When a candidate fails — capture it as a worldDelta on the relevant entity, not as a thread:
+  ✗ Recurring dynamics ("Will Jim keep pranking Dwight?") → worldDelta on Jim: "uses pranks on Dwight as a daily coping mechanism"
+  ✗ Trait-verification ("Can Michael maintain his self-image as a beloved boss?") → worldDelta on Michael: "frames himself as a beloved, effective boss to reconcile his insecurities"
+  ✗ Episode micro-plots that don't carry forward ("Will the forklift applicant get the job?") → scene events, not a thread
+  ✗ Professional observations with no specific consequence in motion ("Will Michael's drinking hurt his work?") → worldDelta on Michael
+  ✗ Interior struggles with no external commitment point ("Can X come to terms with their past?") → worldDelta on X unless a concrete reckoning is forced
+
+CORRECT threads for this kind of show look like:
+  ✓ "Will Jim and Pam's mutual attraction develop into a relationship despite Pam's engagement to Roy?" (arc-central, multi-season, irreversible)
+  ✓ "Will the Scranton branch survive corporate pressure to downsize or merge?" (external stake, multi-episode, irreversible)
 
 threadDeltas — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
 - Escalating = POINT OF NO RETURN. Once detected, the story has promised resolution.
@@ -92,8 +115,8 @@ worldDeltas — what we LEARN about an entity that wasn't known before. Applies 
   GOOD: "The forest conceals an ancient boundary ward that repels outsiders" (new location property).
   GOOD: "The wand backfires when used against its maker" (new artifact limitation).
   GOOD: "Table 2 reports a 2.3 BLEU drop on EN-DE when positional encoding is removed" (short-lived artifact contents).
-- MAX 2-3 nodes per entity per scene. Most scenes: POV character + one other entity.
-- Entities that appear without revealing anything new: ZERO nodes.
+- Typical scene: 3-5 entities in play reveal something new (POV character plus other participants, the location, any deployed artifacts). Up to 3-4 nodes on an anchor character or domain location when the scene is dense with them; 1-2 nodes on each additional entity that shows a lasting change.
+- Entities that appear without revealing anything new: ZERO nodes. Do NOT manufacture nodes to hit counts — but DO extract every stable fact the scene actually shows.
 - addedEdges: connect causally linked changes with "follows", "causes", "contradicts", "enables".
 - Types: trait, state, history, capability, belief, relation, secret, goal, weakness.
 

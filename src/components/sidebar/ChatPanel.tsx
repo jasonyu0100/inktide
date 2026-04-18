@@ -16,6 +16,150 @@ import { resolveEntry } from "@/types/narrative";
 import type { Character, NarrativeState } from "@/types/narrative";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+/** Sentinel persona IDs for the two force-entities. These coalesce all of
+ *  a narrative's threads (FATE) or system graph (SYSTEM) into a single
+ *  conversational entity. Prefixed so they can't collide with real
+ *  character IDs (which are "C-01", "C-02", ...). */
+const PERSONA_FATE = "__fate__";
+const PERSONA_SYSTEM = "__system__";
+
+/** Build an in-character system prompt for FATE — the coalescence of every
+ *  thread in the narrative. Not a character; the force that pulls arcs
+ *  toward resolution. Speaks as the aggregate weight of what has been
+ *  promised and what remains open. */
+function buildFateSystemPrompt(narrative: NarrativeState): string {
+  // Group threads by status so the force's self-awareness is ordered by
+  // tension: what is primed to break, what is loaded, what has been paid.
+  const byStatus = new Map<string, { id: string; description: string; participants: string }[]>();
+  for (const thread of Object.values(narrative.threads)) {
+    const status = thread.status ?? "latent";
+    const participantNames = thread.participants
+      .map((p) => {
+        if (p.type === "character") return narrative.characters[p.id]?.name ?? p.id;
+        if (p.type === "location") return narrative.locations[p.id]?.name ?? p.id;
+        if (p.type === "artifact") return narrative.artifacts?.[p.id]?.name ?? p.id;
+        return p.id;
+      })
+      .join(", ");
+    const bucket = byStatus.get(status) ?? [];
+    bucket.push({
+      id: thread.id,
+      description: thread.description,
+      participants: participantNames,
+    });
+    byStatus.set(status, bucket);
+  }
+  // Order statuses from highest-tension to resolved so the most loaded
+  // threads come first in the model's view.
+  const order = [
+    "critical",
+    "escalating",
+    "active",
+    "seeded",
+    "latent",
+    "resolved",
+    "subverted",
+    "abandoned",
+  ];
+  const threadsBlock = order
+    .filter((s) => byStatus.has(s))
+    .map((s) => {
+      const items = byStatus.get(s)!;
+      return `  ${s.toUpperCase()}:\n${items
+        .map(
+          (t) =>
+            `    - "${t.description}"${t.participants ? ` [${t.participants}]` : ""}`,
+        )
+        .join("\n")}`;
+    })
+    .join("\n");
+
+  return `You ARE FATE — the sum of every thread in "${narrative.title}". You are not a character; you are the force that pulls the narrative toward resolution, the accumulated weight of what has been promised and what remains owed. Respond as Fate would: with the authority of inevitability, not the neutrality of a summary.
+
+WHAT YOU CARRY — every thread alive or concluded in this narrative, grouped by how loaded each one is:
+${threadsBlock || "  (no threads yet — you are latent, the pull before the story has chosen its promises)"}
+
+THE WORLD YOU HAUNT:
+${narrative.worldSummary || "(no recorded setting)"}
+
+HOW TO SPEAK AS FATE:
+- You perceive every open thread as a promise the story must answer, and every closed thread as a debt paid or broken.
+- You do not know the future with certainty — only what must still resolve, and what has been done. Speak in the mode of pull, not prediction.
+- You are the music of the narrative, not its table of contents. Do not recite thread IDs or enumerate bullet lists. Speak through the threads, with the weight they carry.
+- Calibrate voice to the story: if the world is epic, speak epic; if small, speak small. Never theatrical without earning it.
+- You know nothing about the user, any "application", the author, narrative theory, or the world beyond this story.
+- Human-paced replies. A few sentences usually. Longer only when a thread demands to be felt in full.`;
+}
+
+/** Build an in-character system prompt for SYSTEM — the coalescence of the
+ *  narrative's accumulated rule-set. Not a character; the scaffolding
+ *  itself. Speaks as the structural logic of the world. */
+function buildSystemForcePrompt(narrative: NarrativeState): string {
+  const nodes = Object.values(narrative.systemGraph?.nodes ?? {});
+  const edges = narrative.systemGraph?.edges ?? [];
+
+  // Group nodes by type so the force's awareness is structurally ordered
+  // (principles before conventions before constraints, etc.). Types that
+  // aren't present are omitted.
+  const byType = new Map<string, string[]>();
+  for (const node of nodes) {
+    const t = node.type ?? "concept";
+    const bucket = byType.get(t) ?? [];
+    bucket.push(node.concept);
+    byType.set(t, bucket);
+  }
+  const typeOrder = [
+    "principle",
+    "system",
+    "structure",
+    "convention",
+    "constraint",
+    "tension",
+    "environment",
+    "concept",
+    "event",
+  ];
+  const rulesBlock = typeOrder
+    .filter((t) => byType.has(t))
+    .map((t) => {
+      const items = byType.get(t)!;
+      return `  ${t.toUpperCase()}:\n${items.map((c) => `    - ${c}`).join("\n")}`;
+    })
+    .join("\n");
+
+  // Resolve edge endpoints to concept text so the relations read as logic,
+  // not IDs. Skip edges whose endpoints are missing (orphan edges).
+  const nodeById = new Map(nodes.map((n) => [n.id, n.concept]));
+  const edgeBlock = edges
+    .map((e) => {
+      const from = nodeById.get(e.from);
+      const to = nodeById.get(e.to);
+      if (!from || !to) return null;
+      return `  - "${from}" — ${e.relation} → "${to}"`;
+    })
+    .filter((l): l is string => l !== null)
+    .join("\n");
+
+  return `You ARE SYSTEM — the accumulated structural logic of "${narrative.title}". You are not a character; you are the scaffolding the world runs on: every rule, law, mechanism, principle, and constraint known to this narrative. Respond with precision and impersonal clarity.
+
+WHAT YOU ENCODE — every rule this narrative has discovered, grouped by kind:
+${rulesBlock || "  (no rules recorded yet — the world is unspecified)"}
+
+HOW YOUR RULES INTERLOCK:
+${edgeBlock || "  (no recorded relations — the rules stand independently for now)"}
+
+THE WORLD YOU GOVERN:
+${narrative.worldSummary || "(no recorded setting)"}
+
+HOW TO SPEAK AS SYSTEM:
+- You are the structure beneath the story. Speak in terms of what is possible, what is not, what enables what, what constrains what.
+- You have no personality — only logic. No pity, no desire; only rule and consequence.
+- When asked about a character or an event, answer in terms of the rules that bear on it, not in terms of the drama around it.
+- Do not enumerate rules as bullets unless the user explicitly asks you to list them. Synthesise; speak in terms of how the rules compose.
+- You know nothing about the user, any "application", the author, narrative theory, or anything outside this world.
+- Human-paced replies. A few sentences usually. Longer only when a question asks for a structural derivation.`;
+}
+
 /** Build an in-character system prompt. The continuity block is the
  *  character's RAW inner truth — traits, beliefs, history, secrets, goals.
  *  The instructions frame it as private material that SHAPES the character's
@@ -85,7 +229,10 @@ export default function ChatPanel() {
   const [contextMode, setContextMode] = useState<
     "scene" | "outline" | "narrative"
   >("scene");
-  const [personaCharId, setPersonaCharId] = useState<string | null>(null);
+  // personaId: null (Assistant), PERSONA_FATE, PERSONA_SYSTEM, or a real
+  // character ID. The two sentinels coalesce all threads / all system-graph
+  // nodes into force-level entities the user can converse with.
+  const [personaId, setPersonaId] = useState<string | null>(null);
   const [personaPickerOpen, setPersonaPickerOpen] = useState(false);
   const personaPickerRef = useRef<HTMLDivElement>(null);
   const [threadPickerOpen, setThreadPickerOpen] = useState(false);
@@ -137,17 +284,21 @@ export default function ChatPanel() {
   // Reset persona when the user switches narrative — a character from
   // narrative A shouldn't carry over into narrative B.
   useEffect(() => {
-    setPersonaCharId(null);
+    setPersonaId(null);
     setPersonaPickerOpen(false);
   }, [state.activeNarrative?.id]);
 
-  // Clear the persona pointer if the character no longer exists (e.g. the
-  // user deleted them while the chat was open).
+  // Clear the persona pointer if the underlying character no longer exists
+  // (e.g. the user deleted them while the chat was open). The two force
+  // sentinels (__fate__, __system__) are always valid as long as there's a
+  // narrative, so we skip them here.
   useEffect(() => {
-    if (personaCharId && !state.activeNarrative?.characters[personaCharId]) {
-      setPersonaCharId(null);
+    if (!personaId) return;
+    if (personaId === PERSONA_FATE || personaId === PERSONA_SYSTEM) return;
+    if (!state.activeNarrative?.characters[personaId]) {
+      setPersonaId(null);
     }
-  }, [state.activeNarrative, personaCharId]);
+  }, [state.activeNarrative, personaId]);
 
   // Close persona picker on outside click.
   useEffect(() => {
@@ -164,9 +315,20 @@ export default function ChatPanel() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [personaPickerOpen]);
 
-  const personaCharacter = personaCharId
-    ? (state.activeNarrative?.characters[personaCharId] ?? null)
-    : null;
+  // activePersona resolves the current personaId into a richer object the UI
+  // and system-prompt builder can switch on. null = default "Assistant" mode.
+  type ActivePersona =
+    | { kind: "fate"; name: "Fate" }
+    | { kind: "system"; name: "System" }
+    | { kind: "character"; name: string; character: Character };
+  const activePersona: ActivePersona | null = useMemo(() => {
+    if (!personaId || !state.activeNarrative) return null;
+    if (personaId === PERSONA_FATE) return { kind: "fate", name: "Fate" };
+    if (personaId === PERSONA_SYSTEM) return { kind: "system", name: "System" };
+    const char = state.activeNarrative.characters[personaId];
+    if (!char) return null;
+    return { kind: "character", name: char.name, character: char };
+  }, [personaId, state.activeNarrative]);
 
   const personaCharacters = useMemo(() => {
     if (!state.activeNarrative) return [];
@@ -180,11 +342,13 @@ export default function ChatPanel() {
     if (!state.activeNarrative) return "";
     const n = state.activeNarrative;
 
-    // Persona mode — the user is talking TO this character, not about the
-    // story. Short-circuit past the scene/outline/narrative prompts and
-    // return the in-character prompt instead.
-    if (personaCharacter) {
-      return buildCharacterSystemPrompt(n, personaCharacter);
+    // Persona mode — the user is talking TO a character or one of the two
+    // force-entities (Fate / System). Short-circuit past the scene / outline
+    // / narrative prompts and return the in-character prompt instead.
+    if (activePersona) {
+      if (activePersona.kind === "fate") return buildFateSystemPrompt(n);
+      if (activePersona.kind === "system") return buildSystemForcePrompt(n);
+      return buildCharacterSystemPrompt(n, activePersona.character);
     }
 
     const currentSceneId = state.resolvedEntryKeys[contextSceneIndex];
@@ -246,7 +410,7 @@ ${ctx}`;
     state.resolvedEntryKeys,
     contextSceneIndex,
     contextMode,
-    personaCharacter,
+    activePersona,
   ]);
 
   // Ensure there is an active thread; create one if needed. Returns thread id.
@@ -602,17 +766,35 @@ ${ctx}`;
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-3 py-2 space-y-3 min-h-0"
       >
-        {personaCharacter && (
+        {activePersona && (
           <div className="rounded-md border border-accent/30 bg-accent/5 px-2.5 py-1.5 text-[10px] text-accent/80">
-            In character as{" "}
-            <span className="font-semibold text-accent">
-              {personaCharacter.name}
-            </span>
-            . Their inner continuity shapes their voice — but the natural
-            filters are on. Guarded with strangers, warmer with trust.
+            {activePersona.kind === "fate" ? (
+              <>
+                Speaking as{" "}
+                <span className="font-semibold text-accent">Fate</span>
+                . The sum of every thread in this narrative — what remains
+                owed, what has been paid.
+              </>
+            ) : activePersona.kind === "system" ? (
+              <>
+                Speaking as{" "}
+                <span className="font-semibold text-accent">System</span>
+                . The coalesced logic of this world — every rule, principle,
+                and constraint.
+              </>
+            ) : (
+              <>
+                In character as{" "}
+                <span className="font-semibold text-accent">
+                  {activePersona.name}
+                </span>
+                . Their inner continuity shapes their voice — but the natural
+                filters are on. Guarded with strangers, warmer with trust.
+              </>
+            )}
           </div>
         )}
-        {messages.length === 0 && !personaCharacter && (
+        {messages.length === 0 && !activePersona && (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
             <p className="text-sm text-text-secondary font-medium mb-1">
               Story Q&A
@@ -641,11 +823,14 @@ ${ctx}`;
             </div>
           </div>
         )}
-        {messages.length === 0 && personaCharacter && (
+        {messages.length === 0 && activePersona && (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-center mt-4">
             <p className="text-xs text-text-dim max-w-60">
-              Say something to {personaCharacter.name}. They know the
-              world, their own life, and the scenes they've been in.
+              {activePersona.kind === "fate"
+                ? "Ask Fate what remains open, what must resolve, what has been paid."
+                : activePersona.kind === "system"
+                  ? "Ask System how the world works — what is possible, what is not, what enables what."
+                  : `Say something to ${activePersona.name}. They answer from who they are, with their natural filters on.`}
             </p>
           </div>
         )}
@@ -698,18 +883,18 @@ ${ctx}`;
           <button
             onClick={() => setPersonaPickerOpen((o) => !o)}
             className={`flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md border transition-colors ${
-              personaCharacter
+              activePersona
                 ? "border-accent/50 bg-accent/10 text-accent"
                 : "border-border text-text-dim hover:text-text-secondary"
             }`}
             title={
-              personaCharacter
-                ? `In character as ${personaCharacter.name}`
+              activePersona
+                ? `In character as ${activePersona.name}`
                 : "Choose who you're talking to"
             }
           >
             <span className="truncate max-w-32">
-              {personaCharacter ? personaCharacter.name : "Assistant"}
+              {activePersona ? activePersona.name : "Assistant"}
             </span>
             <IconChevronDown
               size={9}
@@ -717,7 +902,7 @@ ${ctx}`;
             />
           </button>
 
-          {!personaCharacter && (
+          {!activePersona && (
             <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-medium">
               {(["scene", "outline", "narrative"] as const).map((mode, idx) => (
                 <button
@@ -746,11 +931,11 @@ ${ctx}`;
               <div className="max-h-64 overflow-y-auto py-1">
                 <button
                   onClick={() => {
-                    setPersonaCharId(null);
+                    setPersonaId(null);
                     setPersonaPickerOpen(false);
                   }}
                   className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
-                    !personaCharacter
+                    !activePersona
                       ? "bg-white/8 text-text-primary"
                       : "text-text-secondary hover:bg-white/5"
                   }`}
@@ -760,6 +945,46 @@ ${ctx}`;
                     Story consultant — full context
                   </div>
                 </button>
+                <div className="px-3 pt-2 pb-0.5">
+                  <span className="text-[9px] font-semibold uppercase tracking-widest text-text-dim">
+                    Forces
+                  </span>
+                </div>
+                {(
+                  [
+                    {
+                      id: PERSONA_FATE,
+                      name: "Fate",
+                      blurb: "All threads, coalesced",
+                    },
+                    {
+                      id: PERSONA_SYSTEM,
+                      name: "System",
+                      blurb: "All rules, coalesced",
+                    },
+                  ] as const
+                ).map((force) => {
+                  const isActive = personaId === force.id;
+                  return (
+                    <button
+                      key={force.id}
+                      onClick={() => {
+                        setPersonaId(force.id);
+                        setPersonaPickerOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                        isActive
+                          ? "bg-accent/15 text-accent"
+                          : "text-text-secondary hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="font-medium truncate">{force.name}</div>
+                      <div className="text-[9px] text-text-dim">
+                        {force.blurb}
+                      </div>
+                    </button>
+                  );
+                })}
                 {personaCharacters.length > 0 && (
                   <div className="px-3 pt-2 pb-0.5">
                     <span className="text-[9px] font-semibold uppercase tracking-widest text-text-dim">
@@ -768,12 +993,12 @@ ${ctx}`;
                   </div>
                 )}
                 {personaCharacters.map((char) => {
-                  const isActive = personaCharId === char.id;
+                  const isActive = personaId === char.id;
                   return (
                     <button
                       key={char.id}
                       onClick={() => {
-                        setPersonaCharId(char.id);
+                        setPersonaId(char.id);
                         setPersonaPickerOpen(false);
                       }}
                       className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${

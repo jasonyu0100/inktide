@@ -32,7 +32,13 @@ import type {
 
 type Props = {
   narrative: NarrativeState;
+  /** Entry keys through the current scene position — dashboard is
+   *  cumulative up to "now", not the full branch. */
   resolvedKeys: string[];
+  /** Full branch length, for the header scope indicator. */
+  totalBranchKeys?: number;
+  /** 0-based position of the current scene on the branch. */
+  currentSceneIndex?: number;
   onClose: () => void;
   onSelectScene?: (sceneIndex: number) => void;
 };
@@ -1081,8 +1087,21 @@ function detectCoalitions(
 
 // ── Main component ──────────────────────────────────────────────────────────
 
-export function GameTheoryDashboard({ narrative, resolvedKeys, onClose, onSelectScene }: Props) {
+export function GameTheoryDashboard({
+  narrative,
+  resolvedKeys,
+  totalBranchKeys,
+  currentSceneIndex,
+  onClose,
+  onSelectScene,
+}: Props) {
   const agg = useMemo(() => aggregate(narrative, resolvedKeys), [narrative, resolvedKeys]);
+  const truncated =
+    totalBranchKeys !== undefined && totalBranchKeys > resolvedKeys.length;
+  const positionLabel =
+    currentSceneIndex !== undefined && totalBranchKeys !== undefined
+      ? `through entry ${currentSceneIndex + 1} of ${totalBranchKeys}`
+      : null;
 
   return (
     <Modal onClose={onClose} size="6xl">
@@ -1094,6 +1113,20 @@ export function GameTheoryDashboard({ narrative, resolvedKeys, onClose, onSelect
           <span className="text-[10px] text-text-dim/60">
             player ratings + narrative insights
           </span>
+          {positionLabel && (
+            <span
+              className={`text-[10px] font-mono ${
+                truncated ? "text-amber-300/80" : "text-text-dim/55"
+              }`}
+              title={
+                truncated
+                  ? "Dashboard reflects cumulative branch state up to the current reading position — later scenes on this branch are excluded. Advance the reader to see their impact."
+                  : "Dashboard reflects the full branch (you're at the last entry)."
+              }
+            >
+              {positionLabel}
+            </span>
+          )}
         </div>
       </ModalHeader>
       <ModalBody className="p-0">

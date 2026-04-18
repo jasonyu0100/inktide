@@ -2355,7 +2355,15 @@ export default function TopBar() {
       {gameTheoryOpen && narrative && (
         <GameTheoryDashboard
           narrative={narrative}
-          resolvedKeys={state.resolvedEntryKeys}
+          // Scope the dashboard to the branch's cumulative state through the
+          // current scene position — ELO, archetypes, and rivalries reflect
+          // what the reader has seen up to "now", not the entire branch.
+          resolvedKeys={state.resolvedEntryKeys.slice(
+            0,
+            state.viewState.currentSceneIndex + 1,
+          )}
+          totalBranchKeys={state.resolvedEntryKeys.length}
+          currentSceneIndex={state.viewState.currentSceneIndex}
           onClose={() => setGameTheoryOpen(false)}
           onSelectScene={(index) => {
             dispatch({ type: "SET_SCENE_INDEX", index });

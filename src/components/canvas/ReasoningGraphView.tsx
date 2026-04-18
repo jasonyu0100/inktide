@@ -306,8 +306,8 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
     // signature of abductive/inductive thinking.
     const divergentNodes = nodeGroups.filter(
       (d) =>
-        typeof d.data.generationOrder === "number" &&
-        d.data.generationOrder !== d.data.index,
+        typeof d.data.order === "number" &&
+        d.data.order !== d.data.index,
     );
 
     divergentNodes
@@ -331,13 +331,13 @@ export function ReasoningGraphView({ graph, arcId, worldBuildId }: Props) {
       .attr("font-weight", "500")
       .attr("fill", "#94a3b8")
       .attr("pointer-events", "none")
-      .text((d) => `g${d.data.generationOrder}`);
+      .text((d) => `g${d.data.order}`);
 
     divergentNodes
       .append("title")
       .text(
         (d) =>
-          `Presented at index ${d.data.index} · Generated ${(d.data.generationOrder ?? 0) + 1}${ordinalSuffix((d.data.generationOrder ?? 0) + 1)}`,
+          `Presented at index ${d.data.index} · Generated ${(d.data.order ?? 0) + 1}${ordinalSuffix((d.data.order ?? 0) + 1)}`,
       );
 
     // Type badge (top-right)

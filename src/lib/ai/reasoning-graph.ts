@@ -158,7 +158,7 @@ export interface ReasoningNode {
    * `index` is what's used by callers. Differs from `index` in backward
    * modes (abduction/induction) where thinking runs opposite to display.
    */
-  generationOrder?: number;
+  order: number;
   type: ReasoningNodeType;
   label: string;           // Short label (3-8 words)
   detail?: string;         // Expanded explanation
@@ -263,32 +263,51 @@ export function extractPatternWarningDirectives(
  */
 export function buildSequentialPath(graph: ReasoningGraphBase): string {
   const sortedNodes = [...graph.nodes].sort((a, b) => a.index - b.index);
-  const edgeMap = new Map<string, ReasoningEdge[]>();
+  const outMap = new Map<string, ReasoningEdge[]>();
+  const inMap = new Map<string, ReasoningEdge[]>();
 
-  // Build outgoing edge map
+  // Build BOTH outgoing and incoming edge maps so each node's entry can
+  // render its full bidirectional context. A downstream LLM reading
+  // sequentially can see what a node leads to AND what depends on it
+  // without having to scan the whole list — convergence points and hubs
+  // become visible at a glance.
   for (const edge of graph.edges) {
-    if (!edgeMap.has(edge.from)) edgeMap.set(edge.from, []);
-    edgeMap.get(edge.from)!.push(edge);
+    if (!outMap.has(edge.from)) outMap.set(edge.from, []);
+    outMap.get(edge.from)!.push(edge);
+    if (!inMap.has(edge.to)) inMap.set(edge.to, []);
+    inMap.get(edge.to)!.push(edge);
   }
 
   const lines: string[] = [];
 
   for (const node of sortedNodes) {
-    const outgoing = edgeMap.get(node.id) ?? [];
-    const connections = outgoing
-      .map(e => `${e.type}→${e.to}`)
-      .join(", ");
+    const outgoing = outMap.get(node.id) ?? [];
+    const incoming = inMap.get(node.id) ?? [];
 
-    const connectStr = connections ? ` [${connections}]` : "";
     const entityRef = node.entityId ? ` @${node.entityId}` : "";
     const threadRef = node.threadId ? ` #${node.threadId}` : "";
 
+    // Header — identity line.
     lines.push(
-      `[${node.index}] ${node.type.toUpperCase()}: ${node.label}${entityRef}${threadRef}${connectStr}`
+      `[${node.index}] ${node.type.toUpperCase()}: ${node.label}${entityRef}${threadRef}`
     );
 
+    // Outgoing: what this node LEADS TO. Empty on leaves (pure ground-truth
+    // entities that nothing downstream depends on beyond this arc).
+    if (outgoing.length > 0) {
+      const outStr = outgoing.map((e) => `${e.type}→${e.to}`).join(", ");
+      lines.push(`    out: ${outStr}`);
+    }
+
+    // Incoming: what LEADS TO this node. Empty on roots. Large count signals
+    // a convergence point — many chains meet here.
+    if (incoming.length > 0) {
+      const inStr = incoming.map((e) => `${e.from}←${e.type}`).join(", ");
+      lines.push(`    in:  ${inStr}`);
+    }
+
     if (node.detail) {
-      lines.push(`    → ${node.detail}`);
+      lines.push(`    · ${node.detail}`);
     }
   }
 
@@ -418,7 +437,7 @@ NODE ORDER — generation and presentation ALIGN:
 - Here generation and presentation point the SAME direction. Nodes
   appear in the JSON in the order you thought of them, and each
   node's \`index\` matches its presentation position — they coincide.
-- \`generationOrder\` (which the parser auto-assigns from JSON
+- \`order\` (which the parser auto-assigns from JSON
   position) will match \`index\` in this mode — useful as a visible
   signature that divergent thinking was forward-aligned.
 
@@ -552,7 +571,7 @@ N so you can give the TERMINAL fate node index N-1 while generating it
 first in the JSON.
 
 GENERATION (the order you emit nodes in the JSON array, auto-captured
-as \`generationOrder\`): You start THINKING at the terminal fate and
+as \`order\`): You start THINKING at the terminal fate and
 reason backward. Emit the terminal first, then the priors you
 hypothesise, in discovery order.
 
@@ -576,7 +595,7 @@ a TOPOLOGICAL ORDER over the edges. Concretely:
 
 Generation runs backward (terminal first) while presentation runs
 forward (terminal last). This inversion is the visible signature of
-abductive thinking: \`generationOrder\` shows the detective's path
+abductive thinking: \`order\` shows the detective's path
 from outcome back to cause; \`index\` shows the chronology the graph
 actually presents.
 
@@ -675,7 +694,7 @@ PLAN FIRST: Decide the total node count (emit it as plannedNodeCount
 BEFORE the nodes array). You need N to place the inferred principle
 at index 0 while emitting it last in the JSON.
 
-GENERATION (auto-captured as \`generationOrder\`): You start THINKING
+GENERATION (auto-captured as \`order\`): You start THINKING
 at the cluster of observations and reason backward to the pattern.
 Emit observations first, principle last — the scientist's assembly
 of the argument.
@@ -697,7 +716,7 @@ principle\`), so:
      observations. Never scatter a principle between its cases.
 
 Generation runs up from observations; presentation runs down from the
-principle. \`generationOrder\` shows the scientist's path; \`index\`
+principle. \`order\` shows the scientist's path; \`index\`
 shows the rule producing its cases in order.
 
 DO NOT SCATTER — if walking ascending indices requires jumping between
@@ -779,7 +798,7 @@ NODE ORDER — generation and presentation ALIGN:
 - PRESENTATION (the \`index\` field): Index 0 is the premise. Later
   indices are the derived consequences, in the order they are
   necessarily entailed. Highest index is the final conclusion.
-- Here generation and presentation ALIGN. \`generationOrder\` will
+- Here generation and presentation ALIGN. \`order\` will
   match \`index\` — a visible signature that deductive thinking
   walked premise-to-conclusion.
 
@@ -1158,78 +1177,141 @@ ${direction}` : ''}
 ═══════════════════════════════════════════════════════════════════════════════
 ` : `Direction: ${direction}`}
 
-Threads are FATE — they exert gravitational pull on events, but fate doesn't always go the expected direction. Threads can advance through twists, resistance, or subversion.
+Threads are FATE. The graph's purpose is to drive every active thread to either its RESOLUTION within this arc or an explicit CARRY-FORWARD — a thread that appears only as pressure without a closure has not been reasoned about. Fate doesn't always pull in the expected direction: it can demand, resist, or resolve, and resistance often precedes resolution.
+
+Every node EARNS its existence by doing distinct work. A node whose subject (actor × action × target) matches another node is the same node with more edges, not a second node. Minor-variation repetition is a pulse on the existing step, not a new step.
+
+Novelty is the story's forward motion. Resolved threads mostly stay resolved — don't keep re-opening a closed question. Prefer NEW threads of fate over recycling finished ones. Prefer NEW chains of reasoning over extending existing ones into minor variation. Sameness is the enemy; variety is how the reader feels the story moving.
+
+Resolution is the reader's dopamine. Delivery is what they FEEL when tension closes. A graph that accumulates pressure without release is anxious, not engaging — plan the closures first, and let demand and resistance serve them. Reasoning-pattern repetition — the same inference shape iterated with different objects — reads as OCD, not escalation; each reasoning step should think a genuinely different thought.
+
+ARC COMMITMENT FIRST. Before any causal reasoning, declare this arc's contract with the reader as the first fate nodes in the graph. Each is a normal fate node whose label begins with one of three markers, placed at the earliest indices (0-2):
+
+- \`ARC RESOLVES: <threadId> — <how it closes here>\` (e.g. "ARC RESOLVES: T-02 — Fang Yuan secures a covert Liquor Worm supply")
+- \`ARC RESISTS: <concrete setback where the protagonist genuinely loses ground>\` (cost is not resistance; a plan fails, a resource is lost, a witness surfaces)
+- \`ARC PLANTS: <newThreadId> — <the new question>\` (optional; omit only if the arc genuinely plants nothing)
+
+Every later fate node and every reasoning chain must trace back to one of these commitments via causal edges. A fate node at a later index with no edge path back to a commitment is an untethered pulse — route it or cut it. Commitments are the arc's declared payoff; resolves + resists together deliver the dopamine of tension-release-with-cost, and plants prepare the next arc's payoff. Do not write commitments you cannot serve — if RESISTS cannot be filled with a concrete setback, either find one or tell the truth that this arc has no resistance.
 ${forcePreferenceBlock("arc", options?.forcePreference)}
 ${reasoningModeBlock(options?.reasoningMode)}
 
 ## OUTPUT FORMAT
 
 **CRITICAL FORMAT REQUIREMENTS**:
-- **IDs**: Use SHORT, SIMPLE alphanumeric IDs: F1, F2, R1, R2, C1, L1, S1, PT1, WN1, etc. Do NOT use complex IDs like "FATE_THREAD_01" or "reasoning_step_3".
+- **IDs**: Use SEMANTIC slugs that carry the node's subject, prefixed by type. Format: \`<type>-<kebab-case-subject>\`. Examples: \`fate-cicada-mitigated\`, \`reason-chaos-masks-anomaly\`, \`char-ruo-lan-persistence\`, \`sys-essence-cost\`, \`loc-whispering-gorge\`, \`art-cicada-drain\`, \`chaos-new-rival-arrives\`, \`pattern-two-threads-converge\`, \`warn-ruo-lan-repeats\`. Slug length: 3-6 words, lowercase, hyphenated. An edge \`{"from": "fate-cicada-mitigated", "to": "reason-chaos-masks-anomaly"}\` is self-describing; a reader of the graph and the model writing later edges can see what each node is without scrolling back. Do NOT use opaque short codes like F1, R2, PT1 — they force you to hold a mental table of what each code means.
 - **Labels**: Must be PROPER ENGLISH descriptions (3-10 words). Describe what happens in natural language. NOT technical identifiers or codes.
   - GOOD: "Fang Yuan exploits his future knowledge", "Alliance fractures over betrayal"
   - BAD: "Thread escalation node", "R2_REQUIRES_C1", "fate pressure mechanism"
 
-Return a JSON object:
+Return a JSON object.
+
+TWO ORDERINGS — distinct concepts:
+
+• \`order\` = thinking order. Auto-captured from the node's position in the JSON array — the Nth node you emit gets \`order: N\`. In backward modes (abduction / induction) the terminal is thought of first, so it lands at \`order: 0\` even though its \`index\` is the highest.
+
+• \`index\` = presentation / causal order (topological). Roots (no causal predecessors) get low indices; the terminal gets the highest. Downstream consumers sort and step through by \`index\`.
+
+In forward mode the two align. In backward mode they diverge — the example below is backward (abduction): commitments at \`order: 0-2\` (thought first) but \`index: 4-6\` (causal terminal).
 
 {
   "summary": "1-2 sentence high-level summary of the arc's reasoning",
-  "plannedNodeCount": <-- commit first; locked once nodes begin. Sets the terminal's index (N-1) in backward modes.>,
+  "plannedNodeCount": 7,  // <-- commit first; sets terminal's max index to N-1 (6). Locked once nodes begin.
   "nodes": [
+    // ── Backward mode: payoff FIRST (order 0-2, index 4-6 at the terminal). ──
+
+    // order: 0 · index: 4 — the arc's declared payoff (thought of first).
     {
-      "id": "F1",
-      "index": 0,
+      "id": "fate-arc-resolves-sanctuary",
+      "index": 4,
       "type": "fate",
-      "label": "Survival thread demands immediate sanctuary",
-      "detail": "What this thread requires to progress — the gravitational pull",
-      "threadId": "thread-id"
+      "label": "ARC RESOLVES: T-01 — alliance secures sanctuary through shared cause",
+      "detail": "Thread T-01 closes here: the protagonist trades the weakness they know for refuge, binding the faction to their survival.",
+      "threadId": "T-01"
     },
+    // order: 1 · index: 5 — the cost of the resolution.
     {
-      "id": "R1",
-      "index": 1,
+      "id": "fate-arc-resists-witness",
+      "index": 5,
+      "type": "fate",
+      "label": "ARC RESISTS: the negotiation exposes the protagonist to a hostile witness",
+      "detail": "The protagonist loses concealment — a genuine setback, not a cost to absorb.",
+      "threadId": "T-01"
+    },
+    // order: 2 · index: 6 — the true terminal. What the setback seeds.
+    {
+      "id": "fate-arc-plants-witness-debt",
+      "index": 6,
+      "type": "fate",
+      "label": "ARC PLANTS: T-NEW — the witness now holds leverage the protagonist must address",
+      "detail": "A new thread for the next arc: the witness's choice of when to speak.",
+      "threadId": "T-NEW"
+    },
+    // ── Derive backward: what reasoning achieves the resolution? ──
+
+    // order: 3 · index: 3 — the causal step.
+    {
+      "id": "reason-sanctuary-needs-alliance",
+      "index": 3,
       "type": "reasoning",
       "label": "Sanctuary requires alliance with rival faction",
       "detail": "Backward reasoning from thread requirement"
     },
+    // ── Ground in entity facts (roots; thought of last in backward mode). ──
+
+    // order: 4 · index: 0 — root: who.
     {
-      "id": "C1",
-      "index": 2,
+      "id": "char-fang-yuan-knows-weakness",
+      "index": 0,
       "type": "character",
       "label": "Fang Yuan knows the faction's secret weakness",
       "detail": "Who can fulfill this requirement",
       "entityId": "actual-character-id-from-narrative"
     },
+    // order: 5 · index: 1 — root: rule.
     {
-      "id": "S1",
-      "index": 3,
+      "id": "sys-clan-hierarchy-forbids",
+      "index": 1,
       "type": "system",
       "label": "Clan hierarchy forbids direct negotiation",
       "detail": "What system/rule shapes the action"
     },
+    // order: 6 · index: 2 — root: outside force.
     {
-      "id": "CH1",
-      "index": 4,
+      "id": "chaos-exile-seeks-asylum",
+      "index": 2,
       "type": "chaos",
       "label": "An exile from a rival clan arrives seeking asylum",
-      "detail": "OUTSIDE FORCE — a NEW character arrives from beyond the current world, bringing either a problem (their pursuers) or a solution (their knowledge). The scene generator will spawn this character. No entityId."
+      "detail": "OUTSIDE FORCE — a NEW character spawned via world expansion. No entityId."
     }
   ],
   "edges": [
-    {"id": "e1", "from": "F1", "to": "R1", "type": "requires"},
-    {"id": "e2", "from": "R1", "to": "C1", "type": "requires"},
-    {"id": "e3", "from": "S1", "to": "C1", "type": "constrains"},
-    {"id": "e4", "from": "CH1", "to": "R1", "type": "enables"}
+    // Topological flow: roots (low index) → reasoning → commitments (high index).
+    // For \`requires\`: from-node depends on to-node; to-node has LOWER index (prerequisite).
+    // For \`causes\` / \`enables\` / \`constrains\`: from-node precedes to-node; from-node has LOWER index.
+
+    // Commitment depends on the reasoning chain.
+    {"id": "e1", "from": "fate-arc-resolves-sanctuary", "to": "reason-sanctuary-needs-alliance", "type": "requires"},
+    // Reasoning depends on the character fact.
+    {"id": "e2", "from": "reason-sanctuary-needs-alliance", "to": "char-fang-yuan-knows-weakness", "type": "requires"},
+    // Rule shapes the character's action.
+    {"id": "e3", "from": "sys-clan-hierarchy-forbids", "to": "char-fang-yuan-knows-weakness", "type": "constrains"},
+    // Outside force enables the reasoning.
+    {"id": "e4", "from": "chaos-exile-seeks-asylum", "to": "reason-sanctuary-needs-alliance", "type": "enables"},
+    // The reasoning CAUSES the setback — the resist is a consequence of the path taken.
+    {"id": "e5", "from": "reason-sanctuary-needs-alliance", "to": "fate-arc-resists-witness", "type": "causes"},
+    // The setback SEEDS the new thread — plant flows from resist.
+    {"id": "e6", "from": "fate-arc-resists-witness", "to": "fate-arc-plants-witness-debt", "type": "causes"}
   ]
 }
 
 ## NODE TYPES
 
-- **fate**: Thread's gravitational pull on events. Use threadId to reference the thread. Fate can appear ANYWHERE in the reasoning chain — it influences characters, locations, systems, and other reasoning. Fate doesn't always pull in expected directions: it can demand twists, resistance, or subversion. Label = what the thread needs or how it exerts pressure.
+- **fate**: A thread exerting force on this arc's trajectory. Every fate node is one of four shapes — a DEMAND (thread pulls the protagonist toward advance), a RESISTANCE (thread pushes back; the protagonist genuinely loses ground — cost is not resistance), a RESOLUTION (thread closes within this arc — payoff, subversion, or twist), or a CARRY (thread is explicitly deferred to a later arc with a named reason). Use threadId. Label = what the thread demands, resists, lands on, or carries. A graph of demand-only fate is flat; resistance and resolution are not ornaments — they're what makes the graph drive somewhere.
 - **character**: An active agent with their OWN goals — not just a reactive foil to the protagonist. Use entityId to reference actual character. Label = their position/goal. **Cast distribution matters**: a graph where every character node is the protagonist is a failure of agency. Include secondary characters as drivers — a rival plotting, an ally hedging, a mentor withholding — each with their own causal chain that interacts with the main arc rather than merely reacting to it. The arc's causal web should have at least 2–3 distinct characters acting as agents, not as scenery.
 - **location**: A setting. Use entityId to reference actual location. Label = what it enables/constrains.
 - **artifact**: An object. Use entityId to reference actual artifact. Label = its role in reasoning.
 - **system**: A world rule/principle/constraint. Label = the rule as it applies here.
-- **reasoning**: A logical step deriving what must happen. Label = the inference (3-8 words).
+- **reasoning**: A step in the causal chain — a distinct state-change. Every reasoning node earns its place by turning one thing into another: a demand into a plan, a plan into an action, an action into a consequence, a consequence into new pressure. Two reasoning nodes with the same subject (actor × action × target) are one node with more edges, not two. Minor restatement ("siphons again at another cache", "detects suspicion a fourth time") is a pulse on the existing step — escalate or merge, don't duplicate. Label = the inference (3-8 words).
 - **pattern**: NOVEL-PATTERN GENERATOR. Proposes a story shape this narrative HAS NOT used before — a fresh configuration, rhythm, or relational geometry that is absent from prior arcs and scenes. Not generic creativity: a specific structural move the story hasn't made. Every pattern node answers "what has this story never done that it could do here?" Example labels: "First arc resolved through a non-POV character's choice", "Two anchors separated across the arc — no shared scenes", "Fate subverts by succeeding too completely". Scan prior arcs before proposing; do not repeat a shape already used.
 - **warning**: PATTERN-REPETITION DETECTOR. Scans prior arcs and scenes and FLAGS shapes the reader has already seen — resolution rhythms, conflict geometries, character dynamics, arc cadences — that this arc is drifting toward repeating. Humans are powerful pattern recognisers: once a shape repeats (same resolution twice, same beat three times, same dominant force four arcs running) the reader notices and the move loses weight. The warning's job is to name the repetition explicitly so the graph can route around it. Example labels: "Third arc ending with external rescue — reader will feel the pattern", "A and B have now used the tension-then-reconciliation beat three times", "Fourth consecutive fate-dominant arc — rhythm is becoming monotone".
 - **chaos**: OUTSIDE FORCE — operates outside the existing fabric of fate, world, and system. Chaos has two everyday modes: as a **deus-ex-machina**, it brings problems the cast couldn't anticipate or solutions the cast couldn't build (a troll bursts into the dungeon, a stranger arrives with a fragmentary map, a dormant artefact wakes); as a **creative engine**, it seeds entirely new fates — new threads that didn't exist, which later arcs develop and resolve. Chaos sits OUTSIDE fate, but shapes fate by creating fresh strands. A well-used chaos node is balanced: it breaks a stalemate the existing forces couldn't, and it plants something the story can reuse. Use sparingly in balanced mode; use extensively under chaos-preference. Label = what arrives and its role. DO NOT set entityId or threadId — the entity/thread is spawned via world expansion.
@@ -1251,7 +1333,7 @@ Return a JSON object:
 2. **Causal complexity**: The arc is a causal reasoning diagram — capture the REAL complexity of how it unfolds. Threads pull on multiple things, entities influence multiple moments, rules constrain several choices. When you add a node, show all the places it matters.
 3. **Fate throughout**: Fate nodes can appear ANYWHERE — they influence events at any point. A fate node can connect to characters, locations, reasoning, even other fate nodes. Fate is the gravitational force pulling the narrative.
 4. **Unexpected directions**: Fate doesn't always pull toward obvious resolution. Include fate nodes that demand twists, resistance, or subversion. A thread at "escalating" might need a setback before payoff.
-5. **Sequential indexing (TOPOLOGICAL, NOT SCATTERED)**: The \`index\` field is always CAUSAL — it must form a topological order over the edges you emit. Index 0 goes to a node with no causal predecessors; every later index goes to a node whose predecessors all have lower indices; the terminal or convergence point sits at the highest index. A reader walking ascending indices should feel a single coherent sweep through the graph, never a jump to an unrelated subgraph. The \`generationOrder\` field is auto-captured from JSON array position and records the order you THOUGHT of nodes — it may differ from \`index\` in backward modes (abduction, induction), which is the whole point. Emit \`plannedNodeCount\` before the nodes array to commit to a count first. See the active mode block for mode-specific ordering rules.
+5. **Sequential indexing (topological)**: \`index\` is a causal topological order — 0 is the root (no predecessors), each later index's predecessors have lower indices, the terminal sits at the highest. Walking ascending indices should feel like one coherent sweep, not subgraph jumps. \`order\` is auto-captured from array position and may differ from \`index\` in backward modes — that's the point. Emit \`plannedNodeCount\` before the nodes array to commit to a count.
 6. **Entity references**: character/location/artifact nodes MUST use entityId with actual IDs
 7. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
 8. **Single entity node per entity**: If the same character or system matters in multiple places, create ONE node with multiple edges — don't duplicate.
@@ -1260,8 +1342,13 @@ Return a JSON object:
 11. **Warning nodes**: 1-2 nodes, each naming a specific repetition risk drawn from prior arcs/scenes — "we have ended the last two arcs this way", "this dynamic between A and B has already happened N times". Vague warnings are worthless; the warning must cite what is actually repeating.
 12. **Chaos nodes (1-2 default, more under chaos preference)**: Inject at least one outside-force element — a new character arriving, a dormant artefact waking, a new fate appearing. Do NOT reference existing entityIds — chaos describes an entity that will be spawned. A chaos node signals the scene generator to invoke world expansion.
 13. **Non-deterministic**: Each reasoning path should contain at least one SURPRISE — something that doesn't follow obviously from context
-14. **Warning/pattern response (CRITICAL)**: Warnings and patterns are course-corrections, not ornaments. When a warning names a repetition, the rest of the graph MUST visibly route around it — a chaos node that breaks the pattern, a reasoning chain that subverts it, a fate node pulling a different direction, a character/entity node introducing an unused dynamic. When a pattern proposes a novel shape, the graph's actual nodes MUST use that shape — not merely mention it. Edges should connect warning/pattern nodes into the body of the graph so the course-correction is structural, not advisory. An orphaned warning or pattern (no outgoing edges, no downstream response) is dead weight — cut it or wire it in.
-15. **Cast distribution (CRITICAL — enforce agency across the cast)**: Character nodes must represent AT LEAST 2 distinct entityIds — no arc should have a character subgraph that is 100% the protagonist. If the arc reasonably touches 3+ named characters, at least 3 distinct entityIds should appear as character nodes, each with their OWN incoming/outgoing reasoning edges. A secondary character that only appears as a target of the protagonist's action (no outgoing edges) has no agency — give them an outgoing causal edge showing a decision they made, intelligence they gathered, or a response they initiated. Rival/ally/mentor characters with one-way edges are props, not agents.
+14. **Warning/pattern response (CRITICAL)**: warnings and patterns must structurally change the graph, not sit as ornaments. A warning's repetition-risk is routed around (chaos, subverted reasoning, different fate direction); a pattern's proposed shape appears in actual nodes. Wire warning/pattern nodes to the body via edges — orphaned ones are dead weight; cut or connect.
+15. **Cast distribution (CRITICAL)**: character nodes reference ≥2 distinct entityIds (≥3 if the arc touches 3+ named characters). Every named character has at least one OUTGOING edge — characters acted upon without agency are absorbed into reasoning nodes, not rendered as scenery. Rivals/allies/mentors need independent goals visible in the causal chain.
+16. **Thread resolution**: every thread in ACTIVE THREADS closes here or is explicitly carried forward. Concentrate closures near the terminal. Spawned threads obey the same rule — close them or carry them cleanly.
+17. **Fate must resist and resolve — resolution is the reader's dopamine**: delivery is what the reader FEELS when tension closes. A graph of demand-only fate accumulates pressure without release — anxiety, not story. Engaged reading requires closures landing. Aim for ≥1 RESOLVING fate per 2-3 demanding ones, and ≥1 genuine RESISTING node per arc (protagonist loses ground — cost is not resistance). Closed threads feel earned; threads left pulsing feel dropped. Plan the resolutions first; let demand and resistance serve them.
+18. **No subject or reasoning-pattern repetition**: two nodes with the same actor + action + target are one node with more edges — merge. Two reasoning nodes with the same SHAPE applied to different objects — "X exploits chaos to acquire Y" iterated for three different Y's, or "character leverages Z" repeated three times with different Zs — are one pattern rehearsed. Reasoning-pattern repetition reads as OCD: the graph thinks one thought over and over, not many different thoughts. Each reasoning node should bring a genuinely different mode of inference — deduction, abduction, analogy, inversion, constraint propagation. If you catch yourself rephrasing the same template, change shape or merge.
+19. **Terminal commits**: the last-indexed node closes a thread, pays off a setup, or hard-pivots to the next arc. Never a resting state.
+20. **Novelty over recycling**: resolved threads mostly stay resolved — recycling is the exception, not the default. Prefer new threads of fate and new chains of reasoning over extending what already exists. Variety is the story's forward motion; sameness is stall.
 
 ## SHAPE OF A GOOD ARC GRAPH
 
@@ -1312,12 +1399,12 @@ Return ONLY the JSON object.`;
     }
 
     // Ensure all nodes have required fields and valid types. The JSON
-    // array position (i) becomes generationOrder — the order the LLM
+    // array position (i) becomes order — the order the LLM
     // emitted/thought of each node, distinct from its presentation index.
     const nodes: ReasoningNode[] = data.nodes.map((n: Partial<ReasoningNode>, i: number) => ({
       id: typeof n.id === "string" ? n.id : `N${i}`,
       index: typeof n.index === "number" ? n.index : i,
-      generationOrder: i,
+      order: i,
       type: (typeof n.type === "string" && VALID_NODE_TYPES.has(n.type)) ? n.type as ReasoningNodeType : "reasoning",
       label: typeof n.label === "string" ? n.label.slice(0, 200) : "Unlabeled node",
       detail: typeof n.detail === "string" ? n.detail.slice(0, 500) : undefined,
@@ -1357,6 +1444,7 @@ Return ONLY the JSON object.`;
         {
           id: "R1",
           index: 0,
+          order: 0,
           type: "reasoning",
           label: `${arcName} - graph generation failed`,
           detail: String(err),
@@ -1553,7 +1641,7 @@ ${reasoningModeBlock(options?.reasoningMode)}
 ## OUTPUT FORMAT
 
 **CRITICAL FORMAT REQUIREMENTS**:
-- **IDs**: Use SHORT, SIMPLE alphanumeric IDs: F1, F2, R1, R2, C1, L1, S1, PT1, WN1, etc. Do NOT use complex IDs like "EXPANSION_CHAR_01" or "new_location_thread".
+- **IDs**: Use SEMANTIC slugs that carry the node's subject, prefixed by type. Format: \`<type>-<kebab-case-subject>\`. Examples: \`fate-exile-rivalry\`, \`reason-new-faction-pressures\`, \`char-northern-envoy\`, \`loc-hidden-archive\`, \`art-dormant-sigil\`, \`sys-inheritance-rule\`, \`chaos-refugee-arrives\`, \`pattern-unknown-bloodline\`, \`warn-fourth-rival-flat\`. Slug length: 3-6 words, lowercase, hyphenated. An edge \`{"from": "char-northern-envoy", "to": "reason-new-faction-pressures"}\` is self-describing; the ID tells you what the node is without needing to scroll back. Do NOT use opaque short codes like F1, R2 — they force you to hold a mental table of what each code means.
 - **Labels**: Must be PROPER ENGLISH descriptions (3-10 words). Describe what happens in natural language. NOT technical identifiers or codes.
   - GOOD: "New rival emerges from the northern clans", "Hidden faction controls the resource supply"
   - BAD: "New character node", "expansion_antagonist", "world gap identifier"
@@ -1565,7 +1653,7 @@ Return a JSON object:
   "plannedNodeCount": <-- commit first; locked once nodes begin. Sets the terminal's index (N-1) in backward modes.>,
   "nodes": [
     {
-      "id": "F1",
+      "id": "fate-power-needs-antagonist",
       "index": 0,
       "type": "fate",
       "label": "Power struggle thread needs external antagonist",
@@ -1573,14 +1661,14 @@ Return a JSON object:
       "threadId": "thread-id"
     },
     {
-      "id": "R1",
+      "id": "reason-external-threat-unites",
       "index": 1,
       "type": "reasoning",
       "label": "External threat forces internal factions to unite",
       "detail": "Backward reasoning from thread requirement"
     },
     {
-      "id": "C1",
+      "id": "char-northern-warlord",
       "index": 2,
       "type": "character",
       "label": "Warlord from the northern wastes seeks conquest",
@@ -1588,14 +1676,14 @@ Return a JSON object:
       "entityId": "existing-character-id-to-connect-to"
     },
     {
-      "id": "S1",
+      "id": "sys-northern-territory-lawless",
       "index": 3,
       "type": "system",
       "label": "Northern territory is lawless and unexplored",
       "detail": "What's missing that enables new entity"
     },
     {
-      "id": "CH1",
+      "id": "chaos-envoy-brings-map",
       "index": 4,
       "type": "chaos",
       "label": "A foreign envoy arrives bearing a fragmentary map",
@@ -1603,10 +1691,10 @@ Return a JSON object:
     }
   ],
   "edges": [
-    {"id": "e1", "from": "F1", "to": "R1", "type": "requires"},
-    {"id": "e2", "from": "R1", "to": "C1", "type": "requires"},
-    {"id": "e3", "from": "S1", "to": "C1", "type": "enables"},
-    {"id": "e4", "from": "CH1", "to": "R1", "type": "enables"}
+    {"id": "e1", "from": "fate-power-needs-antagonist", "to": "reason-external-threat-unites", "type": "requires"},
+    {"id": "e2", "from": "reason-external-threat-unites", "to": "char-northern-warlord", "type": "requires"},
+    {"id": "e3", "from": "sys-northern-territory-lawless", "to": "char-northern-warlord", "type": "enables"},
+    {"id": "e4", "from": "chaos-envoy-brings-map", "to": "reason-external-threat-unites", "type": "enables"}
   ]
 }
 
@@ -1639,13 +1727,16 @@ Return a JSON object:
 2. **Fate throughout**: Fate nodes can appear anywhere — they justify WHY entities are added
 3. **Entity references**: character/location/artifact nodes connecting to existing entities MUST use entityId
 4. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
-5. **Causal complexity**: The graph is a causal reasoning diagram. Every new entity should show the full web of how it connects — who it serves, what it constrains, what it enables. Not a single line.
-6. **Integration focus**: Every new entity should show HOW it serves existing threads via edges
-7. **Node count**: Target ${nodeCountTarget}
+5. **Causal complexity**: every new entity shows the full web of how it connects — who it serves, what it constrains, what it enables. Not a single line.
+6. **Integration focus**: every new entity shows HOW it serves existing threads via edges.
+7. **Node count**: target ${nodeCountTarget}.
 8. **Pattern nodes**: 1-2 nodes, each naming a specific new direction the expansion opens — a category, relationship, or world-rule the narrative hasn't used.
-9. **Warning nodes**: 1-2 nodes, each citing a specific repetition risk from prior entities — "would be the Nth X", "this dynamic already exists between A and B".
-10. **Chaos nodes**: Include at least one chaos node. Expansion is ITSELF an outside-force event — something new is arriving. Chaos nodes represent the entities coming from beyond the current world that the expansion is bringing in.
-11. **Warning/pattern response (CRITICAL)**: Warnings and patterns must change what the rest of the graph produces. When a warning flags a repetition risk (e.g., "would be the third X"), the new entities in this expansion MUST be shaped so they break that repetition — different category, different relationship geometry, different power source. When a pattern proposes a novel direction, the actual new entities MUST embody that direction. A warning/pattern with no edges into the rest of the graph is dead weight; wire them in.
+9. **Warning nodes**: 1-2 nodes, each citing a specific repetition risk ("would be the Nth X", "this dynamic already exists between A and B").
+10. **Chaos nodes**: include at least one. Expansion is itself an outside-force event — chaos nodes represent what's arriving from beyond the current world.
+11. **Warning/pattern response (CRITICAL)**: warnings and patterns must structurally change what gets produced. A warning's repetition-risk is broken by entities with different category / relationship / power; a pattern's proposed direction is embodied in actual entities. Wire warning/pattern nodes to the body via edges — orphaned ones are dead weight.
+12. **Purpose or cut**: every new entity either serves an existing thread (enables / blocks / resolves) or seeds a new thread with a named closure shape. If you can't state what it changes, don't add it.
+13. **No functional twins**: two entities serving the same thread via the same mechanism are one entity. Expansion adds new shapes, not renamed copies of existing ones.
+14. **Novelty over recycling**: expansion is the layer where NEW threads of fate are planted. Prefer seeding fresh questions the later arcs will answer over refurbishing resolved ones. A resolved thread stays resolved unless something genuinely new justifies re-opening it.
 
 The graph should reveal: what threads demand from the world, what entities must exist to serve fate, and what outside-world additions (chaos) unblock what the existing cast cannot.
 
@@ -1692,12 +1783,12 @@ Return ONLY the JSON object.`;
     }
 
     // Ensure all nodes have required fields and valid types. The JSON
-    // array position (i) becomes generationOrder — the order the LLM
+    // array position (i) becomes order — the order the LLM
     // emitted/thought of each node, distinct from its presentation index.
     const nodes: ReasoningNode[] = data.nodes.map((n: Partial<ReasoningNode>, i: number) => ({
       id: typeof n.id === "string" ? n.id : `N${i}`,
       index: typeof n.index === "number" ? n.index : i,
-      generationOrder: i,
+      order: i,
       type: (typeof n.type === "string" && VALID_NODE_TYPES.has(n.type)) ? n.type as ReasoningNodeType : "reasoning",
       label: typeof n.label === "string" ? n.label.slice(0, 200) : "Unlabeled node",
       detail: typeof n.detail === "string" ? n.detail.slice(0, 500) : undefined,
@@ -1736,6 +1827,7 @@ Return ONLY the JSON object.`;
         {
           id: "R1",
           index: 0,
+          order: 0,
           type: "reasoning",
           label: "Expansion reasoning failed",
           detail: String(err),
@@ -2091,7 +2183,7 @@ Consider:
 Return a JSON object with RICH, DIVERSE nodes. Example showing all node types working together:
 
 **CRITICAL FORMAT REQUIREMENTS**:
-- **IDs**: Use SHORT, SIMPLE alphanumeric IDs: PK1, V1, M1, R1, C1, F1, L1, AR1, S1, WN1, etc. Do NOT use complex IDs like "PEAK_ARC2_T03" or "THREAD_RESOLVE_01".
+- **IDs**: Use SEMANTIC slugs that carry the node's subject, prefixed by type. Format: \`<type>-<kebab-case-subject>\`. Examples: \`peak-empire-falls\`, \`valley-protagonist-loses-ally\`, \`moment-secret-revealed\`, \`reason-survival-demands-alliance\`, \`char-rival-governor\`, \`fate-dynastic-curse\`, \`loc-throne-hall\`, \`art-broken-crown\`, \`sys-imperial-succession\`, \`chaos-outsider-arrives\`, \`pattern-two-protagonists-converge\`, \`warn-third-resolution-by-force\`. Slug length: 3-6 words, lowercase, hyphenated. An edge \`{"from": "peak-empire-falls", "to": "fate-dynastic-curse"}\` is self-describing; the reader (and you, writing later edges) can see what each node is without scrolling back. Do NOT use opaque short codes like PK1, V1 — they force you to hold a mental table of what each code means.
 - **Labels**: Must be PROPER ENGLISH descriptions (3-10 words). Describe what happens in natural language. NOT technical identifiers or codes.
 
 {
@@ -2105,80 +2197,80 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
     // PEAK that anchors an arc — carries arcIndex and sceneCount ONLY.
     // forceMode is DERIVED later from the arc's node mix. Don't set it.
     // The peak is the arc's structural commitment: forces converge, a thread culminates.
-    {"id": "PK1", "index": 10, "type": "peak", "label": "The Glacier Confrontation", "detail": "WHY this arc needs N scenes — which forces converge and which thread culminates", "threadId": "thread-id", "targetStatus": "resolved", "arcIndex": 1, "sceneCount": 6, "arcSlot": 1},
+    {"id": "peak-glacier-confrontation", "index": 10, "type": "peak", "label": "The Glacier Confrontation", "detail": "WHY this arc needs N scenes — which forces converge and which thread culminates", "threadId": "thread-id", "targetStatus": "resolved", "arcIndex": 1, "sceneCount": 6, "arcSlot": 1},
     // VALLEY that anchors an arc — also carries arc metadata. A valley arc pivots rather than resolves: tension is seeded, a boundary is crossed.
-    {"id": "V1", "index": 20, "type": "valley", "label": "Bai Ning Bing enters the inheritance", "detail": "WHY this pivot is necessary before the next peak — what new tension is seeded", "threadId": "thread-id", "targetStatus": "escalating", "arcIndex": 2, "sceneCount": 4, "arcSlot": 2},
+    {"id": "valley-bai-enters-inheritance", "index": 20, "type": "valley", "label": "Bai Ning Bing enters the inheritance", "detail": "WHY this pivot is necessary before the next peak — what new tension is seeded", "threadId": "thread-id", "targetStatus": "escalating", "arcIndex": 2, "sceneCount": 4, "arcSlot": 2},
     // MOMENTS — plan-level beats that matter but aren't the arc's anchor.
     // Thread escalation moment (not the arc's peak/valley, but worth flagging):
-    {"id": "M1", "index": 1, "type": "moment", "label": "Fang Yuan uncovers the clan's betrayal", "detail": "WHY this intermediate beat matters for the next peak", "threadId": "thread-id", "targetStatus": "escalating", "arcSlot": 1},
+    {"id": "moment-clan-betrayal-uncovered", "index": 1, "type": "moment", "label": "Fang Yuan uncovers the clan's betrayal", "detail": "WHY this intermediate beat matters for the next peak", "threadId": "thread-id", "targetStatus": "escalating", "arcSlot": 1},
     // Setpiece moment:
-    {"id": "M2", "index": 2, "type": "moment", "label": "Gu master's tomb first glimpsed", "detail": "Plants information or raises stakes for a later peak", "arcSlot": 1},
+    {"id": "moment-tomb-first-glimpsed", "index": 2, "type": "moment", "label": "Gu master's tomb first glimpsed", "detail": "Plants information or raises stakes for a later peak", "arcSlot": 1},
     // CHAOS — outside-force injection (new character / location / artifact /
     // thread that didn't exist). Don't set entityId or threadId.
-    {"id": "CH1", "index": 17, "type": "chaos", "label": "A rival scholar arrives from a hidden order", "detail": "Spawned via world expansion — introduces a new character whose knowledge unblocks the Glacier approach", "arcSlot": 3},
+    {"id": "chaos-rival-scholar-arrives", "index": 17, "type": "chaos", "label": "A rival scholar arrives from a hidden order", "detail": "Spawned via world expansion — introduces a new character whose knowledge unblocks the Glacier approach", "arcSlot": 3},
 
     // ═══════════════════════════════════════════════════════════════
     // FATE NODES: thread pressure throughout the plan
     // ═══════════════════════════════════════════════════════════════
-    {"id": "F1", "index": 2, "type": "fate", "label": "Survival thread demands immediate action", "detail": "How this thread's momentum shapes Arc 1 — reference thread log momentum", "threadId": "thread-id", "arcSlot": 1},
+    {"id": "fate-survival-demands-action", "index": 2, "type": "fate", "label": "Survival thread demands immediate action", "detail": "How this thread's momentum shapes Arc 1 — reference thread log momentum", "threadId": "thread-id", "arcSlot": 1},
 
     // ═══════════════════════════════════════════════════════════════
     // CHARACTER NODES: WHO drives the plan (reference specific knowledge)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "C1", "index": 3, "type": "character", "label": "Fang Yuan knows the Gu's location", "detail": "Reference their accumulated knowledge from context — 'knows X, therefore can Y'", "entityId": "char-id", "arcSlot": 1},
-    {"id": "C2", "index": 4, "type": "character", "label": "Bai Ning Bing's ambition forces confrontation", "detail": "Their relationship with another character constrains options", "entityId": "char-id", "arcSlot": 2},
+    {"id": "char-fang-yuan-knows-gu", "index": 3, "type": "character", "label": "Fang Yuan knows the Gu's location", "detail": "Reference their accumulated knowledge from context — 'knows X, therefore can Y'", "entityId": "char-id", "arcSlot": 1},
+    {"id": "char-bai-ambition-forces", "index": 4, "type": "character", "label": "Bai Ning Bing's ambition forces confrontation", "detail": "Their relationship with another character constrains options", "entityId": "char-id", "arcSlot": 2},
 
     // ═══════════════════════════════════════════════════════════════
     // LOCATION NODES: WHERE things must happen (reference continuity)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "L1", "index": 5, "type": "location", "label": "The Glacier's isolation enables secrecy", "detail": "Reference location's specific history or significance", "entityId": "loc-id", "arcSlot": 2},
+    {"id": "loc-glacier-enables-secrecy", "index": 5, "type": "location", "label": "The Glacier's isolation enables secrecy", "detail": "Reference location's specific history or significance", "entityId": "loc-id", "arcSlot": 2},
 
     // ═══════════════════════════════════════════════════════════════
     // ARTIFACT NODES: items that shape outcomes (reference capabilities)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "AR1", "index": 6, "type": "artifact", "label": "Spring Autumn Cicada enables time manipulation", "detail": "Reference specific capabilities from context", "entityId": "artifact-id", "arcSlot": 3},
+    {"id": "art-cicada-time-manipulation", "index": 6, "type": "artifact", "label": "Spring Autumn Cicada enables time manipulation", "detail": "Reference specific capabilities from context", "entityId": "artifact-id", "arcSlot": 3},
 
     // ═══════════════════════════════════════════════════════════════
     // SYSTEM NODES: world rules that constrain (reference principles/systems/constraints)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "S1", "index": 7, "type": "system", "label": "Gu feeding rules require specific resources", "detail": "Reference specific principle/system/constraint from WORLD KNOWLEDGE", "arcSlot": 1},
-    {"id": "S2", "index": 8, "type": "system", "label": "Clan hierarchy prevents direct challenge", "detail": "Reference specific tension that can be exploited", "arcSlot": 3},
+    {"id": "sys-gu-feeding-rules", "index": 7, "type": "system", "label": "Gu feeding rules require specific resources", "detail": "Reference specific principle/system/constraint from WORLD KNOWLEDGE", "arcSlot": 1},
+    {"id": "sys-clan-hierarchy-blocks", "index": 8, "type": "system", "label": "Clan hierarchy prevents direct challenge", "detail": "Reference specific tension that can be exploited", "arcSlot": 3},
 
     // ═══════════════════════════════════════════════════════════════
     // REASONING NODES: causal chains (THE BACKBONE — use extensively)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "R1", "index": 9, "type": "reasoning", "label": "Resolution requires securing the inheritance first", "detail": "Backward induction step — reference specific system knowledge or relationships", "arcSlot": 2},
-    {"id": "R2", "index": 11, "type": "reasoning", "label": "Inheritance access requires Fang Yuan's knowledge", "detail": "Connect plot point to character agency", "arcSlot": 1},
-    {"id": "R3", "index": 12, "type": "reasoning", "label": "Gu feeding rules constrain the timing", "detail": "Connect character to system rule", "arcSlot": 1},
-    {"id": "R4", "index": 13, "type": "reasoning", "label": "Glacier setting enables private confrontation", "detail": "Connect constraint to location", "arcSlot": 2},
+    {"id": "reason-resolution-needs-inheritance", "index": 9, "type": "reasoning", "label": "Resolution requires securing the inheritance first", "detail": "Backward induction step — reference specific system knowledge or relationships", "arcSlot": 2},
+    {"id": "reason-inheritance-needs-knowledge", "index": 11, "type": "reasoning", "label": "Inheritance access requires Fang Yuan's knowledge", "detail": "Connect plot point to character agency", "arcSlot": 1},
+    {"id": "reason-feeding-constrains-timing", "index": 12, "type": "reasoning", "label": "Gu feeding rules constrain the timing", "detail": "Connect character to system rule", "arcSlot": 1},
+    {"id": "reason-glacier-enables-private", "index": 13, "type": "reasoning", "label": "Glacier setting enables private confrontation", "detail": "Connect constraint to location", "arcSlot": 2},
 
     // ═══════════════════════════════════════════════════════════════
     // PATTERN NODES: creative expansion (inject novelty and emergence)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "PT1", "index": 14, "type": "pattern", "label": "Two rivals discover shared enemy", "detail": "What EMERGENT property arises when these unrelated elements interact?"},
-    {"id": "PT2", "index": 15, "type": "pattern", "label": "Recent victory hides a hidden cost", "detail": "Second-order effect: what does X actually mean for Y that no one has realized?"},
-    {"id": "PT3", "index": 16, "type": "pattern", "label": "Rumors of ancient Gu master's tomb", "detail": "What exists at the edge of the known world? New faction, location, or system implied but unexplored"},
+    {"id": "pattern-rivals-share-enemy", "index": 14, "type": "pattern", "label": "Two rivals discover shared enemy", "detail": "What EMERGENT property arises when these unrelated elements interact?"},
+    {"id": "pattern-victory-hides-cost", "index": 15, "type": "pattern", "label": "Recent victory hides a hidden cost", "detail": "Second-order effect: what does X actually mean for Y that no one has realized?"},
+    {"id": "pattern-rumored-ancient-tomb", "index": 16, "type": "pattern", "label": "Rumors of ancient Gu master's tomb", "detail": "What exists at the edge of the known world? New faction, location, or system implied but unexplored"},
 
     // ═══════════════════════════════════════════════════════════════
     // WARNING NODES: subvert predictability (challenge the obvious path)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "WN1", "index": 17, "type": "warning", "label": "Alliance is too convenient—needs betrayal", "detail": "What's the LEAST obvious resolution that still feels inevitable? Subvert this."},
-    {"id": "WN2", "index": 18, "type": "warning", "label": "Protagonist winning too easily", "detail": "What assumption should be challenged? What cost hasn't been paid?"}
+    {"id": "warn-convenient-alliance-needs-betrayal", "index": 17, "type": "warning", "label": "Alliance is too convenient—needs betrayal", "detail": "What's the LEAST obvious resolution that still feels inevitable? Subvert this."},
+    {"id": "warn-protagonist-wins-too-easily", "index": 18, "type": "warning", "label": "Protagonist winning too easily", "detail": "What assumption should be challenged? What cost hasn't been paid?"}
   ],
   "edges": [
     // Dense connections showing causal flow through the spine
-    {"id": "e1", "from": "PK1", "to": "R1", "type": "requires"},
-    {"id": "e2", "from": "R1", "to": "V1", "type": "requires"},
-    {"id": "e3", "from": "V1", "to": "M1", "type": "develops"},
-    {"id": "e4", "from": "M1", "to": "R2", "type": "requires"},
-    {"id": "e5", "from": "R2", "to": "C1", "type": "requires"},
-    {"id": "e6", "from": "S1", "to": "R3", "type": "constrains"},
-    {"id": "e7", "from": "R3", "to": "C1", "type": "constrains"},
-    {"id": "e8", "from": "R4", "to": "L1", "type": "enables"},
-    {"id": "e9", "from": "F1", "to": "PK1", "type": "constrains"},
-    {"id": "e10", "from": "AR1", "to": "R4", "type": "enables"},
-    {"id": "e11", "from": "C2", "to": "V1", "type": "causes"},
-    {"id": "e12", "from": "M2", "to": "PK1", "type": "develops"}
+    {"id": "e1", "from": "peak-glacier-confrontation", "to": "reason-resolution-needs-inheritance", "type": "requires"},
+    {"id": "e2", "from": "reason-resolution-needs-inheritance", "to": "valley-bai-enters-inheritance", "type": "requires"},
+    {"id": "e3", "from": "valley-bai-enters-inheritance", "to": "moment-clan-betrayal-uncovered", "type": "develops"},
+    {"id": "e4", "from": "moment-clan-betrayal-uncovered", "to": "reason-inheritance-needs-knowledge", "type": "requires"},
+    {"id": "e5", "from": "reason-inheritance-needs-knowledge", "to": "char-fang-yuan-knows-gu", "type": "requires"},
+    {"id": "e6", "from": "sys-gu-feeding-rules", "to": "reason-feeding-constrains-timing", "type": "constrains"},
+    {"id": "e7", "from": "reason-feeding-constrains-timing", "to": "char-fang-yuan-knows-gu", "type": "constrains"},
+    {"id": "e8", "from": "reason-glacier-enables-private", "to": "loc-glacier-enables-secrecy", "type": "enables"},
+    {"id": "e9", "from": "fate-survival-demands-action", "to": "peak-glacier-confrontation", "type": "constrains"},
+    {"id": "e10", "from": "art-cicada-time-manipulation", "to": "reason-glacier-enables-private", "type": "enables"},
+    {"id": "e11", "from": "char-bai-ambition-forces", "to": "valley-bai-enters-inheritance", "type": "causes"},
+    {"id": "e12", "from": "moment-tomb-first-glimpsed", "to": "peak-glacier-confrontation", "type": "develops"}
   ]
 }
 
@@ -2251,13 +2343,17 @@ Shape an arc's force character through its node composition: a fate-dominant arc
 9. **Peak/valley rhythm**: A plan of all peaks is exhausting; a plan of all valleys is all setup. Aim for alternation — roughly ~60/40 mix, with the final arc typically peak-anchored.
 10. **Thread trajectories**: Each thread needs spine nodes (peaks for resolutions/culminations, valleys for pivots, moments for intermediate escalations) showing its progression.
 11. **Chaos present**: Include chaos nodes where the plan benefits from something the existing world cannot produce — a fresh character arriving, a hidden location surfacing, a dormant artifact waking, a new thread emerging. Chaos nodes have arcSlot but NO entityId/threadId.
-12. **Causal complexity**: The graph must represent the REAL causal complexity of the plan. Story causation is a web — threads pull on many things at once, entities influence multiple reasoning lines, rules constrain several choices. Every time you add a node, consider what it connects TO and what connects INTO it. If a node only touches the story at one point, you're missing how it actually matters.
-13. **Every entity, fully connected**: When a character, location, artifact, or system genuinely shapes the plan, show all the places it shapes. Capture the full role, not just one role.
-14. **Pacing balance**: Mix arc sizes — not all arcs should be the same length
-15. **GROUNDED REASONING**: Reference specific character knowledge, relationships, artifacts, or world rules in reasoning nodes
-16. **CHARACTER AGENCY (distributed across the cast — enforce concretely)**: Distribute character driving across MULTIPLE entityIds. A plan where only the protagonist appears as a character node is a plan of scenery. Concrete rules: (a) character nodes must reference AT LEAST 3 distinct entityIds across the plan; (b) at least ONE arc must be driven primarily by a non-protagonist character (their character node has more outgoing causal edges than the protagonist's in that arc); (c) every named character node MUST have at least one OUTGOING edge — a character only acted upon has no agency and should either gain an outgoing edge showing their own decision, or be absorbed into a reasoning node. Rivals, allies, mentors, and faction leaders need independent goals and hidden agendas that appear in the reasoning chain, not just reactive stances.
-17. **SYSTEM CONSTRAINTS**: Include system nodes that show HOW world rules shape outcomes
-18. **Warning/pattern response (CRITICAL)**: Warnings and patterns are plan-level course-corrections. When a warning names a structural repetition across arcs ("three arcs in a row would resolve via external force", "rhythm is going flat — four consecutive fate-dominant arcs"), the spine anchors, arc sizing, and composition MUST change to break it — alternate peak/valley rhythms, vary arc lengths, shift force dominance, insert a chaos-anchored arc. When a pattern proposes a novel structural shape ("valley-anchored arc pivoting on a peripheral character", "two threads converge without either resolving"), at least one actual arc in the plan MUST adopt that shape. Wire warnings/patterns to the arcs they're correcting via edges. An orphaned warning/pattern with no structural consequence is dead weight.
+12. **Causal complexity**: story causation is a web — threads pull on many things, entities influence multiple lines, rules constrain several choices. Every node should connect to more than one point; a node touching the story only once is under-represented.
+13. **Every entity, fully connected**: when a character, location, artifact, or system shapes the plan, show all the places it shapes — not just one role.
+14. **Pacing balance**: mix arc sizes — not all arcs the same length.
+15. **Grounded reasoning**: reference specific character knowledge, relationships, artifacts, or world rules in reasoning nodes.
+16. **Character agency (CRITICAL)**: character nodes reference ≥3 distinct entityIds across the plan. At least one arc is driven by a non-protagonist (their character node has more outgoing edges than the protagonist's in that arc). Every named character has at least one OUTGOING edge — characters acted upon without agency are absorbed into reasoning, not rendered as scenery.
+17. **System constraints**: include system nodes that show HOW world rules shape outcomes.
+18. **Warning/pattern response (CRITICAL)**: warnings and patterns must structurally change the plan, not sit as ornaments. A warning's cross-arc repetition is broken by changing spine anchors, arc sizing, or composition; a pattern's proposed shape is adopted by at least one actual arc. Wire warning/pattern nodes to the arcs they're correcting via edges — orphaned ones are dead weight.
+19. **Every thread lands**: each thread resolves in a specific arc, or is explicitly carried past the plan. Net open threads trend toward closure by the final arc, not backlog.
+20. **No twin arcs**: each arc moves the story from a different state to a different state. Two arcs with the same subject are one arc — merge or cut.
+21. **Terminal arc commits**: the final arc's anchor is a peak that closes threads, unless the summary explicitly declares the plan an opening movement.
+22. **Novelty over recycling**: resolved threads mostly stay resolved — an arc that re-opens a closed question must earn it, not default to it. Prefer new threads of fate across the plan and new structural shapes across arcs. Sameness between arcs reads as drift.
 
 ## NODE COUNT TARGETS (MANDATORY MINIMUMS)
 
@@ -2340,12 +2436,12 @@ Return ONLY the JSON object.`;
     const arcCount = typeof data.arcCount === "number" ? data.arcCount : arcTarget;
 
     // Validate and sanitize nodes. The JSON array position (original
-    // emission order) becomes generationOrder — the order the reasoner
+    // emission order) becomes order — the order the reasoner
     // thought of each node. Captured BEFORE reindexing so the signature
     // of backward thinking modes survives the causal reindex below.
     const nodes: CoordinationNode[] = (data.nodes ?? [])
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((n: any, i: number) => ({ n, generationOrder: i }))
+      .map((n: any, i: number) => ({ n, order: i }))
       .filter(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ({ n }: { n: any }) =>
@@ -2355,10 +2451,10 @@ Return ONLY the JSON object.`;
           typeof n.label === "string",
       )
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map(({ n, generationOrder }: { n: any; generationOrder: number }) => ({
+      .map(({ n, order }: { n: any; order: number }) => ({
         id: n.id.slice(0, 20),
         index: n.index, // Will be reindexed below
-        generationOrder,
+        order,
         type: VALID_COORDINATION_NODE_TYPES.has(n.type) ? n.type : "reasoning",
         label: typeof n.label === "string" ? n.label.slice(0, 100) : "",
         detail: typeof n.detail === "string" ? n.detail.slice(0, 300) : undefined,

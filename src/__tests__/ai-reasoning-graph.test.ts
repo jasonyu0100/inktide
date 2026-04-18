@@ -7,9 +7,9 @@ import type { ReasoningGraphSnapshot, WorldBuild, NarrativeState } from '@/types
 function createReasoningGraph(overrides: Partial<ReasoningGraph> = {}): ReasoningGraph {
   return {
     nodes: [
-      { id: 'F1', index: 0, type: 'fate', label: 'Thread needs escalation', threadId: 'T-01', detail: 'Fate pulls toward confrontation' },
-      { id: 'R1', index: 1, type: 'reasoning', label: 'Character must act', detail: 'Sets up the logic' },
-      { id: 'C1', index: 2, type: 'character', label: 'Character action', entityId: 'C-01' },
+      { id: 'F1', index: 0, order: 0, type: 'fate', label: 'Thread needs escalation', threadId: 'T-01', detail: 'Fate pulls toward confrontation' },
+      { id: 'R1', index: 1, order: 1, type: 'reasoning', label: 'Character must act', detail: 'Sets up the logic' },
+      { id: 'C1', index: 2, order: 2, type: 'character', label: 'Character action', entityId: 'C-01' },
     ],
     edges: [
       { id: 'e1', from: 'F1', to: 'R1', type: 'requires' },
@@ -25,12 +25,12 @@ function createReasoningGraph(overrides: Partial<ReasoningGraph> = {}): Reasonin
 function createExpansionReasoningGraph(overrides: Partial<ExpansionReasoningGraph> = {}): ExpansionReasoningGraph {
   return {
     nodes: [
-      { id: 'F1', index: 0, type: 'fate', label: 'Thread needs antagonist', threadId: 'T-01', detail: 'Fate demands opposition' },
-      { id: 'R1', index: 1, type: 'reasoning', label: 'Faction provides conflict', detail: 'Creates opposition' },
-      { id: 'G1', index: 2, type: 'system', label: 'Gap identified', detail: 'Missing antagonist faction' },
-      { id: 'C1', index: 3, type: 'character', label: 'New character fills gap', entityId: 'C-02' },
-      { id: 'P1', index: 4, type: 'pattern', label: 'Variety opportunity', detail: 'Fresh direction' },
-      { id: 'W1', index: 5, type: 'warning', label: 'Avoid repetition', detail: 'Risk of staleness' },
+      { id: 'F1', index: 0, order: 0, type: 'fate', label: 'Thread needs antagonist', threadId: 'T-01', detail: 'Fate demands opposition' },
+      { id: 'R1', index: 1, order: 1, type: 'reasoning', label: 'Faction provides conflict', detail: 'Creates opposition' },
+      { id: 'G1', index: 2, order: 2, type: 'system', label: 'Gap identified', detail: 'Missing antagonist faction' },
+      { id: 'C1', index: 3, order: 3, type: 'character', label: 'New character fills gap', entityId: 'C-02' },
+      { id: 'P1', index: 4, order: 4, type: 'pattern', label: 'Variety opportunity', detail: 'Fresh direction' },
+      { id: 'W1', index: 5, order: 5, type: 'warning', label: 'Avoid repetition', detail: 'Risk of staleness' },
     ],
     edges: [
       { id: 'e1', from: 'F1', to: 'R1', type: 'requires' },
@@ -97,7 +97,9 @@ describe('buildSequentialPath', () => {
     const graph = createReasoningGraph();
     const path = buildSequentialPath(graph);
 
-    expect(path).toContain('→ Sets up the logic');
+    // Detail is prefixed with `· ` (bullet) to distinguish from edge arrows
+    // which use → and ←.
+    expect(path).toContain('· Sets up the logic');
   });
 
   it('should handle empty graph', () => {
@@ -109,7 +111,7 @@ describe('buildSequentialPath', () => {
 
   it('should handle nodes without edges', () => {
     const graph = createReasoningGraph({
-      nodes: [{ id: 'R1', index: 0, type: 'reasoning', label: 'Standalone' }],
+      nodes: [{ id: 'R1', index: 0, order: 0, type: 'reasoning', label: 'Standalone' }],
       edges: [],
     });
     const path = buildSequentialPath(graph);
@@ -126,6 +128,20 @@ describe('buildSequentialPath', () => {
     expect(path).toContain('PATTERN:');
     expect(path).toContain('WARNING:');
     expect(path).toContain('SYSTEM:');
+  });
+
+  it('should render incoming edges so convergence points are visible', () => {
+    // R1 has an incoming edge from F1 (F1 requires R1), and C1 has an
+    // incoming edge from R1 (R1 requires C1). The new format surfaces
+    // each node's predecessors on its own entry so an LLM reading
+    // sequentially can see the full bidirectional context without having
+    // to scan the whole list.
+    const graph = createReasoningGraph();
+    const path = buildSequentialPath(graph);
+
+    expect(path).toContain('in:');
+    expect(path).toMatch(/F1←requires/);
+    expect(path).toMatch(/R1←requires/);
   });
 });
 

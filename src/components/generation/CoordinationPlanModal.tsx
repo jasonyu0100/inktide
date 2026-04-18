@@ -651,9 +651,9 @@ export function CoordinationPlanModal({
                   )}
                   <span className="text-[10px] text-text-dim ml-auto">
                     Index {focusedNode.index}
-                    {typeof focusedNode.generationOrder === "number" && focusedNode.generationOrder !== focusedNode.index && (
+                    {typeof focusedNode.order === "number" && focusedNode.order !== focusedNode.index && (
                       <span className="ml-1.5 text-text-dim/60" title="Order the reasoner thought of this node">
-                        · gen {focusedNode.generationOrder}
+                        · gen {focusedNode.order}
                       </span>
                     )}
                   </span>

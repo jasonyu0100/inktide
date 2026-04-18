@@ -138,18 +138,18 @@ export default function ReasoningNodeDetail({ arcId, worldBuildId, nodeId }: Pro
           className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 relative"
           style={{ backgroundColor: colors.fill, color: colors.text }}
           title={
-            typeof node.generationOrder === "number" && node.generationOrder !== node.index
-              ? `Presentation index ${node.index} · Generated ${node.generationOrder + 1}${ordinalSuffix(node.generationOrder + 1)}`
+            typeof node.order === "number" && node.order !== node.index
+              ? `Presentation index ${node.index} · Generated ${node.order + 1}${ordinalSuffix(node.order + 1)}`
               : `Index ${node.index}`
           }
         >
           {node.index}
-          {typeof node.generationOrder === "number" && node.generationOrder !== node.index && (
+          {typeof node.order === "number" && node.order !== node.index && (
             <span
               className="absolute -bottom-1 -right-1 px-1 rounded text-[8px] font-mono bg-bg-base/90 border border-white/15 text-text-dim leading-tight"
-              title={`Generated ${node.generationOrder + 1}${ordinalSuffix(node.generationOrder + 1)} (thinking order)`}
+              title={`Generated ${node.order + 1}${ordinalSuffix(node.order + 1)} (thinking order)`}
             >
-              g{node.generationOrder}
+              g{node.order}
             </span>
           )}
         </div>

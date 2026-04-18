@@ -317,8 +317,8 @@ export function ReasoningGraphModal({
     // shows as a small corner badge so the thinking signature is visible.
     const divergentNodes = nodeGroups.filter(
       d =>
-        typeof d.data.generationOrder === "number" &&
-        d.data.generationOrder !== d.data.index,
+        typeof d.data.order === "number" &&
+        d.data.order !== d.data.index,
     );
 
     divergentNodes
@@ -342,11 +342,11 @@ export function ReasoningGraphModal({
       .attr("font-weight", "500")
       .attr("fill", "#94a3b8")
       .attr("pointer-events", "none")
-      .text(d => `g${d.data.generationOrder}`);
+      .text(d => `g${d.data.order}`);
 
     divergentNodes
       .append("title")
-      .text(d => `Presented at index ${d.data.index} · Generated ${(d.data.generationOrder ?? 0) + 1}`);
+      .text(d => `Presented at index ${d.data.index} · Generated ${(d.data.order ?? 0) + 1}`);
 
     // Type badge (top-right)
     nodeGroups
@@ -539,9 +539,9 @@ export function ReasoningGraphModal({
                   <span className="text-[10px] text-text-dim">#{focusedNode.id}</span>
                   <span className="text-[10px] text-text-dim ml-auto">
                     Index {focusedNode.index}
-                    {typeof focusedNode.generationOrder === "number" && focusedNode.generationOrder !== focusedNode.index && (
+                    {typeof focusedNode.order === "number" && focusedNode.order !== focusedNode.index && (
                       <span className="ml-1.5 text-text-dim/60" title="Order the reasoner thought of this node">
-                        · gen {focusedNode.generationOrder}
+                        · gen {focusedNode.order}
                       </span>
                     )}
                   </span>

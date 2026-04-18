@@ -122,6 +122,16 @@ export default function WorldGraph() {
   // Resolve all image refs to blob URLs
   const resolvedImageUrls = useImageUrlMap(allImageRefs);
 
+  // Background image for the graph canvas — the current scene's location
+  // image if one is available. Rendered as a faded layer behind the SVG so
+  // the graph stays legible while the place stays present.
+  const locationBackgroundUrl = useMemo(() => {
+    if (!currentScene || !narrative) return null;
+    const loc = narrative.locations[currentScene.locationId];
+    if (!loc?.imageUrl) return null;
+    return resolvedImageUrls.get(loc.imageUrl) ?? null;
+  }, [currentScene, narrative, resolvedImageUrls]);
+
   // Determine which node is selected for highlight
   const selectedNodeId = useMemo(() => {
     if (!inspectorContext) return null;
@@ -1171,11 +1181,24 @@ export default function WorldGraph() {
           currentIndex={state.viewState.currentSceneIndex}
         />
       ) : (
-        <svg
-          ref={svgRef}
-          className="h-full w-full"
-          style={{ background: 'transparent' }}
-        />
+        <div className="relative h-full w-full">
+          {locationBackgroundUrl && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: `url(${locationBackgroundUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+          )}
+          <svg
+            ref={svgRef}
+            className="relative h-full w-full"
+            style={{ background: 'transparent' }}
+          />
+        </div>
       )}
       {/* Group navigation (bottom-left) */}
       {(graphViewMode === 'spatial' || graphViewMode === 'overview') && groups.length > 1 && (

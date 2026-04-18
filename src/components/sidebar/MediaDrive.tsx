@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { useStore } from '@/lib/store';
 import { useImageUrl } from '@/hooks/useAssetUrl';
 import { resolveEntry } from '@/types/narrative';
@@ -21,6 +21,28 @@ type SceneReadiness = {
   missingLocation: Location | null;
   ready: boolean;
 };
+
+type BatchItem =
+  | { kind: 'character'; char: Character }
+  | { kind: 'location'; loc: Location }
+  | { kind: 'artifact'; artifact: Artifact }
+  | { kind: 'scene'; readiness: SceneReadiness };
+
+type BatchPreset = {
+  key: string;
+  label: string;
+  items: BatchItem[];
+};
+
+type BatchState = {
+  label: string;
+  total: number;
+  completed: number;
+};
+
+// Sliding window — N workers pull from a shared queue until empty.
+// Matches PROSE_CONCURRENCY; Replicate handles its own rate limiting.
+const BATCH_CONCURRENCY = 10;
 
 async function generateImage(
   type: 'character' | 'location' | 'artifact' | 'scene',
@@ -104,6 +126,9 @@ export default function MediaDrive() {
   const [showStyleEditor, setShowStyleEditor] = useState(false);
   const [styleDraft, setStyleDraft] = useState(narrative?.imageStyle ?? '');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [batchState, setBatchState] = useState<BatchState | null>(null);
+  const batchCancelRef = useRef(false);
+  const batchBusy = batchState !== null;
 
   const characters = useMemo(() => {
     if (!narrative) return [];
@@ -148,6 +173,54 @@ export default function MediaDrive() {
       };
     });
   }, [narrative, scenes]);
+
+  // Batch presets — filter options per tab. Each preset shows a count, so
+  // the user sees the scope before starting. Presets with zero items are
+  // filtered out at render time.
+  const batchPresets = useMemo((): BatchPreset[] => {
+    if (!narrative) return [];
+
+    if (tab === 'characters') {
+      const missing = characters.filter((c) => !c.imageUrl);
+      const povIds = new Set(scenes.map((s) => s.povId).filter(Boolean));
+      const participantIds = new Set<string>();
+      for (const s of scenes) for (const id of s.participantIds) participantIds.add(id);
+      return [
+        { key: 'pov', label: 'POV', items: missing.filter((c) => povIds.has(c.id)).map((c) => ({ kind: 'character', char: c })) },
+        { key: 'used', label: 'In scenes', items: missing.filter((c) => participantIds.has(c.id)).map((c) => ({ kind: 'character', char: c })) },
+        { key: 'all', label: 'All', items: missing.map((c) => ({ kind: 'character', char: c })) },
+      ];
+    }
+
+    if (tab === 'locations') {
+      const missing = locations.filter((l) => !l.imageUrl);
+      const usedIds = new Set(scenes.map((s) => s.locationId).filter(Boolean));
+      return [
+        { key: 'used', label: 'In scenes', items: missing.filter((l) => usedIds.has(l.id)).map((l) => ({ kind: 'location', loc: l })) },
+        { key: 'all', label: 'All', items: missing.map((l) => ({ kind: 'location', loc: l })) },
+      ];
+    }
+
+    if (tab === 'artifacts') {
+      const missing = artifacts.filter((a) => !a.imageUrl);
+      const usedIds = new Set<string>();
+      for (const s of scenes) {
+        for (const u of s.artifactUsages ?? []) usedIds.add(u.artifactId);
+      }
+      return [
+        { key: 'used', label: 'In scenes', items: missing.filter((a) => usedIds.has(a.id)).map((a) => ({ kind: 'artifact', artifact: a })) },
+        { key: 'key', label: 'Key only', items: missing.filter((a) => a.significance === 'key').map((a) => ({ kind: 'artifact', artifact: a })) },
+        { key: 'all', label: 'All', items: missing.map((a) => ({ kind: 'artifact', artifact: a })) },
+      ];
+    }
+
+    // scenes
+    const missing = sceneReadiness.filter((r) => !r.scene.imageUrl);
+    return [
+      { key: 'ready', label: 'Refs ready', items: missing.filter((r) => r.ready).map((r) => ({ kind: 'scene', readiness: r })) },
+      { key: 'all', label: 'All (cascades refs)', items: missing.map((r) => ({ kind: 'scene', readiness: r })) },
+    ];
+  }, [tab, narrative, characters, locations, artifacts, scenes, sceneReadiness]);
 
   // Build preview items for current tab (only items with images)
   const previewItems = useMemo((): MediaItem[] => {
@@ -200,146 +273,180 @@ export default function MediaDrive() {
     return false;
   }, [access.userApiKeys, access.hasReplicateKey]);
 
-  const generateCharacterImage = useCallback(async (char: Character) => {
-    if (!narrative || generating || requireKeys()) return;
-    setGenerating(char.id);
-    try {
-      const hints = Object.values(char.world.nodes).map((n) => `${n.type}: ${n.content}`);
-      const { imageUrl } = await generateImage('character', {
-        name: char.name,
-        role: char.role,
-        worldSummary: narrative.worldSummary,
-        continuityHints: hints.slice(0, 5),
-        imagePrompt: char.imagePrompt,
-        imageStyle: narrative.imageStyle,
-      }, narrative.id);
-      dispatch({ type: 'SET_CHARACTER_IMAGE', characterId: char.id, imageUrl });
-    } catch (err) {
-      console.error('Failed to generate character image:', err);
-    } finally {
-      setGenerating(null);
+  // ── Pure runners — dispatch on success, throw on failure. These have no
+  // concurrency-control guards so the batch runner can drive them directly.
+  // The single-call wrappers below add the generating-state guards for
+  // click-driven use.
+
+  const runCharacterGen = useCallback(async (char: Character): Promise<void> => {
+    if (!narrative) return;
+    const hints = Object.values(char.world.nodes).map((n) => `${n.type}: ${n.content}`);
+    const { imageUrl } = await generateImage('character', {
+      name: char.name,
+      role: char.role,
+      worldSummary: narrative.worldSummary,
+      continuityHints: hints.slice(0, 5),
+      imagePrompt: char.imagePrompt,
+      imageStyle: narrative.imageStyle,
+    }, narrative.id);
+    dispatch({ type: 'SET_CHARACTER_IMAGE', characterId: char.id, imageUrl });
+  }, [narrative, dispatch]);
+
+  const runLocationGen = useCallback(async (loc: Location): Promise<void> => {
+    if (!narrative) return;
+    const parentName = loc.parentId ? narrative.locations[loc.parentId]?.name : undefined;
+    const hints = Object.values(loc.world.nodes).map((n) => `${n.type}: ${n.content}`);
+    const { imageUrl } = await generateImage('location', {
+      name: loc.name,
+      parentName,
+      worldSummary: narrative.worldSummary,
+      continuityHints: hints.slice(0, 5),
+      imagePrompt: loc.imagePrompt,
+      imageStyle: narrative.imageStyle,
+    }, narrative.id);
+    dispatch({ type: 'SET_LOCATION_IMAGE', locationId: loc.id, imageUrl });
+  }, [narrative, dispatch]);
+
+  const runArtifactGen = useCallback(async (artifact: Artifact): Promise<void> => {
+    if (!narrative) return;
+    const hints = Object.values(artifact.world.nodes).map((n) => `${n.type}: ${n.content}`);
+    const ownerName = artifact.parentId
+      ? (narrative.characters[artifact.parentId]?.name ?? narrative.locations[artifact.parentId]?.name ?? undefined)
+      : undefined;
+    const { imageUrl } = await generateImage('artifact', {
+      name: artifact.name,
+      significance: artifact.significance,
+      ownerName,
+      worldSummary: narrative.worldSummary,
+      continuityHints: hints.slice(0, 5),
+      imagePrompt: artifact.imagePrompt,
+      imageStyle: narrative.imageStyle,
+    }, narrative.id);
+    dispatch({ type: 'SET_ARTIFACT_IMAGE', artifactId: artifact.id, imageUrl });
+  }, [narrative, dispatch]);
+
+  const runSceneGen = useCallback(async (readiness: SceneReadiness): Promise<void> => {
+    if (!narrative) return;
+    // Cascade: generate all missing refs in parallel with staggered starts
+    const stagger = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    const refTasks: Promise<void>[] = [];
+    let delay = 0;
+
+    for (const char of readiness.missingCharacters) {
+      const d = delay;
+      refTasks.push(
+        stagger(d).then(() => runCharacterGen(char)).catch((err) => {
+          console.error(`Failed to generate portrait for ${char.name}:`, err);
+        }),
+      );
+      delay += 500;
     }
-  }, [narrative, generating, dispatch, requireKeys]);
+
+    if (readiness.missingLocation) {
+      const d = delay;
+      const loc = readiness.missingLocation;
+      refTasks.push(
+        stagger(d).then(() => runLocationGen(loc)).catch((err) => {
+          console.error(`Failed to generate location ${loc.name}:`, err);
+        }),
+      );
+    }
+
+    // Wait for all refs to settle (partial failures don't block the scene)
+    await Promise.allSettled(refTasks);
+
+    // Generate the scene still
+    const locationName = narrative.locations[readiness.scene.locationId]?.name ?? 'unknown';
+    const charDescs = readiness.scene.participantIds
+      .map((id) => narrative.characters[id])
+      .filter(Boolean)
+      .map((c) => ({
+        name: c.name,
+        visualDescription: c.imagePrompt || Object.values(c.world.nodes).slice(0, 3).map((n) => n.content).join('. ') || c.role,
+      }));
+    const { imageUrl } = await generateImage('scene', {
+      summary: readiness.scene.summary,
+      locationName,
+      characterDescriptions: charDescs,
+      worldSummary: narrative.worldSummary,
+      imageStyle: narrative.imageStyle,
+    }, narrative.id);
+    dispatch({ type: 'SET_SCENE_IMAGE', sceneId: readiness.scene.id, imageUrl });
+  }, [narrative, dispatch, runCharacterGen, runLocationGen]);
+
+  // ── Single-call wrappers (click-driven). Guard against overlapping work.
+
+  const generateCharacterImage = useCallback(async (char: Character) => {
+    if (!narrative || generating || batchBusy || requireKeys()) return;
+    setGenerating(char.id);
+    try { await runCharacterGen(char); }
+    catch (err) { console.error('Failed to generate character image:', err); }
+    finally { setGenerating(null); }
+  }, [narrative, generating, batchBusy, requireKeys, runCharacterGen]);
 
   const generateLocationImage = useCallback(async (loc: Location) => {
-    if (!narrative || generating || requireKeys()) return;
+    if (!narrative || generating || batchBusy || requireKeys()) return;
     setGenerating(loc.id);
-    try {
-      const parentName = loc.parentId ? narrative.locations[loc.parentId]?.name : undefined;
-      const hints = Object.values(loc.world.nodes).map((n) => `${n.type}: ${n.content}`);
-      const { imageUrl } = await generateImage('location', {
-        name: loc.name,
-        parentName,
-        worldSummary: narrative.worldSummary,
-        continuityHints: hints.slice(0, 5),
-        imagePrompt: loc.imagePrompt,
-        imageStyle: narrative.imageStyle,
-      }, narrative.id);
-      dispatch({ type: 'SET_LOCATION_IMAGE', locationId: loc.id, imageUrl });
-    } catch (err) {
-      console.error('Failed to generate location image:', err);
-    } finally {
-      setGenerating(null);
-    }
-  }, [narrative, generating, dispatch, requireKeys]);
+    try { await runLocationGen(loc); }
+    catch (err) { console.error('Failed to generate location image:', err); }
+    finally { setGenerating(null); }
+  }, [narrative, generating, batchBusy, requireKeys, runLocationGen]);
 
   const generateArtifactImage = useCallback(async (artifact: Artifact) => {
-    if (!narrative || generating || requireKeys()) return;
+    if (!narrative || generating || batchBusy || requireKeys()) return;
     setGenerating(artifact.id);
-    try {
-      const hints = Object.values(artifact.world.nodes).map((n) => `${n.type}: ${n.content}`);
-      const ownerName = artifact.parentId
-        ? (narrative.characters[artifact.parentId]?.name ?? narrative.locations[artifact.parentId]?.name ?? undefined)
-        : undefined;
-      const { imageUrl } = await generateImage('artifact', {
-        name: artifact.name,
-        significance: artifact.significance,
-        ownerName,
-        worldSummary: narrative.worldSummary,
-        continuityHints: hints.slice(0, 5),
-        imagePrompt: artifact.imagePrompt,
-        imageStyle: narrative.imageStyle,
-      }, narrative.id);
-      dispatch({ type: 'SET_ARTIFACT_IMAGE', artifactId: artifact.id, imageUrl });
-    } catch (err) {
-      console.error('Failed to generate artifact image:', err);
-    } finally {
-      setGenerating(null);
-    }
-  }, [narrative, generating, dispatch, requireKeys]);
+    try { await runArtifactGen(artifact); }
+    catch (err) { console.error('Failed to generate artifact image:', err); }
+    finally { setGenerating(null); }
+  }, [narrative, generating, batchBusy, requireKeys, runArtifactGen]);
 
   const generateSceneImage = useCallback(async (readiness: SceneReadiness) => {
-    if (!narrative || generating || requireKeys()) return;
+    if (!narrative || generating || batchBusy || requireKeys()) return;
     setGenerating(readiness.scene.id);
-    try {
-      // Cascade: generate all missing refs in parallel with staggered starts
-      const stagger = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-      const refTasks: Promise<void>[] = [];
-      let delay = 0;
+    try { await runSceneGen(readiness); }
+    catch (err) { console.error('Failed to generate scene image:', err); }
+    finally { setGenerating(null); }
+  }, [narrative, generating, batchBusy, requireKeys, runSceneGen]);
 
-      for (const char of readiness.missingCharacters) {
-        const d = delay;
-        refTasks.push(
-          stagger(d).then(() =>
-            generateImage('character', {
-              name: char.name,
-              role: char.role,
-              worldSummary: narrative.worldSummary,
-              continuityHints: Object.values(char.world.nodes).map((n) => `${n.type}: ${n.content}`).slice(0, 5),
-              imagePrompt: char.imagePrompt,
-              imageStyle: narrative.imageStyle,
-            }, narrative.id)
-              .then(({ imageUrl }) => { dispatch({ type: 'SET_CHARACTER_IMAGE', characterId: char.id, imageUrl }); })
-          ).catch((err) => { console.error(`Failed to generate portrait for ${char.name}:`, err); }),
-        );
-        delay += 500;
+  // ── Batch runner — bounded concurrency, cancellable mid-flight.
+
+  const runBatch = useCallback(async (label: string, items: BatchItem[]) => {
+    if (!narrative || batchBusy || generating || requireKeys()) return;
+    if (items.length === 0) return;
+
+    batchCancelRef.current = false;
+    setBatchState({ label, total: items.length, completed: 0 });
+
+    const queue = [...items];
+
+    const worker = async () => {
+      while (queue.length > 0) {
+        if (batchCancelRef.current) return;
+        const item = queue.shift();
+        if (!item) return;
+        try {
+          if (item.kind === 'character') await runCharacterGen(item.char);
+          else if (item.kind === 'location') await runLocationGen(item.loc);
+          else if (item.kind === 'artifact') await runArtifactGen(item.artifact);
+          else await runSceneGen(item.readiness);
+        } catch (err) {
+          console.error('Batch item failed:', err);
+        }
+        setBatchState((s) => (s ? { ...s, completed: s.completed + 1 } : null));
       }
+    };
 
-      if (readiness.missingLocation) {
-        const loc = readiness.missingLocation;
-        const parentName = loc.parentId ? narrative.locations[loc.parentId]?.name : undefined;
-        const d = delay;
-        refTasks.push(
-          stagger(d).then(() =>
-            generateImage('location', {
-              name: loc.name,
-              parentName,
-              worldSummary: narrative.worldSummary,
-              continuityHints: Object.values(loc.world.nodes).map((n) => `${n.type}: ${n.content}`).slice(0, 5),
-              imagePrompt: loc.imagePrompt,
-              imageStyle: narrative.imageStyle,
-            }, narrative.id)
-              .then(({ imageUrl }) => { dispatch({ type: 'SET_LOCATION_IMAGE', locationId: loc.id, imageUrl }); })
-          ).catch((err) => { console.error(`Failed to generate location ${loc.name}:`, err); }),
-        );
-      }
+    const workers = Array.from(
+      { length: Math.min(BATCH_CONCURRENCY, items.length) },
+      () => worker(),
+    );
+    await Promise.allSettled(workers);
+    setBatchState(null);
+  }, [narrative, batchBusy, generating, requireKeys, runCharacterGen, runLocationGen, runArtifactGen, runSceneGen]);
 
-      // Wait for all refs to settle (partial failures don't block the scene)
-      await Promise.allSettled(refTasks);
-
-      // Generate the scene still
-      const locationName = narrative.locations[readiness.scene.locationId]?.name ?? 'unknown';
-      const charDescs = readiness.scene.participantIds
-        .map((id) => narrative.characters[id])
-        .filter(Boolean)
-        .map((c) => ({
-          name: c.name,
-          visualDescription: c.imagePrompt || Object.values(c.world.nodes).slice(0, 3).map((n) => n.content).join('. ') || c.role,
-        }));
-      const { imageUrl } = await generateImage('scene', {
-        summary: readiness.scene.summary,
-        locationName,
-        characterDescriptions: charDescs,
-        worldSummary: narrative.worldSummary,
-        imageStyle: narrative.imageStyle,
-      }, narrative.id);
-      dispatch({ type: 'SET_SCENE_IMAGE', sceneId: readiness.scene.id, imageUrl });
-    } catch (err) {
-      console.error('Failed to generate scene image:', err);
-    } finally {
-      setGenerating(null);
-    }
-  }, [narrative, generating, dispatch, requireKeys]);
+  const cancelBatch = useCallback(() => {
+    batchCancelRef.current = true;
+  }, []);
 
   if (!narrative) {
     return (
@@ -411,6 +518,50 @@ export default function MediaDrive() {
         ))}
       </div>
 
+      {/* Batch generation controls — filter chips when idle, progress + cancel when running */}
+      {batchState ? (
+        <div className="shrink-0 border-b border-border px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <Spinner />
+            <p className="text-[10px] text-text-dim flex-1 truncate">
+              {batchState.label} · {batchState.completed}/{batchState.total}
+            </p>
+            <button
+              onClick={cancelBatch}
+              className="text-[10px] text-text-dim hover:text-text-primary transition-colors"
+              title="Stop after current items finish"
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="mt-1 h-0.5 w-full bg-white/6 rounded overflow-hidden">
+            <div
+              className="h-full bg-accent transition-all"
+              style={{ width: `${batchState.total > 0 ? (batchState.completed / batchState.total) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+      ) : (
+        batchPresets.some((p) => p.items.length > 0) && (
+          <div className="shrink-0 border-b border-border px-2 py-1.5 flex flex-wrap gap-1 items-center">
+            <span className="text-[9px] uppercase tracking-wider text-text-dim/60 mr-1">
+              Generate
+            </span>
+            {batchPresets.map((p) => p.items.length > 0 && (
+              <button
+                key={p.key}
+                onClick={() => runBatch(`${p.label} (${tab})`, p.items)}
+                disabled={generating !== null || batchBusy}
+                className="text-[10px] px-1.5 py-0.5 rounded bg-white/6 text-text-secondary hover:bg-accent/20 hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title={`Generate ${p.items.length} missing ${tab}`}
+              >
+                {p.label} <span className="text-text-dim tabular-nums">{p.items.length}</span>
+              </button>
+            ))}
+          </div>
+        )
+      )}
+
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
         {/* ── Characters ── */}
         {tab === 'characters' && characters.map((char) => (
@@ -431,7 +582,7 @@ export default function MediaDrive() {
               <p className="text-xs text-text-primary truncate">{char.name}</p>
               <p className="text-[10px] text-text-dim">{char.role}</p>
             </button>
-            <GenerateButton onClick={() => generateCharacterImage(char)} disabled={generating !== null} generating={generating === char.id} />
+            <GenerateButton onClick={() => generateCharacterImage(char)} disabled={generating !== null || batchBusy} generating={generating === char.id} />
           </div>
         ))}
 
@@ -456,7 +607,7 @@ export default function MediaDrive() {
                 <p className="text-[10px] text-text-dim truncate">in {narrative.locations[loc.parentId].name}</p>
               )}
             </button>
-            <GenerateButton onClick={() => generateLocationImage(loc)} disabled={generating !== null} generating={generating === loc.id} />
+            <GenerateButton onClick={() => generateLocationImage(loc)} disabled={generating !== null || batchBusy} generating={generating === loc.id} />
           </div>
         ))}
 
@@ -479,7 +630,7 @@ export default function MediaDrive() {
               <p className="text-xs text-text-primary truncate">{artifact.name}</p>
               <p className="text-[10px] text-text-dim">{artifact.significance}</p>
             </button>
-            <GenerateButton onClick={() => generateArtifactImage(artifact)} disabled={generating !== null} generating={generating === artifact.id} />
+            <GenerateButton onClick={() => generateArtifactImage(artifact)} disabled={generating !== null || batchBusy} generating={generating === artifact.id} />
           </div>
         ))}
 
@@ -502,7 +653,7 @@ export default function MediaDrive() {
                 </button>
                 <button
                   onClick={() => generateSceneImage({ scene, missingCharacters, missingLocation, ready })}
-                  disabled={generating !== null}
+                  disabled={generating !== null || batchBusy}
                   className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded bg-black/60 text-white/50 hover:text-white opacity-0 group-hover:opacity-100 disabled:opacity-30 transition-opacity"
                   title="Regenerate"
                 >
@@ -541,7 +692,7 @@ export default function MediaDrive() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => generateSceneImage({ scene, missingCharacters, missingLocation, ready })}
-                    disabled={generating !== null}
+                    disabled={generating !== null || batchBusy}
                     className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent hover:bg-accent/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                   >
                     {generating === scene.id ? (

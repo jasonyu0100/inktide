@@ -2209,30 +2209,52 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "SET_CHARACTER_IMAGE": {
       const afterUpdate = updateNarrative(state, (n) => {
-        const worldBuildEntry = Object.values(n.worldBuilds).find((wb) =>
-          wb.expansionManifest.newCharacters.some(
-            (c) => c.id === action.characterId,
-          ),
-        );
-        if (!worldBuildEntry) return n;
-        return {
-          ...n,
-          worldBuilds: {
-            ...n.worldBuilds,
-            [worldBuildEntry.id]: {
-              ...worldBuildEntry,
+        // Update EVERY manifest that introduces this character — worldBuild
+        // expansion manifests AND scene newCharacters arrays. The derive step
+        // uses "first entry wins" (`if (!characters[id])`) when iterating
+        // resolvedKeys, so if we updated only one manifest and the derive
+        // picks a different one, the imageUrl would be silently dropped.
+        // Updating all is idempotent and makes the update robust against
+        // entry-order differences between scenes and worldBuilds.
+        let anyMatched = false;
+        const worldBuilds: typeof n.worldBuilds = {};
+        for (const [wbId, wb] of Object.entries(n.worldBuilds)) {
+          if (wb.expansionManifest.newCharacters.some((c) => c.id === action.characterId)) {
+            anyMatched = true;
+            worldBuilds[wbId] = {
+              ...wb,
               expansionManifest: {
-                ...worldBuildEntry.expansionManifest,
-                newCharacters: worldBuildEntry.expansionManifest.newCharacters.map(
-                  (c) =>
-                    c.id === action.characterId
-                      ? { ...c, imageUrl: action.imageUrl }
-                      : c,
+                ...wb.expansionManifest,
+                newCharacters: wb.expansionManifest.newCharacters.map((c) =>
+                  c.id === action.characterId ? { ...c, imageUrl: action.imageUrl } : c,
                 ),
               },
-            },
-          },
-        };
+            };
+          } else {
+            worldBuilds[wbId] = wb;
+          }
+        }
+        const scenes: typeof n.scenes = {};
+        for (const [sId, s] of Object.entries(n.scenes)) {
+          if ((s.newCharacters ?? []).some((c) => c.id === action.characterId)) {
+            anyMatched = true;
+            scenes[sId] = {
+              ...s,
+              newCharacters: (s.newCharacters ?? []).map((c) =>
+                c.id === action.characterId ? { ...c, imageUrl: action.imageUrl } : c,
+              ),
+            };
+          } else {
+            scenes[sId] = s;
+          }
+        }
+        if (!anyMatched) {
+          console.warn(
+            `[SET_CHARACTER_IMAGE] Character ${action.characterId} not found in any worldBuild or scene manifest — image update dropped`,
+          );
+          return n;
+        }
+        return { ...n, worldBuilds, scenes };
       });
       if (!afterUpdate.activeNarrative) return afterUpdate;
       const derived = withDerivedEntities(
@@ -2244,30 +2266,47 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "SET_LOCATION_IMAGE": {
       const afterUpdate = updateNarrative(state, (n) => {
-        const worldBuildEntry = Object.values(n.worldBuilds).find((wb) =>
-          wb.expansionManifest.newLocations.some(
-            (l) => l.id === action.locationId,
-          ),
-        );
-        if (!worldBuildEntry) return n;
-        return {
-          ...n,
-          worldBuilds: {
-            ...n.worldBuilds,
-            [worldBuildEntry.id]: {
-              ...worldBuildEntry,
+        // Update EVERY manifest that introduces this location (see
+        // SET_CHARACTER_IMAGE for rationale).
+        let anyMatched = false;
+        const worldBuilds: typeof n.worldBuilds = {};
+        for (const [wbId, wb] of Object.entries(n.worldBuilds)) {
+          if (wb.expansionManifest.newLocations.some((l) => l.id === action.locationId)) {
+            anyMatched = true;
+            worldBuilds[wbId] = {
+              ...wb,
               expansionManifest: {
-                ...worldBuildEntry.expansionManifest,
-                newLocations: worldBuildEntry.expansionManifest.newLocations.map(
-                  (l) =>
-                    l.id === action.locationId
-                      ? { ...l, imageUrl: action.imageUrl }
-                      : l,
+                ...wb.expansionManifest,
+                newLocations: wb.expansionManifest.newLocations.map((l) =>
+                  l.id === action.locationId ? { ...l, imageUrl: action.imageUrl } : l,
                 ),
               },
-            },
-          },
-        };
+            };
+          } else {
+            worldBuilds[wbId] = wb;
+          }
+        }
+        const scenes: typeof n.scenes = {};
+        for (const [sId, s] of Object.entries(n.scenes)) {
+          if ((s.newLocations ?? []).some((l) => l.id === action.locationId)) {
+            anyMatched = true;
+            scenes[sId] = {
+              ...s,
+              newLocations: (s.newLocations ?? []).map((l) =>
+                l.id === action.locationId ? { ...l, imageUrl: action.imageUrl } : l,
+              ),
+            };
+          } else {
+            scenes[sId] = s;
+          }
+        }
+        if (!anyMatched) {
+          console.warn(
+            `[SET_LOCATION_IMAGE] Location ${action.locationId} not found in any worldBuild or scene manifest — image update dropped`,
+          );
+          return n;
+        }
+        return { ...n, worldBuilds, scenes };
       });
       if (!afterUpdate.activeNarrative) return afterUpdate;
       const derived = withDerivedEntities(
@@ -2279,31 +2318,47 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "SET_ARTIFACT_IMAGE": {
       const afterUpdate = updateNarrative(state, (n) => {
-        const worldBuildEntry = Object.values(n.worldBuilds).find((wb) =>
-          (wb.expansionManifest.newArtifacts ?? []).some(
-            (a) => a.id === action.artifactId,
-          ),
-        );
-        if (!worldBuildEntry) return n;
-        return {
-          ...n,
-          worldBuilds: {
-            ...n.worldBuilds,
-            [worldBuildEntry.id]: {
-              ...worldBuildEntry,
+        // Update EVERY manifest that introduces this artifact (see
+        // SET_CHARACTER_IMAGE for rationale).
+        let anyMatched = false;
+        const worldBuilds: typeof n.worldBuilds = {};
+        for (const [wbId, wb] of Object.entries(n.worldBuilds)) {
+          if ((wb.expansionManifest.newArtifacts ?? []).some((a) => a.id === action.artifactId)) {
+            anyMatched = true;
+            worldBuilds[wbId] = {
+              ...wb,
               expansionManifest: {
-                ...worldBuildEntry.expansionManifest,
-                newArtifacts: (
-                  worldBuildEntry.expansionManifest.newArtifacts ?? []
-                ).map((a) =>
-                  a.id === action.artifactId
-                    ? { ...a, imageUrl: action.imageUrl }
-                    : a,
+                ...wb.expansionManifest,
+                newArtifacts: (wb.expansionManifest.newArtifacts ?? []).map((a) =>
+                  a.id === action.artifactId ? { ...a, imageUrl: action.imageUrl } : a,
                 ),
               },
-            },
-          },
-        };
+            };
+          } else {
+            worldBuilds[wbId] = wb;
+          }
+        }
+        const scenes: typeof n.scenes = {};
+        for (const [sId, s] of Object.entries(n.scenes)) {
+          if ((s.newArtifacts ?? []).some((a) => a.id === action.artifactId)) {
+            anyMatched = true;
+            scenes[sId] = {
+              ...s,
+              newArtifacts: (s.newArtifacts ?? []).map((a) =>
+                a.id === action.artifactId ? { ...a, imageUrl: action.imageUrl } : a,
+              ),
+            };
+          } else {
+            scenes[sId] = s;
+          }
+        }
+        if (!anyMatched) {
+          console.warn(
+            `[SET_ARTIFACT_IMAGE] Artifact ${action.artifactId} not found in any worldBuild or scene manifest — image update dropped`,
+          );
+          return n;
+        }
+        return { ...n, worldBuilds, scenes };
       });
       if (!afterUpdate.activeNarrative) return afterUpdate;
       const derived = withDerivedEntities(
@@ -2320,25 +2375,49 @@ function reducer(state: AppState, action: Action): AppState {
             (c) => c.id === action.characterId,
           ),
         );
-        if (!worldBuildEntry) return n;
-        return {
-          ...n,
-          worldBuilds: {
-            ...n.worldBuilds,
-            [worldBuildEntry.id]: {
-              ...worldBuildEntry,
-              expansionManifest: {
-                ...worldBuildEntry.expansionManifest,
-                newCharacters: worldBuildEntry.expansionManifest.newCharacters.map(
-                  (c) =>
-                    c.id === action.characterId
-                      ? { ...c, imagePrompt: action.imagePrompt }
-                      : c,
+        if (worldBuildEntry) {
+          return {
+            ...n,
+            worldBuilds: {
+              ...n.worldBuilds,
+              [worldBuildEntry.id]: {
+                ...worldBuildEntry,
+                expansionManifest: {
+                  ...worldBuildEntry.expansionManifest,
+                  newCharacters: worldBuildEntry.expansionManifest.newCharacters.map(
+                    (c) =>
+                      c.id === action.characterId
+                        ? { ...c, imagePrompt: action.imagePrompt }
+                        : c,
+                  ),
+                },
+              },
+            },
+          };
+        }
+        const sceneEntry = Object.values(n.scenes).find((s) =>
+          (s.newCharacters ?? []).some((c) => c.id === action.characterId),
+        );
+        if (sceneEntry) {
+          return {
+            ...n,
+            scenes: {
+              ...n.scenes,
+              [sceneEntry.id]: {
+                ...sceneEntry,
+                newCharacters: (sceneEntry.newCharacters ?? []).map((c) =>
+                  c.id === action.characterId
+                    ? { ...c, imagePrompt: action.imagePrompt }
+                    : c,
                 ),
               },
             },
-          },
-        };
+          };
+        }
+        console.warn(
+          `[SET_CHARACTER_IMAGE_PROMPT] Character ${action.characterId} not found in any worldBuild or scene manifest — prompt update dropped`,
+        );
+        return n;
       });
       if (!afterUpdate.activeNarrative) return afterUpdate;
       const derived = withDerivedEntities(
@@ -2355,25 +2434,49 @@ function reducer(state: AppState, action: Action): AppState {
             (l) => l.id === action.locationId,
           ),
         );
-        if (!worldBuildEntry) return n;
-        return {
-          ...n,
-          worldBuilds: {
-            ...n.worldBuilds,
-            [worldBuildEntry.id]: {
-              ...worldBuildEntry,
-              expansionManifest: {
-                ...worldBuildEntry.expansionManifest,
-                newLocations: worldBuildEntry.expansionManifest.newLocations.map(
-                  (l) =>
-                    l.id === action.locationId
-                      ? { ...l, imagePrompt: action.imagePrompt }
-                      : l,
+        if (worldBuildEntry) {
+          return {
+            ...n,
+            worldBuilds: {
+              ...n.worldBuilds,
+              [worldBuildEntry.id]: {
+                ...worldBuildEntry,
+                expansionManifest: {
+                  ...worldBuildEntry.expansionManifest,
+                  newLocations: worldBuildEntry.expansionManifest.newLocations.map(
+                    (l) =>
+                      l.id === action.locationId
+                        ? { ...l, imagePrompt: action.imagePrompt }
+                        : l,
+                  ),
+                },
+              },
+            },
+          };
+        }
+        const sceneEntry = Object.values(n.scenes).find((s) =>
+          (s.newLocations ?? []).some((l) => l.id === action.locationId),
+        );
+        if (sceneEntry) {
+          return {
+            ...n,
+            scenes: {
+              ...n.scenes,
+              [sceneEntry.id]: {
+                ...sceneEntry,
+                newLocations: (sceneEntry.newLocations ?? []).map((l) =>
+                  l.id === action.locationId
+                    ? { ...l, imagePrompt: action.imagePrompt }
+                    : l,
                 ),
               },
             },
-          },
-        };
+          };
+        }
+        console.warn(
+          `[SET_LOCATION_IMAGE_PROMPT] Location ${action.locationId} not found in any worldBuild or scene manifest — prompt update dropped`,
+        );
+        return n;
       });
       if (!afterUpdate.activeNarrative) return afterUpdate;
       const derived = withDerivedEntities(
@@ -2390,26 +2493,50 @@ function reducer(state: AppState, action: Action): AppState {
             (a) => a.id === action.artifactId,
           ),
         );
-        if (!worldBuildEntry) return n;
-        return {
-          ...n,
-          worldBuilds: {
-            ...n.worldBuilds,
-            [worldBuildEntry.id]: {
-              ...worldBuildEntry,
-              expansionManifest: {
-                ...worldBuildEntry.expansionManifest,
-                newArtifacts: (
-                  worldBuildEntry.expansionManifest.newArtifacts ?? []
-                ).map((a) =>
+        if (worldBuildEntry) {
+          return {
+            ...n,
+            worldBuilds: {
+              ...n.worldBuilds,
+              [worldBuildEntry.id]: {
+                ...worldBuildEntry,
+                expansionManifest: {
+                  ...worldBuildEntry.expansionManifest,
+                  newArtifacts: (
+                    worldBuildEntry.expansionManifest.newArtifacts ?? []
+                  ).map((a) =>
+                    a.id === action.artifactId
+                      ? { ...a, imagePrompt: action.imagePrompt }
+                      : a,
+                  ),
+                },
+              },
+            },
+          };
+        }
+        const sceneEntry = Object.values(n.scenes).find((s) =>
+          (s.newArtifacts ?? []).some((a) => a.id === action.artifactId),
+        );
+        if (sceneEntry) {
+          return {
+            ...n,
+            scenes: {
+              ...n.scenes,
+              [sceneEntry.id]: {
+                ...sceneEntry,
+                newArtifacts: (sceneEntry.newArtifacts ?? []).map((a) =>
                   a.id === action.artifactId
                     ? { ...a, imagePrompt: action.imagePrompt }
                     : a,
                 ),
               },
             },
-          },
-        };
+          };
+        }
+        console.warn(
+          `[SET_ARTIFACT_IMAGE_PROMPT] Artifact ${action.artifactId} not found in any worldBuild or scene manifest — prompt update dropped`,
+        );
+        return n;
       });
       if (!afterUpdate.activeNarrative) return afterUpdate;
       const derived = withDerivedEntities(

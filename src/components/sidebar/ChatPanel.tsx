@@ -100,30 +100,30 @@ export default function ChatPanel() {
         state.resolvedEntryKeys,
         contextSceneIndex,
       );
-      return `You are a narrative consultant for the story "${n.title}".
+      return `You are a helpful assistant. The user is working on the story "${n.title}" and has scene-level context attached below, but you are free to answer any question they ask — creative, technical, personal, or anything else. Use the story context when the question is about the story; otherwise respond normally without forcing the conversation back to the narrative.
 ${sceneAnchor}
 
-Answer questions about this specific scene, its characters, location, and events. Be concise and specific.
+Be concise and specific.
 
 ${ctx}`;
     }
 
     if (contextMode === "outline") {
       const ctx = outlineContext(n, state.resolvedEntryKeys, contextSceneIndex);
-      return `You are a narrative consultant for the story "${n.title}". You have a condensed outline of the entire story.
+      return `You are a helpful assistant. The user is working on the story "${n.title}" and has a condensed outline attached below, but you are free to answer any question they ask — creative, technical, personal, or anything else. Use the story context when the question is about the story; otherwise respond normally without forcing the conversation back to the narrative.
 ${sceneAnchor}
 
-Answer questions about story progression, recap events, identify patterns, or discuss where the narrative stands. You see the arc structure and scene summaries but not full delta detail. Be concise and specific.
+Be concise and specific.
 
 ${ctx}`;
     }
 
     const ctx = narrativeContext(n, state.resolvedEntryKeys, contextSceneIndex);
 
-    return `You are a narrative consultant for the story "${n.title}". You have deep knowledge of the story's world, characters, threads, and scene history up to the current point in the timeline.
+    return `You are a helpful assistant. The user is working on the story "${n.title}" and has deep narrative context attached below (world, characters, threads, scene history up to the current point), but you are free to answer any question they ask — creative, technical, personal, or anything else. Use the story context when the question is about the story; otherwise respond normally without forcing the conversation back to the narrative.
 ${sceneAnchor}
 
-Answer questions about the narrative, suggest story directions, analyze character dynamics, identify plot holes, or discuss themes. Be concise and specific, referencing characters and events by name. When suggesting directions, consider the existing threads and their maturity.
+When discussing the narrative, be concise and specific, referencing characters and events by name. When suggesting directions, consider the existing threads and their maturity.
 
 ${ctx}`;
   }, [

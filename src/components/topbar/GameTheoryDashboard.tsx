@@ -238,13 +238,15 @@ function narrativeRole(p: PlayerProfile, s: Signals): PlayerArchetype | null {
       tone: "win",
     };
   }
-  // ANTAGONIST — extracts or takes the biggest slice, dominates the grid,
-  // participates in conflict or power-framing games.
+  // ADVERSARY — extracts or takes the biggest slice, dominates the grid,
+  // participates in conflict or power-framing games. Called "adversary"
+  // rather than "antagonist" so it reads naturally in comedies and papers
+  // where there's no singular protagonist for them to oppose.
   if ((s.extractRate >= 0.3 || (s.teamRate >= 0.3 && s.asymmetry >= 1)) && p.avgStakeDelta >= 0.5 && (s.conflictShare >= 0.3 || s.powerShare >= 0.3)) {
     return {
-      id: "role-antagonist",
-      label: "antagonist",
-      description: "Dominates grids at others' expense — extracts stake, takes the lion's share of cooperation, and lives in conflict or power-framing games. Structurally opposed to the protagonist's trajectory.",
+      id: "role-adversary",
+      label: "adversary",
+      description: "Dominates grids at others' expense — extracts stake, takes the lion's share of cooperation, and lives in conflict or power-framing games. Structurally opposed to other players' trajectories.",
       tone: "conflict",
     };
   }
@@ -279,12 +281,14 @@ function narrativeRole(p: PlayerProfile, s: Signals): PlayerArchetype | null {
       tone: "win",
     };
   }
-  // FALLEN — arc shifts downward, ELO declines. Corruption / decline arc.
+  // DECLINING — arc shifts downward, ELO declines. Called "declining"
+  // rather than "fallen" so workplace / slice-of-life arcs don't get forced
+  // into a mythic register they don't belong in.
   if (s.hasArc && s.arcShift <= -1.2 && s.eloDelta <= 0) {
     return {
-      id: "role-fallen",
-      label: "fallen",
-      description: "Arc shifts visibly downward — started stronger than they end. Corruption, decline, or defeat arc — the story is watching them lose ground.",
+      id: "role-declining",
+      label: "declining",
+      description: "Arc shifts visibly downward — started stronger than they end. The story is watching them lose ground across the window.",
       tone: "loss",
     };
   }
@@ -459,7 +463,7 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
     });
   }
 
-  // Group 3 — STRATEGIC STYLE. Up to one of mastermind / off-script /
+  // Group 3 — STRATEGIC STYLE. Up to one of strategist / off-script /
   // arc-breaker. Arc-breaker is the 'main-character' signal: the player
   // keeps landing on off-Nash cells AND keeps winning from them — the
   // author overrides strategic stability to grant them stake. Fang Yuan
@@ -473,9 +477,9 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
     });
   } else if (nashRate >= 0.75 && p.avgStakeDelta >= 0) {
     tags.push({
-      id: "mastermind",
-      label: "mastermind",
-      description: "Most realized cells sit on a Nash equilibrium. Outcomes line up with strategic stability — plays like someone who sees the grid clearly.",
+      id: "strategist",
+      label: "strategist",
+      description: "Most realized cells sit on a Nash equilibrium. Outcomes line up with strategic stability — reads the grid clearly and lands where a clear-eyed player would.",
       tone: "strategic",
     });
   } else if (nashRate <= 0.2 && p.games >= 5) {
@@ -491,7 +495,7 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
   // independently of outcome shape because they reveal HOW a player plays
   // rather than how they end up. Generalisable across genres: Dumbledore
   // fires schemer + power-broker; Hermione fires coordinator; Voldemort
-  // fires power-broker + combatant; Fang Yuan fires schemer.
+  // fires power-broker + oppositional; Fang Yuan fires schemer.
   if (infoShare >= 0.35 && p.avgStakeDelta > 0.3) {
     tags.push({
       id: "schemer",
@@ -510,9 +514,9 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
   }
   if (conflictShare >= 0.4) {
     tags.push({
-      id: "combatant",
-      label: "combatant",
-      description: "Most decisions sit inside zero-sum, chicken, or pure-opposition games. A conflict-driven player — their arc runs through direct collisions.",
+      id: "oppositional",
+      label: "oppositional",
+      description: "Most decisions sit inside zero-sum, chicken, or pure-opposition games. Their arc runs through direct collisions rather than coordination.",
       tone: "conflict",
     });
   }
@@ -551,17 +555,17 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
   // single opposing relationship accounts for much of their record.
   if (p.nemesisName && p.nemesisNetScore <= -2) {
     tags.push({
-      id: "has-nemesis",
-      label: `nemesis: ${p.nemesisName}`,
-      description: `Losing record concentrated against ${p.nemesisName}. This relationship shapes their trajectory more than any other — they cannot win against this counterpart.`,
+      id: "has-rival",
+      label: `rival: ${p.nemesisName}`,
+      description: `Losing record concentrated against ${p.nemesisName}. Whatever this relationship is — workplace friction, competing theory, sworn enemy — it shapes their trajectory more than any other counterpart.`,
       tone: "conflict",
     });
   }
   if (p.patronName && p.patronNetScore >= 2) {
     tags.push({
-      id: "has-patron",
-      label: `dominates: ${p.patronName}`,
-      description: `Winning record concentrated against ${p.patronName}. This counterpart is where this character routinely comes out ahead — a relationship they master.`,
+      id: "leads-vs",
+      label: `leads: ${p.patronName}`,
+      description: `Winning record concentrated against ${p.patronName}. Whatever the frame — rivalry, mentorship, competing claim — they routinely come out ahead in this pairing.`,
       tone: "win",
     });
   }
@@ -599,9 +603,9 @@ function classifyPlayer(p: PlayerProfile): PlayerArchetype[] {
   }
 
   // Drop game-type-heavy tag if a more specific agency tag already covered
-  // it (schemer, power-broker, combatant, coordinator all capture
+  // it (schemer, power-broker, oppositional, coordinator all capture
   // game-type concentration). Otherwise emit as a generic arena affinity.
-  const agencyTagIds = new Set(["schemer", "power-broker", "combatant", "coordinator"]);
+  const agencyTagIds = new Set(["schemer", "power-broker", "oppositional", "coordinator"]);
   const hasAgencyTag = tags.some((t) => agencyTagIds.has(t.id));
   if (!hasAgencyTag) {
     const topGT = topEntry(p.gameTypeCounts);
@@ -1494,7 +1498,7 @@ function NarrativeInsights({
   const sacrificer = pickTop((p) => p.cellsSelfLoseOtherGain / p.games, 0.25);
   const teammate = pickTop((p) => p.cellsBothGain / p.games, 0.4);
   const destroyer = pickTop((p) => p.cellsBothLose / p.games, 0.25);
-  const mastermind = pickTop(
+  const strategist = pickTop(
     (p) => (p.realizedNashCount / p.games) * (p.avgStakeDelta > 0 ? 1 : 0.5),
     0.5,
   );
@@ -1526,7 +1530,7 @@ function NarrativeInsights({
   push(sacrificer, "sacrificial", (p, r) => `absorbs loss for others ${(r * 100).toFixed(0)}% of games`, "moral");
   push(teammate, "teammate", (p, r) => `mutual-gain in ${(r * 100).toFixed(0)}% of realized cells`, "cooperation");
   push(destroyer, "destructive", (p, r) => `mutual-loss in ${(r * 100).toFixed(0)}% of games`, "conflict");
-  push(mastermind, "mastermind", (p) => `${((p.realizedNashCount / p.games) * 100).toFixed(0)}% of realized cells are Nash`, "strategic");
+  push(strategist, "strategist", (p) => `${((p.realizedNashCount / p.games) * 100).toFixed(0)}% of realized cells are Nash`, "strategic");
   push(offScript, "off-script", (p) => `only ${((p.realizedNashCount / p.games) * 100).toFixed(0)}% Nash-aligned across ${p.games} games`, "strategic");
   push(ascendant, "ascendant", (p) => `ELO +${Math.round(p.currentElo - ELO_INITIAL)} across ${p.games} games`, "win");
   push(fading, "fading", (p) => `ELO ${Math.round(p.currentElo - ELO_INITIAL)} across ${p.games} games`, "loss");

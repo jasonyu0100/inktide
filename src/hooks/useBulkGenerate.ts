@@ -86,11 +86,12 @@ export function useBulkGenerate() {
       //   'prose' + 'structure' source: forward prose generation requires a plan.
       if (mode === 'plan' && planSource === 'prose' && !resolvedProse) return;
       if (mode === 'prose' && planSource === 'structure' && !resolvedPlan) return;
-      // Game analysis requires something to read — prefer plan, accept prose.
-      // Skip scenes that already have an analysis: unlike plan/prose, game
-      // analyses aren't versioned, so re-running would just overwrite. Users
-      // can Clear + Generate per-scene to force regeneration.
-      if (mode === 'game' && !resolvedPlan && !resolvedProse) return;
+      // Game analysis prefers prose, falls back to plan, and will read
+      // scene structure (summary + deltas) when neither exists — so every
+      // scene is eligible. Skip scenes that already have an analysis:
+      // unlike plan/prose, game analyses aren't versioned, so re-running
+      // would just overwrite. Users can Clear + Generate per-scene to
+      // force regeneration.
       if (mode === 'game' && scene.gameAnalysis) return;
 
       const statusVerb =
@@ -239,10 +240,11 @@ export function useBulkGenerate() {
           scenesToProcess.push(scene.id);
         }
       } else if (mode === 'game') {
-        // Game analysis prefers a plan; accepts prose as fallback input.
-        // Skip scenes that already have an analysis — unlike plan/prose,
-        // game analyses aren't versioned.
-        if ((resolvedPlan || resolvedProse) && !scene.gameAnalysis) {
+        // Game analysis reads prose → plan → scene structure (in that
+        // order), so every scene is eligible. Skip scenes that already
+        // have an analysis — unlike plan/prose, game analyses aren't
+        // versioned.
+        if (!scene.gameAnalysis) {
           scenesToProcess.push(scene.id);
         }
       }
@@ -311,7 +313,7 @@ export function useBulkGenerate() {
 
       if (planSource === 'structure' || resolvedProse) needsPlan++;
       if (planSource === 'prose' || resolvedPlan) needsProse++;
-      if ((resolvedPlan || resolvedProse) && !scene.gameAnalysis) needsGame++;
+      if (!scene.gameAnalysis) needsGame++;
     }
 
     return { needsPlan, needsProse, needsGame };

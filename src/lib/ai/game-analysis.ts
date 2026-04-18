@@ -136,9 +136,16 @@ function buildSceneContext(
   }
   parts.push("");
 
-  // Beats — include every proposition so the analyser sees the full
-  // propositional content of each beat, not a preview.
-  if (plan?.beats?.length) {
+  // Source hierarchy — prose is the authoritative text (what actually
+  // happened). Fall back to the plan when prose isn't generated yet, and
+  // to structural deltas when neither exists. Always pick exactly one
+  // source so the analyser isn't torn between plan-indexed beats and
+  // prose-segmented beats.
+  const trimmedProse = prose?.trim() ?? "";
+  if (trimmedProse) {
+    parts.push("PROSE:");
+    parts.push(trimmedProse);
+  } else if (plan?.beats?.length) {
     parts.push(`BEAT PLAN (${plan.beats.length} beats):`);
     plan.beats.forEach((b, i) => {
       parts.push(`[${i}] (${b.fn}/${b.mechanism}) ${b.what}`);
@@ -150,15 +157,45 @@ function buildSceneContext(
         }
       }
     });
-    parts.push("");
   } else {
-    parts.push("BEAT PLAN: (none — analyse from summary + prose)");
-    parts.push("");
-  }
-
-  if (prose && prose.trim()) {
-    parts.push("PROSE:");
-    parts.push(prose.trim());
+    parts.push("SCENE STRUCTURE (no prose or plan available — analyse from deltas + summary):");
+    if (scene.events?.length) {
+      parts.push(`Events: ${scene.events.join(", ")}`);
+    }
+    if (scene.threadDeltas?.length) {
+      parts.push("Thread movements:");
+      for (const td of scene.threadDeltas) {
+        const desc = narrative.threads[td.threadId]?.description ?? td.threadId;
+        parts.push(`  - ${desc} (${td.from} → ${td.to})`);
+      }
+    }
+    if (scene.worldDeltas?.length) {
+      parts.push("World reveals:");
+      for (const wd of scene.worldDeltas) {
+        const ent =
+          narrative.characters[wd.entityId] ??
+          narrative.locations[wd.entityId] ??
+          narrative.artifacts[wd.entityId];
+        const name = ent?.name ?? wd.entityId;
+        for (const n of wd.addedNodes ?? []) {
+          parts.push(`  - ${name}: ${n.content}`);
+        }
+      }
+    }
+    if (scene.relationshipDeltas?.length) {
+      parts.push("Relationship shifts:");
+      for (const rd of scene.relationshipDeltas) {
+        const fromName =
+          narrative.characters[rd.from]?.name ??
+          narrative.locations[rd.from]?.name ??
+          rd.from;
+        const toName =
+          narrative.characters[rd.to]?.name ??
+          narrative.locations[rd.to]?.name ??
+          rd.to;
+        parts.push(`  - ${fromName} → ${toName}: ${rd.type} (Δ ${rd.valenceDelta})`);
+      }
+    }
   }
 
   return parts.join("\n");

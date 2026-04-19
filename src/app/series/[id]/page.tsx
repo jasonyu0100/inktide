@@ -80,18 +80,19 @@ export default function SeriesPage() {
   const bulkAudio = useBulkAudioGenerate();
   const id = params.id as string;
 
-  // Activate narrative from URL param
+  // Activate narrative from URL param. The URL is the source of truth —
+  // mirror it into state once the target narrative is in the list, and
+  // redirect home only after hydration has definitively settled (otherwise
+  // we'd bounce users off pages whose narratives are still loading).
   useEffect(() => {
-    if (id && state.activeNarrativeId !== id) {
-      const exists = state.narratives.some((n) => n.id === id);
-      if (exists) {
-        dispatch({ type: 'SET_ACTIVE_NARRATIVE', id });
-      } else if (state.narratives.length > 0) {
-        // Only redirect after hydration — empty list means narratives haven't loaded yet
-        router.replace('/');
-      }
+    if (!id || state.activeNarrativeId === id) return;
+    const exists = state.narratives.some((n) => n.id === id);
+    if (exists) {
+      dispatch({ type: 'SET_ACTIVE_NARRATIVE', id });
+    } else if (state.hydrationComplete) {
+      router.replace('/');
     }
-  }, [id, state.activeNarrativeId, state.narratives, dispatch, router]);
+  }, [id, state.activeNarrativeId, state.narratives, state.hydrationComplete, dispatch, router]);
 
   // Custom event listeners for opening panels
   useEffect(() => {

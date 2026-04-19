@@ -63,6 +63,7 @@ describe('store reducer', () => {
       narratives: [],
       activeNarrativeId: 'N-001',
       activeNarrative: testNarrative,
+      hydrationComplete: true,
       resolvedEntryKeys: ['S-001', 'S-002'],
       graphViewMode: 'search',
       autoConfig: {

@@ -26,7 +26,6 @@ import {
   deleteApiLogs,
   deleteNarrative as deletePersisted,
   loadActiveBranchId,
-  loadActiveNarrativeId,
   loadAnalysisJobs,
   loadNarrative,
   loadNarratives,
@@ -639,6 +638,7 @@ const initialState: AppState = {
   narratives: [],
   activeNarrativeId: null,
   activeNarrative: null,
+  hydrationComplete: false,
   analysisJobs: [],
   graphViewMode: "search",
   autoConfig: {
@@ -660,6 +660,7 @@ const initialState: AppState = {
 // ── Actions ──────────────────────────────────────────────────────────────────
 export type Action =
   | { type: "HYDRATE_NARRATIVES"; entries: NarrativeEntry[] }
+  | { type: "HYDRATION_COMPLETE" }
   | { type: "ADD_NARRATIVE_ENTRY"; entry: NarrativeEntry }
   | { type: "SET_ACTIVE_NARRATIVE"; id: string }
   | {
@@ -844,6 +845,9 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "HYDRATE_NARRATIVES": {
       return { ...state, narratives: action.entries };
+    }
+    case "HYDRATION_COMPLETE": {
+      return { ...state, hydrationComplete: true };
     }
     case "ADD_NARRATIVE_ENTRY": {
       // Upsert entry. We replace even if present because bundled-load dispatches
@@ -3342,17 +3346,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         initMechanismProfilePresets(worksForPresets);
       }
 
-      // Restore last active narrative
-      const savedActiveId = await loadActiveNarrativeId();
-      if (savedActiveId) {
-        dispatch({ type: "SET_ACTIVE_NARRATIVE", id: savedActiveId });
-      }
+      // The URL owns activeNarrativeId — the /series/[id] route syncs it
+      // from params, and loadActiveNarrativeId is persisted for callers that
+      // explicitly want the last-visited ID. Dispatching here would race
+      // with URL-sync and sometimes overwrite the narrative the user just
+      // navigated to.
+      dispatch({ type: "HYDRATION_COMPLETE" });
     }
     hydrate().catch((err) => {
       logError("Hydration failed — narratives may not appear", err, {
         source: "other",
         operation: "hydrate-narratives",
       });
+      // Still mark hydration complete so downstream consumers (e.g. the
+      // route's not-found redirect) aren't blocked waiting on a failed load.
+      dispatch({ type: "HYDRATION_COMPLETE" });
     });
   }, []);
 

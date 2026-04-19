@@ -1850,6 +1850,13 @@ export type AppState = {
   narratives: NarrativeEntry[];
   activeNarrativeId: string | null;
   activeNarrative: NarrativeState | null;
+  /**
+   * True once the initial IndexedDB + manifest load has fully settled.
+   * Consumers use this to distinguish "narrative not yet loaded" from
+   * "narrative genuinely doesn't exist" — e.g. the /series/[id] route
+   * only redirects on unknown IDs after hydration is done.
+   */
+  hydrationComplete: boolean;
   analysisJobs: AnalysisJob[];
 
   // Global preferences

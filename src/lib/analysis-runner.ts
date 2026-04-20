@@ -13,6 +13,7 @@
 
 import { reconcileResults, analyzeThreading, assembleNarrative, extractSceneStructure, groupScenesIntoArcs } from '@/lib/text-analysis';
 import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
+import { FatalApiError } from '@/lib/ai/errors';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
 import type { Action } from '@/lib/store';
 import { ANALYSIS_CONCURRENCY, ANALYSIS_STAGGER_DELAY_MS } from '@/lib/constants';
@@ -197,6 +198,19 @@ class AnalysisRunner {
             succeeded = true;
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err);
+            // Credit/auth failures won't recover on retry — cancel the whole
+            // job so sibling scenes stop spawning calls. The outer phase
+            // driver reads `entry.cancelled` and transitions the job to
+            // 'paused'.
+            if (err instanceof FatalApiError) {
+              logError(`Analysis stopped — fatal API error`, err, {
+                source: 'analysis', operation: 'scene-structure',
+                details: { jobId: job.id, sceneIdx: idx, status: err.status },
+              });
+              this.emitStream(job.id, `Analysis stopped — ${err.message}`);
+              entry.cancelled = true;
+              break;
+            }
             if (attempt < MAX_STRUCTURE_RETRIES) {
               logWarning(`Structure extraction failed for scene ${idx + 1} (attempt ${attempt}/${MAX_STRUCTURE_RETRIES}), retrying...`, err, {
                 source: 'analysis', operation: 'scene-structure',
@@ -265,6 +279,12 @@ class AnalysisRunner {
           }
         } catch (err) {
           logWarning('Plan extraction failed for scene', err, { source: 'analysis', operation: 'plan-extraction', details: { jobId: job.id, sceneIdx: idx } });
+          // Credit/auth failures won't recover — cancel the job so sibling
+          // workers stop spawning calls.
+          if (err instanceof FatalApiError) {
+            this.emitStream(job.id, `Analysis stopped — ${err.message}`);
+            entry.cancelled = true;
+          }
         } finally {
           entry.planInFlightKeys.delete(planKey);
           this.emitPlanInFlight(job.id, [...entry.planInFlightKeys]);

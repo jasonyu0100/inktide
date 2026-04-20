@@ -12,6 +12,7 @@ import {
   isPlanComplete,
 } from '@/lib/auto-engine';
 import { generateScenes, generateReasoningGraph, type CoordinationPlanContext } from '@/lib/ai';
+import { FatalApiError } from '@/lib/ai/errors';
 import type { AutoRunLog } from '@/types/narrative';
 import { logError, logInfo } from '@/lib/system-logger';
 
@@ -203,6 +204,9 @@ export function useAutoPlay() {
             error: errorMsg,
           },
         });
+
+        // Credit/auth failures won't recover on retry — let the tick loop halt.
+        if (err instanceof FatalApiError) throw err;
       }
 
       return;
@@ -316,6 +320,8 @@ export function useAutoPlay() {
         details: { storyPhase: phase },
       });
       cycleError = errorMsg;
+      // Credit/auth failures won't recover on retry — let the tick loop halt.
+      if (err instanceof FatalApiError) throw err;
     }
 
     if (cancelledRef.current) return;
@@ -363,6 +369,20 @@ export function useAutoPlay() {
       await runCycle();
       consecutiveTickErrors.current = 0;
     } catch (err) {
+      // Fatal API errors (missing key, credits exhausted, forbidden) can't
+      // recover this session — halt immediately instead of burning through
+      // 3 strikes and another 100ms tick.
+      if (err instanceof FatalApiError) {
+        logError('Auto mode stopped — fatal API error', err, {
+          source: 'auto-play',
+          operation: 'auto-stop',
+          details: { status: err.status, cycle: (stateRef.current.viewState.autoRunState?.currentCycle ?? 0) + 1 },
+        });
+        dispatch({ type: 'SET_AUTO_STATUS', message: `Stopped — ${err.message}` });
+        dispatch({ type: 'STOP_AUTO_RUN' });
+        return;
+      }
+
       logError('Unhandled error in auto-play runCycle', err, {
         source: 'auto-play',
         operation: 'run-cycle',

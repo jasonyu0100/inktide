@@ -3,6 +3,7 @@
 import { useRef, useCallback, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenes } from '@/lib/ai';
+import { FatalApiError } from '@/lib/ai/errors';
 import type { NarrativeState, Scene, CubeCornerKey, WorldBuild } from '@/types/narrative';
 import type { MCTSConfig, MCTSTree, MCTSRunState, MCTSNodeId, MCTSStatus, MCTSPhase, MCTSNode, DeliveryDirection, PendingExpansion } from '@/types/mcts';
 import { DEFAULT_MCTS_CONFIG } from '@/types/mcts';
@@ -191,6 +192,9 @@ export function useMCTS() {
           },
         }
       );
+      // Credit/auth failures won't recover — cancel the run so sibling
+      // workers drain and shouldStop() exits the main loop cleanly.
+      if (err instanceof FatalApiError) cancelledRef.current = true;
       return null;
     });
 

@@ -1,5 +1,6 @@
 import { apiHeaders } from '@/lib/api-headers';
 import { DEFAULT_MODEL, DEFAULT_REASONING_BUDGET, API_TIMEOUT_MS, API_STREAM_TIMEOUT_MS } from '@/lib/constants';
+import { FatalApiError, isFatalStatus } from '@/lib/ai/errors';
 
 export async function callGenerateStream(
   prompt: string,
@@ -32,6 +33,7 @@ export async function callGenerateStream(
       const err = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }));
       const message = err.error || 'Generation failed';
       updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+      if (isFatalStatus(res.status)) throw new FatalApiError(res.status, `[${caller}] ${message}`);
       throw new Error(`[${caller}] ${message}`);
     }
 
@@ -93,6 +95,9 @@ export async function callGenerateStream(
     return full;
   } catch (err) {
     clearTimeout(timeoutId);
+    // Preserve fatal errors — loops rely on `instanceof FatalApiError` to halt.
+    if (err instanceof FatalApiError) throw err;
+
     const isAbort = err instanceof Error && err.name === 'AbortError';
     const isFetchError = err instanceof Error && err.message.includes('fetch failed');
     let message: string;
@@ -131,6 +136,7 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
       const err = await res.json();
       const message = err.error || 'Generation failed';
       updateApiLog(logId, { status: 'error', error: message, durationMs: Math.round(performance.now() - start) });
+      if (isFatalStatus(res.status)) throw new FatalApiError(res.status, message);
       throw new Error(message);
     }
     const data = await res.json();
@@ -150,6 +156,9 @@ export async function callGenerate(prompt: string, systemPrompt: string, maxToke
     return content;
   } catch (err) {
     clearTimeout(timeoutId);
+    // Preserve fatal errors — loops rely on `instanceof FatalApiError` to halt.
+    if (err instanceof FatalApiError) throw err;
+
     const isAbort = err instanceof Error && err.name === 'AbortError';
     const isFetchError = err instanceof Error && err.message.includes('fetch failed');
     let message: string;

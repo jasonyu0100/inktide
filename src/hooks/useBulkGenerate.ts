@@ -4,6 +4,7 @@ import { useRef, useCallback, useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { generateScenePlan, generateSceneProse, reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import { generateSceneGameAnalysis } from '@/lib/ai/game-analysis';
+import { FatalApiError } from '@/lib/ai/errors';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { PLAN_CONCURRENCY, PROSE_CONCURRENCY, GAME_CONCURRENCY } from '@/lib/constants';
 import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
@@ -170,6 +171,13 @@ export function useBulkGenerate() {
           operation: 'bulk-generate',
           details: { sceneId, mode, sceneNumber: completed + 1, totalScenes: total }
         });
+        // Credit/auth failures won't recover on retry — cancel the whole run
+        // so sibling workers stop spawning calls. The `cancelled` flag is
+        // checked by `runWorker` between scenes.
+        if (err instanceof FatalApiError) {
+          cancelledRef.current = true;
+          updateRunState({ statusMessage: `Stopped — ${err.message}` });
+        }
       }
 
       // Update progress after each scene completes

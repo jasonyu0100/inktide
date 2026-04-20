@@ -148,9 +148,6 @@ ${rulesBlock || "  (no rules recorded yet — the world is unspecified)"}
 HOW YOUR RULES INTERLOCK:
 ${edgeBlock || "  (no recorded relations — the rules stand independently for now)"}
 
-THE WORLD YOU GOVERN:
-${narrative.worldSummary || "(no recorded setting)"}
-
 HOW TO SPEAK AS SYSTEM:
 - You are the structure beneath the story. Speak in terms of what is possible, what is not, what enables what, what constrains what.
 - You have no personality — only logic. No pity, no desire; only rule and consequence.
@@ -468,6 +465,7 @@ ${ctx}`;
       promptText.length + sysPrompt.length,
       promptText,
       DEFAULT_MODEL,
+      sysPrompt,
     );
     const start = performance.now();
 

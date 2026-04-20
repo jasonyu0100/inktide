@@ -11,9 +11,9 @@ import { BEAT_FN_LIST } from '@/types/narrative';
 import { ANALYSIS_MAX_CORPUS_WORDS, DEFAULT_MODEL } from '@/lib/constants';
 import { IconSpinner, IconChevronLeft, IconDollar } from '@/components/icons';
 import { IconCheck } from '@/components/icons/EvalIcons';
-import { calculateTotalCost, calculateApiCost } from '@/lib/api-logger';
+import { calculateTotalCost } from '@/lib/api-logger';
 import { loadAnalysisApiLogs, saveAnalysisApiLogs } from '@/lib/persistence';
-import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
+import { ApiLogsViewer } from '@/components/apilogs/ApiLogsViewer';
 
 /* ── Elapsed timer ─────────────────────────────────────────────────────── */
 function useElapsed(startTime: number, running: boolean) {
@@ -1223,71 +1223,14 @@ function JobDetail({ job }: { job: AnalysisJob }) {
         </div>
       </div>
 
-      {/* API Logs Modal */}
+      {/* API Logs Modal — shared viewer handles list + detail tabs + cost */}
       {showApiLogs && (
-        <Modal onClose={() => setShowApiLogs(false)} size="2xl" maxHeight="80vh">
-          <ModalHeader onClose={() => setShowApiLogs(false)}>
-            <h2 className="text-[14px] font-medium text-text-primary">API Logs - {liveJob.title}</h2>
-            <div className="flex items-center gap-3 text-[10px]">
-              <span className="text-text-dim">{jobApiLogs.length} calls</span>
-              <span className="text-emerald-400 font-medium">Total: ${totalCost.toFixed(4)}</span>
-            </div>
-          </ModalHeader>
-          <ModalBody className="p-0">
-            {jobApiLogs.length === 0 ? (
-              <div className="flex items-center justify-center h-full p-8">
-                <p className="text-[12px] text-text-dim">No API calls logged for this analysis job.</p>
-              </div>
-            ) : (
-              <div className="py-1">
-                {[...jobApiLogs].reverse().map((entry) => {
-                  const cost = calculateApiCost(entry);
-                  return (
-                    <div
-                      key={entry.id}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 border-b border-white/5 text-left"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[12px] text-text-primary font-medium">{entry.caller}</span>
-                          {entry.model && (
-                            <span className="text-[9px] font-mono text-text-dim">
-                              {entry.model.split('/').pop()}
-                            </span>
-                          )}
-                          <span className={`text-[10px] font-medium ${
-                            entry.status === 'success' ? 'text-emerald-400' :
-                            entry.status === 'error' ? 'text-red-400' :
-                            'text-amber-400'
-                          }`}>
-                            {entry.status}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-0.5 text-[10px] text-text-dim">
-                          <span>~{(entry.promptTokens ?? 0).toLocaleString()} in</span>
-                          {entry.responseTokens != null && (
-                            <span>~{entry.responseTokens.toLocaleString()} out</span>
-                          )}
-                          <span className="text-emerald-400">${cost.toFixed(6)}</span>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-[10px] text-text-dim">
-                          {new Date(entry.timestamp).toLocaleTimeString()}
-                        </div>
-                        {entry.durationMs != null && (
-                          <div className="text-[10px] text-text-dim">
-                            {(entry.durationMs / 1000).toFixed(1)}s
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </ModalBody>
-        </Modal>
+        <ApiLogsViewer
+          onClose={() => setShowApiLogs(false)}
+          logs={jobApiLogs}
+          title={`API Logs - ${liveJob.title}`}
+          emptyMessage="No API calls logged for this analysis job."
+        />
       )}
     </div>
   );
@@ -1300,7 +1243,7 @@ async function detectTitleLLM(chunkText: string): Promise<string> {
 
   const prompt = `Here is the first chunk of a text. What is the title of this work? Reply with ONLY the title, nothing else. No quotes, no explanation.\n\n${chunkText}`;
   const systemPrompt = 'You identify book/screenplay/text titles from their content. Reply with only the title in proper title case.';
-  const logId = logApiCall('detectTitleLLM', prompt.length + systemPrompt.length, prompt, DEFAULT_MODEL);
+  const logId = logApiCall('detectTitleLLM', prompt.length + systemPrompt.length, prompt, DEFAULT_MODEL, systemPrompt);
   const start = performance.now();
 
   try {

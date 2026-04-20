@@ -260,6 +260,7 @@ async function callAnalysis(
     prompt.length + systemPrompt.length,
     prompt,
     ANALYSIS_MODEL,
+    systemPrompt,
   );
   const start = performance.now();
 

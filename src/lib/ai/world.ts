@@ -1,6 +1,7 @@
 import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild, ReasoningGraphSnapshot } from '@/types/narrative';
 import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
+import { normalizeTimeDelta } from '@/lib/time-deltas';
 import type { ThreadLogNodeType } from '@/types/narrative';
 import { applyThreadDelta } from '@/lib/thread-log';
 import { applyWorldDelta } from '@/lib/world-graph';
@@ -9,7 +10,7 @@ import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext } from './context';
-import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, PROMPT_FORCE_STANDARDS } from './prompts';
+import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, PROMPT_FORCE_STANDARDS, PROMPT_ARC_STATE_GUIDANCE } from './prompts';
 import { logInfo } from '@/lib/system-logger';
 import { generateExpansionReasoningGraph, buildSequentialPath, type ExpansionReasoningGraph } from './reasoning-graph';
 
@@ -850,6 +851,7 @@ Return JSON with this exact structure:
       "povId": "C-01",
       "participantIds": ["C-01"],
       "summary": "REQUIRED — WRITE THIS FIRST. This is the spine of the scene; every delta below must trace back to something stated here. Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics: actions, consequences, dialogue snippets. Include any context that shapes how the scene is written (time span, technique, tone). No sentences ending in emotions or realizations.",
+      "timeDelta": {"value": 1, "unit": "hour"},
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did — how it delivered utility"}],
       "events": ["event_tag"],
       "threadDeltas": [{"threadId": "T-01", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
@@ -859,7 +861,7 @@ Return JSON with this exact structure:
     }
   ],
   "arcs": [
-    {"id": "ARC-01", "name": "Arc name — a short thematic label for this story segment", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}}
+    {"id": "ARC-01", "name": "Arc name — a short thematic label for this story segment", "sceneIds": ["S-001"], "develops": ["T-01"], "locationIds": ["L-01"], "activeCharacterIds": ["C-01"], "initialCharacterLocations": {"C-01": "L-01"}, "directionVector": "Forward-looking intent — see ARC METADATA guidance below.", "worldState": "Backward-looking compact state snapshot as of END of arc — see ARC METADATA guidance below for domain-adaptive form."}
   ],`}
   "proseProfile": {
     "register": "the tonal register (conversational/literary/raw/clinical/sardonic/lyrical/mythic/journalistic or other)",
@@ -960,11 +962,18 @@ ARTIFACTS & TOOLS:
 
 ${worldOnly ? '' : `Every anchor must appear in at least 3 scenes. Use at least 6 different locations across the 8 scenes.
 
+TIME DELTA — REQUIRED on every scene. Each scene is an instant in time; timeDelta captures the gap since the PRIOR scene as an estimate. Always commit to a best-guess; do not skip the field.
+- value: integer ≥ 0. unit: one of minute | hour | day | week | month | year. Pick the unit that reads most naturally ("that evening" → 3 hours, "the next morning" → 1 day, "three years later" → 3 years).
+- {value: 0, unit: "minute"} marks a concurrent / simultaneous scene (same moment, different POV or vantage) — also use this for the very first scene of the arc where there's no prior scene to measure against.
+- This is an ESTIMATE — it's understood that you're reading prose cues, not consulting a calendar. Pick the most plausible value.
+- This is a RELATIVE delta only; there is no absolute calendar anchor. Do not assume a start date.
+
 ${PROMPT_POV}
 ${PROMPT_FORCE_STANDARDS}
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_DELTAS}
 ${PROMPT_WORLD}
+${PROMPT_ARC_STATE_GUIDANCE}
 ${PROMPT_SUMMARY_REQUIREMENT}`}
 
 `;
@@ -999,7 +1008,7 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
 
   const scenes: NarrativeState['scenes'] = {};
   if (!worldOnly) {
-    for (const s of (parsed.scenes ?? [])) scenes[s.id] = { ...s, kind: 'scene', summary: s.summary || `Scene ${s.id}` };
+    for (const s of (parsed.scenes ?? [])) scenes[s.id] = { ...s, kind: 'scene', summary: s.summary || `Scene ${s.id}`, timeDelta: normalizeTimeDelta(s.timeDelta) };
   }
 
   const arcs: NarrativeState['arcs'] = {};

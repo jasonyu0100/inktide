@@ -22,6 +22,7 @@ import { SceneAudioView } from './SceneAudioView';
 import { SceneGameTheoryView } from './SceneGameTheoryView';
 import { SearchView } from './SearchView';
 import { ReasoningGraphView } from './ReasoningGraphView';
+import NetworkView from './NetworkView';
 import {
   type GraphNode,
   type GraphLink,
@@ -1146,6 +1147,8 @@ export default function WorldGraph() {
         )
       ) : graphViewMode === 'search' ? (
         <SearchView />
+      ) : graphViewMode === 'network' ? (
+        <NetworkView />
       ) : graphViewMode === 'reasoning' ? (
         // World build reasoning takes priority when viewing a world commit
         currentWorldBuildWithReasoning ? (

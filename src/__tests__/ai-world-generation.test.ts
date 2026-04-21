@@ -17,6 +17,7 @@ vi.mock('@/lib/ai/prompts', () => ({
   PROMPT_DELTAS: 'Mock deltas',
   PROMPT_POV: 'Mock POV',
   PROMPT_WORLD: 'Mock continuity',
+  PROMPT_ARC_STATE_GUIDANCE: 'Mock arc state guidance',
   PROMPT_SUMMARY_REQUIREMENT: 'Mock summary requirement',
   PROMPT_ENTITY_INTEGRATION: 'Mock entity integration',
   buildForceStandardsPrompt: vi.fn().mockReturnValue('Mock force standards prompt'),

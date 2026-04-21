@@ -372,12 +372,17 @@ describe('groupScenesIntoArcs', () => {
   it('groups scenes into arcs of ~4 and names them', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ content: JSON.stringify(['The Beginning', 'Rising Tension']) }),
+      json: async () => ({ content: JSON.stringify([
+        { name: 'The Beginning', directionVector: 'Alice sets out; stakes established.', worldState: 'Alice at home; threads seeded; no allies yet.' },
+        { name: 'Rising Tension', directionVector: 'Bob pursues; pressure rises.', worldState: 'Alice at forest; T-Pursuit escalating; Bob tracks.' },
+      ]) }),
     } as Response);
     const summaries = Array.from({ length: 8 }, (_, i) => ({ index: i, summary: `Scene ${i} summary` }));
     const arcs = await groupScenesIntoArcs(summaries);
     expect(arcs).toHaveLength(2);
     expect(arcs[0].name).toBe('The Beginning');
+    expect(arcs[0].directionVector).toBe('Alice sets out; stakes established.');
+    expect(arcs[0].worldState).toBe('Alice at home; threads seeded; no allies yet.');
     expect(arcs[0].sceneIndices).toEqual([0, 1, 2, 3]);
     expect(arcs[1].name).toBe('Rising Tension');
     expect(arcs[1].sceneIndices).toEqual([4, 5, 6, 7]);
@@ -385,7 +390,10 @@ describe('groupScenesIntoArcs', () => {
   it('handles non-multiple-of-4 scene counts', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ content: JSON.stringify(['Arc One', 'Arc Two']) }),
+      json: async () => ({ content: JSON.stringify([
+        { name: 'Arc One', directionVector: 'd1', worldState: 'w1' },
+        { name: 'Arc Two', directionVector: 'd2', worldState: 'w2' },
+      ]) }),
     } as Response);
     const summaries = Array.from({ length: 6 }, (_, i) => ({ index: i, summary: `Scene ${i}` }));
     const arcs = await groupScenesIntoArcs(summaries);
@@ -393,21 +401,25 @@ describe('groupScenesIntoArcs', () => {
     expect(arcs[0].sceneIndices).toEqual([0, 1, 2, 3]);
     expect(arcs[1].sceneIndices).toEqual([4, 5]); // Remaining 2 scenes
   });
-  it('falls back to default names when LLM returns fewer names', async () => {
+  it('falls back to default names when LLM returns fewer entries', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ content: JSON.stringify(['Only One Name']) }),
+      json: async () => ({ content: JSON.stringify([
+        { name: 'Only One Name', directionVector: 'd', worldState: 'w' },
+      ]) }),
     } as Response);
     const summaries = Array.from({ length: 8 }, (_, i) => ({ index: i, summary: `Scene ${i}` }));
     const arcs = await groupScenesIntoArcs(summaries);
     expect(arcs).toHaveLength(2);
     expect(arcs[0].name).toBe('Only One Name');
     expect(arcs[1].name).toBe('Arc 2'); // Fallback
+    expect(arcs[1].directionVector).toBeUndefined();
+    expect(arcs[1].worldState).toBeUndefined();
   });
   it('handles single scene input', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ content: JSON.stringify(['Prologue']) }),
+      json: async () => ({ content: JSON.stringify([{ name: 'Prologue', directionVector: 'd', worldState: 'w' }]) }),
     } as Response);
     const arcs = await groupScenesIntoArcs([{ index: 0, summary: 'Only scene' }]);
     expect(arcs).toHaveLength(1);
@@ -416,7 +428,7 @@ describe('groupScenesIntoArcs', () => {
   it('preserves non-sequential scene indices', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ content: JSON.stringify(['Sparse Arc']) }),
+      json: async () => ({ content: JSON.stringify([{ name: 'Sparse Arc', directionVector: 'd', worldState: 'w' }]) }),
     } as Response);
     // Simulate scenes that aren't 0-indexed consecutively (e.g., some scenes filtered out)
     const summaries = [{ index: 2, summary: 'Scene 2' }, { index: 5, summary: 'Scene 5' }, { index: 7, summary: 'Scene 7' }];

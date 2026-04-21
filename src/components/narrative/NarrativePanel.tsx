@@ -3,6 +3,11 @@
 import { IconEye, IconLocationPin } from "@/components/icons";
 import { getEffectivePovId } from "@/lib/narrative-utils";
 import { useStore } from "@/lib/store";
+import {
+  computeSceneOffsets,
+  formatCumulative,
+  formatTimeDelta,
+} from "@/lib/time-deltas";
 import { resolveEntry, type Scene } from "@/types/narrative";
 
 export default function NarrativePanel() {
@@ -120,6 +125,19 @@ export default function NarrativePanel() {
     a.sceneIds.includes(scene.id),
   );
 
+  // Cumulative time offset from the first scene in the branch. Walk the
+  // resolved timeline, collect scenes only (world builds are not temporal),
+  // and pick the offset at this scene's index.
+  const branchScenes: Scene[] = [];
+  for (const k of state.resolvedEntryKeys) {
+    const s = narrative.scenes[k];
+    if (s) branchScenes.push(s);
+  }
+  const sceneIdx = branchScenes.findIndex((s) => s.id === scene.id);
+  const offsets = computeSceneOffsets(branchScenes);
+  const cumulativeSeconds = sceneIdx >= 0 ? offsets[sceneIdx] : 0;
+  const showTimeDelta = sceneIdx > 0 && scene.timeDelta != null;
+
   return (
     <div className="h-[180px] shrink-0 glass-panel border-t border-border overflow-y-auto px-4 py-3">
       <div className="flex items-baseline justify-between gap-2 mb-2">
@@ -133,6 +151,14 @@ export default function NarrativePanel() {
           {arc && (
             <span className="text-[10px] text-text-dim uppercase tracking-wider">
               {arc.name}
+            </span>
+          )}
+          {sceneIdx > 0 && cumulativeSeconds > 0 && (
+            <span
+              className="text-[10px] text-text-dim font-mono"
+              title="Cumulative time from first scene"
+            >
+              T+{formatCumulative(cumulativeSeconds)}
             </span>
           )}
           {location && (
@@ -174,6 +200,14 @@ export default function NarrativePanel() {
         </div>
       </div>
       <p className="text-sm leading-relaxed text-text-primary">
+        {showTimeDelta && (
+          <span
+            className="text-text-dim italic mr-1.5"
+            title="Time elapsed since prior scene (estimate)"
+          >
+            +{formatTimeDelta(scene.timeDelta)} —
+          </span>
+        )}
         {scene.summary || "No summary available."}
       </p>
     </div>

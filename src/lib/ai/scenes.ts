@@ -1,11 +1,12 @@
 import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode, Artifact, Character, Location as LocationEntity, LocationProminence } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
 import { nextId, nextIds } from '@/lib/narrative-utils';
+import { normalizeTimeDelta } from '@/lib/time-deltas';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, buildProseProfile } from './context';
-import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS, buildScenePlanSystemPrompt, buildBeatAnalystSystemPrompt, buildScenePlanEditSystemPrompt, buildSceneProseSystemPrompt } from './prompts';
+import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_ARTIFACTS, PROMPT_LOCATIONS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, promptThreadLifecycle, buildThreadHealthPrompt, buildCompletedBeatsPrompt, PROMPT_FORCE_STANDARDS, PROMPT_ARC_STATE_GUIDANCE, buildScenePlanSystemPrompt, buildBeatAnalystSystemPrompt, buildScenePlanEditSystemPrompt, buildSceneProseSystemPrompt } from './prompts';
 import { samplePacingSequence, buildSequencePrompt, detectCurrentMode, MATRIX_PRESETS, DEFAULT_TRANSITION_MATRIX, type PacingSequence } from '@/lib/pacing-profile';
 import { resolveProfile, resolveSampler, sampleBeatSequence } from '@/lib/beat-profiles';
 import { FORMAT_INSTRUCTIONS } from '@/lib/prompts';
@@ -290,20 +291,13 @@ The scenes must continue from the current point in the story (after scene index 
 
 ${sequencePrompt}
 
-Return JSON with this exact structure. IMPORTANT: Fill out "arcOutline" FIRST — plan the arc structure before writing any scenes. The outline commits you to a specific beat sequence and collision plan. Then write scenes that execute the outline exactly.
+Return JSON with this exact structure.
 
 For EACH scene: write the "summary" field FIRST (after id/arcId/locationId/povId/participantIds). The summary is the spine — it states in prose what happens in the scene. ONLY THEN derive the deltas (threadDeltas, worldDeltas, systemDeltas, etc.) from that summary. Every delta must trace back to something explicitly stated in the summary. This prevents abstract delta-assembly that forgets to ground the scene in concrete events.
 {
   "arcName": "Short, evocative arc name (2-4 words). Must be UNIQUE. Bad: 'Continuation', 'New Beginnings'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths'.",
-  "directionVector": "Single sentence (10-15 words) using character NAMES: what changes, who drives it, what's at stake.",
-  "arcOutline": {
-    "threadBeats": {
-      "T-XX (thread description)": ["Scene N: status FROM → TO via [specific mechanism]"],
-      "T-YY (thread description)": ["Scene N: status FROM → TO via [specific mechanism]"]
-    },
-    "collisionPlan": ["Scene N: T-XX and T-YY collide — [Character A] and [Character B] are at [Location] because [reason], their incompatible goals force [specific consequence]"],
-    "totalScenes": "number — the MINIMUM needed to execute all beats above. If a beat can share a scene with another beat via collision, it SHOULD."
-  },
+  "directionVector": "Forward-looking intent for this arc. See ARC METADATA guidance below.",
+  "worldState": "Backward-looking compact state snapshot as of the END OF THIS ARC — the chess-board position. See ARC METADATA guidance below for domain-adaptive form.",
   "scenes": [
     {
       "id": "S-GEN-001",
@@ -312,6 +306,7 @@ For EACH scene: write the "summary" field FIRST (after id/arcId/locationId/povId
       "povId": "character ID whose perspective this scene is told from (must be a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : storySettings.povMode === 'free' && storySettings.povCharacterIds.length > 0 ? ` — PREFER: ${storySettings.povCharacterIds.join(', ')} (but may use others)` : ''}",
       "participantIds": ["existing character IDs"],
       "summary": "REQUIRED — WRITE THIS FIRST. This is the spine of the scene; every delta below must trace back to something stated here. Rich prose sentences using character NAMES and location NAMES — never raw IDs (no C-01, T-XX, L-03, WK-GEN, A-01 etc). Write as if for a reader: 'Fang Yuan acquires the Liquor worm' not 'C-01 acquires A-05'. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations.",
+      "timeDelta": {"value": 1, "unit": "hour"},
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did — how it delivered utility"}],
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition: 'Rode horseback through the night', 'Slipped through the back gate at dawn'"}},
       "events": ["event_tag_1", "event_tag_2"],
@@ -323,7 +318,7 @@ For EACH scene: write the "summary" field FIRST (after id/arcId/locationId/povId
       "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
       "newCharacters": [{"id": "C-GEN-001", "name": "Full Name", "role": "anchor|recurring|transient", "threadIds": [], "imagePrompt": "1-2 sentence literal physical description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history|capability|secret|goal", "content": "key fact about this character"}}, "edges": []}}],
       "newLocations": [{"id": "L-GEN-001", "name": "Location Name", "prominence": "domain|place|margin", "parentId": "L-XX (existing parent) or null", "tiedCharacterIds": [], "threadIds": [], "imagePrompt": "1-2 sentence literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history", "content": "key fact about this location"}}, "edges": []}}],
-      "newArtifacts": [{"id": "A-GEN-001", "name": "Artifact Name", "significance": "key|notable|minor", "parentId": "C-XX or L-XX or null (current owner)", "threadIds": [], "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|capability|history|state", "content": "what the artifact is, what it does — one fact per node, same world-graph format as characters and locations"}}, "edges": []}}],
+      "newArtifacts": [{"id": "A-GEN-001", "name": "Artifact Name", "significance": "key|notable|minor", "parentId": "C-XX or L-XX or null (current owner)", "threadIds": [], "imagePrompt": "1-2 sentence literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|capability|history|state", "content": "what the artifact is, what it does — one fact per node, same world-graph format as characters and locations"}}, "edges": []}}],
       "newThreads": [{"id": "T-GEN-001", "description": "What this tension is about", "status": "latent", "participants": [{"id": "C-XX", "type": "character|location|artifact"}], "threadLog": {"nodes": {}, "edges": []}}]
     }
   ]
@@ -343,6 +338,12 @@ Rules:
 - Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
 - System knowledge node IDs for NEW concepts must be unique: SYS-GEN-001, SYS-GEN-002, etc. Reused nodes should keep their original ID.
 
+TIME DELTA — REQUIRED on every scene. Each scene is an instant in time; timeDelta captures the gap since the PRIOR scene as an estimate. Always commit to a best-guess; do not skip the field.
+- value: integer ≥ 0. unit: one of minute | hour | day | week | month | year. Pick the unit that reads most naturally ("that evening" → 3 hours, "the next morning" → 1 day, "three years later" → 3 years).
+- {value: 0, unit: "minute"} marks a concurrent / simultaneous scene (same moment as the prior scene, different POV or vantage) — also use this for the very first scene of the arc where there's no prior scene to measure against.
+- This is an ESTIMATE — it's understood that the LLM is reading prose cues, not consulting a calendar. Pick the most plausible value.
+- This is a RELATIVE delta only. There is no absolute calendar anchor. Do not assume a start date.
+
 DENSITY BAR (grading reference means — your arc averages must hit these or it grades in the 60s):
   Fate F ≈ 1.5 per scene · World W ≈ 12 per scene · System S ≈ 3 per scene
   A typical scene: 3-5 entities touched, 10-14 world nodes (list in causal order — edges auto-chain), 2-4 system knowledge nodes + 1-3 edges, 2-4 thread pulses (0-1 transitions).
@@ -360,14 +361,14 @@ ${PROMPT_LOCATIONS}
 ${Object.keys(narrative.artifacts ?? {}).length > 0 ? PROMPT_ARTIFACTS : ''}
 ${PROMPT_POV}
 ${PROMPT_WORLD}
+${PROMPT_ARC_STATE_GUIDANCE}
 ${promptThreadLifecycle()}
 ${buildThreadHealthPrompt(narrative, resolvedKeys, currentIndex)}
 ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
 
   // Retry on JSON parse failures (truncation, malformed output)
   const MAX_RETRIES = 2;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let parsed: { arcName?: string; directionVector?: string; arcOutline?: any; scenes: Scene[] };
+  let parsed: { arcName?: string; directionVector?: string; worldState?: string; scenes: Scene[] };
   let lastErr: unknown;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -376,7 +377,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
       const raw = useStream
         ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget, onReasoning)
         : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget);
-      parsed = parseJson(raw, 'generateScenes') as { arcName?: string; directionVector?: string; scenes: Scene[] };
+      parsed = parseJson(raw, 'generateScenes') as { arcName?: string; directionVector?: string; worldState?: string; scenes: Scene[] };
       break;
     } catch (err) {
       lastErr = err;
@@ -392,6 +393,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
   if (!parsed!) throw lastErr;
   const arcName = existingArc?.name ?? parsed.arcName ?? 'Untitled Arc';
   const directionVector = parsed.directionVector;
+  const worldState = parsed.worldState;
 
   const sceneIds = nextIds('S', Object.keys(narrative.scenes), parsed.scenes.length, 3);
   const scenes: Scene[] = parsed.scenes.map((s, i) => ({
@@ -400,6 +402,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
     id: sceneIds[i],
     arcId,
     summary: s.summary || `Scene ${i + 1} of arc "${arcName}"`,
+    timeDelta: normalizeTimeDelta(s.timeDelta),
   }));
 
   sanitizeScenes(scenes, narrative, 'generateScenes');
@@ -641,6 +644,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
         develops: [...new Set([...existingArc.develops, ...newDevelops])],
         locationIds: [...new Set([...existingArc.locationIds, ...newLocationIds])],
         activeCharacterIds: [...new Set([...existingArc.activeCharacterIds, ...newCharacterIds])],
+        worldState: worldState ?? existingArc.worldState,
       }
     : {
         id: arcId,
@@ -651,6 +655,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
         activeCharacterIds: newCharacterIds,
         initialCharacterLocations: {},
         directionVector,
+        worldState,
       };
 
   if (!existingArc && scenes.length > 0) {
@@ -823,7 +828,9 @@ ${buildThreadHealthPrompt(narrative, resolvedKeys, contextIndex) ? `\n${buildThr
 SCENE:
 ${sceneContext(narrative, scene)}
 ${compulsoryBlock}
-Generate a beat plan that GLUES the compulsory propositions into the narrative flow: reordered for effect, enriched with bridge propositions drawn from the narrative context where continuity calls for them, grouped into beats, and paced with varied mechanisms. Coverage is non-negotiable; the ORDERING and GROUPING are your craft decisions. Prose delivery will follow the prose profile — your job is the skeleton, not the voice.`;
+Generate a beat plan that GLUES the compulsory propositions into the narrative flow: reordered for effect, enriched with bridge propositions drawn from the narrative context where continuity calls for them, grouped into beats, and paced with varied mechanisms. Coverage is non-negotiable; the ORDERING and GROUPING are your craft decisions. Prose delivery will follow the prose profile — your job is the skeleton, not the voice.
+
+OPENING SHAPE — read the <time-gap> on the scene and let it set the opening beat. A concurrent gap stays mid-action with no re-orientation. A few-hours gap needs a small sensory cue. A days/weeks gap needs an orienting beat (weather, routine, arriving message). A months/years gap may want a montage beat or a status-change reveal up front. Make sure the first one or two beats DO this work — don't skip the transition just because the summary jumps in cold.`;
 
   const raw = onReasoning
     ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
@@ -1634,6 +1641,8 @@ THREE CONTINUITY CONSTRAINTS — the prose honours all three. The mode of honour
 Render every thread shift, world change, relationship delta, and system reveal in the mode the profile declares. Foreshadow through imagery, subtext, or explicit framing as the profile prefers.
 
 BEAT SIZING — EVEN WITHOUT A PLAN, THINK IN ~${WORDS_PER_BEAT}-WORD BEATS. The scene should read as a sequence of beats of roughly consistent weight — one beat ≈ one paragraph or tight scene moment, ≈${WORDS_PER_BEAT} words. This keeps rhythm even and propositions evenly distributed. No fixed floor, no padding — but if you find a single beat running past ~${WORDS_PER_BEAT * 2} words, it is probably two beats.
+
+OPENING TRANSITION — read the <time-gap> on the scene. The opening sentences must do the work the gap implies. A concurrent gap stays mid-action with no re-orientation. A few hours: a small sensory cue. Days/weeks: an orienting beat (light, weather, routine, an arriving message). Months/years: a kicker that anchors the new now — a montage paragraph, a season cue, an aged-up character description, a status-change reveal. Skipping the transition makes time jumps feel weightless.
 
 PROSE PROFILE COMPLIANCE: every sentence conforms to the declared voice, register, devices, and rules. If the profile forbids figures of speech, use zero. If it requires specific devices, use them.`;
 

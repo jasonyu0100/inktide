@@ -694,6 +694,26 @@ export type ProseScore = {
   details?: Record<string, number>;
 };
 
+// ── Time Deltas ──────────────────────────────────────────────────────────────
+// Scenes are treated as instants in time; time deltas capture the gap between
+// consecutive scenes. Time is tracked relative to the first scene only — no
+// absolute calendar reference (no "Monday 1st January 2026"). `value: 0`
+// (with any unit) denotes a concurrent scene — same moment as the prior
+// scene, different POV or vantage.
+
+export type TimeUnit =
+  | "minute"
+  | "hour"
+  | "day"
+  | "week"
+  | "month"
+  | "year";
+
+export type TimeDelta = {
+  value: number;
+  unit: TimeUnit;
+};
+
 export type Scene = {
   kind: "scene";
   id: string;
@@ -732,6 +752,15 @@ export type Scene = {
   planVersions?: PlanVersion[];
   /** Game-theoretic analysis — opt-in, additive layer derived from the beat plan. Single current analysis; regenerate to replace. */
   gameAnalysis?: SceneGameAnalysis;
+  /** Estimated time elapsed since the prior scene in the branch. Required
+   *  via prompting going forward — the LLM commits to a best-guess based on
+   *  prose cues, even when the gap is fuzzy. Optional in the type for
+   *  backward compatibility with scenes generated before this field existed.
+   *  `value: 0` marks this scene as concurrent (same moment as the prior
+   *  scene, different vantage). The first scene of a branch uses `value: 0`
+   *  since there is no prior scene. Relative delta only — no absolute
+   *  calendar anchor. */
+  timeDelta?: TimeDelta | null;
   summary: string;
   imageUrl?: ImageRef;
   audioUrl?: AudioRef;
@@ -856,6 +885,15 @@ export type Arc = {
   initialCharacterLocations: Record<string, string>;
   /** Short sentence summarising the narrative direction of this arc */
   directionVector?: string;
+  /**
+   * Compact snapshot of the global state AS OF the end of this arc — the
+   * chess-board position. Who is where, what threads are live and at what
+   * stage, what resources/artifacts are in play, what tensions stand.
+   * Complementary to `directionVector` (forward-looking) — this is the
+   * backward-looking state that downstream reasoning can treat as ground truth
+   * without replaying every delta. Written in terse, structured prose.
+   */
+  worldState?: string;
   /** Reasoning graph used to plan this arc's scenes — stored for canvas viewing */
   reasoningGraph?: ReasoningGraphSnapshot;
 };
@@ -887,8 +925,18 @@ export type ReasoningNodeSnapshot = {
     | "chaos";  // Creative agent — introduces new entities (characters/locations/artifacts/threads)
   label: string;
   detail?: string;
+  /** Reference to a character / location / artifact in the narrative. Set
+   *  when this node anchors to an existing world entity; cleared when the
+   *  reference doesn't resolve (LLM hallucination) or when the node
+   *  introduces a new entity. */
   entityId?: string;
+  /** Reference to a thread in the narrative. Set on fate nodes that anchor
+   *  to an existing thread; cleared on hallucination. */
   threadId?: string;
+  /** Reference to a node in the system knowledge graph. Set on system nodes
+   *  that anchor to an existing rule/principle/concept; cleared on
+   *  hallucination or when the node introduces a new system rule. */
+  systemNodeId?: string;
 };
 
 export type ReasoningEdgeSnapshot = {
@@ -1563,6 +1611,15 @@ export type StorySettings = {
    * pickers. User can override per-generation.
    */
   defaultReasoningSize: "small" | "medium" | "large";
+  /**
+   * Network thinking mode — biases reasoning toward, away from, or balanced
+   * across the cumulative activation pattern of the narrative's entities,
+   * threads, and system nodes.
+   *  - `inside`: anchor in HOT nodes; deepen the gravitational centres
+   *  - `outside`: reach for COLD or FRESH nodes; break the dominant pattern
+   *  - `neutral`: use what the arc needs — balanced across hot and cold
+   */
+  networkBias: "inside" | "outside" | "neutral";
 };
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
@@ -1590,6 +1647,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   defaultReasoningMode: "divergent",
   defaultForcePreference: "freeform",
   defaultReasoningSize: "medium",
+  networkBias: "neutral",
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────
@@ -1828,6 +1886,8 @@ export type AnalysisChunkResult = {
         relation: string;
       }[];
     };
+    /** Time elapsed since the prior scene in the work — extracted from prose. */
+    timeDelta?: TimeDelta | null;
     plan?: BeatPlan;
     beatProseMap?: BeatProseMap;
   }[];
@@ -1940,7 +2000,8 @@ export type GraphViewMode =
   | "pulse"
   | "threads"
   | "search"
-  | "reasoning";
+  | "reasoning"
+  | "network";
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {

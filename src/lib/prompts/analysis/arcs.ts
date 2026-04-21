@@ -1,16 +1,30 @@
 /**
  * Arc Grouping Prompt
  *
- * Names a sequence of scene arcs based on their summaries. Each arc is a
- * narrative unit of ~4 scenes.
+ * For each arc (a narrative unit of ~4 scenes), name it and emit two metadata
+ * fields alongside:
+ *   - directionVector — forward-looking intent, single sentence
+ *   - worldState — backward-looking compact state snapshot at arc end
+ *
+ * worldState is domain-adaptive — the corpus may be fiction, a chess game, a
+ * poker hand, an academic paper, a stock log. The prompt forces the model to
+ * identify the work type first, then emit state in that domain's native form.
  */
 
+import { PROMPT_ARC_STATE_GUIDANCE } from '@/lib/prompts/core/game-state';
+
 export const ARC_GROUPING_SYSTEM =
-  'You are a narrative analyst. Name story arcs based on scene summaries. Return only a JSON array of strings.';
+  'You are a narrative analyst. Name story arcs and emit arc metadata (direction + compact world state) based on scene summaries. Return only a JSON array of objects.';
 
 export interface ArcGroup {
   sceneIndices: number[];
   summaries: string[];
+}
+
+export interface ArcGroupingOutput {
+  name: string;
+  directionVector: string;
+  worldState: string;
 }
 
 export function buildArcGroupingPrompt(groups: ArcGroup[]): string {
@@ -25,14 +39,22 @@ export function buildArcGroupingPrompt(groups: ArcGroup[]): string {
     })
     .join('\n\n');
 
-  return `Name each arc based on its scene summaries. An arc is a narrative unit of ~4 scenes.
+  return `Name each arc and emit its metadata based on scene summaries. An arc is a narrative unit of ~4 scenes.
 
 ${block}
 
-Return JSON array of arc names (one per arc, in order):
-["Arc 1 Name", "Arc 2 Name", ...]
-
+Return a JSON array (one object per arc, in order) with this exact shape:
+[
+  {
+    "name": "2-5 word evocative name for the arc (e.g. 'The Betrayal at Dawn', not 'Events')",
+    "directionVector": "Forward-looking intent — see ARC METADATA guidance below.",
+    "worldState": "Backward-looking compact state snapshot as of the END of this arc — see ARC METADATA guidance below for domain-adaptive form."
+  }
+]
+${PROMPT_ARC_STATE_GUIDANCE}
 Rules:
-- Each name should capture the arc's thematic thrust in 2-5 words
-- Names should be evocative and specific, not generic ("The Betrayal at Dawn" not "Events")`;
+- Each name captures the arc's thematic thrust in 2-5 words — evocative and specific, not generic.
+- directionVector must read as forward intent for THIS arc, not a summary of what happened.
+- worldState must be ground-truth only, 50-90 words, in the native compact form for the DETECTED domain (fiction, chess, poker, paper, stock log, etc).
+- Output must be a JSON array with length exactly equal to the number of arcs above.`;
 }

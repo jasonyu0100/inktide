@@ -183,6 +183,7 @@ class AnalysisRunner {
             scene.tieDeltas = s.tieDeltas;
             scene.characterMovements = s.characterMovements;
             scene.systemDeltas = s.systemDeltas;
+            scene.timeDelta = s.timeDelta ?? null;
 
             // Populate chunk-level entities
             const r = results[idx]!;

@@ -47,7 +47,7 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 
 export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning';
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning' | 'network';
 type ScenePrimaryMode = 'reasoning' | 'plan' | 'prose' | 'audio' | 'game';
 const SCENE_MODES: ScenePrimaryMode[] = ['reasoning', 'plan', 'prose', 'audio', 'game'];
 
@@ -242,6 +242,7 @@ function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'game') return 'game';
   if (graphViewMode === 'search') return 'search';
   if (graphViewMode === 'reasoning') return 'reasoning';
+  if (graphViewMode === 'network') return 'network';
   return 'graph';
 }
 
@@ -813,6 +814,7 @@ export function CanvasTopBar() {
             { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const, activeWhen: canvasMode === 'graph' },
             { mode: 'scene' as const, Icon: IconNotepad, label: 'Scene', condition: 'sceneOnly' as const, activeWhen: inSceneMode },
             { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const, activeWhen: canvasMode === 'search' },
+            { mode: 'network' as CanvasMode, Icon: IconGlobe, label: 'Network', condition: 'always' as const, activeWhen: canvasMode === 'network' },
           ]
             .filter(({ condition }) => {
               if (condition === 'sceneOnly' && !currentScene) return false;

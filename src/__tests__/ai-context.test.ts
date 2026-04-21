@@ -601,10 +601,10 @@ describe('narrativeContext scene-history tiers', () => {
     });
     const keys = Object.keys(n.scenes);
     const ctx = narrativeContext(n, keys, keys.length - 1);
-    expect(ctx).toMatch(/tier="near"[^>]*>summary-3/);
+    expect(ctx).toMatch(/<entry[^>]*tier="near"[\s\S]*?<summary>summary-3<\/summary>/);
   });
 
-  it('renders a far-tier entry with only summary + POV + location (no participants, threads, deltas)', () => {
+  it('renders a far-tier entry with only summary (no participants, threads, deltas)', () => {
     // Push the first scene into far: need > NEAR + MID scenes total.
     const count = NEAR_RECENCY_ZONE + MID_RECENCY_ZONE + 2;
     const scenes = makeSceneRun(count, { participantIds: ['c1', 'c2'] });
@@ -618,16 +618,17 @@ describe('narrativeContext scene-history tiers', () => {
     });
     const keys = Object.keys(n.scenes);
     const ctx = narrativeContext(n, keys, keys.length - 1);
-    const farMatch = ctx.match(/<entry index="1"[^>]*>summary-1<\/entry>/);
+    const farMatch = ctx.match(/<entry index="1"[\s\S]*?<\/entry>/);
     expect(farMatch).not.toBeNull();
     const entry = farMatch![0];
     expect(entry).toContain('tier="far"');
-    expect(entry).not.toContain('participants=');
-    expect(entry).not.toContain('threads=');
-    expect(entry).not.toContain('continuity=');
+    expect(entry).toContain('<summary>summary-1</summary>');
+    expect(entry).not.toContain('<participants>');
+    expect(entry).not.toContain('<threads>');
+    expect(entry).not.toContain('<continuity>');
   });
 
-  it('mid-tier entries omit the participants attribute (threads imply names)', () => {
+  it('mid-tier entries omit the participants child element (threads imply names)', () => {
     // Put a scene squarely in mid: index < NEAR from end, but inside NEAR+MID.
     const count = NEAR_RECENCY_ZONE + 3;
     const scenes = makeSceneRun(count, { participantIds: ['c1', 'c2'] });
@@ -641,9 +642,9 @@ describe('narrativeContext scene-history tiers', () => {
     });
     const keys = Object.keys(n.scenes);
     const ctx = narrativeContext(n, keys, keys.length - 1);
-    const midEntry = ctx.match(/<entry index="1"[^>]*tier="mid"[^>]*>[^<]*<\/entry>/);
+    const midEntry = ctx.match(/<entry index="1"[^>]*tier="mid"[\s\S]*?<\/entry>/);
     expect(midEntry).not.toBeNull();
-    expect(midEntry![0]).not.toContain('participants=');
+    expect(midEntry![0]).not.toContain('<participants>');
   });
 
   it('important scenes (thread transitions into critical/resolved) survive in higher tiers', () => {
@@ -674,9 +675,9 @@ describe('narrativeContext scene-history tiers', () => {
     const entryMatch = ctx.match(/<entry index="1"[\s\S]*?<\/entry>/);
     expect(entryMatch).not.toBeNull();
     const entry = entryMatch![0];
-    expect(entry).toContain('summary-1');
+    expect(entry).toContain('<summary>summary-1</summary>');
     expect(entry).toContain('tier="mid"');
-    expect(entry).toContain('threads=');
+    expect(entry).toContain('<threads>');
   });
 });
 

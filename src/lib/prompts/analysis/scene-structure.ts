@@ -54,6 +54,7 @@ Return JSON:
   "ownershipDeltas": [{"artifactName": "Name", "fromName": "prev", "toName": "new"}],
   "tieDeltas": [{"locationName": "Name", "characterName": "Name", "action": "add|remove"}],
   "characterMovements": [{"characterName": "Name", "locationName": "destination", "transition": "15-25 words describing how they traveled — the journey, transport, or spatial transition"}],
+  "timeDelta": {"value": 1, "unit": "hour"},
   "systemDeltas": {"addedNodes": [{"concept": "15-25 words, PRESENT tense: a general rule or structural fact — how the world works, no specific characters or events. Emit as many nodes as the scene genuinely reveals about how the world works — no count cap.", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"fromConcept": "name", "toConcept": "name", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}
 }`;
 
@@ -213,6 +214,17 @@ artifactUsages — when an artifact delivers utility. Every artifact referenced 
 ownershipDeltas — only when artifacts change hands.
 tieDeltas — significant bond changes. NOT temporary visits.
 characterMovements — only physical relocation. Vivid transitions.
+
+timeDelta — REQUIRED on every scene. Time elapsed since the PRIOR scene in the work. Each scene is treated as an instant in time; this field captures the gap as an estimate. Always commit to a best-guess; do not skip the field.
+- value: integer ≥ 0. unit: one of minute | hour | day | week | month | year.
+  ✓ "the next morning" → {value: 1, unit: "day"}
+  ✓ "three years later" → {value: 3, unit: "year"}
+  ✓ "moments later" → {value: 1, unit: "minute"}
+  ✓ "that evening" → {value: 6, unit: "hour"}
+- {value: 0, unit: "minute"} marks a CONCURRENT scene — same moment as the prior scene, different POV / vantage / cutaway. Also use this for the very FIRST scene of the work (no prior scene to measure against).
+- This is an ESTIMATE — read the prose for cues, then pick the most plausible value. The estimate is acceptable even when the prose is fuzzy ("some time later", "after a while"). Default to a small unit (minutes / hours) when the gap reads as same-scene-day, and to days/weeks when it reads as a chapter break with no specific cue.
+- This is a RELATIVE delta only. There is no absolute calendar anchor. Do not assume a start date or attempt to compute wall-clock dates.
+- Non-fiction (papers, etc.): timeDelta still REQUIRED but typically defaults to {value: 0, unit: "minute"} since paper sections are not chronological events. Use a non-zero value only when the section genuinely follows another in narrative time (e.g. a case study with explicit chronology).
 
 VARIANCE IS SIGNAL:
 - Quiet scene: 0 transitions, 1 continuity node, 0 system, 2 events = CORRECT.

@@ -32,6 +32,7 @@ import type {
   SystemNodeType,
   Thread,
   ThreadLogNodeType,
+  TimeDelta,
   WorldBuild,
 } from "@/types/narrative";
 import {
@@ -52,6 +53,7 @@ import {
   THREADING_SYSTEM,
   buildThreadingPrompt,
 } from "@/lib/prompts/analysis";
+import { normalizeTimeDelta } from "@/lib/time-deltas";
 
 // ── Scene-level Splitting ────────────────────────────────────────────────────
 
@@ -178,6 +180,7 @@ export type SceneStructureResult = {
     AnalysisChunkResult["scenes"][0]["characterMovements"]
   >;
   systemDeltas?: AnalysisChunkResult["scenes"][0]["systemDeltas"];
+  timeDelta?: TimeDelta | null;
 };
 
 /**
@@ -213,18 +216,21 @@ export async function extractSceneStructure(
     tieDeltas: parsed.tieDeltas ?? [],
     characterMovements: parsed.characterMovements ?? [],
     systemDeltas: parsed.systemDeltas,
+    timeDelta: normalizeTimeDelta(parsed.timeDelta),
   };
 }
 
 // ── Arc Grouping ────────────────────────────────────────────────────────────
 
 /**
- * Group scenes into arcs of ~4 scenes each and name them via LLM.
+ * Group scenes into arcs of ~4 scenes each. The LLM emits per-arc metadata:
+ * name, directionVector (forward intent), and worldState (compact backward
+ * snapshot in the work's native form — narrative, chess, poker, paper, log).
  */
 export async function groupScenesIntoArcs(
   sceneSummaries: { index: number; summary: string }[],
   onToken?: (token: string, accumulated: string) => void,
-): Promise<{ name: string; sceneIndices: number[] }[]> {
+): Promise<{ name: string; directionVector?: string; worldState?: string; sceneIndices: number[] }[]> {
   // Pre-group into chunks of SCENES_PER_ARC
   const groups: { sceneIndices: number[]; summaries: string[] }[] = [];
   for (let i = 0; i < sceneSummaries.length; i += SCENES_PER_ARC) {
@@ -238,12 +244,17 @@ export async function groupScenesIntoArcs(
   const prompt = buildArcGroupingPrompt(groups);
   const raw = await callAnalysis(prompt, ARC_GROUPING_SYSTEM, onToken);
   const json = extractJSON(raw);
-  const names = JSON.parse(json) as string[];
+  const parsed = JSON.parse(json) as Array<{ name?: string; directionVector?: string; worldState?: string }>;
 
-  return groups.map((g, i) => ({
-    name: names[i] ?? `Arc ${i + 1}`,
-    sceneIndices: g.sceneIndices,
-  }));
+  return groups.map((g, i) => {
+    const item = parsed[i] ?? {};
+    return {
+      name: item.name ?? `Arc ${i + 1}`,
+      directionVector: item.directionVector,
+      worldState: item.worldState,
+      sceneIndices: g.sceneIndices,
+    };
+  });
 }
 
 // ── LLM Call ─────────────────────────────────────────────────────────────────
@@ -353,10 +364,20 @@ function extractJSON(raw: string): string {
   let text = raw.trim();
   text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "");
 
+  // Honor whichever container type opens first — object `{...}` or array `[...]`.
   const firstBrace = text.indexOf("{");
-  const lastBrace = text.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    text = text.slice(firstBrace, lastBrace + 1);
+  const firstBracket = text.indexOf("[");
+  let start = -1;
+  let end = -1;
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    start = firstBrace;
+    end = text.lastIndexOf("}");
+  } else if (firstBracket !== -1) {
+    start = firstBracket;
+    end = text.lastIndexOf("]");
+  }
+  if (start !== -1 && end > start) {
+    text = text.slice(start, end + 1);
   }
 
   text = text.replace(/,\s*([}\]])/g, "$1");
@@ -1004,7 +1025,7 @@ export async function assembleNarrative(
   results: AnalysisChunkResult[],
   threadDependencies: Record<string, string[]>,
   onToken?: (token: string, accumulated: string) => void,
-  arcGroups?: { name: string; sceneIndices: number[] }[],
+  arcGroups?: { name: string; directionVector?: string; worldState?: string; sceneIndices: number[] }[],
 ): Promise<NarrativeState> {
   const PREFIX =
     title
@@ -1453,6 +1474,7 @@ export async function assembleNarrative(
             return undefined;
           return { addedNodes, addedEdges };
         })(),
+        timeDelta: s.timeDelta ?? null,
         summary: s.summary ?? "",
         // Create version arrays for analyzed scenes
         proseVersions:
@@ -1580,6 +1602,8 @@ export async function assembleNarrative(
         locationIds,
         activeCharacterIds,
         initialCharacterLocations,
+        directionVector: group.directionVector,
+        worldState: group.worldState,
       };
       // Assign arcId to scenes
       for (const scene of arcScenes) scene.arcId = arcId;

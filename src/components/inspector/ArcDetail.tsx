@@ -66,6 +66,24 @@ export default function ArcDetail({ arcId }: Props) {
         <span>{arc.locationIds.length} locations</span>
       </div>
 
+      {/* Direction vector — forward-looking narrative intent */}
+      {arc.directionVector && (
+        <div className="flex flex-col gap-1">
+          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">Direction</h3>
+          <p className="text-xs text-text-secondary leading-relaxed italic">{arc.directionVector}</p>
+        </div>
+      )}
+
+      {/* World state — backward-looking board position as of end of arc */}
+      {arc.worldState && (
+        <div className="flex flex-col gap-1">
+          <h3 className="text-[10px] uppercase tracking-widest text-text-dim">World State</h3>
+          <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap rounded bg-white/3 p-2 font-mono">
+            {arc.worldState}
+          </p>
+        </div>
+      )}
+
       {/* Delivery chart */}
       {delivery && (() => {
         const { pts, arcStart, position } = delivery;

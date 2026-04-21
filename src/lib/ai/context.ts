@@ -3,6 +3,7 @@ import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_
 import { buildCumulativeSystemGraph, rankSystemNodes, resolveEntityName } from '@/lib/narrative-utils';
 import { ENTITY_LOG_CONTEXT_LIMIT, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
+import { describeTimeGap, formatTimeDelta } from '@/lib/time-deltas';
 
 // ── Prose Profile Builder ─────────────────────────────────────────────────────
 
@@ -128,75 +129,97 @@ function renderSceneEntry(
   const fields = TIER_FIELDS[tier];
   const loc = n.locations[s.locationId]?.name ?? s.locationId;
   const povName = n.characters[s.povId]?.name ?? s.povId;
-  const attrs: string[] = [
-    `index="${globalIdx}"`,
-    `tier="${tier}"`,
-    `location="${loc}"`,
-    `pov="${povName}"`,
-  ];
+  // Compact time-gap so the planner/writer can see pacing across history —
+  // e.g. "3 hours", "2 weeks", "concurrent". Rich guidance is still surfaced
+  // on the active scene via sceneContext's <time-gap> block.
+  const timeGap = s.timeDelta ? formatTimeDelta(s.timeDelta) : '';
+  const timeGapAttr = timeGap ? ` time-gap="${timeGap}"` : '';
+
+  // Stable scene metadata stays on the <entry> tag; all deltas become child
+  // elements so the output is structured XML, not a pile of semicolon-joined
+  // attribute strings.
+  const openAttrs = `index="${globalIdx}" tier="${tier}" location="${loc}" pov="${povName}"${timeGapAttr}`;
+
+  const children: string[] = [];
+
+  children.push(`  <summary>${s.summary}</summary>`);
 
   if (fields.participants) {
-    const participants = s.participantIds.map((pid) => n.characters[pid]?.name ?? pid).join(', ');
-    if (participants) attrs.push(`participants="${participants}"`);
+    const parts = s.participantIds
+      .map((pid) => {
+        const p = n.characters[pid];
+        if (!p) return `    <participant id="${pid}" />`;
+        return `    <participant id="${p.id}" name="${p.name}" role="${p.role}" />`;
+      });
+    if (parts.length > 0) children.push(`  <participants>\n${parts.join('\n')}\n  </participants>`);
   }
 
-  if (fields.threadTransitions) {
-    const threadChanges = s.threadDeltas.map((tm) => {
+  if (fields.threadTransitions && s.threadDeltas.length > 0) {
+    const lines = s.threadDeltas.map((tm) => {
       const thr = n.threads[tm.threadId];
       const desc = thr ? thr.description : tm.threadId;
-      return `${desc}: ${tm.from}->${tm.to}`;
-    }).join('; ');
-    if (threadChanges) attrs.push(`threads="${threadChanges}"`);
+      return `    <shift thread="${desc}" from="${tm.from}" to="${tm.to}" />`;
+    });
+    children.push(`  <threads>\n${lines.join('\n')}\n  </threads>`);
   }
 
-  if (fields.worldDeltas) {
-    const continuityChanges = s.worldDeltas.flatMap((km) => {
-      const entityName = n.characters[km.entityId]?.name ?? n.locations[km.entityId]?.name ?? n.artifacts[km.entityId]?.name ?? km.entityId;
-      return (km.addedNodes ?? []).map((node) => `${entityName} learned [${node.type}]: ${node.content}`);
-    }).join('; ');
-    if (continuityChanges) attrs.push(`continuity="${continuityChanges}"`);
+  if (fields.worldDeltas && s.worldDeltas.length > 0) {
+    const lines = s.worldDeltas.flatMap((km) => {
+      const entityName = n.characters[km.entityId]?.name
+        ?? n.locations[km.entityId]?.name
+        ?? n.artifacts[km.entityId]?.name
+        ?? km.entityId;
+      return (km.addedNodes ?? []).map((node) =>
+        `    <fact entity="${entityName}" type="${node.type}">${node.content}</fact>`,
+      );
+    });
+    if (lines.length > 0) children.push(`  <continuity>\n${lines.join('\n')}\n  </continuity>`);
   }
 
-  if (fields.relationshipShifts) {
-    const relChanges = s.relationshipDeltas.map((rm) => {
+  if (fields.relationshipShifts && s.relationshipDeltas.length > 0) {
+    const lines = s.relationshipDeltas.map((rm) => {
       const fromName = n.characters[rm.from]?.name ?? rm.from;
       const toName = n.characters[rm.to]?.name ?? rm.to;
-      return `${fromName}->${toName}: ${rm.type} (${rm.valenceDelta >= 0 ? '+' : ''}${Math.round(rm.valenceDelta * 100) / 100})`;
-    }).join('; ');
-    if (relChanges) attrs.push(`relationships="${relChanges}"`);
+      const sign = rm.valenceDelta >= 0 ? '+' : '';
+      const delta = `${sign}${Math.round(rm.valenceDelta * 100) / 100}`;
+      return `    <shift from="${fromName}" to="${toName}" delta="${delta}">${rm.type}</shift>`;
+    });
+    children.push(`  <relationships>\n${lines.join('\n')}\n  </relationships>`);
   }
 
-  if (fields.ownershipChanges) {
-    const ownershipChanges = (s.ownershipDeltas ?? []).map((om) => {
+  if (fields.ownershipChanges && (s.ownershipDeltas ?? []).length > 0) {
+    const lines = s.ownershipDeltas!.map((om) => {
       const artName = n.artifacts?.[om.artifactId]?.name ?? om.artifactId;
       const fromName = n.characters[om.fromId]?.name ?? n.locations[om.fromId]?.name ?? om.fromId;
       const toName = n.characters[om.toId]?.name ?? n.locations[om.toId]?.name ?? om.toId;
-      return `${artName}: ${fromName}→${toName}`;
-    }).join('; ');
-    if (ownershipChanges) attrs.push(`artifact-transfers="${ownershipChanges}"`);
+      return `    <transfer artifact="${artName}" from="${fromName}" to="${toName}" />`;
+    });
+    children.push(`  <artifact-transfers>\n${lines.join('\n')}\n  </artifact-transfers>`);
   }
 
-  if (fields.artifactUsages) {
-    const artifactUsages = (s.artifactUsages ?? []).map((au) => {
+  if (fields.artifactUsages && (s.artifactUsages ?? []).length > 0) {
+    const lines = s.artifactUsages!.map((au) => {
       const artName = n.artifacts?.[au.artifactId]?.name ?? au.artifactId;
-      const usageDesc = au.usage ? ` (${au.usage})` : '';
-      if (!au.characterId) return `${artName} used${usageDesc}`;
-      const charName = n.characters[au.characterId]?.name ?? au.characterId;
-      return `${charName} uses ${artName}${usageDesc}`;
-    }).join('; ');
-    if (artifactUsages) attrs.push(`artifact-usages="${artifactUsages}"`);
+      const charName = au.characterId ? (n.characters[au.characterId]?.name ?? au.characterId) : '';
+      const charAttr = charName ? ` character="${charName}"` : '';
+      const inner = au.usage ?? '';
+      return inner
+        ? `    <usage artifact="${artName}"${charAttr}>${inner}</usage>`
+        : `    <usage artifact="${artName}"${charAttr} />`;
+    });
+    children.push(`  <artifact-usages>\n${lines.join('\n')}\n  </artifact-usages>`);
   }
 
-  if (fields.movements) {
-    const tieChanges = (s.tieDeltas ?? []).map((mm) => {
+  if (fields.movements && (s.tieDeltas ?? []).length > 0) {
+    const lines = s.tieDeltas!.map((mm) => {
       const locName = n.locations[mm.locationId]?.name ?? mm.locationId;
       const charName = n.characters[mm.characterId]?.name ?? mm.characterId;
-      return `${charName} ${mm.action === 'add' ? 'joins' : 'leaves'} ${locName}`;
-    }).join('; ');
-    if (tieChanges) attrs.push(`ties="${tieChanges}"`);
+      return `    <tie character="${charName}" action="${mm.action}" location="${locName}" />`;
+    });
+    children.push(`  <ties>\n${lines.join('\n')}\n  </ties>`);
   }
 
-  return `<entry ${attrs.join(' ')}>${s.summary}</entry>`;
+  return `<entry ${openAttrs}>\n${children.join('\n')}\n</entry>`;
 }
 
 export function getStateAtIndex(
@@ -319,16 +342,22 @@ function buildSystemKnowledgeBlock(graph: SystemGraph): string {
     byType[node.type].push(node);
   }
 
-  // Build adjacency for showing connections — reference target IDs, not target text.
-  // The target concept is already written once on its own node; inlining the full
-  // text per edge can duplicate the world-graph block several times over.
+  // Build adjacency for showing connections — reference target IDs, not target
+  // text. The target concept is already written once on its own node; inlining
+  // the full text per edge can duplicate the block several times over. Edges
+  // are directional, but for each edge we also record the reverse so both
+  // endpoints surface the connection (matches the prior flat "connects" attr).
   const connections: Record<string, string[]> = {};
+  let validEdgeCount = 0;
   for (const edge of graph.edges) {
     const fromNode = graph.nodes[edge.from];
     const toNode = graph.nodes[edge.to];
     if (!fromNode || !toNode) continue;
+    validEdgeCount++;
     if (!connections[edge.from]) connections[edge.from] = [];
     connections[edge.from].push(`${edge.relation}→${edge.to}`);
+    if (!connections[edge.to]) connections[edge.to] = [];
+    connections[edge.to].push(`←${edge.relation} ${edge.from}`);
   }
 
   const sections: string[] = [];
@@ -387,7 +416,7 @@ function buildSystemKnowledgeBlock(graph: SystemGraph): string {
 
   if (sections.length === 0) return '';
 
-  return `\n<world-graph hint="Established system knowledge. Scenes must operate within these truths.">\n${sections.join('\n\n')}\n</world-graph>\n`;
+  return `\n<system-graph nodes="${nodes.length}" edges="${validEdgeCount}" hint="Established system knowledge — principles, mechanisms, constraints, tensions. Scenes must operate within these truths. Connections shown as [relation→targetId] (outgoing) and [←relation sourceId] (incoming); reference existing IDs when relevant, new nodes need edges.">\n${sections.join('\n\n')}\n</system-graph>\n`;
 }
 
 
@@ -681,7 +710,7 @@ export function narrativeContext(
   // (their structural content lives in the characters/locations/threads
   // blocks above).
   const tierCounts = { near: 0, mid: 0, far: 0 };
-  const sceneHistory = keysUpToCurrent.map((k, i) => {
+  const sceneEntries = keysUpToCurrent.map((k, i) => {
     const s = resolveEntry(n, k);
     if (!s) return '';
     const globalIdx = i + 1;
@@ -692,7 +721,26 @@ export function narrativeContext(
     const tier = classifyTier(distanceFromCurrent, isImportantScene(s), NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
     tierCounts[tier]++;
     return renderSceneEntry(n, s, globalIdx, tier);
-  }).filter(Boolean).join('\n');
+  }).filter(Boolean);
+
+  // Current world state — only shown when the CURRENT arc (the arc of the
+  // most recent resolved scene) has a worldState of its own. Any older arc's
+  // state is stale relative to the current scene and must not be surfaced —
+  // a stale snapshot lies about the position. If the current arc has no
+  // state yet, no world-state entry is emitted.
+  for (let i = keysUpToCurrent.length - 1; i >= 0; i--) {
+    const entry = resolveEntry(n, keysUpToCurrent[i]);
+    if (!entry || entry.kind !== 'scene') continue;
+    const arc = n.arcs[entry.arcId];
+    if (arc?.worldState) {
+      sceneEntries.push(
+        `<entry type="world-state" arc="${arc.name}" hint="Current ground-truth compact state snapshot — chess-board position; supersedes replaying prior deltas.">\n  ${arc.worldState}\n</entry>`,
+      );
+    }
+    break;
+  }
+
+  const sceneHistory = sceneEntries.join('\n');
 
   // Arcs context — only arcs with scenes within the time horizon
   const branchSceneIds = new Set(keysUpToCurrent.filter((k) => n.scenes[k]));
@@ -709,33 +757,6 @@ export function narrativeContext(
     n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, n.worldBuilds,
   );
   const rankedSystemNodes = rankSystemNodes(horizonSystemGraph);
-  let systemGraphBlock = '';
-  if (rankedSystemNodes.length > 0) {
-    // Build adjacency map for each node → connected node IDs
-    const adjacency = new Map<string, string[]>();
-    for (const e of horizonSystemGraph.edges) {
-      if (!horizonSystemGraph.nodes[e.from] || !horizonSystemGraph.nodes[e.to]) continue;
-      adjacency.set(e.from, [...(adjacency.get(e.from) ?? []), e.to]);
-      adjacency.set(e.to, [...(adjacency.get(e.to) ?? []), e.from]);
-    }
-
-    // Show each node as XML with ID, type, and connections
-    const nodeLines = rankedSystemNodes.map(({ node }) => {
-      const connections = adjacency.get(node.id);
-      const connAttr = connections && connections.length > 0
-        ? ` connects="${connections.join(', ')}"`
-        : '';
-      return `<node id="${node.id}" type="${node.type}"${connAttr}>${node.concept}</node>`;
-    });
-
-    const totalNodes = Object.keys(horizonSystemGraph.nodes).length;
-    const totalEdges = horizonSystemGraph.edges.length;
-    systemGraphBlock = `
-<system-graph nodes="${totalNodes}" edges="${totalEdges}" hint="Reference existing IDs when relevant. New nodes need edges.">
-${nodeLines.join('\n')}
-</system-graph>
-`;
-  }
 
   // Compact ID lookup — placed last so it's closest to the generation prompt
   // Exclude abandoned threads from valid IDs — they shouldn't be referenced in generation
@@ -750,7 +771,7 @@ ${nodeLines.join('\n')}
 
   const storySettingsBlock = buildStorySettingsBlock(n);
 
-  const historyNote = `${keysUpToCurrent.length} scenes — ${tierCounts.near} near, ${tierCounts.mid} mid, ${tierCounts.far} far (resolution falls with distance from current)`;
+  const historyNote = `${keysUpToCurrent.length} scenes — ${tierCounts.near} near, ${tierCounts.mid} mid, ${tierCounts.far} far (resolution falls with distance from current). The final world-state entry (if present) is the current ground-truth "chess-board position" and supersedes replaying prior deltas.`;
 
   return `<narrative title="${n.title}">
 ${systemKnowledgeBlock}${storySettingsBlock}
@@ -774,10 +795,9 @@ ${relationships}
 ${arcs}
 </arcs>
 
-<scene-history scope="${historyNote}" hint="Source of truth for long-term continuity. Summaries carry the branch; near/mid entries expose deltas for recent scenes.">
+<scene-history scope="${historyNote}" hint="Source of truth for long-term continuity. Summaries carry the branch; near/mid entries expose deltas for recent scenes. Each entry's time-gap attribute is the elapsed time since the prior scene — use it to read pacing across the history and decide the gap into the next scene.">
 ${sceneHistory}
 </scene-history>
-${systemGraphBlock}
 <valid-ids hint="You MUST use ONLY these exact IDs — do NOT invent new ones.">
   <characters>${charIdList}</characters>
   <locations>${locIdList}</locations>
@@ -915,8 +935,14 @@ export function sceneContext(
     newThreadLines.length > 0 ? `<new-threads>\n${newThreadLines.join('\n')}\n</new-threads>` : '',
   ].filter(Boolean).join('\n');
 
-  return `<scene id="${scene.id}" arc="${arc?.name ?? 'standalone'}" pov="${pov?.name ?? 'Unknown'}" location="${location?.name ?? 'Unknown'}">
-<summary>${scene.summary}</summary>
+  const worldStateBlock = arc?.worldState
+    ? `\n<world-state arc="${arc.name}" hint="Ground-truth compact state snapshot as of end of this arc. Reason from this position — it supersedes replaying prior deltas.">\n${arc.worldState}\n</world-state>`
+    : '';
+
+  const timeGapBlock = `\n<time-gap hint="Time elapsed since the prior scene (estimate). Use this to shape opening beats, transitions, and scenery cues. Concurrent gaps stay mid-action; multi-day gaps need a kicker; multi-month/year gaps may want a montage or status-change reveal.">${describeTimeGap(scene.timeDelta)}</time-gap>`;
+
+  return `<scene id="${scene.id}" arc="${arc?.name ?? 'standalone'}" pov="${pov?.name ?? 'Unknown'}" location="${location?.name ?? 'Unknown'}">${worldStateBlock}
+<summary>${scene.summary}</summary>${timeGapBlock}
 ${participantLines.length > 0 ? `\n<participants>\n${participantLines.join('\n')}\n</participants>` : ''}
 ${newEntitiesBlock ? `\n${newEntitiesBlock}` : ''}
 

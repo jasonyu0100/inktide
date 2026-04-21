@@ -5,7 +5,8 @@ import { narrativeContext, getStateAtIndex } from "./context";
 import { parseJson } from "./json";
 import { buildCumulativeSystemGraph, resolveEntityName } from "@/lib/narrative-utils";
 import { applyDerivedForceModes } from "@/lib/auto-engine";
-import { logError } from "@/lib/system-logger";
+import { logError, logWarning, type LogContext } from "@/lib/system-logger";
+import { aggregateNetworkGraph, buildTierLookup, formatTierLabel } from "@/lib/network-graph";
 
 // ── Plan Node Scaling ─────────────────────────────────────────────────────────
 // Coordination plans scale node counts based on arc budget to ensure proper
@@ -162,8 +163,15 @@ export interface ReasoningNode {
   type: ReasoningNodeType;
   label: string;           // Short label (3-8 words)
   detail?: string;         // Expanded explanation
-  entityId?: string;       // Reference to actual entity (character/location/artifact ID)
-  threadId?: string;       // For outcome nodes - which thread is affected
+  /** Existing character / location / artifact ID. Validated at parse time
+   *  — if the LLM emits an unresolvable id, it's cleared. */
+  entityId?: string;
+  /** Existing thread ID. Validated at parse time. Required on fate nodes
+   *  that aren't introducing a brand-new strand. */
+  threadId?: string;
+  /** Existing system knowledge node ID (SYS-XX). Validated at parse time.
+   *  Required on system nodes that anchor to an existing rule. */
+  systemNodeId?: string;
 }
 
 export interface ReasoningEdge {
@@ -191,6 +199,94 @@ export interface ReasoningGraph {
   plannedNodeCount?: number;
 }
 
+// ── Reference Validation ─────────────────────────────────────────────────────
+
+/**
+ * Validate and normalize a reasoning node's references against the live
+ * narrative. Each typed node has a canonical reference field:
+ *   - fate                            → threadId  (existing thread)
+ *   - character / location / artifact → entityId  (existing entity of that kind)
+ *   - system                          → systemNodeId (existing SYS-XX node)
+ *
+ * Hallucinated references are CLEARED rather than dropping the node — the
+ * node still carries useful reasoning content, but downstream consumers can
+ * tell it isn't anchored. References on the wrong type (e.g. entityId on a
+ * fate node) are also cleared. Chaos / reasoning / pattern / warning nodes
+ * have no reference expectation; any references they carry are cleared
+ * because they're meta-nodes, not anchors.
+ */
+function validateNodeReferences(
+  node: ReasoningNode,
+  narrative: NarrativeState,
+  context: { source: LogContext["source"]; arcName: string },
+): ReasoningNode {
+  const validators: Record<string, (id: string) => boolean> = {
+    character: (id) => !!narrative.characters[id],
+    location: (id) => !!narrative.locations[id],
+    artifact: (id) => !!narrative.artifacts?.[id],
+  };
+
+  const out: ReasoningNode = { ...node };
+  const warn = (kind: string, badRef: string) => {
+    logWarning(
+      `Reasoning node "${node.label}" (${node.type}) referenced unknown ${kind} "${badRef}" — cleared`,
+      undefined,
+      { source: context.source, operation: "reasoning-graph-validate", details: { arcName: context.arcName, nodeId: node.id, type: node.type } },
+    );
+  };
+
+  switch (node.type) {
+    case "fate":
+      // fate must reference a thread; entityId/systemNodeId here are stray.
+      if (out.threadId && !narrative.threads[out.threadId]) {
+        warn("thread", out.threadId);
+        out.threadId = undefined;
+      }
+      out.entityId = undefined;
+      out.systemNodeId = undefined;
+      break;
+    case "character":
+    case "location":
+    case "artifact": {
+      const validator = validators[node.type];
+      if (out.entityId && !validator(out.entityId)) {
+        warn(node.type, out.entityId);
+        out.entityId = undefined;
+      }
+      // Defensive: if the LLM put the id in the wrong field, try to recover.
+      if (!out.entityId && out.systemNodeId && validator(out.systemNodeId)) {
+        out.entityId = out.systemNodeId;
+      }
+      out.threadId = undefined;
+      out.systemNodeId = undefined;
+      break;
+    }
+    case "system":
+      if (out.systemNodeId && !narrative.systemGraph?.nodes[out.systemNodeId]) {
+        warn("system node", out.systemNodeId);
+        out.systemNodeId = undefined;
+      }
+      // Recover from the legacy pattern of putting SYS-XX into entityId.
+      if (!out.systemNodeId && out.entityId && narrative.systemGraph?.nodes[out.entityId]) {
+        out.systemNodeId = out.entityId;
+      }
+      out.entityId = undefined;
+      out.threadId = undefined;
+      break;
+    case "chaos":
+    case "reasoning":
+    case "pattern":
+    case "warning":
+      // Meta nodes — no anchor expected; clear any stray references the LLM
+      // attached so consumers don't try to resolve them.
+      out.entityId = undefined;
+      out.threadId = undefined;
+      out.systemNodeId = undefined;
+      break;
+  }
+  return out;
+}
+
 // ── Sequential Path Builder ──────────────────────────────────────────────────
 
 /** Minimal node shape for building sequential paths */
@@ -202,6 +298,7 @@ export type ReasoningNodeBase = {
   detail?: string;
   entityId?: string;
   threadId?: string;
+  systemNodeId?: string;
 };
 
 /** Minimal graph shape for building sequential paths — works with ReasoningGraph, ExpansionReasoningGraph, and CoordinationPlan */
@@ -1064,6 +1161,49 @@ ${scope === "plan"
   return "";
 }
 
+/**
+ * Build a network-bias guidance block that tells the reasoner whether to
+ * lean INTO the existing activation pattern (inside the box), AWAY from it
+ * (outside the box), or balance the two (neutral). Tier labels {hot|warm|
+ * cold|fresh ×N} on the AVAILABLE ENTITIES section let the reasoner act
+ * on this concretely.
+ *
+ * Returns "" for neutral (no bias) so we don't burn tokens nudging the
+ * default behaviour.
+ */
+function networkBiasBlock(bias: "inside" | "outside" | "neutral" | undefined): string {
+  if (!bias || bias === "neutral") return "";
+  if (bias === "inside") {
+    return `
+### NETWORK BIAS — INSIDE THE BOX (conventional)
+
+Look at the {hot|warm|cold|fresh ×N} tier labels on each entity, thread, and system node in AVAILABLE ENTITIES. They show how often each has been referenced across all prior reasoning graphs — the cumulative gravitational pattern of this story.
+
+**Lean into the HOT and WARM cohort**: anchor your reasoning in the entities, threads, and system nodes that have already proven load-bearing. Deepen the gravitational centres rather than scattering attention. The story has shown what it's really about — make the next move continue that conversation, not change the subject.
+
+- Prefer characters / locations / artifacts marked {hot} or {warm} for character / location / artifact nodes.
+- Prefer threads marked {hot} or {warm} for fate nodes.
+- Prefer system nodes marked {hot} or {warm} for system nodes.
+- Reach for {cold} or {fresh} only when the arc structurally requires them (a referenced location, a pending thread closure).
+- Reusing what already matters is NOT laziness — it's how a story compounds. The cold cohort can wait.
+`;
+  }
+  // outside
+  return `
+### NETWORK BIAS — OUTSIDE THE BOX (unique with respect to current pattern)
+
+Look at the {hot|warm|cold|fresh ×N} tier labels on each entity, thread, and system node in AVAILABLE ENTITIES. They show how often each has been referenced across all prior reasoning graphs — the cumulative gravitational pattern of this story.
+
+**Reach for the COLD and FRESH cohort**: surface the dormant matter the story has neglected. The HOT centres have been over-used; the next reasoning graph should break the pattern.
+
+- Prefer characters / locations / artifacts marked {cold} or {fresh} for character / location / artifact nodes — the long-dormant cast and the just-spawned matter that haven't yet been integrated.
+- Prefer threads marked {cold} or {fresh} for fate nodes — pick up a forgotten promise or develop a recently-seeded one.
+- Prefer system nodes marked {cold} or {fresh} for system nodes — let an under-used rule shape this arc.
+- {hot} entities are allowed when structurally unavoidable but should NOT be the anchor of the reasoning. If the arc can be told without them, prefer that path.
+- The goal is not contrarianism — it's reactivating what the network has neglected so the story doesn't collapse into a monoculture of its most-used pieces.
+`;
+}
+
 export async function generateReasoningGraph(
   narrative: NarrativeState,
   resolvedKeys: string[],
@@ -1079,42 +1219,55 @@ export async function generateReasoningGraph(
 ): Promise<ReasoningGraph> {
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
+  // Network heat tiers — every entity / thread / system node carries a
+  // {hot|warm|cold|fresh ×N} label so the reasoner can see the cumulative
+  // activation pattern and lean into or away from it per the bias setting.
+  // Scoped to the current point in the timeline (progressive aggregation).
+  const network = aggregateNetworkGraph(narrative, resolvedKeys, currentIndex);
+  const tierLookup = buildTierLookup(network);
+  const tierTag = (id: string): string => {
+    const tag = formatTierLabel(tierLookup.get(id));
+    return tag ? ` ${tag}` : "";
+  };
+
   // Get active threads
   const activeThreads = Object.values(narrative.threads)
     .filter((t) =>
       ["seeded", "active", "escalating", "critical"].includes(t.status),
     )
-    .map((t) => `- [${t.id}] ${t.description} (${t.status})`)
+    .map((t) => `- [${t.id}] ${t.description} (${t.status})${tierTag(t.id)}`)
     .join("\n");
 
   // Get key characters
   const characters = Object.values(narrative.characters)
     .filter((c) => c.role === "anchor" || c.role === "recurring")
     .slice(0, 8)
-    .map((c) => `- [${c.id}] ${c.name} (${c.role})`)
+    .map((c) => `- [${c.id}] ${c.name} (${c.role})${tierTag(c.id)}`)
     .join("\n");
 
   // Get key locations
   const locations = Object.values(narrative.locations)
     .filter((l) => l.prominence === "domain" || l.prominence === "place")
     .slice(0, 6)
-    .map((l) => `- [${l.id}] ${l.name}`)
+    .map((l) => `- [${l.id}] ${l.name}${tierTag(l.id)}`)
     .join("\n");
 
   // Get artifacts
   const artifacts = Object.values(narrative.artifacts ?? {})
     .filter((a) => a.significance === "key" || a.significance === "notable")
     .slice(0, 4)
-    .map((a) => `- [${a.id}] ${a.name}`)
+    .map((a) => `- [${a.id}] ${a.name}${tierTag(a.id)}`)
     .join("\n");
 
-  // Get system knowledge
+  // Get system knowledge — IDs included so reasoning nodes can reference
+  // them via `systemNodeId` (mirrors how characters/locations/artifacts
+  // expose their IDs above).
   const systemKnowledge = Object.values(narrative.systemGraph?.nodes ?? {})
     .filter((n) =>
       ["principle", "system", "constraint", "tension"].includes(n.type),
     )
     .slice(0, 8)
-    .map((n) => `- ${n.concept} (${n.type})`)
+    .map((n) => `- [${n.id}] ${n.concept} (${n.type})${tierTag(n.id)}`)
     .join("\n");
 
   // Get story patterns and anti-patterns
@@ -1194,6 +1347,7 @@ ARC COMMITMENT FIRST. Before any causal reasoning, declare this arc's contract w
 Every later fate node and every reasoning chain must trace back to one of these commitments via causal edges. A fate node at a later index with no edge path back to a commitment is an untethered pulse — route it or cut it. Commitments are the arc's declared payoff; resolves + resists together deliver the dopamine of tension-release-with-cost, and plants prepare the next arc's payoff. Do not write commitments you cannot serve — if RESISTS cannot be filled with a concrete setback, either find one or tell the truth that this arc has no resistance.
 ${forcePreferenceBlock("arc", options?.forcePreference)}
 ${reasoningModeBlock(options?.reasoningMode)}
+${networkBiasBlock(narrative.storySettings?.networkBias)}
 
 ## OUTPUT FORMAT
 
@@ -1273,7 +1427,8 @@ In forward mode the two align. In backward mode they diverge — the example bel
       "index": 1,
       "type": "system",
       "label": "Clan hierarchy forbids direct negotiation",
-      "detail": "What system/rule shapes the action"
+      "detail": "What system/rule shapes the action",
+      "systemNodeId": "actual-SYS-id-from-narrative"
     },
     // order: 6 · index: 2 — root: outside force.
     {
@@ -1310,7 +1465,7 @@ In forward mode the two align. In backward mode they diverge — the example bel
 - **character**: An active agent with their OWN goals — not just a reactive foil to the protagonist. Use entityId to reference actual character. Label = their position/goal. **Cast distribution matters**: a graph where every character node is the protagonist is a failure of agency. Include secondary characters as drivers — a rival plotting, an ally hedging, a mentor withholding — each with their own causal chain that interacts with the main arc rather than merely reacting to it. The arc's causal web should have at least 2–3 distinct characters acting as agents, not as scenery.
 - **location**: A setting. Use entityId to reference actual location. Label = what it enables/constrains.
 - **artifact**: An object. Use entityId to reference actual artifact. Label = its role in reasoning.
-- **system**: A world rule/principle/constraint. Label = the rule as it applies here.
+- **system**: A world rule/principle/constraint. Use systemNodeId to reference an existing SYS-XX node from AVAILABLE ENTITIES → System Knowledge. Label = the rule as it applies here. If you need to introduce a brand-new rule that doesn't exist yet, omit systemNodeId — but prefer reusing an existing rule when one fits.
 - **reasoning**: A step in the causal chain — a distinct state-change. Every reasoning node earns its place by turning one thing into another: a demand into a plan, a plan into an action, an action into a consequence, a consequence into new pressure. Two reasoning nodes with the same subject (actor × action × target) are one node with more edges, not two. Minor restatement ("siphons again at another cache", "detects suspicion a fourth time") is a pulse on the existing step — escalate or merge, don't duplicate. Label = the inference (3-8 words).
 - **pattern**: NOVEL-PATTERN GENERATOR. Proposes a story shape this narrative HAS NOT used before — a fresh configuration, rhythm, or relational geometry that is absent from prior arcs and scenes. Not generic creativity: a specific structural move the story hasn't made. Every pattern node answers "what has this story never done that it could do here?" Example labels: "First arc resolved through a non-POV character's choice", "Two anchors separated across the arc — no shared scenes", "Fate subverts by succeeding too completely". Scan prior arcs before proposing; do not repeat a shape already used.
 - **warning**: PATTERN-REPETITION DETECTOR. Scans prior arcs and scenes and FLAGS shapes the reader has already seen — resolution rhythms, conflict geometries, character dynamics, arc cadences — that this arc is drifting toward repeating. Humans are powerful pattern recognisers: once a shape repeats (same resolution twice, same beat three times, same dominant force four arcs running) the reader notices and the move loses weight. The warning's job is to name the repetition explicitly so the graph can route around it. Example labels: "Third arc ending with external rescue — reader will feel the pattern", "A and B have now used the tension-then-reconciliation beat three times", "Fourth consecutive fate-dominant arc — rhythm is becoming monotone".
@@ -1334,8 +1489,9 @@ In forward mode the two align. In backward mode they diverge — the example bel
 3. **Fate throughout**: Fate nodes can appear ANYWHERE — they influence events at any point. A fate node can connect to characters, locations, reasoning, even other fate nodes. Fate is the gravitational force pulling the narrative.
 4. **Unexpected directions**: Fate doesn't always pull toward obvious resolution. Include fate nodes that demand twists, resistance, or subversion. A thread at "escalating" might need a setback before payoff.
 5. **Sequential indexing (topological)**: \`index\` is a causal topological order — 0 is the root (no predecessors), each later index's predecessors have lower indices, the terminal sits at the highest. Walking ascending indices should feel like one coherent sweep, not subgraph jumps. \`order\` is auto-captured from array position and may differ from \`index\` in backward modes — that's the point. Emit \`plannedNodeCount\` before the nodes array to commit to a count.
-6. **Entity references**: character/location/artifact nodes MUST use entityId with actual IDs
-7. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
+6. **Entity references**: character / location / artifact nodes MUST use entityId with an actual ID from AVAILABLE ENTITIES. Hallucinated IDs (e.g. C-99 when no such character exists) are stripped at parse time and the node loses its anchor.
+7. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull. The threadId must match an existing thread in AVAILABLE ENTITIES → Active Threads.
+7a. **System references**: system nodes MUST use systemNodeId to reference an existing SYS-XX node from AVAILABLE ENTITIES → System Knowledge. The narrative lists each system node with its [SYS-XX] id alongside the concept text — copy the bracketed id verbatim. If no existing rule fits and you genuinely need a new one, you may omit systemNodeId; the system node then represents a fresh rule. Reuse beats invention.
 8. **Single entity node per entity**: If the same character or system matters in multiple places, create ONE node with multiple edges — don't duplicate.
 9. **Node count**: Target ${Math.round((8 + sceneCount * 4.5) * reasoningScale(options?.reasoningLevel))}-${Math.round((14 + sceneCount * 5.5) * reasoningScale(options?.reasoningLevel))} nodes across all types. The nudged bands leave room for secondary characters to get their own reasoning chains, not just appear as participants.
 10. **Pattern nodes**: 1-2 nodes, each introducing a story shape the narrative has NOT used before. Scan prior arcs; name the new pattern; make sure the arc actually uses it.
@@ -1401,7 +1557,7 @@ Return ONLY the JSON object.`;
     // Ensure all nodes have required fields and valid types. The JSON
     // array position (i) becomes order — the order the LLM
     // emitted/thought of each node, distinct from its presentation index.
-    const nodes: ReasoningNode[] = data.nodes.map((n: Partial<ReasoningNode>, i: number) => ({
+    const rawNodes: ReasoningNode[] = data.nodes.map((n: Partial<ReasoningNode>, i: number) => ({
       id: typeof n.id === "string" ? n.id : `N${i}`,
       index: typeof n.index === "number" ? n.index : i,
       order: i,
@@ -1410,7 +1566,11 @@ Return ONLY the JSON object.`;
       detail: typeof n.detail === "string" ? n.detail.slice(0, 500) : undefined,
       entityId: typeof n.entityId === "string" ? n.entityId : undefined,
       threadId: typeof n.threadId === "string" ? n.threadId : undefined,
+      systemNodeId: typeof n.systemNodeId === "string" ? n.systemNodeId : undefined,
     }));
+    const nodes: ReasoningNode[] = rawNodes.map((n) =>
+      validateNodeReferences(n, narrative, { source: "plan-generation", arcName }),
+    );
 
     // Ensure all edges have required fields, valid types, and reference existing nodes
     const nodeIds = new Set(nodes.map((n) => n.id));
@@ -1488,19 +1648,30 @@ export async function generateExpansionReasoningGraph(
 ): Promise<ExpansionReasoningGraph> {
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
+  // Network heat tiers — surface the cumulative activation pattern so
+  // expansion reasoning can target cold/dormant entities or deepen hot ones
+  // depending on the bias setting. Progressive: scoped to the timeline
+  // up to the current scene.
+  const network = aggregateNetworkGraph(narrative, resolvedKeys, currentIndex);
+  const tierLookup = buildTierLookup(network);
+  const tierTag = (id: string): string => {
+    const tag = formatTierLabel(tierLookup.get(id));
+    return tag ? ` ${tag}` : "";
+  };
+
   // Get active threads
   const activeThreads = Object.values(narrative.threads)
     .filter((t) =>
       ["seeded", "active", "escalating", "critical"].includes(t.status),
     )
-    .map((t) => `- [${t.id}] ${t.description} (${t.status})`)
+    .map((t) => `- [${t.id}] ${t.description} (${t.status})${tierTag(t.id)}`)
     .join("\n");
 
   // Get all characters with continuity depth
   const characters = Object.values(narrative.characters)
     .map((c) => {
       const depth = Object.keys(c.world?.nodes ?? {}).length;
-      return `- [${c.id}] ${c.name} (${c.role}, ${depth} knowledge nodes)`;
+      return `- [${c.id}] ${c.name} (${c.role}, ${depth} knowledge nodes)${tierTag(c.id)}`;
     })
     .join("\n");
 
@@ -1508,19 +1679,20 @@ export async function generateExpansionReasoningGraph(
   const locations = Object.values(narrative.locations)
     .map((l) => {
       const parent = l.parentId ? narrative.locations[l.parentId]?.name : null;
-      return `- [${l.id}] ${l.name}${parent ? ` (inside ${parent})` : ""} [${l.prominence}]`;
+      return `- [${l.id}] ${l.name}${parent ? ` (inside ${parent})` : ""} [${l.prominence}]${tierTag(l.id)}`;
     })
     .join("\n");
 
   // Get artifacts
   const artifacts = Object.values(narrative.artifacts ?? {})
-    .map((a) => `- [${a.id}] ${a.name} (${a.significance})`)
+    .map((a) => `- [${a.id}] ${a.name} (${a.significance})${tierTag(a.id)}`)
     .join("\n");
 
-  // Get system knowledge
+  // Get system knowledge — IDs included so reasoning nodes can reference
+  // them via `systemNodeId`.
   const systemKnowledge = Object.values(narrative.systemGraph?.nodes ?? {})
     .slice(0, 12)
-    .map((n) => `- ${n.concept} (${n.type})`)
+    .map((n) => `- [${n.id}] ${n.concept} (${n.type})${tierTag(n.id)}`)
     .join("\n");
 
   // Get relationships
@@ -1638,6 +1810,7 @@ Strategy: ${strategy.toUpperCase()}
 Threads are FATE — they exert gravitational pull on world-building. New entities should serve thread requirements when threads pull, but under divergent mode new entities may also emerge from collisions the threads did not demand.
 ${forcePreferenceBlock("arc", options?.forcePreference)}
 ${reasoningModeBlock(options?.reasoningMode)}
+${networkBiasBlock(narrative.storySettings?.networkBias)}
 ## OUTPUT FORMAT
 
 **CRITICAL FORMAT REQUIREMENTS**:
@@ -1704,7 +1877,7 @@ Return a JSON object:
 - **character**: A new or existing character as an ACTIVE AGENT — not just a prop. Use entityId to reference existing character this connects to. Label = their role serving fate. When expansions introduce new characters, each should carry their own goal/agenda, not exist solely as a piece of the protagonist's puzzle.
 - **location**: A new or existing location. Use entityId. Label = what it enables for threads.
 - **artifact**: A new or existing artifact. Use entityId. Label = its role serving fate.
-- **system**: A world gap, rule, or opportunity. Label = the gap or rule being established.
+- **system**: A world gap, rule, or opportunity. Use systemNodeId to reference an existing SYS-XX node from AVAILABLE ENTITIES → System Knowledge. Label = the gap or rule being established. Omit systemNodeId only when introducing a brand-new rule.
 - **reasoning**: A logical step explaining WHY this entity serves fate. Label = the inference (3-8 words).
 - **pattern**: NOVEL-PATTERN GENERATOR. Names the fresh direction this expansion introduces — a kind of entity, relationship geometry, or world-rule shape the narrative has NOT established yet. Not a vague "variety"; a concrete new pattern. Example labels: "First faction whose power comes from information asymmetry, not force", "A location that shifts allegiance between arcs — no other location has this property".
 - **warning**: PATTERN-REPETITION DETECTOR. Flags where this expansion risks recreating a shape already present — the Nth rival faction, the Nth mentor figure, the Nth hidden-ruin location. Humans detect these quickly; once a category repeats, new instances lose weight. Label the repetition specifically: "Would be the third 'exiled heir' character", "Third artifact whose power is memory-related".
@@ -1725,8 +1898,9 @@ Return a JSON object:
 
 1. **Backward reasoning from fate**: Start from FATE (what threads need) and derive what entities must exist
 2. **Fate throughout**: Fate nodes can appear anywhere — they justify WHY entities are added
-3. **Entity references**: character/location/artifact nodes connecting to existing entities MUST use entityId
-4. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull
+3. **Entity references**: character / location / artifact nodes connecting to existing entities MUST use entityId. Hallucinated IDs are stripped at parse time.
+4. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull.
+4a. **System references**: system nodes MUST use systemNodeId when anchoring to an existing SYS-XX rule (copy the bracketed [SYS-XX] id verbatim from AVAILABLE ENTITIES → System Knowledge). Omit only when introducing a fresh rule.
 5. **Causal complexity**: every new entity shows the full web of how it connects — who it serves, what it constrains, what it enables. Not a single line.
 6. **Integration focus**: every new entity shows HOW it serves existing threads via edges.
 7. **Node count**: target ${nodeCountTarget}.
@@ -1785,7 +1959,7 @@ Return ONLY the JSON object.`;
     // Ensure all nodes have required fields and valid types. The JSON
     // array position (i) becomes order — the order the LLM
     // emitted/thought of each node, distinct from its presentation index.
-    const nodes: ReasoningNode[] = data.nodes.map((n: Partial<ReasoningNode>, i: number) => ({
+    const rawNodes: ReasoningNode[] = data.nodes.map((n: Partial<ReasoningNode>, i: number) => ({
       id: typeof n.id === "string" ? n.id : `N${i}`,
       index: typeof n.index === "number" ? n.index : i,
       order: i,
@@ -1794,7 +1968,11 @@ Return ONLY the JSON object.`;
       detail: typeof n.detail === "string" ? n.detail.slice(0, 500) : undefined,
       entityId: typeof n.entityId === "string" ? n.entityId : undefined,
       threadId: typeof n.threadId === "string" ? n.threadId : undefined,
+      systemNodeId: typeof n.systemNodeId === "string" ? n.systemNodeId : undefined,
     }));
+    const nodes: ReasoningNode[] = rawNodes.map((n) =>
+      validateNodeReferences(n, narrative, { source: "world-expansion", arcName: directive ? directive.slice(0, 50) : "World Expansion" }),
+    );
 
     // Ensure all edges have required fields, valid types, and reference existing nodes
     const nodeIds = new Set(nodes.map((n) => n.id));

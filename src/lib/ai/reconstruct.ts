@@ -1,6 +1,7 @@
 import type { NarrativeState, StructureReview, SceneEval, SceneVerdict, Scene, Arc, Branch } from '@/types/narrative';
 import { resolveEntry, isScene, isWorldBuild, REASONING_BUDGETS } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
+import { normalizeTimeDelta } from '@/lib/time-deltas';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
 import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
@@ -795,6 +796,7 @@ Return JSON:
     worldDeltas: parsed.worldDeltas ?? [],
     relationshipDeltas: parsed.relationshipDeltas ?? [],
     systemDeltas: normalizeSystemDeltas(parsed.systemDeltas, undefined),
+    timeDelta: normalizeTimeDelta(parsed.timeDelta),
     summary: parsed.summary ?? brief,
   };
 }

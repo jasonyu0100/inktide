@@ -9,6 +9,8 @@ import { VersionHistoryTree } from './VersionHistoryTree';
 import { RegenerateEmbeddingsModal } from '@/components/topbar/RegenerateEmbeddingsModal';
 import { IconDice, IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch, IconReasoning } from '@/components/icons';
 import { buildSequentialPath } from '@/lib/ai';
+import { CopyButton } from '@/components/shared/CopyButton';
+import { exportGraphView, graphViewLabel, isExportableGraphMode } from '@/lib/graph-export';
 
 const GRAPH_DOMAINS = [
   {
@@ -527,6 +529,35 @@ export function CanvasTopBar() {
         <span className="text-[10px] text-text-dim/40">No scenes</span>
       )}
 
+      {/* Export current graph view. Sits on the left rail after arc/scene
+          nav so it's available regardless of which domain tab is active. */}
+      {narrative && canvasMode === 'graph' && (isExportableGraphMode(graphViewMode) || state.viewState.selectedKnowledgeEntity) && (() => {
+        const selectedId = state.viewState.selectedKnowledgeEntity;
+        const selectedName = selectedId
+          ? (narrative.characters[selectedId] ?? narrative.locations[selectedId] ?? narrative.artifacts?.[selectedId])?.name ?? null
+          : null;
+        const label = graphViewLabel(graphViewMode, selectedName);
+        return (
+          <>
+            <div className="w-px h-3 bg-border" />
+            <CopyButton
+              label={`Copy ${label.full}`}
+              title={`Copy ${label.full} as Markdown`}
+              getText={() =>
+                exportGraphView({
+                  narrative,
+                  mode: graphViewMode,
+                  resolvedKeys: state.resolvedEntryKeys,
+                  currentSceneIndex: state.viewState.currentSceneIndex,
+                  selectedEntityId: selectedId,
+                })
+              }
+              className="text-[10px] px-2 py-1 rounded text-text-dim hover:text-text-primary hover:bg-white/5 transition-colors"
+            />
+          </>
+        );
+      })()}
+
       {/* Contextual controls per mode */}
       {canvasMode === 'plan' && (
         <div className="flex items-center gap-2">
@@ -737,6 +768,7 @@ export function CanvasTopBar() {
                 );
               })}
             </div>
+
           </>
         )}
 

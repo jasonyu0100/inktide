@@ -11,10 +11,16 @@ import EvalBar from '@/components/timeline/EvalBar';
 
 // ── Status colors & glow ────────────────────────────────────────────────────
 
+// Ordered to match the lifecycle sequence so the legend strip reads
+// latent → seeded → active → escalating → critical → resolved / subverted / abandoned.
+// "escalating" was missing here AND from ACTIVE_STATUSES below, so threads
+// that had crossed the point-of-no-return fell back to grey and were
+// excluded from the graph, out of step with the sidebar's thread deltas.
 export const STATUS_COLORS: Record<string, string> = {
   latent:     '#475569',
   seeded:     '#FBBF24',
   active:     '#38BDF8',
+  escalating: '#FB923C', // orange — matches ThreadPortfolio's escalating chip
   critical:   '#F87171',
   resolved:   '#34D399',
   subverted:  '#C084FC',
@@ -126,7 +132,7 @@ export default function ThreadGraphView({
   // ── Build graph data ──
   const graphData = useMemo(() => {
     const allThreads = Object.values(narrative.threads);
-    const ACTIVE_STATUSES = new Set(['seeded', 'active', 'critical']);
+    const ACTIVE_STATUSES = new Set(['seeded', 'active', 'escalating', 'critical']);
 
     // Only show threads that have been introduced by the current scene index
     const visibleKeys = new Set(resolvedKeys.slice(0, currentIndex + 1));
@@ -214,8 +220,12 @@ export default function ThreadGraphView({
     const g = gRef.current;
     if (!sim || !g) return;
 
-    const maxActivity = Math.max(...graphData.nodes.map(n => n.activity), 1);
-    const nodeRadius = (d: TNode) => 14 + (d.activity / maxActivity) * 28;
+    // Size scales with the absolute number of thread deltas a thread has
+    // accumulated. Linear growth (+3px per delta) keeps the visual signal
+    // obvious as a thread gets busier — one delta matters, ten matters
+    // ten times more. Capped at 60px so a runaway thread doesn't swamp
+    // the rest of the layout.
+    const nodeRadius = (d: TNode) => Math.min(60, 10 + d.activity * 3);
 
     // Preserve positions
     const prevPos = new Map(nodesRef.current.map(n => [n.id, { x: n.x, y: n.y }]));
@@ -309,8 +319,8 @@ export default function ThreadGraphView({
     const labelAll = labelEnter.merge(labelSel);
     labelAll
       .attr('fill', d => showTypes ? (STATUS_COLORS[d.status] ?? '#ccc') : '#ccc')
-      .attr('font-size', d => `${Math.max(9, 9 + (d.activity / maxActivity) * 3)}px`)
-      .attr('font-weight', d => d.activity >= maxActivity * 0.5 ? '600' : '400')
+      .attr('font-size', d => `${Math.min(12, 9 + d.activity * 0.3)}px`)
+      .attr('font-weight', d => d.activity >= 5 ? '600' : '400')
       .attr('display', showLabels ? 'block' : 'none')
       .attr('opacity', d => {
         if (mode === 'pulse') return 0.95;

@@ -83,12 +83,5 @@ function answerForInterview(q: InterviewQuestion, a: { answer: SurveyResponse["a
   return v.value;
 }
 
-/** Copy any string to the clipboard. Returns true on success. */
-export async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
+// Re-export for existing callers; the canonical location is `@/lib/clipboard`.
+export { copyToClipboard } from "./clipboard";

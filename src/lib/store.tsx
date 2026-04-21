@@ -77,6 +77,10 @@ import type {
   SceneGameAnalysis,
   SearchQuery,
   StorySettings,
+  Survey,
+  SurveyResponse,
+  Interview,
+  InterviewAnswer,
   StructureReview,
   SystemEdge,
   SystemGraph,
@@ -832,6 +836,16 @@ export type Action =
   | { type: "DELETE_NOTE"; noteId: string }
   | { type: "UPDATE_NOTE"; noteId: string; title?: string; content?: string }
   | { type: "SET_ACTIVE_NOTE"; noteId: string | null }
+  // Surveys
+  | { type: "CREATE_SURVEY"; survey: Survey }
+  | { type: "DELETE_SURVEY"; surveyId: string }
+  | { type: "UPDATE_SURVEY"; surveyId: string; updates: Partial<Survey> }
+  | { type: "SET_SURVEY_RESPONSE"; surveyId: string; response: SurveyResponse }
+  // Interviews
+  | { type: "CREATE_INTERVIEW"; interview: Interview }
+  | { type: "DELETE_INTERVIEW"; interviewId: string }
+  | { type: "UPDATE_INTERVIEW"; interviewId: string; updates: Partial<Interview> }
+  | { type: "SET_INTERVIEW_ANSWER"; interviewId: string; answer: InterviewAnswer }
   // Coordination plan
   | { type: "SET_COORDINATION_PLAN"; branchId: string; plan: BranchPlan | undefined }
   | { type: "CLEAR_COORDINATION_PLAN"; branchId: string }
@@ -2738,6 +2752,94 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "SET_ACTIVE_NOTE":
       return { ...state, viewState: { ...state.viewState, activeNoteId: action.noteId } };
+
+    // ── Surveys ───────────────────────────────────────────────────────────
+    case "CREATE_SURVEY":
+      return updateNarrative(state, (n) => ({
+        ...n,
+        surveys: { ...(n.surveys ?? {}), [action.survey.id]: action.survey },
+      }));
+
+    case "DELETE_SURVEY":
+      return updateNarrative(state, (n) => {
+        if (!n.surveys?.[action.surveyId]) return n;
+        const { [action.surveyId]: _removed, ...rest } = n.surveys;
+        return { ...n, surveys: rest };
+      });
+
+    case "UPDATE_SURVEY":
+      return updateNarrative(state, (n) => {
+        const prev = n.surveys?.[action.surveyId];
+        if (!prev) return n;
+        return {
+          ...n,
+          surveys: {
+            ...(n.surveys ?? {}),
+            [action.surveyId]: { ...prev, ...action.updates, updatedAt: Date.now() },
+          },
+        };
+      });
+
+    case "SET_SURVEY_RESPONSE":
+      return updateNarrative(state, (n) => {
+        const prev = n.surveys?.[action.surveyId];
+        if (!prev) return n;
+        return {
+          ...n,
+          surveys: {
+            ...(n.surveys ?? {}),
+            [action.surveyId]: {
+              ...prev,
+              responses: { ...prev.responses, [action.response.respondentId]: action.response },
+              updatedAt: Date.now(),
+            },
+          },
+        };
+      });
+
+    // ── Interviews ────────────────────────────────────────────────────────
+    case "CREATE_INTERVIEW":
+      return updateNarrative(state, (n) => ({
+        ...n,
+        interviews: { ...(n.interviews ?? {}), [action.interview.id]: action.interview },
+      }));
+
+    case "DELETE_INTERVIEW":
+      return updateNarrative(state, (n) => {
+        if (!n.interviews?.[action.interviewId]) return n;
+        const { [action.interviewId]: _removed, ...rest } = n.interviews;
+        return { ...n, interviews: rest };
+      });
+
+    case "UPDATE_INTERVIEW":
+      return updateNarrative(state, (n) => {
+        const prev = n.interviews?.[action.interviewId];
+        if (!prev) return n;
+        return {
+          ...n,
+          interviews: {
+            ...(n.interviews ?? {}),
+            [action.interviewId]: { ...prev, ...action.updates, updatedAt: Date.now() },
+          },
+        };
+      });
+
+    case "SET_INTERVIEW_ANSWER":
+      return updateNarrative(state, (n) => {
+        const prev = n.interviews?.[action.interviewId];
+        if (!prev) return n;
+        return {
+          ...n,
+          interviews: {
+            ...(n.interviews ?? {}),
+            [action.interviewId]: {
+              ...prev,
+              answers: { ...prev.answers, [action.answer.questionId]: action.answer },
+              updatedAt: Date.now(),
+            },
+          },
+        };
+      });
 
     // ── Coordination Plan ─────────────────────────────────────────────────
     case "SET_COORDINATION_PLAN":

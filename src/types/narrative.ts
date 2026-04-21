@@ -1100,6 +1100,126 @@ export type NarrativeState = {
   patterns?: string[];
   /** Anti-patterns — commandments defining what to avoid (used by Adversarial agent) */
   antiPatterns?: string[];
+  /** Research surveys — one question across many respondents; see Survey types below. */
+  surveys?: Record<string, Survey>;
+  /** Research interviews — many questions for one subject; see Interview types below. */
+  interviews?: Record<string, Interview>;
+  createdAt: number;
+  updatedAt: number;
+};
+
+// ── Surveys ───────────────────────────────────────────────────────────────────
+// Query the narrative's entities in parallel using their world-graph continuity
+// (same mechanism as the Character persona chat). Each respondent answers in
+// character; aggregates become research infographics for the author.
+
+export type SurveyQuestionType =
+  | "binary"   // yes / no
+  | "likert"   // 1..scale — strongly disagree → strongly agree
+  | "estimate" // numeric guess, optional unit
+  | "choice"   // pick one of a named set
+  | "open";    // short free-text response
+
+export type SurveyRespondentKind = "character" | "location" | "artifact";
+
+export type SurveyRespondentFilter = {
+  kinds: SurveyRespondentKind[];
+  /** Character relevance — anchor / recurring / transient. Empty = all. */
+  characterRoles?: CharacterRole[];
+  /** Location prominence — domain / place / margin. Empty = all. */
+  locationProminence?: Location["prominence"][];
+  /** Artifact significance — key / notable / minor. Empty = all. */
+  artifactSignificance?: Artifact["significance"][];
+};
+
+export type SurveyConfig = {
+  /** Likert scale size (3, 5, or 7). Defaults to 5. */
+  scale?: 3 | 5 | 7;
+  /** Choice options (for questionType === "choice"). */
+  options?: string[];
+  /** Unit suffix for estimate questions (e.g. "years", "li", "gold"). */
+  unit?: string;
+};
+
+export type SurveyResponse = {
+  respondentId: string;
+  respondentKind: SurveyRespondentKind;
+  /** The raw parsed answer, shape depends on questionType. */
+  answer:
+    | { type: "binary"; value: boolean }
+    | { type: "likert"; value: number } // 1..scale
+    | { type: "estimate"; value: number }
+    | { type: "choice"; value: string }
+    | { type: "open"; value: string };
+  /** Short first-person reasoning the respondent offered, ≤ 2 sentences. */
+  reasoning: string;
+  timestamp: number;
+  /** Error captured when this respondent's call failed — response retained so UI shows coverage. */
+  error?: string;
+};
+
+export type SurveyStatus = "draft" | "running" | "complete" | "error";
+
+export type Survey = {
+  id: string;
+  question: string;
+  questionType: SurveyQuestionType;
+  config?: SurveyConfig;
+  respondentFilter: SurveyRespondentFilter;
+  responses: Record<string, SurveyResponse>;
+  status: SurveyStatus;
+  /** Populated while status === 'running'. */
+  progress?: { completed: number; total: number };
+  /** Captured if the whole run halts (e.g. FatalApiError from credits). */
+  error?: string;
+  /**
+   * Free-form category tag (e.g. "Trust", "Knowledge", "Predictions"). Used
+   * to group surveys in the sidebar and infographic dashboards. Author-defined.
+   */
+  category?: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+// ── Interviews ────────────────────────────────────────────────────────────
+// One subject × N questions: a deep psychological / contextual probe of a
+// single character, location, or artifact. Same persona engine as surveys
+// but inverted axis — author learns about ONE entity in depth instead of
+// the WHOLE world on one question.
+
+export type InterviewSubjectKind = SurveyRespondentKind;
+
+export type InterviewQuestion = {
+  id: string;
+  question: string;
+  questionType: SurveyQuestionType;
+  config?: SurveyConfig;
+};
+
+export type InterviewAnswer = {
+  questionId: string;
+  /** Mirrors SurveyResponse.answer shape — same parser used. */
+  answer: SurveyResponse["answer"];
+  reasoning: string;
+  timestamp: number;
+  error?: string;
+};
+
+export type Interview = {
+  id: string;
+  subjectId: string;
+  subjectKind: InterviewSubjectKind;
+  /** Optional title — defaults to "<subject name>: <category>" in UI. */
+  title?: string;
+  /** Author-defined category (e.g. "Personality", "Values", "Knowledge Audit"). */
+  category?: string;
+  /** Ordered question batch — composer builds this; runner asks each in parallel. */
+  questions: InterviewQuestion[];
+  /** Indexed by questionId. */
+  answers: Record<string, InterviewAnswer>;
+  status: SurveyStatus;
+  progress?: { completed: number; total: number };
+  error?: string;
   createdAt: number;
   updatedAt: number;
 };

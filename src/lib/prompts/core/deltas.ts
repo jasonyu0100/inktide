@@ -12,11 +12,11 @@ FORMULAS: F = Σ √arcs × stageWeight × (1 + log(1 + investment)) | W = ΔN_c
 ALL NODE CONTENT: 15-25 words, PRESENT TENSE, specific and concrete.
 
 DENSITY TARGETS (21/25 at reference — fate 3.5, world 12, system 4):
-  Breather:  0 transitions, 6-8 world, 0-1 system
+  Breather:  0 transitions, 6-8 world, 1-2 system
   Typical:   0-1 transitions, 10-14 world, 3-5 system + edges
   Climactic: 1-2 transitions, 16-20+ world, 5-8 system + edges
   Theory / lore dump: modest world (6-10), heavy system (6-12)
-Variance required — peaks and valleys, not flatline.
+FLOOR applied to every scene: ≥6 world nodes across ≥3 distinct entities, ≥1 system node. Variance required above the floor — peaks and valleys, not flatline.
 
 INITIALIZATION FLOOR — zero-node entities and zero-log threads are invalid:
   - Every new character / location / artifact must have ≥1 node in its world.nodes at creation. Role/prominence/significance minimums (see below) are the target; 1 is the absolute floor.
@@ -38,11 +38,16 @@ threadDeltas — Threads are COMPELLING QUESTIONS. In fiction they shape fate; i
   COMMITMENT: escalating = point of no return (must resolve / subvert / formally abandon).
   Prune stale threads (5+ scenes without transition). Keep thread count lean — 10+ threads = noise.
 
-worldDeltas — Entity's PRESENT TENSE facts. For characters: traits, beliefs, capabilities, wounds. For ideas / methods / institutions: properties demonstrated, qualifications earned, capabilities shown, known failure modes.
+worldDeltas — Entity's PRESENT TENSE facts. Per entity TYPE:
+  - CHARACTERS: new behaviours, beliefs, capabilities, states, wounds, goals, secrets. Inner movement that persists past this scene.
+  - LOCATIONS: new history, properties, dangers, rules, atmospheric facts the scene reveals. A revisited location still earns deltas when the scene reveals something new about it.
+  - ARTIFACTS: new capabilities, limitations, states, behaviours demonstrated through usage.
   GOOD (fiction): "Harry has a lightning-bolt scar from surviving the killing curse."
   GOOD (non-fiction): "The force grading formula is calibrated so published works score 85-92 on a 100-point curve."
   BAD: "Harry discovered..." / "The authors realised..." (events — belong in thread log or events).
-  2-4 nodes per entity. Node ORDER matters (auto-chains).
+  Node ORDER matters (auto-chains).
+
+  ENTITIES ARE SPONGES — rich prose supports many nodes per entity; sparse prose supports few. No per-entity cap: emit as many 15-25-word nodes as the summary genuinely earns. A reflective POV character alone may carry 4-6 nodes (belief shift, state shift, goal shift, capability gained, secret kept); a location re-entered in a dense scene may carry 2-3 new properties; a quiet pass-through entity may carry one. UNDER-tagging a rich summary is the dominant failure mode — reread the summary and extract every stable claim it supports.
 
   SIDE-CHARACTER EVOLUTION IS THE NAME OF THE GAME:
   The world should feel alive around the protagonist — side characters making their own decisions, reacting to their own situations, evolving over arcs. Do NOT force a worldDelta on every participant; a character who was genuinely unchanged by the scene gets nothing. But when a secondary character was changed — suspected something, decided something, learned something, adjusted their plans — capture that shift, not as a reaction to the POV but as their OWN internal movement.
@@ -54,7 +59,12 @@ worldDeltas — Entity's PRESENT TENSE facts. For characters: traits, beliefs, c
 
 systemDeltas — How the WORLD / DOMAIN WORKS. General rules, not specific entities. In fiction: magic, physics, social order. In non-fiction: theorems, mechanisms, models, constraints, established principles.
   GOOD (fiction): "Magic near underage wizards is attributed to them regardless of caster."
+  GOOD (fiction): "Cross-check protocols in major sects require concurrence from three elders to ratify a hostile identification."
   GOOD (non-fiction): "Delivery is computed as the equal-weighted mean of z-score-normalised force values."
+  BAD: "Magic" (too vague — describe HOW it works), "Fang Yuan's plan" (specific, not general), "They met in the chamber" (event, not rule).
+
+  EVERY SCENE SURFACES ≥1 STRUCTURAL FACT — every scene operates under rules, and the prose demonstrates them implicitly. This is NOT a lore dump; it is NAMING the mechanic the scene actually demonstrates. A character bypassing a sect's cross-checks surfaces the cross-check structure. An artifact humming persistently surfaces the artifact's behaviour class. A reflective deduction surfaces the pattern the character detected. Reread the summary and ask: what rule was at play here? Emit at minimum one addedNode per scene. NEVER emit \`systemDeltas: {}\` or an empty \`addedNodes\` array — every scene supports at least one structural observation.
+
   REUSE existing IDs. Types: principle, system, concept, tension, constraint.
   Edges: enables, governs, opposes, extends, constrains.
 

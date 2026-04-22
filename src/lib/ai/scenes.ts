@@ -293,7 +293,15 @@ ${sequencePrompt}
 
 Return JSON with this exact structure.
 
-For EACH scene: write the "summary" field FIRST (after id/arcId/locationId/povId/participantIds). The summary is the spine — it states in prose what happens in the scene. ONLY THEN derive the deltas (threadDeltas, worldDeltas, systemDeltas, etc.) from that summary. Every delta must trace back to something explicitly stated in the summary. This prevents abstract delta-assembly that forgets to ground the scene in concrete events.
+For EACH scene, follow this procedure:
+  1. DRAFT the summary — rich prose stating what happens, using NAMES not IDs.
+  2. ENUMERATE the deltas per sentence — for each declarative clause in the summary, ask: which entity was meaningfully changed? which rule surfaced? which thread moved? which off-screen party would receive news? The answer is almost always multiple.
+  3. REWRITE the summary if necessary so that every delta you intend to emit has a sentence backing it. Delta and summary sentence are paired: no delta without a source sentence, no rich source sentence without its deltas.
+  4. EMIT the full delta block, extracting every stable claim the summary now supports.
+
+The summary is your DELTA BUDGET — the richer the summary, the richer the extraction. A 3-sentence thin summary will not support 12 world nodes; a 6-sentence dense summary will. Write the summary to SERVE the extraction, not just to describe events.
+
+Every delta must trace back to something in the summary — never invent — but the reverse is also true: a summary clause that implies a delta must have that delta tagged. Under-tagging is the dominant failure mode, not over-tagging.
 {
   "arcName": "Short, evocative arc name (2-4 words). Must be UNIQUE. Bad: 'Continuation', 'New Beginnings'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths'.",
   "directionVector": "Forward-looking intent for this arc. See ARC METADATA guidance below.",
@@ -344,15 +352,76 @@ TIME DELTA — REQUIRED on every scene. Each scene is an instant in time; timeDe
 - This is an ESTIMATE — it's understood that the LLM is reading prose cues, not consulting a calendar. Pick the most plausible value.
 - This is a RELATIVE delta only. There is no absolute calendar anchor. Do not assume a start date.
 
-DENSITY BAR (grading reference means — your arc averages must hit these or it grades in the 60s):
-  Fate F ≈ 1.5 per scene · World W ≈ 12 per scene · System S ≈ 3 per scene
-  A typical scene: 3-5 entities touched, 10-14 world nodes (list in causal order — edges auto-chain), 2-4 system knowledge nodes + 1-3 edges, 2-4 thread pulses (0-1 transitions).
-  A climax scene: push to 16-20+ world, 5-8 knowledge, 1-2 transitions.
-  A quiet scene: 6-8 world, 0-1 knowledge, 0-1 pulses.
-  Every participant that was MEANINGFULLY CHANGED by the scene gets a worldDelta — not every participant present. A character who was there but unchanged deserves nothing; a character who was changed (decided, suspected, learned, committed, broke) must have that shift captured.
-  AGENCY MATTERS — when a secondary character does get a delta, make it their OWN movement, not a mirror of the POV. "Meng Song suspects Fang Yuan is hiding something" shows a character thinking; "Meng Song is impressed by Fang Yuan" shows them orbiting.
-  OFF-SCREEN CHARACTERS can also receive worldDeltas when events reach them through realistic channels — news, rumours, observed public acts, faction intelligence. Use deliberately, not reflexively. Across an arc the cast should evolve alongside the protagonist, not wait on them.
-  REUSE existing WK node IDs when reinforcing — only NEW concepts count as density.
+DENSITY BAR (grading reference means — arc averages must hit these or it grades in the 60s):
+  Fate F ≈ 3.5 per scene · World W ≈ 12 per scene · System S ≈ 4 per scene
+  Typical scene: 3-5 entities touched, 10-14 world nodes (list in causal order — edges auto-chain), 3-5 system knowledge nodes + 2-4 edges, 2-4 thread pulses (0-1 transitions).
+  Climax scene: push to 16-20+ world, 5-8 system, 1-2 transitions.
+  Quiet scene: 6-8 world, 1-2 system, 0-1 pulses.
+
+PER-SCENE FLOORS (SCENES BELOW THESE ARE REJECTED AND RE-GENERATED):
+  - worldDeltas: ≥6 total addedNodes, spread across ≥3 distinct entities. Every scene touches the POV, usually the location, and at least one other — a participant, an artifact in use, or an off-screen character receiving news. Solo-POV scenes still tag the location, any artifact handled, and any off-screen party affected by events.
+  - systemDeltas.addedNodes: ≥1 per scene. Every scene operates under some rule, constraint, or structural fact — the "how this works" layer. Even quiet reflection scenes surface ≥1 principle that governed the prior action or that the character is newly reasoning about. \`systemDeltas: {}\` is INVALID — emit at minimum { addedNodes: [{...}], addedEdges: [] }.
+  - threadDeltas: per thread, AT MOST ONE entry per scene. Transitions move at most ONE step forward in the lifecycle (or hold as a pulse, or exit to resolved/subverted/abandoned, or repick from abandoned → latent). Backwards rolls (resolved → escalating, critical → active, etc.) are rejected by the sanitizer; do not emit them.
+
+DELTA EMISSION DISCIPLINE:
+  Every participant MEANINGFULLY CHANGED by the scene gets a worldDelta — decided, suspected, learned, committed, broke. Participants present but unchanged deserve nothing. But the reverse also holds: a scene that touches only one entity in a paragraph of prose is under-tagging — reread the summary and extract what was implicit.
+  AGENCY over ORBIT — "Meng Song suspects Fang Yuan is hiding something" (thinking) beats "Meng Song is impressed by Fang Yuan" (orbiting).
+  OFF-SCREEN DELTAS — characters not in participantIds can receive worldDeltas when events reach them through realistic channels (news, rumours, observed public acts, faction intelligence). An arc should show the cast evolving alongside the POV, not waiting on them.
+  REUSE existing WK node IDs when reinforcing — only NEW concepts count toward density.
+
+REFLECTIVE POV SCENES — when the POV character mostly thinks, plans, deduces, or observes (no external action), they are STILL the MOST-CHANGED entity in the scene. Under-tagging solo-POV scenes is the single most common failure. Tag on the POV:
+  - Belief shifts (what they now hold true that they didn't before)
+  - State shifts (cultivation progress, emotional state, confidence level, exhaustion)
+  - Goal shifts (new long-term target, refined strategy, abandoned plan)
+  - Capability shifts (new insight, new mental model, sharpened technique)
+  - Secrets kept or revealed (what they decided to hide, what they now know that others don't)
+Plus tag adjacent entities the scene affects even when they're off-screen:
+  - The location itself (what it witnessed, what's stored there, atmospheric state)
+  - Artifacts handled, even passively (their state, what they revealed, how they behaved)
+  - Off-screen parties whose world shifts because of the POV's decisions
+A reflective scene with only one worldDelta on the POV is broken. Expect 4-6 nodes on the POV alone, plus 2-3 on adjacent entities.
+
+WORKED EXAMPLE — a thin vs rich extraction of the same summary:
+
+Summary: "Fang Yuan activated Heaven's Mandate Gu on a corpus combining the stone slab's hum with Elder Xuan's Tracking Gu signature. The reading revealed Heaven's Will was embedded within the refinement of specialized Gu — a pervasive biological embedding that overturned his prior model and demanded a fundamentally new counter-strategy."
+
+Thin (under-tagging — this is what we want to AVOID):
+  worldDeltas: [
+    {entityId: "C-THE-01", addedNodes: [{content: "Fang Yuan now understands Heaven's Will is embedded in specialized Gu."}]}
+  ]
+  systemDeltas: { addedNodes: [], addedEdges: [] }
+
+Rich (target — extract what the summary actually earns):
+  worldDeltas: [
+    {entityId: "C-THE-01", addedNodes: [
+      {content: "Fang Yuan holds the belief that Heaven's Will operates by embedding influence inside specialized Gu mechanisms.", type: "belief"},
+      {content: "Fang Yuan's prior model of Heaven's Will as purely external is overturned as of this scene.", type: "state"},
+      {content: "Fang Yuan's strategic goal shifts from reactive counter-reconnaissance to proactive counter-mandate engineering.", type: "goal"},
+      {content: "Fang Yuan has developed the capability to compose multi-source anomaly corpora for Heaven's Mandate analysis.", type: "capability"}
+    ]},
+    {entityId: "A-THE-04", addedNodes: [
+      {content: "Heaven's Mandate Gu can resolve composite anomaly corpora into multi-layered revelations about Heaven's Will.", type: "capability"}
+    ]},
+    {entityId: "A-18", addedNodes: [
+      {content: "Elder Xuan's Tracking Gu carries a subtle Heaven's Will signature embedded during refinement.", type: "trait"}
+    ]},
+    {entityId: "A-THE-17", addedNodes: [
+      {content: "The stone slab's hum carries cosmic-disruption data readable by the Heaven's Mandate Gu.", type: "trait"}
+    ]},
+    {entityId: "L-THE-03", addedNodes: [
+      {content: "Gray Wolf Ranges stronghold served as the analysis site for the Heaven's Mandate Gu's revelation.", type: "history"}
+    ]}
+  ]
+  systemDeltas: {
+    addedNodes: [
+      {id: "SYS-GEN-001", concept: "Heaven's Will operates by subtly embedding influence within the refinement of specialized Gu mechanisms, not merely as an external force.", type: "principle"},
+      {id: "SYS-GEN-002", concept: "Heaven's Mandate Gu is a legendary artifact that resolves composite anomaly corpora into patterned revelations about cosmic influence.", type: "concept"}
+    ],
+    addedEdges: [{from: "SYS-GEN-001", to: "SYS-GEN-002", relation: "governs"}]
+  }
+  threadDeltas: [one transition + optional pulse on Heaven's Will inquiry thread]
+
+Count: rich version = 8 world nodes across 5 entities + 2 system nodes. Thin version = 1 world + 0 system. Same summary; the difference is the EXTRACTION discipline. Apply the rich pattern to every scene you generate.
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_SUMMARY_REQUIREMENT}
 ${PROMPT_FORCE_STANDARDS}

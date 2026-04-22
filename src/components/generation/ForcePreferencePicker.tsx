@@ -1,6 +1,7 @@
 "use client";
 
 import type { ForcePreference, ReasoningMode } from "@/lib/ai";
+import { ThinkingAnimation } from "./ThinkingAnimation";
 
 // ── Force preference metadata ────────────────────────────────────────────────
 
@@ -12,11 +13,6 @@ export const FORCE_PREFERENCE_META: Record<
     label: "Freeform",
     color: "#f5f5f5",
     description: "No bias. Full toolbox, LLM picks the mix.",
-  },
-  balanced: {
-    label: "Balanced",
-    color: "#e5e7eb",
-    description: "Explicit ~1/3 fate, ~1/3 world, ~1/3 system.",
   },
   fate: {
     label: "Fate",
@@ -42,7 +38,6 @@ export const FORCE_PREFERENCE_META: Record<
 
 const PREFERENCE_ORDER: ForcePreference[] = [
   "freeform",
-  "balanced",
   "fate",
   "world",
   "system",
@@ -321,20 +316,90 @@ export function NetworkBiasPicker({
 
 // ── Thinking settings wrapper ────────────────────────────────────────────────
 
+/** Dropdown row — label on the left, native <select> on the right. All
+ *  options rendered in a consistent near-white; the palette meaning is
+ *  communicated by the animation, not the control. */
+function DropdownRow<T extends string>({
+  label, value, options, onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly { key: T; label: string; description?: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="w-14 shrink-0 text-[8px] uppercase tracking-widest text-text-dim/70">
+        {label}
+      </span>
+      <div className="relative flex-1 rounded-md border border-white/10 bg-white/4 hover:bg-white/6 transition-colors">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value as T)}
+          className="w-full bg-transparent text-[10px] font-medium text-text-primary cursor-pointer appearance-none outline-none px-2 py-1 pr-6"
+        >
+          {options.map((opt) => (
+            <option
+              key={opt.key}
+              value={opt.key}
+              className="bg-bg-panel text-text-primary"
+              title={opt.description}
+            >
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <span
+          className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-text-dim/60 text-[8px]"
+          aria-hidden
+        >
+          ▾
+        </span>
+      </div>
+    </label>
+  );
+}
+
+const MODE_OPTS = [
+  { key: 'divergent' as ReasoningMode, label: 'Divergent', description: REASONING_MODE_META.divergent.description },
+  { key: 'deduction' as ReasoningMode, label: 'Deduction', description: REASONING_MODE_META.deduction.description },
+  { key: 'abduction' as ReasoningMode, label: 'Abduction', description: REASONING_MODE_META.abduction.description },
+  { key: 'induction' as ReasoningMode, label: 'Induction', description: REASONING_MODE_META.induction.description },
+] as const;
+
+const FORCE_OPTS = [
+  { key: 'freeform' as ForcePreference, label: 'Freeform', description: FORCE_PREFERENCE_META.freeform.description },
+  { key: 'fate' as ForcePreference, label: 'Fate', description: FORCE_PREFERENCE_META.fate.description },
+  { key: 'world' as ForcePreference, label: 'World', description: FORCE_PREFERENCE_META.world.description },
+  { key: 'system' as ForcePreference, label: 'System', description: FORCE_PREFERENCE_META.system.description },
+  { key: 'chaos' as ForcePreference, label: 'Chaos', description: FORCE_PREFERENCE_META.chaos.description },
+] as const;
+
+const SIZE_OPTS = [
+  { key: 'small' as ReasoningSize, label: 'Small', description: 'Compact graph. Fewer reasoning nodes.' },
+  { key: 'medium' as ReasoningSize, label: 'Medium', description: 'Default graph density.' },
+  { key: 'large' as ReasoningSize, label: 'Large', description: 'Dense graph. More reasoning nodes.' },
+] as const;
+
+const BIAS_OPTS = [
+  { key: 'inside' as NetworkBias, label: 'Inside (conventional)', description: 'Lean into HOT entities — deepen the gravitational centres.' },
+  { key: 'neutral' as NetworkBias, label: 'Neutral (dynamic)', description: 'Use what the arc needs — balanced across hot and cold.' },
+  { key: 'outside' as NetworkBias, label: 'Outside (unique)', description: 'Reach for COLD or FRESH dormant matter — break the dominant pattern.' },
+] as const;
+
 /**
  * Groups the four thinking-related dials (mode, force, density, network bias)
- * under a single `THINKING` header. Maximum control — none of the dials are
- * collapsed — but visually unified so they read as one control panel.
+ * under a single `THINKING` header with a live animation preview. Dropdowns
+ * keep the controls compact; the animation to the right tells the full
+ * story — the existing network tiers, the causal graph the current mode
+ * unfolds, and the tethers from each reasoning node back to the part of
+ * the network the bias draws from.
  */
 export function ThinkingSettings({
-  mode,
-  onModeChange,
-  force,
-  onForceChange,
-  size,
-  onSizeChange,
-  networkBias,
-  onNetworkBiasChange,
+  mode, onModeChange,
+  force, onForceChange,
+  size, onSizeChange,
+  networkBias, onNetworkBiasChange,
 }: {
   mode: ReasoningMode;
   onModeChange: (m: ReasoningMode) => void;
@@ -345,15 +410,60 @@ export function ThinkingSettings({
   networkBias: NetworkBias;
   onNetworkBiasChange: (b: NetworkBias) => void;
 }) {
+  const modeMeta = REASONING_MODE_META[mode];
+
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-white/6 bg-white/2 p-3">
-      <div className="text-[10px] uppercase tracking-widest text-text-dim/80 font-semibold">
-        Thinking
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] uppercase tracking-widest text-text-dim/80 font-semibold">
+          Thinking
+        </div>
+        <div className="text-[9px] text-text-dim/50 italic truncate ml-3">
+          {modeMeta.description}
+        </div>
       </div>
-      <ReasoningModePicker value={mode} onChange={onModeChange} />
-      <ForcePreferencePicker value={force} onChange={onForceChange} />
-      <ReasoningSizePicker value={size} onChange={onSizeChange} />
-      <NetworkBiasPicker value={networkBias} onChange={onNetworkBiasChange} />
+      <div className="flex gap-3 items-start">
+        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+          <DropdownRow
+            label="Mode"
+            value={mode}
+            options={MODE_OPTS}
+            onChange={onModeChange}
+          />
+          <DropdownRow
+            label="Force"
+            value={force}
+            options={FORCE_OPTS}
+            onChange={onForceChange}
+          />
+          <DropdownRow
+            label="Density"
+            value={size}
+            options={SIZE_OPTS}
+            onChange={onSizeChange}
+          />
+          <DropdownRow
+            label="Network"
+            value={networkBias}
+            options={BIAS_OPTS}
+            onChange={onNetworkBiasChange}
+          />
+        </div>
+        <div className="shrink-0">
+          {/* key-based remount so every settings permutation plays a
+              fresh animation from frame 0 — guarantees visibility of the
+              change even mid-cycle. */}
+          <ThinkingAnimation
+            key={`${mode}-${force}-${size}-${networkBias}`}
+            mode={mode}
+            force={force}
+            size={size}
+            networkBias={networkBias}
+            width={300}
+            height={210}
+          />
+        </div>
+      </div>
     </div>
   );
 }

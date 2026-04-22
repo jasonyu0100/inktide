@@ -1603,7 +1603,6 @@ export type StorySettings = {
    */
   defaultForcePreference:
     | "freeform"
-    | "balanced"
     | "fate"
     | "world"
     | "system"

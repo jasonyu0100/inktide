@@ -128,6 +128,17 @@ export default function ReasoningNodeDetail({ arcId, worldBuildId, nodeId }: Pro
     });
   };
 
+  const navigateToSystemNode = () => {
+    if (!node.systemNodeId) return;
+    dispatch({
+      type: "SET_INSPECTOR",
+      context: { type: "knowledge", nodeId: node.systemNodeId },
+    });
+  };
+
+  const systemNode =
+    node.systemNodeId && narrative?.systemGraph?.nodes[node.systemNodeId];
+
   const colors = NODE_COLORS[node.type];
 
   return (
@@ -185,7 +196,7 @@ export default function ReasoningNodeDetail({ arcId, worldBuildId, nodeId }: Pro
       )}
 
       {/* References */}
-      {(node.entityId || node.threadId) && (
+      {(node.entityId || node.threadId || node.systemNodeId) && (
         <div className="space-y-2">
           <h3 className="text-[10px] uppercase tracking-wider text-text-dim">References</h3>
           <div className="space-y-1.5">
@@ -209,6 +220,23 @@ export default function ReasoningNodeDetail({ arcId, worldBuildId, nodeId }: Pro
                 <span className="text-[11px] text-amber-400 font-mono group-hover:text-amber-300 transition">
                   {node.threadId}
                 </span>
+              </button>
+            )}
+            {node.systemNodeId && (
+              <button
+                onClick={navigateToSystemNode}
+                disabled={!systemNode}
+                className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded bg-white/3 hover:bg-white/6 transition group disabled:cursor-default disabled:hover:bg-white/3"
+              >
+                <span className="text-[10px] text-text-dim shrink-0">System:</span>
+                <span className="text-[11px] text-violet-400 font-mono group-hover:text-violet-300 transition shrink-0">
+                  {node.systemNodeId}
+                </span>
+                {systemNode && (
+                  <span className="text-[10px] text-text-secondary group-hover:text-text-primary transition truncate">
+                    {systemNode.concept}
+                  </span>
+                )}
               </button>
             )}
           </div>

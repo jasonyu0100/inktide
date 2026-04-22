@@ -18,6 +18,8 @@ import type {
   CoordinationNode,
   CoordinationEdge,
   CoordinationNodeType,
+  Arc,
+  ReasoningGraphSnapshot,
 } from "@/types/narrative";
 import { REASONING_BUDGETS, resolveEntry } from "@/types/narrative";
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from "./api";
@@ -80,6 +82,34 @@ export type {
   ForcePreference,
 };
 export { reasoningScale, buildSequentialPath, extractPatternWarningDirectives };
+
+/**
+ * Find the most recent arc that has a stored reasoning graph, walking
+ * resolvedKeys backward from the current index. Returns null if no prior
+ * arc has a graph (first arc being generated, or priors never persisted).
+ *
+ * Used to feed the prior graph into the next generation's prompt so the
+ * LLM can see — and diverge from — the shape it just built, instead of
+ * re-describing the same causal spine with cosmetic variation.
+ */
+function findLastArcGraph(
+  narrative: NarrativeState,
+  resolvedKeys: string[],
+  currentIndex: number,
+): { arc: Arc; graph: ReasoningGraphSnapshot } | null {
+  const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
+  const seen = new Set<string>();
+  for (let i = keysUpToCurrent.length - 1; i >= 0; i--) {
+    const entry = resolveEntry(narrative, keysUpToCurrent[i]);
+    if (!entry || entry.kind === "world_build") continue;
+    const arcId = entry.arcId;
+    if (!arcId || seen.has(arcId)) continue;
+    seen.add(arcId);
+    const arc = narrative.arcs[arcId];
+    if (arc?.reasoningGraph) return { arc, graph: arc.reasoningGraph };
+  }
+  return null;
+}
 
 export async function generateReasoningGraph(
   narrative: NarrativeState,
@@ -154,6 +184,30 @@ export async function generateReasoningGraph(
     ? `ANTI-PATTERNS (pitfalls to avoid):\n${antiPatterns.map((p, i) => `${i + 1}. ${p}`).join("\n")}`
     : "";
 
+  // Prior reasoning graph — the last arc's graph, rendered for divergence
+  // pressure. Without this, the LLM is asked to emit "warning" nodes that
+  // detect graph-level repetition while being blind to the prior graphs
+  // themselves — which is why successive arcs converge to the same causal
+  // spine with cosmetic variation.
+  const lastArcGraph = findLastArcGraph(narrative, resolvedKeys, currentIndex);
+  const priorGraphSection = lastArcGraph
+    ? `## PRIOR ARC GRAPH — DIVERGE FROM THIS
+
+The reasoning graph built for the last arc is below. Graph-level repetition across arcs is the same failure as reasoning-pattern repetition within a single graph — the story thinks one thought over and over. Your graph's causal spine must NOT replicate the structure below.
+
+Last arc: "${lastArcGraph.graph.arcName}"
+Summary: ${lastArcGraph.graph.summary}
+
+${buildSequentialPath({ nodes: lastArcGraph.graph.nodes, edges: lastArcGraph.graph.edges })}
+
+Diverge concretely:
+- The ARC RESOLVES / RESISTS / PLANTS commitments must differ in KIND, not just content. If the prior resolved via acquisition, yours must close via reversal, revelation, alliance, or subversion. A new content slot in the same commitment shape is re-description, not advancement.
+- The reasoning chain must use different inference modes. If the prior leaned on constraint-propagation or sequential dependency, yours should introduce abduction, inversion, analogy, or a branching decision.
+- Warning nodes (required per REQUIREMENTS below) must name specific shapes from the prior graph — cite node labels or indices above — so the repetition is made explicit and the new graph visibly routes around it.
+
+If your commitments, reasoning chain, and terminal map onto the spine above with only content swaps, you have re-described the prior arc rather than advanced the story.`
+    : "";
+
   const prompt = `${ctx}
 
 ## ${summarizeNetworkState(network)}
@@ -211,6 +265,8 @@ Every node EARNS its existence by doing distinct work. A node whose subject (act
 Novelty is the story's forward motion. Resolved threads mostly stay resolved — don't keep re-opening a closed question. Prefer NEW threads of fate over recycling finished ones. Prefer NEW chains of reasoning over extending existing ones into minor variation. Sameness is the enemy; variety is how the reader feels the story moving.
 
 Resolution is the reader's dopamine. Delivery is what they FEEL when tension closes. A graph that accumulates pressure without release is anxious, not engaging — plan the closures first, and let demand and resistance serve them. Reasoning-pattern repetition — the same inference shape iterated with different objects — reads as OCD, not escalation; each reasoning step should think a genuinely different thought.
+
+${priorGraphSection}
 
 ARC COMMITMENT FIRST. Before any causal reasoning, declare this arc's contract with the reader as the first fate nodes in the graph. Each is a normal fate node whose label begins with one of three markers, placed at the earliest indices (0-2):
 

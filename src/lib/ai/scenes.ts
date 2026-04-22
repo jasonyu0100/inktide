@@ -238,41 +238,22 @@ export async function generateScenes(
 NARRATIVE SEED: ${seed}
 
 ${arcInstruction}
-${reasoningGraph ? `REASONING GRAPH — THIS IS YOUR PRIMARY BRIEF. The graph below captures the strategic logic driving this arc. Each node represents a piece of reasoning — entities, constraints, causal steps, and outcomes. Your scenes must execute this reasoning path exactly.
+${reasoningGraph ? `REASONING GRAPH — PRIMARY BRIEF. Execute this path exactly; don't skip nodes or invent reasoning not shown.
 
 Arc Summary: ${reasoningGraph.summary}
 
-REASONING PATH (step through in order — each node shows its connections):
+REASONING PATH:
 ${buildSequentialPath(reasoningGraph)}
 ${(() => {
   const directives = extractPatternWarningDirectives(reasoningGraph);
-  return directives ? `\n## COURSE-CORRECTION DIRECTIVES (FROM REASONING GRAPH)\n\n${directives}\n` : "";
+  return directives ? `\n## COURSE-CORRECTION DIRECTIVES\n\n${directives}\n` : "";
 })()}
-Read through every node. The reasoning nodes (REASONING:) are the core logic you must execute. Entity nodes (CHARACTER/LOCATION/ARTIFACT/SYSTEM:) provide the grounding. Outcome nodes (OUTCOME:) show thread effects you must deliver.
+REASONING: nodes are core logic to execute. CHARACTER/LOCATION/ARTIFACT/SYSTEM: nodes provide grounding. OUTCOME: nodes are thread effects to deliver. Edge labels carry meaning (enables, requires, causes, etc.).` : coordinationPlanContext ? `COORDINATION PLAN — PRIMARY BRIEF (Arc ${coordinationPlanContext.arcIndex}/${coordinationPlanContext.arcCount}: "${coordinationPlanContext.arcLabel}"). Directive derived from backward-induction across the full plan.
+${coordinationPlanContext.forceMode ? `Force Mode: ${coordinationPlanContext.forceMode.toUpperCase()}.` : ''}
 
-Edge types tell you HOW nodes relate:
-- enables: A makes B possible
-- constrains: A limits/blocks B
-- risks: A creates danger for B
-- requires: A depends on B
-- causes: A leads to B
-- reveals: A exposes information in B
-- develops: A deepens B (character arc or theme)
-- resolves: A concludes/answers B
+${coordinationPlanContext.directive}${direction.trim() ? `\n\nADDITIONAL DIRECTION (layer on top):\n${direction}` : ''}` : direction.trim() ? `DIRECTION — PRIMARY BRIEF. Every scene executes these beats. Prose-level guidance (tone, POV style, pacing, register) must flow into the scene summaries — the summary is the prose writer's only brief.
 
-Your scenes must walk this reasoning path — don't skip nodes, don't invent reasoning not in the graph.` : coordinationPlanContext ? `COORDINATION PLAN — THIS IS YOUR PRIMARY BRIEF (Arc ${coordinationPlanContext.arcIndex}/${coordinationPlanContext.arcCount}: "${coordinationPlanContext.arcLabel}")
-
-This arc is part of a multi-arc coordination plan. The directive below was derived from backward-induction reasoning across the full plan. Execute it faithfully.
-${coordinationPlanContext.forceMode ? `\nForce Mode: ${coordinationPlanContext.forceMode.toUpperCase()} — lean into this narrative force for this arc.` : ''}
-
-${coordinationPlanContext.directive}${direction.trim() ? `
-
-ADDITIONAL DIRECTION — Layer this guidance on top of the coordination plan:
-${direction}` : ''}` : direction.trim() ? `DIRECTION — THIS IS YOUR PRIMARY BRIEF. Every scene you generate must execute the beats described here. Do not invent scenes that ignore, skip, or contradict these instructions.
-
-The direction may include prose-level guidance: how to write, not just what happens. Time compression, structural techniques, tone shifts, POV style, internal monologue approach, dialogue register, pacing rhythm — any of these can appear in the direction. When they do, they must flow through into your scene summaries. The summary is the last thing the prose writer sees — anything not in the summary is lost. If the direction says "montage of monthly vignettes," the summary must read as compressed monthly snapshots. If it says "black comedy through internal monologue," the summary must set up that register. If it says "formal, layered prose for the Central Plains," the summary must signal that shift.
-
-${direction}` : 'DIRECTION: Use your own judgment — analyze the branch context above and choose the most compelling next development based on unresolved threads, character tensions, and narrative momentum.'}
+${direction}` : 'DIRECTION: Use your judgment — pick the most compelling next development based on unresolved threads, tensions, and momentum.'}
 ${worldBuildFocus ? (() => {
   const wb = worldBuildFocus;
   const chars = wb.expansionManifest.newCharacters.map((c) => `${c.name} (${c.role})`);
@@ -293,135 +274,73 @@ ${sequencePrompt}
 
 Return JSON with this exact structure.
 
-For EACH scene, follow this procedure:
-  1. DRAFT the summary — rich prose stating what happens, using NAMES not IDs.
-  2. ENUMERATE the deltas per sentence — for each declarative clause in the summary, ask: which entity was meaningfully changed? which rule surfaced? which thread moved? which off-screen party would receive news? The answer is almost always multiple.
-  3. REWRITE the summary if necessary so that every delta you intend to emit has a sentence backing it. Delta and summary sentence are paired: no delta without a source sentence, no rich source sentence without its deltas.
-  4. EMIT the full delta block, extracting every stable claim the summary now supports.
+PROCEDURE per scene:
+  1. DRAFT the summary in rich prose using NAMES not IDs.
+  2. ENUMERATE per sentence: which entity changed, which rule surfaced, which thread moved, which off-screen party would receive news. Usually multiple answers.
+  3. REWRITE the summary so every intended delta has a source sentence. Summary and delta-set are paired.
+  4. EMIT the full delta block.
+The summary is your DELTA BUDGET — richer summary supports richer extraction. Under-tagging is the dominant failure.
 
-The summary is your DELTA BUDGET — the richer the summary, the richer the extraction. A 3-sentence thin summary will not support 12 world nodes; a 6-sentence dense summary will. Write the summary to SERVE the extraction, not just to describe events.
-
-Every delta must trace back to something in the summary — never invent — but the reverse is also true: a summary clause that implies a delta must have that delta tagged. Under-tagging is the dominant failure mode, not over-tagging.
 {
-  "arcName": "Short, evocative arc name (2-4 words). Must be UNIQUE. Bad: 'Continuation', 'New Beginnings'. Good: 'The Siege of Ashenmoor', 'Fractured Oaths'.",
-  "directionVector": "Forward-looking intent for this arc. See ARC METADATA guidance below.",
-  "worldState": "Backward-looking compact state snapshot as of the END OF THIS ARC — the chess-board position. See ARC METADATA guidance below for domain-adaptive form.",
+  "arcName": "2-4 words, evocative, UNIQUE. Bad: 'Continuation'. Good: 'Fractured Oaths'.",
+  "directionVector": "Forward-looking intent for this arc.",
+  "worldState": "Compact state snapshot at END of arc — the chess-board position.",
   "scenes": [
     {
       "id": "S-GEN-001",
       "arcId": "${arcId}",
-      "locationId": "existing location ID from the narrative",
-      "povId": "character ID whose perspective this scene is told from (must be a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED to: ${storySettings.povCharacterIds.join(', ')}` : storySettings.povMode === 'free' && storySettings.povCharacterIds.length > 0 ? ` — PREFER: ${storySettings.povCharacterIds.join(', ')} (but may use others)` : ''}",
+      "locationId": "existing location ID",
+      "povId": "character ID (must be a participant)${storySettings.povMode !== 'free' && storySettings.povCharacterIds.length > 0 ? ` — RESTRICTED: ${storySettings.povCharacterIds.join(', ')}` : storySettings.povMode === 'free' && storySettings.povCharacterIds.length > 0 ? ` — PREFER: ${storySettings.povCharacterIds.join(', ')}` : ''}",
       "participantIds": ["existing character IDs"],
-      "summary": "REQUIRED — WRITE THIS FIRST. This is the spine of the scene; every delta below must trace back to something stated here. Rich prose sentences using character NAMES and location NAMES — never raw IDs (no C-01, T-XX, L-03, WK-GEN, A-01 etc). Write as if for a reader: 'Fang Yuan acquires the Liquor worm' not 'C-01 acquires A-05'. Include specifics: what object, what words, what breaks. NO thin generic summaries. NO sentences ending in emotions/realizations.",
-      "timeDelta": {"value": 1, "unit": "hour"},
-      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did — how it delivered utility"}],
-      "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "Descriptive transition: 'Rode horseback through the night', 'Slipped through the back gate at dawn'"}},
+      "summary": "3-6 sentences in prose using NAMES not IDs. Write what HAPPENED / was SAID / visibly CHANGED. Include concrete specifics (objects, dialogue, data). No generic summaries, no sentences that end in private emotions.",
+      "timeDelta": {"value": 1, "unit": "minute|hour|day|week|month|year"},
+      "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
+      "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "how they travelled"}},
       "events": ["event_tag_1", "event_tag_2"],
-      "threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
-      "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
+      "threadDeltas": [{"threadId": "T-XX", "from": "<status>", "to": "<status>", "addedNodes": [{"id": "TK-GEN-001", "content": "what happened to THIS thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+      "worldDeltas": [{"entityId": "C-XX|L-XX|A-XX", "addedNodes": [{"id": "K-GEN-001", "content": "15-25 words, present tense", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
       "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
-      "systemDeltas": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-XX", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
-      "ownershipDeltas": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
+      "systemDeltas": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, general rule, no specific entities/events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-XX", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
+      "ownershipDeltas": [{"artifactId": "A-XX", "fromId": "C-XX|L-XX|null", "toId": "C-YY|L-YY|null"}],
       "tieDeltas": [{"locationId": "L-XX", "characterId": "C-XX", "action": "add|remove"}],
-      "newCharacters": [{"id": "C-GEN-001", "name": "Full Name", "role": "anchor|recurring|transient", "threadIds": [], "imagePrompt": "1-2 sentence literal physical description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history|capability|secret|goal", "content": "key fact about this character"}}, "edges": []}}],
-      "newLocations": [{"id": "L-GEN-001", "name": "Location Name", "prominence": "domain|place|margin", "parentId": "L-XX (existing parent) or null", "tiedCharacterIds": [], "threadIds": [], "imagePrompt": "1-2 sentence literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history", "content": "key fact about this location"}}, "edges": []}}],
-      "newArtifacts": [{"id": "A-GEN-001", "name": "Artifact Name", "significance": "key|notable|minor", "parentId": "C-XX or L-XX or null (current owner)", "threadIds": [], "imagePrompt": "1-2 sentence literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|capability|history|state", "content": "what the artifact is, what it does — one fact per node, same world-graph format as characters and locations"}}, "edges": []}}],
-      "newThreads": [{"id": "T-GEN-001", "description": "What this tension is about", "status": "latent", "participants": [{"id": "C-XX", "type": "character|location|artifact"}], "threadLog": {"nodes": {}, "edges": []}}]
+      "newCharacters": [{"id": "C-GEN-001", "name": "Full Name", "role": "anchor|recurring|transient", "threadIds": [], "imagePrompt": "literal physical description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history|capability|secret|goal", "content": "key fact"}}, "edges": []}}],
+      "newLocations": [{"id": "L-GEN-001", "name": "Name", "prominence": "domain|place|margin", "parentId": "L-XX|null", "tiedCharacterIds": [], "threadIds": [], "imagePrompt": "literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history", "content": "key fact"}}, "edges": []}}],
+      "newArtifacts": [{"id": "A-GEN-001", "name": "Name", "significance": "key|notable|minor", "parentId": "C-XX|L-XX|null", "threadIds": [], "imagePrompt": "literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|capability|history|state", "content": "one fact per node"}}, "edges": []}}],
+      "newThreads": [{"id": "T-GEN-001", "description": "compelling question", "status": "latent|seeded", "participants": [{"id": "C-XX", "type": "character|location|artifact"}], "threadLog": {"nodes": {}, "edges": []}}]
     }
   ]
 }
 
-INTRODUCING NEW ENTITIES — Scenes can introduce new characters, locations, artifacts, or threads on the fly. This is a miniature world expansion that happens naturally during the scene:
-- New CHARACTER: Someone appears who isn't in the existing cast — a shopkeeper, a messenger, an ambusher, a bystander who becomes relevant. Give them a name, role, and at least one world node.
-- New LOCATION: The scene visits somewhere not yet in the world — a specific room, a hidden spot, a shop, a landmark. Connect it to an existing parent location.
-- New ARTIFACT: A tool, weapon, document, or object becomes relevant to the scene — discovered, created, or introduced. Give it significance and utility.
-- New THREAD: The scene opens a new tension that wasn't tracked before — a promise made, a debt created, a question raised, a rivalry sparked. Start it as "latent" or "seeded".
+INTRODUCE NEW ENTITIES liberally on the fly when the scene needs them (a messenger, a tavern, a letter, a new rivalry). Each new character/location/artifact needs ≥1 world node at creation; each new thread needs ≥1 setup log entry.
 
-Be liberal with entity introduction. If the scene needs a blacksmith, introduce one. If characters enter a tavern not yet in the world, introduce it. If someone finds a letter, introduce it as an artifact. These on-the-fly expansions make the world feel alive and responsive. Every new entity gets woven into the world immediately through the scene's deltas.
+IDS: scene S-GEN-###, knowledge K-GEN-###, system SYS-GEN-### (reused SYS nodes keep original ID), character/location/artifact/thread GEN-### placeholders remapped to real IDs downstream.
 
-Rules:
-- Use existing character IDs and location IDs from the narrative context when they exist
-- Scene IDs must be unique: S-GEN-001, S-GEN-002, etc.
-- Knowledge node IDs must be unique: K-GEN-001, K-GEN-002, etc.
-- System knowledge node IDs for NEW concepts must be unique: SYS-GEN-001, SYS-GEN-002, etc. Reused nodes should keep their original ID.
+TIME DELTA: gap from prior scene as an estimate ({value: int≥0, unit}). "that evening" → 3 hours; "next morning" → 1 day; "three years later" → 3 years. {value:0, unit:"minute"} = simultaneous/concurrent (use for first scene too). Relative only — no absolute calendar.
 
-TIME DELTA — REQUIRED on every scene. Each scene is an instant in time; timeDelta captures the gap since the PRIOR scene as an estimate. Always commit to a best-guess; do not skip the field.
-- value: integer ≥ 0. unit: one of minute | hour | day | week | month | year. Pick the unit that reads most naturally ("that evening" → 3 hours, "the next morning" → 1 day, "three years later" → 3 years).
-- {value: 0, unit: "minute"} marks a concurrent / simultaneous scene (same moment as the prior scene, different POV or vantage) — also use this for the very first scene of the arc where there's no prior scene to measure against.
-- This is an ESTIMATE — it's understood that the LLM is reading prose cues, not consulting a calendar. Pick the most plausible value.
-- This is a RELATIVE delta only. There is no absolute calendar anchor. Do not assume a start date.
+TAG-RICHLY DISCIPLINE (floors and emission rules consolidated — forces.ts has formulas, deltas.ts has shape):
+  FLOORS: ≥6 world nodes across ≥3 entities, ≥1 system node per scene. Never emit \`systemDeltas: {}\`. One threadDelta per thread per scene; transitions move ONE step forward.
+  TYPICAL scene: 10-14 world, 3-5 system, 2-4 thread pulses (0-1 transitions). CLIMAX: 16-20+ world, 5-8 system, 1-2 transitions. QUIET: 6-8 world, 1-2 system, 0-1 pulses.
+  REFLECTIVE POV (solo-POV scenes, mostly thinking/planning): the POV is STILL the most-changed entity. Expect 4-6 nodes on the POV alone (belief/state/goal/capability/secret shifts), plus 2-3 on adjacent entities (location witnessed, artifact handled, off-screen party affected). A reflective scene with only one POV delta is broken.
+  AGENCY over ORBIT, OFF-SCREEN deltas are valid (news/rumour/intelligence), REUSE existing node IDs — only NEW concepts count.
 
-DENSITY BAR (grading reference means — arc averages must hit these or it grades in the 60s):
-  Fate F ≈ 3.5 per scene · World W ≈ 12 per scene · System S ≈ 4 per scene
-  Typical scene: 3-5 entities touched, 10-14 world nodes (list in causal order — edges auto-chain), 3-5 system knowledge nodes + 2-4 edges, 2-4 thread pulses (0-1 transitions).
-  Climax scene: push to 16-20+ world, 5-8 system, 1-2 transitions.
-  Quiet scene: 6-8 world, 1-2 system, 0-1 pulses.
+WORKED EXAMPLE — same summary, thin vs rich:
 
-PER-SCENE FLOORS (SCENES BELOW THESE ARE REJECTED AND RE-GENERATED):
-  - worldDeltas: ≥6 total addedNodes, spread across ≥3 distinct entities. Every scene touches the POV, usually the location, and at least one other — a participant, an artifact in use, or an off-screen character receiving news. Solo-POV scenes still tag the location, any artifact handled, and any off-screen party affected by events.
-  - systemDeltas.addedNodes: ≥1 per scene. Every scene operates under some rule, constraint, or structural fact — the "how this works" layer. Even quiet reflection scenes surface ≥1 principle that governed the prior action or that the character is newly reasoning about. \`systemDeltas: {}\` is INVALID — emit at minimum { addedNodes: [{...}], addedEdges: [] }.
-  - threadDeltas: per thread, AT MOST ONE entry per scene. Transitions move at most ONE step forward in the lifecycle (or hold as a pulse, or exit to resolved/subverted/abandoned, or repick from abandoned → latent). Backwards rolls (resolved → escalating, critical → active, etc.) are rejected by the sanitizer; do not emit them.
+Summary: "Fang Yuan activated Heaven's Mandate Gu on a corpus combining the stone slab's hum with Elder Xuan's Tracking Gu signature. The reading revealed Heaven's Will was embedded within the refinement of specialized Gu — overturning his prior model and demanding a new counter-strategy."
 
-DELTA EMISSION DISCIPLINE:
-  Every participant MEANINGFULLY CHANGED by the scene gets a worldDelta — decided, suspected, learned, committed, broke. Participants present but unchanged deserve nothing. But the reverse also holds: a scene that touches only one entity in a paragraph of prose is under-tagging — reread the summary and extract what was implicit.
-  AGENCY over ORBIT — "Meng Song suspects Fang Yuan is hiding something" (thinking) beats "Meng Song is impressed by Fang Yuan" (orbiting).
-  OFF-SCREEN DELTAS — characters not in participantIds can receive worldDeltas when events reach them through realistic channels (news, rumours, observed public acts, faction intelligence). An arc should show the cast evolving alongside the POV, not waiting on them.
-  REUSE existing WK node IDs when reinforcing — only NEW concepts count toward density.
+THIN (what to AVOID): 1 worldDelta on Fang Yuan, \`systemDeltas: {}\`.
 
-REFLECTIVE POV SCENES — when the POV character mostly thinks, plans, deduces, or observes (no external action), they are STILL the MOST-CHANGED entity in the scene. Under-tagging solo-POV scenes is the single most common failure. Tag on the POV:
-  - Belief shifts (what they now hold true that they didn't before)
-  - State shifts (cultivation progress, emotional state, confidence level, exhaustion)
-  - Goal shifts (new long-term target, refined strategy, abandoned plan)
-  - Capability shifts (new insight, new mental model, sharpened technique)
-  - Secrets kept or revealed (what they decided to hide, what they now know that others don't)
-Plus tag adjacent entities the scene affects even when they're off-screen:
-  - The location itself (what it witnessed, what's stored there, atmospheric state)
-  - Artifacts handled, even passively (their state, what they revealed, how they behaved)
-  - Off-screen parties whose world shifts because of the POV's decisions
-A reflective scene with only one worldDelta on the POV is broken. Expect 4-6 nodes on the POV alone, plus 2-3 on adjacent entities.
-
-WORKED EXAMPLE — a thin vs rich extraction of the same summary:
-
-Summary: "Fang Yuan activated Heaven's Mandate Gu on a corpus combining the stone slab's hum with Elder Xuan's Tracking Gu signature. The reading revealed Heaven's Will was embedded within the refinement of specialized Gu — a pervasive biological embedding that overturned his prior model and demanded a fundamentally new counter-strategy."
-
-Thin (under-tagging — this is what we want to AVOID):
+RICH (target — 8 world across 5 entities + 2 system):
   worldDeltas: [
-    {entityId: "C-THE-01", addedNodes: [{content: "Fang Yuan now understands Heaven's Will is embedded in specialized Gu."}]}
+    {entityId: C-THE-01, nodes: [belief "Heaven's Will embeds inside specialized Gu mechanisms", state "prior external-force model is overturned", goal "shift to proactive counter-mandate engineering", capability "can compose multi-source anomaly corpora"]},
+    {entityId: A-THE-04, nodes: [capability "Heaven's Mandate Gu resolves composite corpora into multi-layered revelations"]},
+    {entityId: A-18, nodes: [trait "Tracking Gu carries Heaven's Will signature embedded at refinement"]},
+    {entityId: A-THE-17, nodes: [trait "stone slab hum carries cosmic-disruption data readable by Mandate Gu"]},
+    {entityId: L-THE-03, nodes: [history "Gray Wolf Ranges stronghold served as the analysis site"]}
   ]
-  systemDeltas: { addedNodes: [], addedEdges: [] }
+  systemDeltas: { addedNodes: [principle "Heaven's Will operates by embedding influence within specialized Gu refinement", concept "Heaven's Mandate Gu resolves anomaly corpora into patterned revelations"], addedEdges: [governs(principle, concept)] }
+  threadDeltas: [one transition + optional pulse on the Heaven's Will inquiry thread]
 
-Rich (target — extract what the summary actually earns):
-  worldDeltas: [
-    {entityId: "C-THE-01", addedNodes: [
-      {content: "Fang Yuan holds the belief that Heaven's Will operates by embedding influence inside specialized Gu mechanisms.", type: "belief"},
-      {content: "Fang Yuan's prior model of Heaven's Will as purely external is overturned as of this scene.", type: "state"},
-      {content: "Fang Yuan's strategic goal shifts from reactive counter-reconnaissance to proactive counter-mandate engineering.", type: "goal"},
-      {content: "Fang Yuan has developed the capability to compose multi-source anomaly corpora for Heaven's Mandate analysis.", type: "capability"}
-    ]},
-    {entityId: "A-THE-04", addedNodes: [
-      {content: "Heaven's Mandate Gu can resolve composite anomaly corpora into multi-layered revelations about Heaven's Will.", type: "capability"}
-    ]},
-    {entityId: "A-18", addedNodes: [
-      {content: "Elder Xuan's Tracking Gu carries a subtle Heaven's Will signature embedded during refinement.", type: "trait"}
-    ]},
-    {entityId: "A-THE-17", addedNodes: [
-      {content: "The stone slab's hum carries cosmic-disruption data readable by the Heaven's Mandate Gu.", type: "trait"}
-    ]},
-    {entityId: "L-THE-03", addedNodes: [
-      {content: "Gray Wolf Ranges stronghold served as the analysis site for the Heaven's Mandate Gu's revelation.", type: "history"}
-    ]}
-  ]
-  systemDeltas: {
-    addedNodes: [
-      {id: "SYS-GEN-001", concept: "Heaven's Will operates by subtly embedding influence within the refinement of specialized Gu mechanisms, not merely as an external force.", type: "principle"},
-      {id: "SYS-GEN-002", concept: "Heaven's Mandate Gu is a legendary artifact that resolves composite anomaly corpora into patterned revelations about cosmic influence.", type: "concept"}
-    ],
-    addedEdges: [{from: "SYS-GEN-001", to: "SYS-GEN-002", relation: "governs"}]
-  }
-  threadDeltas: [one transition + optional pulse on Heaven's Will inquiry thread]
-
-Count: rich version = 8 world nodes across 5 entities + 2 system nodes. Thin version = 1 world + 0 system. Same summary; the difference is the EXTRACTION discipline. Apply the rich pattern to every scene you generate.
+Same summary; the difference is extraction discipline. Apply the rich pattern to every scene.
 ${PROMPT_STRUCTURAL_RULES}
 ${PROMPT_SUMMARY_REQUIREMENT}
 ${PROMPT_FORCE_STANDARDS}

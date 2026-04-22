@@ -16,36 +16,20 @@ import { ENTITY_LOG_CONTEXT_LIMIT } from '@/lib/constants';
  */
 export function promptThreadLifecycle(): string {
   return `
-THREADS ARE COMPELLING QUESTIONS — each thread is an unanswered question that actively shapes fate.
-A compelling question has STAKES (what's at risk), UNCERTAINTY (outcome not obvious), and INVESTMENT (we care about the answer).
-The register of the question adapts to the work:
-  - Narrative (fiction, memoir): dramatic questions about consequence, identity, choice.
-  - Argument (paper, essay, criticism): claims whose truth, scope, or priority is in contention.
-  - Inquiry (investigation, reportage, exploration): questions about what happened, how it works, what follows.
-  Weak (any register): "Will [Name] go to the store?" — too plain to carry an arc unless the form deliberately rewards such flatness (picaresque, satirical, ironic open-inquiry).
-  Strong (narrative): "Can Ayesha clear her grandfather's name before the tribunal ends?" (stakes, uncertainty, investment)
-  Strong (narrative, lyric register): "What does the river remember of the flood, and does the narrator want to know?"
-  Strong (argument): "Does the proposed mechanism explain the anomalies the prior model cannot?" (falsifiable, non-obvious)
-  Strong (argument, criticism): "Can poststructuralist close reading account for silence as resistance in this corpus?" (disputed, high investment)
-  Strong (inquiry): "What role did diaspora networks play in the movement before digital coordination?" (open, evidence-driven)
-Frame threads as questions. Thread logs track incremental answers over time.
+THREADS — unanswered questions with STAKES, UNCERTAINTY, INVESTMENT that shape fate. Register adapts: dramatic (fiction), falsifiable claim (argument), open question (inquiry).
+  Weak: "Will [Name] go to the store?" — too plain unless form rewards flatness (picaresque, satirical).
+  Strong (narrative): "Can Ayesha clear her grandfather's name before the tribunal ends?"
+  Strong (argument): "Does the proposed mechanism explain anomalies the prior model cannot?"
+  Strong (inquiry): "What role did diaspora networks play before digital coordination?"
+Thread logs track incremental answers.
 
-THREAD LIFECYCLE: latent → seeded → active → escalating → critical → resolved/subverted
+LIFECYCLE: latent → seeded → active → escalating → critical → resolved/subverted
 ${THREAD_LIFECYCLE_DOC}
 Terminal: ${THREAD_TERMINAL_STATUSES.map((s) => `"${s}"`).join(', ')}.
 
-STAGES (single lifecycle, reframe per register):
-  latent (whisper / hint / gap)        → the question is implicit, unposed
-  seeded (posed / claim stated / question raised) → the reader/auditor now holds the question
-  active (pursued / evidenced / developed) → the work is actively working the question
-  escalating (COMMITTED / dominant / contested) → it has become unavoidable; it must be settled
-  critical (demands resolution now / decisive evidence at hand) → the settling is imminent
-Terminal forms scale too: resolved = conclusively answered / thesis affirmed / finding confirmed;
-subverted = reversed / thesis overturned / finding contradicted / superseded by newer evidence.
+STAGE meaning: latent=implicit/unposed | seeded=question now held | active=actively worked | escalating=committed, must settle | critical=settling imminent | resolved=answered | subverted=overturned.
 
-COMMITMENT: Below escalating = can abandon. At escalating+ = must resolve.
-  Prune stale threads (5+ scenes silent, below escalating). Keep 3-6 committed; 10+ = noise.
-  Touch 2-4 threads per scene. Committed threads have priority.
+COMMITMENT: below escalating = can abandon; at escalating+ = must resolve. Prune stale (5+ scenes silent, below escalating). Keep 3-6 committed; 10+ = noise. Touch 2-4 threads/scene; committed threads have priority.
 `;
 }
 

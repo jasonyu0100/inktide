@@ -270,15 +270,20 @@ describe('buildStorySettingsBlock', () => {
     expect(block).toContain('SINGLE POV');
     expect(block).toContain('Hero');
   });
-  it('includes pareto POV guidance', () => {
+  it('includes ensemble POV guidance with distribution nudge', () => {
     const n = createMinimalNarrative({
-      storySettings: { ...DEFAULT_STORY_SETTINGS, povMode: 'pareto', povCharacterIds: ['c1'] },
-      characters: { c1: createCharacter('c1', 'Protagonist') },
+      storySettings: { ...DEFAULT_STORY_SETTINGS, povMode: 'ensemble', povCharacterIds: ['c1', 'c2'] },
+      characters: {
+        c1: createCharacter('c1', 'Alice'),
+        c2: createCharacter('c2', 'Bob'),
+      },
     });
     const block = buildStorySettingsBlock(n);
-    expect(block).toContain('PARETO POV');
-    expect(block).toContain('Protagonist');
-    expect(block).toContain('80%');
+    expect(block).toContain('ENSEMBLE POV');
+    expect(block).toContain('TRUE ENSEMBLE');
+    expect(block).toContain('Alice');
+    expect(block).toContain('Bob');
+    expect(block).toContain('Distribute POV meaningfully');
   });
   it('includes story direction when set', () => {
     const n = createMinimalNarrative({

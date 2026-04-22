@@ -430,9 +430,7 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
   // POV mode
   const povLabels: Record<string, string> = {
     single: 'SINGLE POV — every scene must use the same POV character.',
-    pareto: 'PARETO POV — the designated anchor is POV in ~80% of scenes. The remaining ~20% may use other entities when a different vantage delivers something the anchor cannot — information, counterpoint, ironic juxtaposition, or deliberate formal braiding. Default to the anchor; switch for reason, not inertia. "Variety for its own sake" is weak; counterpoint, irony, and braiding are all legitimate reasons beyond pure information.',
-    dual: 'DUAL POV — use exactly two POV characters. POV typically comes in STREAKS (2-4 scenes per character before switching). An ABAB pattern is disorienting for most dramatic registers — prefer AAABBB or AAABB. Switch when the other character delivers information, counterpoint, or braiding the current POV cannot.',
-    ensemble: 'ENSEMBLE POV — rotate POV among the designated characters. For most dramatic registers, POV should come in STREAKS (2-4 scenes per character before switching). For declared polyphonic, choral, or mosaic forms (e.g. Faulkner-style polyvocality, Caribbean polyvocal tradition, works built on per-scene rotation), per-scene or per-paragraph rotation IS the form — honour the declared form over the default streak length.',
+    ensemble: 'ENSEMBLE POV — this is a TRUE ENSEMBLE story. Every designated POV character is a co-lead, not a supporting player. Each must drive their own thread(s), own significant arcs, and make decisions that change the world independently of the others. Screen time distributes roughly evenly across the cast over the course of the story — no single character dominates. Avoid the trap of one central protagonist with occasional cutaways; that is Single POV in disguise. POV typically comes in STREAKS (2-4 scenes per character before switching) so each perspective has room to breathe, but across any given arc, multiple POVs should appear. When plotting threads, distribute ownership so no single POV owns the majority of the narrative stakes. For declared polyphonic, choral, or mosaic forms (e.g. Faulkner-style polyvocality, Caribbean polyvocal tradition, works built on per-scene rotation), per-scene or per-paragraph rotation IS the form — honour the declared form over the default streak length.',
     free: '', // no constraint
   };
   if (s.povMode !== 'free') {
@@ -441,11 +439,7 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
       const names = s.povCharacterIds
         .map((id) => n.characters[id] ? `${n.characters[id].name} (${id})` : id)
         .join(', ');
-      if (s.povMode === 'pareto') {
-        lines.push(`Anchor: ${names}. Use this entity as POV in ~80% of scenes. The remaining ~20% may use ANY other entity when a different vantage delivers information, counterpoint, ironic juxtaposition, or formal braiding the anchor cannot.`);
-      } else {
-        lines.push(`Designated POV character${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.`);
-      }
+      lines.push(`Designated POV character${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.${s.povMode === 'ensemble' && s.povCharacterIds.length > 1 ? ` Distribute POV meaningfully across ALL ${s.povCharacterIds.length} of them — not concentrated on one.` : ''}`);
     }
   } else if (s.povCharacterIds.length > 0) {
     const names = s.povCharacterIds

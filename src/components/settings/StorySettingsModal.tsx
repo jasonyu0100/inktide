@@ -28,8 +28,7 @@ const TABS: { label: string; value: Tab }[] = [
 
 const POV_MODES: { value: POVMode; label: string; desc: string }[] = [
   { value: 'single', label: 'Single POV', desc: 'One protagonist drives every scene. Tight interiority, dramatic irony from limited knowledge.' },
-  { value: 'pareto', label: 'Pareto', desc: '~80% protagonist, ~20% other perspectives. Tight focus with occasional critical cuts to scenes the protagonist can\'t witness.' },
-  { value: 'ensemble', label: 'Ensemble', desc: 'Multiple POV characters rotate. Wider world, more threads, epic scope.' },
+  { value: 'ensemble', label: 'Ensemble', desc: 'A true ensemble — every designated POV is a co-lead with their own arcs and threads. Screen time distributes evenly (not one protagonist plus cameos).' },
   { value: 'free', label: 'Free (Default)', desc: 'Any character can be POV. The engine picks whoever fits the scene best.' },
 ];
 
@@ -232,7 +231,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
     : [];
 
   const showPovPicker = true;
-  const maxPovChars = settings.povMode === 'single' || settings.povMode === 'pareto' ? 1 : allCharacters.length;
+  const maxPovChars = settings.povMode === 'single' ? 1 : allCharacters.length;
 
   function togglePovCharacter(charId: string) {
     const current = settings.povCharacterIds;

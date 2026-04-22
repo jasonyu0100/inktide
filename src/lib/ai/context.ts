@@ -440,6 +440,8 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
         .map((id) => n.characters[id] ? `${n.characters[id].name} (${id})` : id)
         .join(', ');
       lines.push(`Designated POV character${s.povCharacterIds.length > 1 ? 's' : ''}: ${names}. Only these characters may appear in the "povId" field.${s.povMode === 'ensemble' && s.povCharacterIds.length > 1 ? ` Distribute POV meaningfully across ALL ${s.povCharacterIds.length} of them — not concentrated on one.` : ''}`);
+    } else if (s.povMode === 'ensemble') {
+      lines.push(`No explicit POV cast has been designated. Commit to an ensemble of 3–5 anchor characters up front and rotate POV among them across the story. Track this commitment — do not silently collapse to a single dominant POV. Each chosen anchor must own at least one thread and accumulate comparable screen time over the full arc. If this is a fresh generation and no anchors yet exist, establish them in the first arc and maintain rotation thereafter.`);
     }
   } else if (s.povCharacterIds.length > 0) {
     const names = s.povCharacterIds

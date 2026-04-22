@@ -285,6 +285,15 @@ describe('buildStorySettingsBlock', () => {
     expect(block).toContain('Bob');
     expect(block).toContain('Distribute POV meaningfully');
   });
+  it('nudges ensemble to commit to 3-5 anchors when no cast is designated', () => {
+    const n = createMinimalNarrative({
+      storySettings: { ...DEFAULT_STORY_SETTINGS, povMode: 'ensemble', povCharacterIds: [] },
+    });
+    const block = buildStorySettingsBlock(n);
+    expect(block).toContain('ENSEMBLE POV');
+    expect(block).toContain('3–5 anchor characters');
+    expect(block).not.toContain('Designated POV character');
+  });
   it('includes story direction when set', () => {
     const n = createMinimalNarrative({
       storySettings: { ...DEFAULT_STORY_SETTINGS, storyDirection: 'The hero must defeat the villain' },

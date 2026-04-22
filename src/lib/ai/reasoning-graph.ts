@@ -519,7 +519,7 @@ Return ONLY the JSON object.`;
       edges,
       arcName,
       sceneCount,
-      summary: typeof data.summary === "string" ? data.summary.slice(0, 500) : `Reasoning graph for ${arcName}`,
+      summary: typeof data.summary === "string" ? data.summary : `Reasoning graph for ${arcName}`,
       plannedNodeCount: typeof data.plannedNodeCount === "number" ? data.plannedNodeCount : undefined,
     };
   } catch (err) {
@@ -903,7 +903,7 @@ Return ONLY the JSON object.`;
       nodes,
       edges,
       expansionName: directive ? directive.slice(0, 50) : "World Expansion",
-      summary: typeof data.summary === "string" ? data.summary.slice(0, 500) : "Reasoning graph for world expansion",
+      summary: typeof data.summary === "string" ? data.summary : "Reasoning graph for world expansion",
       plannedNodeCount: typeof data.plannedNodeCount === "number" ? data.plannedNodeCount : undefined,
     };
   } catch (err) {
@@ -1606,7 +1606,7 @@ Return ONLY the JSON object.`;
       nodes: reindexedNodes,
       edges,
       arcCount,
-      summary: typeof data.summary === "string" ? data.summary.slice(0, 500) : "Coordination plan",
+      summary: typeof data.summary === "string" ? data.summary : "Coordination plan",
       arcPartitions,
       currentArc: 0,
       completedArcs: [],

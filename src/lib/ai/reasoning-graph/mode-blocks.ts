@@ -686,18 +686,18 @@ arriving at a conclusion the premise made inevitable.
 `;
 
 /**
- * Dispatch the reasoning-mode block. Defaults to divergent.
+ * Dispatch the reasoning-mode block. Defaults to abduction.
  */
 export function reasoningModeBlock(mode: ReasoningMode | undefined): string {
   switch (mode) {
     case "induction":
       return INDUCTION_MODE_BLOCK;
-    case "abduction":
-      return ABDUCTION_MODE_BLOCK;
     case "deduction":
       return DEDUCTION_MODE_BLOCK;
     case "divergent":
-    default:
       return DIVERGENT_MODE_BLOCK;
+    case "abduction":
+    default:
+      return ABDUCTION_MODE_BLOCK;
   }
 }

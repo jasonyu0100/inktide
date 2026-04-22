@@ -985,10 +985,11 @@ export type PlanGuidance = {
    */
   reasoningLevel?: "small" | "medium" | "large";
   /**
-   * How the reasoner thinks. Defaults to "divergent" — branches outward
-   * from the current state to expand the solution space. Alternatives:
-   * "deduction" (premise → necessary consequence) and "induction"
-   * (observation → inferred principle). See ReasoningMode for details.
+   * How the reasoner thinks. Defaults to "abduction" — picks the best
+   * hypothesis working backward from a committed outcome. Alternatives:
+   * "divergent" (forward, expansive), "deduction" (premise → necessary
+   * consequence), "induction" (observation → inferred principle). See
+   * ReasoningMode for details.
    */
   reasoningMode?: ReasoningMode;
 };

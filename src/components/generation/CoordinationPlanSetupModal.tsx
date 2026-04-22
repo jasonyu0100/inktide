@@ -163,7 +163,7 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
     thinkingDefaults?.defaultReasoningSize ?? "medium",
   );
   const [reasoningMode, setReasoningMode] = useState<ReasoningMode>(
-    thinkingDefaults?.defaultReasoningMode ?? "divergent",
+    thinkingDefaults?.defaultReasoningMode ?? "abduction",
   );
   const [networkBias, setNetworkBias] = useState<NetworkBias>(
     thinkingDefaults?.defaultNetworkBias ?? "neutral",

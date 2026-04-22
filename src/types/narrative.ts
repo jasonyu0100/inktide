@@ -1646,7 +1646,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   audioModel: "tts-1",
   proseFormat: "prose",
   planExtractionSource: "structure",
-  defaultReasoningMode: "divergent",
+  defaultReasoningMode: "abduction",
   defaultForcePreference: "freeform",
   defaultReasoningSize: "medium",
   defaultNetworkBias: "neutral",

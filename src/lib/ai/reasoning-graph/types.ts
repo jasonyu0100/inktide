@@ -106,12 +106,12 @@ export type ReasoningGraphBase = {
 /**
  * Mode of thinking for reasoning-graph generation.
  *
- * - **divergent** (default): forward + expansive — one source branches into
- *   many possibilities. Complementary opposite: abduction.
+ * - **abduction** (default): backward + selective — committed outcome ← best
+ *   hypothesis among competitors. Complementary opposite: divergent.
+ * - **divergent**: forward + expansive — one source branches into many
+ *   possibilities. Complementary opposite: abduction.
  * - **deduction**: forward + narrow — premise → necessary consequence chain.
  *   Complementary opposite: induction.
- * - **abduction**: backward + selective — committed outcome ← best
- *   hypothesis among competitors. Complementary opposite: divergent.
  * - **induction**: backward + generalising — shared pattern ← many
  *   observations. Complementary opposite: deduction.
  */

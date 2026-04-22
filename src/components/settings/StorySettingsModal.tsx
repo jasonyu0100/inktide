@@ -789,7 +789,7 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   Reasoning-Graph Defaults
                 </label>
                 <ThinkingSettings
-                  mode={settings.defaultReasoningMode ?? "divergent"}
+                  mode={settings.defaultReasoningMode ?? "abduction"}
                   onModeChange={(m) => update({ defaultReasoningMode: m })}
                   force={settings.defaultForcePreference ?? "freeform"}
                   onForceChange={(f) => update({ defaultForcePreference: f })}

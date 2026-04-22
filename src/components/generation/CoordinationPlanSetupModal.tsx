@@ -12,6 +12,7 @@ import { CoordinationPlanModal } from "./CoordinationPlanModal";
 import {
   ThinkingSettings,
   type ReasoningSize,
+  type NetworkBias,
 } from "./ForcePreferencePicker";
 
 // ── Streaming Output ─────────────────────────────────────────────────────────
@@ -163,6 +164,9 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
   );
   const [reasoningMode, setReasoningMode] = useState<ReasoningMode>(
     thinkingDefaults?.defaultReasoningMode ?? "divergent",
+  );
+  const [networkBias, setNetworkBias] = useState<NetworkBias>(
+    thinkingDefaults?.defaultNetworkBias ?? "neutral",
   );
 
   // Generation state
@@ -387,6 +391,8 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
                     onForceChange={setForcePreference}
                     size={reasoningLevel}
                     onSizeChange={setReasoningLevel}
+                    networkBias={networkBias}
+                    onNetworkBiasChange={setNetworkBias}
                   />
                 </div>
               )}

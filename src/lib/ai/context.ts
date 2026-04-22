@@ -4,6 +4,7 @@ import { buildCumulativeSystemGraph, rankSystemNodes, resolveEntityName } from '
 import { ENTITY_LOG_CONTEXT_LIMIT, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 import { describeTimeGap, formatTimeDelta } from '@/lib/time-deltas';
+import { aggregateNetworkGraph, buildTierLookup, type NetworkNode } from '@/lib/network-graph';
 
 // ── Prose Profile Builder ─────────────────────────────────────────────────────
 
@@ -331,9 +332,10 @@ export const THREAD_LIFECYCLE_DOC = (() => {
  * - convention: Norms (customs, practices, etiquette)
  * - Other types included for completeness
  */
-function buildSystemKnowledgeBlock(graph: SystemGraph): string {
+function buildSystemKnowledgeBlock(graph: SystemGraph, tierLookup?: Map<string, NetworkNode>): string {
   const nodes = Object.values(graph.nodes);
   if (nodes.length === 0) return '';
+  const attrs = (id: string): string => tierLookup ? networkAttrs(tierLookup.get(id)) : '';
 
   // Group nodes by type
   const byType: Record<string, typeof nodes> = {};
@@ -367,7 +369,7 @@ function buildSystemKnowledgeBlock(graph: SystemGraph): string {
     const lines = byType['principle'].map((n) => {
       const conn = connections[n.id];
       const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
-      return `  <principle id="${n.id}">${n.concept}${connStr}</principle>`;
+      return `  <principle id="${n.id}"${attrs(n.id)}>${n.concept}${connStr}</principle>`;
     });
     sections.push(`<principles hint="Fundamental truths — these MUST be obeyed.">\n${lines.join('\n')}\n</principles>`);
   }
@@ -377,7 +379,7 @@ function buildSystemKnowledgeBlock(graph: SystemGraph): string {
     const lines = byType['system'].map((n) => {
       const conn = connections[n.id];
       const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
-      return `  <system id="${n.id}">${n.concept}${connStr}</system>`;
+      return `  <system id="${n.id}"${attrs(n.id)}>${n.concept}${connStr}</system>`;
     });
     sections.push(`<systems hint="Organized mechanisms — use these to drive conflict and reward preparation.">\n${lines.join('\n')}\n</systems>`);
   }
@@ -387,7 +389,7 @@ function buildSystemKnowledgeBlock(graph: SystemGraph): string {
     const lines = byType['constraint'].map((n) => {
       const conn = connections[n.id];
       const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
-      return `  <constraint id="${n.id}">${n.concept}${connStr}</constraint>`;
+      return `  <constraint id="${n.id}"${attrs(n.id)}>${n.concept}${connStr}</constraint>`;
     });
     sections.push(`<constraints hint="Hard limits — costs, scarcity, boundaries that cannot be ignored.">\n${lines.join('\n')}\n</constraints>`);
   }
@@ -397,7 +399,7 @@ function buildSystemKnowledgeBlock(graph: SystemGraph): string {
     const lines = byType['tension'].map((n) => {
       const conn = connections[n.id];
       const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
-      return `  <tension id="${n.id}">${n.concept}${connStr}</tension>`;
+      return `  <tension id="${n.id}"${attrs(n.id)}>${n.concept}${connStr}</tension>`;
     });
     sections.push(`<tensions hint="Unresolved contradictions — sources of conflict.">\n${lines.join('\n')}\n</tensions>`);
   }
@@ -409,7 +411,7 @@ function buildSystemKnowledgeBlock(graph: SystemGraph): string {
     const lines = otherNodes.map((n) => {
       const conn = connections[n.id];
       const connStr = conn?.length ? ` [${conn.join('; ')}]` : '';
-      return `  <node type="${n.type}" id="${n.id}">${n.concept}${connStr}</node>`;
+      return `  <node type="${n.type}" id="${n.id}"${attrs(n.id)}>${n.concept}${connStr}</node>`;
     });
     sections.push(`<world-knowledge hint="Additional established facts.">\n${lines.join('\n')}\n</world-knowledge>`);
   }
@@ -481,6 +483,24 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
   return `\n<story-settings>\n${lines.join('\n')}\n</story-settings>\n`;
 }
 
+/** Format network annotations as XML attributes for inline use on entity
+ *  / thread / system render tags. Returns "" for nodes that haven't been
+ *  attributed yet AND have no force anchor — keeps the default render
+ *  uncluttered when the network has nothing to say. */
+function networkAttrs(node: NetworkNode | undefined): string {
+  if (!node) return "";
+  // Always emit tier + trajectory + topology + attributions so every entity
+  // carries the same shape — makes the LLM's pattern-matching consistent.
+  const parts = [
+    ` tier="${node.tier}"`,
+    ` attributions="${node.attributions}"`,
+    ` trajectory="${node.trajectory}"`,
+    ` topology="${node.topology}"`,
+  ];
+  if (node.forceAnchor) parts.push(` force-anchor="${node.forceAnchor}"`);
+  return parts.join("");
+}
+
 export function narrativeContext(
   n: NarrativeState,
   resolvedKeys: string[],
@@ -490,6 +510,13 @@ export function narrativeContext(
   // tiered by distance from the current scene (see NEAR_RECENCY_ZONE /
   // MID_RECENCY_ZONE) rather than by a hard cutoff.
   const keysUpToCurrent = resolvedKeys.slice(0, currentIndex + 1);
+
+  // Cumulative network annotations — every entity / thread / system-node
+  // tag below is decorated with tier/trajectory/topology/force-anchor so
+  // every downstream call (plan, prose, rewrite, reasoning) sees the same
+  // activation pattern without a separate fetch.
+  const network = aggregateNetworkGraph(n, resolvedKeys, currentIndex);
+  const tierLookup = buildTierLookup(network);
 
   // Collect entity IDs, knowledge node IDs, and per-scene metadata on one pass.
   // sceneImportance / knowledgeOriginScene / threadLogOriginScene drive the
@@ -629,11 +656,11 @@ export function narrativeContext(
       const artifactLines = owned.map((a) => {
         const recentArtNodes = tieredContinuity(a.world.nodes);
         const inner = renderContinuityXml(recentArtNodes, a.world.edges, '    ').join('\n');
-        return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
+        return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}"${networkAttrs(tierLookup.get(a.id))}>${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
       const continuityBlock = continuityLines.length > 0 ? `\n${continuityLines.join('\n')}` : '';
       const artifactBlock = artifactLines.length > 0 ? `\n${artifactLines.join('\n')}` : '';
-      return `<character id="${c.id}" name="${c.name}" role="${c.role}">${continuityBlock}${artifactBlock}\n</character>`;
+      return `<character id="${c.id}" name="${c.name}" role="${c.role}"${networkAttrs(tierLookup.get(c.id))}>${continuityBlock}${artifactBlock}\n</character>`;
     })
     .join('\n');
   const locations = branchLocations
@@ -645,13 +672,13 @@ export function narrativeContext(
       const artifactLines = owned.map((a) => {
         const recentArtNodes = tieredContinuity(a.world.nodes);
         const inner = renderContinuityXml(recentArtNodes, a.world.edges, '    ').join('\n');
-        return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}">${inner ? `\n${inner}\n  ` : ''}</artifact>`;
+        return `  <artifact id="${a.id}" name="${a.name}" significance="${a.significance}"${networkAttrs(tierLookup.get(a.id))}>${inner ? `\n${inner}\n  ` : ''}</artifact>`;
       });
       const continuityBlock = continuityLines.length > 0 ? `\n${continuityLines.join('\n')}` : '';
       const artifactBlock = artifactLines.length > 0 ? `\n${artifactLines.join('\n')}` : '';
       const tiedNames = (l.tiedCharacterIds ?? []).map(id => n.characters[id]?.name).filter(Boolean);
       const tiesAttr = tiedNames.length > 0 ? ` ties="${tiedNames.join(', ')}"` : '';
-      return `<location id="${l.id}" name="${l.name}" prominence="${l.prominence ?? 'place'}"${parent}${tiesAttr}>${continuityBlock}${artifactBlock}\n</location>`;
+      return `<location id="${l.id}" name="${l.name}" prominence="${l.prominence ?? 'place'}"${parent}${tiesAttr}${networkAttrs(tierLookup.get(l.id))}>${continuityBlock}${artifactBlock}\n</location>`;
     })
     .join('\n');
   // Build thread age context from scene history (within time horizon)
@@ -687,7 +714,7 @@ export function narrativeContext(
       const logBlock = logNodes.length > 0
         ? `\n  <log>${logNodes.map((ln) => `[${ln.type}] ${ln.content}`).join(' | ')}</log>`
         : '';
-      return `<thread id="${t.id}" status="${status}"${age > 0 ? ` age="${age}" deltas="${deltas}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}>${t.description}${logBlock}\n</thread>`;
+      return `<thread id="${t.id}" status="${status}"${age > 0 ? ` age="${age}" deltas="${deltas}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}${networkAttrs(tierLookup.get(t.id))}>${t.description}${logBlock}\n</thread>`;
     })
     .filter(Boolean)
     .join('\n');
@@ -767,13 +794,20 @@ export function narrativeContext(
   const sysIdList = rankedSystemNodes.map(({ node }) => node.id).join(', ');
 
   // Build system knowledge from SystemGraph (consolidates old rules + worldSystems)
-  const systemKnowledgeBlock = buildSystemKnowledgeBlock(horizonSystemGraph);
+  const systemKnowledgeBlock = buildSystemKnowledgeBlock(horizonSystemGraph, tierLookup);
 
   const storySettingsBlock = buildStorySettingsBlock(n);
 
   const historyNote = `${keysUpToCurrent.length} scenes — ${tierCounts.near} near, ${tierCounts.mid} mid, ${tierCounts.far} far (resolution falls with distance from current). The final world-state entry (if present) is the current ground-truth "chess-board position" and supersedes replaying prior deltas.`;
 
   return `<narrative title="${n.title}">
+<network-annotations hint="Every character / location / artifact / thread / system node below carries cumulative reasoning-network attributes:
+  tier (hot / warm / cold / fresh) — heat snapshot relative to the network
+  attributions — total times referenced across reasoning graphs
+  trajectory (rising / steady / cooling / dormant) — direction of recent activity
+  topology (bridge / hub / leaf / isolated) — position in the activation web (bridges connect ≥2 force cohorts; hubs are within-cohort centres)
+  force-anchor (fate / world / system) — which axis dominates the neighbourhood, omitted when balanced
+Use these to decide what to deepen vs. what to surface — load-bearing nodes are bridges and hubs; dormant nodes are reactivation candidates." />
 ${systemKnowledgeBlock}${storySettingsBlock}
 <characters hint="Continuity tracks what each character knows. Use this to determine what they can reference, discover, or be surprised by.">
 ${characters}

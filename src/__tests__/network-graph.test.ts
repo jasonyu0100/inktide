@@ -2,8 +2,14 @@ import { describe, expect, test } from "vitest";
 import {
   aggregateNetworkGraph,
   classifyTiers,
+  classifyTrajectories,
+  classifyTopologyAndAnchor,
   formatTierLabel,
+  forceOfKind,
+  summarizeNetworkState,
+  type NetworkEdge,
   type NetworkNode,
+  type NetworkNodeKind,
 } from "@/lib/network-graph";
 import type {
   Arc,
@@ -335,8 +341,13 @@ describe("classifyTiers", () => {
       kind: "character",
       label: id,
       attributions,
+      recentAttributions: 0,
       firstSeenIndex,
+      lastSeenIndex: -1,
       tier: "cold",
+      trajectory: "dormant",
+      topology: "isolated",
+      forceAnchor: null,
     };
   }
 
@@ -345,14 +356,33 @@ describe("classifyTiers", () => {
     expect(out.find((n) => n.id === "a")!.tier).toBe("cold");
   });
 
-  test("recently-introduced nodes are fresh regardless of count", () => {
-    // 5 graphs; FRESH_WINDOW is 3 → freshThreshold = 2; firstSeenIndex >= 2 is fresh.
+  test("only nodes first seen in the LATEST graph are fresh (FRESH_WINDOW=1)", () => {
+    // 5 graphs total; freshThreshold = 5 - 1 = 4. Only firstSeenIndex >= 4 fresh.
     const out = classifyTiers(
-      [nodeWith("a", 1, 4), nodeWith("b", 1, 0)],
+      [nodeWith("a", 1, 4), nodeWith("b", 1, 3), nodeWith("c", 1, 0)],
       5,
     );
     expect(out.find((n) => n.id === "a")!.tier).toBe("fresh");
     expect(out.find((n) => n.id === "b")!.tier).not.toBe("fresh");
+    expect(out.find((n) => n.id === "c")!.tier).not.toBe("fresh");
+  });
+
+  test("freshness disabled when totalGraphs <= 1 (no historic baseline)", () => {
+    // 1 graph; without history there's nothing to be fresh against — let
+    // tertile bucketing decide.
+    const out = classifyTiers([nodeWith("a", 5, 0), nodeWith("b", 1, 0)], 1);
+    expect(out.find((n) => n.id === "a")!.tier).not.toBe("fresh");
+    expect(out.find((n) => n.id === "b")!.tier).not.toBe("fresh");
+  });
+
+  test("hot requires HOT_MIN_ATTRIBUTIONS even when in top tertile", () => {
+    // Three nodes, all with attributions=1. Top tertile would normally be
+    // hot but the minimum-2 floor keeps everything warm at most.
+    const out = classifyTiers(
+      [nodeWith("a", 1, 0), nodeWith("b", 1, 0), nodeWith("c", 1, 0)],
+      10,
+    );
+    for (const n of out) expect(n.tier).not.toBe("hot");
   });
 
   test("buckets non-fresh attributed nodes into hot/warm/cold tertiles", () => {
@@ -364,9 +394,26 @@ describe("classifyTiers", () => {
       ],
       10,
     );
-    // Sorted counts: [1, 5, 10] — lowCut=5, highCut=10.
     expect(out.find((n) => n.id === "c")!.tier).toBe("hot");
     expect(out.find((n) => n.id === "a")!.tier).toBe("cold");
+  });
+
+  test("regression: 3 graphs doesn't mark every attributed node fresh", () => {
+    // The user-reported bug: with FRESH_WINDOW=3 and totalGraphs=3, the old
+    // code marked everything fresh. New calibration: only graph-2 nodes
+    // (latest) are fresh; older introductions get tertile classification.
+    const out = classifyTiers(
+      [
+        nodeWith("a", 3, 0),
+        nodeWith("b", 3, 1),
+        nodeWith("c", 3, 2),
+        nodeWith("d", 3, 0),
+      ],
+      3,
+    );
+    expect(out.find((n) => n.id === "c")!.tier).toBe("fresh");
+    expect(out.find((n) => n.id === "a")!.tier).not.toBe("fresh");
+    expect(out.find((n) => n.id === "b")!.tier).not.toBe("fresh");
   });
 
   test("empty input returns empty array", () => {
@@ -374,22 +421,187 @@ describe("classifyTiers", () => {
   });
 });
 
+describe("classifyTrajectories", () => {
+  function nodeWith(id: string, attributions: number, recentAttributions: number, lastSeenIndex = -1): NetworkNode {
+    return {
+      id, kind: "character", label: id,
+      attributions, recentAttributions,
+      firstSeenIndex: -1, lastSeenIndex,
+      tier: "cold", trajectory: "dormant", topology: "isolated", forceAnchor: null,
+    };
+  }
+
+  test("zero attributions → dormant", () => {
+    const out = classifyTrajectories([nodeWith("a", 0, 0)], 5);
+    expect(out[0].trajectory).toBe("dormant");
+  });
+
+  test("attributed but no recent activity → cooling", () => {
+    const out = classifyTrajectories([nodeWith("a", 4, 0, 1)], 10);
+    expect(out[0].trajectory).toBe("cooling");
+  });
+
+  test("recent rate > 1.5x historic rate → rising", () => {
+    // 10 graphs total, 4 attributions, 3 of them recent (last 3 graphs) →
+    // recentRate = 1, historicRate = 0.4 → 1 > 0.6 → rising.
+    const out = classifyTrajectories([nodeWith("a", 4, 3, 9)], 10);
+    expect(out[0].trajectory).toBe("rising");
+  });
+
+  test("recent rate close to historic rate → steady", () => {
+    // 10 graphs, 5 attributions, 1 recent → recentRate=0.33, historicRate=0.5
+    const out = classifyTrajectories([nodeWith("a", 5, 1, 9)], 10);
+    expect(out[0].trajectory).toBe("steady");
+  });
+});
+
+describe("classifyTopologyAndAnchor", () => {
+  function makeNode(id: string, kind: NetworkNodeKind = "character"): NetworkNode {
+    return {
+      id, kind, label: id,
+      attributions: 1, recentAttributions: 0,
+      firstSeenIndex: 0, lastSeenIndex: 0,
+      tier: "warm", trajectory: "steady", topology: "isolated", forceAnchor: null,
+    };
+  }
+
+  function classify(nodes: NetworkNode[], edges: NetworkEdge[]): NetworkNode[] {
+    const lookup = new Map(nodes.map((n) => [n.id, n.kind]));
+    return classifyTopologyAndAnchor(nodes, edges, lookup);
+  }
+
+  test("no edges → isolated", () => {
+    const nodes = [makeNode("a")];
+    const out = classify(nodes, []);
+    expect(out[0].topology).toBe("isolated");
+    expect(out[0].forceAnchor).toBeNull();
+  });
+
+  test("single edge → leaf", () => {
+    const nodes = [makeNode("a"), makeNode("b")];
+    const edges: NetworkEdge[] = [{ from: "a", to: "b", weight: 1 }];
+    const out = classify(nodes, edges);
+    expect(out.find((n) => n.id === "a")!.topology).toBe("leaf");
+  });
+
+  test("multiple edges all to same force → hub + force-anchor", () => {
+    // C connects to two characters (both world); should be hub + world-anchor.
+    const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
+    const edges: NetworkEdge[] = [
+      { from: "c", to: "a", weight: 1 },
+      { from: "c", to: "b", weight: 1 },
+    ];
+    const out = classify(nodes, edges);
+    const c = out.find((n) => n.id === "c")!;
+    expect(c.topology).toBe("hub");
+    expect(c.forceAnchor).toBe("world");
+  });
+
+  test("edges spanning ≥2 forces → bridge", () => {
+    // C connects to a thread (fate) and a character (world) — bridge.
+    const nodes = [
+      makeNode("c", "character"),
+      makeNode("t", "thread"),
+      makeNode("ch", "character"),
+    ];
+    const edges: NetworkEdge[] = [
+      { from: "c", to: "t", weight: 1 },
+      { from: "c", to: "ch", weight: 1 },
+    ];
+    const out = classify(nodes, edges);
+    expect(out.find((n) => n.id === "c")!.topology).toBe("bridge");
+  });
+
+  test("force-anchor stays null when no force dominates ≥60% of neighbours", () => {
+    // 3 neighbours: 1 fate, 1 world, 1 system → no anchor (each at 33%).
+    const nodes = [
+      makeNode("c"), makeNode("t", "thread"), makeNode("w"), makeNode("s", "system"),
+    ];
+    const edges: NetworkEdge[] = [
+      { from: "c", to: "t", weight: 1 },
+      { from: "c", to: "w", weight: 1 },
+      { from: "c", to: "s", weight: 1 },
+    ];
+    const out = classify(nodes, edges);
+    expect(out.find((n) => n.id === "c")!.forceAnchor).toBeNull();
+  });
+});
+
+describe("forceOfKind", () => {
+  test("threads → fate, system → system, c/l/a → world", () => {
+    expect(forceOfKind("thread")).toBe("fate");
+    expect(forceOfKind("system")).toBe("system");
+    expect(forceOfKind("character")).toBe("world");
+    expect(forceOfKind("location")).toBe("world");
+    expect(forceOfKind("artifact")).toBe("world");
+  });
+});
+
+describe("summarizeNetworkState", () => {
+  test("empty network", () => {
+    expect(summarizeNetworkState({ nodes: [], edges: [], graphCount: 0 })).toMatch(/empty/i);
+  });
+
+  test("nodes but no graphs reads as fully dormant", () => {
+    const nodes: NetworkNode[] = [{
+      id: "C-01", kind: "character", label: "A",
+      attributions: 0, recentAttributions: 0,
+      firstSeenIndex: -1, lastSeenIndex: -1,
+      tier: "cold", trajectory: "dormant", topology: "isolated", forceAnchor: null,
+    }];
+    const out = summarizeNetworkState({ nodes, edges: [], graphCount: 0 });
+    expect(out).toMatch(/no reasoning graphs/i);
+  });
+
+  test("includes per-cohort counts and topology line", () => {
+    const node = (id: string, kind: NetworkNodeKind, tier: NetworkNode["tier"]): NetworkNode => ({
+      id, kind, label: id,
+      attributions: tier === "cold" ? 0 : 1, recentAttributions: 0,
+      firstSeenIndex: 0, lastSeenIndex: 0,
+      tier, trajectory: tier === "cold" ? "dormant" : "steady",
+      topology: "isolated", forceAnchor: null,
+    });
+    const nodes = [node("C-01", "character", "hot"), node("T-01", "thread", "warm"), node("SYS-01", "system", "cold")];
+    const out = summarizeNetworkState({ nodes, edges: [], graphCount: 3 });
+    expect(out).toContain("Fate");
+    expect(out).toContain("World");
+    expect(out).toContain("System");
+    expect(out).toContain("Topology");
+  });
+});
+
 describe("formatTierLabel", () => {
+  function makeNode(overrides: Partial<NetworkNode>): NetworkNode {
+    return {
+      id: "a", kind: "character", label: "A",
+      attributions: 0, recentAttributions: 0,
+      firstSeenIndex: -1, lastSeenIndex: -1,
+      tier: "cold", trajectory: "dormant", topology: "isolated", forceAnchor: null,
+      ...overrides,
+    };
+  }
+
   test("undefined node returns empty string", () => {
     expect(formatTierLabel(undefined)).toBe("");
   });
 
-  test("never-referenced cold node renders explicit zero label", () => {
-    const node: NetworkNode = {
-      id: "a", kind: "character", label: "A", attributions: 0, firstSeenIndex: -1, tier: "cold",
-    };
-    expect(formatTierLabel(node)).toBe("{cold ×0 — never referenced}");
+  test("never-referenced cold node renders dormant + isolated", () => {
+    expect(formatTierLabel(makeNode({}))).toBe("{cold ×0, dormant, isolated}");
   });
 
-  test("attributed node renders {tier ×count}", () => {
-    const node: NetworkNode = {
-      id: "a", kind: "character", label: "A", attributions: 5, firstSeenIndex: 0, tier: "hot",
-    };
-    expect(formatTierLabel(node)).toBe("{hot ×5}");
+  test("attributed node renders all dimensions including force-anchor", () => {
+    const node = makeNode({
+      attributions: 5, tier: "hot", trajectory: "rising",
+      topology: "bridge", forceAnchor: "fate",
+    });
+    expect(formatTierLabel(node)).toBe("{hot ×5, rising, bridge, fate-anchor}");
+  });
+
+  test("balanced (no force anchor) omits the anchor segment", () => {
+    const node = makeNode({
+      attributions: 4, tier: "warm", trajectory: "steady",
+      topology: "hub", forceAnchor: null,
+    });
+    expect(formatTierLabel(node)).toBe("{warm ×4, steady, hub}");
   });
 });

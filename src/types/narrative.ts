@@ -1019,6 +1019,8 @@ export type CoordinationNode = {
   entityId?: string;
   /** Reference to thread (for fate and spine nodes tracking thread progression) */
   threadId?: string;
+  /** Reference to a node in the system knowledge graph (for system nodes anchoring to an existing rule/principle/constraint/tension). */
+  systemNodeId?: string;
   /** Target thread status (for spine nodes tracking thread progression) */
   targetStatus?: ThreadStatusTarget;
   /** Arc index 1-N (set only on the peak or valley that anchors an arc) */
@@ -1500,7 +1502,7 @@ export type NarrativeEntry = {
 // ── Story Settings ──────────────────────────────────────────────────────────
 
 /** How many POV characters drive the narrative */
-export type POVMode = "single" | "pareto" | "ensemble" | "free";
+export type POVMode = "single" | "ensemble" | "free";
 
 /** Which world commit to seed generations with */
 export type WorldFocusMode = "latest" | "custom" | "none";
@@ -1612,14 +1614,15 @@ export type StorySettings = {
    */
   defaultReasoningSize: "small" | "medium" | "large";
   /**
-   * Network thinking mode — biases reasoning toward, away from, or balanced
-   * across the cumulative activation pattern of the narrative's entities,
-   * threads, and system nodes.
+   * Default network thinking mode — biases reasoning toward, away from, or
+   * balanced across the cumulative activation pattern of the narrative's
+   * entities, threads, and system nodes. Pre-populates the per-generation
+   * picker; always overridable via ArcReasoningOptions.networkBias.
    *  - `inside`: anchor in HOT nodes; deepen the gravitational centres
    *  - `outside`: reach for COLD or FRESH nodes; break the dominant pattern
    *  - `neutral`: use what the arc needs — balanced across hot and cold
    */
-  networkBias: "inside" | "outside" | "neutral";
+  defaultNetworkBias: "inside" | "outside" | "neutral";
 };
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
@@ -1647,7 +1650,7 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   defaultReasoningMode: "divergent",
   defaultForcePreference: "freeform",
   defaultReasoningSize: "medium",
-  networkBias: "neutral",
+  defaultNetworkBias: "neutral",
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────

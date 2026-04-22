@@ -47,6 +47,7 @@ import type { ForcePreference, ReasoningMode } from "@/lib/ai";
 import {
   ThinkingSettings,
   type ReasoningSize,
+  type NetworkBias,
 } from "./ForcePreferencePicker";
 import { GuidanceFields } from "./GuidanceFields";
 import { MarkovGraph } from "./MarkovGraph";
@@ -154,6 +155,9 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   );
   const [reasoningMode, setReasoningMode] = useState<ReasoningMode>(
     thinkingDefaults?.defaultReasoningMode ?? "divergent",
+  );
+  const [networkBias, setNetworkBias] = useState<NetworkBias>(
+    thinkingDefaults?.defaultNetworkBias ?? "neutral",
   );
 
   // Expansion reasoning graph state (for world expansion)
@@ -307,7 +311,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         finalArcName,
         (token) => setStreamText((prev) => prev + token),
         reasoningPlanContext,
-        { forcePreference, reasoningLevel: reasoningSize, reasoningMode },
+        { forcePreference, reasoningLevel: reasoningSize, reasoningMode, networkBias },
       );
       setReasoningGraph(graph);
       setShowReasoningModal(true);
@@ -511,7 +515,7 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
         worldSize,
         worldStrategy,
         (token) => setStreamText((prev) => prev + token),
-        { forcePreference, reasoningLevel: reasoningSize, reasoningMode },
+        { forcePreference, reasoningLevel: reasoningSize, reasoningMode, networkBias },
       );
       setExpansionReasoningGraph(graph);
       setShowExpansionReasoningModal(true);
@@ -938,6 +942,8 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                         onForceChange={setForcePreference}
                         size={reasoningSize}
                         onSizeChange={setReasoningSize}
+                        networkBias={networkBias}
+                        onNetworkBiasChange={setNetworkBias}
                       />
 
                       {/* Pacing presets — only shown when Markov pacing is enabled */}
@@ -1153,6 +1159,8 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
                       onForceChange={setForcePreference}
                       size={reasoningSize}
                       onSizeChange={setReasoningSize}
+                      networkBias={networkBias}
+                      onNetworkBiasChange={setNetworkBias}
                     />
                     <div>
                       <label className="text-[10px] uppercase tracking-widest text-text-dim block mb-2">

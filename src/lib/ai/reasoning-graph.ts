@@ -6,7 +6,7 @@ import { parseJson } from "./json";
 import { buildCumulativeSystemGraph, resolveEntityName } from "@/lib/narrative-utils";
 import { applyDerivedForceModes } from "@/lib/auto-engine";
 import { logError, logWarning, type LogContext } from "@/lib/system-logger";
-import { aggregateNetworkGraph, buildTierLookup, formatTierLabel } from "@/lib/network-graph";
+import { aggregateNetworkGraph, summarizeNetworkState } from "@/lib/network-graph";
 
 // ── Plan Node Scaling ─────────────────────────────────────────────────────────
 // Coordination plans scale node counts based on arc budget to ensure proper
@@ -383,10 +383,11 @@ export function buildSequentialPath(graph: ReasoningGraphBase): string {
 
     const entityRef = node.entityId ? ` @${node.entityId}` : "";
     const threadRef = node.threadId ? ` #${node.threadId}` : "";
+    const systemRef = node.systemNodeId ? ` %${node.systemNodeId}` : "";
 
     // Header — identity line.
     lines.push(
-      `[${node.index}] ${node.type.toUpperCase()}: ${node.label}${entityRef}${threadRef}`
+      `[${node.index}] ${node.type.toUpperCase()}: ${node.label}${entityRef}${threadRef}${systemRef}`
     );
 
     // Outgoing: what this node LEADS TO. Empty on leaves (pure ground-truth
@@ -460,6 +461,13 @@ export type ArcReasoningOptions = {
    * (observation → inferred principle). See ReasoningMode for details.
    */
   reasoningMode?: ReasoningMode;
+  /**
+   * Network thinking bias. "inside" leans into hot/warm cumulative
+   * activation centres; "outside" reaches for cold/fresh dormant matter;
+   * "neutral" balances the two. Falls back to the narrative's
+   * storySettings.defaultNetworkBias when omitted.
+   */
+  networkBias?: "inside" | "outside" | "neutral";
 };
 
 /** Default reasoning-token budget tied to narrative settings. */
@@ -1162,14 +1170,11 @@ ${scope === "plan"
 }
 
 /**
- * Build a network-bias guidance block that tells the reasoner whether to
- * lean INTO the existing activation pattern (inside the box), AWAY from it
- * (outside the box), or balance the two (neutral). Tier labels {hot|warm|
- * cold|fresh ×N} on the AVAILABLE ENTITIES section let the reasoner act
- * on this concretely.
- *
- * Returns "" for neutral (no bias) so we don't burn tokens nudging the
- * default behaviour.
+ * Build a network-bias guidance block. The annotation legend and NETWORK
+ * STATE summary are already rendered above AVAILABLE ENTITIES, so this
+ * block only adds the per-mode preference — no need to restate what the
+ * tags mean. Returns "" for neutral so the default behaviour costs no
+ * tokens.
  */
 function networkBiasBlock(bias: "inside" | "outside" | "neutral" | undefined): string {
   if (!bias || bias === "neutral") return "";
@@ -1177,14 +1182,12 @@ function networkBiasBlock(bias: "inside" | "outside" | "neutral" | undefined): s
     return `
 ### NETWORK BIAS — INSIDE THE BOX (conventional)
 
-Look at the {hot|warm|cold|fresh ×N} tier labels on each entity, thread, and system node in AVAILABLE ENTITIES. They show how often each has been referenced across all prior reasoning graphs — the cumulative gravitational pattern of this story.
+Lean into the gravitational centres. The {hot, rising, bridge} cohort is load-bearing — compound it. The {warm, hub} cohort is consistent material — deepen it.
 
-**Lean into the HOT and WARM cohort**: anchor your reasoning in the entities, threads, and system nodes that have already proven load-bearing. Deepen the gravitational centres rather than scattering attention. The story has shown what it's really about — make the next move continue that conversation, not change the subject.
-
-- Prefer characters / locations / artifacts marked {hot} or {warm} for character / location / artifact nodes.
-- Prefer threads marked {hot} or {warm} for fate nodes.
-- Prefer system nodes marked {hot} or {warm} for system nodes.
-- Reach for {cold} or {fresh} only when the arc structurally requires them (a referenced location, a pending thread closure).
+- Anchor selections in nodes whose tier is hot or warm AND trajectory is rising or steady — these are what the story is currently building.
+- Prefer bridges (cross-force connectors) over leaves; bridges already carry weight across cohorts and reusing them tightens the network.
+- {cooling} nodes are candidates for revival when their force-anchor matches what this arc needs; {plateaued} nodes need a fresh angle to earn a return.
+- Reach for {cold, dormant, isolated} only when the arc structurally requires them.
 - Reusing what already matters is NOT laziness — it's how a story compounds. The cold cohort can wait.
 `;
   }
@@ -1192,13 +1195,13 @@ Look at the {hot|warm|cold|fresh ×N} tier labels on each entity, thread, and sy
   return `
 ### NETWORK BIAS — OUTSIDE THE BOX (unique with respect to current pattern)
 
-Look at the {hot|warm|cold|fresh ×N} tier labels on each entity, thread, and system node in AVAILABLE ENTITIES. They show how often each has been referenced across all prior reasoning graphs — the cumulative gravitational pattern of this story.
+Reactivate the neglected matter. Two cohorts deserve attention here:
 
-**Reach for the COLD and FRESH cohort**: surface the dormant matter the story has neglected. The HOT centres have been over-used; the next reasoning graph should break the pattern.
+1. **{fresh, rising}** — recently planted nodes that haven't compounded yet. Picking them up turns seeds into structure.
+2. **{cold, dormant}** with a force-anchor — long-dormant nodes that already sit on a known force axis. They're easier to integrate than starting from nothing.
 
-- Prefer characters / locations / artifacts marked {cold} or {fresh} for character / location / artifact nodes — the long-dormant cast and the just-spawned matter that haven't yet been integrated.
-- Prefer threads marked {cold} or {fresh} for fate nodes — pick up a forgotten promise or develop a recently-seeded one.
-- Prefer system nodes marked {cold} or {fresh} for system nodes — let an under-used rule shape this arc.
+- Prefer cold or fresh nodes for character / location / artifact / thread / system selections — the long-dormant cast, recently-spawned matter, and unused rules.
+- {leaf} nodes are easy entry points; {isolated} nodes need a bridge built to them through this arc.
 - {hot} entities are allowed when structurally unavoidable but should NOT be the anchor of the reasoning. If the arc can be told without them, prefer that path.
 - The goal is not contrarianism — it's reactivating what the network has neglected so the story doesn't collapse into a monoculture of its most-used pieces.
 `;
@@ -1224,39 +1227,34 @@ export async function generateReasoningGraph(
   // activation pattern and lean into or away from it per the bias setting.
   // Scoped to the current point in the timeline (progressive aggregation).
   const network = aggregateNetworkGraph(narrative, resolvedKeys, currentIndex);
-  const tierLookup = buildTierLookup(network);
-  const tierTag = (id: string): string => {
-    const tag = formatTierLabel(tierLookup.get(id));
-    return tag ? ` ${tag}` : "";
-  };
-
-  // Get active threads
+  // Get active threads — annotations live on the <thread> tags in
+  // narrativeContext above; this section is just a quick pick-list.
   const activeThreads = Object.values(narrative.threads)
     .filter((t) =>
       ["seeded", "active", "escalating", "critical"].includes(t.status),
     )
-    .map((t) => `- [${t.id}] ${t.description} (${t.status})${tierTag(t.id)}`)
+    .map((t) => `- [${t.id}] ${t.description} (${t.status})`)
     .join("\n");
 
   // Get key characters
   const characters = Object.values(narrative.characters)
     .filter((c) => c.role === "anchor" || c.role === "recurring")
     .slice(0, 8)
-    .map((c) => `- [${c.id}] ${c.name} (${c.role})${tierTag(c.id)}`)
+    .map((c) => `- [${c.id}] ${c.name} (${c.role})`)
     .join("\n");
 
   // Get key locations
   const locations = Object.values(narrative.locations)
     .filter((l) => l.prominence === "domain" || l.prominence === "place")
     .slice(0, 6)
-    .map((l) => `- [${l.id}] ${l.name}${tierTag(l.id)}`)
+    .map((l) => `- [${l.id}] ${l.name}`)
     .join("\n");
 
   // Get artifacts
   const artifacts = Object.values(narrative.artifacts ?? {})
     .filter((a) => a.significance === "key" || a.significance === "notable")
     .slice(0, 4)
-    .map((a) => `- [${a.id}] ${a.name}${tierTag(a.id)}`)
+    .map((a) => `- [${a.id}] ${a.name}`)
     .join("\n");
 
   // Get system knowledge — IDs included so reasoning nodes can reference
@@ -1267,7 +1265,7 @@ export async function generateReasoningGraph(
       ["principle", "system", "constraint", "tension"].includes(n.type),
     )
     .slice(0, 8)
-    .map((n) => `- [${n.id}] ${n.concept} (${n.type})${tierTag(n.id)}`)
+    .map((n) => `- [${n.id}] ${n.concept} (${n.type})`)
     .join("\n");
 
   // Get story patterns and anti-patterns
@@ -1284,7 +1282,9 @@ export async function generateReasoningGraph(
 
   const prompt = `${ctx}
 
-## AVAILABLE ENTITIES
+## ${summarizeNetworkState(network)}
+
+## AVAILABLE ENTITIES (quick pick-list — full annotations live on the entity tags in the narrative context above)
 
 ACTIVE THREADS (threads are QUESTIONS the story must answer):
 ${activeThreads || "None yet"}
@@ -1347,7 +1347,7 @@ ARC COMMITMENT FIRST. Before any causal reasoning, declare this arc's contract w
 Every later fate node and every reasoning chain must trace back to one of these commitments via causal edges. A fate node at a later index with no edge path back to a commitment is an untethered pulse — route it or cut it. Commitments are the arc's declared payoff; resolves + resists together deliver the dopamine of tension-release-with-cost, and plants prepare the next arc's payoff. Do not write commitments you cannot serve — if RESISTS cannot be filled with a concrete setback, either find one or tell the truth that this arc has no resistance.
 ${forcePreferenceBlock("arc", options?.forcePreference)}
 ${reasoningModeBlock(options?.reasoningMode)}
-${networkBiasBlock(narrative.storySettings?.networkBias)}
+${networkBiasBlock(options?.networkBias ?? narrative.storySettings?.defaultNetworkBias)}
 
 ## OUTPUT FORMAT
 
@@ -1653,46 +1653,37 @@ export async function generateExpansionReasoningGraph(
   // depending on the bias setting. Progressive: scoped to the timeline
   // up to the current scene.
   const network = aggregateNetworkGraph(narrative, resolvedKeys, currentIndex);
-  const tierLookup = buildTierLookup(network);
-  const tierTag = (id: string): string => {
-    const tag = formatTierLabel(tierLookup.get(id));
-    return tag ? ` ${tag}` : "";
-  };
 
-  // Get active threads
+  // Annotations live on the entity tags inside narrativeContext above; the
+  // listings below are quick pick-lists of IDs only.
   const activeThreads = Object.values(narrative.threads)
     .filter((t) =>
       ["seeded", "active", "escalating", "critical"].includes(t.status),
     )
-    .map((t) => `- [${t.id}] ${t.description} (${t.status})${tierTag(t.id)}`)
+    .map((t) => `- [${t.id}] ${t.description} (${t.status})`)
     .join("\n");
 
-  // Get all characters with continuity depth
   const characters = Object.values(narrative.characters)
     .map((c) => {
       const depth = Object.keys(c.world?.nodes ?? {}).length;
-      return `- [${c.id}] ${c.name} (${c.role}, ${depth} knowledge nodes)${tierTag(c.id)}`;
+      return `- [${c.id}] ${c.name} (${c.role}, ${depth} knowledge nodes)`;
     })
     .join("\n");
 
-  // Get all locations with hierarchy
   const locations = Object.values(narrative.locations)
     .map((l) => {
       const parent = l.parentId ? narrative.locations[l.parentId]?.name : null;
-      return `- [${l.id}] ${l.name}${parent ? ` (inside ${parent})` : ""} [${l.prominence}]${tierTag(l.id)}`;
+      return `- [${l.id}] ${l.name}${parent ? ` (inside ${parent})` : ""} [${l.prominence}]`;
     })
     .join("\n");
 
-  // Get artifacts
   const artifacts = Object.values(narrative.artifacts ?? {})
-    .map((a) => `- [${a.id}] ${a.name} (${a.significance})${tierTag(a.id)}`)
+    .map((a) => `- [${a.id}] ${a.name} (${a.significance})`)
     .join("\n");
 
-  // Get system knowledge — IDs included so reasoning nodes can reference
-  // them via `systemNodeId`.
   const systemKnowledge = Object.values(narrative.systemGraph?.nodes ?? {})
     .slice(0, 12)
-    .map((n) => `- [${n.id}] ${n.concept} (${n.type})${tierTag(n.id)}`)
+    .map((n) => `- [${n.id}] ${n.concept} (${n.type})`)
     .join("\n");
 
   // Get relationships
@@ -1768,7 +1759,9 @@ ${recentWorldBuilds.map((wb: WorldBuild) => {
 
   const prompt = `${ctx}
 
-## CURRENT WORLD STATE
+## ${summarizeNetworkState(network)}
+
+## CURRENT WORLD STATE (quick pick-list — full annotations live on the entity tags in the narrative context above)
 
 ACTIVE THREADS (threads are QUESTIONS the story must answer):
 ${activeThreads || "None yet"}
@@ -1810,7 +1803,7 @@ Strategy: ${strategy.toUpperCase()}
 Threads are FATE — they exert gravitational pull on world-building. New entities should serve thread requirements when threads pull, but under divergent mode new entities may also emerge from collisions the threads did not demand.
 ${forcePreferenceBlock("arc", options?.forcePreference)}
 ${reasoningModeBlock(options?.reasoningMode)}
-${networkBiasBlock(narrative.storySettings?.networkBias)}
+${networkBiasBlock(options?.networkBias ?? narrative.storySettings?.defaultNetworkBias)}
 ## OUTPUT FORMAT
 
 **CRITICAL FORMAT REQUIREMENTS**:
@@ -2206,17 +2199,19 @@ export async function generateCoordinationPlan(
   const tensions = systemNodes.filter(n => n.type === "tension").slice(0, 4);
 
   const systemKnowledgeLines: string[] = [];
+  // IDs included so system nodes can anchor via `systemNodeId`.
+  const formatSystemEntry = (n: { id: string; concept: string }) => `[${n.id}] ${n.concept}`;
   if (principles.length > 0) {
-    systemKnowledgeLines.push(`  Principles: ${principles.map(n => n.concept).join("; ")}`);
+    systemKnowledgeLines.push(`  Principles: ${principles.map(formatSystemEntry).join("; ")}`);
   }
   if (systems.length > 0) {
-    systemKnowledgeLines.push(`  Systems: ${systems.map(n => n.concept).join("; ")}`);
+    systemKnowledgeLines.push(`  Systems: ${systems.map(formatSystemEntry).join("; ")}`);
   }
   if (constraints.length > 0) {
-    systemKnowledgeLines.push(`  Constraints: ${constraints.map(n => n.concept).join("; ")}`);
+    systemKnowledgeLines.push(`  Constraints: ${constraints.map(formatSystemEntry).join("; ")}`);
   }
   if (tensions.length > 0) {
-    systemKnowledgeLines.push(`  Tensions: ${tensions.map(n => n.concept).join("; ")}`);
+    systemKnowledgeLines.push(`  Tensions: ${tensions.map(formatSystemEntry).join("; ")}`);
   }
   const systemKnowledge = systemKnowledgeLines.length > 0
     ? systemKnowledgeLines.join("\n")
@@ -2411,8 +2406,8 @@ Return a JSON object with RICH, DIVERSE nodes. Example showing all node types wo
     // ═══════════════════════════════════════════════════════════════
     // SYSTEM NODES: world rules that constrain (reference principles/systems/constraints)
     // ═══════════════════════════════════════════════════════════════
-    {"id": "sys-gu-feeding-rules", "index": 7, "type": "system", "label": "Gu feeding rules require specific resources", "detail": "Reference specific principle/system/constraint from WORLD KNOWLEDGE", "arcSlot": 1},
-    {"id": "sys-clan-hierarchy-blocks", "index": 8, "type": "system", "label": "Clan hierarchy prevents direct challenge", "detail": "Reference specific tension that can be exploited", "arcSlot": 3},
+    {"id": "sys-gu-feeding-rules", "index": 7, "type": "system", "label": "Gu feeding rules require specific resources", "detail": "Reference specific principle/system/constraint from WORLD KNOWLEDGE", "systemNodeId": "actual-SYS-id-from-narrative", "arcSlot": 1},
+    {"id": "sys-clan-hierarchy-blocks", "index": 8, "type": "system", "label": "Clan hierarchy prevents direct challenge", "detail": "Reference specific tension that can be exploited", "systemNodeId": "actual-SYS-id-from-narrative", "arcSlot": 3},
 
     // ═══════════════════════════════════════════════════════════════
     // REASONING NODES: causal chains (THE BACKBONE — use extensively)
@@ -2489,7 +2484,7 @@ Shape an arc's force character through its node composition: a fate-dominant arc
 - **character**: WHO drives this transition. MUST have entityId. Label: character + their key action/knowledge (e.g., "Fang Yuan exploits his memory of the future"). **Distribute agency across the cast** — a plan where only the protagonist appears as a character driver is under-representing the world. Secondary characters (rivals, allies, factions' leaders) should appear as agents with their own agendas across multiple arcs, not just as obstacles for the protagonist to overcome.
 - **location**: WHERE things must happen. MUST have entityId. Label: location + what it enables (e.g., "The Glacier's isolation enables secret negotiation").
 - **artifact**: WHAT item shapes outcomes. MUST have entityId. Label: artifact + its role (e.g., "Spring Autumn Cicada enables time reversal").
-- **system**: HOW world rules constrain. Label: the rule stated plainly (e.g., "Gu worms require regular feeding to survive").
+- **system**: HOW world rules constrain. Use systemNodeId to reference an existing SYS-XX node from SYSTEM KNOWLEDGE — copy the bracketed [SYS-XX] id verbatim. Omit systemNodeId only when introducing a brand-new rule. Label: the rule stated plainly (e.g., "Gu worms require regular feeding to survive").
 
 **REASONING NODES** (causal chains — THE BACKBONE, use extensively):
 - **reasoning**: Logical step in backward induction. Has arcSlot. Label: the inference in plain English (e.g., "Resolution requires controlling the inheritance first"). Detail: explain WHY this follows.
@@ -2638,6 +2633,7 @@ Return ONLY the JSON object.`;
         detail: typeof n.detail === "string" ? n.detail.slice(0, 300) : undefined,
         entityId: typeof n.entityId === "string" ? n.entityId : undefined,
         threadId: typeof n.threadId === "string" ? n.threadId : undefined,
+        systemNodeId: typeof n.systemNodeId === "string" ? n.systemNodeId : undefined,
         targetStatus: typeof n.targetStatus === "string" ? n.targetStatus : undefined,
         arcIndex: typeof n.arcIndex === "number" ? n.arcIndex : undefined,
         sceneCount: typeof n.sceneCount === "number" ? n.sceneCount : undefined,

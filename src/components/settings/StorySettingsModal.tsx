@@ -796,6 +796,8 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                   onForceChange={(f) => update({ defaultForcePreference: f })}
                   size={settings.defaultReasoningSize ?? "medium"}
                   onSizeChange={(s) => update({ defaultReasoningSize: s })}
+                  networkBias={settings.defaultNetworkBias ?? "neutral"}
+                  onNetworkBiasChange={(b) => update({ defaultNetworkBias: b })}
                 />
                 <p className="text-[9px] text-text-dim/50 mt-2">
                   Pre-populates the reasoning-graph pickers (mode of thinking, force bias, graph density). Always overridable per-generation.

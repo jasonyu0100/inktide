@@ -6,8 +6,10 @@ import type {
   CoordinationNode,
   CoordinationNodeType,
   CoordinationEdge,
+  InspectorContext,
 } from "@/types/narrative";
 import type { ReasoningEdgeType } from "@/lib/ai";
+import { useStore } from "@/lib/store";
 import { buildPlanPathForArc } from "@/lib/ai";
 import * as d3 from "d3";
 import dagre from "dagre";
@@ -84,10 +86,37 @@ export function CoordinationPlanModal({
   onClear,
   onSetArc,
 }: Props) {
+  const { state, dispatch } = useStore();
+  const narrative = state.activeNarrative;
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const initialTransformRef = useRef<d3.ZoomTransform | null>(null);
+
+  const openInspector = (context: InspectorContext) => {
+    dispatch({ type: "SET_INSPECTOR", context });
+    onClose();
+  };
+
+  const resolveEntityLabel = (id: string): { label: string; context: InspectorContext | null } => {
+    if (!narrative) return { label: id, context: null };
+    if (narrative.characters[id]) return { label: narrative.characters[id].name, context: { type: "character", characterId: id } };
+    if (narrative.locations[id]) return { label: narrative.locations[id].name, context: { type: "location", locationId: id } };
+    if (narrative.artifacts?.[id]) return { label: narrative.artifacts[id].name, context: { type: "artifact", artifactId: id } };
+    return { label: id, context: null };
+  };
+
+  const resolveThreadLabel = (id: string): { label: string; context: InspectorContext | null } => {
+    const thread = narrative?.threads[id];
+    if (thread) return { label: thread.description, context: { type: "thread", threadId: id } };
+    return { label: id, context: null };
+  };
+
+  const resolveSystemNodeLabel = (id: string): { label: string; context: InspectorContext | null } => {
+    const node = narrative?.systemGraph?.nodes[id];
+    if (node) return { label: node.concept, context: { type: "knowledge", nodeId: id } };
+    return { label: id, context: null };
+  };
 
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [selectedArc, setSelectedArc] = useState(1); // 1-indexed arc view
@@ -693,18 +722,50 @@ export function CoordinationPlanModal({
                 )}
 
                 {/* References */}
-                {(focusedNode.entityId || focusedNode.threadId) && (
+                {(focusedNode.entityId || focusedNode.threadId || focusedNode.systemNodeId) && (
                   <div className="space-y-1 pt-2 border-t border-border">
-                    {focusedNode.entityId && (
-                      <div className="text-xs text-text-dim">
-                        Entity: <span className="text-cyan-400 font-mono">{focusedNode.entityId}</span>
-                      </div>
-                    )}
-                    {focusedNode.threadId && (
-                      <div className="text-xs text-text-dim">
-                        Thread: <span className="text-amber-400 font-mono">{focusedNode.threadId}</span>
-                      </div>
-                    )}
+                    {focusedNode.entityId && (() => {
+                      const { label, context } = resolveEntityLabel(focusedNode.entityId);
+                      return (
+                        <button
+                          onClick={() => context && openInspector(context)}
+                          disabled={!context}
+                          className="w-full text-left text-xs text-text-dim hover:text-text-primary disabled:cursor-default disabled:hover:text-text-dim transition"
+                          title={context ? "Open in inspector" : "Unresolved reference"}
+                        >
+                          Entity: <span className="text-cyan-400">{label}</span>
+                          <span className="text-text-dim/50 font-mono ml-1.5">{focusedNode.entityId}</span>
+                        </button>
+                      );
+                    })()}
+                    {focusedNode.threadId && (() => {
+                      const { label, context } = resolveThreadLabel(focusedNode.threadId);
+                      return (
+                        <button
+                          onClick={() => context && openInspector(context)}
+                          disabled={!context}
+                          className="w-full text-left text-xs text-text-dim hover:text-text-primary disabled:cursor-default disabled:hover:text-text-dim transition"
+                          title={context ? "Open in inspector" : "Unresolved reference"}
+                        >
+                          Thread: <span className="text-amber-400">{label}</span>
+                          <span className="text-text-dim/50 font-mono ml-1.5">{focusedNode.threadId}</span>
+                        </button>
+                      );
+                    })()}
+                    {focusedNode.systemNodeId && (() => {
+                      const { label, context } = resolveSystemNodeLabel(focusedNode.systemNodeId);
+                      return (
+                        <button
+                          onClick={() => context && openInspector(context)}
+                          disabled={!context}
+                          className="w-full text-left text-xs text-text-dim hover:text-text-primary disabled:cursor-default disabled:hover:text-text-dim transition"
+                          title={context ? "Open in inspector" : "Unresolved reference"}
+                        >
+                          System: <span className="text-violet-400">{label}</span>
+                          <span className="text-text-dim/50 font-mono ml-1.5">{focusedNode.systemNodeId}</span>
+                        </button>
+                      );
+                    })()}
                   </div>
                 )}
 

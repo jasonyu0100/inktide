@@ -812,9 +812,9 @@ export function CanvasTopBar() {
         <div className="flex items-center rounded-md overflow-hidden border border-white/10">
           {[
             { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const, activeWhen: canvasMode === 'graph' },
+            { mode: 'network' as CanvasMode, Icon: IconGlobe, label: 'Network', condition: 'always' as const, activeWhen: canvasMode === 'network' },
             { mode: 'scene' as const, Icon: IconNotepad, label: 'Scene', condition: 'sceneOnly' as const, activeWhen: inSceneMode },
             { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const, activeWhen: canvasMode === 'search' },
-            { mode: 'network' as CanvasMode, Icon: IconGlobe, label: 'Network', condition: 'always' as const, activeWhen: canvasMode === 'network' },
           ]
             .filter(({ condition }) => {
               if (condition === 'sceneOnly' && !currentScene) return false;

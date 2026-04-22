@@ -247,11 +247,83 @@ export function ReasoningModePicker({
   );
 }
 
+// ── Network-bias picker ──────────────────────────────────────────────────────
+
+export type NetworkBias = "inside" | "outside" | "neutral";
+
+const NETWORK_BIAS_ORDER: NetworkBias[] = ["inside", "neutral", "outside"];
+
+const NETWORK_BIAS_META: Record<
+  NetworkBias,
+  { label: string; color: string; description: string }
+> = {
+  inside: {
+    label: "Inside",
+    color: "#ef4444",
+    description: "Conventional. Lean into HOT entities and threads — deepen the gravitational centres.",
+  },
+  neutral: {
+    label: "Neutral",
+    color: "#e5e7eb",
+    description: "Dynamic. Use what the arc needs — balanced across hot and cold.",
+  },
+  outside: {
+    label: "Outside",
+    color: "#22d3ee",
+    description: "Unique. Reach for COLD or FRESH dormant matter — break the dominant pattern.",
+  },
+};
+
+export function NetworkBiasPicker({
+  value,
+  onChange,
+  label = "Network",
+}: {
+  value: NetworkBias;
+  onChange: (bias: NetworkBias) => void;
+  label?: string;
+}) {
+  const current = NETWORK_BIAS_META[value];
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between">
+        <label className="text-[10px] uppercase tracking-widest text-text-dim">
+          {label}
+        </label>
+        <span className="text-[10px] text-text-dim/60">
+          {current.description}
+        </span>
+      </div>
+      <div className="flex gap-0.5 rounded-md bg-white/4 p-0.5">
+        {NETWORK_BIAS_ORDER.map((bias) => {
+          const meta = NETWORK_BIAS_META[bias];
+          const selected = bias === value;
+          return (
+            <button
+              key={bias}
+              type="button"
+              onClick={() => onChange(bias)}
+              className="flex-1 rounded px-2 py-1 text-[10px] font-medium transition-colors"
+              style={{
+                background: selected ? "rgba(255,255,255,0.08)" : "transparent",
+                color: selected ? meta.color : "rgba(255,255,255,0.5)",
+              }}
+              title={meta.description}
+            >
+              {meta.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Thinking settings wrapper ────────────────────────────────────────────────
 
 /**
- * Groups the three thinking-related dials (mode, force, density) under a
- * single `THINKING` header. Maximum control — none of the dials are
+ * Groups the four thinking-related dials (mode, force, density, network bias)
+ * under a single `THINKING` header. Maximum control — none of the dials are
  * collapsed — but visually unified so they read as one control panel.
  */
 export function ThinkingSettings({
@@ -261,6 +333,8 @@ export function ThinkingSettings({
   onForceChange,
   size,
   onSizeChange,
+  networkBias,
+  onNetworkBiasChange,
 }: {
   mode: ReasoningMode;
   onModeChange: (m: ReasoningMode) => void;
@@ -268,6 +342,8 @@ export function ThinkingSettings({
   onForceChange: (f: ForcePreference) => void;
   size: ReasoningSize;
   onSizeChange: (s: ReasoningSize) => void;
+  networkBias: NetworkBias;
+  onNetworkBiasChange: (b: NetworkBias) => void;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-white/6 bg-white/2 p-3">
@@ -277,6 +353,7 @@ export function ThinkingSettings({
       <ReasoningModePicker value={mode} onChange={onModeChange} />
       <ForcePreferencePicker value={force} onChange={onForceChange} />
       <ReasoningSizePicker value={size} onChange={onSizeChange} />
+      <NetworkBiasPicker value={networkBias} onChange={onNetworkBiasChange} />
     </div>
   );
 }

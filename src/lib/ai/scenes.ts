@@ -830,7 +830,7 @@ ${sceneContext(narrative, scene)}
 ${compulsoryBlock}
 Generate a beat plan that GLUES the compulsory propositions into the narrative flow: reordered for effect, enriched with bridge propositions drawn from the narrative context where continuity calls for them, grouped into beats, and paced with varied mechanisms. Coverage is non-negotiable; the ORDERING and GROUPING are your craft decisions. Prose delivery will follow the prose profile — your job is the skeleton, not the voice.
 
-OPENING SHAPE — read the <time-gap> on the scene and let it set the opening beat. A concurrent gap stays mid-action with no re-orientation. A few-hours gap needs a small sensory cue. A days/weeks gap needs an orienting beat (weather, routine, arriving message). A months/years gap may want a montage beat or a status-change reveal up front. Make sure the first one or two beats DO this work — don't skip the transition just because the summary jumps in cold.`;
+OPENING SHAPE — check the <time-gap> on the scene. Good storytelling weaves the passage of time into narrative texture so the reader always feels it without ever reading it as a timestamp. The gap size shifts how visible the weaving is, not whether it happens. MINOR gaps (concurrent, hours, same-day, multi-day): texture only — light, mood, weather, wear, what's changed. NEVER a "X days later" beat. NOTABLE gaps (multi-week): weave a clearer signal — a season turning, a project moved on, a wound healing. Still texture, not statement. MAJOR gaps (multi-month): weight it with a re-anchor beat (status update, changed season, plan bearing fruit); naming the elapsed time directly is permitted when it carries force. GENERATIONAL gaps (year+): must be acknowledged with weight — a montage beat, an aged-up reveal, an environmental change. Underplaying a generational jump reads as continuity error.`;
 
   const raw = onReasoning
     ? await callGenerateStream(prompt, systemPrompt, () => {}, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget, onReasoning)
@@ -1642,7 +1642,7 @@ Render every thread shift, world change, relationship delta, and system reveal i
 
 BEAT SIZING — EVEN WITHOUT A PLAN, THINK IN ~${WORDS_PER_BEAT}-WORD BEATS. The scene should read as a sequence of beats of roughly consistent weight — one beat ≈ one paragraph or tight scene moment, ≈${WORDS_PER_BEAT} words. This keeps rhythm even and propositions evenly distributed. No fixed floor, no padding — but if you find a single beat running past ~${WORDS_PER_BEAT * 2} words, it is probably two beats.
 
-OPENING TRANSITION — read the <time-gap> on the scene. The opening sentences must do the work the gap implies. A concurrent gap stays mid-action with no re-orientation. A few hours: a small sensory cue. Days/weeks: an orienting beat (light, weather, routine, an arriving message). Months/years: a kicker that anchors the new now — a montage paragraph, a season cue, an aged-up character description, a status-change reveal. Skipping the transition makes time jumps feel weightless.
+OPENING TRANSITION — read the <time-gap> on the scene. Good storytelling weaves the passage of time into narrative texture so the reader always feels it without ever reading it as a timestamp or log entry. The gap size shifts how visible the weaving is, not whether it happens. MINOR jumps (concurrent, hours, same-day, multi-day): texture only — a candle now lit, light fallen low, a chair pushed back, a character visibly tired. NEVER write "X hours later" or "the next morning,". NOTABLE jumps (multi-week): weave a clearer signal through weather, a finished task, a small status change. Still texture, not statement. MAJOR jumps (multi-month): weight the opening with a re-anchor — status update, changed season, healed wound, matured plan; naming the elapsed time directly is permitted here when it carries narrative force. GENERATIONAL jumps (year+): must be marked with weight — montage, aged-up description, environmental change. Underplaying a generational jump reads as continuity error.
 
 PROSE PROFILE COMPLIANCE: every sentence conforms to the declared voice, register, devices, and rules. If the profile forbids figures of speech, use zero. If it requires specific devices, use them.`;
 
@@ -1912,7 +1912,13 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           participants: validParticipants,
           openedAt: t.openedAt ?? scene.id,
           dependents: t.dependents ?? [],
-          threadLog: t.threadLog ?? { nodes: {}, edges: [] },
+          threadLog: {
+            // LLM may return malformed shapes (edges as object, nodes as
+            // array) — normalise to the canonical {nodes:{}, edges:[]}
+            // before downstream code touches it.
+            nodes: t.threadLog?.nodes && typeof t.threadLog.nodes === 'object' && !Array.isArray(t.threadLog.nodes) ? t.threadLog.nodes : {},
+            edges: Array.isArray(t.threadLog?.edges) ? t.threadLog.edges : [],
+          },
         };
       });
       for (const t of scene.newThreads) {

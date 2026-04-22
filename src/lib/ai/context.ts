@@ -969,7 +969,7 @@ export function sceneContext(
     ? `\n<world-state arc="${arc.name}" hint="Ground-truth compact state snapshot as of end of this arc. Reason from this position — it supersedes replaying prior deltas.">\n${arc.worldState}\n</world-state>`
     : '';
 
-  const timeGapBlock = `\n<time-gap hint="Time elapsed since the prior scene (estimate). Use this to shape opening beats, transitions, and scenery cues. Concurrent gaps stay mid-action; multi-day gaps need a kicker; multi-month/year gaps may want a montage or status-change reveal.">${describeTimeGap(scene.timeDelta)}</time-gap>`;
+  const timeGapBlock = `\n<time-gap hint="Time elapsed since the prior scene (estimate). Good storytelling weaves the passage of time into narrative texture — light, weather, wear, mood, what's changed — so the reader always FEELS time moving without ever reading it as a timestamp or log entry. Gap size shifts how visible the weaving is, not whether it happens. The description below indicates the band: texture-only (minor), woven cue (notable), or anchored re-orientation (major / generational).">${describeTimeGap(scene.timeDelta)}</time-gap>`;
 
   return `<scene id="${scene.id}" arc="${arc?.name ?? 'standalone'}" pov="${pov?.name ?? 'Unknown'}" location="${location?.name ?? 'Unknown'}">${worldStateBlock}
 <summary>${scene.summary}</summary>${timeGapBlock}

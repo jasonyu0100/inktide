@@ -97,42 +97,51 @@ export function formatCumulative(seconds: number): string {
   return "origin";
 }
 
-/** Human-readable description of the time gap into a scene, with
- *  storytelling guidance the planner and prose writer can act on. The gap
- *  shapes opening beats: concurrent scenes shouldn't re-establish setting,
- *  multi-week jumps need a kicker, year-scale gaps may want a montage.
+/** Human-readable description of the time gap into a scene.
+ *
+ *  Guiding principle: good storytelling weaves the passage of time into
+ *  narrative texture — light, weather, wear, mood, what's changed — so the
+ *  reader always FEELS time moving without ever reading it as a log entry
+ *  or timestamp. The size of the gap shifts how visible the weaving is, not
+ *  whether it happens:
+ *
+ *    concurrent / sub-hour / same-day → texture-only (no explicit marker)
+ *    multi-day / multi-week           → woven cue (light, weather, status)
+ *    multi-month                      → MAJOR — anchor explicitly
+ *    year+                            → GENERATIONAL — must mark with weight
+ *
  *  Surfaced through sceneContext so every downstream LLM call sees it. */
 export function describeTimeGap(d: TimeDelta | null | undefined): string {
   if (!d) {
     return "Unspecified — treat as ordinary scene continuity.";
   }
   if (d.value === 0) {
-    return "Concurrent or opening. Same moment as the prior scene (parallel POV / cutaway) OR the very first scene of the work. Do NOT re-establish setting from scratch; open mid-action or anchor the opening as the scene demands.";
+    return "Concurrent or opening — same moment as the prior scene (parallel POV / cutaway) OR the very first scene. No explicit time marker; let the prose continue uninterrupted.";
   }
   const seconds = timeDeltaToSeconds(d);
   const elapsed = formatTimeDelta(d);
-  // < 1 hour
+  // < 1 hour — texture-only
   if (seconds < 60 * 60) {
-    return `${elapsed} since the prior scene. Continuous time — same scene fabric, immediate continuation. Setting may shift to an adjacent space, but the day, weather, and emotional momentum carry over. No re-orientation beat needed.`;
+    return `${elapsed} since the prior scene. Continuous time. Weave any change through texture (a candle now lit, a chair pushed back, the conversation already further along) — never as a timestamp.`;
   }
-  // < 1 day
+  // < 1 day — texture-only
   if (seconds < 60 * 60 * 24) {
-    return `${elapsed} since the prior scene. Same day. Place may have changed; light, mood, or pace may have shifted. A brief sensory cue (light, sound, fatigue, hunger) anchors the new moment without a hard scene break.`;
+    return `${elapsed} since the prior scene. Same-day jump. Let the reader feel it through light, mood, fatigue, or hunger — woven into the opening, never announced. No "X hours later" log entries.`;
   }
-  // < 1 week
+  // < 1 week — woven cue
   if (seconds < 60 * 60 * 24 * 7) {
-    return `${elapsed} since the prior scene. Soft scene break — open with a short kicker that anchors the new day (weather, routine, an arriving message). Characters' emotional state may have settled; small status changes are plausible.`;
+    return `${elapsed} since the prior scene. Multi-day jump. Signal through narrative texture (weather changed, a character now visibly tired, a routine resumed, a message received) — woven, not announced. The reader should feel the gap, not be told.`;
   }
-  // < 1 month
+  // < 1 month — woven cue, more visible
   if (seconds < 60 * 60 * 24 * 30) {
-    return `${elapsed} since the prior scene. Significant gap. Setting may have visibly shifted (weather, season turning, project progress, healing wounds). Characters may have aged subtly; relationships have had time to evolve; promises and threats have ripened. Open with an orienting beat that signals the gap.`;
+    return `${elapsed} since the prior scene. Multi-week jump. Weave a clearer signal — a season turning, a project moved on, a wound healing, a habit settled. Still texture, not statement: the reader registers the elapsed time without being told a number.`;
   }
-  // < 1 year
+  // < 1 year — MAJOR
   if (seconds < 60 * 60 * 24 * 365) {
-    return `${elapsed} since the prior scene. Major gap. Status quo has shifted — wounds healed, plans matured, alliances tested, news spread. The world moved on without the reader. Open with a kicker that re-anchors the new now (a montage paragraph, a season cue, a status-change reveal).`;
+    return `${elapsed} since the prior scene. MAJOR jump — weight it. Open with a re-anchor: a status update, a changed season, a wound now scar, a plan now bearing fruit. Naming the elapsed time directly is permitted here when it carries narrative force ("By autumn, …").`;
   }
-  // ≥ 1 year
-  return `${elapsed} since the prior scene. Generational gap. Open with a strong anchor — a montage, an aged-up character description, an environmental change that visibly shows time has passed. Prior emotional momentum is mostly cool; reframe stakes for the new era before re-engaging the active threads.`;
+  // ≥ 1 year — GENERATIONAL
+  return `${elapsed} since the prior scene. GENERATIONAL jump — must be acknowledged with weight. A montage paragraph, an aged-up description, an environmental change that visibly shows time has passed. The reader needs to feel the years; understatement here reads as a continuity error.`;
 }
 
 /** Compute cumulative seconds-from-origin for a sequence of scenes in branch

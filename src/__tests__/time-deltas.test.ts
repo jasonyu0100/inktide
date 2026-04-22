@@ -157,46 +157,46 @@ describe("describeTimeGap", () => {
     expect(describeTimeGap(undefined)).toMatch(/unspecified/i);
   });
 
-  test("value 0 frames the scene as concurrent or opening", () => {
+  test("value 0 (concurrent / opening) frames as continuous — no time marker", () => {
     const text = describeTimeGap({ value: 0, unit: "minute" });
     expect(text).toMatch(/concurrent|opening/i);
-    expect(text).toMatch(/do NOT re-establish/i);
+    expect(text).toMatch(/no explicit time marker|uninterrupted/i);
   });
 
-  test("sub-hour gaps describe continuous time", () => {
-    expect(describeTimeGap({ value: 30, unit: "minute" })).toMatch(
-      /continuous|immediate continuation/i,
-    );
+  test("sub-hour gaps are texture-only — never timestamps", () => {
+    const text = describeTimeGap({ value: 30, unit: "minute" });
+    expect(text).toMatch(/continuous time/i);
+    expect(text).toMatch(/texture|never as a timestamp/i);
   });
 
-  test("same-day gaps suggest a sensory cue", () => {
-    expect(describeTimeGap({ value: 6, unit: "hour" })).toMatch(
-      /same day|sensory cue/i,
-    );
+  test("same-day gaps weave through light / mood — no announced time", () => {
+    const text = describeTimeGap({ value: 6, unit: "hour" });
+    expect(text).toMatch(/same-day/i);
+    expect(text).toMatch(/woven|never announced|no.*log/i);
   });
 
-  test("multi-day gaps suggest a soft scene break / kicker", () => {
-    expect(describeTimeGap({ value: 3, unit: "day" })).toMatch(
-      /scene break|kicker/i,
-    );
+  test("multi-day gaps signal through narrative texture, not announcement", () => {
+    const text = describeTimeGap({ value: 3, unit: "day" });
+    expect(text).toMatch(/multi-day/i);
+    expect(text).toMatch(/woven|texture|not announced/i);
   });
 
-  test("multi-week gaps mention orienting beat", () => {
-    expect(describeTimeGap({ value: 2, unit: "week" })).toMatch(
-      /orienting beat/i,
-    );
+  test("multi-week gaps weave a clearer signal but still texture", () => {
+    const text = describeTimeGap({ value: 2, unit: "week" });
+    expect(text).toMatch(/multi-week/i);
+    expect(text).toMatch(/texture|not statement|registers/i);
   });
 
-  test("multi-month gaps suggest re-anchoring the new now", () => {
-    expect(describeTimeGap({ value: 6, unit: "month" })).toMatch(
-      /major gap|re-anchor|status-change/i,
-    );
+  test("multi-month gaps are MAJOR — re-anchor and may name the time directly", () => {
+    const text = describeTimeGap({ value: 6, unit: "month" });
+    expect(text).toMatch(/major/i);
+    expect(text).toMatch(/re-anchor|naming the elapsed time|status update/i);
   });
 
-  test("year-scale gaps suggest a montage or generational anchor", () => {
-    expect(describeTimeGap({ value: 5, unit: "year" })).toMatch(
-      /generational|montage/i,
-    );
+  test("year-scale gaps are GENERATIONAL — must be acknowledged with weight", () => {
+    const text = describeTimeGap({ value: 5, unit: "year" });
+    expect(text).toMatch(/generational/i);
+    expect(text).toMatch(/montage|aged-up|continuity error/i);
   });
 
   test("includes the formatted elapsed time in non-null cases", () => {

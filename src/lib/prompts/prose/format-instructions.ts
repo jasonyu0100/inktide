@@ -11,13 +11,24 @@ export type FormatInstructionSet = {
   formatRules: string;
 };
 
+/** Plan-driven rendering rules — shared across all prose formats. Plan and
+ *  prose are two stages working together: the plan scaffolds each beat's
+ *  mechanism in its 'what' field, and the prose writer must deliver on BOTH
+ *  the facts (propositions) AND the mechanism (the rendering the scaffold
+ *  sets up). Skipping the scaffold drifts the voice. */
+const MECHANISM_DELIVERY = `- DELIVER ON THE PLAN'S MECHANISM SCAFFOLD. Each beat's 'what' is mechanism-aware: a dialogue beat's 'what' names participants / subject / tension; an action beat's 'what' names physical events and actors; an environment beat's 'what' names sensory elements; etc. Your job is to render the beat IN ITS MECHANISM, using the scaffold as the structural skeleton and the beat's propositions as the facts to land. Do not substitute the mechanism — a dialogue beat must produce dialogue, not summary; an action beat must produce bodied action, not commentary. Don't invent facts the scaffold doesn't license; don't strip scaffolding the plan gave you.`;
+
+const DIALOGUE_RENDERING = `- DIALOGUE RENDERING: prefer QUOTED SPEECH as the default. Dialogue beats render as direct spoken lines with attribution and non-verbal business (e.g. \`"I'm not going," she said, not looking up.\`) — not paraphrase or reported speech. Quoted speech makes prose feel alive. Non-quoted rendering (free-indirect, reported, choral) is reserved for when the prose profile explicitly declares a non-quoted register (analytical, essayistic, oral-epic). Dialogue is PARTICIPANT-AWARE: each line is spoken by a named character from the beat's participants to a specific audience drawn from that list, and characters react to each other's actual words — not to abstractions. Read the beat's 'what' for the SUBJECT and TENSION and let quoted lines expose them. SMALL TALK IS WELCOME: greetings, mundane observations, off-topic asides, the texture of people being in a room together. Not every exchange has to land a plot beat; quiet human talk is what makes a scene feel lived-in rather than efficient.`;
+
 /** Shared between meta + simulation overlay formats: both produce fluid prose
  *  interleaved with bracketed observations/logs. The prose rules and the
  *  bracket-grammar are identical; only the type enums + discipline differ. */
 const OVERLAY_PROSE_RULES = `PROSE (the non-overlay text)
 - The prose portion honours the declared PROSE PROFILE in full — register, voice, stance, devices, sentence rhythm, anti-patterns. The overlay does not relax profile compliance or alter the authorial voice.
 - Write the prose as if there were no overlay; layer observations on top as a separate track. The prose does not narrate what observations say, and observations do not rephrase the prose.
-- Use straight quotes (" and '), never smart/curly quotes.`;
+- Use straight quotes (" and '), never smart/curly quotes.
+${MECHANISM_DELIVERY}
+${DIALOGUE_RENDERING}`;
 
 const OVERLAY_GRAMMAR = `Strict grammar (the UI parses these):
 
@@ -36,7 +47,9 @@ export const FORMAT_INSTRUCTIONS: Record<ProseFormat, FormatInstructionSet> = {
 - Output ONLY prose. No scene titles, part/chapter headers, separators (---), or meta-commentary.
 - Use straight quotes (" and '), never smart/curly quotes or typographic substitutions.
 - POV is dictated by the narrative's register — close third for most fiction, first-person for memoir, authorial third for essay/reportage/research. Lock to that POV's senses, reasoning, or evidentiary frame.
-- Prose in dramatic registers tends to work through action, dialogue, and sensory texture; prose in analytical or reflective registers works through specific particulars (evidence, citation, named image, lived detail). Follow the register declared in the prose profile rather than a default.`,
+- Prose in dramatic registers tends to work through action, dialogue, and sensory texture; prose in analytical or reflective registers works through specific particulars (evidence, citation, named image, lived detail). Follow the register declared in the prose profile rather than a default.
+${MECHANISM_DELIVERY}
+${DIALOGUE_RENDERING}`,
   },
   screenplay: {
     systemRole: 'You are a professional screenwriter writing in industry-standard screenplay format.',

@@ -869,31 +869,33 @@ export default function SceneDetail({ sceneId }: Props) {
             return (km.addedNodes ?? []).map((node, nIdx) => (
               <div
                 key={`${km.entityId}-${node.id}-${kmIdx}-${nIdx}`}
-                className="flex flex-col gap-0.5 text-xs"
+                className="flex items-start gap-1.5 text-xs"
               >
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      isChar &&
-                      dispatch({
-                        type: "SET_INSPECTOR",
-                        context: {
-                          type: "character",
-                          characterId: km.entityId,
-                        },
-                      })
-                    }
-                    className="text-text-primary transition-colors hover:underline"
-                  >
-                    {entityName}
-                  </button>
-                  <span className="text-world">+</span>
-                  <span className="font-mono text-[10px] text-text-dim">
-                    {node.id}
-                  </span>
+                <span className="shrink-0 text-world">+</span>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isChar &&
+                        dispatch({
+                          type: "SET_INSPECTOR",
+                          context: {
+                            type: "character",
+                            characterId: km.entityId,
+                          },
+                        })
+                      }
+                      className="text-text-primary transition-colors hover:underline"
+                    >
+                      {entityName}
+                    </button>
+                    <span className="font-mono text-[10px] text-text-dim">
+                      {node.id}
+                    </span>
+                  </div>
+                  <span className="text-text-secondary">{node.content}</span>
                 </div>
-                <span className="text-text-secondary pl-2">{node.content}</span>
               </div>
             ));
           })}
@@ -1060,11 +1062,13 @@ export default function SceneDetail({ sceneId }: Props) {
             {(scene.systemDeltas.addedNodes ?? []).map((node, i) => (
               <div
                 key={`wk-node-${node.id}-${i}`}
-                className="flex items-center gap-1.5 text-xs"
+                className="flex items-start gap-1.5 text-xs"
               >
-                <span className="text-world">+</span>
-                <span className="text-text-primary">{node.concept}</span>
-                <span className="text-[10px] text-text-dim">({node.type})</span>
+                <span className="shrink-0 text-world">+</span>
+                <span className="min-w-0 text-text-primary">
+                  {node.concept}{' '}
+                  <span className="text-[10px] text-text-dim">({node.type})</span>
+                </span>
               </div>
             ))}
             {(scene.systemDeltas.addedEdges ?? []).map((edge, i) => {

@@ -599,12 +599,13 @@ export default function CharacterDetail({ characterId }: Props) {
                       ))}
                       {worldDeltas.flatMap((km, kmIdx) =>
                         (km.addedNodes ?? []).map((node, nIdx) => (
-                          <span
+                          <div
                             key={`${node.id}-${kmIdx}-${nIdx}`}
-                            className="text-xs text-text-secondary"
+                            className="flex items-start gap-1.5 text-xs text-text-secondary"
                           >
-                            <span className="text-world">+</span> {node.content}
-                          </span>
+                            <span className="shrink-0 text-world">+</span>
+                            <span className="min-w-0">{node.content}</span>
+                          </div>
                         )),
                       )}
                       {relationshipDeltas.map((rm, rmIdx) => {

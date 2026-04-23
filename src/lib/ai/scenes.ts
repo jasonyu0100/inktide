@@ -770,16 +770,30 @@ async function constructBeatPlan(
     ? `PREVIOUS SCENE ends with: ${prevPlan.beats.slice(-3).map((b) => `[${b.fn}:${b.mechanism}] ${b.what}`).join(', ')}`
     : '';
 
-  // Optional Markov beat sequence — when the narrative has a sampler, use it
-  // as a rhythm hint. When it doesn't, let the LLM compose freely using the
-  // full beat-function + mechanism taxonomy (shipped in the system prompt).
-  const beatSequenceHint = (() => {
-    if (storySettings.useBeatChain === false) return '';
+  // FIXED BEAT SLOTS — the sampler deterministically assigns the (fn, mechanism)
+  // pair for every beat in the plan. The LLM only fills `what` and
+  // `propositions` per slot; it does NOT pick fn or mechanism. This is how the
+  // story's voice (the mechanism mix) becomes enforceable rather than
+  // aspirational — the sampler owns rhythm, the LLM owns content. The fallback
+  // path (`useBeatChain=false`) returns no slots and keeps the LLM free.
+  //
+  // We over-sample a generous number of slots so the LLM has room to pack as
+  // many propositions as needed. Slots beyond what the LLM uses are silently
+  // dropped; if the LLM needs more than we sampled, we'll extend server-side
+  // during post-generation normalization.
+  const sampledSlots = (() => {
+    if (storySettings.useBeatChain === false) return null;
     const sampler = resolveSampler(narrative);
-    if (!sampler) return '';
-    const suggested = Math.max(3, Math.min(compulsoryPropositions.length, 10));
-    const sampled = sampleBeatSequence(sampler, suggested, prevPlan?.beats?.at(-1)?.fn);
-    return `\nSUGGESTED BEAT RHYTHM (${suggested} beats — use as a pacing hint, deviate when the scene calls for it):\n${sampled.map((b, i) => `  ${i + 1}. ${b.fn}:${b.mechanism}`).join('\n')}\n`;
+    if (!sampler) return null;
+    const propCount = compulsoryPropositions.length;
+    const suggested = Math.max(6, Math.min(Math.ceil(propCount * 1.5), 18));
+    return sampleBeatSequence(sampler, suggested, prevPlan?.beats?.at(-1)?.fn);
+  })();
+
+  const beatSlotsBlock = (() => {
+    if (!sampledSlots || sampledSlots.length === 0) return '';
+    const lines = sampledSlots.map((b, i) => `  Slot ${i + 1}: ${b.fn}:${b.mechanism}`);
+    return `\nFIXED BEAT SLOTS — the sampler has pre-assigned each beat's \`fn\` and \`mechanism\`. These are the story's voice and are NOT negotiable:\n${lines.join('\n')}\n\nYour job per beat is to fill in \`what\` and \`propositions\` only. DO NOT change \`fn\` or \`mechanism\` — copy them verbatim from the slot into each beat's output. Use slots in order (slot 1 = beat 1, slot 2 = beat 2, ...). If your content fits in fewer beats than slots provided, stop early; trailing slots are discarded. If a mechanism seems to clash with the scene (e.g. \`dialogue\` in a solitary POV), render it creatively within that mechanism (interior monologue spoken aloud, muttered side-remark, conversation with an absent party) rather than substituting — the mix is the voice, and every substitution drifts the voice. Structural exceptions are a last resort, not a default.\n`;
   })();
 
   const compulsoryBlock = compulsoryPropositions.length > 0
@@ -801,7 +815,7 @@ ${compulsoryPropositions
       .join('\n')}\n`
     : '';
 
-  const profileBlock = `\n${buildProseProfile(resolveProfile(narrative))}${beatSequenceHint}\n`;
+  const profileBlock = `\n${buildProseProfile(resolveProfile(narrative))}${beatSlotsBlock}\n`;
   const systemPrompt = buildScenePlanSystemPrompt()
     + (() => {
       const parts = [narrative.storySettings?.planGuidance?.trim(), guidance?.trim()].filter(Boolean);
@@ -822,12 +836,38 @@ OPENING SHAPE — check the <time-gap> on the scene. Good storytelling weaves th
     : await callGenerate(prompt, systemPrompt, MAX_TOKENS_SMALL, 'generateScenePlan', GENERATE_MODEL, reasoningBudget);
 
   const parsed = parseJson(raw, 'generateScenePlan') as { beats?: unknown[] };
-  const beats = (parsed.beats ?? []).map((b: unknown) => {
+  const rawBeats = parsed.beats ?? [];
+
+  // If deterministic slots are active, the sampler OWNS fn + mechanism. Extend
+  // the sample if the LLM returned more beats than we pre-sampled so every
+  // emitted beat still has a sampler-assigned slot. The LLM is only allowed to
+  // author `what` + `propositions`; anything it wrote for `fn` / `mechanism`
+  // is discarded in favour of the slot. This is the enforcement step that
+  // makes the story's voice (mechanism distribution) actually deterministic.
+  let slots = sampledSlots;
+  if (slots && rawBeats.length > slots.length) {
+    const sampler = resolveSampler(narrative);
+    const extra = sampleBeatSequence(
+      sampler,
+      rawBeats.length - slots.length,
+      slots[slots.length - 1]?.fn ?? prevPlan?.beats?.at(-1)?.fn,
+    );
+    slots = [...slots, ...extra];
+  }
+
+  const beats = rawBeats.map((b: unknown, i: number) => {
     const beat = b as Record<string, unknown>;
     const rawProps = Array.isArray(beat.propositions) ? beat.propositions : [];
+    const slot = slots?.[i];
+    const fn = slot
+      ? slot.fn
+      : ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'];
+    const mechanism = slot
+      ? slot.mechanism
+      : ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'];
     return {
-      fn: ((BEAT_FN_LIST as readonly string[]).includes(String(beat.fn)) ? beat.fn : 'advance') as BeatPlan['beats'][0]['fn'],
-      mechanism: ((BEAT_MECHANISM_LIST as readonly string[]).includes(String(beat.mechanism)) ? beat.mechanism : 'action') as BeatPlan['beats'][0]['mechanism'],
+      fn: fn as BeatPlan['beats'][0]['fn'],
+      mechanism: mechanism as BeatPlan['beats'][0]['mechanism'],
       what: String(beat.what ?? ''),
       propositions: parsePropositions(rawProps),
       embeddingCentroid: undefined as string | undefined,

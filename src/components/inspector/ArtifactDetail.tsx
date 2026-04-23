@@ -224,10 +224,13 @@ export default function ArtifactDetail({ artifactId }: Props) {
                   ))}
                   {worldMuts.flatMap((km, kmIdx) =>
                     (km.addedNodes ?? []).map((node, nIdx) => (
-                      <span key={`${km.entityId}-${node.id}-${kmIdx}-${nIdx}`} className="text-xs text-text-secondary">
-                        <span className="text-world">+</span>{' '}
-                        {node.content}
-                      </span>
+                      <div
+                        key={`${km.entityId}-${node.id}-${kmIdx}-${nIdx}`}
+                        className="flex items-start gap-1.5 text-xs text-text-secondary"
+                      >
+                        <span className="shrink-0 text-world">+</span>
+                        <span className="min-w-0">{node.content}</span>
+                      </div>
                     ))
                   )}
                   {ownershipDeltas.map((om, omIdx) => {

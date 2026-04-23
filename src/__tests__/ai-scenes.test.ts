@@ -72,12 +72,26 @@ vi.mock("@/lib/beat-profiles", () => ({
   }),
   resolveSampler: vi.fn().mockReturnValue({
     beatsPerKWord: 12,
+    markov: {},
+    fnMechanismDistribution: {},
   }),
   sampleBeatSequence: vi.fn().mockReturnValue([
     { fn: "breathe", mechanism: "environment" },
     { fn: "advance", mechanism: "action" },
     { fn: "turn", mechanism: "dialogue" },
   ]),
+  DEFAULT_FN_MECHANISM_DIST: {
+    breathe: { environment: 0.5, narration: 0.3, dialogue: 0.2 },
+    inform: { dialogue: 0.5, narration: 0.3, thought: 0.2 },
+    advance: { action: 0.4, dialogue: 0.4, narration: 0.2 },
+    bond: { dialogue: 0.6, action: 0.2, thought: 0.2 },
+    turn: { dialogue: 0.4, action: 0.4, narration: 0.2 },
+    reveal: { action: 0.5, dialogue: 0.3, thought: 0.2 },
+    shift: { dialogue: 0.4, action: 0.4, thought: 0.2 },
+    expand: { narration: 0.5, dialogue: 0.3, document: 0.2 },
+    foreshadow: { environment: 0.4, dialogue: 0.3, narration: 0.3 },
+    resolve: { dialogue: 0.4, action: 0.4, narration: 0.2 },
+  },
 }));
 // Mock embeddings module — dynamic imports in ai/scenes.ts would otherwise
 // hit a real fetch('/api/embeddings') which fails with Invalid URL in the

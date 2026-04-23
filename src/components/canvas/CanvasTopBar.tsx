@@ -12,6 +12,7 @@ import { buildSequentialPath } from '@/lib/ai';
 import { CopyButton } from '@/components/shared/CopyButton';
 import { exportGraphView, graphViewLabel, isExportableGraphMode } from '@/lib/graph-export';
 import { exportMarketSnapshot } from '@/lib/market-export';
+import { exportScenePlan, exportSceneProse } from '@/lib/scene-export';
 
 const GRAPH_DOMAINS = [
   {
@@ -582,6 +583,28 @@ export function CanvasTopBar() {
           )}
           {!planStats && <span className="text-[9px] text-text-dim/30">No plan</span>}
 
+          {/* Copy current plan as Markdown */}
+          {narrative && currentScene && branchId && planStats && (
+            <>
+              <div className="w-px h-3 bg-border ml-1" />
+              <CopyButton
+                label="Copy Plan"
+                title="Copy plan as Markdown"
+                getText={() =>
+                  exportScenePlan({
+                    narrative,
+                    scene: currentScene,
+                    branchId,
+                    sceneNumber: sceneNav.currentSceneNum,
+                    totalScenes: sceneNav.total,
+                    planVersion: currentPlanVersion,
+                  })
+                }
+                className="text-[10px] px-2 py-0.5 rounded text-text-dim hover:text-text-primary hover:bg-white/5 transition-colors"
+              />
+            </>
+          )}
+
           {/* Regenerate Embeddings button (plan mode only) */}
           {narrative && (
             <>
@@ -633,6 +656,28 @@ export function CanvasTopBar() {
           )}
           {!proseStats && planStats && <span className="text-[9px] text-text-dim/30">Not written</span>}
           {!proseStats && !planStats && <span className="text-[9px] text-text-dim/30">No plan</span>}
+
+          {/* Copy current prose as Markdown */}
+          {narrative && currentScene && branchId && proseStats && (
+            <>
+              <div className="w-px h-3 bg-border ml-1" />
+              <CopyButton
+                label="Copy Prose"
+                title="Copy prose as Markdown"
+                getText={() =>
+                  exportSceneProse({
+                    narrative,
+                    scene: currentScene,
+                    branchId,
+                    sceneNumber: sceneNav.currentSceneNum,
+                    totalScenes: sceneNav.total,
+                    proseVersion: currentProseVersion,
+                  })
+                }
+                className="text-[10px] px-2 py-0.5 rounded text-text-dim hover:text-text-primary hover:bg-white/5 transition-colors"
+              />
+            </>
+          )}
 
           {/* Beat plan toggle (only when beat mapping exists) */}
           {showBeatPlanToggle && (

@@ -26,13 +26,9 @@ import type { ReasoningSize, NetworkBias } from './ForcePreferencePicker';
  *                                        — premise passed 4 axes)
  *                            abduction → solid rect, single halo (fate
  *                                        terminal, committed)
- *                            induction → dashed rect + SECOND dashed-
- *                                        but-never-filled ghost next to
- *                                        it (retained-alternative cue —
- *                                        at least one competing
- *                                        generalisation survives). The
- *                                        primary rect fills in at the
- *                                        end of phase 3.
+ *                            induction → dashed rect that fills in at
+ *                                        the end of phase 3 (the
+ *                                        inferred principle committing).
  *
  *   PHASE 3 — BUILDING     Vertical layered reasoning graph:
  *                            divergent → seed → branches → leaves (3 layers,
@@ -469,27 +465,6 @@ function drawObjective(
       .attr('stroke-opacity', 0.45);
   }
 
-  // Induction: retained-alternative ghost — a smaller dashed rect next to the
-  // main principle that stays dashed and never fills in. Encodes pattern-
-  // alternative retention (the "don't collapse to first fit" axis): at least
-  // one competing generalisation must exist alongside the winning principle.
-  if (isInduction) {
-    const altW = 28, altH = 10;
-    const altX = x + node.w + 6;
-    const altY = node.y - altH / 2;
-    fg.append('rect')
-      .attr('class', 'objective-alt')
-      .attr('x', altX).attr('y', altY)
-      .attr('width', altW).attr('height', altH)
-      .attr('rx', 2)
-      .attr('fill', 'transparent')
-      .attr('stroke', palette.stroke)
-      .attr('stroke-width', 0.8)
-      .attr('stroke-opacity', 0)
-      .attr('stroke-dasharray', '2,2')
-      .transition().delay(120).duration(280).ease(d3.easeCubicOut)
-      .attr('stroke-opacity', 0.45);
-  }
 }
 
 function fillInObjective(

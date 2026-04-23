@@ -1,7 +1,9 @@
 "use client";
 
 import { ARCHETYPE_COLORS, ArchetypeIcon } from "@/components/ArchetypeIcon";
+import { ThinkingAnimation } from "@/components/generation/ThinkingAnimation";
 import { REASONING_NODE_COLORS } from "@/lib/reasoning-node-colors";
+import type { ReasoningMode } from "@/lib/ai/reasoning-graph/types";
 import * as d3 from "d3";
 import dagre from "dagre";
 import katex from "katex";
@@ -301,6 +303,69 @@ function ReasoningGraphDiagram() {
         })}
       </svg>
     </div>
+  );
+}
+
+/* ── Thinking-mode explorer ──────────────────────────────────────────────── */
+
+const THINKING_MODES: {
+  key: ReasoningMode;
+  label: string;
+  color: string;
+}[] = [
+  { key: "abduction", label: "Abduction", color: "#F97316" },
+  { key: "divergent", label: "Divergent", color: "#FBBF24" },
+  { key: "deduction", label: "Deduction", color: "#A855F7" },
+  { key: "induction", label: "Induction", color: "#22D3EE" },
+];
+
+function ThinkingModeExplorer() {
+  const [mode, setMode] = useState<ReasoningMode>("abduction");
+
+  return (
+    <figure className="mt-6 mb-6">
+      {/* Mode selector — minimal row of pills */}
+      <div className="flex flex-wrap items-center justify-center gap-1.5 mb-4">
+        {THINKING_MODES.map((m) => {
+          const isActive = mode === m.key;
+          return (
+            <button
+              key={m.key}
+              type="button"
+              onClick={() => setMode(m.key)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] transition ${
+                isActive
+                  ? "bg-white/[0.06] text-white/85"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full transition-all"
+                style={{
+                  backgroundColor: m.color,
+                  opacity: isActive ? 1 : 0.5,
+                  boxShadow: isActive ? `0 0 8px ${m.color}` : "none",
+                }}
+              />
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Animation stage — clean, minimal. Keyed on mode so switching remounts. */}
+      <div className="flex justify-center items-center bg-black/30 rounded-lg py-3">
+        <ThinkingAnimation
+          key={mode}
+          mode={mode}
+          force="freeform"
+          size="medium"
+          networkBias="neutral"
+          width={460}
+          height={240}
+        />
+      </div>
+    </figure>
   );
 }
 
@@ -884,7 +949,7 @@ const NAV = [
   { id: "grading", label: "Grading" },
   { id: "embeddings", label: "Embeddings" },
   { id: "planning", label: "Causal Reasoning" },
-  { id: "mcts", label: "MCTS" },
+  { id: "research", label: "Research Methods" },
   { id: "prose-profiles", label: "Prose Profiles" },
   { id: "markov", label: "Markov Chains" },
   { id: "revision", label: "Revision" },
@@ -2263,108 +2328,207 @@ export default function PaperPage() {
               each arc. It worked, but it lost the structure readers actually
               track. We replace it with a <B>causal reasoning graph</B>: an
               explicit, typed graph of what must happen and why, built for
-              each arc before any scene is generated.
+              each arc before any scene is generated. The node and edge
+              taxonomy — eight node types across pressure, substrate, and
+              bridge tiers, plus eight edge types — is enumerated in the{" "}
+              <a href="#classification" className="text-accent hover:underline">
+                Classification
+              </a>{" "}
+              section.
             </P>
 
-            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
-              The Taxonomy
+            <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
+              Thinking Modes
             </h3>
             <P>
-              Eight node types in three tiers: <B>pressure</B> (fate, warning)
-              forces change; <B>substrate</B> (character, location, artifact,
-              system) is what&apos;s changed; <B>bridge</B> (reasoning,
-              pattern) connects them.
+              <em>How</em> the graph is built is as structural a choice as
+              what&rsquo;s in it. Four modes cover the 2&times;2 of{" "}
+              <B>direction</B> (forward from a premise ↔ backward from an
+              outcome) and <B>scope</B> (selective — commit to one ↔
+              expansive — keep many). Click through the animation below to
+              see each mode&rsquo;s distinct shape; the prose then unpacks
+              how each actually builds a graph.
             </P>
-            <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+
+            {/* ── Interactive thinking-mode animation ─────────────── */}
+            <ThinkingModeExplorer />
+
+            <div className="mt-6 space-y-5">
               {[
                 {
-                  name: "fate",
-                  color: "#EF4444",
-                  body: "a thread's gravitational pull — what must resolve, and in which direction",
+                  name: "Abduction",
+                  caption: "backward · selective",
+                  color: "#F97316",
+                  note: "default",
+                  body: (
+                    <>
+                      Start from what the arc must end at — a thread
+                      resolution, a character turn, a payoff — and ask{" "}
+                      <em>
+                        which hypothesis, among competitors, best produces
+                        this?
+                      </em>{" "}
+                      The engine generates several candidate causal chains
+                      in parallel, then commits to the strongest. The
+                      animation shows this as multiple lanes converging
+                      upward on a fate terminal at top — one bright
+                      (selected), the rest dim (rejected). Arcs have
+                      targets; the question abduction answers is the{" "}
+                      <B>most satisfying route</B> to one. The drift risk
+                      is silent — once the first prior commits, abduction
+                      can flip into deduction and stop considering
+                      alternatives. Anchor discipline forces the engine to
+                      keep the rejected lanes visible as it builds.
+                    </>
+                  ),
                 },
                 {
-                  name: "reasoning",
+                  name: "Divergent",
+                  caption: "forward · expansive",
+                  color: "#FBBF24",
+                  body: (
+                    <>
+                      Start from one source — an entity, an event, a thread
+                      — and branch into many possibilities without
+                      committing. Each branch grows leaves; a final check
+                      asks which leaf-pairs are{" "}
+                      <B>mutually exclusive</B> (a character cannot both
+                      die and inherit, a rule cannot both hold and break).
+                      The animation shows a tree growing downward with a
+                      dashed red edge marking one such pair. Divergent is
+                      the mode for <B>world expansion</B> and collision
+                      discovery — when the goal is to find surprising
+                      adjacencies rather than derive a specific outcome,
+                      and when the failure mode of abduction (committing
+                      too early) needs to be avoided.
+                    </>
+                  ),
+                },
+                {
+                  name: "Deduction",
+                  caption: "forward · narrow",
                   color: "#A855F7",
-                  body: "a logical step connecting what fate needs to what entities can supply",
+                  body: (
+                    <>
+                      Given a premise, derive the{" "}
+                      <em>single necessary consequence</em> at each step.
+                      The chain is deep and straight — no branching, no
+                      alternatives. The animation shows a rigid vertical
+                      chain; the premise carries a persistent outer halo,
+                      a validated-premise signal. If branching ever
+                      appears, the mode has drifted into divergent and
+                      must correct. Deduction is the mode for arcs where
+                      the premise{" "}
+                      <B>fully determines the outcome</B> — siege
+                      logistics, inheritance politics, the endgame of a
+                      trap the protagonist has already walked into.
+                    </>
+                  ),
                 },
                 {
-                  name: "character",
-                  color: "#22C55E",
-                  body: "an active agent whose position, knowledge, or relationships move the arc",
-                },
-                {
-                  name: "location",
+                  name: "Induction",
+                  caption: "backward · generalising",
                   color: "#22D3EE",
-                  body: "a setting that enables or constrains what can happen",
+                  body: (
+                    <>
+                      Many observations → inferred principle. The engine
+                      collects a set of prior events or scenes and asks:{" "}
+                      <em>what pattern underlies these?</em> The answer is
+                      promoted to a principle-level claim that governs
+                      future scenes. The animation shows a wide fan of
+                      observations pointing upward to a single principle,
+                      with a dashed ghost alongside — at least one{" "}
+                      <B>competing generalisation</B> survives as a live
+                      alternative. Useful for backfilling worldbuilding
+                      from accumulated events, or surfacing a thematic
+                      claim the prose has been enacting implicitly.
+                    </>
+                  ),
                 },
-                {
-                  name: "artifact",
-                  color: "#F59E0B",
-                  body: "an object whose presence, transfer, or loss carries narrative weight",
-                },
-                {
-                  name: "system",
-                  color: "#3B82F6",
-                  body: "a rule of the world — magic, economics, social norm — that shapes action",
-                },
-                {
-                  name: "pattern",
-                  color: "#84CC16",
-                  body: "an expansion agent — unexpected collisions, emergent properties, creative surprise",
-                },
-                {
-                  name: "warning",
-                  color: "#F43F5E",
-                  body: "a subversion agent — predictable trajectories or unpaid costs to disrupt",
-                },
-              ].map(({ name, color, body }) => (
-                <div
-                  key={name}
-                  className="rounded-lg bg-white/[0.03] border border-white/6 px-3 py-2"
-                >
-                  <span
-                    className="uppercase tracking-wider font-mono text-[10px] mr-2"
-                    style={{ color }}
-                  >
-                    {name}
-                  </span>
-                  <span className="text-white/55">{body}</span>
+              ].map(({ name, caption, color, body, note }) => (
+                <div key={name} className="flex gap-3">
+                  <div
+                    className="shrink-0 w-0.5 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span
+                        className="font-semibold text-[13px]"
+                        style={{ color }}
+                      >
+                        {name}
+                      </span>
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-white/35">
+                        {caption}
+                      </span>
+                      {note && (
+                        <span className="font-mono text-[9px] uppercase tracking-wider text-white/55 px-1.5 py-0.5 rounded bg-white/[0.06]">
+                          {note}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[12.5px] text-white/55 leading-[1.75]">
+                      {body}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
+
             <P>
-              Edges are equally typed: <B>requires</B>, <B>enables</B>,{" "}
-              <B>constrains</B>, <B>risks</B>, <B>causes</B>, <B>reveals</B>,{" "}
-              <B>develops</B>, <B>resolves</B>. <em>Requires</em> is the
-              workhorse — the &ldquo;what must be true for this to
-              happen&rdquo; relation that backward reasoning chases.
+              Two further knobs shape the palette: <B>force preference</B>{" "}
+              (fate / world / system / chaos / freeform) weights the
+              node-kind mix, and <B>network bias</B> (inside / neutral /
+              outside) tilts activation toward hot-recurring or cold-fresh
+              entities. Each new arc also receives the <em>previous</em>{" "}
+              arc&rsquo;s graph with a divergence directive — commitments
+              must differ in kind, the reasoning chain must switch modes —
+              so successive arcs don&rsquo;t re-describe the same causal
+              spine.
             </P>
 
-            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
-              Backward Reasoning
+            <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
+              The Graph
             </h3>
             <P>
-              Generation does not start from the current scene asking
-              &ldquo;what happens next?&rdquo; It starts from <B>fate</B> —
-              the threads the story owes the reader — and asks{" "}
-              <em>what would have to be true for these threads to advance?</em>{" "}
-              Each answer becomes a reasoning node, which pulls in the entities
-              that can fulfil it. Pattern and warning nodes inject in parallel:
-              patterns push for unexpected collisions, warnings flag the
-              predictable path so the arc doesn&apos;t take it.
+              Whatever the mode, the object produced is the same: a small
+              typed graph. In the default abductive pass, generation does
+              not start from the current scene asking &ldquo;what happens
+              next?&rdquo; It starts from <B>fate</B> — the threads the
+              story owes the reader — and asks{" "}
+              <em>
+                what would have to be true for these threads to advance?
+              </em>{" "}
+              Each answer becomes a reasoning node, which pulls in the
+              entities that can fulfil it. Pattern and warning nodes
+              inject in parallel — patterns push for unexpected
+              collisions, warnings flag the predictable path so the arc
+              doesn&apos;t take it.
             </P>
             <P>
+              Edges carry equal semantic weight. <em>Requires</em> is the
+              workhorse (&ldquo;what must be true for this to
+              happen&rdquo;), joined by <em>enables</em>,{" "}
+              <em>constrains</em>, <em>risks</em>, <em>causes</em>,{" "}
+              <em>reveals</em>, <em>develops</em>, and <em>resolves</em>.
               The result is a small causal graph — typically 8–20 nodes per
-              arc — that the LLM walks as it generates. Scenes <em>execute</em>{" "}
-              the graph; threads advance because an entity was forced to
-              decide, not because the prompt said so.
+              arc — that the LLM walks as it generates. Scenes{" "}
+              <em>execute</em> the graph; threads advance because an entity
+              was forced to decide, not because the prompt said so.
             </P>
-
-            {/* ── Reasoning graph diagram ───────────────────────────── */}
+            <P>
+              Below, a worked example: a causal reasoning graph built for
+              a single arc. Fate nodes sit at the top (the threads the arc
+              owes the reader), reasoning nodes bridge downward, and
+              character / location / artifact / system nodes ground the
+              chain in specifics. A pattern node and a warning node inject
+              sideways — one pushing for unexpected collision, one
+              flagging the predictable path to route around.
+            </P>
             <ReasoningGraphDiagram />
 
-
-            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
+            <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
               World Expansion
             </h3>
             <P>
@@ -2378,87 +2542,72 @@ export default function PaperPage() {
             </P>
           </Section>
 
-          {/* ── MCTS ──────────────────────────────────────────────────── */}
-          <Section id="mcts" label="MCTS">
+          {/* ── Research Methods ──────────────────────────────────────── */}
+          <Section id="research" label="Research Methods">
             <P>
-              <em>
-                This section describes implemented architecture, not validated
-                results. No controlled comparison against simpler baselines
-                (greedy, random) has been run.
-              </em>
+              Forces and embeddings measure what&rsquo;s <B>on the page</B>.
+              A knowledge graph becomes a living world only when it is{" "}
+              <em>probed</em>. Four instruments compose a{" "}
+              <B>four-layer diagnostic</B> of a world&rsquo;s interior —
+              each revealing a structure the prose never summarises:
             </P>
-            <P>
-              Monte Carlo Tree Search adapts the game-playing algorithm to
-              narrative space. Nodes are narrative states — the full knowledge
-              graph after a sequence of scenes. Edges are generated arcs. The
-              evaluation function is the force grading system described above.
-            </P>
-
-            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
-              How It Works
-            </h3>
-            <P>
-              <strong>Selection</strong>: Starting from the current narrative
-              state, UCB1 selects which node to expand, balancing exploitation
-              (high-scoring paths) against exploration (under-visited branches).
-            </P>
-            <Eq
-              tex={String.raw`\text{UCB1}(n) = \frac{Q(n)}{N(n)} + C \sqrt{\frac{\ln N(\text{parent})}{N(n)}}`}
-            />
-            <P>
-              <strong>Expansion</strong>: The selected node generates a new
-              arc via the LLM. Siblings receive different directional prompts,
-              so they explore structurally different trajectories from the
-              same narrative state.
-            </P>
-            <P>
-              <strong>Evaluation</strong>: The generated arc is scored with
-              the same force grading applied to published literature. An arc
-              at 85 has comparable structural density to the reference works.
-            </P>
-            <P>
-              <strong>Backpropagation</strong>: The score propagates up the
-              tree; paths that consistently produce high-scoring arcs accrue
-              visits and become more likely to be selected next.
-            </P>
-
-            <P>
-              After search completes, the best path is selected by highest
-              average score or most-visited path, and the user commits it to
-              the story.
-            </P>
-
-            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-3">
-              Search Modes
-            </h3>
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+            <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
               {[
                 {
-                  name: "Freedom",
-                  desc: "Dynamic UCB1 allocation. Promising nodes earn more children; dead ends are abandoned early.",
+                  name: "surveys",
+                  caption: "1 question · N respondents",
+                  body: "cast-wide distribution. Eight lenses tilt the axis (Personality / Values / Knowledge / Trust / Allegiance / Threat / Predictions / Backstory). Fifteen respondents on \u201cdo you trust X?\u201d produces a row of the trust matrix, not a number.",
+                  color: "#22D3EE",
                 },
                 {
-                  name: "Constrained",
-                  desc: "Complete tree. Every node at each depth gets a fixed number of children before going deeper.",
+                  name: "interviews",
+                  caption: "1 subject · N questions",
+                  body: "single-mind depth. AI generates 5\u20137 questions tuned to the subject's continuity, mixing binary / likert / estimate / choice / open. Compose: survey to find outliers, interview to probe them.",
+                  color: "#FBBF24",
                 },
                 {
-                  name: "Baseline",
-                  desc: "Unlimited children per node. Keep generating until a target score is met, then descend.",
+                  name: "game theory",
+                  caption: "2\u00d72 decomposition per beat",
+                  body: "strategic structure beneath the prose. Each game carries an axis (14 types \u2014 disclosure / trust / stakes\u2026) and a shape (19 types \u2014 dilemma / stag-hunt / signaling\u2026) with integer stake deltas in [\u22124, +4]. Additive: written to scene.gameAnalysis, never mutates deltas.",
+                  color: "#A855F7",
                 },
                 {
-                  name: "Greedy",
-                  desc: "Depth-first. Generate children at the frontier, pick the best, descend immediately.",
+                  name: "elo",
+                  caption: "continuous margin across games",
+                  body: "strategic trajectory across the story. Margin score folds stake-differential into expected-vs-actual math \u2014 a +4/\u22124 crush = 1.0, a +1/0 edge = 0.56, a tie = 0.5. Behavioural tags (extractor / schemer / dominant / steady / rival:X) fall out of the trajectory.",
+                  color: "#F97316",
                 },
-              ].map(({ name, desc }) => (
-                <div
-                  key={name}
-                  className="flex flex-col gap-1 px-3 py-2.5 rounded-lg border border-white/6 bg-white/2"
-                >
-                  <span className="font-medium text-white/70">{name}</span>
-                  <p className="text-white/35">{desc}</p>
+              ].map(({ name, caption, body, color }) => (
+                <div key={name} className="rounded-lg bg-white/[0.03] border border-white/6 px-3 py-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="uppercase tracking-wider font-mono text-[10px]" style={{ color }}>{name}</span>
+                    <span className="text-white/30 text-[10px]">{caption}</span>
+                  </div>
+                  <span className="text-white/55">{body}</span>
                 </div>
               ))}
             </div>
+            <P>
+              Every respondent answers in-character from its own world-graph
+              continuity — the same private knowledge the Character chat
+              persona uses — so responses are grounded in what that specific
+              entity knows, not in the LLM&rsquo;s general knowledge. The
+              ELO update uses a continuous margin rather than binary W/L:
+            </P>
+            <Eq
+              label="Margin score from A's perspective"
+              tex="s_A = \mathrm{clamp}\left(0.5 + \frac{\Delta_A - \Delta_B}{16},\ 0,\ 1\right)"
+            />
+            <P>
+              <B>Distribution</B>, <B>depth</B>, <B>moves</B>, and{" "}
+              <B>accumulation</B> — surveys sample breadth, interviews
+              profile one mind, game theory names the strategic shape of a
+              beat, ELO tracks who accumulates advantage across the story.
+              Narrative structure and strategic structure are orthogonal: a
+              force-balanced scene can contain an unresolved prisoner&rsquo;s
+              dilemma, and that orthogonality is what makes the fourth
+              layer informative.
+            </P>
           </Section>
 
           {/* ── Prose Profiles ────────────────────────────────────────── */}
@@ -3164,50 +3313,74 @@ export default function PaperPage() {
               Propositions
             </h3>
             <P>
-              Each proposition is classified by its backward and forward{" "}
+              Each proposition is classified along three axes: backward{" "}
               <a href="#embeddings" className="text-accent hover:underline">
-                activation scores
-              </a>
-              . The hybrid score (
+                activation
+              </a>{" "}
+              (does it resolve prior content?), forward activation (does it
+              plant future content?), and temporal reach (how far its
+              connections span). The hybrid activation score (
               <Tex>
                 {"0.5 \\cdot \\max + 0.5 \\cdot \\bar{x}_{\\text{top-}k}"}
               </Tex>
               ) is thresholded at <B>0.65</B>, calibrated by parameter sweep
-              across four structurally distinct works to maximise cross-work
-              variance while preserving within-work category diversity. The
-              backward/forward binary yields four categories:
+              across four structurally distinct works. Reach is local
+              (within-arc) or global (cross-arc), with the threshold set at 25%
+              of total scenes (minimum 5) so &ldquo;global&rdquo; means the same
+              thing whether the narrative has 20 scenes or 200. The combination
+              yields eight categories:
             </P>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {[
                 {
-                  name: "Anchor",
+                  name: "anchor",
                   color: "#6366f1",
-                  back: "HI",
-                  fwd: "HI",
-                  desc: "Load-bearing both directions. The structural spine — removing it collapses what comes before and after.",
+                  signal: "HI back / HI fwd · local",
+                  desc: "Load-bearing within an arc. Immediate structural tension that connects what just happened to what comes next.",
                 },
                 {
-                  name: "Seed",
+                  name: "foundation",
+                  color: "#4338ca",
+                  signal: "HI back / HI fwd · global",
+                  desc: "Thematic spine. Load-bearing both directions with connections spanning the full narrative.",
+                },
+                {
+                  name: "seed",
                   color: "#10b981",
-                  back: "LO",
-                  fwd: "HI",
-                  desc: "Plants forward. Weakly grounded when introduced but proves foundational later. Foreshadowing, Chekhov's gun.",
+                  signal: "LO back / HI fwd · local",
+                  desc: "Short-range foreshadowing — the Remembrall leading to Harry becoming Seeker one scene later.",
                 },
                 {
-                  name: "Close",
+                  name: "foreshadow",
+                  color: "#047857",
+                  signal: "LO back / HI fwd · global",
+                  desc: "Cross-arc Chekhov's gun — Harry's scar mentioned in chapter one, structurally active in the climax.",
+                },
+                {
+                  name: "close",
                   color: "#f59e0b",
-                  back: "HI",
-                  fwd: "LO",
-                  desc: "Resolves prior chains. Deeply earned but terminal — satisfying fate that doesn't seed further.",
+                  signal: "HI back / LO fwd · local",
+                  desc: "Resolves recent setups. Terminal within the arc — satisfying fate that doesn't seed further.",
                 },
                 {
-                  name: "Texture",
-                  color: "#6b7280",
-                  back: "LO",
-                  fwd: "LO",
-                  desc: "Atmosphere, world-color, sensory grounding. Structurally inert but narratively essential.",
+                  name: "ending",
+                  color: "#b45309",
+                  signal: "HI back / LO fwd · global",
+                  desc: "Resolves distant seeds — “Snape hated Harry's father” closing a thread from 46 scenes back.",
                 },
-              ].map(({ name, color, back, fwd, desc }) => (
+                {
+                  name: "texture",
+                  color: "#6b7280",
+                  signal: "LO back / LO fwd · local",
+                  desc: "Scene-level atmosphere and sensory grounding. Structurally inert but narratively essential.",
+                },
+                {
+                  name: "atmosphere",
+                  color: "#4b5563",
+                  signal: "LO back / LO fwd · global",
+                  desc: "Ambient world-color across time. Recurring tonal motifs that persist without driving structure.",
+                },
+              ].map(({ name, color, signal, desc }) => (
                 <div
                   key={name}
                   className="px-3 py-3 rounded-lg border border-white/6 bg-white/2"
@@ -3220,95 +3393,12 @@ export default function PaperPage() {
                       {name}
                     </span>
                     <span className="text-[9px] font-mono text-white/25">
-                      {back} back / {fwd} fwd
+                      {signal}
                     </span>
                   </div>
                   <p className="text-[11px] text-white/40 leading-relaxed">
                     {desc}
                   </p>
-                </div>
-              ))}
-            </div>
-
-            <h4 className="text-sm font-semibold text-white/60 mt-6 mb-1">
-              Temporal Reach
-            </h4>
-            <P>
-              Categories tell you <B>what</B> a proposition does. Temporal reach
-              tells you <B>how far</B> its connections span. The median scene
-              distance of a proposition&apos;s top-k connections determines
-              whether it operates <B>locally</B> (within-arc) or <B>globally</B>{" "}
-              (cross-arc). The threshold scales with narrative length — 25% of
-              total scenes, minimum 5 — so &ldquo;global&rdquo; means the same
-              thing structurally whether the narrative has 20 scenes or 200. A
-              24-scene story needs connections spanning 6+ scenes to qualify as
-              global; a 73-scene novel needs 19+.
-            </P>
-            <P>
-              Each category has a local and global variant, each with its own
-              name. A <B>seed</B> is short-range foreshadowing — the Remembrall
-              leading to Harry becoming Seeker one scene later. A{" "}
-              <B>foreshadow</B> is Chekhov&apos;s gun — Harry&apos;s scar
-              mentioned in chapter one, structurally active in the climax. A{" "}
-              <B>close</B> resolves an immediate setup. An <B>ending</B>{" "}
-              resolves something planted dozens of scenes ago — &ldquo;Snape
-              hated Harry&apos;s father&rdquo; closing a thread from 46 scenes
-              back.
-            </P>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
-              {[
-                {
-                  label: "anchor",
-                  color: "#6366f1",
-                  desc: "Load-bearing within an arc. Immediate structural tension.",
-                },
-                {
-                  label: "foundation",
-                  color: "#4338ca",
-                  desc: "Thematic spine. Connections span the full narrative.",
-                },
-                {
-                  label: "seed",
-                  color: "#10b981",
-                  desc: "Pays off within an arc. Short-range foreshadowing.",
-                },
-                {
-                  label: "foreshadow",
-                  color: "#047857",
-                  desc: "Pays off much later. Cross-arc Chekhov's gun.",
-                },
-                {
-                  label: "close",
-                  color: "#f59e0b",
-                  desc: "Resolves recent setups. Terminal within the arc.",
-                },
-                {
-                  label: "ending",
-                  color: "#b45309",
-                  desc: "Resolves distant seeds. Everything comes together.",
-                },
-                {
-                  label: "texture",
-                  color: "#6b7280",
-                  desc: "Scene-level atmosphere and sensory grounding.",
-                },
-                {
-                  label: "atmosphere",
-                  color: "#4b5563",
-                  desc: "Ambient world-color across time.",
-                },
-              ].map(({ label, color, desc }) => (
-                <div key={label} className="flex items-start gap-2">
-                  <div
-                    className="w-0.5 min-h-6 rounded-full shrink-0 mt-0.5"
-                    style={{ backgroundColor: color }}
-                  />
-                  <div>
-                    <span className="font-medium" style={{ color }}>
-                      {label}
-                    </span>
-                    <span className="text-white/25 ml-1.5">— {desc}</span>
-                  </div>
                 </div>
               ))}
             </div>
@@ -3477,6 +3567,55 @@ export default function PaperPage() {
                 </div>
               ))}
             </div>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">
+              Reasoning Graph Nodes
+            </h3>
+            <P>
+              The{" "}
+              <a href="#planning" className="text-accent hover:underline">
+                causal reasoning graph
+              </a>{" "}
+              classifies every node into eight typed roles across three
+              tiers. <B>Pressure</B> (fate, warning) forces change.{" "}
+              <B>Substrate</B> (character, location, artifact, system) is
+              what&rsquo;s changed. <B>Bridge</B> (reasoning, pattern)
+              connects them.
+            </P>
+            <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              {[
+                { name: "fate",      color: "#EF4444", body: "a thread's gravitational pull — what must resolve, and in which direction" },
+                { name: "reasoning", color: "#A855F7", body: "a logical step connecting what fate needs to what entities can supply" },
+                { name: "character", color: "#22C55E", body: "an active agent whose position, knowledge, or relationships move the arc" },
+                { name: "location",  color: "#22D3EE", body: "a setting that enables or constrains what can happen" },
+                { name: "artifact",  color: "#F59E0B", body: "an object whose presence, transfer, or loss carries narrative weight" },
+                { name: "system",    color: "#3B82F6", body: "a rule of the world — magic, economics, social norm — that shapes action" },
+                { name: "pattern",   color: "#84CC16", body: "an expansion agent — unexpected collisions, emergent properties, creative surprise" },
+                { name: "warning",   color: "#F43F5E", body: "a subversion agent — predictable trajectories or unpaid costs to disrupt" },
+              ].map(({ name, color, body }) => (
+                <div
+                  key={name}
+                  className="rounded-lg bg-white/[0.03] border border-white/6 px-3 py-2"
+                >
+                  <span
+                    className="uppercase tracking-wider font-mono text-[10px] mr-2"
+                    style={{ color }}
+                  >
+                    {name}
+                  </span>
+                  <span className="text-white/55">{body}</span>
+                </div>
+              ))}
+            </div>
+            <P>
+              Edges carry equal semantic weight:{" "}
+              <em>requires</em> (the workhorse),{" "}
+              <em>enables</em>, <em>constrains</em>, <em>risks</em>,{" "}
+              <em>causes</em>, <em>reveals</em>, <em>develops</em>,{" "}
+              <em>resolves</em>. Edge type shapes both how the LLM walks
+              the graph during scene generation and how the visual tree
+              lays out.
+            </P>
           </Section>
 
           {/* ── Economics ──────────────────────────────────────────────── */}

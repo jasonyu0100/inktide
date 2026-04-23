@@ -19,7 +19,15 @@ Text is modelled as a **knowledge graph** that mutates section by section. An LL
 - **Semantic search** — meaning-based retrieval with AI-synthesized overviews and inline citations
 - **Propositional analysis** — logical analysis of embedded propositions to surface hidden connections
 
+### Interrogation (deep world understanding)
+- **Surveys** — one question × N respondents; each entity answers in-character from its own world-graph continuity. Eight research lenses (Personality, Values, Knowledge, Trust, Allegiance, Threat, Predictions, Backstory) + General
+- **Interviews** — one subject × N questions; AI-generated question batches tuned to the subject's recorded continuity
+- **Game theory** — per-scene decomposition into 2×2 games (14 axes × 19 shapes), additive to scene.gameAnalysis without mutating deltas
+- **ELO rankings** — continuous margin score from stake deltas drives per-player rating updates across all games; trajectories, W/L/D, outcome mix, Nash-rate and behavioural tags (extractor, schemer, dominant, responder, steady, rival:X)
+
 ### Generation
+- **Causal reasoning graphs** — 8–20 typed nodes per arc (fate, reasoning, character, location, artifact, system, pattern, warning, chaos) with typed edges; scenes execute the graph
+- **Four thinking modes** — abduction (default, backward selective), divergent (forward expansive), deduction (forward narrow), induction (backward generalising)
 - **Markov chain pacing** — transition matrices from analyzed works shape scene-by-scene rhythm
 - **MCTS search** — explores branching narrative paths, each expansion guided by a fresh pacing sequence
 - **Planning with course correction** — direction vectors rewritten after each arc
@@ -115,6 +123,79 @@ src/
 - **StructureEvaluation** — per-scene verdicts (ok/edit/merge/insert/cut), overall critique, repetition patterns, thematic question
 - **Arc** — world-building arcs that group scenes and expand the narrative world
 - **CubeCorner** — one of 8 narrative modes defined by high/low combinations of the three forces
+
+## Research Methods (src/lib/ai/surveys.ts, interviews.ts, research-categories.ts)
+
+Three instruments turn the knowledge graph into an interrogable system. Every respondent answers in-character, grounded in its own world-graph continuity — the same private-self-knowledge the Character chat persona uses.
+
+### Surveys — cast-wide distribution
+- **Shape**: one question × N respondents (characters, locations, artifacts). Filter by role / prominence / significance
+- **Question types**: binary, likert (5-pt default), estimate (numeric), choice (forced rank), open
+- **Research categories** (eight lenses + General): Personality, Values, Knowledge, Trust, Allegiance, Threat, Predictions, Backstory — each tilts the AI's question shape
+- **Output**: a distribution that reveals fault-lines (trust matrix rows, value hierarchies, knowledge asymmetries)
+- **Execution**: parallel LLM calls with per-respondent persona prompt built from continuity; responses aggregated and scored
+
+### Interviews — single-subject depth
+- **Shape**: one subject × 5–7 AI-generated questions
+- **Same question types + categories as surveys**, applied to one mind
+- **Output**: a coherent profile — how this specific subject carries the world
+- **Composition**: survey to find outliers, interview to probe them
+
+### Files
+- `src/lib/ai/surveys.ts` — executor, respondent resolution, prompt builders, parsers
+- `src/lib/ai/interviews.ts` — one-subject-many-questions executor (reuses survey parsers)
+- `src/lib/research-categories.ts` — the eight category guidance strings shared by both
+- `src/components/sidebar/{SurveyPanel,InterviewPanel}.tsx` — UI
+
+## Game Theory & ELO (src/lib/ai/game-analysis.ts, game-theory.ts)
+
+Per-scene strategic decomposition. Purely additive — writes only to `scene.gameAnalysis`, never mutates deltas, threadLogs, or forces.
+
+### Game decomposition
+- **Input**: scene prose (authoritative) OR beat plan (fallback) OR structural deltas (last resort)
+- **Output**: a sequence of 2×2 games, one per strategic beat. Each carries:
+  - `axis` — one of 14 dichotomies (disclosure, identity, trust, alliance, confrontation, status, pressure, stakes, control, acquisition, obligation, moral, commitment, timing)
+  - `gameType` — one of 19 shapes (coordination, anti-coordination, battle-of-sexes, dilemma, stag-hunt, chicken, zero-sum, pure-opposition, contest, collective-action, principal-agent, screening, signaling, stealth, stackelberg, cheap-talk, commitment-game, bargaining, trivial)
+  - `outcomes` — integer stake deltas (-4..+4) for each player in each cell
+  - `realizedAAction` / `realizedBAction` — what the author actually wrote
+
+### ELO rating
+- `ELO_INITIAL = 1500`, `ELO_K = 32`
+- **Margin score**: `clamp(0.5 + (ΔA − ΔB) / 16, 0, 1)` — continuous, folds margin-of-victory into the expected-vs-actual math (a +4/−4 crush = 1.0; a +1/0 edge = ~0.56; tie = 0.5)
+- `gameScoreA` (separate) = binary W/L/D for display; **not** what ELO consumes
+- `computeEloHistories` walks games in narrative order and returns per-player rating trajectories
+- **Behavioural tags** derived from trajectory + outcome mix: *extractor* (mostly zero-sum wins), *dominant* (high ELO + Nash rate), *schemer* (asymmetric-info game wins), *responder* (mostly reactive), *steady* (low variance), *rival: X* (recurrent opponent)
+
+### Files
+- `src/lib/game-theory.ts` — pure math (Nash, stake rank, ELO updates, trajectory history)
+- `src/lib/ai/game-analysis.ts` — LLM decomposition of scenes into games
+- `src/components/topbar/GameTheoryDashboard.tsx` — player rankings, trajectories, outcome mix
+- `src/components/canvas/SceneGameTheoryView.tsx` — per-scene payoff matrix with NASH / REALIZED highlights
+
+## Reasoning Graphs & Thinking Modes (src/lib/ai/reasoning-graph.ts, reasoning-graph/)
+
+The causal reasoning graph is how InkTide plans an arc. Built once per arc before any scene is generated; scenes execute the graph.
+
+### Graph structure (8–20 nodes/arc)
+- **Node types**: fate, reasoning, character, location, artifact, system, pattern, warning, chaos
+- **Edge types**: requires, enables, constrains, risks, causes, reveals, develops, resolves
+- **Tiers**: pressure (fate, warning) forces change, substrate (char/loc/art/sys) is what changes, bridge (reasoning, pattern) connects them
+
+### Four thinking modes
+- **abduction** (default) — backward + selective. Committed outcome ← best hypothesis among competitors. Anchor discipline prevents silent drift into deduction
+- **divergent** — forward + expansive. One source branches into many possibilities; leaves marked for pairwise-compatibility
+- **deduction** — forward + narrow. Premise → necessary consequence chain. High branching factor is a red flag (signals drift to divergent)
+- **induction** — backward + generalising. Many observations → inferred principle. Retains competing generalisations
+
+### Cross-arc divergence
+Each arc's generation sees the **previous arc's reasoning graph** fed in via `findLastArcGraph` + `buildSequentialPath`, with explicit divergence pressure: commitments must differ in kind, reasoning chain must switch inference modes, warning nodes must cite prior-graph shapes. Prevents the "three graphs describing the same arc with cosmetic variation" failure mode.
+
+### Files
+- `src/lib/ai/reasoning-graph.ts` — generators (`generateReasoningGraph`, `generateExpansionReasoningGraph`, `generateCoordinationPlan`)
+- `src/lib/ai/reasoning-graph/mode-blocks.ts` — per-mode prompt blocks (anchor discipline, branch-set quality checks)
+- `src/lib/ai/reasoning-graph/sequential-path.ts` — LLM-readable graph rendering + pattern/warning directive extraction
+- `src/components/generation/ThinkingAnimation.tsx` — D3 visualisation of the four thinking modes (3-phase: collection → objective → building)
+- `src/components/{canvas/ReasoningGraphView,generation/ReasoningGraphModal}.tsx` — arc graph visualisations
 
 ## Semantic Search & Embeddings
 

@@ -50,6 +50,34 @@ Every proposition, beat, and scene is embedded as a 1536-dimensional vector. Cos
 
 Applications: continuity validation (verifying that referenced events actually occurred), tracking what each character knows at any point in the story, and semantic retrieval that gives generation rich context from anywhere in the timeline.
 
+### Interrogate
+
+Forces and embeddings measure what's on the page. Four research instruments probe what's *carried* — the beliefs entities hold, the moves they make, the strategic structure beneath the prose, and how ELO ratings accumulate across a story.
+
+| Method          | Shape                                                         | What it surfaces                                                                                                                                     |
+| --------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Surveys**     | One question × N respondents — cast-wide distribution         | Fault-lines across the cast. Eight research lenses (Personality, Values, Knowledge, Trust, Allegiance, Threat, Predictions, Backstory) tilt the axis |
+| **Interviews**  | One subject × N questions — single-mind depth profile         | Internal structure of one mind — self-image vs behaviour, tradeoff hierarchies, formative backstory, knowledge surface                               |
+| **Game theory** | 2×2 game decomposition per strategic beat, additive per scene | The moves beneath the prose. 14 axes (disclosure, trust, confrontation, stakes...), 19 shapes (coordination, dilemma, stag-hunt, chicken...)         |
+| **ELO ratings** | Continuous margin score drives per-player rating updates      | Who trends up, who collapses, and where the turning points land. Trajectories + behaviour tags (extractor, schemer, dominant, responder, steady)     |
+
+Every entity answers surveys and interviews in-character from its own world-graph continuity — responses are grounded in what that specific entity actually knows, not in the LLM's general knowledge. Game-theoretic analysis is orthogonal to narrative structure (a scene can be force-balanced while containing an unresolved prisoner's dilemma); ELO turns those games into a running tally of strategic success that reveals story-wide power dynamics the prose alone never summarises.
+
+### Reason
+
+Generation is steered by **causal reasoning graphs** — 8–20 typed nodes per arc (fate, reasoning, character, location, artifact, system, pattern, warning, chaos) with typed edges (requires / enables / causes / resolves...). Scenes execute the graph; threads advance because an entity had to decide, not because the prompt said so.
+
+Four **thinking modes** shape how the graph is built:
+
+| Mode           | Direction           | Signature                                                                                     |
+| -------------- | ------------------- | --------------------------------------------------------------------------------------------- |
+| **Abduction**  | Backward, selective | Committed outcome ← best hypothesis among competitors. *Default for narrative planning.*      |
+| **Divergent**  | Forward, expansive  | One premise branches into many possibilities; leaves marked for pairwise compatibility.       |
+| **Deduction**  | Forward, narrow     | Premise → necessary consequence chain. Rigid derivation, low branching factor.                |
+| **Induction**  | Backward, general   | Many observations → inferred principle. Retains competing generalisations.                    |
+
+The reasoning graph from the last arc is fed into the next generation with divergence pressure, so successive arcs differ in causal shape rather than re-describing the same spine with cosmetic variation.
+
 ### Generate
 
 | Capability             | How it works                                                                            |

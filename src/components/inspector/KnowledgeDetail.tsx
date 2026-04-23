@@ -37,9 +37,9 @@ const TYPE_TEXT: Record<SystemNodeType, string> = {
 export default function KnowledgeDetail({ nodeId }: Props) {
   const { state, dispatch } = useStore();
   const narrative = state.activeNarrative;
-  if (!narrative) return null;
 
   const graph = useMemo(() => {
+    if (!narrative) return { nodes: {}, edges: [] };
     return buildCumulativeSystemGraph(
       narrative.scenes,
       state.resolvedEntryKeys,
@@ -49,7 +49,6 @@ export default function KnowledgeDetail({ nodeId }: Props) {
   }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex]);
 
   const node = graph.nodes[nodeId];
-  if (!node) return <p className="text-xs text-text-dim">Node not found</p>;
 
   // All edges involving this node
   const connections = useMemo(() => {
@@ -78,6 +77,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
   // Build index: for each knowledge node, which scene indices mention it
   const nodeSceneIndex = useMemo(() => {
     const map = new Map<string, number[]>();
+    if (!narrative) return map;
     for (let i = 0; i <= state.viewState.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
       const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
@@ -122,6 +122,7 @@ export default function KnowledgeDetail({ nodeId }: Props) {
   // Scenes where this node was introduced
   const introScenes = useMemo(() => {
     const scenes: { sceneId: string; sceneTitle: string }[] = [];
+    if (!narrative) return scenes;
     for (let i = 0; i <= state.viewState.currentSceneIndex && i < state.resolvedEntryKeys.length; i++) {
       const key = state.resolvedEntryKeys[i];
       const scene = narrative.scenes[key];
@@ -136,6 +137,9 @@ export default function KnowledgeDetail({ nodeId }: Props) {
     }
     return scenes;
   }, [narrative, state.resolvedEntryKeys, state.viewState.currentSceneIndex, nodeId]);
+
+  if (!narrative) return null;
+  if (!node) return <p className="text-xs text-text-dim">Node not found</p>;
 
   return (
     <div className="flex flex-col gap-4">

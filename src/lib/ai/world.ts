@@ -1,9 +1,10 @@
 import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild, ReasoningGraphSnapshot } from '@/types/narrative';
-import { THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import { resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS, NARRATOR_AGENT_ID } from '@/types/narrative';
+import { clampEvidence, isThreadAbandoned, isThreadClosed } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
 import type { ThreadLogNodeType } from '@/types/narrative';
-import { applyThreadDelta } from '@/lib/thread-log';
+import { applyThreadDelta, newNarratorBelief } from '@/lib/thread-log';
 import { applyWorldDelta } from '@/lib/world-graph';
 import { sanitizeSystemDelta, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
@@ -103,7 +104,7 @@ export async function suggestArcDirection(
 
 Based on the full scene history above, suggest the most compelling direction for the NEXT arc.
 Consider:
-- Unresolved threads and their current statuses
+- Unresolved thread markets, their probability distributions, and which outcomes are contested vs. saturating
 - Character tensions and relationship dynamics
 - Narrative momentum (what has been building?)
 - What would create the most significant development?
@@ -321,7 +322,7 @@ export function computeWorldMetrics(
   };
 }
 
-export type WorldExpansionSize = 'small' | 'medium' | 'large' | 'exact';
+export type WorldExpansionSize = 'small' | 'medium' | 'large' | 'exact' | 'health';
 export type WorldExpansionStrategy = 'breadth' | 'depth' | 'dynamic';
 
 const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, { total: string; characters: string; locations: string; threads: string; label: string }> = {
@@ -329,6 +330,10 @@ const EXPANSION_SIZE_CONFIG: Record<WorldExpansionSize, { total: string; charact
   medium: { total: '10-15', characters: '3-5',   locations: '3-4',   threads: '3-5',   label: 'a moderate expansion (~12 total entities)' },
   large:  { total: '20-35', characters: '8-15',  locations: '6-10',  threads: '8-12',  label: 'a large-scale expansion (~30 total entities)' },
   exact:  { total: 'as specified', characters: 'as specified', locations: 'as specified', threads: 'as specified', label: 'exactly what is described in the directive — nothing more, nothing less' },
+  // Maintenance mode: counts are diagnostic-driven, not fixed. The prompt
+  // injects a health report and tells the LLM to add only what the deficits
+  // call for — minimum viable top-up, not bulk.
+  health: { total: 'diagnostic-driven', characters: 'as needed', locations: 'as needed', threads: 'as needed', label: 'a maintenance top-up (diagnostic-driven — adds only what the health report flags)' },
 };
 
 const EXPANSION_STRATEGY_PROMPTS: Record<WorldExpansionStrategy, string> = {
@@ -544,10 +549,15 @@ ${(() => {
   const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
   const disabled = Object.entries(f).filter(([, v]) => !v).map(([k]) => k);
   if (disabled.length === 0) return '';
-  const labels: Record<string, string> = { characters: 'characters', locations: 'locations', artifacts: 'artifacts', threads: 'threads', threadDeltas: 'thread deltas (status transitions on existing threads)', worldDeltas: 'world deltas (changes to existing entities)', systemDeltas: 'system deltas', relationshipDeltas: 'relationship deltas (new and shifted relationships)', ownershipDeltas: 'ownership deltas (artifact transfers)', tieDeltas: 'tie deltas (character-location bonds)' };
+  const labels: Record<string, string> = { characters: 'characters', locations: 'locations', artifacts: 'artifacts', threads: 'threads', threadDeltas: 'thread deltas (market evidence on existing threads)', worldDeltas: 'world deltas (changes to existing entities)', systemDeltas: 'system deltas', relationshipDeltas: 'relationship deltas (new and shifted relationships)', ownershipDeltas: 'ownership deltas (artifact transfers)', tieDeltas: 'tie deltas (character-location bonds)' };
   return `ENTITY FILTER — DO NOT create the following types (return empty arrays for them):\n${disabled.map(k => `- NO ${labels[k]}`).join('\n')}\n`;
 })()}
-${size === 'exact' ? `This is an EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.` : `This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
+${size === 'exact' ? `This is an EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.` : size === 'health' ? `This is a HEALTH EXPANSION — a diagnostic-driven maintenance top-up, not a bulk generation. The directive above contains a NARRATIVE HEALTH REPORT. Read it and add ONLY what the deficits call for:
+- Thread deficit → seed 1-3 threads that restore the active thread count; prefer threads that weave existing under-used characters or locations together rather than introducing entirely new ones.
+- Entity deficit (shallow/neglected anchors) → add 1-3 worldDeltas per flagged anchor that reveal new facets (trait, belief, capability, history, secret) — these deepen existing characters rather than creating new ones. Only create new characters if a structural role is missing (e.g. no antagonist, no confidant).
+- Knowledge deficit → emit systemDeltas that articulate 2-4 under-specified world rules, constraints, or mechanisms the existing scenes have implied but not stated.
+- Balance deficit → bias the additions toward whichever force is under-delivered (fate → new threads or threadDeltas, world → worldDeltas, system → systemDeltas).
+The goal is MINIMUM VIABLE maintenance: restore the portfolio to a healthy state with the smallest intervention that works. A health expansion that adds 2 threads and 4 worldDeltas is correct if that's what the deficits call for; one that adds 10 characters is overreach. Think diagnostic → prevention, not cure.` : `This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
 - ${EXPANSION_SIZE_CONFIG[size].characters} new characters
 - ${EXPANSION_SIZE_CONFIG[size].locations} new locations
 - ${EXPANSION_SIZE_CONFIG[size].threads} new threads`}
@@ -595,7 +605,7 @@ Return JSON with this exact structure:
       "id": "${nextThreadId}",
       "participants": [{"id": "character or location ID", "type": "character|location"}],
       "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific conflict",
-      "status": "latent",
+      "outcomes": ["Named possibilities the market prices. Binary default: ['yes','no']. Multi-outcome when the resolution is N-way, e.g. 'Who claims the artifact?' → ['hero','villain','destroyed','lost']. Must be distinct and mutually exclusive; 2–6 entries."],
       "openedAt": "new",
       "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
     }
@@ -614,7 +624,7 @@ Return JSON with this exact structure:
     "addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}],
     "addedEdges": [{"from": "SYS-GEN-001", "to": "existing-SYS-ID", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]
   },
-  "threadDeltas": [{"threadId": "T-XX", "from": "latent", "to": "seeded", "addedNodes": [{"id": "TL-GEN-001", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "content": "10-20 words: what happened to this thread"}]}],
+  "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names if this scene opens a possibility not previously in the market"], "rationale": "10-20 words, prose only — what happens in the scene in natural language. Do NOT quote outcome identifiers, mention evidence numbers, or reference logType."}],
   "worldDeltas": [{"entityId": "existing C-XX, L-XX, or A-XX", "addedNodes": [{"id": "K-next", "content": "15-25 words, PRESENT tense: a stable fact about the entity — what they experienced, became, or now possess", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "ownershipDeltas": [{"artifactId": "A-XX", "fromId": "C-XX or L-XX", "toId": "C-YY or L-YY"}],
@@ -646,7 +656,8 @@ CONTENT RULES:
 - New locations should CONTRAST with existing ones — if the story has been set in cities, add wilderness; if in palaces, add slums or ruins. Environmental variety drives scene variety.
 - Location knowledge should establish what makes each place narratively distinct (2-3 nodes per location — its defining atmosphere, a constraint or danger, and a resource or opportunity it offers)
 - Threads should introduce DIFFERENT types of open questions than existing ones — if current threads are about conflict, add threads about mystery, loyalty, or forbidden knowledge.
-- ALL new threads MUST have status "latent" — they are seeds for future arcs, not active storylines yet
+- Every new thread declares its OUTCOMES up front — 2+ named, mutually-exclusive possibilities. Binary is default (["yes","no"]); multi-outcome when the resolution is genuinely N-way. Markets open at uniform priors (no outcome is pre-weighted).
+- New threads start with NO evidence — they're fresh markets. Initial scenes that seed them will emit setup/escalation evidence on the chosen outcome.
 - Generate the exact counts specified above (${EXPANSION_SIZE_CONFIG[size].characters} characters, ${EXPANSION_SIZE_CONFIG[size].locations} locations, ${EXPANSION_SIZE_CONFIG[size].threads} threads)
 
 THREAD CONVERGENCE (critical for long-form narrative):
@@ -684,7 +695,28 @@ systemDeltas define the FOUNDATIONAL abstractions this expansion establishes —
     const { anchors, ...rest } = t;
     // Filter dependents to only valid thread IDs (not example text the LLM might echo)
     const dependents = (rest.dependents ?? []).filter((id: string) => validThreadIds.has(id) && id !== rest.id);
-    return { ...rest, participants: rest.participants ?? anchors ?? [], dependents, status: THREAD_ACTIVE_STATUSES[0] };
+    // Normalize outcomes + seed narrator belief at uniform logits if the LLM
+    // didn't pre-populate a belief map. Binary is the default shape.
+    const outcomes = Array.isArray(rest.outcomes) && rest.outcomes.length >= 2
+      ? rest.outcomes
+      : ['yes', 'no'];
+    const rawPriorProbs = Array.isArray(
+      (rest as { priorProbs?: unknown }).priorProbs,
+    )
+      ? ((rest as { priorProbs?: unknown }).priorProbs as unknown[]).map((v) =>
+          typeof v === 'number' ? v : NaN,
+        )
+      : undefined;
+    const beliefs = rest.beliefs && typeof rest.beliefs === 'object'
+      ? rest.beliefs
+      : { [NARRATOR_AGENT_ID]: newNarratorBelief(outcomes.length, 2, rawPriorProbs) };
+    return {
+      ...rest,
+      participants: rest.participants ?? anchors ?? [],
+      dependents,
+      outcomes,
+      beliefs,
+    } satisfies Thread;
   });
 
   // Process systemDeltas: concept-based resolution collapses
@@ -834,7 +866,7 @@ Return JSON with this exact structure:
     {"id": "L-01", "name": "Location name from geography, founders, or corrupted older words — concrete and specific", "prominence": "domain|place|margin", "parentId": null, "threadIds": [], "imagePrompt": "1-2 sentence LITERAL visual description — concrete architecture, landscape, lighting. No metaphors or figurative language; image generators interpret literally.", "world": {"nodes": [{"id": "LK-01", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness", "content": "15-25 words, PRESENT tense: a stable fact about this location — history, rules, dangers, atmosphere, or properties"}]}}
   ],
   "threads": [
-    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific", "status": "latent", "openedAt": "S-001", "dependents": []}
+    {"id": "T-01", "participants": [{"id": "C-01", "type": "character|location|artifact"}], "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific", "outcomes": ["Named possibilities the market prices. Binary default: ['yes','no']. Multi-outcome when resolution is N-way. Must be distinct, mutually exclusive, 2–6 entries."], "openedAt": "S-001", "dependents": []}
   ],
   "relationshipDeltas": [
     {"from": "C-01", "to": "C-02", "type": "description", "valenceDelta": 0.5}
@@ -854,7 +886,7 @@ Return JSON with this exact structure:
       "timeDelta": {"value": 1, "unit": "hour"},
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did — how it delivered utility"}],
       "events": ["event_tag"],
-      "threadDeltas": [{"threadId": "T-01", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-GEN-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+      "threadDeltas": [{"threadId": "T-01", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names if this scene opens a possibility not previously in the market"], "rationale": "thread-specific prose sentence (10-20 words) — what the scene does to this thread in natural language. Do NOT quote outcome identifiers, mention evidence numbers, or reference logType."}],
       "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-GEN-001", "content": "15-25 words, PRESENT tense: a stable fact about the entity — what they experienced, became, or now possess", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
       "relationshipDeltas": [],
       "systemDeltas": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, PRESENT tense: a general rule or structural fact about how the world works — no specific characters or events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-GEN-002", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]}
@@ -882,7 +914,7 @@ Return JSON with this exact structure:
 PILOT EPISODE — establish a tight, focused world. These are minimums; exceed when the premise warrants it:
 - AT LEAST 8 characters: 2+ anchors, 3+ recurring, 3+ transient
 - AT LEAST 6 locations with parent/child hierarchy (at least 2 nesting levels)
-- AT LEAST 4 threads — 1+ short-term, 1+ medium-term, 2+ long-term. Threads force entities into action. At least 2 must share participants.
+- AT LEAST 4 threads — a DELIBERATE MIX of thread shapes (see THREAD SHAPES below). A healthy seed carries: 1+ discrete-resolution (a concrete question that will be decisively answered within a few arcs), 1+ slow-burn (stays uncertain for most of the work, resolves late and hard), 1+ constant-tension (a philosophical/character spine — "will they ever forgive themselves?", "can X achieve eternal life?" — pulses forever, may or may not close). Threads force entities into action. At least 2 must share participants so their markets correlate.
 - AT LEAST 8 relationships (at least 1 hostile)
 - AT LEAST 1 artifact when the premise involves tools or objects of power
 - AT LEAST 12 system nodes with 8 edges — the systems, principles, tensions, and structures the world runs on. This is the foundational system graph every future scene draws from; a thin root means thin scenes forever. Each node MUST be 15-25 words describing a general rule or structural fact (how the world works). Include micro-rules (specific mechanics), mid-rules (institutional/economic), and macro-rules (cosmological/thematic). SHORT NAMES ARE FAILURES — "Aperture Grading" is wrong; "The sect grades disciples by aperture quality, with A-grade apertures receiving priority resource allocation and mentorship" is correct.${worldOnly ? '' : `
@@ -904,6 +936,13 @@ ENTITY DEFINITIONS:
 - Locations are spatial areas or regions — physical places you can be IN.
 - Artifacts are anything that delivers utility — active tools, not passive concepts. Concepts belong in system knowledge.
 - Threads are COMPELLING QUESTIONS that shape fate. A compelling question has stakes, uncertainty, and investment. Match the narrative's register. BAD: "Will X succeed?" GOOD (narrative): "Can Ayesha clear her grandfather's name before the tribunal ends?" GOOD (argument): "Does the proposed mechanism explain the anomalies the prior model cannot?" GOOD (inquiry): "What role did diaspora networks play in the movement before digital coordination?" Thread logs track incremental answers.
+
+THREAD SHAPES — threads differ in how they live and die. A good seed mixes them:
+  • DISCRETE-RESOLUTION — a concrete question with a clean answer. Resolves within 1-3 arcs when the evidence is in. Outcomes are usually binary or small-N ("What grade aperture does X have?" → {A, B, C, D}). The market goes from high uncertainty to collapse in a single decisive scene; once answered, it closes and stays closed. Seed 1-2 of these as early-arc hooks.
+  • SLOW-BURN — stays genuinely uncertain across many arcs. The market oscillates and re-prices but doesn't close until structural conditions align late in the work ("Can the rebellion topple the regime?", "Does the theory survive the critical test case?"). Seed 1-2 of these as the story's middle spine. These require a healthy diet of small evidence updates scene-by-scene; starve them and they abandon.
+  • CONSTANT-TENSION — a philosophical or character spine that pulses forever. It asks a question that shapes every decision ("Can Fang Yuan achieve eternal life?", "Will she ever forgive her mother?", "Is the universe cruel or indifferent?"). The market may never close within the work's scope; instead its probability drifts as events reshape the character's stance. These need recurring small pulses to stay alive (volume decay is lethal); treat them as the story's weather, not its plot. Seed 1-2.
+
+Within the same story, these shapes should feel distinctly different to the reader. A discrete-resolution thread that pulses through 20 scenes without resolving has been mis-shaped. A constant-tension thread that closes cleanly in arc 3 has been mis-shaped. Name the shape when you seed — match the question to the lifetime you intend.
 
 CHARACTER DEPTH BY ROLE — minimums; go deeper for complex characters. These initial world nodes become the first readings the grader sees, and anchor entities will be revisited for world deltas across every scene, so seed them richly. List each entity's nodes in the causal/temporal order they became true — adjacent nodes auto-chain into the entity's inner graph, no manual edges needed:
 - Anchors: 6-8 world nodes each — defining trait, goal, belief, weakness, secret, capability, relation, history.
@@ -1000,10 +1039,31 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   }
 
   const threads: NarrativeState['threads'] = {};
-  // Normalize: LLM may still output "anchors" (legacy field name) — remap to "participants"
+  // Normalize: LLM may still output "anchors" (legacy field name) — remap to "participants".
+  // Seed outcomes + narrator belief at uniform logits if the LLM didn't
+  // pre-populate them. Binary is the default shape.
   for (const t of parsed.threads) {
     const { anchors, ...rest } = t as Thread & { anchors?: Thread['participants'] };
-    threads[t.id] = { ...rest, participants: rest.participants ?? anchors ?? [], threadLog: { nodes: {}, edges: [] } };
+    const outcomes = Array.isArray(rest.outcomes) && rest.outcomes.length >= 2
+      ? rest.outcomes
+      : ['yes', 'no'];
+    const rawPriorProbs = Array.isArray(
+      (rest as { priorProbs?: unknown }).priorProbs,
+    )
+      ? ((rest as { priorProbs?: unknown }).priorProbs as unknown[]).map((v) =>
+          typeof v === 'number' ? v : NaN,
+        )
+      : undefined;
+    const beliefs = rest.beliefs && typeof rest.beliefs === 'object' && Object.keys(rest.beliefs).length > 0
+      ? rest.beliefs
+      : { [NARRATOR_AGENT_ID]: newNarratorBelief(outcomes.length, 2, rawPriorProbs) };
+    threads[t.id] = {
+      ...rest,
+      participants: rest.participants ?? anchors ?? [],
+      outcomes,
+      beliefs,
+      threadLog: { nodes: {}, edges: [] },
+    };
   }
 
   const scenes: NarrativeState['scenes'] = {};
@@ -1144,54 +1204,42 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   // cross-scene collisions can't silently drop nodes in applyThreadDelta.
   // Also coerces invalid from/to statuses (e.g. the LLM emitting "pulse"
   // as a status when pulse is actually a log node type).
-  const validStatuses = new Set<string>([...THREAD_ACTIVE_STATUSES, ...THREAD_TERMINAL_STATUSES, 'abandoned']);
-  let totalTkNodes = 0;
-  for (const scene of sceneList) {
-    for (const tm of scene.threadDeltas ?? []) {
-      const thread = threads[tm.threadId];
-      const currentStatus = thread?.status ?? 'latent';
-      if (!validStatuses.has(tm.from)) tm.from = currentStatus;
-      if (!validStatuses.has(tm.to)) tm.to = tm.from;
-      const fallbackType = tm.from === tm.to ? 'pulse' : 'transition';
-      tm.addedNodes = (tm.addedNodes ?? [])
-        .filter((n) => n && typeof n.content === 'string' && n.content.trim())
-        .map((n) => ({
-          id: n.id || 'TK-GEN',
-          content: n.content,
-          type: (n.type ?? fallbackType) as ThreadLogNodeType,
-        }));
-      if (tm.addedNodes.length === 0) {
-        const desc = thread?.description ?? tm.threadId;
-        tm.addedNodes = [{
-          id: 'TK-GEN',
-          content: tm.from === tm.to
-            ? `Thread "${desc}" held ${tm.to} without transition`
-            : `Thread "${desc}" advanced from ${tm.from} to ${tm.to}`,
-          type: fallbackType as ThreadLogNodeType,
-        }];
-      }
-      totalTkNodes += tm.addedNodes.length;
-    }
-  }
-  const tkIds = nextIds('TK', [], totalTkNodes);
-  let tkIdx = 0;
-  for (const scene of sceneList) {
-    for (const tm of scene.threadDeltas ?? []) {
-      for (const node of tm.addedNodes ?? []) {
-        node.id = tkIds[tkIdx++];
-      }
-    }
-  }
-
-  // Build thread log graphs from initial scene deltas. Each scene's
-  // contribution is a self-contained cluster — no cross-scene edges.
+  // Normalize scene threadDeltas into the market shape. The LLM's initial
+  // emission may be partial (missing logType, stray updates, no rationale);
+  // this pass fills defaults and drops invalid entries so applyThreadDelta
+  // can consume them uniformly.
   for (const scene of sceneList) {
     for (const tm of scene.threadDeltas ?? []) {
       const thread = threads[tm.threadId];
       if (!thread) continue;
-      thread.threadLog = applyThreadDelta(thread.threadLog, tm);
+      const allowed = new Set(thread.outcomes);
+      tm.logType = tm.logType ?? 'pulse';
+      tm.volumeDelta = typeof tm.volumeDelta === 'number' ? tm.volumeDelta : 0;
+      tm.updates = (Array.isArray(tm.updates) ? tm.updates : []).flatMap((u) => {
+        if (!u || typeof u.outcome !== 'string' || !allowed.has(u.outcome)) return [];
+        const ev = typeof u.evidence === 'number' ? clampEvidence(u.evidence) : 0;
+        return [{ outcome: u.outcome, evidence: ev }];
+      });
+      if (typeof tm.rationale !== 'string' || !tm.rationale.trim()) {
+        // Prose fallback — reference the thread's question, not its logType or
+        // outcome ids. Keeps log entries human-readable when the LLM forgot
+        // the rationale slot.
+        tm.rationale = `The scene brings fresh weight to "${thread.description}"`;
+      }
     }
   }
+
+  // Apply initial scene deltas through the market engine. Each scene's
+  // threadDeltas update the narrator's belief and append a log node.
+  for (const scene of sceneList) {
+    for (const tm of scene.threadDeltas ?? []) {
+      const thread = threads[tm.threadId];
+      if (!thread) continue;
+      threads[tm.threadId] = applyThreadDelta(thread, tm, scene.id);
+    }
+  }
+  // Suppress unused: nextIds is still imported for other allocation paths.
+  void nextIds;
 
   logInfo('Completed narrative generation', {
     source: 'manual-generation',
@@ -1277,7 +1325,16 @@ export async function detectPatterns(
   const characters = Object.values(narrative.characters).slice(0, 10);
   const systemNodes = Object.values(narrative.systemGraph?.nodes ?? {}).slice(0, 15);
 
-  const threadSummary = threads.map(t => `- ${t.description} (${t.status})`).join('\n');
+  const threadSummary = threads
+    .map((t) => {
+      const status = isThreadClosed(t)
+        ? 'closed'
+        : isThreadAbandoned(t)
+          ? 'abandoned'
+          : 'open';
+      return `- ${t.description} (${status}, outcomes: ${t.outcomes.join(' | ')})`;
+    })
+    .join('\n');
   const characterSummary = characters.map(c => `- ${c.name}: ${c.role}`).join('\n');
   const systemSummary = systemNodes.map(n => `- ${n.concept} (${n.type})`).join('\n');
 

@@ -29,7 +29,6 @@ import { NarrativeEditModal } from "@/components/topbar/NarrativeEditModal";
 import { PatternsModal } from "@/components/topbar/PatternsModal";
 import { PropositionAnalysisModal } from "@/components/topbar/PropositionAnalysisModal";
 import SystemLogModal from "@/components/topbar/SystemLogModal";
-import { ThreadGraphModal } from "@/components/topbar/ThreadGraphModal";
 import { GameTheoryDashboard } from "@/components/topbar/GameTheoryDashboard";
 import {
   UsageDropdown,
@@ -367,7 +366,6 @@ export default function TopBar() {
   const [markovOpen, setMarkovOpen] = useState(false);
   const [beatProfileOpen, setBeatProfileOpen] = useState(false);
   const [propositionAnalysisOpen, setPropositionAnalysisOpen] = useState(false);
-  const [threadGraphOpen, setThreadGraphOpen] = useState(false);
   const [gameTheoryOpen, setGameTheoryOpen] = useState(false);
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
@@ -1330,11 +1328,6 @@ export default function TopBar() {
               label: "Narrative Cube",
               onClick: () =>
                 window.dispatchEvent(new CustomEvent("open-cube-viewer")),
-              disabled: !hasNarrative,
-            },
-            {
-              label: "Thread Graph",
-              onClick: () => setThreadGraphOpen(true),
               disabled: !hasNarrative,
             },
             {
@@ -2335,21 +2328,6 @@ export default function TopBar() {
           narrative={narrative}
           resolvedKeys={state.resolvedEntryKeys}
           onClose={() => setPropositionAnalysisOpen(false)}
-        />
-      )}
-      {threadGraphOpen && narrative && (
-        <ThreadGraphModal
-          narrative={narrative}
-          resolvedKeys={state.resolvedEntryKeys}
-          currentSceneIndex={state.viewState.currentSceneIndex}
-          onClose={() => setThreadGraphOpen(false)}
-          onSelectThread={(id) => {
-            dispatch({
-              type: "SET_INSPECTOR",
-              context: { type: "thread", threadId: id },
-            });
-            setThreadGraphOpen(false);
-          }}
         />
       )}
       {gameTheoryOpen && narrative && (

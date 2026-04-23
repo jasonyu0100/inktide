@@ -107,13 +107,23 @@ function ForceChart({
 
     const xScale = d3.scaleLinear().domain([0, Math.max(data.length - 1, 1)]).range([0, chartWidth]);
 
-    // Dynamic y-domain: symmetric if data has negatives, positive-only if all ≥ 0
+    // Percentile-clipped y-domain: axis fits the p95 of absolute values so
+    // local scene-by-scene variation stays legible even when a handful of
+    // extreme scenes would otherwise flatten the line. Values outside the
+    // clipped domain saturate at the chart edge (via .clamp) and are marked
+    // with small overflow triangles.
     const values = data.map((d) => forceKey === 'swing' ? d.swing : d.forces[forceKey]);
     const allPositive = (d3.min(values) ?? 0) >= 0;
-    const maxAbs = Math.max(d3.max(values.map(Math.abs)) ?? 1, 1);
+    const absSorted = values.map(Math.abs).sort((a, b) => a - b);
+    const pIdx = Math.max(0, Math.floor(absSorted.length * 0.95) - 1);
+    const clipAbs = Math.max(absSorted[pIdx] ?? 1, 1);
+    const trueAbs = absSorted.at(-1) ?? clipAbs;
+    const hasOverflow = trueAbs > clipAbs * 1.05;
+    const maxAbs = clipAbs;
     const yScale = d3.scaleLinear()
-      .domain(allPositive ? [0, maxAbs * 1.1] : [-maxAbs, maxAbs])
-      .range([chartHeight, 0]);
+      .domain(allPositive ? [0, clipAbs * 1.1] : [-clipAbs * 1.1, clipAbs * 1.1])
+      .range([chartHeight, 0])
+      .clamp(true);
 
     // Window highlight region
     if (windowRange) {
@@ -265,6 +275,29 @@ function ForceChart({
         .attr('stroke-width', 1)
         .attr('stroke-dasharray', '3,2')
         .attr('opacity', 0.4);
+    }
+
+    // Overflow markers — triangular ticks at the chart edge where values
+    // exceed the clipped domain. Signals "there's a spike here" without
+    // letting the spike's magnitude flatten the local bumps.
+    if (hasOverflow) {
+      const overflowHi = clipAbs * 1.1;
+      const overflowLo = -clipAbs * 1.1;
+      for (let i = 0; i < values.length; i++) {
+        const v = values[i];
+        const x = xScale(i);
+        if (v > overflowHi) {
+          clipped.append('path')
+            .attr('d', `M ${x - 3} 4 L ${x + 3} 4 L ${x} 0 Z`)
+            .attr('fill', color)
+            .attr('opacity', 0.75);
+        } else if (!allPositive && v < overflowLo) {
+          clipped.append('path')
+            .attr('d', `M ${x - 3} ${chartHeight - 4} L ${x + 3} ${chartHeight - 4} L ${x} ${chartHeight} Z`)
+            .attr('fill', color)
+            .attr('opacity', 0.75);
+        }
+      }
     }
 
     // Draw lines overlay
@@ -655,9 +688,16 @@ function DeliveryChart({
 
     const xScale = d3.scaleLinear().domain([0, Math.max(delivery.length - 1, 1)]).range([0, chartWidth]);
     const allValues = delivery.flatMap((e) => [e.smoothed, e.macroTrend]);
-    const maxAbs = Math.max(d3.max(allValues.map(Math.abs)) ?? 1, 0.5);
+    // Percentile-clipped domain — axis tracks the p95 of absolute values so
+    // local delivery variation stays legible under outlier scenes.
+    const absSorted = allValues.map(Math.abs).sort((a, b) => a - b);
+    const pIdx = Math.max(0, Math.floor(absSorted.length * 0.95) - 1);
+    const clipAbs = Math.max(absSorted[pIdx] ?? 1, 0.5);
+    const trueAbs = absSorted.at(-1) ?? clipAbs;
+    const hasOverflow = trueAbs > clipAbs * 1.05;
+    const maxAbs = clipAbs;
     // 20% headroom so peak/valley markers don't get clipped at the domain boundary
-    const yScale = d3.scaleLinear().domain([-maxAbs * 1.2, maxAbs * 1.2]).range([chartHeight, 0]);
+    const yScale = d3.scaleLinear().domain([-clipAbs * 1.2, clipAbs * 1.2]).range([chartHeight, 0]).clamp(true);
 
     // Window highlight
     if (windowRange) {
@@ -783,6 +823,28 @@ function DeliveryChart({
       .attr('stroke', DELIVERY_COLOR)
       .attr('stroke-width', 2)
       .attr('opacity', 0.9);
+
+    // Overflow markers — ticks at the chart edge where smoothed values exceed
+    // the clipped domain, so outlier scenes stay visible without flattening
+    // the local bumps.
+    if (hasOverflow) {
+      const overflowHi = clipAbs * 1.2;
+      const overflowLo = -clipAbs * 1.2;
+      for (const e of delivery) {
+        const x = xScale(e.index);
+        if (e.smoothed > overflowHi) {
+          clipped.append('path')
+            .attr('d', `M ${x - 3} 4 L ${x + 3} 4 L ${x} 0 Z`)
+            .attr('fill', DELIVERY_COLOR)
+            .attr('opacity', 0.75);
+        } else if (e.smoothed < overflowLo) {
+          clipped.append('path')
+            .attr('d', `M ${x - 3} ${chartHeight - 4} L ${x + 3} ${chartHeight - 4} L ${x} ${chartHeight} Z`)
+            .attr('fill', VALLEY_COLOR)
+            .attr('opacity', 0.75);
+        }
+      }
+    }
 
     // Peak markers — upward triangles
     const triUp = d3.symbol().type(d3.symbolTriangle).size(40);
@@ -1074,9 +1136,13 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
         swing: 0,
         corner: corner.name,
         cornerKey: corner.key as CubeCornerKey,
-        threadChanges: scene.threadDeltas.map(
-          (tm) => `${narrative.threads[tm.threadId]?.description?.slice(0, 50) ?? tm.threadId}: ${tm.from} → ${tm.to}`
-        ),
+        threadChanges: scene.threadDeltas.map((tm) => {
+          const desc = narrative.threads[tm.threadId]?.description?.slice(0, 50) ?? tm.threadId;
+          const moves = (tm.updates ?? [])
+            .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+            .join(' ');
+          return `${desc}: [${tm.logType}] ${moves}`;
+        }),
       };
     });
     // Compute swing magnitudes, then z-score normalize

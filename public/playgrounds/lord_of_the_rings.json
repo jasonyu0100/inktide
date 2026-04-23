@@ -259,8 +259,15 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-02",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Bilbo vanishes at his birthday party; the plain gold ring slides from uncle to nephew, and Frodo inherits a burden he does not yet recognise as one."
         }
       ],
       "worldDeltas": [
@@ -336,8 +343,15 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-05",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "The Gaffer grumbles about queer folk on the East Road; the first faint rumour of something breeding south begins circulating as gossip."
         }
       ],
       "worldDeltas": [
@@ -412,8 +426,10 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-07",
-          "from": "latent",
-          "to": "latent"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Sam overhears Gandalf tell Frodo the Shire is no longer safe; the quest has not begun, but its shadow is already leaking through a casement."
         }
       ],
       "worldDeltas": [
@@ -473,8 +489,15 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-01",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Gandalf casts the ring into the hearth and the inscription blooms in firelight; Frodo understands without being told that the quiet life is over."
         }
       ],
       "worldDeltas": [
@@ -567,8 +590,15 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-07",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Sam is caught eavesdropping and sentenced to travel with Frodo; the road acquires its second walker before the first has quite agreed to go."
         }
       ],
       "worldDeltas": [
@@ -666,8 +696,10 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-02",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "The green door closes and the key turns; Frodo carries a ring he already half-wishes was only a piece of family gold."
         }
       ],
       "worldDeltas": [
@@ -743,8 +775,10 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Farmer Maggot reports a black rider asking after Baggins; the ring's bearer is being hunted, and the Shire is no longer the Shire."
         }
       ],
       "worldDeltas": [
@@ -902,8 +936,10 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-07",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Elves passing to the Grey Havens share fire and song; fear recedes for a night, but the road south does not pause for it."
         }
       ],
       "worldDeltas": [
@@ -990,8 +1026,15 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-03",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "A Ranger with watching grey eyes crosses the common room to their table at the Prancing Pony; Isildur's heir has found the hobbits."
         }
       ],
       "worldDeltas": [
@@ -1190,8 +1233,10 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-02",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Gandalf walks the road with them instead of riding to Isengard; Frodo's transformation begins under a wizard's shelter, bought on borrowed time."
         }
       ],
       "worldDeltas": [
@@ -1285,8 +1330,10 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "By firelight Gandalf warns the Ring is not a tool but a will; Frodo turns the band in his palm and wonders which warmth is its own."
         }
       ],
       "worldDeltas": [
@@ -1388,8 +1435,10 @@
       "threadDeltas": [
         {
           "threadId": "T-LOTR-05",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "With Gandalf at Bree no Ranger watches the inn; Saruman's absent attention buys the hobbits a quiet night and defers a reckoning elsewhere."
         }
       ],
       "worldDeltas": [
@@ -2120,12 +2169,29 @@
               }
             ],
             "description": "The burden of the Ring — its corruption seeps into every mind that touches it, promising power, whispering dominion, turning love into possession",
-            "status": "latent",
             "openedAt": "S-LOTR-001",
             "dependents": [
               "T-LOTR-02",
               "T-LOTR-06"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-LOTR-02",
@@ -2140,9 +2206,26 @@
               }
             ],
             "description": "Frodo's transformation — from a gentle hobbit of the Shire into a Ring-bearer scarred by a burden no mortal was meant to carry",
-            "status": "latent",
             "openedAt": "S-LOTR-001",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-LOTR-03",
@@ -2153,9 +2236,26 @@
               }
             ],
             "description": "Aragorn's hidden kingship — Isildur's heir walks as a Ranger, bearing the weight of a lineage that both commands and condemns him",
-            "status": "latent",
             "openedAt": "S-LOTR-004",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-LOTR-04",
@@ -2170,11 +2270,28 @@
               }
             ],
             "description": "The Fellowship's unity and fracture — nine walkers bound by oath, pulled apart by the Ring's will and the separate griefs they carry",
-            "status": "latent",
             "openedAt": "S-LOTR-006",
             "dependents": [
               "T-LOTR-06"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-LOTR-05",
@@ -2189,11 +2306,28 @@
               }
             ],
             "description": "Saruman's betrayal and Isengard's corruption — the White Wizard fallen, breeding armies in the caverns beneath Orthanc, reaching for the Ring",
-            "status": "latent",
             "openedAt": "S-LOTR-003",
             "dependents": [
               "T-LOTR-01"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-LOTR-06",
@@ -2204,9 +2338,26 @@
               }
             ],
             "description": "Boromir's internal struggle — a good man undone by love for his city and the Ring's whispered promise that he alone can save it",
-            "status": "latent",
             "openedAt": "S-LOTR-007",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-LOTR-07",
@@ -2221,12 +2372,29 @@
               }
             ],
             "description": "The road to Mordor — the quest itself, each step south a step closer to the fire and the end of all things or the saving of them",
-            "status": "latent",
             "openedAt": "S-LOTR-002",
             "dependents": [
               "T-LOTR-01",
               "T-LOTR-04"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           }
         ],
         "relationshipDeltas": [

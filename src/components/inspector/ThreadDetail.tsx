@@ -3,25 +3,34 @@
 import {
   classifyThreadKind,
   computeActiveArcs,
-  computeThreadStatuses,
+  getMarketBelief,
+  getMarketMargin,
+  getMarketProbs,
 } from "@/lib/narrative-utils";
+import {
+  classifyThreadCategory,
+  THREAD_CATEGORY_LABEL,
+  THREAD_CATEGORY_TEXT,
+  THREAD_CATEGORY_DESCRIPTION,
+} from "@/lib/thread-category";
+import { buildThreadTrajectory } from "@/lib/portfolio-analytics";
 import { getThreadLogAtScene } from "@/lib/scene-filter";
 import { useStore } from "@/lib/store";
 import { useMemo, useState } from "react";
 import { CollapsibleSection, Paginator, paginateRecent } from "./CollapsibleSection";
 
+// Shared palette with MarketView — top outcome takes the brightest slot.
+const OUTCOME_HEX = [
+  "#38BDF8", // sky
+  "#FBBF24", // amber
+  "#2DD4BF", // teal
+  "#A78BFA", // violet
+  "#FB7185", // rose
+  "#34D399", // emerald
+];
+
 type Props = {
   threadId: string;
-};
-
-const statusClasses: Record<string, string> = {
-  latent: "text-text-dim",
-  seeded: "text-amber-400",
-  active: "text-blue-400",
-  critical: "text-fate",
-  resolved: "text-world",
-  subverted: "text-violet-400",
-  abandoned: "text-text-dim",
 };
 
 const threadLogDotColors: Record<string, string> = {
@@ -44,12 +53,10 @@ export default function ThreadDetail({ threadId }: Props) {
 
   const thread = narrative?.threads[threadId];
 
-  const currentStatuses = useMemo(
-    () =>
-      narrative
-        ? computeThreadStatuses(narrative, state.viewState.currentSceneIndex)
-        : {},
-    [narrative, state.viewState.currentSceneIndex],
+  // Market-derived category per thread.
+  const currentCategory = useMemo(
+    () => (thread ? classifyThreadCategory(thread) : 'dormant'),
+    [thread],
   );
 
   // Progressive reveal: thread log nodes visible at current scene index
@@ -70,9 +77,23 @@ export default function ThreadDetail({ threadId }: Props) {
     state.viewState.currentSceneIndex,
   ]);
 
-  if (!narrative || !thread) return null;
+  // Probability trajectory replayed scene-by-scene up to the current index —
+  // the "up to scene" history that powers the sparkline + current distribution.
+  const trajectory = useMemo(() => {
+    if (!narrative) return [];
+    return buildThreadTrajectory(
+      narrative,
+      threadId,
+      state.resolvedEntryKeys.slice(0, state.viewState.currentSceneIndex + 1),
+    );
+  }, [
+    narrative,
+    threadId,
+    state.resolvedEntryKeys,
+    state.viewState.currentSceneIndex,
+  ]);
 
-  const currentStatus = currentStatuses[threadId] ?? thread.status;
+  if (!narrative || !thread) return null;
 
   // Resolve anchor names
   const anchors = (thread.participants ?? []).map((a) => ({
@@ -93,12 +114,13 @@ export default function ThreadDetail({ threadId }: Props) {
         <p className="text-sm text-text-primary">{thread.description}</p>
       </div>
 
-      {/* Status + kind + bandwidth */}
+      {/* Category + kind + bandwidth */}
       <div className="flex items-center gap-2">
         <span
-          className={`text-[10px] uppercase tracking-widest ${statusClasses[currentStatus] ?? "text-text-secondary"}`}
+          className={`text-[10px] uppercase tracking-widest ${THREAD_CATEGORY_TEXT[currentCategory]}`}
+          title={THREAD_CATEGORY_DESCRIPTION[currentCategory]}
         >
-          {currentStatus}
+          {THREAD_CATEGORY_LABEL[currentCategory]}
         </span>
         <span
           className={`text-[9px] px-1.5 py-0.5 rounded-full ${
@@ -114,6 +136,114 @@ export default function ThreadDetail({ threadId }: Props) {
           {Object.keys(narrative.arcs).length || 1} arcs
         </span>
       </div>
+
+      {/* Market — up-to-scene probability distribution + trajectory */}
+      {(() => {
+        const tailProbs =
+          trajectory.length > 0
+            ? trajectory[trajectory.length - 1].probs
+            : getMarketProbs(thread);
+        const belief = getMarketBelief(thread);
+        const { margin } = getMarketMargin(thread);
+        const ranked = thread.outcomes
+          .map((outcome, idx) => ({
+            outcome,
+            idx,
+            prob: tailProbs[idx] ?? 0,
+          }))
+          .sort((a, b) => b.prob - a.prob);
+        const catColor = `var(--color-fate)`;
+        const isClosed =
+          thread.closedAt !== undefined && thread.closeOutcome !== undefined;
+        return (
+          <div className="flex flex-col gap-2.5 rounded-lg border border-white/5 bg-white/1.5 p-3">
+            {/* Ranked outcomes with probability bars */}
+            <ul className="flex flex-col gap-1.5">
+              {ranked.map(({ outcome, idx, prob }) => {
+                const color = OUTCOME_HEX[idx % OUTCOME_HEX.length];
+                const isWinner = isClosed && thread.closeOutcome === idx;
+                return (
+                  <li key={`${outcome}-${idx}`} className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 rounded-sm shrink-0"
+                        style={{ background: color }}
+                      />
+                      <span
+                        className={`text-xs truncate flex-1 ${isWinner ? "text-text-primary font-medium" : "text-text-secondary"}`}
+                        title={outcome}
+                      >
+                        {outcome}
+                      </span>
+                      <span className="text-xs font-mono tabular-nums text-text-primary">
+                        {Math.round(prob * 100)}%
+                      </span>
+                    </div>
+                    <div className="h-1 w-full rounded-full bg-white/5 overflow-hidden">
+                      <div
+                        className="h-full"
+                        style={{
+                          width: `${prob * 100}%`,
+                          background: color,
+                          opacity: ranked[0].idx === idx ? 1 : 0.55,
+                        }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Market stats */}
+            <div className="flex items-center gap-3 text-[10px] text-text-dim pt-1 border-t border-white/5">
+              <span title="Cumulative narrative attention">
+                vol{" "}
+                <span className="font-mono tabular-nums text-text-secondary">
+                  {(belief?.volume ?? 0).toFixed(1)}
+                </span>
+              </span>
+              <span title="Log-odds margin between top two outcomes">
+                Δ
+                <span className="font-mono tabular-nums text-text-secondary">
+                  {margin.toFixed(2)}
+                </span>
+              </span>
+              <span title="EWMA of recent evidence magnitude">
+                σ{" "}
+                <span className="font-mono tabular-nums text-text-secondary">
+                  {(belief?.volatility ?? 0).toFixed(2)}
+                </span>
+              </span>
+              {trajectory.length > 0 && (
+                <span className="ml-auto font-mono tabular-nums">
+                  {trajectory.length} scn
+                </span>
+              )}
+            </div>
+
+            {/* Resolution footer */}
+            {isClosed && (
+              <div className="text-[10px] text-text-dim pt-1 border-t border-white/5">
+                Closed at{" "}
+                <span className="font-mono text-text-secondary">
+                  {thread.closedAt}
+                </span>{" "}
+                → <span style={{ color: catColor }}>
+                  {thread.outcomes[thread.closeOutcome ?? 0]}
+                </span>
+                {thread.resolutionQuality !== undefined && (
+                  <>
+                    {" · quality "}
+                    <span className="font-mono tabular-nums text-text-secondary">
+                      {Math.round(thread.resolutionQuality * 100)}%
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Thread Log — progressive-reveal paginated list */}
       {visibleLog.nodes.length > 0 &&
@@ -201,16 +331,16 @@ export default function ThreadDetail({ threadId }: Props) {
                         context: { type: "scene", sceneId },
                       })
                     }
-                    className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
+                    className="text-left font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
                   >
                     {sceneId}
                   </button>
                   {deltas.map((tm, tmIdx) => (
                     <span
-                      key={`${tm.from}-${tm.to}-${tmIdx}`}
-                      className={`text-xs ${tm.from === tm.to ? "text-text-dim" : "text-fate"}`}
+                      key={`${tm.threadId}-${tmIdx}`}
+                      className={`text-xs ${tm.logType === 'pulse' || tm.logType === 'stall' ? "text-text-dim" : "text-fate"}`}
                     >
-                      {tm.from} &rarr; {tm.to}
+                      [{tm.logType}] {(tm.updates ?? []).map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`).join(' ')}
                     </span>
                   ))}
                 </li>

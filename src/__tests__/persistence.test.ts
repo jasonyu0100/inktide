@@ -348,7 +348,7 @@ describe('saveDiscoveryInquiry', () => {
     const savedInquiries = mockIdbPut.mock.calls[0][2] as DiscoveryInquiry[];
     expect(savedInquiries.length).toBe(1);
     expect(savedInquiries[0].query).toBe('updated query');
-    expect(savedInquiries[0].status).toBe('complete');
+    expect((savedInquiries[0].closedAt ? "closed" : "open")).toBe('complete');
   });
 });
 describe('deleteDiscoveryInquiry', () => {

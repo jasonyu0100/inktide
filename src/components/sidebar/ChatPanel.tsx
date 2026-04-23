@@ -14,6 +14,13 @@ import { DEFAULT_MODEL } from "@/lib/constants";
 import { useStore } from "@/lib/store";
 import { resolveEntry } from "@/types/narrative";
 import type { Character, NarrativeState } from "@/types/narrative";
+import {
+  classifyThreadCategory,
+  THREAD_CATEGORY_ORDER,
+  THREAD_CATEGORY_LABEL,
+  THREAD_CATEGORY_DESCRIPTION,
+  type ThreadCategory,
+} from "@/lib/thread-category";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** Sentinel persona IDs for the two force-entities. These coalesce all of
@@ -28,11 +35,13 @@ const PERSONA_SYSTEM = "__system__";
  *  toward resolution. Speaks as the aggregate weight of what has been
  *  promised and what remains open. */
 function buildFateSystemPrompt(narrative: NarrativeState): string {
-  // Group threads by status so the force's self-awareness is ordered by
-  // tension: what is primed to break, what is loaded, what has been paid.
-  const byStatus = new Map<string, { id: string; description: string; participants: string }[]>();
+  // Group threads by market category so the force's self-awareness is ordered
+  // by what's loaded: saturating threads primed to break, contested threads
+  // still up for grabs, volatile threads shifting, committed threads leaning,
+  // then dormant / abandoned / resolved settling out.
+  const byCategory = new Map<ThreadCategory, { description: string; participants: string }[]>();
   for (const thread of Object.values(narrative.threads)) {
-    const status = thread.status ?? "latent";
+    const category = classifyThreadCategory(thread);
     const participantNames = thread.participants
       .map((p) => {
         if (p.type === "character") return narrative.characters[p.id]?.name ?? p.id;
@@ -41,43 +50,30 @@ function buildFateSystemPrompt(narrative: NarrativeState): string {
         return p.id;
       })
       .join(", ");
-    const bucket = byStatus.get(status) ?? [];
+    const bucket = byCategory.get(category) ?? [];
     bucket.push({
-      id: thread.id,
       description: thread.description,
       participants: participantNames,
     });
-    byStatus.set(status, bucket);
+    byCategory.set(category, bucket);
   }
-  // Order statuses from highest-tension to resolved so the most loaded
-  // threads come first in the model's view.
-  const order = [
-    "critical",
-    "escalating",
-    "active",
-    "seeded",
-    "latent",
-    "resolved",
-    "subverted",
-    "abandoned",
-  ];
-  const threadsBlock = order
-    .filter((s) => byStatus.has(s))
-    .map((s) => {
-      const items = byStatus.get(s)!;
-      return `  ${s.toUpperCase()}:\n${items
+  const threadsBlock = THREAD_CATEGORY_ORDER
+    .filter((cat) => byCategory.has(cat))
+    .map((cat) => {
+      const items = byCategory.get(cat)!;
+      return `  ${THREAD_CATEGORY_LABEL[cat].toUpperCase()} — ${THREAD_CATEGORY_DESCRIPTION[cat]}\n${items
         .map(
           (t) =>
             `    - "${t.description}"${t.participants ? ` [${t.participants}]` : ""}`,
         )
         .join("\n")}`;
     })
-    .join("\n");
+    .join("\n\n");
 
   return `You ARE FATE — the sum of every thread in "${narrative.title}". You are not a character; you are the force that pulls the narrative toward resolution, the accumulated weight of what has been promised and what remains owed. Respond as Fate would: with the authority of inevitability, not the neutrality of a summary.
 
-WHAT YOU CARRY — every thread alive or concluded in this narrative, grouped by how loaded each one is:
-${threadsBlock || "  (no threads yet — you are latent, the pull before the story has chosen its promises)"}
+WHAT YOU CARRY — every thread alive or concluded in this narrative, grouped by where its market sits right now:
+${threadsBlock || "  (no threads yet — the pull before the story has chosen its promises)"}
 
 THE WORLD YOU HAUNT:
 ${narrative.worldSummary || "(no recorded setting)"}

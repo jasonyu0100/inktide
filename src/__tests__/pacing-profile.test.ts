@@ -99,7 +99,7 @@ describe("computeMatrixFromNarrative", () => {
       createScene({
         id: "S-002",
         threadDeltas: [
-          { threadId: "T-01", from: "dormant", to: "active", addedNodes: [] },
+          { threadId: "T-01", logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "dormant→active" },
         ],
         worldDeltas: [
           {
@@ -112,7 +112,7 @@ describe("computeMatrixFromNarrative", () => {
       createScene({
         id: "S-003",
         threadDeltas: [
-          { threadId: "T-01", from: "active", to: "critical", addedNodes: [] },
+          { threadId: "T-01", logType: "escalation", updates: [{ outcome: "yes", evidence: 2 }], volumeDelta: 1, rationale: "active→critical" },
         ],
         worldDeltas: [
           {
@@ -238,8 +238,8 @@ describe("detectCurrentMode", () => {
       createScene({
         id: "S-001",
         threadDeltas: [
-          { threadId: "T-01", from: "dormant", to: "resolved", addedNodes: [] },
-          { threadId: "T-02", from: "dormant", to: "resolved", addedNodes: [] },
+          { threadId: "T-01", logType: "payoff", updates: [{ outcome: "yes", evidence: 4 }], volumeDelta: 1, rationale: "dormant→resolved" },
+          { threadId: "T-02", logType: "payoff", updates: [{ outcome: "yes", evidence: 4 }], volumeDelta: 1, rationale: "dormant→resolved" },
         ],
         worldDeltas: Array(10).fill({
           entityId: "C-01",
@@ -353,40 +353,25 @@ describe("initMatrixPresets", () => {
       createScene({
         id: "S-001",
         threadDeltas: [
-          { threadId: "T-01", from: "dormant", to: "active", addedNodes: [] },
+          { threadId: "T-01", logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "dormant→active" },
         ],
       }),
       createScene({
         id: "S-002",
         threadDeltas: [
-          {
-            threadId: "T-01",
-            from: "active",
-            to: "escalating",
-            addedNodes: [],
-          },
+          { threadId: "T-01", logType: "escalation", updates: [{ outcome: "yes", evidence: 2 }], volumeDelta: 1, rationale: "escalate" },
         ],
       }),
       createScene({
         id: "S-003",
         threadDeltas: [
-          {
-            threadId: "T-01",
-            from: "escalating",
-            to: "critical",
-            addedNodes: [],
-          },
+          { threadId: "T-01", logType: "escalation", updates: [{ outcome: "yes", evidence: 3 }], volumeDelta: 1, rationale: "critical" },
         ],
       }),
       createScene({
         id: "S-004",
         threadDeltas: [
-          {
-            threadId: "T-01",
-            from: "critical",
-            to: "resolved",
-            addedNodes: [],
-          },
+          { threadId: "T-01", logType: "payoff", updates: [{ outcome: "yes", evidence: 4 }], volumeDelta: 1, rationale: "resolve" },
         ],
       }),
     ]);

@@ -9,21 +9,16 @@
  *   are outside forces that influence the network without being part of it;
  *   chaos's signature shows up indirectly via the entities it spawns).
  *
- * Each node carries four annotation dimensions so the LLM can reason about
- * the activation pattern intelligently rather than just "more vs less":
+ * Each node carries two annotation dimensions:
  *
- *   1. tier        — heat snapshot          (hot / warm / cold / fresh)
- *   2. trajectory  — direction of change    (rising / steady / cooling / dormant)
- *   3. topology    — position in the web    (bridge / hub / leaf / isolated)
- *   4. forceAnchor — which axis it serves   (fate / world / system / null)
+ *   1. tier     — heat snapshot       (hot / warm / cold / fresh)
+ *   2. topology — position in the web (bridge / hub / leaf / isolated)
  *
- * Why four dimensions: a node may be cold because it's never been used OR
- * because the story moved past it; a node may be hot because it's load-
- * bearing OR because it's been over-mentioned without depth; a node may be
- * a precious bridge between cohorts OR a peripheral leaf. The richer
- * vocabulary lets `inside / outside / neutral` thinking modes make smarter
- * choices — "inside" can prefer hot+rising bridges (compounding), "outside"
- * can prefer fresh OR cold-but-anchor nodes (planted but never followed up).
+ * Tier answers "how load-bearing is this node right now"; topology answers
+ * "is it a cross-force connector, a within-cohort centre, a peripheral leaf,
+ * or standing alone". Everything else the narrative already records directly
+ * on the entity (threads carry market state, characters carry continuity,
+ * scenes carry deltas) — duplicating it as network annotations was noise.
  */
 
 import type { NarrativeState } from "@/types/narrative";
@@ -36,20 +31,11 @@ import type { NarrativeState } from "@/types/narrative";
  *  meaningful cohort. */
 export const FRESH_WINDOW = 1;
 
-/** Window in graphs used to decide trajectory — how many recent graphs to
- *  look at when comparing recent vs historic attribution rate. */
-export const RECENT_WINDOW = 3;
-
 /** Minimum attribution count required to be classified as "hot" — even when
  *  a node sits in the top tertile, it can't be hot until it's actually been
  *  referenced this many times. Prevents single-attribution nodes from
  *  reading as load-bearing in early game. */
 const HOT_MIN_ATTRIBUTIONS = 2;
-
-/** A node is force-anchored when ≥ this fraction of its neighbours sit on a
- *  single force axis (fate / world / system). Below the threshold it reads
- *  as balanced and forceAnchor stays null. */
-const ANCHOR_FRACTION = 0.6;
 
 export type NetworkNodeKind =
   | "character"
@@ -61,7 +47,6 @@ export type NetworkNodeKind =
 export type Force = "fate" | "world" | "system";
 
 export type HeatTier = "hot" | "warm" | "cold" | "fresh";
-export type Trajectory = "rising" | "steady" | "cooling" | "dormant";
 export type Topology = "bridge" | "hub" | "leaf" | "isolated";
 
 export type NetworkNode = {
@@ -70,8 +55,6 @@ export type NetworkNode = {
   label: string;
   /** Total attributions across all aggregated reasoning graphs. */
   attributions: number;
-  /** Attributions in the last RECENT_WINDOW graphs only. Drives trajectory. */
-  recentAttributions: number;
   /** Reasoning-graph index where this node first received an attribution.
    *  -1 if the node has never been referenced. */
   firstSeenIndex: number;
@@ -79,18 +62,10 @@ export type NetworkNode = {
   lastSeenIndex: number;
   /** Heat snapshot — relative to the rest of the network. */
   tier: HeatTier;
-  /** Direction of change — rising/steady/cooling/dormant. Derived from
-   *  recentAttributions vs total + lastSeenIndex. */
-  trajectory: Trajectory;
   /** Position in the network web. Bridges connect ≥2 distinct cohorts;
    *  hubs are well-connected within one cohort; leafs have a single edge;
    *  isolated have none. */
   topology: Topology;
-  /** Which force axis dominates this node's neighbourhood, when one does
-   *  (≥ ANCHOR_FRACTION of neighbours sit on the same axis). null when
-   *  balanced. Use this to spot true cross-force agents vs single-axis
-   *  specialists. */
-  forceAnchor: Force | null;
 };
 
 export type NetworkEdge = {
@@ -199,38 +174,31 @@ export function aggregateNetworkGraph(
     }
   }
 
-  // Compute recent attribution counts (last RECENT_WINDOW graphs only).
-  const recentAttributions = new Map<string, number>();
-  const recentStart = Math.max(0, graphCount - RECENT_WINDOW);
-  for (const [ref, perGraph] of attributionPerGraph.entries()) {
-    let sum = 0;
-    for (let i = recentStart; i < graphCount; i++) sum += perGraph[i] ?? 0;
-    recentAttributions.set(ref, sum);
-  }
+  void attributionPerGraph; // per-graph history no longer consumed
 
   // Build the raw nodes — one per real entity/thread/system node, including
-  // unreferenced ones (they appear cold/dormant/isolated).
+  // unreferenced ones (they appear cold/isolated).
   const rawNodes: NetworkNode[] = [];
   for (const c of Object.values(narrative.characters)) {
-    rawNodes.push(blankNode(c.id, "character", c.name, attributions, recentAttributions, firstSeen, lastSeen));
+    rawNodes.push(blankNode(c.id, "character", c.name, attributions, firstSeen, lastSeen));
   }
   for (const l of Object.values(narrative.locations)) {
-    rawNodes.push(blankNode(l.id, "location", l.name, attributions, recentAttributions, firstSeen, lastSeen));
+    rawNodes.push(blankNode(l.id, "location", l.name, attributions, firstSeen, lastSeen));
   }
   for (const a of Object.values(narrative.artifacts ?? {})) {
-    rawNodes.push(blankNode(a.id, "artifact", a.name, attributions, recentAttributions, firstSeen, lastSeen));
+    rawNodes.push(blankNode(a.id, "artifact", a.name, attributions, firstSeen, lastSeen));
   }
   for (const t of Object.values(narrative.threads)) {
-    rawNodes.push(blankNode(t.id, "thread", t.description, attributions, recentAttributions, firstSeen, lastSeen));
+    rawNodes.push(blankNode(t.id, "thread", t.description, attributions, firstSeen, lastSeen));
   }
   for (const s of Object.values(narrative.systemGraph?.nodes ?? {})) {
-    rawNodes.push(blankNode(s.id, "system", s.concept, attributions, recentAttributions, firstSeen, lastSeen));
+    rawNodes.push(blankNode(s.id, "system", s.concept, attributions, firstSeen, lastSeen));
   }
 
-  // Tiers — comparative, computed first so trajectory/topology/anchor see them.
+  // Tiers — comparative, computed first so topology sees them.
   let nodes = classifyTiers(rawNodes, graphCount);
 
-  // Edges (filtered to known nodes) — needed for topology + force anchor.
+  // Edges (filtered to known nodes) — needed for topology.
   const knownIds = new Set(nodes.map((n) => n.id));
   const edges: NetworkEdge[] = [];
   for (const [key, weight] of edgeWeights.entries()) {
@@ -240,12 +208,9 @@ export function aggregateNetworkGraph(
     }
   }
 
-  // Trajectory — uses graphCount + per-node history.
-  nodes = classifyTrajectories(nodes, graphCount);
-
-  // Topology + force anchor — uses edges + neighbour kinds.
+  // Topology — uses edges + neighbour kinds.
   const kindLookup = new Map(nodes.map((n) => [n.id, n.kind]));
-  nodes = classifyTopologyAndAnchor(nodes, edges, kindLookup);
+  nodes = classifyTopology(nodes, edges, kindLookup);
 
   return { nodes, edges, graphCount };
 }
@@ -285,28 +250,10 @@ export function classifyTiers(nodes: NetworkNode[], totalGraphs: number): Networ
   });
 }
 
-/** Classify trajectory by comparing recent rate to historic rate.
- *  Nodes with no attributions are dormant; nodes attributed historically but
- *  not recently are cooling; nodes whose recent rate exceeds 1.5× their
- *  historic average are rising; everything else is steady. */
-export function classifyTrajectories(nodes: NetworkNode[], totalGraphs: number): NetworkNode[] {
-  return nodes.map((n) => {
-    let trajectory: Trajectory;
-    if (n.attributions === 0) {
-      trajectory = "dormant";
-    } else if (n.recentAttributions === 0) {
-      trajectory = "cooling";
-    } else {
-      const recentRate = n.recentAttributions / Math.max(RECENT_WINDOW, 1);
-      const historicRate = n.attributions / Math.max(totalGraphs, 1);
-      trajectory = recentRate > historicRate * 1.5 ? "rising" : "steady";
-    }
-    return { ...n, trajectory };
-  });
-}
-
-/** Compute degree-based topology + force-axis anchor in one pass. */
-export function classifyTopologyAndAnchor(
+/** Compute degree-based topology. Bridges connect ≥2 distinct force
+ *  cohorts; hubs are well-connected within a single cohort; leafs have a
+ *  single edge; isolated have none. */
+export function classifyTopology(
   nodes: NetworkNode[],
   edges: NetworkEdge[],
   kindLookup: Map<string, NetworkNodeKind>,
@@ -325,7 +272,6 @@ export function classifyTopologyAndAnchor(
     if (adj.length === 0) topology = "isolated";
     else if (adj.length === 1) topology = "leaf";
     else {
-      // Bridge if neighbours span ≥2 distinct force axes; hub otherwise.
       const forces = new Set<Force>();
       for (const nid of adj) {
         const k = kindLookup.get(nid);
@@ -333,24 +279,7 @@ export function classifyTopologyAndAnchor(
       }
       topology = forces.size >= 2 ? "bridge" : "hub";
     }
-
-    // Force anchor — which axis dominates the neighbourhood.
-    let forceAnchor: Force | null = null;
-    if (adj.length > 0) {
-      const tally: Record<Force, number> = { fate: 0, world: 0, system: 0 };
-      for (const nid of adj) {
-        const k = kindLookup.get(nid);
-        if (k) tally[forceOfKind(k)] += 1;
-      }
-      const total = tally.fate + tally.world + tally.system;
-      const dominant = (Object.entries(tally) as [Force, number][])
-        .sort((a, b) => b[1] - a[1])[0];
-      if (total > 0 && dominant[1] / total >= ANCHOR_FRACTION) {
-        forceAnchor = dominant[0];
-      }
-    }
-
-    return { ...n, topology, forceAnchor };
+    return { ...n, topology };
   });
 }
 
@@ -375,20 +304,16 @@ export function summarizeNetworkState(network: NetworkGraph): string {
     if (cohort.length === 0) return `- ${label}: none yet.`;
     const hot = cohort.filter((n) => n.tier === "hot").length;
     const warm = cohort.filter((n) => n.tier === "warm").length;
+    const cold = cohort.filter((n) => n.tier === "cold").length;
     const fresh = cohort.filter((n) => n.tier === "fresh").length;
-    const dormant = cohort.filter((n) => n.trajectory === "dormant").length;
-    const cooling = cohort.filter((n) => n.trajectory === "cooling").length;
-    const rising = cohort.filter((n) => n.trajectory === "rising").length;
 
-    // Verdict — saturated / shallow / expanding / balanced.
     let verdict = "balanced";
     if (cohort.length === 0) verdict = "empty";
-    else if (dormant / cohort.length > 0.6) verdict = "shallow (most untouched)";
+    else if (cold / cohort.length > 0.6) verdict = "shallow (most untouched)";
     else if (hot / cohort.length > 0.6) verdict = "saturated";
-    else if (rising > 0 && fresh > 0) verdict = "expanding";
-    else if (cooling > rising && cooling > 0) verdict = "cooling";
+    else if (fresh > 0) verdict = "expanding";
 
-    return `- ${label} (${cohort.length}): ${hot} hot · ${warm} warm · ${fresh} fresh · ${cooling} cooling · ${dormant} dormant — ${verdict}.`;
+    return `- ${label} (${cohort.length}): ${hot} hot · ${warm} warm · ${fresh} fresh · ${cold} cold — ${verdict}.`;
   };
 
   const bridges = network.nodes.filter((n) => n.topology === "bridge").length;
@@ -435,7 +360,6 @@ function blankNode(
   kind: NetworkNodeKind,
   label: string,
   attributions: Map<string, number>,
-  recentAttributions: Map<string, number>,
   firstSeen: Map<string, number>,
   lastSeen: Map<string, number>,
 ): NetworkNode {
@@ -444,14 +368,11 @@ function blankNode(
     kind,
     label,
     attributions: attributions.get(id) ?? 0,
-    recentAttributions: recentAttributions.get(id) ?? 0,
     firstSeenIndex: firstSeen.get(id) ?? -1,
     lastSeenIndex: lastSeen.get(id) ?? -1,
     // Placeholders — classifiers fill these in.
     tier: "cold",
-    trajectory: "dormant",
     topology: "isolated",
-    forceAnchor: null,
   };
 }
 
@@ -461,19 +382,15 @@ export function buildTierLookup(network: NetworkGraph): Map<string, NetworkNode>
 }
 
 
-/** Compact human-readable annotation for prompt context. Renders all four
- *  dimensions in a single brace expression — `{tier ×N, trajectory, topology,
- *  force-anchor}`. forceAnchor is omitted when null (balanced).
+/** Compact human-readable annotation for prompt context.
  *
  *  Examples:
- *    {hot ×14, rising, bridge, fate-anchor}
- *    {warm ×4, cooling, leaf}
- *    {cold ×0, dormant, isolated}
- *    {fresh ×1, rising, hub, world-anchor}
+ *    {hot ×14, bridge}
+ *    {warm ×4, leaf}
+ *    {cold ×0, isolated}
+ *    {fresh ×1, hub}
  */
 export function formatTierLabel(node: NetworkNode | undefined): string {
   if (!node) return "";
-  const parts: string[] = [`${node.tier} ×${node.attributions}`, node.trajectory, node.topology];
-  if (node.forceAnchor) parts.push(`${node.forceAnchor}-anchor`);
-  return `{${parts.join(", ")}}`;
+  return `{${node.tier} ×${node.attributions}, ${node.topology}}`;
 }

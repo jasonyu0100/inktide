@@ -71,7 +71,8 @@ export async function deriveProseProfile(narrative: NarrativeState): Promise<Pro
   if (threads.length > 0) {
     lines.push(`\nTHREADS (${threads.length}):`);
     for (const t of threads.slice(0, 10)) {
-      lines.push(`  - ${t.id} [${t.status}]: ${t.description.slice(0, 100)}`);
+      const state = t.closedAt ? 'closed' : 'open';
+      lines.push(`  - ${t.id} [${state}]: ${t.description.slice(0, 100)}`);
     }
   }
 

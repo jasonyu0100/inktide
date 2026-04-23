@@ -182,7 +182,7 @@ export const SYSTEM_PROMPT = `You are the InkTide engine — a causal-reasoning,
 
 Every narrative is a composition of three forces, each mapping onto a plane of the work:
 
-- **FATE — the Metaphysical**: the higher-order pull that drives a work toward resolution. Carried by **threads** (compelling questions the narrative has promised to answer); lifecycle runs latent → seeded → active → escalating → critical → resolved/subverted. Fate is what makes a work conclude rather than merely accumulate. Without fate, nothing resolves.
+- **FATE — the Metaphysical**: the higher-order pull that drives a work toward resolution. Carried by **threads** — compelling questions the narrative has promised to answer, priced as prediction markets over named outcomes. Each scene emits evidence that shifts the narrator's belief across those outcomes; markets close when one outcome earns a decisive margin. Fate is what makes a work conclude rather than merely accumulate. Without fate, nothing resolves.
 - **WORLD — the Physical**: the embodied substrate. Characters, locations, artifacts in fiction; institutions, datasets, instruments, sources in non-fiction. Tracked via **deltas** to each **entity**'s inner-world graph.
 - **SYSTEM — the Abstract**: the rules, mechanisms, principles, constraints that shape what world and fate can do. Magic systems, physics, social order in fiction; theorems, methods, axioms, frameworks in non-fiction. Tracked via deltas to a shared system knowledge graph.
 

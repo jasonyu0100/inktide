@@ -78,7 +78,7 @@ export async function reviewBranch(
   // Thread overview for context
   const threads = Object.values(narrative.threads);
   const threadBlock = threads
-    .map((t) => `${t.id}: ${t.description} [${t.status}]`)
+    .map((t) => `${t.id}: ${t.description} [${t.closedAt ? 'closed' : 'open'}]`)
     .join('\n');
 
   const guidanceBlock = guidance?.trim()
@@ -323,7 +323,7 @@ export async function reviewPlanQuality(
   }
 
   const threadBlock = Object.values(narrative.threads)
-    .map((t) => `${t.id}: ${t.description} [${t.status}]`).join('\n');
+    .map((t) => `${t.id}: ${t.description} [${t.closedAt ? 'closed' : 'open'}]`).join('\n');
 
   const charBlock = Object.values(narrative.characters)
     .filter((c) => Object.keys(c.world?.nodes ?? {}).length)

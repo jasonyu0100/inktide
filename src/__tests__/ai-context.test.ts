@@ -67,7 +67,8 @@ function createThread(id: string, description: string, participants: string[] = 
   return {
     id,
     description,
-    status: 'latent',
+    outcomes: ["yes", "no"],
+    beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } },
     participants: participants.map((pid) => ({ id: pid, type: 'character' as const })),
     dependents: [],
     openedAt: 's1',
@@ -118,16 +119,15 @@ function createArc(id: string, name: string, sceneIds: string[]): Arc {
 }
 // ── THREAD_LIFECYCLE_DOC ─────────────────────────────────────────────────────
 describe('THREAD_LIFECYCLE_DOC', () => {
-  it('contains active statuses', () => {
-    expect(THREAD_LIFECYCLE_DOC).toContain('Active statuses');
-    expect(THREAD_LIFECYCLE_DOC).toContain('latent');
-    expect(THREAD_LIFECYCLE_DOC).toContain('active');
-    expect(THREAD_LIFECYCLE_DOC).toContain('critical');
+  it('describes the prediction-market vocabulary', () => {
+    expect(THREAD_LIFECYCLE_DOC).toMatch(/prediction market/i);
+    expect(THREAD_LIFECYCLE_DOC).toMatch(/outcome/i);
+    expect(THREAD_LIFECYCLE_DOC).toMatch(/volume/i);
+    expect(THREAD_LIFECYCLE_DOC).toMatch(/logit|probability|evidence/i);
   });
-  it('contains terminal statuses', () => {
-    expect(THREAD_LIFECYCLE_DOC).toContain('Terminal');
-    expect(THREAD_LIFECYCLE_DOC).toContain('resolved');
-    expect(THREAD_LIFECYCLE_DOC).toContain('subverted');
+  it('describes closure and abandonment semantics', () => {
+    expect(THREAD_LIFECYCLE_DOC).toMatch(/close|closure/i);
+    expect(THREAD_LIFECYCLE_DOC).toMatch(/abandon/i);
   });
 });
 // ── getStateAtIndex ──────────────────────────────────────────────────────────
@@ -137,8 +137,7 @@ describe('getStateAtIndex', () => {
     const state = getStateAtIndex(n, [], 0);
     expect(state.liveNodeIds.size).toBe(0);
     expect(state.relationships.length).toBe(0);
-    expect(Object.keys(state.threadStatuses).length).toBe(0);
-    expect(Object.keys(state.artifactOwnership).length).toBe(0);
+        expect(Object.keys(state.artifactOwnership).length).toBe(0);
   });
   it('replays world deltas correctly (additive)', () => {
     const n = createMinimalNarrative({
@@ -207,20 +206,18 @@ describe('getStateAtIndex', () => {
       scenes: {
         's1': createScene('s1', {
           threadDeltas: [
-            { threadId: 't1', from: 'latent', to: 'active', addedNodes: [] },
+            { threadId: 't1', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" },
           ],
         }),
         's2': createScene('s2', {
           threadDeltas: [
-            { threadId: 't1', from: 'active', to: 'active', addedNodes: [] },
-            { threadId: 't2', from: 'latent', to: 'active', addedNodes: [] },
+            { threadId: 't1', logType: "pulse", updates: [], volumeDelta: 1, rationale: "active→active" },
+            { threadId: 't2', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" },
           ],
         }),
       },
     });
     const state = getStateAtIndex(n, ['s1', 's2'], 1);
-    expect(state.threadStatuses['t1']).toBe('active');
-    expect(state.threadStatuses['t2']).toBe('active');
   });
   it('tracks artifact ownership from world builds', () => {
     const n = createMinimalNarrative({
@@ -360,7 +357,7 @@ describe('sceneContext', () => {
     const scene = createScene('s1', {
       povId: 'c1',
       locationId: 'loc1',
-      threadDeltas: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
+      threadDeltas: [{ threadId: 't1', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
     });
     const ctx = sceneContext(n, scene);
     expect(ctx).toContain('Quest for the Sword');
@@ -674,7 +671,7 @@ describe('narrativeContext scene-history tiers', () => {
       povId: 'c1',
       locationId: 'loc1',
       summary: 'summary-1',
-      threadDeltas: [{ threadId: 't1', from: 'escalating', to: 'critical', addedNodes: [] }],
+      threadDeltas: [{ threadId: 't1', logType: "escalation", updates: [{ outcome: "yes", evidence: 2 }], volumeDelta: 1, rationale: "escalating→critical" }],
     });
     const n = createMinimalNarrative({
       characters: { c1: createCharacter('c1', 'Hero') },

@@ -2,15 +2,33 @@
 
 import type { SlidesData } from '@/lib/slides-data';
 
-const STATUS_COLORS: Record<string, string> = {
-  latent:     '#475569',
-  seeded:     '#FBBF24',
-  active:     '#38BDF8',
-  escalating: '#FB923C',  // point of no return — fate committed
-  critical:   '#F87171',
-  resolved:   '#34D399',
-  subverted:  '#C084FC',
-  abandoned:  '#64748B',
+// Thread trajectory is coloured by the logType of each event — the primitive
+// that actually ran (pulse / transition / setup / escalation / payoff / twist
+// / callback / resistance / stall). Not the old lifecycle stages.
+const LOG_TYPE_COLORS: Record<string, string> = {
+  pulse:      '#64748B',
+  transition: '#38BDF8',
+  setup:      '#FBBF24',
+  escalation: '#FB923C',
+  payoff:     '#10B981',
+  twist:      '#A78BFA',
+  callback:   '#2DD4BF',
+  resistance: '#F87171',
+  stall:      '#475569',
+};
+
+// Sort priority — committal and high-energy events float to the top of the
+// slide so the reader's eye lands on threads that actually moved.
+const LOG_TYPE_PRIORITY: Record<string, number> = {
+  payoff: 0,
+  twist: 1,
+  escalation: 2,
+  resistance: 3,
+  setup: 4,
+  callback: 5,
+  transition: 6,
+  pulse: 7,
+  stall: 8,
 };
 
 const ROW_H = 22;
@@ -26,7 +44,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
     .map((tl) => {
       const firstScene = tl.statuses[0]?.sceneIdx ?? 0;
       const lastScene = tl.statuses[tl.statuses.length - 1]?.sceneIdx ?? totalScenes - 1;
-      const endStatus = tl.statuses[tl.statuses.length - 1]?.status ?? 'latent';
+      const endStatus = tl.statuses[tl.statuses.length - 1]?.status ?? 'pulse';
 
       // Build segments
       const segments: { start: number; end: number; status: string }[] = [];
@@ -49,27 +67,22 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
         }
       }
 
-      // Pulses
+      // Pulses — non-committal log types.
       const pulseScenes: number[] = [];
       for (let i = 0; i < data.scenes.length; i++) {
         for (const tm of data.scenes[i].threadDeltas) {
-          if (tm.threadId === tl.threadId && tm.from === tm.to) pulseScenes.push(i);
+          if (tm.threadId === tl.threadId && (tm.logType === 'pulse' || tm.logType === 'stall')) {
+            pulseScenes.push(i);
+          }
         }
       }
 
       return { ...tl, firstScene, lastScene, endStatus, segments, transitions, pulseScenes };
     })
     .sort((a, b) => {
-      // Status priority: escalating/critical threads float to top (fate committed)
-      const statusPriority = (s: string) => {
-        if (s === 'escalating') return 0;  // point of no return — highest priority
-        if (s === 'critical') return 1;    // demands resolution
-        if (s === 'active') return 2;
-        if (s === 'seeded') return 3;
-        if (s === 'latent') return 4;
-        return 5;  // terminal statuses sink
-      };
-      return statusPriority(a.endStatus) - statusPriority(b.endStatus) || a.firstScene - b.firstScene;
+      const pa = LOG_TYPE_PRIORITY[a.endStatus] ?? 9;
+      const pb = LOG_TYPE_PRIORITY[b.endStatus] ?? 9;
+      return pa - pb || a.firstScene - b.firstScene;
     });
 
   const TIMELINE_W = 600;
@@ -115,7 +128,8 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
             const y = rowIdx * ROW_H + 10;
             const barH = 8;
             const barY = y + (ROW_H - barH) / 2;
-            const isTerminal = ['resolved', 'subverted', 'abandoned'].includes(row.endStatus);
+            // "Terminal" in the market model = closed by a committal logType.
+            const isTerminal = row.endStatus === 'payoff' || row.endStatus === 'twist';
 
             return (
               <g key={row.threadId}>
@@ -144,7 +158,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
                   return (
                     <rect key={`s-${i}`} x={x1} y={barY}
                       width={Math.max(x2 - x1, 2)} height={barH} rx={2}
-                      fill={STATUS_COLORS[seg.status] ?? '#475569'}
+                      fill={LOG_TYPE_COLORS[seg.status] ?? '#475569'}
                       opacity={isTerminal ? 0.3 : 0.5}
                     />
                   );
@@ -155,7 +169,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
                   <rect key={`t-${i}`}
                     x={sceneToX(t.sceneIdx) - 1} y={barY - 1}
                     width={2} height={barH + 2} rx={1}
-                    fill={STATUS_COLORS[t.to] ?? '#fff'} opacity={0.9}
+                    fill={LOG_TYPE_COLORS[t.to] ?? '#fff'} opacity={0.9}
                   />
                 ))}
 
@@ -171,7 +185,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
                 {/* End dot */}
                 <circle
                   cx={sceneToX(row.lastScene) + 6} cy={y + ROW_H / 2}
-                  r={2.5} fill={STATUS_COLORS[row.endStatus] ?? '#475569'}
+                  r={2.5} fill={LOG_TYPE_COLORS[row.endStatus] ?? '#475569'}
                   opacity={isTerminal ? 0.4 : 0.8}
                 />
               </g>
@@ -195,7 +209,7 @@ export function ThreadLifecycleSlide({ data }: { data: SlidesData }) {
 
       {/* Legend */}
       <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/6 flex-wrap">
-        {Object.entries(STATUS_COLORS).filter(([s]) => s !== 'abandoned').map(([status, color]) => (
+        {Object.entries(LOG_TYPE_COLORS).map(([status, color]) => (
           <span key={status} className="flex items-center gap-1.5 text-[10px] text-text-dim">
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
             <span className="capitalize">{status}</span>

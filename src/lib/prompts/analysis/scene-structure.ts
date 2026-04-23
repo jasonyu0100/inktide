@@ -28,12 +28,11 @@ SCENE PROSE:
 ${prose}${beatSection}
 
 THREE ORTHOGONAL PLANES — extract each independently:
-- WORLD (MATERIAL plane): tangible, embodied. People, places, objects — characters, locations, artifacts; in non-fiction: institutions, datasets, figures, charts, embedded documents. Every new stable fact about an entity.
+- WORLD (MATERIAL plane): tangible, embodied. People, places, objects — characters, locations, artifacts; in non-fiction: institutions, datasets, figures, charts, embedded documents. Every new stable fact about an entity. This is a DENSITY lever — reach for the detail the prose genuinely earns.
   W = ΔN_c + √ΔE_c. Ref: ~12/scene.
-- SYSTEM (ABSTRACT plane): rules, mechanisms, principles — how the world works, not the things themselves. Magic systems, physics, social order; or theorems, methods, constraints. Rule and knowledge density — NOT incidental setting.
+- SYSTEM (ABSTRACT plane): rules, mechanisms, principles — how the world works, not the things themselves. Magic systems, physics, social order; or theorems, methods, constraints. Rule and knowledge density — NOT incidental setting. Also a DENSITY lever — under-extraction is the dominant failure.
   S = ΔN + √ΔE. Ref: ~4/scene.
-- FATE (METAPHYSICAL plane): the higher-order pull that governs what material and abstract can't account for alone. Only fires when action or outcome exceeds what traits and rules would predict.
-  F = Σ √arcs × stageWeight × (1 + log(1 + investment)). Ref: ~3.5/scene.
+- FATE (METAPHYSICAL plane): the higher-order pull that governs what material and abstract can't account for alone. Threads are PREDICTION MARKETS over named outcomes; a scene contributes fate by genuinely moving what a neutral observer would believe, weighted by the attention the scene paid to the thread. This is NOT a density lever — it is GENUINE CAREFUL MEASUREMENT. Price each thread's evidence by the concrete events in the scene; do NOT tune magnitudes to reach a target number. Fate is OUTPUT, not INPUT. There is no per-scene fate count to aim for — a quiet scene honestly emits pulses (|e|=0) and small evidence; a pivotal scene honestly emits committal evidence. Under-pricing a real payoff or over-pricing a routine scene both corrupt the trajectory.
 
 Return JSON:
 {
@@ -45,9 +44,9 @@ Return JSON:
   "characters": [{"name": "Full Name", "role": "anchor|recurring|transient", "firstAppearance": false, "imagePrompt": "1-2 sentence LITERAL physical description: concrete traits like hair colour, build, clothing style. No metaphors or figurative language."}],
   "locations": [{"name": "Location Name", "prominence": "domain|place|margin", "parentName": "Parent or null", "description": "Brief description", "imagePrompt": "1-2 sentence LITERAL visual description: architecture, landscape, lighting, weather. Concrete physical details only, no metaphors.", "tiedCharacterNames": ["characters tied here"]}],
   "artifacts": [{"name": "Artifact Name", "significance": "key|notable|minor", "imagePrompt": "1-2 sentence LITERAL visual description — concrete physical details only, no metaphors or figurative language", "ownerName": "owner or null"}],
-  "threads": [{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words. BAD: 'Will X succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?'", "participantNames": ["names"], "statusAtStart": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "statusAtEnd": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "development": "15-25 words: how this question was advanced or answered in this scene"}],
+  "threads": [{"description": "A COMPELLING QUESTION with stakes, uncertainty, investment — 15-30 words. BAD: 'Will X succeed?' GOOD: 'Can Marcus protect his daughter from the cult that killed his wife?'", "participantNames": ["names"], "outcomes": ["named outcome 1", "named outcome 2", "..."], "development": "15-25 words: how this question was advanced or answered in this scene"}],
   "relationships": [{"from": "Name", "to": "Name", "type": "description", "valence": 0.0}],
-  "threadDeltas": [{"threadDescription": "exact thread description", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"content": "15-25 words: how this question was advanced or answered in this scene", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "threadDeltas": [{"threadDescription": "exact thread description", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..3, "addOutcomes": ["optional — new outcome names if the scene opens possibilities not previously in the market"], "rationale": "15-25 words — the specific summary sentence that moved the market this scene"}],
   "worldDeltas": [{"entityName": "Name", "addedNodes": [{"content": "15-25 words, PRESENT tense: a stable fact about the entity — their unique perspective on reality, identity, or condition. Emit as many 15-25-word nodes per entity as the scene genuinely reveals — no count cap.", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipDeltas": [{"from": "Name", "to": "Name", "type": "description", "valenceDelta": 0.1}],
   "artifactUsages": [{"artifactName": "Name", "characterName": "who or null", "usage": "what the artifact did"}],
@@ -98,16 +97,43 @@ CORRECT threads for this kind of show look like:
   ✓ "Will Jim and Pam's mutual attraction develop into a relationship despite Pam's engagement to Roy?" (arc-central, multi-season, irreversible)
   ✓ "Will the Scranton branch survive corporate pressure to downsize or merge?" (external stake, multi-episode, irreversible)
 
-threadDeltas — lifecycle: latent→seeded→active→escalating→critical→resolved/subverted.
-- Escalating = POINT OF NO RETURN. Once detected, the story has promised resolution.
-- Abandoned = cleanup. Threads below escalating that go nowhere should be abandoned, not left hanging.
-- ONE step at a time. NEVER skip phases.
-- Pulses are same→same; transitions are status-changes that the prose shows as clear and irreversible.
-- ONE step at a time. NEVER skip phases.
-- Touch every thread the scene genuinely advances or pulses. Record every transition the prose genuinely shows. No count cap — if the scene is thread-heavy, the deltas are thread-heavy.
-- THREAD LOG: each threadDelta includes log entries (15-25 words each) recording how the question was advanced or answered. Emit as many log entries as the scene genuinely reveals about the thread — one per distinct observation about the thread's progression. A pulse with one reinforcing beat = one node; a transition with a cause, a shift, and a forward implication = three nodes; a critical resolution with payoff, consequence, and callback = three. No cap.
-  Log types: pulse (question maintained), transition (urgency advanced), setup (groundwork laid), escalation (stakes raised), payoff (question answered), twist (expectations subverted), callback (earlier thread event referenced), resistance (opposition to answer), stall (question stagnated).
-  Each log node describes a SPECIFIC observation about thread progression, not a restatement of the scene summary.
+THREADS AS PREDICTION MARKETS — a thread is a named question with NAMED OUTCOMES. The market prices each outcome (via logits → softmax). Scenes emit evidence that shifts per-outcome logits; the reader's belief over "which outcome wins" evolves across the story.
+
+OUTCOMES (required on every thread) — 2 to ~6 named possibilities covering the resolution space.
+  Binary is the default shape: outcomes: ["yes", "no"] for yes/no questions.
+  Multi-outcome when the resolution space is genuinely N-way:
+    "Who claims the throne?" → ["Stark", "Lannister", "Targaryen", "nobody"]
+    "How does Marcus die?" → ["by cult", "sacrificing for daughter", "escapes alive", "natural causes"]
+  Outcomes must be DISTINCT and MUTUALLY EXCLUSIVE — they partition the resolution space.
+
+PRIOR PROBS (optional but strongly encouraged on thread creation) — priorProbs: number[] aligned with outcomes[], in-world base rates a neutral observer would assign BEFORE any scene evidence. Must be positive and sum to ~1; the system renormalises and clamps to opening guardrails.
+  - Reason in-world: base rates for this kind of attempt in this world, the entity's visible starting position, common failure modes. Do NOT weight for narrative / genre expectations (the protagonist will not prevail "because it's a revenge tale" — price as if you didn't know).
+  - Example: a 15-year-old at a small-clan cultivation ceremony, four outcomes [succeeds fully, partial success, fails and dies, fails due to misuse] → priorProbs ≈ [0.10, 0.30, 0.40, 0.20]. NOT uniform, NOT success-weighted.
+  - Binary defaults [0.5, 0.5] only when truly symmetric. "Will X survive the gauntlet?" in a lethal gauntlet is NOT 50/50.
+  - If genuinely indistinguishable, omit the field and the system uses uniform.
+
+threadDeltas — per-scene evidence that moves the market.
+  updates[]  per-outcome { outcome: string, evidence: int in [-4, +4] }
+             +1..+2 small shift, +2..+3 meaningful, +3..+4 decisive (payoff/twist territory)
+             Negative evidence = the outcome became less likely.
+             Multiple outcomes can move in a single scene (a reveal lifting one and suppressing another).
+
+             EVIDENCE DISCIPLINE — extract the in-world observer's update, not the narrator's sympathy.
+             - The market is a neutral observer inside the story. Genre expectations and narrative guarantees are not evidence; only on-page events are.
+             - Evidence moves when the scene's EVENTS advance the thread's question, not when the POV character shows competence or intent. Standing advantages (foreknowledge, hidden power, reincarnation) belong in worldDeltas and the opening priorProbs — not as per-scene +evidence on every scene they appear in.
+             - Most scenes emit |evidence| ≤ 1 on the threads they touch. |evidence| ≥ 2 requires a concrete structural move: obstacle cleared, antagonist acting, irreversible commitment, reveal that reframes the question.
+             - Price counter-evidence honestly. If the scene also shows cost, resistance, or rival agency, score −evidence on the goal-outcome even while scoring +evidence elsewhere. Do not let POV framing produce one-sided reads.
+             - Decisive events get decisive evidence. When the narrative actually contains a payoff or twist (an oath taken, a duel concluded, a death, a reveal that makes the outcome inevitable), emit |evidence| ≥ 3 with logType=payoff|twist — do not under-price genuine resolution moments. The discipline above is about small scenes, not about preventing real closure.
+             - MARKETS SWING. A probability leader is not a winner. If the scene contains undeniable counter-evidence — a system rule that invalidates the plan, a world state that undoes the assumption, a rival's revealed capability — price it fully. A scene that logically should reverse the market's leaning gets a twist (|evidence| ≥ 3 on the lagging outcome, or equivalent negative evidence on the leader). Force-of-system and force-of-world reversals are legitimate evidence, not optional flavour.
+             - Cascade movement is legitimate. One scene's reveal can move several markets at once: strong +evidence on one outcome of Thread A, −evidence on the related outcome of Thread B, a pulse on Thread C whose assumption just shifted. Score each thread on its own terms, but don't miss cascades.
+  logType    matches shape: pulse (0), setup (+1), escalation (+2..+3), payoff (+3..+4), twist (±3 reversal), resistance (−1..−2), callback (volume spike), stall (no movement expected), transition (volume > evidence).
+  volumeDelta +0..+2 attention change (how much the scene spotlighted this thread).
+  addOutcomes (RARE) — new outcome names when a scene structurally opens a possibility not previously in the market (a third contender arrives, an option no one had considered surfaces). Neutral prior (logit=0). Most scenes don't expand.
+  rationale  ONE prose sentence grounded in what happens in the scene. Natural language — describe the event in a novel's margin voice. DO NOT quote outcome identifiers (they're technical names), DO NOT mention evidence numbers or logType. Two good rationales on the SAME delta should read like two descriptions of the same moment, not two schema dumps.
+
+  Touch every thread the scene genuinely moves. A thread mentioned but stable gets a pulse with volumeDelta=+1 and evidence=0. No count cap.
+  Evidence ≠ volume: does the scene change WHAT we believe (evidence) or ATTENTION on the thread (volumeDelta)?
+  Correlation: one event can legitimately move multiple threads; each rationale cites its driving sentence.
 
 worldDeltas — what we LEARN about an entity that wasn't known before. Applies to characters, locations, and artifacts.
 - Characters: new behaviour, belief, capability, or inner state revealed. Not restating what's already known.

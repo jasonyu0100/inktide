@@ -945,6 +945,7 @@ const NAV = [
   { id: "approach", label: "Approach" },
   { id: "hierarchy", label: "Hierarchy" },
   { id: "forces", label: "Forces" },
+  { id: "fate-engine", label: "Fate Engine" },
   { id: "validation", label: "Validation" },
   { id: "grading", label: "Grading" },
   { id: "embeddings", label: "Embeddings" },
@@ -1080,15 +1081,24 @@ export default function PaperPage() {
             <P>
               We propose modelling any long-form text as a{" "}
               <B>knowledge graph</B> that mutates section by section. From the
-              deltas of that graph we derive three forces readers intuitively
-              weigh against each other: <B>System</B>, the deepening of rules
-              and structures; <B>World</B>, the inner transformation of
-              entities; and <B>Fate</B>, the accumulated commitment of threads
-              pulling toward resolution. Every work weights them differently —
-              thrillers are fate-dominant, character studies world-dominant,
-              research papers system-dominant — but every work can be
-              described by the mixture. The mixture is what readers react to
-              when they call a work satisfying or hollow.
+              deltas of that graph we derive three forces — three distinct{" "}
+              <em>fields</em> of narrative causation. <B>System</B> is the{" "}
+              <em>abstract</em> field: the rules and structures that deepen
+              through use. <B>World</B> is the <em>physical</em> field: the
+              entities — characters, locations, artifacts — who carry agency
+              through the story. <B>Fate</B> is the <em>metaphysical</em>{" "}
+              field: the accumulated commitment of threads pulling toward
+              resolution, the directional pull that guides how the world
+              unfolds. The claim is narrower than it first reads: these
+              three fields capture the <em>structural causality</em> of
+              narrative — the substrate of rules, agents, and direction —
+              not the full reader experience. Aesthetic texture, voice,
+              and cognitive affect live in adjacent layers (prose profiles,
+              embeddings) that ride on top of this substrate. Every work
+              weights the three fields differently — thrillers fate-dominant,
+              character studies world-dominant, research papers
+              system-dominant — but the mixture describes the causal spine
+              readers react to when they call a work satisfying or hollow.
             </P>
             <P>
               The methodology splits along the seam the tools are good at.{" "}
@@ -1311,13 +1321,15 @@ export default function PaperPage() {
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">1.</span>
                 <span>
-                  <B>Thread deltas</B> — lifecycle transitions of narrative
-                  tensions (rivalries, secrets, quests) through discrete states:
-                  latent &rarr; seeded &rarr; active &rarr; escalating &rarr;
-                  critical &rarr; resolved/subverted. Abandoned resets a thread
-                  for repickup. Fate is the sum of stage weights across each
-                  transition — forward moves earn their destination-stage
-                  weight, and pulses scale by current lifecycle stage.
+                  <B>Thread deltas</B> — evidence updates to{" "}
+                  <em>prediction markets</em> over named outcomes (rivalries,
+                  secrets, quests, open questions). Each scene emits integer
+                  evidence in [−4, +4] on the affected outcomes plus a log-type
+                  from nine primitives; the math handles log-odds conversion,
+                  volume decay, volatility, scaled closure, and abandonment.
+                  Fate falls out of information gain across the market&apos;s
+                  trajectory — the more a scene&apos;s evidence re-prices a
+                  high-attention thread, the more fate it earns.
                 </span>
               </li>
               <li className="flex gap-2">
@@ -1340,20 +1352,32 @@ export default function PaperPage() {
                 </span>
               </li>
             </ul>
-            <P>Three forces derive directly from these deltas:</P>
+            <P>
+              Three forces derive directly from these deltas — one per{" "}
+              <em>field</em> of narrative causation. The hypothesis is that
+              the causal spine of any narrative resolves into three such
+              fields: rule-based structures, embodied entities with agency,
+              and a metaphysical pull that guides how the world unfolds.
+              Texture and voice live elsewhere; the spine is what the
+              formulas see.
+            </P>
             <ul className="space-y-2 text-[13px] text-white/60 leading-relaxed pl-4">
               <li>
-                <B>System</B> measures how the world&apos;s rules and structures
-                deepen through knowledge graph expansion.
+                <B>System</B> — the <em>abstract</em> field. Measures how the
+                world&apos;s rules and structures deepen through knowledge
+                graph expansion.
               </li>
               <li>
-                <B>World</B> measures entity transformation through continuity
-                shifts — what the story does to the people in it.
+                <B>World</B> — the <em>physical</em> field. Measures entity
+                transformation through continuity shifts — what the story
+                does to the characters, locations, and artifacts who carry
+                agency through it.
               </li>
               <li>
-                <B>Fate</B> measures thread progression toward resolution — the
-                directional force that pulls world and system toward big-picture
-                events and extraordinary circumstances.
+                <B>Fate</B> — the <em>metaphysical</em> field. Measures
+                thread progression toward resolution — the directional pull
+                that guides how the world unfolds, drawing world and system
+                toward big-picture events and extraordinary circumstances.
               </li>
             </ul>
             <P>
@@ -1805,18 +1829,30 @@ export default function PaperPage() {
               while others ring hollow? The answer is investment — and here we
               make it precise. Three forces capture what readers perceive
               intuitively, derived deterministically from knowledge graph
-              deltas.
+              deltas. Each corresponds to a distinct field of narrative
+              causation: System is the <em>abstract</em> field of rules,
+              World the <em>physical</em> field of entities with agency, Fate
+              the <em>metaphysical</em> field that guides how the world
+              unfolds. The hypothesis is structural, not totalising: these
+              three fields carry the <em>causal</em> content of a narrative
+              — what builds, what transforms, what resolves — while
+              experiential layers (voice, rhythm, reader cognition) are
+              handled by the prose profile and embedding systems that
+              compose on top. Fiction, academic argument, and non-fiction
+              all share the causal substrate; they differ in how the
+              experiential layers dress it.
             </p>
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
                 System
               </h3>
               <P>
-                System measures the deepening of the world itself &mdash; the
-                rules, structures, and concepts that form the substrate on which
-                stories operate. Every narrative exists within a physics of
-                possibility: what can happen, what cannot, what costs what.
-                System tracks how that substrate grows and connects.
+                System is the <B>abstract field</B> &mdash; the deepening of
+                the world itself, the rules, structures, and concepts that
+                form the substrate on which stories operate. Every narrative
+                exists within a physics of possibility: what can happen, what
+                cannot, what costs what. System tracks how that substrate
+                grows and connects.
               </P>
               <Eq tex={String.raw`S = \Delta N + \sqrt{\Delta E}`} />
               <P>
@@ -1837,10 +1873,13 @@ export default function PaperPage() {
                 World
               </h3>
               <P>
-                World measures the transformation of entities &mdash; what we
-                learn about characters, locations, and artifacts as they move
-                through the story. Where System tracks the rules of the stage,
-                World tracks the inner lives of those who walk it.
+                World is the <B>physical field</B> &mdash; the entities who
+                walk the stage and exercise agency within it. Where System
+                tracks the rules, World tracks transformation: what we learn
+                about characters, locations, and artifacts as they move
+                through the story, and how that knowledge accumulates into
+                continuity. The abstract field provides the laws; the
+                physical field provides the agents who act under them.
               </P>
               <Eq tex={String.raw`W = \Delta N_c + \sqrt{\Delta E_c}`} />
               <P>
@@ -1860,41 +1899,73 @@ export default function PaperPage() {
                 Fate
               </h3>
               <P>
-                Fate is the directional force &mdash; the pull toward
-                big-picture events and extraordinary circumstances. Where System
-                and World measure what the story <em>is</em>, Fate measures
-                where it&apos;s <em>going</em>. Not every story needs high fate;
-                a character study or world-building treatise can thrive on World
-                and System alone. But when threads accumulate and resolve, when
-                circumstances become extraordinary, that&apos;s fate at work.
-              </P>
-              <Eq tex="F = \sum_{t} w(\text{from}_t, \text{to}_t)" />
-              <P>
-                Fate is the sum of stage weights across every thread transition
-                in the scene. The weight{" "}
-                <Tex>{String.raw`w(\text{from}, \text{to})`}</Tex> depends only
-                on the lifecycle transition itself &mdash; no arc span, no
-                investment factor, no participant depth lookup. A scene earns
-                fate by moving threads forward or sustaining them at high
-                stages, and that&apos;s it.
+                Fate is the <B>metaphysical field</B> &mdash; the directional
+                pull that guides how the world unfolds, drawing entities and
+                rules toward big-picture events and extraordinary
+                circumstances. Where System and World measure what the story{" "}
+                <em>is</em>, Fate measures where it&apos;s <em>going</em>. It
+                is the unifying force across the other two fields: without
+                fate, the abstract has no narrative reason to deepen and the
+                physical has no destiny to bend toward.
               </P>
               <P>
-                <B>Forward transitions</B> earn the weight of their destination
-                stage, so a multi-stage jump (e.g. latent &rarr; escalating)
-                earns the same as a single-step arrival at that stage: seeded =
-                1.0, active = 1.5, escalating = 2.0, critical = 3.0,
-                resolved/subverted = 5.0. <B>Pulses</B> (holding a thread at
-                its current stage) scale by lifecycle position: latent = 0.25,
-                seeded = 0.5, active = 1.0, escalating = 1.5, critical = 2.0
-                &mdash; sustaining tension at higher stages matters more.
-                Abandoned earns zero &mdash; cleanup, not resolution.
+                Fate is measured by a <B>prediction market</B> over each
+                thread&apos;s named outcomes. Scenes emit bounded integer
+                evidence on affected outcomes; softmax over the per-outcome
+                logit vector gives the current probability distribution. A
+                scene earns fate in proportion to how much it re-prices
+                high-attention markets — the information-gain approximation:
+              </P>
+              <Eq
+                tex={String.raw`F = \sum_{t} \log(1 + |e_t|_{\max}) \cdot (1 + \log(1 + \Delta v_t))`}
+              />
+              <P>
+                where <Tex>{String.raw`|e_t|_{\max}`}</Tex> is the peak
+                evidence magnitude emitted on thread{" "}
+                <Tex>{String.raw`t`}</Tex> in this scene, and{" "}
+                <Tex>{String.raw`\Delta v_t`}</Tex> is the scene&apos;s volume
+                contribution to that market. Log-compression prevents a single
+                saturating +4 from drowning the rest of the portfolio. The
+                full engine — log-odds updates, volume decay, volatility
+                tracking, scaled closure, and resolution quality — is
+                documented in <a href="#fate-engine" className="underline hover:text-white/80">Fate Engine</a>.
               </P>
               <P>
-                The payoff weight (5.0) sits well above the critical buildup
-                (3.0), so denouements pop clearly against the escalation that
-                preceded them. In fiction threads are rivalries, quests,
-                secrets. In a paper they&apos;re open questions, contested
-                claims, unresolved arguments. The formula works universally.
+                In fiction, threads are rivalries, quests, secrets. In a paper
+                they&apos;re open questions, contested claims, unresolved
+                arguments. The market framing works universally: every open
+                question has outcomes, evidence flowing in, and the reader
+                tracking who&apos;s ahead.
+              </P>
+              <P>
+                <B>Measurement, not target.</B> Unlike World and System &mdash;
+                which are density levers whose per-scene counts need to clear
+                a floor for the graph to have enough resolution &mdash; Fate
+                has no per-scene target. Evidence in [−4, +4] is a reading of
+                what a neutral in-world observer would update on, given the
+                scene&apos;s concrete events. It is not a knob tuned to hit
+                a fate score. Routine scenes honestly emit pulses{" "}
+                (<Tex>{String.raw`|e| = 0`}</Tex>) and earn fate near zero;
+                pivotal scenes honestly emit committal evidence
+                (<Tex>{String.raw`|e| \geq 3`}</Tex>) and earn it. Under-pricing
+                genuine resolution and over-pricing routine scenes both
+                corrupt the trajectory &mdash; the math recovers the
+                narrative&apos;s true shape only when extraction is honest.
+              </P>
+              <P>
+                <B>The fragility this introduces.</B> Clean math on dirty
+                deltas still produces a clean-looking curve. If the LLM
+                misidentifies a thread, merges two markets that should be
+                separate, or mis-scales evidence on a pivotal beat, the
+                formulas will faithfully propagate the error. A second
+                re-extraction pass reduces single-call noise but introduces
+                hindsight bias — the re-extractor has already read the
+                payoff and can over-weight setup scenes that led to it. We
+                treat extraction as the <em>critical failure surface</em>{" "}
+                of the system: the formulas are only as trustworthy as the
+                deltas feeding them, and the honest framing of any fate
+                reading is <em>conditional on the extraction being
+                defensible</em>.
               </P>
             </div>
 
@@ -1920,7 +1991,277 @@ export default function PaperPage() {
                 one-dimensional spikes but from scenes where all three forces
                 fire together — structurally complete moments.
               </P>
+              <P>
+                <B>The equal-weight assumption, honestly.</B> A scene that is
+                pure fate (a twist with no new world or system) or pure world
+                (a quiet character interior with no plot movement) is a
+                legitimate narrative move; the unweighted mean penalises it.
+                The &ldquo;three-force convergence&rdquo; reading of peaks is
+                therefore genre-biased — it favours the Opus shape (balanced
+                across all three) over the Classic (fate-dominant), Stage
+                (world-dominant), or Paper (system-dominant). Delivery is
+                most useful as a <em>convergence detector</em>, not as a
+                universal quality score, and the per-force curves are the
+                ones to read when a work lives mostly on one axis.
+              </P>
             </div>
+          </Section>
+
+          {/* ── Fate Engine ─────────────────────────────────────────── */}
+          <Section id="fate-engine" label="Fate Engine">
+            <P>
+              Threads aren&apos;t tracked as lifecycle states but as{" "}
+              <B>prediction markets</B> over named outcomes. Every thread
+              carries a question (&quot;Will Harry claim the Stone?&quot;)
+              and two or more outcomes (binary default:{" "}
+              <code className="text-white/70">[&quot;yes&quot;, &quot;no&quot;]</code>;
+              multi-outcome enumerates possibilities). The narrator holds a
+              belief distribution over the outcomes, priced as softmax over a
+              per-outcome logit vector:
+            </P>
+            <Eq
+              tex={String.raw`p_k = \frac{\exp(\ell_k)}{\sum_j \exp(\ell_j)}, \quad k = 1 \dots K`}
+            />
+            <P>
+              Belief is triangulated by three quantities. <B>Logits</B>{" "}
+              <Tex>{String.raw`\ell \in \mathbb{R}^K`}</Tex> price the
+              distribution. <B>Volume</B>{" "}
+              <Tex>{String.raw`v \geq 0`}</Tex> tracks how much narrative
+              attention the thread has accumulated. <B>Volatility</B>{" "}
+              <Tex>{String.raw`\sigma`}</Tex> is an EWMA of recent
+              logit shifts — high when the market moved recently, low when
+              belief is stable.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-2">
+              Evidence updates
+            </h3>
+            <P>
+              The LLM never emits probabilities directly. It emits bounded
+              integer <B>evidence</B> <Tex>{String.raw`e \in [-4, +4]`}</Tex>{" "}
+              per affected outcome plus a <B>logType</B> from nine primitives
+              (pulse, transition, setup, escalation, payoff, twist, callback,
+              resistance, stall). Evidence shifts logits via log-odds
+              arithmetic with sensitivity <Tex>s</Tex>:
+            </P>
+            <Eq
+              tex={String.raw`\ell_k \mathrel{+}= e_k / s, \quad s = 2`}
+            />
+            <P>
+              Sensitivity <Tex>{String.raw`s = 2`}</Tex> means a saturating
+              +4 on one outcome and −4 on its rival shifts the margin by 4
+              logit-units — exactly enough to trigger base closure. This
+              grammar matches the game-theory stake-delta scale used
+              elsewhere in the system, so the LLM reasons about thread
+              evidence and tactical moves with one mental model. The log-type
+              must agree with evidence magnitude (setup at +0..+1,
+              escalation at +2..+3, payoff at +3..+4, twist at ±3 against
+              prior trend).
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-2">
+              Volume decay — natural selection
+            </h3>
+            <P>
+              Every scene, threads <em>not</em> touched by a delta lose
+              volume geometrically:
+            </P>
+            <Eq
+              tex={String.raw`v \leftarrow \alpha \cdot v, \qquad \alpha = 0.9`}
+            />
+            <P>
+              Threads with <Tex>v &lt; 0.5</Tex> are <B>abandoned</B> — not
+              closed, just out of the market. Natural selection for threads:
+              the portfolio self-organises. Stakes that matter accumulate
+              volume and stay in focus; threads the story stops paying
+              attention to slide to the margin. Long-running works lose side
+              threads cleanly without explicit cleanup. Abandoned threads can
+              be <B>resurrected</B> with{" "}
+              <Tex>{String.raw`\Delta v \geq 2`}</Tex> — resurrection costs
+              deliberate attention, as it should.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-2">
+              Outcome expansion
+            </h3>
+            <P>
+              Markets can grow mid-story. A delta may add new outcomes via{" "}
+              <code className="text-white/70">addOutcomes</code> — use when a
+              scene opens a possibility that didn&apos;t exist before (a new
+              contender emerges, an unexpected option reveals itself). New
+              outcomes join at{" "}
+              <Tex>{String.raw`\ell = 0`}</Tex> (neutral prior), and same-scene
+              evidence can immediately shift them. Closed markets reject
+              expansion. A delta that expands outcomes cannot also close —
+              the new outcome hasn&apos;t earned the margin yet.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-2">
+              Closure — meaningful resolution for meaningful outcomes
+            </h3>
+            <P>
+              A thread closes when the top-outcome margin exceeds a
+              volume-scaled threshold AND the closing scene emits a
+              committal logType (payoff or twist) with{" "}
+              <Tex>{String.raw`|e| \geq 3`}</Tex>:
+            </P>
+            <Eq
+              tex={String.raw`\tau_{\text{eff}} = \tau_{\text{base}} \cdot \left(1 + \tfrac{1}{3} \ln\tfrac{v}{v_0}\right), \quad \tau_{\text{base}} = 3`}
+            />
+            <P>
+              where <Tex>{String.raw`v_0`}</Tex> is the opening volume
+              (default 2). Threads the story has paid a lot of attention to
+              need proportionally more decisive finishes; small side threads
+              close cleanly on the base threshold. Saturation alone
+              doesn&apos;t trigger closure — drift-based pseudoclose is
+              explicitly prevented.
+            </P>
+            <P>
+              On close, a <B>resolution quality</B> score{" "}
+              <Tex>{String.raw`q \in [0, 1]`}</Tex> is recorded as the
+              geometric mean of four factors: peak evidence at close (is it
+              decisive?), margin over the scaled threshold (how far past
+              earned?), volume (did the market earn attention?), and
+              probability concentration (did one outcome dominate?). A
+              thread that closed on bare-minimum evidence with little
+              accumulated volume scores near 0.3; a heavy market closed on
+              saturating two-sided evidence scores above 0.75.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-2">
+              Lifecycle-aware extraction &mdash; two-pass analysis
+            </h3>
+            <P>
+              A first-pass pitfall when analysing an existing corpus: scene-level
+              evidence extraction runs in parallel chunks for speed, but each
+              chunk sees only its local prose. A scene priced at chapter&nbsp;3
+              has no way of knowing chapter&nbsp;24 is the resolution.
+              Monotonic local accumulation compounds without a feedback signal,
+              so once the market diverges late-arc the probabilities never
+              reverse &mdash; early seeds toward the eventual winner are priced
+              as pulses, and misdirection toward the surface-leader accrues
+              unchecked weight. The symptom is a trajectory that flatlines for
+              most of the work and then snaps toward a surface-reading winner
+              at the tail, even when the actual resolution lands elsewhere.
+            </P>
+            <P>
+              After reconciliation collapses entity and thread variants into a
+              canonical list, a <B>second-pass fate re-extraction</B> runs
+              summary-based. For each thread we compute the{" "}
+              <B>observed winner</B> (argmax of summed evidence across the
+              full corpus) and an approximate{" "}
+              <B>resolution scene index</B> (where the winner&apos;s peak
+              committal evidence fired). Each scene is then re-priced using a
+              compact brief &mdash; the scene&apos;s summary, the canonical
+              thread list with per-thread winner annotation, and the first-pass
+              deltas as baseline. The LLM re-emits threadDeltas knowing where
+              the story lands: seeds toward the winner earn honest positive
+              evidence, misdirection deflates to pulses, and resolution scenes
+              receive the decisive <Tex>{String.raw`|e| \geq 3`}</Tex> their
+              structural weight deserves.
+            </P>
+            <P>
+              The pass is cheap by design. Summaries are ~300&ndash;600
+              characters; thread counts are bounded (typically 5&ndash;15 per
+              work); calls run in parallel at the same concurrency as
+              first-pass extraction. One LLM call per scene, summary tokens
+              instead of full prose &mdash; total spend is a fraction of a
+              first-pass sweep. Applies only to analysis of existing works,
+              where the ending is fixed and can ground the measurement.
+              Generation sees state forward only; analysis gets to see both
+              directions.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-2">
+              Focus window — what generation sees
+            </h3>
+            <P>
+              Each scene, the top-K threads by{" "}
+              <B>focus score</B> are surfaced to the generator as priority
+              markets:
+            </P>
+            <Eq
+              tex={String.raw`\text{focus}(t) = v_t \cdot H(p_t) \cdot (1 + \sigma_t) \cdot \gamma^{\text{gap}_t}, \quad \gamma = 0.95`}
+            />
+            <P>
+              where <Tex>{String.raw`H(p_t)`}</Tex> is normalised entropy and{" "}
+              <Tex>{String.raw`\text{gap}_t`}</Tex> is scenes since last
+              touched. High focus = high volume AND genuinely contested AND
+              recently moved. Saturating, closed, and abandoned threads score
+              zero. K defaults to 6 — the window the LLM can meaningfully
+              hold in mind for one scene.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-2">
+              Market as narrative prior
+            </h3>
+            <P>
+              Beyond measurement, the portfolio actively <em>shapes</em>{" "}
+              generation. The current prices are surfaced to the scene
+              generator as a <em>prior</em> on what the market expects — a
+              soft bias, not a constraint. In aggregate this produces
+              self-fulfilling prophecies: a thread committed to an outcome
+              (<Tex>{String.raw`p \geq 0.75`}</Tex>) leans the next scene
+              toward that outcome unless the logType is{" "}
+              <code className="text-white/70">twist</code>. A genuinely
+              contested market (<Tex>{String.raw`H \geq 0.9`}</Tex>, multiple
+              near-equal probs) signals a crossroads: either side is fair
+              game, pick whichever best serves the scene&apos;s POV and
+              stakes. High volatility grants licence for a twist; low
+              volatility plus high probability is saturation — the next
+              committal delta closes it.
+            </P>
+            <P>
+              The market moves toward certainty overall, but good narratives
+              briefly spike uncertainty at key pivots. Twists, reversals,
+              open questions that re-price several markets at once — these
+              are the moments where aggregate entropy rises and the reader
+              re-engages. Flat entropy across a long stretch is a
+              mid-novel drag; compounding entropy spikes followed by clean
+              collapses are the rhythm of a gripping work. The engine makes
+              all of this computable, legible, and decoupled from the
+              LLM&apos;s natural-language understanding — which is the
+              premise that makes the whole system trustworthy.
+            </P>
+
+            <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-2">
+              The feedback loop with causal reasoning
+            </h3>
+            <P>
+              Fate is one of three forces. The reasoning graph (see{" "}
+              <a href="#planning" className="underline hover:text-white/80">Causal Reasoning</a>) is where the three forces actually
+              converge and shape the narrative: fate markets exert pressure,
+              world entities carry agency, system rules impose constraints.
+              Reasoning arises from their interaction. Fate is a voice in the
+              argument, not the conductor.
+            </P>
+            <P>
+              Consequently, the reasoning graph does <em>not</em> force threads
+              to resolve. It receives each active thread with a per-thread
+              influence tag — LEANS, ACTIVE, CONTESTED, VOLATILE, FADING —
+              derived from current market state, and treats it like it treats
+              characters and system rules: as pressure in the force field
+              where the reasoning happens. Threads with a strong LEANS signal
+              and sufficient volume earn fate nodes that <em>land</em> their
+              outcomes; CONTESTED threads often earn nothing at all (the arc
+              re-prices them without landing them — a legitimate shape for a
+              pivot arc); FADING threads are typically let decay. Fate nodes
+              are what the reasoning concludes, not what it was forced to
+              serve.
+            </P>
+            <P>
+              This closes the loop. Scenes emit evidence → the markets
+              re-price → the next arc&apos;s reasoning graph sees a new
+              portfolio → the graph lands whatever the updated state can
+              honestly earn → more scenes emit evidence. The system converges
+              when the writing is honest about what each arc can deliver.
+              Threads that matter accrue volume and eventually close with
+              high resolution quality; threads that stop mattering decay into
+              abandonment; deliberately resurrected threads carry the
+              attention cost of their return. No explicit horizon primitive
+              is needed — natural selection through volume decay and
+              focus-window ranking handles the lifecycle.
+            </P>
           </Section>
 
           {/* ── Validation ──────────────────────────────────────────── */}
@@ -2266,11 +2607,27 @@ export default function PaperPage() {
               computable.
             </P>
             <P>
-              Coherent writing is a <B>proof graph</B>. Each proposition
-              introduces, derives from, or resolves prior content. A plot hole
-              is a broken inference chain; a satisfying resolution is a deep
-              proof tree resolving. Quality is structural — how propositions
-              relate across time — and that structure is now computable.
+              Coherent writing behaves <em>like</em> a <B>proof graph</B>.
+              Each proposition introduces, derives from, or resolves prior
+              content; a plot hole reads as a broken inference chain, a
+              satisfying resolution as a deep tree closing. Quality is
+              structural — how propositions relate across time — and
+              similarity in embedding space gives us a computable handle on
+              that structure.
+            </P>
+            <P>
+              The honest caveat: cosine similarity is{" "}
+              <em>geometric approximation</em>, not logical inference. Two
+              propositions can cluster tightly because they share subject
+              matter without either entailing, contradicting, or depending
+              on the other. The proof graph we recover is therefore
+              <em> soft</em> — it surfaces probable dependencies for humans
+              or downstream LLM calls to confirm, not hard entailment
+              relations. A fully proof-like layer would add explicit typed
+              links (<em>entails</em>, <em>contradicts</em>,{" "}
+              <em>depends-on</em>) over the embedded propositions; the
+              current system stops at the geometric step and treats that
+              as a <em>well-shaped prior</em>, not a verdict.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-10 mb-3">

@@ -849,7 +849,7 @@ export default function SceneDetail({ sceneId }: Props) {
                   </span>
                 )}
                 <span className="text-text-dim ml-auto shrink-0">
-                  {tm.from} &rarr; {tm.to}
+                  [{tm.logType}] {(tm.updates ?? []).map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`).join(' ')}
                 </span>
               </div>
             );

@@ -1,6 +1,7 @@
 import type { NarrativeState, Scene, StorySettings, RelationshipEdge, WorldEdge, ProseProfile, SystemGraph } from '@/types/narrative';
-import { resolveEntry, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES, THREAD_STATUS_LABELS, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
-import { buildCumulativeSystemGraph, rankSystemNodes, resolveEntityName } from '@/lib/narrative-utils';
+import { resolveEntry, NARRATOR_AGENT_ID, DEFAULT_STORY_SETTINGS } from '@/types/narrative';
+import { buildCumulativeSystemGraph, getMarketBelief, getMarketMargin, getMarketProbs, isThreadAbandoned, isThreadClosed, rankSystemNodes, resolveEntityName, scenesSinceTouched } from '@/lib/narrative-utils';
+import { classifyThreadCategory, computeRecentLogitEnergy } from '@/lib/thread-category';
 import { ENTITY_LOG_CONTEXT_LIMIT, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE } from '@/lib/constants';
 import { getIntroducedIds } from '@/lib/scene-filter';
 import { describeTimeGap, formatTimeDelta } from '@/lib/time-deltas';
@@ -76,14 +77,19 @@ const TIER_FIELDS: Record<RecencyTier, TierFields> = {
   far:  { participants: false, threadTransitions: false, movements: false, worldDeltas: false, relationshipShifts: false, artifactUsages: false, ownershipChanges: false },
 };
 
-/** Thread statuses whose transitions mark load-bearing scenes. */
-const IMPORTANT_THREAD_STATUSES = new Set(['escalating', 'critical', 'resolved', 'subverted']);
+/** Evidence magnitude that marks a scene as load-bearing. Any update with
+ *  |evidence| ≥ this threshold counts as a strong move (escalation, payoff,
+ *  twist, or major resistance). */
+const IMPORTANT_EVIDENCE_THRESHOLD = 2;
 
-/** A scene is important if a thread delta touches an escalating/critical/resolved/subverted status. */
+/** A scene is important if a thread delta emits strong evidence OR carries a
+ *  committal logType (payoff or twist). These are the moments the reader
+ *  registers — they earn higher-resolution rendering in history. */
 function isImportantScene(s: Scene): boolean {
-  return s.threadDeltas.some((tm) =>
-    IMPORTANT_THREAD_STATUSES.has(tm.from) || IMPORTANT_THREAD_STATUSES.has(tm.to),
-  );
+  return s.threadDeltas.some((tm) => {
+    if (tm.logType === 'payoff' || tm.logType === 'twist') return true;
+    return (tm.updates ?? []).some((u) => Math.abs(u.evidence) >= IMPORTANT_EVIDENCE_THRESHOLD);
+  });
 }
 
 /** Pick a tier from distance-to-current, then promote one step if the scene is important. */
@@ -159,7 +165,10 @@ function renderSceneEntry(
     const lines = s.threadDeltas.map((tm) => {
       const thr = n.threads[tm.threadId];
       const desc = thr ? thr.description : tm.threadId;
-      return `    <shift thread="${desc}" from="${tm.from}" to="${tm.to}" />`;
+      const moves = (tm.updates ?? [])
+        .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+        .join(' ');
+      return `    <shift thread="${desc}" logType="${tm.logType}" updates="${moves}" />`;
     });
     children.push(`  <threads>\n${lines.join('\n')}\n  </threads>`);
   }
@@ -232,8 +241,6 @@ export function getStateAtIndex(
   liveNodeIds: Set<string>;
   /** Relationship states at this point (replayed from deltas) */
   relationships: RelationshipEdge[];
-  /** Thread statuses at this point */
-  threadStatuses: Record<string, string>;
   /** Artifact ownership at this point (artifactId -> ownerId) */
   artifactOwnership: Record<string, string | null>;
 } {
@@ -276,15 +283,9 @@ export function getStateAtIndex(
     }
   }
 
-  // Replay thread deltas to get status at this point
-  const threadStatuses: Record<string, string> = {};
-  for (const k of keysUpToCurrent) {
-    const entry = resolveEntry(n, k);
-    if (entry?.kind !== 'scene') continue;
-    for (const tm of entry.threadDeltas) {
-      threadStatuses[tm.threadId] = tm.to;
-    }
-  }
+  // Thread market state is read live from narrative.threads (the reducer
+  // applies threadDeltas on dispatch, so `n.threads` already reflects beliefs
+  // as of the current head). No per-index replay needed for the market model.
 
   // Replay artifact ownership: start with initial parentIds from worldBuilds, then apply ownershipDeltas
   const artifactOwnership: Record<string, string | null> = {};
@@ -307,19 +308,14 @@ export function getStateAtIndex(
   return {
     liveNodeIds,
     relationships: [...relMap.values()],
-    threadStatuses,
     artifactOwnership,
   };
 }
 
-// Build thread lifecycle documentation from canonical status lists
-export const THREAD_LIFECYCLE_DOC = (() => {
-  const activeList = THREAD_ACTIVE_STATUSES.map((s) => `"${s}"`).join(', ');
-  const terminalList = THREAD_TERMINAL_STATUSES.map(
-    (s) => `"${s}" (${THREAD_STATUS_LABELS[s]})`,
-  ).join(', ');
-  return `Active statuses: ${activeList}. Terminal/closed statuses: ${terminalList}.`;
-})();
+// Thread prediction-market documentation — what the LLM needs to know about
+// how threads are tracked now. Binary and multi-outcome threads share the
+// same shape; binary just happens to have outcomes = ["yes", "no"].
+export const THREAD_LIFECYCLE_DOC = `Threads are prediction markets over named outcomes. State = (probability distribution via softmax(logits), volume, volatility). A market closes when one outcome's logit margin over the runner-up exceeds the closure threshold AND the closing scene emits a payoff or twist with |evidence| ≥ 3. A market is abandoned when volume decays below the floor (untouched threads lose volume each scene). Neither closed nor abandoned threads consume generation pressure.`;
 
 /**
  * Build system knowledge block from SystemGraph.
@@ -480,21 +476,12 @@ export function buildStorySettingsBlock(n: NarrativeState): string {
 }
 
 /** Format network annotations as XML attributes for inline use on entity
- *  / thread / system render tags. Returns "" for nodes that haven't been
- *  attributed yet AND have no force anchor — keeps the default render
- *  uncluttered when the network has nothing to say. */
+ *  / thread / system render tags. Emits tier + attributions + topology —
+ *  the shape all downstream consumers have converged on. Returns "" for
+ *  absent nodes. */
 function networkAttrs(node: NetworkNode | undefined): string {
   if (!node) return "";
-  // Always emit tier + trajectory + topology + attributions so every entity
-  // carries the same shape — makes the LLM's pattern-matching consistent.
-  const parts = [
-    ` tier="${node.tier}"`,
-    ` attributions="${node.attributions}"`,
-    ` trajectory="${node.trajectory}"`,
-    ` topology="${node.topology}"`,
-  ];
-  if (node.forceAnchor) parts.push(` force-anchor="${node.forceAnchor}"`);
-  return parts.join("");
+  return ` tier="${node.tier}" attributions="${node.attributions}" topology="${node.topology}"`;
 }
 
 export function narrativeContext(
@@ -538,9 +525,9 @@ export function narrativeContext(
       referencedLocIds.add(entry.locationId);
       for (const tm of entry.threadDeltas) {
         referencedThreadIds.add(tm.threadId);
-        for (const node of tm.addedNodes ?? []) {
-          if (!threadLogOriginScene.has(node.id)) threadLogOriginScene.set(node.id, i);
-        }
+        // One log node per (thread, scene) with canonical id format.
+        const logNodeId = `${tm.threadId}:${entry.id}`;
+        if (!threadLogOriginScene.has(logNodeId)) threadLogOriginScene.set(logNodeId, i);
       }
       for (const km of entry.worldDeltas) {
         referencedCharIds.add(km.entityId);
@@ -698,10 +685,26 @@ export function narrativeContext(
       const participantNames = t.participants.map((a) => n.characters[a.id]?.name ?? n.locations[a.id]?.name ?? a.id).join(', ');
       const validDeps = t.dependents.filter((id) => n.threads[id]);
       const depsAttr = validDeps.length > 0 ? ` converges="${validDeps.join(',')}"` : '';
-      // Use timeline-scoped status, falling back to base status if no deltas yet
-      const status = timelineState.threadStatuses[t.id] ?? t.status;
-      // Filter out abandoned threads — they're cleaned up and shouldn't appear in generation context
-      if (status === 'abandoned') return null;
+      // Market state — read live from thread. Closed or abandoned threads
+      // don't appear in generation context.
+      if (isThreadClosed(t) || isThreadAbandoned(t)) return null;
+      const belief = getMarketBelief(t);
+      const probs = getMarketProbs(t);
+      const { topIdx, margin } = getMarketMargin(t);
+      const topProb = probs[topIdx] ?? 0;
+      const silent = scenesSinceTouched(t, keysUpToCurrent, currentIndex);
+      // Canonical category classification — same function the UI uses, so the
+      // model sees one vocabulary across scene generation, arc planning, and
+      // rendered visualisations. Scene context drives the developing/dormant
+      // split via scenesSinceTouch.
+      const category = classifyThreadCategory(t, { scenesSinceTouch: silent });
+      const recentEnergy = computeRecentLogitEnergy(t);
+      const marketAttr = belief
+        ? ` category="${category}" lean="${t.outcomes[topIdx]}" p-lean="${topProb.toFixed(2)}" margin="${margin.toFixed(1)}" vol="${belief.volume.toFixed(1)}" volatility="${belief.volatility.toFixed(2)}" energy="${recentEnergy.toFixed(2)}" silent="${Number.isFinite(silent) ? silent : '∞'}"`
+        : ` category="${category}"`;
+      const outcomeSummary = t.outcomes
+        .map((o, i) => `${o}=${(probs[i] ?? 0).toFixed(2)}`)
+        .join(' · ');
       // Recency-tiered log entries: keep logs from near/mid scenes only. Older
       // log detail is carried by scene-history summaries.
       const logNodes = Object.values(t.threadLog?.nodes ?? {})
@@ -710,7 +713,7 @@ export function narrativeContext(
       const logBlock = logNodes.length > 0
         ? `\n  <log>${logNodes.map((ln) => `[${ln.type}] ${ln.content}`).join(' | ')}</log>`
         : '';
-      return `<thread id="${t.id}" status="${status}"${age > 0 ? ` age="${age}" deltas="${deltas}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}${networkAttrs(tierLookup.get(t.id))}>${t.description}${logBlock}\n</thread>`;
+      return `<thread id="${t.id}"${marketAttr}${age > 0 ? ` age="${age}" deltas="${deltas}"` : ''}${participantNames ? ` participants="${participantNames}"` : ''}${depsAttr}${networkAttrs(tierLookup.get(t.id))}>${t.description}\n  <market>${outcomeSummary}</market>${logBlock}\n</thread>`;
     })
     .filter(Boolean)
     .join('\n');
@@ -785,7 +788,7 @@ export function narrativeContext(
   // Exclude abandoned threads from valid IDs — they shouldn't be referenced in generation
   const charIdList = branchCharacters.map((c) => c.id).join(', ');
   const locIdList = branchLocations.map((l) => l.id).join(', ');
-  const activeThreads = branchThreads.filter((t) => (timelineState.threadStatuses[t.id] ?? t.status) !== 'abandoned');
+  const activeThreads = branchThreads.filter((t) => !isThreadClosed(t) && !isThreadAbandoned(t));
   const threadIdList = activeThreads.map((t) => t.id).join(', ');
   const sysIdList = rankedSystemNodes.map(({ node }) => node.id).join(', ');
 
@@ -800,10 +803,8 @@ export function narrativeContext(
 <network-annotations hint="Every character / location / artifact / thread / system node below carries cumulative reasoning-network attributes:
   tier (hot / warm / cold / fresh) — heat snapshot relative to the network
   attributions — total times referenced across reasoning graphs
-  trajectory (rising / steady / cooling / dormant) — direction of recent activity
   topology (bridge / hub / leaf / isolated) — position in the activation web (bridges connect ≥2 force cohorts; hubs are within-cohort centres)
-  force-anchor (fate / world / system) — which axis dominates the neighbourhood, omitted when balanced
-Use these to decide what to deepen vs. what to surface — load-bearing nodes are bridges and hubs; dormant nodes are reactivation candidates." />
+Use these to decide what to deepen vs. what to surface — load-bearing nodes are bridges and hubs; cold nodes are reactivation candidates." />
 ${systemKnowledgeBlock}${storySettingsBlock}
 <characters hint="Continuity tracks what each character knows. Use this to determine what they can reference, discover, or be surprised by.">
 ${characters}
@@ -813,7 +814,14 @@ ${characters}
 ${locations}
 </locations>
 
-<threads hint="Threads are COMPELLING QUESTIONS (stakes + uncertainty + investment). Lifecycle: latent → seeded → active → escalating → critical → resolved/subverted. Thread logs track incremental answers.">
+<threads hint="Threads are COMPELLING QUESTIONS the story is pricing as prediction markets over named outcomes. Each thread carries a category interpreting its current market state:
+  saturating — margin near closure; one committal (payoff/twist) away from resolving
+  volatile — recent swings (either a spiky scene or accumulated drift); twists against prior trend earn weight
+  contested — high entropy with real volume; either side is fair game
+  committed — one outcome clearly leads (p≥0.65); market expects this unless you twist it
+  developing — recently touched and actively moving, no decisive shape yet; pace it and let it settle
+  dormant — no recent touches and no distinctive signal; let it decay unless this scene re-engages it
+Plus: lean (leading outcome), p-lean (its probability), margin (logit gap to runner-up), vol (attention), volatility (EWMA of single-scene shifts), energy (summed absolute logit motion across the recent log window — catches gradual drift EWMA smooths out), silent (scenes since last touched). The <log> carries the accumulated event trace.">
 ${threads}
 </threads>
 
@@ -836,6 +844,13 @@ ${sceneHistory}
 </narrative>`;
 }
 
+/** Compact market category for per-scene shift lines. Same vocabulary the
+ *  narrative-context <thread> tag emits, condensed to one token so delta
+ *  readers see the market a shift is modifying without ceremony. */
+function threadMarketSignal(t: import('@/types/narrative').Thread): string {
+  return classifyThreadCategory(t);
+}
+
 export function sceneContext(
   narrative: NarrativeState,
   scene: Scene,
@@ -852,21 +867,32 @@ export function sceneContext(
   const pov = narrative.characters[scene.povId];
   const arc = Object.values(narrative.arcs).find((a) => a.sceneIds.includes(scene.id));
 
+  // Network attributes for participant + thread enrichment. Scene context is
+  // called without resolvedKeys/currentIndex in most paths, so we fall back
+  // to a full-narrative aggregate — still meaningful: tier is the cumulative
+  // load-bearing read, not a point-in-time recency measure.
+  const sceneNetwork = aggregateNetworkGraph(narrative);
+  const sceneTierLookup = buildTierLookup(sceneNetwork);
+
   // ── Participant identifiers (no cumulative knowledge) ───────────────
   const participantLines = scene.participantIds.map((pid) => {
     const p = narrative.characters[pid];
     if (!p) return `  <participant id="${pid}" />`;
-    return `  <participant id="${p.id}" name="${p.name}" role="${p.role}" />`;
+    return `  <participant id="${p.id}" name="${p.name}" role="${p.role}"${networkAttrs(sceneTierLookup.get(p.id))} />`;
   });
 
   // ── Scene deltas ───────────────────────────────────────────────────
   const threadDeltaLines = scene.threadDeltas.map((tm) => {
     const thread = narrative.threads[tm.threadId];
-    const addedLogs = (tm.addedNodes ?? [])
-      .map((n) => `[${n.type}] ${n.content}`)
-      .join(' | ');
-    const logAttr = addedLogs ? ` log="${addedLogs.replace(/"/g, '&quot;')}"` : '';
-    return `  <shift thread="${thread?.description ?? tm.threadId}" from="${tm.from}" to="${tm.to}"${logAttr} />`;
+    const moves = (tm.updates ?? [])
+      .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+      .join(' ');
+    const rationale = tm.rationale?.slice(0, 120).replace(/"/g, '&quot;') ?? '';
+    // Market signal reads the thread's CURRENT live state — use it to
+    // understand the delta in context. A pulse on a leans market holds a
+    // commitment; a pulse on a fading market keeps it barely alive.
+    const signalAttr = thread ? ` signal="${threadMarketSignal(thread)}"` : '';
+    return `  <shift thread="${thread?.description ?? tm.threadId}"${signalAttr} logType="${tm.logType}" updates="${moves}" rationale="${rationale}" />`;
   });
 
   const worldDeltaLines = scene.worldDeltas.flatMap((km) => {
@@ -955,7 +981,10 @@ export function sceneContext(
       })
       .join(', ');
     const partsAttr = parts ? ` participants="${parts}"` : '';
-    return `  <thread id="${t.id}" status="${t.status}"${partsAttr}>${t.description}</thread>`;
+    const outcomes = t.outcomes.join(' | ');
+    // Freshly-opened markets are uniform-prior — signal is "fresh". Later
+    // arcs will see them with evolved market signals via narrativeContext.
+    return `  <thread id="${t.id}" signal="fresh" outcomes="${outcomes}"${partsAttr}>${t.description}</thread>`;
   });
 
   const newEntitiesBlock = [
@@ -1112,15 +1141,18 @@ ${asymmetryLines.join('\n')}
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // THREAD TRANSITIONS
+  // THREAD MARKET UPDATES
   // ═══════════════════════════════════════════════════════════════════════════
   if (scene.threadDeltas.length > 0) {
     const threadLines = scene.threadDeltas.map((tm) => {
       const thread = narrative.threads[tm.threadId];
       const desc = thread?.description ?? tm.threadId;
-      return `  <thread name="${desc}" from="${tm.from}" to="${tm.to}" />`;
+      const moves = (tm.updates ?? [])
+        .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+        .join(' ');
+      return `  <thread name="${desc}" logType="${tm.logType}" updates="${moves}" />`;
     });
-    sections.push(`<threads hint="Each thread begins in its 'from' state and must transition to its 'to' state during the scene">
+    sections.push(`<threads hint="Each thread's market updates this scene — per-outcome evidence shifts logits, softmax renormalises">
 ${threadLines.join('\n')}
 </threads>`);
   }
@@ -1378,7 +1410,11 @@ export function outlineContext(
     const threadChanges = entry.threadDeltas
       .map((tm) => {
         const t = n.threads[tm.threadId];
-        return t ? `${t.description}: ${tm.from}→${tm.to}` : '';
+        if (!t) return '';
+        const moves = (tm.updates ?? [])
+          .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+          .join(' ');
+        return `${t.description} [${tm.logType}]${moves ? ` ${moves}` : ''}`;
       })
       .filter(Boolean)
       .join('; ');

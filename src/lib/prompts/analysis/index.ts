@@ -24,6 +24,18 @@ export {
 } from './reconcile-semantic';
 
 export {
+  COALESCE_OUTCOMES_SYSTEM,
+  buildCoalesceOutcomesPrompt,
+} from './coalesce-outcomes';
+
+export {
+  FATE_REEXTRACT_SYSTEM,
+  buildFateReextractPrompt,
+  type FateReextractThread,
+  type FateReextractPriorDelta,
+} from './fate-reextract';
+
+export {
   THREADING_SYSTEM,
   buildThreadingPrompt,
 } from './threading';

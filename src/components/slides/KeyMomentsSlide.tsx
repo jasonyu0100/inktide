@@ -101,7 +101,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
   const forces = peakInfo?.forces ?? troughInfo?.forces ?? { fate: 0, world: 0, system: 0 };
   const delivery = peakInfo?.delivery ?? troughInfo?.delivery;
   const cubeCorner = peakInfo?.cubeCorner ?? troughInfo?.cubeCorner;
-  const threadChanges = peakInfo?.threadChanges ?? scene.threadDeltas?.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })) ?? [];
+  const threadChanges = peakInfo?.threadChanges ?? scene.threadDeltas?.map((tm) => ({ threadId: tm.threadId, logType: tm.logType, updates: tm.updates ?? [] })) ?? [];
   const relationshipChanges = peakInfo?.relationshipChanges ?? scene.relationshipDeltas?.map((rm) => ({ from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta })) ?? [];
 
   const maxForce = Math.max(Math.abs(forces.fate), Math.abs(forces.world), Math.abs(forces.system), 0.5);
@@ -268,9 +268,12 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
                   return (
                     <div key={i} className="flex items-center gap-2 text-[10px] px-3 py-1.5 rounded bg-white/3 border border-white/5">
                       <span className="text-text-secondary flex-1 truncate" title={desc}>{label}</span>
-                      <span className="text-text-dim shrink-0 font-mono text-[9px]">{tc.from}</span>
-                      <span className={`shrink-0 ${accentText} text-[9px]`}>&rarr;</span>
-                      <span className="text-text-primary font-medium shrink-0 font-mono text-[9px]">{tc.to}</span>
+                      <span className="text-text-dim shrink-0 font-mono text-[9px]">[{('logType' in tc) ? tc.logType : ''}]</span>
+                      <span className="text-text-primary font-medium shrink-0 font-mono text-[9px]">
+                        {('updates' in tc ? tc.updates : [])
+                          .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+                          .join(' ')}
+                      </span>
                     </div>
                   );
                 })}

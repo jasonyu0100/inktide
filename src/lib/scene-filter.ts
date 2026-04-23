@@ -360,7 +360,9 @@ export function getThreadLogAtScene(
     if (!scene) continue;
     for (const tm of scene.threadDeltas ?? []) {
       if (tm.threadId !== threadId) continue;
-      visibleCount += (tm.addedNodes && tm.addedNodes.length > 0) ? tm.addedNodes.length : 1;
+      // Market threads produce ONE log node per scene touch, keyed by
+      // (threadId:sceneId). Count is 1 per delta.
+      visibleCount += 1;
     }
   }
   const allNodes = Object.values(threadLog?.nodes ?? {});

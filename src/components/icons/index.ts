@@ -2,5 +2,5 @@ export { IconCheck, IconTilde, IconPencil, IconMerge, IconCross, IconPlus as Ico
 export { IconChevronLeft, IconChevronRight, IconChevronDown, IconHome, IconExpand, IconArrowLeft } from './NavigationIcons';
 export { IconEdit, IconTrash, IconClose, IconSend, IconRefresh, IconFork, IconImport, IconDownload, IconShare, IconPlus, IconUndo, IconPencilDraw, IconMinus } from './ActionIcons';
 export { IconPlay, IconPause, IconStop } from './MediaIcons';
-export { IconSpinner, IconWarning, IconCheckCircle, IconLock } from './StatusIcons';
-export { IconDocument, IconBook, IconNotepad, IconImage, IconEye, IconLocationPin, IconPeople, IconQuestion, IconDollar, IconSettings, IconDice, IconScorecard, IconSearch, IconList, IconFlask, IconAutoLoop, IconLineChart, IconGlobe, IconThread, IconNetwork, IconWaveform, IconLightbulb, IconUser, IconUsers, IconMapPin, IconGitBranch, IconBox, IconDatabase, IconSystem, IconReasoning } from './ContentIcons';
+export { IconSpinner, IconWarning, IconCheckCircle, IconLock, IconActivity } from './StatusIcons';
+export { IconDocument, IconBook, IconNotepad, IconImage, IconEye, IconLocationPin, IconPeople, IconQuestion, IconDollar, IconSettings, IconDice, IconScorecard, IconSearch, IconList, IconFlask, IconAutoLoop, IconLineChart, IconGlobe, IconThread, IconNetwork, IconMarket, IconWaveform, IconLightbulb, IconUser, IconUsers, IconMapPin, IconGitBranch, IconBox, IconDatabase, IconSystem, IconReasoning } from './ContentIcons';

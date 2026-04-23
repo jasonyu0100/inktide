@@ -122,8 +122,15 @@
       "threadDeltas": [
         {
           "threadId": "T-01",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Fang Yuan watches the village he destroyed five centuries ago go about its morning; the rebirth secret takes its first breath in this life."
         }
       ],
       "worldDeltas": [
@@ -197,8 +204,15 @@
       "threadDeltas": [
         {
           "threadId": "T-03",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Fang Zheng asks if he is nervous; Fang Yuan's practiced answer lands cleanly, but the narrow road between them acquires its first silent country."
         }
       ],
       "worldDeltas": [
@@ -285,8 +299,15 @@
       "threadDeltas": [
         {
           "threadId": "T-02",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Shen Cui diagrams primeval essence while the class leans in; the ceremony's vocabulary is being laid down one precise chalk stroke at a time."
         }
       ],
       "worldDeltas": [
@@ -367,8 +388,15 @@
       "threadDeltas": [
         {
           "threadId": "T-06",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Fang Yuan walks Qing Mao's ridge mapping terrain against five centuries of memory; the buried inheritance is being re-surveyed by its rightful heir."
         }
       ],
       "worldDeltas": [
@@ -458,8 +486,15 @@
       "threadDeltas": [
         {
           "threadId": "T-02",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Fang Zheng flares A-grade; Fang Yuan dampens his own light to C — the ceremony seals both brothers into the roles this timeline requires."
         }
       ],
       "worldDeltas": [
@@ -584,8 +619,10 @@
       "threadDeltas": [
         {
           "threadId": "T-03",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Fang Zheng apologises for eclipsing him; Fang Yuan's voice is tender enough that his brother believes, and so continues to see nothing."
         }
       ],
       "worldDeltas": [
@@ -673,8 +710,10 @@
       "threadDeltas": [
         {
           "threadId": "T-02",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Shen Cui counsels Fang Zheng on pacing his A-grade talent; the ceremony's verdict is already shaping the boy's training calendar."
         }
       ],
       "worldDeltas": [
@@ -761,8 +800,10 @@
       "threadDeltas": [
         {
           "threadId": "T-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Fang Yuan stops where thirty-seven died in another life; the mountain forgets and he does not — the rebirth secret paces alongside him."
         }
       ],
       "worldDeltas": [
@@ -831,8 +872,15 @@
       "threadDeltas": [
         {
           "threadId": "T-04",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Mo Bei Liu proposes reallocating funds and Gu Yue Bo refuses with a single raised hand; every supporting glance is silently counted."
         }
       ],
       "worldDeltas": [
@@ -924,8 +972,10 @@
       "threadDeltas": [
         {
           "threadId": "T-04",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Fang Yuan sweeps the courtyard and reads the departing factions; five centuries of political memory confirms the timeline is still on rails."
         }
       ],
       "worldDeltas": [
@@ -1007,8 +1057,10 @@
       "threadDeltas": [
         {
           "threadId": "T-02",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Fang Zheng struggles with fine control despite his A-grade rank; the awakening's gift is not yet the weapon the clan is expecting."
         }
       ],
       "worldDeltas": [
@@ -1068,13 +1120,17 @@
       "threadDeltas": [
         {
           "threadId": "T-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Fang Yuan descends the tunnels without light — five-century memory serves as his lantern, and the rebirth advantage is cashed for its first cache."
         },
         {
           "threadId": "T-06",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "In the tunnels below Gu Yue, Fang Yuan walks toward a primeval cache the Flower Wine Monk's ground still remembers; the inheritance begins compounding."
         }
       ],
       "worldDeltas": [
@@ -1158,8 +1214,10 @@
       "threadDeltas": [
         {
           "threadId": "T-03",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Fang Zheng asks what he wants; 'useful' arrives as the wrong-kindness answer, and a single unguarded glance nearly surfaces before it is smothered."
         }
       ],
       "worldDeltas": [
@@ -1248,8 +1306,10 @@
       "threadDeltas": [
         {
           "threadId": "T-04",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Mo Bei Liu lobbies to train Fang Zheng under his faction; Gu Yue Bo insists on tradition, and the boy becomes a chess piece before his first sparring."
         }
       ],
       "worldDeltas": [
@@ -1341,8 +1401,15 @@
       "threadDeltas": [
         {
           "threadId": "T-03",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Fang Zheng follows his brother into the night and watches him vanish by the granary; suspicion stops being ambient and becomes a specific question."
         }
       ],
       "worldDeltas": [
@@ -1430,8 +1497,10 @@
       "threadDeltas": [
         {
           "threadId": "T-03",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Over breakfast Fang Yuan claims insomnia with a practiced shrug; the explanation is ordinary, and the half-second delay does not dissolve."
         }
       ],
       "worldDeltas": [
@@ -1491,13 +1560,17 @@
       "threadDeltas": [
         {
           "threadId": "T-03",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Fang Zheng finds the hidden stone slab behind the granary, dust disturbed by recent movement; he tells no one, and doubt hardens into private investigation."
         },
         {
           "threadId": "T-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Fang Zheng's quiet search brings him to the threshold of the hidden cache; the rebirth secret is no longer perfectly unexposed."
         }
       ],
       "worldDeltas": [
@@ -2238,12 +2311,29 @@
               }
             ],
             "description": "Spring Autumn Cicada — Fang Yuan's rebirth secret, the one truth that must never be exposed",
-            "status": "latent",
             "openedAt": "S-001",
             "dependents": [
               "T-03",
               "T-05"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-02",
@@ -2262,9 +2352,26 @@
               }
             ],
             "description": "The Awakening Ceremony — who receives which vital Gu, and whose future is sealed",
-            "status": "latent",
             "openedAt": "S-001",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-03",
@@ -2279,9 +2386,26 @@
               }
             ],
             "description": "Brother against brother — Fang Zheng's growing suspicion that something is deeply wrong with Fang Yuan",
-            "status": "latent",
             "openedAt": "S-001",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-04",
@@ -2300,9 +2424,26 @@
               }
             ],
             "description": "Clan politics — Mo Bei Liu's faction against Gu Yue Bo's loyalists, the Gu Yue clan fracturing from within",
-            "status": "latent",
             "openedAt": "S-009",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-05",
@@ -2313,9 +2454,26 @@
               }
             ],
             "description": "Bai Ning Bing's curse — the Northern Dark Ice Soul physique, a ticking clock toward death before age 20",
-            "status": "latent",
             "openedAt": "S-001",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-06",
@@ -2330,11 +2488,28 @@
               }
             ],
             "description": "The Flower Wine Monk's inheritance ground — hidden power buried beneath Qing Mao Mountain",
-            "status": "latent",
             "openedAt": "S-001",
             "dependents": [
               "T-01"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-07",
@@ -2345,9 +2520,26 @@
               }
             ],
             "description": "Tie Ruo Nan's investigation — the righteous path hunting demonic cultivator traces near the mountain",
-            "status": "latent",
             "openedAt": "S-001",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           }
         ],
         "relationshipDeltas": [

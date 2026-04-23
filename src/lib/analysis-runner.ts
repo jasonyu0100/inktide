@@ -11,7 +11,7 @@
  *   Phase 6 — Assembly: build final NarrativeState from reconciled data
  */
 
-import { reconcileResults, analyzeThreading, assembleNarrative, extractSceneStructure, groupScenesIntoArcs } from '@/lib/text-analysis';
+import { reconcileResults, analyzeThreading, assembleNarrative, extractSceneStructure, groupScenesIntoArcs, reextractFateWithLifecycle } from '@/lib/text-analysis';
 import { reverseEngineerScenePlan } from '@/lib/ai/scenes';
 import { FatalApiError } from '@/lib/ai/errors';
 import type { AnalysisJob, AnalysisChunkResult } from '@/types/narrative';
@@ -420,15 +420,58 @@ class AnalysisRunner {
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // Phase 5: FINALIZATION — thread dependencies
+    // Phase 5: FINALIZATION — fate re-extraction + thread dependencies
+    //
+    // First-pass structure extraction is parallel and local-only — each scene
+    // scores its threadDeltas without knowledge of eventual outcomes, so late
+    // reversals never shift early priors. Here we re-score every scene using
+    // summaries (fast, cheap) + the canonical thread list + the observed
+    // winner per thread, so the trajectory reflects the story's actual shape.
     // ═════════════════════════════════════════════════════════════════════════
     d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { phase: 'finalization' } });
+
+    try {
+      const completed = results.filter((r): r is AnalysisChunkResult => r !== null);
+      const canonicalDescs = new Set(completed.flatMap(r => (r.threads ?? []).map(t => t.description)));
+      if (canonicalDescs.size > 0) {
+        entry.chunkStreams.clear();
+        this.emitStream(job.id, `Fate re-extract: ${completed.length} scenes × ${canonicalDescs.size} threads...`);
+        const reextracted = await reextractFateWithLifecycle(completed, {
+          onProgress: (done, total) => {
+            this.emitStream(job.id, `Fate re-extract: ${done}/${total}`);
+          },
+          onSceneStream: (sceneIdx, acc) => {
+            entry.chunkStreams.set(sceneIdx, acc);
+            this.emitChunkStream(job.id, sceneIdx, acc);
+          },
+          onSceneStart: (sceneIdx) => {
+            entry.inFlightIndices.add(sceneIdx);
+            this.emitInFlight(job.id, [...entry.inFlightIndices]);
+          },
+          onSceneEnd: (sceneIdx) => {
+            entry.inFlightIndices.delete(sceneIdx);
+            this.emitInFlight(job.id, [...entry.inFlightIndices]);
+          },
+          cancelled: () => entry.cancelled,
+        });
+        let ri = 0;
+        for (let i = 0; i < results.length; i++) {
+          if (results[i] !== null) results[i] = reextracted[ri++];
+        }
+        d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { results: [...results] } });
+        this.emitStream(job.id, `[OK] Fate re-extracted`);
+      }
+      if (entry.cancelled) { d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused' } }); return; }
+    } catch (err) {
+      logWarning('Fate re-extract failed (non-fatal)', err, { source: 'analysis', operation: 'fate-reextract' });
+    }
+
     let threadDependencies: Record<string, string[]> = {};
     try {
       const completed = results.filter((r): r is AnalysisChunkResult => r !== null);
       const threads = [...new Set(completed.flatMap(r => (r.threads ?? []).map(t => t.description)))];
       if (threads.length >= 2) {
-        this.emitStream(job.id, 'Finalizing...');
+        this.emitStream(job.id, 'Finalizing thread dependencies...');
         threadDependencies = await analyzeThreading(threads, (_token, acc) => { this.emitStream(job.id, `Finalizing...\n${acc}`); });
       }
       if (entry.cancelled) { d({ type: 'UPDATE_ANALYSIS_JOB', id: job.id, updates: { status: 'paused' } }); return; }

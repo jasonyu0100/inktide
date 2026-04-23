@@ -157,12 +157,15 @@ export default function ArcDetail({ arcId }: Props) {
                     </span>
                   </div>
                   {transitions.length > 0 && (
-                    <div className="flex items-center gap-1 pl-9 font-mono text-[9px]">
-                      <span className="text-text-dim">{transitions[0].from}</span>
+                    <div className="flex items-center gap-1 pl-9 font-mono text-[9px] flex-wrap">
                       {transitions.map((tm, i) => (
                         <span key={i} className="flex items-center gap-1">
-                          <span className="text-text-dim/50">→</span>
-                          <span className="text-amber-400">{tm.to}</span>
+                          <span className="text-text-dim">[{tm.logType}]</span>
+                          {(tm.updates ?? []).map((u, j) => (
+                            <span key={j} className="text-amber-400">
+                              {u.outcome}{u.evidence >= 0 ? '+' : ''}{u.evidence}
+                            </span>
+                          ))}
                         </span>
                       ))}
                     </div>

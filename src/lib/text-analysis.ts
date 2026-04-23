@@ -8,6 +8,7 @@
  */
 
 import {
+  ANALYSIS_CONCURRENCY,
   ANALYSIS_MODEL,
   ANALYSIS_TEMPERATURE,
   MAX_TOKENS_DEFAULT,
@@ -37,10 +38,11 @@ import type {
 } from "@/types/narrative";
 import {
   DEFAULT_STORY_SETTINGS,
-  THREAD_ACTIVE_STATUSES,
+  NARRATOR_AGENT_ID,
   THREAD_LOG_NODE_TYPES,
-  THREAD_TERMINAL_STATUSES,
 } from "@/types/narrative";
+import { clampEvidence, isThreadAbandoned, isThreadClosed } from "@/lib/narrative-utils";
+import { newNarratorBelief } from "@/lib/thread-log";
 import {
   SCENE_STRUCTURE_SYSTEM,
   buildSceneStructurePrompt,
@@ -50,6 +52,12 @@ import {
   buildReconcileEntitiesPrompt,
   RECONCILE_SEMANTIC_SYSTEM,
   buildReconcileSemanticPrompt,
+  COALESCE_OUTCOMES_SYSTEM,
+  buildCoalesceOutcomesPrompt,
+  FATE_REEXTRACT_SYSTEM,
+  buildFateReextractPrompt,
+  type FateReextractThread,
+  type FateReextractPriorDelta,
   THREADING_SYSTEM,
   buildThreadingPrompt,
 } from "@/lib/prompts/analysis";
@@ -470,12 +478,52 @@ async function reconcileEntities(
 
   const prompt = buildReconcileEntitiesPrompt(allCharNames, allLocNames, allArtifactNames);
   const raw = await callAnalysis(prompt, RECONCILE_ENTITIES_SYSTEM, onToken);
-  const parsed = parseMergeJSON<Partial<EntityMerges>>(raw);
+  const parsed = parseMergeJSON<{
+    characterMerges?: Record<string, number | string>;
+    locationMerges?: Record<string, number | string>;
+    artifactMerges?: Record<string, number | string>;
+  }>(raw);
+
+  // Lists are 1-indexed in the prompt to match the numbered rendering.
+  const chars = [...allCharNames];
+  const locs = [...allLocNames];
+  const arts = [...allArtifactNames];
   return {
-    characterMerges: parsed.characterMerges ?? {},
-    locationMerges: parsed.locationMerges ?? {},
-    artifactMerges: parsed.artifactMerges ?? {},
+    characterMerges: resolveIdMergeMap(parsed.characterMerges, chars),
+    locationMerges: resolveIdMergeMap(parsed.locationMerges, locs),
+    artifactMerges: resolveIdMergeMap(parsed.artifactMerges, arts),
   };
+}
+
+/** Convert an id→id merge map (as emitted by the LLM) to the variant→canonical
+ *  string map the reducer consumes. Silently drops entries whose ids fall
+ *  outside the provided list — matches how we treat unparseable string merges
+ *  today: the variant falls through to identity mapping, which is safe. */
+function resolveIdMergeMap(
+  rawMap: Record<string, number | string> | undefined,
+  list: string[],
+): Record<string, string> {
+  if (!rawMap) return {};
+  const out: Record<string, string> = {};
+  for (const [variantKey, canonicalRaw] of Object.entries(rawMap)) {
+    const variantIdx = parseIndex(variantKey, list.length);
+    const canonicalIdx = parseIndex(canonicalRaw, list.length);
+    if (variantIdx === null || canonicalIdx === null) continue;
+    if (variantIdx === canonicalIdx) continue;
+    const variant = list[variantIdx];
+    const canonical = list[canonicalIdx];
+    if (!variant || !canonical || variant === canonical) continue;
+    out[variant] = canonical;
+  }
+  return out;
+}
+
+/** Parse a 1-indexed id from string or number. Returns the zero-indexed offset
+ *  into the list, or null if invalid / out of range. */
+function parseIndex(raw: unknown, listLength: number): number | null {
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  if (!Number.isInteger(n) || n < 1 || n > listLength) return null;
+  return n - 1;
 }
 
 /**
@@ -554,6 +602,7 @@ export async function reconcileResults(
     allSysConcepts,
     phaseStream("threads+knowledge"),
   );
+  phaseLog = `${phaseLog}[threads+knowledge] done\n\n`;
 
   const charMap = entityMerges.characterMerges;
   const locMap = entityMerges.locationMerges;
@@ -566,6 +615,94 @@ export async function reconcileResults(
   const resolveLoc = (name: string) => locMap[name] ?? name;
   const resolveArt = (name: string) => artMap[name] ?? name;
   const resolveSys = (concept: string) => sysMap[concept] ?? concept;
+
+  // ── Phase 3c: outcome coalescing ────────────────────────────────────────
+  // Parallel extraction fragments outcomes — "succeeds", "succeeds in
+  // rewriting his future", "successfully manipulates his past" are the
+  // same future restated. Collect all outcomes per canonical thread
+  // (after thread-description merges), ask the LLM to coalesce each
+  // thread's set to a small canonical list, and build a per-thread
+  // {variant → canonical} map. Applied below when threadDeltas and
+  // thread.outcomes are remapped.
+  const outcomesByThread = new Map<string, Set<string>>();
+  for (const r of results) {
+    for (const t of r.threads ?? []) {
+      const canonical = resolveThread(t.description);
+      const bucket = outcomesByThread.get(canonical) ?? new Set<string>();
+      for (const o of t.outcomes ?? []) {
+        if (typeof o === 'string' && o.trim()) bucket.add(o.trim());
+      }
+      outcomesByThread.set(canonical, bucket);
+    }
+    // Also harvest outcome names referenced in threadDeltas (addOutcomes and
+    // updates) — the scene extractor can introduce outcomes the thread's own
+    // outcomes[] field didn't list.
+    for (const s of r.scenes ?? []) {
+      for (const tm of s.threadDeltas ?? []) {
+        const canonical = resolveThread(tm.threadDescription);
+        const bucket = outcomesByThread.get(canonical) ?? new Set<string>();
+        for (const u of tm.updates ?? []) {
+          if (u?.outcome && typeof u.outcome === 'string') bucket.add(u.outcome.trim());
+        }
+        for (const o of tm.addOutcomes ?? []) {
+          if (typeof o === 'string' && o.trim()) bucket.add(o.trim());
+        }
+        outcomesByThread.set(canonical, bucket);
+      }
+    }
+  }
+
+  // outcomeMerges[threadDesc][variant] = canonical. Threads whose coalesce
+  // call succeeds get populated; others fall through to identity mapping.
+  const outcomeMerges: Record<string, Record<string, string>> = {};
+  const canonicalOutcomes: Record<string, string[]> = {};
+
+  // Only invoke the LLM when there's actual fragmentation — a thread with
+  // 2 or fewer outcomes is already canonical.
+  const threadsNeedingCoalesce = [...outcomesByThread.entries()]
+    .filter(([, outcomes]) => outcomes.size > 2)
+    .map(([description, outcomes]) => ({ description, outcomes: [...outcomes] }));
+
+  if (threadsNeedingCoalesce.length > 0) {
+    try {
+      const coalescePrompt = buildCoalesceOutcomesPrompt(threadsNeedingCoalesce);
+      const coalesceRaw = await callAnalysis(
+        coalescePrompt,
+        COALESCE_OUTCOMES_SYSTEM,
+        phaseStream("coalesce-outcomes"),
+      );
+      const parsed = parseMergeJSON<{ threads?: Record<string, { canonical?: string[]; merges?: Record<string, string> }> }>(
+        coalesceRaw,
+      );
+      for (const [desc, entry] of Object.entries(parsed.threads ?? {})) {
+        const canon = Array.isArray(entry?.canonical)
+          ? entry.canonical.filter((o): o is string => typeof o === 'string' && o.trim().length > 0)
+          : [];
+        const merges = entry?.merges ?? {};
+        const cleanMerges: Record<string, string> = {};
+        for (const [variant, canonicalVal] of Object.entries(merges)) {
+          if (typeof variant === 'string' && typeof canonicalVal === 'string') {
+            cleanMerges[variant.trim()] = canonicalVal.trim();
+          }
+        }
+        if (canon.length >= 2) {
+          canonicalOutcomes[desc] = canon;
+          outcomeMerges[desc] = cleanMerges;
+        }
+      }
+    } catch {
+      // Coalesce failure is non-fatal — without the map, outcomes remain
+      // unioned as-is. We'd rather not block assembly on this step.
+    }
+  }
+
+  /** Resolve a single (thread, outcome) pair through the outcome merge map.
+   *  Falls through to the raw outcome when no mapping exists. */
+  const resolveOutcome = (threadDesc: string, outcome: string): string => {
+    const map = outcomeMerges[threadDesc];
+    if (!map) return outcome;
+    return map[outcome] ?? map[outcome.trim()] ?? outcome;
+  };
 
   // Unified entity resolver — tries all maps so the same entity always resolves
   // to the same canonical name regardless of which field references it.
@@ -632,13 +769,23 @@ export async function reconcileResults(
         ...t,
         description: resolveThread(t.description),
         participantNames: t.participantNames.map(resolveEntity),
-        statusAtStart: normalizeStatus(t.statusAtStart),
-        statusAtEnd: normalizeStatus(t.statusAtEnd),
+        // Prefer the coalesced canonical set when the LLM returned one;
+        // otherwise fall back to the thread's own outcomes remapped through
+        // the merge map and de-duped.
+        outcomes: (() => {
+          const canon = canonicalOutcomes[resolveThread(t.description)];
+          if (canon && canon.length >= 2) return canon;
+          const raw = Array.isArray(t.outcomes) && t.outcomes.length >= 2 ? t.outcomes : ["yes", "no"];
+          return [...new Set(raw.map((o) => resolveOutcome(resolveThread(t.description), o)))];
+        })(),
       })),
       (t) => t.description,
       (a, b) => ({
         ...a,
-        statusAtEnd: b.statusAtEnd,
+        // Union across duplicate thread entries (same canonical description
+        // from two chunks). Coalesce was already applied above, so both
+        // sides are canonical sets — union them.
+        outcomes: [...new Set([...a.outcomes, ...b.outcomes])],
         development: `${a.development}; ${b.development}`,
       }),
     ),
@@ -648,20 +795,76 @@ export async function reconcileResults(
       locationName: resolveEntity(s.locationName),
       participantNames: [...new Set(s.participantNames.map(resolveEntity))],
       threadDeltas: deduplicateBy(
-        (s.threadDeltas ?? []).map((tm) => ({
-          ...tm,
-          threadDescription: resolveThread(tm.threadDescription),
-          from: normalizeStatus(tm.from),
-          to: normalizeStatus(tm.to),
-        })),
-        (tm) => tm.threadDescription,
-        // When two deltas target the same thread in one scene, keep widest transition and merge logs
-        (a, b) => ({
-          ...a,
-          from: a.from,
-          to: b.to,
-          addedNodes: [...(a.addedNodes ?? []), ...(b.addedNodes ?? [])],
+        (s.threadDeltas ?? []).map((tm) => {
+          const canonicalDesc = resolveThread(tm.threadDescription);
+          // Remap each update's outcome through the coalesce map. When
+          // multiple variant-updates collapse onto the same canonical
+          // outcome within this one delta, take the SIGNED MAX-MAGNITUDE —
+          // never sum, never average. This prevents overlapping ways of
+          // saying the same thing from inflating the evidence. (E.g. a
+          // scene that emits {"succeeds":+2, "succeeds in rewriting":+1}
+          // collapses to {"succeeds":+2}, not +3.)
+          const remappedUpdates = new Map<string, { outcome: string; evidence: number }>();
+          for (const u of tm.updates ?? []) {
+            if (!u || typeof u.outcome !== 'string') continue;
+            const canonOutcome = resolveOutcome(canonicalDesc, u.outcome);
+            const prior = remappedUpdates.get(canonOutcome);
+            const incoming = typeof u.evidence === 'number' ? u.evidence : 0;
+            if (!prior) {
+              remappedUpdates.set(canonOutcome, { outcome: canonOutcome, evidence: incoming });
+            } else {
+              // Max-abs with sign preservation. If both are positive/negative
+              // we keep the stronger one; if they disagree in sign, the
+              // stronger magnitude wins (the author's dominant signal).
+              remappedUpdates.set(canonOutcome, {
+                outcome: canonOutcome,
+                evidence:
+                  Math.abs(incoming) > Math.abs(prior.evidence) ? incoming : prior.evidence,
+              });
+            }
+          }
+          // addOutcomes: remap, then drop any that now match an existing
+          // canonical outcome (already part of the market).
+          const canonOutcomeSet = new Set(canonicalOutcomes[canonicalDesc] ?? []);
+          const remappedAddOutcomes: string[] = [];
+          const seenAdded = new Set<string>();
+          for (const o of tm.addOutcomes ?? []) {
+            if (typeof o !== 'string') continue;
+            const canon = resolveOutcome(canonicalDesc, o);
+            if (canonOutcomeSet.size > 0 && canonOutcomeSet.has(canon)) continue;
+            if (seenAdded.has(canon)) continue;
+            seenAdded.add(canon);
+            remappedAddOutcomes.push(canon);
+          }
+          return {
+            ...tm,
+            threadDescription: canonicalDesc,
+            updates: [...remappedUpdates.values()],
+            addOutcomes: remappedAddOutcomes,
+          };
         }),
+        (tm) => tm.threadDescription,
+        // When two deltas target the same thread in one scene, take the
+        // later logType and max-abs-merge updates per canonical outcome.
+        // Again: we never sum across the same outcome — that would inflate
+        // the probability shift.
+        (a, b) => {
+          const updates = new Map<string, { outcome: string; evidence: number }>();
+          for (const u of [...(a.updates ?? []), ...(b.updates ?? [])]) {
+            const prior = updates.get(u.outcome);
+            if (!prior || Math.abs(u.evidence) > Math.abs(prior.evidence)) {
+              updates.set(u.outcome, u);
+            }
+          }
+          return {
+            ...a,
+            logType: b.logType,
+            updates: [...updates.values()],
+            volumeDelta: (a.volumeDelta ?? 0) + (b.volumeDelta ?? 0),
+            addOutcomes: [...new Set([...(a.addOutcomes ?? []), ...(b.addOutcomes ?? [])])],
+            rationale: a.rationale,
+          };
+        },
       ),
       worldDeltas: deduplicateBy(
         (s.worldDeltas ?? []).map((km) => ({
@@ -727,42 +930,10 @@ export async function reconcileResults(
     ),
   }));
 
-  // Stitch thread continuity across chunks:
-  // 1. Thread-level: statusAtStart of chunk N+1 matches statusAtEnd of chunk N
-  // 2. Scene-level: threadDelta.from values are consistent with the running status
-  const threadStatusTracker: Record<string, string> = {};
-  for (const r of reconciled) {
-    // Fix thread-level statuses
-    for (const t of r.threads) {
-      if (threadStatusTracker[t.description]) {
-        t.statusAtStart = threadStatusTracker[t.description];
-      }
-      threadStatusTracker[t.description] = t.statusAtEnd;
-    }
-
-    // Build a per-scene running status from the chunk's thread tracker
-    const sceneThreadStatus: Record<string, string> = {};
-    // Seed with thread-level statusAtStart for this chunk
-    for (const t of r.threads) {
-      sceneThreadStatus[t.description] = t.statusAtStart;
-    }
-    // Also seed from cross-chunk tracker for threads not in this chunk's thread list
-    for (const [desc, status] of Object.entries(threadStatusTracker)) {
-      if (!sceneThreadStatus[desc]) sceneThreadStatus[desc] = status;
-    }
-
-    // Fix scene-level threadDelta from/to values to chain correctly
-    for (const scene of r.scenes) {
-      for (const tm of scene.threadDeltas) {
-        const currentStatus = sceneThreadStatus[tm.threadDescription];
-        if (currentStatus && tm.from !== currentStatus) {
-          tm.from = currentStatus;
-        }
-        // Update running status for next scene/delta
-        sceneThreadStatus[tm.threadDescription] = tm.to;
-      }
-    }
-  }
+  // Market threads don't need per-chunk status stitching — evidence is
+  // cumulative and each scene's delta is self-describing (logType + updates +
+  // rationale). Outcome expansion is handled at thread-creation time by
+  // unioning the outcome list across chunks.
 
   return reconciled;
 }
@@ -781,9 +952,9 @@ export async function analyzeThreading(
   const raw = await callAnalysis(prompt, THREADING_SYSTEM, onToken);
   const json = extractJSON(raw);
 
+  let parsed: { threadDependencies?: Record<string, unknown> };
   try {
-    const parsed = JSON.parse(json);
-    return parsed.threadDependencies ?? {};
+    parsed = JSON.parse(json);
   } catch {
     const repaired = json
       .replace(/[\u201C\u201D]/g, '"')
@@ -791,61 +962,307 @@ export async function analyzeThreading(
       .replace(/[\x00-\x1F\x7F]/g, (ch) =>
         ch === "\n" || ch === "\t" ? ch : "",
       );
-    const parsed = JSON.parse(repaired);
-    return parsed.threadDependencies ?? {};
+    parsed = JSON.parse(repaired);
   }
+
+  return resolveThreadDependencyIds(parsed.threadDependencies, canonicalThreads);
 }
 
-/** Normalize free-form LLM status strings to the canonical vocabulary */
-function normalizeStatus(raw: string): string {
-  const s = raw.trim().toLowerCase();
-  // Direct matches
-  const allStatuses = [
-    ...THREAD_ACTIVE_STATUSES,
-    ...THREAD_TERMINAL_STATUSES,
-  ] as readonly string[];
-  if (allStatuses.includes(s)) return s;
-  // Common LLM variants → canonical
-  const aliases: Record<string, string> = {
-    inactive: "latent",
-    introduced: "latent",
-    emerging: "latent",
-    developing: "seeded",
-    planted: "seeded",
-    setup: "seeded",
-    hinted: "seeded",
-    ongoing: "active",
-    progressing: "active",
-    "in progress": "active",
-    rising: "active",
-    intensifying: "active",
-    heightening: "active",
-    building: "active",
-    peak: "critical",
-    climactic: "critical",
-    urgent: "critical",
-    crisis: "critical",
-    concluded: "resolved",
-    completed: "resolved",
-    settled: "resolved",
-    closed: "resolved",
-    twisted: "subverted",
-    inverted: "subverted",
-    upended: "subverted",
-    reversed: "subverted",
-    defied: "subverted",
-    dropped: "abandoned",
-    forgotten: "abandoned",
-    faded: "abandoned",
-    reset: "abandoned",
-  };
-  if (aliases[s]) return aliases[s];
-  // Fuzzy: check if any canonical status is a substring
-  for (const canonical of allStatuses) {
-    if (s.includes(canonical)) return canonical;
+/** Convert the id→id[] dependency map emitted by the LLM into a
+ *  description→description[] map. Out-of-range ids are silently dropped; a
+ *  self-dependency (thread depends on itself) is also dropped. */
+function resolveThreadDependencyIds(
+  rawMap: Record<string, unknown> | undefined,
+  threads: string[],
+): Record<string, string[]> {
+  if (!rawMap) return {};
+  const out: Record<string, string[]> = {};
+  for (const [keyRaw, valRaw] of Object.entries(rawMap)) {
+    const keyIdx = parseIndex(keyRaw, threads.length);
+    if (keyIdx === null) continue;
+    const keyDesc = threads[keyIdx];
+    if (!keyDesc) continue;
+    if (!Array.isArray(valRaw)) continue;
+    const deps: string[] = [];
+    const seen = new Set<string>();
+    for (const item of valRaw) {
+      const depIdx = parseIndex(item, threads.length);
+      if (depIdx === null || depIdx === keyIdx) continue;
+      const depDesc = threads[depIdx];
+      if (!depDesc || seen.has(depDesc)) continue;
+      seen.add(depDesc);
+      deps.push(depDesc);
+    }
+    if (deps.length > 0) out[keyDesc] = deps;
   }
-  return s; // keep original if no match — assembleNarrative will still accept it
+  return out;
 }
+
+/**
+ * Phase 5 — Fate re-extraction (lifecycle-aware, summary-based).
+ *
+ * First-pass structure extraction runs per-scene in parallel on raw prose, so
+ * each chunk has no knowledge of what eventually wins a thread. Observation:
+ * once the market diverges late-arc, probabilities never reverse — monotonic
+ * local accumulation has no way to know a twist is landing.
+ *
+ * This phase re-scores per-scene threadDeltas using:
+ *   1. Scene summaries (cheap, fast — no full prose re-read)
+ *   2. Canonical thread list + coalesced outcomes (post-reconcile)
+ *   3. Observed winner per thread — the outcome with the largest net evidence
+ *      across all scenes, treated as the story's actual resolution
+ *   4. Approximate resolution scene — where the winner's biggest committal
+ *      evidence fired (used for pre/post-resolution framing)
+ *
+ * Runs in parallel with the existing analysis concurrency. On error for any
+ * one scene, keeps the first-pass deltas (non-fatal).
+ */
+export async function reextractFateWithLifecycle(
+  results: AnalysisChunkResult[],
+  opts?: {
+    onToken?: (token: string, accumulated: string) => void;
+    onProgress?: (done: number, total: number) => void;
+    onSceneStream?: (sceneIndex: number, accumulated: string) => void;
+    onSceneStart?: (sceneIndex: number) => void;
+    onSceneEnd?: (sceneIndex: number) => void;
+    concurrency?: number;
+    cancelled?: () => boolean;
+  },
+): Promise<AnalysisChunkResult[]> {
+  const canonicalByDesc = new Map<string, { outcomes: string[]; participants: string[] }>();
+  for (const r of results) {
+    for (const t of r.threads ?? []) {
+      const existing = canonicalByDesc.get(t.description);
+      if (!existing) {
+        canonicalByDesc.set(t.description, {
+          outcomes: [...(t.outcomes ?? [])],
+          participants: [...(t.participantNames ?? [])],
+        });
+      } else {
+        const merged = new Set(existing.outcomes);
+        for (const o of t.outcomes ?? []) merged.add(o);
+        existing.outcomes = [...merged];
+      }
+    }
+  }
+
+  if (canonicalByDesc.size === 0) return results;
+
+  // Summed net evidence per (thread, outcome) across the full corpus.
+  // Peak-magnitude committal evidence per (thread, outcome) with scene index —
+  // used to approximate where the resolution fires.
+  const evidenceByThread = new Map<string, Map<string, number>>();
+  const peakByThread = new Map<string, Map<string, { magnitude: number; sceneIndex: number }>>();
+  const volumeByThread = new Map<string, number>();
+
+  results.forEach((r, sceneIndex) => {
+    for (const scene of r.scenes ?? []) {
+      for (const td of scene.threadDeltas ?? []) {
+        if (!canonicalByDesc.has(td.threadDescription)) continue;
+        const bucket = evidenceByThread.get(td.threadDescription) ?? new Map<string, number>();
+        const peakBucket = peakByThread.get(td.threadDescription) ?? new Map<string, { magnitude: number; sceneIndex: number }>();
+        for (const u of td.updates ?? []) {
+          if (!u || typeof u.outcome !== 'string' || typeof u.evidence !== 'number') continue;
+          bucket.set(u.outcome, (bucket.get(u.outcome) ?? 0) + u.evidence);
+          const isCommittal = td.logType === 'payoff' || td.logType === 'twist';
+          if (isCommittal && Math.abs(u.evidence) >= 2) {
+            const priorPeak = peakBucket.get(u.outcome);
+            const mag = Math.abs(u.evidence);
+            if (!priorPeak || mag > priorPeak.magnitude) {
+              peakBucket.set(u.outcome, { magnitude: mag, sceneIndex });
+            }
+          }
+        }
+        evidenceByThread.set(td.threadDescription, bucket);
+        peakByThread.set(td.threadDescription, peakBucket);
+        volumeByThread.set(
+          td.threadDescription,
+          (volumeByThread.get(td.threadDescription) ?? 0) + (td.volumeDelta ?? 0),
+        );
+      }
+    }
+  });
+
+  // Assemble the per-thread lifecycle summary the LLM will see.
+  const canonicalThreads: FateReextractThread[] = [];
+  for (const [description, { outcomes }] of canonicalByDesc.entries()) {
+    if (outcomes.length < 2) continue;
+    const evidenceMap = evidenceByThread.get(description) ?? new Map<string, number>();
+    let winner = outcomes[0];
+    let winnerScore = -Infinity;
+    for (const o of outcomes) {
+      const score = evidenceMap.get(o) ?? 0;
+      if (score > winnerScore) {
+        winnerScore = score;
+        winner = o;
+      }
+    }
+    const peakBucket = peakByThread.get(description);
+    const resolutionSceneIndex = peakBucket?.get(winner)?.sceneIndex;
+    canonicalThreads.push({
+      description,
+      outcomes,
+      observedWinner: winner,
+      resolutionSceneIndex,
+      totalVolume: volumeByThread.get(description),
+    });
+  }
+
+  if (canonicalThreads.length === 0) return results;
+
+  const canonicalSet = new Set(canonicalThreads.map((t) => t.description));
+  const canonicalOutcomeSets = new Map<string, Set<string>>();
+  for (const t of canonicalThreads) {
+    canonicalOutcomeSets.set(t.description, new Set(t.outcomes));
+  }
+
+  const concurrency = opts?.concurrency ?? ANALYSIS_CONCURRENCY;
+  const totalScenes = results.length;
+  const out: AnalysisChunkResult[] = results.slice();
+
+  const indices = results
+    .map((r, i) => (r && (r.scenes?.length ?? 0) > 0 ? i : -1))
+    .filter((i) => i >= 0);
+  let done = 0;
+
+  const runOne = async (idx: number) => {
+    if (opts?.cancelled?.()) return;
+    const r = results[idx];
+    const scene = r.scenes?.[0];
+    if (!scene) {
+      done++;
+      opts?.onProgress?.(done, indices.length);
+      return;
+    }
+
+    opts?.onSceneStart?.(idx);
+
+    const summary = scene.summary && scene.summary.trim().length > 0
+      ? scene.summary
+      : (scene.prose ?? '').slice(0, 600);
+
+    const priorDeltas: FateReextractPriorDelta[] = (scene.threadDeltas ?? [])
+      .filter((td) => canonicalSet.has(td.threadDescription))
+      .map((td) => ({
+        threadDescription: td.threadDescription,
+        logType: td.logType,
+        updates: (td.updates ?? []).map((u) => ({ outcome: u.outcome, evidence: u.evidence })),
+        volumeDelta: td.volumeDelta,
+        addOutcomes: td.addOutcomes,
+        rationale: td.rationale,
+      }));
+
+    const prompt = buildFateReextractPrompt({
+      sceneIndex: idx,
+      totalScenes,
+      sceneSummary: summary,
+      povName: scene.povName || undefined,
+      locationName: scene.locationName || undefined,
+      canonicalThreads,
+      priorDeltas,
+    });
+
+    try {
+      const raw = await callAnalysis(
+        prompt,
+        FATE_REEXTRACT_SYSTEM,
+        opts?.onSceneStream
+          ? (_t, acc) => opts.onSceneStream!(idx, acc)
+          : undefined,
+      );
+      const parsed = parseMergeJSON<{ threadDeltas?: unknown[] }>(raw);
+      const nextDeltas = sanitizeReextractedDeltas(parsed.threadDeltas, canonicalOutcomeSets);
+      if (nextDeltas.length > 0 || (scene.threadDeltas?.length ?? 0) === 0) {
+        const nextScene = { ...scene, threadDeltas: nextDeltas };
+        out[idx] = { ...r, scenes: [nextScene, ...(r.scenes?.slice(1) ?? [])] };
+      }
+    } catch (err) {
+      logWarning('Fate re-extract failed for scene (non-fatal)', err, {
+        source: 'analysis',
+        operation: 'fate-reextract',
+        details: { sceneIdx: idx },
+      });
+    } finally {
+      done++;
+      opts?.onSceneEnd?.(idx);
+      opts?.onProgress?.(done, indices.length);
+    }
+  };
+
+  // Parallel worker loop.
+  const queue = [...indices];
+  const workers: Promise<void>[] = [];
+  const workerCount = Math.min(concurrency, queue.length);
+  for (let w = 0; w < workerCount; w++) {
+    workers.push((async () => {
+      while (queue.length > 0 && !opts?.cancelled?.()) {
+        const next = queue.shift();
+        if (next === undefined) return;
+        await runOne(next);
+      }
+    })());
+  }
+  await Promise.all(workers);
+
+  return out;
+}
+
+/** Validate and coerce re-extracted threadDeltas — drops entries referencing
+ *  unknown threads, clamps evidence, strips unknown outcomes. Canonical
+ *  outcome sets come from the reconciled thread list; anything outside the
+ *  set is silently dropped rather than mapped (the coalesce phase is where
+ *  variant→canonical mapping lives). */
+function sanitizeReextractedDeltas(
+  raw: unknown,
+  canonicalOutcomeSets: Map<string, Set<string>>,
+): AnalysisChunkResult['scenes'][0]['threadDeltas'] {
+  if (!Array.isArray(raw)) return [];
+  const out: AnalysisChunkResult['scenes'][0]['threadDeltas'] = [];
+  const VALID_LOGTYPES = new Set([
+    'pulse', 'setup', 'escalation', 'payoff', 'twist',
+    'resistance', 'stall', 'callback', 'transition',
+  ]);
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const e = entry as Record<string, unknown>;
+    const desc = typeof e.threadDescription === 'string' ? e.threadDescription : '';
+    if (!desc || !canonicalOutcomeSets.has(desc)) continue;
+    const outcomeSet = canonicalOutcomeSets.get(desc)!;
+    const logType = typeof e.logType === 'string' && VALID_LOGTYPES.has(e.logType)
+      ? e.logType
+      : 'pulse';
+    const rawUpdates = Array.isArray(e.updates) ? e.updates : [];
+    const updates: { outcome: string; evidence: number }[] = [];
+    for (const u of rawUpdates) {
+      if (!u || typeof u !== 'object') continue;
+      const uo = u as Record<string, unknown>;
+      const outcome = typeof uo.outcome === 'string' ? uo.outcome : '';
+      if (!outcome || !outcomeSet.has(outcome)) continue;
+      const rawEvidence = typeof uo.evidence === 'number' ? uo.evidence : 0;
+      updates.push({ outcome, evidence: clampEvidence(rawEvidence) });
+    }
+    if (updates.length === 0 && logType !== 'pulse' && logType !== 'stall') continue;
+    const volumeDelta = typeof e.volumeDelta === 'number'
+      ? Math.max(0, Math.min(3, e.volumeDelta))
+      : 0;
+    const rationale = typeof e.rationale === 'string' ? e.rationale : '';
+    const addOutcomes = Array.isArray(e.addOutcomes)
+      ? e.addOutcomes.filter((o): o is string => typeof o === 'string' && o.trim().length > 0)
+      : undefined;
+    out.push({
+      threadDescription: desc,
+      logType,
+      updates,
+      volumeDelta,
+      rationale,
+      ...(addOutcomes && addOutcomes.length > 0 ? { addOutcomes } : {}),
+    });
+  }
+  return out;
+}
+
+// Lifecycle-era status normalisation has been removed — the market path emits
+// evidence + outcomes directly, no status translation needed.
 
 /** Check if a content string is subsumed by any entry in a set (exact or substring) */
 function isContentSubsumed(norm: string, existing: Set<string>): boolean {
@@ -931,7 +1348,10 @@ function buildMetaContext(
   // ── Threads ──
   lines.push(
     `\nTHREADS: ${Object.values(threads)
-      .map((t) => `"${t.description}" [${t.status}]`)
+      .map((t) => {
+        const state = isThreadClosed(t) ? 'closed' : isThreadAbandoned(t) ? 'abandoned' : 'open';
+        return `"${t.description}" [${state}]`;
+      })
       .join(", ")}`,
   );
 
@@ -1217,7 +1637,10 @@ export async function assembleNarrative(
       }
     }
 
-    // Threads
+    // Threads — prediction markets with named outcomes. LLM analysis declares
+    // outcomes per thread; binary is the default when the question is yes/no.
+    // Later chunks may encounter the same thread and reference a superset of
+    // outcomes — we union them in (outcome expansion mid-story is valid).
     for (const t of ch.threads ?? []) {
       const id = getThreadId(t.description);
       const newAnchors = (t.participantNames ?? []).map((name) => {
@@ -1227,20 +1650,58 @@ export async function assembleNarrative(
           return { id: locNameToId[name], type: "location" as const };
         return { id: getCharId(name), type: "character" as const };
       });
+      // Normalize outcomes — dedupe, trim, default to binary if missing/invalid.
+      const rawOutcomes = Array.isArray(t.outcomes)
+        ? Array.from(new Set(t.outcomes.map((o: unknown) => (typeof o === 'string' ? o.trim() : '')).filter(Boolean)))
+        : [];
+      const outcomes = rawOutcomes.length >= 2 ? rawOutcomes : ["yes", "no"];
+      // Optional in-world base-rate prior from the LLM. Shape must match
+      // outcomes; anything else falls back to uniform inside the helper.
+      const rawPriorProbs = Array.isArray((t as { priorProbs?: unknown }).priorProbs)
+        ? ((t as { priorProbs?: unknown }).priorProbs as unknown[]).map((v) =>
+            typeof v === 'number' ? v : NaN,
+          )
+        : undefined;
       if (!threads[id]) {
         threads[id] = {
           id,
           participants: newAnchors,
           description: t.description,
-          status: t.statusAtEnd ?? "latent",
+          outcomes,
+          beliefs: {
+            [NARRATOR_AGENT_ID]: newNarratorBelief(
+              outcomes.length,
+              2,
+              rawPriorProbs,
+            ),
+          },
           openedAt: "",
           dependents: [],
           threadLog: { nodes: {}, edges: [] },
         };
         threadFirstChunk.set(id, chunkIdx);
       } else {
-        threads[id].status = t.statusAtEnd ?? threads[id].status;
-        // Accumulate anchors from later chunks
+        // Union outcomes — a later chunk may surface possibilities the earlier
+        // one didn't. Extend logits with neutral priors to match.
+        const existingOutcomeSet = new Set(threads[id].outcomes.map((o) => o.toLowerCase()));
+        const addedOutcomes: string[] = [];
+        for (const o of outcomes) {
+          if (!existingOutcomeSet.has(o.toLowerCase())) {
+            threads[id].outcomes.push(o);
+            addedOutcomes.push(o);
+            existingOutcomeSet.add(o.toLowerCase());
+          }
+        }
+        if (addedOutcomes.length > 0) {
+          const b = threads[id].beliefs[NARRATOR_AGENT_ID];
+          if (b) {
+            b.logits = [
+              ...b.logits,
+              ...new Array(addedOutcomes.length).fill(0),
+            ];
+          }
+        }
+        // Accumulate anchors.
         const existingAnchorIds = new Set(
           threads[id].participants.map((a) => a.id),
         );
@@ -1275,53 +1736,63 @@ export async function assembleNarrative(
         povId,
         participantIds,
         events: s.events ?? [],
-        threadDeltas: (s.threadDeltas ?? []).map((tm) => {
-          // Coerce invalid from/to statuses — extraction sometimes returns
-          // log node type vocabulary (e.g. "pulse") in the status fields.
-          // Anything outside the lifecycle vocabulary collapses to a
-          // status-hold so the thread's stored phase can't be polluted.
-          const validStatuses = new Set<string>([
-            ...THREAD_ACTIVE_STATUSES,
-            ...THREAD_TERMINAL_STATUSES,
-            "abandoned",
-          ]);
-          const safeFrom = validStatuses.has(tm.from) ? tm.from : "latent";
-          const safeTo = validStatuses.has(tm.to) ? tm.to : safeFrom;
-          const fallbackType: ThreadLogNodeType =
-            safeFrom === safeTo ? "pulse" : "transition";
-          // Assign IDs to log nodes. Chain edges are created deterministically
-          // by applyThreadDelta during store replay — same as world graph chain edges.
-          const addedNodes = (tm.addedNodes ?? [])
-            .filter(
-              (e) => e && typeof e.content === "string" && e.content.trim(),
-            )
-            .map((e) => ({
-              id: nextTkId(),
-              content: e.content,
-              type: (THREAD_LOG_NODE_TYPES.includes(e.type as ThreadLogNodeType)
-                ? e.type
-                : fallbackType) as ThreadLogNodeType,
-            }));
-          // Synthesize a fallback log entry if the LLM omitted them — every
-          // threadDelta must produce at least one log node, otherwise the
-          // thread's history goes blank on a silent extraction miss.
-          if (addedNodes.length === 0) {
-            const desc = tm.threadDescription || "thread";
-            addedNodes.push({
-              id: nextTkId(),
-              content:
-                safeFrom === safeTo
-                  ? `Thread "${desc}" held ${safeTo} without transition`
-                  : `Thread "${desc}" advanced from ${safeFrom} to ${safeTo}`,
-              type: fallbackType,
-            });
+        threadDeltas: (s.threadDeltas ?? []).flatMap((tm) => {
+          // Market extraction — LLM emits evidence per outcome directly.
+          const threadId = getThreadId(tm.threadDescription);
+          const thread = threads[threadId];
+          // Compute allowed outcome set: thread's current outcomes plus any
+          // outcomes this delta proposes to add. If the thread isn't known
+          // yet (shouldn't happen — threads are populated first), default
+          // to binary.
+          const threadOutcomes = thread?.outcomes ?? ["yes", "no"];
+          const rawAdd = Array.isArray(tm.addOutcomes) ? tm.addOutcomes : [];
+          const allowed = new Set(threadOutcomes.map((o) => o.toLowerCase()));
+          const addOutcomes: string[] = [];
+          for (const raw of rawAdd) {
+            const name = typeof raw === "string" ? raw.trim() : "";
+            if (!name) continue;
+            if (allowed.has(name.toLowerCase())) continue;
+            allowed.add(name.toLowerCase());
+            addOutcomes.push(name);
           }
-          return {
-            threadId: getThreadId(tm.threadDescription),
-            from: safeFrom,
-            to: safeTo,
-            addedNodes,
-          };
+          // Normalize updates against allowed outcomes (clamped evidence).
+          const rawUpdates = Array.isArray(tm.updates) ? tm.updates : [];
+          const updates = rawUpdates.flatMap((u) => {
+            if (!u || typeof u.outcome !== "string") return [];
+            if (!allowed.has(u.outcome.toLowerCase())) return [];
+            const ev = typeof u.evidence === "number"
+              ? clampEvidence(u.evidence)
+              : 0;
+            return [{ outcome: u.outcome, evidence: ev }];
+          });
+          const rawLogType = (typeof tm.logType === "string" ? tm.logType : "pulse").toLowerCase();
+          const validLogTypes: ThreadLogNodeType[] = [
+            "pulse", "transition", "setup", "escalation",
+            "payoff", "twist", "callback", "resistance", "stall",
+          ];
+          const logType: ThreadLogNodeType = (validLogTypes as string[]).includes(rawLogType)
+            ? (rawLogType as ThreadLogNodeType)
+            : "pulse";
+          const volumeDelta = typeof tm.volumeDelta === "number" ? tm.volumeDelta : 1;
+          const rationale = typeof tm.rationale === "string" && tm.rationale.trim()
+            ? tm.rationale.trim()
+            : `Thread [${logType}]`;
+          // Drop entirely empty deltas (no evidence, no volume, no expansion).
+          if (updates.length === 0 && volumeDelta === 0 && addOutcomes.length === 0 && logType === "pulse") {
+            return [];
+          }
+          // Keep the TK allocator + log-types import referenced even though
+          // market logs now use deterministic scene-linked ids.
+          void nextTkId;
+          void THREAD_LOG_NODE_TYPES;
+          return [{
+            threadId,
+            logType,
+            volumeDelta,
+            updates,
+            rationale,
+            ...(addOutcomes.length > 0 ? { addOutcomes } : {}),
+          }];
         }),
         worldDeltas: (s.worldDeltas ?? []).map((km) => {
           const entityId = getEntityId(km.entityName);

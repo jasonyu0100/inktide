@@ -91,11 +91,20 @@ export default function ForceLineChart({
       .domain([0, Math.max(data.length - 1, 1)])
       .range([0, width]);
 
-    const maxAbs = data.reduce((m, v) => Math.max(m, Math.abs(v)), 1);
+    // Percentile-clipped domain: axis fits the typical range so scene-by-scene
+    // variation stays legible even when one extreme scene would otherwise
+    // dominate the axis. Values outside the clipped domain are clamped to the
+    // chart edge (via .clamp) and marked with small overflow ticks.
+    const absSorted = data.map((v) => Math.abs(v)).sort((a, b) => a - b);
+    const pIdx = Math.max(0, Math.floor(absSorted.length * 0.95) - 1);
+    const clipAbs = Math.max(absSorted[pIdx] ?? 1, 1);
+    const trueAbs = absSorted.at(-1) ?? clipAbs;
+    const hasOverflow = trueAbs > clipAbs * 1.05;
     const yScale = d3
       .scaleLinear()
-      .domain(positive ? [0, maxAbs * 1.1] : [-maxAbs, maxAbs])
-      .range([chartHeight, chartTop]);
+      .domain(positive ? [0, clipAbs * 1.1] : [-clipAbs * 1.1, clipAbs * 1.1])
+      .range([chartHeight, chartTop])
+      .clamp(true);
 
     // Zero line at y=0
     const zeroY = yScale(0);
@@ -183,6 +192,29 @@ export default function ForceLineChart({
         .attr('stroke-width', 1)
         .attr('stroke-dasharray', '3,2')
         .attr('opacity', 0.4);
+    }
+
+    // Overflow markers — small triangular ticks at the edge for values that
+    // exceed the clipped domain. Signals "there's a spike here" without
+    // letting the spike's magnitude flatten the local bumps.
+    if (hasOverflow) {
+      const overflowHi = positive ? clipAbs * 1.1 : clipAbs * 1.1;
+      const overflowLo = -clipAbs * 1.1;
+      for (let i = 0; i < data.length; i++) {
+        const v = data[i];
+        const x = xScale(i);
+        if (v > overflowHi) {
+          svg.append('path')
+            .attr('d', `M ${x - 2.5} ${chartTop + 3} L ${x + 2.5} ${chartTop + 3} L ${x} ${chartTop} Z`)
+            .attr('fill', color)
+            .attr('opacity', 0.7);
+        } else if (!positive && v < overflowLo) {
+          svg.append('path')
+            .attr('d', `M ${x - 2.5} ${chartHeight - 3} L ${x + 2.5} ${chartHeight - 3} L ${x} ${chartHeight} Z`)
+            .attr('fill', color)
+            .attr('opacity', 0.7);
+        }
+      }
     }
 
     // Current scene cursor

@@ -30,7 +30,7 @@ word, not a near-synonym.
 | `arc`         | A grouping of scenes — a movement within the narrative.                                              | "chapter", "part"             |
 | `beat`        | The sub-scene unit. A beat has a function (what it does) and a mechanism (how it delivers).          | "sentence", "paragraph"       |
 | `delta`       | A structural change recorded against a scene (thread delta, world delta, system delta).              | "change", "update", "mutation"|
-| `thread`      | A compelling question that shapes fate. Has a lifecycle: latent → seeded → active → escalating → critical → resolved/subverted. | "plotline", "arc" |
+| `thread`      | A prediction market over named outcomes. Scenes emit evidence in [-4, +4] that shifts per-outcome logits; closure happens via payoff/twist at high margin. | "plotline", "arc" |
 | `fate`        | The force pulling the narrative toward resolution. Computed from thread deltas.                      | "plot", "drive"               |
 | `world`       | The force of entity inner-world transformation. Computed from world deltas.                          | "character development"       |
 | `system`      | The force of rule/mechanism/concept deepening. Computed from system deltas.                          | "worldbuilding", "lore"       |

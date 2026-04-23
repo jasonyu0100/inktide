@@ -5,7 +5,7 @@ import { generateCoordinationPlan, type ForcePreference, type PlanGuidance, type
 import { useStore } from "@/lib/store";
 import { logError } from "@/lib/system-logger";
 import type { CoordinationPlan, Thread } from "@/types/narrative";
-import { THREAD_ACTIVE_STATUSES } from "@/types/narrative";
+import { isThreadAbandoned, isThreadClosed } from "@/lib/narrative-utils";
 import { useCallback, useMemo, useState } from "react";
 import { GuidanceFields } from "./GuidanceFields";
 import { CoordinationPlanModal } from "./CoordinationPlanModal";
@@ -43,7 +43,7 @@ function StreamingOutput({ label, text }: { label: string; text: string }) {
 
 // ── Thread Target Types ─────────────────────────────────────────────────────
 
-type TargetStatus = ThreadTarget["targetStatus"] | "auto";
+type TargetStatus = ThreadTarget["marketIntent"] | "auto";
 type TargetTiming = ThreadTarget["timing"] | "any";
 
 type ThreadConfig = {
@@ -53,12 +53,12 @@ type ThreadConfig = {
 
 const STATUS_OPTIONS: { value: TargetStatus; label: string; color: string }[] = [
   { value: "auto", label: "Auto", color: "text-text-dim" },
-  { value: "resolved", label: "Resolve", color: "text-green-400" },
-  { value: "subverted", label: "Subvert", color: "text-purple-400" },
-  { value: "critical", label: "Critical", color: "text-orange-400" },
-  { value: "escalating", label: "Escalate", color: "text-amber-400" },
-  { value: "active", label: "Active", color: "text-sky-400" },
-  { value: "unanswered", label: "Open", color: "text-zinc-400" },
+  { value: "close", label: "Close", color: "text-green-400" },
+  { value: "twist", label: "Twist", color: "text-purple-400" },
+  { value: "escalate", label: "Escalate", color: "text-orange-400" },
+  { value: "advance", label: "Advance", color: "text-amber-400" },
+  { value: "maintain", label: "Maintain", color: "text-sky-400" },
+  { value: "abandon", label: "Abandon", color: "text-zinc-400" },
 ];
 
 const TIMING_OPTIONS: { value: TargetTiming; label: string }[] = [
@@ -100,7 +100,7 @@ function ThreadTargetSelector({
             {/* Thread info */}
             <div className="flex-1 min-w-0">
               <p className="text-xs text-text-primary truncate">{thread.description}</p>
-              <p className="text-[10px] text-text-dim">{thread.status}</p>
+              <p className="text-[10px] text-text-dim">{isThreadClosed(thread) ? 'closed' : isThreadAbandoned(thread) ? 'abandoned' : 'open'}</p>
             </div>
 
             {/* Target status */}
@@ -183,12 +183,11 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
 
   const headIndex = state.resolvedEntryKeys.length - 1;
 
-  // Get active threads for configuration
-  const activeStatuses = new Set(THREAD_ACTIVE_STATUSES);
+  // Get active threads for configuration — open markets only.
   const activeThreads = useMemo(
     () =>
       Object.values(narrative.threads).filter(
-        (t) => activeStatuses.has(t.status as typeof THREAD_ACTIVE_STATUSES[number])
+        (t) => !isThreadClosed(t) && !isThreadAbandoned(t),
       ),
     [narrative.threads]
   );
@@ -204,7 +203,7 @@ export function CoordinationPlanSetupModal({ onClose, onPlanCreated }: Props) {
       .filter(([, config]) => config.status !== "auto")
       .map(([threadId, config]) => ({
         threadId,
-        targetStatus: config.status as ThreadTarget["targetStatus"],
+        marketIntent: config.status as ThreadTarget["marketIntent"],
         timing: config.timing !== "any" ? config.timing as ThreadTarget["timing"] : undefined,
       }));
 

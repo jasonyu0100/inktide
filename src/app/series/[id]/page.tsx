@@ -54,6 +54,10 @@ export default function SeriesPage() {
   const { state: wizardState } = useWizard();
   const isMobile = useIsMobile();
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [generatePreset, setGeneratePreset] = useState<{
+    healthMode?: boolean;
+    healthReport?: string;
+  } | null>(null);
   const [forkOpen, setForkOpen] = useState(false);
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
   const [autoLogOpen, setAutoLogOpen] = useState(false);
@@ -96,7 +100,15 @@ export default function SeriesPage() {
 
   // Custom event listeners for opening panels
   useEffect(() => {
-    function handleOpenGenerate() { setGenerateOpen(true); }
+    function handleOpenGenerate(e: Event) {
+      const detail = (e as CustomEvent<{ healthMode?: boolean; healthReport?: string }>).detail;
+      if (detail?.healthMode) {
+        setGeneratePreset({ healthMode: true, healthReport: detail.healthReport });
+      } else {
+        setGeneratePreset(null);
+      }
+      setGenerateOpen(true);
+    }
     function handleOpenFork() { setForkOpen(true); }
     function handleOpenAutoSettings() { setAutoSettingsOpen(true); }
     function handleOpenCubeViewer() { setCubeViewerOpen(true); }
@@ -285,7 +297,16 @@ export default function SeriesPage() {
         </div>
       </AppShell>
       {wizardState.isOpen && <CreationWizard />}
-      {generateOpen && <GeneratePanel onClose={() => setGenerateOpen(false)} />}
+      {generateOpen && (
+        <GeneratePanel
+          onClose={() => {
+            setGenerateOpen(false);
+            setGeneratePreset(null);
+          }}
+          initialHealthMode={generatePreset?.healthMode}
+          initialHealthReport={generatePreset?.healthReport}
+        />
+      )}
       {forkOpen && <BranchModal onClose={() => setForkOpen(false)} />}
       {autoSettingsOpen && (
         <AutoSettingsPanel

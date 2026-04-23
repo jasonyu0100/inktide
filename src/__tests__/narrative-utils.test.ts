@@ -10,7 +10,6 @@ import {
   computeForceSnapshots,
   computeRawForceTotals,
   computeSwingMagnitudes,
-  computeThreadStatuses,
   computeWindowedForces,
   cubeCornerProximity,
   detectCubeCorner,
@@ -190,71 +189,9 @@ describe("resolveEntrySequence", () => {
     ]);
   });
 });
-// ── Thread Status Computation ────────────────────────────────────────────────
-describe("computeThreadStatuses", () => {
-  it("returns base statuses when no scenes", () => {
-    const narrative = createNarrative({
-      threads: {
-        "T-01": {
-          id: "T-01",
-          status: "latent",
-          description: "Thread 1",
-          participants: [],
-          dependents: [],
-          openedAt: "S-000",
-          threadLog: { nodes: {}, edges: [] },
-        },
-        "T-02": {
-          id: "T-02",
-          status: "active",
-          description: "Thread 2",
-          participants: [],
-          dependents: [],
-          openedAt: "S-000",
-          threadLog: { nodes: {}, edges: [] },
-        },
-      },
-    });
-    const statuses = computeThreadStatuses(narrative, 0);
-    expect(statuses["T-01"]).toBe("latent");
-    expect(statuses["T-02"]).toBe("active");
-  });
-  it("applies thread deltas from scenes", () => {
-    const narrative = createNarrative({
-      threads: {
-        "T-01": {
-          id: "T-01",
-          status: "latent",
-          description: "Thread",
-          participants: [],
-          dependents: [],
-          openedAt: "S-000",
-          threadLog: { nodes: {}, edges: [] },
-        },
-      },
-      scenes: {
-        "S-001": createScene({
-          id: "S-001",
-          threadDeltas: [
-            { threadId: "T-01", from: "latent", to: "active", addedNodes: [] },
-          ],
-        }),
-        "S-002": createScene({
-          id: "S-002",
-          threadDeltas: [
-            { threadId: "T-01", from: "active", to: "active", addedNodes: [] },
-          ],
-        }),
-      },
-    });
-    expect(
-      computeThreadStatuses(narrative, 0, ["S-001", "S-002"])["T-01"],
-    ).toBe("active");
-    expect(
-      computeThreadStatuses(narrative, 1, ["S-001", "S-002"])["T-01"],
-    ).toBe("active");
-  });
-});
+// Thread status computation was removed with the lifecycle→market migration.
+// Market-state derivation (probs, closure, abandonment) is covered in
+// thread-log.test.ts and auto-engine.test.ts.
 // ── Force Distance & Cube Detection ──────────────────────────────────────────
 describe("forceDistance", () => {
   it("returns 0 for identical snapshots", () => {
@@ -353,7 +290,7 @@ describe("computeForceSnapshots", () => {
       createScene({
         id: "S-001",
         threadDeltas: [
-          { threadId: "T-01", from: "latent", to: "seeded", addedNodes: [] },
+          { threadId: "T-01", logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→seeded" },
         ],
         worldDeltas: [],
         events: ["event1"],
@@ -361,7 +298,7 @@ describe("computeForceSnapshots", () => {
       createScene({
         id: "S-002",
         threadDeltas: [
-          { threadId: "T-01", from: "seeded", to: "active", addedNodes: [] },
+          { threadId: "T-01", logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "seeded→active" },
         ],
         worldDeltas: [
           {
@@ -388,103 +325,78 @@ describe("computeRawForceTotals", () => {
       createScene({
         id: "S-001",
         threadDeltas: [
-          { threadId: "T-01", from: "latent", to: "seeded", addedNodes: [] },
+          { threadId: "T-01", logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "opens" },
         ],
       }),
     ];
     const result = computeRawForceTotals(scenes);
     expect(result.fate).toHaveLength(1);
-    expect(result.fate[0]).toBe(1.0); // latent→seeded = 1.0 weight
+    // F = log(1 + 1) × (1 + log(1 + 1)) = ln(2) × (1 + ln(2))
+    expect(result.fate[0]).toBeCloseTo(Math.log(2) * (1 + Math.log(2)));
   });
 });
 
-// ── Fate weight invariants ──────────────────────────────────────────────────
-// The stage-weight table is the spine of the Fate formula. Every legal
-// forward transition must earn nonzero fate — if the table has a gap, the
-// LLM's valid multi-stage jumps (e.g. latent→escalating in a scene that
-// both surfaces and commits a thread) silently contribute zero and the
-// fate curve flattens. These invariants lock the table shape so future
-// edits can't accidentally reintroduce gaps or let holding out-earn
-// advancement.
-describe("fate weight invariants", () => {
-  const STAGES = ['latent', 'seeded', 'active', 'escalating', 'critical'] as const;
-  const STAGE_INDEX: Record<string, number> = {
-    latent: 0, seeded: 1, active: 2, escalating: 3, critical: 4,
-    resolved: 5, subverted: 5,
-  };
-  const fate = (from: string, to: string) =>
+// ── Fate formula invariants (market model) ─────────────────────────────────
+// Fate is the information-gain approximation:
+//   F ≈ Σ log(1 + peak_|evidence|) × (1 + log(1 + volumeDelta))
+// The invariants below lock the shape: stronger evidence earns more, higher
+// volume scales linearly in log, zero-update / zero-volume deltas earn zero,
+// and sign of evidence doesn't matter (twists earn like payoffs).
+describe("fate formula invariants", () => {
+  const fate = (evidence: number, volumeDelta = 0) =>
     computeRawForceTotals([
       createScene({
-        threadDeltas: [{ threadId: 'T-01', from: from as Scene['threadDeltas'][0]['from'], to: to as Scene['threadDeltas'][0]['to'], addedNodes: [] }],
+        threadDeltas: [{
+          threadId: 'T-01',
+          logType: 'payoff',
+          updates: [{ outcome: 'yes', evidence }],
+          volumeDelta,
+          rationale: 'test',
+        }],
       }),
     ]).fate[0];
 
-  it("every forward transition earns nonzero fate", () => {
-    const gaps: string[] = [];
-    const terminals = ['resolved', 'subverted'] as const;
-    for (const from of STAGES) {
-      for (const to of [...STAGES, ...terminals]) {
-        if (STAGE_INDEX[to] > STAGE_INDEX[from]) {
-          if (fate(from, to) === 0) gaps.push(`${from}->${to}`);
-        }
-      }
-    }
-    expect(gaps).toEqual([]);
-  });
-
-  it("forward transitions earn the weight of their destination stage", () => {
-    // A multi-stage jump earns the same as a single-step arrival at the
-    // same stage — the LLM shouldn't be penalised for compressing stages
-    // into one scene when the prose genuinely earns it.
-    const DEST_WEIGHT: Record<string, number> = {
-      seeded: 1.0, active: 1.5, escalating: 2.0, critical: 3.0,
-      resolved: 5.0, subverted: 5.0,
-    };
-    const violations: string[] = [];
-    for (const from of STAGES) {
-      for (const [to, expected] of Object.entries(DEST_WEIGHT)) {
-        if (STAGE_INDEX[to] <= STAGE_INDEX[from]) continue;
-        const w = fate(from, to);
-        if (w !== expected) violations.push(`${from}->${to}: ${w} (expected ${expected})`);
-      }
-    }
-    expect(violations).toEqual([]);
-  });
-
-  it("advancement always out-earns holding at the same stage", () => {
-    // Every forward transition from stage S must earn strictly more than
-    // a pulse at stage S — otherwise the LLM can farm fate by coasting.
-    const violations: string[] = [];
-    const terminals = ['resolved', 'subverted'] as const;
-    for (const from of STAGES) {
-      const pulse = fate(from, from);
-      for (const to of [...STAGES, ...terminals]) {
-        if (STAGE_INDEX[to] > STAGE_INDEX[from]) {
-          const forward = fate(from, to);
-          if (forward <= pulse) violations.push(`${from}->${to} (${forward}) ≤ pulse@${from} (${pulse})`);
-        }
-      }
-    }
-    expect(violations).toEqual([]);
-  });
-
-  it("abandonment earns zero fate (cleanup, not resolution)", () => {
-    for (const from of STAGES) {
-      expect(fate(from, 'abandoned')).toBe(0);
+  it("stronger evidence earns strictly more fate", () => {
+    const prev = [0, 1, 2, 3, 4].map((e) => fate(e));
+    for (let i = 1; i < prev.length; i++) {
+      expect(prev[i]).toBeGreaterThan(prev[i - 1]);
     }
   });
 
-  it("backward transitions earn zero fate (regression is not fate)", () => {
-    expect(fate('escalating', 'active')).toBe(0);
-    expect(fate('critical', 'active')).toBe(0);
-    expect(fate('resolved', 'escalating')).toBe(0);
+  it("evidence sign is irrelevant (peak absolute value drives fate)", () => {
+    expect(fate(3)).toBeCloseTo(fate(-3));
+    expect(fate(4)).toBeCloseTo(fate(-4));
   });
 
-  it("pulses are monotonically non-decreasing by stage", () => {
-    const pulses = STAGES.map((s) => fate(s, s));
-    for (let i = 1; i < pulses.length; i++) {
-      expect(pulses[i]).toBeGreaterThanOrEqual(pulses[i - 1]);
-    }
+  it("zero evidence + zero volume earns zero fate", () => {
+    expect(fate(0, 0)).toBe(0);
+  });
+
+  it("higher volume scales fate up for the same evidence", () => {
+    const low = fate(3, 0);
+    const high = fate(3, 4);
+    expect(high).toBeGreaterThan(low);
+  });
+
+  it("saturating evidence (+4) matches log(5) × unit-volume", () => {
+    // log(1+4) × (1 + log(1+0)) = log(5) ≈ 1.609
+    expect(fate(4, 0)).toBeCloseTo(Math.log(5));
+  });
+
+  it("multiple updates within a delta use the peak", () => {
+    const scene = createScene({
+      threadDeltas: [{
+        threadId: 'T-01',
+        logType: 'payoff',
+        updates: [
+          { outcome: 'yes', evidence: 1 },
+          { outcome: 'no', evidence: -4 },
+        ],
+        volumeDelta: 0,
+        rationale: 'test',
+      }],
+    });
+    expect(computeRawForceTotals([scene]).fate[0]).toBeCloseTo(Math.log(5));
   });
 });
 // ── Moving Average ───────────────────────────────────────────────────────────

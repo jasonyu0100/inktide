@@ -33,47 +33,9 @@ export { PROMPT_PROPOSITION_TRANSMISSION } from './scenes/proposition-transmissi
 export { buildSceneProseSystemPrompt } from './scenes/prose';
 export type { SceneProseSystemPromptArgs } from './scenes/prose';
 
-// ── Schemas ─────────────────────────────────────────────────────────────────
-export {
-  // Generation schemas (ID-based)
-  SCHEMA_THREAD_DELTAS,
-  SCHEMA_WORLD_DELTAS,
-  SCHEMA_RELATIONSHIP_DELTAS,
-  SCHEMA_SYSTEM_DELTAS,
-  SCHEMA_ARTIFACT_USAGES,
-  SCHEMA_OWNERSHIP_DELTAS,
-  SCHEMA_TIE_DELTAS,
-  SCHEMA_CHARACTER_MOVEMENTS,
-  SCHEMA_EVENTS,
-  SCHEMA_SCENE_DELTAS,
-  // Analysis schemas (name-based)
-  SCHEMA_ANALYSIS_THREAD_DELTAS,
-  SCHEMA_ANALYSIS_WORLD_DELTAS,
-  SCHEMA_ANALYSIS_RELATIONSHIP_DELTAS,
-  SCHEMA_ANALYSIS_ARTIFACT_USAGES,
-  SCHEMA_ANALYSIS_OWNERSHIP_DELTAS,
-  SCHEMA_ANALYSIS_TIE_DELTAS,
-  SCHEMA_ANALYSIS_CHARACTER_MOVEMENTS,
-  SCHEMA_ANALYSIS_SYSTEM_DELTAS,
-} from './schemas/deltas';
-
-export {
-  // Entity creation schemas
-  SCHEMA_CHARACTER_CREATION,
-  SCHEMA_CHARACTER_WORLD_NODE,
-  SCHEMA_LOCATION_CREATION,
-  SCHEMA_LOCATION_WORLD_NODE,
-  SCHEMA_ARTIFACT_CREATION,
-  SCHEMA_ARTIFACT_WORLD_NODE,
-  SCHEMA_THREAD_CREATION,
-  SCHEMA_RELATIONSHIP_CREATION,
-  // Analysis entity schemas
-  SCHEMA_ANALYSIS_CHARACTER,
-  SCHEMA_ANALYSIS_LOCATION,
-  SCHEMA_ANALYSIS_ARTIFACT,
-  SCHEMA_ANALYSIS_THREAD,
-  SCHEMA_ANALYSIS_RELATIONSHIP,
-} from './schemas/entities';
+// (Legacy schemas/ directory removed — the lifecycle-based fragments were
+// unused dead code that confused LLM output shape. Prompts now embed their
+// own schema snippets with the current market-based contract.)
 
 // ── Ingest Prompts ──────────────────────────────────────────────────────────
 export {
@@ -115,6 +77,8 @@ export {
   buildReconcileEntitiesPrompt,
   RECONCILE_SEMANTIC_SYSTEM,
   buildReconcileSemanticPrompt,
+  COALESCE_OUTCOMES_SYSTEM,
+  buildCoalesceOutcomesPrompt,
   THREADING_SYSTEM,
   buildThreadingPrompt,
 } from './analysis';

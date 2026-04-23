@@ -288,13 +288,13 @@ export default function LocationDetail({ locationId }: Props) {
                     <button
                       type="button"
                       onClick={() => dispatch({ type: 'SET_INSPECTOR', context: { type: 'scene', sceneId } })}
-                      className="font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
+                      className="text-left font-mono text-[10px] text-text-dim transition-colors hover:text-text-secondary"
                     >
                       {sceneId}
                     </button>
                     {threadDeltas.map((tm, tmIdx) => (
                       <span key={`${tm.threadId}-${tmIdx}`} className="text-xs text-text-secondary">
-                        {tm.threadId}: {tm.from} &rarr; {tm.to}
+                        {tm.threadId}: [{tm.logType}] {(tm.updates ?? []).map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`).join(' ')}
                       </span>
                     ))}
                     {worldDeltas.flatMap((km, kmIdx) =>

@@ -2,8 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   aggregateNetworkGraph,
   classifyTiers,
-  classifyTrajectories,
-  classifyTopologyAndAnchor,
+  classifyTopology,
   formatTierLabel,
   forceOfKind,
   summarizeNetworkState,
@@ -72,7 +71,8 @@ function makeThread(id: string, description = id): Thread {
   return {
     id,
     description,
-    status: "active",
+    outcomes: ["yes", "no"],
+    beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } },
     participants: [],
     openedAt: "",
     dependents: [],
@@ -341,13 +341,10 @@ describe("classifyTiers", () => {
       kind: "character",
       label: id,
       attributions,
-      recentAttributions: 0,
       firstSeenIndex,
       lastSeenIndex: -1,
       tier: "cold",
-      trajectory: "dormant",
       topology: "isolated",
-      forceAnchor: null,
     };
   }
 
@@ -421,60 +418,24 @@ describe("classifyTiers", () => {
   });
 });
 
-describe("classifyTrajectories", () => {
-  function nodeWith(id: string, attributions: number, recentAttributions: number, lastSeenIndex = -1): NetworkNode {
-    return {
-      id, kind: "character", label: id,
-      attributions, recentAttributions,
-      firstSeenIndex: -1, lastSeenIndex,
-      tier: "cold", trajectory: "dormant", topology: "isolated", forceAnchor: null,
-    };
-  }
-
-  test("zero attributions → dormant", () => {
-    const out = classifyTrajectories([nodeWith("a", 0, 0)], 5);
-    expect(out[0].trajectory).toBe("dormant");
-  });
-
-  test("attributed but no recent activity → cooling", () => {
-    const out = classifyTrajectories([nodeWith("a", 4, 0, 1)], 10);
-    expect(out[0].trajectory).toBe("cooling");
-  });
-
-  test("recent rate > 1.5x historic rate → rising", () => {
-    // 10 graphs total, 4 attributions, 3 of them recent (last 3 graphs) →
-    // recentRate = 1, historicRate = 0.4 → 1 > 0.6 → rising.
-    const out = classifyTrajectories([nodeWith("a", 4, 3, 9)], 10);
-    expect(out[0].trajectory).toBe("rising");
-  });
-
-  test("recent rate close to historic rate → steady", () => {
-    // 10 graphs, 5 attributions, 1 recent → recentRate=0.33, historicRate=0.5
-    const out = classifyTrajectories([nodeWith("a", 5, 1, 9)], 10);
-    expect(out[0].trajectory).toBe("steady");
-  });
-});
-
-describe("classifyTopologyAndAnchor", () => {
+describe("classifyTopology", () => {
   function makeNode(id: string, kind: NetworkNodeKind = "character"): NetworkNode {
     return {
       id, kind, label: id,
-      attributions: 1, recentAttributions: 0,
+      attributions: 1,
       firstSeenIndex: 0, lastSeenIndex: 0,
-      tier: "warm", trajectory: "steady", topology: "isolated", forceAnchor: null,
+      tier: "warm", topology: "isolated",
     };
   }
 
   function classify(nodes: NetworkNode[], edges: NetworkEdge[]): NetworkNode[] {
     const lookup = new Map(nodes.map((n) => [n.id, n.kind]));
-    return classifyTopologyAndAnchor(nodes, edges, lookup);
+    return classifyTopology(nodes, edges, lookup);
   }
 
   test("no edges → isolated", () => {
-    const nodes = [makeNode("a")];
-    const out = classify(nodes, []);
+    const out = classify([makeNode("a")], []);
     expect(out[0].topology).toBe("isolated");
-    expect(out[0].forceAnchor).toBeNull();
   });
 
   test("single edge → leaf", () => {
@@ -484,21 +445,17 @@ describe("classifyTopologyAndAnchor", () => {
     expect(out.find((n) => n.id === "a")!.topology).toBe("leaf");
   });
 
-  test("multiple edges all to same force → hub + force-anchor", () => {
-    // C connects to two characters (both world); should be hub + world-anchor.
+  test("multiple edges all within one force cohort → hub", () => {
     const nodes = [makeNode("a"), makeNode("b"), makeNode("c")];
     const edges: NetworkEdge[] = [
       { from: "c", to: "a", weight: 1 },
       { from: "c", to: "b", weight: 1 },
     ];
     const out = classify(nodes, edges);
-    const c = out.find((n) => n.id === "c")!;
-    expect(c.topology).toBe("hub");
-    expect(c.forceAnchor).toBe("world");
+    expect(out.find((n) => n.id === "c")!.topology).toBe("hub");
   });
 
-  test("edges spanning ≥2 forces → bridge", () => {
-    // C connects to a thread (fate) and a character (world) — bridge.
+  test("edges spanning ≥2 force cohorts → bridge", () => {
     const nodes = [
       makeNode("c", "character"),
       makeNode("t", "thread"),
@@ -510,20 +467,6 @@ describe("classifyTopologyAndAnchor", () => {
     ];
     const out = classify(nodes, edges);
     expect(out.find((n) => n.id === "c")!.topology).toBe("bridge");
-  });
-
-  test("force-anchor stays null when no force dominates ≥60% of neighbours", () => {
-    // 3 neighbours: 1 fate, 1 world, 1 system → no anchor (each at 33%).
-    const nodes = [
-      makeNode("c"), makeNode("t", "thread"), makeNode("w"), makeNode("s", "system"),
-    ];
-    const edges: NetworkEdge[] = [
-      { from: "c", to: "t", weight: 1 },
-      { from: "c", to: "w", weight: 1 },
-      { from: "c", to: "s", weight: 1 },
-    ];
-    const out = classify(nodes, edges);
-    expect(out.find((n) => n.id === "c")!.forceAnchor).toBeNull();
   });
 });
 
@@ -542,12 +485,12 @@ describe("summarizeNetworkState", () => {
     expect(summarizeNetworkState({ nodes: [], edges: [], graphCount: 0 })).toMatch(/empty/i);
   });
 
-  test("nodes but no graphs reads as fully dormant", () => {
+  test("nodes but no graphs reads as no-graphs state", () => {
     const nodes: NetworkNode[] = [{
       id: "C-01", kind: "character", label: "A",
-      attributions: 0, recentAttributions: 0,
+      attributions: 0,
       firstSeenIndex: -1, lastSeenIndex: -1,
-      tier: "cold", trajectory: "dormant", topology: "isolated", forceAnchor: null,
+      tier: "cold", topology: "isolated",
     }];
     const out = summarizeNetworkState({ nodes, edges: [], graphCount: 0 });
     expect(out).toMatch(/no reasoning graphs/i);
@@ -556,10 +499,9 @@ describe("summarizeNetworkState", () => {
   test("includes per-cohort counts and topology line", () => {
     const node = (id: string, kind: NetworkNodeKind, tier: NetworkNode["tier"]): NetworkNode => ({
       id, kind, label: id,
-      attributions: tier === "cold" ? 0 : 1, recentAttributions: 0,
+      attributions: tier === "cold" ? 0 : 1,
       firstSeenIndex: 0, lastSeenIndex: 0,
-      tier, trajectory: tier === "cold" ? "dormant" : "steady",
-      topology: "isolated", forceAnchor: null,
+      tier, topology: "isolated",
     });
     const nodes = [node("C-01", "character", "hot"), node("T-01", "thread", "warm"), node("SYS-01", "system", "cold")];
     const out = summarizeNetworkState({ nodes, edges: [], graphCount: 3 });
@@ -574,9 +516,9 @@ describe("formatTierLabel", () => {
   function makeNode(overrides: Partial<NetworkNode>): NetworkNode {
     return {
       id: "a", kind: "character", label: "A",
-      attributions: 0, recentAttributions: 0,
+      attributions: 0,
       firstSeenIndex: -1, lastSeenIndex: -1,
-      tier: "cold", trajectory: "dormant", topology: "isolated", forceAnchor: null,
+      tier: "cold", topology: "isolated",
       ...overrides,
     };
   }
@@ -585,23 +527,17 @@ describe("formatTierLabel", () => {
     expect(formatTierLabel(undefined)).toBe("");
   });
 
-  test("never-referenced cold node renders dormant + isolated", () => {
-    expect(formatTierLabel(makeNode({}))).toBe("{cold ×0, dormant, isolated}");
+  test("never-referenced cold node renders tier + topology", () => {
+    expect(formatTierLabel(makeNode({}))).toBe("{cold ×0, isolated}");
   });
 
-  test("attributed node renders all dimensions including force-anchor", () => {
-    const node = makeNode({
-      attributions: 5, tier: "hot", trajectory: "rising",
-      topology: "bridge", forceAnchor: "fate",
-    });
-    expect(formatTierLabel(node)).toBe("{hot ×5, rising, bridge, fate-anchor}");
+  test("hot bridge attributed node", () => {
+    const node = makeNode({ attributions: 5, tier: "hot", topology: "bridge" });
+    expect(formatTierLabel(node)).toBe("{hot ×5, bridge}");
   });
 
-  test("balanced (no force anchor) omits the anchor segment", () => {
-    const node = makeNode({
-      attributions: 4, tier: "warm", trajectory: "steady",
-      topology: "hub", forceAnchor: null,
-    });
-    expect(formatTierLabel(node)).toBe("{warm ×4, steady, hub}");
+  test("warm hub node", () => {
+    const node = makeNode({ attributions: 4, tier: "warm", topology: "hub" });
+    expect(formatTierLabel(node)).toBe("{warm ×4, hub}");
   });
 });

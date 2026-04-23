@@ -71,8 +71,8 @@ describe('computeSlidesData', () => {
         loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], world: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
-        t2: { id: 't2', description: 'Romance', status: 'latent', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t1: { id: 't1', description: 'Quest', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t2: { id: 't2', description: 'Romance', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
     const data = computeSlidesData(n, []);
@@ -89,18 +89,18 @@ describe('computeSlidesData', () => {
         loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], world: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t1: { id: 't1', description: 'Quest', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
       scenes: {
         s1: createScene('s1', {
-          threadDeltas: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
+          threadDeltas: [{ threadId: 't1', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
           worldDeltas: [
             { entityId: 'c1', addedNodes: [{ id: 'n1', content: 'Learned something', type: 'belief' }] },
           ],
           events: ['event_1', 'event_2'],
         }),
         s2: createScene('s2', {
-          threadDeltas: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [] }],
+          threadDeltas: [{ threadId: 't1', logType: "pulse", updates: [], volumeDelta: 1, rationale: "active→active" }],
           events: ['event_3'],
         }),
       },
@@ -118,14 +118,14 @@ describe('computeSlidesData', () => {
   it('computes thread lifecycles', () => {
     const n = createMinimalNarrative({
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t1: { id: 't1', description: 'Quest', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
       scenes: {
         s1: createScene('s1', {
-          threadDeltas: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
+          threadDeltas: [{ threadId: 't1', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
         }),
         s2: createScene('s2', {
-          threadDeltas: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [] }],
+          threadDeltas: [{ threadId: 't1', logType: "pulse", updates: [], volumeDelta: 1, rationale: "active→active" }],
         }),
       },
     });
@@ -137,8 +137,8 @@ describe('computeSlidesData', () => {
   it('computes thread convergences', () => {
     const n = createMinimalNarrative({
       threads: {
-        t1: { id: 't1', description: 'Main Quest', status: 'active', participants: [], dependents: ['t2'], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
-        t2: { id: 't2', description: 'Sub Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t1: { id: 't1', description: 'Main Quest', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: ['t2'], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t2: { id: 't2', description: 'Sub Quest', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
     const data = computeSlidesData(n, []);
@@ -187,7 +187,7 @@ describe('computeSlidesData', () => {
     const n = createMinimalNarrative({
       scenes: {
         s1: createScene('s1', {
-          threadDeltas: [{ threadId: 't1', from: 'latent', to: 'critical', addedNodes: [] }],
+          threadDeltas: [{ threadId: 't1', logType: "escalation", updates: [{ outcome: "yes", evidence: 2 }], volumeDelta: 1, rationale: "latent→critical" }],
         }),
         s2: createScene('s2', {
           worldDeltas: [
@@ -196,7 +196,7 @@ describe('computeSlidesData', () => {
         }),
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t1: { id: 't1', description: 'Quest', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
     const data = computeSlidesData(n, ['s1', 's2']);
@@ -215,7 +215,7 @@ describe('computeSlidesData', () => {
         loc1: { id: 'loc1', name: 'Castle', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], world: { nodes: {}, edges: [] }, threadIds: [] },
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t1: { id: 't1', description: 'Quest', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
     });
     const data = computeSlidesData(n, []);
@@ -234,15 +234,15 @@ describe('computeSlidesData', () => {
     const n = createMinimalNarrative({
       scenes: {
         s1: createScene('s1', {
-          threadDeltas: [{ threadId: 't1', from: 'latent', to: 'active', addedNodes: [] }],
+          threadDeltas: [{ threadId: 't1', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
           events: ['e1', 'e2'],
         }),
         s2: createScene('s2', {
-          threadDeltas: [{ threadId: 't1', from: 'active', to: 'active', addedNodes: [] }],
+          threadDeltas: [{ threadId: 't1', logType: "pulse", updates: [], volumeDelta: 1, rationale: "active→active" }],
         }),
       },
       threads: {
-        t1: { id: 't1', description: 'Quest', status: 'active', participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
+        t1: { id: 't1', description: 'Quest', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: [], openedAt: 's1', threadLog: { nodes: {}, edges: [] } },
       },
       arcs: {
         'arc-1': { id: 'arc-1', name: 'Act I', sceneIds: ['s1', 's2'], develops: ['t1'], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },

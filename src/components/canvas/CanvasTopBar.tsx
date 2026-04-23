@@ -7,7 +7,7 @@ import type { GraphViewMode } from '@/types/narrative';
 import { getResolvedProseVersion, getResolvedPlanVersion, resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
 import { VersionHistoryTree } from './VersionHistoryTree';
 import { RegenerateEmbeddingsModal } from '@/components/topbar/RegenerateEmbeddingsModal';
-import { IconDice, IconGlobe, IconLightbulb, IconThread, IconNetwork, IconNotepad, IconDocument, IconWaveform, IconSearch, IconReasoning } from '@/components/icons';
+import { IconDice, IconGlobe, IconLightbulb, IconThread, IconNetwork, IconMarket, IconNotepad, IconDocument, IconWaveform, IconSearch, IconReasoning } from '@/components/icons';
 import { buildSequentialPath } from '@/lib/ai';
 import { CopyButton } from '@/components/shared/CopyButton';
 import { exportGraphView, graphViewLabel, isExportableGraphMode } from '@/lib/graph-export';
@@ -47,7 +47,7 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
 
 export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning' | 'network';
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning' | 'network' | 'market';
 type ScenePrimaryMode = 'reasoning' | 'plan' | 'prose' | 'audio' | 'game';
 const SCENE_MODES: ScenePrimaryMode[] = ['reasoning', 'plan', 'prose', 'audio', 'game'];
 
@@ -243,6 +243,7 @@ function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'search') return 'search';
   if (graphViewMode === 'reasoning') return 'reasoning';
   if (graphViewMode === 'network') return 'network';
+  if (graphViewMode === 'market') return 'market';
   return 'graph';
 }
 
@@ -813,6 +814,7 @@ export function CanvasTopBar() {
           {[
             { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const, activeWhen: canvasMode === 'graph' },
             { mode: 'network' as CanvasMode, Icon: IconGlobe, label: 'Network', condition: 'always' as const, activeWhen: canvasMode === 'network' },
+            { mode: 'market' as CanvasMode, Icon: IconMarket, label: 'Market', condition: 'always' as const, activeWhen: canvasMode === 'market' },
             { mode: 'scene' as const, Icon: IconNotepad, label: 'Scene', condition: 'sceneOnly' as const, activeWhen: inSceneMode },
             { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const, activeWhen: canvasMode === 'search' },
           ]

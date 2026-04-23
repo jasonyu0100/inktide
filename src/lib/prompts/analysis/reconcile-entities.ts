@@ -5,7 +5,7 @@
  * artifacts) onto their fullest canonical form.
  */
 
-export const RECONCILE_ENTITIES_SYSTEM = `You resolve surface-form variants of named entities (characters, locations, artifacts) to their canonical full forms. Entities are unique referents: when two variants clearly denote the same person/place/object, you MUST merge them. Prefer the fullest identifying name. Return only valid JSON.`;
+export const RECONCILE_ENTITIES_SYSTEM = `You resolve surface-form variants of named entities (characters, locations, artifacts) to their canonical full forms. Entities are unique referents: when two variants clearly denote the same person/place/object, you MUST merge them. Prefer the fullest identifying name. Return only valid JSON using the numeric IDs provided.`;
 
 export function buildReconcileEntitiesPrompt(
   allCharNames: Set<string>,
@@ -13,6 +13,8 @@ export function buildReconcileEntitiesPrompt(
   allArtifactNames: Set<string>,
 ): string {
   return `Reconcile named entities extracted independently from different scenes of the same story. The same person, place, or object often appears under different surface forms (title, first name, nickname, full name). Your job: collapse every variant of the same entity onto its fullest canonical form.
+
+Each entity is prefixed with a numeric ID. Refer to entities by ID in the output — do not repeat the full names.
 
 CHARACTERS (${allCharNames.size}):
 ${[...allCharNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
@@ -23,14 +25,16 @@ ${[...allLocNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
 ARTIFACTS (${allArtifactNames.size}):
 ${[...allArtifactNames].map((n, i) => `${i + 1}. "${n}"`).join('\n')}
 
-For each category, map every variant to its canonical form. Only include entries where variant ≠ canonical.
+For each category, map every VARIANT ID to its CANONICAL ID (the fullest form in that merge group). Only include entries where variant ID ≠ canonical ID. Use the exact numeric IDs from the lists above — do not invent IDs.
 
 Return JSON:
 {
-  "characterMerges": { "variant": "canonical" },
-  "locationMerges": { "variant": "canonical" },
-  "artifactMerges": { "variant": "canonical" }
+  "characterMerges": { "<variantId>": <canonicalId> },
+  "locationMerges":  { "<variantId>": <canonicalId> },
+  "artifactMerges":  { "<variantId>": <canonicalId> }
 }
+
+Example: if CHARACTERS lists 1. "Harry", 2. "Harry Potter", 3. "HP" and all three are the same referent, emit {"1": 2, "3": 2}.
 
 ═══ PRINCIPLE ═══
 Entities are unique referents — a character, place, or object exists once in the story world. If two surface forms clearly denote the same referent, they MUST be merged. Prefer the fullest, most identifying canonical form.

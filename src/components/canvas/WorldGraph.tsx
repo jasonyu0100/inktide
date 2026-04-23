@@ -23,6 +23,7 @@ import { SceneGameTheoryView } from './SceneGameTheoryView';
 import { SearchView } from './SearchView';
 import { ReasoningGraphView } from './ReasoningGraphView';
 import NetworkView from './NetworkView';
+import MarketView from './MarketView';
 import {
   type GraphNode,
   type GraphLink,
@@ -1149,6 +1150,8 @@ export default function WorldGraph() {
         <SearchView />
       ) : graphViewMode === 'network' ? (
         <NetworkView />
+      ) : graphViewMode === 'market' ? (
+        <MarketView />
       ) : graphViewMode === 'reasoning' ? (
         // World build reasoning takes priority when viewing a world commit
         currentWorldBuildWithReasoning ? (

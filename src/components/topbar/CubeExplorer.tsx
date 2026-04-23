@@ -429,13 +429,10 @@ export function CubeExplorer({
                                   className="text-[10px] flex items-center gap-2"
                                 >
                                   <span className="text-text-dim font-mono">
-                                    {tm.from}
-                                  </span>
-                                  <span className="text-text-dim/40">
-                                    &rarr;
+                                    [{tm.logType}]
                                   </span>
                                   <span className="text-text-secondary font-mono">
-                                    {tm.to}
+                                    {(tm.updates ?? []).map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`).join(' ')}
                                   </span>
                                   <span className="text-text-dim/60 truncate">
                                     {thread?.description ?? tm.threadId}

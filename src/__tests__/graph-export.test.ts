@@ -162,19 +162,23 @@ describe("exportGraphView", () => {
     expect(iAnchor).toBeLessThan(iTransient);
   });
 
-  it("exports full-threads grouped as active vs resolved/subverted/abandoned", () => {
-    const mkThread = (id: string, description: string, status: Thread["status"]): Thread => ({
+  it("exports full-threads grouped as active vs closed/abandoned", () => {
+    const mkThread = (id: string, description: string, closed: boolean): Thread => ({
       id,
       description,
-      status,
+      outcomes: ["yes", "no"],
+      beliefs: {
+        narrator: { logits: [0, 0], volume: 2, volatility: 0, lastTouchedScene: "S-0" },
+      },
       participants: [],
       openedAt: "S-0",
       dependents: [],
       threadLog: { nodes: {}, edges: [] },
-    } as Thread);
+      ...(closed ? { closedAt: "S-1", closeOutcome: 0 } : {}),
+    });
     const threads: Record<string, Thread> = {
-      T1: mkThread("T1", "live question", "active"),
-      T2: mkThread("T2", "already paid off", "resolved"),
+      T1: mkThread("T1", "live question", false),
+      T2: mkThread("T2", "already paid off", true),
     };
     const out = exportGraphView({
       narrative: baseNarrative({ threads }),
@@ -183,9 +187,9 @@ describe("exportGraphView", () => {
       currentSceneIndex: 0,
     });
     expect(out).toContain("## Active threads (1)");
-    expect(out).toContain("## Resolved / subverted / abandoned (1)");
-    expect(out).toContain("[active]");
-    expect(out).toContain("[resolved]");
+    expect(out).toContain("## Closed / abandoned (1)");
+    expect(out).toContain("top=");
+    expect(out).toContain("closed →");
   });
 
   it("exports entity inner-world when selectedEntityId is provided", () => {

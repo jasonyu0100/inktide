@@ -13,19 +13,19 @@ import type {
   Scene,
   Thread,
 } from "@/types/narrative";
+import { isScene } from "@/types/narrative";
 import {
-  isScene,
-  THREAD_ACTIVE_STATUSES,
-  THREAD_TERMINAL_STATUSES,
-} from "@/types/narrative";
+  focusScore,
+  isNearClosed,
+  isThreadAbandoned,
+  isThreadClosed,
+  scenesSinceTouched,
+  getMarketBelief,
+  normalizedEntropy,
+  getMarketProbs,
+} from "@/lib/narrative-utils";
 
 // ── Constants ────────────────────────────────────────────────────────────────
-
-const TERMINAL_SET = new Set<string>(THREAD_TERMINAL_STATUSES);
-const ACTIVE_STATUSES = new Set<string>(
-  THREAD_ACTIVE_STATUSES.filter((s) => s !== "latent"),
-);
-const PRIMED_STATUSES = new Set<string>(["escalating", "critical"]);
 
 /** Threads without delta for this many scenes are considered stale */
 const STALE_THRESHOLD = 5;
@@ -87,12 +87,15 @@ function analyzeThreads(
   scenes: Scene[],
 ): NarrativePressure["threads"] {
   const threads = Object.values(narrative.threads);
-  const activeThreads = threads.filter((t) =>
-    ACTIVE_STATUSES.has(t.status.toLowerCase()),
-  );
-  const primedThreads = threads.filter((t) =>
-    PRIMED_STATUSES.has(t.status.toLowerCase()),
-  );
+  // Active = open market (not closed, not abandoned) with any attention.
+  const activeThreads = threads.filter((t) => {
+    if (isThreadClosed(t) || isThreadAbandoned(t)) return false;
+    const belief = getMarketBelief(t);
+    return !!belief && belief.volume > 0;
+  });
+  // Primed = thread whose market margin is in the near-closed band —
+  // structurally ready to commit (payoff / twist on the next move).
+  const primedThreads = threads.filter((t) => !isThreadClosed(t) && isNearClosed(t));
 
   // Find stale threads (no delta in recent scenes)
   const lastTouch: Record<string, number> = {};
@@ -326,7 +329,7 @@ export function checkEndConditions(
       }
       case "all_threads_resolved": {
         const threads = Object.values(narrative.threads);
-        if (threads.length > 0 && threads.every((t) => TERMINAL_SET.has(t.status.toLowerCase()))) {
+        if (threads.length > 0 && threads.every((t) => isThreadClosed(t))) {
           logInfo(`Auto-play end condition met: all_threads_resolved`, {
             source: "auto-play",
             operation: "check-end-conditions",
@@ -434,14 +437,21 @@ function buildDirective(
   if (pressure.threads.primed.length > 0) {
     const primedList = pressure.threads.primed
       .slice(0, 3)
-      .map((t) => `- "${t.description}" [${t.status}]`)
+      .map((t) => {
+        const probs = getMarketProbs(t);
+        const topIdx = probs.indexOf(Math.max(...probs));
+        return `- "${t.description}" [near-closed → ${t.outcomes[topIdx] ?? '?'}]`;
+      })
       .join("\n");
     sections.push(`PRIMED FOR RESOLUTION — these threads are ready for payoff:\n${primedList}`);
   }
   if (pressure.threads.stale.length > 0) {
     const staleList = pressure.threads.stale
       .slice(0, 3)
-      .map((t) => `- "${t.description}" [${t.status}]`)
+      .map((t) => {
+        const belief = getMarketBelief(t);
+        return `- "${t.description}" [vol=${belief?.volume.toFixed(1) ?? '0'}]`;
+      })
       .join("\n");
     sections.push(`STALE THREADS — need advancement or resolution:\n${staleList}`);
   }
@@ -695,13 +705,16 @@ export function buildPlanDirective(
     for (const node of threadTargets) {
       const thread = narrative.threads[node.threadId!];
       const threadDesc = thread?.description ?? node.threadId;
-      const isResolution = node.targetStatus === "resolved" || node.targetStatus === "subverted";
+      const isResolution = node.marketIntent === "close";
       const targetType =
         node.type === "peak" && isResolution ? "PEAK — MUST REACH"
         : node.type === "peak" ? "PEAK"
         : node.type === "valley" ? "VALLEY — PIVOT"
         : "MOMENT";
-      sections.push(`- [${node.targetStatus ?? "progress"}] ${threadDesc} — ${targetType}: ${node.label}`);
+      const intentLabel = node.marketIntent
+        ? `${node.marketIntent}${node.marketOutcome ? ` → ${node.marketOutcome}` : ""}`
+        : "progress";
+      sections.push(`- [${intentLabel}] ${threadDesc} — ${targetType}: ${node.label}`);
     }
   }
 

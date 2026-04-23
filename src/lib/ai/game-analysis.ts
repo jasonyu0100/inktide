@@ -166,7 +166,10 @@ function buildSceneContext(
       parts.push("Thread movements:");
       for (const td of scene.threadDeltas) {
         const desc = narrative.threads[td.threadId]?.description ?? td.threadId;
-        parts.push(`  - ${desc} (${td.from} → ${td.to})`);
+        const moves = (td.updates ?? [])
+          .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+          .join(' ');
+        parts.push(`  - ${desc} [${td.logType}] ${moves}`);
       }
     }
     if (scene.worldDeltas?.length) {

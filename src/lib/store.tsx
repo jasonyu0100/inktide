@@ -43,7 +43,7 @@ import {
   sanitizeSystemDelta,
 } from "@/lib/system-graph";
 import { logError, logWarning } from "@/lib/system-logger";
-import { applyThreadDelta } from "@/lib/thread-log";
+import { applyThreadDelta, decayUntouchedBeliefsForScene, newNarratorBelief } from "@/lib/thread-log";
 import type {
   AnalysisJob,
   AppState,
@@ -201,15 +201,13 @@ function computeDerivedEntities(
           addedEdges: [],
         },
       );
-      // Apply thread deltas on existing threads
+      // Apply thread market updates during a world build. Treat the
+      // worldBuild id as the "scene" for log bookkeeping.
+      const wbId = wb.id;
       for (const tm of wb.expansionManifest.threadDeltas ?? []) {
         const thread = threads[tm.threadId];
         if (!thread) continue;
-        threads[tm.threadId] = {
-          ...thread,
-          status: tm.to,
-          threadLog: applyThreadDelta(thread.threadLog, tm),
-        };
+        threads[tm.threadId] = applyThreadDelta(thread, tm, wbId);
       }
       // Apply expansion deltas on existing entities
       for (const km of wb.expansionManifest.worldDeltas ?? []) {
@@ -317,9 +315,25 @@ function computeDerivedEntities(
       }
       for (const t of scene.newThreads ?? []) {
         if (!threads[t.id]) {
+          // Ensure a canonical market belief exists for the narrator. Thread
+          // objects arriving here should already carry priored beliefs from
+          // the ai/scenes.ts pipeline; fall back to uniform only if the
+          // upstream step skipped them.
+          const outcomes = (t.outcomes && t.outcomes.length >= 2) ? t.outcomes : ["yes", "no"];
+          const rawPriorProbs = Array.isArray(
+            (t as unknown as { priorProbs?: unknown }).priorProbs,
+          )
+            ? ((t as unknown as { priorProbs?: unknown }).priorProbs as unknown[]).map((v) =>
+                typeof v === 'number' ? v : NaN,
+              )
+            : undefined;
+          const beliefs = t.beliefs && Object.keys(t.beliefs).length > 0
+            ? t.beliefs
+            : { narrator: newNarratorBelief(outcomes.length, 2, rawPriorProbs) };
           threads[t.id] = {
             ...t,
-            status: "latent", // Force latent status for scene-introduced threads
+            outcomes,
+            beliefs,
             threadLog: t.threadLog ?? { nodes: {}, edges: [] },
           };
         }
@@ -347,14 +361,16 @@ function computeDerivedEntities(
           };
         }
       }
+      // First, decay volume for threads this scene did NOT touch.
+      const touchedIds = new Set((scene.threadDeltas ?? []).map((tm) => tm.threadId));
+      const decayed = decayUntouchedBeliefsForScene(threads as Record<string, Thread>, touchedIds);
+      for (const id of Object.keys(decayed)) threads[id] = decayed[id];
+
+      // Then apply market updates for touched threads.
       for (const tm of scene.threadDeltas ?? []) {
         const thread = threads[tm.threadId];
         if (!thread) continue;
-        threads[tm.threadId] = {
-          ...thread,
-          status: tm.to,
-          threadLog: applyThreadDelta(thread.threadLog, tm),
-        };
+        threads[tm.threadId] = applyThreadDelta(thread, tm, scene.id);
       }
       // Apply relationship deltas from scene
       for (const rm of scene.relationshipDeltas ?? []) {

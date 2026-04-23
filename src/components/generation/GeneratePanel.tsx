@@ -107,7 +107,18 @@ function StreamingOutput({ label, text }: { label: string; text: string }) {
 
 // ── Main Panel ───────────────────────────────────────────────────────────────
 
-export function GeneratePanel({ onClose }: { onClose: () => void }) {
+export function GeneratePanel({
+  onClose,
+  initialHealthMode,
+  initialHealthReport,
+}: {
+  onClose: () => void;
+  /** When true, the panel opens with worldSize='health' selected and the
+   *  health-report text prefilled into the directive. Fired by the Diagnose
+   *  action in FloatingPalette. */
+  initialHealthMode?: boolean;
+  initialHealthReport?: string;
+}) {
   const { state, dispatch } = useStore();
   const [mode, setMode] = useState<Mode>("continuation");
 
@@ -130,9 +141,14 @@ export function GeneratePanel({ onClose }: { onClose: () => void }) {
   const [animating, setAnimating] = useState(false);
   const [editingStep, setEditingStep] = useState<number | null>(null);
 
-  // World state
-  const [worldDirective, setWorldDirective] = useState("");
-  const [worldSize, setWorldSize] = useState<WorldExpansionSize>("exact");
+  // World state — health-mode preset: start with size='health' and the health
+  // report prefilled so the user sees the diagnosis that motivated this run.
+  const [worldDirective, setWorldDirective] = useState(
+    initialHealthMode && initialHealthReport ? initialHealthReport : "",
+  );
+  const [worldSize, setWorldSize] = useState<WorldExpansionSize>(
+    initialHealthMode ? "health" : "exact",
+  );
   const [worldStrategy, setWorldStrategy] = useState<WorldExpansionStrategy>(
     state.activeNarrative?.storySettings?.expansionStrategy ?? "dynamic",
   );

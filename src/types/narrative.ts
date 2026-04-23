@@ -1,31 +1,28 @@
-// ── Thread ───────────────────────────────────────────────────────────────────
-export type ThreadStatus = string;
+// ── Thread (Prediction-Market Model) ────────────────────────────────────────
+//
+// Threads are prediction markets over named outcomes. Each scene emits
+// evidence that updates logits; softmax(logits) gives the probability
+// distribution. Fate is information-gain (entropy change) weighted by volume.
+//
+// Binary threads use outcomes: ["yes", "no"]; multi-outcome threads enumerate
+// their possibilities ("Harry wins" / "Voldemort wins" / "Destroyed" / ...).
+// Binary is just the N=2 case — the math parameterizes by |outcomes|.
 
-// Canonical thread status vocabulary — single source of truth.
-// Forward: latent → seeded → active → escalating → critical → resolved/subverted.
-// Abandoned resets the thread to a latent-like state for potential repickup.
-// Once escalating, the thread has passed the point of no return — it must resolve.
-export const THREAD_ACTIVE_STATUSES = [
-  "latent",
-  "seeded",
-  "active",
-  "escalating",
-  "critical",
-] as const;
-export const THREAD_TERMINAL_STATUSES = ["resolved", "subverted"] as const;
-export const THREAD_PRIMED_STATUSES = ["escalating", "critical"] as const;
-/** Abandoned is special — not terminal, but resets the thread for potential repickup */
-export const THREAD_RESET_STATUSES = ["abandoned"] as const;
+/** Canonical agent whose belief is the "market price" before per-character
+ *  markets are populated. Phase 1: only the narrator holds a belief. */
+export const NARRATOR_AGENT_ID = "narrator" as const;
 
-export const THREAD_STATUS_LABELS: Record<string, string> = {
-  latent: "introduced but not yet developed",
-  seeded: "setup established, tension planted",
-  active: "actively driving narrative",
-  escalating: "point of no return — must resolve",
-  critical: "at peak tension, demanding resolution",
-  resolved: "concluded or ran its course",
-  subverted: "fate defied — resolved contrary to expectations",
-  abandoned: "dropped and reset — available for repickup",
+/** A belief held by a single agent (narrator or character) over a thread's
+ *  outcomes. Logits live in R; softmax gives a probability distribution. */
+export type Belief = {
+  /** Per-outcome logits (same length as thread.outcomes). */
+  logits: number[];
+  /** Cumulative narrative attention. Decays per untouched scene. */
+  volume: number;
+  /** EWMA of recent |Δlogit| magnitudes — how much the thread is moving. */
+  volatility: number;
+  /** Last scene id that touched this belief. Used for decay and recency. */
+  lastTouchedScene?: string;
 };
 
 export type ThreadParticipant = {
@@ -70,10 +67,33 @@ export const THREAD_LOG_NODE_TYPES: ThreadLogNodeType[] = [
   "stall",
 ];
 
+/** One evidence update for a single outcome. Evidence is integer in
+ *  [-4, +4] applied as a log-odds shift: logit[k] += evidence / sensitivity.
+ *  The LLM emits these; softmax renormalizes probabilities automatically. */
+export type OutcomeEvidence = {
+  /** Outcome name — must match one of thread.outcomes. */
+  outcome: string;
+  /** Log-odds shift magnitude, real number in [-4, +4]. Decimals (e.g. +1.5)
+   *  are legitimate — they let the LLM express calibrated partial nudges. */
+  evidence: number;
+};
+
 export type ThreadLogNode = {
   id: string;
   type: ThreadLogNodeType;
+  /** Prose-grade description of what happened to the thread in this scene.
+   *  Doubles as the rationale that grounds the market update. */
   content: string;
+  /** The scene where this event occurred. */
+  sceneId?: string;
+  /** Per-outcome evidence emitted in this scene. Empty array = pulse
+   *  (attention maintenance without directional movement). */
+  updates?: OutcomeEvidence[];
+  /** Change to volume (narrative attention) contributed by this event. */
+  volumeDelta?: number;
+  /** Outcomes added to the thread's market at this scene (if any).
+   *  Present only on scenes that structurally expanded the market. */
+  addedOutcomes?: string[];
 };
 
 export type ThreadLogEdge = {
@@ -93,11 +113,29 @@ export type ThreadKind = "storyline" | "incident";
 export type Thread = {
   id: string;
   participants: ThreadParticipant[];
+  /** The question the thread poses. "Will Harry claim the Stone?" */
   description: string;
-  status: ThreadStatus;
+  /** Named outcomes the market prices. Length ≥ 2. Binary: ["yes", "no"].
+   *  Multi-outcome enumerates possibilities. The softmax over per-outcome
+   *  logits gives the probability distribution. */
+  outcomes: string[];
+  /** Per-agent beliefs over the outcomes. Phase 1: beliefs[NARRATOR_AGENT_ID]
+   *  is the only entry and serves as the "market price." Phase 5 adds
+   *  per-character beliefs; market price becomes an aggregate. */
+  beliefs: Record<string, Belief>;
   openedAt: string;
   dependents: string[];
-  /** Accumulated lifecycle graph — nodes added per scene, edges link sequential events */
+  /** Terminal: set when the market commits to a winning outcome. */
+  closedAt?: string;
+  /** Index into `outcomes` of the committed winner; undefined until close. */
+  closeOutcome?: number;
+  /** Scalar in [0, 1] — how decisive the resolution was when the thread closed.
+   *  Combines peak evidence at close, margin over the closure threshold, volume
+   *  (narrative attention earned), and distribution concentration. Higher =
+   *  more earned, more cathartic resolution. */
+  resolutionQuality?: number;
+  /** Accumulated event graph — one node per scene that touches the thread.
+   *  Each node carries the scene's evidence updates and a prose description. */
   threadLog: ThreadLog;
 };
 
@@ -231,19 +269,31 @@ export type TieDelta = {
 };
 
 // ── Scene & Arc ─────────────────────────────────────────────────────────────
-/** Parallels WorldDelta. `from`/`to` record the status transition;
- *  `addedNodes` lists log entries in order. applyThreadDelta chains them
- *  sequentially via 'co_occurs' edges — node order alone defines the linkage.
- *  A scene-level thread delta genuinely mutates the thread: `from`/`to`
- *  advance its lifecycle status, and `addedNodes` are the log entries that
- *  record what happened. The two behaviours are coupled — you cannot advance
- *  a thread without logging why, and every log entry lives inside a
- *  transition record. */
+/** A scene's effect on a thread's prediction market. The LLM emits one
+ *  ThreadDelta per affected thread per scene. Math applies integer `evidence`
+ *  values as log-odds shifts (logit[k] += evidence / sensitivity), renormalizes
+ *  via softmax, and appends a ThreadLogNode to the thread's event log. */
 export type ThreadDelta = {
   threadId: string;
-  from: string;
-  to: string;
-  addedNodes: ThreadLogNode[];
+  /** Per-outcome evidence. Omit outcomes this scene didn't move. */
+  updates: OutcomeEvidence[];
+  /** The narrative shape of this movement — matches the 9 primitives.
+   *  setup/escalation/payoff at high |evidence|; pulse/stall near zero;
+   *  twist when evidence reverses prior direction. */
+  logType: ThreadLogNodeType;
+  /** Change to narrative attention on this thread. ≥0 in typical usage;
+   *  explicit negative only when a thread is deliberately quieted. */
+  volumeDelta: number;
+  /** New outcomes to add to the thread's market, mid-story. Rare — reserved
+   *  for scenes that genuinely open new possibilities (a reveal introduces a
+   *  third contender, a character realises an option they hadn't considered).
+   *  Appended with logit=0, which gives them the prior of "equally likely as
+   *  the current best outcome" before any evidence is applied in this same
+   *  delta via `updates`. Duplicates of existing outcomes are ignored. */
+  addOutcomes?: string[];
+  /** Prose-grade sentence grounding the update in the scene summary.
+   *  Required — every evidence emission must trace to a specific sentence. */
+  rationale: string;
 };
 
 /** Additive world delta. `addedNodes` lists the entity's new
@@ -744,7 +794,7 @@ export type Scene = {
   newLocations?: Location[];
   /** New artifacts introduced in this scene */
   newArtifacts?: Artifact[];
-  /** New threads introduced in this scene (status forced to latent) */
+  /** New threads introduced in this scene — seeded as fresh markets at uniform prior over their outcomes. */
   newThreads?: Thread[];
   /** Version history for prose — enables branch isolation. Resolution uses branch lineage + fork time. */
   proseVersions?: ProseVersion[];
@@ -981,8 +1031,16 @@ export type CoordinationNodeType =
   | "valley"       // Structural valley — turning point, tension seeded
   | "moment";      // Key beat worth flagging in the plan that isn't a peak or valley
 
-/** Thread status targets for spine nodes (peak/valley/moment) tracking thread progression */
-export type ThreadStatusTarget = "seeded" | "active" | "escalating" | "critical" | "resolved" | "subverted" | "abandoned";
+/** Thread market intent for spine nodes — what the arc should do to the thread's
+ *  prediction market. Binary: should the price move? Should it close? Should
+ *  a twist reverse the dominant outcome? */
+export type ThreadMarketIntent =
+  | "advance"    // move price toward `outcome` without committing
+  | "escalate"   // raise volume + move price, set up payoff
+  | "close"      // commit to `outcome` (price → 1 for that outcome)
+  | "twist"      // reverse prior direction (dominant outcome flips)
+  | "maintain"   // pulse — keep volume alive without price movement
+  | "abandon";   // let volume decay, no evidence emitted
 
 /**
  * Force mode for an arc, derived from the composition of its nodes.
@@ -1003,7 +1061,7 @@ export type ArcForceMode =
  * Node in a coordination plan — extends reasoning nodes with plan-specific fields.
  *
  * Spine nodes (peak/valley/moment) may carry thread-progression metadata
- * (threadId + targetStatus). The one peak or valley that anchors an arc also
+ * (threadId + marketIntent + marketOutcome). The one peak or valley that anchors an arc also
  * carries arcIndex, sceneCount, and forceMode.
  */
 export type CoordinationNode = {
@@ -1021,8 +1079,11 @@ export type CoordinationNode = {
   threadId?: string;
   /** Reference to a node in the system knowledge graph (for system nodes anchoring to an existing rule/principle/constraint/tension). */
   systemNodeId?: string;
-  /** Target thread status (for spine nodes tracking thread progression) */
-  targetStatus?: ThreadStatusTarget;
+  /** Market intent for this thread (for spine nodes tracking thread progression) */
+  marketIntent?: ThreadMarketIntent;
+  /** Target outcome name (for advance/close/twist intents — must match an
+   *  entry in the thread's outcomes array). */
+  marketOutcome?: string;
   /** Arc index 1-N (set only on the peak or valley that anchors an arc) */
   arcIndex?: number;
   /** Suggested scene count (set only on the arc-anchoring peak/valley) */
@@ -1831,8 +1892,8 @@ export type AnalysisChunkResult = {
   threads: {
     description: string;
     participantNames: string[];
-    statusAtStart: string;
-    statusAtEnd: string;
+    /** Named outcomes the market prices. ≥2 entries. Default ["yes","no"]. */
+    outcomes: string[];
     development: string;
     relatedThreadDescriptions?: string[];
   }[];
@@ -1846,9 +1907,11 @@ export type AnalysisChunkResult = {
     prose?: string;
     threadDeltas: {
       threadDescription: string;
-      from: string;
-      to: string;
-      addedNodes: { content: string; type: string }[];
+      logType: string;
+      updates: { outcome: string; evidence: number }[];
+      volumeDelta?: number;
+      addOutcomes?: string[];
+      rationale: string;
     }[];
     worldDeltas: {
       entityName: string;
@@ -2003,7 +2066,8 @@ export type GraphViewMode =
   | "threads"
   | "search"
   | "reasoning"
-  | "network";
+  | "network"
+  | "market";
 
 // ── Chat Threads ──────────────────────────────────────────────────────────────
 export type ChatMessage = {

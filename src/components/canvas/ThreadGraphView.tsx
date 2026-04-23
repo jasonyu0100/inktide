@@ -3,38 +3,30 @@
 import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import type { NarrativeState, Scene } from '@/types/narrative';
-import { THREAD_TERMINAL_STATUSES, resolveEntry } from '@/types/narrative';
-import { computeThreadStatuses, resolveEntityName } from '@/lib/narrative-utils';
+import { resolveEntry, NARRATOR_AGENT_ID } from '@/types/narrative';
+import { resolveEntityName } from '@/lib/narrative-utils';
+import {
+  classifyThreadCategory,
+  THREAD_CATEGORY_HEX,
+  THREAD_CATEGORY_LABEL,
+  THREAD_CATEGORY_DESCRIPTION,
+  THREAD_CATEGORY_ORDER,
+  THREAD_CATEGORY_TERMINAL,
+  type ThreadCategory,
+} from '@/lib/thread-category';
+import { replayThreadsAtIndex } from '@/lib/portfolio-analytics';
 import { computeGroups } from './graph-utils';
 import { IconChevronLeft, IconChevronRight, IconRefresh } from '@/components/icons';
 import EvalBar from '@/components/timeline/EvalBar';
 
-// ── Status colors & glow ────────────────────────────────────────────────────
-
-// Ordered to match the lifecycle sequence so the legend strip reads
-// latent → seeded → active → escalating → critical → resolved / subverted / abandoned.
-// "escalating" was missing here AND from ACTIVE_STATUSES below, so threads
-// that had crossed the point-of-no-return fell back to grey and were
-// excluded from the graph, out of step with the sidebar's thread deltas.
-export const STATUS_COLORS: Record<string, string> = {
-  latent:     '#475569',
-  seeded:     '#FBBF24',
-  active:     '#38BDF8',
-  escalating: '#FB923C', // orange — matches ThreadPortfolio's escalating chip
-  critical:   '#F87171',
-  resolved:   '#34D399',
-  subverted:  '#C084FC',
-  abandoned:  '#444444',
-};
-
-const TERMINAL = new Set<string>(THREAD_TERMINAL_STATUSES);
+const TERMINAL = new Set<ThreadCategory>(THREAD_CATEGORY_TERMINAL);
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
 type TNode = d3.SimulationNodeDatum & {
   id: string;
   description: string;
-  status: string;
+  category: ThreadCategory;
   activity: number; // delta count — drives size
   participantNames: string[];
   hasDeltaAtScene: boolean; // whether this thread has a delta at the current scene
@@ -95,15 +87,25 @@ export default function ThreadGraphView({
   const [showRelations, setShowRelations] = useState(false);
   const [showTypes, setShowTypes] = useState(true);
   const [showEval, setShowEval] = useState(true);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; description: string; status: string; participants: string[]; activity: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; description: string; category: ThreadCategory; participants: string[]; activity: number } | null>(null);
   const [groups, setGroups] = useState<TNode[][]>([]);
   const [focusedGroup, setFocusedGroup] = useState<number | null>(null);
 
-  // ── Compute thread statuses at current scene ──
-  const statuses = useMemo(
-    () => computeThreadStatuses(narrative, currentIndex, resolvedKeys),
-    [narrative, currentIndex, resolvedKeys],
-  );
+  // Market-derived category per thread, evaluated at the CURRENT scene index.
+  // Without scene-scrubbing, a thread that closes at scene 8 would already read
+  // as "resolved" when the user is viewing scene 1. Replay beliefs up to the
+  // current position so categories track the reader's vantage point.
+  const categories = useMemo(() => {
+    const scrubbed = replayThreadsAtIndex(narrative, resolvedKeys, currentIndex);
+    return Object.fromEntries(
+      Object.entries(scrubbed).map(([id, t]) => {
+        const lastTouched = t.beliefs?.[NARRATOR_AGENT_ID]?.lastTouchedScene;
+        const touchedIdx = lastTouched ? resolvedKeys.indexOf(lastTouched) : -1;
+        const scenesSinceTouch = touchedIdx < 0 ? Infinity : currentIndex - touchedIdx;
+        return [id, classifyThreadCategory(t, { scenesSinceTouch })];
+      }),
+    ) as Record<string, ThreadCategory>;
+  }, [narrative, resolvedKeys, currentIndex]);
 
   // ── Compute delta counts per thread and scene-specific deltas ──
   const { deltaCounts, sceneDeltaThreads } = useMemo(() => {
@@ -132,7 +134,6 @@ export default function ThreadGraphView({
   // ── Build graph data ──
   const graphData = useMemo(() => {
     const allThreads = Object.values(narrative.threads);
-    const ACTIVE_STATUSES = new Set(['seeded', 'active', 'escalating', 'critical']);
 
     // Only show threads that have been introduced by the current scene index
     const visibleKeys = new Set(resolvedKeys.slice(0, currentIndex + 1));
@@ -146,12 +147,12 @@ export default function ThreadGraphView({
     const nodeIds = new Set(visibleThreads.map(t => t.id));
 
     const nodes: TNode[] = visibleThreads.map(t => {
-      const status = statuses[t.id] ?? t.status;
+      const category = categories[t.id] ?? 'dormant';
       const participantNames = t.participants.map(p => resolveEntityName(narrative, p.id));
       return {
         id: t.id,
         description: t.description,
-        status,
+        category,
         activity: deltaCounts.get(t.id) ?? 0,
         participantNames,
         hasDeltaAtScene: sceneDeltaThreads.has(t.id),
@@ -161,7 +162,7 @@ export default function ThreadGraphView({
     const links = buildLinks(narrative, nodeIds);
 
     return { nodes, links };
-  }, [narrative, resolvedKeys, currentIndex, mode, statuses, deltaCounts, sceneDeltaThreads]);
+  }, [narrative, resolvedKeys, currentIndex, mode, categories, deltaCounts, sceneDeltaThreads]);
 
   // ── Initial SVG setup (once) ──
   useEffect(() => {
@@ -173,10 +174,12 @@ export default function ThreadGraphView({
     const g = svg.append('g');
     gRef.current = g;
 
-    // Glow filters for each status
+    // Glow filter per thread category — keyed by category name so the node
+    // render can reference it via `url(#tglow-${category})`.
     const defs = svg.append('defs');
-    for (const [status, color] of Object.entries(STATUS_COLORS)) {
-      const filter = defs.append('filter').attr('id', `tglow-${status}`).attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
+    for (const cat of THREAD_CATEGORY_ORDER) {
+      const color = THREAD_CATEGORY_HEX[cat];
+      const filter = defs.append('filter').attr('id', `tglow-${cat}`).attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
       filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
       filter.append('feFlood').attr('flood-color', color).attr('flood-opacity', '0.6').attr('result', 'color');
       filter.append('feComposite').attr('in', 'color').attr('in2', 'blur').attr('operator', 'in').attr('result', 'glow');
@@ -269,13 +272,12 @@ export default function ThreadGraphView({
     const nodeAll = nodeEnter.merge(nodeSel);
     nodeAll
       .attr('r', nodeRadius)
-      .attr('fill', d => showTypes ? (STATUS_COLORS[d.status] ?? '#475569') : '#888')
-      .attr('filter', d => showTypes ? `url(#tglow-${d.status})` : 'none')
+      .attr('fill', d => showTypes ? THREAD_CATEGORY_HEX[d.category] : '#888')
+      .attr('filter', d => showTypes ? `url(#tglow-${d.category})` : 'none')
       .attr('opacity', d => {
         if (mode === 'pulse') return 0.9;
-        // threads mode: highlight scene-mutated, dim terminal
         if (d.hasDeltaAtScene) return 1;
-        if (TERMINAL.has(d.status)) return 0.2;
+        if (TERMINAL.has(d.category)) return 0.2;
         return 0.5;
       })
       .attr('stroke', d => {
@@ -302,7 +304,7 @@ export default function ThreadGraphView({
       .on('mouseenter', (event, d) => {
         const rect = svgRef.current?.getBoundingClientRect();
         if (!rect) return;
-        setTooltip({ x: event.clientX - rect.left, y: event.clientY - rect.top - 10, description: d.description, status: d.status, participants: d.participantNames, activity: d.activity });
+        setTooltip({ x: event.clientX - rect.left, y: event.clientY - rect.top - 10, description: d.description, category: d.category, participants: d.participantNames, activity: d.activity });
       })
       .on('mouseleave', () => setTooltip(null))
       .on('click', (_event, d) => {
@@ -318,14 +320,14 @@ export default function ThreadGraphView({
     const labelEnter = labelSel.enter().append('text').attr('text-anchor', 'middle');
     const labelAll = labelEnter.merge(labelSel);
     labelAll
-      .attr('fill', d => showTypes ? (STATUS_COLORS[d.status] ?? '#ccc') : '#ccc')
+      .attr('fill', d => showTypes ? THREAD_CATEGORY_HEX[d.category] : '#ccc')
       .attr('font-size', d => `${Math.min(12, 9 + d.activity * 0.3)}px`)
       .attr('font-weight', d => d.activity >= 5 ? '600' : '400')
       .attr('display', showLabels ? 'block' : 'none')
       .attr('opacity', d => {
         if (mode === 'pulse') return 0.95;
         if (d.hasDeltaAtScene) return 1;
-        if (TERMINAL.has(d.status)) return 0.2;
+        if (TERMINAL.has(d.category)) return 0.2;
         return 0.5;
       })
       .text(d => {
@@ -449,10 +451,10 @@ export default function ThreadGraphView({
           {showTypes && (
             <>
               <div className="w-px h-3 bg-border mx-1" />
-              {Object.entries(STATUS_COLORS).map(([status, color]) => (
-                <span key={status} className="flex items-center gap-1 px-1">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-                  <span className="text-[8px] text-text-dim/50 capitalize">{status}</span>
+              {THREAD_CATEGORY_ORDER.map((cat) => (
+                <span key={cat} className="flex items-center gap-1 px-1" title={THREAD_CATEGORY_DESCRIPTION[cat]}>
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: THREAD_CATEGORY_HEX[cat] }} />
+                  <span className="text-[8px] text-text-dim/50">{THREAD_CATEGORY_LABEL[cat]}</span>
                 </span>
               ))}
             </>
@@ -495,11 +497,11 @@ export default function ThreadGraphView({
             <div className="flex items-start gap-2 mb-1">
               <span
                 className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5"
-                style={{ background: STATUS_COLORS[tooltip.status] ?? '#888', boxShadow: `0 0 6px ${STATUS_COLORS[tooltip.status] ?? '#888'}80` }}
+                style={{ background: THREAD_CATEGORY_HEX[tooltip.category], boxShadow: `0 0 6px ${THREAD_CATEGORY_HEX[tooltip.category]}80` }}
               />
               <div>
                 <span className="text-xs font-semibold text-text-primary">{tooltip.description}</span>
-                <span className="text-[10px] text-text-dim capitalize ml-1">({tooltip.status})</span>
+                <span className="text-[10px] text-text-dim ml-1">({THREAD_CATEGORY_LABEL[tooltip.category]})</span>
               </div>
             </div>
             {tooltip.participants.length > 0 && (
@@ -515,10 +517,10 @@ export default function ThreadGraphView({
       <div className="absolute bottom-4 left-2 z-30 flex flex-col gap-1 items-start">
         {!hideLegend && (
         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
-          {Object.entries(STATUS_COLORS).map(([status, color]) => (
-            <span key={status} className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-              <span className="capitalize">{status}</span>
+          {THREAD_CATEGORY_ORDER.map((cat) => (
+            <span key={cat} className="flex items-center gap-1" title={THREAD_CATEGORY_DESCRIPTION[cat]}>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: THREAD_CATEGORY_HEX[cat] }} />
+              <span>{THREAD_CATEGORY_LABEL[cat]}</span>
             </span>
           ))}
         </div>

@@ -49,7 +49,8 @@ function createThread(id: string): Thread {
   return {
     id,
     description: 'Test thread',
-    status: 'latent',
+    outcomes: ["yes", "no"],
+    beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } },
     participants: [],
     dependents: [],
     openedAt: 'S-001',
@@ -165,7 +166,7 @@ describe('buildVirtualState', () => {
   it('applies thread deltas', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
-    const threadDelta: ThreadDelta = { threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] };
+    const threadDelta: ThreadDelta = { threadId: 'T-01', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" };
     const scene = createScene('S-001', { threadDeltas: [threadDelta] });
     const arc = createArc('ARC-01', ['S-001']);
     const result = buildVirtualState(
@@ -175,7 +176,9 @@ describe('buildVirtualState', () => {
       [{ scenes: [scene], arc }],
       'main'
     );
-    expect(result.narrative.threads['T-01'].status).toBe('active');
+    // After a setup delta, narrator belief should reflect the +1 evidence on "yes"
+    const thread = result.narrative.threads['T-01'];
+    expect(thread.beliefs.narrator.logits.some((l) => l > 0)).toBe(true);
   });
   it('applies world deltas (added)', () => {
     const rootNarrative = createMinimalNarrative();
@@ -311,11 +314,11 @@ describe('buildVirtualState', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
     const scene1 = createScene('S-001', {
-      threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
     });
     const arc1 = createArc('ARC-01', ['S-001']);
     const scene2 = createScene('S-002', {
-      threadDeltas: [{ threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "escalation", updates: [{ outcome: "yes", evidence: 2 }], volumeDelta: 1, rationale: "active→critical" }],
     });
     const arc2 = createArc('ARC-02', ['S-002']);
     const result = buildVirtualState(
@@ -328,20 +331,23 @@ describe('buildVirtualState', () => {
       ],
       'main'
     );
-    expect(result.narrative.threads['T-01'].status).toBe('critical');
+    // Second scene applies escalation evidence — narrator belief should have updated logits.
+    const thread = result.narrative.threads['T-01'];
+    expect(thread.beliefs.narrator.logits.length).toBeGreaterThan(0);
+    expect(thread.beliefs.narrator.logits.some((l) => l !== 0)).toBe(true);
     expect(result.resolvedKeys).toEqual(['S-001', 'S-002']);
     expect(result.currentIndex).toBe(1);
   });
   it('does not mutate root narrative', () => {
     const rootNarrative = createMinimalNarrative();
     rootNarrative.threads['T-01'] = createThread('T-01');
-    const originalStatus = rootNarrative.threads['T-01'].status;
+    const originalLogits = [...rootNarrative.threads['T-01'].beliefs.narrator.logits];
     const scene = createScene('S-001', {
-      threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'resolved', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "payoff", updates: [{ outcome: "yes", evidence: 4 }], volumeDelta: 1, rationale: "latent→resolved" }],
     });
     const arc = createArc('ARC-01', ['S-001']);
     buildVirtualState(rootNarrative, [], -1, [{ scenes: [scene], arc }], 'main');
-    expect(rootNarrative.threads['T-01'].status).toBe(originalStatus);
+    expect(rootNarrative.threads['T-01'].beliefs.narrator.logits).toEqual(originalLogits);
   });
 });
 // ── Score Arc ────────────────────────────────────────────────────────────────
@@ -352,7 +358,7 @@ describe('scoreArc', () => {
   });
   it('returns positive score for scenes with deltas', () => {
     const scene = createScene('S-001', {
-      threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
       worldDeltas: [{ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }],
       events: ['event1'],
     });
@@ -362,10 +368,10 @@ describe('scoreArc', () => {
   });
   it('scores multiple scenes', () => {
     const scene1 = createScene('S-001', {
-      threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
     });
     const scene2 = createScene('S-002', {
-      threadDeltas: [{ threadId: 'T-01', from: 'active', to: 'critical', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "escalation", updates: [{ outcome: "yes", evidence: 2 }], volumeDelta: 1, rationale: "active→critical" }],
       events: ['climax'],
     });
     const score = scoreArc([scene1, scene2], []);
@@ -377,8 +383,8 @@ describe('scoreArc', () => {
     });
     const highDeltaScene = createScene('S-002', {
       threadDeltas: [
-        { threadId: 'T-01', from: 'latent', to: 'resolved', addedNodes: [] },
-        { threadId: 'T-02', from: 'active', to: 'critical', addedNodes: [] },
+        { threadId: 'T-01', logType: "payoff", updates: [{ outcome: "yes", evidence: 4 }], volumeDelta: 1, rationale: "latent→resolved" },
+        { threadId: 'T-02', logType: "escalation", updates: [{ outcome: "yes", evidence: 2 }], volumeDelta: 1, rationale: "active→critical" },
       ],
       worldDeltas: Array(5).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }),
       events: ['event1', 'event2', 'event3'],
@@ -396,7 +402,7 @@ describe('scoreArc', () => {
 describe('scoreScene', () => {
   it('returns positive score for scene with deltas', () => {
     const scene = createScene('S-001', {
-      threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
       events: ['event1'],
     });
     const score = scoreScene(scene, []);
@@ -410,10 +416,10 @@ describe('scoreScene', () => {
   });
   it('considers swing when prior scenes exist', () => {
     const priorScene = createScene('S-001', {
-      threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
     });
     const currentScene = createScene('S-002', {
-      threadDeltas: [{ threadId: 'T-01', from: 'active', to: 'resolved', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "payoff", updates: [{ outcome: "yes", evidence: 4 }], volumeDelta: 1, rationale: "active→resolved" }],
       worldDeltas: Array(3).fill({ entityId: 'C-01', addedNodes: [{ id: 'K-01', content: 'x', type: 'history' }] }),
     });
     const scoreWithPrior = scoreScene(currentScene, [priorScene]);

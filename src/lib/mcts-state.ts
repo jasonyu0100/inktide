@@ -1,4 +1,5 @@
 import { applyWorldDelta } from "@/lib/world-graph";
+import { applyThreadDelta } from "@/lib/thread-log";
 import {
   computeRawForceTotals,
   computeSwingMagnitudes,
@@ -77,7 +78,7 @@ function applySceneDeltas(
     }
     for (const tm of scene.threadDeltas) {
       const thread = threads[tm.threadId];
-      if (thread) threads[tm.threadId] = { ...thread, status: tm.to };
+      if (thread) threads[tm.threadId] = applyThreadDelta(thread, tm, scene.id);
     }
     const wkm = scene.systemDeltas;
     if (wkm) {

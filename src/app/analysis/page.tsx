@@ -787,8 +787,60 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                   </div>
                 )}
               </div>
+            ) : isFinalizing ? (
+              /* Finalization phase: fate re-extract streams per-scene, then thread deps */
+              <div className="flex-1 flex flex-col min-h-0">
+                {inFlightIndices.length > 0 && (
+                  <div className="shrink-0 px-2 py-1.5 border-b border-white/4 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
+                    {inFlightIndices.map((idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setViewingSceneStream(idx)}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-mono transition shrink-0 ${
+                          viewingSceneStream === idx
+                            ? 'bg-purple-400/15 text-purple-400/70 ring-1 ring-purple-400/20'
+                            : 'bg-white/3 text-white/25 hover:text-white/40'
+                        }`}
+                      >
+                        <IconSpinner size={10} className="animate-spin" />
+                        {idx + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {viewingSceneStream !== null && activeSceneStream && inFlightSet.has(viewingSceneStream) ? (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="shrink-0 px-2 py-1 border-b border-white/4 flex items-center gap-2">
+                      <button
+                        onClick={() => setViewingSceneStream(null)}
+                        className="text-[10px] text-white/25 hover:text-white/50 font-mono transition flex items-center gap-1"
+                      >
+                        <IconChevronLeft size={10} />
+                        back
+                      </button>
+                      <span className="text-[9px] text-purple-400/30 font-mono">scene {viewingSceneStream + 1} · fate re-extract</span>
+                    </div>
+                    <pre
+                      ref={streamRef}
+                      className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
+                      style={{ scrollbarWidth: 'thin' }}
+                    >
+                      {activeSceneStream}
+                    </pre>
+                  </div>
+                ) : (
+                  <pre
+                    ref={streamRef}
+                    className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
+                    {streamText}
+                  </pre>
+                )}
+              </div>
             ) : (
-              /* Reconciliation / Finalization / Assembly phase: show LLM stream */
+              /* Reconciliation / Assembly phase: show LLM stream */
               <pre
                 ref={streamRef}
                 className="flex-1 text-[10px] text-white/20 font-mono px-3 py-2 overflow-y-auto leading-relaxed whitespace-pre-wrap break-all"
@@ -1010,7 +1062,7 @@ function JobDetail({ job }: { job: AnalysisJob }) {
                     <div className="space-y-1.5">
                       {result.threads?.map((t, ti) => (
                         <div key={ti} className="text-[10px] leading-snug flex items-start gap-2">
-                          <span className="text-[9px] text-sky-400/50 font-mono shrink-0 mt-0.5">{t.statusAtEnd}</span>
+                          <span className="text-[9px] text-sky-400/50 font-mono shrink-0 mt-0.5">{(t.outcomes ?? []).length}-way</span>
                           <span className="text-text-secondary">{t.description}</span>
                         </div>
                       ))}

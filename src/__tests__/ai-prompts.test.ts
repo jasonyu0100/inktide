@@ -40,8 +40,6 @@ import {
 import {
   BEAT_FN_LIST,
   BEAT_MECHANISM_LIST,
-  THREAD_ACTIVE_STATUSES,
-  THREAD_TERMINAL_STATUSES,
   THREAD_LOG_NODE_TYPES,
 } from "@/types/narrative";
 import { describe, expect, it } from "vitest";
@@ -53,32 +51,33 @@ const SCENE_VERDICTS = ["ok", "edit", "merge", "cut", "insert", "move"] as const
 const PROSE_VERDICTS = ["ok", "edit"] as const;
 const PLAN_VERDICTS = ["ok", "edit"] as const;
 
-describe("Thread lifecycle vocabulary contract", () => {
-  // Every status the code recognises must appear in the delta prompt,
-  // otherwise the LLM can't be expected to emit it correctly.
-  const ALL_STATUSES = [
-    ...THREAD_ACTIVE_STATUSES,
-    ...THREAD_TERMINAL_STATUSES,
-    "abandoned",
-  ];
+describe("Thread prediction-market vocabulary contract", () => {
+  // The delta prompt must advertise the market shape fields so the LLM
+  // emits them correctly: logType, updates, evidence, outcomes, addOutcomes.
+  it("PROMPT_DELTAS advertises the market-delta fields", () => {
+    expect(PROMPT_DELTAS).toContain("logType");
+    expect(PROMPT_DELTAS).toContain("updates");
+    expect(PROMPT_DELTAS).toContain("evidence");
+    expect(PROMPT_DELTAS).toContain("outcomes");
+    expect(PROMPT_DELTAS).toContain("addOutcomes");
+    expect(PROMPT_DELTAS).toContain("rationale");
+    expect(PROMPT_DELTAS).toContain("volumeDelta");
+  });
 
-  it("PROMPT_DELTAS advertises every status the reducer accepts", () => {
-    for (const status of ALL_STATUSES) {
-      expect(PROMPT_DELTAS).toContain(status);
+  it("PROMPT_DELTAS lists every log type the reducer accepts", () => {
+    for (const t of THREAD_LOG_NODE_TYPES) {
+      expect(PROMPT_DELTAS).toContain(t);
     }
   });
 
-  it("PROMPT_DELTAS explicitly forbids the pulse-as-status confusion", () => {
-    // "pulse" is a log node type, not a status. The prompt must say so
-    // because the two sit side-by-side in the schema and LLMs confuse them.
-    expect(PROMPT_DELTAS).toMatch(/pulse.{0,10}NOT.{0,10}status/i);
-  });
-
-  it("promptThreadLifecycle exposes the full active lifecycle", () => {
+  it("promptThreadLifecycle describes markets, outcomes, and closure", () => {
     const doc = promptThreadLifecycle();
-    for (const status of THREAD_ACTIVE_STATUSES) {
-      expect(doc).toContain(status);
-    }
+    expect(doc.toLowerCase()).toMatch(/prediction market/);
+    expect(doc.toLowerCase()).toMatch(/outcome/);
+    expect(doc.toLowerCase()).toMatch(/closure|close/);
+    // Evidence scale is part of the market vocabulary.
+    expect(doc).toMatch(/-4|\[-4/);
+    expect(doc).toContain("+4");
   });
 });
 

@@ -30,7 +30,7 @@ function createMinimalNarrative(): NarrativeState {
       'L-02': { id: 'L-02', name: 'Forest', prominence: 'place' as const, parentId: null, tiedCharacterIds: [], world: { nodes: {}, edges: [] }, threadIds: [] },
     },
     threads: {
-      'T-01': { id: 'T-01', description: 'Main quest', status: 'active', participants: [], dependents: [], openedAt: 'S-01', threadLog: { nodes: {}, edges: [] } },
+      'T-01': { id: 'T-01', description: 'Main quest', outcomes: ["yes", "no"], beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } }, participants: [], dependents: [], openedAt: 'S-01', threadLog: { nodes: {}, edges: [] } },
     },
     arcs: {
       'ARC-01': { id: 'ARC-01', name: 'Beginning', sceneIds: ['S-01', 'S-02', 'S-03'], develops: [], locationIds: [], activeCharacterIds: [], initialCharacterLocations: {} },
@@ -44,7 +44,7 @@ function createMinimalNarrative(): NarrativeState {
         povId: 'C-01',
         participantIds: ['C-01'],
         events: ['wakes'],
-        threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
+        threadDeltas: [{ threadId: 'T-01', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
         worldDeltas: [],
         relationshipDeltas: [],
         summary: 'Hero wakes in village',
@@ -57,7 +57,7 @@ function createMinimalNarrative(): NarrativeState {
         povId: 'C-01',
         participantIds: ['C-01', 'C-02'],
         events: ['meets_mentor'],
-        threadDeltas: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [] }],
+        threadDeltas: [{ threadId: 'T-01', logType: "pulse", updates: [], volumeDelta: 1, rationale: "active→active" }],
         worldDeltas: [],
         relationshipDeltas: [],
         summary: 'Hero meets mentor',
@@ -218,7 +218,7 @@ describe('reconstructBranch', () => {
       povId: 'C-02',
       participantIds: ['C-02'],
       events: ['new_event'],
-      threadDeltas: [{ threadId: 'T-01', from: 'active', to: 'active', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "pulse", updates: [], volumeDelta: 1, rationale: "active→active" }],
       worldDeltas: [],
       relationshipDeltas: [],
       summary: 'New transition scene',
@@ -287,7 +287,7 @@ describe('reconstructBranch', () => {
       povId: 'C-01',
       participantIds: ['C-01', 'C-02'],
       events: ['combined_event'],
-      threadDeltas: [{ threadId: 'T-01', from: 'latent', to: 'active', addedNodes: [] }],
+      threadDeltas: [{ threadId: 'T-01', logType: "setup", updates: [{ outcome: "yes", evidence: 1 }], volumeDelta: 1, rationale: "latent→active" }],
       worldDeltas: [],
       relationshipDeltas: [],
       summary: 'Combined scene with both beats',
@@ -658,7 +658,7 @@ describe('reconstructBranch', () => {
   // Locks in the fix for the bug where the reconstruct schemas omitted
   // addedNodes, causing the LLM to strip log entries from edited/merged/
   // inserted scenes.
-  it('preserves addedNodes from LLM when editing a scene', async () => {
+  it('preserves market evidence from LLM when editing a scene', async () => {
     const editedScene = {
       locationId: 'L-02',
       povId: 'C-01',
@@ -666,16 +666,14 @@ describe('reconstructBranch', () => {
       events: ['revised'],
       threadDeltas: [{
         threadId: 'T-01',
-        from: 'active',
-        to: 'critical',
-        addedNodes: [
-          { id: 'TK-NEW-001', content: 'Hero commits to the final stand', type: 'transition' },
-          { id: 'TK-NEW-002', content: 'Stakes rise', type: 'escalation' },
-        ],
+        logType: 'escalation',
+        updates: [{ outcome: 'yes', evidence: 3 }],
+        volumeDelta: 2,
+        rationale: 'Hero commits to the final stand, stakes rise',
       }],
       worldDeltas: [],
       relationshipDeltas: [],
-      summary: 'Revised scene with log entries',
+      summary: 'Revised scene with market evidence',
     };
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify(editedScene));
     vi.mocked(parseJson).mockReturnValue(editedScene);
@@ -705,14 +703,15 @@ describe('reconstructBranch', () => {
     // The edited scene must still carry its log entries — before the
     // schema fix, the LLM would return threadDeltas without addedNodes
     // and the scene's thread log would go blank.
-    const edited = result.scenes.find((s) => s.summary === 'Revised scene with log entries');
+    const edited = result.scenes.find((s) => s.summary === 'Revised scene with market evidence');
     expect(edited).toBeDefined();
     expect(edited!.threadDeltas).toHaveLength(1);
-    expect(edited!.threadDeltas[0].addedNodes).toHaveLength(2);
-    expect(edited!.threadDeltas[0].addedNodes![0].content).toMatch(/commits to the final stand/);
-    expect(edited!.threadDeltas[0].addedNodes![1].content).toBe('Stakes rise');
+    expect(edited!.threadDeltas[0].logType).toBe('escalation');
+    expect(edited!.threadDeltas[0].updates).toHaveLength(1);
+    expect(edited!.threadDeltas[0].updates[0].evidence).toBe(3);
+    expect(edited!.threadDeltas[0].rationale).toMatch(/commits to the final stand/);
   });
-  it('preserves addedNodes from LLM when inserting a new scene', async () => {
+  it('preserves market evidence from LLM when inserting a new scene', async () => {
     const insertedScene = {
       locationId: 'L-01',
       povId: 'C-02',
@@ -720,11 +719,10 @@ describe('reconstructBranch', () => {
       events: ['bridge_beat'],
       threadDeltas: [{
         threadId: 'T-01',
-        from: 'active',
-        to: 'active',
-        addedNodes: [
-          { id: 'TK-NEW-001', content: 'Mentor checks in on the hero', type: 'pulse' },
-        ],
+        logType: 'pulse',
+        updates: [],
+        volumeDelta: 1,
+        rationale: 'Mentor checks in on the hero',
       }],
       worldDeltas: [],
       relationshipDeltas: [],
@@ -759,8 +757,7 @@ describe('reconstructBranch', () => {
     const inserted = result.scenes.find((s) => s.summary === 'Inserted transition scene');
     expect(inserted).toBeDefined();
     expect(inserted!.threadDeltas).toHaveLength(1);
-    expect(inserted!.threadDeltas[0].addedNodes).toHaveLength(1);
-    expect(inserted!.threadDeltas[0].addedNodes![0].content).toMatch(/Mentor checks in/);
-    expect(inserted!.threadDeltas[0].addedNodes![0].type).toBe('pulse');
+    expect(inserted!.threadDeltas[0].logType).toBe('pulse');
+    expect(inserted!.threadDeltas[0].rationale).toMatch(/Mentor checks in/);
   });
 });

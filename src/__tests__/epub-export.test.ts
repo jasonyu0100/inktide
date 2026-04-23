@@ -251,7 +251,6 @@ describe('exportEpub', () => {
       'S-01': { text: 'This should not be used', status: 'pending' },
     };
     exportEpub(narrative, ['S-01', 'S-02'], 'BR-01', proseCache);
-    // S-01 has pending status, so it uses versioned prose (none) and is skipped
     // S-02 has fallback prose and should work
     expect(mockClick).toHaveBeenCalled();
   });

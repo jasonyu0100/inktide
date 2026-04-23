@@ -67,11 +67,19 @@ export default function DeliveryLineChart({
       .domain([0, Math.max(delivery.length - 1, 1)])
       .range([0, width]);
 
+    // Percentile-clipped domain so the chart isn't visually dominated by a
+    // handful of extreme scenes. Values outside the clipped range are clamped
+    // to the chart edge and marked with overflow ticks.
     const allValues = delivery.flatMap((e) => [e.smoothed, e.macroTrend]);
-    const maxAbs = Math.max(d3.max(allValues.map(Math.abs)) ?? 0.5, 0.5);
+    const absSorted = allValues.map(Math.abs).sort((a, b) => a - b);
+    const pIdx = Math.max(0, Math.floor(absSorted.length * 0.95) - 1);
+    const clipAbs = Math.max(absSorted[pIdx] ?? 0.5, 0.5);
+    const trueAbs = absSorted.at(-1) ?? clipAbs;
+    const hasOverflow = trueAbs > clipAbs * 1.05;
     const yScale = d3.scaleLinear()
-      .domain([-maxAbs * 1.15, maxAbs * 1.15])
-      .range([height, 0]);
+      .domain([-clipAbs * 1.15, clipAbs * 1.15])
+      .range([height, 0])
+      .clamp(true);
 
     const zeroY = yScale(0);
 
@@ -163,6 +171,26 @@ export default function DeliveryLineChart({
         .attr('r', 2)
         .attr('fill', VALLEY_COLOR)
         .attr('opacity', 0.8);
+    }
+
+    // Overflow markers for smoothed values outside the clipped domain.
+    if (hasOverflow) {
+      const overflowHi = clipAbs * 1.15;
+      const overflowLo = -clipAbs * 1.15;
+      for (const e of delivery) {
+        const x = xScale(e.index);
+        if (e.smoothed > overflowHi) {
+          svg.append('path')
+            .attr('d', `M ${x - 2.5} 3 L ${x + 2.5} 3 L ${x} 0 Z`)
+            .attr('fill', DELIVERY_COLOR)
+            .attr('opacity', 0.7);
+        } else if (e.smoothed < overflowLo) {
+          svg.append('path')
+            .attr('d', `M ${x - 2.5} ${height - 3} L ${x + 2.5} ${height - 3} L ${x} ${height} Z`)
+            .attr('fill', VALLEY_COLOR)
+            .attr('opacity', 0.7);
+        }
+      }
     }
 
     // Current scene cursor

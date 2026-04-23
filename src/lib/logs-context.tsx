@@ -207,17 +207,21 @@ export function LogsProvider({
   useEffect(() => {
     import("@/lib/system-logger").then(({ onSystemLog }) => {
       onSystemLog((entry) => {
-        dispatch({ type: "LOG_SYSTEM", entry });
-        // Save immediately - to narrative or analysis store
-        if (entry.narrativeId) {
-          const updated = [...systemLogsRef.current.filter((l) => l.id !== entry.id), entry];
-          const forNarrative = updated.filter((l) => l.narrativeId === entry.narrativeId);
-          saveSystemLogs(entry.narrativeId, forNarrative.slice(-MAX_LOG_ENTRIES));
-        } else if (entry.analysisId) {
-          const updated = [...systemLogsRef.current.filter((l) => l.id !== entry.id), entry];
-          const forAnalysis = updated.filter((l) => l.analysisId === entry.analysisId);
-          saveAnalysisSystemLogs(entry.analysisId, forAnalysis.slice(-MAX_LOG_ENTRIES));
-        }
+        // Defer dispatch — logs can be emitted synchronously from inside
+        // the StoreProvider reducer (e.g. sanitizeScenes), and dispatching
+        // into LogsProvider during another component's render is illegal.
+        queueMicrotask(() => {
+          dispatch({ type: "LOG_SYSTEM", entry });
+          if (entry.narrativeId) {
+            const updated = [...systemLogsRef.current.filter((l) => l.id !== entry.id), entry];
+            const forNarrative = updated.filter((l) => l.narrativeId === entry.narrativeId);
+            saveSystemLogs(entry.narrativeId, forNarrative.slice(-MAX_LOG_ENTRIES));
+          } else if (entry.analysisId) {
+            const updated = [...systemLogsRef.current.filter((l) => l.id !== entry.id), entry];
+            const forAnalysis = updated.filter((l) => l.analysisId === entry.analysisId);
+            saveAnalysisSystemLogs(entry.analysisId, forAnalysis.slice(-MAX_LOG_ENTRIES));
+          }
+        });
       });
     });
   }, []);

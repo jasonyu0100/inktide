@@ -83,7 +83,7 @@ export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; desc
     name: 'Escalate',
     description: 'Rising deliveries — each scene raises the stakes',
     prompt: `Structure this arc so each scene raises the stakes higher than the last.
-- THREADS: Advance progressively — latent→seeded, seeded→active, active→escalating, escalating→critical. Each scene pushes at least one thread forward. Widen the circle of consequence across scenes.
+- THREADS: Each scene re-prices at least one focus-window market with meaningful evidence (|e| ≥ 2). Escalation logType dominates — stakes rise, margins widen, volatility ticks up. Widen the circle of consequence across scenes.
 - RELATIONSHIPS: Test alliances and loyalties — shifts of ±0.2 to ±0.3 as pressure mounts. Knowledge asymmetries deepen between characters.
 - WORLD: Reveal concepts that raise stakes — rules that constrain, systems that threaten, tensions with no easy resolution. 2+ nodes per scene connecting to existing graph.
 - Maintain POV streaks (2-4 scenes per perspective).`,
@@ -103,10 +103,10 @@ export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; desc
     description: 'Peak then fall — a single climactic moment',
     prompt: `Structure this arc around one explosive peak scene, bookended by build-up and aftermath.
 BUILD (early scenes):
-- Small thread advances (latent→seeded, seeded→active, pulses on active threads), characters noticing details (2-3 world deltas), 1-2 world concepts planted as seeds.
+- Small thread nudges (setup logType with |e|=1, pulses on existing focus markets), characters noticing details (2-3 world deltas), 1-2 world concepts planted as seeds.
 
 PEAK (one defining scene — load it with deltas):
-- THREADS reach critical/terminal phases. Multiple relationship shifts ±0.3-0.5. All participants learn critical information. World rules are TESTED — connections forged through action. This scene should be the densest in the arc.
+- THREADS hit payoff or twist with |e| ≥ 3 — one or two markets close, others saturate. Multiple relationship shifts ±0.3-0.5. All participants learn critical information. World rules are TESTED — connections forged through action. This scene should be the densest in the arc.
 
 AFTERMATH (final scenes):
 - Threads pulse at their new statuses. Characters process what happened — world deltas capturing realisations. Relationships settle into new equilibria with small shifts. The world's established concepts are reaffirmed. Every scene still needs deltas — just quieter ones.`,

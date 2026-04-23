@@ -608,7 +608,7 @@ Return JSON:
   "summary": "REQUIRED — WRITE THIS FIRST. This is the spine of the scene; every delta below must trace back to something stated here. Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings.",
   "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
   "events": ["event_tag"],
-  "threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names when this scene opens a possibility not previously in the market"], "rationale": "the summary sentence that moved this thread's market in this scene"}],
   "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "systemDeltas": {"addedNodes": [], "addedEdges": []},
@@ -668,7 +668,17 @@ async function mergeScenes(
   ].filter(Boolean).join('\n');
 
   const sourceBlock = sourcesToAbsorb
-    .map((s, i) => `SOURCE ${i + 1} (${s.id}):\n  Summary: ${s.summary}\n  Events: ${s.events.join(', ')}\n  Threads: ${s.threadDeltas.map((tm) => `${tm.threadId}: ${tm.from}→${tm.to}`).join(', ')}`)
+    .map((s, i) => {
+      const threads = s.threadDeltas
+        .map((tm) => {
+          const moves = (tm.updates ?? [])
+            .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+            .join(' ');
+          return `${tm.threadId} [${tm.logType}]${moves ? ' ' + moves : ''}`;
+        })
+        .join(', ');
+      return `SOURCE ${i + 1} (${s.id}):\n  Summary: ${s.summary}\n  Events: ${s.events.join(', ')}\n  Threads: ${threads}`;
+    })
     .join('\n\n');
 
   const prompt = `${ctx}
@@ -713,7 +723,7 @@ Return JSON:
   "summary": "REQUIRED — WRITE THIS FIRST. This is the spine of the merged scene; every delta below must trace back to something stated here. Rich prose sentences using character NAMES (never IDs) combining the strongest elements from all merged scenes.",
   "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
   "events": ["event_tag"],
-  "threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names when this scene opens a possibility not previously in the market"], "rationale": "the summary sentence that moved this thread's market in this scene"}],
   "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "systemDeltas": {"addedNodes": [], "addedEdges": []}
@@ -778,7 +788,7 @@ Return JSON:
   "summary": "REQUIRED — WRITE THIS FIRST. This is the spine of the scene; every delta below must trace back to something stated here. Rich prose sentences using character NAMES and location NAMES (never raw IDs). Include specifics and context that shapes prose. No emotions/realizations as endings.",
   "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
   "events": ["event_tag"],
-  "threadDeltas": [{"threadId": "T-XX", "from": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "to": "latent|seeded|active|escalating|critical|resolved|subverted|abandoned", "addedNodes": [{"id": "TK-NEW-001", "content": "thread-specific: what happened to THIS thread in THIS scene (NOT a scene summary)", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+  "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names when this scene opens a possibility not previously in the market"], "rationale": "the summary sentence that moved this thread's market in this scene"}],
   "worldDeltas": [{"entityId": "C-XX", "addedNodes": [{"id": "K-NEW-001", "content": "complete sentence: what they experienced or became", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
   "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
   "systemDeltas": {"addedNodes": [], "addedEdges": []},

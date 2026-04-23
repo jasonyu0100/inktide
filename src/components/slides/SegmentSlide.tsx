@@ -44,10 +44,10 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
   // Thread activity summary: count distinct threads touched, terminal transitions
   const threadsTouched = new Set<string>();
   let terminalCount = 0;
-  const terminalStatuses = new Set(['resolved', 'subverted', 'abandoned']);
+  const terminalLogTypes = new Set(['payoff', 'twist']);
   for (const tc of segment.threadChanges) {
     threadsTouched.add(tc.threadId);
-    if (terminalStatuses.has(tc.to.toLowerCase())) terminalCount++;
+    if (terminalLogTypes.has(tc.logType)) terminalCount++;
   }
 
   // Average force values for this segment
@@ -216,29 +216,31 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
             )}
           </div>
 
-          {/* Top thread transitions in this segment, resolved to descriptions */}
-          {segment.threadChanges.length > 0 && (
-            <div className="mt-3 space-y-1">
-              {segment.threadChanges
-                .filter((tc) => tc.from !== tc.to) // skip pulses for the overview
-                .slice(0, 4)
-                .map((tc, i) => {
+          {/* Top thread moves in this segment, resolved to descriptions */}
+          {segment.threadChanges.length > 0 && (() => {
+            const committal = segment.threadChanges.filter((tc) => tc.logType !== 'pulse' && tc.logType !== 'stall');
+            return (
+              <div className="mt-3 space-y-1">
+                {committal.slice(0, 4).map((tc, i) => {
                   const desc = data.threadDescriptions[tc.threadId];
                   const label = desc ? (desc.length > 45 ? desc.slice(0, 45) + '\u2026' : desc) : tc.threadId;
+                  const moves = (tc.updates ?? [])
+                    .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+                    .join(' ');
                   return (
                     <div key={i} className="flex items-center gap-1.5 text-[10px]">
                       <span className="text-text-secondary truncate flex-1" title={desc}>{label}</span>
-                      <span className="text-text-dim shrink-0">{tc.from}</span>
-                      <span className="text-amber-400/60 shrink-0">&rarr;</span>
-                      <span className="text-text-primary font-medium shrink-0">{tc.to}</span>
+                      <span className="text-text-dim shrink-0">[{tc.logType}]</span>
+                      <span className="text-text-primary font-medium shrink-0">{moves}</span>
                     </div>
                   );
                 })}
-              {segment.threadChanges.filter((tc) => tc.from !== tc.to).length > 4 && (
-                <span className="text-[9px] text-text-dim">+{segment.threadChanges.filter((tc) => tc.from !== tc.to).length - 4} more transitions</span>
-              )}
-            </div>
-          )}
+                {committal.length > 4 && (
+                  <span className="text-[9px] text-text-dim">+{committal.length - 4} more moves</span>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

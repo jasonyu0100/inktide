@@ -17,7 +17,7 @@ import type {
   NarrativeState,
   PropositionBaseCategory,
 } from "@/types/narrative";
-import { NARRATIVE_CUBE, THREAD_TERMINAL_STATUSES } from "@/types/narrative";
+import { NARRATIVE_CUBE } from "@/types/narrative";
 import * as d3 from "d3";
 import React, {
   useCallback,
@@ -42,15 +42,19 @@ const FORCE_LABELS: Record<string, string> = {
   system: "System",
   swing: "Swing",
 };
-const STATUS_COLORS: Record<string, string> = {
-  latent: "#475569",
-  seeded: "#FBBF24",
-  active: "#38BDF8",
-  escalating: "#FB923C",  // point of no return — fate committed
-  critical: "#F87171",
-  resolved: "#34D399",
-  subverted: "#C084FC",
-  abandoned: "#444444",
+// Colour per thread-log primitive — keyed to the event shape, not the old
+// lifecycle. Used in the report's per-thread mini-strip to tag the last
+// recorded event.
+const LOG_TYPE_COLORS: Record<string, string> = {
+  pulse:      "#64748B",  // slate — ambient maintenance
+  transition: "#38BDF8",  // sky — phase change
+  setup:      "#FBBF24",  // amber — planting
+  escalation: "#FB923C",  // orange — stakes rise
+  payoff:     "#10B981",  // emerald — decisive close
+  twist:      "#A78BFA",  // violet — reversal
+  callback:   "#2DD4BF",  // teal — attention returns
+  resistance: "#F87171",  // red — setback
+  stall:      "#475569",  // slate-dim — no movement
 };
 const CORNER_COLORS: Record<CubeCornerKey, string> = {
   HHH: "#f59e0b",
@@ -1099,15 +1103,17 @@ export function NarrativeReport({
   for (let i = 1; i < sequence.length; i++)
     if (sequence[i] === sequence[i - 1]) selfLoops++;
   const selfLoopRate = selfLoops / Math.max(sequence.length - 1, 1);
+  // Threads are "resolved" (in the report's surface-level sense) when the
+  // trajectory's last logType is a committal event. Everything else is
+  // still-in-motion attention.
+  const COMMITTAL_LOG_TYPES = new Set(["payoff", "twist"]);
   const activeThreads = data.threadLifecycles.filter((t) => {
     const last = t.statuses[t.statuses.length - 1];
-    return (
-      last && !["resolved", "subverted", "abandoned"].includes(last.status)
-    );
+    return last && !COMMITTAL_LOG_TYPES.has(last.status);
   }).length;
   const resolvedThreads = data.threadLifecycles.filter((t) => {
     const last = t.statuses[t.statuses.length - 1];
-    return last && ["resolved", "subverted", "abandoned"].includes(last.status);
+    return last && COMMITTAL_LOG_TYPES.has(last.status);
   }).length;
 
   let sec = 0;
@@ -1930,10 +1936,9 @@ export function NarrativeReport({
               <div className="mt-5 space-y-px rounded-lg overflow-hidden border border-white/[0.05]">
                 {data.threadLifecycles.slice(0, 12).map((tl, i) => {
                   const endStatus =
-                    tl.statuses[tl.statuses.length - 1]?.status ?? "latent";
-                  const isTerminal = (
-                    THREAD_TERMINAL_STATUSES as readonly string[]
-                  ).includes(endStatus);
+                    tl.statuses[tl.statuses.length - 1]?.status ?? "pulse";
+                  // Terminal events in the market model: payoff or twist.
+                  const isTerminal = endStatus === "payoff" || endStatus === "twist";
                   const firstScene = tl.statuses[0]?.sceneIdx ?? 0;
                   const lastScene =
                     tl.statuses[tl.statuses.length - 1]?.sceneIdx ?? 0;
@@ -1953,7 +1958,7 @@ export function NarrativeReport({
                       <span
                         className="text-[9px] px-1.5 py-0.5 rounded capitalize shrink-0 font-medium"
                         style={{
-                          color: STATUS_COLORS[endStatus] ?? "#475569",
+                          color: LOG_TYPE_COLORS[endStatus] ?? "#475569",
                           opacity: 0.7,
                         }}
                       >

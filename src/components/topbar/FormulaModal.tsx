@@ -43,11 +43,12 @@ function ForcesTab() {
         Three forces capture distinct dimensions of narrative intensity. All z-score normalized: <Tex>{'z_i = (x_i - \\mu) \\,/\\, \\sigma'}</Tex>
       </p>
 
-      <S title="Fate" analogy="How much narrative fate has been earned? Investment in entities pays off at resolution.">
-        <Block tex={String.raw`F = \sum_{t} \sqrt{\text{arcs}(t)} \times w(t) \times (1 + \ln(1 + I(t)))`} />
+      <S title="Fate" analogy="How much did this scene re-price high-attention threads? Information gain on committed markets.">
+        <Block tex={String.raw`F = \sum_{t} \log(1 + |e_t|_{\max}) \cdot (1 + \log(1 + \Delta v_t))`} />
         <p className="text-[10px] text-text-dim">
-          Lifecycle: latent→seeded→active→escalating→critical→resolved/subverted. Weights: pulse=0.25, seeded=0.5, active=1.0, escalating=1.5, critical=2.0, resolved=4.0.
-          Investment <Tex>{'I(t)'}</Tex> = participant continuity depth. Deeply-developed entities resolving threads earn more fate.
+          Threads are prediction markets over named outcomes. <Tex>{'|e_t|_{\\max}'}</Tex> = peak evidence magnitude emitted on thread{' '}
+          <Tex>{'t'}</Tex> in this scene (integer in [-4, +4]). <Tex>{'\\Delta v_t'}</Tex> = volume delta (attention change).{' '}
+          Log-compression prevents saturating events from drowning the rest of the portfolio. See the whitepaper&apos;s Fate Engine section for the full market dynamics (softmax pricing, volume decay, scaled closure, resolution quality).
         </p>
       </S>
 

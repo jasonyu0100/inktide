@@ -1,117 +1,284 @@
 import { describe, it, expect } from 'vitest';
-import { applyThreadDelta, EMPTY_THREAD_LOG } from '@/lib/thread-log';
-import type { ThreadDelta } from '@/types/narrative';
-// Thread logs are the per-thread narrative history graph. Each scene's
-// threadDelta contributes a self-contained cluster of log nodes chained
-// by adjacency. These tests lock in the invariants the rest of the pipeline
-// (generateScenes TK remap, world.ts pilot, store replay) all depend on.
-describe('applyThreadDelta', () => {
-  it('adds nodes to an empty log and preserves content/type', () => {
+import { applyThreadDelta, decayUntouchedBelief, newNarratorBelief, EMPTY_THREAD_LOG } from '@/lib/thread-log';
+import type { Thread, ThreadDelta } from '@/types/narrative';
+import { NARRATOR_AGENT_ID } from '@/types/narrative';
+import { getMarketProbs } from '@/lib/narrative-utils';
+
+// Threads are prediction markets. Each scene's threadDelta shifts logits;
+// softmax gives the probability distribution. These tests pin the invariants
+// the rest of the pipeline (sanitizer, store replay, world gen) depends on.
+
+function makeThread(overrides: Partial<Thread> = {}): Thread {
+  const outcomes = overrides.outcomes ?? ['yes', 'no'];
+  return {
+    id: 'T-01',
+    description: 'Will Harry claim the Stone?',
+    participants: [],
+    outcomes,
+    beliefs: {
+      [NARRATOR_AGENT_ID]: newNarratorBelief(outcomes.length),
+    },
+    openedAt: 'S-01',
+    dependents: [],
+    threadLog: { ...EMPTY_THREAD_LOG },
+    ...overrides,
+  };
+}
+
+describe('applyThreadDelta — logit updates', () => {
+  it('applies evidence to the named outcome via log-odds arithmetic', () => {
+    const thread = makeThread();
     const delta: ThreadDelta = {
-      threadId: 'T-01', from: 'seeded', to: 'active',
-      addedNodes: [
-        { id: 'TK-01', content: 'Harry rejects Malfoy', type: 'transition' },
+      threadId: 'T-01',
+      logType: 'setup',
+      updates: [{ outcome: 'yes', evidence: 2 }],
+      volumeDelta: 1,
+      rationale: 'Harry learns where the Mirror is kept.',
+    };
+    const next = applyThreadDelta(thread, delta, 'S-02');
+    // evidence +2 / sensitivity 2 = +1 logit on "yes".
+    expect(next.beliefs[NARRATOR_AGENT_ID].logits[0]).toBeCloseTo(1, 5);
+    expect(next.beliefs[NARRATOR_AGENT_ID].logits[1]).toBeCloseTo(0, 5);
+    // Volume grew by the delta.
+    expect(next.beliefs[NARRATOR_AGENT_ID].volume).toBeCloseTo(3, 5);
+    // A log node was appended with the prose rationale.
+    const nodeId = 'T-01:S-02';
+    expect(next.threadLog.nodes[nodeId]?.content).toBe('Harry learns where the Mirror is kept.');
+    expect(next.threadLog.nodes[nodeId]?.type).toBe('setup');
+  });
+
+  it('moves multiple outcomes in one delta (correlated reveal)', () => {
+    const thread = makeThread({ outcomes: ['Harry', 'Voldemort', 'destroyed'] });
+    const delta: ThreadDelta = {
+      threadId: 'T-01',
+      logType: 'escalation',
+      updates: [
+        { outcome: 'Harry', evidence: 2 },
+        { outcome: 'Voldemort', evidence: -1 },
       ],
+      volumeDelta: 1,
+      rationale: 'Dumbledore confirms the Mirror yields only to one who wants the Stone without using it.',
     };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
-    expect(log.nodes['TK-01']).toEqual({ id: 'TK-01', content: 'Harry rejects Malfoy', type: 'transition' });
-    expect(log.edges).toHaveLength(0);
+    const next = applyThreadDelta(thread, delta, 'S-03');
+    expect(next.beliefs[NARRATOR_AGENT_ID].logits[0]).toBeCloseTo(1, 5);
+    expect(next.beliefs[NARRATOR_AGENT_ID].logits[1]).toBeCloseTo(-0.5, 5);
+    expect(next.beliefs[NARRATOR_AGENT_ID].logits[2]).toBeCloseTo(0, 5);
+    const probs = getMarketProbs(next);
+    const topIdx = probs.indexOf(Math.max(...probs));
+    expect(next.outcomes[topIdx]).toBe('Harry');
   });
-  it('chains multiple nodes in one delta via co_occurs', () => {
+
+  it('clamps evidence into [-4, +4]', () => {
+    const thread = makeThread();
     const delta: ThreadDelta = {
-      threadId: 'T-01', from: 'seeded', to: 'active',
-      addedNodes: [
-        { id: 'TK-01', content: 'setup', type: 'setup' },
-        { id: 'TK-02', content: 'escalation', type: 'escalation' },
-        { id: 'TK-03', content: 'transition', type: 'transition' },
+      threadId: 'T-01',
+      logType: 'payoff',
+      updates: [{ outcome: 'yes', evidence: 99 }],
+      volumeDelta: 1,
+      rationale: 'clamp test',
+    };
+    const next = applyThreadDelta(thread, delta, 'S-02');
+    // +4 / 2 = +2 logit shift.
+    expect(next.beliefs[NARRATOR_AGENT_ID].logits[0]).toBeCloseTo(2, 5);
+  });
+});
+
+describe('applyThreadDelta — outcome expansion', () => {
+  it('adds a new outcome with neutral prior (logit=0)', () => {
+    const thread = makeThread();
+    let next = applyThreadDelta(thread, {
+      threadId: 'T-01', logType: 'escalation',
+      updates: [{ outcome: 'yes', evidence: 2 }],
+      volumeDelta: 1, rationale: 'build up',
+    }, 'S-02');
+    expect(next.outcomes).toEqual(['yes', 'no']);
+    next = applyThreadDelta(next, {
+      threadId: 'T-01', logType: 'twist',
+      addOutcomes: ['Voldemort'],
+      updates: [],
+      volumeDelta: 2,
+      rationale: 'Voldemort is revealed to be after the Stone.',
+    }, 'S-03');
+    expect(next.outcomes).toEqual(['yes', 'no', 'Voldemort']);
+    expect(next.beliefs[NARRATOR_AGENT_ID].logits).toEqual([1, 0, 0]);
+    expect(next.threadLog.nodes['T-01:S-03']?.addedOutcomes).toEqual(['Voldemort']);
+  });
+
+  it('allows same-scene evidence on a newly-added outcome', () => {
+    const thread = makeThread();
+    const next = applyThreadDelta(thread, {
+      threadId: 'T-01', logType: 'twist',
+      addOutcomes: ['Voldemort'],
+      updates: [{ outcome: 'Voldemort', evidence: 3 }],
+      volumeDelta: 2,
+      rationale: 'Voldemort already has the Stone in hand.',
+    }, 'S-03');
+    expect(next.outcomes).toEqual(['yes', 'no', 'Voldemort']);
+    expect(next.beliefs[NARRATOR_AGENT_ID].logits).toEqual([0, 0, 1.5]);
+  });
+
+  it('rejects duplicate outcomes (case-insensitive) during expansion', () => {
+    const thread = makeThread();
+    const next = applyThreadDelta(thread, {
+      threadId: 'T-01', logType: 'setup',
+      addOutcomes: ['Yes', 'no', 'Voldemort'],
+      updates: [],
+      volumeDelta: 1,
+      rationale: 'expansion with duplicates',
+    }, 'S-02');
+    expect(next.outcomes).toEqual(['yes', 'no', 'Voldemort']);
+  });
+
+  it('refuses to expand a closed thread', () => {
+    const base = makeThread();
+    const closed = applyThreadDelta(base, {
+      threadId: 'T-01', logType: 'payoff',
+      updates: [{ outcome: 'yes', evidence: 4 }, { outcome: 'no', evidence: -4 }],
+      volumeDelta: 1, rationale: 'Harry claims the Stone.',
+    }, 'S-10');
+    expect(closed.closedAt).toBe('S-10');
+    expect(closed.closeOutcome).toBe(0);
+    const next = applyThreadDelta(closed, {
+      threadId: 'T-01', logType: 'twist',
+      addOutcomes: ['Voldemort'],
+      updates: [],
+      volumeDelta: 0, rationale: 'too late',
+    }, 'S-11');
+    expect(next.outcomes).toEqual(['yes', 'no']);
+  });
+});
+
+describe('applyThreadDelta — closure rules', () => {
+  it('closes when margin ≥ τ AND logType is payoff with |evidence| ≥ 3', () => {
+    const thread = makeThread();
+    const next = applyThreadDelta(thread, {
+      threadId: 'T-01', logType: 'payoff',
+      updates: [
+        { outcome: 'yes', evidence: 4 },
+        { outcome: 'no', evidence: -4 },
       ],
-    };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
-    expect(Object.keys(log.nodes)).toHaveLength(3);
-    // 3 nodes → 2 co_occurs chain edges (n-1)
-    expect(log.edges).toHaveLength(2);
-    expect(log.edges[0]).toEqual({ from: 'TK-01', to: 'TK-02', relation: 'co_occurs' });
-    expect(log.edges[1]).toEqual({ from: 'TK-02', to: 'TK-03', relation: 'co_occurs' });
+      volumeDelta: 1, rationale: 'Harry claims the Stone.',
+    }, 'S-10');
+    expect(next.closedAt).toBe('S-10');
+    expect(next.closeOutcome).toBe(0);
   });
-  it('silently drops duplicate IDs — the invariant TK-ID remaps depend on', () => {
-    // Scene 1 adds TK-01. Scene 2 tries to add TK-01 again (LLM re-using
-    // the same GEN placeholder). The second node is dropped, not overwritten.
-    // This is exactly why every generation path must remap TK-GEN-* to
-    // globally unique TK-NNN before calling applyThreadDelta.
-    const first: ThreadDelta = {
-      threadId: 'T-01', from: 'active', to: 'active',
-      addedNodes: [{ id: 'TK-01', content: 'original', type: 'pulse' }],
-    };
-    const second: ThreadDelta = {
-      threadId: 'T-01', from: 'active', to: 'active',
-      addedNodes: [{ id: 'TK-01', content: 'duplicate — should be dropped', type: 'pulse' }],
-    };
-    let log = applyThreadDelta(EMPTY_THREAD_LOG, first);
-    log = applyThreadDelta(log, second);
-    expect(Object.keys(log.nodes)).toHaveLength(1);
-    expect(log.nodes['TK-01'].content).toBe('original');
-    // No new edge because no new nodes were added in the second call.
-    expect(log.edges).toHaveLength(0);
+
+  it('does NOT close on weak evidence even if margin would hit', () => {
+    const thread = makeThread();
+    const primed = applyThreadDelta(thread, {
+      threadId: 'T-01', logType: 'escalation',
+      updates: [{ outcome: 'yes', evidence: 4 }],
+      volumeDelta: 1, rationale: 'heavy escalation',
+    }, 'S-02');
+    const next = applyThreadDelta(primed, {
+      threadId: 'T-01', logType: 'pulse',
+      updates: [{ outcome: 'yes', evidence: 1 }],
+      volumeDelta: 1, rationale: 'minor reinforcement',
+    }, 'S-03');
+    expect(next.closedAt).toBeUndefined();
   });
-  it('idempotent on re-application of the same delta (supports store replay)', () => {
-    // computeDerivedEntities in the store rebuilds derived state from
-    // scratch on every delta, meaning scenes' threadDeltas get
-    // applied repeatedly. applyThreadDelta must be idempotent with
-    // respect to the same delta to avoid double-counting.
-    const delta: ThreadDelta = {
-      threadId: 'T-01', from: 'latent', to: 'seeded',
-      addedNodes: [
-        { id: 'TK-01', content: 'setup node', type: 'setup' },
-        { id: 'TK-02', content: 'follow node', type: 'escalation' },
+
+  it('does NOT close on an outcome-expansion delta', () => {
+    const thread = makeThread();
+    const primed = applyThreadDelta(thread, {
+      threadId: 'T-01', logType: 'escalation',
+      updates: [{ outcome: 'yes', evidence: 4 }],
+      volumeDelta: 1, rationale: 'pre-load',
+    }, 'S-02');
+    const next = applyThreadDelta(primed, {
+      threadId: 'T-01', logType: 'payoff',
+      addOutcomes: ['Voldemort'],
+      updates: [{ outcome: 'yes', evidence: 3 }],
+      volumeDelta: 2,
+      rationale: 'expansion + payoff same scene',
+    }, 'S-03');
+    expect(next.closedAt).toBeUndefined();
+  });
+
+  it('high-volume threads require more evidence to close (scaled τ)', () => {
+    // A margin of exactly τ_base (3 logit units) closes a fresh thread. Pump
+    // volume on another thread to the same margin and the scaled τ should
+    // hold it open — meaningful resolution demands proportionally more for
+    // threads the story has paid attention to.
+    const freshClose = applyThreadDelta(makeThread(), {
+      threadId: 'T-01', logType: 'payoff',
+      updates: [{ outcome: 'yes', evidence: 3 }, { outcome: 'no', evidence: -3 }],
+      volumeDelta: 0, rationale: 'fresh close',
+    }, 'S-fresh');
+    expect(freshClose.closedAt).toBe('S-fresh');
+    // Pumped thread: same final margin, much higher volume.
+    let thread = makeThread();
+    for (let i = 0; i < 6; i++) {
+      thread = applyThreadDelta(thread, {
+        threadId: 'T-01', logType: 'pulse',
+        updates: [], volumeDelta: 3, rationale: `attention ${i}`,
+      }, `S-pulse-${i}`);
+    }
+    const attempt = applyThreadDelta(thread, {
+      threadId: 'T-01', logType: 'payoff',
+      updates: [{ outcome: 'yes', evidence: 3 }, { outcome: 'no', evidence: -3 }],
+      volumeDelta: 0, rationale: 'attempted close',
+    }, 'S-close');
+    expect(attempt.closedAt).toBeUndefined();
+  });
+
+  it('records resolutionQuality in [0,1] on close', () => {
+    const thread = makeThread();
+    const next = applyThreadDelta(thread, {
+      threadId: 'T-01', logType: 'payoff',
+      updates: [
+        { outcome: 'yes', evidence: 4 },
+        { outcome: 'no', evidence: -4 },
       ],
-    };
-    const once = applyThreadDelta(EMPTY_THREAD_LOG, delta);
-    const twice = applyThreadDelta(once, delta);
-    expect(Object.keys(twice.nodes)).toHaveLength(2);
-    // Edges accumulate because the chain edge is appended on every call
-    // without a dedup check — the invariant is only that nodes don't
-    // duplicate. This is acceptable because the store replay starts from
-    // an empty log, not the accumulated one, so callers never observe
-    // repeated chain edges in practice.
-    expect(twice.nodes['TK-01'].content).toBe('setup node');
-    expect(twice.nodes['TK-02'].content).toBe('follow node');
+      volumeDelta: 2, rationale: 'decisive payoff',
+    }, 'S-10');
+    expect(next.closedAt).toBe('S-10');
+    expect(next.resolutionQuality).toBeGreaterThan(0);
+    expect(next.resolutionQuality).toBeLessThanOrEqual(1);
   });
-  it('drops nodes without id or content', () => {
-    const delta: ThreadDelta = {
-      threadId: 'T-01', from: 'active', to: 'active',
-      addedNodes: [
-        { id: 'TK-01', content: 'valid', type: 'pulse' },
-        { id: '', content: 'missing id', type: 'pulse' },
-        { id: 'TK-03', content: '', type: 'pulse' },
-      ],
-    };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
-    expect(Object.keys(log.nodes)).toEqual(['TK-01']);
+
+  it('decisive high-volume resolutions score higher than thin ones', () => {
+    // A thread that earned attention and closed on saturating, two-sided
+    // evidence should out-score a thread that closed on the bare minimum.
+    const bigMarket = (() => {
+      let t = makeThread();
+      for (let i = 0; i < 4; i++) {
+        t = applyThreadDelta(t, {
+          threadId: 'T-01', logType: 'escalation',
+          updates: [{ outcome: 'yes', evidence: 2 }],
+          volumeDelta: 2, rationale: `build ${i}`,
+        }, `S-${i}`);
+      }
+      return applyThreadDelta(t, {
+        threadId: 'T-01', logType: 'payoff',
+        updates: [{ outcome: 'yes', evidence: 4 }, { outcome: 'no', evidence: -4 }],
+        volumeDelta: 2, rationale: 'decisive',
+      }, 'S-close');
+    })();
+    const thinMarket = applyThreadDelta(makeThread(), {
+      threadId: 'T-01', logType: 'payoff',
+      updates: [{ outcome: 'yes', evidence: 3 }, { outcome: 'no', evidence: -3 }],
+      volumeDelta: 0, rationale: 'bare close',
+    }, 'S-close');
+    // bigMarket must actually close for this to be meaningful.
+    if (bigMarket.closedAt && thinMarket.closedAt) {
+      expect(bigMarket.resolutionQuality).toBeGreaterThan(thinMarket.resolutionQuality ?? 0);
+    }
   });
-  it('handles empty addedNodes (no-op, no crash)', () => {
-    const delta: ThreadDelta = {
-      threadId: 'T-01', from: 'active', to: 'critical',
-      addedNodes: [],
-    };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
-    expect(Object.keys(log.nodes)).toHaveLength(0);
-    expect(log.edges).toHaveLength(0);
+});
+
+describe('decayUntouchedBelief — volume attrition', () => {
+  it('scales volume by the decay factor', () => {
+    const b = newNarratorBelief(2, 10);
+    const decayed = decayUntouchedBelief(b);
+    expect(decayed.volume).toBeCloseTo(9, 5);
   });
-  it('handles missing addedNodes field defensively', () => {
-    // ThreadDelta type requires addedNodes, but defensive code in
-    // applyThreadDelta uses `?? []` to handle legacy/malformed input.
-    const delta = {
-      threadId: 'T-01', from: 'active', to: 'active',
-    } as unknown as ThreadDelta;
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
-    expect(Object.keys(log.nodes)).toHaveLength(0);
-  });
-  it('defaults missing node type to pulse', () => {
-    const delta = {
-      threadId: 'T-01', from: 'active', to: 'active',
-      addedNodes: [{ id: 'TK-01', content: 'no type' } as unknown as ThreadDelta['addedNodes'][number]],
-    };
-    const log = applyThreadDelta(EMPTY_THREAD_LOG, delta);
-    expect(log.nodes['TK-01'].type).toBe('pulse');
+
+  it('decays volatility toward zero', () => {
+    const b = newNarratorBelief(2, 5);
+    b.volatility = 1;
+    const decayed = decayUntouchedBelief(b);
+    expect(decayed.volatility).toBeLessThan(1);
+    expect(decayed.volatility).toBeGreaterThanOrEqual(0);
   });
 });

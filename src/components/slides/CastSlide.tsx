@@ -127,13 +127,15 @@ export function CastSlide({ data }: { data: SlidesData }) {
       <div className="mt-8">
         <h3 className="text-xs uppercase tracking-widest text-text-dim mb-3">Thread Portfolio</h3>
         {(() => {
+          // Committal logTypes close a thread in the market model.
+          const COMMITTAL = new Set(['payoff', 'twist']);
           const active = data.threadLifecycles.filter((t) => {
             const last = t.statuses[t.statuses.length - 1];
-            return last && !['resolved', 'subverted', 'abandoned'].includes(last.status);
+            return last && !COMMITTAL.has(last.status);
           }).length;
           const terminal = data.threadLifecycles.filter((t) => {
             const last = t.statuses[t.statuses.length - 1];
-            return last && ['resolved', 'subverted', 'abandoned'].includes(last.status);
+            return last && COMMITTAL.has(last.status);
           }).length;
           const total = data.threadCount;
           return (

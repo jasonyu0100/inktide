@@ -7,6 +7,7 @@ vi.mock('@/lib/text-analysis', () => ({
   reconcileResults: vi.fn(),
   analyzeThreading: vi.fn(),
   assembleNarrative: vi.fn(),
+  reextractFateWithLifecycle: vi.fn(async (results: AnalysisChunkResult[]) => results),
 }));
 vi.mock('@/lib/ai/scenes', () => ({
   reverseEngineerScenePlan: vi.fn(),
@@ -70,9 +71,9 @@ const mockStructureResult = {
   characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true, continuity: [] }],
   locations: [{ name: 'Castle', parentName: null, description: 'A grand castle', lore: [] }],
   artifacts: [],
-  threads: [{ description: 'Exploration', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
+  threads: [{ description: 'Exploration', participantNames: ['Alice'], outcomes: ["yes", "no"], development: 'Started' }],
   relationships: [],
-  threadDeltas: [{ threadDescription: 'Exploration', from: 'dormant', to: 'active', addedNodes: [] }],
+  threadDeltas: [{ threadDescription: 'Exploration', logType: 'setup', updates: [{ outcome: 'yes', evidence: 1 }], volumeDelta: 1, rationale: 'opened' }],
   worldDeltas: [],
   relationshipDeltas: [],
   artifactUsages: [],
@@ -369,8 +370,8 @@ describe('AnalysisRunner — Phase 5: Finalization', () => {
     vi.mocked(extractSceneStructure).mockResolvedValue({
       ...mockStructureResult,
       threads: [
-        { description: 'Quest A', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' },
-        { description: 'Quest B', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Also started' },
+        { description: 'Quest A', participantNames: ['Alice'], outcomes: ["yes", "no"], development: 'Started' },
+        { description: 'Quest B', participantNames: ['Alice'], outcomes: ["yes", "no"], development: 'Also started' },
       ],
     });
     const job = createMockJob();
@@ -384,7 +385,7 @@ describe('AnalysisRunner — Phase 5: Finalization', () => {
     // Only 1 unique thread across all results
     vi.mocked(extractSceneStructure).mockResolvedValue({
       ...mockStructureResult,
-      threads: [{ description: 'Only Thread', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
+      threads: [{ description: 'Only Thread', participantNames: ['Alice'], outcomes: ["yes", "no"], development: 'Started' }],
     });
     const job = createMockJob();
     await analysisRunner.start(job, () => {});
@@ -396,8 +397,8 @@ describe('AnalysisRunner — Phase 5: Finalization', () => {
     vi.mocked(extractSceneStructure).mockResolvedValue({
       ...mockStructureResult,
       threads: [
-        { description: 'A', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: '' },
-        { description: 'B', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: '' },
+        { description: 'A', participantNames: ['Alice'], outcomes: ["yes", "no"], development: '' },
+        { description: 'B', participantNames: ['Alice'], outcomes: ["yes", "no"], development: '' },
       ],
     });
     const job = createMockJob();
@@ -411,8 +412,8 @@ describe('AnalysisRunner — Phase 5: Finalization', () => {
     vi.mocked(extractSceneStructure).mockResolvedValue({
       ...mockStructureResult,
       threads: [
-        { description: 'Quest A', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: '' },
-        { description: 'Quest B', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: '' },
+        { description: 'Quest A', participantNames: ['Alice'], outcomes: ["yes", "no"], development: '' },
+        { description: 'Quest B', participantNames: ['Alice'], outcomes: ["yes", "no"], development: '' },
       ],
     });
     const job = createMockJob();
@@ -638,7 +639,7 @@ describe('AnalysisRunner — Edge Cases', () => {
       chapterSummary: 'Already analyzed',
       characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
       locations: [],
-      threads: [{ description: 'Thread', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Done' }],
+      threads: [{ description: 'Thread', participantNames: ['Alice'], outcomes: ["yes", "no"], development: 'Done' }],
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Done', sections: [], prose: 'Done prose',

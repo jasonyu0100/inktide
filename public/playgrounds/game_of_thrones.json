@@ -116,8 +116,10 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-02",
-          "from": "latent",
-          "to": "latent"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Robb and Jon spar in Winterfell's yard while Bran watches; lordship here is still a practice dance, not yet the crucible it will become."
         }
       ],
       "worldDeltas": [
@@ -262,8 +264,10 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-04",
-          "from": "latent",
-          "to": "latent"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Jon sits alone beneath the heart tree — chosen solitude, the permanent bastard's ritual for a family he is adjacent to but not inside."
         }
       ],
       "worldDeltas": [
@@ -437,8 +441,15 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-04",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "A Night's Watch deserter's talk of blue-eyed dead widens the world beyond Winterfell; Jon begins to imagine purpose somewhere further north."
         }
       ],
       "worldDeltas": [
@@ -617,8 +628,15 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-02",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Jon Arryn is dead and the king rides north; Ned reads the raven and knows the Hand's seat is already waiting on him."
         }
       ],
       "worldDeltas": [
@@ -691,8 +709,15 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-06",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Robert dismounts fat and red-faced at Winterfell's gate; the warrior of the Trident has been drowning in wine for fifteen years."
         }
       ],
       "worldDeltas": [
@@ -790,8 +815,10 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-06",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "At the welcome feast Robert drinks toward oblivion while retelling the Trident; Ned watches the ruin underneath and smiles less with every cup."
         }
       ],
       "worldDeltas": [
@@ -873,8 +900,10 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-02",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Robert kneels in the crypts before Lyanna's statue; Ned carries the old secret beside him and keeps it, as he has for fifteen years."
         }
       ],
       "worldDeltas": [
@@ -966,8 +995,10 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-04",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Catelyn seats Jon outside the feast; Benjen finds him in the cold and the Wall starts to take shape as a place he might belong."
         }
       ],
       "worldDeltas": [
@@ -1043,13 +1074,27 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-01",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Lysa's cipher reaches Catelyn — the Lannisters murdered Jon Arryn; the secret has started killing the people who come near it."
         },
         {
           "threadId": "T-GOT-05",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "If Lysa is right, Robert sits the throne beside murderers; the invitation to be Hand is no longer an honour but a summons into the game."
         }
       ],
       "worldDeltas": [
@@ -1137,13 +1182,17 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-02",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Bran lies broken at the foot of the tower; Ned's honour has a price he has not yet begun to count."
         },
         {
           "threadId": "T-GOT-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Bran's fall is the Lannister secret's first Stark casualty; someone pushed him because he saw what the queen wanted hidden."
         }
       ],
       "worldDeltas": [
@@ -1246,8 +1295,15 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-04",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "No direwolf pups, no Ghost — Jon rides home in grey light and asks his father the question Benjen will later answer about the Wall."
         }
       ],
       "worldDeltas": [
@@ -1351,8 +1407,15 @@
       "threadDeltas": [
         {
           "threadId": "T-GOT-02",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "In the godswood with Ice across his knees, Ned anticipates the raven and the king; the choice is already forming before it arrives."
         }
       ],
       "worldDeltas": [
@@ -2123,12 +2186,29 @@
               }
             ],
             "description": "The Lannister secret — Cersei's children are Jaime's, and the truth is a blade that kills everyone who touches it",
-            "status": "latent",
             "openedAt": "S-GOT-001",
             "dependents": [
               "T-GOT-02",
               "T-GOT-05"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-GOT-02",
@@ -2139,9 +2219,26 @@
               }
             ],
             "description": "Ned's honor versus survival — a good man in a place where goodness is a death sentence",
-            "status": "latent",
             "openedAt": "S-GOT-001",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-GOT-03",
@@ -2152,9 +2249,26 @@
               }
             ],
             "description": "Daenerys's transformation — from a frightened girl sold into marriage to a queen who walks through fire",
-            "status": "latent",
             "openedAt": "S-GOT-002",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-GOT-04",
@@ -2169,9 +2283,26 @@
               }
             ],
             "description": "Jon Snow's search for identity and belonging — a bastard seeking purpose at the edge of the world",
-            "status": "latent",
             "openedAt": "S-GOT-003",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-GOT-05",
@@ -2186,11 +2317,28 @@
               }
             ],
             "description": "The Game of Thrones — political maneuvering in King's Landing where every alliance is a dagger waiting to turn",
-            "status": "latent",
             "openedAt": "S-GOT-004",
             "dependents": [
               "T-GOT-01"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-GOT-06",
@@ -2201,11 +2349,28 @@
               }
             ],
             "description": "Robert's failing kingship — a warrior king drowning in wine, debt, and the weight of a crown he never wanted",
-            "status": "latent",
             "openedAt": "S-GOT-001",
             "dependents": [
               "T-GOT-05"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-GOT-07",
@@ -2216,12 +2381,29 @@
               }
             ],
             "description": "Littlefinger's machinations — the spider at the center of every web, spinning chaos into a ladder only he can climb",
-            "status": "latent",
             "openedAt": "S-GOT-006",
             "dependents": [
               "T-GOT-01",
               "T-GOT-05"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           }
         ],
         "relationshipDeltas": [

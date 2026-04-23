@@ -72,7 +72,10 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
 
     const threadMuts = scene.threadDeltas.map((tm) => {
       const desc = narrative.threads[tm.threadId]?.description ?? tm.threadId;
-      return `  ${desc.slice(0, 60)}: ${tm.from} → ${tm.to}`;
+      const moves = (tm.updates ?? [])
+        .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+        .join(' ');
+      return `  ${desc.slice(0, 60)}: [${tm.logType}] ${moves}`;
     });
 
     const relMuts = scene.relationshipDeltas.map((rm) => {
@@ -222,7 +225,10 @@ ${data.segments.map((seg, i) => {
     const keySceneBlock = seg.keyScenes.map((ks) => `  Scene ${ks.idx + 1} (D=${ks.delivery.toFixed(2)}): "${ks.summary}"`).join('\n');
     const threadBlock = seg.threadChanges.slice(0, 5).map((tc) => {
       const desc = narrative.threads[tc.threadId]?.description ?? tc.threadId;
-      return `  ${desc.slice(0, 50)}: ${tc.from}→${tc.to} (scene ${tc.sceneIdx + 1})`;
+      const moves = (tc.updates ?? [])
+        .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+        .join(' ');
+      return `  ${desc.slice(0, 50)}: [${tc.logType}] ${moves} (scene ${tc.sceneIdx + 1})`;
     }).join('\n');
     return `Segment ${i + 1} (scenes ${seg.startIdx + 1}–${seg.endIdx + 1}, ${seg.endIdx - seg.startIdx + 1} scenes):
   Dominant: ${seg.dominantForce} | Avg delivery: ${seg.avgDelivery.toFixed(2)} | Peaks: ${peaksInSeg.length} | Valleys: ${valleysInSeg.length}

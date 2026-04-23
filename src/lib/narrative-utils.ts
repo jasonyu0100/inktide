@@ -1,4 +1,17 @@
-import type { Branch, NarrativeState, Scene, Thread, ThreadStatus, ForceSnapshot, CubeCornerKey, CubeCorner, SystemGraph, SystemNode, SystemEdge, SystemDelta, WorldBuild, Character, Location, Artifact } from '@/types/narrative';
+import type { Branch, NarrativeState, Scene, Thread, Belief, OutcomeEvidence, ThreadDelta, ForceSnapshot, CubeCornerKey, CubeCorner, SystemGraph, SystemNode, SystemEdge, SystemDelta, WorldBuild, Character, Location, Artifact } from '@/types/narrative';
+import { NARRATOR_AGENT_ID } from '@/types/narrative';
+import {
+  MARKET_EVIDENCE_SENSITIVITY,
+  MARKET_EVIDENCE_MIN,
+  MARKET_EVIDENCE_MAX,
+  MARKET_TAU_CLOSE,
+  MARKET_NEAR_CLOSED_MIN,
+  MARKET_VOLUME_DECAY,
+  MARKET_ABANDON_VOLUME,
+  MARKET_VOLATILITY_BETA,
+  MARKET_RECENCY_DECAY,
+  MARKET_FOCUS_K,
+} from '@/lib/constants';
 import { NARRATIVE_CUBE } from '@/types/narrative';
 import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX } from '@/lib/constants';
 
@@ -410,32 +423,161 @@ function getResolvedPlanVersionAtTime(
   return undefined;
 }
 
-/**
- * Compute thread statuses at a given scene index by replaying threadDeltas.
- * Returns a map of threadId → current status.
- */
-export function computeThreadStatuses(
-  narrative: NarrativeState,
-  sceneIndex: number,
-  resolvedEntryKeys?: string[],
-): Record<string, ThreadStatus> {
-  // Start with the base statuses from thread definitions
-  const statuses: Record<string, ThreadStatus> = {};
-  for (const [id, thread] of Object.entries(narrative.threads)) {
-    statuses[id] = thread.status;
-  }
+// ── Prediction-Market Primitives ───────────────────────────────────────────
 
-  // Replay deltas up to and including the current scene (skip world builds)
-  const sceneKeys = resolvedEntryKeys ?? Object.keys(narrative.scenes);
-  for (let i = 0; i <= sceneIndex && i < sceneKeys.length; i++) {
-    const scene = narrative.scenes[sceneKeys[i]];
-    if (!scene) continue;
-    for (const tm of scene.threadDeltas) {
-      statuses[tm.threadId] = tm.to;
+/** Numerically stable softmax over logits. */
+export function softmax(logits: number[]): number[] {
+  if (logits.length === 0) return [];
+  const max = Math.max(...logits);
+  const exps = logits.map((l) => Math.exp(l - max));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return exps.map((e) => e / sum);
+}
+
+/** Shannon entropy (natural log) of a probability distribution. */
+export function entropy(probs: number[]): number {
+  let H = 0;
+  for (const p of probs) {
+    if (p > 0) H -= p * Math.log(p);
+  }
+  return H;
+}
+
+/** Uncertainty normalized to [0, 1]. Peaks at uniform distribution (1), zero
+ *  at saturation (one outcome has all mass). N=2 case equals 4·p·(1−p). */
+export function normalizedEntropy(probs: number[]): number {
+  if (probs.length < 2) return 0;
+  const maxH = Math.log(probs.length);
+  if (maxH === 0) return 0;
+  return entropy(probs) / maxH;
+}
+
+/** Clamp evidence to the allowed range. Evidence is a real number — decimal
+ *  values are legitimate and let the LLM express calibrated partial nudges
+ *  (e.g. +1.5 = meaningful shift, short of full setup; +2.8 = nearly an
+ *  escalation). We round to one decimal to keep the log compact and the
+ *  on-disk value predictable without losing calibration headroom. */
+export function clampEvidence(e: number): number {
+  if (!Number.isFinite(e)) return 0;
+  const clamped = Math.max(MARKET_EVIDENCE_MIN, Math.min(MARKET_EVIDENCE_MAX, e));
+  return Math.round(clamped * 10) / 10;
+}
+
+/** Apply evidence updates to a logit vector. Returns a new array. */
+export function updateLogits(
+  logits: number[],
+  outcomes: string[],
+  updates: OutcomeEvidence[],
+  sensitivity: number = MARKET_EVIDENCE_SENSITIVITY,
+): number[] {
+  const out = logits.slice();
+  for (const u of updates) {
+    const idx = outcomes.indexOf(u.outcome);
+    if (idx < 0) continue;
+    out[idx] += clampEvidence(u.evidence) / sensitivity;
+  }
+  return out;
+}
+
+/** The narrator's belief for a thread. Phase 1 uses this as the market price. */
+export function getMarketBelief(thread: Thread): Belief | undefined {
+  return thread.beliefs[NARRATOR_AGENT_ID];
+}
+
+/** Probability distribution over a thread's outcomes (narrator belief). */
+export function getMarketProbs(thread: Thread): number[] {
+  const belief = getMarketBelief(thread);
+  if (!belief) return new Array(thread.outcomes.length).fill(1 / thread.outcomes.length);
+  return softmax(belief.logits);
+}
+
+/** Top-outcome probability and its runner-up margin in log-odds units.
+ *  Margin above MARKET_TAU_CLOSE triggers closure. */
+export function getMarketMargin(thread: Thread): { topIdx: number; topLogit: number; secondLogit: number; margin: number } {
+  const belief = getMarketBelief(thread);
+  const logits = belief?.logits ?? new Array(thread.outcomes.length).fill(0);
+  let topIdx = 0, topLogit = -Infinity, secondLogit = -Infinity;
+  for (let i = 0; i < logits.length; i++) {
+    if (logits[i] > topLogit) {
+      secondLogit = topLogit;
+      topLogit = logits[i];
+      topIdx = i;
+    } else if (logits[i] > secondLogit) {
+      secondLogit = logits[i];
     }
   }
+  return { topIdx, topLogit, secondLogit, margin: topLogit - secondLogit };
+}
 
-  return statuses;
+/** Thread has committed to a winning outcome (closedAt set). */
+export function isThreadClosed(thread: Thread): boolean {
+  return thread.closedAt !== undefined && thread.closeOutcome !== undefined;
+}
+
+/** Thread is saturating — top-outcome margin in the near-closed band but not
+ *  yet committed by an explicit payoff/twist event. */
+export function isNearClosed(thread: Thread): boolean {
+  if (isThreadClosed(thread)) return false;
+  const { margin } = getMarketMargin(thread);
+  return margin >= MARKET_NEAR_CLOSED_MIN && margin < MARKET_TAU_CLOSE;
+}
+
+/** Thread's volume has decayed below the abandonment floor. Not the same as
+ *  closed — abandoned means "market lost interest" at any price. */
+export function isThreadAbandoned(thread: Thread): boolean {
+  if (isThreadClosed(thread)) return false;
+  const belief = getMarketBelief(thread);
+  return (belief?.volume ?? 0) < MARKET_ABANDON_VOLUME;
+}
+
+/** The number of scenes since this thread's belief was last updated.
+ *  Returns Infinity if the belief has never been touched. */
+export function scenesSinceTouched(
+  thread: Thread,
+  resolvedEntryKeys: string[],
+  currentSceneIndex: number,
+): number {
+  const belief = getMarketBelief(thread);
+  if (!belief?.lastTouchedScene) return Infinity;
+  const idx = resolvedEntryKeys.indexOf(belief.lastTouchedScene);
+  if (idx < 0) return Infinity;
+  return currentSceneIndex - idx;
+}
+
+/** Focus score — how much this thread should influence generation right now.
+ *
+ *   focus = volume × uncertainty × (1 + volatility) × recency_decay
+ *
+ * High when volume is strong, belief is contested, recent movement is high,
+ * and the thread was touched recently. Closed / abandoned threads score 0. */
+export function focusScore(
+  thread: Thread,
+  resolvedEntryKeys: string[],
+  currentSceneIndex: number,
+): number {
+  if (isThreadClosed(thread) || isThreadAbandoned(thread)) return 0;
+  const belief = getMarketBelief(thread);
+  if (!belief) return 0;
+  const probs = softmax(belief.logits);
+  const uncertainty = normalizedEntropy(probs);
+  const gap = scenesSinceTouched(thread, resolvedEntryKeys, currentSceneIndex);
+  const recency = Number.isFinite(gap) ? Math.pow(MARKET_RECENCY_DECAY, gap) : 0;
+  return belief.volume * uncertainty * (1 + belief.volatility) * recency;
+}
+
+/** Select the top-K threads by focus score. These are the threads the
+ *  generation pipeline sees as "in play" on a given scene. */
+export function selectFocusWindow(
+  narrative: NarrativeState,
+  resolvedEntryKeys: string[],
+  currentSceneIndex: number,
+  k: number = MARKET_FOCUS_K,
+): Thread[] {
+  const scored = Object.values(narrative.threads)
+    .map((t) => ({ t, s: focusScore(t, resolvedEntryKeys, currentSceneIndex) }))
+    .filter((x) => x.s > 0)
+    .sort((a, b) => b.s - a.s);
+  return scored.slice(0, k).map((x) => x.t);
 }
 
 /** Count distinct arcs where a thread received bandwidth (derived from scenes). */
@@ -449,124 +591,44 @@ export function computeActiveArcs(threadId: string, scenes: Record<string, Scene
   return arcIds.size;
 }
 
-// ── Stale Thread Detection ─────────────────────────────────────────────────
+// ── Abandonment detection ──────────────────────────────────────────────────
 
-/** Threshold: threads with no transition for this many scenes are stale. */
-export const STALE_THREAD_THRESHOLD = 5;
-
-/** Statuses that are below the fate commitment boundary (can be abandoned). */
-const ABANDONABLE_STATUSES = new Set(['latent', 'seeded', 'active']);
-
-/** Statuses at or above the fate commitment boundary (must resolve). */
-const COMMITTED_STATUSES = new Set(['escalating', 'critical']);
-
-export type StaleThread = {
+export type AbandonedThread = {
   threadId: string;
-  status: string;
-  scenesSinceTransition: number;
-  reason: 'no_transition' | 'high_pulse_ratio' | 'low_bandwidth';
+  volume: number;
+  scenesSinceTouched: number;
 };
 
-/**
- * Detect stale threads that should be abandoned.
- * Threads below 'escalating' that haven't transitioned in STALE_THREAD_THRESHOLD scenes
- * are candidates for cleanup.
- *
- * Returns threads sorted by staleness (most stale first).
- */
-export function detectStaleThreads(
+/** Threads whose volume has decayed below the abandonment floor and are not
+ *  yet closed. These are candidates for cleanup or explicit revival. */
+export function detectAbandonedThreads(
   narrative: NarrativeState,
   resolvedEntryKeys: string[],
   currentSceneIndex: number,
-): StaleThread[] {
-  const statuses = computeThreadStatuses(narrative, currentSceneIndex, resolvedEntryKeys);
-  const staleThreads: StaleThread[] = [];
-
-  // Track last transition scene for each thread
-  const lastTransition: Record<string, number> = {};
-  const deltaCounts: Record<string, { transitions: number; pulses: number }> = {};
-
-  for (let i = 0; i <= currentSceneIndex && i < resolvedEntryKeys.length; i++) {
-    const scene = narrative.scenes[resolvedEntryKeys[i]];
-    if (!scene) continue;
-
-    for (const tm of scene.threadDeltas) {
-      if (!deltaCounts[tm.threadId]) {
-        deltaCounts[tm.threadId] = { transitions: 0, pulses: 0 };
-      }
-      if (tm.from !== tm.to) {
-        lastTransition[tm.threadId] = i;
-        deltaCounts[tm.threadId].transitions++;
-      } else {
-        deltaCounts[tm.threadId].pulses++;
-      }
-    }
+): AbandonedThread[] {
+  const out: AbandonedThread[] = [];
+  for (const t of Object.values(narrative.threads)) {
+    if (!isThreadAbandoned(t)) continue;
+    const belief = getMarketBelief(t);
+    out.push({
+      threadId: t.id,
+      volume: belief?.volume ?? 0,
+      scenesSinceTouched: scenesSinceTouched(t, resolvedEntryKeys, currentSceneIndex),
+    });
   }
-
-  // Check each thread for staleness
-  for (const [threadId, status] of Object.entries(statuses)) {
-    // Only check abandonable threads
-    if (!ABANDONABLE_STATUSES.has(status)) continue;
-    // Skip terminal/abandoned
-    if (status === 'resolved' || status === 'subverted' || status === 'abandoned') continue;
-
-    const lastTrans = lastTransition[threadId] ?? -1;
-    const scenesSince = lastTrans >= 0 ? currentSceneIndex - lastTrans : currentSceneIndex + 1;
-    const counts = deltaCounts[threadId] ?? { transitions: 0, pulses: 0 };
-    const totalMuts = counts.transitions + counts.pulses;
-    const pulseRatio = totalMuts > 0 ? counts.pulses / totalMuts : 0;
-
-    // Stale if no transition in threshold scenes
-    if (scenesSince >= STALE_THREAD_THRESHOLD) {
-      staleThreads.push({
-        threadId,
-        status,
-        scenesSinceTransition: scenesSince,
-        reason: 'no_transition',
-      });
-    }
-    // Also flag high-pulse threads (spinning without progress)
-    else if (pulseRatio > 0.85 && totalMuts >= 4) {
-      staleThreads.push({
-        threadId,
-        status,
-        scenesSinceTransition: scenesSince,
-        reason: 'high_pulse_ratio',
-      });
-    }
-  }
-
-  // Sort by staleness (most stale first)
-  staleThreads.sort((a, b) => b.scenesSinceTransition - a.scenesSinceTransition);
-
-  return staleThreads;
+  out.sort((a, b) => b.scenesSinceTouched - a.scenesSinceTouched);
+  return out;
 }
 
-/**
- * Check if a thread can be abandoned (is below fate commitment boundary).
- * Returns false for escalating, critical, resolved, subverted threads.
- */
-export function canAbandonThread(status: string): boolean {
-  return ABANDONABLE_STATUSES.has(status);
-}
-
-/**
- * Check if a thread has committed fate (must resolve).
- */
-export function isFateCommitted(status: string): boolean {
-  return COMMITTED_STATUSES.has(status);
-}
-
-/** Classify a thread as storyline or incident based on lifecycle span.
- *  Storyline: activeArcs > 2, or has reached active/critical without resolving quickly.
- *  Incident: resolves within 1-2 arcs, or never progresses past seeded. */
+/** Classify a thread as storyline or incident based on log span and arc reach.
+ *  Storyline: spans multiple arcs or accumulates many events. Incident: closed
+ *  quickly or never accumulated events. */
 export function classifyThreadKind(thread: Thread, scenes: Record<string, Scene>): 'storyline' | 'incident' {
   const activeArcs = computeActiveArcs(thread.id, scenes);
+  const logSize = Object.keys(thread.threadLog?.nodes ?? {}).length;
   if (activeArcs > 2) return 'storyline';
-  if (Object.keys(thread.threadLog?.nodes ?? {}).length >= 4) return 'storyline';
-  const terminalSet = new Set(['resolved', 'subverted']);
-  if (terminalSet.has(thread.status) && activeArcs <= 2) return 'incident';
-  if ((thread.status === 'active' || thread.status === 'critical') && activeArcs > 1) return 'storyline';
+  if (logSize >= 4) return 'storyline';
+  if (isThreadClosed(thread) && activeArcs <= 2) return 'incident';
   return 'incident';
 }
 
@@ -675,7 +737,9 @@ export function zScoreNormalize(values: number[]): number[] {
 // Three forces measure distinct dimensions of narrative movement per scene.
 // Raw values are z-score normalized: z = (x - μ) / σ.
 //
-// F = Σ stageWeight(from, to)                (sum of thread transition weights)
+// F ≈ Σ_threads log(1 + peak_|evidence|) × (1 + log(1 + volumeDelta))
+//                                            (information-gain proxy per market:
+//                                             |ΔH(probs)| × volume_weight)
 // W = ΔN_c + √ΔE_c                           (entity continuity — mirrors S for inner worlds)
 // S = ΔN + √ΔE                               (new world-knowledge nodes + sqrt edges)
 //
@@ -692,89 +756,35 @@ export type EntityContext = {
   threads: Record<string, Thread>;
 };
 
-/** Stage weight for thread lifecycle transitions.
- *
- *  Pulses scale by lifecycle stage — maintaining a critical thread is more
- *  significant than holding a latent one.
- *
- *  Forward transitions earn the weight of their DESTINATION stage, so a
- *  single-scene jump that genuinely crosses multiple phases (e.g. a scene
- *  that both surfaces and commits a thread, latent→escalating) earns the
- *  full 2.0 — not zero for falling through a table gap. This invariant
- *  also keeps every forward transition strictly above the pulse at its
- *  source stage (forward weight = target-stage weight ≥ 2× source pulse),
- *  so advancement always out-earns holding.
- *
- *  Abandoned earns 0 — it's cleanup, moving threads to the done pile
- *  without contributing to fate.
- *  Backward transitions and unrecognized statuses earn 0. */
-function getStageWeight(from: string, to: string): number {
-  if (to === 'abandoned') return 0;  // cleanup, not resolution — no fate
-
-  // Pulses scale by lifecycle stage — sustaining tension at higher stages matters more
-  if (from === to) {
-    const PULSE_WEIGHTS: Record<string, number> = {
-      'latent': 0.25,
-      'seeded': 0.5,
-      'active': 1.0,
-      'escalating': 1.5,
-      'critical': 2.0,
-    };
-    return PULSE_WEIGHTS[from] ?? 0.25;
-  }
-
-  // Forward transitions cover every legal stage-crossing path. Weight is
-  // determined by the destination stage — a multi-stage jump earns the
-  // same as a single-step arrival at the same stage.
-  const key = `${from}->${to}`;
-  const WEIGHTS: Record<string, number> = {
-    // → seeded
-    'latent->seeded': 1.0,
-    // → active
-    'latent->active': 1.5,
-    'seeded->active': 1.5,
-    // → escalating — point of no return; thread now committed
-    'latent->escalating': 2.0,
-    'seeded->escalating': 2.0,
-    'active->escalating': 2.0,
-    // → critical — peak tension approaches
-    'latent->critical': 3.0,
-    'seeded->critical': 3.0,
-    'active->critical': 3.0,
-    'escalating->critical': 3.0,
-    // → resolved / subverted — payoff. Worth 5.0 (vs critical at 3.0) so the
-    // denouement pops clearly above the escalating buildup (+67%, not +33%).
-    // Subverted matches resolved: fate defied terminates the thread just as
-    // decisively as fate fulfilled.
-    'latent->resolved': 5.0,
-    'seeded->resolved': 5.0,
-    'active->resolved': 5.0,
-    'escalating->resolved': 5.0,
-    'critical->resolved': 5.0,
-    'latent->subverted': 5.0,
-    'seeded->subverted': 5.0,
-    'active->subverted': 5.0,
-    'escalating->subverted': 5.0,
-    'critical->subverted': 5.0,
-  };
-  return WEIGHTS[key] ?? 0;
-}
-
 /**
- * Compute raw fate score for a scene.
+ * Compute raw fate score for a scene — information-gain formulation.
  *
- * F = Σ stageWeight(from, to)
+ *   F = Σ_threads volume_weight × |H(p_old) − H(p_new)|
  *
- * Pulses earn a small weight scaled by lifecycle stage (0.25–2.0);
- * forward transitions earn the weight of their destination stage (1.0–4.0).
- * Abandonment and backward moves score 0.
+ * where p is the softmax over that thread's logits (narrator belief) and
+ * volume_weight is a log-compressed narrative-attention scalar. A proxy
+ * approximation used here — the raw evidence magnitude per scene — is
+ * accurate to leading order and avoids requiring per-scene trajectory replay:
+ *
+ *   F ≈ Σ_threads log(1 + peak_|evidence|) × (1 + log(1 + volumeDelta))
+ *
+ * - peak_|evidence|: maximum |evidence| across the scene's updates for the thread
+ * - volumeDelta: attention change from this delta (≥0 typically)
+ *
+ * Payoffs with evidence +4 saturate to ~log(5)=1.6; twists score similarly;
+ * setups at +1 score log(2)=0.69; stalls (evidence 0) score 0.
  */
 function computeRawFate(scene: Scene): number {
   let score = 0;
   for (const tm of scene.threadDeltas) {
-    const from = tm.from.toLowerCase();
-    const to = tm.to.toLowerCase();
-    score += getStageWeight(from, to);
+    const peakEvidence = Math.max(
+      0,
+      ...((tm.updates ?? []).map((u) => Math.abs(u.evidence))),
+    );
+    if (peakEvidence === 0 && (tm.volumeDelta ?? 0) === 0) continue;
+    const evidenceTerm = Math.log(1 + peakEvidence);
+    const volumeTerm = 1 + Math.log(1 + Math.max(0, tm.volumeDelta ?? 0));
+    score += evidenceTerm * volumeTerm;
   }
   return score;
 }

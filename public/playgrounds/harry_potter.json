@@ -134,13 +134,27 @@
       "threadDeltas": [
         {
           "threadId": "T-HP-02",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Hagrid's three words — 'Yer a wizard, Harry' — shatter the Dursleys' decade-long cover story and name him the Boy Who Lived."
         },
         {
           "threadId": "T-HP-06",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Vernon's retreat to a storm-battered rock fails; Hagrid breaks the door and ends ten years of muggle smothering in a single night."
         }
       ],
       "worldDeltas": [],
@@ -442,8 +456,15 @@
       "threadDeltas": [
         {
           "threadId": "T-HP-07",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Draco's outstretched hand is refused in front of Ron; the house rivalry opens before Harry has even attended a single class."
         }
       ],
       "worldDeltas": [
@@ -605,8 +626,15 @@
       "threadDeltas": [
         {
           "threadId": "T-HP-03",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Snape's first-class humiliation reads as pure hatred — yet something under the contempt resists the easy reading of his allegiance."
         }
       ],
       "worldDeltas": [
@@ -761,8 +789,15 @@
       "threadDeltas": [
         {
           "threadId": "T-HP-01",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Fluffy guards a trapdoor on the third floor; Hermione names what the others missed, and the hidden Stone becomes a mystery they cannot unsee."
         }
       ],
       "worldDeltas": [
@@ -960,8 +995,15 @@
       "threadDeltas": [
         {
           "threadId": "T-HP-04",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Harry and Ron knock out a mountain troll to save Hermione; her lie to McGonagall seals the three of them into one loyalty."
         }
       ],
       "worldDeltas": [
@@ -1049,8 +1091,10 @@
       "threadDeltas": [
         {
           "threadId": "T-HP-07",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "The Hat calls SLYTHERIN and Harry crosses to the green table; the rivalry inverts as Draco welcomes him and Ron watches a friend drown."
         }
       ],
       "worldDeltas": [
@@ -1137,8 +1181,15 @@
       "threadDeltas": [
         {
           "threadId": "T-HP-03",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Harry in Slytherin robes cracks Snape's ritual cruelty; the hatred has nowhere to land, and the loyalty question reopens from a new angle."
         }
       ],
       "worldDeltas": [
@@ -1211,8 +1262,15 @@
       "threadDeltas": [
         {
           "threadId": "T-HP-04",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "A Slytherin breaks ranks to save a muggle-born Gryffindor; Hermione lies for him in the corridor and the unlikely trio forms across house lines."
         }
       ],
       "worldDeltas": [
@@ -1293,8 +1351,15 @@
       "threadDeltas": [
         {
           "threadId": "T-HP-01",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Draco leads the tour to Fluffy with Lucius-informed certainty; the Stone becomes Slytherin intelligence rather than Gryffindor discovery."
         }
       ],
       "worldDeltas": [
@@ -2114,12 +2179,29 @@
               }
             ],
             "description": "The Philosopher's Stone — who is trying to steal it, what it creates, and why someone would kill for immortality",
-            "status": "latent",
             "openedAt": "S-HP-001",
             "dependents": [
               "T-HP-05",
               "T-HP-03"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-HP-02",
@@ -2134,11 +2216,28 @@
               }
             ],
             "description": "Harry's identity — the Boy Who Lived discovering that he is famous, magical, and marked by a destiny he never chose",
-            "status": "latent",
             "openedAt": "S-HP-001",
             "dependents": [
               "T-HP-06"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-HP-03",
@@ -2149,9 +2248,26 @@
               }
             ],
             "description": "Snape's ambiguous loyalty — the man who seems to hate Harry, appears to threaten Quirrell, and whose true allegiance lies buried beneath layers of cruelty",
-            "status": "latent",
             "openedAt": "S-HP-006",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-HP-04",
@@ -2170,9 +2286,26 @@
               }
             ],
             "description": "The trio's friendship — three misfits forging a bond under pressure that will define the shape of the war to come",
-            "status": "latent",
             "openedAt": "S-HP-004",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-HP-05",
@@ -2183,9 +2316,26 @@
               }
             ],
             "description": "Voldemort's return — the shadow behind Quirrell's turban, drinking unicorn blood in the forest, clawing back toward life one desperate act at a time",
-            "status": "latent",
             "openedAt": "S-HP-011",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-HP-06",
@@ -2200,9 +2350,26 @@
               }
             ],
             "description": "Harry versus the Dursleys — the muggle world that tried to crush the magic out of him, and the reckoning when it failed",
-            "status": "latent",
             "openedAt": "S-HP-001",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-HP-07",
@@ -2217,9 +2384,26 @@
               }
             ],
             "description": "Draco and the house rivalry — blood purity against chosen loyalty, Slytherin ambition against Gryffindor courage, a schoolboy feud that mirrors the larger war",
-            "status": "latent",
             "openedAt": "S-HP-005",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           }
         ],
         "relationshipDeltas": [

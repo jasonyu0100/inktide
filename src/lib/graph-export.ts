@@ -14,7 +14,8 @@
  */
 
 import { getRelationshipsAtScene } from "@/lib/scene-filter";
-import { getEffectivePovId } from "@/lib/narrative-utils";
+import { getEffectivePovId, getMarketProbs, isThreadAbandoned, isThreadClosed } from "@/lib/narrative-utils";
+import { NARRATOR_AGENT_ID } from "@/types/narrative";
 import type {
   Artifact,
   Character,
@@ -273,7 +274,10 @@ function exportSceneThreads(ctx: GraphExportContext): string {
   for (const td of scene.threadDeltas) {
     const thread = narrative.threads[td.threadId];
     const desc = thread?.description ?? td.threadId;
-    lines.push(`- **${desc}** — ${td.from} → ${td.to}`);
+    const moves = (td.updates ?? [])
+      .map((u) => `${u.outcome} ${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+      .join(", ");
+    lines.push(`- **${desc}** — [${td.logType}] ${moves || "(no updates)"}`);
   }
 
   return lines.join("\n");
@@ -289,17 +293,17 @@ function exportFullThreads(narrative: NarrativeState): string {
     return lines.join("\n");
   }
 
-  const active = threads.filter((t) => t.status !== "resolved" && t.status !== "subverted" && t.status !== "abandoned");
+  const active = threads.filter((t) => !isThreadClosed(t) && !isThreadAbandoned(t));
   const closed = threads.filter((t) => !active.includes(t));
 
   if (active.length > 0) {
     lines.push("", `## Active threads (${active.length})`);
-    for (const t of sortBy(active, (t) => statusRank(t.status))) {
+    for (const t of sortBy(active, (t) => -1 * (t.beliefs?.[NARRATOR_AGENT_ID]?.volume ?? 0))) {
       lines.push(threadLine(t));
     }
   }
   if (closed.length > 0) {
-    lines.push("", `## Resolved / subverted / abandoned (${closed.length})`);
+    lines.push("", `## Closed / abandoned (${closed.length})`);
     for (const t of closed) lines.push(threadLine(t));
   }
 
@@ -307,7 +311,16 @@ function exportFullThreads(narrative: NarrativeState): string {
 }
 
 function threadLine(t: Thread): string {
-  return `- **[${t.status}]** ${t.description}${t.id ? ` · \`${t.id}\`` : ""}`;
+  const state = isThreadClosed(t)
+    ? `closed → ${t.outcomes[t.closeOutcome ?? 0] ?? "?"}`
+    : isThreadAbandoned(t)
+      ? "abandoned"
+      : (() => {
+          const probs = getMarketProbs(t);
+          const topIdx = probs.indexOf(Math.max(...probs));
+          return `top=${t.outcomes[topIdx]} (${(probs[topIdx] ?? 0).toFixed(2)})`;
+        })();
+  return `- **[${state}]** ${t.description}${t.id ? ` · \`${t.id}\`` : ""}`;
 }
 
 function exportEntityInner(narrative: NarrativeState, entityId: string): string {
@@ -395,8 +408,4 @@ function prominenceRank(p: Location["prominence"]): number {
 function significanceRank(s: Artifact["significance"]): number {
   return s === "key" ? 0 : s === "notable" ? 1 : 2;
 }
-function statusRank(s: Thread["status"]): number {
-  const order = ["critical", "escalating", "active", "seeded", "latent"];
-  const idx = order.indexOf(s);
-  return idx < 0 ? 99 : idx;
-}
+// statusRank retired — market threads rank by volume / volatility instead.

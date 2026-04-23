@@ -25,7 +25,8 @@ import { REASONING_BUDGETS, resolveEntry } from "@/types/narrative";
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from "./api";
 import { narrativeContext, getStateAtIndex } from "./context";
 import { parseJson } from "./json";
-import { buildCumulativeSystemGraph, resolveEntityName } from "@/lib/narrative-utils";
+import { buildCumulativeSystemGraph, getMarketProbs, isThreadAbandoned, isThreadClosed, resolveEntityName, scenesSinceTouched } from "@/lib/narrative-utils";
+import { classifyThreadCategory, computeRecentLogitEnergy, THREAD_CATEGORY_GUIDANCE, formatThreadGuidance } from "@/lib/thread-category";
 import { applyDerivedForceModes } from "@/lib/auto-engine";
 import { logError } from "@/lib/system-logger";
 import { aggregateNetworkGraph, summarizeNetworkState } from "@/lib/network-graph";
@@ -111,6 +112,39 @@ function findLastArcGraph(
   return null;
 }
 
+/**
+ * Render the active-thread pick-list with a per-thread INFLUENCE tag derived
+ * from its market state. The reasoner is meant to treat threads as pressure
+ * on the graph, not as mandatory anchors — a committed market pulls the
+ * reasoning toward its leading outcome; a contested market leaves reasoning
+ * genuinely open; a fading market invites deprecation. This is the same
+ * prior-as-bias pattern `buildThreadHealthPrompt` surfaces to scene
+ * generation, scaled to arc planning so both layers share one mental model.
+ */
+function renderActiveThreadsWithInfluence(
+  narrative: NarrativeState,
+  resolvedKeys?: string[],
+  currentIndex?: number,
+): string {
+  return Object.values(narrative.threads)
+    .filter((t) => !isThreadClosed(t) && !isThreadAbandoned(t))
+    .map((t) => {
+      const probs = getMarketProbs(t);
+      const top = probs.indexOf(Math.max(...probs));
+      const topProb = probs[top] ?? 0;
+      const belief = t.beliefs?.narrator;
+      const vol = belief?.volume ?? 0;
+      const silent = resolvedKeys && currentIndex !== undefined
+        ? scenesSinceTouched(t, resolvedKeys, currentIndex)
+        : undefined;
+      const category = classifyThreadCategory(t, silent !== undefined ? { scenesSinceTouch: silent } : undefined);
+      const energy = computeRecentLogitEnergy(t);
+      const signal = formatThreadGuidance(THREAD_CATEGORY_GUIDANCE[category], t.outcomes[top] ?? '?', topProb);
+      return `- [${t.id}] "${t.description}" · ${signal} · vol=${vol.toFixed(1)} · energy=${energy.toFixed(2)}`;
+    })
+    .join("\n");
+}
+
 export async function generateReasoningGraph(
   narrative: NarrativeState,
   resolvedKeys: string[],
@@ -133,12 +167,7 @@ export async function generateReasoningGraph(
   const network = aggregateNetworkGraph(narrative, resolvedKeys, currentIndex);
   // Get active threads — annotations live on the <thread> tags in
   // narrativeContext above; this section is just a quick pick-list.
-  const activeThreads = Object.values(narrative.threads)
-    .filter((t) =>
-      ["seeded", "active", "escalating", "critical"].includes(t.status),
-    )
-    .map((t) => `- [${t.id}] ${t.description} (${t.status})`)
-    .join("\n");
+  const activeThreads = renderActiveThreadsWithInfluence(narrative, resolvedKeys, currentIndex);
 
   // Get key characters
   const characters = Object.values(narrative.characters)
@@ -201,11 +230,11 @@ Summary: ${lastArcGraph.graph.summary}
 ${buildSequentialPath({ nodes: lastArcGraph.graph.nodes, edges: lastArcGraph.graph.edges })}
 
 Diverge concretely:
-- The ARC RESOLVES / RESISTS / PLANTS commitments must differ in KIND, not just content. If the prior resolved via acquisition, yours must close via reversal, revelation, alliance, or subversion. A new content slot in the same commitment shape is re-description, not advancement.
+- Any fate commitments this arc lands must differ in KIND from the prior arc's, not just content. If the prior resolved via acquisition, yours closes via reversal, revelation, alliance, or subversion. A new content slot in the same commitment shape is re-description, not advancement.
 - The reasoning chain must use different inference modes. If the prior leaned on constraint-propagation or sequential dependency, yours should introduce abduction, inversion, analogy, or a branching decision.
 - Warning nodes (required per REQUIREMENTS below) must name specific shapes from the prior graph — cite node labels or indices above — so the repetition is made explicit and the new graph visibly routes around it.
 
-If your commitments, reasoning chain, and terminal map onto the spine above with only content swaps, you have re-described the prior arc rather than advanced the story.`
+If your reasoning chain and terminal map onto the spine above with only content swaps, you have re-described the prior arc rather than advanced the story.`
     : "";
 
   const prompt = `${ctx}
@@ -258,23 +287,19 @@ ${direction}` : ''}
 ═══════════════════════════════════════════════════════════════════════════════
 ` : `Direction: ${direction}`}
 
-Threads are FATE. The graph aims to drive active threads toward RESOLUTION or explicit CARRY-FORWARD within this arc — but only what this arc can plausibly deliver. A thread genuinely unreachable from the arc's current position stays active with no closure node; that is honest, not negligent. Fate doesn't always pull in the expected direction: it can demand, resist, or resolve, and resistance often precedes resolution.
+FATE THREADS ARE INFLUENCE, NOT ANCHORS. The active-thread list above carries a signal per thread — LEANS / ACTIVE / CONTESTED / VOLATILE / FADING — derived from its current market state. Treat these like you treat characters, locations, and system rules: as the force field in which the reasoning happens. A LEANS thread exerts strong pull — the reasoning should bend toward its leading outcome unless you're staging a twist. A CONTESTED thread leaves genuine room; the reasoning is free to add uncertainty (ending the arc with the market MORE contested than it started is legitimate, sometimes necessary). A VOLATILE thread is where twists land well. A FADING thread is on its way out — don't force evidence on it unless you're deliberately resurrecting.
+
+MARKETS SWING — PROBABILITY LEADERSHIP IS NOT DESTINY. A LEANS signal says "the current observer thinks outcome X is most likely given evidence so far" — it does NOT say "the arc must deliver X." System rules and world state are fully allowed to overturn a lean when the reasoning logically points elsewhere. If the arc's reasoning chain credibly forces a force-of-system event (a hidden rule surfaces, a constraint reveals the plan is impossible, an entity's true state undoes the assumption) or a force-of-world event (a character's change of allegiance, a rival's capability coming online, an alliance fracturing), the arc should deliver that event and the resulting thread moves can flip a p=0.75 leader to the lagging outcome. Stage these as twist nodes, not as resistance nibbling. A good arc sometimes earns its power precisely by showing the market was wrong — world and system are not just texture, they are forces that can logically overturn fate's pull.
 
 Every node EARNS its existence by doing distinct work. A node whose subject (actor × action × target) matches another node is the same node with more edges, not a second node. Minor-variation repetition is a pulse on the existing step, not a new step.
 
-Novelty is the story's forward motion. Resolved threads mostly stay resolved — don't keep re-opening a closed question. Prefer NEW threads of fate over recycling finished ones. Prefer NEW chains of reasoning over extending existing ones into minor variation. Sameness is the enemy; variety is how the reader feels the story moving.
+Novelty is the story's forward motion. Resolved threads mostly stay resolved — don't keep re-opening a closed question. Prefer NEW chains of reasoning over extending existing ones into minor variation. Sameness is the enemy; variety is how the reader feels the story moving.
 
-Resolution is the reader's dopamine. Delivery is what they FEEL when tension closes. A graph that accumulates pressure without release is anxious, not engaging — plan the closures first, and let demand and resistance serve them. Reasoning-pattern repetition — the same inference shape iterated with different objects — reads as OCD, not escalation; each reasoning step should think a genuinely different thought.
+THE THREE FORCES AGGREGATE HERE. The reasoning graph is where fate, world, and system converge. Fate markets exert pressure (via the signals above); world entities bring agency (characters pursuing their own goals, locations enabling or constraining, artifacts shaping action); system rules impose constraints. Good reasoning arises from the interaction of all three, not from one dominating. A graph that only chases fate resolution is a plot outline; a graph that only develops world is a character sketch; a graph that only elaborates system is a rulebook. Aggregation is the craft.
+
+Resolution is the reader's dopamine when it arrives, but resolution is a CONSEQUENCE of reasoning, not a prerequisite. Let fate commitments emerge from what the reasoning can credibly serve. If a LEANS thread has the volume + margin + scene count to close cleanly in this arc, the reasoning should land it. If it doesn't, don't force a closure — the market will carry the thread forward and next arc's reasoning will pick it up. Forcing closure the arc can't earn is worse than leaving the thread pulsing. This is the feedback loop: reasoning shapes scenes, scenes re-price the markets, the next arc's reasoning sees the new state. The system converges when the writing is honest about what each arc can deliver.
 
 ${priorGraphSection}
-
-ARC COMMITMENT FIRST. Before any causal reasoning, declare this arc's contract with the reader as the first fate nodes in the graph. Each is a normal fate node whose label begins with one of three markers, placed at the earliest indices (0-2):
-
-- \`ARC RESOLVES: <threadId> — <how it closes here>\` (e.g. "ARC RESOLVES: T-02 — Fang Yuan secures a covert Liquor Worm supply")
-- \`ARC RESISTS: <concrete setback where the protagonist genuinely loses ground>\` (cost is not resistance; a plan fails, a resource is lost, a witness surfaces)
-- \`ARC PLANTS: <newThreadId> — <the new question>\` (optional; omit only if the arc genuinely plants nothing)
-
-Every later fate node and every reasoning chain must trace back to one of these commitments via causal edges. A fate node at a later index with no edge path back to a commitment is an untethered pulse — route it or cut it. Commitments are the arc's declared payoff; resolves + resists together deliver the dopamine of tension-release-with-cost, and plants prepare the next arc's payoff. Do not write commitments you cannot serve — if RESISTS cannot be filled with a concrete setback, either find one or tell the truth that this arc has no resistance.
 ${forcePreferenceBlock("arc", options?.forcePreference)}
 ${reasoningModeBlock(options?.reasoningMode)}
 ${networkBiasBlock(options?.networkBias ?? narrative.storySettings?.defaultNetworkBias)}
@@ -295,39 +320,41 @@ TWO ORDERINGS — distinct concepts:
 
 • \`index\` = presentation / causal order (topological). Roots (no causal predecessors) get low indices; the terminal gets the highest. Downstream consumers sort and step through by \`index\`.
 
-In forward mode the two align. In backward mode they diverge — the example below is backward (abduction): commitments at \`order: 0-2\` (thought first) but \`index: 4-6\` (causal terminal).
+In forward mode the two align. In backward mode they diverge — the example below is backward (abduction): terminal outcomes at \`order: 0-2\` (thought first) but \`index: 4-6\` (causal terminal). Fate nodes appear where the reasoning credibly lands them, not as mandatory opening anchors; this arc's fate signal said T-01 LEANS "sanctuary" at p=0.78, so the reasoning lands that commitment rather than fighting it.
 
 {
   "summary": "1-2 sentence high-level summary of the arc's reasoning",
   "plannedNodeCount": 7,  // <-- commit first; sets terminal's max index to N-1 (6). Locked once nodes begin.
   "nodes": [
-    // ── Backward mode: payoff FIRST (order 0-2, index 4-6 at the terminal). ──
+    // ── Backward mode: terminal first (order 0-2, index 4-6 at the terminal). ──
+    // Fate nodes here are what the reasoning CONCLUDES, not what it was forced to serve.
 
-    // order: 0 · index: 4 — the arc's declared payoff (thought of first).
+    // order: 0 · index: 4 — fate node: what the reasoning lands. The LEANS signal
+    // on T-01 made sanctuary the plausible resolution; the reasoning arrived here.
     {
-      "id": "fate-arc-resolves-sanctuary",
+      "id": "fate-sanctuary-secured",
       "index": 4,
       "type": "fate",
-      "label": "ARC RESOLVES: T-01 — alliance secures sanctuary through shared cause",
-      "detail": "Thread T-01 closes here: the protagonist trades the weakness they know for refuge, binding the faction to their survival.",
+      "label": "Alliance secures sanctuary through shared cause",
+      "detail": "Thread T-01's market leaned 'sanctuary' (p=0.78); the reasoning delivers it here. Closure plausible given accumulated volume and this arc's scene count.",
       "threadId": "T-01"
     },
-    // order: 1 · index: 5 — the cost of the resolution.
+    // order: 1 · index: 5 — reasoning: the cost that falls out of the path taken.
+    // Emerges from how the resolution was earned; not a mandated resistance node.
     {
-      "id": "fate-arc-resists-witness",
+      "id": "reason-witness-exposure",
       "index": 5,
-      "type": "fate",
-      "label": "ARC RESISTS: the negotiation exposes the protagonist to a hostile witness",
-      "detail": "The protagonist loses concealment — a genuine setback, not a cost to absorb.",
-      "threadId": "T-01"
+      "type": "reasoning",
+      "label": "Negotiation exposes the protagonist to a hostile witness",
+      "detail": "The path to sanctuary required revealing knowledge; the witness sees it. A genuine setback that the reasoning generated, not a slot it filled."
     },
-    // order: 2 · index: 6 — the true terminal. What the setback seeds.
+    // order: 2 · index: 6 — fate node: a new thread emerges from the cost.
     {
-      "id": "fate-arc-plants-witness-debt",
+      "id": "fate-witness-leverage",
       "index": 6,
       "type": "fate",
-      "label": "ARC PLANTS: T-NEW — the witness now holds leverage the protagonist must address",
-      "detail": "A new thread for the next arc: the witness's choice of when to speak.",
+      "label": "Witness now holds leverage over the protagonist",
+      "detail": "A new market opens: will the witness speak? Seeded at uniform prior; later arcs re-price it.",
       "threadId": "T-NEW"
     },
     // ── Derive backward: what reasoning achieves the resolution? ──
@@ -338,7 +365,7 @@ In forward mode the two align. In backward mode they diverge — the example bel
       "index": 3,
       "type": "reasoning",
       "label": "Sanctuary requires alliance with rival faction",
-      "detail": "Backward reasoning from thread requirement"
+      "detail": "Backward reasoning from the LEANS signal on T-01"
     },
     // ── Ground in entity facts (roots; thought of last in backward mode). ──
 
@@ -374,24 +401,24 @@ In forward mode the two align. In backward mode they diverge — the example bel
     // For \`requires\`: from-node depends on to-node; to-node has LOWER index (prerequisite).
     // For \`causes\` / \`enables\` / \`constrains\`: from-node precedes to-node; from-node has LOWER index.
 
-    // Commitment depends on the reasoning chain.
-    {"id": "e1", "from": "fate-arc-resolves-sanctuary", "to": "reason-sanctuary-needs-alliance", "type": "requires"},
+    // Fate node depends on the reasoning that arrives at it.
+    {"id": "e1", "from": "fate-sanctuary-secured", "to": "reason-sanctuary-needs-alliance", "type": "requires"},
     // Reasoning depends on the character fact.
     {"id": "e2", "from": "reason-sanctuary-needs-alliance", "to": "char-fang-yuan-knows-weakness", "type": "requires"},
     // Rule shapes the character's action.
     {"id": "e3", "from": "sys-clan-hierarchy-forbids", "to": "char-fang-yuan-knows-weakness", "type": "constrains"},
     // Outside force enables the reasoning.
     {"id": "e4", "from": "chaos-exile-seeks-asylum", "to": "reason-sanctuary-needs-alliance", "type": "enables"},
-    // The reasoning CAUSES the setback — the resist is a consequence of the path taken.
-    {"id": "e5", "from": "reason-sanctuary-needs-alliance", "to": "fate-arc-resists-witness", "type": "causes"},
-    // The setback SEEDS the new thread — plant flows from resist.
-    {"id": "e6", "from": "fate-arc-resists-witness", "to": "fate-arc-plants-witness-debt", "type": "causes"}
+    // The reasoning CAUSES the setback — the cost falls out of the path taken.
+    {"id": "e5", "from": "reason-sanctuary-needs-alliance", "to": "reason-witness-exposure", "type": "causes"},
+    // The setback SEEDS a new market. Fate node emerges from reasoning, not mandated.
+    {"id": "e6", "from": "reason-witness-exposure", "to": "fate-witness-leverage", "type": "causes"}
   ]
 }
 
 ## NODE TYPES
 
-- **fate**: A thread exerting force on this arc's trajectory. Every fate node is one of four shapes — a DEMAND (thread pulls the protagonist toward advance), a RESISTANCE (thread pushes back; the protagonist genuinely loses ground — cost is not resistance), a RESOLUTION (thread closes within this arc — payoff, subversion, or twist), or a CARRY (thread is explicitly deferred to a later arc with a named reason). Use threadId. Label = what the thread demands, resists, lands on, or carries. A graph of demand-only fate is flat; resistance and resolution are not ornaments — they're what makes the graph drive somewhere.
+- **fate**: A thread that the reasoning graph actively couples to. Fate nodes are NOT mandatory anchors — they appear when the reasoning genuinely engages a thread (landing its outcome, pushing it toward a resolution, or seeding a new market). A fate node labelled around a closure indicates this arc's reasoning delivers that thread's payoff. A fate node mid-graph indicates the thread pulls on the causal chain here. A fate node on a newly-seeded thread marks a market the reasoning has opened. Use threadId. Label = what the thread does in this arc. Threads with a strong LEANS signal often earn a fate node landing their outcome; CONTESTED threads may earn a fate node that deliberately refuses to resolve; FADING threads usually earn no fate node at all.
 - **character**: An active agent with their OWN goals — not just a reactive foil to the protagonist. Use entityId to reference actual character. Label = their position/goal. **Cast distribution matters**: a graph where every character node is the protagonist is a failure of agency. Include secondary characters as drivers — a rival plotting, an ally hedging, a mentor withholding — each with their own causal chain that interacts with the main arc rather than merely reacting to it. The arc's causal web should have at least 2–3 distinct characters acting as agents, not as scenery.
 - **location**: A setting. Use entityId to reference actual location. Label = what it enables/constrains.
 - **artifact**: An object. Use entityId to reference actual artifact. Label = its role in reasoning.
@@ -414,10 +441,10 @@ In forward mode the two align. In backward mode they diverge — the example bel
 
 ## REQUIREMENTS
 
-1. **Backward reasoning**: Start from FATE (what threads need) and derive what must happen. The graph flows from thread requirements → reasoning → entities that fulfill them.
+1. **Start where pressure is strongest**: in backward modes (abduction/induction), start from the arc's natural terminal — where fate LEANS strong, where world change needs to land, or where system revelation pays off — and reason backward to the entity facts that enable it. The terminal can be a fate node, a reasoning node, or a character-transformation node; whichever force the arc most honestly serves. Fate is one input to the graph, not the only input.
 2. **Causal complexity**: The arc is a causal reasoning diagram — capture the REAL complexity of how it unfolds. Threads pull on multiple things, entities influence multiple moments, rules constrain several choices. When you add a node, show all the places it matters.
-3. **Fate throughout**: Fate nodes can appear ANYWHERE — they influence events at any point. A fate node can connect to characters, locations, reasoning, even other fate nodes. Fate is the gravitational force pulling the narrative.
-4. **Unexpected directions**: Fate doesn't always pull toward obvious resolution. Include fate nodes that demand twists, resistance, or subversion. A thread at "escalating" might need a setback before payoff.
+3. **Aggregate the three forces**: the graph's coherence comes from fate, world, and system interacting, not from one dominating. Fate markets set pressure (via the per-thread INFLUENCE signals); world entities bring agency; system rules impose constraints. Good reasoning is the product of their interaction. A graph that only pursues fate is a plot sketch; one that only develops world is a character study; one that only elaborates system is a rulebook. Let the three forces argue with each other in the causal chain.
+4. **Unexpected directions**: reasoning doesn't always serve the market's expectation. A LEANS thread can be subverted if the scene count and evidence warrant a twist; a CONTESTED thread can be deliberately left more uncertain than it started. When reasoning genuinely diverges from the market's prior, the next scene's evidence will re-price accordingly — that is the feedback loop doing its job.
 5. **Sequential indexing (topological)**: \`index\` is a causal topological order — 0 is the root (no predecessors), each later index's predecessors have lower indices, the terminal sits at the highest. Walking ascending indices should feel like one coherent sweep, not subgraph jumps. \`order\` is auto-captured from array position and may differ from \`index\` in backward modes — that's the point. Emit \`plannedNodeCount\` before the nodes array to commit to a count.
 6. **Entity references**: character / location / artifact nodes MUST use entityId with an actual ID from AVAILABLE ENTITIES. Hallucinated IDs (e.g. C-99 when no such character exists) are stripped at parse time and the node loses its anchor.
 7. **Thread references**: fate nodes MUST use threadId to reference which thread exerts the pull. The threadId must match an existing thread in AVAILABLE ENTITIES → Active Threads.
@@ -430,17 +457,17 @@ In forward mode the two align. In backward mode they diverge — the example bel
 13. **Non-deterministic**: Each reasoning path should contain at least one SURPRISE — something that doesn't follow obviously from context
 14. **Warning/pattern response (CRITICAL)**: warnings and patterns must structurally change the graph, not sit as ornaments. A warning's repetition-risk is routed around (chaos, subverted reasoning, different fate direction); a pattern's proposed shape appears in actual nodes. Wire warning/pattern nodes to the body via edges — orphaned ones are dead weight; cut or connect.
 15. **Cast distribution (CRITICAL)**: character nodes reference ≥2 distinct entityIds (≥3 if the arc touches 3+ named characters). Every named character has at least one OUTGOING edge — characters acted upon without agency are absorbed into reasoning nodes, not rendered as scenery. Rivals/allies/mentors need independent goals visible in the causal chain.
-16. **Thread resolution**: aim to close or explicitly carry forward each ACTIVE thread within the arc's plausible reach. Threads too far from the arc's current position can remain active without a closure node — forcing a closure the arc can't credibly deliver is worse than leaving the thread pulsing. Concentrate the closures you DO commit to near the terminal. Spawned threads obey the same rule — close them or carry them cleanly when plausible.
-17. **Fate must resist and resolve — resolution is the reader's dopamine**: delivery is what the reader FEELS when tension closes. A graph of demand-only fate accumulates pressure without release — anxiety, not story. Engaged reading requires closures landing. Aim for ≥1 RESOLVING fate per 2-3 demanding ones, and ≥1 genuine RESISTING node per arc (protagonist loses ground — cost is not resistance). Closed threads feel earned; threads left pulsing feel dropped. Plan the resolutions first; let demand and resistance serve them.
+16. **Thread closure is earned, not mandated**: a thread closes when the market says it can — strong LEANS signal, sufficient volume, scene count enough to land decisive evidence. Threads with those conditions SHOULD receive a fate node that lands the closure; the reasoning then works backward to supply it. Threads without those conditions stay open — forcing a closure the arc can't credibly deliver is worse than leaving the thread pulsing. The feedback loop runs both ways: reasoning may land a closure the prior didn't expect (twist), or deliberately refuse a closure the prior wanted (uncertainty maintained). Honesty about what each arc can earn is how the system converges over many arcs.
+17. **Delivery when it lands, not mandated**: closures when they arrive are the reader's dopamine — the feeling of tension resolving. But a graph isn't failing if no thread closes this arc: some arcs are CONTESTED-heavy, re-pricing markets without landing any of them, and that's a legitimate shape (a mid-story crossroads, a pivot arc). Aim for closures where the market justifies them; don't invent them where the market doesn't.
 18. **No subject or reasoning-pattern repetition**: two nodes with the same actor + action + target are one node with more edges — merge. Two reasoning nodes with the same SHAPE applied to different objects — "X exploits chaos to acquire Y" iterated for three different Y's, or "character leverages Z" repeated three times with different Zs — are one pattern rehearsed. Reasoning-pattern repetition reads as OCD: the graph thinks one thought over and over, not many different thoughts. Each reasoning node should bring a genuinely different mode of inference — deduction, abduction, analogy, inversion, constraint propagation. If you catch yourself rephrasing the same template, change shape or merge.
-19. **Terminal commits**: the last-indexed node closes a thread, pays off a setup, or hard-pivots to the next arc. Never a resting state.
+19. **Terminal commits to something**: the last-indexed node must advance the state — closing a thread, landing a character transformation, revealing a system truth, or hard-pivoting to the next arc. Never a resting state. Which of those it is depends on what the arc honestly served.
 20. **Novelty over recycling**: resolved threads mostly stay resolved — recycling is the exception, not the default. Prefer new threads of fate and new chains of reasoning over extending what already exists. Variety is the story's forward motion; sameness is stall.
 
 ## SHAPE OF A GOOD ARC GRAPH
 
 An arc reasoning graph is a causal diagram, not a chain of justifications. A good graph captures how the arc actually works: key characters connect to several reasoning nodes, rules constrain multiple choices, the arc's climax is the convergence of several setups rather than the end of a single line. When you finish, scan the graph — if it reads like a vertical list, the story's complexity is being under-represented.
 
-The graph should reveal the strategic logic: what threads demand, and how events must unfold to serve fate.
+The graph should reveal the strategic logic of the three forces interacting: how the current market priors bias the reasoning, how character agency and system constraints shape the path the reasoning takes, and what closures or new markets emerge from that interaction. Fate is one voice in the argument, not the conductor.
 
 Return ONLY the JSON object.`;
 
@@ -560,7 +587,7 @@ export async function generateExpansionReasoningGraph(
   resolvedKeys: string[],
   currentIndex: number,
   directive: string,
-  size: "small" | "medium" | "large" | "exact",
+  size: "small" | "medium" | "large" | "exact" | "health",
   strategy: "depth" | "breadth" | "dynamic",
   onReasoning?: (token: string) => void,
   /** Force preference + reasoning size (graph density). */
@@ -576,12 +603,7 @@ export async function generateExpansionReasoningGraph(
 
   // Annotations live on the entity tags inside narrativeContext above; the
   // listings below are quick pick-lists of IDs only.
-  const activeThreads = Object.values(narrative.threads)
-    .filter((t) =>
-      ["seeded", "active", "escalating", "critical"].includes(t.status),
-    )
-    .map((t) => `- [${t.id}] ${t.description} (${t.status})`)
-    .join("\n");
+  const activeThreads = renderActiveThreadsWithInfluence(narrative, resolvedKeys, currentIndex);
 
   const characters = Object.values(narrative.characters)
     .map((c) => {
@@ -663,6 +685,7 @@ ${recentWorldBuilds.map((wb: WorldBuild) => {
     medium: "10-15 entities",
     large: "20-35 entities",
     exact: "as specified in directive",
+    health: "diagnostic-driven maintenance top-up",
   }[size];
 
   // Scale node count based on expansion size AND the reasoning slider
@@ -675,6 +698,7 @@ ${recentWorldBuilds.map((wb: WorldBuild) => {
     medium: `${scaleRange(8, 15)} nodes for comprehensive reasoning`,
     large: `${scaleRange(15, 25)} nodes for complex multi-faceted reasoning`,
     exact: `${scaleRange(6, 12)} nodes scaled to directive scope`,
+    health: `${scaleRange(4, 8)} nodes — minimum viable reasoning for a maintenance top-up`,
   }[size];
 
   const prompt = `${ctx}
@@ -953,11 +977,13 @@ export const VALID_COORDINATION_NODE_TYPES = new Set<CoordinationNodeType>([
   "moment",     // Key beat in the plan that isn't a peak or valley
 ]);
 
-/** Thread target with status and optional timing */
+/** Thread target expressed as a market intent + optional outcome. */
 export type ThreadTarget = {
   threadId: string;
-  /** Target status the thread should reach */
-  targetStatus: "resolved" | "subverted" | "critical" | "escalating" | "active" | "unanswered";
+  /** What the plan wants this thread's market to do. */
+  marketIntent: "advance" | "escalate" | "close" | "twist" | "maintain" | "abandon";
+  /** For advance/close/twist: which outcome label. */
+  marketOutcome?: string;
   /** When in the plan this should happen */
   timing?: "early" | "mid" | "late" | "final";
 };
@@ -1014,7 +1040,7 @@ export async function generateCoordinationPlan(
   // Analyze current thread states
   const threads = Object.values(narrative.threads);
   const threadSummary = threads
-    .filter((t) => !["resolved", "subverted", "abandoned"].includes(t.status))
+    .filter((t) => !isThreadClosed(t) && !isThreadAbandoned(t))
     .map((t) => {
       const participantNames = t.participants.map(p => {
         if (p.type === "character") return narrative.characters[p.id]?.name ?? p.id;
@@ -1026,7 +1052,10 @@ export async function generateCoordinationPlan(
       const logNodes = Object.values(t.threadLog?.nodes ?? {});
       const recentLog = logNodes.slice(-3).map(n => n.content).join(" → ");
       const momentum = recentLog ? ` | momentum: ${recentLog}` : "";
-      return `- [${t.id}] "${t.description}" — status: ${t.status}, participants: ${participantNames}${momentum}`;
+      const probs = getMarketProbs(t);
+      const topIdx = probs.indexOf(Math.max(...probs));
+      const marketSummary = `top=${t.outcomes[topIdx]} (${(probs[topIdx] ?? 0).toFixed(2)})`;
+      return `- [${t.id}] "${t.description}" — ${marketSummary}, participants: ${participantNames}${momentum}`;
     })
     .join("\n");
 
@@ -1149,13 +1178,14 @@ export async function generateCoordinationPlan(
           : t.timing === "late" ? " [late — near end]"
           : t.timing === "final" ? " [final arc]"
           : "";
-        return `- [${t.threadId}] ${desc} → ${t.targetStatus.toUpperCase()}${timingLabel}`;
+        const intentLabel = t.marketIntent.toUpperCase() + (t.marketOutcome ? ` → ${t.marketOutcome}` : "");
+        return `- [${t.threadId}] ${desc} → ${intentLabel}${timingLabel}`;
       }).join("\n")}`
     : "";
 
   // Arc target — exact number of arcs to plan (default 5)
   const arcTarget = guidance.arcTarget ?? 5;
-  const activeThreadCount = threads.filter(t => !["resolved", "subverted", "abandoned"].includes(t.status)).length;
+  const activeThreadCount = threads.filter(t => !isThreadClosed(t) && !isThreadAbandoned(t)).length;
   const nodeGuidance = getPlanNodeGuidance(
     arcTarget,
     activeThreadCount,
@@ -1527,7 +1557,8 @@ Return ONLY the JSON object.`;
         entityId: typeof n.entityId === "string" ? n.entityId : undefined,
         threadId: typeof n.threadId === "string" ? n.threadId : undefined,
         systemNodeId: typeof n.systemNodeId === "string" ? n.systemNodeId : undefined,
-        targetStatus: typeof n.targetStatus === "string" ? n.targetStatus : undefined,
+        marketIntent: typeof n.marketIntent === "string" ? n.marketIntent : undefined,
+        marketOutcome: typeof n.marketOutcome === "string" ? n.marketOutcome : undefined,
         arcIndex: typeof n.arcIndex === "number" ? n.arcIndex : undefined,
         sceneCount: typeof n.sceneCount === "number" ? n.sceneCount : undefined,
         forceMode: typeof n.forceMode === "string" ? n.forceMode : undefined,

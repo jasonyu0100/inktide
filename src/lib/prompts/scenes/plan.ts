@@ -144,11 +144,11 @@ FICTION (mythic / oral-epic):
 • {"content": "Anansi is both smaller and larger than he appears", "type": "figurative_rule"}
 
 NON-FICTION (exhaustive example):
-• {"content": "F = activeArcs^α × stageWeight", "type": "formula"}
-• {"content": "F represents Fate — the force of threads pulling world and system toward resolution", "type": "definition"}
+• {"content": "F = Σ log(1 + |e|_max) × (1 + log(1 + Δv))", "type": "formula"}
+• {"content": "F represents Fate — information gain from scenes re-pricing thread prediction markets", "type": "definition"}
 • {"content": "W = ΔN_c + √ΔE_c — entity transformation (what we learn about characters, locations, artifacts)", "type": "definition"}
 • {"content": "S = ΔN + √ΔE — world deepening (rules, structures, concepts)", "type": "definition"}
-• {"content": "Thread lifecycle: latent→seeded→active→escalating→critical→resolved/subverted. Escalating = point of no return. Abandoned earns 0.", "type": "definition"}
+• {"content": "Threads are prediction markets over named outcomes; softmax over logits prices the narrator's belief. Markets close on committal evidence with a volume-scaled margin threshold.", "type": "definition"}
 • {"content": "Published works score 85-95", "type": "evidence"}
 
 INVALID: craft goals, pacing instructions, meta-commentary.

@@ -202,6 +202,17 @@ export function IconNetwork({ size, ...rest }: P) {
   );
 }
 
+export function IconMarket({ size, ...rest }: P) {
+  // Rising step-chart glyph — reads as "prediction market / probability
+  // over time" in the spirit of Polymarket-style dashboards.
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M3 20h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+      <path d="M3 16v-4h4v-3h4v6h4v-4h4v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
 export function IconWaveform({ size, ...rest }: P) {
   return (
     <svg {...defaults(size)} {...rest}>

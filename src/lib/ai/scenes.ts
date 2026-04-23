@@ -1,6 +1,8 @@
-import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode, Artifact, Character, Location as LocationEntity, LocationProminence } from '@/types/narrative';
-import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, THREAD_ACTIVE_STATUSES, THREAD_TERMINAL_STATUSES } from '@/types/narrative';
+import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode, Thread, Artifact, Character, Location as LocationEntity, LocationProminence } from '@/types/narrative';
+import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATOR_AGENT_ID } from '@/types/narrative';
+import { isThreadAbandoned, isThreadClosed, clampEvidence } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
+import { newNarratorBelief } from '@/lib/thread-log';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
 import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
@@ -260,7 +262,11 @@ ${worldBuildFocus ? (() => {
   const locs = wb.expansionManifest.newLocations.map((l) => l.name);
   const threads = wb.expansionManifest.newThreads.map((t) => {
     const live = narrative.threads[t.id];
-    return `${t.description} [${live?.status ?? t.status}]`;
+    const status = live
+      ? (isThreadClosed(live) ? 'closed' : isThreadAbandoned(live) ? 'abandoned' : 'open')
+      : 'open';
+    const outcomes = (live?.outcomes ?? t.outcomes ?? []).join(' | ');
+    return `${t.description} [${status}] outcomes: ${outcomes}`;
   });
   const lines: string[] = [`WORLD BUILD FOCUS (${wb.id} — "${wb.summary}"): The entities below were recently introduced and have not yet had a presence in the story. This arc should bring them in — use these characters in scenes, set at least one scene in these locations, and begin seeding these latent threads:`];
   if (chars.length) lines.push(`  Characters: ${chars.join(', ')}`);
@@ -297,7 +303,7 @@ The summary is your DELTA BUDGET — richer summary supports richer extraction. 
       "artifactUsages": [{"artifactId": "A-XX", "characterId": "C-XX", "usage": "what the artifact did"}],
       "characterMovements": {"C-XX": {"locationId": "L-YY", "transition": "how they travelled"}},
       "events": ["event_tag_1", "event_tag_2"],
-      "threadDeltas": [{"threadId": "T-XX", "from": "<status>", "to": "<status>", "addedNodes": [{"id": "TK-GEN-001", "content": "what happened to THIS thread", "type": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall"}]}],
+      "threadDeltas": [{"threadId": "T-XX", "logType": "pulse|transition|setup|escalation|payoff|twist|callback|resistance|stall", "updates": [{"outcome": "outcome name from thread.outcomes", "evidence": -4..+4 (decimals allowed, e.g. +1.5)}], "volumeDelta": 0..2, "addOutcomes": ["optional — new outcome names when this scene structurally opens a possibility not previously in the market"], "rationale": "the summary sentence that moved this thread's market in this scene"}],
       "worldDeltas": [{"entityId": "C-XX|L-XX|A-XX", "addedNodes": [{"id": "K-GEN-001", "content": "15-25 words, present tense", "type": "trait|state|history|capability|belief|relation|secret|goal|weakness"}]}],
       "relationshipDeltas": [{"from": "C-XX", "to": "C-YY", "type": "description", "valenceDelta": 0.1}],
       "systemDeltas": {"addedNodes": [{"id": "SYS-GEN-001", "concept": "15-25 words, general rule, no specific entities/events", "type": "principle|system|concept|tension|event|structure|environment|convention|constraint"}], "addedEdges": [{"from": "SYS-GEN-001", "to": "SYS-XX", "relation": "enables|governs|opposes|extends|created_by|constrains|exist_within"}]},
@@ -306,7 +312,7 @@ The summary is your DELTA BUDGET — richer summary supports richer extraction. 
       "newCharacters": [{"id": "C-GEN-001", "name": "Full Name", "role": "anchor|recurring|transient", "threadIds": [], "imagePrompt": "literal physical description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history|capability|secret|goal", "content": "key fact"}}, "edges": []}}],
       "newLocations": [{"id": "L-GEN-001", "name": "Name", "prominence": "domain|place|margin", "parentId": "L-XX|null", "tiedCharacterIds": [], "threadIds": [], "imagePrompt": "literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|history", "content": "key fact"}}, "edges": []}}],
       "newArtifacts": [{"id": "A-GEN-001", "name": "Name", "significance": "key|notable|minor", "parentId": "C-XX|L-XX|null", "threadIds": [], "imagePrompt": "literal visual description", "world": {"nodes": {"K-GEN-XXX": {"id": "K-GEN-XXX", "type": "trait|capability|history|state", "content": "one fact per node"}}, "edges": []}}],
-      "newThreads": [{"id": "T-GEN-001", "description": "compelling question", "status": "latent|seeded", "participants": [{"id": "C-XX", "type": "character|location|artifact"}], "threadLog": {"nodes": {}, "edges": []}}]
+      "newThreads": [{"id": "T-GEN-001", "description": "compelling question", "outcomes": ["yes", "no"], "participants": [{"id": "C-XX", "type": "character|location|artifact"}], "threadLog": {"nodes": {}, "edges": []}}]
     }
   ]
 }
@@ -559,18 +565,9 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
     }
   }
 
-  // Fix thread log node IDs to be unique and sequential
-  const existingTkIds = Object.values(narrative.threads).flatMap((t) => Object.keys(t.threadLog?.nodes ?? {}));
-  const totalLogNodes = scenes.reduce((sum, s) => sum + (s.threadDeltas ?? []).reduce((ns, tm) => ns + (tm.addedNodes?.length ?? 0), 0), 0);
-  const tkIds = nextIds('TK', existingTkIds, totalLogNodes);
-  let tkIdx = 0;
-  for (const scene of scenes) {
-    for (const tm of scene.threadDeltas ?? []) {
-      for (const node of tm.addedNodes ?? []) {
-        node.id = tkIds[tkIdx++];
-      }
-    }
-  }
+  // Thread log node IDs are now deterministic (`${threadId}:${sceneId}`)
+  // derived by applyThreadDelta — no allocation needed. The reducer owns
+  // log-node creation; sanitizer only validates the evidence payload.
 
   // Sanitize and re-ID system knowledge deltas. Concept-based resolution
   // collapses re-mentioned concepts (existing-graph or earlier-in-batch) to
@@ -1930,18 +1927,39 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
         if (rawEdges !== undefined && !edgesValid) {
           stripped.push(`newThread "${t.id}" threadLog.edges malformed in scene ${scene.id} — replaced with []`);
         }
+        // Outcomes default to binary yes/no if missing — the absolute
+        // minimum valid market. LLM-supplied multi-outcome arrays pass
+        // through after dedup + trim.
+        const rawOutcomes = Array.isArray(t.outcomes)
+          ? Array.from(new Set(t.outcomes.map((o) => (typeof o === 'string' ? o.trim() : '')).filter(Boolean)))
+          : [];
+        const outcomes = rawOutcomes.length >= 2 ? rawOutcomes : ['yes', 'no'];
+        if (rawOutcomes.length < 2) {
+          stripped.push(`newThread "${t.id}" outcomes invalid in scene ${scene.id} — defaulted to ["yes", "no"]`);
+        }
+        const rawPriorProbs = Array.isArray(
+          (t as { priorProbs?: unknown }).priorProbs,
+        )
+          ? ((t as { priorProbs?: unknown }).priorProbs as unknown[]).map((v) =>
+              typeof v === 'number' ? v : NaN,
+            )
+          : undefined;
+        const seedBelief = newNarratorBelief(outcomes.length, 2, rawPriorProbs);
         return {
           id: t.id,
           description: t.description,
-          status: 'latent' as const,
+          outcomes,
+          beliefs: {
+            [NARRATOR_AGENT_ID]: { ...seedBelief, lastTouchedScene: scene.id },
+          },
           participants: validParticipants,
           openedAt: t.openedAt ?? scene.id,
           dependents: t.dependents ?? [],
           threadLog: {
-            nodes: nodesValid ? rawNodes : {},
-            edges: edgesValid ? rawEdges : [],
+            nodes: nodesValid ? (rawNodes as Thread['threadLog']['nodes']) : {},
+            edges: edgesValid ? (rawEdges as Thread['threadLog']['edges']) : [],
           },
-        };
+        } satisfies Thread;
       });
       for (const t of scene.newThreads) {
         validThreadIds.add(t.id);
@@ -2066,66 +2084,93 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
     if (!Array.isArray(scene.threadDeltas)) scene.threadDeltas = [];
     if (!Array.isArray(scene.worldDeltas)) scene.worldDeltas = [];
     if (!Array.isArray(scene.relationshipDeltas)) scene.relationshipDeltas = [];
+    // Market-delta validation: threadId must exist in the narrative (or be a
+    // newThread introduced earlier in this batch), outcomes in each update
+    // must match the thread's outcome list, and evidence must be integer in
+    // [MIN, MAX]. Invalid outcomes / updates get stripped; empty deltas drop.
     scene.threadDeltas = scene.threadDeltas.filter((tm) => {
       if (validThreadIds.has(tm.threadId)) return true;
       stripped.push(`threadId "${tm.threadId}" in scene ${scene.id}`);
       return false;
     });
-    // Coerce invalid from/to statuses to valid lifecycle phases. The LLM
-    // sometimes confuses "pulse" (a log node type) with the from/to status
-    // fields and emits things like "from": "pulse", "to": "active". Any
-    // value outside the lifecycle vocabulary gets coerced: invalid "from"
-    // falls back to the thread's currently-stored status, and invalid "to"
-    // becomes a status-hold (same as from). This means a malformed
-    // "pulse → active" becomes "active → active" with the log entry's
-    // type still set correctly downstream.
-    const validStatuses = new Set<string>([...THREAD_ACTIVE_STATUSES, ...THREAD_TERMINAL_STATUSES, 'abandoned']);
-    for (const tm of scene.threadDeltas) {
-      const thread = narrative.threads[tm.threadId];
-      const currentStatus = thread?.status ?? 'latent';
-      if (!validStatuses.has(tm.from)) {
-        stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid from="${tm.from}" — coerced to "${currentStatus}"`);
-        tm.from = currentStatus;
+    const validLogTypes = new Set<ThreadLogNodeType>([
+      'pulse', 'transition', 'setup', 'escalation', 'payoff', 'twist', 'callback', 'resistance', 'stall',
+    ]);
+    scene.threadDeltas = scene.threadDeltas.filter((tm) => {
+      // Resolve thread shape — either pre-existing or freshly introduced in this batch.
+      const existing = narrative.threads[tm.threadId];
+      const introduced = scenes
+        .flatMap((s) => s.newThreads ?? [])
+        .find((nt) => nt.id === tm.threadId);
+      const threadOutcomes: string[] = existing?.outcomes ?? introduced?.outcomes ?? ['yes', 'no'];
+      const allowed = new Set(threadOutcomes);
+
+      // logType default + validation.
+      if (!tm.logType || !validLogTypes.has(tm.logType as ThreadLogNodeType)) {
+        stripped.push(`threadDelta "${tm.threadId}" invalid logType="${tm.logType}" in scene ${scene.id} — defaulted to "pulse"`);
+        tm.logType = 'pulse';
       }
-      if (!validStatuses.has(tm.to)) {
-        stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} had invalid to="${tm.to}" — coerced to "${tm.from}" (status-hold)`);
-        tm.to = tm.from;
-      }
-    }
-    // Ensure thread log entries have required fields. IDs here are still
-    // GEN-* placeholders — downstream remapping assigns real ones. Explicit
-    // edges are cleared — the chain is auto-generated by applyThreadDelta.
-    // If the LLM omitted addedNodes entirely, synthesize one from the status
-    // transition so every threadDelta produces at least one log entry
-    // instead of silently dropping the thread's contribution to the log.
-    for (const tm of scene.threadDeltas) {
-      const fallbackType = tm.from === tm.to ? 'pulse' : 'transition';
-      tm.addedNodes = (tm.addedNodes ?? [])
-        .filter((n, idx) => {
-          const ok = n && typeof n.content === 'string' && n.content.trim();
-          if (!ok) {
-            stripped.push(`threadDelta "${tm.threadId}" addedNode[${idx}] empty/malformed in scene ${scene.id}`);
+
+      // Outcome expansion — validate addOutcomes BEFORE update sanitization so
+      // updates referencing newly-added outcomes pass the 'allowed' check.
+      // Closed threads reject expansion; duplicates filtered.
+      const isClosed = !!existing?.closedAt;
+      const rawAdd = Array.isArray(tm.addOutcomes) ? tm.addOutcomes : [];
+      const extended: string[] = [];
+      if (rawAdd.length > 0) {
+        if (isClosed) {
+          stripped.push(`threadDelta "${tm.threadId}" addOutcomes rejected — thread is closed, in scene ${scene.id}`);
+        } else {
+          const seen = new Set(threadOutcomes.map((o) => o.toLowerCase()));
+          for (const raw of rawAdd) {
+            const name = typeof raw === 'string' ? raw.trim() : '';
+            if (!name) {
+              stripped.push(`threadDelta "${tm.threadId}" addOutcomes contained empty entry in scene ${scene.id}`);
+              continue;
+            }
+            if (seen.has(name.toLowerCase())) {
+              stripped.push(`threadDelta "${tm.threadId}" addOutcome "${name}" duplicates existing outcome in scene ${scene.id}`);
+              continue;
+            }
+            seen.add(name.toLowerCase());
+            extended.push(name);
+            allowed.add(name);
           }
-          return ok;
-        })
-        .map((n, idx) => ({
-          id: n.id || `TK-GEN-${idx}`,
-          content: n.content,
-          type: (n.type ?? fallbackType) as ThreadLogNodeType,
-        }));
-      if (tm.addedNodes.length === 0) {
-        const thread = narrative.threads[tm.threadId];
-        const desc = thread?.description ?? tm.threadId;
-        tm.addedNodes = [{
-          id: 'TK-GEN-0',
-          content: tm.from === tm.to
-            ? `Thread "${desc}" held ${tm.to} without transition`
-            : `Thread "${desc}" advanced from ${tm.from} to ${tm.to}`,
-          type: fallbackType as ThreadLogNodeType,
-        }];
-        stripped.push(`threadDelta "${tm.threadId}" in scene ${scene.id} missing log entries — synthesized fallback`);
+        }
+        tm.addOutcomes = extended.length > 0 ? extended : undefined;
+      } else {
+        delete tm.addOutcomes;
       }
-    }
+
+      // Normalize updates: filter invalid outcomes, clamp evidence.
+      const rawUpdates = Array.isArray(tm.updates) ? tm.updates : [];
+      tm.updates = rawUpdates.flatMap((u) => {
+        if (!u || typeof u.outcome !== 'string' || !allowed.has(u.outcome)) {
+          stripped.push(`threadDelta "${tm.threadId}" update outcome "${u?.outcome}" not in ${[...allowed].join('|')} in scene ${scene.id}`);
+          return [];
+        }
+        const ev = typeof u.evidence === 'number' ? clampEvidence(u.evidence) : 0;
+        return [{ outcome: u.outcome, evidence: ev }];
+      });
+
+      // volumeDelta defaults to 0 if missing.
+      tm.volumeDelta = typeof tm.volumeDelta === 'number' ? tm.volumeDelta : 0;
+
+      // rationale — require non-empty string; synthesise fallback if empty.
+      if (typeof tm.rationale !== 'string' || !tm.rationale.trim()) {
+        const desc = existing?.description ?? tm.threadId;
+        tm.rationale = `Thread "${desc}" [${tm.logType}] — no rationale provided.`;
+        stripped.push(`threadDelta "${tm.threadId}" missing rationale in scene ${scene.id} — synthesized fallback`);
+      }
+
+      // Drop entirely empty deltas (no updates, no volume, no new outcomes).
+      const addCount = tm.addOutcomes?.length ?? 0;
+      if (tm.updates.length === 0 && tm.volumeDelta === 0 && addCount === 0 && tm.logType === 'pulse') {
+        stripped.push(`threadDelta "${tm.threadId}" empty (no updates, no volume, no expansion, pulse) in scene ${scene.id} — dropped`);
+        return false;
+      }
+      return true;
+    });
     scene.worldDeltas = scene.worldDeltas.filter((km) => {
       if (!km.entityId) {
         stripped.push(`worldDelta missing entityId in scene ${scene.id}`);

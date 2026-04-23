@@ -4,7 +4,7 @@ import type {
   BeatSampler,
   PropositionBaseCategory,
 } from '@/types/narrative';
-import { NARRATIVE_CUBE, THREAD_TERMINAL_STATUSES, isScene, resolveEntry } from '@/types/narrative';
+import { NARRATIVE_CUBE, isScene, resolveEntry } from '@/types/narrative';
 import { computeSamplerFromPlans } from '@/lib/beat-profiles';
 import {
   computeForceSnapshots,
@@ -18,7 +18,9 @@ import {
   detectCubeCorner,
   gradeForces,
   FORCE_REFERENCE_MEANS,
-  computeThreadStatuses,
+  getMarketProbs,
+  isThreadAbandoned,
+  isThreadClosed,
   type DeliveryPoint,
   type NarrativeShape,
   type ForceGrades,
@@ -41,7 +43,7 @@ export type Segment = {
   /** Dominant force in this segment */
   dominantForce: 'fate' | 'world' | 'system';
   /** Key thread deltas in this segment */
-  threadChanges: { threadId: string; from: string; to: string; sceneIdx: number }[];
+  threadChanges: { threadId: string; logType: string; updates: { outcome: string; evidence: number }[]; sceneIdx: number }[];
   /** Peaks within this segment */
   peakIndices: number[];
   /** Average delivery in this segment */
@@ -58,7 +60,7 @@ export type PeakInfo = {
   forces: ForceSnapshot;
   cubeCorner: { key: CubeCornerKey; name: string; description: string };
   /** Thread deltas at this scene */
-  threadChanges: { threadId: string; from: string; to: string }[];
+  threadChanges: { threadId: string; logType: string; updates: { outcome: string; evidence: number }[] }[];
   /** Relationship deltas at this scene */
   relationshipChanges: { from: string; to: string; type: string; delta: number }[];
   /** Force decomposition: which force contributed most */
@@ -207,7 +209,7 @@ export function computeSlidesData(
       delivery: maxPoint,
       forces: f,
       cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
-      threadChanges: scene.threadDeltas.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })),
+      threadChanges: scene.threadDeltas.map((tm) => ({ threadId: tm.threadId, logType: tm.logType, updates: tm.updates ?? [] })),
       relationshipChanges: scene.relationshipDeltas.map((rm) => ({
         from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
       })),
@@ -467,7 +469,7 @@ function buildSegments(
     const threadChanges: Segment['threadChanges'] = [];
     for (let si = startIdx; si <= endIdx; si++) {
       for (const tm of scenes[si].threadDeltas) {
-        threadChanges.push({ threadId: tm.threadId, from: tm.from, to: tm.to, sceneIdx: si });
+        threadChanges.push({ threadId: tm.threadId, logType: tm.logType, updates: tm.updates ?? [], sceneIdx: si });
       }
     }
 
@@ -515,7 +517,7 @@ function buildPeakInfos(
         delivery: e,
         forces: f,
         cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
-        threadChanges: scene.threadDeltas.map((tm) => ({ threadId: tm.threadId, from: tm.from, to: tm.to })),
+        threadChanges: scene.threadDeltas.map((tm) => ({ threadId: tm.threadId, logType: tm.logType, updates: tm.updates ?? [] })),
         relationshipChanges: scene.relationshipDeltas.map((rm) => ({
           from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta,
         })),
@@ -573,55 +575,44 @@ function buildThreadLifecycles(
   scenes: Scene[],
   resolvedEntryKeys: string[],
 ): ThreadLifecycle[] {
-  const terminalStatuses = new Set(THREAD_TERMINAL_STATUSES as readonly string[]);
   const threads = Object.values(narrative.threads);
 
-  // Build scene key to index map for looking up openedAt
+  // Build scene key → index map for looking up openedAt.
   const sceneKeyToIdx = new Map<string, number>();
   for (let i = 0; i < resolvedEntryKeys.length; i++) {
     sceneKeyToIdx.set(resolvedEntryKeys[i], i);
   }
 
   return threads.map((thread) => {
-    // Find all scenes that have deltas for this thread
-    const deltas: { sceneIdx: number; from: string; to: string }[] = [];
+    // Find all scenes that emit evidence for this thread.
+    const deltas: { sceneIdx: number; logType: string; peakEvidence: number }[] = [];
     for (let i = 0; i < scenes.length; i++) {
       for (const tm of scenes[i].threadDeltas) {
         if (tm.threadId === thread.id) {
-          deltas.push({ sceneIdx: i, from: tm.from, to: tm.to });
+          const peak = Math.max(0, ...((tm.updates ?? []).map((u) => Math.abs(u.evidence))));
+          deltas.push({ sceneIdx: i, logType: tm.logType, peakEvidence: peak });
         }
       }
     }
 
     if (deltas.length === 0) return null;
 
-    // Find the scene where the thread was introduced (openedAt)
-    // This captures the latent period — when fate was first detected
     const openedAtIdx = sceneKeyToIdx.get(thread.openedAt) ?? deltas[0].sceneIdx;
     const firstDeltaIdx = deltas[0].sceneIdx;
-
-    // Start from when fate was first detected (openedAt), not first delta
     const startIdx = Math.min(openedAtIdx, firstDeltaIdx);
-    const statuses: { sceneIdx: number; status: string }[] = [];
 
-    // Initial status is the thread's base status (usually 'latent')
-    // or the 'from' status of the first delta if we start at that scene
-    let currentStatus = startIdx < firstDeltaIdx ? thread.status : deltas[0].from;
+    // Market trajectory — render per-scene state as a tuple of (logType, peak evidence).
+    const statuses: { sceneIdx: number; status: string }[] = [];
     let mutIdx = 0;
+    let currentLabel = 'open';
 
     for (let i = startIdx; i < scenes.length; i++) {
-      // Apply all deltas at this scene index
       while (mutIdx < deltas.length && deltas[mutIdx].sceneIdx === i) {
-        currentStatus = deltas[mutIdx].to;
+        currentLabel = deltas[mutIdx].logType;
         mutIdx++;
       }
-      statuses.push({ sceneIdx: i, status: currentStatus });
-
-      // Stop after terminal status — thread is done
-      if (terminalStatuses.has(currentStatus)) break;
-
-      // Stop if no more deltas and we've gone past the last one by a gap
-      // (thread goes silent — cap at last delta + small buffer)
+      statuses.push({ sceneIdx: i, status: currentLabel });
+      if (currentLabel === 'payoff' || currentLabel === 'twist') break;
       if (mutIdx >= deltas.length && i > deltas[deltas.length - 1].sceneIdx) break;
     }
 

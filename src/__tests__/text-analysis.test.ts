@@ -9,12 +9,25 @@ vi.mock('@/lib/ai/api', () => ({
 }));
 // Mock constants with smaller chunk sizes for faster tests
 vi.mock('@/lib/constants', () => ({
+  ANALYSIS_CONCURRENCY: 4,
   ANALYSIS_MAX_CORPUS_WORDS: 50000,
   WORDS_PER_SCENE: 1200,
   SCENES_PER_ARC: 4,
   ANALYSIS_MODEL: 'test-model',
   MAX_TOKENS_DEFAULT: 4096,
   ANALYSIS_TEMPERATURE: 0.7,
+  // Market constants consumed by narrative-utils (isThreadAbandoned, etc.)
+  MARKET_ABANDON_VOLUME: 0.5,
+  MARKET_NEAR_CLOSED_MIN: 2,
+  MARKET_TAU_CLOSE: 3,
+  MARKET_VOLATILITY_BETA: 0.6,
+  MARKET_VOLUME_DECAY: 0.9,
+  MARKET_RECENCY_DECAY: 0.95,
+  MARKET_EVIDENCE_MIN: -4,
+  MARKET_EVIDENCE_MAX: 4,
+  MARKET_EVIDENCE_SENSITIVITY: 2,
+  MARKET_OPENING_VOLUME: 2,
+  MARKET_FOCUS_K: 6,
 }));
 // Mock api-logger
 vi.mock('@/lib/api-logger', () => ({
@@ -38,7 +51,7 @@ vi.mock('@/lib/ai/validation', () => ({
   validateExtractionResult: vi.fn(() => []),
   validateSystemDelta: vi.fn(() => []),
 }));
-import { splitCorpusIntoScenes, extractSceneStructure, groupScenesIntoArcs, reconcileResults, analyzeThreading, assembleNarrative } from '@/lib/text-analysis';
+import { splitCorpusIntoScenes, extractSceneStructure, groupScenesIntoArcs, reconcileResults, analyzeThreading, assembleNarrative, reextractFateWithLifecycle } from '@/lib/text-analysis';
 import { callGenerate } from '@/lib/ai/api';
 // ── Test Fixtures ────────────────────────────────────────────────────────────
 function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChunkResult> = {}): AnalysisChunkResult {
@@ -63,8 +76,7 @@ function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChun
       {
         description: `Main quest ${index}`,
         participantNames: [`Character${index}`],
-        statusAtStart: 'dormant',
-        statusAtEnd: 'active',
+        outcomes: ['succeeds', 'fails'],
         development: 'Thread started',
       },
     ],
@@ -78,7 +90,7 @@ function createMockAnalysisResult(index: number, overrides: Partial<AnalysisChun
         sections: [0],
         prose: `Scene ${index} prose content here.`,
         threadDeltas: [
-          { threadDescription: `Main quest ${index}`, from: 'dormant', to: 'active', addedNodes: [] },
+          { threadDescription: `Main quest ${index}`, logType: 'setup', updates: [{ outcome: 'succeeds', evidence: 1 }], volumeDelta: 1, rationale: 'opens' },
         ],
         worldDeltas: [
           {
@@ -116,8 +128,8 @@ function createRichAnalysisResult(index: number): AnalysisChunkResult {
       { name: 'Magic Sword', significance: 'key', ownerName: 'Alice' },
     ],
     threads: [
-      { description: 'The Quest for the Crown', participantNames: ['Alice', 'Bob'], statusAtStart: index === 0 ? 'dormant' : 'active', statusAtEnd: 'active', development: `Quest progresses in chunk ${index}` },
-      { description: 'Trust between allies', participantNames: ['Alice', 'Bob'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Growing trust' },
+      { description: 'The Quest for the Crown', participantNames: ['Alice', 'Bob'], outcomes: ['succeeds', 'fails'], development: `Quest progresses in chunk ${index}` },
+      { description: 'Trust between allies', participantNames: ['Alice', 'Bob'], outcomes: ['bond', 'break'], development: 'Growing trust' },
     ],
     scenes: [
       {
@@ -136,7 +148,7 @@ function createRichAnalysisResult(index: number): AnalysisChunkResult {
         },
         beatProseMap: { chunks: [{ beatIndex: 0, prose: 'Castle atmosphere prose' }, { beatIndex: 1, prose: 'Quest progress prose' }], createdAt: Date.now() },
         threadDeltas: [
-          { threadDescription: 'The Quest for the Crown', from: index === 0 ? 'dormant' : 'active', to: 'active', addedNodes: [] },
+          { threadDescription: 'The Quest for the Crown', logType: 'escalation', updates: [{ outcome: 'succeeds', evidence: 2 }], volumeDelta: 1, rationale: 'advances' },
         ],
         worldDeltas: [
           { entityName: 'Alice', addedNodes: [{ content: 'Discovered a secret passage', type: 'history' }] },
@@ -171,7 +183,7 @@ beforeEach(() => {
         chapterSummary: 'Test summary',
         characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true, continuity: [] }],
         locations: [{ name: 'Castle', parentName: null, description: 'A castle', lore: [] }],
-        threads: [{ description: 'Main quest', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
+        threads: [{ description: 'Main quest', participantNames: ['Alice'], development: 'Started' }],
         scenes: [{ locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'], events: ['event1'], summary: 'Test scene', sections: [0], prose: 'Test prose', threadDeltas: [], worldDeltas: [], relationshipDeltas: [] }],
         relationships: [],
       }),
@@ -273,7 +285,7 @@ describe('extractSceneStructure', () => {
       characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true, continuity: [{ type: 'state', content: 'Confused and disoriented' }] }],
       locations: [{ name: 'Wonderland', parentName: null, description: 'A strange land', lore: ['Everything is backwards'] }],
       artifacts: [{ name: 'Pocket Watch', significance: 'notable', continuity: [], ownerName: null }],
-      threads: [{ description: 'Alice finding her way home', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Alice realizes she is lost' }],
+      threads: [{ description: 'Alice finding her way home', participantNames: ['Alice'], development: 'Alice realizes she is lost' }],
       relationships: [{ from: 'Alice', to: 'Cheshire Cat', type: 'uneasy acquaintance', valence: 2 }],
       threadDeltas: [{ threadDescription: 'Alice finding her way home', from: 'dormant', to: 'active', addedNodes: [] }],
       worldDeltas: [{ entityName: 'Alice', addedNodes: [{ content: 'Fell down the rabbit hole', type: 'history' }] }],
@@ -478,11 +490,14 @@ describe('reconcileResults', () => {
     expect(totalScenes).toBe(3);
   });
   it('merges character name variants via LLM map', async () => {
+    // Entity reconciliation uses numeric IDs (1-indexed insertion order) to
+    // cut output tokens. 'Prof. McGonagall' is seen first → ID 1; 'Minerva
+    // McGonagall' is seen second → ID 2. Mock emits "merge 1 into 2".
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
-          characterMerges: { 'Prof. McGonagall': 'Minerva McGonagall' },
+          characterMerges: { '1': 2 },
           threadMerges: {},
           locationMerges: {},
           artifactMerges: {},
@@ -515,10 +530,10 @@ describe('reconcileResults', () => {
     const results: AnalysisChunkResult[] = [
       {
         ...createMockAnalysisResult(0),
-        threads: [{ description: "Harry's distrust of Snape", participantNames: ['Harry'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
+        threads: [{ description: "Harry's distrust of Snape", participantNames: ['Harry'], outcomes: ['confirmed', 'dispelled'], development: 'Started' }],
         scenes: [{
           ...createMockAnalysisResult(0).scenes[0],
-          threadDeltas: [{ threadDescription: "Harry's distrust of Snape", from: 'dormant', to: 'active', addedNodes: [] }],
+          threadDeltas: [{ threadDescription: "Harry's distrust of Snape", logType: 'setup', updates: [{ outcome: 'confirmed', evidence: 1 }], volumeDelta: 1, rationale: 'opens' }],
         }],
       },
     ];
@@ -527,13 +542,15 @@ describe('reconcileResults', () => {
     expect(reconciled[0].scenes[0].threadDeltas[0].threadDescription).toBe("Harry and Snape's antagonism");
   });
   it('merges location names via LLM map', async () => {
+    // Locations are seen in insertion order across chunks. "The Forest" comes
+    // from chunk 0 (ID 1); "Dark Forest" from chunk 1 (ID 2). Merge 1 → 2.
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
           characterMerges: {},
           threadMerges: {},
-          locationMerges: { 'The Forest': 'Dark Forest' },
+          locationMerges: { '1': 2 },
           artifactMerges: {},
           systemMerges: {},
         }),
@@ -545,12 +562,19 @@ describe('reconcileResults', () => {
         locations: [{ name: 'The Forest', parentName: null, description: 'Spooky' }],
         scenes: [{ ...createMockAnalysisResult(0).scenes[0], locationName: 'The Forest' }],
       },
+      {
+        ...createMockAnalysisResult(1),
+        locations: [{ name: 'Dark Forest', parentName: null, description: 'The same spooky place' }],
+        scenes: [{ ...createMockAnalysisResult(1).scenes[0], locationName: 'Dark Forest' }],
+      },
     ];
     const reconciled = await reconcileResults(results);
     expect(reconciled[0].locations[0].name).toBe('Dark Forest');
     expect(reconciled[0].scenes[0].locationName).toBe('Dark Forest');
   });
   it('merges artifact names via LLM map', async () => {
+    // Both surface forms must appear in the input list for ID-based merges —
+    // the LLM picks one as canonical, it cannot invent a new name.
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -558,21 +582,25 @@ describe('reconcileResults', () => {
           characterMerges: {},
           threadMerges: {},
           locationMerges: {},
-          artifactMerges: { 'the Elder Wand': 'Elder Wand' },
+          artifactMerges: { '1': 2 },
           systemMerges: {},
         }),
       }),
     } as Response);
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
-      artifacts: [{ name: 'the Elder Wand', significance: 'key', ownerName: null }],
+      artifacts: [
+        { name: 'the Elder Wand', significance: 'key', ownerName: null },
+        { name: 'Elder Wand', significance: 'key', ownerName: null },
+      ],
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
         artifactUsages: [{ artifactName: 'the Elder Wand', characterName: 'Harry', usage: 'cast the disarming charm' }],
       }],
     }];
     const reconciled = await reconcileResults(results);
-    expect(reconciled[0].artifacts![0].name).toBe('Elder Wand');
+    // After merge, both surface forms collapse to the 'Elder Wand' canonical.
+    expect(reconciled[0].artifacts!.every(a => a.name === 'Elder Wand')).toBe(true);
     expect(reconciled[0].scenes[0].artifactUsages![0].artifactName).toBe('Elder Wand');
   });
   it('merges system knowledge concepts via LLM map', async () => {
@@ -602,37 +630,25 @@ describe('reconcileResults', () => {
     expect(reconciled[0].scenes[0].systemDeltas!.addedNodes[0].concept).toBe('Magic System');
     expect(reconciled[0].scenes[0].systemDeltas!.addedEdges[0].fromConcept).toBe('Magic System');
   });
-  it('stitches thread continuity across chunks', async () => {
+  it('unions outcomes across chunks for the same thread', async () => {
+    // Market model: outcomes are unioned across chunks (outcome expansion).
+    // No status stitching — narrator belief is extended on the fly.
     const results: AnalysisChunkResult[] = [
       {
         ...createMockAnalysisResult(0),
-        threads: [{ description: 'Main quest', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' }],
-        scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadDeltas: [{ threadDescription: 'Main quest', from: 'dormant', to: 'active', addedNodes: [] }] }],
+        threads: [{ description: 'Main quest', participantNames: ['Alice'], outcomes: ['succeeds', 'fails'], development: 'Started' }],
+        scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadDeltas: [{ threadDescription: 'Main quest', logType: 'setup', updates: [{ outcome: 'succeeds', evidence: 1 }], volumeDelta: 1, rationale: 'opens' }] }],
       },
       {
         ...createMockAnalysisResult(1),
-        threads: [{ description: 'Main quest', participantNames: ['Alice', 'Bob'], statusAtStart: 'dormant', statusAtEnd: 'escalating', development: 'Continued' }],
-        scenes: [{ ...createMockAnalysisResult(1).scenes[0], threadDeltas: [{ threadDescription: 'Main quest', from: 'dormant', to: 'escalating', addedNodes: [] }] }],
+        threads: [{ description: 'Main quest', participantNames: ['Alice', 'Bob'], outcomes: ['succeeds', 'fails', 'pyrrhic'], development: 'Continued' }],
+        scenes: [{ ...createMockAnalysisResult(1).scenes[0], threadDeltas: [{ threadDescription: 'Main quest', logType: 'escalation', updates: [{ outcome: 'pyrrhic', evidence: 2 }], volumeDelta: 1, rationale: 'new outcome emerges' }] }],
       },
     ];
     const reconciled = await reconcileResults(results);
-    // Chunk 1's statusAtStart should be stitched to chunk 0's statusAtEnd
-    expect(reconciled[1].threads[0].statusAtStart).toBe('active');
-    // Scene-level delta from should also be corrected
-    expect(reconciled[1].scenes[0].threadDeltas[0].from).toBe('active');
-  });
-  it('normalizes LLM status variants to canonical vocabulary', async () => {
-    const results: AnalysisChunkResult[] = [{
-      ...createMockAnalysisResult(0),
-      threads: [{ description: 'Quest', participantNames: ['Hero'], statusAtStart: 'inactive', statusAtEnd: 'developing', development: 'Started' }],
-      scenes: [{ ...createMockAnalysisResult(0).scenes[0], threadDeltas: [{ threadDescription: 'Quest', from: 'inactive', to: 'developing', addedNodes: [] }] }],
-    }];
-    const reconciled = await reconcileResults(results);
-    // 'inactive' → 'latent', 'developing' → 'seeded'
-    expect(reconciled[0].threads[0].statusAtStart).toBe('latent');
-    expect(reconciled[0].threads[0].statusAtEnd).toBe('seeded');
-    expect(reconciled[0].scenes[0].threadDeltas[0].from).toBe('latent');
-    expect(reconciled[0].scenes[0].threadDeltas[0].to).toBe('seeded');
+    // Reconciliation should leave threads + deltas intact for downstream assembly.
+    expect(reconciled).toHaveLength(2);
+    expect(reconciled[1].threads[0].outcomes).toContain('pyrrhic');
   });
   it('deduplicates characters within same chunk by name', async () => {
     const results: AnalysisChunkResult[] = [{
@@ -662,11 +678,12 @@ describe('reconcileResults', () => {
     expect(swords[0].significance).toBe('key');
   });
   it('resolves character names in participant lists', async () => {
+    // 'Al' is seen first (ID 1), 'Alice' second (ID 2). Merge 1 → 2.
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
-          characterMerges: { 'Al': 'Alice' },
+          characterMerges: { '1': 2 },
           threadMerges: {},
           locationMerges: {},
         }),
@@ -674,6 +691,10 @@ describe('reconcileResults', () => {
     } as Response);
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
+      characters: [
+        { name: 'Al', role: 'recurring', firstAppearance: true },
+        { name: 'Alice', role: 'anchor', firstAppearance: false },
+      ],
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
         participantNames: ['Al', 'Bob'],
@@ -689,7 +710,7 @@ describe('reconcileResults', () => {
       ok: true,
       json: async () => ({
         content: JSON.stringify({
-          characterMerges: { 'Al': 'Alice' },
+          characterMerges: { '1': 2 },
           threadMerges: {},
           locationMerges: {},
         }),
@@ -697,6 +718,10 @@ describe('reconcileResults', () => {
     } as Response);
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
+      characters: [
+        { name: 'Al', role: 'recurring', firstAppearance: true },
+        { name: 'Alice', role: 'anchor', firstAppearance: false },
+      ],
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
         participantNames: ['Al', 'Alice', 'Bob'], // Al and Alice are same person
@@ -713,7 +738,7 @@ describe('reconcileResults', () => {
       ok: true,
       json: async () => ({
         content: JSON.stringify({
-          characterMerges: { 'Al': 'Alice' },
+          characterMerges: { '1': 2 },
           threadMerges: {},
           locationMerges: {},
         }),
@@ -721,6 +746,10 @@ describe('reconcileResults', () => {
     } as Response);
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
+      characters: [
+        { name: 'Al', role: 'recurring', firstAppearance: true },
+        { name: 'Alice', role: 'anchor', firstAppearance: false },
+      ],
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
         relationshipDeltas: [{ from: 'Al', to: 'Bob', type: 'trust', valenceDelta: 0.3 }],
@@ -785,7 +814,7 @@ describe('reconcileResults', () => {
       characters: [],
       locations: [],
       artifacts: [],
-      threads: [{ description: 'Quest', participantNames: [], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'x' }],
+      threads: [{ description: 'Quest', participantNames: [], outcomes: ['yes', 'no'], development: 'x' }],
     }];
     await reconcileResults(results);
     const calls = vi.mocked(fetch).mock.calls.filter((call) =>
@@ -816,18 +845,20 @@ describe('reconcileResults', () => {
     expect(body.prompt).toMatch(/CHARACTERS/);
   });
   it('entity merges from phase A and thread merges from phase B both apply', async () => {
-    // First fetch (entity phase): merge character names
+    // First fetch (entity phase): merge character names by ID.
+    // Characters: 'Prof. M' (1), 'Minerva McGonagall' (2) — merge 1 → 2.
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
-          characterMerges: { 'Prof. M': 'Minerva McGonagall' },
+          characterMerges: { '1': 2 },
           locationMerges: {},
           artifactMerges: {},
         }),
       }),
     } as Response);
-    // Second fetch (semantic phase): merge thread descriptions
+    // Second fetch (semantic phase): still uses string-based thread/system
+    // merges — LLM reasons over descriptions, not IDs.
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -839,15 +870,18 @@ describe('reconcileResults', () => {
     } as Response);
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
-      characters: [{ name: 'Prof. M', role: 'recurring', firstAppearance: true }],
-      threads: [{ description: 'Old quest', participantNames: ['Prof. M'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'x' }],
+      characters: [
+        { name: 'Prof. M', role: 'recurring', firstAppearance: true },
+        { name: 'Minerva McGonagall', role: 'anchor', firstAppearance: false },
+      ],
+      threads: [{ description: 'Old quest', participantNames: ['Prof. M'], outcomes: ['yes', 'no'], development: 'x' }],
       scenes: [{
         ...createMockAnalysisResult(0).scenes[0],
-        threadDeltas: [{ threadDescription: 'Old quest', from: 'dormant', to: 'active', addedNodes: [] }],
+        threadDeltas: [{ threadDescription: 'Old quest', logType: 'setup', updates: [{ outcome: 'yes', evidence: 1 }], volumeDelta: 1, rationale: 'opens' }],
       }],
     }];
     const reconciled = await reconcileResults(results);
-    expect(reconciled[0].characters[0].name).toBe('Minerva McGonagall');
+    expect(reconciled[0].characters.every(c => c.name === 'Minerva McGonagall')).toBe(true);
     expect(reconciled[0].threads[0].description).toBe('Main quest');
     expect(reconciled[0].scenes[0].threadDeltas[0].threadDescription).toBe('Main quest');
   });
@@ -872,13 +906,15 @@ describe('reconcileResults', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 describe('analyzeThreading', () => {
   it('analyzes thread dependencies and returns mapping', async () => {
+    // Threading uses 1-indexed numeric IDs to cut output tokens.
+    // Thread A=1, Thread B=2, Thread C=3. B depends on A; C depends on A and B.
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         content: JSON.stringify({
           threadDependencies: {
-            'Thread B': ['Thread A'],
-            'Thread C': ['Thread A', 'Thread B'],
+            '2': [1],
+            '3': [1, 2],
           },
         }),
       }),
@@ -907,14 +943,151 @@ describe('analyzeThreading', () => {
     expect(result).toEqual({});
   });
   it('handles LLM returning smart quotes in JSON', async () => {
-    // Simulate LLM returning curly quotes instead of straight quotes
-    const badJson = '{"threadDependencies": {\u201CThread B\u201D: [\u201CThread A\u201D]}}';
+    // Simulate LLM returning curly quotes instead of straight quotes.
+    // With numeric IDs the value side doesn't need quoting, but the key side
+    // could still arrive wrapped in curly quotes — exercise the repair path.
+    const badJson = '{"threadDependencies": {\u201C2\u201D: [1]}}';
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ content: badJson }),
     } as any);
     const result = await analyzeThreading(['Thread A', 'Thread B']);
     expect(result['Thread B']).toEqual(['Thread A']);
+  });
+
+  // ── ID validation: the safety net. If the LLM emits malformed IDs
+  // (out-of-range, non-integer, self-referential) we silently drop the bad
+  // entries rather than surfacing an error or inventing dependencies. This
+  // keeps the pipeline robust without adding a retry loop that could burn
+  // tokens on the same failure. ──
+  it('drops out-of-range thread IDs', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          threadDependencies: {
+            '2': [1, 99],   // 99 is out of range — dropped; 1 survives
+            '42': [1],       // key out of range — whole entry dropped
+          },
+        }),
+      }),
+    } as any);
+    const result = await analyzeThreading(['Thread A', 'Thread B']);
+    expect(result['Thread B']).toEqual(['Thread A']);
+    // No entry synthesised for the out-of-range key
+    expect(Object.keys(result)).toEqual(['Thread B']);
+  });
+
+  it('drops self-dependencies (a thread cannot depend on itself)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          threadDependencies: {
+            '2': [1, 2],  // 2 depends on itself — dropped; 1 survives
+          },
+        }),
+      }),
+    } as any);
+    const result = await analyzeThreading(['Thread A', 'Thread B']);
+    expect(result['Thread B']).toEqual(['Thread A']);
+  });
+
+  it('dedupes repeated IDs within a single dependency list', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          threadDependencies: { '3': [1, 1, 2, 2, 1] },
+        }),
+      }),
+    } as any);
+    const result = await analyzeThreading(['Thread A', 'Thread B', 'Thread C']);
+    expect(result['Thread C']).toEqual(['Thread A', 'Thread B']);
+  });
+
+  it('omits threads with empty dependency arrays', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          threadDependencies: { '2': [], '3': [1] },
+        }),
+      }),
+    } as any);
+    const result = await analyzeThreading(['Thread A', 'Thread B', 'Thread C']);
+    expect(result['Thread B']).toBeUndefined();
+    expect(result['Thread C']).toEqual(['Thread A']);
+  });
+
+  it('tolerates non-integer and non-numeric IDs', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          threadDependencies: {
+            '2': [1, 1.5, 'foo', null],  // only 1 is a valid integer ID
+          },
+        }),
+      }),
+    } as any);
+    const result = await analyzeThreading(['Thread A', 'Thread B']);
+    expect(result['Thread B']).toEqual(['Thread A']);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ID validation for entity reconciliation — same safety net
+// ══════════════════════════════════════════════════════════════════════════════
+describe('reconcileResults — ID validation', () => {
+  beforeEach(() => {
+    vi.mocked(fetch).mockReset();
+  });
+
+  it('drops out-of-range character IDs silently', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          characterMerges: { '1': 99, '5': 2, '2': 1 },  // only 2→1 is valid
+          locationMerges: {},
+          artifactMerges: {},
+          threadMerges: {},
+          systemMerges: {},
+        }),
+      }),
+    } as Response);
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      characters: [
+        { name: 'Alice', role: 'anchor', firstAppearance: true },
+        { name: 'Al', role: 'recurring', firstAppearance: true },
+      ],
+    }];
+    const reconciled = await reconcileResults(results);
+    // 'Al' (ID 2) → 'Alice' (ID 1); other entries are dropped.
+    expect(reconciled[0].characters.every(c => c.name === 'Alice')).toBe(true);
+  });
+
+  it('ignores self-mapping (variant ID equals canonical ID)', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        content: JSON.stringify({
+          characterMerges: { '1': 1 },  // self-map — no-op, dropped
+          locationMerges: {},
+          artifactMerges: {},
+          threadMerges: {},
+          systemMerges: {},
+        }),
+      }),
+    } as Response);
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
+    }];
+    const reconciled = await reconcileResults(results);
+    expect(reconciled[0].characters[0].name).toBe('Alice');
   });
 });
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1237,8 +1410,8 @@ describe('assembleNarrative', () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       threads: [
-        { description: 'Quest A', participantNames: ['Hero'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Started' },
-        { description: 'Quest B', participantNames: ['Hero'], statusAtStart: 'dormant', statusAtEnd: 'active', development: 'Also started' },
+        { description: 'Quest A', participantNames: ['Hero'], outcomes: ['yes', 'no'], development: 'Started' },
+        { description: 'Quest B', participantNames: ['Hero'], outcomes: ['yes', 'no'], development: 'Also started' },
       ],
     }];
     const threadDeps = { 'Quest B': ['Quest A'] };
@@ -1434,23 +1607,26 @@ describe('assembleNarrative', () => {
     // initialCharacterLocations should map character IDs to location IDs
     expect(Object.keys(arc.initialCharacterLocations).length).toBeGreaterThan(0);
   });
-  // ── Thread log mapper — synthesis fallback ────────────────────────────────
-  // Locks in the fix for the bug where extractSceneStructure returned a
-  // threadDelta with empty addedNodes, and the assembleNarrative mapper
-  // passed it through as-is, leaving the final thread log blank.
-  it('synthesizes fallback log entries when analysis extraction omits addedNodes', async () => {
+  // ── Thread market extraction ──────────────────────────────────────────────
+  // In the market model, threadDelta carries logType + updates (OutcomeEvidence[])
+  // + volumeDelta + rationale. The thread log is populated by applyThreadDelta
+  // at store-replay time, not by the extraction mapper.
+  it('preserves LLM-provided updates and logType on extracted threadDeltas', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
       locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
-      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'latent', statusAtEnd: 'active', development: '' }],
+      threads: [{ description: 'The Quest', participantNames: ['Alice'], outcomes: ['succeeds', 'fails'], development: '' }],
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Alice sets off', sections: [0],
-        threadDeltas: [
-          // LLM-returned extraction with no log entries — should be synthesized.
-          { threadDescription: 'The Quest', from: 'latent', to: 'active', addedNodes: [] },
-        ],
+        threadDeltas: [{
+          threadDescription: 'The Quest',
+          logType: 'setup',
+          updates: [{ outcome: 'succeeds', evidence: 2 }],
+          volumeDelta: 1,
+          rationale: 'Alice receives the mandate',
+        }],
         worldDeltas: [],
         relationshipDeltas: [],
       }],
@@ -1459,85 +1635,28 @@ describe('assembleNarrative', () => {
     const scene = Object.values(narrative.scenes)[0];
     expect(scene.threadDeltas).toHaveLength(1);
     const tm = scene.threadDeltas[0];
-    expect(tm.addedNodes).toHaveLength(1);
-    // Synthesized from the from→to status change.
-    expect(tm.addedNodes![0].content).toMatch(/advanced from latent to active/);
-    expect(tm.addedNodes![0].type).toBe('transition');
-    // Must be a real TK-* ID from the allocator, not a placeholder.
-    expect(tm.addedNodes![0].id).toMatch(/^TK-/);
+    expect(tm.logType).toBe('setup');
+    expect(tm.updates).toHaveLength(1);
+    expect(tm.updates[0].outcome).toBe('succeeds');
+    expect(tm.updates[0].evidence).toBe(2);
+    expect(tm.volumeDelta).toBe(1);
+    expect(tm.rationale).toMatch(/mandate/);
   });
-  it('coerces invalid status values (e.g. "pulse") in analysis extraction to a status-hold', async () => {
-    // The LLM sometimes confuses the log type "pulse" with a status value
-    // and emits something like "from": "pulse", "to": "active". The mapper
-    // must coerce both fields to valid lifecycle statuses so the thread's
-    // stored status doesn't get polluted.
+  it('synthesizes a rationale when LLM omits one', async () => {
     const results: AnalysisChunkResult[] = [{
       ...createMockAnalysisResult(0),
       characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
       locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
-      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'latent', statusAtEnd: 'active', development: '' }],
-      scenes: [{
-        locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
-        events: [], summary: 'Alice', sections: [0],
-        threadDeltas: [
-          // Invalid: "pulse" is a log node type, never a status.
-          { threadDescription: 'The Quest', from: 'pulse', to: 'active', addedNodes: [] },
-        ],
-        worldDeltas: [],
-        relationshipDeltas: [],
-      }],
-    }];
-    const narrative = await assembleNarrative('Test', results, {});
-    const scene = Object.values(narrative.scenes)[0];
-    const tm = scene.threadDeltas[0];
-    // "pulse" coerces to "latent" (the safeFrom default), then "active"
-    // remains valid — but the synthesized fallback message reflects the
-    // coerced statuses, not the invalid input.
-    expect(tm.from).toBe('latent');
-    expect(tm.to).toBe('active');
-    expect(tm.addedNodes![0].content).toMatch(/advanced from latent to active/);
-    expect(tm.addedNodes![0].type).toBe('transition');
-  });
-  it('synthesizes pulse fallback when from === to and LLM omits addedNodes', async () => {
-    const results: AnalysisChunkResult[] = [{
-      ...createMockAnalysisResult(0),
-      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
-      locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
-      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'active', statusAtEnd: 'active', development: '' }],
+      threads: [{ description: 'The Quest', participantNames: ['Alice'], outcomes: ['succeeds', 'fails'], development: '' }],
       scenes: [{
         locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
         events: [], summary: 'Alice reflects', sections: [0],
-        threadDeltas: [
-          { threadDescription: 'The Quest', from: 'active', to: 'active', addedNodes: [] },
-        ],
-        worldDeltas: [],
-        relationshipDeltas: [],
-      }],
-    }];
-    const narrative = await assembleNarrative('Test', results, {});
-    const scene = Object.values(narrative.scenes)[0];
-    const tm = scene.threadDeltas[0];
-    expect(tm.addedNodes).toHaveLength(1);
-    expect(tm.addedNodes![0].content).toMatch(/held active without transition/);
-    expect(tm.addedNodes![0].type).toBe('pulse');
-  });
-  it('preserves LLM-provided addedNodes when present (does not duplicate)', async () => {
-    const results: AnalysisChunkResult[] = [{
-      ...createMockAnalysisResult(0),
-      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
-      locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
-      threads: [{ description: 'The Quest', participantNames: ['Alice'], statusAtStart: 'dormant', statusAtEnd: 'active', development: '' }],
-      scenes: [{
-        locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
-        events: [], summary: 'Alice sets off', sections: [0],
         threadDeltas: [{
           threadDescription: 'The Quest',
-          from: 'dormant',
-          to: 'active',
-          addedNodes: [
-            { content: 'Alice receives the mandate', type: 'transition' },
-            { content: 'She weighs the cost', type: 'escalation' },
-          ],
+          logType: 'pulse',
+          updates: [],
+          volumeDelta: 1,
+          rationale: '',
         }],
         worldDeltas: [],
         relationshipDeltas: [],
@@ -1546,15 +1665,343 @@ describe('assembleNarrative', () => {
     const narrative = await assembleNarrative('Test', results, {});
     const scene = Object.values(narrative.scenes)[0];
     const tm = scene.threadDeltas[0];
-    // Two LLM-provided nodes — no synthesis, no duplication.
-    expect(tm.addedNodes).toHaveLength(2);
-    expect(tm.addedNodes![0].content).toBe('Alice receives the mandate');
-    expect(tm.addedNodes![0].type).toBe('transition');
-    expect(tm.addedNodes![1].content).toBe('She weighs the cost');
-    expect(tm.addedNodes![1].type).toBe('escalation');
-    // Both nodes should have distinct TK-* IDs assigned by the allocator.
-    expect(tm.addedNodes![0].id).toMatch(/^TK-/);
-    expect(tm.addedNodes![1].id).toMatch(/^TK-/);
-    expect(tm.addedNodes![0].id).not.toBe(tm.addedNodes![1].id);
+    // Mapper should fill in a sensible rationale rather than passing empty.
+    expect(tm.rationale.length).toBeGreaterThan(0);
+  });
+  it('clamps evidence values to the legal [-4, +4] range', async () => {
+    const results: AnalysisChunkResult[] = [{
+      ...createMockAnalysisResult(0),
+      characters: [{ name: 'Alice', role: 'anchor', firstAppearance: true }],
+      locations: [{ name: 'Castle', parentName: null, description: 'A castle' }],
+      threads: [{ description: 'The Quest', participantNames: ['Alice'], outcomes: ['succeeds', 'fails'], development: '' }],
+      scenes: [{
+        locationName: 'Castle', povName: 'Alice', participantNames: ['Alice'],
+        events: [], summary: 'Alice', sections: [0],
+        threadDeltas: [{
+          threadDescription: 'The Quest',
+          logType: 'payoff',
+          updates: [{ outcome: 'succeeds', evidence: 99 }],
+          volumeDelta: 1,
+          rationale: 'decisive',
+        }],
+        worldDeltas: [],
+        relationshipDeltas: [],
+      }],
+    }];
+    const narrative = await assembleNarrative('Test', results, {});
+    const scene = Object.values(narrative.scenes)[0];
+    const tm = scene.threadDeltas[0];
+    expect(tm.updates[0].evidence).toBeLessThanOrEqual(4);
+    expect(tm.updates[0].evidence).toBeGreaterThanOrEqual(-4);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// reextractFateWithLifecycle — two-pass lifecycle-aware re-scoring
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe('reextractFateWithLifecycle', () => {
+  function makeSceneResult(
+    sceneIndex: number,
+    threadDeltas: AnalysisChunkResult['scenes'][0]['threadDeltas'],
+    threads: AnalysisChunkResult['threads'] = [],
+  ): AnalysisChunkResult {
+    return {
+      chapterSummary: `Scene ${sceneIndex}`,
+      characters: [],
+      locations: [],
+      threads,
+      scenes: [{
+        locationName: 'Wonderland',
+        povName: 'Alice',
+        participantNames: ['Alice'],
+        events: [],
+        summary: `Scene ${sceneIndex} summary — Alice in Wonderland.`,
+        sections: [0],
+        threadDeltas,
+        worldDeltas: [],
+        relationshipDeltas: [],
+      }],
+      relationships: [],
+    };
+  }
+
+  /** Enqueue a sequence of fetch responses, one per parallel LLM call. */
+  function queueFetchResponses(bodies: string[]) {
+    const queue = [...bodies];
+    vi.mocked(global.fetch).mockImplementation(async () => ({
+      ok: true,
+      json: async () => ({ content: queue.shift() ?? '{"threadDeltas":[]}' }),
+      text: async () => queue.shift() ?? '{"threadDeltas":[]}',
+      body: null,
+    } as Response));
+  }
+
+  beforeEach(() => {
+    vi.mocked(global.fetch).mockReset();
+  });
+
+  it('returns input unchanged when there are no canonical threads', async () => {
+    const results = [makeSceneResult(0, [], [])];
+    const out = await reextractFateWithLifecycle(results);
+    expect(out).toEqual(results);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('calls the LLM once per scene with one parallel worker per index', async () => {
+    const threads = [{
+      description: 'Will Alice return home?',
+      participantNames: ['Alice'],
+      outcomes: ['remains', 'returns home'],
+      development: '',
+    }];
+    const results = [
+      makeSceneResult(0, [
+        { threadDescription: 'Will Alice return home?', logType: 'setup',
+          updates: [{ outcome: 'remains', evidence: 1 }], volumeDelta: 1, rationale: 'enters wonderland' },
+      ], threads),
+      makeSceneResult(1, [
+        { threadDescription: 'Will Alice return home?', logType: 'payoff',
+          updates: [{ outcome: 'returns home', evidence: 4 }], volumeDelta: 2, rationale: 'wakes up' },
+      ]),
+    ];
+    queueFetchResponses([
+      JSON.stringify({ threadDeltas: [{ threadDescription: 'Will Alice return home?', logType: 'setup',
+        updates: [{ outcome: 'returns home', evidence: 0.5 }], volumeDelta: 1, rationale: 'seeds the return' }] }),
+      JSON.stringify({ threadDeltas: [{ threadDescription: 'Will Alice return home?', logType: 'payoff',
+        updates: [{ outcome: 'returns home', evidence: 4 }], volumeDelta: 2, rationale: 'wakes up' }] }),
+    ]);
+    const out = await reextractFateWithLifecycle(results);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    // Scene 0 now prices toward the eventual winner, not the local misdirection.
+    expect(out[0].scenes[0].threadDeltas[0].updates[0].outcome).toBe('returns home');
+    expect(out[1].scenes[0].threadDeltas[0].logType).toBe('payoff');
+  });
+
+  it('computes observed winner from summed evidence across all scenes', async () => {
+    // Scene 0 gives "remains" +2; scenes 1+2 give "returns home" +3 each.
+    // Winner must be "returns home" (summed +6) not "remains" (summed +2).
+    const threads = [{
+      description: 'Will Alice return home?',
+      participantNames: ['Alice'],
+      outcomes: ['remains', 'returns home'],
+      development: '',
+    }];
+    const results = [
+      makeSceneResult(0, [{ threadDescription: 'Will Alice return home?', logType: 'escalation',
+        updates: [{ outcome: 'remains', evidence: 2 }], volumeDelta: 1, rationale: 'lost' }], threads),
+      makeSceneResult(1, [{ threadDescription: 'Will Alice return home?', logType: 'escalation',
+        updates: [{ outcome: 'returns home', evidence: 3 }], volumeDelta: 1, rationale: 'finds path' }]),
+      makeSceneResult(2, [{ threadDescription: 'Will Alice return home?', logType: 'payoff',
+        updates: [{ outcome: 'returns home', evidence: 3 }], volumeDelta: 2, rationale: 'wakes up' }]),
+    ];
+    // Capture the prompts sent to the LLM to verify winner annotation.
+    const capturedPrompts: string[] = [];
+    vi.mocked(global.fetch).mockImplementation(async (_url, init?: RequestInit) => {
+      const body = typeof init?.body === 'string' ? init.body : '';
+      try {
+        const parsed = JSON.parse(body);
+        if (typeof parsed.prompt === 'string') capturedPrompts.push(parsed.prompt);
+      } catch { /* ignore */ }
+      return {
+        ok: true,
+        json: async () => ({ content: '{"threadDeltas":[]}' }),
+        text: async () => '{"threadDeltas":[]}',
+        body: null,
+      } as Response;
+    });
+    await reextractFateWithLifecycle(results);
+    expect(capturedPrompts.length).toBe(3);
+    // Every prompt should mark "returns home" as the WINNER.
+    for (const p of capturedPrompts) {
+      expect(p).toContain('returns home [WINNER]');
+      expect(p).not.toContain('remains [WINNER]');
+    }
+  });
+
+  it('approximates the resolution scene from the peak committal evidence', async () => {
+    const threads = [{
+      description: 'Will Alice return home?',
+      participantNames: ['Alice'],
+      outcomes: ['remains', 'returns home'],
+      development: '',
+    }];
+    // Evidence for winner ramps up: +1 at scene 0, +2 at scene 1, +4 (payoff) at scene 2.
+    const results = [
+      makeSceneResult(0, [{ threadDescription: 'Will Alice return home?', logType: 'setup',
+        updates: [{ outcome: 'returns home', evidence: 1 }], volumeDelta: 1, rationale: 'seed' }], threads),
+      makeSceneResult(1, [{ threadDescription: 'Will Alice return home?', logType: 'escalation',
+        updates: [{ outcome: 'returns home', evidence: 2 }], volumeDelta: 1, rationale: 'ramp' }]),
+      makeSceneResult(2, [{ threadDescription: 'Will Alice return home?', logType: 'payoff',
+        updates: [{ outcome: 'returns home', evidence: 4 }], volumeDelta: 2, rationale: 'wakes up' }]),
+    ];
+    const capturedPrompts: string[] = [];
+    vi.mocked(global.fetch).mockImplementation(async (_url, init?: RequestInit) => {
+      const body = typeof init?.body === 'string' ? init.body : '';
+      try {
+        const parsed = JSON.parse(body);
+        if (typeof parsed.prompt === 'string') capturedPrompts.push(parsed.prompt);
+      } catch { /* ignore */ }
+      return {
+        ok: true,
+        json: async () => ({ content: '{"threadDeltas":[]}' }),
+        text: async () => '{"threadDeltas":[]}',
+        body: null,
+      } as Response;
+    });
+    await reextractFateWithLifecycle(results);
+    // Scene index 2 (one-based 3) is the payoff scene; prompt should cite it.
+    expect(capturedPrompts[0]).toContain('resolution fires around scene 3');
+  });
+
+  it('drops re-extracted deltas that reference unknown threads', async () => {
+    const threads = [{
+      description: 'Will Alice return home?',
+      participantNames: ['Alice'],
+      outcomes: ['remains', 'returns home'],
+      development: '',
+    }];
+    const results = [makeSceneResult(0, [
+      { threadDescription: 'Will Alice return home?', logType: 'setup',
+        updates: [{ outcome: 'remains', evidence: 1 }], volumeDelta: 1, rationale: 'enters' },
+    ], threads)];
+    // LLM hallucinates a thread that wasn't in the canonical set.
+    queueFetchResponses([JSON.stringify({
+      threadDeltas: [
+        { threadDescription: 'Will Alice return home?', logType: 'setup',
+          updates: [{ outcome: 'returns home', evidence: 0.5 }], volumeDelta: 1, rationale: 'seed' },
+        { threadDescription: 'Ghost thread', logType: 'payoff',
+          updates: [{ outcome: 'yes', evidence: 4 }], volumeDelta: 1, rationale: 'hallucinated' },
+      ],
+    })]);
+    const out = await reextractFateWithLifecycle(results);
+    expect(out[0].scenes[0].threadDeltas.length).toBe(1);
+    expect(out[0].scenes[0].threadDeltas[0].threadDescription).toBe('Will Alice return home?');
+  });
+
+  it('drops outcomes that are not in the canonical outcome set', async () => {
+    const threads = [{
+      description: 'Will Alice return home?',
+      participantNames: ['Alice'],
+      outcomes: ['remains', 'returns home'],
+      development: '',
+    }];
+    const results = [makeSceneResult(0, [
+      { threadDescription: 'Will Alice return home?', logType: 'setup',
+        updates: [{ outcome: 'remains', evidence: 1 }], volumeDelta: 1, rationale: 'enters' },
+    ], threads)];
+    queueFetchResponses([JSON.stringify({
+      threadDeltas: [{
+        threadDescription: 'Will Alice return home?',
+        logType: 'escalation',
+        updates: [
+          { outcome: 'returns home', evidence: 2 },
+          { outcome: 'adapts to Wonderland', evidence: 1 }, // NOT canonical
+        ],
+        volumeDelta: 1,
+        rationale: 'shifts toward return',
+      }],
+    })]);
+    const out = await reextractFateWithLifecycle(results);
+    const updates = out[0].scenes[0].threadDeltas[0].updates;
+    expect(updates.length).toBe(1);
+    expect(updates[0].outcome).toBe('returns home');
+  });
+
+  it('clamps re-extracted evidence to [-4, +4]', async () => {
+    const threads = [{
+      description: 'Will Alice return home?',
+      participantNames: ['Alice'],
+      outcomes: ['remains', 'returns home'],
+      development: '',
+    }];
+    const results = [makeSceneResult(0, [
+      { threadDescription: 'Will Alice return home?', logType: 'setup',
+        updates: [{ outcome: 'remains', evidence: 1 }], volumeDelta: 1, rationale: 'enters' },
+    ], threads)];
+    queueFetchResponses([JSON.stringify({
+      threadDeltas: [{
+        threadDescription: 'Will Alice return home?',
+        logType: 'payoff',
+        updates: [{ outcome: 'returns home', evidence: 99 }],
+        volumeDelta: 1,
+        rationale: 'overshoot',
+      }],
+    })]);
+    const out = await reextractFateWithLifecycle(results);
+    const evidence = out[0].scenes[0].threadDeltas[0].updates[0].evidence;
+    expect(evidence).toBeLessThanOrEqual(4);
+    expect(evidence).toBeGreaterThanOrEqual(-4);
+  });
+
+  it('keeps first-pass deltas when the LLM call fails', async () => {
+    const threads = [{
+      description: 'Will Alice return home?',
+      participantNames: ['Alice'],
+      outcomes: ['remains', 'returns home'],
+      development: '',
+    }];
+    const prior = [
+      { threadDescription: 'Will Alice return home?', logType: 'setup',
+        updates: [{ outcome: 'remains', evidence: 1 }], volumeDelta: 1, rationale: 'enters' },
+    ];
+    const results = [makeSceneResult(0, prior, threads)];
+    vi.mocked(global.fetch).mockRejectedValue(new Error('network'));
+    const out = await reextractFateWithLifecycle(results);
+    expect(out[0].scenes[0].threadDeltas).toEqual(prior);
+  });
+
+  it('reports progress via onProgress callback', async () => {
+    const threads = [{
+      description: 'Will Alice return home?',
+      participantNames: ['Alice'],
+      outcomes: ['remains', 'returns home'],
+      development: '',
+    }];
+    const results = [
+      makeSceneResult(0, [], threads),
+      makeSceneResult(1, []),
+      makeSceneResult(2, []),
+    ];
+    queueFetchResponses([
+      '{"threadDeltas":[]}',
+      '{"threadDeltas":[]}',
+      '{"threadDeltas":[]}',
+    ]);
+    const progressEvents: { done: number; total: number }[] = [];
+    await reextractFateWithLifecycle(results, {
+      onProgress: (done, total) => progressEvents.push({ done, total }),
+    });
+    expect(progressEvents.length).toBe(3);
+    expect(progressEvents.at(-1)).toEqual({ done: 3, total: 3 });
+  });
+
+  it('stops issuing calls once cancelled() returns true', async () => {
+    const threads = [{
+      description: 'Will Alice return home?',
+      participantNames: ['Alice'],
+      outcomes: ['remains', 'returns home'],
+      development: '',
+    }];
+    const results = Array.from({ length: 5 }, (_, i) => makeSceneResult(i, [], i === 0 ? threads : []));
+    let callCount = 0;
+    vi.mocked(global.fetch).mockImplementation(async () => {
+      callCount++;
+      return {
+        ok: true,
+        json: async () => ({ content: '{"threadDeltas":[]}' }),
+        text: async () => '{"threadDeltas":[]}',
+        body: null,
+      } as Response;
+    });
+    let cancel = false;
+    await reextractFateWithLifecycle(results, {
+      concurrency: 1,
+      cancelled: () => cancel,
+      onProgress: (done) => {
+        if (done >= 2) cancel = true;
+      },
+    });
+    expect(callCount).toBeLessThan(5);
   });
 });

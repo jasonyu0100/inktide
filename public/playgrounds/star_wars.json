@@ -115,18 +115,39 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-02",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Leia feeds the stolen plans into R2 and records her plea; the sliver of data escapes the Tantive IV in a jettisoned astromech."
         },
         {
           "threadId": "T-SW-06",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Leia stages the message under fire and lets Vader take her; the princess buys the Rebellion time with her own capture."
         },
         {
           "threadId": "T-SW-07",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "The Star Destroyer swallows the Tantive IV whole; the Empire's ultimate weapon has stopped being a rumour and started hunting."
         }
       ],
       "worldDeltas": [
@@ -475,8 +496,10 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-02",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "The Jawa sandcrawler offloads R2 and C-3PO at the Lars homestead; the stolen data is now sitting in Owen's garage."
         }
       ],
       "worldDeltas": [
@@ -552,8 +575,15 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-01",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "The princess's hologram flickers to life in Luke's garage; the call from the stars arrives as a half-repeating message not meant for him."
         }
       ],
       "worldDeltas": [
@@ -639,8 +669,10 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-02",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "R2 slips into the Jundland Wastes on his own errand; the Death Star plans wander the desert looking for Obi-Wan Kenobi."
         }
       ],
       "worldDeltas": [
@@ -709,8 +741,10 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Tusken Raiders ambush Luke in the canyon; the farm boy learns the Wastes are not a story the farm told safely."
         }
       ],
       "worldDeltas": [
@@ -769,8 +803,15 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-03",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "A krayt dragon's false roar scatters the Tuskens and Ben Kenobi emerges from the rocks; the hermit who outlived his apprentice steps back onto the board."
         }
       ],
       "worldDeltas": [
@@ -853,13 +894,22 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-05",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Obi-Wan hands Luke his father's lightsaber; the blade hums blue in his palm and the Force acquires a body through which to speak."
         },
         {
           "threadId": "T-SW-03",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Obi-Wan names Darth Vader as the pupil who betrayed everything; the unfinished business is spoken aloud for the first time in decades."
         }
       ],
       "worldDeltas": [
@@ -957,13 +1007,17 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-02",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "R2 plays the full message for Obi-Wan; the plans' destination is named — Alderaan, Bail Organa, the Rebellion's last reliable hand."
         },
         {
           "threadId": "T-SW-06",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Leia's plea to Kenobi confirms the Rebellion's chain of command is intact even with her captured; the cause has not collapsed with her."
         }
       ],
       "worldDeltas": [
@@ -1049,8 +1103,10 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-05",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Luke rides home turning the lightsaber in his lap; his father was a Jedi, and the word sits in his mouth like a foreign language."
         }
       ],
       "worldDeltas": [
@@ -1131,13 +1187,17 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Owen and Beru lie dead in the homestead doorway; the farm boy becomes a pilgrim because the life he would have stayed for is ash."
         },
         {
           "threadId": "T-SW-07",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Stormtroopers traced the droids to the Lars farm and left no witnesses; the Empire's reach is no longer an abstraction in Luke's world."
         }
       ],
       "worldDeltas": [
@@ -1217,8 +1277,15 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-01",
-          "from": "latent",
-          "to": "active"
+          "logType": "setup",
+          "volumeDelta": 1,
+          "updates": [
+            {
+              "outcome": "yes",
+              "evidence": 1
+            }
+          ],
+          "rationale": "Beru tells Owen 'he is not his father' and Owen relents; Luke can apply to the Academy next season, leaving Tatooine by paperwork."
         }
       ],
       "worldDeltas": [
@@ -1265,8 +1332,10 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "Luke drives toward Anchorhead in the pre-dawn dark; the departure feels like amputation rather than escape, and he misses the droids by hours."
         }
       ],
       "worldDeltas": [
@@ -1313,8 +1382,10 @@
       "threadDeltas": [
         {
           "threadId": "T-SW-01",
-          "from": "active",
-          "to": "active"
+          "logType": "pulse",
+          "volumeDelta": 1,
+          "updates": [],
+          "rationale": "At the Anchorhead depot Luke watches a freighter lift off; he does not yet know the Star Destroyer overhead has already changed the stakes."
         }
       ],
       "worldDeltas": [
@@ -2033,11 +2104,28 @@
               }
             ],
             "description": "Luke's journey from farm boy to hero — the call that pulls him from sand and silence into the stars",
-            "status": "latent",
             "openedAt": "S-SW-001",
             "dependents": [
               "T-SW-05"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-SW-02",
@@ -2052,11 +2140,28 @@
               }
             ],
             "description": "The stolen Death Star plans — a sliver of data that carries the hope of an entire galaxy",
-            "status": "latent",
             "openedAt": "S-SW-001",
             "dependents": [
               "T-SW-07"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-SW-03",
@@ -2071,9 +2176,26 @@
               }
             ],
             "description": "Obi-Wan's unfinished business with Vader — master and apprentice, bound by betrayal and a lightsaber that cut both ways",
-            "status": "latent",
             "openedAt": "S-SW-003",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-SW-04",
@@ -2084,9 +2206,26 @@
               }
             ],
             "description": "Han Solo's arc from mercenary to ally — the smuggler who insists he does not care, protesting too much",
-            "status": "latent",
             "openedAt": "S-SW-005",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-SW-05",
@@ -2101,11 +2240,28 @@
               }
             ],
             "description": "The Force awakening in Luke — an ancient power stirring in the blood of a boy who does not yet know what he is",
-            "status": "latent",
             "openedAt": "S-SW-003",
             "dependents": [
               "T-SW-03"
-            ]
+            ],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-SW-06",
@@ -2120,9 +2276,26 @@
               }
             ],
             "description": "Leia and the Rebellion's desperate fight — a princess who refuses to break and the cause she would die for",
-            "status": "latent",
             "openedAt": "S-SW-001",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           },
           {
             "id": "T-SW-07",
@@ -2137,9 +2310,26 @@
               }
             ],
             "description": "The Death Star — ultimate weapon and ultimate vulnerability, a monument to Imperial hubris with a fatal flaw at its heart",
-            "status": "latent",
             "openedAt": "S-SW-002",
-            "dependents": []
+            "dependents": [],
+            "outcomes": [
+              "yes",
+              "no"
+            ],
+            "beliefs": {
+              "narrator": {
+                "logits": [
+                  0,
+                  0
+                ],
+                "volume": 2,
+                "volatility": 0
+              }
+            },
+            "threadLog": {
+              "nodes": {},
+              "edges": []
+            }
           }
         ],
         "relationshipDeltas": [

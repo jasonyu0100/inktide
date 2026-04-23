@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  IconActivity,
   IconAutoLoop,
   IconChevronLeft,
   IconChevronRight,
@@ -16,7 +17,21 @@ import {
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useStore } from "@/lib/store";
 import { resolvePlanForBranch, resolveProseForBranch } from "@/lib/narrative-utils";
+import {
+  computeNarrativeHealth,
+  renderHealthReportForPrompt,
+  type HealthBand,
+} from "@/lib/narrative-health";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+// Colour per health band — matches the existing palette (emerald for good,
+// amber for watch, orange for needs maintenance, rose for critical).
+const HEALTH_BAND_STYLE: Record<HealthBand, { text: string; bg: string; label: string }> = {
+  healthy: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Healthy' },
+  watch: { text: 'text-amber-400', bg: 'bg-amber-500/10', label: 'Watch' },
+  needs_maintenance: { text: 'text-orange-400', bg: 'bg-orange-500/10', label: 'Needs maintenance' },
+  critical: { text: 'text-rose-400', bg: 'bg-rose-500/10', label: 'Critical' },
+};
 
 type FloatingPaletteProps = {
   isBulkActive?: boolean;
@@ -51,6 +66,51 @@ export default function FloatingPalette({
       )
     : false;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
+  const healthPopoverRef = useRef<HTMLDivElement | null>(null);
+
+  // Lazy health evaluation — recomputed only while the popover is open so we
+  // don't pay the cost on every render. `narrative` dep forces fresh scoring
+  // after edits/generation.
+  const healthReport = useMemo(() => {
+    if (!healthOpen || !narrative) return null;
+    return computeNarrativeHealth(
+      narrative,
+      state.resolvedEntryKeys,
+      state.viewState.currentSceneIndex,
+      state.autoConfig,
+    );
+  }, [
+    healthOpen,
+    narrative,
+    state.resolvedEntryKeys,
+    state.viewState.currentSceneIndex,
+    state.autoConfig,
+  ]);
+
+  // Dismiss the popover on outside click.
+  useEffect(() => {
+    if (!healthOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!healthPopoverRef.current) return;
+      if (!healthPopoverRef.current.contains(e.target as Node)) setHealthOpen(false);
+    }
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [healthOpen]);
+
+  const runHealthExpansion = useCallback(() => {
+    if (!healthReport) return;
+    setHealthOpen(false);
+    window.dispatchEvent(
+      new CustomEvent('open-generate-panel', {
+        detail: {
+          healthMode: true,
+          healthReport: renderHealthReportForPrompt(healthReport),
+        },
+      }),
+    );
+  }, [healthReport]);
   const isAutoActive = !!(
     state.viewState.autoRunState?.isRunning || state.viewState.autoRunState?.isPaused
   );
@@ -681,6 +741,129 @@ export default function FloatingPalette({
               >
                 <IconAutoLoop size={14} />
               </button>
+
+              {/* Diagnose — narrative health check + maintenance top-up */}
+              <div className="relative">
+                <button
+                  type="button"
+                  className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
+                    healthOpen
+                      ? 'text-emerald-300 bg-emerald-500/20'
+                      : 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
+                  }`}
+                  onClick={() => setHealthOpen((v) => !v)}
+                  title="Diagnose narrative health"
+                >
+                  <IconActivity size={14} />
+                </button>
+                {healthOpen && healthReport && (
+                  <div
+                    ref={healthPopoverRef}
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-80 glass-pill !rounded-xl !p-0 overflow-hidden"
+                    style={{ zIndex: 40 }}
+                  >
+                    <div className="p-3 flex flex-col gap-2.5">
+                      {/* Header — band + score */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full ${HEALTH_BAND_STYLE[healthReport.band].text} ${HEALTH_BAND_STYLE[healthReport.band].bg}`}
+                          >
+                            {HEALTH_BAND_STYLE[healthReport.band].label}
+                          </span>
+                          <span className="text-sm font-mono tabular-nums text-text-primary">
+                            {Math.round(healthReport.overall * 100)}%
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setHealthOpen(false)}
+                          className="text-text-dim hover:text-text-secondary"
+                          title="Close"
+                        >
+                          <IconClose size={12} />
+                        </button>
+                      </div>
+
+                      {/* Headline */}
+                      <p className="text-[11px] text-text-secondary leading-snug">
+                        {healthReport.headline}
+                      </p>
+
+                      {/* Dimension bars — six of them: threads, cast, locations,
+                          artifacts, systems, balance. */}
+                      <div className="flex flex-col gap-1 pt-1 border-t border-white/5">
+                        {(
+                          [
+                            ['Threads', healthReport.dimensions.threads],
+                            ['Cast', healthReport.dimensions.cast],
+                            ['Locations', healthReport.dimensions.locations],
+                            ['Artifacts', healthReport.dimensions.artifacts],
+                            ['Systems', healthReport.dimensions.systems],
+                            ['Balance', healthReport.dimensions.balance],
+                          ] as const
+                        ).map(([label, d]) => (
+                          <div
+                            key={label}
+                            className="flex items-center gap-2"
+                            title={d.summary}
+                          >
+                            <span className="text-[10px] text-text-dim w-16 shrink-0">
+                              {label}
+                            </span>
+                            <div className="flex-1 h-1 rounded-full bg-white/5 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${HEALTH_BAND_STYLE[d.band].bg.replace('/10', '/60')}`}
+                                style={{ width: `${Math.max(d.score * 100, 2)}%` }}
+                              />
+                            </div>
+                            <span
+                              className={`text-[10px] font-mono tabular-nums w-9 text-right ${HEALTH_BAND_STYLE[d.band].text}`}
+                            >
+                              {Math.round(d.score * 100)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Top deficits */}
+                      {healthReport.topDeficits.length > 0 && (
+                        <div className="flex flex-col gap-1 pt-1 border-t border-white/5">
+                          <span className="text-[9px] uppercase tracking-widest text-text-dim">
+                            Top deficits
+                          </span>
+                          <ul className="flex flex-col gap-0.5">
+                            {healthReport.topDeficits.slice(0, 3).map((d, i) => (
+                              <li
+                                key={i}
+                                className="text-[11px] text-text-secondary leading-snug"
+                              >
+                                · {d}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Action */}
+                      <button
+                        type="button"
+                        onClick={runHealthExpansion}
+                        disabled={!healthReport.needsMaintenance}
+                        className={`mt-1 text-[11px] font-semibold px-3 py-1.5 rounded-md transition-colors uppercase tracking-wider ${
+                          healthReport.needsMaintenance
+                            ? 'text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25'
+                            : 'text-text-dim bg-white/5 cursor-not-allowed'
+                        }`}
+                      >
+                        {healthReport.needsMaintenance
+                          ? 'Run maintenance'
+                          : 'No maintenance needed'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Divider */}
               <div className="w-px h-4 bg-white/12 mx-1" />

@@ -48,3 +48,11 @@ export function IconLock({ size, ...rest }: P) {
     </svg>
   );
 }
+
+export function IconActivity({ size, ...rest }: P) {
+  return (
+    <svg {...defaults(size)} {...rest}>
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

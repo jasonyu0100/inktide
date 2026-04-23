@@ -121,12 +121,12 @@ FICTION (lyric / fabulist / magical-realist / mythic):
 • {"content": "Anansi is both smaller and larger than he appears", "type": "figurative_rule"}
 
 NON-FICTION (exhaustive example from a technical paper):
-• {"content": "F = activeArcs^α × stageWeight", "type": "formula"}
-• {"content": "F represents Fate — the force of threads pulling world and system toward resolution", "type": "definition"}
+• {"content": "F = Σ log(1 + |e|_max) × (1 + log(1 + Δv))", "type": "formula"}
+• {"content": "F represents Fate — information gain from scenes re-pricing thread prediction markets", "type": "definition"}
 • {"content": "W = ΔN_c + √ΔE_c — entity transformation (what we learn about characters, locations, artifacts)", "type": "definition"}
 • {"content": "S = ΔN + √ΔE — world deepening (rules, structures, concepts)", "type": "definition"}
-• {"content": "Thread lifecycle: latent→seeded→active→escalating→critical→resolved/subverted. Escalating = point of no return. Abandoned earns 0.", "type": "definition"}
-• {"content": "Sustained threads earn superlinearly: 5 arcs at critical→resolved earns ~34 vs 4 for single-arc", "type": "example"}
+• {"content": "Threads are prediction markets over named outcomes; softmax over logits prices the narrator's belief. Evidence in [-4, +4] per update, clamped and applied as log-odds.", "type": "definition"}
+• {"content": "Markets close when margin ≥ τ_effective AND logType is payoff/twist with |e| ≥ 3. τ_effective scales with accumulated volume — high-attention threads need proportionally more decisive resolutions.", "type": "definition"}
 • {"content": "Published works score 85-95", "type": "evidence"}
 • {"content": "C = √ΔM + √ΔE + √ΔR", "type": "formula"}
 • {"content": "ΔM counts world deltas", "type": "definition"}

@@ -754,12 +754,11 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
                     </span>
                   </div>
                   {transitions.length > 0 && (
-                    <div className="flex items-center gap-1 pl-9 font-mono text-[9px]">
-                      <span className="text-text-dim">{transitions[0].from}</span>
+                    <div className="flex items-center gap-1 pl-9 font-mono text-[9px] flex-wrap">
                       {transitions.map((tm, i) => (
                         <span key={i} className="flex items-center gap-1">
-                          <span className="text-text-dim/50">→</span>
-                          <span className="text-amber-400">{tm.to}</span>
+                          <span className="text-text-dim">[{tm.logType}]</span>
+                          <span className="text-amber-400">{(tm.updates ?? []).map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`).join(' ')}</span>
                         </span>
                       ))}
                     </div>
@@ -971,7 +970,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
                   <div key={j} className="flex items-center gap-1.5 text-xs">
                     <span className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary shrink-0">{tm.threadId}</span>
                     {thread && <span className="text-text-dim text-[10px] truncate max-w-25">{thread.description}</span>}
-                    <span className="text-text-dim ml-auto shrink-0">{tm.from} → {tm.to}</span>
+                    <span className="text-text-dim ml-auto shrink-0">[{tm.logType}] {(tm.updates ?? []).map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`).join(' ')}</span>
                   </div>
                 );
               })}

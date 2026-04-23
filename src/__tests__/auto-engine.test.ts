@@ -52,7 +52,8 @@ function createThread(id: string, overrides: Partial<Thread> = {}): Thread {
   return {
     id,
     description: `Thread ${id} description`,
-    status: "active",
+    outcomes: ["yes", "no"],
+    beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } },
     participants: [],
     dependents: [],
     openedAt: "s1",
@@ -448,8 +449,8 @@ describe("checkEndConditions", () => {
   it("returns all_threads_resolved when all terminal", () => {
     const narrative = createMinimalNarrative();
     narrative.threads = {
-      "T-001": createThread("T-001", { status: "resolved" }),
-      "T-002": createThread("T-002", { status: "subverted" }),
+      "T-001": createThread("T-001", { closedAt: "s-10", closeOutcome: 0 }),
+      "T-002": createThread("T-002", { closedAt: "s-12", closeOutcome: 1 }),
     };
     const config = createAutoConfig({
       endConditions: [{ type: "all_threads_resolved" }],
@@ -460,8 +461,8 @@ describe("checkEndConditions", () => {
   it("returns null when some threads still active", () => {
     const narrative = createMinimalNarrative();
     narrative.threads = {
-      "T-001": createThread("T-001", { status: "resolved" }),
-      "T-002": createThread("T-002", { status: "active" }),
+      "T-001": createThread("T-001", {}),
+      "T-002": createThread("T-002", {}),
     };
     const config = createAutoConfig({
       endConditions: [{ type: "all_threads_resolved" }],
@@ -533,7 +534,7 @@ describe("checkEndConditions", () => {
   it("returns first met condition when multiple exist", () => {
     const narrative = createMinimalNarrative();
     narrative.threads = {
-      "T-001": createThread("T-001", { status: "resolved" }),
+      "T-001": createThread("T-001", {}),
     };
     const config = createAutoConfig({
       endConditions: [
@@ -637,7 +638,8 @@ describe("evaluateNarrativeState", () => {
     // Add many active threads
     for (let i = 1; i <= 8; i++) {
       narrative.threads[`T-${i}`] = createThread(`T-${i}`, {
-        status: "active",
+        outcomes: ["yes", "no"],
+        beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } },
       });
     }
     const config = createAutoConfig({
@@ -650,7 +652,7 @@ describe("evaluateNarrativeState", () => {
   it("analyzes stagnant threads", () => {
     const narrative = createMinimalNarrative();
     narrative.threads = {
-      "T-001": createThread("T-001", { status: "active" }),
+      "T-001": createThread("T-001", {}),
     };
     // Add scenes without any thread deltas
     for (let i = 0; i < 5; i++) {
@@ -734,9 +736,9 @@ describe("auto-engine edge cases", () => {
   it("handles narrative with only terminal threads", () => {
     const narrative = createMinimalNarrative();
     narrative.threads = {
-      "T-001": createThread("T-001", { status: "resolved" }),
-      "T-002": createThread("T-002", { status: "subverted" }),
-      "T-003": createThread("T-003", { status: "abandoned" }),
+      "T-001": createThread("T-001", {}),
+      "T-002": createThread("T-002", {}),
+      "T-003": createThread("T-003", {}),
     };
     const config = createAutoConfig({
       endConditions: [{ type: "scene_count", target: 50 }],
@@ -749,9 +751,9 @@ describe("auto-engine edge cases", () => {
     const narrative = createMinimalNarrative();
     // Need > 2 latent threads to trigger the boost
     narrative.threads = {
-      "T-001": createThread("T-001", { status: "latent" }),
-      "T-002": createThread("T-002", { status: "latent" }),
-      "T-003": createThread("T-003", { status: "latent" }),
+      "T-001": createThread("T-001", {}),
+      "T-002": createThread("T-002", {}),
+      "T-003": createThread("T-003", {}),
     };
     const config = createAutoConfig({
       endConditions: [{ type: "scene_count", target: 50 }],
@@ -1178,7 +1180,8 @@ describe("buildPlanDirective", () => {
         "T-1": {
           id: "T-1",
           description: "A thread",
-          status: "active",
+          outcomes: ["yes", "no"],
+          beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } },
           kind: "external",
           participants: [],
           dependents: [],
@@ -1261,7 +1264,7 @@ describe("buildPlanDirective", () => {
           type: "peak",
           label: "Resolution peak",
           threadId: "T-1",
-          targetStatus: "resolved",
+          marketIntent: "close", marketOutcome: "yes",
           arcIndex: 1,
           arcSlot: 1,
         }),
@@ -1280,7 +1283,7 @@ describe("buildPlanDirective", () => {
           type: "valley",
           label: "Pivot valley",
           threadId: "T-1",
-          targetStatus: "escalating",
+          marketIntent: "escalate",
           arcIndex: 1,
           arcSlot: 1,
         }),
@@ -1300,7 +1303,7 @@ describe("buildPlanDirective", () => {
           type: "moment",
           label: "Intermediate reveal",
           threadId: "T-1",
-          targetStatus: "active",
+          marketIntent: "advance",
           arcSlot: 1,
         }),
       ],

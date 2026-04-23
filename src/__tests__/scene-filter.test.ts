@@ -21,7 +21,7 @@ function createWorldBuild(
     expansionManifest: {
       newCharacters: characters.map((c) => ({ id: c.id, name: `Char ${c.id}`, role: 'anchor' as const, world: { nodes: {}, edges: [] }, threadIds: [] })),
       newLocations: locations.map((l) => ({ id: l.id, name: `Loc ${l.id}`, prominence: 'place' as const, parentId: null, tiedCharacterIds: [] as string[], world: { nodes: {}, edges: [] }, threadIds: [] })),
-      newThreads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, status: 'latent' as const, participants: [], dependents: [], openedAt: 'S-001', threadLog: { nodes: {}, edges: [] } })),
+      newThreads: threads.map((t) => ({ id: t.id, description: `Thread ${t.id}`, outcomes: ['yes', 'no'], beliefs: {}, participants: [], dependents: [], openedAt: 'S-001', threadLog: { nodes: {}, edges: [] } })),
       newArtifacts: artifacts.map((a) => ({ id: a.id, name: `Artifact ${a.id}`, significance: 'key' as const, parentId: 'C-01', world: { nodes: {}, edges: [] }, threadIds: [] })),
       systemDeltas: { addedNodes: [], addedEdges: [] },
     },
@@ -282,7 +282,8 @@ describe('getThreadIdsAtScene', () => {
       'T-01': {
         id: 'T-01',
         description: 'Desc 1',
-        status: 'active',
+        outcomes: ["yes", "no"],
+        beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } },
         openedAt: 'WB-01',
         dependents: [],
         participants: [],
@@ -291,7 +292,8 @@ describe('getThreadIdsAtScene', () => {
       'T-02': {
         id: 'T-02',
         description: 'Desc 2',
-        status: 'latent',
+        outcomes: ["yes", "no"],
+        beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } },
         openedAt: 'S-002',
         dependents: [],
         participants: [],
@@ -311,7 +313,8 @@ describe('getThreadIdsAtScene', () => {
       'T-01': {
         id: 'T-01',
         description: 'Desc 1',
-        status: 'active',
+        outcomes: ["yes", "no"],
+        beliefs: { narrator: { logits: [0, 0], volume: 2, volatility: 0 } },
         openedAt: 'UNKNOWN-KEY',
         dependents: [],
         participants: [],

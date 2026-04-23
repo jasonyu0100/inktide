@@ -21,7 +21,7 @@ directionVector — single sentence (10-15 words), uses ENTITY NAMES, states wha
 worldState — 50-90 words, terse and structured, ground truth only, no speculation, no narration. It is the "chess-board position" as of the END OF THIS ARC.
 
 DOMAIN-ADAPTIVE — identify the TYPE OF WORK first, then emit state in that domain's NATIVE compact form:
-  - Fiction / novel / screenplay: character positions (who is where NOW), live threads and their stage (seeded / active / escalating / critical / resolved), artifacts and who holds them, alliances and rivalries, standing reveals, unresolved questions.
+  - Fiction / novel / screenplay: character positions (who is where NOW), live thread markets with their top outcome + probability ("T-Rivalry: Meng betrays 0.72"), artifacts and who holds them, alliances and rivalries, standing reveals, unresolved questions.
   - Chess or strategic game: piece positions, side-to-move, castling/special rights, material balance, active threats, pawn structure.
   - Poker or imperfect-information game: stack sizes, pot size, hole cards if known, community cards, action position, inferred ranges.
   - Academic paper / non-fiction / research: claims established, evidence anchored, open questions, unresolved dependencies, remaining work.

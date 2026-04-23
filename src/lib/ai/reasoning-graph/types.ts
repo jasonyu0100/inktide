@@ -18,7 +18,7 @@ export type ReasoningNodeType =
   | "reasoning"    // A step in the logical chain
   | "pattern"      // Positive pattern to reinforce (cooperative)
   | "warning"      // Anti-pattern risk to avoid (adversarial)
-  | "chaos";       // Creative agent — authorises spawning new characters/locations/artifacts/threads
+  | "chaos";       // Black-swan force — authorises departures from what the current agenda predicts. Two legitimate modes: (a) CREATIVE — spawn new characters/locations/artifacts/threads the existing state wouldn't have generated; (b) REVERSAL — flip a saturating or committed market against its current lean via a twist-grade event. Both are "not in the rulebook"; both re-price the portfolio.
 
 export type ReasoningEdgeType =
   | "enables"      // A enables B

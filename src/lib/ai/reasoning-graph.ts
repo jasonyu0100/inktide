@@ -55,15 +55,13 @@ import {
 } from "./reasoning-graph/shared";
 import { validateNodeReferences } from "./reasoning-graph/validate";
 import {
-  buildSequentialPath,
-  extractPatternWarningDirectives,
-} from "./reasoning-graph/sequential-path";
-import { reasoningModeBlock } from "./reasoning-graph/mode-blocks";
-import {
+  reasoningModeBlock,
   forcePreferenceBlock,
   networkBiasBlock,
   getPlanNodeGuidance,
-} from "./reasoning-graph/preference-blocks";
+  buildSequentialPath,
+  extractPatternWarningDirectives,
+} from "@/lib/prompts/reasoning";
 
 // ── Public API re-exports ───────────────────────────────────────────────────
 // Keep existing import paths (`@/lib/ai/reasoning-graph`) working after the

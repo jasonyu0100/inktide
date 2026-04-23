@@ -4,7 +4,7 @@
  * setting inputs; none do any LLM calls.
  */
 
-import type { ForcePreference } from "./shared";
+import type { ForcePreference } from "@/lib/ai/reasoning-graph/shared";
 
 // ── Plan Node Scaling ─────────────────────────────────────────────────────────
 // Coordination plans scale node counts based on arc budget to ensure proper
@@ -136,7 +136,14 @@ Three structural forces run through the work:
 - **WORLD** — character, location, artifact change. Entities deepen, bonds shift, things accrue history.
 - **SYSTEM** — the rules and principles constraining fate and world.
 
-**CHAOS is adversarial reasoning**, not a fourth structural peer. It is the red-team inside the graph: what could go wrong, what defies expectations, where the current agenda breaks, what the work is not accounting for. Chaos is crucial for research-type thinking — a graph that only pulls toward fate is a graph that never questions itself. Chaos is an EVENT (something that happens at a moment and couldn't be predicted from the rules alone); adversarial system nodes are RULES (a loophole that was always in the mechanics). Test: could it have been in the rulebook before this moment? If yes → system. If no → chaos.
+**CHAOS is the BLACK-SWAN force** — the departure from what the current agenda and market state predict. It has two legitimate modes, either or both of which can drive a chaos node:
+
+- **Creative chaos** spawns new pieces on the board the existing state wouldn't have generated — an unforeseen rival arrives, a faction nobody modelled declares itself, an artefact surfaces whose utility is disruption, a location reveals a property no one had looked for. These are creations that didn't exist in the prior.
+- **Reversal chaos** flips a saturating or committed market against its current lean — a twist-grade event (|e| ≥ 3 on the lagging outcome) that re-prices what looked settled. A trusted advisor revealed as the assassin; a failing rebellion turning on a single defection; a phantom "succeeds without cost" outcome collapsing into debt-collected.
+
+Either mode satisfies the test: **could it have been in the rulebook before this moment?** If yes, it's an adversarial *system* node (a loophole always in the mechanics). If no, it's chaos. A good chaos node often does both — the new piece IS the reversal event. Name what it creates OR what it flips (ideally both) concretely; "something surprising happens" without a target is adversarial vapour, not chaos. Chaos is where the current market state gets unsettled, because a 95/5 distribution is only useful if the reasoner has flagged what the 5% looks like — and the 5% may be a new agent nobody priced, an existing agent's hidden capability, or the bill coming due.
+
+**CHAOS IS AN EVER-PRESENT FORCE, not a mode-exclusive one.** It is the fundamental opposition to fate's probabilities — the pressure that asks "what if this doesn't play out the way the threads predict?" Every reasoning graph, in every mode, should carry SOME degree of chaos. The intensity varies: a quiet minority voice in fate/world/system modes (1-2 chaos nodes that create friction against the smooth trajectory); a structural force in chaos mode (where black-swan creation and market reversal become the organising principle). But never zero. A graph with no chaos is a graph over-fitted to the current agenda — narratively dead, because a fully-predictable story is not a good story. Life is unpredictable; the reader knows it; the graph must carry at least the texture of that unpredictability. Chaos is what makes the journey worth reading — without it, every thread resolves the way its logit leans and the market is a formality.
 
 ### FIVE CAUSAL PATTERNS
 
@@ -157,13 +164,13 @@ A fate-dominant graph leans into the agenda; a chaos-dominant graph leans into a
 - **Fate** creates things that extend the agenda (destined figures, prophesied artifacts, hidden threads surfacing).
 - **World** creates things that grow from existing entities (offspring, apprentices, a newly-discovered chamber, an artefact forged by a character).
 - **System** creates things that extend the rules (new principles following from established ones, new institutions consistent with the world's logic).
-- **Chaos** creates things that go against the grain (intruders, adversaries, disruptive artefacts, places defying the known map).
+- **Chaos** creates pieces that the current agenda wouldn't have generated AND/OR events that flip a market's lean — intruders nobody modelled, adversaries whose arrival inverts an alliance thread, disruptive artefacts that break a saturating "succeeds" outcome, hidden capabilities surfacing on known characters.
 
 Creations are real — they become part of the work once the graph is executed. When the logic wants a new piece on the board, add it; match the creation to the mode.
 
 ### BAD GRAPH SIGNALS
 
-A graph is failing when: reasoning nodes don't connect to anchors (disconnected components); the dominant force has fewer nodes than its complement combined; chaos nodes only have incoming \`requires\` edges (chaos being serviced, not driving); a "subversion" claims fate→chaos but the upstream fate is contrived rather than the real agenda; cross-direction edges only flow one way in balanced mode (no real tension); system nodes have no outgoing edges (lore dumps); new entities lack an edge rooting them into existing context (drop-ins). Bad graphs aren't less detailed — they're structurally misrepresenting what the reasoning is claiming.
+A graph is failing when: reasoning nodes don't connect to anchors (disconnected components); the dominant force has fewer nodes than its complement combined; **zero chaos nodes anywhere** (the graph is over-fitted to the current agenda — every mode should carry at least minority-level chaos); chaos nodes only have incoming \`requires\` edges (chaos being serviced, not driving); a "subversion" claims fate→chaos but the upstream fate is contrived rather than the real agenda; cross-direction edges only flow one way in balanced mode (no real tension); system nodes have no outgoing edges (lore dumps); new entities lack an edge rooting them into existing context (drop-ins). Bad graphs aren't less detailed — they're structurally misrepresenting what the reasoning is claiming.
 `;
 
   // Freeform: narrative quality first. No force bias — the LLM picks
@@ -184,7 +191,7 @@ Full toolbox:
 - **fate** — a thread advancing; references an existing threadId and its target status.
 - **character / location / artifact** — an existing entity whose world graph grows this ${scopeLower}; references an entityId.
 - **system** — a rule or principle; reuse existing SYS-XX ids where possible, or introduce a new rule that connects to one.
-- **chaos** — a realtime disruption that warps fate; introduces new entities, new threads, or subverts existing ones. Use when the story earns a perturbation, not to hit a ratio.
+- **chaos** — a black-swan departure from the current agenda: either spawns a new piece nobody modelled (creative) or flips a saturating/committed market against its lean (reversal). A single chaos node may do both — e.g. a new rival arriving IS the event that flips the threat market. Use when the story earns an unpriced move, not to hit a ratio.
 - **reasoning** — an explicit logical step linking other nodes.
 - **pattern / warning** — positive patterns to reinforce, anti-patterns to avoid.
 
@@ -212,7 +219,7 @@ The ${scopeLower} is where fate's momentum is amplified — threads escalate, pr
 - **Fate is creative.** A destined arrival, a long-promised revelation, a prophesied figure, a hidden artefact surfacing — fate spawns new entities that extend its agenda. The new piece arrives TO advance what's already in motion; its existence rhymes with the momentum that was already there. Every fate-dominant ${scopeLower} should be willing to introduce new entities when the agenda calls for them.
 - Peak and valley anchors should BE thread transitions: a peak is a critical→resolved moment on a load-bearing thread; a valley is an escalating pulse that refuses to break.
 
-**Adversarial reasoning is minimal in this mode** — at most 1-2 chaos nodes that stress-test fate's agenda. Fate dominance doesn't mean chaos vanishes; it means chaos is a quiet minority voice next to the lead.
+**Adversarial reasoning is minority, not absent** — keep 1-2 chaos nodes that stress-test fate's agenda, puncturing the smooth journey without redirecting it. Fate dominance doesn't mean chaos vanishes; it means chaos is a quiet minority voice next to the lead. A fate-dominant graph with zero chaos reads as programmatic — the agenda executing itself without friction.
 
 **Other structural forces in support**:
 - character as thread-carriers serving fate — the people whose choices move the thread.
@@ -282,35 +289,44 @@ The ${unit} should surface, test, AND extend the mechanics — the reader learns
     return `
 ## FORCE PREFERENCE: CHAOS-DOMINANT ${scopeNoun}
 
-**Master:** chaos — adversarial reasoning takes the lead. Fate is present but weakened.
-**Flavor of reasoning:** red-team, devil's-advocate, stress-test. Beats ask "what could go wrong", "what defies expectations", "where does the current agenda break" — and follow those questions into consequences the existing story didn't plan for.
+**Master:** chaos — black-swan reasoning takes the lead. This ${scopeLower} is where the agenda meets what it didn't plan for: new pieces nobody modelled, or market leans nobody expected to flip.
+**Flavor of reasoning:** red-team / devil's-advocate, but disciplined — every beat either introduces a departure the current state wouldn't have generated, or flips a saturating market via a twist-grade event. The output is a portfolio of unpriced moves, not generalised disruption.
 ${model}
 ### WHAT CHAOS DOMINANCE MEANS HERE
 
-This is the mode for adversarial and critical reasoning: stress-testing the agenda, exploring subversions, pursuing the counterfactuals the story has been ignoring.
+Chaos-dominant reasoning runs in two registers, typically mixed:
+
+- **Creative black swans** introduce pieces the current agenda didn't predict — a new rival, a faction nobody modelled, a location revealing properties no one had looked for, an artefact whose utility is disruption. The creation itself is the unpriced move.
+- **Reversal black swans** flip saturating or committed markets via twist-grade events. A trusted advisor revealed as the assassin, a hidden capability surfacing on a known character, a phantom "succeeds without cost" outcome collapsing into debt-collected. No new entity required; the reversal is the event.
+
+A single chaos node may be both — a new rival arriving IS the event that flips the threat thread. Mix them as the narrative earns.
 
 **Chaos should dominate — it makes up many of the nodes and clearly out-numbers every other force.** If fate, character, or system counts approach chaos's, the preference isn't being honoured.
 
-- Chaos is not randomness: each chaos node produces a consequence — adversarial, subversive, critical — that the existing agenda would not have reached on its own.
-- Explore "what could go wrong?" from multiple angles: internal fractures in the cast, external threats the story isn't accounting for, rule edge-cases, arrivals the cast didn't prepare for.
-- **Introduces new entities against the grain** — a hostile actor the cast hasn't anticipated, a place that defies expectations, an artefact whose utility is disruption.
-- **Subverts existing threads** — chaos's signature move: escalating threads that won't resolve the way the story expects, critical threads that get forked or broken open.
+**Target saturating markets when you're flipping.** Reversal chaos has the most information-value where the market is confident: a flip on a p=0.90 leader re-prices far more than a flip on a contested 55/45 market. Scan the portfolio for: saturating threads (near-closed margin, p ≥ 0.85), committed threads (p ≥ 0.65 with low volatility), and any thread whose "succeeds without cost / undetected / free" outcome is leading — those are phantom-saturation candidates ripe for reversal.
 
-**Chaos is the primary CAUSE in this mode** — most chaos nodes sit upstream, driving downstream adaptation. Chaos→chaos chaining is a core pattern.
+**Each chaos node must be legible.** Its label and detail should make clear at least one of:
+  - CREATIVE mode: what is being introduced that the prior state wouldn't have generated, and which market(s) the new piece perturbs.
+  - REVERSAL mode: the target market, its current leader, the event that flips it, and the lagging outcome the event re-prices toward.
+Absent a legible creative addition OR a legible reversal thesis, the node is adversarial vapour.
 
-**Fate appears in two ways**: (a) downstream as threads chaos is actively subverting or newly opening (subverted status, not the resolution fate had been pushing for); (b) **upstream as the subversion pattern** — the agenda causing its own disruption (Harry's pride → confronts Quirrell alone → worst-case reveal). The second is one of the most potent patterns in chaos mode: fate authoring the chaos it now has to face.
+**Black swan ≠ deus ex machina.** Chaos events are surprising TO THE MARKET but CONSISTENT WITH the world's rules and the story's buried setup. A troll in the dungeon is a chaos event (not in the rulebook, but the school's security has buried cracks); Dumbledore appearing to save the day is deus ex machina (contradicts the thread's stakes). Chaos subverts expectations; deus ex machina cheats them.
+
+**Chaos is the primary CAUSE in this mode** — most chaos nodes sit upstream, driving downstream adaptation. Chaos→chaos chaining is a core pattern (one black swan re-prices several markets in sequence; cascade strength should match the driving quality).
+
+**Fate appears in two ways**: (a) downstream as threads chaos is actively re-pricing or newly opening (subverted status, or a brand-new thread the creative chaos instantiated); (b) **upstream as the subversion pattern** — the agenda's overreach priming its own reversal (Harry's pride → confronts Quirrell alone → the reveal that flips the "evades detection" market). Self-induced black swans are among the most productive patterns: fate authoring the chaos that re-prices it.
 
 **Other nodes in support**:
-- character nodes used adversarially — "what if they betrayed us?", "what breaks them?", "who is the cast not prepared to deal with?"
-- system nodes as loopholes, violations, or edge-cases — rules fate relied on, weaponised the other way.
-- reasoning/pattern/warning as connective tissue for the stress-test.
+- character nodes used adversarially — "what hidden capability would re-price the rival thread?", "whose betrayal would flip the alliance market?"
+- system nodes as loopholes that enabled the black swan — rules whose edge cases make the creation or reversal mechanically legal.
+- reasoning / pattern / warning as connective tissue linking the event to the markets it perturbs.
 
-**Dominance check**: chaos is the majority; chaos nodes sit upstream driving the reasoning; fate nodes appear either as downstream effects of chaos or as upstream overreach causes that PROVOKED chaos — not as the beneficiary of chaos's output.
+**Dominance check**: chaos is the majority; chaos nodes sit upstream driving the reasoning; each chaos node names what it creates, what it flips, or both; fate nodes appear either as downstream effects of chaos (flipped leans, newly-opened threads) or as upstream overreach causes that PROVOKED chaos — not as the beneficiary of chaos's output.
 
 **Behaviour in this ${scopeLower}**:
 ${scope === "plan"
-  ? "- Expect several chaos-dominant arcs across the plan (HP's troll arc, HP's Norbert arc). Roughly 25-40% of arcs should be anchored on chaos.\n- Seed 5-10 chaos nodes across the plan.\n- Chaos-dominant arcs should leave the plan's fate trajectory MORE uncertain, not less — they are where the reader should feel the story could go multiple ways."
-  : "- Build the arc around 3-5 chaos nodes rather than the default 1-2.\n- The arc's peak or valley may itself be chaos-anchored (its prime mover is outside the current agenda).\n- A chaos node can subvert an existing thread or introduce an adversarial situation the cast must improvise around, reshaping the ${scopeLower}'s arc."}
+  ? "- Expect several chaos-dominant arcs across the plan (HP's troll arc, HP's Norbert arc). Roughly 25-40% of arcs should be anchored on chaos.\n- Seed 5-10 chaos nodes across the plan. Mix creative (new pieces) and reversal (flipped markets); a plan that only creates or only reverses is thin.\n- Chaos-dominant arcs should leave the plan's portfolio MORE uncertain after they resolve: new threads open (creative), or saturating markets either close decisively (payoff) or flip (twist). A chaos arc that neither creates nor re-prices is decorative and should be cut."
+  : "- Build the arc around 3-5 chaos nodes rather than the default 1-2.\n- The arc's peak or valley may itself be chaos-anchored (its prime mover is a black-swan event or creation outside the current agenda).\n- The chaos nodes collectively should either add a new piece the cast must adapt to, or identify at least one saturating market ready for reversal — ideally both. The arc's job is the twist the market wouldn't have reached on its own."}
 `;
   }
   return "";

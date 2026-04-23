@@ -7,34 +7,24 @@
 
 import { BEAT_FN_LIST, BEAT_MECHANISM_LIST } from "@/types/narrative";
 import { PROMPT_BEAT_TAXONOMY } from "../core/beat-taxonomy";
+import { PROMPT_PROPOSITIONS } from "../core/propositions";
 import { WORDS_PER_BEAT, BEATS_PER_SCENE, WORDS_PER_SCENE } from "@/lib/constants";
 
 /** Build the scene-plan system prompt. Beats are allocated by prose budget:
  *  each beat ≈ WORDS_PER_BEAT words, so a ~WORDS_PER_SCENE scene runs ~BEATS_PER_SCENE beats.
  *  Propositions scale with beat count — more beats, more total claims covered. */
 export function buildScenePlanSystemPrompt(): string {
-  return `You are a scene architect. Given a scene's structural data (summary, deltas, events), produce a structured beat plan — a JSON blueprint that a prose writer can follow.
+  return `You are a scene architect. Given a scene's structural data (summary, deltas, events), produce a beat plan — a JSON blueprint the prose writer executes.
 
-BREVITY IS STILL THE TARGET. Use only the beats the scene's content actually needs — no padding, no filler beats.
+BEAT SIZING — each beat is a ~${WORDS_PER_BEAT}-word chunk. Consistent rhythm: no bloated paragraphs, no thin lines. A beat carries 2-6 propositions in standard fiction, more in dense registers (see propositions section below).
 
-BEAT SIZING — EACH BEAT IS A ~${WORDS_PER_BEAT}-WORD CHUNK. That is the constraint, and working within it is the craft:
-- Every beat should carry roughly ${WORDS_PER_BEAT} words of prose. This creates a consistent rhythm — no beat is a bloated paragraph, no beat is a thin line.
-- The skill is knowing what fits in ${WORDS_PER_BEAT} words. A beat can comfortably carry 2-6 propositions (standard fiction), more in dense registers — see DENSITY GUIDELINES below. Learn the ceiling; use it.
+PROPOSITION COVERAGE is non-negotiable. Pack each beat with the most propositions it carries at ~${WORDS_PER_BEAT} words, then roll overflow into a new beat. Every compulsory proposition and every structural delta MUST land in at least one beat — beats are cheap, lost claims are not.
 
-PROPOSITIONS ARE THE POINT — LOAD THEM IN:
-- Good stories are DENSE with propositions. Events, beliefs, capabilities, world rules, relationships, secrets, goals — every one is a claim the scene makes true. Strip the scene bare and you get decoration; load it with compulsory + bridge propositions and you get weight.
-- NEVER drop a proposition because "there isn't room in the beat". If you can't fit them at ~${WORDS_PER_BEAT} words, CREATE ANOTHER BEAT and allocate the overflow there. Beats are cheap; lost propositions are not.
-- The allocation rule: pack each beat with the most propositions it can carry at ~${WORDS_PER_BEAT} words, then roll over into a new beat. Repeat until every compulsory proposition and every structural delta has landed somewhere.
+RHYTHM — consecutive beats should carry comparable proposition loads; redistribute when they don't.
 
-RHYTHM:
-- Beats should feel comparable in weight. If one beat has 6 propositions and the next has 1, the rhythm breaks. Redistribute so consecutive beats carry roughly similar loads.
-- Alternate mechanism-heavy beats with lighter ones where the form allows, but keep the proposition load steady.
+REFERENCE ENVELOPE (outcome, not quota): ~${WORDS_PER_SCENE} words / ~${BEATS_PER_SCENE} beats for a standard scene; 4-6 for a breather, 14-18 for a richly-threaded scene. Count follows content at the ~${WORDS_PER_BEAT}-word constraint.
 
-REFERENCE ENVELOPE (outcomes, not quotas):
-- A standard scene typically lands around ~${WORDS_PER_SCENE} words / ~${BEATS_PER_SCENE} beats when content genuinely fills it. A breather may run 4-6 beats; a richly-threaded scene may run 14-18. The count is dictated by how many propositions and deltas the scene must carry at the ~${WORDS_PER_BEAT}-word constraint — not picked in advance.
-- Every compulsory proposition and every structural delta MUST land in a beat. Coverage is non-negotiable. If coverage forces more beats, add more beats.
-
-The scene context includes a PROSE PROFILE with rules and anti-patterns. Propositions MUST conform to the profile's style. If the profile forbids figurative language, propositions must be plain factual statements. If the profile allows poetic language, propositions can be evocative. Read the profile rules carefully.
+The scene context includes a PROSE PROFILE with rules and anti-patterns. Propositions MUST conform to the profile's style — plain factual if figurative is forbidden, evocative if allowed.
 
 Return ONLY valid JSON matching this schema:
 {
@@ -61,97 +51,12 @@ RULES:
 - Knowledge gains need a discovery mechanism (overheard, read, deduced, confessed, cited, witnessed).
 - Relationship shifts need a catalytic moment.
 - Be specific: "She asks about the missing shipment; he deflects" not "A tense exchange."
-- STRUCTURAL SUMMARIES ONLY: The 'what' field describes WHAT HAPPENS, not how it reads as prose. Literary description is not a failure of prose — it's a failure of *field*. Put texture in the prose layer, not the plan's 'what' field.
-  • DO: "Guard confronts him about the forged papers" — structural event
-  • DON'T: "He muttered, 'The academy won't hold me long'" — pre-written prose
-  • DO: "Elders debate whether to proceed with the ceremony" — action summary
-  • DON'T: "Her voice cut through the murmur of the crowd" — literary description belongs in the prose layer
-  Strip adjectives, adverbs, and literary embellishments from the 'what' field. The prose writer adds texture.
-- MECHANISM VARIETY: use at least 3 distinct mechanisms across a multi-beat scene; avoid clustering a single mechanism (e.g., three consecutive "action" beats) unless the scene's intensity genuinely calls for it. Multi-character scenes (≥2 participants) should include at least one dialogue beat unless the scene is explicitly solitary or silent.
-- MECHANISM CHOICE is the dominant register of the beat:
-  • dialogue: a verbal exchange is foregrounded. Quoted speech is the default rendering; free-indirect, reported speech, choral/polyphonic exchange, or list-rendered speech are legitimate renderings when the prose profile declares them. A dialogue beat should plan for a SUBSTANTIVE exchange (multiple turns with subtext and non-verbal business) — not a single line with a tag. If the beat's content is one throwaway quote, the mechanism is probably not dialogue.
-  • thought: interior reasoning is foregrounded. Rendering is close-third monologue by default; in analytical registers this reads as authorial reasoning or evidentiary inference.
-  • action: physical movement, gesture, or demonstrated procedure is foregrounded. Choose for fights, gestures, physical tasks, worked steps.
-  • environment: setting, weather, sound, or ambient material is foregrounded. Choose for scene establishment, atmosphere, field/archive/lab description.
-  • narration: authorial voice is foregrounded — time compression, signposting, synthesis, exposition, framing commentary, thematic statement. In essayistic and mythic registers this is a primary mode, not a last resort.
-  • memory: associative recall — flashback in fiction; precedent, prior literature, or case in non-fiction.
-  • document: embedded text — letter, sign, epigraph, citation, table, footnote, figure caption, archival fragment.
-  • comic: humour, irony, absurdity, bathos, understatement, lyric digression, invocation, refrain, catalogue, or other expressive break from the scene's default register. Use when the beat is organised around a voiced device rather than around event or exchange.
-  The prose writer should render each beat in its declared register, but may use its full rendering vocabulary (quoted / free-indirect / reported for dialogue; image / refrain / catalogue for comic; etc.). Edge cases: overhearing ambient sound = environment; POV character's private reasoning = thought; paraphrased source = narration; direct quotation of a source = dialogue or document (pick the closer fit).
+- STRUCTURAL SUMMARIES ONLY: the 'what' field describes WHAT HAPPENS, not how it reads as prose. Strip adjectives, adverbs, and literary embellishments — the prose writer adds texture.
+  • DO: "Guard confronts him about the forged papers" ✓  DON'T: "He muttered, 'The academy won't hold me long'" ✗
+- MECHANISM VARIETY: at least 3 distinct mechanisms across a multi-beat scene. Multi-character scenes (≥2 participants) should include at least one dialogue beat unless explicitly solitary/silent.
+- MECHANISM CHOICE: pick the beat's DOMINANT register (see beat taxonomy above). The prose writer may use the register's full rendering vocabulary (free-indirect / reported / choral for dialogue; image / refrain / catalogue for comic). A dialogue beat must plan a SUBSTANTIVE exchange — multiple turns with subtext; a single tagged quote is not a dialogue beat.
 
-PROPOSITIONS:
-
-Propositions are KEY FACTS established by this beat.
-
-DENSITY GUIDELINES (per beat, ~100 words) — tune to the declared register:
-- Light fiction (atmospheric, whimsical, children's lit): 1-2 propositions
-- Standard fiction (dialogue, action): 2-4 propositions
-- Dense fiction (world-building, magic/cultivation systems, braided essay-fiction): 4-6 propositions
-- Lyric / fabulist / magical-realist / prose-poem / mythic / oral-epic: 4-10 image- or atmosphere-propositions per beat are legitimate — in these registers the image, the weather, the talking animal's mood, the colour of a silence IS the world-claim. Do not strip them as "decoration".
-- Technical/academic/scholarly prose: 8-15 propositions MAX (exhaustive but capped at 15)
-
-FICTION EXTRACTION — DRAMATIC-REALIST REGISTER (e.g. Alice in Wonderland, Harry Potter, most commercial and literary-realist fiction):
-Extract core narrative facts:
-- Concrete events that happen ("Alice falls down the rabbit hole")
-- Physical states ("The White Rabbit wears a waistcoat")
-- Character beliefs/goals ("Alice wants to follow the rabbit")
-- World rules ("The Cheshire Cat can disappear")
-Do NOT extract pure textural descriptions in this register:
-- How something is described ("The rabbit hole was dark and deep" → skip)
-- Literary devices and metaphors that convey mood without carrying a world-claim
-
-FICTION EXTRACTION — LYRIC / FABULIST / MAGICAL-REALIST / MYTHIC (e.g. García Márquez, Can Xue, Borges, Tayeb Salih, Toni Morrison, Calvino, classical oral epic):
-In these registers image, atmosphere, and figurative claim ARE the world. Extract:
-- Image-propositions: "The village has a rain that smells of grief" (type: image)
-- Atmosphere-propositions: "The house is in a state of permanent almost-dusk" (type: atmosphere)
-- Figurative-world claims: "In Macondo, memory is a physical substance that can be rinsed from a person" (type: rule or image)
-- The usual events, states, beliefs, rules still extract as normal
-
-TECHNICAL/ACADEMIC PROSE EXTRACTION:
-The goal is EXHAUSTIVE extraction, capped at 15 propositions per beat. Capture:
-- EVERY formula, equation, or mathematical expression (exactly as written)
-- EVERY numerical value, statistic, score, or parameter
-- EVERY definition of a term or concept
-- EVERY comparison or contrast made
-- EVERY piece of evidence or cited example
-- EVERY named entity, method, or system mentioned
-- EVERY cause-effect relationship stated
-- EVERY constraint, rule, or requirement
-- EVERY claim about what something does, is, or means
-
-If a beat has more than 15 atomic facts, prioritize the most important ones.
-
-DO NOT summarize multiple claims into one. Each atomic fact gets its own proposition.
-
-Include "type" — any descriptive label. Common types:
-- Fiction (dramatic-realist): state, belief, relationship, event, rule, secret, motivation
-- Fiction (lyric/fabulist/mythic): image, atmosphere, figurative_rule, invocation, refrain, in addition to the dramatic-realist set
-- Non-fiction: claim, definition, formula, evidence, parameter, mechanism, comparison, method, constraint, example, citation, counterargument
-
-FICTION (dramatic-realist):
-• {"content": "Alice falls down a rabbit hole", "type": "event"}
-• {"content": "The White Rabbit wears a waistcoat", "type": "state"}
-• {"content": "The Cheshire Cat can disappear", "type": "rule"}
-
-FICTION (lyric / fabulist / magical-realist):
-• {"content": "In Macondo, it rains yellow flowers when a patriarch dies", "type": "figurative_rule"}
-• {"content": "The narrator's grandmother has been dying for fifteen years without losing weight", "type": "state"}
-• {"content": "The river at the village edge runs uphill on the night of the feast", "type": "image"}
-• {"content": "Season of Migration to the North: the Nile carries a second, southward current of memory", "type": "image"}
-
-FICTION (mythic / oral-epic):
-• {"content": "The hero's name is called three times before the council answers", "type": "refrain"}
-• {"content": "Anansi is both smaller and larger than he appears", "type": "figurative_rule"}
-
-NON-FICTION (exhaustive example):
-• {"content": "F = Σ log(1 + |e|_max) × (1 + log(1 + Δv))", "type": "formula"}
-• {"content": "F represents Fate — information gain from scenes re-pricing thread prediction markets", "type": "definition"}
-• {"content": "W = ΔN_c + √ΔE_c — entity transformation (what we learn about characters, locations, artifacts)", "type": "definition"}
-• {"content": "S = ΔN + √ΔE — world deepening (rules, structures, concepts)", "type": "definition"}
-• {"content": "Threads are prediction markets over named outcomes; softmax over logits prices the narrator's belief. Markets close on committal evidence with a volume-scaled margin threshold.", "type": "definition"}
-• {"content": "Published works score 85-95", "type": "evidence"}
-
-INVALID: craft goals, pacing instructions, meta-commentary.
+${PROMPT_PROPOSITIONS}
 
 - PROPOSITIONS (scene-level): claims spanning the whole scene.
 - Return ONLY valid JSON.`;

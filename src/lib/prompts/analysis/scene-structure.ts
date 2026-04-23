@@ -10,6 +10,7 @@
 
 import type { BeatPlan } from '@/types/narrative';
 import { FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
+import { PROMPT_MARKET_PRINCIPLES } from '../core/market-calibration';
 
 export const SCENE_STRUCTURE_SYSTEM = `You are a narrative structure extractor. Given a scene's exact prose and its beat plan, extract all entities, deltas, and structural data accurately. Dense prose deserves rich extraction; sparse prose deserves minimal extraction. Return only valid JSON.`;
 
@@ -107,6 +108,15 @@ OUTCOMES (required on every thread) — 2 to ~6 named possibilities covering the
     "How does Marcus die?" → ["by cult", "sacrificing for daughter", "escapes alive", "natural causes"]
   Outcomes must be DISTINCT and MUTUALLY EXCLUSIVE — they partition the resolution space.
 
+  MECE TESTS on the outcome set:
+    DISJOINT — no two outcomes can both be true. ✗ ["instability persists", "new major conflict"] (they co-occur) → ✓ ["no major conflict", "one", "multiple"]. ✗ ["reasserts pre-eminence", "maintains influence at cost"] (second is a weaker form of first) → pick one axis.
+    EXHAUSTIVE — covers every live future the question admits; add a residual outcome rather than forcing a fit.
+    NEUTRAL LABELS — outcomes name observable future-states, not slogans or framings. Never emit an outcome whose name encodes a position the source text rejected (e.g. "US reasserts pre-eminence" in a corpus arguing the unipolar moment is over).
+    SPECIFIC, NOT META. Reject outcomes whose text is a meta-observation rather than a concrete future. Labels containing "complex", "significant", "meaningful", "important", "notable", "has effect", "matters" without specific referent content are trivially-true — they describe that SOMETHING happens, not what. Replace with concrete alternatives.
+      ✗ ["reveals complex connection", "turns out to be unimportant"] — "complex connection" is meta; what IS the connection?
+      ✓ ["they share an ancestor", "they trained under the same master", "they are rival agents of the same faction", "they have no connection"] — each is a concrete future.
+      If you can't enumerate concrete alternatives, the thread's question is under-specified — re-phrase the question instead of emitting trivial outcomes. A market priced on a trivially-true outcome cannot be re-priced and closes at low quality, losing the structural continuity the thread was meant to track.
+
 PRIOR PROBS (optional but strongly encouraged on thread creation) — priorProbs: number[] aligned with outcomes[], in-world base rates a neutral observer would assign BEFORE any scene evidence. Must be positive and sum to ~1; the system renormalises and clamps to opening guardrails.
   - Reason in-world: base rates for this kind of attempt in this world, the entity's visible starting position, common failure modes. Do NOT weight for narrative / genre expectations (the protagonist will not prevail "because it's a revenge tale" — price as if you didn't know).
   - Example: a 15-year-old at a small-clan cultivation ceremony, four outcomes [succeeds fully, partial success, fails and dies, fails due to misuse] → priorProbs ≈ [0.10, 0.30, 0.40, 0.20]. NOT uniform, NOT success-weighted.
@@ -119,14 +129,20 @@ threadDeltas — per-scene evidence that moves the market.
              Negative evidence = the outcome became less likely.
              Multiple outcomes can move in a single scene (a reveal lifting one and suppressing another).
 
-             EVIDENCE DISCIPLINE — extract the in-world observer's update, not the narrator's sympathy.
-             - The market is a neutral observer inside the story. Genre expectations and narrative guarantees are not evidence; only on-page events are.
-             - Evidence moves when the scene's EVENTS advance the thread's question, not when the POV character shows competence or intent. Standing advantages (foreknowledge, hidden power, reincarnation) belong in worldDeltas and the opening priorProbs — not as per-scene +evidence on every scene they appear in.
-             - Most scenes emit |evidence| ≤ 1 on the threads they touch. |evidence| ≥ 2 requires a concrete structural move: obstacle cleared, antagonist acting, irreversible commitment, reveal that reframes the question.
-             - Price counter-evidence honestly. If the scene also shows cost, resistance, or rival agency, score −evidence on the goal-outcome even while scoring +evidence elsewhere. Do not let POV framing produce one-sided reads.
-             - Decisive events get decisive evidence. When the narrative actually contains a payoff or twist (an oath taken, a duel concluded, a death, a reveal that makes the outcome inevitable), emit |evidence| ≥ 3 with logType=payoff|twist — do not under-price genuine resolution moments. The discipline above is about small scenes, not about preventing real closure.
-             - MARKETS SWING. A probability leader is not a winner. If the scene contains undeniable counter-evidence — a system rule that invalidates the plan, a world state that undoes the assumption, a rival's revealed capability — price it fully. A scene that logically should reverse the market's leaning gets a twist (|evidence| ≥ 3 on the lagging outcome, or equivalent negative evidence on the leader). Force-of-system and force-of-world reversals are legitimate evidence, not optional flavour.
-             - Cascade movement is legitimate. One scene's reveal can move several markets at once: strong +evidence on one outcome of Thread A, −evidence on the related outcome of Thread B, a pulse on Thread C whose assumption just shifted. Score each thread on its own terms, but don't miss cascades.
+             EVIDENCE DISCIPLINE — every threadDelta emission must trace to the market principles below. Rules specific to fiction-extraction calibration follow.
+
+${PROMPT_MARKET_PRINCIPLES}
+
+             LEXICAL CALIBRATION for argumentative / non-fiction corpora:
+             - RHETORIC ≠ PROBABILITY. Hedge words cap the magnitude; word-count does not inflate it:
+                 "mentions / notes X"           → |e| 0, volumeDelta 0-1
+                 "leans / tilts toward X"       → |e| ≈ 1, posterior ~55-60%
+                 "the story is X / structural"  → |e| ≈ 1-2, posterior ~60-70%
+                 "commits / argues / proves X"  → |e| ≈ 2-3, posterior ~70-85%
+                 "X is inevitable / decisive"   → |e| ≈ 3-4, closure
+               An argue-then-back-off passage stays small-magnitude.
+             - DISTRIBUTIONAL vs MODAL. Rare-event rhetoric ("tail risk has grown", "base rates no longer apply") shifts the TAIL outcome 5-15% up from prior base rates, NOT past 50%. A rare-event market at 5-10% becomes 15-25%, not 60-70%, on distributional claims. Only on-page events (detonation, declared test, announced succession) move the modal outcome — those come with |e| ≥ 3, logType payoff/twist. "Tail risk is the story" lifts the tail; the modal stays modal.
+             - TEXT VOLUME ≠ PROBABILITY. Authors detail the interesting outcome, not the likeliest one. Price by hedges and events, not by word-share per outcome.
   logType    matches shape: pulse (0), setup (+1), escalation (+2..+3), payoff (+3..+4), twist (±3 reversal), resistance (−1..−2), callback (volume spike), stall (no movement expected), transition (volume > evidence).
   volumeDelta +0..+2 attention change (how much the scene spotlighted this thread).
   addOutcomes (RARE) — new outcome names when a scene structurally opens a possibility not previously in the market (a third contender arrives, an option no one had considered surfaces). Neutral prior (logit=0). Most scenes don't expand.

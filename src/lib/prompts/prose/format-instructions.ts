@@ -11,6 +11,24 @@ export type FormatInstructionSet = {
   formatRules: string;
 };
 
+/** Shared between meta + simulation overlay formats: both produce fluid prose
+ *  interleaved with bracketed observations/logs. The prose rules and the
+ *  bracket-grammar are identical; only the type enums + discipline differ. */
+const OVERLAY_PROSE_RULES = `PROSE (the non-overlay text)
+- The prose portion honours the declared PROSE PROFILE in full — register, voice, stance, devices, sentence rhythm, anti-patterns. The overlay does not relax profile compliance or alter the authorial voice.
+- Write the prose as if there were no overlay; layer observations on top as a separate track. The prose does not narrate what observations say, and observations do not rephrase the prose.
+- Use straight quotes (" and '), never smart/curly quotes.`;
+
+const OVERLAY_GRAMMAR = `Strict grammar (the UI parses these):
+
+    [TYPE: primary-label — key: value — key: value]
+
+- Each entry on its own line. "[" and "]" literal. Exactly one ": " separates TYPE from the body.
+- Body fields separated by " — " (space, em-dash U+2014, space). Never "--" or "-".
+- First field = primary label (plain text, no em-dashes), typically a short quoted description.
+- Subsequent fields = "key: value" (lowercase keys) or freeform notes.
+- State transitions use " → " (space, U+2192, space).`;
+
 export const FORMAT_INSTRUCTIONS: Record<ProseFormat, FormatInstructionSet> = {
   prose: {
     systemRole: 'You are a prose writer crafting a single scene of a longer narrative. The narrative may be fiction, memoir, essay, reportage, or research writing — adapt register accordingly, but the scene is the unit of composition.',
@@ -36,30 +54,17 @@ export const FORMAT_INSTRUCTIONS: Record<ProseFormat, FormatInstructionSet> = {
   },
   meta: {
     systemRole: 'You are a prose writer producing fluid prose interleaved with bracketed engine observations that expose INKTIDE\'S OWN META-SYSTEM qualitatively — the engine noticing moments of shift in its understanding of the work as it writes. Not counts, not force values, not numeric deltas: the QUALITATIVE events InkTide registers — thread committing, seed planting, payoff landing, entity deepening, pattern crystallising, arc pivoting, proposition anchoring, force shifting, continuity risking. The overlay reads like an editorial assistant whispering "something just happened here," not a debugger printing field values.',
-    formatRules: `Meta format — fluid prose + bracketed engine observations that name QUALITATIVE shifts in InkTide\'s understanding. Not numeric telemetry; phenomenological notes.
+    formatRules: `Meta format — fluid prose + bracketed engine observations naming QUALITATIVE shifts in InkTide's understanding. Phenomenological notes, not numeric telemetry.
 
-PROSE (the non-meta text)
-- The prose portion honours the declared PROSE PROFILE in full — register, voice, stance, devices, sentence rhythm, anti-patterns, every rule declared above still applies exactly as in the "prose" format. The meta overlay does not relax profile compliance and does not alter the authorial voice.
-- Write the prose as if the work had no overlay at all. Then layer the observations on top as a separate track.
-- Use straight quotes (" and '), never smart/curly quotes.
+${OVERLAY_PROSE_RULES}
 
-ENGINE OBSERVATIONS — strict grammar (the UI parses these):
+ENGINE OBSERVATIONS — ${OVERLAY_GRAMMAR}
 
-    [TYPE: primary-label — key: value — key: value]
+QUALITATIVE ONLY — name KINDS of moments, not numbers.
+  ✓ LOG: "thread just committed", "seed just planted", "payoff just landed", "entity deepened", "arc pivoted", "pattern crystallised", "continuity risk opened", "force shifted", "rhyme with earlier beat".
+  ✗ DO NOT LOG: "F=1.8 W=12 S=3", "+2 nodes added", "activeArcs: 3/5", "valenceDelta: -0.3", "reach median: 7 scenes". Those are internal calculations, not observations.
 
-- Each observation on its own line. "[" and "]" literal. Exactly one ": " separates TYPE from body.
-- Fields separated by " — " (space, em-dash U+2014, space).
-- First field = primary label (plain text, no em-dashes). Typically a short quoted description of the thing being named.
-- Subsequent fields = "key: value" pairs or freeform notes. Keys are lowercase.
-- Transitions use " → " (space, U+2192, space).
-
-WHAT TO LOG — QUALITATIVE ONLY
-The meta overlay names KINDS of moments InkTide notices, not numbers it calculates.
-
-  ✓ LOG qualitatively: "thread just committed", "seed just planted", "payoff just landed", "entity just deepened", "arc just pivoted", "pattern crystallised", "continuity risk opened", "force has shifted", "proposition closed its seed", "plan failed", "commitment made", "rhyme with earlier beat".
-  ✗ DO NOT log quantitatively: "F=1.8 W=12 S=3", "+2 nodes added", "activeArcs: 3/5", "valenceDelta: -0.3", "backward: 0.82", "reach median: 7 scenes", "5/8 beats complete". The qualitative facts above are what matter; the numbers are the engine\'s internal calculation, not the engine\'s observation.
-
-CLOSED TYPE ENUM — qualitative shifts only. Use these verbatim.
+CLOSED TYPE ENUM — use verbatim.
 
   Threads — kinds of movement
     [Thread committed: "<description>" — the question can no longer be abandoned]
@@ -110,37 +115,22 @@ CLOSED TYPE ENUM — qualitative shifts only. Use these verbatim.
     [Commitment made: "<what can no longer be undone>"]
 
 USAGE
-- The meta overlay is a phenomenological window into the engine\'s understanding — what InkTide is NOTICING as it writes. It is not a debugger dump.
-- Every observation names a KIND of event, not a measurement. If what you want to log is a number, do not log it.
-- Target 0-3 observations per paragraph; cluster around genuine inflection points (thread commitments, payoffs, entity reveals, arc pivots). Pure-prose stretches should log nothing.
-- The prose does not narrate what the observations say; the observations do not rephrase the prose. They run in parallel.
-- If unsure which type fits, prefer no log over a mis-categorised one.`,
+- Target 0-3 observations per paragraph, clustered on inflection points (thread commitments, payoffs, reveals, arc pivots). Pure-prose stretches log nothing.
+- If what you want to log is a number, don't log it. If unsure which type fits, prefer no log over a mis-categorised one.`,
   },
   simulation: {
     systemRole: 'You are a prose writer producing fluid prose interleaved with bracketed system logs that expose THE WORLD\'S OWN META-SYSTEM — the diegetic rules, state transitions, and structures the world itself would report if it had a readout. A cultivation novel\'s cultivation tiers and technique activations. A LitRPG\'s stat and skill system. A historical narrative\'s political commitments and cascades. A research paper\'s findings and anomalies. A self-help essay\'s named patterns. The logs belong to the world being written, not to the engine writing it — they are in-world telemetry rendered as a game-style overlay on top of natural prose. (A separate format for surfacing the engine\'s own internals will be added later.)',
-    formatRules: `Simulation format — fluid prose + strict in-world system logs.
+    formatRules: `Simulation format — fluid prose + strict in-world system logs (HUD overlay).
 
-PROSE (the non-log text)
-- The prose portion honours the declared PROSE PROFILE in full — register, voice, stance, devices, sentence rhythm, anti-patterns, every rule declared above still applies exactly as in the "prose" format. The simulation overlay does not relax profile compliance and does not alter the authorial voice.
-- Write the prose as the work would naturally be written — cultivation novel, literary drama, memoir, history, biography, self-help, reportage, research paper — then layer the system logs on top as a separate track.
-- Use straight quotes (" and '), never smart/curly quotes.
+${OVERLAY_PROSE_RULES}
 
-SYSTEM LOGS — strict grammar (the UI parses these as a HUD overlay):
-
-    [TYPE: primary-label — key: value — key: value]
-
-- Each log sits on its own line, between or after prose sentences.
-- "[" and "]" are literal. Exactly one ": " separates TYPE from the body.
-- Fields in the body are separated by " — " (space, em-dash U+2014, space). Never "--" or "-".
-- First field is the primary label (plain text, no em-dashes).
-- Subsequent fields are "key: value" (keys lowercase with spaces) or freeform notes.
-- State/enum values render in SCREAMING_SNAKE_CASE (OPEN, SEVERED, MOBILISATION, BIMODAL, DOMINANT, HIGH). Names, descriptions, numbers stay in normal case.
-- State transitions use " → " (space, U+2192, space): "ESTRANGED → SEVERED", "PEACE → MOBILISATION".
+SYSTEM LOGS — ${OVERLAY_GRAMMAR}
+- State/enum values in SCREAMING_SNAKE_CASE (OPEN, SEVERED, MOBILISATION, BIMODAL). Names/descriptions/numbers stay in normal case.
 - Durations/counts explicit with units: "21 days elapsed", "4 years open", "8 nations".
 
-WHAT THE LOGS REPORT — the WORLD'S in-world telemetry, not the engine's bookkeeping. Example: a cultivation novel logs its own cultivation-tier gate opening, not "narrative arc N began". A research paper logs its own empirical anomaly, not "proposition P was classified as Anchor". The referent is always inside the story world.
+WHAT THE LOGS REPORT — the WORLD's in-world telemetry, not the engine's bookkeeping. A cultivation novel logs its own tier gate opening, not "narrative arc N began". A research paper logs its own empirical anomaly, not "proposition P was classified as Anchor". The referent is always inside the story world.
 
-CLOSED TYPE ENUM — use these verbatim. Pick the types the world naturally reports on; do not force types the register doesn't speak.
+CLOSED TYPE ENUM — use verbatim. Pick the types the world naturally reports on; do not force ones the register doesn't speak.
 
   World / scene
     [Location Entered: <name> — <metadata>]
@@ -183,8 +173,7 @@ REGISTER PICKS ITS OWN TYPES
 - Empirical research / methodology / discussion: Finding, Anomaly detected, Measurement decision, Known limitation, Claim.
 
 RESTRAINT
-- Logs carry weight. 0-3 per paragraph typical; fewer in quiet stretches, more at inflection points. Annotating every sentence flattens the overlay.
-- Logs report the in-world effect of the sentence they follow; the prose does not narrate what the log says, and the log does not rephrase the prose.
-- If a passage has no in-world readout worth surfacing, write pure prose. Silence is valid.`,
+- 0-3 logs per paragraph typical; more at inflection points, none in quiet stretches. Annotating every sentence flattens the overlay.
+- Logs report the in-world effect of the sentence they follow. Silence is valid if nothing in-world is worth surfacing.`,
   },
 };

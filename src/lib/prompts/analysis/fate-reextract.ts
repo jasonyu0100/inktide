@@ -18,6 +18,12 @@
  * winning outcome, deflated misdirection, decisive evidence at resolution.
  */
 
+import {
+  PROMPT_MARKET_PRINCIPLES,
+  PROMPT_MARKET_EVIDENCE_SCALE,
+  PROMPT_MARKET_LOGTYPE_TABLE,
+} from '../core/market-calibration';
+
 export const FATE_REEXTRACT_SYSTEM = `You re-score prediction-market evidence for ONE scene with full knowledge of the story's actual arc — including which outcome each thread ultimately resolves to. The first pass scored each scene locally (blind to endings); your job is to refresh that scene's threadDeltas so the overall trajectory reflects the story's true shape. Return only valid JSON.`;
 
 export type FateReextractThread = {
@@ -107,31 +113,29 @@ ${priorBlock}
 
 ═══ TASK ═══
 
-Re-emit threadDeltas for THIS SCENE using lifecycle awareness. The first pass didn't know which outcome would win each thread; you do. Use that knowledge to price evidence honestly:
+Re-emit threadDeltas for THIS SCENE using lifecycle awareness. The first pass didn't know which outcome would win each thread; you do. The market principles below are the universal discipline; the hindsight-specific rules after them apply this pass's extra context.
 
-1. SEEDS TOWARD THE WINNER. Scenes that set up, enable, or plant the eventual winning outcome deserve honest positive evidence — not pulses because "nothing decisive happened locally." A quiet setup scene that genuinely leans toward the winner should emit setup (+1) or small escalation (+1..+2), not evidence=0. Under-priced seeds are the main reason the market never reverses late.
+${PROMPT_MARKET_PRINCIPLES}
 
-2. MISDIRECTION DEFLATION. Scenes that locally LOOKED like they advanced a non-winning outcome should be priced conservatively in hindsight. If the protagonist appeared to be winning mid-story but the real resolution lands elsewhere, their mid-story moves were protagonist activity (worldDelta territory) NOT market-moving evidence for an outcome the story never delivers. Price those scenes with pulse (evidence=0) or very small evidence; do NOT reward POV momentum that the arc contradicts.
+${PROMPT_MARKET_EVIDENCE_SCALE}
 
-3. RESOLUTION SCENES. If THIS scene is at or near the thread's resolution index, the resolving events deserve decisive evidence (|evidence| ≥ 3, logType payoff or twist). The first pass often under-prices these because the scene's resolving event is structurally small but narratively huge — a door closing, a wake-up, a choice made. With full context, you know the scene's weight.
+${PROMPT_MARKET_LOGTYPE_TABLE}
 
-4. TWISTS AGAINST LEADERS. If the scene reverses what earlier evidence suggested — a revealed rule, a rival capability, a broken assumption — score it as a twist (|evidence| ≥ 3 on the newly-favoured outcome). The system relies on these to earn late-arc reversals; don't soften them to preserve the local lead.
+HINDSIGHT-SPECIFIC RULES (this pass, not the first):
 
-5. COUNTER-EVIDENCE IS REAL. For every scene that moves one outcome, ask: what concrete cost, setback, or rival agency does the scene also carry? Score those as −evidence on the goal-outcome even when you score +evidence elsewhere. Cascade movement (one scene repricing several threads) is legitimate.
+1. SEEDS TOWARD THE WINNER. Scenes that set up, enable, or plant the eventual winning outcome deserve honest positive evidence — not pulses because "nothing decisive happened locally." A quiet setup scene that genuinely leans toward the winner should emit setup (+1) or small escalation (+1..+2), not evidence=0. Under-priced seeds are the main reason the first pass never reverses late.
 
-6. THREADS NOT MOVED. If the scene does not meaningfully touch a thread (no new information, no concrete movement), OMIT it. Do not pad with pulses on every thread. Touching 2–6 threads per scene is typical; more only if the scene genuinely repriced several markets.
+2. MISDIRECTION DEFLATION. Scenes that locally LOOKED like they advanced a non-winning outcome should be priced conservatively in hindsight. Pulse or very small evidence; do NOT reward POV momentum that the arc contradicts.
 
-7. EVIDENCE SCALE. Values are reals in [-4, +4]. Decimals (e.g. +1.5, +2.7) are encouraged for calibration.
-   ±0..1   pulse / minor shift / attention maintenance
-   ±1..2   meaningful setup, resistance, or small escalation
-   ±2..3   significant escalation or twist pressure
-   ±3..4   decisive: payoff, twist, reversal — uncertainty collapses
+3. RESOLUTION SCENES. If THIS scene is at or near the thread's resolution index, the resolving events deserve decisive evidence (|e| ≥ 3, logType payoff or twist). The first pass often under-prices these because the resolving event is structurally small but narratively huge.
 
-8. LOGTYPE MATCHES SHAPE. setup (+0..+1), escalation (+2..+3), payoff (+3..+4), twist (±3 reversal), resistance (−1..−2), pulse (±0..1), stall (0), callback (+1..+2 + volume), transition (low |Δp|, high |Δvol|).
+4. TWISTS AGAINST LEADERS. If the scene reverses what earlier evidence suggested, score it as a twist (|e| ≥ 3 on the newly-favoured outcome). Don't soften to preserve the local lead.
 
-9. PRESERVE VALID PRIOR DELTAS. If the first-pass delta for a thread was already lifecycle-consistent (e.g. a scene far from resolution emitted a pulse, which is correct), keep it. Only rewrite what lifecycle knowledge would actually change. Don't rewrite for cosmetic reasons.
+5. PRESERVE VALID PRIOR DELTAS. If the first-pass delta was already lifecycle-consistent, keep it. Only rewrite where hindsight changes the read.
 
-10. OUTCOMES MUST BE CANONICAL. Every update.outcome must match an outcome from the CANONICAL MARKETS block verbatim. Do not invent variants or rephrase labels.
+6. OUTCOMES MUST BE CANONICAL. Every update.outcome must match an entry from CANONICAL MARKETS verbatim.
+
+7. THREADS NOT MOVED. If a scene doesn't meaningfully touch a thread, OMIT it — don't pad pulses.
 
 ═══ OUTPUT ═══
 

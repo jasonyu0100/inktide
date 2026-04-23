@@ -23,7 +23,7 @@
  *   - DEDUCTION  → drifts into DIVERGENT  ("necessary" turns one-of-several)
  */
 
-import type { ReasoningMode } from "./types";
+import type { ReasoningMode } from "@/lib/ai/reasoning-graph/types";
 
 /**
  * Divergent mode — "what else could be true from here?" Branches outward

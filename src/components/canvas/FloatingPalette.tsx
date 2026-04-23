@@ -67,7 +67,11 @@ export default function FloatingPalette({
     : false;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
-  const healthPopoverRef = useRef<HTMLDivElement | null>(null);
+  // Wrapper ref covers BOTH the trigger button and the popover — without this
+  // the mousedown outside-click listener fires before the button's click,
+  // closing the popover so the subsequent toggle-click reopens it instead of
+  // closing it.
+  const healthWrapperRef = useRef<HTMLDivElement | null>(null);
 
   // Lazy health evaluation — recomputed only while the popover is open so we
   // don't pay the cost on every render. `narrative` dep forces fresh scoring
@@ -92,8 +96,8 @@ export default function FloatingPalette({
   useEffect(() => {
     if (!healthOpen) return;
     function onDown(e: MouseEvent) {
-      if (!healthPopoverRef.current) return;
-      if (!healthPopoverRef.current.contains(e.target as Node)) setHealthOpen(false);
+      if (!healthWrapperRef.current) return;
+      if (!healthWrapperRef.current.contains(e.target as Node)) setHealthOpen(false);
     }
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
@@ -743,7 +747,7 @@ export default function FloatingPalette({
               </button>
 
               {/* Diagnose — narrative health check + maintenance top-up */}
-              <div className="relative">
+              <div className="relative" ref={healthWrapperRef}>
                 <button
                   type="button"
                   className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
@@ -758,7 +762,6 @@ export default function FloatingPalette({
                 </button>
                 {healthOpen && healthReport && (
                   <div
-                    ref={healthPopoverRef}
                     className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-80 glass-pill !rounded-xl !p-0 overflow-hidden"
                     style={{ zIndex: 40 }}
                   >

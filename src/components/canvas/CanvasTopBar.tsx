@@ -11,6 +11,7 @@ import { IconDice, IconGlobe, IconLightbulb, IconThread, IconNetwork, IconMarket
 import { buildSequentialPath } from '@/lib/ai';
 import { CopyButton } from '@/components/shared/CopyButton';
 import { exportGraphView, graphViewLabel, isExportableGraphMode } from '@/lib/graph-export';
+import { exportMarketSnapshot } from '@/lib/market-export';
 
 const GRAPH_DOMAINS = [
   {
@@ -641,6 +642,24 @@ export function CanvasTopBar() {
             </>
           )}
         </div>
+      )}
+
+      {canvasMode === 'market' && narrative && (
+        <>
+          <div className="w-px h-3 bg-border" />
+          <CopyButton
+            label="Copy Market Snapshot"
+            title="Copy prediction-market snapshot as Markdown"
+            getText={() =>
+              exportMarketSnapshot({
+                narrative,
+                resolvedKeys: state.resolvedEntryKeys,
+                currentSceneIndex: state.viewState.currentSceneIndex,
+              })
+            }
+            className="text-[10px] px-2 py-1 rounded text-text-dim hover:text-text-primary hover:bg-white/5 transition-colors"
+          />
+        </>
       )}
 
       {canvasMode === 'search' && (

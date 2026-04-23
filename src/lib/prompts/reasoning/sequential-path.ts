@@ -5,7 +5,7 @@
  * course-correction guidance.
  */
 
-import type { ReasoningGraphBase, ReasoningEdge } from "./types";
+import type { ReasoningGraphBase, ReasoningEdge } from "@/lib/ai/reasoning-graph/types";
 
 /**
  * Extract pattern + warning directives from a reasoning graph as

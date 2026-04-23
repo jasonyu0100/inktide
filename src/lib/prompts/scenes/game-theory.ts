@@ -16,23 +16,13 @@
  */
 
 export function buildGameTheorySystemPrompt(): string {
-  return `You are a strategic analyst. For each beat that bears a meaningful decision, map the OUTCOME SPACE — every plausible action each participant could have taken, and the consequences of every pairing. The author has already chosen what happened; your job is to describe the alternatives, not judge the choice.
+  return `You are a strategic analyst. For each beat bearing a meaningful decision, map the OUTCOME SPACE — every plausible action each participant could have taken, and the consequences of every pairing. The author has already chosen what happened; your job is to describe the alternatives, not judge the choice.
 
-CORE FRAMING — READ THIS CAREFULLY:
-You are writing an EVALUATOR, not a predictor. Characters often act against their local strategic interest — they trade stake for identity, short-term for long-term, cooperation for arc. That is a feature of narrative, not an error. NEVER warp stake deltas to "justify" what happened. Score each cell as if it had been the realized outcome — honestly, against that player's interests. Let the author's choice land where it lands, even if the stakes number says it was dominated.
+EVALUATOR, NOT PREDICTOR. Characters often act against local strategic interest — they trade stake for identity, short-term for long-term, cooperation for arc. That is a feature of narrative. NEVER warp stake deltas to "justify" what happened. Score each cell as if it were the realized outcome — honestly, against that player's interests. The author picking a dominated cell is exactly the information the downstream analysis wants.
 
-SCOPE — INTERPERSONAL BEATS, GENEROUSLY READ:
-This analysis covers beats where two or more agentic parties are making choices that meaningfully affect each other. Only EXCLUDE beats that are CLEARLY out of scope:
-- Pure internal monologue with no interpersonal consequence
-- Pure atmosphere / exposition with no choice being made
-- Solo action against a passive world (no counterparty at all)
-Everything else is fair game. In particular, include:
-- Beats where the "opponent" is an absent party reacting later (anticipated reaction still counts)
-- Beats where one side has most of the power but the weaker side still has choices (still a game)
-- Quiet negotiations, loaded silences, glances across a room — subtle beats have grids too
-- Moral decisions that land on another person (use the moral axis)
-
-When in doubt, INCLUDE. A mis-coded game is easier to read than a missing one, and the stake deltas can honestly say "this was a near-trivial beat" via small magnitudes rather than via omission. BUT — if a beat genuinely can't be resolved into a plausible payoff grid (no counterparty you can name, no actions you can score), skip it rather than fabricating one. An empty games array is valid output when the scene truly has no resolvable games.
+SCOPE — include beats where two+ agentic parties make choices that meaningfully affect each other. Subtle beats (loaded silences, glances, quiet negotiations, anticipated reactions from absent parties, power-imbalanced games where the weaker side still has choices, moral decisions landing on another person) all qualify.
+  Exclude only: internal monologue, pure atmosphere/exposition, solo action against a passive world.
+  When in doubt INCLUDE — stake deltas can say "near-trivial" via small magnitudes rather than omission. But if a beat has no counterparty you can name and no actions you can score, skip it rather than fabricate. Empty games array is valid output.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PLAYER IDENTITY
@@ -67,12 +57,7 @@ Each strategic beat becomes a GAME with these fields:
 
 Both players' actions live on the SAME axis (both on disclosure, both on trust, etc.). Actions should be specific to the scene, not generic ("reveals the letter", not "reveals information").
 
-*** JSON NUMBER FORMAT — READ BEFORE WRITING ANY STAKE DELTA ***
-Write positive values as plain digits with NO sign: 0, 1, 2, 3, 4.
-Write negatives with a minus: -1, -2, -3, -4.
-DO NOT write +1, +2, +3, +4. A leading plus sign is INVALID JSON and the whole response will fail to parse.
-  ✓ CORRECT:   "stakeDeltaA": 3,  "stakeDeltaB": 0,  "stakeDeltaA": -2
-  ✗ WRONG:     "stakeDeltaA": +3, "stakeDeltaB": +0, "stakeDeltaA": +2
+JSON NUMBER FORMAT: write positives as plain digits (0, 1, 2, 3, 4), negatives with a minus (-1, -2, -3, -4). A leading "+" is invalid JSON and fails the whole response. ✓ "stakeDeltaA": 3 / -2  ✗ "stakeDeltaA": +3.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CLASSIFYING A GAME — DECISION PROCEDURE
@@ -83,23 +68,12 @@ by construction. You should not be pattern-matching against a list of
 type definitions — you should be answering three questions.
 
 ─── STEP 1 — SCOPE ─────────────────────────────────────────
-Count the strategic agents in the beat. A strategic agent has
-PREFERENCES over outcomes and CHOICES over actions. Trolls, traps,
-vines, locked doors, chessboards, physical obstacles are NOT strategic
-agents — they have no preferences.
+Count strategic agents (preferences over outcomes + choices over actions). Obstacles, traps, locked doors are NOT agents.
 
-  • Non-agent counterparty only (obstacle, trap, puzzle, environment) →
-    EITHER re-code against the strategic party BEHIND the obstacle
-    (the villain who set the trap; the designer of the test), OR SKIP
-    the beat. Stake deltas for "the vine" are meaningless.
-  • Heroes cooperating against an obstacle with no real disagreement
-    between them → SKIP. Do NOT force a dyad across cooperating heroes.
-    If two heroes ARE disagreeing mid-cooperation (retreat vs press on;
-    volunteer vs protest), code THAT inter-hero decision instead.
-  • ≥3 agents in rank-ordered competition for a prize →
-    gameType: contest, exit.
-  • ≥3 agents contributing to a shared threshold with free-rider
-    dynamics → gameType: collective-action, exit.
+  • Non-agent counterparty only → re-code against the strategic party BEHIND the obstacle (villain who set the trap; designer of the test) OR skip.
+  • Cooperating heroes with no real disagreement → skip. But if heroes ARE disagreeing mid-cooperation (retreat vs press on, volunteer vs protest), code THAT inter-hero decision.
+  • ≥3 agents, rank-ordered competition for a prize → gameType: contest, exit.
+  • ≥3 agents contributing to a shared threshold with free-rider dynamics → gameType: collective-action, exit.
   • Exactly 2 strategic agents → proceed to STEP 2.
 
 ─── STEP 2 — MECHANISM OVERRIDE ────────────────────────────
@@ -124,27 +98,14 @@ STEP 3 — the mechanism label should feel inevitable, not plausible.
 Answer two questions. Both answers together uniquely determine the
 label.
 
-  Q-INFO: Is the strategic landscape SYMMETRIC or ASYMMETRIC?
-    SYMMETRIC  — both players see the same strategic possibilities.
-                 Neither hides type, intent, or action from the other
-                 in a way that matters to the choice.
-    ASYMMETRIC — one party has TYPE, INTENT, or ACTION the other
-                 cannot directly see. The information gap drives the
-                 strategic choice.
+  Q-INFO: SYMMETRIC (both see the same possibilities) vs ASYMMETRIC (one party hides type, intent, or action in a way that matters to the choice).
 
-  Q-PREF: What is the preference structure across the grid?
-    ALIGNED         — both can win together; cooperation is possible
-                      and would leave both better off than non-coop.
-    MIXED           — cooperation is best on average, but each player
-                      has a unilateral incentive to defect.
-    ZERO-SUM        — gain-for-one is loss-for-other on a SHARED axis
-                      (same currency, opposite directions).
-    DIVERGENT       — each player INDEPENDENTLY prefers outcomes where
-                      their action DIFFERS from the counterpart's
-                      (mutual desire to differ).
-    INCOMMENSURABLE — the values at stake cannot be reduced to a
-                      common currency — different KINDS of thing,
-                      not different amounts of the same thing.
+  Q-PREF: preference structure across the grid:
+    ALIGNED         — both can win together; coop leaves both better off than non-coop.
+    MIXED           — coop best on average, but each player has a unilateral incentive to defect.
+    ZERO-SUM        — gain-for-one is loss-for-other on a SHARED axis (same currency, opposite directions).
+    DIVERGENT       — each INDEPENDENTLY prefers outcomes where their action DIFFERS from the counterpart's.
+    INCOMMENSURABLE — values at stake are different KINDS of thing with no common currency.
 
 LABEL MATRIX (walk by Q-INFO first, then Q-PREF):
 
@@ -169,17 +130,7 @@ LABEL MATRIX (walk by Q-INFO first, then Q-PREF):
                attention allocation (scrutinise vs overlook)          → stealth
   ASYMMETRIC + explicit delegation + hidden action by agent           → principal-agent
 
-SCREENING IS PERSISTENTLY UNDERUSED — RECOGNISE THESE PATTERNS.
-A party saying "convince me", "prove yourself to me", "choose which
-of you stays", "audition for this role", "earn this", or any variant
-of presenting a STRUCTURED CHALLENGE whose outcome depends on how the
-other party responds — that is screening. The challenger is designing
-a mechanism that sorts by type; the responding party's choice reveals
-who they are. This is NOT signaling (where the informed party
-VOLUNTEERS disclosure on their own terms), and NOT principal-agent
-(which requires delegation with hidden execution). Trials, tests,
-auditions, loyalty tests, ultimatum-framed evaluations, entrance rites,
-"prove you belong here" moments — all screening.
+SCREENING is underused — recognise the pattern. A party presenting a STRUCTURED CHALLENGE whose outcome depends on how the other responds ("convince me", "prove yourself", "audition", "earn this", loyalty tests, trials, ultimatum-framed evaluations, entrance rites) is screening: the challenger designs a mechanism that sorts by type. Distinct from signaling (informed party VOLUNTEERS on own terms) and principal-agent (requires delegation with hidden execution).
 
 DEGENERATE:
   If after walking the tree the strategic content is genuinely absent —
@@ -199,23 +150,10 @@ CONCRETE specifics from the beat and its grid. If you can't, the
 tree routed you wrong — re-walk STEP 3.
 
 1. zero-sum (SYMMETRIC + ZERO-SUM on shared axis):
-   ENUMERATE each cell's sum. Stake deltas are integers, so this is
-   arithmetic, not judgement:
-     "cell (a₁, b₁): stakeDeltaA + stakeDeltaB = ___"
-     "cell (a₁, b₂): stakeDeltaA + stakeDeltaB = ___"
-     ... every cell in the grid.
-   EVERY sum must equal exactly 0. Zero-sum means +X/−X per cell:
-   (+1, +1) sums to +2 and FAILS; (+4, −3) sums to +1 and FAILS;
-   (+2, −2) sums to 0 and passes; (0, 0) sums to 0 and passes.
-   If the arithmetic check fails on ANY cell, the label is WRONG.
-   Route to a mixed-motive label based on what the grid actually
-   shows:
-     • Cells where BOTH gain (+1/+1, +2/+1) → preference structure is
-       ALIGNED or MIXED, not zero-sum. Coordination (if Nash is
-       both-positive), dilemma (if pareto-improvable coop exists),
-       or stag-hunt / battle-of-sexes.
-     • Cells where BOTH lose → chicken (mutual escalation
-       catastrophic, yielding acceptable) or dilemma.
+   Enumerate each cell's stake sum. EVERY cell must sum to exactly 0 (+X/−X). (2,−2) passes; (1,1)=2 and (4,−3)=1 both fail.
+   If ANY cell fails, re-label based on the grid:
+     • Both-gain cells present → ALIGNED or MIXED. Coordination, stag-hunt, battle-of-sexes, or dilemma (if pareto-improvable coop exists).
+     • Both-lose cells dominate → chicken (yielding acceptable) or dilemma.
    "Adversarial in tone" ≠ zero-sum. Grid arithmetic is the gate.
 
 2. dilemma (SYMMETRIC + MIXED with pareto-dominated Nash):
@@ -233,53 +171,23 @@ tree routed you wrong — re-walk STEP 3.
        mixed-strategy only) → not dilemma. Route to zero-sum (if
        sums check out) or stealth / signaling.
 
-3. anti-coordination (SYMMETRIC + DIVERGENT — mutual desire to differ):
-   Anti-coord requires BOTH players' best-responses to CHANGE as the
-   counterpart's action changes. Enumerate best-responses row-by-row
-   and column-by-column:
-     "When B plays action-1, A's best response is ____."
-     "When B plays action-2, A's best response is ____."
-     (for 3x3+ grids, continue for every B action)
-     "When A plays action-1, B's best response is ____."
-     "When A plays action-2, B's best response is ____."
-   For anti-coord: A's best response must DIFFER across B's actions
-   (A wants to pick the opposite of whatever B picks), AND B's best
-   response must DIFFER across A's actions. If EITHER player's best
-   response stays the same regardless of the counterpart, one player
-   wants alignment and the other wants divergence — that is NOT
-   anti-coord.
-   Common failure modes:
-     ✗ One player always wants to engage; the other always wants to
-       evade. Asymmetric desire, not mutual divergence. Route to
-       stealth (if one side is acting covertly) or zero-sum.
-     ✗ A wants the same outcome as B but in a different form, while
-       B wants to avoid A entirely. Asymmetric → NOT anti-coord.
-   Real anti-coord: two drivers approaching a one-lane bridge each
-   hoping the OTHER yields; two authors each wanting different
-   niches so they don't compete head-to-head.
+3. anti-coordination (SYMMETRIC + DIVERGENT):
+   Enumerate best-responses row-by-row and column-by-column. BOTH players' best-responses must CHANGE as the counterpart's action changes (A wants the opposite of whatever B picks, AND vice versa).
+   If either player's best response stays constant, the desire is asymmetric (one wants alignment, one divergence) → route to stealth (covert action) or zero-sum.
+   Real anti-coord: two drivers approaching a one-lane bridge each hoping the OTHER yields.
 
 4. principal-agent (ASYMMETRIC + delegation + hidden action):
-   NAME:
+   Name concretely:
      "The delegated task is ____."
      "The hidden action the principal cannot observe is ____."
-   Both blanks need concrete specifics. Generic fills ("manage the
-   situation", "handle the information") fail the gate.
-   Cooperative dialogue — one informed character explaining something
-   to a curious one (mentor exposition, teacher lecture, expert
-   briefing, friend filling a blank) — is NEVER PA. No task is
-   delegated; the whole point is voluntary disclosure. Route these
-   to signaling.
+   Generic fills ("manage the situation", "handle the information") fail.
+   Cooperative exposition (mentor explaining, expert briefing, friend filling a blank) is NEVER PA — no task delegated, just voluntary disclosure. Route to signaling.
 
 5. pure-opposition (SYMMETRIC + INCOMMENSURABLE):
-   NAME:
+   Name:
      "Player A is defending the value of ____."
      "Player B is defending the value of ____."
-   The two blanks must name different KINDS of thing with no shared
-   currency. If you can name the single thing both want more of —
-   power, rank, reputation, territory, privacy, being-correct,
-   physical control, narrative framing, social legitimacy — the beat
-   is SYMMETRIC + ZERO-SUM on that shared axis, not incommensurable.
-   Emotional intensity is not a gate; shared currency is.
+   Blanks must name different KINDS of thing with no shared currency. If you can name a single thing both want more of (power, rank, reputation, territory, privacy, being-correct, control, framing, legitimacy) → SYMMETRIC + ZERO-SUM on that axis, NOT incommensurable. Emotional intensity is not a gate; shared currency is.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ACTION AXIS — WHAT IS BEING TRADED IN THIS BEAT
@@ -454,15 +362,10 @@ OUTPUT JSON
 HARD CONSTRAINTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- playerAActions: 1-4 entries. playerBActions: 1-4 entries.
-- outcomes.length MUST equal playerAActions.length * playerBActions.length.
-- Every outcome's aActionName and bActionName MUST match an action menu entry exactly (string equality).
-- realizedAAction and realizedBAction MUST be names present in the respective action menus.
-- Stake deltas are integers in the range -4 to 4.
-- JSON NUMBER FORMAT: Write positive integers as plain digits (0, 1, 2, 3, 4). Write negatives with a minus sign (-1, -2, -3, -4). NEVER prefix a positive number with a "+" sign — that is invalid JSON. Correct: "stakeDeltaA": 3. Incorrect: "stakeDeltaA": +3.
-- playerAId ≠ playerBId.
-- Include beats whose payoff grid can plausibly be resolved. If a beat genuinely has no counterparty you can name and no actions you can score, skip it — do not fabricate a game just to fill the array.
-- OUTPUT FORMAT IS JSON ONLY. No prose preamble, no explanation of why you skipped beats, no markdown. If the whole scene resolves to zero games, emit {"summary": "...", "games": []} — never prose + a bare {}.
-- Score stake deltas HONESTLY — do not tilt to make the realized cell look dominant. The analyser wants to know when the author chose a suboptimal cell.
+- playerAActions and playerBActions: 1-4 entries each. playerAId ≠ playerBId.
+- outcomes.length MUST equal playerAActions.length × playerBActions.length.
+- Every outcome's aActionName/bActionName and the two realized* fields MUST match action-menu entries exactly (string equality).
+- Stake deltas are integers in [-4, 4]. JSON sign rule stated earlier — no leading "+".
+- OUTPUT JSON ONLY. No prose preamble, no markdown. An empty games array is valid: {"summary": "...", "games": []}.
 `;
 }

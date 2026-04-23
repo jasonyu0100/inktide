@@ -82,3 +82,13 @@ export {
   THREADING_SYSTEM,
   buildThreadingPrompt,
 } from './analysis';
+
+// ── Reasoning-Graph Prompts ─────────────────────────────────────────────────
+export {
+  reasoningModeBlock,
+  forcePreferenceBlock,
+  networkBiasBlock,
+  getPlanNodeGuidance,
+  buildSequentialPath,
+  extractPatternWarningDirectives,
+} from './reasoning';

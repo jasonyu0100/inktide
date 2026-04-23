@@ -3,6 +3,7 @@
 import { ARCHETYPE_COLORS, ArchetypeIcon } from "@/components/ArchetypeIcon";
 import { ThinkingAnimation } from "@/components/generation/ThinkingAnimation";
 import { REASONING_NODE_COLORS } from "@/lib/reasoning-node-colors";
+import { FORCE_REFERENCE_MEANS } from "@/lib/narrative-utils";
 import type { ReasoningMode } from "@/lib/ai/reasoning-graph/types";
 import * as d3 from "d3";
 import dagre from "dagre";
@@ -2553,9 +2554,9 @@ export default function PaperPage() {
             </P>
             <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] max-w-sm">
               {[
-                { force: "Fate", value: "3.5", color: "#EF4444" },
-                { force: "World", value: "12", color: "#22C55E" },
-                { force: "System", value: "4", color: "#3B82F6" },
+                { force: "Fate", value: String(FORCE_REFERENCE_MEANS.fate), color: "#EF4444" },
+                { force: "World", value: String(FORCE_REFERENCE_MEANS.world), color: "#22C55E" },
+                { force: "System", value: String(FORCE_REFERENCE_MEANS.system), color: "#3B82F6" },
               ].map(({ force, value, color }) => (
                 <div
                   key={force}

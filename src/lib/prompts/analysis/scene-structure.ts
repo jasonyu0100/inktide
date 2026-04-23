@@ -9,6 +9,7 @@
  */
 
 import type { BeatPlan } from '@/types/narrative';
+import { FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 
 export const SCENE_STRUCTURE_SYSTEM = `You are a narrative structure extractor. Given a scene's exact prose and its beat plan, extract all entities, deltas, and structural data accurately. Dense prose deserves rich extraction; sparse prose deserves minimal extraction. Return only valid JSON.`;
 
@@ -29,9 +30,9 @@ ${prose}${beatSection}
 
 THREE ORTHOGONAL PLANES — extract each independently:
 - WORLD (MATERIAL plane): tangible, embodied. People, places, objects — characters, locations, artifacts; in non-fiction: institutions, datasets, figures, charts, embedded documents. Every new stable fact about an entity. This is a DENSITY lever — reach for the detail the prose genuinely earns.
-  W = ΔN_c + √ΔE_c. Ref: ~12/scene.
+  W = ΔN_c + √ΔE_c. Ref: ~${FORCE_REFERENCE_MEANS.world}/scene.
 - SYSTEM (ABSTRACT plane): rules, mechanisms, principles — how the world works, not the things themselves. Magic systems, physics, social order; or theorems, methods, constraints. Rule and knowledge density — NOT incidental setting. Also a DENSITY lever — under-extraction is the dominant failure.
-  S = ΔN + √ΔE. Ref: ~4/scene.
+  S = ΔN + √ΔE. Ref: ~${FORCE_REFERENCE_MEANS.system}/scene.
 - FATE (METAPHYSICAL plane): the higher-order pull that governs what material and abstract can't account for alone. Threads are PREDICTION MARKETS over named outcomes; a scene contributes fate by genuinely moving what a neutral observer would believe, weighted by the attention the scene paid to the thread. This is NOT a density lever — it is GENUINE CAREFUL MEASUREMENT. Price each thread's evidence by the concrete events in the scene; do NOT tune magnitudes to reach a target number. Fate is OUTPUT, not INPUT. There is no per-scene fate count to aim for — a quiet scene honestly emits pulses (|e|=0) and small evidence; a pivotal scene honestly emits committal evidence. Under-pricing a real payoff or over-pricing a routine scene both corrupt the trajectory.
 
 Return JSON:

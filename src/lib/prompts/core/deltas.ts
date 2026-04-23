@@ -5,15 +5,20 @@
  * in forces.ts — this file doesn't restate them.
  */
 
+import { FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
+
+const W = FORCE_BANDS.world;
+const S = FORCE_BANDS.system;
+
 export const PROMPT_DELTAS = `
 DELTAS — inputs to force formulas. Earn from prose; never invent. Under-tagging is the dominant failure.
 
 ALL NODE CONTENT: 15-25 words, PRESENT TENSE, specific and concrete.
 
 DENSITY TIERS (above the per-scene floor in forces.ts):
-  Breather:  0 transitions, 6-8 world, 1-2 system
-  Typical:   0-1 transitions, 10-14 world, 3-5 system + edges
-  Climactic: 1-2 transitions, 16-20+ world, 5-8 system + edges
+  Breather:  0 transitions, ${fmtBand(W.quiet)} world, ${fmtBand(S.quiet)} system
+  Typical:   0-1 transitions, ${fmtBand(W.typical)} world, ${fmtBand(S.typical)} system + edges
+  Climactic: 1-2 transitions, ${fmtBand(W.climax, true)} world, ${fmtBand(S.climax)} system + edges
   Theory / lore dump: 6-10 world, 6-12 system
 
 INITIALIZATION FLOOR — zero-node entities / empty threads are invalid:

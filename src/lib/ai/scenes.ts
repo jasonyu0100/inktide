@@ -1,6 +1,6 @@
 import type { NarrativeState, Scene, Arc, WorldBuild, StorySettings, Beat, BeatPlan, BeatProse, BeatProseMap, Proposition, ThreadLogNodeType, SystemNode, Thread, Artifact, Character, Location as LocationEntity, LocationProminence } from '@/types/narrative';
 import { DEFAULT_STORY_SETTINGS, REASONING_BUDGETS, BEAT_FN_LIST, BEAT_MECHANISM_LIST, NARRATOR_AGENT_ID } from '@/types/narrative';
-import { isThreadAbandoned, isThreadClosed, clampEvidence } from '@/lib/narrative-utils';
+import { isThreadAbandoned, isThreadClosed, clampEvidence, FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { newNarratorBelief } from '@/lib/thread-log';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
@@ -325,7 +325,7 @@ TIME DELTA: gap from prior scene as an estimate ({value: int≥0, unit}). "that 
 
 TAG-RICHLY DISCIPLINE (floors and emission rules consolidated — forces.ts has formulas, deltas.ts has shape):
   FLOORS: ≥6 world nodes across ≥3 entities, ≥1 system node per scene. Never emit \`systemDeltas: {}\`. One threadDelta per thread per scene; transitions move ONE step forward.
-  TYPICAL scene: 10-14 world, 3-5 system, 2-4 thread pulses (0-1 transitions). CLIMAX: 16-20+ world, 5-8 system, 1-2 transitions. QUIET: 6-8 world, 1-2 system, 0-1 pulses.
+  TYPICAL scene: ${fmtBand(FORCE_BANDS.world.typical)} world, ${fmtBand(FORCE_BANDS.system.typical)} system, 2-4 thread pulses (0-1 transitions). CLIMAX: ${fmtBand(FORCE_BANDS.world.climax, true)} world, ${fmtBand(FORCE_BANDS.system.climax)} system, 1-2 transitions. QUIET: ${fmtBand(FORCE_BANDS.world.quiet)} world, ${fmtBand(FORCE_BANDS.system.quiet)} system, 0-1 pulses.
   REFLECTIVE POV (solo-POV scenes, mostly thinking/planning): the POV is STILL the most-changed entity. Expect 4-6 nodes on the POV alone (belief/state/goal/capability/secret shifts), plus 2-3 on adjacent entities (location witnessed, artifact handled, off-screen party affected). A reflective scene with only one POV delta is broken.
   AGENCY over ORBIT, OFF-SCREEN deltas are valid (news/rumour/intelligence), REUSE existing node IDs — only NEW concepts count.
 

@@ -6,7 +6,7 @@
  * The default matrix is derived from Harry Potter and the Sorcerer's Stone.
  */
 
-import { computeForceSnapshots, detectCubeCorner } from "@/lib/narrative-utils";
+import { computeForceSnapshots, detectCubeCorner, FORCE_BANDS, FORCE_REFERENCE_MEANS } from "@/lib/narrative-utils";
 import { logInfo } from "@/lib/system-logger";
 import type { CubeCornerKey, NarrativeState, Scene } from "@/types/narrative";
 import { NARRATIVE_CUBE, resolveEntry } from "@/types/narrative";
@@ -283,32 +283,30 @@ export function initMatrixPresets(
 }
 
 /**
- * Force target ranges per cube corner.
- * High = above reference mean (fate 3.5, world 12, system 4), Low = below or near zero.
- * Ranges are [min, max] raw force values to guide generation.
- * "High" anchors above reference (dominance territory); "Low" stays near the floor
- * so the LLM produces real contrast instead of hugging the mean.
+ * Force target ranges per cube corner, derived from FORCE_BANDS so updating
+ * the reference mean propagates here automatically. "High" anchors above
+ * reference (dominance territory); "Low" stays near the floor so the LLM
+ * produces real contrast instead of hugging the mean.
  */
+const F_HI = FORCE_BANDS.fate.high;
+const F_LO = FORCE_BANDS.fate.low;
+const W_HI = FORCE_BANDS.world.high;
+const W_LO = FORCE_BANDS.world.low;
+const S_HI = FORCE_BANDS.system.high;
+const S_LO = FORCE_BANDS.system.low;
+
 const FORCE_TARGETS: Record<
   CubeCornerKey,
   { fate: [number, number]; world: [number, number]; system: [number, number] }
 > = {
-  // Epoch: everything high
-  HHH: { fate: [3.5, 7], world: [12, 20], system: [4, 10] },
-  // Climax: high fate + world, low system
-  HHL: { fate: [3.5, 7], world: [12, 20], system: [0, 2.5] },
-  // Revelation: high fate + system, low world
-  HLH: { fate: [3.5, 7], world: [0, 6], system: [4, 10] },
-  // Closure: high fate, low world + system
-  HLL: { fate: [3.5, 7], world: [0, 6], system: [0, 2.5] },
-  // Discovery: high world + system, low fate
-  LHH: { fate: [0, 2.5], world: [12, 20], system: [4, 10] },
-  // Growth: high world, low fate + system
-  LHL: { fate: [0, 2.5], world: [12, 20], system: [0, 2.5] },
-  // Lore: high system, low fate + world
-  LLH: { fate: [0, 2.5], world: [0, 6], system: [4, 10] },
-  // Rest: everything low
-  LLL: { fate: [0, 2.5], world: [0, 6], system: [0, 2.5] },
+  HHH: { fate: F_HI, world: W_HI, system: S_HI }, // Epoch
+  HHL: { fate: F_HI, world: W_HI, system: S_LO }, // Climax
+  HLH: { fate: F_HI, world: W_LO, system: S_HI }, // Revelation
+  HLL: { fate: F_HI, world: W_LO, system: S_LO }, // Closure
+  LHH: { fate: F_LO, world: W_HI, system: S_HI }, // Discovery
+  LHL: { fate: F_LO, world: W_HI, system: S_LO }, // Growth
+  LLH: { fate: F_LO, world: W_LO, system: S_HI }, // Lore
+  LLL: { fate: F_LO, world: W_LO, system: S_LO }, // Rest
 };
 
 // ── Pacing Presets ───────────────────────────────────────────────────────────
@@ -636,7 +634,7 @@ export function buildSingleStepPrompt(
   const targets = `P:${step.forces.fate[0]}-${step.forces.fate[1]} W:${step.forces.world[0]}-${step.forces.world[1]} S:${step.forces.system[0]}-${step.forces.system[1]}`;
   return `PACING — Scene ${sceneIndex + 1}/${totalScenes}: ${NARRATIVE_CUBE[step.mode].name} [P:${p} W:${c} S:${k}]
 ${MODE_GUIDANCE[step.mode]}
-Targets: ${targets}. Reference means: P≈1.5, W≈12, S≈3. Deltas ARE forces — match counts to targets, never hug the mean.`;
+Targets: ${targets}. Reference means: F≈${FORCE_REFERENCE_MEANS.fate}, W≈${FORCE_REFERENCE_MEANS.world}, S≈${FORCE_REFERENCE_MEANS.system}. Deltas ARE forces — match counts to targets, never hug the mean.`;
 }
 
 /**
@@ -652,10 +650,10 @@ export function buildSequencePrompt(sequence: PacingSequence): string {
     "Mode determines delta profile. Formulas compute forces FROM deltas:",
   );
   lines.push(
-    "  P = Σ thread transitions (pulse=0.25) | W = ΔN_c + √ΔE_c (entity world) | S = ΔN + √ΔE (system knowledge)",
+    "  F = Σ log(1+peak|e|)·(1+log(1+volΔ)) (fate market info gain) | W = ΔN_c + √ΔE_c (entity world) | S = ΔN + √ΔE (system knowledge)",
   );
   lines.push(
-    "  Reference means: P≈1.5, W≈12, S≈3. Scenes should breathe above/below these — not hug the mean.",
+    `  Reference means: F≈${FORCE_REFERENCE_MEANS.fate}, W≈${FORCE_REFERENCE_MEANS.world}, S≈${FORCE_REFERENCE_MEANS.system}. Scenes should breathe above/below these — not hug the mean.`,
   );
   lines.push("");
 

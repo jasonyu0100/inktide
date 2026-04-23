@@ -1,6 +1,6 @@
 import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild, ReasoningGraphSnapshot } from '@/types/narrative';
 import { resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS, NARRATOR_AGENT_ID } from '@/types/narrative';
-import { clampEvidence, isThreadAbandoned, isThreadClosed } from '@/lib/narrative-utils';
+import { clampEvidence, isThreadAbandoned, isThreadClosed, FORCE_REFERENCE_MEANS, FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
 import type { ThreadLogNodeType } from '@/types/narrative';
@@ -918,7 +918,7 @@ PILOT EPISODE — establish a tight, focused world. These are minimums; exceed w
 - AT LEAST 8 relationships (at least 1 hostile)
 - AT LEAST 1 artifact when the premise involves tools or objects of power
 - AT LEAST 12 system nodes with 8 edges — the systems, principles, tensions, and structures the world runs on. This is the foundational system graph every future scene draws from; a thin root means thin scenes forever. Each node MUST be 15-25 words describing a general rule or structural fact (how the world works). Include micro-rules (specific mechanics), mid-rules (institutional/economic), and macro-rules (cosmological/thematic). SHORT NAMES ARE FAILURES — "Aperture Grading" is wrong; "The sect grades disciples by aperture quality, with A-grade apertures receiving priority resource allocation and mentorship" is correct.${worldOnly ? '' : `
-- AT LEAST 8 scenes in 1 arc, AVERAGING ~12 world nodes and ~4 system nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with 10-14 world nodes and reveals 3-5 system concepts; climactic scenes push to 16-20+ world and 6-9 system.`}
+- AT LEAST 8 scenes in 1 arc, AVERAGING ~${FORCE_REFERENCE_MEANS.world} world nodes and ~${FORCE_REFERENCE_MEANS.system} system nodes per scene (these are the grading reference means). Some scenes quiet, some dense — but the MEAN across the arc must hit the reference or the whole pilot grades in the 60s. A typical scene touches 3-5 entities with ${fmtBand(FORCE_BANDS.world.typical)} world nodes and reveals ${fmtBand(FORCE_BANDS.system.typical)} system concepts; climactic scenes push to ${fmtBand(FORCE_BANDS.world.climax, true)} world and ${fmtBand(FORCE_BANDS.system.climax)} system.`}
 
 SEEDING FATE — a great world is pregnant with story. Every entity you create should carry the seeds of future conflict:
 - Threads are fate's mechanism — each thread is a COMPELLING question (stakes + uncertainty + investment) the story MUST eventually answer

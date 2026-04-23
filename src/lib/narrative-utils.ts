@@ -1563,20 +1563,69 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
 
 /** Reference means per force — the expected mean for a well-structured narrative.
  *  Raw force values are divided by these to produce a unit-free normalized value
- *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~18/25 (73%).
- *  Calibrated from literary works (HP, Gatsby, Crime & Punishment, Coiling Dragon).
+ *  (x̃ = x̄ / μ_ref). At x̃ = 1 the grade reaches ~21/25 (dominance threshold).
+ *  Calibrated against analyzed works: fate-dominant novels (HP, Alice) land
+ *  23–24, system-dominant papers saturate to 25, and low forces across
+ *  archetype mismatches sit in the mid-teens.
  *
- *  Fate bumped to 3.5: raw fate counts thread-stage activity, and the
- *  thread-creation gate (analysis/scene-structure.ts) now disqualifies
- *  scene-level tensions and recurring character dynamics. Under the
- *  tightened bar, a fate-forward work should still earn ~21-22 and a
- *  truly fate-dominant one ~23+ while mundane work lands in the high
- *  teens.
+ *  Fate 5.3: the information-gain proxy (log(1+peak|e|)·(1+log(1+vol)))
+ *  saturates quickly on any scene with committal evidence; a reference of
+ *  5.3 prevents routine thread activity from saturating the grade and
+ *  makes the top band reflect sustained high-information pricing across
+ *  the work. HP (avg 9.42) → 24, Alice (avg 8.53) → 23.
  *
- *  System held at 4: the raw formula (ΔN + √ΔE) measures rule/structure density
- *  per scene; a reference of 4 means a typical scene must introduce substantive
- *  rules/systems to grade well, not just incidental worldbuilding nodes. */
-export const FORCE_REFERENCE_MEANS = { fate: 3.5, world: 12, system: 4 } as const;
+ *  World 14: entity-graph density scales fast in character-forward works;
+ *  14/scene spreads well-structured novels across 22–26 so that genuinely
+ *  world-dominant works (e.g. Alice at 29/scene) separate from solid ones
+ *  (HP at 22/scene).
+ *
+ *  System 3.5: most fiction has low system density; at 3.5 a typical
+ *  scene introducing a modest mechanism grades into the low 20s, while
+ *  idea-dense works (papers, hard SF) saturate to 25. */
+export const FORCE_REFERENCE_MEANS = { fate: 5.3, world: 14, system: 3.5 } as const;
+
+/** Per-scene density and cube-corner bands derived from FORCE_REFERENCE_MEANS.
+ *  Prompts, pacing profiles, and UI displays import from here so updating the
+ *  reference mean propagates to every downstream target automatically.
+ *
+ *  Bands are fractions of the reference mean:
+ *  - typical: 0.85×–1.15× (routine scenes cluster around the mean)
+ *  - climax:  1.3×–2×      (peaks push above)
+ *  - quiet:   0.4×–0.6×    (breathers sit well below)
+ *  - low:     [0, 0.5×]    (cube-corner LOW range — dominance floor)
+ *  - high:    [1×, 2×]     (cube-corner HIGH range — dominance territory)
+ */
+const _R = FORCE_REFERENCE_MEANS;
+const _intBand = (ref: number, lo: number, hi: number, min = 1): [number, number] =>
+  [Math.max(min, Math.round(ref * lo)), Math.round(ref * hi)];
+
+export const FORCE_BANDS = {
+  world: {
+    typical: _intBand(_R.world, 0.85, 1.15),
+    climax:  _intBand(_R.world, 1.3, 1.75),
+    quiet:   _intBand(_R.world, 0.4, 0.6),
+    low:     [0, Math.round(_R.world * 0.5)] as [number, number],
+    high:    [_R.world, Math.round(_R.world * 1.8)] as [number, number],
+  },
+  system: {
+    typical: _intBand(_R.system, 0.85, 1.15),
+    climax:  _intBand(_R.system, 1.4, 2.3),
+    quiet:   [1, 2] as [number, number],
+    low:     [0, Math.round(_R.system * 0.6)] as [number, number],
+    high:    [_R.system, Math.round(_R.system * 2.3)] as [number, number],
+  },
+  fate: {
+    low:  [0, Math.round(_R.fate * 0.66 * 10) / 10] as [number, number],
+    high: [_R.fate, Math.round(_R.fate * 1.9)] as [number, number],
+  },
+} as const;
+
+/** Inline band formatter — "12-16" or "18-24+". */
+export const fmtBand = ([lo, hi]: readonly [number, number], plus = false): string =>
+  plus ? `${lo}-${hi}+` : `${lo}-${hi}`;
+
+/** One-line human-readable summary of reference means — for UI and prompts. */
+export const FORCE_REFERENCE_SUMMARY = `fate: ${_R.fate}, world: ${_R.world}, system: ${_R.system}`;
 
 /** Per-scene density targets by archetype — what the LLM should aim for during generation.
  *  "High" forces use the opus-level reference; "low" forces use relaxed targets.

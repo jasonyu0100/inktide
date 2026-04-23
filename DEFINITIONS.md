@@ -175,14 +175,14 @@ Forces are graded on a **0–25 scale per dimension**, with an overall score of 
 
 | Force | Reference Mean | Description |
 |-------|----------------|-------------|
-| **Payoff** | 1.3 | Expected mean raw value for well-paced thread resolution |
-| **Change** | 4.0 | Expected mean raw value for character transformation |
-| **Knowledge** | 3.5 | Expected mean raw value for world-building depth |
+| **Fate** | 5.3 | Expected mean per-scene information gain across threads |
+| **World** | 14 | Expected mean raw value for entity graph depth per scene |
+| **System** | 3.5 | Expected mean raw value for rule/mechanism density per scene |
 
 ### Grading Curve
 
-At reference mean (x̃ = 1.0), a force scores ~18/25 (73%).
-Grade = `25 × tanh(1.4 × x̃)` where x̃ = (raw mean) / (reference mean)
+At reference mean (x̃ = 1.0), a force scores ~21/25 (dominance threshold).
+Grade = `25 − 17·e^(−k·x̃)` where x̃ = (raw mean) / (reference mean), k = ln(17/4).
 
 **Overall Grade:**
 Sum of individual rounded grades: `payoff + change + knowledge + swing`

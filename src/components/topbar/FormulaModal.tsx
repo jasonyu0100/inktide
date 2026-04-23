@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { Modal, ModalHeader, ModalBody } from '@/components/Modal';
+import { FORCE_REFERENCE_MEANS } from '@/lib/narrative-utils';
 
 type Props = { onClose: () => void };
 
@@ -125,9 +126,9 @@ function ScoringTab() {
         </p>
         <div className="mt-2 flex gap-2 text-[10px]">
           {[
-            { label: 'Fate', value: '1.5', color: '#EF4444' },
-            { label: 'World', value: '12', color: '#22C55E' },
-            { label: 'System', value: '3', color: '#3B82F6' },
+            { label: 'Fate', value: String(FORCE_REFERENCE_MEANS.fate), color: '#EF4444' },
+            { label: 'World', value: String(FORCE_REFERENCE_MEANS.world), color: '#22C55E' },
+            { label: 'System', value: String(FORCE_REFERENCE_MEANS.system), color: '#3B82F6' },
           ].map(({ label, value, color }) => (
             <div key={label} className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/8">
               <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />

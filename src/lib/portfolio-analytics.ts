@@ -347,8 +347,17 @@ export function buildThreadTrajectory(
     closeOutcome: undefined,
     resolutionQuality: undefined,
   };
+  // A thread that opens mid-story has no market state to plot before openedAt.
+  // Plotting a flat line from scene 0 to the opening scene misrepresents the
+  // market as priced-before-it-existed. Skip iterations before openedAt when
+  // the thread carries a resolvable opening key; threads without a known
+  // openedAt (or whose openedAt predates the resolved timeline) start at 0.
+  const openedIdx = thread0.openedAt
+    ? resolvedEntryKeys.indexOf(thread0.openedAt)
+    : -1;
+  const startIdx = openedIdx >= 0 ? openedIdx : 0;
   const points: ThreadTrajectoryPoint[] = [];
-  for (let i = 0; i < resolvedEntryKeys.length; i++) {
+  for (let i = startIdx; i < resolvedEntryKeys.length; i++) {
     const sceneId = resolvedEntryKeys[i];
     const scene = narrative.scenes[sceneId] as Scene | undefined;
     if (!scene || scene.kind !== 'scene') continue;

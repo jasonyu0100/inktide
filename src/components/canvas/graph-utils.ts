@@ -121,13 +121,13 @@ export interface GraphLink extends d3.SimulationLinkDatum<GraphNode> {
 
 // ── System Knowledge Graph types ─────────────────────────────────────────────
 
-export type WKNode = d3.SimulationNodeDatum & {
+export type SysNode = d3.SimulationNodeDatum & {
   id: string;
   concept: string;
   type: string;
   degree: number;
 };
-export type WKLink = d3.SimulationLinkDatum<WKNode> & { relation: string };
+export type SysLink = d3.SimulationLinkDatum<SysNode> & { relation: string };
 
 // ── Helper: compute connected components (groups) ──────────────────────────
 
@@ -248,7 +248,7 @@ export const THREAD_LOG_FILL: Record<string, string> = {
 
 // ── System Knowledge Type Colors ─────────────────────────────────────────────
 
-export const WK_TYPE_COLORS: Record<string, string> = {
+export const SYS_TYPE_COLORS: Record<string, string> = {
   principle: "#FBBF24", // gold
   system: "#38BDF8", // sky blue
   concept: "#A78BFA", // violet
@@ -260,7 +260,7 @@ export const WK_TYPE_COLORS: Record<string, string> = {
   constraint: "#F87171", // red
 };
 
-export const WK_TYPE_GLOW: Record<string, string> = {
+export const SYS_TYPE_GLOW: Record<string, string> = {
   principle: "0 0 12px #FBBF2480, 0 0 4px #FBBF2440",
   system: "0 0 12px #38BDF880, 0 0 4px #38BDF840",
   concept: "0 0 12px #A78BFA80, 0 0 4px #A78BFA40",

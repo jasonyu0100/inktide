@@ -120,7 +120,7 @@ describe('expandWorld — systemDeltas', () => {
     worldDeltas: [],
     relationshipDeltas: [],
   };
-  it('assigns fresh WK ids to new concepts', async () => {
+  it('assigns fresh SYS ids to new concepts', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
       ...baseExpansion,
       systemDeltas: {
@@ -133,11 +133,11 @@ describe('expandWorld — systemDeltas', () => {
     }));
     const narrative = createMinimalNarrative();
     const result = await expandWorld(narrative, [], 0, 'Expand the magic system');
-    const wkm = result.systemDeltas!;
-    expect(wkm.addedNodes).toHaveLength(2);
-    expect(wkm.addedNodes.map((n) => n.id)).toEqual(['SYS-01', 'SYS-02']);
-    expect(wkm.addedEdges).toHaveLength(1);
-    expect(wkm.addedEdges[0]).toEqual({ from: 'SYS-02', to: 'SYS-01', relation: 'enables' });
+    const sysDelta = result.systemDeltas!;
+    expect(sysDelta.addedNodes).toHaveLength(2);
+    expect(sysDelta.addedNodes.map((n) => n.id)).toEqual(['SYS-01', 'SYS-02']);
+    expect(sysDelta.addedEdges).toHaveLength(1);
+    expect(sysDelta.addedEdges[0]).toEqual({ from: 'SYS-02', to: 'SYS-01', relation: 'enables' });
   });
   it('collapses re-mentioned concepts to existing SYS ids', async () => {
     vi.mocked(callGenerate).mockResolvedValue(JSON.stringify({
@@ -153,18 +153,18 @@ describe('expandWorld — systemDeltas', () => {
     const narrative = createMinimalNarrative();
     // Pre-existing concept.
     narrative.systemGraph = {
-      nodes: { 'WK-42': { id: 'WK-42', concept: 'Mana Binding', type: 'system' } },
+      nodes: { 'SYS-42': { id: 'SYS-42', concept: 'Mana Binding', type: 'system' } },
       edges: [],
     };
     const result = await expandWorld(narrative, [], 0, 'Expand');
-    const wkm = result.systemDeltas!;
-    // Only Blood Runes is genuinely new; Mana Binding collapses to WK-42.
-    expect(wkm.addedNodes).toHaveLength(1);
-    expect(wkm.addedNodes[0].concept).toBe('Blood Runes');
+    const sysDelta = result.systemDeltas!;
+    // Only Blood Runes is genuinely new; Mana Binding collapses to SYS-42.
+    expect(sysDelta.addedNodes).toHaveLength(1);
+    expect(sysDelta.addedNodes[0].concept).toBe('Blood Runes');
     // Edge now references the existing id.
-    expect(wkm.addedEdges[0]).toEqual({
-      from: wkm.addedNodes[0].id,
-      to: 'WK-42',
+    expect(sysDelta.addedEdges[0]).toEqual({
+      from: sysDelta.addedNodes[0].id,
+      to: 'SYS-42',
       relation: 'requires',
     });
   });
@@ -194,13 +194,13 @@ describe('expandWorld — systemDeltas', () => {
       systemDeltas: {
         addedNodes: [{ id: 'SYS-GEN-1', concept: 'Mana Binding', type: 'system' }],
         // Tries to re-add an edge that already exists.
-        addedEdges: [{ from: 'SYS-GEN-1', to: 'WK-99', relation: 'enables' }],
+        addedEdges: [{ from: 'SYS-GEN-1', to: 'SYS-99', relation: 'enables' }],
       },
     }));
     const narrative = createMinimalNarrative();
     narrative.systemGraph = {
       nodes: {
-        'WK-99': { id: 'WK-99', concept: 'Pre-existing', type: 'concept' },
+        'SYS-99': { id: 'SYS-99', concept: 'Pre-existing', type: 'concept' },
       },
       edges: [],
     };

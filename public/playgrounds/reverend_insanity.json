@@ -154,25 +154,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-01",
+            "id": "SYS-RI-01",
             "concept": "Gu worms are living organisms that grant supernatural powers to cultivators who host them",
             "type": "law"
           },
           {
-            "id": "WK-RI-03",
+            "id": "SYS-RI-03",
             "concept": "Spring Autumn Cicada — a legendary Gu capable of sending its user's consciousness back in time upon death",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-03",
-            "to": "WK-RI-01",
+            "from": "SYS-RI-03",
+            "to": "SYS-RI-01",
             "relation": "The Spring Autumn Cicada is itself a Gu worm — the most legendary of all"
           },
           {
-            "from": "WK-RI-03",
-            "to": "WK-RI-22",
+            "from": "SYS-RI-03",
+            "to": "SYS-RI-22",
             "relation": "The Spring Autumn Cicada is the source of future knowledge"
           }
         ]
@@ -236,20 +236,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-06",
+            "id": "SYS-RI-06",
             "concept": "The aperture — an organ within a Gu Master's body that stores primeval essence and determines cultivation potential",
             "type": "concept"
           },
           {
-            "id": "WK-RI-07",
+            "id": "SYS-RI-07",
             "concept": "Talent grades (A through D) determine a cultivator's ceiling — social standing follows aptitude",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-07",
-            "to": "WK-RI-06",
+            "from": "SYS-RI-07",
+            "to": "SYS-RI-06",
             "relation": "Talent grade is determined by aperture quality"
           }
         ]
@@ -324,20 +324,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-09",
+            "id": "SYS-RI-09",
             "concept": "Gu must be fed, maintained, and understood — neglect kills them, misuse kills the cultivator",
             "type": "law"
           },
           {
-            "id": "WK-RI-11",
+            "id": "SYS-RI-11",
             "concept": "Orthodox cultivation follows safe, established methods; unorthodox paths offer power at greater risk",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-09",
-            "to": "WK-RI-01",
+            "from": "SYS-RI-09",
+            "to": "SYS-RI-01",
             "relation": "Gu are alive and have needs — this is the first law of cultivation"
           }
         ]
@@ -399,25 +399,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-14",
+            "id": "SYS-RI-14",
             "concept": "Inheritance grounds — sealed legacies left by powerful cultivators containing Gu, techniques, and resources",
             "type": "concept"
           },
           {
-            "id": "WK-RI-15",
+            "id": "SYS-RI-15",
             "concept": "Gu Master ranks (1-9) define power tiers — each rank is an exponential leap in capability",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-14",
-            "to": "WK-RI-15",
+            "from": "SYS-RI-14",
+            "to": "SYS-RI-15",
             "relation": "Inheritance grounds are ranked by the power of their creator"
           },
           {
-            "from": "WK-RI-15",
-            "to": "WK-RI-01",
+            "from": "SYS-RI-15",
+            "to": "SYS-RI-01",
             "relation": "Each rank deepens the cultivators bond with more powerful Gu"
           }
         ]
@@ -531,25 +531,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-16",
+            "id": "SYS-RI-16",
             "concept": "Vital Gu — the first Gu bonded to a cultivator's aperture, defining their initial cultivation path",
             "type": "concept"
           },
           {
-            "id": "WK-RI-18",
+            "id": "SYS-RI-18",
             "concept": "Talent can be deliberately suppressed — a cultivator with knowledge can fake weakness",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-16",
-            "to": "WK-RI-01",
+            "from": "SYS-RI-16",
+            "to": "SYS-RI-01",
             "relation": "The vital Gu is a living organism selected through resonance"
           },
           {
-            "from": "WK-RI-18",
-            "to": "WK-RI-07",
+            "from": "SYS-RI-18",
+            "to": "SYS-RI-07",
             "relation": "Suppression subverts the talent grading the ceremony relies on"
           }
         ]
@@ -629,20 +629,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-19",
+            "id": "SYS-RI-19",
             "concept": "Pity is camouflage — perceived weakness grants invisibility in a world that only watches the strong",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-19",
-            "to": "WK-RI-08",
+            "from": "SYS-RI-19",
+            "to": "SYS-RI-08",
             "relation": "The hierarchy ignores those at the bottom, creating blind spots"
           },
           {
-            "from": "WK-RI-19",
-            "to": "WK-RI-18",
+            "from": "SYS-RI-19",
+            "to": "SYS-RI-18",
             "relation": "Suppressed talent produces pity, which deepens the disguise"
           }
         ]
@@ -718,20 +718,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-20",
+            "id": "SYS-RI-20",
             "concept": "Exceptional talent draws political attention — genius is a resource factions compete to claim",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-20",
-            "to": "WK-RI-07",
+            "from": "SYS-RI-20",
+            "to": "SYS-RI-07",
             "relation": "High talent grades attract factional interest"
           },
           {
-            "from": "WK-RI-20",
-            "to": "WK-RI-08",
+            "from": "SYS-RI-20",
+            "to": "SYS-RI-08",
             "relation": "Talented individuals become political assets within the clan"
           }
         ]
@@ -793,20 +793,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-22",
+            "id": "SYS-RI-22",
             "concept": "Future knowledge is the ultimate weapon — knowing where and when enemies will strike inverts all power dynamics",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-22",
-            "to": "WK-RI-03",
+            "from": "SYS-RI-22",
+            "to": "SYS-RI-03",
             "relation": "The Spring Autumn Cicada is what grants this future knowledge"
           },
           {
-            "from": "WK-RI-22",
-            "to": "WK-RI-14",
+            "from": "SYS-RI-22",
+            "to": "SYS-RI-14",
             "relation": "Knowing the location of inheritance grounds before anyone else is the ultimate edge"
           }
         ]
@@ -876,25 +876,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-23",
+            "id": "SYS-RI-23",
             "concept": "Primeval stones — crystallized primeval essence used as currency, cultivation fuel, and Gu feed",
             "type": "concept"
           },
           {
-            "id": "WK-RI-25",
+            "id": "SYS-RI-25",
             "concept": "Factional politics within clans — elders form competing blocs that undermine unity from within",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-23",
-            "to": "WK-RI-01",
+            "from": "SYS-RI-23",
+            "to": "SYS-RI-01",
             "relation": "Primeval stones fuel Gu cultivation and sustain Gu worms"
           },
           {
-            "from": "WK-RI-25",
-            "to": "WK-RI-23",
+            "from": "SYS-RI-25",
+            "to": "SYS-RI-23",
             "relation": "Factions fight to control the allocation of primeval stones"
           }
         ]
@@ -969,20 +969,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-26",
+            "id": "SYS-RI-26",
             "concept": "Information asymmetry is the deepest form of power — those who know the future control the present",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-26",
-            "to": "WK-RI-22",
+            "from": "SYS-RI-26",
+            "to": "SYS-RI-22",
             "relation": "Future knowledge creates absolute information asymmetry"
           },
           {
-            "from": "WK-RI-26",
-            "to": "WK-RI-25",
+            "from": "SYS-RI-26",
+            "to": "SYS-RI-25",
             "relation": "Perfect information turns factional politics into a chess game"
           }
         ]
@@ -1105,25 +1105,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-28",
+            "id": "SYS-RI-28",
             "concept": "The Flower Wine Monk — a Rank 4 Gu Immortal who sealed his complete legacy beneath Qing Mao Mountain",
             "type": "concept"
           },
           {
-            "id": "WK-RI-29",
+            "id": "SYS-RI-29",
             "concept": "Gu Immortal — cultivators who transcend mortal ranks and attain power over natural law itself",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-28",
-            "to": "WK-RI-14",
+            "from": "SYS-RI-28",
+            "to": "SYS-RI-14",
             "relation": "The Flower Wine Monk's legacy is an inheritance ground"
           },
           {
-            "from": "WK-RI-29",
-            "to": "WK-RI-15",
+            "from": "SYS-RI-29",
+            "to": "SYS-RI-15",
             "relation": "Gu Immortals transcend the mortal rank system"
           }
         ]
@@ -1203,20 +1203,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-30",
+            "id": "SYS-RI-30",
             "concept": "Emotional bonds are leverage — sentiment is a mechanism for control in a ruthless world",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-30",
-            "to": "WK-RI-19",
+            "from": "SYS-RI-30",
+            "to": "SYS-RI-19",
             "relation": "Emotional manipulation extends the camouflage of feigned weakness"
           },
           {
-            "from": "WK-RI-30",
-            "to": "WK-RI-26",
+            "from": "SYS-RI-30",
+            "to": "SYS-RI-26",
             "relation": "Understanding someone's attachments grants power over them"
           }
         ]
@@ -1304,20 +1304,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-31",
+            "id": "SYS-RI-31",
             "concept": "Talented individuals become political pawns — their potential is claimed by factions before they can choose",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-31",
-            "to": "WK-RI-20",
+            "from": "SYS-RI-31",
+            "to": "SYS-RI-20",
             "relation": "Talent attracting attention leads to individuals becoming political assets"
           },
           {
-            "from": "WK-RI-31",
-            "to": "WK-RI-25",
+            "from": "SYS-RI-31",
+            "to": "SYS-RI-25",
             "relation": "Factions weaponize talented youth as justification for resource claims"
           }
         ]
@@ -1386,20 +1386,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-32",
+            "id": "SYS-RI-32",
             "concept": "The demonic path — cultivators who reject societal norms, using forbidden methods and ruthless pragmatism",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-32",
-            "to": "WK-RI-11",
+            "from": "SYS-RI-32",
+            "to": "SYS-RI-11",
             "relation": "The demonic path is the extreme end of unorthodox cultivation"
           },
           {
-            "from": "WK-RI-32",
-            "to": "WK-RI-18",
+            "from": "SYS-RI-32",
+            "to": "SYS-RI-18",
             "relation": "Demonic cultivators must hide their nature through deception"
           }
         ]
@@ -1535,20 +1535,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-RI-33",
+            "id": "SYS-RI-33",
             "concept": "Secrets compound — each hidden truth requires further deception to protect, creating an unstable web",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-RI-33",
-            "to": "WK-RI-18",
+            "from": "SYS-RI-33",
+            "to": "SYS-RI-18",
             "relation": "Talent suppression is one layer in a growing web of secrets"
           },
           {
-            "from": "WK-RI-33",
-            "to": "WK-RI-30",
+            "from": "SYS-RI-33",
+            "to": "SYS-RI-30",
             "relation": "Emotional bonds become liabilities when secrets are at stake"
           }
         ]
@@ -2415,155 +2415,155 @@
         "systemDeltas": {
           "addedNodes": [
             {
-              "id": "WK-RI-WB-01",
+              "id": "SYS-RI-WB-01",
               "concept": "The Gu ecosystem — a living supernatural ecology where insects, worms, and organisms are the medium of all power, cultivated like crops and wielded like weapons",
               "type": "system"
             },
             {
-              "id": "WK-RI-WB-02",
+              "id": "SYS-RI-WB-02",
               "concept": "The clan system — autonomous Gu Master clans that govern territories, allocate resources, and wage war, each a self-contained society organized around cultivation strength",
               "type": "system"
             },
             {
-              "id": "WK-RI-WB-03",
+              "id": "SYS-RI-WB-03",
               "concept": "The mortal-immortal divide — Rank 1-5 cultivators are mortal, bound by lifespan and physiology; Gu Immortals (Rank 6+) transcend natural law and operate on a cosmic scale",
               "type": "tension"
             },
             {
-              "id": "WK-RI-WB-04",
+              "id": "SYS-RI-WB-04",
               "concept": "The Great Dream Realm — a dimension accessible through sleep where the souls of all living beings intermingle and ancient knowledge can be glimpsed",
               "type": "concept"
             },
             {
-              "id": "WK-RI-WB-05",
+              "id": "SYS-RI-WB-05",
               "concept": "The Ten Extreme Physiques — rare body constitutions that grant extraordinary cultivation advantages but come with equally extreme costs and vulnerabilities",
               "type": "concept"
             },
             {
-              "id": "WK-RI-WB-06",
+              "id": "SYS-RI-WB-06",
               "concept": "Heavenly Dao — the abstract laws governing reality itself, divided into paths (strength, wisdom, luck, time, space, etc.) that cultivators can comprehend and weaponize",
               "type": "law"
             },
             {
-              "id": "WK-RI-WB-07",
+              "id": "SYS-RI-WB-07",
               "concept": "The Righteous-Demonic dichotomy — society labels cultivators as righteous (following clan norms) or demonic (following self-interest), but the distinction is political, not moral",
               "type": "tension"
             },
             {
-              "id": "WK-RI-WB-08",
+              "id": "SYS-RI-WB-08",
               "concept": "Gu recipe systems — the combinatorial logic of refining, feeding, and pairing Gu worms, where knowledge of recipes is as valuable as the Gu themselves",
               "type": "system"
             },
             {
-              "id": "WK-RI-WB-09",
+              "id": "SYS-RI-WB-09",
               "concept": "Reincarnation as strategic resource — in a world where death is not final, those who return carry advantages that reshape the balance of power",
               "type": "law"
             }
           ],
           "addedEdges": [
             {
-              "from": "WK-RI-WB-01",
-              "to": "WK-RI-01",
+              "from": "SYS-RI-WB-01",
+              "to": "SYS-RI-01",
               "relation": "is the macro-ecology that governs all"
             },
             {
-              "from": "WK-RI-WB-01",
-              "to": "WK-RI-12",
+              "from": "SYS-RI-WB-01",
+              "to": "SYS-RI-12",
               "relation": "wild Gu are the untamed frontier of"
             },
             {
-              "from": "WK-RI-WB-01",
-              "to": "WK-RI-09",
+              "from": "SYS-RI-WB-01",
+              "to": "SYS-RI-09",
               "relation": "Gu maintenance is the first law of"
             },
             {
-              "from": "WK-RI-WB-02",
-              "to": "WK-RI-04",
+              "from": "SYS-RI-WB-02",
+              "to": "SYS-RI-04",
               "relation": "Qing Mao Mountain's three clans are instances of"
             },
             {
-              "from": "WK-RI-WB-02",
-              "to": "WK-RI-08",
+              "from": "SYS-RI-WB-02",
+              "to": "SYS-RI-08",
               "relation": "clans are internally organized by"
             },
             {
-              "from": "WK-RI-WB-02",
-              "to": "WK-RI-21",
+              "from": "SYS-RI-WB-02",
+              "to": "SYS-RI-21",
               "relation": "inter-clan warfare is the natural consequence of"
             },
             {
-              "from": "WK-RI-WB-03",
-              "to": "WK-RI-29",
+              "from": "SYS-RI-WB-03",
+              "to": "SYS-RI-29",
               "relation": "Gu Immortals exist beyond"
             },
             {
-              "from": "WK-RI-WB-03",
-              "to": "WK-RI-15",
+              "from": "SYS-RI-WB-03",
+              "to": "SYS-RI-15",
               "relation": "the rank system leads toward"
             },
             {
-              "from": "WK-RI-WB-04",
-              "to": "WK-RI-14",
+              "from": "SYS-RI-WB-04",
+              "to": "SYS-RI-14",
               "relation": "inheritance grounds sometimes connect to"
             },
             {
-              "from": "WK-RI-WB-04",
-              "to": "WK-RI-02",
+              "from": "SYS-RI-WB-04",
+              "to": "SYS-RI-02",
               "relation": "is an alternate dimension permeated by"
             },
             {
-              "from": "WK-RI-WB-05",
-              "to": "WK-RI-06",
+              "from": "SYS-RI-WB-05",
+              "to": "SYS-RI-06",
               "relation": "extreme physiques are mutations of"
             },
             {
-              "from": "WK-RI-WB-05",
-              "to": "WK-RI-07",
+              "from": "SYS-RI-WB-05",
+              "to": "SYS-RI-07",
               "relation": "transcends the normal talent grade system of"
             },
             {
-              "from": "WK-RI-WB-06",
-              "to": "WK-RI-01",
+              "from": "SYS-RI-WB-06",
+              "to": "SYS-RI-01",
               "relation": "Gu worms are physical manifestations of"
             },
             {
-              "from": "WK-RI-WB-06",
-              "to": "WK-RI-WB-03",
+              "from": "SYS-RI-WB-06",
+              "to": "SYS-RI-WB-03",
               "relation": "comprehension of Dao marks defines the boundary of"
             },
             {
-              "from": "WK-RI-WB-07",
-              "to": "WK-RI-11",
+              "from": "SYS-RI-WB-07",
+              "to": "SYS-RI-11",
               "relation": "is the societal framing of"
             },
             {
-              "from": "WK-RI-WB-07",
-              "to": "WK-RI-32",
+              "from": "SYS-RI-WB-07",
+              "to": "SYS-RI-32",
               "relation": "the demonic path is the extreme of"
             },
             {
-              "from": "WK-RI-WB-08",
-              "to": "WK-RI-10",
+              "from": "SYS-RI-WB-08",
+              "to": "SYS-RI-10",
               "relation": "recipes are the knowledge layer of"
             },
             {
-              "from": "WK-RI-WB-08",
-              "to": "WK-RI-26",
+              "from": "SYS-RI-WB-08",
+              "to": "SYS-RI-26",
               "relation": "recipe knowledge is a form of"
             },
             {
-              "from": "WK-RI-WB-09",
-              "to": "WK-RI-03",
+              "from": "SYS-RI-WB-09",
+              "to": "SYS-RI-03",
               "relation": "the Spring Autumn Cicada is the ultimate tool of"
             },
             {
-              "from": "WK-RI-WB-09",
-              "to": "WK-RI-05",
+              "from": "SYS-RI-WB-09",
+              "to": "SYS-RI-05",
               "relation": "Fang Yuan's rebirth is an instance of"
             },
             {
-              "from": "WK-RI-WB-09",
-              "to": "WK-RI-22",
+              "from": "SYS-RI-WB-09",
+              "to": "SYS-RI-22",
               "relation": "future knowledge is the primary advantage of"
             }
           ]

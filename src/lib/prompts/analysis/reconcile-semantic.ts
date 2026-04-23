@@ -10,15 +10,15 @@ export const RECONCILE_SEMANTIC_SYSTEM = `You reconcile narrative threads and sy
 
 export function buildReconcileSemanticPrompt(
   allThreadDescs: Set<string>,
-  allWKConcepts: Set<string>,
+  allSysConcepts: Set<string>,
 ): string {
   return `Reconcile narrative THREADS and SYSTEM KNOWLEDGE concepts extracted independently from different scenes of the same story. Unlike named entities, these are propositions — full sentences that encode nuance. Your job: preserve distinct nuances. Only merge when two items are genuine restatements of the same proposition.
 
 THREADS (${allThreadDescs.size}):
 ${[...allThreadDescs].map((d, i) => `${i + 1}. "${d}"`).join('\n')}
 
-SYSTEM KNOWLEDGE (${allWKConcepts.size}):
-${[...allWKConcepts].map((c, i) => `${i + 1}. "${c}"`).join('\n')}
+SYSTEM KNOWLEDGE (${allSysConcepts.size}):
+${[...allSysConcepts].map((c, i) => `${i + 1}. "${c}"`).join('\n')}
 
 For each category, map every variant to its canonical form. Only include entries where variant ≠ canonical.
 

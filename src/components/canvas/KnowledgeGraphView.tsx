@@ -6,7 +6,7 @@ import { useStore } from '@/lib/store';
 import { buildCumulativeSystemGraph } from '@/lib/narrative-utils';
 import type { NarrativeState, SystemNode } from '@/types/narrative';
 import EvalBar from '@/components/timeline/EvalBar';
-import { computeGroups, WK_TYPE_COLORS, type WKNode, type WKLink } from './graph-utils';
+import { computeGroups, SYS_TYPE_COLORS, type SysNode, type SysLink } from './graph-utils';
 
 // ── Fullscreen button ────────────────────────────────────────────────────────
 
@@ -65,17 +65,17 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
 }) {
   const { dispatch } = useStore();
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const simRef = useRef<d3.Simulation<WKNode, WKLink> | null>(null);
+  const simRef = useRef<d3.Simulation<SysNode, SysLink> | null>(null);
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
-  const nodesRef = useRef<WKNode[]>([]);
+  const nodesRef = useRef<SysNode[]>([]);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [showLabels, setShowLabels] = useState(true);
   const [showRelations, setShowRelations] = useState(false);
   const [showTypes, setShowTypes] = useState(true);
   const [showEval, setShowEval] = useState(true);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; concept: string; type: string; degree: number } | null>(null);
-  const [wkGroups, setWkGroups] = useState<WKNode[][]>([]);
-  const [wkFocusedGroupIndex, setWkFocusedGroupIndex] = useState<number | null>(null);
+  const [sysGroups, setSysGroups] = useState<SysNode[][]>([]);
+  const [sysFocusedGroupIndex, setSysFocusedGroupIndex] = useState<number | null>(null);
 
   const graphData = useMemo(() => {
     if (mode === 'spark') {
@@ -122,7 +122,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
 
     // Glow filters
     const defs = svg.append('defs');
-    for (const [type, color] of Object.entries(WK_TYPE_COLORS)) {
+    for (const [type, color] of Object.entries(SYS_TYPE_COLORS)) {
       const filter = defs.append('filter').attr('id', `glow-${type}`).attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
       filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
       filter.append('feFlood').attr('flood-color', color).attr('flood-opacity', '0.6').attr('result', 'color');
@@ -148,13 +148,13 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
     g.append('g').attr('class', 'wk-labels');
 
     // Simulation
-    const sim = d3.forceSimulation<WKNode, WKLink>()
-      .force('link', d3.forceLink<WKNode, WKLink>([]).id((d) => d.id).distance(140))
+    const sim = d3.forceSimulation<SysNode, SysLink>()
+      .force('link', d3.forceLink<SysNode, SysLink>([]).id((d) => d.id).distance(140))
       .force('charge', d3.forceManyBody().strength(-500))
       .force('center', d3.forceCenter(0, 0))
       .force('x', d3.forceX(0).strength(0.05))
       .force('y', d3.forceY(0).strength(0.05))
-      .force('collide', d3.forceCollide<WKNode>().radius(40));
+      .force('collide', d3.forceCollide<SysNode>().radius(40));
     simRef.current = sim;
 
     return () => { sim.stop(); simRef.current = null; gRef.current = null; };
@@ -173,57 +173,57 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       degreeMap.set(e.to, (degreeMap.get(e.to) ?? 0) + 1);
     }
     const maxDegree = Math.max(...nodeList.map((n) => degreeMap.get(n.id) ?? 0), 1);
-    const nodeRadius = (d: WKNode) => 10 + (d.degree / maxDegree) * 28;
+    const nodeRadius = (d: SysNode) => 10 + (d.degree / maxDegree) * 28;
 
     // Preserve positions of existing nodes
     const prevPos = new Map(nodesRef.current.map((n) => [n.id, { x: n.x, y: n.y }]));
-    const simNodes: WKNode[] = nodeList.map((n) => {
+    const simNodes: SysNode[] = nodeList.map((n) => {
       const prev = prevPos.get(n.id);
       return { id: n.id, concept: n.concept, type: n.type, degree: degreeMap.get(n.id) ?? 0, ...(prev ?? {}) };
     });
     nodesRef.current = simNodes;
     const nodeMap = new Map(simNodes.map((n) => [n.id, n]));
-    const simLinks: WKLink[] = graphData.edges
+    const simLinks: SysLink[] = graphData.edges
       .filter((e) => nodeMap.has(e.from) && nodeMap.has(e.to))
       .map((e) => ({ source: nodeMap.get(e.from)!, target: nodeMap.get(e.to)!, relation: e.relation }));
 
     // Update links
     const linkSel = g.select<SVGGElement>('g.wk-links')
-      .selectAll<SVGLineElement, WKLink>('line')
-      .data(simLinks, (d) => `${(d.source as WKNode).id}-${(d.target as WKNode).id}`);
+      .selectAll<SVGLineElement, SysLink>('line')
+      .data(simLinks, (d) => `${(d.source as SysNode).id}-${(d.target as SysNode).id}`);
     linkSel.exit().remove();
     const linkEnter = linkSel.enter().append('line');
     const linkAll = linkEnter.merge(linkSel);
     linkAll
       .attr('stroke', (d) => {
         if (mode === 'codex' && sceneNodeIds.size > 0) {
-          return sceneNodeIds.has((d.source as WKNode).id) || sceneNodeIds.has((d.target as WKNode).id) ? '#ffffff40' : '#ffffff10';
+          return sceneNodeIds.has((d.source as SysNode).id) || sceneNodeIds.has((d.target as SysNode).id) ? '#ffffff40' : '#ffffff10';
         }
         return '#ffffff20';
       })
       .attr('stroke-width', (d) => {
-        const srcDeg = (d.source as WKNode).degree;
-        const tgtDeg = (d.target as WKNode).degree;
+        const srcDeg = (d.source as SysNode).degree;
+        const tgtDeg = (d.target as SysNode).degree;
         return Math.max(0.5, 0.5 + ((srcDeg + tgtDeg) / (maxDegree * 2)) * 3);
       });
 
     // Update nodes
     const nodeSel = g.select<SVGGElement>('g.wk-nodes')
-      .selectAll<SVGCircleElement, WKNode>('circle')
+      .selectAll<SVGCircleElement, SysNode>('circle')
       .data(simNodes, (d) => d.id);
     nodeSel.exit().remove();
     const nodeEnter = nodeSel.enter().append('circle').style('cursor', 'pointer');
     const nodeAll = nodeEnter.merge(nodeSel);
     nodeAll
       .attr('r', nodeRadius)
-      .attr('fill', (d) => showTypes ? (WK_TYPE_COLORS[d.type] ?? '#888') : '#888')
+      .attr('fill', (d) => showTypes ? (SYS_TYPE_COLORS[d.type] ?? '#888') : '#888')
       .attr('filter', (d) => showTypes ? `url(#glow-${d.type})` : 'none')
       .attr('opacity', (d) => mode === 'codex' && sceneNodeIds.size > 0 ? (sceneNodeIds.has(d.id) ? 1 : 0.35) : 0.9)
       .attr('stroke', (d) => mode === 'codex' && sceneNodeIds.has(d.id) ? '#fff' : 'transparent')
       .attr('stroke-width', 2);
 
     // Tooltip + drag events
-    const drag = d3.drag<SVGCircleElement, WKNode>()
+    const drag = d3.drag<SVGCircleElement, SysNode>()
       .on('start', (event, d) => {
         if (!event.active) sim.alphaTarget(0.3).restart();
         d.fx = d.x; d.fy = d.y;
@@ -251,13 +251,13 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
 
     // Update labels
     const labelSel = g.select<SVGGElement>('g.wk-labels')
-      .selectAll<SVGTextElement, WKNode>('text')
+      .selectAll<SVGTextElement, SysNode>('text')
       .data(simNodes, (d) => d.id);
     labelSel.exit().remove();
     const labelEnter = labelSel.enter().append('text').attr('text-anchor', 'middle');
     const labelAll = labelEnter.merge(labelSel);
     labelAll
-      .attr('fill', (d) => showTypes ? (WK_TYPE_COLORS[d.type] ?? '#ccc') : '#ccc')
+      .attr('fill', (d) => showTypes ? (SYS_TYPE_COLORS[d.type] ?? '#ccc') : '#ccc')
       .attr('font-size', (d) => `${Math.max(9, 9 + (d.degree / maxDegree) * 4)}px`)
       .attr('font-weight', (d) => d.degree >= maxDegree * 0.5 ? '600' : '400')
       .attr('display', showLabels ? 'block' : 'none')
@@ -278,8 +278,8 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
     const relGroupEnter = relGroup.enter().append('g').attr('class', 'wk-relations');
     const relGroupAll = relGroupEnter.merge(relGroup);
     const relSel = relGroupAll
-      .selectAll<SVGTextElement, WKLink>('text')
-      .data(simLinks, (d) => `${(d.source as WKNode).id}-${(d.target as WKNode).id}-rel`);
+      .selectAll<SVGTextElement, SysLink>('text')
+      .data(simLinks, (d) => `${(d.source as SysNode).id}-${(d.target as SysNode).id}-rel`);
     relSel.exit().remove();
     const relEnter = relSel.enter().append('text').attr('text-anchor', 'middle').attr('font-size', '8px');
     const relAll = relEnter.merge(relSel);
@@ -290,14 +290,14 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
 
     // Update simulation
     sim.nodes(simNodes);
-    (sim.force('link') as d3.ForceLink<WKNode, WKLink>).links(simLinks);
-    (sim.force('collide') as d3.ForceCollide<WKNode>).radius((d) => nodeRadius(d) + 30);
+    (sim.force('link') as d3.ForceLink<SysNode, SysLink>).links(simLinks);
+    (sim.force('collide') as d3.ForceCollide<SysNode>).radius((d) => nodeRadius(d) + 30);
     sim.on('tick', () => {
       linkAll
-        .attr('x1', (d) => (d.source as WKNode).x ?? 0)
-        .attr('y1', (d) => (d.source as WKNode).y ?? 0)
-        .attr('x2', (d) => (d.target as WKNode).x ?? 0)
-        .attr('y2', (d) => (d.target as WKNode).y ?? 0);
+        .attr('x1', (d) => (d.source as SysNode).x ?? 0)
+        .attr('y1', (d) => (d.source as SysNode).y ?? 0)
+        .attr('x2', (d) => (d.target as SysNode).x ?? 0)
+        .attr('y2', (d) => (d.target as SysNode).y ?? 0);
       nodeAll
         .attr('cx', (d) => d.x ?? 0)
         .attr('cy', (d) => d.y ?? 0);
@@ -306,23 +306,23 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
         .attr('y', (d) => d.y ?? 0)
         .attr('dy', (d) => -(nodeRadius(d) + 5));
       relAll
-        .attr('x', (d) => ((d.source as WKNode).x! + (d.target as WKNode).x!) / 2)
-        .attr('y', (d) => ((d.source as WKNode).y! + (d.target as WKNode).y!) / 2);
+        .attr('x', (d) => ((d.source as SysNode).x! + (d.target as SysNode).x!) / 2)
+        .attr('y', (d) => ((d.source as SysNode).y! + (d.target as SysNode).y!) / 2);
     });
     sim.alpha(0.5).restart();
 
     // Compute connected groups and reset focus
-    setWkGroups(computeGroups(simNodes, simLinks));
-    setWkFocusedGroupIndex(null);
+    setSysGroups(computeGroups(simNodes, simLinks));
+    setSysFocusedGroupIndex(null);
   }, [graphData, mode, sceneNodeIds, showLabels, showRelations, showTypes]);
 
   // ── Zoom to focused group ──
   useEffect(() => {
     const svgEl = svgRef.current;
     const zoom = zoomRef.current;
-    if (!svgEl || !zoom || wkFocusedGroupIndex === null || !wkGroups[wkFocusedGroupIndex]) return;
+    if (!svgEl || !zoom || sysFocusedGroupIndex === null || !sysGroups[sysFocusedGroupIndex]) return;
 
-    const group = wkGroups[wkFocusedGroupIndex];
+    const group = sysGroups[sysFocusedGroupIndex];
     const width = svgEl.clientWidth || 800;
     const height = svgEl.clientHeight || 600;
 
@@ -353,13 +353,13 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       .transition()
       .duration(500)
       .call(zoom.transform as unknown as (t: d3.Transition<SVGSVGElement, unknown, null, undefined>) => void, transform);
-  }, [wkFocusedGroupIndex, wkGroups]);
+  }, [sysFocusedGroupIndex, sysGroups]);
 
-  const navigateWkGroup = useCallback(
+  const navigateSysGroup = useCallback(
     (direction: 'next' | 'prev' | 'reset') => {
-      if (wkGroups.length === 0) return;
+      if (sysGroups.length === 0) return;
       if (direction === 'reset') {
-        setWkFocusedGroupIndex(null);
+        setSysFocusedGroupIndex(null);
         const svgEl = svgRef.current;
         const zoom = zoomRef.current;
         if (svgEl && zoom) {
@@ -372,13 +372,13 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
         }
         return;
       }
-      setWkFocusedGroupIndex((prev) => {
+      setSysFocusedGroupIndex((prev) => {
         if (prev === null) return 0;
-        if (direction === 'next') return (prev + 1) % wkGroups.length;
-        return (prev - 1 + wkGroups.length) % wkGroups.length;
+        if (direction === 'next') return (prev + 1) % sysGroups.length;
+        return (prev - 1 + sysGroups.length) % sysGroups.length;
       });
     },
-    [wkGroups],
+    [sysGroups],
   );
 
   // Listen for focus-knowledge-node events and zoom to the target
@@ -427,7 +427,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
           {showTypes && (
             <>
               <div className="w-px h-3 bg-border mx-1" />
-              {Object.entries(WK_TYPE_COLORS).map(([type, color]) => (
+              {Object.entries(SYS_TYPE_COLORS).map(([type, color]) => (
                 <span key={type} className="flex items-center gap-1 px-1">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                   <span className="text-[8px] text-text-dim/50 capitalize">{type}</span>
@@ -469,7 +469,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
         >
           <div className="bg-bg-elevated border border-border rounded-lg px-3 py-2 shadow-xl w-72">
             <div className="flex items-start gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: WK_TYPE_COLORS[tooltip.type] ?? '#888', boxShadow: `0 0 6px ${WK_TYPE_COLORS[tooltip.type] ?? '#888'}80` }} />
+              <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: SYS_TYPE_COLORS[tooltip.type] ?? '#888', boxShadow: `0 0 6px ${SYS_TYPE_COLORS[tooltip.type] ?? '#888'}80` }} />
               <div>
                 <span className="text-xs font-semibold text-text-primary">{tooltip.concept}</span>
                 <span className="text-[10px] text-text-dim capitalize ml-1">({tooltip.type})</span>
@@ -484,7 +484,7 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
       <div className="absolute bottom-4 left-2 z-30 flex flex-col gap-1 items-start">
         {!hideLegend && (
         <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-bg-surface text-[10px] leading-none text-text-dim">
-          {Object.entries(WK_TYPE_COLORS).map(([type, color]) => (
+          {Object.entries(SYS_TYPE_COLORS).map(([type, color]) => (
             <span key={type} className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
               <span className="capitalize">{type}</span>
@@ -492,33 +492,33 @@ export default function KnowledgeGraphView({ narrative, resolvedKeys, currentInd
           ))}
         </div>
         )}
-        {wkGroups.length > 1 && (
+        {sysGroups.length > 1 && (
         <div className="flex items-center gap-1 rounded bg-bg-surface text-[11px] leading-none">
           <button
             className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
-            onClick={() => navigateWkGroup('prev')}
+            onClick={() => navigateSysGroup('prev')}
             title="Previous group"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
           </button>
           <span className="text-text-dim px-0.5 tabular-nums">
-            {wkFocusedGroupIndex !== null
-              ? `${wkFocusedGroupIndex + 1}/${wkGroups.length} (${wkGroups[wkFocusedGroupIndex].length})`
-              : `${wkGroups.length} groups`}
+            {sysFocusedGroupIndex !== null
+              ? `${sysFocusedGroupIndex + 1}/${sysGroups.length} (${sysGroups[sysFocusedGroupIndex].length})`
+              : `${sysGroups.length} groups`}
           </span>
           <button
             className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
-            onClick={() => navigateWkGroup('next')}
+            onClick={() => navigateSysGroup('next')}
             title="Next group"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
           </button>
-          {wkFocusedGroupIndex !== null && (
+          {sysFocusedGroupIndex !== null && (
             <>
               <div className="w-px h-3.5 bg-border" />
               <button
                 className="px-1.5 py-1.5 text-text-dim hover:text-text-default transition-colors"
-                onClick={() => navigateWkGroup('reset')}
+                onClick={() => navigateSysGroup('reset')}
                 title="Reset view"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>

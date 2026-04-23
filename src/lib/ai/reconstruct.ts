@@ -4,6 +4,7 @@ import { nextId } from '@/lib/narrative-utils';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
 import { callGenerate, SYSTEM_PROMPT } from './api';
 import { parseJson } from './json';
+import { sanitizeScenes } from './scenes';
 import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
 import { narrativeContext } from './context';
 import { logError, logWarning, logInfo } from '@/lib/system-logger';
@@ -618,7 +619,7 @@ Return JSON:
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'editScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'editScene') as Partial<Scene>;
 
-  return {
+  const edited: Scene = {
     ...scene,
     locationId: parsed.locationId ?? scene.locationId,
     povId: parsed.povId ?? scene.povId,
@@ -633,6 +634,8 @@ Return JSON:
     summary: parsed.summary ?? scene.summary,
     audioUrl: undefined,
   };
+  sanitizeScenes([edited], narrative, 'editScene');
+  return edited;
 }
 
 // ── Scene merge (combine multiple scenes into one) ──────────────────────────
@@ -720,7 +723,7 @@ Return JSON:
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'mergeScenes', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'mergeScenes') as Partial<Scene>;
 
-  return {
+  const merged: Scene = {
     ...targetScene,
     locationId: parsed.locationId ?? targetScene.locationId,
     povId: parsed.povId ?? targetScene.povId,
@@ -733,6 +736,8 @@ Return JSON:
     summary: parsed.summary ?? targetScene.summary,
     audioUrl: undefined,
   };
+  sanitizeScenes([merged], narrative, 'mergeScenes');
+  return merged;
 }
 
 // ── Scene insert (generate new scene from scratch) ──────────────────────────
@@ -784,7 +789,7 @@ Return JSON:
   const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'insertScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'insertScene') as Partial<Scene>;
 
-  return {
+  const inserted: Scene = {
     kind: 'scene',
     id: '', // caller sets this
     arcId: '', // caller sets this
@@ -799,4 +804,6 @@ Return JSON:
     timeDelta: normalizeTimeDelta(parsed.timeDelta),
     summary: parsed.summary ?? brief,
   };
+  sanitizeScenes([inserted], narrative, 'insertScene');
+  return inserted;
 }

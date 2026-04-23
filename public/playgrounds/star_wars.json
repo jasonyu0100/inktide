@@ -181,25 +181,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-02",
+            "id": "SYS-SW-02",
             "concept": "The Galactic Empire — a totalitarian regime ruling through military dominance and institutional terror",
             "type": "system"
           },
           {
-            "id": "WK-SW-03",
+            "id": "SYS-SW-03",
             "concept": "The Rebel Alliance — a decentralized insurgency fighting to restore the Republic",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-02",
-            "to": "WK-SW-03",
+            "from": "SYS-SW-02",
+            "to": "SYS-SW-03",
             "relation": "seeks to annihilate"
           },
           {
-            "from": "WK-SW-03",
-            "to": "WK-SW-02",
+            "from": "SYS-SW-03",
+            "to": "SYS-SW-02",
             "relation": "fights to overthrow"
           }
         ]
@@ -238,25 +238,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-09",
+            "id": "SYS-SW-09",
             "concept": "Moisture farming — extracting water from desert air through vaporator technology, the subsistence economy of Tatooine",
             "type": "system"
           },
           {
-            "id": "WK-SW-10",
+            "id": "SYS-SW-10",
             "concept": "Tatooine exists at the edge of the galaxy, too remote and poor for the Empire to bother controlling directly",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-10",
-            "to": "WK-SW-02",
+            "from": "SYS-SW-10",
+            "to": "SYS-SW-02",
             "relation": "is beneath the notice of"
           },
           {
-            "from": "WK-SW-09",
-            "to": "WK-SW-10",
+            "from": "SYS-SW-09",
+            "to": "SYS-SW-10",
             "relation": "is the economic backbone of"
           }
         ]
@@ -295,20 +295,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-11",
+            "id": "SYS-SW-11",
             "concept": "The binary sunset — beauty without meaning, the desert's indifferent beauty that mirrors longing for purpose",
             "type": "concept"
           },
           {
-            "id": "WK-SW-12",
+            "id": "SYS-SW-12",
             "concept": "The harvest as anchor — agricultural obligation that keeps people rooted to land they want to leave",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-12",
-            "to": "WK-SW-09",
+            "from": "SYS-SW-12",
+            "to": "SYS-SW-09",
             "relation": "is the human cost of"
           }
         ]
@@ -358,20 +358,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-13",
+            "id": "SYS-SW-13",
             "concept": "Owen's protective deception — keeping Luke ignorant of his heritage to keep him safe from the Empire and the Force",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-13",
-            "to": "WK-SW-12",
+            "from": "SYS-SW-13",
+            "to": "SYS-SW-12",
             "relation": "weaponizes"
           },
           {
-            "from": "WK-SW-13",
-            "to": "WK-SW-09",
+            "from": "SYS-SW-13",
+            "to": "SYS-SW-09",
             "relation": "uses the farm to keep Luke rooted on"
           }
         ]
@@ -427,20 +427,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-15",
+            "id": "SYS-SW-15",
             "concept": "The Rebellion recruits from the margins — frontier youth, disillusioned soldiers, and idealists with nothing left to lose",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-15",
-            "to": "WK-SW-03",
+            "from": "SYS-SW-15",
+            "to": "SYS-SW-03",
             "relation": "is the lifeblood of"
           },
           {
-            "from": "WK-SW-15",
-            "to": "WK-SW-10",
+            "from": "SYS-SW-15",
+            "to": "SYS-SW-10",
             "relation": "draws its fighters from worlds like"
           }
         ]
@@ -514,20 +514,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-17",
+            "id": "SYS-SW-17",
             "concept": "Droids as unnoticed agents — sentient machines treated as property pass through the galaxy carrying secrets no one thinks to look for",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-17",
-            "to": "WK-SW-03",
+            "from": "SYS-SW-17",
+            "to": "SYS-SW-03",
             "relation": "is an unwitting asset of"
           },
           {
-            "from": "WK-SW-17",
-            "to": "WK-SW-10",
+            "from": "SYS-SW-17",
+            "to": "SYS-SW-10",
             "relation": "passes unnoticed through worlds like"
           }
         ]
@@ -591,20 +591,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-19",
+            "id": "SYS-SW-19",
             "concept": "Holographic communication — compressed light messages that cross the galaxy, carrying pleas across impossible distances",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-19",
-            "to": "WK-SW-17",
+            "from": "SYS-SW-19",
+            "to": "SYS-SW-17",
             "relation": "is carried unknowingly by"
           },
           {
-            "from": "WK-SW-19",
-            "to": "WK-SW-07",
+            "from": "SYS-SW-19",
+            "to": "SYS-SW-07",
             "relation": "is the communication layer of"
           }
         ]
@@ -678,15 +678,15 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-20",
+            "id": "SYS-SW-20",
             "concept": "The Jundland Wastes — lawless desert canyon territory where civilization ends and ancient danger begins",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-20",
-            "to": "WK-SW-10",
+            "from": "SYS-SW-20",
+            "to": "SYS-SW-10",
             "relation": "is the wild interior of"
           }
         ]
@@ -730,20 +730,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-21",
+            "id": "SYS-SW-21",
             "concept": "Tusken Raiders — indigenous desert warriors who enforce territorial boundaries through violence",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-21",
-            "to": "WK-SW-20",
+            "from": "SYS-SW-21",
+            "to": "SYS-SW-20",
             "relation": "controls and patrols"
           },
           {
-            "from": "WK-SW-21",
-            "to": "WK-SW-09",
+            "from": "SYS-SW-21",
+            "to": "SYS-SW-09",
             "relation": "exists outside the reach of"
           }
         ]
@@ -814,20 +814,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-22",
+            "id": "SYS-SW-22",
             "concept": "Jedi in exile — survivors of the purge who hide in plain sight, waiting for a sign that the time has come",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-22",
-            "to": "WK-SW-10",
+            "from": "SYS-SW-22",
+            "to": "SYS-SW-10",
             "relation": "hides within the obscurity of"
           },
           {
-            "from": "WK-SW-22",
-            "to": "WK-SW-02",
+            "from": "SYS-SW-22",
+            "to": "SYS-SW-02",
             "relation": "survives by staying invisible to"
           }
         ]
@@ -913,25 +913,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-24",
+            "id": "SYS-SW-24",
             "concept": "The Jedi Order — an ancient monastic order of Force-wielders who served as guardians of peace for a thousand generations",
             "type": "system"
           },
           {
-            "id": "WK-SW-26",
+            "id": "SYS-SW-26",
             "concept": "The Dark Side — the Force corrupted by fear, anger, and the hunger for power",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-24",
-            "to": "WK-SW-02",
+            "from": "SYS-SW-24",
+            "to": "SYS-SW-02",
             "relation": "was destroyed by the rise of"
           },
           {
-            "from": "WK-SW-26",
-            "to": "WK-SW-24",
+            "from": "SYS-SW-26",
+            "to": "SYS-SW-24",
             "relation": "consumed and betrayed"
           }
         ]
@@ -1012,20 +1012,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-30",
+            "id": "SYS-SW-30",
             "concept": "The Force awakens through bloodline — it calls to the children of those who wielded it, whether they know their heritage or not",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-30",
-            "to": "WK-SW-13",
+            "from": "SYS-SW-30",
+            "to": "SYS-SW-13",
             "relation": "is what Owen fears and tries to prevent through"
           },
           {
-            "from": "WK-SW-30",
-            "to": "WK-SW-22",
+            "from": "SYS-SW-30",
+            "to": "SYS-SW-22",
             "relation": "is the reason for the vigil of"
           }
         ]
@@ -1088,20 +1088,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-31",
+            "id": "SYS-SW-31",
             "concept": "Destiny operates through coincidence — the Force arranges meetings, escapes, and arrivals that feel accidental but are not",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-31",
-            "to": "WK-SW-01",
+            "from": "SYS-SW-31",
+            "to": "SYS-SW-01",
             "relation": "is the invisible hand of"
           },
           {
-            "from": "WK-SW-31",
-            "to": "WK-SW-30",
+            "from": "SYS-SW-31",
+            "to": "SYS-SW-30",
             "relation": "works in concert with"
           }
         ]
@@ -1175,25 +1175,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-SW-32",
+            "id": "SYS-SW-32",
             "concept": "The Empire leaves no witnesses — Imperial operations eliminate civilians to protect operational security without hesitation",
             "type": "law"
           },
           {
-            "id": "WK-SW-33",
+            "id": "SYS-SW-33",
             "concept": "The point of no return — the moment when the old life is literally destroyed and the only direction is forward",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-SW-32",
-            "to": "WK-SW-02",
+            "from": "SYS-SW-32",
+            "to": "SYS-SW-02",
             "relation": "is standard doctrine of"
           },
           {
-            "from": "WK-SW-33",
-            "to": "WK-SW-12",
+            "from": "SYS-SW-33",
+            "to": "SYS-SW-12",
             "relation": "permanently destroys"
           }
         ]
@@ -2231,130 +2231,130 @@
         "systemDeltas": {
           "addedNodes": [
             {
-              "id": "WK-SW-WB-01",
+              "id": "SYS-SW-WB-01",
               "concept": "The Galactic Republic — the thousand-generation democracy that preceded the Empire, destroyed from within by the Sith",
               "type": "system"
             },
             {
-              "id": "WK-SW-WB-02",
+              "id": "SYS-SW-WB-02",
               "concept": "Hyperspace travel — faster-than-light transit through an alternate dimension, the connective tissue that makes galactic civilization possible",
               "type": "system"
             },
             {
-              "id": "WK-SW-WB-03",
+              "id": "SYS-SW-WB-03",
               "concept": "The Force traditions — Light Side and Dark Side as competing philosophies of cosmic power, each with its own discipline, temptation, and cost",
               "type": "concept"
             },
             {
-              "id": "WK-SW-WB-04",
+              "id": "SYS-SW-WB-04",
               "concept": "The Rule of Two — the Sith doctrine that there shall be only a master and an apprentice, concentrating dark power through betrayal and succession",
               "type": "law"
             },
             {
-              "id": "WK-SW-WB-05",
+              "id": "SYS-SW-WB-05",
               "concept": "The Great Jedi Purge — the systematic extermination of the Jedi Order through Order 66, turning the Republic's own army against its guardians",
               "type": "concept"
             },
             {
-              "id": "WK-SW-WB-06",
+              "id": "SYS-SW-WB-06",
               "concept": "The Imperial Senate — the vestigial democratic body maintained to provide legitimacy, dissolved when the Death Star renders consent unnecessary",
               "type": "system"
             },
             {
-              "id": "WK-SW-WB-07",
+              "id": "SYS-SW-WB-07",
               "concept": "Galactic economics — a civilization spanning millions of worlds runs on trade routes, resource extraction, and the credits that flow between them",
               "type": "system"
             },
             {
-              "id": "WK-SW-WB-08",
+              "id": "SYS-SW-WB-08",
               "concept": "The prophecy of the Chosen One — a Force-born being destined to bring balance, a promise that haunts every Jedi who remembers it",
               "type": "tension"
             }
           ],
           "addedEdges": [
             {
-              "from": "WK-SW-WB-01",
-              "to": "WK-SW-02",
+              "from": "SYS-SW-WB-01",
+              "to": "SYS-SW-02",
               "relation": "was overthrown and replaced by"
             },
             {
-              "from": "WK-SW-WB-01",
-              "to": "WK-SW-24",
+              "from": "SYS-SW-WB-01",
+              "to": "SYS-SW-24",
               "relation": "was defended for a thousand generations by"
             },
             {
-              "from": "WK-SW-WB-02",
-              "to": "WK-SW-02",
+              "from": "SYS-SW-WB-02",
+              "to": "SYS-SW-02",
               "relation": "enables the galactic reach of"
             },
             {
-              "from": "WK-SW-WB-02",
-              "to": "WK-SW-10",
+              "from": "SYS-SW-WB-02",
+              "to": "SYS-SW-10",
               "relation": "connects even the remote worlds like"
             },
             {
-              "from": "WK-SW-WB-03",
-              "to": "WK-SW-01",
+              "from": "SYS-SW-WB-03",
+              "to": "SYS-SW-01",
               "relation": "is the philosophical framework for understanding"
             },
             {
-              "from": "WK-SW-WB-03",
-              "to": "WK-SW-26",
+              "from": "SYS-SW-WB-03",
+              "to": "SYS-SW-26",
               "relation": "defines the Dark Side within"
             },
             {
-              "from": "WK-SW-WB-04",
-              "to": "WK-SW-06",
+              "from": "SYS-SW-WB-04",
+              "to": "SYS-SW-06",
               "relation": "governs the internal structure of"
             },
             {
-              "from": "WK-SW-WB-04",
-              "to": "WK-SW-28",
+              "from": "SYS-SW-WB-04",
+              "to": "SYS-SW-28",
               "relation": "is the mechanism that produces"
             },
             {
-              "from": "WK-SW-WB-05",
-              "to": "WK-SW-24",
+              "from": "SYS-SW-WB-05",
+              "to": "SYS-SW-24",
               "relation": "destroyed"
             },
             {
-              "from": "WK-SW-WB-05",
-              "to": "WK-SW-22",
+              "from": "SYS-SW-WB-05",
+              "to": "SYS-SW-22",
               "relation": "created the condition of"
             },
             {
-              "from": "WK-SW-WB-05",
-              "to": "WK-SW-27",
+              "from": "SYS-SW-WB-05",
+              "to": "SYS-SW-27",
               "relation": "was the culmination of"
             },
             {
-              "from": "WK-SW-WB-06",
-              "to": "WK-SW-WB-01",
+              "from": "SYS-SW-WB-06",
+              "to": "SYS-SW-WB-01",
               "relation": "is the hollow shell of"
             },
             {
-              "from": "WK-SW-WB-06",
-              "to": "WK-SW-05",
+              "from": "SYS-SW-WB-06",
+              "to": "SYS-SW-05",
               "relation": "was dissolved when it became unnecessary due to"
             },
             {
-              "from": "WK-SW-WB-07",
-              "to": "WK-SW-09",
+              "from": "SYS-SW-WB-07",
+              "to": "SYS-SW-09",
               "relation": "includes subsistence economies like"
             },
             {
-              "from": "WK-SW-WB-07",
-              "to": "WK-SW-16",
+              "from": "SYS-SW-WB-07",
+              "to": "SYS-SW-16",
               "relation": "includes criminal economies like"
             },
             {
-              "from": "WK-SW-WB-08",
-              "to": "WK-SW-30",
+              "from": "SYS-SW-WB-08",
+              "to": "SYS-SW-30",
               "relation": "is the cosmic dimension of"
             },
             {
-              "from": "WK-SW-WB-08",
-              "to": "WK-SW-29",
+              "from": "SYS-SW-WB-08",
+              "to": "SYS-SW-29",
               "relation": "deepens the central paradox of"
             }
           ]

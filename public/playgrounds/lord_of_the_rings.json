@@ -149,25 +149,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-01",
+            "id": "SYS-LR-01",
             "concept": "The One Ring",
             "type": "concept"
           },
           {
-            "id": "WK-LR-02",
+            "id": "SYS-LR-02",
             "concept": "The Shire's innocence — a green world untouched by the wars of greater powers",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-01",
-            "to": "WK-LR-02",
+            "from": "SYS-LR-01",
+            "to": "SYS-LR-02",
             "relation": "threatens"
           },
           {
-            "from": "WK-LR-04",
-            "to": "WK-LR-01",
+            "from": "SYS-LR-04",
+            "to": "SYS-LR-01",
             "relation": "governs"
           }
         ]
@@ -225,15 +225,15 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-18",
+            "id": "SYS-LR-18",
             "concept": "Home as anchor against darkness — the familiar world that grounds those who must face the unknown",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-04",
-            "to": "WK-LR-18",
+            "from": "SYS-LR-04",
+            "to": "SYS-LR-18",
             "relation": "erodes"
           }
         ]
@@ -298,20 +298,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-08",
+            "id": "SYS-LR-08",
             "concept": "The Ring has its own will — it chooses its bearers and moves toward its master",
             "type": "law"
           },
           {
-            "id": "WK-LR-10",
+            "id": "SYS-LR-10",
             "concept": "Gandalf's constrained power — the wizards serve but cannot command, guide but cannot compel",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-08",
-            "to": "WK-LR-01",
+            "from": "SYS-LR-08",
+            "to": "SYS-LR-01",
             "relation": "governs"
           }
         ]
@@ -375,20 +375,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-09",
+            "id": "SYS-LR-09",
             "concept": "The Rangers' unseen guardianship — the Dunedain protect lands that do not know their names",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-09",
-            "to": "WK-LR-02",
+            "from": "SYS-LR-09",
+            "to": "SYS-LR-02",
             "relation": "protects"
           },
           {
-            "from": "WK-LR-03",
-            "to": "WK-LR-04",
+            "from": "SYS-LR-03",
+            "to": "SYS-LR-04",
             "relation": "opposes"
           }
         ]
@@ -440,15 +440,15 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-20",
+            "id": "SYS-LR-20",
             "concept": "Knowledge as burden — knowing the truth transforms the knower and forecloses return to innocence",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-20",
-            "to": "WK-LR-02",
+            "from": "SYS-LR-20",
+            "to": "SYS-LR-02",
             "relation": "destroys"
           }
         ]
@@ -523,25 +523,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-07",
+            "id": "SYS-LR-07",
             "concept": "Sauron's will persists beyond defeat — his malice endures in the Ring and rebuilds in the Dark Tower",
             "type": "law"
           },
           {
-            "id": "WK-LR-17",
+            "id": "SYS-LR-17",
             "concept": "The Ring seeks its master — it calls out to Sauron and his servants across all distance",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-07",
-            "to": "WK-LR-01",
+            "from": "SYS-LR-07",
+            "to": "SYS-LR-01",
             "relation": "binds"
           },
           {
-            "from": "WK-LR-17",
-            "to": "WK-LR-07",
+            "from": "SYS-LR-17",
+            "to": "SYS-LR-07",
             "relation": "enables"
           }
         ]
@@ -623,25 +623,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-15",
+            "id": "SYS-LR-15",
             "concept": "The smallest can change the course of the future — hobbits bear what the great and wise cannot",
             "type": "law"
           },
           {
-            "id": "WK-LR-21",
+            "id": "SYS-LR-21",
             "concept": "The Quest to Mount Doom — the Ring can only be destroyed where it was forged",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-15",
-            "to": "WK-LR-03",
+            "from": "SYS-LR-15",
+            "to": "SYS-LR-03",
             "relation": "reveals"
           },
           {
-            "from": "WK-LR-21",
-            "to": "WK-LR-01",
+            "from": "SYS-LR-21",
+            "to": "SYS-LR-01",
             "relation": "governs"
           }
         ]
@@ -705,20 +705,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-25",
+            "id": "SYS-LR-25",
             "concept": "Departure as transformation — leaving home is the first death, the self that returns will not be the self that left",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-25",
-            "to": "WK-LR-18",
+            "from": "SYS-LR-25",
+            "to": "SYS-LR-18",
             "relation": "destroys"
           },
           {
-            "from": "WK-LR-21",
-            "to": "WK-LR-25",
+            "from": "SYS-LR-21",
+            "to": "SYS-LR-25",
             "relation": "demands"
           }
         ]
@@ -782,20 +782,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-12",
+            "id": "SYS-LR-12",
             "concept": "The Nazgul — the Nine Ring-wraiths, once kings of Men, now neither living nor dead",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-07",
-            "to": "WK-LR-12",
+            "from": "SYS-LR-07",
+            "to": "SYS-LR-12",
             "relation": "governs"
           },
           {
-            "from": "WK-LR-12",
-            "to": "WK-LR-02",
+            "from": "SYS-LR-12",
+            "to": "SYS-LR-02",
             "relation": "threatens"
           }
         ]
@@ -864,20 +864,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-26",
+            "id": "SYS-LR-26",
             "concept": "The Ring amplifies desire — it exploits the deepest needs and longings of its bearer",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-26",
-            "to": "WK-LR-04",
+            "from": "SYS-LR-26",
+            "to": "SYS-LR-04",
             "relation": "enables"
           },
           {
-            "from": "WK-LR-17",
-            "to": "WK-LR-12",
+            "from": "SYS-LR-17",
+            "to": "SYS-LR-12",
             "relation": "enables"
           }
         ]
@@ -941,20 +941,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-05",
+            "id": "SYS-LR-05",
             "concept": "The fading of the Elves — the Firstborn depart Middle-earth for the Undying Lands, and what they guarded fades with them",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-05",
-            "to": "WK-LR-06",
+            "from": "SYS-LR-05",
+            "to": "SYS-LR-06",
             "relation": "reveals"
           },
           {
-            "from": "WK-LR-21",
-            "to": "WK-LR-05",
+            "from": "SYS-LR-21",
+            "to": "SYS-LR-05",
             "relation": "threatens"
           }
         ]
@@ -1041,25 +1041,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-11",
+            "id": "SYS-LR-11",
             "concept": "Isildur's bloodline and its burden — the heir of kings walks in exile, bearing a lineage that both commands and condemns",
             "type": "concept"
           },
           {
-            "id": "WK-LR-13",
+            "id": "SYS-LR-13",
             "concept": "Power corrupts even the virtuous — Isildur took the Ring and fell, and his blood carries that failure",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-13",
-            "to": "WK-LR-11",
+            "from": "SYS-LR-13",
+            "to": "SYS-LR-11",
             "relation": "governs"
           },
           {
-            "from": "WK-LR-11",
-            "to": "WK-LR-09",
+            "from": "SYS-LR-11",
+            "to": "SYS-LR-09",
             "relation": "enables"
           }
         ]
@@ -1146,25 +1146,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-27",
+            "id": "SYS-LR-27",
             "concept": "Necessity over trust — in dark times, alliance is forged from need before friendship",
             "type": "tension"
           },
           {
-            "id": "WK-LR-29",
+            "id": "SYS-LR-29",
             "concept": "Providence guides the quest — chance meetings that seem too purposeful to be accident",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-29",
-            "to": "WK-LR-21",
+            "from": "SYS-LR-29",
+            "to": "SYS-LR-21",
             "relation": "enables"
           },
           {
-            "from": "WK-LR-11",
-            "to": "WK-LR-21",
+            "from": "SYS-LR-11",
+            "to": "SYS-LR-21",
             "relation": "enables"
           }
         ]
@@ -1246,20 +1246,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-22",
+            "id": "SYS-LR-22",
             "concept": "Safety borrowed against hidden debt — protection in the present purchased with ignorance of gathering threats",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-22",
-            "to": "WK-LR-10",
+            "from": "SYS-LR-22",
+            "to": "SYS-LR-10",
             "relation": "reveals"
           },
           {
-            "from": "WK-LR-22",
-            "to": "WK-LR-25",
+            "from": "SYS-LR-22",
+            "to": "SYS-LR-25",
             "relation": "governs"
           }
         ]
@@ -1342,13 +1342,13 @@
         "addedNodes": [],
         "addedEdges": [
           {
-            "from": "WK-LR-08",
-            "to": "WK-LR-26",
+            "from": "SYS-LR-08",
+            "to": "SYS-LR-26",
             "relation": "enables"
           },
           {
-            "from": "WK-LR-20",
-            "to": "WK-LR-03",
+            "from": "SYS-LR-20",
+            "to": "SYS-LR-03",
             "relation": "threatens"
           }
         ]
@@ -1438,20 +1438,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-LR-14",
+            "id": "SYS-LR-14",
             "concept": "Saruman's betrayal — the White Wizard fallen, seeking the Ring for himself while pretending to serve the light",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-LR-14",
-            "to": "WK-LR-13",
+            "from": "SYS-LR-14",
+            "to": "SYS-LR-13",
             "relation": "reveals"
           },
           {
-            "from": "WK-LR-22",
-            "to": "WK-LR-14",
+            "from": "SYS-LR-22",
+            "to": "SYS-LR-14",
             "relation": "reveals"
           }
         ]
@@ -2312,140 +2312,140 @@
         "systemDeltas": {
           "addedNodes": [
             {
-              "id": "WK-LR-WB-01",
+              "id": "SYS-LR-WB-01",
               "concept": "The Rings of Power — twenty great rings forged in the Second Age, instruments of dominion that bind their bearers to the will of the One",
               "type": "system"
             },
             {
-              "id": "WK-LR-WB-02",
+              "id": "SYS-LR-WB-02",
               "concept": "The Valar — the angelic powers who shaped the world and dwell in the Undying Lands, remote from mortal affairs but not indifferent to them",
               "type": "concept"
             },
             {
-              "id": "WK-LR-WB-03",
+              "id": "SYS-LR-WB-03",
               "concept": "Mortality vs Immortality — the great divide between Men who die and Elves who endure, the defining tension of Tolkien's cosmology",
               "type": "tension"
             },
             {
-              "id": "WK-LR-WB-04",
+              "id": "SYS-LR-WB-04",
               "concept": "The Istari — the five wizards sent by the Valar to contest Sauron, bound in mortal form, forbidden to dominate, only to advise and inspire",
               "type": "system"
             },
             {
-              "id": "WK-LR-WB-05",
+              "id": "SYS-LR-WB-05",
               "concept": "The Dunedain — the remnant of Numenor, long-lived Men of the West who guard the free lands in secret and carry the bloodline of kings",
               "type": "concept"
             },
             {
-              "id": "WK-LR-WB-06",
+              "id": "SYS-LR-WB-06",
               "concept": "The Ages of Middle-earth — history measured in vast epochs, each ending in catastrophe and diminishment, the world growing older and less magical",
               "type": "law"
             },
             {
-              "id": "WK-LR-WB-07",
+              "id": "SYS-LR-WB-07",
               "concept": "The Free Peoples — Elves, Dwarves, Men, Hobbits, and Ents, each with their own nature, history, and relationship to the world's fading",
               "type": "concept"
             },
             {
-              "id": "WK-LR-WB-08",
+              "id": "SYS-LR-WB-08",
               "concept": "Morgoth's legacy — the first Dark Lord marred the substance of the world itself, and all evil since is an echo of his original rebellion",
               "type": "law"
             },
             {
-              "id": "WK-LR-WB-09",
+              "id": "SYS-LR-WB-09",
               "concept": "The Straight Road — after the fall of Numenor, the path to the Undying Lands was removed from the circles of the world, accessible only to the Elves",
               "type": "concept"
             }
           ],
           "addedEdges": [
             {
-              "from": "WK-LR-WB-01",
-              "to": "WK-LR-01",
+              "from": "SYS-LR-WB-01",
+              "to": "SYS-LR-01",
               "relation": "the One Ring is the master of"
             },
             {
-              "from": "WK-LR-WB-01",
-              "to": "WK-LR-24",
+              "from": "SYS-LR-WB-01",
+              "to": "SYS-LR-24",
               "relation": "includes the Three Elven Rings"
             },
             {
-              "from": "WK-LR-WB-02",
-              "to": "WK-LR-WB-04",
+              "from": "SYS-LR-WB-02",
+              "to": "SYS-LR-WB-04",
               "relation": "sent the Istari as agents of"
             },
             {
-              "from": "WK-LR-WB-02",
-              "to": "WK-LR-WB-08",
+              "from": "SYS-LR-WB-02",
+              "to": "SYS-LR-WB-08",
               "relation": "opposed Morgoth but could not unmake the marring of"
             },
             {
-              "from": "WK-LR-WB-03",
-              "to": "WK-LR-05",
+              "from": "SYS-LR-WB-03",
+              "to": "SYS-LR-05",
               "relation": "the Elves' departure is the mortal world's loss of"
             },
             {
-              "from": "WK-LR-WB-03",
-              "to": "WK-LR-11",
+              "from": "SYS-LR-WB-03",
+              "to": "SYS-LR-11",
               "relation": "Aragorn's Dunedain lifespan bridges"
             },
             {
-              "from": "WK-LR-WB-04",
-              "to": "WK-LR-10",
+              "from": "SYS-LR-WB-04",
+              "to": "SYS-LR-10",
               "relation": "defines the constraints on"
             },
             {
-              "from": "WK-LR-WB-04",
-              "to": "WK-LR-14",
+              "from": "SYS-LR-WB-04",
+              "to": "SYS-LR-14",
               "relation": "Saruman's betrayal is a failure of"
             },
             {
-              "from": "WK-LR-WB-05",
-              "to": "WK-LR-09",
+              "from": "SYS-LR-WB-05",
+              "to": "SYS-LR-09",
               "relation": "the Rangers are the military expression of"
             },
             {
-              "from": "WK-LR-WB-05",
-              "to": "WK-LR-11",
+              "from": "SYS-LR-WB-05",
+              "to": "SYS-LR-11",
               "relation": "Aragorn is the heir of"
             },
             {
-              "from": "WK-LR-WB-06",
-              "to": "WK-LR-06",
+              "from": "SYS-LR-WB-06",
+              "to": "SYS-LR-06",
               "relation": "the Third Age ending is the latest cycle of"
             },
             {
-              "from": "WK-LR-WB-06",
-              "to": "WK-LR-05",
+              "from": "SYS-LR-WB-06",
+              "to": "SYS-LR-05",
               "relation": "the fading of the Elves is part of"
             },
             {
-              "from": "WK-LR-WB-07",
-              "to": "WK-LR-19",
+              "from": "SYS-LR-WB-07",
+              "to": "SYS-LR-19",
               "relation": "their distrust is the obstacle to unity among"
             },
             {
-              "from": "WK-LR-WB-07",
-              "to": "WK-LR-15",
+              "from": "SYS-LR-WB-07",
+              "to": "SYS-LR-15",
               "relation": "hobbits are the least of"
             },
             {
-              "from": "WK-LR-WB-08",
-              "to": "WK-LR-07",
+              "from": "SYS-LR-WB-08",
+              "to": "SYS-LR-07",
               "relation": "Sauron is the chief surviving servant of"
             },
             {
-              "from": "WK-LR-WB-08",
-              "to": "WK-LR-04",
+              "from": "SYS-LR-WB-08",
+              "to": "SYS-LR-04",
               "relation": "the Ring's corruption is an echo of"
             },
             {
-              "from": "WK-LR-WB-09",
-              "to": "WK-LR-WB-03",
+              "from": "SYS-LR-WB-09",
+              "to": "SYS-LR-WB-03",
               "relation": "the separation of the mortal and immortal worlds deepens"
             },
             {
-              "from": "WK-LR-WB-09",
-              "to": "WK-LR-05",
+              "from": "SYS-LR-WB-09",
+              "to": "SYS-LR-05",
               "relation": "the Elves' departure follows"
             }
           ]

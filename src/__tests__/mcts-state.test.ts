@@ -293,7 +293,7 @@ describe('buildVirtualState', () => {
     const scene = createScene('S-001', {
       systemDeltas: {
         addedNodes: [{ id: 'SYS-01', concept: 'Magic system', type: 'system' }],
-        addedEdges: [{ from: 'SYS-01', to: 'WK-02', relation: 'enables' }],
+        addedEdges: [{ from: 'SYS-01', to: 'SYS-02', relation: 'enables' }],
       },
     });
     const arc = createArc('ARC-01', ['S-001']);
@@ -384,7 +384,7 @@ describe('scoreArc', () => {
       events: ['event1', 'event2', 'event3'],
       systemDeltas: {
         addedNodes: [{ id: 'SYS-01', concept: 'x', type: 'system' }],
-        addedEdges: [{ from: 'SYS-01', to: 'WK-02', relation: 'x' }],
+        addedEdges: [{ from: 'SYS-01', to: 'SYS-02', relation: 'x' }],
       },
     });
     const lowScore = scoreArc([lowDeltaScene], []);

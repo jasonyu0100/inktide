@@ -148,25 +148,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-01",
+            "id": "SYS-HP-01",
             "concept": "Wizarding World",
             "type": "concept"
           },
           {
-            "id": "WK-HP-02",
+            "id": "SYS-HP-02",
             "concept": "Statute of Secrecy",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-02",
-            "to": "WK-HP-01",
+            "from": "SYS-HP-02",
+            "to": "SYS-HP-01",
             "relation": "conceals"
           },
           {
-            "from": "WK-HP-01",
-            "to": "WK-HP-02",
+            "from": "SYS-HP-01",
+            "to": "SYS-HP-02",
             "relation": "governed_by"
           }
         ]
@@ -227,25 +227,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-04",
+            "id": "SYS-HP-04",
             "concept": "The Wand Chooses the Wizard",
             "type": "law"
           },
           {
-            "id": "WK-HP-05",
+            "id": "SYS-HP-05",
             "concept": "Goblin Banking System",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-05",
-            "to": "WK-HP-01",
+            "from": "SYS-HP-05",
+            "to": "SYS-HP-01",
             "relation": "part_of"
           },
           {
-            "from": "WK-HP-04",
-            "to": "WK-HP-01",
+            "from": "SYS-HP-04",
+            "to": "SYS-HP-01",
             "relation": "reveals"
           }
         ]
@@ -309,20 +309,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-07",
+            "id": "SYS-HP-07",
             "concept": "Hogwarts Express & Platform Nine and Three-Quarters",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-07",
-            "to": "WK-HP-02",
+            "from": "SYS-HP-07",
+            "to": "SYS-HP-02",
             "relation": "enforces"
           },
           {
-            "from": "WK-HP-07",
-            "to": "WK-HP-01",
+            "from": "SYS-HP-07",
+            "to": "SYS-HP-01",
             "relation": "part_of"
           }
         ]
@@ -397,25 +397,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-08",
+            "id": "SYS-HP-08",
             "concept": "The Sorting",
             "type": "system"
           },
           {
-            "id": "WK-HP-09",
+            "id": "SYS-HP-09",
             "concept": "House Identity",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-08",
-            "to": "WK-HP-09",
+            "from": "SYS-HP-08",
+            "to": "SYS-HP-09",
             "relation": "determines"
           },
           {
-            "from": "WK-HP-09",
-            "to": "WK-HP-01",
+            "from": "SYS-HP-09",
+            "to": "SYS-HP-01",
             "relation": "divides"
           }
         ]
@@ -476,25 +476,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-11",
+            "id": "SYS-HP-11",
             "concept": "Blood Purity Ideology",
             "type": "concept"
           },
           {
-            "id": "WK-HP-12",
+            "id": "SYS-HP-12",
             "concept": "Merit vs Lineage",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-11",
-            "to": "WK-HP-09",
+            "from": "SYS-HP-11",
+            "to": "SYS-HP-09",
             "relation": "corrupts"
           },
           {
-            "from": "WK-HP-12",
-            "to": "WK-HP-11",
+            "from": "SYS-HP-12",
+            "to": "SYS-HP-11",
             "relation": "emerges_from"
           }
         ]
@@ -523,15 +523,15 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-13",
+            "id": "SYS-HP-13",
             "concept": "Hogwarts as Living Architecture",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-13",
-            "to": "WK-HP-01",
+            "from": "SYS-HP-13",
+            "to": "SYS-HP-01",
             "relation": "embodies"
           }
         ]
@@ -561,25 +561,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-14",
+            "id": "SYS-HP-14",
             "concept": "Transfiguration",
             "type": "system"
           },
           {
-            "id": "WK-HP-15",
+            "id": "SYS-HP-15",
             "concept": "Magic Requires Discipline",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-15",
-            "to": "WK-HP-14",
+            "from": "SYS-HP-15",
+            "to": "SYS-HP-14",
             "relation": "governs"
           },
           {
-            "from": "WK-HP-14",
-            "to": "WK-HP-01",
+            "from": "SYS-HP-14",
+            "to": "SYS-HP-01",
             "relation": "part_of"
           }
         ]
@@ -633,25 +633,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-16",
+            "id": "SYS-HP-16",
             "concept": "Potions",
             "type": "system"
           },
           {
-            "id": "WK-HP-17",
+            "id": "SYS-HP-17",
             "concept": "Teacher Authority as Absolute Power",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-16",
-            "to": "WK-HP-01",
+            "from": "SYS-HP-16",
+            "to": "SYS-HP-01",
             "relation": "part_of"
           },
           {
-            "from": "WK-HP-17",
-            "to": "WK-HP-09",
+            "from": "SYS-HP-17",
+            "to": "SYS-HP-09",
             "relation": "reinforces"
           }
         ]
@@ -702,25 +702,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-18",
+            "id": "SYS-HP-18",
             "concept": "Innate Magical Talent",
             "type": "concept"
           },
           {
-            "id": "WK-HP-19",
+            "id": "SYS-HP-19",
             "concept": "Broomstick Flight",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-18",
-            "to": "WK-HP-15",
+            "from": "SYS-HP-18",
+            "to": "SYS-HP-15",
             "relation": "contradicts"
           },
           {
-            "from": "WK-HP-19",
-            "to": "WK-HP-01",
+            "from": "SYS-HP-19",
+            "to": "SYS-HP-01",
             "relation": "part_of"
           }
         ]
@@ -800,25 +800,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-20",
+            "id": "SYS-HP-20",
             "concept": "Magical Guardianship",
             "type": "system"
           },
           {
-            "id": "WK-HP-21",
+            "id": "SYS-HP-21",
             "concept": "Forbidden Knowledge",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-20",
-            "to": "WK-HP-13",
+            "from": "SYS-HP-20",
+            "to": "SYS-HP-13",
             "relation": "enables"
           },
           {
-            "from": "WK-HP-21",
-            "to": "WK-HP-20",
+            "from": "SYS-HP-21",
+            "to": "SYS-HP-20",
             "relation": "emerges_from"
           }
         ]
@@ -869,20 +869,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-22",
+            "id": "SYS-HP-22",
             "concept": "The Philosopher's Stone",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-22",
-            "to": "WK-HP-05",
+            "from": "SYS-HP-22",
+            "to": "SYS-HP-05",
             "relation": "protected_by"
           },
           {
-            "from": "WK-HP-20",
-            "to": "WK-HP-22",
+            "from": "SYS-HP-20",
+            "to": "SYS-HP-22",
             "relation": "protects"
           }
         ]
@@ -921,20 +921,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-23",
+            "id": "SYS-HP-23",
             "concept": "The Hogwarts Library",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-23",
-            "to": "WK-HP-21",
+            "from": "SYS-HP-23",
+            "to": "SYS-HP-21",
             "relation": "enables"
           },
           {
-            "from": "WK-HP-23",
-            "to": "WK-HP-13",
+            "from": "SYS-HP-23",
+            "to": "SYS-HP-13",
             "relation": "part_of"
           }
         ]
@@ -1006,25 +1006,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-24",
+            "id": "SYS-HP-24",
             "concept": "Loyalty Transcends Houses",
             "type": "tension"
           },
           {
-            "id": "WK-HP-25",
+            "id": "SYS-HP-25",
             "concept": "Shared Danger Forges Bonds",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-24",
-            "to": "WK-HP-09",
+            "from": "SYS-HP-24",
+            "to": "SYS-HP-09",
             "relation": "challenges"
           },
           {
-            "from": "WK-HP-25",
-            "to": "WK-HP-24",
+            "from": "SYS-HP-25",
+            "to": "SYS-HP-24",
             "relation": "enables"
           }
         ]
@@ -1094,25 +1094,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-26",
+            "id": "SYS-HP-26",
             "concept": "Ambition Hierarchy",
             "type": "system"
           },
           {
-            "id": "WK-HP-27",
+            "id": "SYS-HP-27",
             "concept": "House as Destiny",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-26",
-            "to": "WK-HP-09",
+            "from": "SYS-HP-26",
+            "to": "SYS-HP-09",
             "relation": "defines"
           },
           {
-            "from": "WK-HP-27",
-            "to": "WK-HP-08",
+            "from": "SYS-HP-27",
+            "to": "SYS-HP-08",
             "relation": "emerges_from"
           }
         ]
@@ -1171,20 +1171,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-28",
+            "id": "SYS-HP-28",
             "concept": "Favouritism as Pedagogy",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-28",
-            "to": "WK-HP-17",
+            "from": "SYS-HP-28",
+            "to": "SYS-HP-17",
             "relation": "corrupts"
           },
           {
-            "from": "WK-HP-28",
-            "to": "WK-HP-26",
+            "from": "SYS-HP-28",
+            "to": "SYS-HP-26",
             "relation": "reinforces"
           }
         ]
@@ -1245,20 +1245,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-29",
+            "id": "SYS-HP-29",
             "concept": "Cross-House Alliance",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-29",
-            "to": "WK-HP-09",
+            "from": "SYS-HP-29",
+            "to": "SYS-HP-09",
             "relation": "violates"
           },
           {
-            "from": "WK-HP-29",
-            "to": "WK-HP-26",
+            "from": "SYS-HP-29",
+            "to": "SYS-HP-26",
             "relation": "contradicts"
           }
         ]
@@ -1332,20 +1332,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-30",
+            "id": "SYS-HP-30",
             "concept": "Secrets as Currency",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-30",
-            "to": "WK-HP-26",
+            "from": "SYS-HP-30",
+            "to": "SYS-HP-26",
             "relation": "enables"
           },
           {
-            "from": "WK-HP-30",
-            "to": "WK-HP-21",
+            "from": "SYS-HP-30",
+            "to": "SYS-HP-21",
             "relation": "reframes"
           }
         ]
@@ -1409,20 +1409,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-HP-31",
+            "id": "SYS-HP-31",
             "concept": "Choice vs Sorting",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-HP-31",
-            "to": "WK-HP-08",
+            "from": "SYS-HP-31",
+            "to": "SYS-HP-08",
             "relation": "challenges"
           },
           {
-            "from": "WK-HP-31",
-            "to": "WK-HP-27",
+            "from": "SYS-HP-31",
+            "to": "SYS-HP-27",
             "relation": "contradicts"
           }
         ]
@@ -2287,120 +2287,120 @@
         "systemDeltas": {
           "addedNodes": [
             {
-              "id": "WK-HP-WB-01",
+              "id": "SYS-HP-WB-01",
               "concept": "Hogwarts School of Witchcraft and Wizardry — a thousand-year-old institution that shapes every witch and wizard in Britain, sorting them into houses that define identity, rivalry, and allegiance",
               "type": "system"
             },
             {
-              "id": "WK-HP-WB-02",
+              "id": "SYS-HP-WB-02",
               "concept": "Wand magic — the primary magical discipline, channeled through wands of wood and core, where the instrument chooses the wielder and shapes the craft",
               "type": "system"
             },
             {
-              "id": "WK-HP-WB-03",
+              "id": "SYS-HP-WB-03",
               "concept": "The Ministry of Magic — the governing body of wizarding Britain, enforcing the Statute of Secrecy and regulating all magical activity",
               "type": "system"
             },
             {
-              "id": "WK-HP-WB-04",
+              "id": "SYS-HP-WB-04",
               "concept": "Quidditch — the defining sport of wizarding culture, played on broomsticks, a social ritual that channels competition and house loyalty",
               "type": "system"
             },
             {
-              "id": "WK-HP-WB-05",
+              "id": "SYS-HP-WB-05",
               "concept": "The Muggle-Magical divide — two worlds coexisting in the same space, separated by enchantment, ignorance, and institutional secrecy",
               "type": "tension"
             },
             {
-              "id": "WK-HP-WB-06",
+              "id": "SYS-HP-WB-06",
               "concept": "Voldemort's ideology — blood purity as political program, the belief that magical power flows through lineage and that Muggle-born wizards are lesser",
               "type": "concept"
             },
             {
-              "id": "WK-HP-WB-07",
+              "id": "SYS-HP-WB-07",
               "concept": "The Hogwarts House system — Gryffindor, Slytherin, Ravenclaw, Hufflepuff — a sorting at age eleven that assigns identity, community, and expectation for life",
               "type": "system"
             },
             {
-              "id": "WK-HP-WB-08",
+              "id": "SYS-HP-WB-08",
               "concept": "Magical creatures — a parallel ecosystem of dragons, hippogriffs, phoenixes, and house-elves that exists alongside wizarding society, governed by its own laws",
               "type": "concept"
             }
           ],
           "addedEdges": [
             {
-              "from": "WK-HP-WB-01",
-              "to": "WK-HP-01",
+              "from": "SYS-HP-WB-01",
+              "to": "SYS-HP-01",
               "relation": "is the central institution of"
             },
             {
-              "from": "WK-HP-WB-02",
-              "to": "WK-HP-04",
+              "from": "SYS-HP-WB-02",
+              "to": "SYS-HP-04",
               "relation": "is the discipline governed by"
             },
             {
-              "from": "WK-HP-WB-02",
-              "to": "WK-HP-06",
+              "from": "SYS-HP-WB-02",
+              "to": "SYS-HP-06",
               "relation": "is the practical application of"
             },
             {
-              "from": "WK-HP-WB-03",
-              "to": "WK-HP-02",
+              "from": "SYS-HP-WB-03",
+              "to": "SYS-HP-02",
               "relation": "enforces and administers"
             },
             {
-              "from": "WK-HP-WB-03",
-              "to": "WK-HP-01",
+              "from": "SYS-HP-WB-03",
+              "to": "SYS-HP-01",
               "relation": "governs"
             },
             {
-              "from": "WK-HP-WB-04",
-              "to": "WK-HP-WB-01",
+              "from": "SYS-HP-WB-04",
+              "to": "SYS-HP-WB-01",
               "relation": "is the defining competitive ritual of"
             },
             {
-              "from": "WK-HP-WB-04",
-              "to": "WK-HP-09",
+              "from": "SYS-HP-WB-04",
+              "to": "SYS-HP-09",
               "relation": "channels and intensifies"
             },
             {
-              "from": "WK-HP-WB-05",
-              "to": "WK-HP-02",
+              "from": "SYS-HP-WB-05",
+              "to": "SYS-HP-02",
               "relation": "is maintained by"
             },
             {
-              "from": "WK-HP-WB-05",
-              "to": "WK-HP-03",
+              "from": "SYS-HP-WB-05",
+              "to": "SYS-HP-03",
               "relation": "is bridged by"
             },
             {
-              "from": "WK-HP-WB-06",
-              "to": "WK-HP-11",
+              "from": "SYS-HP-WB-06",
+              "to": "SYS-HP-11",
               "relation": "is the political weaponization of"
             },
             {
-              "from": "WK-HP-WB-06",
-              "to": "WK-HP-12",
+              "from": "SYS-HP-WB-06",
+              "to": "SYS-HP-12",
               "relation": "is the ideology that drives"
             },
             {
-              "from": "WK-HP-WB-07",
-              "to": "WK-HP-08",
+              "from": "SYS-HP-WB-07",
+              "to": "SYS-HP-08",
               "relation": "is enacted through"
             },
             {
-              "from": "WK-HP-WB-07",
-              "to": "WK-HP-10",
+              "from": "SYS-HP-WB-07",
+              "to": "SYS-HP-10",
               "relation": "institutionalizes"
             },
             {
-              "from": "WK-HP-WB-08",
-              "to": "WK-HP-WB-01",
+              "from": "SYS-HP-WB-08",
+              "to": "SYS-HP-WB-01",
               "relation": "is studied and managed within"
             },
             {
-              "from": "WK-HP-WB-08",
-              "to": "WK-HP-13",
+              "from": "SYS-HP-WB-08",
+              "to": "SYS-HP-13",
               "relation": "inhabits and shapes"
             }
           ]

@@ -10,7 +10,7 @@ import {
   LOCATION_SIZE,
   ROLE_FILL,
   ROLE_RADIUS,
-  WK_TYPE_COLORS,
+  SYS_TYPE_COLORS,
   type GraphLink,
   type GraphNode,
 } from "@/components/canvas/graph-utils";
@@ -132,16 +132,16 @@ describe("Graph Constants", () => {
       expect(val).toBeLessThanOrEqual(1);
     }
   });
-  it("WK_TYPE_COLORS has colors for system knowledge types", () => {
-    expect(WK_TYPE_COLORS.principle).toBeDefined();
-    expect(WK_TYPE_COLORS.system).toBeDefined();
-    expect(WK_TYPE_COLORS.concept).toBeDefined();
-    expect(WK_TYPE_COLORS.tension).toBeDefined();
-    expect(WK_TYPE_COLORS.event).toBeDefined();
-    expect(WK_TYPE_COLORS.structure).toBeDefined();
-    expect(WK_TYPE_COLORS.environment).toBeDefined();
-    expect(WK_TYPE_COLORS.convention).toBeDefined();
-    expect(WK_TYPE_COLORS.constraint).toBeDefined();
+  it("SYS_TYPE_COLORS has colors for system knowledge types", () => {
+    expect(SYS_TYPE_COLORS.principle).toBeDefined();
+    expect(SYS_TYPE_COLORS.system).toBeDefined();
+    expect(SYS_TYPE_COLORS.concept).toBeDefined();
+    expect(SYS_TYPE_COLORS.tension).toBeDefined();
+    expect(SYS_TYPE_COLORS.event).toBeDefined();
+    expect(SYS_TYPE_COLORS.structure).toBeDefined();
+    expect(SYS_TYPE_COLORS.environment).toBeDefined();
+    expect(SYS_TYPE_COLORS.convention).toBeDefined();
+    expect(SYS_TYPE_COLORS.constraint).toBeDefined();
   });
 });
 // ── computeGroups Tests ──────────────────────────────────────────────────────

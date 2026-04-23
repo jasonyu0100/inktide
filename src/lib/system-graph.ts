@@ -106,8 +106,7 @@ export function normalizeSystemConcept(concept: string): string {
 export function makeSystemIdAllocator(seedIds: Iterable<string>): () => string {
   let counter = 0;
   for (const id of seedIds) {
-    // Support both legacy WK-XX and new SYS-XX formats
-    const m = /^(?:WK|SYS)-(\d+)$/.exec(id);
+    const m = /^SYS-(\d+)$/.exec(id);
     if (m) {
       const n = parseInt(m[1], 10);
       if (!isNaN(n) && n > counter) counter = n;

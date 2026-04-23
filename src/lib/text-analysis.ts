@@ -487,14 +487,14 @@ async function reconcileEntities(
  */
 async function reconcileSemantic(
   allThreadDescs: Set<string>,
-  allWKConcepts: Set<string>,
+  allSysConcepts: Set<string>,
   onToken?: (token: string, accumulated: string) => void,
 ): Promise<SemanticMerges> {
-  if (allThreadDescs.size === 0 && allWKConcepts.size === 0) {
+  if (allThreadDescs.size === 0 && allSysConcepts.size === 0) {
     return { threadMerges: {}, systemMerges: {} };
   }
 
-  const prompt = buildReconcileSemanticPrompt(allThreadDescs, allWKConcepts);
+  const prompt = buildReconcileSemanticPrompt(allThreadDescs, allSysConcepts);
   const raw = await callAnalysis(prompt, RECONCILE_SEMANTIC_SYSTEM, onToken);
   const parsed = parseMergeJSON<Partial<SemanticMerges>>(raw);
   return {
@@ -518,7 +518,7 @@ export async function reconcileResults(
   const allThreadDescs = new Set<string>();
   const allLocNames = new Set<string>();
   const allArtifactNames = new Set<string>();
-  const allWKConcepts = new Set<string>();
+  const allSysConcepts = new Set<string>();
 
   for (const r of results) {
     for (const c of r.characters ?? []) allCharNames.add(c.name);
@@ -527,7 +527,7 @@ export async function reconcileResults(
     for (const a of r.artifacts ?? []) allArtifactNames.add(a.name);
     for (const s of r.scenes ?? []) {
       for (const n of s.systemDeltas?.addedNodes ?? [])
-        allWKConcepts.add(n.concept);
+        allSysConcepts.add(n.concept);
     }
   }
 
@@ -551,7 +551,7 @@ export async function reconcileResults(
 
   const semanticMerges = await reconcileSemantic(
     allThreadDescs,
-    allWKConcepts,
+    allSysConcepts,
     phaseStream("threads+knowledge"),
   );
 
@@ -559,13 +559,13 @@ export async function reconcileResults(
   const locMap = entityMerges.locationMerges;
   const artMap = entityMerges.artifactMerges;
   const threadMap = semanticMerges.threadMerges;
-  const wkMap = semanticMerges.systemMerges;
+  const sysMap = semanticMerges.systemMerges;
 
   const resolveChar = (name: string) => charMap[name] ?? name;
   const resolveThread = (desc: string) => threadMap[desc] ?? desc;
   const resolveLoc = (name: string) => locMap[name] ?? name;
   const resolveArt = (name: string) => artMap[name] ?? name;
-  const resolveWK = (concept: string) => wkMap[concept] ?? concept;
+  const resolveSys = (concept: string) => sysMap[concept] ?? concept;
 
   // Unified entity resolver — tries all maps so the same entity always resolves
   // to the same canonical name regardless of which field references it.
@@ -706,12 +706,12 @@ export async function reconcileResults(
         ? {
             addedNodes: (s.systemDeltas.addedNodes ?? []).map((n) => ({
               ...n,
-              concept: resolveWK(n.concept),
+              concept: resolveSys(n.concept),
             })),
             addedEdges: (s.systemDeltas.addedEdges ?? []).map((e) => ({
               ...e,
-              fromConcept: resolveWK(e.fromConcept),
-              toConcept: resolveWK(e.toConcept),
+              fromConcept: resolveSys(e.fromConcept),
+              toConcept: resolveSys(e.toConcept),
             })),
           }
         : undefined,
@@ -1039,7 +1039,7 @@ export async function assembleNarrative(
     arcCounter = 0,
     kCounter = 0,
     tkCounter = 0,
-    wkCounter = 0,
+    sysCounter = 0,
     artifactCounter = 0;
 
   const nextId = (pre: string, counter: () => number, pad = 2) =>
@@ -1051,19 +1051,19 @@ export async function assembleNarrative(
   const nextArcId = () => nextId("ARC", () => ++arcCounter);
   const nextKId = () => nextId("K", () => ++kCounter, 3);
   const nextTkId = () => nextId("TK", () => ++tkCounter, 3);
-  const nextWkId = () => nextId("WK", () => ++wkCounter, 2);
+  const nextSysId = () => nextId("SYS", () => ++sysCounter, 2);
   const nextArtifactIdFn = () => nextId("A", () => ++artifactCounter);
 
   const charNameToId: Record<string, string> = {};
   const locNameToId: Record<string, string> = {};
   const threadDescToId: Record<string, string> = {};
   const artifactNameToId: Record<string, string> = {};
-  const wkConceptToId: Record<string, string> = {}; // lowercase concept → WK ID
+  const sysConceptToId: Record<string, string> = {}; // lowercase concept → SYS ID
 
-  const getWkId = (concept: string) => {
+  const getSysId = (concept: string) => {
     const key = concept.toLowerCase();
-    if (!wkConceptToId[key]) wkConceptToId[key] = nextWkId();
-    return wkConceptToId[key];
+    if (!sysConceptToId[key]) sysConceptToId[key] = nextSysId();
+    return sysConceptToId[key];
   };
 
   const getCharId = (name: string) => {
@@ -1108,8 +1108,8 @@ export async function assembleNarrative(
   const artifactFirstChunk = new Map<string, number>();
   const chunkFirstSceneId = new Map<number, string>(); // chunkIdx → first scene id
   const allOrderedSceneIds: string[] = []; // flat ordered list for arc group assignment
-  const seenWkNodeIds = new Set<string>(); // track knowledge nodes already added by prior scenes
-  const seenWkEdgeKeys = new Set<string>(); // track knowledge edges already added (from→to→relation)
+  const seenSysNodeIds = new Set<string>(); // track knowledge nodes already added by prior scenes
+  const seenSysEdgeKeys = new Set<string>(); // track knowledge edges already added (from→to→relation)
 
   for (let chunkIdx = 0; chunkIdx < results.length; chunkIdx++) {
     const ch = results[chunkIdx];
@@ -1418,10 +1418,10 @@ export async function assembleNarrative(
           if (!wkm) return undefined;
           // Only add nodes not already seen in prior scenes
           const addedNodes = (wkm.addedNodes ?? [])
-            .filter((n) => !seenWkNodeIds.has(getWkId(n.concept)))
+            .filter((n) => !seenSysNodeIds.has(getSysId(n.concept)))
             .map((n) => {
-              const id = getWkId(n.concept);
-              seenWkNodeIds.add(id);
+              const id = getSysId(n.concept);
+              seenSysNodeIds.add(id);
               return {
                 id,
                 concept: n.concept,
@@ -1443,31 +1443,31 @@ export async function assembleNarrative(
           const addedEdges = (wkm.addedEdges ?? [])
             .filter((e) => {
               // Only accept edges where both endpoints are declared nodes (known concepts)
-              // wkConceptToId tracks all concepts with IDs assigned via getWkId
+              // sysConceptToId tracks all concepts with IDs assigned via getSysId
               const fromKey = e.fromConcept?.toLowerCase();
               const toKey = e.toConcept?.toLowerCase();
               if (!fromKey || !toKey) return false;
-              const fromId = wkConceptToId[fromKey];
-              const toId = wkConceptToId[toKey];
+              const fromId = sysConceptToId[fromKey];
+              const toId = sysConceptToId[toKey];
               // Both concepts must already exist as actual nodes (seen in some scene)
               return (
                 !!fromId &&
                 !!toId &&
-                seenWkNodeIds.has(fromId) &&
-                seenWkNodeIds.has(toId)
+                seenSysNodeIds.has(fromId) &&
+                seenSysNodeIds.has(toId)
               );
             })
             .map((e) => ({
-              from: getWkId(e.fromConcept),
-              to: getWkId(e.toConcept),
+              from: getSysId(e.fromConcept),
+              to: getSysId(e.toConcept),
               relation: e.relation,
             }))
             // Filter self-loops and cross-scene duplicates
             .filter((e) => {
               if (e.from === e.to) return false;
               const key = `${e.from}→${e.to}→${e.relation}`;
-              if (seenWkEdgeKeys.has(key)) return false;
-              seenWkEdgeKeys.add(key);
+              if (seenSysEdgeKeys.has(key)) return false;
+              seenSysEdgeKeys.add(key);
               return true;
             });
           if (addedNodes.length === 0 && addedEdges.length === 0)

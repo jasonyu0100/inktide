@@ -662,8 +662,8 @@ systemDeltas define the FOUNDATIONAL abstractions this expansion establishes —
 - Use "principle" for fundamental truths, "system" for mechanisms/institutions, "concept" for abstract ideas, "tension" for contradictions, "event" for world-level occurrences, "structure" for organizations/factions, "environment" for geography/climate, "convention" for customs/norms, "constraint" for scarcities/limitations.
 - Node IDs should be SYS-GEN-001, SYS-GEN-002, etc. (they will be re-mapped to real IDs).
 - Edges can reference both new SYS-GEN-* IDs and existing system knowledge IDs already in the narrative.
-- Generate ${size === 'small' ? '4-6' : size === 'medium' ? '8-12' : size === 'exact' ? 'as many as the directive calls for' : '15-25'} system knowledge nodes with a comparable number of edges. Each must be a genuine structural rule or system that the new entities operate within. EDGES ARE CRITICAL — an isolated node contributes 1 to system, but an edge connecting it to existing WK adds √1 more AND wires the expansion into the existing graph.
-- At least HALF of your edges should cross the new/existing boundary — use existing WK IDs from the narrative context, not just SYS-GEN-* → SYS-GEN-*. This is how expansions deepen the foundation instead of floating free.
+- Generate ${size === 'small' ? '4-6' : size === 'medium' ? '8-12' : size === 'exact' ? 'as many as the directive calls for' : '15-25'} system knowledge nodes with a comparable number of edges. Each must be a genuine structural rule or system that the new entities operate within. EDGES ARE CRITICAL — an isolated node contributes 1 to system, but an edge connecting it to an existing SYS node adds √1 more AND wires the expansion into the existing graph.
+- At least HALF of your edges should cross the new/existing boundary — use existing SYS IDs from the narrative context, not just SYS-GEN-* → SYS-GEN-*. This is how expansions deepen the foundation instead of floating free.
 - Focus on the structural WHY behind the expansion — what abstract rules, power structures, or tensions make these new entities meaningful?`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
@@ -691,27 +691,27 @@ systemDeltas define the FOUNDATIONAL abstractions this expansion establishes —
   // re-mentioned concepts to their existing id, then sanitize filters self-
   // loops, orphans, and edges that duplicate ones already in the graph.
   let systemDeltas: SystemDelta | undefined;
-  const rawWKM = parsed.systemDeltas;
-  if (rawWKM && Array.isArray(rawWKM.addedNodes) && rawWKM.addedNodes.length > 0) {
-    const existingWkNodes = narrative.systemGraph?.nodes ?? {};
+  const rawSystem = parsed.systemDeltas;
+  if (rawSystem && Array.isArray(rawSystem.addedNodes) && rawSystem.addedNodes.length > 0) {
+    const existingSysNodes = narrative.systemGraph?.nodes ?? {};
 
     // Normalize raw nodes so they satisfy the resolver's input shape —
     // every node must have an id placeholder, a concept, and a type.
-    const rawNormalized = rawWKM.addedNodes.map(
+    const rawNormalized = rawSystem.addedNodes.map(
       (node: { id: string; concept: string; type: string }, i: number) => ({
         id: node.id || `SYS-GEN-${i}`,
         concept: node.concept,
         type: (node.type || 'concept') as SystemNodeType,
       }),
     );
-    const allocateFreshWkId = makeSystemIdAllocator(Object.keys(existingWkNodes));
-    const resolved = resolveSystemConceptIds(rawNormalized, existingWkNodes, allocateFreshWkId);
+    const allocateFreshSysId = makeSystemIdAllocator(Object.keys(existingSysNodes));
+    const resolved = resolveSystemConceptIds(rawNormalized, existingSysNodes, allocateFreshSysId);
 
-    const validWKIds = new Set<string>([
-      ...Object.keys(existingWkNodes),
+    const validSysIds = new Set<string>([
+      ...Object.keys(existingSysNodes),
       ...resolved.newNodes.map((n) => n.id),
     ]);
-    const remappedEdges = (rawWKM.addedEdges ?? []).map(
+    const remappedEdges = (rawSystem.addedEdges ?? []).map(
       (edge: { from: string; to: string; relation: string }) => ({
         from: resolved.idMap[edge.from] ?? edge.from,
         to: resolved.idMap[edge.to] ?? edge.to,
@@ -723,7 +723,7 @@ systemDeltas define the FOUNDATIONAL abstractions this expansion establishes —
     for (const e of narrative.systemGraph?.edges ?? []) seenEdgeKeys.add(systemEdgeKey(e));
 
     systemDeltas = { addedNodes: resolved.newNodes, addedEdges: remappedEdges };
-    sanitizeSystemDelta(systemDeltas, validWKIds, seenEdgeKeys);
+    sanitizeSystemDelta(systemDeltas, validSysIds, seenEdgeKeys);
   }
 
   // Apply entity filter — strip types the user disabled. Freshly-created
@@ -1090,10 +1090,10 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
   }
 
   // Normalize and resolve IDs for scene system deltas
-  const allocateFreshWkId = makeSystemIdAllocator([]);
+  const allocateFreshSysId = makeSystemIdAllocator([]);
   const accumulatedNodes: Record<string, SystemNode> = {};
-  const validWKIds = new Set<string>();
-  const seenWkEdgeKeys = new Set<string>();
+  const validSysIds = new Set<string>();
+  const seenSysEdgeKeys = new Set<string>();
 
   for (const scene of sceneList) {
     if (!scene.systemDeltas) {
@@ -1107,11 +1107,11 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
     const resolved = resolveSystemConceptIds(
       scene.systemDeltas.addedNodes,
       accumulatedNodes,
-      allocateFreshWkId,
+      allocateFreshSysId,
     );
     scene.systemDeltas.addedNodes = resolved.newNodes;
     for (const n of resolved.newNodes) {
-      validWKIds.add(n.id);
+      validSysIds.add(n.id);
       accumulatedNodes[n.id] = n;
     }
 
@@ -1121,7 +1121,7 @@ ${PROMPT_SUMMARY_REQUIREMENT}`}
       to: resolved.idMap[edge.to] ?? edge.to,
       relation: edge.relation,
     }));
-    sanitizeSystemDelta(scene.systemDeltas, validWKIds, seenWkEdgeKeys);
+    sanitizeSystemDelta(scene.systemDeltas, validSysIds, seenSysEdgeKeys);
   }
 
   // Generate embeddings for scene summaries

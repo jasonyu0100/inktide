@@ -37,6 +37,7 @@ import {
   saveAnalysisJobs,
   saveSearchState,
 } from "@/lib/persistence";
+import { sanitizeScenes } from "@/lib/ai/scenes";
 import {
   applySystemDelta,
   sanitizeSystemDelta,
@@ -1416,6 +1417,26 @@ function reducer(state: AppState, action: Action): AppState {
         // Apply remaining updates (non-versioned fields like summary, events, deltas, etc.)
         updatedScene = { ...updatedScene, ...updates };
 
+        // Sanitize if any delta/reference field was touched — UPDATE_SCENE can
+        // update threadDeltas / worldDeltas / etc. directly (e.g. via review
+        // pipelines), and those carry the same hallucination risk as freshly
+        // generated scenes. Prose/plan/embedding-only updates skip sanitization.
+        const touchesDeltas = Object.keys(action.updates).some((k) =>
+          [
+            "threadDeltas",
+            "worldDeltas",
+            "relationshipDeltas",
+            "systemDeltas",
+            "locationId",
+            "povId",
+            "participantIds",
+            "characterMovements",
+          ].includes(k),
+        );
+        if (touchesDeltas) {
+          sanitizeScenes([updatedScene], n, "UPDATE_SCENE");
+        }
+
         // Update version pointers to point to newly created versions
         let updatedBranches = n.branches;
         if (state.viewState.activeBranchId && (newProseVersion || newPlanVersion)) {
@@ -1808,6 +1829,7 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "RECONSTRUCT_BRANCH": {
       return updateNarrative(state, (n) => {
+        sanitizeScenes(action.scenes, n, 'RECONSTRUCT_BRANCH');
         const newScenes = { ...n.scenes };
         for (const scene of action.scenes) newScenes[scene.id] = scene;
         // Merge arcs: for existing arcs, append new sceneIds without removing originals.
@@ -1830,6 +1852,12 @@ function reducer(state: AppState, action: Action): AppState {
     // ── Bulk: AI-generated scenes ─────────────────────────────────────────
     case "BULK_ADD_SCENES": {
       const newState = updateNarrative(state, (n) => {
+        // Defense-in-depth — any scene reaching the reducer gets its IDs
+        // validated against the current narrative. generateScenes already
+        // sanitizes, but reconstruct / imports / future ingestion paths
+        // don't always. Mutates action.scenes in place; the action is
+        // single-use so this is safe.
+        sanitizeScenes(action.scenes, n, 'BULK_ADD_SCENES');
         const newScenes = { ...n.scenes };
         for (const scene of action.scenes) {
           newScenes[scene.id] = scene;
@@ -1956,7 +1984,7 @@ function reducer(state: AppState, action: Action): AppState {
             type: "concept" as const,
           });
       }
-      const manifestWK: SystemDelta = {
+      const manifestSystem: SystemDelta = {
         addedNodes: [
           ...(action.systemDeltas?.addedNodes ?? []),
           ...autoNodes,
@@ -1978,7 +2006,7 @@ function reducer(state: AppState, action: Action): AppState {
           })),
           threadDeltas: action.threadDeltas,
           worldDeltas: action.worldDeltas,
-          systemDeltas: manifestWK,
+          systemDeltas: manifestSystem,
           relationshipDeltas: action.relationshipDeltas,
           ownershipDeltas: action.ownershipDeltas,
           tieDeltas: action.tieDeltas,

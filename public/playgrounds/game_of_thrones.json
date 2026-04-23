@@ -155,20 +155,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-01",
+            "id": "SYS-GT-01",
             "concept": "Feudal obligation — a lord rules, protects, and judges his people, and they owe him service and obedience in return",
             "type": "system"
           },
           {
-            "id": "WK-GT-03",
+            "id": "SYS-GT-03",
             "concept": "Bastardy — a name that marks you as less than your siblings no matter how much blood you share",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-01",
-            "to": "WK-GT-03",
+            "from": "SYS-GT-01",
+            "to": "SYS-GT-03",
             "relation": "enforces the hierarchy that bastardy exists within"
           }
         ]
@@ -225,20 +225,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-04",
+            "id": "SYS-GT-04",
             "concept": "The hearth as sacred center — a lords hall is where his household gathers, eats, and renews its bonds",
             "type": "concept"
           },
           {
-            "id": "WK-GT-05",
+            "id": "SYS-GT-05",
             "concept": "The long summer — nine years of warmth that lulls the realm into forgetting that winter always returns",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-04",
-            "to": "WK-GT-01",
+            "from": "SYS-GT-04",
+            "to": "SYS-GT-01",
             "relation": "expresses — the feast hall is where feudal bonds are performed and renewed"
           }
         ]
@@ -301,20 +301,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-06",
+            "id": "SYS-GT-06",
             "concept": "The Old Gods — nameless, faceless, watching through the carved weirwood trees, worshipped by the North and the First Men",
             "type": "system"
           },
           {
-            "id": "WK-GT-07",
+            "id": "SYS-GT-07",
             "concept": "The godswood as liminal space — a place where the rules of the castle yield to something older and less concerned with human rank",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-06",
-            "to": "WK-GT-07",
+            "from": "SYS-GT-06",
+            "to": "SYS-GT-07",
             "relation": "inhabits"
           }
         ]
@@ -400,20 +400,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-08",
+            "id": "SYS-GT-08",
             "concept": "The promise — a vow made to the dying binds tighter than any oath sworn before gods or men",
             "type": "law"
           },
           {
-            "id": "WK-GT-09",
+            "id": "SYS-GT-09",
             "concept": "Honor demands truth but love demands silence — Ned cannot be honest with Catelyn without breaking his word to Lyanna",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-08",
-            "to": "WK-GT-03",
+            "from": "SYS-GT-08",
+            "to": "SYS-GT-03",
             "relation": "creates — the promise forces Jon into bastardy"
           }
         ]
@@ -487,25 +487,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-10",
+            "id": "SYS-GT-10",
             "concept": "The man who passes the sentence should swing the sword — justice must be personal, not delegated",
             "type": "law"
           },
           {
-            "id": "WK-GT-11",
+            "id": "SYS-GT-11",
             "concept": "The direwolf as sigil made flesh — when myth steps off the banner and into the world, the old rules are waking",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-10",
-            "to": "WK-GT-01",
+            "from": "SYS-GT-10",
+            "to": "SYS-GT-01",
             "relation": "grounds — personal justice is the foundation of feudal authority in the North"
           },
           {
-            "from": "WK-GT-11",
-            "to": "WK-GT-06",
+            "from": "SYS-GT-11",
+            "to": "SYS-GT-06",
             "relation": "signals — the direwolves are creatures of the old gods returning south of the Wall"
           }
         ]
@@ -580,20 +580,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-14",
+            "id": "SYS-GT-14",
             "concept": "\"There must always be a Stark in Winterfell\" — an ancient compact between bloodline and place that is more binding than any law of men",
             "type": "law"
           },
           {
-            "id": "WK-GT-15",
+            "id": "SYS-GT-15",
             "concept": "The wolf-bond — each direwolf mirrors the nature of the child it chose, as if the old magic is sorting souls",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-15",
-            "to": "WK-GT-11",
+            "from": "SYS-GT-15",
+            "to": "SYS-GT-11",
             "relation": "deepens — the wolves are not just omens but partners"
           }
         ]
@@ -656,15 +656,15 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-16",
+            "id": "SYS-GT-16",
             "concept": "The Hand of the King — the most powerful and most expendable man in the realm, ruling in the kings name and dying in his stead",
             "type": "system"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-16",
-            "to": "WK-GT-01",
+            "from": "SYS-GT-16",
+            "to": "SYS-GT-01",
             "relation": "extends — the Hand is feudal delegation at the highest level"
           }
         ]
@@ -747,25 +747,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-18",
+            "id": "SYS-GT-18",
             "concept": "The Iron Throne — forged from a thousand swords by dragonfire, uncomfortable by design, a seat that cuts unworthy kings",
             "type": "concept"
           },
           {
-            "id": "WK-GT-20",
+            "id": "SYS-GT-20",
             "concept": "The North remembers — the North is culturally separate from the south, older, harder, and slow to trust outsiders",
             "type": "concept"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-18",
-            "to": "WK-GT-16",
+            "from": "SYS-GT-18",
+            "to": "SYS-GT-16",
             "relation": "requires — the throne needs a Hand because no one man can hold it alone"
           },
           {
-            "from": "WK-GT-20",
-            "to": "WK-GT-06",
+            "from": "SYS-GT-20",
+            "to": "SYS-GT-06",
             "relation": "rooted in — northern identity flows from the old gods and the First Men"
           }
         ]
@@ -835,20 +835,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-21",
+            "id": "SYS-GT-21",
             "concept": "Roberts Rebellion — the war that overthrew the Targaryens, won at the Trident, the founding myth of the current order",
             "type": "concept"
           },
           {
-            "id": "WK-GT-22",
+            "id": "SYS-GT-22",
             "concept": "A warrior cannot rule — the skills that win a throne are not the skills that hold it, and Robert is proof",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-21",
-            "to": "WK-GT-18",
+            "from": "SYS-GT-21",
+            "to": "SYS-GT-18",
             "relation": "legitimizes — Robert holds the throne by right of conquest"
           }
         ]
@@ -923,25 +923,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-23",
+            "id": "SYS-GT-23",
             "concept": "The crypts of Winterfell — the dead Starks rest with iron swords across their laps, guarding something even they have forgotten",
             "type": "concept"
           },
           {
-            "id": "WK-GT-24",
+            "id": "SYS-GT-24",
             "concept": "Duty is a trap that the honorable cannot escape — refusing to serve is as unthinkable as the cost of serving",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-23",
-            "to": "WK-GT-14",
+            "from": "SYS-GT-23",
+            "to": "SYS-GT-14",
             "relation": "embodies — the dead Starks are the weight of the ancient compact made stone"
           },
           {
-            "from": "WK-GT-24",
-            "to": "WK-GT-16",
+            "from": "SYS-GT-24",
+            "to": "SYS-GT-16",
             "relation": "activates — the Handship is duty in its most dangerous form"
           }
         ]
@@ -1005,20 +1005,20 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-25",
+            "id": "SYS-GT-25",
             "concept": "The Wall as escape — for bastards, criminals, and younger sons, the Nights Watch offers identity at the price of everything else",
             "type": "tension"
           },
           {
-            "id": "WK-GT-26",
+            "id": "SYS-GT-26",
             "concept": "Taking the black — an irrevocable vow that erases your past name and past crimes but also your past loves",
             "type": "law"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-25",
-            "to": "WK-GT-03",
+            "from": "SYS-GT-25",
+            "to": "SYS-GT-03",
             "relation": "resolves — the Wall offers bastards a clean name by stripping all names away"
           }
         ]
@@ -1093,25 +1093,25 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-27",
+            "id": "SYS-GT-27",
             "concept": "The game of thrones — politics in Kings Landing is a game where you win or you die, with no middle ground",
             "type": "system"
           },
           {
-            "id": "WK-GT-28",
+            "id": "SYS-GT-28",
             "concept": "Honor is a liability in the south — the honest man is the easiest to predict and therefore the easiest to destroy",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-27",
-            "to": "WK-GT-18",
+            "from": "SYS-GT-27",
+            "to": "SYS-GT-18",
             "relation": "orbits — the game is played for the throne and the throne is the prize"
           },
           {
-            "from": "WK-GT-28",
-            "to": "WK-GT-24",
+            "from": "SYS-GT-28",
+            "to": "SYS-GT-24",
             "relation": "sharpens — duty pulls Ned south where honor will get him killed"
           }
         ]
@@ -1198,30 +1198,30 @@
       "systemDeltas": {
         "addedNodes": [
           {
-            "id": "WK-GT-30",
+            "id": "SYS-GT-30",
             "concept": "Guest right — a sacred law that protects those who eat at your table, and its violation is an abomination before gods and men",
             "type": "law"
           },
           {
-            "id": "WK-GT-31",
+            "id": "SYS-GT-31",
             "concept": "The Lannister doctrine — protect the family secret at any cost, because the secret is the family",
             "type": "concept"
           },
           {
-            "id": "WK-GT-33",
+            "id": "SYS-GT-33",
             "concept": "Innocence is the first casualty — children are not spared by the game, only used by it",
             "type": "tension"
           }
         ],
         "addedEdges": [
           {
-            "from": "WK-GT-31",
-            "to": "WK-GT-30",
+            "from": "SYS-GT-31",
+            "to": "SYS-GT-30",
             "relation": "violates — pushing Bran is an act committed under guest right"
           },
           {
-            "from": "WK-GT-33",
-            "to": "WK-GT-27",
+            "from": "SYS-GT-33",
+            "to": "SYS-GT-27",
             "relation": "reveals the true cost of — the game consumes even those too young to play it"
           }
         ]
@@ -2313,150 +2313,150 @@
         "systemDeltas": {
           "addedNodes": [
             {
-              "id": "WK-GT-WB-01",
+              "id": "SYS-GT-WB-01",
               "concept": "The feudal system of Westeros — the Seven Kingdoms are held together by oaths of fealty, marriage alliances, and the threat of force, not by institutions or law",
               "type": "system"
             },
             {
-              "id": "WK-GT-WB-02",
+              "id": "SYS-GT-WB-02",
               "concept": "The Faith of the Seven — the dominant religion of southern Westeros, with its sept, septons, and moral framework that legitimizes (and occasionally constrains) the powerful",
               "type": "system"
             },
             {
-              "id": "WK-GT-WB-03",
+              "id": "SYS-GT-WB-03",
               "concept": "The seasons — years-long summers and winters that defy earthly physics, the fundamental environmental fact of Westerosi life",
               "type": "law"
             },
             {
-              "id": "WK-GT-WB-04",
+              "id": "SYS-GT-WB-04",
               "concept": "The Targaryen dynasty — three hundred years of dragon-riding conquerors who forged the Seven Kingdoms into one realm and were overthrown a generation ago",
               "type": "concept"
             },
             {
-              "id": "WK-GT-WB-05",
+              "id": "SYS-GT-WB-05",
               "concept": "The great houses — Stark, Lannister, Baratheon, Targaryen, Tyrell, Arryn, Tully, Martell, Greyjoy — each a power center with its own culture, armies, and ambitions",
               "type": "system"
             },
             {
-              "id": "WK-GT-WB-06",
+              "id": "SYS-GT-WB-06",
               "concept": "The Others — the ice demons beyond the Wall, creatures of legend that most of Westeros believes are myths, but the Wall was built to stop them",
               "type": "concept"
             },
             {
-              "id": "WK-GT-WB-07",
+              "id": "SYS-GT-WB-07",
               "concept": "Valyrian steel — weapons forged with dragon magic in a lost civilization, unbreakable and sharp beyond normal metal, each blade a family heirloom",
               "type": "concept"
             },
             {
-              "id": "WK-GT-WB-08",
+              "id": "SYS-GT-WB-08",
               "concept": "The Dothraki and the Free Cities — across the Narrow Sea, a different world of horse lords, slave traders, merchant princes, and exiled Targaryens",
               "type": "concept"
             },
             {
-              "id": "WK-GT-WB-09",
+              "id": "SYS-GT-WB-09",
               "concept": "Succession crisis — the engine of Westerosi history, where the question of who inherits power spawns wars, marriages, murders, and the game of thrones itself",
               "type": "tension"
             }
           ],
           "addedEdges": [
             {
-              "from": "WK-GT-WB-01",
-              "to": "WK-GT-01",
+              "from": "SYS-GT-WB-01",
+              "to": "SYS-GT-01",
               "relation": "is the macro-structure that feudal obligation operates within"
             },
             {
-              "from": "WK-GT-WB-01",
-              "to": "WK-GT-16",
+              "from": "SYS-GT-WB-01",
+              "to": "SYS-GT-16",
               "relation": "the Hand is the highest delegated office of"
             },
             {
-              "from": "WK-GT-WB-02",
-              "to": "WK-GT-06",
+              "from": "SYS-GT-WB-02",
+              "to": "SYS-GT-06",
               "relation": "competes with the Old Gods as the spiritual framework of"
             },
             {
-              "from": "WK-GT-WB-02",
-              "to": "WK-GT-30",
+              "from": "SYS-GT-WB-02",
+              "to": "SYS-GT-30",
               "relation": "sanctifies laws like"
             },
             {
-              "from": "WK-GT-WB-03",
-              "to": "WK-GT-05",
+              "from": "SYS-GT-WB-03",
+              "to": "SYS-GT-05",
               "relation": "the long summer is an instance of"
             },
             {
-              "from": "WK-GT-WB-03",
-              "to": "WK-GT-32",
+              "from": "SYS-GT-WB-03",
+              "to": "SYS-GT-32",
               "relation": "\"Winter is coming\" is a warning about"
             },
             {
-              "from": "WK-GT-WB-04",
-              "to": "WK-GT-18",
+              "from": "SYS-GT-WB-04",
+              "to": "SYS-GT-18",
               "relation": "forged and ruled from"
             },
             {
-              "from": "WK-GT-WB-04",
-              "to": "WK-GT-21",
+              "from": "SYS-GT-WB-04",
+              "to": "SYS-GT-21",
               "relation": "was overthrown by"
             },
             {
-              "from": "WK-GT-WB-05",
-              "to": "WK-GT-WB-01",
+              "from": "SYS-GT-WB-05",
+              "to": "SYS-GT-WB-01",
               "relation": "are the power centers that comprise"
             },
             {
-              "from": "WK-GT-WB-05",
-              "to": "WK-GT-19",
+              "from": "SYS-GT-WB-05",
+              "to": "SYS-GT-19",
               "relation": "Lannister gold is the currency of"
             },
             {
-              "from": "WK-GT-WB-05",
-              "to": "WK-GT-20",
+              "from": "SYS-GT-WB-05",
+              "to": "SYS-GT-20",
               "relation": "northern cultural identity distinguishes the Starks within"
             },
             {
-              "from": "WK-GT-WB-06",
-              "to": "WK-GT-13",
+              "from": "SYS-GT-WB-06",
+              "to": "SYS-GT-13",
               "relation": "the Night's Watch was founded to guard against"
             },
             {
-              "from": "WK-GT-WB-06",
-              "to": "WK-GT-WB-03",
+              "from": "SYS-GT-WB-06",
+              "to": "SYS-GT-WB-03",
               "relation": "may be the cause of — or awakened by — the aberrant"
             },
             {
-              "from": "WK-GT-WB-07",
-              "to": "WK-GT-WB-04",
+              "from": "SYS-GT-WB-07",
+              "to": "SYS-GT-WB-04",
               "relation": "is a relic of the Valyrian magic that empowered"
             },
             {
-              "from": "WK-GT-WB-07",
-              "to": "WK-GT-WB-06",
+              "from": "SYS-GT-WB-07",
+              "to": "SYS-GT-WB-06",
               "relation": "is one of the few weapons effective against"
             },
             {
-              "from": "WK-GT-WB-08",
-              "to": "WK-GT-WB-04",
+              "from": "SYS-GT-WB-08",
+              "to": "SYS-GT-WB-04",
               "relation": "Daenerys carries the exiled bloodline of"
             },
             {
-              "from": "WK-GT-WB-08",
-              "to": "WK-GT-27",
+              "from": "SYS-GT-WB-08",
+              "to": "SYS-GT-27",
               "relation": "the game extends across the sea through"
             },
             {
-              "from": "WK-GT-WB-09",
-              "to": "WK-GT-27",
+              "from": "SYS-GT-WB-09",
+              "to": "SYS-GT-27",
               "relation": "is the fundamental driver of"
             },
             {
-              "from": "WK-GT-WB-09",
-              "to": "WK-GT-22",
+              "from": "SYS-GT-WB-09",
+              "to": "SYS-GT-22",
               "relation": "Robert's inability to rule is creating the next"
             },
             {
-              "from": "WK-GT-WB-09",
-              "to": "WK-GT-31",
+              "from": "SYS-GT-WB-09",
+              "to": "SYS-GT-31",
               "relation": "the Lannister secret would trigger a catastrophic"
             }
           ]

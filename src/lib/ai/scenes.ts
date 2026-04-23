@@ -576,19 +576,19 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
   // collapses re-mentioned concepts (existing-graph or earlier-in-batch) to
   // their canonical id so that re-asserting "mana-binding" across scenes
   // does not repeatedly count as a new node and inflate System scores.
-  const existingWkNodes = narrative.systemGraph?.nodes ?? {};
+  const existingSysNodes = narrative.systemGraph?.nodes ?? {};
   // Cumulative node map: starts as the existing graph and grows with each
   // scene's genuinely-new nodes, so the next scene's resolve sees earlier
   // scenes' contributions as already-known.
-  const cumulativeWkNodes: Record<string, SystemNode> = { ...existingWkNodes };
-  const allocateFreshWkId = makeSystemIdAllocator(Object.keys(cumulativeWkNodes));
+  const cumulativeSysNodes: Record<string, SystemNode> = { ...existingSysNodes };
+  const allocateFreshSysId = makeSystemIdAllocator(Object.keys(cumulativeSysNodes));
   // Cumulative id remap across all scenes — one entry per LLM-emitted placeholder id.
   const wkIdMap: Record<string, string> = {};
-  const validWKIds = new Set<string>(Object.keys(cumulativeWkNodes));
+  const validSysIds = new Set<string>(Object.keys(cumulativeSysNodes));
   // Seed seen-edges from the narrative's existing graph so we don't re-add
   // edges that already exist upstream.
-  const seenWkEdgeKeys = new Set<string>();
-  for (const e of narrative.systemGraph?.edges ?? []) seenWkEdgeKeys.add(systemEdgeKey(e));
+  const seenSysEdgeKeys = new Set<string>();
+  for (const e of narrative.systemGraph?.edges ?? []) seenSysEdgeKeys.add(systemEdgeKey(e));
 
   for (const scene of scenes) {
     if (!scene.systemDeltas) {
@@ -600,14 +600,14 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
     // then genuinely new concepts get fresh SYS-XX ids.
     const resolved = resolveSystemConceptIds(
       scene.systemDeltas.addedNodes,
-      cumulativeWkNodes,
-      allocateFreshWkId,
+      cumulativeSysNodes,
+      allocateFreshSysId,
     );
     Object.assign(wkIdMap, resolved.idMap);
     scene.systemDeltas.addedNodes = resolved.newNodes;
     for (const n of resolved.newNodes) {
-      cumulativeWkNodes[n.id] = n;
-      validWKIds.add(n.id);
+      cumulativeSysNodes[n.id] = n;
+      validSysIds.add(n.id);
     }
     // Remap edge references using the cumulative map (LLM GEN ids, prior-
     // scene real ids, and existing graph ids all pass through correctly).
@@ -617,7 +617,7 @@ ${buildCompletedBeatsPrompt(narrative, resolvedKeys, currentIndex)}`;
       relation: edge.relation,
     }));
     // Centralised sanitization: self-loops, orphans, cross-scene dupes, bad fields
-    sanitizeSystemDelta(scene.systemDeltas, validWKIds, seenWkEdgeKeys);
+    sanitizeSystemDelta(scene.systemDeltas, validSysIds, seenSysEdgeKeys);
   }
 
   const newSceneIds = scenes.map((s) => s.id);
@@ -1718,14 +1718,14 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
   const validCharIds = new Set(Object.keys(narrative.characters));
   const validLocIds = new Set(Object.keys(narrative.locations));
   const validThreadIds = new Set(Object.keys(narrative.threads));
-  // Pre-compute the union of WK node ids across the whole batch so that a
+  // Pre-compute the union of SYS node ids across the whole batch so that a
   // scene-2 edge referencing a scene-1 SYS-GEN-* id is not treated as orphaned.
   // The later concept-resolution pass in generateScenes remaps those GEN ids
   // to real SYS-XX ids using a cumulative map.
-  const batchWkNodeIds = new Set<string>(Object.keys(narrative.systemGraph?.nodes ?? {}));
+  const batchSysNodeIds = new Set<string>(Object.keys(narrative.systemGraph?.nodes ?? {}));
   for (const s of scenes) {
     for (const n of s.systemDeltas?.addedNodes ?? []) {
-      if (n?.id) batchWkNodeIds.add(n.id);
+      if (n?.id) batchSysNodeIds.add(n.id);
     }
   }
   const validArtifactIds = new Set(Object.keys(narrative.artifacts ?? {}));
@@ -1739,6 +1739,7 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
   // don't get stripped as "invalid".
   for (const scene of scenes) {
     if (Array.isArray(scene.newCharacters)) {
+      const seenInScene = new Set<string>();
       scene.newCharacters = scene.newCharacters.filter((c) => {
         if (!c.id || !c.name || !c.role) {
           stripped.push(`newCharacter missing required fields in scene ${scene.id}`);
@@ -1748,6 +1749,11 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           stripped.push(`newCharacter "${c.id}" collides with existing character in scene ${scene.id}`);
           return false;
         }
+        if (seenInScene.has(c.id)) {
+          stripped.push(`newCharacter "${c.id}" duplicated within scene ${scene.id} — second occurrence dropped`);
+          return false;
+        }
+        seenInScene.add(c.id);
         return true;
       }).map((c) => {
         const validRoles: Character['role'][] = ['anchor', 'recurring', 'transient'];
@@ -1779,6 +1785,7 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
       if (scene.newCharacters.length === 0) delete scene.newCharacters;
     }
     if (Array.isArray(scene.newLocations)) {
+      const seenInScene = new Set<string>();
       scene.newLocations = scene.newLocations.filter((l) => {
         if (!l.id || !l.name) {
           stripped.push(`newLocation missing required fields in scene ${scene.id}`);
@@ -1788,6 +1795,11 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           stripped.push(`newLocation "${l.id}" collides with existing location in scene ${scene.id}`);
           return false;
         }
+        if (seenInScene.has(l.id)) {
+          stripped.push(`newLocation "${l.id}" duplicated within scene ${scene.id} — second occurrence dropped`);
+          return false;
+        }
+        seenInScene.add(l.id);
         if (l.parentId && !validLocIds.has(l.parentId)) {
           stripped.push(`newLocation "${l.id}" has invalid parentId "${l.parentId}" in scene ${scene.id}`);
           l.parentId = null;
@@ -1826,6 +1838,7 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
       if (scene.newLocations!.length === 0) delete scene.newLocations;
     }
     if (Array.isArray(scene.newArtifacts)) {
+      const seenInScene = new Set<string>();
       scene.newArtifacts = scene.newArtifacts.filter((a) => {
         if (!a.id || !a.name) {
           stripped.push(`newArtifact missing required fields in scene ${scene.id}`);
@@ -1835,6 +1848,11 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           stripped.push(`newArtifact "${a.id}" collides with existing artifact in scene ${scene.id}`);
           return false;
         }
+        if (seenInScene.has(a.id)) {
+          stripped.push(`newArtifact "${a.id}" duplicated within scene ${scene.id} — second occurrence dropped`);
+          return false;
+        }
+        seenInScene.add(a.id);
         return true;
       }).map((a) => {
         const validSignificances: Artifact['significance'][] = ['key', 'notable', 'minor'];
@@ -1867,6 +1885,7 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
       if (scene.newArtifacts.length === 0) delete scene.newArtifacts;
     }
     if (Array.isArray(scene.newThreads)) {
+      const seenInScene = new Set<string>();
       scene.newThreads = scene.newThreads.filter((t) => {
         if (!t.id || !t.description) {
           stripped.push(`newThread missing required fields in scene ${scene.id}`);
@@ -1876,6 +1895,11 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           stripped.push(`newThread "${t.id}" collides with existing thread in scene ${scene.id}`);
           return false;
         }
+        if (seenInScene.has(t.id)) {
+          stripped.push(`newThread "${t.id}" duplicated within scene ${scene.id} — second occurrence dropped`);
+          return false;
+        }
+        seenInScene.add(t.id);
         return true;
       }).map((t) => {
         // ThreadParticipant only has {id, type}. Canonicalise to drop any
@@ -1893,6 +1917,19 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           }
           return [{ id: p.id, type: p.type }];
         });
+        // ThreadLog normalisation — the LLM sometimes returns the wrong
+        // shape (edges as object, nodes as array). Replace the malformed
+        // side with canonical empty; log so the drop isn't silent.
+        const rawNodes = t.threadLog?.nodes;
+        const nodesValid = rawNodes && typeof rawNodes === 'object' && !Array.isArray(rawNodes);
+        const rawEdges = t.threadLog?.edges;
+        const edgesValid = Array.isArray(rawEdges);
+        if (rawNodes !== undefined && !nodesValid) {
+          stripped.push(`newThread "${t.id}" threadLog.nodes malformed in scene ${scene.id} — replaced with {}`);
+        }
+        if (rawEdges !== undefined && !edgesValid) {
+          stripped.push(`newThread "${t.id}" threadLog.edges malformed in scene ${scene.id} — replaced with []`);
+        }
         return {
           id: t.id,
           description: t.description,
@@ -1901,11 +1938,8 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
           openedAt: t.openedAt ?? scene.id,
           dependents: t.dependents ?? [],
           threadLog: {
-            // LLM may return malformed shapes (edges as object, nodes as
-            // array) — normalise to the canonical {nodes:{}, edges:[]}
-            // before downstream code touches it.
-            nodes: t.threadLog?.nodes && typeof t.threadLog.nodes === 'object' && !Array.isArray(t.threadLog.nodes) ? t.threadLog.nodes : {},
-            edges: Array.isArray(t.threadLog?.edges) ? t.threadLog.edges : [],
+            nodes: nodesValid ? rawNodes : {},
+            edges: edgesValid ? rawEdges : [],
           },
         };
       });
@@ -1913,6 +1947,89 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
         validThreadIds.add(t.id);
       }
       if (scene.newThreads.length === 0) delete scene.newThreads;
+    }
+  }
+
+  // ── Between passes: validate cross-entity refs on newly-introduced
+  // entities. All entity + thread IDs are registered in the valid sets by
+  // now, so threadIds / tiedCharacterIds / parentId / internal world.edges
+  // can be checked against the combined (existing + batch-introduced) set.
+  const pruneWorldEdges = (
+    world: { nodes: Record<string, unknown>; edges: { from: string; to: string }[] },
+    label: string,
+    sceneId: string,
+  ) => {
+    const before = world.edges.length;
+    const nodeIds = new Set(Object.keys(world.nodes));
+    world.edges = world.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
+    if (world.edges.length < before) {
+      stripped.push(`${label} world edges (${before - world.edges.length}) reference missing nodes in scene ${sceneId}`);
+    }
+  };
+  for (const scene of scenes) {
+    for (const c of scene.newCharacters ?? []) {
+      c.threadIds = c.threadIds.filter((tid) => {
+        if (validThreadIds.has(tid)) return true;
+        stripped.push(`newCharacter "${c.id}" threadId "${tid}" in scene ${scene.id}`);
+        return false;
+      });
+      pruneWorldEdges(c.world, `newCharacter "${c.id}"`, scene.id);
+    }
+    for (const l of scene.newLocations ?? []) {
+      l.threadIds = l.threadIds.filter((tid) => {
+        if (validThreadIds.has(tid)) return true;
+        stripped.push(`newLocation "${l.id}" threadId "${tid}" in scene ${scene.id}`);
+        return false;
+      });
+      l.tiedCharacterIds = l.tiedCharacterIds.filter((cid) => {
+        if (validCharIds.has(cid)) return true;
+        stripped.push(`newLocation "${l.id}" tiedCharacterId "${cid}" in scene ${scene.id}`);
+        return false;
+      });
+      pruneWorldEdges(l.world, `newLocation "${l.id}"`, scene.id);
+    }
+    for (const a of scene.newArtifacts ?? []) {
+      a.threadIds = a.threadIds.filter((tid) => {
+        if (validThreadIds.has(tid)) return true;
+        stripped.push(`newArtifact "${a.id}" threadId "${tid}" in scene ${scene.id}`);
+        return false;
+      });
+      // Artifact parent is a character, a location, or null (world-owned).
+      // Anything else is a hallucination — clear to null rather than keeping
+      // a dangling reference that breaks ownership chains downstream.
+      if (a.parentId != null && !validCharIds.has(a.parentId) && !validLocIds.has(a.parentId)) {
+        stripped.push(`newArtifact "${a.id}" parentId "${a.parentId}" in scene ${scene.id}`);
+        a.parentId = null;
+      }
+      pruneWorldEdges(a.world, `newArtifact "${a.id}"`, scene.id);
+    }
+    for (const t of scene.newThreads ?? []) {
+      // Dependents reference OTHER threads. Validated here (not in first
+      // pass) because cross-scene newThreads need to be registered first.
+      t.dependents = t.dependents.filter((tid) => {
+        if (tid === t.id) {
+          stripped.push(`newThread "${t.id}" dependent self-loop in scene ${scene.id}`);
+          return false;
+        }
+        if (validThreadIds.has(tid)) return true;
+        stripped.push(`newThread "${t.id}" dependent "${tid}" in scene ${scene.id}`);
+        return false;
+      });
+      // threadLog nodes — drop entries missing required fields.
+      const nodeIds = new Set(Object.keys(t.threadLog.nodes));
+      for (const [nodeId, node] of Object.entries(t.threadLog.nodes)) {
+        if (!node || typeof node.content !== 'string' || !node.content.trim() || typeof node.type !== 'string') {
+          stripped.push(`newThread "${t.id}" threadLog node "${nodeId}" missing fields in scene ${scene.id}`);
+          delete t.threadLog.nodes[nodeId];
+          nodeIds.delete(nodeId);
+        }
+      }
+      // threadLog edges must reference threadLog nodes on the same thread.
+      const beforeEdges = t.threadLog.edges.length;
+      t.threadLog.edges = t.threadLog.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
+      if (t.threadLog.edges.length < beforeEdges) {
+        stripped.push(`newThread "${t.id}" threadLog edges (${beforeEdges - t.threadLog.edges.length}) reference missing log nodes in scene ${scene.id}`);
+      }
     }
   }
 
@@ -1984,7 +2101,13 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
     for (const tm of scene.threadDeltas) {
       const fallbackType = tm.from === tm.to ? 'pulse' : 'transition';
       tm.addedNodes = (tm.addedNodes ?? [])
-        .filter((n) => n && typeof n.content === 'string' && n.content.trim())
+        .filter((n, idx) => {
+          const ok = n && typeof n.content === 'string' && n.content.trim();
+          if (!ok) {
+            stripped.push(`threadDelta "${tm.threadId}" addedNode[${idx}] empty/malformed in scene ${scene.id}`);
+          }
+          return ok;
+        })
         .map((n, idx) => ({
           id: n.id || `TK-GEN-${idx}`,
           content: n.content,
@@ -2071,27 +2194,27 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
     // Sanitize systemDeltas — ensure arrays exist, nodes have concept+type,
     // edges have valid refs, no self-loops, no intra-scene duplicates.
     if (scene.systemDeltas) {
-      const wkm = scene.systemDeltas;
-      const beforeNodes = (wkm.addedNodes ?? []).length;
-      const beforeEdges = (wkm.addedEdges ?? []).length;
+      const sysDelta = scene.systemDeltas;
+      const beforeNodes = (sysDelta.addedNodes ?? []).length;
+      const beforeEdges = (sysDelta.addedEdges ?? []).length;
       // Ensure each node carries an id (LLM may omit when emitting arrays) so
       // sanitize's field check doesn't spuriously drop them. IDs here are
       // still GEN-* placeholders — downstream remapping assigns real ones.
-      wkm.addedNodes = (wkm.addedNodes ?? []).map((n, idx) => ({
+      sysDelta.addedNodes = (sysDelta.addedNodes ?? []).map((n, idx) => ({
         ...n,
         id: n.id || `SYS-GEN-${idx}`,
       }));
-      for (const n of wkm.addedNodes) {
-        if (n?.id) batchWkNodeIds.add(n.id);
+      for (const n of sysDelta.addedNodes) {
+        if (n?.id) batchSysNodeIds.add(n.id);
       }
-      // Valid targets for edges: any WK-GEN id anywhere in the batch plus
+      // Valid targets for edges: any SYS-GEN id anywhere in the batch plus
       // existing graph ids — edges can legitimately cross scene boundaries.
-      sanitizeSystemDelta(wkm, batchWkNodeIds, new Set<string>());
-      if (wkm.addedNodes.length < beforeNodes) {
-        stripped.push(`system nodes (${beforeNodes - wkm.addedNodes.length}) missing concept/type in scene ${scene.id}`);
+      sanitizeSystemDelta(sysDelta, batchSysNodeIds, new Set<string>());
+      if (sysDelta.addedNodes.length < beforeNodes) {
+        stripped.push(`system nodes (${beforeNodes - sysDelta.addedNodes.length}) missing concept/type in scene ${scene.id}`);
       }
-      if (wkm.addedEdges.length < beforeEdges) {
-        stripped.push(`system edges (${beforeEdges - wkm.addedEdges.length}) invalid/self-loop/dup in scene ${scene.id}`);
+      if (sysDelta.addedEdges.length < beforeEdges) {
+        stripped.push(`system edges (${beforeEdges - sysDelta.addedEdges.length}) invalid/self-loop/dup in scene ${scene.id}`);
       }
     } else {
       scene.systemDeltas = { addedNodes: [], addedEdges: [] };
@@ -2100,7 +2223,13 @@ export function sanitizeScenes(scenes: Scene[], narrative: NarrativeState, label
     // the chain — no explicit edges are stored. Type sanitization in applyWorldDelta.
     scene.worldDeltas = scene.worldDeltas.filter((km) => {
       if (!km.entityId) { stripped.push(`worldDelta missing entityId in scene ${scene.id}`); return false; }
-      km.addedNodes = (km.addedNodes ?? []).filter(n => n.content);
+      km.addedNodes = (km.addedNodes ?? []).filter((n, idx) => {
+        const ok = !!n?.content;
+        if (!ok) {
+          stripped.push(`worldDelta "${km.entityId}" addedNode[${idx}] empty/malformed in scene ${scene.id}`);
+        }
+        return ok;
+      });
       if (km.addedNodes.length === 0) {
         stripped.push(`worldDelta empty (no nodes) in scene ${scene.id}`);
         return false;

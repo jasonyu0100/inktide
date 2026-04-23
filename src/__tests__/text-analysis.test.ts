@@ -1163,14 +1163,14 @@ describe('assembleNarrative', () => {
     const scene = Object.values(narrative.scenes)[0];
     expect(scene.systemDeltas).toBeDefined();
     expect(scene.systemDeltas!.addedNodes.length).toBeGreaterThan(0);
-    // Nodes should have WK- prefixed IDs
+    // Nodes should have SYS- prefixed IDs
     for (const node of scene.systemDeltas!.addedNodes) {
-      expect(node.id).toMatch(/^WK-/);
+      expect(node.id).toMatch(/^SYS-/);
     }
-    // Edges should reference valid WK IDs
+    // Edges should reference valid SYS IDs
     for (const edge of scene.systemDeltas!.addedEdges) {
-      expect(edge.from).toMatch(/^WK-/);
-      expect(edge.to).toMatch(/^WK-/);
+      expect(edge.from).toMatch(/^SYS-/);
+      expect(edge.to).toMatch(/^SYS-/);
     }
   });
   it('creates world builds with expansion manifests', async () => {

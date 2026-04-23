@@ -555,7 +555,7 @@ describe("generateScenes", () => {
   });
   // ── System delta handling ──────────────────────────────────────
   describe("systemDeltas", () => {
-    it("assigns sequential WK IDs to new concepts", async () => {
+    it("assigns sequential SYS IDs to new concepts", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
         scenes: [
@@ -585,19 +585,19 @@ describe("generateScenes", () => {
       vi.mocked(callGenerate).mockResolvedValue(mockResponse);
       const narrative = createMinimalNarrative();
       const result = await generateScenes(narrative, [], 0, 1, "Test");
-      const wkm = result.scenes[0].systemDeltas!;
-      expect(wkm.addedNodes).toHaveLength(2);
-      expect(wkm.addedNodes[0].id).toBe("SYS-01");
-      expect(wkm.addedNodes[1].id).toBe("SYS-02");
+      const sysDelta = result.scenes[0].systemDeltas!;
+      expect(sysDelta.addedNodes).toHaveLength(2);
+      expect(sysDelta.addedNodes[0].id).toBe("SYS-01");
+      expect(sysDelta.addedNodes[1].id).toBe("SYS-02");
       // Edge endpoints were remapped from SYS-GEN-* to real ids
-      expect(wkm.addedEdges).toHaveLength(1);
-      expect(wkm.addedEdges[0]).toEqual({
+      expect(sysDelta.addedEdges).toHaveLength(1);
+      expect(sysDelta.addedEdges[0]).toEqual({
         from: "SYS-02",
         to: "SYS-01",
         relation: "enables",
       });
     });
-    it("collapses re-asserted concepts to existing WK ids (no System inflation)", async () => {
+    it("collapses re-asserted concepts to existing SYS ids (no System inflation)", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
         scenes: [
@@ -626,7 +626,7 @@ describe("generateScenes", () => {
       // Pre-seed the graph with a matching concept under a different id.
       narrative.systemGraph = {
         nodes: {
-          "WK-07": { id: "WK-07", concept: "Mana Binding", type: "system" },
+          "SYS-07": { id: "SYS-07", concept: "Mana Binding", type: "system" },
         },
         edges: [],
       };
@@ -812,7 +812,7 @@ describe("generateScenes", () => {
             relationshipDeltas: [],
             systemDeltas: {
               addedNodes: [],
-              // Both concepts collapse to existing WK ids; the edge is a dup of S1.
+              // Both concepts collapse to existing SYS ids; the edge is a dup of S1.
               addedEdges: [
                 { from: "SYS-GEN-1", to: "SYS-GEN-2", relation: "enables" },
               ],
@@ -828,7 +828,7 @@ describe("generateScenes", () => {
       expect(result.scenes[0].systemDeltas!.addedEdges).toHaveLength(1);
       expect(result.scenes[1].systemDeltas!.addedEdges).toHaveLength(0);
     });
-    it("drops orphan edges referencing unknown WK ids", async () => {
+    it("drops orphan edges referencing unknown SYS ids", async () => {
       const mockResponse = JSON.stringify({
         arcName: "Arc",
         scenes: [
@@ -846,9 +846,9 @@ describe("generateScenes", () => {
               addedNodes: [
                 { id: "SYS-GEN-1", concept: "Mana", type: "concept" },
               ],
-              // WK-99 doesn't exist anywhere.
+              // SYS-99 doesn't exist anywhere.
               addedEdges: [
-                { from: "SYS-GEN-1", to: "WK-99", relation: "enables" },
+                { from: "SYS-GEN-1", to: "SYS-99", relation: "enables" },
               ],
             },
             summary: "S",

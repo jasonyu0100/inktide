@@ -197,12 +197,8 @@ describe('makeSystemIdAllocator', () => {
     expect(alloc()).toBe('SYS-06');
     expect(alloc()).toBe('SYS-07');
   });
-  it('supports legacy WK- prefix in seed', () => {
-    const alloc = makeSystemIdAllocator(['WK-01', 'WK-05', 'WK-03']);
-    expect(alloc()).toBe('SYS-06');
-  });
-  it('ignores non-SYS/WK ids in seed', () => {
-    const alloc = makeSystemIdAllocator(['C-01', 'L-02', 'T-99']);
+  it('ignores non-SYS ids in seed', () => {
+    const alloc = makeSystemIdAllocator(['C-01', 'L-02', 'T-99', 'WK-09']);
     expect(alloc()).toBe('SYS-01');
   });
   it('ignores malformed ids in seed', () => {

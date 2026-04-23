@@ -95,7 +95,7 @@ export const DELIVERY_DIRECTIONS: Record<DeliveryDirection, { name: string; desc
 - THREADS: Pulse at current status rather than advancing — but every scene MUST still touch 2-3 threads. Use same→same pulses (0.25 each) to show threads simmering.
 - RELATIONSHIPS: Subtle recalibration — characters process what happened THROUGH each other. Shifts of ±0.1 to ±0.2 as bonds deepen or strain reveals itself quietly.
 - CONTINUITY: Characters reflect and notice things they missed during intensity — 2-3 world deltas per scene. Realisations, not revelations.
-- WORLD: The world's quieter systems emerge — domestic customs, social rituals, environmental rhythms. 1-2 WK nodes per scene showing the world at rest.
+- WORLD: The world's quieter systems emerge — domestic customs, social rituals, environmental rhythms. 1-2 system nodes per scene showing the world at rest.
 - Stay with one POV in familiar settings.`,
   },
   surge: {
@@ -116,7 +116,7 @@ AFTERMATH (final scenes):
     description: 'Fall then rise — stillness gives way to momentum',
     prompt: `Structure this arc as a valley that builds into forward momentum.
 OPENING (quiet scenes):
-- Threads pulse at current status (2-3 pulses per scene). Characters process and reflect (2-3 world deltas). Relationships hold or shift subtly (±0.1). World's quiet systems revealed (1 WK node per scene).
+- Threads pulse at current status (2-3 pulses per scene). Characters process and reflect (2-3 world deltas). Relationships hold or shift subtly (±0.1). World's quiet systems revealed (1 system node per scene).
 
 TURN (middle):
 - One thread breaks the stillness with a real phase transition. A character learns something crucial — the catalyst. One world concept is revealed that changes the calculus.

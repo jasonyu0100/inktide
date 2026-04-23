@@ -645,8 +645,6 @@ export function CanvasTopBar() {
 
       {canvasMode === 'search' && (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-amber-400/60">Search</span>
-
           {/* Clear Search button */}
           <div className="w-px h-3 bg-border" />
           <button

@@ -454,8 +454,8 @@ export default function ThreadDetail({ threadId }: Props) {
                         style={{ background: color }}
                       />
                       <span
-                        className={`text-xs truncate flex-1 ${isWinner ? "text-text-primary font-medium" : "text-text-secondary"}`}
-                        title={`${outcome}\n\nprobability ${Math.round(prob * 100)}% · logit ${logit.toFixed(2)}\n\nThe logit is the raw log-odds behind the probability. Evidence +e shifts it by e / ${Math.round(2)}; softmax renormalizes to the probability.`}
+                        className={`text-xs flex-1 wrap-break-word min-w-0 leading-snug ${isWinner ? "text-text-primary font-medium" : "text-text-secondary"}`}
+                        title={`${outcome}\n\nprobability ${Math.round(prob * 100)}% · logit ${logit.toFixed(2)}\n\nThe logit is the raw log-odds behind the probability. Evidence +e shifts it by e / 2; softmax renormalizes to the probability.`}
                       >
                         {outcome}
                       </span>

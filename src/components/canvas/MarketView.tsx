@@ -313,13 +313,15 @@ function FeaturedMarket({
         {/* Outcome list */}
         <div className="flex flex-col gap-2 self-center">
           {ranked.map(({ outcome, idx, prob }) => (
-            <div key={`${outcome}-${idx}`} className="flex items-center gap-2">
+            <div key={`${outcome}-${idx}`} className="flex items-start gap-2">
               <span
-                className="w-2.5 h-2.5 rounded-sm shrink-0"
+                className="w-2.5 h-2.5 rounded-sm shrink-0 mt-1"
                 style={{ background: OUTCOME_HEX[idx % OUTCOME_HEX.length] }}
               />
-              <span className="text-xs text-text-primary truncate flex-1">{outcome}</span>
-              <span className="text-sm font-semibold font-mono tabular-nums text-text-primary">
+              <span className="text-xs text-text-primary flex-1 wrap-break-word min-w-0 leading-snug">
+                {outcome}
+              </span>
+              <span className="text-sm font-semibold font-mono tabular-nums text-text-primary shrink-0">
                 {Math.round(prob * 100)}%
               </span>
             </div>

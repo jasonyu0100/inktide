@@ -7,12 +7,11 @@
  * dashboard animates alongside it.
  *
  * Layout:
- *   ┌─────────────────────────────┬──────────────┐
- *   │  Featured market            │  Breaking    │
- *   │    outcomes + trajectory    │  Hot topics  │
- *   ├─────────────────────────────┴──────────────┤
- *   │  All markets (filter bar + card grid)       │
- *   └─────────────────────────────────────────────┘
+ *   1. Drill-down — featured market + scrollable market list sidebar (lead panel)
+ *   2. Overview — KPI sparkline cards (current value + trend up to now)
+ *   3. Movers — top probability shifts + volatility leaders
+ *   4. Composition — category mix, uncertainty histogram, resolution quality
+ *   5. Screener — all-markets grid with category filter
  *
  * We're passive observers right now — the dashboard reads the narrative but
  * never dispatches evidence. Future iterations will add controls for
@@ -24,11 +23,15 @@ import type { NarrativeState, Thread } from '@/types/narrative';
 import { useStore } from '@/lib/store';
 import {
   buildPortfolioRows,
+  buildPortfolioTrajectory,
   buildThreadTrajectory,
   computePortfolioSnapshot,
+  computeRecentMovements,
   currentFocusIds,
   replayThreadsAtIndex,
   type PortfolioRow,
+  type PortfolioTrajectoryPoint,
+  type ThreadMovement,
   type ThreadTrajectoryPoint,
 } from '@/lib/portfolio-analytics';
 import {
@@ -486,6 +489,16 @@ function MarketListSidebar({
             >
               {THREAD_CATEGORY_LABEL[row.category]}
             </span>
+            <span
+              className="ml-auto font-mono tabular-nums text-[9px] px-1.5 py-px rounded-sm border border-white/10 bg-white/5 text-text-secondary shrink-0"
+              title={`Focus score = volume × entropy × (1 + volatility) × recency^gap\n\nvolume ${row.volume.toFixed(1)} · entropy ${row.entropy.toFixed(2)} · volatility ${row.volatility.toFixed(2)} · gap ${Number.isFinite(row.gap) ? row.gap : '∞'}`}
+            >
+              {row.focus >= 10
+                ? row.focus.toFixed(1)
+                : row.focus >= 1
+                  ? row.focus.toFixed(2)
+                  : row.focus.toFixed(3)}
+            </span>
           </div>
           <p className="text-[11px] text-text-primary leading-snug line-clamp-2 wrap-break-word">
             {row.thread.description}
@@ -572,40 +585,147 @@ function MarketListSidebar({
   );
 }
 
-// ── Economic dashboard tiles ───────────────────────────────────────────────
+// ── Sparkline — lightweight SVG line chart for KPI trends ──────────────────
 
-function KPITile({
+function Sparkline({
+  values,
+  color,
+  fill,
+  yMin,
+  yMax,
+}: {
+  values: number[];
+  color: string;
+  fill?: string;
+  yMin?: number;
+  yMax?: number;
+}) {
+  if (values.length === 0) {
+    return (
+      <div className="h-10 w-full flex items-center justify-center text-[9px] text-text-dim/60">
+        no data
+      </div>
+    );
+  }
+  const W = 200;
+  const H = 40;
+  const pad = 2;
+  const minY = yMin ?? Math.min(...values);
+  const maxY = yMax ?? Math.max(...values);
+  const range = Math.max(1e-9, maxY - minY);
+  const n = values.length;
+  const xAt = (i: number) =>
+    n === 1 ? W / 2 : pad + (i / (n - 1)) * (W - pad * 2);
+  const yAt = (v: number) =>
+    pad + (1 - (v - minY) / range) * (H - pad * 2);
+  const linePath = values
+    .map((v, i) => `${i === 0 ? 'M' : 'L'} ${xAt(i).toFixed(1)} ${yAt(v).toFixed(1)}`)
+    .join(' ');
+  const areaPath = `${linePath} L ${xAt(n - 1).toFixed(1)} ${H - pad} L ${xAt(0).toFixed(1)} ${H - pad} Z`;
+  const last = values[values.length - 1];
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      className="h-10 w-full"
+      aria-hidden="true"
+    >
+      {fill && <path d={areaPath} fill={fill} />}
+      <path d={linePath} fill="none" stroke={color} strokeWidth={1.2} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={xAt(n - 1)} cy={yAt(last)} r={1.6} fill={color} />
+    </svg>
+  );
+}
+
+// ── KPI trend card — current value + sparkline + delta vs. start ───────────
+
+function KPITrendCard({
   label,
-  value,
-  sub,
+  points,
+  valueFn,
+  formatValue,
+  formatDelta,
   hint,
   accent,
+  yMin,
+  yMax,
+  deltaBetter,
 }: {
   label: string;
-  value: string;
-  sub?: string;
+  points: PortfolioTrajectoryPoint[];
+  valueFn: (p: PortfolioTrajectoryPoint) => number;
+  formatValue: (v: number) => string;
+  formatDelta?: (d: number) => string;
   hint?: string;
   accent?: string;
+  yMin?: number;
+  yMax?: number;
+  /** Which direction of movement is "good" (green). For uncertainty, falling
+   *  might be positive; for attention, rising is positive. Defaults to "up". */
+  deltaBetter?: 'up' | 'down' | 'neutral';
 }) {
+  const values = useMemo(() => points.map(valueFn), [points, valueFn]);
+  const hasData = values.length > 0;
+  const current = hasData ? values[values.length - 1] : 0;
+  const start = hasData ? values[0] : 0;
+  const peak = hasData ? Math.max(...values) : 0;
+  const delta = current - start;
+  const showDelta = hasData && values.length > 1 && Math.abs(delta) > 1e-6;
+  const better = deltaBetter ?? 'up';
+  const deltaColor =
+    !showDelta || better === 'neutral'
+      ? 'var(--color-text-dim)'
+      : (delta > 0 && better === 'up') || (delta < 0 && better === 'down')
+        ? '#34d399'
+        : '#fb7185';
+  const lineColor = accent ?? '#38bdf8';
+  const fillColor = `${lineColor}22`;
   return (
     <div
-      className="relative flex flex-col gap-1 p-3.5 rounded-xl border border-white/8 bg-white/2.5 backdrop-blur-xl min-w-0 overflow-hidden shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_12px_30px_-18px_rgba(0,0,0,0.6)]"
+      className="relative flex flex-col gap-1.5 p-3.5 rounded-xl border border-white/8 bg-white/2.5 backdrop-blur-xl min-w-0 overflow-hidden shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_12px_30px_-18px_rgba(0,0,0,0.6)]"
       title={hint}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-white/12 to-transparent" />
-      <span className="text-[10px] uppercase tracking-widest text-text-dim truncate">
-        {label}
-      </span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-widest text-text-dim truncate">
+          {label}
+        </span>
+        {showDelta && (
+          <span
+            className="text-[10px] font-mono tabular-nums shrink-0"
+            style={{ color: deltaColor }}
+            title={`Change since scene ${points[0].sceneOrdinal}: ${formatDelta ? formatDelta(delta) : delta.toFixed(2)}`}
+          >
+            {delta >= 0 ? '▲' : '▼'}
+            {formatDelta ? formatDelta(Math.abs(delta)) : Math.abs(delta).toFixed(2)}
+          </span>
+        )}
+      </div>
       <span
         className="text-lg font-mono tabular-nums leading-tight"
-        style={{ color: accent ?? '#e8e8e8' }}
+        style={{ color: lineColor }}
       >
-        {value}
+        {hasData ? formatValue(current) : '—'}
       </span>
-      {sub && (
-        <span className="text-[10px] text-text-dim font-mono tabular-nums truncate">
-          {sub}
-        </span>
+      <Sparkline
+        values={values}
+        color={lineColor}
+        fill={fillColor}
+        yMin={yMin}
+        yMax={yMax}
+      />
+      {hasData && (
+        <div className="flex items-center justify-between text-[9px] text-text-dim font-mono tabular-nums">
+          <span title={`Value at first charted scene (scene ${points[0].sceneOrdinal}).`}>
+            start {formatValue(start)}
+          </span>
+          <span title="Highest value reached across the charted window.">
+            peak {formatValue(peak)}
+          </span>
+          <span title={`Scenes covered by this trend (up to scene ${points[points.length - 1].sceneOrdinal}).`}>
+            {values.length} scn
+          </span>
+        </div>
       )}
     </div>
   );
@@ -747,6 +867,86 @@ function ResolutionQualityPanel({
 }
 
 // ── Instrument: volatility leaders ─────────────────────────────────────────
+
+// ── Instrument: top movers (probability shift vs. N scenes ago) ───────────
+
+function TopMovers({
+  movements,
+  rowsById,
+  lookback,
+  onSelect,
+}: {
+  movements: ThreadMovement[];
+  rowsById: Map<string, PortfolioRow>;
+  lookback: number;
+  onSelect: (id: string) => void;
+}) {
+  const top = movements.filter((m) => Math.abs(m.deltaProb) >= 0.01).slice(0, 5);
+  return (
+    <div className="relative flex flex-col gap-3 p-4 rounded-xl border border-white/8 bg-white/2.5 backdrop-blur-xl overflow-hidden shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset,0_12px_30px_-18px_rgba(0,0,0,0.6)]">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[11px] uppercase tracking-widest text-text-dim">
+          Top movers
+        </h3>
+        <span
+          className="text-[10px] text-text-dim"
+          title={`Change in leading-outcome probability vs. ${lookback} scenes ago.`}
+        >
+          vs −{lookback} scenes
+        </span>
+      </div>
+      {top.length === 0 ? (
+        <p className="text-[11px] text-text-dim">No material movement in the window.</p>
+      ) : (
+        <div className="flex flex-col">
+          {top.map((m) => {
+            const row = rowsById.get(m.threadId);
+            const up = m.deltaProb >= 0;
+            const deltaPct = (m.deltaProb * 100).toFixed(1);
+            const accent = up ? '#34D399' : '#FB7185';
+            return (
+              <button
+                key={m.threadId}
+                onClick={() => onSelect(m.threadId)}
+                className="group flex items-center gap-2 py-1.5 border-b border-white/4 last:border-b-0 hover:bg-white/3 transition-colors text-left -mx-1 px-1"
+              >
+                <span
+                  className="text-[10px] font-mono tabular-nums w-8 text-right shrink-0"
+                  style={{ color: accent }}
+                >
+                  {up ? '▲' : '▼'}
+                  {Math.abs(Number(deltaPct))}%
+                </span>
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <span className="text-[11px] text-text-primary truncate">
+                    {row?.thread.description ?? m.threadId}
+                  </span>
+                  <span className="text-[10px] text-text-dim font-mono truncate">
+                    {m.topOutcome}{' '}
+                    <span className="text-text-dim/70">
+                      {Math.round(m.priorProb * 100)}% → {Math.round(m.nowProb * 100)}%
+                    </span>
+                  </span>
+                </div>
+                {row && (
+                  <span
+                    className="text-[9px] uppercase tracking-wider shrink-0"
+                    style={{ color: THREAD_CATEGORY_HEX[row.category] }}
+                    title={THREAD_CATEGORY_DESCRIPTION[row.category]}
+                  >
+                    {THREAD_CATEGORY_LABEL[row.category]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Instrument: volatility leaders (EWMA of recent shock) ──────────────────
 
 function VolatilityLeaders({
   rows,
@@ -984,6 +1184,27 @@ export default function MarketView() {
     return rows.filter((r) => r.category === catFilter);
   }, [rows, catFilter]);
 
+  // Movers — probability shift over the last N scenes. Default window of 5
+  // matches the analyst's "what happened recently?" glance. Short-circuit for
+  // empty narratives so we don't waste a replay pass.
+  const MOVERS_LOOKBACK = 5;
+  const movements = useMemo(() => {
+    if (!narrative) return [] as ThreadMovement[];
+    return computeRecentMovements(narrative, resolvedKeys, currentIndex, MOVERS_LOOKBACK);
+  }, [narrative, resolvedKeys, currentIndex]);
+  const rowsById = useMemo(() => {
+    const m = new Map<string, PortfolioRow>();
+    for (const r of rows) m.set(r.thread.id, r);
+    return m;
+  }, [rows]);
+
+  // Portfolio trajectory — scene-by-scene snapshot of every KPI. One pass
+  // over the timeline; feeds every Overview sparkline card.
+  const trajectory = useMemo(() => {
+    if (!narrative) return [] as PortfolioTrajectoryPoint[];
+    return buildPortfolioTrajectory(narrative, resolvedKeys, currentIndex);
+  }, [narrative, resolvedKeys, currentIndex]);
+
   if (!narrative) {
     return (
       <div className="h-full w-full flex items-center justify-center text-[11px] text-text-dim">
@@ -1006,23 +1227,6 @@ export default function MarketView() {
     dispatch({ type: 'SET_INSPECTOR', context: { type: 'thread', threadId: id } });
   };
 
-  // Economic indicators derived from rows + snapshot.
-  const liveRows = rows.filter(
-    (r) => r.category !== 'resolved' && r.category !== 'abandoned',
-  );
-  const avgVolatility =
-    liveRows.length > 0
-      ? liveRows.reduce((s, r) => s + r.volatility, 0) / liveRows.length
-      : 0;
-  const saturationRate =
-    liveRows.length > 0
-      ? liveRows.filter((r) => r.category === 'saturating').length / liveRows.length
-      : 0;
-  const contestedRate =
-    liveRows.length > 0
-      ? liveRows.filter((r) => r.category === 'contested').length / liveRows.length
-      : 0;
-
   return (
     <div className="h-full w-full overflow-y-auto">
       <div className="max-w-[1400px] mx-auto px-6 py-5 flex flex-col gap-5">
@@ -1038,102 +1242,162 @@ export default function MarketView() {
           </div>
         )}
 
-        {/* Featured market + in-view market list (right side) */}
-        <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-4 items-stretch">
-          {featuredThread && featuredRow ? (
-            <FeaturedMarket
-              thread={featuredThread}
-              points={featuredTrajectory}
-              category={featuredRow.category}
+        {/* 1. Drill-down — featured market + market list, up top per user preference. */}
+        <div className="flex flex-col gap-2">
+          <h2 className="text-[11px] uppercase tracking-widest text-text-dim">
+            Drill-down
+          </h2>
+          <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-4 items-stretch">
+            {featuredThread && featuredRow ? (
+              <FeaturedMarket
+                thread={featuredThread}
+                points={featuredTrajectory}
+                category={featuredRow.category}
+              />
+            ) : (
+              <div className="rounded-xl border border-white/8 p-6 text-[11px] text-text-dim">
+                Select a market to feature.
+              </div>
+            )}
+            <MarketListSidebar
+              rows={rows}
+              focusIds={focusIds}
+              selectedId={featuredId}
+              onSelect={selectThread}
             />
-          ) : (
-            <div className="rounded-xl border border-white/8 p-6 text-[11px] text-text-dim">
-              Select a market to feature.
-            </div>
-          )}
-          <MarketListSidebar
-            rows={rows}
-            focusIds={focusIds}
-            selectedId={featuredId}
-            onSelect={selectThread}
-          />
+          </div>
         </div>
 
-        {/* Economic indicators — KPI tiles */}
+        {/* 2. Overview — KPI trend cards (current value + sparkline). */}
         {snapshot && (
           <div className="flex flex-col gap-2">
             <h2 className="text-[11px] uppercase tracking-widest text-text-dim">
-              Economic indicators
+              Overview
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
-              <KPITile
-                label="Attention"
-                value={snapshot.marketCap.toFixed(0)}
-                sub="cumulative volume"
-                hint="Total volume across open markets — the market cap of narrative attention."
-              />
-              <KPITile
-                label="Uncertainty"
-                value={`${Math.round(snapshot.averageEntropy * 100)}%`}
-                sub="avg entropy"
-                hint="Average normalized entropy across open markets. 100% = maximally contested."
-              />
-              <KPITile
-                label="Volatility"
-                value={`σ ${avgVolatility.toFixed(2)}`}
-                sub={`${liveRows.length} live`}
-                hint="EWMA of recent evidence magnitude, averaged across live markets."
-              />
-              <KPITile
-                label="Saturation"
-                value={`${Math.round(saturationRate * 100)}%`}
-                sub={`${snapshot.nearClosedThreads} near-closed`}
-                hint="Share of live markets within the near-closure band."
-                accent={saturationRate > 0 ? THREAD_CATEGORY_HEX.saturating : undefined}
-              />
-              <KPITile
-                label="Contested"
-                value={`${Math.round(contestedRate * 100)}%`}
-                sub="share of live"
-                hint="Share of live markets in the contested (high-entropy) category."
-                accent={contestedRate > 0 ? THREAD_CATEGORY_HEX.contested : undefined}
-              />
-              <KPITile
-                label="Resolved"
-                value={String(snapshot.closedThreads)}
-                sub={
-                  snapshot.averageResolutionQuality !== null
-                    ? `avg ${Math.round(snapshot.averageResolutionQuality * 100)}%`
-                    : 'none yet'
-                }
-                hint="Number of markets that have closed to a winning outcome."
-                accent={
-                  snapshot.closedThreads > 0 ? THREAD_CATEGORY_HEX.resolved : undefined
-                }
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                <KPITrendCard
+                  label="Attention"
+                  points={trajectory}
+                  valueFn={(p) => p.attention}
+                  formatValue={(v) => v.toFixed(0)}
+                  formatDelta={(d) => d.toFixed(1)}
+                  hint={
+                    "ATTENTION over time — cumulative volume across open markets, scene by scene.\n\nRising = story is loading more narrative weight onto active threads. Falling = attention is decaying faster than new evidence is coming in."
+                  }
+                  accent="#38bdf8"
+                  deltaBetter="up"
+                />
+                <KPITrendCard
+                  label="Uncertainty"
+                  points={trajectory}
+                  valueFn={(p) => p.uncertainty * 100}
+                  formatValue={(v) => `${Math.round(v)}%`}
+                  formatDelta={(d) => `${d.toFixed(1)}pp`}
+                  hint={
+                    "UNCERTAINTY over time — average normalized entropy across open markets.\n\n100% = every outcome equally likely. A healthy arc usually trends down as markets commit; a flat-high line means the story isn't paying off its questions."
+                  }
+                  accent="#fbbf24"
+                  yMin={0}
+                  yMax={100}
+                  deltaBetter="down"
+                />
+                <KPITrendCard
+                  label="Volatility"
+                  points={trajectory}
+                  valueFn={(p) => p.volatility}
+                  formatValue={(v) => `σ ${v.toFixed(2)}`}
+                  formatDelta={(d) => d.toFixed(2)}
+                  hint={
+                    "VOLATILITY over time — average EWMA of recent evidence magnitude.\n\nSpikes mark scenes where multiple markets took large shocks. Flat = quiet book. Use this to spot when the story entered a turbulent stretch."
+                  }
+                  accent="#a78bfa"
+                  deltaBetter="neutral"
+                />
+                <KPITrendCard
+                  label="Saturation"
+                  points={trajectory}
+                  valueFn={(p) => p.saturationRate * 100}
+                  formatValue={(v) => `${Math.round(v)}%`}
+                  formatDelta={(d) => `${d.toFixed(1)}pp`}
+                  hint={
+                    "SATURATION over time — share of live markets within the near-closure band.\n\nRises before climactic stretches (many markets converging on a decision). Sudden drop = a wave of closures fired."
+                  }
+                  accent={THREAD_CATEGORY_HEX.saturating}
+                  yMin={0}
+                  yMax={100}
+                  deltaBetter="up"
+                />
+                <KPITrendCard
+                  label="Contested"
+                  points={trajectory}
+                  valueFn={(p) => p.contestedRate * 100}
+                  formatValue={(v) => `${Math.round(v)}%`}
+                  formatDelta={(d) => `${d.toFixed(1)}pp`}
+                  hint={
+                    "CONTESTED over time — share of live markets with entropy ≥ 70%.\n\nHigh contested rate = the story is keeping questions open. Falls as markets commit; a late-story climb usually signals fresh questions being opened."
+                  }
+                  accent={THREAD_CATEGORY_HEX.contested}
+                  yMin={0}
+                  yMax={100}
+                  deltaBetter="neutral"
+                />
+                <KPITrendCard
+                  label="Resolved"
+                  points={trajectory}
+                  valueFn={(p) => p.closedCount}
+                  formatValue={(v) => String(Math.round(v))}
+                  formatDelta={(d) => `+${Math.round(d)}`}
+                  hint={
+                    "RESOLVED over time — cumulative count of markets that have closed.\n\nMonotonically non-decreasing. Flat = no closures; steep step = a payoff beat just landed. Gives you the resolution rhythm of the story."
+                  }
+                  accent={THREAD_CATEGORY_HEX.resolved}
+                  deltaBetter="up"
+                />
             </div>
           </div>
         )}
 
-        {/* Probabilistic instruments */}
-        {snapshot && rows.length > 0 && (
+        {/* 3. Movers — what shifted since the analyst last looked. */}
+        {rows.length > 0 && (
           <div className="flex flex-col gap-2">
             <h2 className="text-[11px] uppercase tracking-widest text-text-dim">
-              Instruments
+              Movers
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <CategoryBreakdown rows={rows} />
-              <ResolutionQualityPanel snapshot={snapshot} />
-              <EntropyHistogram rows={rows} />
+              <TopMovers
+                movements={movements}
+                rowsById={rowsById}
+                lookback={MOVERS_LOOKBACK}
+                onSelect={selectThread}
+              />
               <VolatilityLeaders rows={rows} onSelect={selectThread} />
             </div>
           </div>
         )}
 
-        {/* All markets — partitioned into Focus / Out of focus */}
+        {/* 4. Composition — how the portfolio is shaped. */}
+        {snapshot && rows.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <h2 className="text-[11px] uppercase tracking-widest text-text-dim">
+              Composition
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <CategoryBreakdown rows={rows} />
+              <EntropyHistogram rows={rows} />
+              <ResolutionQualityPanel snapshot={snapshot} />
+            </div>
+          </div>
+        )}
+
+        {/* 5. Screener — all markets, filterable by category. */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <h2 className="text-sm font-semibold text-text-primary">All markets</h2>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-[11px] uppercase tracking-widest text-text-dim">
+                Screener
+              </h2>
+              <span className="text-[10px] text-text-dim/70">all markets</span>
+            </div>
             <span className="text-[10px] text-text-dim">
               {filteredRows.length} shown
             </span>

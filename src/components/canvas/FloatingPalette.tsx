@@ -141,6 +141,15 @@ export default function FloatingPalette({
       : 'text-red-400 bg-red-500/10 hover:bg-red-500/20';
   }, [healthOpen, scenesSinceLastExpansion]);
 
+  // Standalone badge palette — stronger contrast than the button background
+  // so the count is legible even on hover. Matches the same 8/12/16 bands.
+  const freshnessBadgeClass = useMemo(() => {
+    if (scenesSinceLastExpansion < 8) return 'bg-emerald-500/90 text-bg-base';
+    if (scenesSinceLastExpansion < 12) return 'bg-lime-500/90 text-bg-base';
+    if (scenesSinceLastExpansion < 16) return 'bg-orange-500/90 text-bg-base';
+    return 'bg-red-500/90 text-bg-base';
+  }, [scenesSinceLastExpansion]);
+
   // Dismiss the popover on outside click.
   useEffect(() => {
     if (!healthOpen) return;
@@ -808,7 +817,9 @@ export default function FloatingPalette({
 
               {/* Diagnose — narrative health check + maintenance top-up.
                   Colour grades green → orange → red as scenes since the
-                  last world expansion cross 8 / 12 / 16. */}
+                  last world expansion cross 8 / 12 / 16. Badge shows the
+                  exact count so the user can see exactly where they sit
+                  against the 12-scene top-up guideline. */}
               <div className="relative" ref={healthWrapperRef}>
                 <button
                   type="button"
@@ -818,6 +829,14 @@ export default function FloatingPalette({
                 >
                   <IconActivity size={14} />
                 </button>
+                {scenesSinceLastExpansion > 0 && (
+                  <span
+                    className={`pointer-events-none absolute -top-1 -right-1 min-w-3.5 h-3.5 px-1 rounded-full flex items-center justify-center text-[9px] font-mono tabular-nums font-semibold leading-none ${freshnessBadgeClass}`}
+                    aria-label={`${scenesSinceLastExpansion} scenes since last world expansion`}
+                  >
+                    {scenesSinceLastExpansion}
+                  </span>
+                )}
                 {healthOpen && healthReport && (() => {
                   const t = healthReport.dimensions.threads;
                   const dangerCount = t.deficits.filter((d) => d.startsWith('DANGER')).length;

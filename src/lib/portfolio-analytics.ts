@@ -129,18 +129,19 @@ export type PortfolioRow = {
   category: ThreadCategory;
 };
 
-/** Rank weight for sorting rows. Lower = higher priority in the list.
- *  Ordering: actively moving (saturating/volatile) → decided shape (contested/
- *  committed) → evolving without shape (developing) → quiet / terminal. */
-const CATEGORY_RANK: Record<ThreadCategory, number> = {
+/** Terminal tier for sorting. Open markets rank by focus score (volume ×
+ *  entropy × (1 + volatility) × recency); terminal states sink to the bottom
+ *  with abandoned above resolved, since abandoned still carries signal about
+ *  dropped commitments. */
+const TERMINAL_TIER: Record<ThreadCategory, number> = {
   saturating: 0,
-  volatile: 1,
-  contested: 2,
-  committed: 3,
-  developing: 4,
-  dormant: 5,
-  abandoned: 6,
-  resolved: 7,
+  volatile: 0,
+  contested: 0,
+  committed: 0,
+  developing: 0,
+  dormant: 0,
+  abandoned: 1,
+  resolved: 2,
 };
 
 export function buildPortfolioRows(
@@ -157,8 +158,6 @@ export function buildPortfolioRows(
     const volume = belief?.volume ?? 0;
     const volatility = belief?.volatility ?? 0;
     const f = focusScore(t, resolvedEntryKeys, currentSceneIndex);
-    // Gap derivation copies narrative-utils/scenesSinceTouched's shape to avoid
-    // round-tripping through exports — kept inline for performance in lists.
     const lastTouched = belief?.lastTouchedScene;
     const idx = lastTouched ? resolvedEntryKeys.indexOf(lastTouched) : -1;
     const gap = idx < 0 ? Infinity : currentSceneIndex - idx;
@@ -166,8 +165,8 @@ export function buildPortfolioRows(
     rows.push({ thread: t, probs, topIdx, margin, entropy, volume, volatility, gap, focus: f, category });
   }
   rows.sort((a, b) => {
-    if (CATEGORY_RANK[a.category] !== CATEGORY_RANK[b.category]) {
-      return CATEGORY_RANK[a.category] - CATEGORY_RANK[b.category];
+    if (TERMINAL_TIER[a.category] !== TERMINAL_TIER[b.category]) {
+      return TERMINAL_TIER[a.category] - TERMINAL_TIER[b.category];
     }
     return b.focus - a.focus;
   });
@@ -411,5 +410,137 @@ export function buildThreadTrajectory(
     });
     if (cursor.closedAt) break;
   }
+  return points;
+}
+
+// ── Portfolio-wide time series ─────────────────────────────────────────────
+
+export type PortfolioTrajectoryPoint = {
+  /** Resolved-entry index where the point is anchored. */
+  sceneIndex: number;
+  /** 1-based scene ordinal excluding world commits — axis-ready value. */
+  sceneOrdinal: number;
+  /** Scene id, for click-through and hover labels. */
+  sceneId: string;
+  /** Total volume across open markets — "market cap" of narrative attention. */
+  attention: number;
+  /** Average normalized entropy across open markets, 0–1. */
+  uncertainty: number;
+  /** Average EWMA volatility across open markets. */
+  volatility: number;
+  /** Share of live markets within the near-closure band, 0–1. */
+  saturationRate: number;
+  /** Share of live markets at high entropy (≥0.7) — genuinely contested. */
+  contestedRate: number;
+  /** Number of open markets (neither closed nor abandoned). */
+  activeCount: number;
+  /** Number of markets that have closed to an outcome by this scene. */
+  closedCount: number;
+};
+
+/** Walk every scene from 0 to `currentSceneIndex`, snapshotting the portfolio
+ *  at each step. One pass — maintains thread state incrementally rather than
+ *  re-replaying from scratch per scene. Drives the Trends view in the market
+ *  dashboard. Skips world commits so the x-axis is scene-only. */
+export function buildPortfolioTrajectory(
+  narrative: NarrativeState,
+  resolvedEntryKeys: string[],
+  currentSceneIndex: number,
+): PortfolioTrajectoryPoint[] {
+  const limit = Math.min(currentSceneIndex, resolvedEntryKeys.length - 1);
+  if (limit < 0) return [];
+
+  const seedThread = (t: Thread): Thread => ({
+    ...t,
+    beliefs: {
+      [NARRATOR_AGENT_ID]: {
+        logits: new Array(t.outcomes.length).fill(0),
+        volume: MARKET_OPENING_VOLUME,
+        volatility: 0,
+      },
+    },
+    threadLog: { nodes: {}, edges: [] },
+    closedAt: undefined,
+    closeOutcome: undefined,
+    resolutionQuality: undefined,
+  });
+
+  const threads: Record<string, Thread> = {};
+  // Threads with no openedAt (or unresolvable openedAt) are treated as
+  // always-open, matching replayThreadsAtIndex.
+  for (const [id, t] of Object.entries(narrative.threads)) {
+    if (!t.openedAt) threads[id] = seedThread(t);
+  }
+
+  const points: PortfolioTrajectoryPoint[] = [];
+  let sceneOrdinal = 0;
+  const CONTESTED_ENTROPY_FLOOR = 0.7;
+
+  for (let i = 0; i <= limit; i++) {
+    const key = resolvedEntryKeys[i];
+
+    // Introduce threads that open at this key, before applying deltas — same
+    // ordering as replayThreadsAtIndex.
+    for (const [id, t] of Object.entries(narrative.threads)) {
+      if (t.openedAt === key && !threads[id]) threads[id] = seedThread(t);
+    }
+
+    const scene = narrative.scenes[key] as Scene | undefined;
+    if (!scene || scene.kind !== 'scene') continue;
+    sceneOrdinal++;
+
+    const touched = new Set<string>();
+    for (const tm of scene.threadDeltas ?? []) {
+      if (!threads[tm.threadId]) continue;
+      touched.add(tm.threadId);
+      threads[tm.threadId] = applyThreadDelta(threads[tm.threadId], tm, scene.id);
+    }
+    const decayed = decayUntouchedBeliefsForScene(threads, touched);
+    for (const [id, t] of Object.entries(decayed)) threads[id] = t;
+
+    // Aggregate across the current thread state.
+    let attention = 0;
+    let entropySum = 0;
+    let entropyCount = 0;
+    let volatilitySum = 0;
+    let volatilityCount = 0;
+    let active = 0;
+    let closed = 0;
+    let saturating = 0;
+    let contested = 0;
+    for (const t of Object.values(threads)) {
+      if (isThreadClosed(t)) {
+        closed++;
+        continue;
+      }
+      if (isThreadAbandoned(t)) continue;
+      active++;
+      const belief = getMarketBelief(t);
+      if (belief) {
+        attention += belief.volume;
+        volatilitySum += belief.volatility;
+        volatilityCount++;
+      }
+      const h = normalizedEntropy(getMarketProbs(t));
+      entropySum += h;
+      entropyCount++;
+      if (isNearClosed(t)) saturating++;
+      if (h >= CONTESTED_ENTROPY_FLOOR) contested++;
+    }
+
+    points.push({
+      sceneIndex: i,
+      sceneOrdinal,
+      sceneId: scene.id,
+      attention,
+      uncertainty: entropyCount > 0 ? entropySum / entropyCount : 0,
+      volatility: volatilityCount > 0 ? volatilitySum / volatilityCount : 0,
+      saturationRate: active > 0 ? saturating / active : 0,
+      contestedRate: active > 0 ? contested / active : 0,
+      activeCount: active,
+      closedCount: closed,
+    });
+  }
+
   return points;
 }

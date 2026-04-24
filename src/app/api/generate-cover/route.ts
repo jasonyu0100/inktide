@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const prediction = await response.json();
 
     // Poll for completion (max 60 seconds)
-    let pollUrl = prediction.urls?.get || `https://api.replicate.com/v1/predictions/${prediction.id}`;
+    const pollUrl = prediction.urls?.get || `https://api.replicate.com/v1/predictions/${prediction.id}`;
     let attempts = 0;
     const maxAttempts = 60;
     let completedPrediction = prediction;

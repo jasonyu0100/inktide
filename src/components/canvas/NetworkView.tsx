@@ -140,7 +140,7 @@ export default function NetworkView() {
       .attr('filter', (d) => `url(#${glowIdFor(colorOf(d))})`);
     g.select('g.n-labels').selectAll<SVGTextElement, NNode>('text')
       .attr('fill', (d) => colorOf(d));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [colorMode]);
 
   // Toggle labels visibility

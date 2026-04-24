@@ -9,7 +9,8 @@ import { computeSamplerFromPlans } from '@/lib/beat-profiles';
 import {
   computeForceSnapshots,
   computeRawForceTotals,
-  computeDeliveryCurve,
+  computeActivityCurve,
+  computeForceSignature,
   computeSwingMagnitudes,
   classifyNarrativeShape,
   classifyArchetype,
@@ -21,7 +22,7 @@ import {
   getMarketProbs,
   isThreadAbandoned,
   isThreadClosed,
-  type DeliveryPoint,
+  type ActivityPoint,
   type NarrativeShape,
   type ForceGrades,
   type NarrativeArchetype,
@@ -38,25 +39,25 @@ export type Segment = {
   startIdx: number;
   /** End scene index (inclusive) */
   endIdx: number;
-  /** Delivery points for this segment */
-  delivery: DeliveryPoint[];
+  /** Activity points for this segment */
+  activity: ActivityPoint[];
   /** Dominant force in this segment */
   dominantForce: 'fate' | 'world' | 'system';
   /** Key thread deltas in this segment */
   threadChanges: { threadId: string; logType: string; updates: { outcome: string; evidence: number }[]; sceneIdx: number }[];
   /** Peaks within this segment */
   peakIndices: number[];
-  /** Average delivery in this segment */
-  avgDelivery: number;
+  /** Average activity level in this segment */
+  avgActivity: number;
   /** Scene summaries for key moments */
-  keyScenes: { idx: number; summary: string; delivery: number }[];
+  keyScenes: { idx: number; summary: string; activity: number }[];
 };
 
 export type PeakInfo = {
   /** Scene index in the full scene array */
   sceneIdx: number;
   scene: Scene;
-  delivery: DeliveryPoint;
+  activity: ActivityPoint;
   forces: ForceSnapshot;
   cubeCorner: { key: CubeCornerKey; name: string; description: string };
   /** Thread deltas at this scene */
@@ -70,7 +71,7 @@ export type PeakInfo = {
 export type TroughInfo = {
   sceneIdx: number;
   scene: Scene;
-  delivery: DeliveryPoint;
+  activity: ActivityPoint;
   forces: ForceSnapshot;
   cubeCorner: { key: CubeCornerKey; name: string; description: string };
   /** How many scenes until next peak */
@@ -106,7 +107,7 @@ export type SlidesData = {
   scenes: Scene[];
   forceSnapshots: ForceSnapshot[];
   rawForces: { fate: number[]; world: number[]; system: number[] };
-  deliveryCurve: DeliveryPoint[];
+  activityCurve: ActivityPoint[];
   shape: NarrativeShape;
   swings: number[];
 
@@ -168,18 +169,21 @@ export function computeSlidesData(
 
   const n = scenes.length;
 
-  // Force snapshots (z-score normalized)
-  const forceMap = computeForceSnapshots(scenes, []);
+  // Force snapshots (rank→Gaussian normalised, refined fate via narrative).
+  // Pass the narrative through so slides uses the same force pipeline as the
+  // series card and score card — otherwise the grades diverge.
+  const forceMap = computeForceSnapshots(scenes, [], narrative);
   const forceSnapshots = scenes.map((s) => forceMap[s.id] ?? { fate: 0, world: 0, system: 0 });
 
-  // Raw forces
-  const rawForces = computeRawForceTotals(scenes);
+  // Raw forces — also through the narrative, matching the store.
+  const rawForces = computeRawForceTotals(scenes, narrative);
 
-  // Delivery curve
-  const deliveryCurve = computeDeliveryCurve(forceSnapshots);
+  // Information curve — dominance-weighted via PCA on the raw force shares.
+  const sig = computeForceSignature(rawForces.fate, rawForces.world, rawForces.system);
+  const activityCurve = computeActivityCurve(forceSnapshots, sig.weights);
 
   // Narrative shape (based on delivery curve)
-  const shape = classifyNarrativeShape(deliveryCurve.map((d) => d.delivery));
+  const shape = classifyNarrativeShape(activityCurve.map((d) => d.activity));
 
   // Swings from mean-normalised raw forces (preserves cross-series differences)
   const rawForceSnapshots = rawForces.fate.map((_, i) => ({
@@ -190,23 +194,23 @@ export function computeSlidesData(
   const swings = computeSwingMagnitudes(rawForceSnapshots, FORCE_REFERENCE_MEANS);
 
   // Peaks and valleys
-  const peakIndices = deliveryCurve.filter((e) => e.isPeak).map((e) => e.index);
-  const valleyIndices = deliveryCurve.filter((e) => e.isValley).map((e) => e.index);
+  const peakIndices = activityCurve.filter((e) => e.isPeak).map((e) => e.index);
+  const valleyIndices = activityCurve.filter((e) => e.isValley).map((e) => e.index);
 
   // Segments: split at valleys (use z-score normalized forces for classification)
-  const segments = buildSegments(scenes, deliveryCurve, forceSnapshots, valleyIndices);
+  const segments = buildSegments(scenes, activityCurve, forceSnapshots, valleyIndices);
 
   // Peak info — fall back to absolute max delivery if no prominent peaks detected
-  let peaks = buildPeakInfos(scenes, deliveryCurve, forceSnapshots, narrative);
-  if (peaks.length === 0 && deliveryCurve.length > 0) {
-    const maxPoint = deliveryCurve.reduce((best, e) => (e.delivery > best.delivery ? e : best), deliveryCurve[0]);
+  let peaks = buildPeakInfos(scenes, activityCurve, forceSnapshots, narrative);
+  if (peaks.length === 0 && activityCurve.length > 0) {
+    const maxPoint = activityCurve.reduce((best, e) => (e.activity > best.activity ? e : best), activityCurve[0]);
     const scene = scenes[maxPoint.index];
     const f = forceSnapshots[maxPoint.index];
     const corner = detectCubeCorner(f);
     peaks = [{
       sceneIdx: maxPoint.index,
       scene,
-      delivery: maxPoint,
+      activity: maxPoint,
       forces: f,
       cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
       threadChanges: scene.threadDeltas.map((tm) => ({ threadId: tm.threadId, logType: tm.logType, updates: tm.updates ?? [] })),
@@ -218,9 +222,9 @@ export function computeSlidesData(
   }
 
   // Trough info — fall back to absolute min delivery if no valleys detected
-  let troughs = buildTroughInfos(scenes, deliveryCurve, forceSnapshots, peakIndices, narrative);
-  if (troughs.length === 0 && deliveryCurve.length > 1) {
-    const minPoint = deliveryCurve.reduce((best, e) => (e.delivery < best.delivery ? e : best), deliveryCurve[0]);
+  let troughs = buildTroughInfos(scenes, activityCurve, forceSnapshots, peakIndices, narrative);
+  if (troughs.length === 0 && activityCurve.length > 1) {
+    const minPoint = activityCurve.reduce((best, e) => (e.activity < best.activity ? e : best), activityCurve[0]);
     const scene = scenes[minPoint.index];
     const f = forceSnapshots[minPoint.index];
     const corner = detectCubeCorner(f);
@@ -239,7 +243,7 @@ export function computeSlidesData(
     troughs = [{
       sceneIdx: minPoint.index,
       scene,
-      delivery: minPoint,
+      activity: minPoint,
       forces: f,
       cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
       scenesToNextPeak,
@@ -394,7 +398,7 @@ export function computeSlidesData(
     scenes,
     forceSnapshots,
     rawForces,
-    deliveryCurve,
+    activityCurve,
     shape,
     swings,
     segments,
@@ -438,7 +442,7 @@ function avg(arr: number[]): number {
 
 function buildSegments(
   scenes: Scene[],
-  dlvPts: DeliveryPoint[],
+  dlvPts: ActivityPoint[],
   forces: ForceSnapshot[],
   valleyIndices: number[],
 ): Segment[] {
@@ -473,25 +477,26 @@ function buildSegments(
       }
     }
 
-    // Key scenes: peaks + highest delivery scenes
+    // Key scenes: peaks + highest information scenes
+    const segMaxInfo = Math.max(...segDelivery.map((se) => se.activity));
     const keyScenes = segDelivery
-      .filter((e) => e.isPeak || e.delivery === Math.max(...segDelivery.map((se) => se.delivery)))
+      .filter((e) => e.isPeak || e.activity === segMaxInfo)
       .slice(0, 3)
       .map((e) => ({
         idx: e.index,
         summary: scenes[e.index]?.summary ?? '',
-        delivery: e.delivery,
+        activity: e.activity,
       }));
 
     segments.push({
       index: i,
       startIdx,
       endIdx,
-      delivery: segDelivery,
+      activity: segDelivery,
       dominantForce: dominantForce(segFate, segWorld, segSystem),
       threadChanges,
       peakIndices: segPeaks,
-      avgDelivery: avg(segDelivery.map((e) => e.delivery)),
+      avgActivity: avg(segDelivery.map((e) => e.activity)),
       keyScenes,
     });
   }
@@ -501,20 +506,20 @@ function buildSegments(
 
 function buildPeakInfos(
   scenes: Scene[],
-  delivery: DeliveryPoint[],
+  points: ActivityPoint[],
   forces: ForceSnapshot[],
-  narrative: NarrativeState,
+  _narrative: NarrativeState,
 ): PeakInfo[] {
-  return delivery
+  return points
     .filter((e) => e.isPeak)
-    .map((e) => {
+    .map<PeakInfo>((e) => {
       const scene = scenes[e.index];
       const f = forces[e.index];
       const corner = detectCubeCorner(f);
       return {
         sceneIdx: e.index,
         scene,
-        delivery: e,
+        activity: e,
         forces: f,
         cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
         threadChanges: scene.threadDeltas.map((tm) => ({ threadId: tm.threadId, logType: tm.logType, updates: tm.updates ?? [] })),
@@ -524,12 +529,12 @@ function buildPeakInfos(
         dominantForce: dominantForce(f.fate, f.world, f.system),
       };
     })
-    .sort((a, b) => b.delivery.delivery - a.delivery.delivery);
+    .sort((a, b) => b.activity.activity - a.activity.activity);
 }
 
 function buildTroughInfos(
   scenes: Scene[],
-  delivery: DeliveryPoint[],
+  delivery: ActivityPoint[],
   forces: ForceSnapshot[],
   peakIndices: number[],
   narrative: NarrativeState,
@@ -557,17 +562,18 @@ function buildTroughInfos(
         }
       }
 
-      return {
+      const info: TroughInfo = {
         sceneIdx: e.index,
         scene,
-        delivery: e,
+        activity: e,
         forces: f,
         cubeCorner: { key: corner.key, name: corner.name, description: corner.description },
         scenesToNextPeak,
         recoveryForce,
       };
+      return info;
     })
-    .sort((a, b) => a.delivery.delivery - b.delivery.delivery);
+    .sort((a, b) => a.activity.activity - b.activity.activity);
 }
 
 function buildThreadLifecycles(

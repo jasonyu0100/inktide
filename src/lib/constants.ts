@@ -85,6 +85,28 @@ export const DEFAULT_REASONING_BUDGET = 2048;
 /** Rolling window size for force computation & normalization */
 export const FORCE_WINDOW_SIZE = 10;
 
+/** Dominance-weighted delivery aggregation weights. The three forces are
+ *  independent dimensions; the weights reflect which axis carries the
+ *  structural signal for a given work archetype. A Classic like Harry Potter
+ *  is fate-dominant, a Show is world-dominant, a Paper system-dominant, an
+ *  Opus balanced. When `computeDominanceWeights` isn't called explicitly,
+ *  `FORCE_DOMINANCE_WEIGHTS.opus` is the default (equal-weighted).
+ *
+ *  Weights must sum to 1. Values were chosen to preserve each archetype's
+ *  signature while still acknowledging the secondary forces' contribution.
+ */
+export const FORCE_DOMINANCE_WEIGHTS = {
+  classic: { fate: 0.55, world: 0.225, system: 0.225 },
+  show:    { fate: 0.225, world: 0.55, system: 0.225 },
+  paper:   { fate: 0.225, world: 0.225, system: 0.55 },
+  opus:    { fate: 1 / 3, world: 1 / 3, system: 1 / 3 },
+} as const;
+
+/** Activity smoothing σ, in scenes. 1.5 is the canonical σ used by the
+ *  activity curve (`computeActivityCurve`) — wide enough to damp single-scene
+ *  noise, narrow enough to preserve real peaks/valleys. */
+export const DELIVERY_SMOOTH_SIGMA = 1.5;
+
 // ── Generation ───────────────────────────────────────────────────────────────
 
 /** Concurrent scene plan generation slots (Story modal bulk plan) */

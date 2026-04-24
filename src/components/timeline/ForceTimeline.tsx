@@ -3,9 +3,9 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeDeliveryCurve, movingAverage, FORCE_WINDOW_SIZE, classifyCurrentPosition, detectCubeCorner } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeActivityCurve, movingAverage, FORCE_WINDOW_SIZE, classifyCurrentPosition, detectCubeCorner } from '@/lib/narrative-utils';
 import ForceLineChart, { type ChartStyle } from './ForceLineChart';
-import DeliveryLineChart from './DeliveryLineChart';
+import ActivityLineChart from './ActivityLineChart';
 import { FORCE_TIMELINE_WINDOW_DEFAULT } from '@/lib/constants';
 
 const FORCE_CONFIG = [
@@ -71,10 +71,12 @@ export default function ForceTimeline() {
     return computeWindowedForces(allScenes, currentSceneIdx);
   }, [allScenes, currentSceneIdx]);
 
-  // Full-history forces (normalized) — one datapoint per scene
+  // Full-history forces (normalized) — one datapoint per scene.
+  // Passing narrative opts into the refined fate formula (F7) and
+  // rank→Gaussian normalisation.
   const globalForceData = useMemo(() => {
     if (!narrative || allScenes.length === 0) return { fate: [] as number[], world: [] as number[], system: [] as number[] };
-    const forceMap = computeForceSnapshots(allScenes);
+    const forceMap = computeForceSnapshots(allScenes, [], narrative);
     const fate: number[] = [];
     const world: number[] = [];
     const system: number[] = [];
@@ -90,7 +92,7 @@ export default function ForceTimeline() {
   // Full-history forces (raw) — one datapoint per scene
   const globalRawForceData = useMemo(() => {
     if (!narrative || allScenes.length === 0) return { fate: [] as number[], world: [] as number[], system: [] as number[] };
-    const raw = computeRawForceTotals(allScenes);
+    const raw = computeRawForceTotals(allScenes, narrative);
     return { fate: raw.fate, world: raw.world, system: raw.system };
   }, [narrative, allScenes]);
 
@@ -115,7 +117,7 @@ export default function ForceTimeline() {
   const localRawForceData = useMemo(() => {
     if (!windowed || !narrative) return { fate: [] as number[], world: [] as number[], system: [] as number[] };
     const windowScenes = allScenes.slice(windowed.windowStart, windowed.windowEnd + 1);
-    const raw = computeRawForceTotals(windowScenes);
+    const raw = computeRawForceTotals(windowScenes, narrative);
     return { fate: raw.fate, world: raw.world, system: raw.system };
   }, [windowed, allScenes, narrative]);
 
@@ -186,9 +188,9 @@ export default function ForceTimeline() {
     };
   }, [windowed, isLocal, globalWindowOffset]);
 
-  // Delivery curve with topology — always from normalized forces for proper curvature
+  // Activity curve with topology — always from normalized forces for proper curvature
   const normalizedChartData = isLocal ? localForceData : globalForceData;
-  const deliveryCurve = useMemo(() => {
+  const activityCurve = useMemo(() => {
     if (normalizedChartData.fate.length === 0) return [];
     // Apply same windowing as chartData but on normalized values
     let fate = normalizedChartData.fate;
@@ -207,10 +209,10 @@ export default function ForceTimeline() {
       system = system.slice(start, end);
     }
     const snapshots = fate.map((_, i) => ({ fate: fate[i], world: world[i], system: system[i] }));
-    return computeDeliveryCurve(snapshots);
+    return computeActivityCurve(snapshots);
   }, [normalizedChartData, isLocal, globalWindow, currentSceneIdx]);
 
-  // Local position + recent delivery sparkline from the trailing window
+  // Local position + recent activity sparkline from the trailing window
   const { currentPosition, recentSparkline } = useMemo(() => {
     if (allScenes.length === 0) return { currentPosition: null, recentSparkline: [] };
     const scenes = windowed
@@ -218,7 +220,7 @@ export default function ForceTimeline() {
       : allScenes;
     const snapshotMap = computeForceSnapshots(scenes);
     const ordered = scenes.map((s) => snapshotMap[s.id]).filter(Boolean);
-    const pts = computeDeliveryCurve(ordered);
+    const pts = computeActivityCurve(ordered);
     const position = ordered.length > 0 ? classifyCurrentPosition(pts) : null;
     // Last ~12 smoothed values for the mini sparkline
     const spark = pts.slice(-12).map((p) => p.smoothed);
@@ -304,16 +306,18 @@ export default function ForceTimeline() {
         </div>
       </div>
 
-      {/* Delivery chart (first) — topology-aware with smoothed curve, macro trend, peaks & valleys */}
+      {/* Activity chart (first) — signature-weighted curve with orange
+          shading above zero (high-activity) and light-blue below
+          (low-activity), peak/valley markers, macro trend. */}
       <div className="flex-1 min-w-0 border-r border-border">
-        <DeliveryLineChart
-          delivery={deliveryCurve}
+        <ActivityLineChart
+          activity={activityCurve}
           currentIndex={chartCurrentIndex}
           windowStart={!isLocal ? windowRange?.start : undefined}
           windowEnd={!isLocal ? windowRange?.end : undefined}
           raw={showRaw}
           style={chartStyle}
-          average={deliveryCurve.length > 0 ? deliveryCurve.reduce((s, p) => s + p.smoothed, 0) / deliveryCurve.length : undefined}
+          average={activityCurve.length > 0 ? activityCurve.reduce((s, p) => s + p.smoothed, 0) / activityCurve.length : undefined}
         />
       </div>
 

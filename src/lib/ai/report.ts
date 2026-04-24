@@ -15,8 +15,8 @@ export type ReportAnalysis = {
   story_intro: string;
   /** 2-3 sentences. The headline verdict — score, shape, what defines this narrative. */
   verdict: string;
-  /** 1-2 short paragraphs. What the delivery curve reveals about the reading experience. */
-  delivery: string;
+  /** 1-2 short paragraphs. What the activity curve reveals about the reading experience. */
+  activity: string;
   /** 1-2 short paragraphs. How the three forces (Fate, World, System) interact. */
   forces: string;
   /** 1 short paragraph. What the force decomposition chart shows over time. */
@@ -68,7 +68,7 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
       .filter((id) => id !== scene.povId)
       .map((id) => narrative.characters[id]?.name ?? id);
     const corner = detectCubeCorner(data.forceSnapshots[idx]);
-    const delivery = data.deliveryCurve[idx];
+    const activity = data.activityCurve[idx];
 
     const threadMuts = scene.threadDeltas.map((tm) => {
       const desc = narrative.threads[tm.threadId]?.description ?? tm.threadId;
@@ -94,7 +94,7 @@ function buildStoryContext(narrative: NarrativeState, data: SlidesData, resolved
     let block = `[Scene ${idx + 1}] "${scene.summary}"`;
     block += `\n  POV: ${povName} | Location: ${locName} | Mode: ${corner.name}`;
     if (participants.length > 0) block += ` | With: ${participants.join(', ')}`;
-    if (delivery) block += `\n  Delivery: ${delivery.delivery.toFixed(2)} | Tension: ${delivery.tension.toFixed(2)}${delivery.isPeak ? ' [PEAK]' : ''}${delivery.isValley ? ' [VALLEY]' : ''}`;
+    if (activity) block += `\n  Activity: ${activity.activity.toFixed(2)} | Tension: ${activity.tension.toFixed(2)}${activity.isPeak ? ' [PEAK]' : ''}${activity.isValley ? ' [VALLEY]' : ''}`;
     if (events) block += `\n${events}`;
     if (threadMuts.length > 0) block += `\n  Thread deltas:\n${threadMuts.join('\n')}`;
     if (relMuts.length > 0) block += `\n  Relationship shifts:\n${relMuts.join('\n')}`;
@@ -222,7 +222,7 @@ Peaks: ${data.peaks.length} | Valleys: ${data.troughs.length}
 ${data.segments.map((seg, i) => {
     const peaksInSeg = data.peaks.filter((p) => p.sceneIdx >= seg.startIdx && p.sceneIdx <= seg.endIdx);
     const valleysInSeg = data.troughs.filter((t) => t.sceneIdx >= seg.startIdx && t.sceneIdx <= seg.endIdx);
-    const keySceneBlock = seg.keyScenes.map((ks) => `  Scene ${ks.idx + 1} (D=${ks.delivery.toFixed(2)}): "${ks.summary}"`).join('\n');
+    const keySceneBlock = seg.keyScenes.map((ks) => `  Scene ${ks.idx + 1} (A=${ks.activity.toFixed(2)}): "${ks.summary}"`).join('\n');
     const threadBlock = seg.threadChanges.slice(0, 5).map((tc) => {
       const desc = narrative.threads[tc.threadId]?.description ?? tc.threadId;
       const moves = (tc.updates ?? [])
@@ -231,7 +231,7 @@ ${data.segments.map((seg, i) => {
       return `  ${desc.slice(0, 50)}: [${tc.logType}] ${moves} (scene ${tc.sceneIdx + 1})`;
     }).join('\n');
     return `Segment ${i + 1} (scenes ${seg.startIdx + 1}–${seg.endIdx + 1}, ${seg.endIdx - seg.startIdx + 1} scenes):
-  Dominant: ${seg.dominantForce} | Avg delivery: ${seg.avgDelivery.toFixed(2)} | Peaks: ${peaksInSeg.length} | Valleys: ${valleysInSeg.length}
+  Dominant: ${seg.dominantForce} | Avg activity: ${seg.avgActivity.toFixed(2)} | Peaks: ${peaksInSeg.length} | Valleys: ${valleysInSeg.length}
 ${keySceneBlock}${threadBlock ? '\n  Thread activity:\n' + threadBlock : ''}`;
   }).join('\n\n')}
 

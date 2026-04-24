@@ -4,10 +4,10 @@ import { useMemo, useState, useRef, useEffect, useCallback, useId } from 'react'
 import * as d3 from 'd3';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene, type ForceSnapshot, type CubeCornerKey } from '@/types/narrative';
-import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeDeliveryCurve, classifyCurrentPosition, type DeliveryPoint } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeWindowedForces, computeRawForceTotals, computeSwingMagnitudes, detectCubeCorner, gradeForces, FORCE_REFERENCE_MEANS, zScoreNormalize, movingAverage, FORCE_WINDOW_SIZE, computeActivityCurve, classifyCurrentPosition, type ActivityPoint } from '@/lib/narrative-utils';
 import { IconLineChart, IconPencilDraw } from '@/components/icons';
 
-type ForceKey = 'fate' | 'world' | 'system' | 'swing' | 'delivery';
+type ForceKey = 'fate' | 'world' | 'system' | 'swing' | 'activity';
 
 type SceneDataPoint = {
   index: number;
@@ -627,13 +627,17 @@ function ZoneBar({
   );
 }
 
-const DELIVERY_COLOR = '#F59E0B';
+// Activity chart palette — orange above zero (high-activity regions)
+// and light blue below (low-activity stretches). Matches EvalBar and
+// the ForceTimeline activity chart so the three instruments read as
+// one.
+const ACTIVITY_COLOR = '#F59E0B';
 const PEAK_COLOR = '#FCD34D';
-const VALLEY_COLOR = '#93C5FD';
+const LOW_ACTIVITY_COLOR = '#93C5FD';
 
-function DeliveryChart({
+function ActivityChart({
   data,
-  delivery,
+  activity,
   arcRegions,
   hoverIndex,
   onHover,
@@ -650,7 +654,7 @@ function DeliveryChart({
   onDrawEnd,
 }: {
   data: SceneDataPoint[];
-  delivery: DeliveryPoint[];
+  activity: ActivityPoint[];
   arcRegions: ArcRegion[];
   hoverIndex: number | null;
   onHover: (index: number | null) => void;
@@ -667,12 +671,12 @@ function DeliveryChart({
   onDrawEnd: () => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const clipId = useId().replace(/:/g, '_') + '_delivery';
+  const clipId = useId().replace(/:/g, '_') + '_activity';
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
-    if (delivery.length === 0 || width <= 0) return;
+    if (activity.length === 0 || width <= 0) return;
 
     const m = dense ? MARGIN_DENSE : MARGIN;
     const chartWidth = width - m.left - m.right;
@@ -686,10 +690,10 @@ function DeliveryChart({
       .attr('x', 0).attr('y', 0)
       .attr('width', chartWidth).attr('height', chartHeight);
 
-    const xScale = d3.scaleLinear().domain([0, Math.max(delivery.length - 1, 1)]).range([0, chartWidth]);
-    const allValues = delivery.flatMap((e) => [e.smoothed, e.macroTrend]);
+    const xScale = d3.scaleLinear().domain([0, Math.max(activity.length - 1, 1)]).range([0, chartWidth]);
+    const allValues = activity.flatMap((e) => [e.smoothed, e.macroTrend]);
     // Percentile-clipped domain — axis tracks the p95 of absolute values so
-    // local delivery variation stays legible under outlier scenes.
+    // local activity variation stays legible under outlier scenes.
     const absSorted = allValues.map(Math.abs).sort((a, b) => a - b);
     const pIdx = Math.max(0, Math.floor(absSorted.length * 0.95) - 1);
     const clipAbs = Math.max(absSorted[pIdx] ?? 1, 0.5);
@@ -706,11 +710,11 @@ function DeliveryChart({
       g.append('rect')
         .attr('x', wx1).attr('y', 0)
         .attr('width', Math.max(wx2 - wx1, 1)).attr('height', chartHeight)
-        .attr('fill', DELIVERY_COLOR).attr('opacity', 0.06);
+        .attr('fill', ACTIVITY_COLOR).attr('opacity', 0.06);
       g.append('line')
         .attr('x1', wx1).attr('x2', wx1)
         .attr('y1', 0).attr('y2', chartHeight)
-        .attr('stroke', DELIVERY_COLOR).attr('stroke-width', 0.5).attr('opacity', 0.3);
+        .attr('stroke', ACTIVITY_COLOR).attr('stroke-width', 0.5).attr('opacity', 0.3);
     }
 
     // Arc boundary lines + arc number labels
@@ -760,50 +764,75 @@ function DeliveryChart({
 
     // Window average
     const windowSlice = windowRange
-      ? delivery.slice(windowRange.start, windowRange.end + 1)
-      : delivery.slice(-FORCE_WINDOW_SIZE);
+      ? activity.slice(windowRange.start, windowRange.end + 1)
+      : activity.slice(-FORCE_WINDOW_SIZE);
     const winAvg = windowSlice.length > 0
-      ? windowSlice.reduce((s, e) => s + e.delivery, 0) / windowSlice.length
+      ? windowSlice.reduce((s, e) => s + e.activity, 0) / windowSlice.length
       : 0;
 
     // Label
     g.append('text')
       .attr('x', 6).attr('y', -m.top + 14)
-      .attr('fill', DELIVERY_COLOR)
+      .attr('fill', ACTIVITY_COLOR)
       .attr('font-size', '10px').attr('font-weight', '600').attr('letter-spacing', '0.1em')
-      .text('DELIVERY');
+      .text('ACTIVITY');
     g.append('text')
-      .attr('x', 6 + 5 * 8 + 6).attr('y', -m.top + 14)
-      .attr('fill', DELIVERY_COLOR)
+      .attr('x', 6 + 11 * 8 + 6).attr('y', -m.top + 14)
+      .attr('fill', ACTIVITY_COLOR)
       .attr('font-size', '9px').attr('font-weight', '600').attr('font-family', 'monospace').attr('opacity', 0.7)
       .text(`w${winAvg >= 0 ? '+' : ''}${winAvg.toFixed(2)}`);
 
     const clipped = g.append('g').attr('clip-path', `url(#${clipId})`);
 
-    // Positive fill (above zero)
-    clipped.append('path')
-      .datum(delivery)
-      .attr('d', d3.area<DeliveryPoint>()
-        .x((e) => xScale(e.index))
-        .y0(yScale(0))
-        .y1((e) => yScale(Math.max(0, e.smoothed)))
-        .curve(d3.curveMonotoneX))
-      .attr('fill', DELIVERY_COLOR).attr('opacity', 0.10);
+    // High-activity region (above zero) — orange fill. Reading: the
+    // three forces are firing together in this scene. Opacity is
+    // deliberately strong (0.22) so the shaded regions are primary
+    // signal, not decoration. Augmented data inserts interpolated
+    // zero-crossings between adjacent samples so the orange/blue
+    // regions clip cleanly at y=0 instead of dropping vertically at
+    // scene vertices.
+    type InfoSample = { x: number; v: number };
+    const augmented: InfoSample[] = [];
+    for (let i = 0; i < activity.length; i++) {
+      const e = activity[i];
+      augmented.push({ x: xScale(e.index), v: e.smoothed });
+      if (i < activity.length - 1) {
+        const a = e.smoothed;
+        const b = activity[i + 1].smoothed;
+        if ((a > 0 && b < 0) || (a < 0 && b > 0)) {
+          const t = a / (a - b);
+          augmented.push({
+            x: xScale(e.index) + t * (xScale(activity[i + 1].index) - xScale(e.index)),
+            v: 0,
+          });
+        }
+      }
+    }
 
-    // Negative fill (below zero)
     clipped.append('path')
-      .datum(delivery)
-      .attr('d', d3.area<DeliveryPoint>()
-        .x((e) => xScale(e.index))
+      .datum(augmented)
+      .attr('d', d3.area<InfoSample>()
+        .x((p) => p.x)
         .y0(yScale(0))
-        .y1((e) => yScale(Math.min(0, e.smoothed)))
+        .y1((p) => yScale(Math.max(0, p.v)))
         .curve(d3.curveMonotoneX))
-      .attr('fill', VALLEY_COLOR).attr('opacity', 0.07);
+      .attr('fill', ACTIVITY_COLOR).attr('opacity', 0.22);
+
+    // Low-activity region (below zero) — light-blue fill. Reading:
+    // quiet stretches between peaks, often structural setup.
+    clipped.append('path')
+      .datum(augmented)
+      .attr('d', d3.area<InfoSample>()
+        .x((p) => p.x)
+        .y0(yScale(0))
+        .y1((p) => yScale(Math.min(0, p.v)))
+        .curve(d3.curveMonotoneX))
+      .attr('fill', LOW_ACTIVITY_COLOR).attr('opacity', 0.20);
 
     // Macro trend (dashed, white)
     clipped.append('path')
-      .datum(delivery)
-      .attr('d', d3.line<DeliveryPoint>()
+      .datum(activity)
+      .attr('d', d3.line<ActivityPoint>()
         .x((e) => xScale(e.index))
         .y((e) => yScale(e.macroTrend))
         .curve(d3.curveMonotoneX))
@@ -812,15 +841,15 @@ function DeliveryChart({
       .attr('stroke-width', 1)
       .attr('stroke-dasharray', '5,4');
 
-    // Primary delivery line (smoothed)
+    // Primary activity line (smoothed)
     clipped.append('path')
-      .datum(delivery)
-      .attr('d', d3.line<DeliveryPoint>()
+      .datum(activity)
+      .attr('d', d3.line<ActivityPoint>()
         .x((e) => xScale(e.index))
         .y((e) => yScale(e.smoothed))
         .curve(d3.curveMonotoneX))
       .attr('fill', 'none')
-      .attr('stroke', DELIVERY_COLOR)
+      .attr('stroke', ACTIVITY_COLOR)
       .attr('stroke-width', 2)
       .attr('opacity', 0.9);
 
@@ -830,17 +859,17 @@ function DeliveryChart({
     if (hasOverflow) {
       const overflowHi = clipAbs * 1.2;
       const overflowLo = -clipAbs * 1.2;
-      for (const e of delivery) {
+      for (const e of activity) {
         const x = xScale(e.index);
         if (e.smoothed > overflowHi) {
           clipped.append('path')
             .attr('d', `M ${x - 3} 4 L ${x + 3} 4 L ${x} 0 Z`)
-            .attr('fill', DELIVERY_COLOR)
+            .attr('fill', ACTIVITY_COLOR)
             .attr('opacity', 0.75);
         } else if (e.smoothed < overflowLo) {
           clipped.append('path')
             .attr('d', `M ${x - 3} ${chartHeight - 4} L ${x + 3} ${chartHeight - 4} L ${x} ${chartHeight} Z`)
-            .attr('fill', VALLEY_COLOR)
+            .attr('fill', LOW_ACTIVITY_COLOR)
             .attr('opacity', 0.75);
         }
       }
@@ -848,7 +877,7 @@ function DeliveryChart({
 
     // Peak markers — upward triangles
     const triUp = d3.symbol().type(d3.symbolTriangle).size(40);
-    delivery.filter((e) => e.isPeak).forEach((e) => {
+    activity.filter((e) => e.isPeak).forEach((e) => {
       const cx = xScale(e.index);
       const cy = yScale(e.smoothed);
       clipped.append('path')
@@ -867,27 +896,27 @@ function DeliveryChart({
     });
 
     // Valley markers — downward triangles
-    delivery.filter((e) => e.isValley).forEach((e) => {
+    activity.filter((e) => e.isValley).forEach((e) => {
       const cx = xScale(e.index);
       const cy = yScale(e.smoothed);
       clipped.append('path')
         .attr('d', triUp)
         .attr('transform', `translate(${cx},${cy + 10}) rotate(180)`)
-        .attr('fill', VALLEY_COLOR)
+        .attr('fill', LOW_ACTIVITY_COLOR)
         .attr('opacity', 0.8);
       if (!dense) {
         clipped.append('text')
           .attr('x', cx).attr('y', cy + 22)
           .attr('text-anchor', 'middle')
-          .attr('fill', VALLEY_COLOR)
+          .attr('fill', LOW_ACTIVITY_COLOR)
           .attr('font-size', '8px').attr('font-family', 'monospace').attr('opacity', 0.8)
           .text(`#${e.index + 1}`);
       }
     });
 
     // Hover crosshair
-    if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < delivery.length) {
-      const e = delivery[hoverIndex];
+    if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < activity.length) {
+      const e = activity[hoverIndex];
       const cx = xScale(e.index);
       const cy = yScale(e.smoothed);
       g.append('line')
@@ -895,25 +924,25 @@ function DeliveryChart({
         .attr('stroke', 'rgba(255,255,255,0.3)').attr('stroke-width', 1);
       g.append('line')
         .attr('x1', 0).attr('x2', chartWidth).attr('y1', cy).attr('y2', cy)
-        .attr('stroke', DELIVERY_COLOR).attr('stroke-width', 0.5)
+        .attr('stroke', ACTIVITY_COLOR).attr('stroke-width', 0.5)
         .attr('stroke-dasharray', '3,3').attr('opacity', 0.5);
       clipped.append('circle')
         .attr('cx', cx).attr('cy', cy).attr('r', 4)
-        .attr('fill', DELIVERY_COLOR).attr('stroke', '#111').attr('stroke-width', 2);
+        .attr('fill', ACTIVITY_COLOR).attr('stroke', '#111').attr('stroke-width', 2);
       g.append('circle')
         .attr('cx', chartWidth - 46).attr('cy', -MARGIN.top + 11)
-        .attr('r', 3).attr('fill', DELIVERY_COLOR);
+        .attr('r', 3).attr('fill', ACTIVITY_COLOR);
       g.append('text')
         .attr('x', chartWidth - 4).attr('y', -m.top + 14)
         .attr('text-anchor', 'end')
-        .attr('fill', DELIVERY_COLOR)
+        .attr('fill', ACTIVITY_COLOR)
         .attr('font-size', '11px').attr('font-family', 'monospace').attr('font-weight', '600')
-        .text(e.delivery.toFixed(2));
+        .text(e.activity.toFixed(2));
     }
 
     // Selected scene marker
-    if (selectedIndex !== null && selectedIndex >= 0 && selectedIndex < delivery.length && selectedIndex !== hoverIndex) {
-      const e = delivery[selectedIndex];
+    if (selectedIndex !== null && selectedIndex >= 0 && selectedIndex < activity.length && selectedIndex !== hoverIndex) {
+      const e = activity[selectedIndex];
       const sx = xScale(e.index);
       const sy = yScale(e.smoothed);
       g.append('line')
@@ -921,7 +950,7 @@ function DeliveryChart({
         .attr('stroke', 'rgba(255,255,255,0.25)').attr('stroke-width', 1).attr('stroke-dasharray', '2,2');
       clipped.append('circle')
         .attr('cx', sx).attr('cy', sy).attr('r', 4.5)
-        .attr('fill', 'none').attr('stroke', DELIVERY_COLOR).attr('stroke-width', 1.5).attr('opacity', 0.7);
+        .attr('fill', 'none').attr('stroke', ACTIVITY_COLOR).attr('stroke-width', 1.5).attr('opacity', 0.7);
     }
 
     // Draw lines overlay
@@ -962,7 +991,7 @@ function DeliveryChart({
         if (!drawing) return;
         event.preventDefault();
         const [mx, my] = d3.pointer(event);
-        onDrawStart('delivery', mx, my);
+        onDrawStart('activity', mx, my);
       })
       .on('mousemove.draw', (event: MouseEvent) => {
         if (!drawing) return;
@@ -972,7 +1001,7 @@ function DeliveryChart({
       .on('mouseup', () => {
         if (drawing) onDrawEnd();
       });
-  }, [delivery, data, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, dense, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd, clipId]);
+  }, [activity, data, arcRegions, hoverIndex, onHover, selectedIndex, onSelect, windowRange, height, width, dense, drawing, drawLines, onDrawStart, onDrawMove, onDrawEnd, clipId]);
 
   return <svg ref={svgRef} width={width} height={height} className="block" />;
 }
@@ -1037,8 +1066,8 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
     return null;
   });
 
-  // View mode: individual force charts or delivery curve
-  const [view, setView] = useState<'forces' | 'delivery'>('delivery');
+  // View mode: individual force charts or activity curve
+  const [view, setView] = useState<'forces' | 'activity'>('activity');
 
   // Raw force toggle (absolute values vs z-score normalised)
   const [showRawForce, setShowRawForce] = useState(true);
@@ -1050,7 +1079,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   // Drawing state
   const [drawing, setDrawing] = useState(false);
   const [drawLines, setDrawLines] = useState<Record<ForceKey, DrawLine[]>>({
-    fate: [], world: [], system: [], swing: [], delivery: [],
+    fate: [], world: [], system: [], swing: [], activity: [],
   });
   const [activeDrawKey, setActiveDrawKey] = useState<ForceKey | null>(null);
   const activeLineRef = useRef<[number, number][]>([]);
@@ -1087,7 +1116,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   }, [activeDrawKey]);
 
   const clearDrawings = useCallback(() => {
-    setDrawLines({ fate: [], world: [], system: [], swing: [], delivery: [] });
+    setDrawLines({ fate: [], world: [], system: [], swing: [], activity: [] });
   }, []);
 
   // Resize observer
@@ -1114,8 +1143,8 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
 
   const forceMap = useMemo(() => {
     if (allScenes.length === 0) return {};
-    return computeForceSnapshots(allScenes, []);
-  }, [allScenes]);
+    return computeForceSnapshots(allScenes, [], narrative);
+  }, [allScenes, narrative]);
 
   const dataPoints = useMemo((): SceneDataPoint[] => {
     if (!narrative || allScenes.length === 0) return [];
@@ -1202,9 +1231,9 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
     return { activeDataPoints: sliced, slidingWindowOffset: start, visibleScenes: allScenes.slice(start, end) };
   }, [allActiveDataPoints, allScenes, slidingWindow, selectedIndex]);
 
-  // Delivery curve always computed from z-score normalised forces
+  // Activity curve always computed from z-score normalised forces
   // When windowed, use the windowed slice of the normalized data
-  const deliveryData = useMemo((): DeliveryPoint[] => {
+  const activityData = useMemo((): ActivityPoint[] => {
     if (dataPoints.length === 0) return [];
     if (slidingWindow !== null && slidingWindow < dataPoints.length) {
       const anchor = selectedIndex ?? dataPoints.length - 1;
@@ -1214,23 +1243,23 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
       if (start < 0) { start = 0; end = slidingWindow; }
       if (end > dataPoints.length) { end = dataPoints.length; start = end - slidingWindow; }
       start = Math.max(0, start);
-      return computeDeliveryCurve(dataPoints.slice(start, end).map((d) => d.forces));
+      return computeActivityCurve(dataPoints.slice(start, end).map((d) => d.forces));
     }
-    return computeDeliveryCurve(dataPoints.map((d) => d.forces));
+    return computeActivityCurve(dataPoints.map((d) => d.forces));
   }, [dataPoints, slidingWindow, selectedIndex]);
 
-  // Current cube corner + local delivery position — tracks the focused scene
+  // Current cube corner + local activity position — tracks the focused scene
   const { currentCube, localPosition } = useMemo(() => {
     if (dataPoints.length === 0) return { currentCube: null, localPosition: null };
     const focusIdx = selectedIndex ?? dataPoints.length - 1;
     const clamped = Math.max(0, Math.min(focusIdx, dataPoints.length - 1));
     const cube = detectCubeCorner(dataPoints[clamped].forces);
-    // Local delivery position: use delivery data up to the focused scene
-    const engUpToFocus = deliveryData.slice(0, Math.min(clamped + 1, deliveryData.length));
+    // Local activity position: use activity data up to the focused scene
+    const engUpToFocus = activityData.slice(0, Math.min(clamped + 1, activityData.length));
     const window = engUpToFocus.slice(-FORCE_WINDOW_SIZE);
     const pos = window.length > 0 ? classifyCurrentPosition(window) : null;
     return { currentCube: cube, localPosition: pos };
-  }, [dataPoints, deliveryData, selectedIndex]);
+  }, [dataPoints, activityData, selectedIndex]);
 
   const arcRegions = useMemo((): ArcRegion[] => {
     if (activeDataPoints.length === 0) return [];
@@ -1309,7 +1338,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
   const zoneBarHeight = 48;
   const availableChartHeight = dims.height - headerHeight - hoverBarHeight - arcLabelHeight - zoneBarHeight;
   const chartHeight = Math.max(Math.floor(availableChartHeight / 4), 80);
-  const deliveryChartHeight = Math.max(availableChartHeight, 120);
+  const activityChartHeight = Math.max(availableChartHeight, 120);
 
   const hasDrawings = Object.values(drawLines).some((lines) => lines.length > 0);
 
@@ -1392,7 +1421,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center rounded-full border border-border overflow-hidden">
-            {(['forces', 'delivery'] as const).map((v) => (
+            {(['forces', 'activity'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -1480,7 +1509,7 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
           </div>
         ) : (
           <>
-            {view === 'delivery' && (currentCube || localPosition) && (
+            {view === 'activity' && (currentCube || localPosition) && (
               <div className="flex items-center gap-4 px-4 py-1.5 border-b border-border/50 shrink-0">
                 {currentCube && (
                   <div className="flex items-center gap-2">
@@ -1507,21 +1536,21 @@ export function ForceAnalytics({ onClose }: { onClose: () => void }) {
                 )}
               </div>
             )}
-            {view === 'delivery' ? (
-              <DeliveryChart
+            {view === 'activity' ? (
+              <ActivityChart
                 data={activeDataPoints}
-                delivery={deliveryData}
+                activity={activityData}
                 arcRegions={arcRegions}
                 hoverIndex={hoverIndex}
                 onHover={setHoverIndex}
                 selectedIndex={visibleSelIdx}
                 onSelect={handleSelect}
                 windowRange={windowRange}
-                height={deliveryChartHeight}
+                height={activityChartHeight}
                 width={dims.width}
                 dense={arcRegions.length >= DENSE_ARC_THRESHOLD}
                 drawing={drawing}
-                drawLines={drawLines.delivery}
+                drawLines={drawLines.activity}
                 onDrawStart={onDrawStart}
                 onDrawMove={onDrawMove}
                 onDrawEnd={onDrawEnd}

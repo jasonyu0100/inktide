@@ -6,7 +6,7 @@ import {
   classifyNarrativeShape,
   classifyScale,
   classifyWorldDensity,
-  computeDeliveryCurve,
+  computeActivityCurve,
   computeForceSnapshots,
   computeRawForceTotals,
   computeSwingMagnitudes,
@@ -415,23 +415,23 @@ describe("movingAverage", () => {
     expect(result[4]).toBe(4); // [3, 4, 5]
   });
 });
-// ── Delivery Curve ───────────────────────────────────────────────────────────
-describe("computeDeliveryCurve", () => {
+// ── Activity Curve ───────────────────────────────────────────────────────────
+describe("computeActivityCurve", () => {
   it("returns empty array for empty input", () => {
-    expect(computeDeliveryCurve([])).toEqual([]);
+    expect(computeActivityCurve([])).toEqual([]);
   });
-  it("computes delivery points with all properties", () => {
+  it("computes activity points with all properties", () => {
     const snapshots: ForceSnapshot[] = [
       { fate: 0, world: 0, system: 0 },
       { fate: 1, world: 1, system: 1 },
       { fate: -1, world: -1, system: -1 },
       { fate: 0.5, world: 0.5, system: 0.5 },
     ];
-    const curve = computeDeliveryCurve(snapshots);
+    const curve = computeActivityCurve(snapshots);
     expect(curve).toHaveLength(4);
     for (const point of curve) {
       expect(point).toHaveProperty("index");
-      expect(point).toHaveProperty("delivery");
+      expect(point).toHaveProperty("activity");
       expect(point).toHaveProperty("tension");
       expect(point).toHaveProperty("smoothed");
       expect(point).toHaveProperty("macroTrend");
@@ -560,47 +560,15 @@ describe("classifyCurrentPosition", () => {
   });
   it("detects peak when last point is peak", () => {
     const points = [
-      {
-        index: 0,
-        delivery: 0.2,
-        tension: 0,
-        smoothed: 0.2,
-        macroTrend: 0.3,
-        isPeak: false,
-        isValley: false,
-      },
-      {
-        index: 1,
-        delivery: 0.8,
-        tension: 0,
-        smoothed: 0.8,
-        macroTrend: 0.5,
-        isPeak: true,
-        isValley: false,
-      },
+      { index: 0, activity: 0.2, tension: 0, smoothed: 0.2, macroTrend: 0.3, isPeak: false, isValley: false },
+      { index: 1, activity: 0.8, tension: 0, smoothed: 0.8, macroTrend: 0.5, isPeak: true, isValley: false },
     ];
     expect(classifyCurrentPosition(points).key).toBe("peak");
   });
   it("detects trough when last point is valley", () => {
     const points = [
-      {
-        index: 0,
-        delivery: 0.8,
-        tension: 0,
-        smoothed: 0.8,
-        macroTrend: 0.5,
-        isPeak: false,
-        isValley: false,
-      },
-      {
-        index: 1,
-        delivery: 0.2,
-        tension: 0,
-        smoothed: 0.2,
-        macroTrend: 0.3,
-        isPeak: false,
-        isValley: true,
-      },
+      { index: 0, activity: 0.8, tension: 0, smoothed: 0.8, macroTrend: 0.5, isPeak: false, isValley: false },
+      { index: 1, activity: 0.2, tension: 0, smoothed: 0.2, macroTrend: 0.3, isPeak: false, isValley: true },
     ];
     expect(classifyCurrentPosition(points).key).toBe("trough");
   });

@@ -85,7 +85,7 @@ describe('computePortfolioSnapshot', () => {
 });
 
 describe('buildPortfolioRows', () => {
-  it('sorts by category (saturating > live > dormant > abandoned > resolved)', () => {
+  it('sorts active threads by focus score; sinks abandoned/resolved to the bottom', () => {
     const threads = {
       CLOSED: mkThread('CLOSED', { closedAt: 'S-1', closeOutcome: 0 }),
       COMMITTED: mkThread('COMMITTED', {
@@ -101,9 +101,14 @@ describe('buildPortfolioRows', () => {
     };
     const rows = buildPortfolioRows(mkNarrative(threads), ['S-001'], 0);
     const ids = rows.map((r) => r.thread.id);
-    expect(ids.indexOf('NEAR')).toBeLessThan(ids.indexOf('COMMITTED'));
-    expect(ids.indexOf('COMMITTED')).toBeLessThan(ids.indexOf('ABANDONED'));
-    expect(ids.indexOf('ABANDONED')).toBeLessThan(ids.indexOf('CLOSED'));
+    // Terminal states (abandoned, then resolved) pinned to the tail.
+    expect(ids.indexOf('ABANDONED')).toBeGreaterThan(ids.indexOf('NEAR'));
+    expect(ids.indexOf('ABANDONED')).toBeGreaterThan(ids.indexOf('COMMITTED'));
+    expect(ids.indexOf('CLOSED')).toBeGreaterThan(ids.indexOf('ABANDONED'));
+    // Among active threads, focus score orders them (volume × entropy ×
+    // (1 + volatility) × recency). COMMITTED's higher entropy gives it a
+    // higher focus score than the near-saturated NEAR here.
+    expect(ids.indexOf('COMMITTED')).toBeLessThan(ids.indexOf('NEAR'));
   });
 
   it('attaches per-row market state (probs, margin, entropy, volume, category)', () => {

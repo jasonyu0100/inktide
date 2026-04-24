@@ -2,7 +2,7 @@
 
 import {
   classifyCurrentPosition,
-  computeDeliveryCurve,
+  computeActivityCurve,
   computeForceSnapshots,
   computeWindowedForces,
   detectCubeCorner,
@@ -211,7 +211,7 @@ export function NarrativeCubeViewer({ onClose }: { onClose: () => void }) {
       focusedIdx + 1,
     );
     const snapshots = windowEntries.map((e) => e.forces);
-    const pts = computeDeliveryCurve(snapshots);
+    const pts = computeActivityCurve(snapshots);
     return pts.length > 0 ? classifyCurrentPosition(pts) : null;
   }, [forceEntries, focusedIdx]);
 

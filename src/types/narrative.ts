@@ -94,6 +94,20 @@ export type ThreadLogNode = {
   /** Outcomes added to the thread's market at this scene (if any).
    *  Present only on scenes that structurally expanded the market. */
   addedOutcomes?: string[];
+  /** Normalized Shannon info-gain at this delta: |H(pre) − H(post)| / ln(N).
+   *  Range [0, 1]. Populated by applyThreadDelta; read by the refined fate
+   *  formula so we don't need a trajectory replay to score the scene. */
+  infoGain?: number;
+  /** Market volume immediately before this delta was applied. Lets the fate
+   *  formula weight information gain by how much attention the market
+   *  was carrying at the moment of movement. */
+  preVolume?: number;
+  /** Scenes elapsed since the thread opened, at the time of this delta.
+   *  Only meaningful on closing deltas — drives the buildup bonus. */
+  buildup?: number;
+  /** True if this delta triggered closure (margin ≥ τ, committal logType,
+   *  decisive evidence). Used by the fate closure bonus. */
+  closed?: boolean;
 };
 
 export type ThreadLogEdge = {

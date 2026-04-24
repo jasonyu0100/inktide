@@ -22,7 +22,7 @@ export function ShapeSlide({ data }: { data: SlidesData }) {
 
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const eng = data.deliveryCurve;
+    const eng = data.activityCurve;
     const x = d3.scaleLinear().domain([0, eng.length - 1]).range([0, w]);
     const maxAbs = Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
     const y = d3.scaleLinear().domain([-maxAbs, maxAbs]).range([h, 0]);
@@ -32,24 +32,45 @@ export function ShapeSlide({ data }: { data: SlidesData }) {
     g.append('line').attr('x1', 0).attr('y1', zeroY).attr('x2', w).attr('y2', zeroY)
       .attr('stroke', 'white').attr('stroke-opacity', 0.15);
 
+    // Augment with interpolated zero-crossings so the orange/blue
+    // regions clip cleanly at y=0 instead of dropping vertically at
+    // scene vertices.
+    type EngSample = { x: number; v: number };
+    const augmented: EngSample[] = [];
+    for (let i = 0; i < eng.length; i++) {
+      const e = eng[i];
+      augmented.push({ x: x(e.index), v: e.smoothed });
+      if (i < eng.length - 1) {
+        const a = e.smoothed;
+        const b = eng[i + 1].smoothed;
+        if ((a > 0 && b < 0) || (a < 0 && b > 0)) {
+          const t = a / (a - b);
+          augmented.push({
+            x: x(e.index) + t * (x(eng[i + 1].index) - x(e.index)),
+            v: 0,
+          });
+        }
+      }
+    }
+
     // Positive area
-    const posArea = d3.area<typeof eng[0]>()
-      .x((d) => x(d.index))
+    const posArea = d3.area<EngSample>()
+      .x((p) => p.x)
       .y0(zeroY)
-      .y1((d) => Math.min(y(d.smoothed), zeroY))
+      .y1((p) => y(Math.max(0, p.v)))
       .curve(d3.curveMonotoneX);
 
-    g.append('path').datum(eng).attr('d', posArea)
+    g.append('path').datum(augmented).attr('d', posArea)
       .attr('fill', '#F59E0B').attr('fill-opacity', 0.12);
 
     // Negative area
-    const negArea = d3.area<typeof eng[0]>()
-      .x((d) => x(d.index))
+    const negArea = d3.area<EngSample>()
+      .x((p) => p.x)
       .y0(zeroY)
-      .y1((d) => Math.max(y(d.smoothed), zeroY))
+      .y1((p) => y(Math.min(0, p.v)))
       .curve(d3.curveMonotoneX);
 
-    g.append('path').datum(eng).attr('d', negArea)
+    g.append('path').datum(augmented).attr('d', negArea)
       .attr('fill', '#93C5FD').attr('fill-opacity', 0.08);
 
     // Macro trend

@@ -18,11 +18,11 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
   const segScenes = data.scenes.slice(segment.startIdx, segment.endIdx + 1);
   const segForces = data.forceSnapshots.slice(segment.startIdx, segment.endIdx + 1);
 
-  const peaksInSeg = data.deliveryCurve.filter((e) => e.isPeak && e.index >= segment.startIdx && e.index <= segment.endIdx);
-  const valleysInSeg = data.deliveryCurve.filter((e) => e.isValley && e.index >= segment.startIdx && e.index <= segment.endIdx);
+  const peaksInSeg = data.activityCurve.filter((e) => e.isPeak && e.index >= segment.startIdx && e.index <= segment.endIdx);
+  const valleysInSeg = data.activityCurve.filter((e) => e.isValley && e.index >= segment.startIdx && e.index <= segment.endIdx);
 
-  // Delivery trend: compare first-half avg to second-half avg
-  const segEng = data.deliveryCurve.slice(segment.startIdx, segment.endIdx + 1);
+  // Activity trend: compare first-half avg to second-half avg
+  const segEng = data.activityCurve.slice(segment.startIdx, segment.endIdx + 1);
   const mid = Math.floor(segEng.length / 2);
   const firstHalf = segEng.slice(0, mid);
   const secondHalf = segEng.slice(mid);
@@ -73,7 +73,7 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
     svg.attr('viewBox', `0 0 ${width} ${height}`);
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const fullEng = data.deliveryCurve;
+    const fullEng = data.activityCurve;
     const x = d3.scaleLinear().domain([0, fullEng.length - 1]).range([0, w]);
     const maxAbs = Math.max(...fullEng.map((e) => Math.abs(e.smoothed)), 0.5) * 1.2;
     const y = d3.scaleLinear().domain([-maxAbs, maxAbs]).range([h, 0]);
@@ -152,7 +152,7 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
         </span>
       </div>
 
-      {/* Delivery chart */}
+      {/* Activity chart */}
       <svg ref={svgRef} className="w-full shrink-0" style={{ height: 140 }} />
 
       {/* Stats grid */}
@@ -192,7 +192,7 @@ export function SegmentSlide({ data, segment }: { data: SlidesData; segment: Seg
             })}
           </div>
           <div className="mt-3 text-[10px] text-text-dim">
-            Avg delivery: <span className="text-amber-400 font-mono font-semibold">{segment.avgDelivery.toFixed(2)}</span>
+            Avg activity: <span className="text-amber-400 font-mono font-semibold">{segment.avgActivity.toFixed(2)}</span>
           </div>
         </div>
 

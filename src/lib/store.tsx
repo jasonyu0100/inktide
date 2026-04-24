@@ -9,12 +9,13 @@ import {
   classifyNarrativeShape,
   classifyScale,
   classifyWorldDensity,
-  computeDeliveryCurve,
+  computeActivityCurve,
   computeForceSnapshots,
   computeRawForceTotals,
   computeSwingMagnitudes,
   FORCE_REFERENCE_MEANS,
   gradeForces,
+  inferDominanceWeights,
   nextId,
   resolveEntrySequence,
   resolvePlanForBranch,
@@ -517,15 +518,11 @@ export function narrativeToEntry(n: NarrativeState): NarrativeEntry {
   let archetypeKey: string | undefined;
   let archetypeName: string | undefined;
   let overallScore: number | undefined;
-  let scaleKey: string | undefined;
-  let scaleName: string | undefined;
-  let densityKey: string | undefined;
-  let densityName: string | undefined;
 
   // Scale and density can be computed with any scene count
   const scale = classifyScale(allScenes.length);
-  scaleKey = scale.key;
-  scaleName = scale.name;
+  const scaleKey = scale.key;
+  const scaleName = scale.name;
   // Entity continuity graph density — total nodes and edges across all entities
   const allEntities = [
     ...Object.values(n.characters),
@@ -549,25 +546,29 @@ export function narrativeToEntry(n: NarrativeState): NarrativeEntry {
     entityContinuityNodes,
     entityContinuityEdges,
   );
-  densityKey = density.key;
-  densityName = density.name;
+  const densityKey = density.key;
+  const densityName = density.name;
 
   if (allScenes.length >= 3) {
-    const raw = computeRawForceTotals(allScenes);
+    // Pass the narrative through so fate uses the refined (F7) formula
+    // reading per-delta info-gain from thread log nodes. Delivery uses
+    // dominance-weighted aggregation inferred from the raw force shares.
+    const raw = computeRawForceTotals(allScenes, n);
     const rawForces = raw.fate.map((_, i) => ({
       fate: raw.fate[i],
       world: raw.world[i],
       system: raw.system[i],
     }));
     const swings = computeSwingMagnitudes(rawForces, FORCE_REFERENCE_MEANS);
-    const forceMap = computeForceSnapshots(allScenes);
+    const forceMap = computeForceSnapshots(allScenes, [], n);
     const ordered = allScenes.map(
       (s) => forceMap[s.id] ?? { fate: 0, world: 0, system: 0 },
     );
-    const deliveryPoints = computeDeliveryCurve(ordered);
+    const weights = inferDominanceWeights(raw.fate, raw.world, raw.system);
+    const activityPoints = computeActivityCurve(ordered, weights);
     const grades = gradeForces(raw.fate, raw.world, raw.system, swings);
 
-    const shape = classifyNarrativeShape(deliveryPoints.map((d) => d.delivery));
+    const shape = classifyNarrativeShape(activityPoints.map((d) => d.activity));
     const archetype = classifyArchetype(grades);
     shapeKey = shape.key;
     shapeName = shape.name;

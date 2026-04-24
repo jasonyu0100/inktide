@@ -237,15 +237,17 @@ The system knowledge graph tracks laws, systems, concepts, and tensions as nodes
 
 ## Narrative Forces & Formulas
 
-Three force dimensions, all **z-score normalised** (mean=0, units=standard deviations):
+Three force dimensions, each measuring **force activity this scene** in its own natural units. Normalised via **rank→Gaussian quantile transform** (`z = Φ⁻¹(rank/(N+1))`) — distribution-free, bounded, robust to outliers:
 
-- **Fate (F)** — `Σ log(1 + peak_|evidence|) × (1 + log(1 + volumeDelta))` — leading-order proxy for `|ΔH(probs)| × volume_weight`; payoffs/twists (|e|≈4) saturate near 1.6, setups (|e|≈1) score ~0.7, pulses (|e|=0 with volume) score >0, stalls score 0
-- **World (W)** — `ΔN_w + √ΔE_w` — entity world graph complexity
-- **System (S)** — `ΔN + √ΔE` — world knowledge graph complexity
+- **Fate (F)** — `Σ_t v_t · D_KL(p_t⁺ ‖ p_t⁻)` — attention-weighted Kullback–Leibler divergence across the scene's thread-market updates. One summation, zero tuning constants; the canonical information-theoretic gain. Stamped per-delta on thread log nodes by `applyThreadDelta` so the scene-level formula reads directly off the log.
+- **World (W)** — `ΔN + √ΔE` — new nodes + edge diminishing-returns on entity continuity graphs.
+- **System (S)** — `ΔN + √ΔE` — same form; both are knowledge graphs, the formula is identical.
 
 Derived metrics:
-- **Delivery** — `(F + W + S) / 3` — equal-weighted mean of z-scored forces
-- **Swing** — Euclidean distance between consecutive force snapshots
+- **Activity** — `A_i = w_F·F + w_W·W + w_S·S` — signature-weighted aggregate of the three force channels. Weights come from PCA (`computeForceSignature`) on the three normalised force curves; no hand-picked archetypes. We're measuring how much the three forces are *moving together* at each scene — high A = the channels the work uses are firing in concert; low A = quiet stretches between peaks.
+- **Swing** — Euclidean distance between consecutive force snapshots.
+
+Reference means (calibrated across three inktide works — HP fate-dominant, Alice world-dominant, *Quantifying Narrative Force* system-dominant): `{ fate: 1.4, world: 14, system: 6 }`. Grading curve `g(x̃) = 25 − 17·exp(−k·x̃)` with `k = ln(17/4)`; HP grades 22/23/17, QNF 12/14/25.
 
 Formulas in `src/lib/narrative-utils.ts`. The **cube** model maps forces into 3D space for trajectory analysis.
 
@@ -333,7 +335,7 @@ This is document-style version history. You can edit the original text while kee
 
 ## Auto Mode Engine (src/lib/auto-engine.ts)
 
-Automated story generation guided by **narrative pressure analysis** across the three forces. The engine evaluates thread management, entity development, and world knowledge to create peaks and valleys in the delivery curve.
+Automated story generation guided by **narrative pressure analysis** across the three forces. The engine evaluates thread management, entity development, and world knowledge to create peaks and valleys in the activity curve.
 
 **Story Phases**: Progress maps to six phases — `setup → rising → midpoint → escalation → climax → resolution`. Each phase has guidance for what should happen structurally (e.g., "setup" plants seeds, "climax" resolves critical threads).
 

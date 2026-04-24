@@ -43,9 +43,10 @@ import {
   classifyNarrativeShape,
   classifyScale,
   classifyWorldDensity,
-  computeDeliveryCurve,
+  computeActivityCurve,
   computeForceSnapshots,
   computeRawForceTotals,
+  inferDominanceWeights,
   computeSwingMagnitudes,
   gradeForces,
   resolveEntrySequence,
@@ -376,7 +377,7 @@ export default function TopBar() {
   const [copyToast, setCopyToast] = useState<string | null>(null);
   const [hoveredArcIdx, setHoveredArcIdx] = useState<number | null>(null);
   const [scorecardGraphView, setScorecardGraphView] = useState<
-    "arcs" | "delivery"
+    "arcs" | "activity"
   >("arcs");
   const scorecardRef = useRef<HTMLDivElement>(null);
   const usageRef = useRef<HTMLDivElement>(null);
@@ -934,7 +935,7 @@ export default function TopBar() {
 
   const scorecard = useMemo(() => {
     if (allScenes.length === 0 || !narrative) return null;
-    const raw = computeRawForceTotals(allScenes);
+    const raw = computeRawForceTotals(allScenes, narrative);
     const n = raw.fate.length;
     if (n === 0) return null;
 
@@ -995,9 +996,10 @@ export default function TopBar() {
 
     const seriesGrades = gradeForces(raw.fate, raw.world, raw.system, swings);
 
-    const normSnapshots = Object.values(computeForceSnapshots(allScenes));
-    const deliveryPoints = computeDeliveryCurve(normSnapshots);
-    const shape = classifyNarrativeShape(deliveryPoints.map((d) => d.delivery));
+    const normSnapshots = Object.values(computeForceSnapshots(allScenes, [], narrative));
+    const weights = inferDominanceWeights(raw.fate, raw.world, raw.system);
+    const activityPoints = computeActivityCurve(normSnapshots, weights);
+    const shape = classifyNarrativeShape(activityPoints.map((d) => d.activity));
 
     const archetype = classifyArchetype(seriesGrades);
 
@@ -1025,7 +1027,7 @@ export default function TopBar() {
       density,
       perArc,
       shape,
-      deliveryPoints,
+      activityPoints,
     };
   }, [allScenes, narrative]);
 
@@ -1792,18 +1794,36 @@ export default function TopBar() {
                     score: a.grades.overall,
                   }));
 
-                  const eng = scorecard.deliveryPoints;
+                  const eng = scorecard.activityPoints;
                   const engMaxAbs =
                     Math.max(...eng.map((e) => Math.abs(e.smoothed)), 0.5) *
                     1.2;
                   const engPoints = eng.map((e, i) => ({
                     x: PAD.left + i * (cw / Math.max(eng.length - 1, 1)),
                     y: PAD.top + ch / 2 - (e.smoothed / engMaxAbs) * (ch / 2),
-                    delivery: e.delivery,
+                    v: e.smoothed,
+                    activity: e.activity,
                     isPeak: e.isPeak,
                     isValley: e.isValley,
                   }));
                   const zeroY = PAD.top + ch / 2;
+                  // Augment with interpolated zero-crossings so the
+                  // orange/blue regions clip cleanly at y=0.
+                  const engAreaPoints: Array<{ x: number; y: number }> = [];
+                  for (let i = 0; i < engPoints.length; i++) {
+                    engAreaPoints.push({ x: engPoints[i].x, y: engPoints[i].y });
+                    if (i < engPoints.length - 1) {
+                      const a = engPoints[i].v;
+                      const b = engPoints[i + 1].v;
+                      if ((a > 0 && b < 0) || (a < 0 && b > 0)) {
+                        const t = a / (a - b);
+                        engAreaPoints.push({
+                          x: engPoints[i].x + t * (engPoints[i + 1].x - engPoints[i].x),
+                          y: zeroY,
+                        });
+                      }
+                    }
+                  }
 
                   return (
                     <div className="mt-4 pt-4 border-t border-white/8">
@@ -1811,10 +1831,10 @@ export default function TopBar() {
                         <h3 className="text-[9px] uppercase tracking-widest text-text-dim">
                           {scorecardGraphView === "arcs"
                             ? "Score by Arc"
-                            : "Delivery"}
+                            : "Activity"}
                         </h3>
                         <div className="flex items-center rounded border border-white/8 overflow-hidden">
-                          {(["arcs", "delivery"] as const).map((v) => (
+                          {(["arcs", "activity"] as const).map((v) => (
                             <button
                               key={v}
                               onClick={() => setScorecardGraphView(v)}
@@ -1991,12 +2011,12 @@ export default function TopBar() {
                             0
                           </text>
                           <path
-                            d={`M${engPoints[0].x},${zeroY} ${engPoints.map((p) => `L${p.x},${Math.min(p.y, zeroY)}`).join(" ")} L${engPoints[engPoints.length - 1].x},${zeroY} Z`}
+                            d={`M${engAreaPoints[0].x},${zeroY} ${engAreaPoints.map((p) => `L${p.x},${Math.min(p.y, zeroY)}`).join(" ")} L${engAreaPoints[engAreaPoints.length - 1].x},${zeroY} Z`}
                             fill="#F59E0B"
                             fillOpacity="0.12"
                           />
                           <path
-                            d={`M${engPoints[0].x},${zeroY} ${engPoints.map((p) => `L${p.x},${Math.max(p.y, zeroY)}`).join(" ")} L${engPoints[engPoints.length - 1].x},${zeroY} Z`}
+                            d={`M${engAreaPoints[0].x},${zeroY} ${engAreaPoints.map((p) => `L${p.x},${Math.max(p.y, zeroY)}`).join(" ")} L${engAreaPoints[engAreaPoints.length - 1].x},${zeroY} Z`}
                             fill="#93C5FD"
                             fillOpacity="0.08"
                           />

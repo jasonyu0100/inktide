@@ -39,8 +39,8 @@ Fiction (lyric / fabulist / mythic):
 • {"content": "The hero's name is called three times before the council answers", "type": "refrain"}
 
 Non-fiction (exhaustive):
-• {"content": "F = Σ log(1 + |e|_max) × (1 + log(1 + Δv))", "type": "formula"}
-• {"content": "F represents Fate — information gain from scenes re-pricing thread prediction markets", "type": "definition"}
+• {"content": "F = Σ_t v_t · D_KL(p_t⁺ ‖ p_t⁻)", "type": "formula"}
+• {"content": "F represents Fate — attention-weighted Kullback–Leibler divergence from prior to posterior belief across every market the scene touched; one summation, no tuning constants", "type": "definition"}
 • {"content": "W = ΔN_c + √ΔE_c — entity transformation across characters, locations, artifacts", "type": "definition"}
 • {"content": "Published works score 85-95", "type": "evidence"}
 

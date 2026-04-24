@@ -107,7 +107,7 @@ export function selectNode(
   if (tree.rootChildIds.length === 0) return null;
 
   // Walk down via UCB1
-  let parentVisits = tree.rootChildIds.reduce((s, id) => s + (tree.nodes[id]?.visitCount ?? 0), 0);
+  const parentVisits = tree.rootChildIds.reduce((s, id) => s + (tree.nodes[id]?.visitCount ?? 0), 0);
 
   // Pick best root child to start walk
   let currentId: MCTSNodeId | null = null;

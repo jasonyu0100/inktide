@@ -11,7 +11,7 @@ const FORCE_COLORS: Record<string, string> = {
   system: '#3B82F6',
 };
 
-function DeliveryCurve({ data, sceneIdx, isPeak }: { data: SlidesData; sceneIdx: number; isPeak: boolean }) {
+function ActivityCurve({ data, sceneIdx, isPeak }: { data: SlidesData; sceneIdx: number; isPeak: boolean }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ function DeliveryCurve({ data, sceneIdx, isPeak }: { data: SlidesData; sceneIdx:
     svg.attr('viewBox', `0 0 ${width} ${height}`);
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const full = data.deliveryCurve;
+    const full = data.activityCurve;
 
     // Window: MOMENT_SPARKLINE_WINDOW scenes centered on the moment
     const half = Math.floor(MOMENT_SPARKLINE_WINDOW / 2);
@@ -99,7 +99,7 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
   if (!scene) return null;
 
   const forces = peakInfo?.forces ?? troughInfo?.forces ?? { fate: 0, world: 0, system: 0 };
-  const delivery = peakInfo?.delivery ?? troughInfo?.delivery;
+  const activity = peakInfo?.activity ?? troughInfo?.activity;
   const cubeCorner = peakInfo?.cubeCorner ?? troughInfo?.cubeCorner;
   const threadChanges = peakInfo?.threadChanges ?? scene.threadDeltas?.map((tm) => ({ threadId: tm.threadId, logType: tm.logType, updates: tm.updates ?? [] })) ?? [];
   const relationshipChanges = peakInfo?.relationshipChanges ?? scene.relationshipDeltas?.map((rm) => ({ from: rm.from, to: rm.to, type: rm.type, delta: rm.valenceDelta })) ?? [];
@@ -129,16 +129,16 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
           <span className="text-[10px] px-2 py-0.5 rounded border border-white/8 text-text-dim">{cubeCorner.name}</span>
         )}
         <div className="flex-1" />
-        {delivery && (
+        {activity && (
           <span className="text-xs font-mono text-text-dim">
-            Delivery <span className={`font-bold ${accentText}`}>{delivery.delivery.toFixed(2)}</span>
+            Activity <span className={`font-bold ${accentText}`}>{activity.activity.toFixed(2)}</span>
           </span>
         )}
       </div>
 
-      {/* Delivery curve sparkline */}
+      {/* Activity curve sparkline */}
       <div className="mb-4">
-        <DeliveryCurve data={data} sceneIdx={sceneIdx} isPeak={isPeak} />
+        <ActivityCurve data={data} sceneIdx={sceneIdx} isPeak={isPeak} />
       </div>
 
       {/* Summary — full width, prominent */}
@@ -202,9 +202,9 @@ export function KeyMomentsSlide({ data, sceneIdx, kind }: { data: SlidesData; sc
                 );
               })}
             </div>
-            {delivery && (
+            {activity && (
               <div className="flex items-center gap-4 mt-2 text-[10px] text-text-dim">
-                <span>Tension <span className="font-mono text-text-secondary">{delivery.tension.toFixed(2)}</span></span>
+                <span>Tension <span className="font-mono text-text-secondary">{activity.tension.toFixed(2)}</span></span>
               </div>
             )}
           </div>

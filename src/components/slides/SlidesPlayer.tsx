@@ -190,7 +190,7 @@ export function SlidesPlayer({
   }
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+     
     <div ref={containerRef} className="fixed inset-0 z-100 bg-bg-base flex flex-col outline-none" tabIndex={0}>
       {/* Aurora background */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">

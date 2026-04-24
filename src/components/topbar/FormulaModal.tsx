@@ -41,70 +41,69 @@ function ForcesTab() {
   return (
     <div className="space-y-5">
       <p className="text-[10px] text-text-dim">
-        Three forces capture distinct dimensions of narrative intensity. All z-score normalized: <Tex>{'z_i = (x_i - \\mu) \\,/\\, \\sigma'}</Tex>
+        A book is a revelation machine. Two kinds of revelation, three forces. <B>Encyclopedic</B>: new entries (World = entity dossiers, System = world rulebook). <B>Possibility</B>: outcomes opening and closing (Fate). All rank&rarr;Gaussian normalized across scenes: <Tex>{String.raw`z_i = \Phi^{-1}(\text{rank}_i / (N{+}1))`}</Tex>.
       </p>
 
-      <S title="Fate" analogy="How much did this scene re-price high-attention threads? Information gain on committed markets.">
-        <Block tex={String.raw`F = \sum_{t} \log(1 + |e_t|_{\max}) \cdot (1 + \log(1 + \Delta v_t))`} />
+      <S title="Fate — possibility" analogy="How much did this scene reshape the live space of what could still happen? Odds moving on open questions.">
+        <Block tex={String.raw`F_i = \sum_{t \in \Delta_i} v_t \cdot D_{\text{KL}}\!\left(\mathbf{p}_t^{+} \,\Big\|\, \mathbf{p}_t^{-}\right)`} />
         <p className="text-[10px] text-text-dim">
-          Threads are prediction markets over named outcomes. <Tex>{'|e_t|_{\\max}'}</Tex> = peak evidence magnitude emitted on thread{' '}
-          <Tex>{'t'}</Tex> in this scene (integer in [-4, +4]). <Tex>{'\\Delta v_t'}</Tex> = volume delta (attention change).{' '}
-          Log-compression prevents saturating events from drowning the rest of the portfolio. See the whitepaper&apos;s Fate Engine section for the full market dynamics (softmax pricing, volume decay, scaled closure, resolution quality).
+          Threads are prediction markets over named outcomes. <Tex>{String.raw`\mathbf{p}_t^{-}, \mathbf{p}_t^{+}`}</Tex> = narrator&apos;s prior and posterior distributions over thread <Tex>t</Tex>&apos;s outcomes (softmax of logits, before and after the scene). <Tex>v_t</Tex> = pre-scene volume (accumulated narrative attention). KL divergence scores how much the belief moved; attention weights which markets matter. Zero for pulses (<Tex>{String.raw`\mathbf{p}^{+} = \mathbf{p}^{-}`}</Tex>), large for twists and closures. Fate is a force of <em>possibility</em>, not probability &mdash; the market machinery is the accounting; reshaping the outcome space is the force.
         </p>
       </S>
 
-      <S title="World" analogy="How much did we learn about the entities? Inner transformation of characters, locations, artifacts.">
+      <S title="World — physical" analogy="How much new was written onto the dossiers of specific people, places, and artifacts this scene?">
         <Block tex={String.raw`W = \Delta N_c + \sqrt{\Delta E_c}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`\Delta N_c`}</Tex> = continuity nodes added to entity inner worlds (traits, beliefs, goals, secrets, capabilities, states).{' '}
-          <Tex>{String.raw`\Delta E_c`}</Tex> = continuity edges (causal connections between inner-world facts).{' '}
-          Same structure as System — nodes linear, edges sqrt — but spanning every entity rather than one world graph.
+          Each entity (character, location, artifact) has its own dossier &mdash; a continuity graph of traits, beliefs, goals, secrets, capabilities, states. <Tex>{String.raw`\Delta N_c`}</Tex> = new entries across all dossiers this scene. <Tex>{String.raw`\Delta E_c`}</Tex> = new causal edges between entries. Nodes linear (each genuinely new ground); edges sqrt (first few connections matter most). Encyclopedic revelation about the people.
         </p>
       </S>
 
-      <S title="System" analogy="Is the world growing richer? Revealing a new principle expands the world more than linking two known concepts.">
+      <S title="System — abstract" analogy="How much new was written into the book's encyclopedia of how the world itself works?">
         <Block tex={String.raw`S = \Delta N + \sqrt{\Delta E}`} />
         <p className="text-[10px] text-text-dim">
-          <Tex>{String.raw`\Delta N`}</Tex> = new world-building nodes (principles, systems, concepts, tensions, events, structures).{' '}
-          <Tex>{String.raw`\Delta E`}</Tex> = new edges between nodes (sqrt — first connections matter more than bulk linking). Fresh ideas outweigh new connections.
+          One shared knowledge graph for the world itself &mdash; rules, principles, concepts, tensions, events, structures. <Tex>{String.raw`\Delta N`}</Tex> = new entries this scene; <Tex>{String.raw`\Delta E`}</Tex> = new cross-references. Same shape as World (nodes linear, edges sqrt), different domain. Encyclopedic revelation about the rulebook.
         </p>
       </S>
     </div>
   );
 }
 
+function B({ children }: { children: React.ReactNode }) {
+  return <span className="font-semibold text-text-primary">{children}</span>;
+}
+
 function DynamicsTab() {
   return (
     <div className="space-y-5">
       <p className="text-[10px] text-text-dim">
-        Derived metrics that capture pacing, tension, and the buildup-release cycle.
+        Derived metrics on top of the three forces — activity (overall rate), tension (buildup without release), swing (breathing), and the peak/valley detector.
       </p>
 
-      <S title="Tension" analogy="The coiled spring — energy building without release.">
+      <S title="Activity" analogy="How hard the revelation machine is working this scene — encyclopedia entries plus possibility reshaping, on one scale.">
+        <Block tex={String.raw`A_i = w_F F_i + w_W W_i + w_S S_i, \quad w_F + w_W + w_S = 1`} />
+        <p className="text-[10px] text-text-dim">
+          Weighted sum of the three forces after rank&rarr;Gaussian normalisation. Weights come from PCA on the normalised force curves &mdash; the work&apos;s own signature, not a hand-picked archetype. Papers signature system-heavy, simulations fate-heavy, narratives balanced across all three. Peaks are scenes where the book is revealing a lot at once across its dominant channels.
+        </p>
+      </S>
+
+      <S title="Tension" analogy="The coiled spring — encyclopedic growth piling up while possibility stays frozen.">
         <Block tex="T_i = W_i + S_i - F_i" />
         <p className="text-[10px] text-text-dim">
-          High when characters change and the world expands but nothing resolves. Drops sharply at fate scenes.
+          High when entity dossiers and the world rulebook grow but no open questions resolve. Drops sharply at fate scenes &mdash; the possibility field releasing the stored encyclopedic pressure.
         </p>
       </S>
 
-      <S title="Delivery" analogy="The dopamine hit — earned resolution lands hardest.">
-        <Block tex={String.raw`D_i = \frac{F_i + W_i + S_i}{3}`} />
+      <S title="Swing" analogy="The story breathing — great stories alternate loud and quiet.">
+        <Block tex={String.raw`\text{Sw}_i = \sqrt{\left(\tfrac{\Delta F}{\mu_F}\right)^{2} + \left(\tfrac{\Delta W}{\mu_W}\right)^{2} + \left(\tfrac{\Delta S}{\mu_S}\right)^{2}}`} />
         <p className="text-[10px] text-text-dim">
-          Equal-weighted mean of z-scored forces. Because each force is independently normalised to mean=0, std=1, all three contribute equally regardless of raw scale. Peaks emerge from structurally complete moments where all three forces fire together.
+          Normalised Euclidean distance between consecutive force snapshots. Each delta divided by its reference mean (<Tex>{String.raw`\mu_F, \mu_W, \mu_S`}</Tex>) so the three forces contribute equally regardless of their natural scales.
         </p>
       </S>
 
-      <S title="Swing" analogy="The story breathing — great stories alternate intensity.">
-        <Block tex={String.raw`S_i = \sqrt{\left(\frac{\Delta P}{\mu_P}\right)^{2} + \left(\frac{\Delta C}{\mu_C}\right)^{2} + \left(\frac{\Delta K}{\mu_K}\right)^{2}}`} />
+      <S title="Peak & valley detection" analogy="Where are the climaxes and the breathing room?">
+        <Block tex={String.raw`\tilde{A} = \mathcal{G}_{\sigma=1.5} \ast A, \qquad r = \max\!\left(2,\, \lfloor n/25 \rfloor\right)`} />
         <p className="text-[10px] text-text-dim">
-          Normalized Euclidean distance between consecutive force snapshots. Each delta divided by its reference mean so all three contribute equally.
-        </p>
-      </S>
-
-      <S title="Peak & Valley Detection" analogy="Where are the climaxes and the breathing room?">
-        <Block tex={String.raw`\tilde{E} = \mathcal{G}_{\sigma=1.5} \ast E, \qquad r = \max\!\left(2,\, \lfloor n/25 \rfloor\right)`} />
-        <p className="text-[10px] text-text-dim">
-          Gaussian-smoothed delivery with adaptive window (wider for longer works). Peaks must rise <Tex>{'\\geq 0.4\\sigma'}</Tex> above their base. Valleys are symmetric.
+          Gaussian-smoothed activity curve with adaptive window (wider for longer works). Peaks must rise <Tex>{String.raw`\geq 0.4\sigma`}</Tex> above their base. Valleys symmetric.
         </p>
       </S>
     </div>
@@ -115,14 +114,14 @@ function ScoringTab() {
   return (
     <div className="space-y-5">
       <p className="text-[10px] text-text-dim">
-        Forces convert to grades calibrated against literary reference works (HP, Gatsby, Crime &amp; Punishment land at 88&ndash;93).
+        Forces convert to grades calibrated against reference works across all three textual modes &mdash; narratives, papers, simulations &mdash; so a system-heavy paper and a fate-heavy narrative can sit on the same scale.
       </p>
 
       <S title="Grading" analogy="Single exponential — floor 8, dominance at reference, cap 25.">
         <Block tex={String.raw`g(\tilde{x}) = 25 - 17\,e^{-k\tilde{x}} \qquad k = \ln\!\tfrac{17}{4} \qquad \tilde{x} = \frac{\bar{x}}{\mu_{\text{ref}}}`} />
-        <Block tex="\text{Overall} = g(\tilde{P}) + g(\tilde{C}) + g(\tilde{K}) + g(\tilde{S})" />
+        <Block tex={String.raw`\text{Overall} = g(\tilde{F}) + g(\tilde{W}) + g(\tilde{S}) + g(\tilde{\text{Sw}})`} />
         <p className="text-[10px] text-text-dim">
-          At <Tex>{'\\tilde{x}=1'}</Tex> (matching reference), grade = 21/25 (dominance threshold). Floor of 8, cap of 25. Swing graded directly.
+          At <Tex>{String.raw`\tilde{x} = 1`}</Tex> (matching reference mean), grade = 21/25 &mdash; the dominance threshold. Floor 8, cap 25. Each force is divided by its own reference mean before grading so system-heavy papers, fate-heavy narratives, and world-heavy memoirs all land on the same scale. Swing graded directly against its own reference.
         </p>
         <div className="mt-2 flex gap-2 text-[10px]">
           {[

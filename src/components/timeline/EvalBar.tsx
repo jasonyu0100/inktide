@@ -3,12 +3,19 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useStore } from '@/lib/store';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
-import { computeForceSnapshots, computeDeliveryCurve } from '@/lib/narrative-utils';
+import {
+  computeForceSnapshots,
+  computeActivityCurve,
+  computeRawForceTotals,
+  computeForceSignature,
+} from '@/lib/narrative-utils';
 
 /**
- * Floating vertical evaluation bar for narrative Delivery.
- * Grows from center: teal gradient fills upward for positive, rose gradient fills downward for negative.
- * The gradient deepens toward the extremes. Spring animation on scene change.
+ * Floating vertical activity bar. Grows from centre: orange gradient
+ * fills upward for high-activity scenes, light-blue gradient fills
+ * downward for low-activity stretches. Spring animation on scene
+ * change. Matches the shading on the activity line chart so the two
+ * instruments read as one.
  */
 export default function EvalBar() {
   const { state } = useStore();
@@ -23,29 +30,33 @@ export default function EvalBar() {
       .filter((e): e is Scene => !!e && isScene(e));
   }, [narrative, resolvedEntryKeys]);
 
-  const deliveryCurve = useMemo(() => {
+  const activityCurve = useMemo(() => {
     if (allScenes.length === 0) return [];
-    const snapshots = Object.values(computeForceSnapshots(allScenes));
-    return computeDeliveryCurve(snapshots);
-  }, [allScenes]);
+    const snapshots = Object.values(computeForceSnapshots(allScenes, [], narrative));
+    // Weight by the work's own signature (PCA) so the activity curve
+    // reflects its actual force vocabulary rather than equal-weighting.
+    const raw = computeRawForceTotals(allScenes, narrative);
+    const sig = computeForceSignature(raw.fate, raw.world, raw.system);
+    return computeActivityCurve(snapshots, sig.weights);
+  }, [allScenes, narrative]);
 
-  const currentDelivery = useMemo(() => {
-    if (!narrative || allScenes.length === 0 || deliveryCurve.length === 0) return null;
+  const currentActivity = useMemo(() => {
+    if (!narrative || allScenes.length === 0 || activityCurve.length === 0) return null;
     const sceneIdx = Math.min(
       allScenes.length - 1,
       resolvedEntryKeys.slice(0, currentSceneIndex + 1)
         .filter((k) => resolveEntry(narrative, k)?.kind === 'scene').length - 1,
     );
-    if (sceneIdx < 0 || sceneIdx >= deliveryCurve.length) return null;
-    return deliveryCurve[sceneIdx];
-  }, [narrative, allScenes, deliveryCurve, currentSceneIndex, resolvedEntryKeys]);
+    if (sceneIdx < 0 || sceneIdx >= activityCurve.length) return null;
+    return activityCurve[sceneIdx];
+  }, [narrative, allScenes, activityCurve, currentSceneIndex, resolvedEntryKeys]);
 
-  // Sigmoid: delivery z-score → 0..100% (50% = zero delivery)
+  // Sigmoid: activity z-score → 0..100% (50% = average activity level)
   const targetPct = useMemo(() => {
-    if (!currentDelivery) return 50;
-    const d = currentDelivery.smoothed;
+    if (!currentActivity) return 50;
+    const d = currentActivity.smoothed;
     return 100 / (1 + Math.exp(-d * 3.0));
-  }, [currentDelivery]);
+  }, [currentActivity]);
 
   // Spring animation
   const [displayPct, setDisplayPct] = useState(targetPct);
@@ -88,11 +99,11 @@ export default function EvalBar() {
 
   const isPositive = displayPct >= 50;
   const extent = Math.abs(displayPct - 50); // 0-50% how far from center
-  const displayValue = currentDelivery
-    ? (currentDelivery.smoothed >= 0 ? '+' : '') + currentDelivery.smoothed.toFixed(1)
+  const displayValue = currentActivity
+    ? (currentActivity.smoothed >= 0 ? '+' : '') + currentActivity.smoothed.toFixed(1)
     : '—';
 
-  const tag = currentDelivery?.isPeak ? 'PEAK' : currentDelivery?.isValley ? 'VALLEY' : null;
+  const tag = currentActivity?.isPeak ? 'PEAK' : currentActivity?.isValley ? 'VALLEY' : null;
 
   // Fill grows from center: positive upward, negative downward
   // Gradient deepens from center (subtle) to edge (saturated)
@@ -107,7 +118,7 @@ export default function EvalBar() {
   return (
     <div className="absolute left-6 top-1/2 -translate-y-1/2 z-20 select-none"
       style={{ height: '60%' }}
-      title={`Delivery: ${displayValue}${tag ? ` · ${tag}` : ''}`}
+      title={`Activity: ${displayValue}${tag ? ` · ${tag}` : ''}`}
     >
       {/* Bar track */}
       <div className="w-4 h-full rounded-full overflow-hidden shadow-lg">

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { computeForceSnapshots, computeDeliveryCurve, classifyCurrentPosition, getEffectivePovId } from '@/lib/narrative-utils';
+import { computeForceSnapshots, computeActivityCurve, classifyCurrentPosition, getEffectivePovId } from '@/lib/narrative-utils';
 import type { Scene } from '@/types/narrative';
 
 const POSITION_COLORS: Record<string, string> = {
@@ -33,14 +33,14 @@ export default function ArcDetail({ arcId }: Props) {
       .filter(Boolean);
   }, [arc, narrative, state.resolvedEntryKeys]);
 
-  const delivery = useMemo(() => {
+  const activity = useMemo(() => {
     const allScenes = state.resolvedEntryKeys
       .map((k) => narrative.scenes[k])
       .filter((s): s is Scene => !!s);
     if (allScenes.length === 0) return null;
     const forceMap = computeForceSnapshots(allScenes);
     const ordered = allScenes.map((s) => forceMap[s.id]).filter(Boolean);
-    const pts = computeDeliveryCurve(ordered);
+    const pts = computeActivityCurve(ordered);
     if (pts.length < 2) return null;
     const arcSceneIds = new Set(arc.sceneIds);
     const arcStart = allScenes.findIndex((s) => arcSceneIds.has(s.id));
@@ -84,9 +84,9 @@ export default function ArcDetail({ arcId }: Props) {
         </div>
       )}
 
-      {/* Delivery chart */}
-      {delivery && (() => {
-        const { pts, arcStart, position } = delivery;
+      {/* Activity chart */}
+      {activity && (() => {
+        const { pts, arcStart, position } = activity;
         const n = pts.length;
         const W = 260, H = 48;
         const smoothed = pts.map((p) => p.smoothed);
@@ -102,7 +102,7 @@ export default function ArcDetail({ arcId }: Props) {
         return (
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] uppercase tracking-widest text-text-dim">Delivery</span>
+              <span className="text-[9px] uppercase tracking-widest text-text-dim">Activity</span>
               {position && (
                 <span className="text-[9px] font-medium" style={{ color: POSITION_COLORS[position.key] ?? 'white' }}>
                   {position.name}

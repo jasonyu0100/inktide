@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useImageUrl } from '@/hooks/useAssetUrl';
 import { ArchetypeIcon } from '@/components/ArchetypeIcon';
 import { scoreColor, timeAgo } from '@/lib/ui-utils';
+import { useStore, narrativeToEntry } from '@/lib/store';
 import type { NarrativeEntry } from '@/types/narrative';
 
 export interface StoryCardProps {
@@ -28,7 +29,7 @@ const SCALE_KEYS = ['short', 'story', 'novel', 'epic', 'serial'] as const;
 const DENSITY_KEYS = ['sparse', 'focused', 'developed', 'rich', 'sprawling'] as const;
 
 export function StoryCard({
-  entry,
+  entry: rawEntry,
   index,
   size = 'md',
   showScale = true,
@@ -40,6 +41,18 @@ export function StoryCard({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
+  // If this card's narrative is currently hydrated in the store, derive
+  // its metrics fresh rather than using the persisted entry snapshot.
+  // Grades are cheap to compute (milliseconds) and we never want a stale
+  // score on the card — the scorecard and slides derive the same way, so
+  // all three surfaces agree by construction.
+  const { state } = useStore();
+  const entry = useMemo(() => {
+    const hydrated = state.activeNarrative;
+    if (hydrated?.id === rawEntry.id) return narrativeToEntry(hydrated);
+    return rawEntry;
+  }, [rawEntry, state.activeNarrative]);
 
   const coverUrl = useImageUrl(entry.coverImageUrl);
   const isLg = size === 'lg';

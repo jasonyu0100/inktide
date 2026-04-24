@@ -3,7 +3,6 @@
 import { ARCHETYPE_COLORS, ArchetypeIcon } from "@/components/ArchetypeIcon";
 import { ThinkingAnimation } from "@/components/generation/ThinkingAnimation";
 import { REASONING_NODE_COLORS } from "@/lib/reasoning-node-colors";
-import { FORCE_REFERENCE_MEANS } from "@/lib/narrative-utils";
 import type { ReasoningMode } from "@/lib/ai/reasoning-graph/types";
 import * as d3 from "d3";
 import dagre from "dagre";
@@ -40,6 +39,32 @@ function Eq({ tex, label }: { tex: string; label?: string }) {
         <Tex display>{tex}</Tex>
       </div>
     </div>
+  );
+}
+
+/* ── Copy paper contents button ──────────────────────────────────────────── */
+
+function CopyPaperButton() {
+  const [status, setStatus] = useState<"idle" | "copied" | "error">("idle");
+  const handleCopy = async () => {
+    const el = document.getElementById("paper-body");
+    if (!el) return;
+    try {
+      await navigator.clipboard.writeText(el.innerText);
+      setStatus("copied");
+    } catch {
+      setStatus("error");
+    }
+    setTimeout(() => setStatus("idle"), 2000);
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="text-[10px] font-mono text-white/30 hover:text-white/60 transition-colors"
+    >
+      {status === "copied" ? "copied" : status === "error" ? "failed" : "copy"}
+    </button>
   );
 }
 
@@ -1060,72 +1085,67 @@ export default function PaperPage() {
             Measuring, querying, and generating structural intelligence from
             long-form text.
           </p>
-          <div className="mt-3">
+          <div className="mt-3 flex items-center gap-2">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/5 border border-white/10 text-white/40">
               ~15 min read
             </span>
+            <CopyPaperButton />
           </div>
         </div>
 
-        <div className="space-y-16">
+        <div id="paper-body" className="space-y-16">
           {/* ── Abstract ──────────────────────────────────────────────── */}
           <Section id="abstract" label="Abstract">
             <P>
-              Reading is subjective. Taste is subjective. No formula will ever
-              replace that, and this paper doesn&apos;t try to. It asks a
-              narrower question: when readers agree that a moment feels earned,
-              a chapter drags, or a resolution rings hollow,{" "}
-              <em>what structural thing are they responding to?</em> We argue
-              the answer is legible, and takes the same shape across fiction,
-              non-fiction, and academic writing.
+              Taste is subjective; structure is not. When readers agree
+              that a moment feels earned, a chapter drags, or a
+              resolution rings hollow, they are responding to something
+              legible &mdash; and it takes the same shape across the
+              three textual modes we care about: <B>narratives</B>{" "}
+              (fiction, memoir, biography), <B>papers</B> (research,
+              essay, argument), and <B>simulations</B> (thought
+              experiments, game trees, scenario models). They all
+              operate in the same three fields of reality, just
+              weighted differently. Narrative is our primary case
+              study; the framework generalizes.
             </P>
             <P>
-              We propose modelling any long-form text as a{" "}
-              <B>knowledge graph</B> that mutates section by section. From the
-              deltas of that graph we derive three forces — three distinct{" "}
-              <em>fields</em> of narrative causation. <B>System</B> is the{" "}
-              <em>abstract</em> field: the rules and structures that deepen
-              through use. <B>World</B> is the <em>physical</em> field: the
-              entities — characters, locations, artifacts — who carry agency
-              through the story. <B>Fate</B> is the <em>metaphysical</em>{" "}
-              field: the accumulated commitment of threads pulling toward
-              resolution, the directional pull that guides how the world
-              unfolds. The claim is narrower than it first reads: these
-              three fields capture the <em>structural causality</em> of
-              narrative — the substrate of rules, agents, and direction —
-              not the full reader experience. Aesthetic texture, voice,
-              and cognitive affect live in adjacent layers (prose profiles,
-              embeddings) that ride on top of this substrate. Every work
-              weights the three fields differently — thrillers fate-dominant,
-              character studies world-dominant, research papers
-              system-dominant — but the mixture describes the causal spine
-              readers react to when they call a work satisfying or hollow.
+              A book is a <B>revelation machine</B>. Scene by scene, it
+              reveals things to the reader, in two kinds.{" "}
+              <B>Encyclopedic</B> revelation adds new facts &mdash; new
+              characters, new places, new rules. <B>Possibility</B>{" "}
+              revelation reshapes what could still happen &mdash; which
+              outcomes are alive, which have been closed off, and how
+              the unknown is resolving. From a single per-scene
+              knowledge graph we recover three forces aligned with
+              these two kinds. <B>System</B> and <B>World</B> are
+              encyclopedic: rules and entities accumulate as nodes and
+              edges. <B>Fate</B> is possibility: thread markets
+              reprice as evidence lands, narrowing or widening the
+              space of what could still be. Texture and voice ride in
+              adjacent layers (prose profiles, embeddings); the three
+              forces carry the causal spine.
             </P>
             <P>
-              The methodology splits along the seam the tools are good at.{" "}
-              <B>LLMs extract qualitative meaning</B> at low temperature —
-              reading a passage and recording which thread advanced, what an
-              entity learned, which rule of the world was revealed.{" "}
-              <B>Deterministic formulas extract quantitative impact</B> —
-              given the same deltas, the same scores follow, every time. The
-              LLM interprets; the math measures.
+              The methodology splits along the seam the tools are good
+              at. <B>LLMs extract qualitative meaning</B> at low
+              temperature &mdash; which thread advanced, what an entity
+              learned, which rule was revealed. <B>Deterministic
+              formulas extract quantitative impact</B> &mdash; the
+              same deltas yield the same scores, every time.
             </P>
             <P>
-              The promise of the approach is a <B>structural spine</B> — a
-              sequence of <B>peaks</B> where all three forces converge (the
-              scenes the story commits on) and <B>valleys</B> where tension is
-              seeded and the story pivots (the turning points that make the
-              next peak feel earned). Applied to{" "}
+              Summed on a common scale, the three forces give{" "}
+              <B>Activity</B> &mdash; a per-scene measure of how hard
+              the revelation machine is working. <B>Peaks</B> are
+              scenes where the book is revealing a lot at once across
+              all three channels (the scenes the story commits on);{" "}
+              <B>valleys</B> are quiet stretches where tension is
+              seeded for what follows. Applied to{" "}
               <em>Harry Potter and the Sorcerer&apos;s Stone</em>, the
-              delivery curve recovers this spine automatically — Hagrid
-              revealing Harry is a wizard, Diagon Alley, the welcoming feast,
-              the troll, Norbert, Quirrell — with valleys at the boa
-              constrictor, the arrival at Hogwarts, the Mirror of Erised, the
-              descent through the trapdoor. Peaks and valleys are
-              complementary, not hierarchical: peaks are where the story
-              commits, valleys are where it launches. Together they are what
-              the reader feels when a narrative &ldquo;breathes&rdquo; — and
-              they fall out of the math, not out of taste.
+              activity curve recovers this spine automatically &mdash;
+              what a reader feels when a narrative
+              &ldquo;breathes&rdquo;, recovered from the math.
             </P>
           </Section>
 
@@ -1138,16 +1158,18 @@ export default function PaperPage() {
               miss this level: sentiment captures tone, topic models capture
               word distribution, readability gauges surface complexity. None
               measure whether threads are advancing or cycling, whether
-              knowledge is deepening, whether entities are developing.
+              knowledge is deepening, whether entities are developing —
+              how actively the book is revealing anything at all.
             </P>
             <P>
               When we apply structural formulas to published works versus
               AI-generated text, the gap becomes empirically visible.
-              Published literature scores 85–95 on composite delivery;
-              unguided AI output scores 65–78. The gap decomposes into
-              specific weaknesses — threads that cycle without advancing,
-              shallow entity continuity, sparse concept connectivity. In
-              short: <em>insufficient investment before resolution</em>.
+              Published literature scores 85–95 on composite{" "}
+              <B>activity</B>; unguided AI output scores 65–78. The gap
+              decomposes into specific weaknesses — threads that cycle
+              without advancing, shallow entity continuity, sparse
+              concept connectivity. In short:{" "}
+              <em>insufficient investment before resolution</em>.
             </P>
 
             {/* ── Human vs AI gradient bar ──────────────────────────── */}
@@ -1311,82 +1333,102 @@ export default function PaperPage() {
           {/* ── Approach ──────────────────────────────────────────────── */}
           <Section id="approach" label="Approach">
             <P>
-              We model narratives as knowledge graphs that evolve scene by
-              scene. An LLM extracts structural deltas; deterministic
-              formulas compute forces from those deltas. This separates{" "}
-              <em>comprehension</em> (LLM) from <em>measurement</em> (formulas),
-              keeping the scoring fully transparent and reproducible.
+              We model every book as a knowledge graph that updates scene
+              by scene. Think of it as the book&apos;s own running
+              notebook &mdash; one page for each character, location,
+              rule, or open question, updated only when the scene on the
+              page reveals something new. An LLM reads each scene and
+              writes down <em>what changed</em>; deterministic formulas
+              then read the change and compute <em>how much</em> was
+              revealed. This separates <em>comprehension</em> (LLM) from{" "}
+              <em>measurement</em> (formulas), keeping the scoring
+              transparent and reproducible.
             </P>
-            <P>The three delta layers are:</P>
+            <P>
+              The scene-by-scene changes come in two kinds of
+              revelation &mdash; encyclopedic (new facts) and
+              possibility (outcomes becoming alive or dying) &mdash;
+              captured by three delta layers:
+            </P>
             <ul className="mt-3 space-y-2 text-[13px] text-white/50 leading-[1.85]">
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">1.</span>
                 <span>
-                  <B>Thread deltas</B> — evidence updates to{" "}
-                  <em>prediction markets</em> over named outcomes (rivalries,
-                  secrets, quests, open questions). Each scene emits integer
-                  evidence in [−4, +4] on the affected outcomes plus a log-type
-                  from nine primitives; the math handles log-odds conversion,
-                  volume decay, volatility, scaled closure, and abandonment.
-                  Fate falls out of information gain across the market&apos;s
-                  trajectory — the more a scene&apos;s evidence re-prices a
-                  high-attention thread, the more fate it earns.
+                  <B>System graph deltas</B> &mdash; the{" "}
+                  <em>encyclopedic</em> kind. New entries in the
+                  world&apos;s rulebook: principles, systems, concepts,
+                  tensions, events, structures, conventions, constraints.
+                  Each entry is a node; connections between them are
+                  typed edges. Depth emerges from connectivity, not
+                  lexical volume.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">2.</span>
                 <span>
-                  <B>World deltas</B> — permanent character
-                  transformations (learns, loses, becomes, realizes) plus
-                  relationship valence shifts. These accumulate as persistent
-                  state attached to characters.
+                  <B>World deltas</B> &mdash; also encyclopedic, but
+                  about the people. New entries on the pages of specific
+                  characters, locations, and artifacts: learns, loses,
+                  becomes, realises, plus relationship valence shifts.
+                  These accumulate as persistent state attached to the
+                  entity whose page was written on.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-white/25 shrink-0">3.</span>
                 <span>
-                  <B>System graph deltas</B> — additions to the
-                  world-building graph: nodes (principles, systems, concepts,
-                  tensions, events, structures, environments, conventions,
-                  constraints) and typed edges. Depth emerges from connectivity,
-                  not lexical volume.
+                  <B>Thread deltas</B> &mdash; the{" "}
+                  <em>possibility</em> kind. Every open question
+                  (rivalry, secret, quest, unresolved claim) opens a
+                  branch in possibility space, implemented as a{" "}
+                  <em>prediction market</em> over named outcomes. Each
+                  scene emits integer evidence in [−4, +4] on the
+                  affected outcomes plus a log-type from nine
+                  primitives; the math handles log-odds conversion,
+                  volume decay, volatility, scaled closure, and
+                  abandonment. Fate falls out of the re-pricing
+                  &mdash; the more a scene&apos;s evidence re-shapes a
+                  high-attention market&apos;s live possibilities, the
+                  more fate it earns. Probability is the accounting;
+                  possibility is what&apos;s being tracked.
                 </span>
               </li>
             </ul>
             <P>
-              Three forces derive directly from these deltas — one per{" "}
-              <em>field</em> of narrative causation. The hypothesis is that
-              the causal spine of any narrative resolves into three such
-              fields: rule-based structures, embodied entities with agency,
-              and a metaphysical pull that guides how the world unfolds.
-              Texture and voice live elsewhere; the spine is what the
-              formulas see.
+              Three forces follow, one per delta layer. Together they
+              measure how actively each scene is revealing things:
             </P>
             <ul className="space-y-2 text-[13px] text-white/60 leading-relaxed pl-4">
               <li>
-                <B>System</B> — the <em>abstract</em> field. Measures how the
-                world&apos;s rules and structures deepen through knowledge
-                graph expansion.
+                <B>System</B> &mdash; encyclopedic revelation about the{" "}
+                <em>world itself</em>. Grows as new rules, concepts,
+                and structures accumulate.
               </li>
               <li>
-                <B>World</B> — the <em>physical</em> field. Measures entity
-                transformation through continuity shifts — what the story
-                does to the characters, locations, and artifacts who carry
-                agency through it.
+                <B>World</B> &mdash; encyclopedic revelation about the{" "}
+                <em>people and places</em>. Grows as characters,
+                locations, and artifacts reveal who they&apos;re
+                becoming.
               </li>
               <li>
-                <B>Fate</B> — the <em>metaphysical</em> field. Measures
-                thread progression toward resolution — the directional pull
-                that guides how the world unfolds, drawing world and system
-                toward big-picture events and extraordinary circumstances.
+                <B>Fate</B> &mdash; possibility revelation about{" "}
+                <em>what could still happen</em>. Grows as the odds
+                move on open questions &mdash; rivalries, secrets,
+                quests, unresolved claims &mdash; narrowing or
+                widening the live outcome space.
               </li>
             </ul>
             <P>
-              The composition of these three forces defines a work&apos;s
-              archetype. A <B>Paper</B> is system-dominant. A <B>Stage</B> is
-              world-dominant. A <B>Classic</B> is fate-dominant. An <B>Opus</B>{" "}
-              balances all three. All forces are z-score normalized, making them
-              comparable across works of arbitrary length.
+              The composition of these three forces defines a work&apos;s{" "}
+              <B>signature</B> &mdash; a continuous point on the unit
+              3-simplex recovered from the dominant principal component
+              of <Tex>{String.raw`\;(F, W, S)`}</Tex>. Archetypes name
+              its neighbourhoods: <B>Paper</B> is system-dominant,{" "}
+              <B>Stage</B> world-dominant, <B>Classic</B> fate-dominant,{" "}
+              <B>Opus</B> balanced. Each force is first rank-transformed
+              to a standard normal &mdash; distribution-free and bounded
+              &mdash; so length, genre, and outlier scenes don&apos;t
+              bias the comparison across works.
             </P>
           </Section>
 
@@ -1826,45 +1868,69 @@ export default function PaperPage() {
           {/* ── The Three Forces ──────────────────────────────────────── */}
           <Section id="forces" label="The Three Forces">
             <p className="text-[15px] leading-relaxed text-white/50 italic mb-8">
-              We opened with a question: why do some resolutions feel earned
-              while others ring hollow? The answer is investment — and here we
-              make it precise. Three forces capture what readers perceive
-              intuitively, derived deterministically from knowledge graph
-              deltas. Each corresponds to a distinct field of narrative
-              causation: System is the <em>abstract</em> field of rules,
-              World the <em>physical</em> field of entities with agency, Fate
-              the <em>metaphysical</em> field that guides how the world
-              unfolds. The hypothesis is structural, not totalising: these
-              three fields carry the <em>causal</em> content of a narrative
-              — what builds, what transforms, what resolves — while
-              experiential layers (voice, rhythm, reader cognition) are
-              handled by the prose profile and embedding systems that
-              compose on top. Fiction, academic argument, and non-fiction
-              all share the causal substrate; they differ in how the
-              experiential layers dress it.
+              A text resolves into three fields. The{" "}
+              <B>abstract</B> field is the rules and structures that
+              make events possible. The <B>physical</B> field is the
+              entities &mdash; characters, locations, artifacts,
+              institutions, instruments &mdash; that act under those
+              rules. The <B>possibility</B> field is the live space
+              of what could still happen: every open question
+              branches possibility, and the text reshapes it scene
+              by scene. <B>System</B> measures growth of the abstract
+              field, <B>World</B> of the physical, <B>Fate</B> of the
+              possibility field. Rules, agents, possibilities: every
+              textual event is a movement in one of these three
+              fields, and the formulas that follow measure each
+              field from the deltas of a single knowledge graph.
+              Fate is a force of <em>possibility</em>, not
+              probability &mdash; probability asks what{" "}
+              <em>will</em> happen, possibility asks what{" "}
+              <em>could</em>. Narratives, like simulations, observe
+              possibility.
+            </p>
+            <p className="text-[14px] leading-relaxed text-white/45 mb-8">
+              The three textual modes weight the fields differently.{" "}
+              <B>Papers</B> live primarily in the{" "}
+              <em>abstract</em> field &mdash; their work is stating
+              and connecting rules, and an effective paper mostly
+              grows System. <B>Simulations</B> live primarily in the{" "}
+              <em>possibility</em> field &mdash; they explore what
+              could happen given a ruleset, and their reading is
+              mostly Fate. <B>Narratives</B> are the richest case:
+              embodied entities acting under rules toward open
+              outcomes, with all three fields firing at once. The
+              formulas are identical across modes; only the
+              signature differs.
             </p>
             <div className="mb-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
                 System
               </h3>
               <P>
-                System is the <B>abstract field</B> &mdash; the deepening of
-                the world itself, the rules, structures, and concepts that
-                form the substrate on which stories operate. Every narrative
-                exists within a physics of possibility: what can happen, what
-                cannot, what costs what. System tracks how that substrate
-                grows and connects.
+                System is the <B>abstract field</B> &mdash; the
+                deepening of the world itself. The rules, structures,
+                and concepts that form the substrate on which stories
+                operate. Think of it as the book&apos;s encyclopedia of
+                how the world works: every scene can add a new entry
+                (a magical law, a political system, a social
+                convention) or a new cross-reference between entries.
+                Every narrative exists within a physics of what is
+                possible, what is not, what costs what; System tracks
+                how that physics grows and connects.
               </P>
               <Eq tex={String.raw`S = \Delta N + \sqrt{\Delta E}`} />
               <P>
-                <Tex>{"\\Delta N"}</Tex> counts new nodes added to the graph
-                (principles, systems, concepts, tensions, events, structures),
-                and <Tex>{"\\Delta E"}</Tex> counts new typed edges. Nodes scale
-                linearly because each represents genuinely new information.
-                Edges scale sub-linearly (square root) because early connections
-                matter more than later ones — this prevents bulk edge additions
-                from dominating. The formula applies to any world-building
-                context: fantasy magic systems, literary social hierarchies, or
+                <Tex>{"\\Delta N"}</Tex> counts new nodes added to the
+                graph (principles, systems, concepts, tensions,
+                events, structures) &mdash; new encyclopedia entries.{" "}
+                <Tex>{"\\Delta E"}</Tex> counts new typed edges
+                &mdash; new cross-references. Nodes scale linearly
+                because each is genuinely new ground. Edges scale
+                sub-linearly (square root) because the first few
+                connections into an entry do most of the interpretive
+                work, and bulk edge additions shouldn&apos;t dominate.
+                The formula applies to any world-building context:
+                fantasy magic systems, literary social hierarchies, or
                 science fiction physics.
               </P>
             </div>
@@ -1874,24 +1940,30 @@ export default function PaperPage() {
                 World
               </h3>
               <P>
-                World is the <B>physical field</B> &mdash; the entities who
-                walk the stage and exercise agency within it. Where System
-                tracks the rules, World tracks transformation: what we learn
-                about characters, locations, and artifacts as they move
-                through the story, and how that knowledge accumulates into
-                continuity. The abstract field provides the laws; the
-                physical field provides the agents who act under them.
+                World is the <B>physical field</B> &mdash; the
+                entities who walk the stage and exercise agency
+                within it. If System is the encyclopedia of how the
+                world works, World is the <em>dossier on each
+                person, place, and object</em>: a separate page for
+                every character, location, and artifact, updated
+                whenever the scene reveals something about them.
+                What Harry knows, what he fears, what&apos;s happened
+                to Hogwarts, what the Stone can do &mdash; each
+                becomes an entry on the relevant page. The abstract
+                field provides the laws; the physical field provides
+                the agents who act under them.
               </P>
               <Eq tex={String.raw`W = \Delta N_c + \sqrt{\Delta E_c}`} />
               <P>
-                <Tex>{String.raw`\Delta N_c`}</Tex> counts continuity nodes
-                added to entity inner worlds (traits, beliefs, goals, secrets,
-                capabilities, states), and <Tex>{String.raw`\Delta E_c`}</Tex>{" "}
-                counts continuity edges (causal connections between inner-world
-                facts). The symmetry with System is deliberate — both measure
-                structural complexity growth, but in different domains: System
-                tracks what we learn about the <em>world</em>, World tracks what
-                we learn about <em>entities</em>.
+                <Tex>{String.raw`\Delta N_c`}</Tex> counts continuity
+                nodes added to entity inner worlds &mdash; new entries
+                on an entity&apos;s dossier (traits, beliefs, goals,
+                secrets, capabilities, states). <Tex>{String.raw`\Delta E_c`}</Tex>{" "}
+                counts continuity edges &mdash; causal connections
+                between those entries. The symmetry with System is
+                deliberate: both count encyclopedic growth, but
+                System tracks entries about the <em>world</em>, World
+                tracks entries about <em>specific entities</em>.
               </P>
             </div>
 
@@ -1900,110 +1972,210 @@ export default function PaperPage() {
                 Fate
               </h3>
               <P>
-                Fate is the <B>metaphysical field</B> &mdash; the directional
-                pull that guides how the world unfolds, drawing entities and
-                rules toward big-picture events and extraordinary
-                circumstances. Where System and World measure what the story{" "}
-                <em>is</em>, Fate measures where it&apos;s <em>going</em>. It
-                is the unifying force across the other two fields: without
-                fate, the abstract has no narrative reason to deepen and the
+                Fate is the <B>possibility field</B> &mdash; the
+                live space of what could still happen, and how the
+                book reshapes that space scene by scene. Where
+                System and World measure what the story{" "}
+                <em>is</em>, Fate measures what it{" "}
+                <em>could still be</em>. It is the unifying force
+                across the other two fields: without fate, the
+                abstract has no narrative reason to deepen and the
                 physical has no destiny to bend toward.
               </P>
               <P>
-                Fate is measured by a <B>prediction market</B> over each
-                thread&apos;s named outcomes. Scenes emit bounded integer
-                evidence on affected outcomes; softmax over the per-outcome
-                logit vector gives the current probability distribution. A
-                scene earns fate in proportion to how much it re-prices
-                high-attention markets — the information-gain approximation:
+                Fate is a force of <em>possibility</em>, not{" "}
+                <em>probability</em>. Probability asks what{" "}
+                <em>will</em> happen; possibility asks what{" "}
+                <em>could</em> happen. Narratives &mdash; like
+                simulations, like game trees &mdash; observe
+                possibility: every scene brings branches into view,
+                keeps some alive, closes others off. The
+                prediction-market machinery below is how we account
+                for that reshaping using probabilities; the force
+                being measured is the reshaping itself.
+              </P>
+              <P>
+                Picture the live win-probability line that runs during
+                a football game, or the election-night forecast needle.
+                A belief distribution rendered as a bouncing line over
+                time &mdash; flat for long stretches, nudged by small
+                evidence, lurching on decisive plays, converging as the
+                finish approaches. Every thread in a narrative carries
+                such a line. &ldquo;Will Frodo destroy the ring?&rdquo;
+                has one between <em>yes</em> and <em>no</em>.
+                &ldquo;Who claims the Iron Throne?&rdquo; has one per
+                contending house. The narrator is always running these
+                odds; a scene is a bundle of plays across many
+                simultaneous games.
+              </P>
+              <P>
+                Fate is the total movement on those lines this scene.
+                A scene that moves no market contributes zero. A scene
+                that shunts probability mass onto a previously unlikely
+                outcome contributes a great deal &mdash; the surprise
+                of where the line went is what counts. A scene that
+                closes a line out, pinning the distribution to its
+                endpoint, contributes most of all. And movement on a
+                thread the audience has been tracking for the whole
+                book weighs heavier than the same movement on a
+                side-thread the story forgot.
+              </P>
+              <P>
+                Made rigorous, each thread is a <B>prediction market</B>{" "}
+                over named outcomes. It carries a question and two or
+                more outcomes (binary default:{" "}
+                <code className="text-white/70">[&quot;yes&quot;, &quot;no&quot;]</code>;
+                multi-outcome enumerates possibilities). The
+                narrator&apos;s belief is priced as softmax over a
+                per-outcome logit vector, and scenes shift that vector
+                by emitting bounded integer evidence on affected
+                outcomes. The fate of a scene is the{" "}
+                <B>attention-weighted information gain</B> across every
+                market it touches:
               </P>
               <Eq
-                tex={String.raw`F = \sum_{t} \log(1 + |e_t|_{\max}) \cdot (1 + \log(1 + \Delta v_t))`}
+                tex={String.raw`F_i \;=\; \sum_{t \,\in\, \Delta_i} v_t \cdot D_{\text{KL}}\!\left(\mathbf{p}_t^{+} \,\Big\|\, \mathbf{p}_t^{-}\right)`}
               />
               <P>
-                where <Tex>{String.raw`|e_t|_{\max}`}</Tex> is the peak
-                evidence magnitude emitted on thread{" "}
-                <Tex>{String.raw`t`}</Tex> in this scene, and{" "}
-                <Tex>{String.raw`\Delta v_t`}</Tex> is the scene&apos;s volume
-                contribution to that market. Log-compression prevents a single
-                saturating +4 from drowning the rest of the portfolio. The
-                full engine — log-odds updates, volume decay, volatility
-                tracking, scaled closure, and resolution quality — is
-                documented in <a href="#fate-engine" className="underline hover:text-white/80">Fate Engine</a>.
+                where <Tex>{String.raw`\mathbf{p}_t^{-}, \mathbf{p}_t^{+}`}</Tex>{" "}
+                are the narrator&apos;s prior and posterior
+                distributions over thread{" "}
+                <Tex>{String.raw`t`}</Tex>&apos;s outcomes (softmax of
+                logits before and after the scene),{" "}
+                <Tex>{String.raw`v_t`}</Tex> is the market&apos;s
+                pre-scene volume, and{" "}
+                <Tex>{String.raw`D_{\text{KL}}(\mathbf{q} \,\|\, \mathbf{p}) \,=\, \sum_k q_k \log(q_k / p_k)`}</Tex>{" "}
+                is the Kullback&ndash;Leibler divergence. The
+                expression carries no tunable constants &mdash; no
+                log-type multipliers, no closure bonuses, no
+                scene-level denominators. It is fully specified by the
+                per-thread evidence vector and the pre-scene attention.
               </P>
               <P>
-                In fiction, threads are rivalries, quests, secrets. In a paper
-                they&apos;re open questions, contested claims, unresolved
-                arguments. The market framing works universally: every open
-                question has outcomes, evidence flowing in, and the reader
+                Every behaviour of the line falls out of this one form.
+                Pulses leave{" "}
+                <Tex>{String.raw`\mathbf{p}^{+} = \mathbf{p}^{-}`}</Tex>{" "}
+                so KL is zero &mdash; a vivid scene earns no fate if
+                no market moved. Confirmations of the favourite keep KL
+                small because the log-ratio terms stay small when the
+                distribution advances where it was already heading.
+                Twists land mass on an outcome the prior assigned
+                little weight, and the per-outcome contribution{" "}
+                <Tex>{String.raw`p^{+}_k \log(p^{+}_k / p^{-}_k)`}</Tex>{" "}
+                spikes exactly where the prior was small &mdash; a
+                swerve onto a previously unlikely outcome scores
+                disproportionately higher than a symmetric step in the
+                favoured direction. Closures concentrate the
+                distribution onto a single outcome; logits are bounded
+                by the evidence scale so KL stays finite in practice,
+                but committal evidence still produces enough
+                concentration that resolution scenes dominate their
+                arcs without any explicit bonus. Attention falls out of
+                the <Tex>{String.raw`v_t`}</Tex> multiplication: the
+                same belief movement weighs more on a thread the
+                audience has been tracking than on a side-thread the
+                story forgot. None of these are bolted on &mdash; each
+                is a property of KL divergence itself: non-negative,
+                zero iff the distribution did not move, asymmetric in
+                the direction of update, and additive across
+                independent markets. Scene-level fate therefore
+                decomposes into per-thread contributions without
+                further assumption, and accumulates over a corpus
+                without double-counting.
+              </P>
+              <P>
+                What makes the per-thread contributions <em>faithful</em>{" "}
+                to the page is the surrounding machinery. The LLM never
+                emits probabilities: it emits bounded integer evidence,
+                which shifts logits via log-odds arithmetic. Volume
+                accrues when a market is touched and decays
+                geometrically when it is ignored, so portfolios
+                self-organise without explicit lifecycle states.
+                Closure fires only when both margin and committal
+                evidence clear their thresholds &mdash; saturation
+                alone cannot pseudoclose a thread. A lifecycle-aware
+                second pass reprices every scene once the corpus&apos;s
+                actual resolution is known, so early seeds toward the
+                real winner and late misdirection receive the evidence
+                their structural role deserves. Fate measures the
+                output; the{" "}
+                <a href="#fate-engine" className="underline hover:text-white/80">Fate Engine</a>{" "}
+                is how the inputs get priced.
+              </P>
+              <P>
+                In narratives, threads are rivalries, quests,
+                secrets. In papers, they&apos;re open questions,
+                contested claims, unresolved arguments. In
+                simulations, they&apos;re the branching outcomes a
+                scenario is designed to observe. The market framing
+                works universally: every open question has outcomes,
+                evidence flowing in, and the reader
                 tracking who&apos;s ahead.
               </P>
               <P>
-                <B>Measurement, not target.</B> Unlike World and System &mdash;
-                which are density levers whose per-scene counts need to clear
-                a floor for the graph to have enough resolution &mdash; Fate
-                has no per-scene target. Evidence in [−4, +4] is a reading of
-                what a neutral in-world observer would update on, given the
-                scene&apos;s concrete events. It is not a knob tuned to hit
-                a fate score. Routine scenes honestly emit pulses{" "}
-                (<Tex>{String.raw`|e| = 0`}</Tex>) and earn fate near zero;
-                pivotal scenes honestly emit committal evidence
-                (<Tex>{String.raw`|e| \geq 3`}</Tex>) and earn it. Under-pricing
-                genuine resolution and over-pricing routine scenes both
-                corrupt the trajectory &mdash; the math recovers the
-                narrative&apos;s true shape only when extraction is honest.
-              </P>
-              <P>
-                <B>The fragility this introduces.</B> Clean math on dirty
-                deltas still produces a clean-looking curve. If the LLM
-                misidentifies a thread, merges two markets that should be
-                separate, or mis-scales evidence on a pivotal beat, the
-                formulas will faithfully propagate the error. A second
-                re-extraction pass reduces single-call noise but introduces
-                hindsight bias — the re-extractor has already read the
-                payoff and can over-weight setup scenes that led to it. We
-                treat extraction as the <em>critical failure surface</em>{" "}
-                of the system: the formulas are only as trustworthy as the
-                deltas feeding them, and the honest framing of any fate
-                reading is <em>conditional on the extraction being
-                defensible</em>.
+                <B>Measurement, not target.</B> Unlike World and System
+                &mdash; density levers whose per-scene counts need to
+                clear a floor for the graph to resolve &mdash; Fate has
+                no per-scene target. Evidence in [−4, +4] is a reading
+                of what a neutral in-world observer would update on
+                given the scene&apos;s concrete events; it is not a
+                knob tuned toward a target fate score. Routine scenes
+                emit pulses (<Tex>{String.raw`|e| = 0`}</Tex>) and earn
+                fate near zero; pivotal scenes emit committal evidence
+                (<Tex>{String.raw`|e| \geq 3`}</Tex>) and earn it. The
+                math recovers the narrative&apos;s shape only when
+                extraction is faithful to the events on the page.
               </P>
             </div>
 
             <div className="mt-12">
               <h3 className="text-[15px] font-semibold text-white/80 mb-2">
-                Delivery
+                Activity
               </h3>
               <P>
-                While System, World, and Fate measure structural{" "}
-                <em>operations</em>, Delivery quantifies reader-perceived{" "}
-                <em>impact</em> — the mean of all three forces, capturing
-                holistic moments where direction, transformation, and knowledge
-                converge.
+                A book reveals things in two kinds &mdash;
+                encyclopedic (World, System) and possibility (Fate)
+                &mdash; summed on a common scale, they give a single
+                per-scene reading of how active the book is. The{" "}
+                <B>activity curve</B> <Tex>{String.raw`A_i`}</Tex>{" "}
+                records that reading at scene{" "}
+                <Tex>{String.raw`i`}</Tex>: the total rate at which
+                the revelation machine is working &mdash; new
+                entries hitting the encyclopedia plus possibility
+                space reshaping under thread markets.
               </P>
               <Eq
-                tex={String.raw`D_i = \frac{F_i + W_i + S_i}{3}`}
+                tex={String.raw`A_i \;=\; w_F\,F_i \,+\, w_W\,W_i \,+\, w_S\,S_i, \quad w_F + w_W + w_S = 1`}
               />
               <P>
-                Equal-weighted mean of z-scored forces. Because each force is
-                independently normalised to mean&thinsp;=&thinsp;0,
-                std&thinsp;=&thinsp;1, all three contribute equally regardless
-                of their raw scale differences. Peaks emerge not from
-                one-dimensional spikes but from scenes where all three forces
-                fire together — structurally complete moments.
+                Each force is first rank&rarr;Gaussian normalised,{" "}
+                <Tex>{String.raw`z_i = \Phi^{-1}(\text{rank}_i / (N{+}1))`}</Tex>
+                , placing all three channels on a common axis independent
+                of their natural units and bounding the influence of
+                outlier scenes. The weighted sum then expresses the{" "}
+                <em>activity level</em> of the scene in units of standard
+                deviation from the work&apos;s own mean.
               </P>
               <P>
-                <B>The equal-weight assumption, honestly.</B> A scene that is
-                pure fate (a twist with no new world or system) or pure world
-                (a quiet character interior with no plot movement) is a
-                legitimate narrative move; the unweighted mean penalises it.
-                The &ldquo;three-force convergence&rdquo; reading of peaks is
-                therefore genre-biased — it favours the Opus shape (balanced
-                across all three) over the Classic (fate-dominant), Stage
-                (world-dominant), or Paper (system-dominant). Delivery is
-                most useful as a <em>convergence detector</em>, not as a
-                universal quality score, and the per-force curves are the
-                ones to read when a work lives mostly on one axis.
+                <B>The weights are the work&apos;s signature.</B> They are
+                recovered by <B>principal-component analysis</B> on the
+                three normalised force curves. PC1 &mdash; the direction
+                of maximum variance in{" "}
+                <Tex>{String.raw`(F, W, S)`}</Tex> space &mdash; identifies
+                the axis along which the work moves with greatest
+                amplitude; its absolute loadings, renormalised to the
+                unit simplex, give the weights. The signature is
+                therefore a property of the text, recovered from its own
+                variance structure.
+              </P>
+              <P>
+                <B>Reading the curve.</B> A peak{" "}
+                (<Tex>{String.raw`A_i \gg 0`}</Tex>) is a moment where
+                the forces fire together <em>in the work&apos;s own
+                vocabulary</em>. A valley{" "}
+                (<Tex>{String.raw`A_i \ll 0`}</Tex>) is a quiet stretch
+                that sets up what follows. Peaks and valleys map the
+                rhythm of activity, not the merit of the work.
               </P>
             </div>
           </Section>
@@ -2133,17 +2305,17 @@ export default function PaperPage() {
               Lifecycle-aware extraction &mdash; two-pass analysis
             </h3>
             <P>
-              A first-pass pitfall when analysing an existing corpus: scene-level
-              evidence extraction runs in parallel chunks for speed, but each
-              chunk sees only its local prose. A scene priced at chapter&nbsp;3
-              has no way of knowing chapter&nbsp;24 is the resolution.
-              Monotonic local accumulation compounds without a feedback signal,
-              so once the market diverges late-arc the probabilities never
-              reverse &mdash; early seeds toward the eventual winner are priced
-              as pulses, and misdirection toward the surface-leader accrues
-              unchecked weight. The symptom is a trajectory that flatlines for
-              most of the work and then snaps toward a surface-reading winner
-              at the tail, even when the actual resolution lands elsewhere.
+              Scene-level evidence extraction runs in parallel chunks
+              for speed, so each chunk sees only its local prose: a
+              scene priced at chapter&nbsp;3 has no view of
+              chapter&nbsp;24&apos;s resolution. Local accumulation then
+              compounds without feedback &mdash; once the market
+              diverges late-arc the probabilities cannot reverse, early
+              seeds toward the eventual winner price as pulses, and
+              misdirection toward the surface-leader accrues unchecked
+              weight. The trajectory flatlines for most of the work and
+              snaps toward a surface-reading winner at the tail, even
+              when the actual resolution lands elsewhere.
             </P>
             <P>
               After reconciliation collapses entity and thread variants into a
@@ -2219,10 +2391,9 @@ export default function PaperPage() {
               are the moments where aggregate entropy rises and the reader
               re-engages. Flat entropy across a long stretch is a
               mid-novel drag; compounding entropy spikes followed by clean
-              collapses are the rhythm of a gripping work. The engine makes
-              all of this computable, legible, and decoupled from the
-              LLM&apos;s natural-language understanding — which is the
-              premise that makes the whole system trustworthy.
+              collapses are the rhythm of a gripping work. The engine
+              renders this computable and legible, decoupled from the
+              LLM&apos;s free-form interpretation.
             </P>
 
             <h3 className="text-[15px] font-semibold text-white/80 mt-8 mb-2">
@@ -2268,59 +2439,98 @@ export default function PaperPage() {
           {/* ── Validation ──────────────────────────────────────────── */}
           <Section id="validation" label="Validation">
             <P>
-              Do the formulas capture structural significance? We tested
-              against <em>Harry Potter and the Sorcerer&apos;s Stone</em>. The
-              delivery curve below was computed entirely from structural
-              deltas extracted at analysis time.
+              Do the formulas capture structural significance? Tested
+              against <em>Harry Potter and the Sorcerer&apos;s Stone</em>:
+              the activity curve below was computed entirely from
+              structural deltas extracted at analysis time.{" "}
+              <B>Orange regions</B> above the zero line are scenes of high
+              force activity in HP&apos;s own vocabulary (fate and world
+              moving together); <B>light-blue regions</B> below are
+              low-activity stretches — the quieter scenes that set up the
+              next peak.
             </P>
 
-            {/* Annotated Delivery Curve — computed from the Sorcerer's Stone narrative JSON via the same formulas used in the app */}
+            {/* Annotated Activity Curve — computed from the Sorcerer's Stone narrative via the same formulas used in the app */}
             {(() => {
-              // Smoothed delivery values computed from the canonical analysis:
-              // raw forces → z-score normalise → delivery formula → Gaussian smooth (σ=1.5)
-              const delivery = [
-                0.191, 0.18, 0.08, -0.087, -0.222, -0.281, -0.285, -0.27,
-                -0.251, -0.191, -0.025, 0.244, 0.458, 0.443, 0.259, 0.133,
-                0.207, 0.479, 0.783, 0.875, 0.719, 0.549, 0.535, 0.572, 0.458,
-                0.177, -0.051, -0.034, 0.183, 0.429, 0.572, 0.528, 0.303,
-                0.038, -0.134, -0.208, -0.249, -0.266, -0.16, 0.107, 0.357,
-                0.391, 0.25, 0.101, 0.005, -0.061, -0.101, -0.14, -0.218,
-                -0.292, -0.266, -0.17, -0.122, -0.138, -0.122, -0.042, 0.033,
-                0.023, -0.061, -0.123, -0.151, -0.225, -0.361, -0.491, -0.566,
-                -0.577, -0.518, -0.396, -0.293, -0.323, -0.511, -0.779, -1.032,
+              // Smoothed activity values computed from the canonical
+              // analysis: raw forces → rank→Gaussian normalise →
+              // A = w_F·F + w_W·W + w_S·S (PCA weights) → Gaussian smooth (σ=1.5)
+              const activity = [
+                -0.204, -0.113, -0.092, -0.191, -0.325, -0.366, -0.309,
+                -0.255, -0.261, -0.272, -0.180, 0.016, 0.156, 0.141,
+                0.096, 0.164, 0.317, 0.475, 0.565, 0.499, 0.302, 0.117,
+                0.041, 0.047, 0.031, -0.055, -0.087, 0.032, 0.172, 0.234,
+                0.298, 0.376, 0.338, 0.170, 0.044, 0.040, 0.015, -0.140,
+                -0.305, -0.312, -0.186, -0.063, -0.001, 0.039, 0.118,
+                0.231, 0.267, 0.135, -0.099, -0.278, -0.350, -0.419,
+                -0.510, -0.495, -0.341, -0.163, -0.079, -0.094, -0.115,
+                -0.093, -0.080, -0.115, -0.157, -0.155, -0.095, 0.016,
+                0.151, 0.286, 0.392, 0.412, 0.316, 0.121, -0.141,
               ];
-              const n = delivery.length;
+              const n = activity.length;
               const W = 620,
                 H = 220;
               const PAD = { top: 30, right: 20, bottom: 40, left: 40 };
               const cw = W - PAD.left - PAD.right;
               const ch = H - PAD.top - PAD.bottom;
-              const dMin = Math.min(...delivery);
-              const dMax = Math.max(...delivery);
+              const dMin = Math.min(...activity);
+              const dMax = Math.max(...activity);
               const range = dMax - dMin;
               const toX = (i: number) => PAD.left + (i / (n - 1)) * cw;
               const toY = (v: number) =>
                 PAD.top + ch - ((v - dMin) / range) * ch;
               const zeroY = toY(0);
 
-              const points = delivery
+              const points = activity
                 .map((v, i) => `${toX(i)},${toY(v)}`)
                 .join(" ");
 
+              // Build a path that interpolates the zero crossings between
+              // adjacent samples, so the orange (above-zero) and blue
+              // (below-zero) regions clip cleanly at y=0 instead of
+              // dropping straight down at scene vertices.
+              const pathPoints: Array<{ x: number; v: number }> = [];
+              for (let i = 0; i < n; i++) {
+                pathPoints.push({ x: toX(i), v: activity[i] });
+                if (i < n - 1) {
+                  const a = activity[i];
+                  const b = activity[i + 1];
+                  if ((a > 0 && b < 0) || (a < 0 && b > 0)) {
+                    const t = a / (a - b);
+                    pathPoints.push({
+                      x: toX(i) + t * (toX(i + 1) - toX(i)),
+                      v: 0,
+                    });
+                  }
+                }
+              }
+              const aboveD =
+                `M${pathPoints[0].x},${zeroY} ` +
+                pathPoints
+                  .map((p) => `L${p.x},${toY(Math.max(p.v, 0))}`)
+                  .join(" ") +
+                ` L${pathPoints[pathPoints.length - 1].x},${zeroY} Z`;
+              const belowD =
+                `M${pathPoints[0].x},${zeroY} ` +
+                pathPoints
+                  .map((p) => `L${p.x},${toY(Math.min(p.v, 0))}`)
+                  .join(" ") +
+                ` L${pathPoints[pathPoints.length - 1].x},${zeroY} Z`;
+
+              // Peaks and valleys called out directly from the activity
+              // curve — local extrema in the smoothed signal.
               const peaks = [
-                { scene: 13, label: "Hagrid reveals truth" },
-                { scene: 20, label: "Diagon Alley" },
-                { scene: 31, label: "Welcoming feast" },
-                { scene: 42, label: "Troll in the dungeon" },
-                { scene: 57, label: "Smuggling Norbert" },
-                { scene: 69, label: "Quirrell revealed" },
+                { scene: 13, label: "Hagrid's reveal" },
+                { scene: 19, label: "Gringotts vault" },
+                { scene: 32, label: "First Hogwarts lessons" },
+                { scene: 47, label: "Flamel hunt" },
+                { scene: 70, label: "Quirrell-Voldemort" },
               ];
               const valleys = [
-                { scene: 7, label: "Boa constrictor" },
-                { scene: 27, label: "Arrival at Hogwarts" },
-                { scene: 38, label: "Three-headed dog" },
-                { scene: 50, label: "Mirror of Erised" },
-                { scene: 66, label: "Through the trapdoor" },
+                { scene: 6, label: "Dursleys' normalcy" },
+                { scene: 39, label: "Three-headed dog aftermath" },
+                { scene: 53, label: "Winter stretch" },
+                { scene: 73, label: "Denouement" },
               ];
 
               return (
@@ -2330,7 +2540,9 @@ export default function PaperPage() {
                     viewBox={`0 0 ${W} ${H}`}
                     className="overflow-visible"
                   >
-                    {/* Grid lines */}
+                    {/* Grid lines — light reference lines at fixed
+                        intervals; zero line slightly stronger because
+                        it separates the two shaded regions. */}
                     {[-0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1.0].map((v) => (
                       <g key={v}>
                         <line
@@ -2339,7 +2551,7 @@ export default function PaperPage() {
                           x2={PAD.left + cw}
                           y2={toY(v)}
                           stroke="white"
-                          strokeOpacity={v === 0 ? 0.15 : 0.05}
+                          strokeOpacity={v === 0 ? 0.18 : 0.05}
                         />
                         <text
                           x={PAD.left - 6}
@@ -2355,32 +2567,36 @@ export default function PaperPage() {
                       </g>
                     ))}
 
-                    {/* Positive fill */}
+                    {/* High-activity region (above zero) — orange.
+                        Path interpolates zero-crossings so the fill
+                        meets the baseline cleanly between scenes. */}
                     <path
-                      d={`M${toX(0)},${zeroY} ${delivery.map((v, i) => `L${toX(i)},${Math.min(toY(v), zeroY)}`).join(" ")} L${toX(n - 1)},${zeroY} Z`}
+                      d={aboveD}
                       fill="#F59E0B"
-                      fillOpacity="0.08"
+                      fillOpacity="0.38"
                     />
-                    {/* Negative fill */}
+                    {/* Low-activity region (below zero) — light blue. */}
                     <path
-                      d={`M${toX(0)},${zeroY} ${delivery.map((v, i) => `L${toX(i)},${Math.max(toY(v), zeroY)}`).join(" ")} L${toX(n - 1)},${zeroY} Z`}
-                      fill="#3B82F6"
-                      fillOpacity="0.06"
+                      d={belowD}
+                      fill="#93C5FD"
+                      fillOpacity="0.32"
                     />
-                    {/* Delivery line */}
+                    {/* Activity line — thin so it does not dominate
+                        the shaded regions. */}
                     <polyline
                       points={points}
                       fill="none"
                       stroke="#F59E0B"
-                      strokeWidth="1.5"
+                      strokeOpacity="0.6"
+                      strokeWidth="1"
                       strokeLinejoin="round"
                     />
 
-                    {/* Peak annotations — above the curve */}
+                    {/* Peak annotations — dashed leader + circle + label. */}
                     {peaks.map(({ scene, label }) => {
                       const i = scene - 1;
                       const x = toX(i);
-                      const y = toY(delivery[i]);
+                      const y = toY(activity[i]);
                       return (
                         <g key={`peak-${scene}`}>
                           <line
@@ -2392,20 +2608,14 @@ export default function PaperPage() {
                             strokeOpacity="0.35"
                             strokeDasharray="2 2"
                           />
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={3}
-                            fill="#FCD34D"
-                            opacity="0.95"
-                          />
+                          <circle cx={x} cy={y} r={2.5} fill="#FCD34D" />
                           <text
                             x={x}
                             y={y - 20}
                             textAnchor="middle"
                             fill="#FCD34D"
-                            fillOpacity="0.75"
-                            fontSize="7"
+                            fillOpacity="0.85"
+                            fontSize="8"
                             fontFamily="system-ui"
                           >
                             {label}
@@ -2414,11 +2624,11 @@ export default function PaperPage() {
                       );
                     })}
 
-                    {/* Valley annotations — below the curve */}
+                    {/* Valley annotations — dashed leader + circle + label. */}
                     {valleys.map(({ scene, label }) => {
                       const i = scene - 1;
                       const x = toX(i);
-                      const y = toY(delivery[i]);
+                      const y = toY(activity[i]);
                       return (
                         <g key={`valley-${scene}`}>
                           <line
@@ -2430,20 +2640,14 @@ export default function PaperPage() {
                             strokeOpacity="0.35"
                             strokeDasharray="2 2"
                           />
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={3}
-                            fill="#60A5FA"
-                            opacity="0.95"
-                          />
+                          <circle cx={x} cy={y} r={2.5} fill="#60A5FA" />
                           <text
                             x={x}
                             y={y + 26}
                             textAnchor="middle"
                             fill="#60A5FA"
-                            fillOpacity="0.75"
-                            fontSize="7"
+                            fillOpacity="0.85"
+                            fontSize="8"
                             fontFamily="system-ui"
                           >
                             {label}
@@ -2451,74 +2655,50 @@ export default function PaperPage() {
                         </g>
                       );
                     })}
-
-                    {/* X axis label */}
-                    <text
-                      x={PAD.left + cw / 2}
-                      y={H - 5}
-                      textAnchor="middle"
-                      fill="white"
-                      fillOpacity="0.2"
-                      fontSize="9"
-                      fontFamily="system-ui"
-                    >
-                      Scene (1&ndash;{n})
-                    </text>
-                    <text
-                      x={8}
-                      y={PAD.top + ch / 2}
-                      textAnchor="middle"
-                      fill="white"
-                      fillOpacity="0.2"
-                      fontSize="9"
-                      fontFamily="system-ui"
-                      transform={`rotate(-90, 8, ${PAD.top + ch / 2})`}
-                    >
-                      Delivery
-                    </text>
                   </svg>
                   <p className="text-[10px] text-white/30 text-center mt-2">
-                    Harry Potter and the Sorcerer&apos;s Stone — 73-scene
-                    smoothed delivery curve. Peaks{" "}
-                    <span style={{ color: "#FCD34D" }}>above</span>, valleys{" "}
-                    <span style={{ color: "#60A5FA" }}>below</span>.
+                    Harry Potter and the Sorcerer&apos;s Stone &mdash;
+                    73-scene smoothed activity curve. Orange above
+                    zero marks high-activity scenes; light blue below
+                    marks quieter setup stretches.
                   </p>
                 </div>
               );
             })()}
 
             <P>
-              The six <B>peaks</B> line up with the book&apos;s structural
-              spine: Hagrid&apos;s reveal, Diagon Alley, the welcoming feast,
-              the troll, smuggling Norbert, the Quirrell confrontation.
-              Threads commit, entities transform, and the world&apos;s rules
-              snap into focus at once. These aren&apos;t chosen by taste —
-              they fall out of the math.
+              The <B>peaks</B> line up with scenes where HP&apos;s three
+              channels fire together: Hagrid&apos;s reveal, the Gringotts
+              vault, the first Hogwarts lessons, the Flamel hunt, the
+              Quirrell-Voldemort confrontation. Threads commit, entities
+              transform, and the world&apos;s rules snap into focus at
+              once. The peaks are not chosen by taste; they emerge from
+              the deltas.
             </P>
             <P>
-              The <B>valleys</B> are just as load-bearing. The boa constrictor,
-              the boat ride to Hogwarts, the three-headed dog, the Mirror of
-              Erised, the descent through the trapdoor — none of these
-              <em>resolve</em>. They are <B>turning points</B>: moments where
-              tension is seeded, a boundary is crossed, a character glimpses
-              the unknown. Structurally they contribute less fate, so delivery
-              dips; but the energy they store is what makes the next peak
-              feel earned. Without the Mirror of Erised, the climax has
-              nothing personal to say.
+              The <B>valleys</B> are equally load-bearing. The Dursleys&apos;
+              opening normalcy, the three-headed-dog aftermath, the
+              winter stretch before the Forbidden Forest, the denouement
+              &mdash; none of these resolve a thread. They are{" "}
+              <B>turning points</B>: tension is seeded, a boundary is
+              crossed, a character glimpses the unknown. Structurally
+              they contribute less to each force, so the curve dips; the
+              energy they store is what makes the next peak feel earned.
             </P>
             <P>
-              Peaks are where the story <B>commits</B>; valleys are where it{" "}
-              <B>launches</B>. The rhythm between them is the story&apos;s
-              pulse. Both sides of the zero line carry weight.
+              Peaks are where the story <B>commits</B>; valleys are where
+              it <B>launches</B>. The rhythm between them is the
+              narrative&apos;s pulse, and both sides of the zero line
+              carry weight.
             </P>
             <P>
               The core claim:{" "}
-              <B>deterministic formulas applied to structural deltas recover
-              the dramatic shape of a narrative</B>
-              . The LLM extracts deltas at low temperature; the math is fully
-              deterministic. Cross-run validation confirms stable rankings,
-              and the same formulas drive generation — the measurement{" "}
-              <em>is</em> the objective function.
+              <B>deterministic formulas applied to structural deltas
+              recover the dramatic shape of a narrative</B>. The LLM
+              extracts deltas at low temperature; the math is fully
+              deterministic. Cross-run validation confirms stable
+              rankings, and the same formulas drive generation &mdash;
+              the measurement <em>is</em> the objective function.
             </P>
           </Section>
 
@@ -2549,35 +2729,15 @@ export default function PaperPage() {
             </P>
 
             <P>
-              The reference means (<Tex>{"\\mu_{\\text{ref}}"}</Tex>) are
-              derived from those same works:
+              Each force is normalised against a reference mean so that
+              scores are comparable across works of different signatures
+              and lengths.
             </P>
-            <div className="mt-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] max-w-sm">
-              {[
-                { force: "Fate", value: String(FORCE_REFERENCE_MEANS.fate), color: "#EF4444" },
-                { force: "World", value: String(FORCE_REFERENCE_MEANS.world), color: "#22C55E" },
-                { force: "System", value: String(FORCE_REFERENCE_MEANS.system), color: "#3B82F6" },
-              ].map(({ force, value, color }) => (
-                <div
-                  key={force}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/6 bg-white/2"
-                >
-                  <div
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="text-white/50">{force}</span>
-                  <span className="ml-auto font-mono text-white/70">
-                    {value}
-                  </span>
-                </div>
-              ))}
-            </div>
             <P>
               The overall score sums all four sub-grades:{" "}
               <Tex>
                 {
-                  "\\text{Overall} = g(\\tilde{D}) + g(\\tilde{W}) + g(\\tilde{S}) + g(\\tilde{\\sigma})"
+                  "\\text{Overall} = g(\\tilde{F}) + g(\\tilde{W}) + g(\\tilde{S}) + g(\\tilde{\\sigma})"
                 }
               </Tex>
               , where <Tex>{"\\tilde{\\sigma}"}</Tex> is swing. Swing values are
@@ -2680,15 +2840,14 @@ export default function PaperPage() {
               graph.
             </P>
             <P>
-              Earlier versions of the system flattened this into a{" "}
-              <em>direction vector</em> and a <em>constraint vector</em>
-              — push these threads, don&apos;t do that yet — rewritten after
-              each arc. It worked, but it lost the structure readers actually
-              track. We replace it with a <B>causal reasoning graph</B>: an
-              explicit, typed graph of what must happen and why, built for
-              each arc before any scene is generated. The node and edge
-              taxonomy — eight node types across pressure, substrate, and
-              bridge tiers, plus eight edge types — is enumerated in the{" "}
+              The architecture preserves this graph explicitly. Before
+              any scene of an arc is generated, a{" "}
+              <B>causal reasoning graph</B> is built: a typed graph of
+              what must happen and why. Scenes then execute the graph
+              rather than improvising local transitions. The node and
+              edge taxonomy &mdash; eight node types across pressure,
+              substrate, and bridge tiers, plus eight edge types &mdash;
+              is enumerated in the{" "}
               <a href="#classification" className="text-accent hover:underline">
                 Classification
               </a>{" "}
@@ -3290,10 +3449,10 @@ export default function PaperPage() {
               plans from every scene of a published work, tally consecutive
               function&rarr;function transitions, normalise rows, and produce a
               Markov matrix <Tex>{"B \\in \\mathbb{R}^{10 \\times 10}"}</Tex>.
-              Applied to <em>Harry Potter and the Sorcerer&apos;s Stone</em>,
-              an earlier beat-plan extraction yielded 1,254 beats across the
-              novel (roughly 17 beats per scene at the current 73-scene
-              structural pass):
+              Applied to <em>Harry Potter and the Sorcerer&apos;s
+              Stone</em>, beat-plan extraction yielded 1,254 beats
+              across the 73-scene novel &mdash; roughly 17 beats per
+              scene:
             </P>
 
             {/* HP Beat Profile Graph — all 92 transitions */}
@@ -3818,7 +3977,7 @@ export default function PaperPage() {
               Narrative Shapes
             </h3>
             <P>
-              Beyond archetypes, the Gaussian-smoothed delivery curve is
+              Beyond archetypes, the Gaussian-smoothed activity curve is
               classified into one of six shapes using overall slope, peak count,
               peak dominance, peak position, trough depth, and recovery
               strength.
@@ -3996,42 +4155,43 @@ export default function PaperPage() {
             <CostEstimates />
 
             <P>
-              Analysing a 100K-word novel into full narrative state costs
-              under twenty-five cents — parallel chunk extraction, no
-              reasoning. A 500K-word series runs about a dollar. Evaluating a
-              branch costs five cents. At these prices, the
-              generate-evaluate-revise loop becomes something to run
-              repeatedly — testing prose profiles, branching strategies,
-              structural constraints — and building comparative datasets
-              across dozens of texts is trivial.
+              Analysing a 100K-word novel into full narrative state
+              costs under twenty-five cents (parallel chunk extraction,
+              no reasoning). A 500K-word series runs about a dollar.
+              Evaluating a branch costs five cents. At these prices the
+              generate-evaluate-revise loop is cheap to repeat across
+              prose profiles, branching strategies, and structural
+              constraints; comparative datasets across dozens of texts
+              are within reach.
             </P>
           </Section>
 
           {/* ── Open Source ───────────────────────────────────────────── */}
           <Section id="open-source" label="Open Source">
             <P>
-              InkTide is fully open source. Every formula in this paper lives in
-              the codebase — you can read it, run it, and change it.
+              InkTide is open source. Every formula in this paper lives
+              in the codebase &mdash; readable, runnable, modifiable.
             </P>
             <P>
-              This is deliberate. Narrative analysis should be transparent. If
-              you disagree with how we weight fate against knowledge, change the
-              constant. If your genre needs a fourth force, add it. The formulas
-              are tools, not doctrine.
+              Narrative analysis benefits from transparency: every
+              weight, threshold, and reference mean is a constant in
+              the source. The formulas are tools to be read and
+              modified, not doctrine. A genre that needs a fourth force
+              can add one; a calibration that disagrees with the
+              defaults can replace them.
             </P>
             <P>
-              We&apos;d especially love to see the community experiment with
-              their own texts. Paste any corpus into the{" "}
+              The{" "}
               <Link
                 href="/analysis"
                 className="text-white/60 underline underline-offset-2 hover:text-white/80 transition-colors"
               >
                 analysis pipeline
               </Link>{" "}
-              — novels, screenplays, web serials, fanfiction — and see where the
-              peaks land, what archetype emerges, and whether the force
-              landscape matches your intuition. When it doesn&apos;t,
-              that&apos;s the interesting part. Pull requests welcome.
+              accepts any corpus &mdash; novels, screenplays, web
+              serials, fanfiction. The interesting cases are the ones
+              where the force landscape diverges from intuition.
+              Contributions are welcome.
             </P>
 
             <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">

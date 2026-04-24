@@ -32,15 +32,17 @@ You need an **[OpenRouter API key](https://openrouter.ai/keys)** for LLM access.
 
 ### Analyze
 
-Three forces, all z-score normalised, derived from knowledge graph mutations — pure math, no LLM:
+Three forces — the channels through which information reaches the reader. Rank→Gaussian normalised, derived from knowledge-graph mutations and prediction-market information gain. Pure math, no LLM:
 
 | Force      | What it measures                                                                                                                                                                   |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Fate**   | Thread resolution — how narrative tensions compete for bandwidth, accumulate structural commitment, and resolve. The unifying force that pulls world and system toward resolution. |
-| **World**  | Entity transformation — what we learn about characters, locations, and artifacts as fate pulls them through the story.                                                             |
-| **System** | World deepening — the rules, structures, and concepts that form the substrate on which fate and world operate.                                                                     |
+| **Fate**   | `Σ_t v_t · D_KL(p⁺‖p⁻)` — attention-weighted Kullback–Leibler divergence across thread prediction markets. The narrator's belief moving under new evidence. |
+| **World**  | `ΔN + √ΔE` — new facts added to entity continuity graphs (characters, locations, artifacts). |
+| **System** | `ΔN + √ΔE` — new rules, concepts, and relations added to the world-mechanism graph. |
 
-Each force is graded 0–25, 100 total. The **narrative cube** maps force combinations into 8 modes — a vocabulary for how stories move through fate/world/system space.
+Each force is graded 0–25, 100 total (+ swing). The **narrative cube** maps force combinations into 8 modes — a vocabulary for how stories move through fate/world/system space.
+
+The aggregate is the **information curve** `I = w_F·F + w_W·W + w_S·S`, with weights recovered by PCA on the three force trajectories — the work's own information signature. A paper weights system heavily, a character novel world-heavy, a thriller fate-heavy; mixed signatures are the default. Peaks = moments of rich information in the work's own vocabulary; valleys = information-light stretches that structurally set up the next delivery.
 
 Additional layers: **swing** (the rhythm of contrast between sections), **pacing profiles** (Markov transition matrices capturing an author's structural signature), and **scale & density** (how richly interconnected the world becomes).
 

@@ -163,7 +163,53 @@ export function applyThreadDelta(
     lastTouchedScene: sceneId,
   };
 
-  // ThreadLog node — prose-grade event record with update snapshot.
+  // ── Derived per-delta statistics ───────────────────────────────────────
+  // The canonical information-theoretic gain from evidence is the
+  // Kullback–Leibler divergence from prior to posterior,
+  //   D_KL(p⁺ ‖ p⁻) = Σ_k p⁺(k) · log(p⁺(k) / p⁻(k))
+  // which measures how many nats the narrator's belief moved. It reduces
+  // to entropy change for small shifts and grows unboundedly as the
+  // posterior approaches certainty — capturing closure, twists, and quiet
+  // confirmations in a single quantity, with no tuning constants.
+  const prePobs = softmax(prevLogits);
+  const postProbs = softmax(newLogits);
+  let kl = 0;
+  for (let k = 0; k < postProbs.length; k++) {
+    const q = postProbs[k];
+    const p = prePobs[k] ?? 1 / postProbs.length;
+    if (q > 1e-12 && p > 1e-12) kl += q * Math.log(q / p);
+  }
+  const infoGain = Math.max(0, kl);
+  const preVolume = belief.volume;
+  // Buildup proxy: how many log entries preceded this one on the same
+  // thread. No longer used by the elegant fate formula (closure is handled
+  // by KL's natural unboundedness), but retained on the log node for
+  // analytical / UI purposes.
+  const buildup = Object.keys(thread.threadLog.nodes).length;
+
+  // Closure decision hoisted up so we can stamp `closed` on the log node
+  // we're about to create. Same rule as the original: margin ≥ τ_effective
+  // with a committal logType and decisive evidence, and no outcome
+  // expansion on the same delta.
+  const committalEarly = delta.logType === 'payoff' || delta.logType === 'twist';
+  const peakEvidenceEarly = Math.max(
+    0,
+    ...(delta.updates ?? []).map((u) => Math.abs(clampEvidence(u.evidence))),
+  );
+  const sortedL = newLogits.slice().sort((a, b) => b - a);
+  const marginEarly = sortedL.length >= 2 ? sortedL[0] - sortedL[1] : 0;
+  const volumeRatioEarly = Math.max(1, newVolume / MARKET_OPENING_VOLUME);
+  const tauEffectiveEarly = MARKET_TAU_CLOSE * (1 + Math.log(volumeRatioEarly) / 3);
+  const willClose =
+    !thread.closedAt &&
+    committalEarly &&
+    peakEvidenceEarly >= 3 &&
+    addedOutcomes.length === 0 &&
+    marginEarly >= tauEffectiveEarly;
+
+  // ThreadLog node — prose-grade event record with update snapshot. The
+  // derived stats (infoGain, preVolume, buildup, closed) enable the refined
+  // fate formula to score scenes without a trajectory replay.
   const nodeId = opts?.logNodeId ?? `${thread.id}:${sceneId}`;
   const logNode: ThreadLogNode = {
     id: nodeId,
@@ -175,6 +221,10 @@ export function applyThreadDelta(
       evidence: clampEvidence(u.evidence),
     })),
     volumeDelta,
+    infoGain,
+    preVolume,
+    buildup,
+    closed: willClose,
     ...(addedOutcomes.length > 0 ? { addedOutcomes } : {}),
   };
 
@@ -217,37 +267,22 @@ export function applyThreadDelta(
     threadLog: nextLog,
   };
 
-  // Closure — margin condition AND committal logType (payoff or twist with
-  // strong evidence). Keeps drift-based pseudoclose from firing. An
-  // outcome-expansion event on the same delta cannot close the thread; the
-  // added outcome starts at logit=0 and hasn't earned the margin yet.
-  //
-  // Meaningful-resolution rule: τ_close scales with the thread's accumulated
-  // volume. Threads that the story has paid a lot of attention to need a
-  // proportionally more decisive finish — otherwise a high-volume "will the
-  // kingdom fall?" thread could collapse on the same evidence as a one-scene
-  // side question. Scaling is sublinear (log) so small threads close easily
-  // and giant threads require genuine weight.
-  const committal = delta.logType === 'payoff' || delta.logType === 'twist';
-  const peakEvidence = Math.max(0, ...(delta.updates ?? []).map((u) => Math.abs(clampEvidence(u.evidence))));
-  if (!thread.closedAt && committal && peakEvidence >= 3 && addedOutcomes.length === 0) {
-    const { topIdx, margin } = getMarketMargin(next);
-    // Volume ratio relative to opening volume. At opening, ratio=1, no
-    // boost — threads close at τ_base. As attention accumulates, log of the
-    // ratio adds a sublinear premium so big threads need proportionally more.
-    const volumeRatio = Math.max(1, updatedBelief.volume / MARKET_OPENING_VOLUME);
-    const tauEffective = MARKET_TAU_CLOSE * (1 + Math.log(volumeRatio) / 3);
-    if (margin >= tauEffective) {
-      next.closedAt = sceneId;
-      next.closeOutcome = topIdx;
-      next.resolutionQuality = computeResolutionQuality({
-        peakEvidence,
-        margin,
-        tauEffective,
-        volume: updatedBelief.volume,
-        logits: updatedBelief.logits,
-      });
-    }
+  // Closure — decided above as `willClose`. Applies margin condition AND
+  // committal logType (payoff or twist with strong evidence); an outcome-
+  // expansion on the same delta cannot close the thread. τ scales sublinearly
+  // with accumulated volume so high-attention threads need proportionally
+  // more decisive finishes.
+  if (willClose) {
+    const { topIdx } = getMarketMargin(next);
+    next.closedAt = sceneId;
+    next.closeOutcome = topIdx;
+    next.resolutionQuality = computeResolutionQuality({
+      peakEvidence: peakEvidenceEarly,
+      margin: marginEarly,
+      tauEffective: tauEffectiveEarly,
+      volume: updatedBelief.volume,
+      logits: updatedBelief.logits,
+    });
   }
 
   return next;

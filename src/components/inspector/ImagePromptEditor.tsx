@@ -164,7 +164,7 @@ export default function ImagePromptEditor({ kind, entityId, value }: Props) {
           </span>
         ) : (
           <span className="text-[11px] text-text-dim/50 leading-relaxed">
-            Click to write a prompt, or use Suggest above to generate one from this entity's continuity.
+            Click to write a prompt, or use Suggest above to generate one from this entity&apos;s continuity.
           </span>
         )}
       </button>

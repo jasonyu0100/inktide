@@ -112,7 +112,7 @@ describe('computeSlidesData', () => {
     expect(data.sceneCount).toBe(2);
     expect(data.scenes.length).toBe(2);
     expect(data.forceSnapshots.length).toBe(2);
-    expect(data.deliveryCurve.length).toBe(2);
+    expect(data.activityCurve.length).toBe(2);
     expect(data.arcCount).toBe(1);
   });
   it('computes thread lifecycles', () => {

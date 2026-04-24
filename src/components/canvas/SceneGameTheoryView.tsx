@@ -258,7 +258,7 @@ function AnalysisTimeline({
           </p>
           <p className="text-[10px] text-text-dim/65 max-w-md text-center leading-relaxed">
             Strategic analysis looks for beats where participants make meaningful
-            choices. This scene's beats may be pure atmosphere or exposition.
+            choices. This scene&apos;s beats may be pure atmosphere or exposition.
           </p>
         </div>
       )}

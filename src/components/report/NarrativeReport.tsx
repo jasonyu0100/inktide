@@ -207,7 +207,7 @@ function StatRow({
 
 // ── Charts ───────────────────────────────────────────────────────────────────
 
-function DeliveryCurveChart({ data }: { data: SlidesData }) {
+function ActivityCurveChart({ data }: { data: SlidesData }) {
   const svgRef = useRef<SVGSVGElement>(null);
   useEffect(() => {
     const svg = d3.select(svgRef.current);
@@ -222,7 +222,7 @@ function DeliveryCurveChart({ data }: { data: SlidesData }) {
     const g = svg
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
-    const eng = data.deliveryCurve;
+    const eng = data.activityCurve;
     const x = d3
       .scaleLinear()
       .domain([0, eng.length - 1])
@@ -237,25 +237,45 @@ function DeliveryCurveChart({ data }: { data: SlidesData }) {
       .attr("y2", zeroY)
       .attr("stroke", "white")
       .attr("stroke-opacity", 0.08);
+    // Augmented data inserts interpolated zero-crossings between
+    // adjacent samples so the orange/blue regions clip cleanly at y=0
+    // instead of dropping vertically at scene vertices.
+    type EngSample = { x: number; v: number };
+    const augmented: EngSample[] = [];
+    for (let i = 0; i < eng.length; i++) {
+      const e = eng[i];
+      augmented.push({ x: x(e.index), v: e.smoothed });
+      if (i < eng.length - 1) {
+        const a = e.smoothed;
+        const b = eng[i + 1].smoothed;
+        if ((a > 0 && b < 0) || (a < 0 && b > 0)) {
+          const t = a / (a - b);
+          augmented.push({
+            x: x(e.index) + t * (x(eng[i + 1].index) - x(e.index)),
+            v: 0,
+          });
+        }
+      }
+    }
     const posArea = d3
-      .area<(typeof eng)[0]>()
-      .x((d) => x(d.index))
+      .area<EngSample>()
+      .x((p) => p.x)
       .y0(zeroY)
-      .y1((d) => Math.min(y(d.smoothed), zeroY))
+      .y1((p) => y(Math.max(0, p.v)))
       .curve(d3.curveMonotoneX);
     g.append("path")
-      .datum(eng)
+      .datum(augmented)
       .attr("d", posArea)
       .attr("fill", "#F59E0B")
       .attr("fill-opacity", 0.08);
     const negArea = d3
-      .area<(typeof eng)[0]>()
-      .x((d) => x(d.index))
+      .area<EngSample>()
+      .x((p) => p.x)
       .y0(zeroY)
-      .y1((d) => Math.max(y(d.smoothed), zeroY))
+      .y1((p) => y(Math.min(0, p.v)))
       .curve(d3.curveMonotoneX);
     g.append("path")
-      .datum(eng)
+      .datum(augmented)
       .attr("d", negArea)
       .attr("fill", "#93C5FD")
       .attr("fill-opacity", 0.04);
@@ -612,7 +632,7 @@ function MomentSparkline({
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    const full = data.deliveryCurve;
+    const full = data.activityCurve;
     // Window: 50 scenes centered on the moment
     const half = Math.floor(MOMENT_SPARKLINE_WINDOW / 2);
     let winStart = Math.max(0, sceneIdx - half);
@@ -1340,12 +1360,12 @@ export function NarrativeReport({
             {prose("verdict")}
           </Section>
 
-          {/* ── 02 Delivery Curve ── */}
-          <Section title="Delivery Curve" number={++sec}>
+          {/* ── 02 Activity Curve ── */}
+          <Section title="Activity Curve" number={++sec}>
             <Figure
-              caption={`Narrative delivery across ${n} scenes. Triangles mark peaks and valleys.`}
+              caption={`Force activity across ${n} scenes. Triangles mark peaks and valleys.`}
             >
-              <DeliveryCurveChart data={data} />
+              <ActivityCurveChart data={data} />
             </Figure>
             <StatRow
               items={[
@@ -1376,7 +1396,7 @@ export function NarrativeReport({
                 },
               ]}
             />
-            {prose("delivery")}
+            {prose("activity")}
           </Section>
 
           {/* ── 03 Force Analysis ── */}
@@ -1625,7 +1645,7 @@ export function NarrativeReport({
                       {seg.dominantForce}-led
                     </span>
                     <span className="text-[10px] text-white/15 font-mono">
-                      D={seg.avgDelivery.toFixed(2)}
+                      A={seg.avgActivity.toFixed(2)}
                     </span>
                   </div>
 
@@ -1656,9 +1676,9 @@ export function NarrativeReport({
                         const cubeCorner = isPeak
                           ? m.peak!.cubeCorner
                           : m.trough!.cubeCorner;
-                        const delivery = isPeak
-                          ? m.peak!.delivery
-                          : m.trough!.delivery;
+                        const activityPt = isPeak
+                          ? m.peak!.activity
+                          : m.trough!.activity;
                         return (
                           <div
                             key={`${m.kind}-${m.sceneIdx}`}
@@ -1693,7 +1713,7 @@ export function NarrativeReport({
                               <span
                                 className={`text-[10px] font-mono ${isPeak ? "text-amber-400/50" : "text-blue-300/50"}`}
                               >
-                                {delivery.delivery.toFixed(2)}
+                                {activityPt.activity.toFixed(2)}
                               </span>
                             </div>
                             <div className="px-4 pt-1 pb-0">

@@ -13,7 +13,7 @@ Your audience may not have read the work. Introduce entities, settings, and key 
 STYLE:
 - Match the analytic register to the work being analysed. For fiction: a critical-editorial voice. For research or essay: a reviewer's voice. For memoir or reportage: a reader's voice. In all cases: specific, grounded, short paragraphs (2-4 sentences).
 - Ground every observation in specific scenes, entities, or moments by name.
-- Focus on the three forces: Fate (thread resolutions / argument resolutions), World (entity transformation), and System (rule/mechanism deepening). Also discuss Delivery (the composite pacing curve).
+- Focus on the three forces: Fate (thread resolutions / argument resolutions), World (entity transformation), and System (rule/mechanism deepening). Also discuss Activity (the composite pacing curve that tracks when the three forces are moving together).
 - Do not treat Tension as a metric; it is derived and not a primary force.
 - No markdown, no bullet points, no headers. Flowing prose.
 - Use the present tense when describing what the work does.`;
@@ -27,7 +27,7 @@ STYLE:
 export const REPORT_SECTIONS = [
   'story_intro',
   'verdict',
-  'delivery',
+  'activity',
   'forces',
   'forces_over_time',
   'swing',
@@ -56,7 +56,7 @@ Return a JSON object with these keys. Follow the length guidance exactly — the
 {
   "story_intro": "2-3 sentences introducing the story's premise, world, and central characters to someone who hasn't read it. Set the stage — what kind of story is this, what world does it inhabit, who are we following?",
   "verdict": "2-3 sentences. The headline: what score did this narrative earn, what shape and archetype define it, and what single force drives it most? This sits right after the score display.",
-  "delivery": "1-2 short paragraphs. What does the delivery curve tell us about the reading experience? When does the story grip the reader vs let them breathe? Reference specific scenes where peaks and valleys occur and what happens in them.",
+  "activity": "1-2 short paragraphs. What does the activity curve tell us about the reading experience? When are the three forces firing together (peaks) vs quiet (valleys)? Reference specific scenes where peaks and valleys occur and what happens in them.",
   "forces": "1-2 short paragraphs. How do Fate, World, and System interact in this story? Which dominates and why — name the specific threads, character arcs, or world-building that shapes each. What's the balance like?",
   "forces_over_time": "3-5 sentences. Commentary on the force decomposition chart — how do the three forces evolve over the story's timeline? Are there phases where one force takes over? Do they converge at key moments?",
   "swing": "3-5 sentences. What does the scene-to-scene volatility tell us? Is the pacing steady, varied, or erratic? Name a specific high-swing moment and what causes the dramatic shift between those consecutive scenes.",

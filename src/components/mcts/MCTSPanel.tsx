@@ -6,7 +6,7 @@ import { DEFAULT_MCTS_CONFIG, DEFAULT_BRANCHING } from '@/types/mcts';
 import type { useMCTS } from '@/hooks/useMCTS';
 import { treeSize, bestPath as computeBestPath } from '@/lib/mcts-engine';
 import type { Scene } from '@/types/narrative';
-import { computeForceSnapshots, detectCubeCorner, computeDeliveryCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
+import { computeForceSnapshots, detectCubeCorner, computeActivityCurve, classifyCurrentPosition } from '@/lib/narrative-utils';
 import { useStore } from '@/lib/store';
 import { GuidanceFields } from '@/components/generation/GuidanceFields';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
@@ -56,7 +56,7 @@ function nodeSparkline(node: MCTSNode): { points: number[]; position: string; po
   if (node.scenes.length === 0) return { points: [], position: 'Stable', positionKey: 'stable' };
   const forceMap = computeForceSnapshots(node.scenes);
   const ordered = node.scenes.map((s) => forceMap[s.id]).filter(Boolean);
-  const engPts = computeDeliveryCurve(ordered);
+  const engPts = computeActivityCurve(ordered);
   const raw = engPts.map((p) => p.smoothed);
   if (raw.length === 0) return { points: [], position: 'Stable', positionKey: 'stable' };
   const min = Math.min(...raw);
@@ -587,15 +587,15 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
   }, [node, tree]);
 
 
-  // Full-path delivery curve for this node
-  const pathDelivery = useMemo(() => {
+  // Full-path activity curve for this node
+  const pathActivity = useMemo(() => {
     const allScenes = node.virtualResolvedKeys
       .map((k) => node.virtualNarrative.scenes[k])
       .filter((s): s is Scene => !!s);
     if (allScenes.length === 0) return { pts: [], position: null, arcStart: 0, nodeStart: 0 };
     const forceMap = computeForceSnapshots(allScenes);
     const ordered = allScenes.map((s) => forceMap[s.id]).filter(Boolean);
-    const pts = computeDeliveryCurve(ordered);
+    const pts = computeActivityCurve(ordered);
     const position = pts.length > 0 ? classifyCurrentPosition(pts) : null;
     // Where the arc's scenes start (for background highlight)
     const arcStart = allScenes.length - allPathScenes.length;
@@ -679,9 +679,9 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
         );
       })()}
 
-      {/* Delivery chart */}
-      {pathDelivery.pts.length > 1 && (() => {
-        const { pts, position, arcStart, nodeStart } = pathDelivery;
+      {/* Activity chart */}
+      {pathActivity.pts.length > 1 && (() => {
+        const { pts, position, arcStart, nodeStart } = pathActivity;
         const n = pts.length;
         const W = 260, H = 48;
         const smoothed = pts.map((p) => p.smoothed);
@@ -702,7 +702,7 @@ function NodeInspector({ node, tree }: { node: MCTSNode; tree: MCTSTree }) {
         return (
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] uppercase tracking-widest text-text-dim">Delivery</span>
+              <span className="text-[9px] uppercase tracking-widest text-text-dim">Activity</span>
               {position && (
                 <span className="text-[9px] font-medium" style={{ color: POSITION_COLORS[position.key] ?? 'white' }}>
                   {position.name}

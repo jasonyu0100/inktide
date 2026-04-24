@@ -232,7 +232,7 @@ function BeatsTab() {
         <h3 className="text-[10px] font-semibold text-text-primary uppercase tracking-widest mb-3 pb-1 border-b border-border/30">
           Beat Mechanisms{" "}
           <span className="text-text-dim font-normal">
-            (How it's delivered)
+            (How it&apos;s delivered)
           </span>
         </h3>
         <div className="grid grid-cols-2 gap-2">
@@ -521,7 +521,7 @@ function ArchetypesTab() {
       </div>
 
       <div className="text-[9px] text-text-dim italic pt-2 border-t border-border/20">
-        A force is "dominant" if it scores ≥21/25 AND is within 5 points of the
+        A force is &quot;dominant&quot; if it scores ≥21/25 AND is within 5 points of the
         highest-scoring force.
       </div>
     </div>

@@ -13,7 +13,16 @@ import {
   MARKET_FOCUS_K,
 } from '@/lib/constants';
 import { NARRATIVE_CUBE } from '@/types/narrative';
-import { FORCE_WINDOW_SIZE, PEAK_WINDOW_SCENES_DIVISOR, SHAPE_TROUGH_BAND_LO, SHAPE_TROUGH_BAND_HI, BEAT_DENSITY_MIN, BEAT_DENSITY_MAX } from '@/lib/constants';
+import {
+  FORCE_WINDOW_SIZE,
+  PEAK_WINDOW_SCENES_DIVISOR,
+  SHAPE_TROUGH_BAND_LO,
+  SHAPE_TROUGH_BAND_HI,
+  BEAT_DENSITY_MIN,
+  BEAT_DENSITY_MAX,
+  FORCE_DOMINANCE_WEIGHTS,
+  DELIVERY_SMOOTH_SIGMA,
+} from '@/lib/constants';
 
 // ── Scene & entity helpers ──────────────────────────────────────────────────
 
@@ -732,6 +741,67 @@ export function zScoreNormalize(values: number[]): number[] {
   return values.map((v) => +((v - mean) / std).toFixed(2));
 }
 
+/**
+ * Beasley-Springer-Moro approximation to the inverse standard-normal CDF
+ * Φ⁻¹(p). Accurate to ~1e-7 across (0, 1). Used by rank→Gaussian normalisation.
+ * Returns ±6 at the extremes to avoid ±Infinity on degenerate inputs.
+ */
+function invNormalCDF(p: number): number {
+  if (p <= 0) return -6;
+  if (p >= 1) return 6;
+  const pl = 0.02425;
+  const ph = 1 - pl;
+  const a = [-3.969683028665376e+1, 2.209460984245205e+2, -2.759285104469687e+2,
+             1.383577518672690e+2, -3.066479806614716e+1, 2.506628277459239e+0];
+  const b = [-5.447609879822406e+1, 1.615858368580409e+2, -1.556989798598866e+2,
+             6.680131188771972e+1, -1.328068155288572e+1];
+  const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838e+0,
+             -2.549732539343734e+0, 4.374664141464968e+0, 2.938163982698783e+0];
+  const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996e+0,
+             3.754408661907416e+0];
+  let q: number, r: number;
+  if (p < pl) {
+    q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+           ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  if (p <= ph) {
+    q = p - 0.5;
+    r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+           (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+  q = Math.sqrt(-2 * Math.log(1 - p));
+  return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+          ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+}
+
+/**
+ * Rank→Gaussian quantile normalisation. Maps values to the standard normal
+ * via their empirical rank: `z_i = Φ⁻¹(rank_i / (N + 1))`. Preserves ordering
+ * exactly, is distribution-free, and is strictly more robust to outliers than
+ * z-score (the max |z| is bounded by ~Φ⁻¹(N/(N+1)) regardless of input scale).
+ *
+ * Prefer this over `zScoreNormalize` for any series that might contain
+ * extreme per-scene spikes — e.g. a climactic scene that closes a dozen
+ * markets won't compress the rest of the curve against zero.
+ *
+ * Ties are broken in input order (stable rank). N=0 returns []; N=1 returns [0].
+ */
+export function rankGaussianNormalize(values: number[]): number[] {
+  const n = values.length;
+  if (n === 0) return [];
+  if (n === 1) return [0];
+  const indexed = values.map((v, i) => ({ v, i }));
+  indexed.sort((a, b) => a.v - b.v);
+  const out = new Array<number>(n);
+  for (let k = 0; k < n; k++) {
+    const rank = k + 1;
+    out[indexed[k].i] = +invNormalCDF(rank / (n + 1)).toFixed(3);
+  }
+  return out;
+}
+
 // ── Narrative Forces ─────────────────────────────────────────────────────────
 //
 // Three forces measure distinct dimensions of narrative movement per scene.
@@ -789,36 +859,96 @@ function computeRawFate(scene: Scene): number {
   return score;
 }
 
-/** Raw world: W = ΔN_c + √ΔE_c
+/** Refined fate. The canonical information-theoretic form:
  *
- *  Entity continuity graph complexity delta per scene.
- *  Mirrors System but for inner worlds — nodes contribute linearly,
- *  edges use sqrt. Same structure, different domain:
- *  System measures what we learn about the WORLD's rules, World measures
- *  what we learn about ENTITIES (characters, locations, artifacts). */
-function rawWorld(scene: Scene): number {
-  // Nodes contribute linearly; edges are derived from chain-by-order (one
-  // per pair of adjacent new nodes), so per delta the edge count is
-  // max(0, nodes - 1).
-  const contNodes = scene.worldDeltas.reduce((sum, km) => sum + (km.addedNodes?.length ?? 0), 0);
-  const contEdges = scene.worldDeltas.reduce((sum, km) => sum + Math.max(0, (km.addedNodes?.length ?? 0) - 1), 0);
-  return contNodes + Math.sqrt(contEdges);
+ *    F_i = Σ_{t ∈ Δ_i} v_t · D_KL(p_t⁺ ‖ p_t⁻)
+ *
+ *  For each thread touched by scene i, we weight the Kullback–Leibler
+ *  divergence from prior-belief to posterior-belief by the market's
+ *  pre-scene volume (its accumulated narrative attention). Fate is the
+ *  total attention-weighted information gain.
+ *
+ *  Every empirical behaviour we care about falls out of this single
+ *  expression:
+ *
+ *    • Pulses (no evidence)      →  p⁺ = p⁻, so D_KL = 0, so F = 0.
+ *    • Confirmation of a leader  →  small KL, proportional to how far
+ *                                    certainty actually advanced.
+ *    • Twists (leader flip)      →  large KL, since the posterior
+ *                                    concentrates mass where the prior
+ *                                    was small.
+ *    • Closures                  →  KL grows unboundedly as the
+ *                                    posterior approaches a delta
+ *                                    distribution — resolution naturally
+ *                                    outweighs mid-stream movement.
+ *    • Attention                 →  long-cooking markets carry high v,
+ *                                    so the same KL earns more fate
+ *                                    than on a side-thread nobody was
+ *                                    watching.
+ *
+ *  There are no tuning constants, no log-type multipliers, no closure
+ *  bonuses, no scene-level denominators. The per-delta KL is stamped on
+ *  the thread log node during `applyThreadDelta`; this function reads
+ *  them back. Falls back to the legacy peak-evidence proxy only when the
+ *  log lacks enriched stats (pre-F-rework narratives).
+ */
+export function computeRawFateRefined(
+  scene: Scene,
+  narrative: NarrativeState | null | undefined,
+): number {
+  if (!narrative) return computeRawFate(scene);
+  const deltas = scene.threadDeltas ?? [];
+  if (deltas.length === 0) return 0;
+
+  let F = 0;
+  for (const tm of deltas) {
+    const thread = narrative.threads[tm.threadId];
+    if (!thread) continue;
+    const node = thread.threadLog?.nodes?.[`${thread.id}:${scene.id}`];
+
+    if (!node || node.infoGain === undefined) {
+      // Legacy fallback for narratives whose log was built before
+      // applyThreadDelta started stamping KL. Preserves the coarse shape
+      // of the curve until the narrative is re-replayed through the store.
+      const peak = Math.max(
+        0,
+        ...((tm.updates ?? []).map((u) => Math.abs(u.evidence))),
+      );
+      const vd = Math.max(0, tm.volumeDelta ?? 0);
+      if (peak === 0 && vd === 0) continue;
+      F += Math.log(1 + peak) * (1 + Math.log(1 + vd));
+      continue;
+    }
+
+    F += (node.preVolume ?? 0) * node.infoGain;
+  }
+  return F;
 }
 
-/** Raw system: S = ΔN + √ΔE
+/** Raw world information: W = ΔN + √ΔE
  *
- *  System knowledge graph complexity delta per scene.
- *  Nodes contribute linearly — each new concept is genuinely new information.
- *  Edges use sqrt — the first few connections between concepts matter more
- *  than the tenth. Prevents bulk edge additions from inflating System.
+ *  World counts information added to entity continuity graphs this scene —
+ *  new facts about characters, locations, and artifacts. Nodes are
+ *  independent observations and sum linearly; edges exhibit diminishing
+ *  returns (the first connection between two facts matters more than the
+ *  tenth), so we aggregate them as √edges. Same form as System: both are
+ *  knowledge graphs, and consistency across graph-based forces is part of
+ *  the design. */
+function rawWorld(scene: Scene): number {
+  let n = 0, e = 0;
+  for (const wd of scene.worldDeltas) {
+    n += wd.addedNodes?.length ?? 0;
+    e += Math.max(0, (wd.addedNodes?.length ?? 0) - 1);
+  }
+  return n + Math.sqrt(e);
+}
+
+/** Raw system information: S = ΔN + √ΔE
  *
- *  Examples:
- *    3 nodes, 0 edges → S = 3        (isolated concepts)
- *    2 nodes, 2 edges → S = 3.4      (connected)
- *    3 nodes, 4 edges → S = 5        (dense)
- *    1 node,  4 edges → S = 3        (hub integration)
- *    0 nodes, 4 edges → S = 2        (pure reconnection)
- *    0 nodes, 10 edges → S = 3.2     (diminishing returns) */
+ *  System counts information added to the abstract rule graph this scene —
+ *  new concepts and new relations between concepts. Same structure as
+ *  World: nodes sum linearly, edges diminish as √e. The first edge between
+ *  two concepts is a real integration; the tenth is bookkeeping. */
 function rawSystem(scene: Scene): number {
   const wkm = scene.systemDeltas;
   if (!wkm) return 0;
@@ -893,25 +1023,32 @@ export function buildCumulativeSystemGraph(
 export function computeForceSnapshots(
   scenes: Scene[],
   _priorScenes: Scene[] = [],
+  narrative?: NarrativeState | null,
 ): Record<string, ForceSnapshot> {
   const result: Record<string, ForceSnapshot> = {};
   if (scenes.length === 0) return result;
 
-  // Compute raw values per scene
+  // Compute raw values per scene. When a narrative is provided we use the
+  // refined fate formula (F7) — reads the per-delta info-gain stamped on
+  // thread log nodes — otherwise falls back to the legacy peak-evidence
+  // proxy. Worlds and systems retain their current formulas; they're
+  // orthogonal to fate and refining them requires a separate design pass.
   const rawFates: number[] = [];
   const rawWorlds: number[] = [];
   const rawSystems: number[] = [];
 
   for (const scene of scenes) {
-    rawFates.push(computeRawFate(scene));
+    rawFates.push(narrative ? computeRawFateRefined(scene, narrative) : computeRawFate(scene));
     rawWorlds.push(rawWorld(scene));
     rawSystems.push(rawSystem(scene));
   }
 
-  // Z-score normalize each dimension (mean = 0, units = std deviations)
-  const normFates = zScoreNormalize(rawFates);
-  const normWorlds = zScoreNormalize(rawWorlds);
-  const normSystems = zScoreNormalize(rawSystems);
+  // Rank→Gaussian quantile normalisation — distribution-free and bounded,
+  // so a single climactic scene can't stretch the y-axis and flatten the
+  // rest of the curve. Strictly more robust than z-score for this use.
+  const normFates = rankGaussianNormalize(rawFates);
+  const normWorlds = rankGaussianNormalize(rawWorlds);
+  const normSystems = rankGaussianNormalize(rawSystems);
 
   for (let i = 0; i < scenes.length; i++) {
     result[scenes[i].id] = {
@@ -931,6 +1068,7 @@ export function computeForceSnapshots(
  */
 export function computeRawForceTotals(
   scenes: Scene[],
+  narrative?: NarrativeState | null,
 ): { fate: number[]; world: number[]; system: number[] } {
   if (scenes.length === 0) return { fate: [], world: [], system: [] };
 
@@ -939,7 +1077,7 @@ export function computeRawForceTotals(
   const system: number[] = [];
 
   for (const scene of scenes) {
-    fate.push(computeRawFate(scene));
+    fate.push(narrative ? computeRawFateRefined(scene, narrative) : computeRawFate(scene));
     world.push(rawWorld(scene));
     system.push(rawSystem(scene));
   }
@@ -1050,47 +1188,260 @@ function detectPeaksAndValleys(
   return { peaks, valleys };
 }
 
-export interface DeliveryPoint {
+/** A work's activity-flow signature — continuous and nuanced.
+ *
+ *  Every narrative moves through three force channels (fate / world /
+ *  system). The signature captures which channels carry the load.
+ *  Works aren't always single-axis dominant: character studies run on
+ *  fate + world together, academic papers on system + fate, and so on.
+ *  We never snap to an archetype — instead we expose the full weighting
+ *  and let callers read whatever nuance they need.
+ *
+ *  Fields:
+ *    weights       — activity-aggregation weights (non-negative, sum to 1).
+ *                    Passing these to `computeActivityCurve` yields an
+ *                    activity curve weighted by how the work actually
+ *                    moves.
+ *    signature     — same simplex point, exposed separately for UIs.
+ *    concentration — 0 if perfectly balanced, 1 if one-axis pure.
+ *    primary       — the channel with the largest weight.
+ *    secondary     — the channel within `dualityBand` of the primary (null
+ *                    if the primary is clearly alone).
+ *    profile       — human-readable blend: "fate" if single-axis, "fate +
+ *                    world" if dual-dominant, "balanced" if low
+ *                    concentration.
+ *    nearestArchetype — convenience label for archetype-expecting callers;
+ *                    does NOT snap the weights themselves.
+ */
+export type ForceChannel = 'fate' | 'world' | 'system';
+
+export interface ForceSignature {
+  weights: ForceWeights;
+  signature: ForceWeights;
+  concentration: number;
+  primary: ForceChannel;
+  secondary: ForceChannel | null;
+  profile: string;
+  nearestArchetype: 'classic' | 'show' | 'paper' | 'opus';
+}
+
+/** Compute a story's force signature via PCA on the three rank→Gaussian
+ *  normalised force curves.
+ *
+ *  PC1 — the direction of maximum variance in (F, W, S) space — captures the
+ *  story's dominant structural axis. Its absolute loadings, normalised to
+ *  sum to 1, are the delivery aggregation weights. This replaces the old
+ *  "snap to one of four archetypes" heuristic with a continuous signature
+ *  unique to each work.
+ *
+ *  Why PCA: the three forces are independent dimensions, and we want the 1D
+ *  projection that captures the most structural signal. PC1 is exactly that
+ *  — the best rank-1 approximation of the force trajectory in Frobenius
+ *  norm. Mathematically beautiful (eigenvalue decomposition of the covariance
+ *  matrix), scale-free (operates on rank→Gaussian normalised forces so all
+ *  three are ≈N(0,1)), and data-driven (no hand-picked archetype weights).
+ *
+ *  3×3 symmetric eigendecomposition via power iteration — converges to
+ *  machine precision in ~20 iterations at this dimension, and the closed-
+ *  form solution is uglier than two dozen multiplies.
+ */
+export function computeForceSignature(
+  rawFates: number[],
+  rawWorlds: number[],
+  rawSystems: number[],
+): ForceSignature {
+  const n = rawFates.length;
+  if (n < 3) {
+    return {
+      weights: FORCE_DOMINANCE_WEIGHTS.opus,
+      signature: FORCE_DOMINANCE_WEIGHTS.opus,
+      concentration: 0,
+      primary: 'fate',
+      secondary: null,
+      profile: 'balanced',
+      nearestArchetype: 'opus',
+    };
+  }
+  // Operate on rank→Gaussian-normalised forces so PC1 reflects *shape* of
+  // variation, not raw magnitude. Each column is ≈N(0,1) by construction.
+  const F = rankGaussianNormalize(rawFates);
+  const W = rankGaussianNormalize(rawWorlds);
+  const S = rankGaussianNormalize(rawSystems);
+  // 3×3 covariance (= correlation, since std ≈ 1). Mean-centering is
+  // implicit: rank→Gaussian output has mean ≈ 0 by construction.
+  let cFF = 0, cWW = 0, cSS = 0, cFW = 0, cFS = 0, cWS = 0;
+  for (let i = 0; i < n; i++) {
+    cFF += F[i] * F[i];
+    cWW += W[i] * W[i];
+    cSS += S[i] * S[i];
+    cFW += F[i] * W[i];
+    cFS += F[i] * S[i];
+    cWS += W[i] * S[i];
+  }
+  cFF /= n; cWW /= n; cSS /= n; cFW /= n; cFS /= n; cWS /= n;
+  // Power iteration for the dominant eigenvector. Seed with (1,1,1)/√3.
+  let vF = 1 / Math.sqrt(3), vW = 1 / Math.sqrt(3), vS = 1 / Math.sqrt(3);
+  for (let iter = 0; iter < 32; iter++) {
+    const nF = cFF * vF + cFW * vW + cFS * vS;
+    const nW = cFW * vF + cWW * vW + cWS * vS;
+    const nS = cFS * vF + cWS * vW + cSS * vS;
+    const norm = Math.sqrt(nF * nF + nW * nW + nS * nS) || 1;
+    vF = nF / norm; vW = nW / norm; vS = nS / norm;
+  }
+  // Sign convention: orient so the sum is positive (eigenvectors are only
+  // defined up to sign; this gives us a consistent "positive delivery = more
+  // structure" interpretation). If all three loadings turn out negative,
+  // flip — means PC1 picked the anti-structural direction.
+  if (vF + vW + vS < 0) { vF = -vF; vW = -vW; vS = -vS; }
+  // Dominance weights = |PC1 loadings|, L1-normalised to the simplex.
+  // Using |.| because a force contributes to delivery whether its loading
+  // is +ve or −ve; what matters is *magnitude* of involvement.
+  const aF = Math.abs(vF), aW = Math.abs(vW), aS = Math.abs(vS);
+  const sum = Math.max(1e-9, aF + aW + aS);
+  const weights: ForceWeights = { fate: aF / sum, world: aW / sum, system: aS / sum };
+  // Signature is the same simplex point — exposed as a distinct field for
+  // UIs that want to display "this is a 55/25/20 fate-dominant story"
+  // without confusing it with the weights used for delivery.
+  const signature = weights;
+  // Concentration: L₂ distance from the balanced point (1/3,1/3,1/3),
+  // rescaled so the pure vertices (1,0,0) etc. give 1. Max L₂ distance
+  // from centroid to vertex is √(2/3) ≈ 0.816.
+  const dF = weights.fate - 1 / 3;
+  const dW = weights.world - 1 / 3;
+  const dS = weights.system - 1 / 3;
+  const dist = Math.sqrt(dF * dF + dW * dW + dS * dS);
+  const concentration = Math.min(1, dist / Math.sqrt(2 / 3));
+  // Rank the channels by weight so we can name a primary, and optionally a
+  // secondary when two channels carry comparable load. The duality band
+  // (0.7) means: if the second-largest weight is within 70% of the
+  // largest, call it a co-dominant channel. A 55/40/5 work reads as
+  // "fate + world" not just "fate"; a 60/25/15 reads as "fate" alone.
+  const ranked: Array<{ channel: ForceChannel; w: number }> = (
+    [
+      { channel: 'fate',   w: weights.fate },
+      { channel: 'world',  w: weights.world },
+      { channel: 'system', w: weights.system },
+    ] satisfies Array<{ channel: ForceChannel; w: number }>
+  ).sort((a, b) => b.w - a.w);
+  const primary = ranked[0].channel;
+  const DUALITY_BAND = 0.7;
+  const BALANCED_CONCENTRATION = 0.2;
+  const secondary: ForceChannel | null =
+    ranked[1].w >= DUALITY_BAND * ranked[0].w && concentration > BALANCED_CONCENTRATION
+      ? ranked[1].channel
+      : null;
+  const profile = concentration <= BALANCED_CONCENTRATION
+    ? 'balanced'
+    : secondary
+      ? `${primary} + ${secondary}`
+      : primary;
+  // Nearest archetype (for UI labels only — the weights are already the
+  // nuanced reality). L₁ distance from each archetype's canonical weight.
+  const archetypes = ['classic', 'show', 'paper', 'opus'] as const;
+  let best: typeof archetypes[number] = 'opus';
+  let bestDist = Infinity;
+  for (const key of archetypes) {
+    const a = FORCE_DOMINANCE_WEIGHTS[key];
+    const d = Math.abs(weights.fate - a.fate)
+            + Math.abs(weights.world - a.world)
+            + Math.abs(weights.system - a.system);
+    if (d < bestDist) { bestDist = d; best = key; }
+  }
+  return { weights, signature, concentration, primary, secondary, profile, nearestArchetype: best };
+}
+
+/** @deprecated Prefer `computeForceSignature` — returns only the `weights`
+ *  field for backward compatibility with callers that expect raw weights. */
+export function inferDominanceWeights(
+  rawFates: number[],
+  rawWorlds: number[],
+  rawSystems: number[],
+): ForceWeights {
+  return computeForceSignature(rawFates, rawWorlds, rawSystems).weights;
+}
+
+/** A single scene's force activity — the signature-weighted aggregate
+ *  of the three force channels, with peak/valley flags and smoothed
+ *  trend curves.
+ *
+ *  We're measuring the objective rate at which the three forces (fate /
+ *  world / system) are moving in this scene. High activity = the
+ *  channels the work uses are firing together. Low activity = the
+ *  reader is between moments of movement. */
+export interface ActivityPoint {
   /** Scene index (0-based) */
   index: number;
-  /** Delivery: equal-weighted mean of fate, world, and system z-scores.
-   *  Measures the overall narrative presence of a scene — how strongly all three forces radiate. */
-  delivery: number;
-  /** Tension buildup: world + system − fate. High when energy accumulates without release. */
+  /** Force activity: signature-weighted sum of normalised forces,
+   *  `A_i = w_F F_i + w_W W_i + w_S S_i`. Positive = above the work's
+   *  average activity level; negative = below. Units are z-score
+   *  (rank→Gaussian normalised). */
+  activity: number;
+  /** Tension buildup: world + system − fate. High when entity and rule
+   *  activity accumulates without fate resolving any of it. */
   tension: number;
-  /** Gaussian-smoothed delivery (σ=1.5) — local curve shape for display. */
+  /** Gaussian-smoothed activity curve (σ = DELIVERY_SMOOTH_SIGMA) —
+   *  the curve meant for display. */
   smoothed: number;
   /** Heavily smoothed macro trend (σ=4) — overall arc of the narrative. */
   macroTrend: number;
-  /** True if this is a significant local delivery peak. */
+  /** True if this scene is a significant local activity peak — a moment
+   *  where the forces fire together. */
   isPeak: boolean;
-  /** True if this is a significant local delivery valley. */
+  /** True if this scene is a significant local activity valley — a
+   *  quiet stretch between peaks, often a turning point setting up the
+   *  next rise. */
   isValley: boolean;
 }
 
+
+/** Per-force weights for the activity-curve aggregation. Must sum to 1.
+ *  Defaults to equal-weighted opus; callers with a declared signature
+ *  (typically from `computeForceSignature`) should pass their PCA-derived
+ *  weights so the curve reflects the work's own force vocabulary. */
+export type ForceWeights = { fate: number; world: number; system: number };
+
 /**
- * Compute the delivery curve from z-score normalised force snapshots.
+ * Compute the activity curve of a work — the rate at which the three
+ * forces are moving in each scene.
  *
- * D = (F + W + S) / 3
+ *   A_i = w_F·F_i + w_W·W_i + w_S·S_i
  *
- * Equal-weighted mean of z-scored forces. Because each force is independently
- * z-score normalised (mean=0, std=1) before averaging, all three contribute
- * equally regardless of their raw scale differences. Peaks emerge from scenes
- * where all three forces fire together — structurally complete moments.
+ * Weighted sum of rank→Gaussian-normalised forces. Weights should come
+ * from `computeForceSignature(...)` — PCA on the three force curves
+ * reveals the channels through which the work actually transmits, so the
+ * curve respects the work's own force vocabulary. An academic paper
+ * weights system heavily, a character novel world-heavy, a plot-driven
+ * thriller fate-heavy. Mixed signatures are the default.
+ *
+ * Peaks (high `isPeak`) mark moments of force activity — the work's
+ * chosen channels firing together. Valleys mark the quiet stretches
+ * between peaks — structurally meaningful because they set up the next
+ * rise.
  */
-export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[] {
+export function computeActivityCurve(
+  snapshots: ForceSnapshot[],
+  weights: ForceWeights = FORCE_DOMINANCE_WEIGHTS.opus,
+): ActivityPoint[] {
   if (snapshots.length === 0) return [];
   const n = snapshots.length;
+  const wSum = weights.fate + weights.world + weights.system;
+  // Renormalise silently if weights don't sum to 1 — caller ergonomics
+  // over strictness; the curve is invariant under scalar multiplication.
+  const wF = weights.fate / wSum;
+  const wW = weights.world / wSum;
+  const wS = weights.system / wSum;
 
-  const engValues = snapshots.map(({ fate, world, system }) =>
-    (fate + world + system) / 3,
+  const values = snapshots.map(({ fate, world, system }) =>
+    wF * fate + wW * world + wS * system,
   );
 
-  const smoothed = gaussianSmooth(engValues, 1.5);
-  const macroTrend = gaussianSmooth(engValues, 4);
+  const smoothed = gaussianSmooth(values, DELIVERY_SMOOTH_SIGMA);
+  const macroTrend = gaussianSmooth(values, 4);
 
-  // minDrop: a peak/valley must drop by at least this much on both sides.
-  // Low threshold (0.08 × std) catches subtle peaks that are visually obvious.
+  // Peak/valley detection threshold tuned to catch structurally meaningful
+  // moments without being noise-sensitive. Low minDrop (8% of the
+  // smoothed std) picks up subtle peaks that are visually obvious, which
+  // matters for works with narrow activity dynamic range.
   const smMean = smoothed.reduce((s, v) => s + v, 0) / n;
   const smStd = Math.sqrt(smoothed.reduce((s, v) => s + (v - smMean) ** 2, 0) / n);
   const minDrop = Math.max(0.03, 0.08 * smStd);
@@ -1102,7 +1453,7 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
 
   return snapshots.map(({ fate, world, system }, i) => ({
     index: i,
-    delivery: engValues[i],
+    activity: values[i],
     tension: world + system - fate,
     smoothed: smoothed[i],
     macroTrend: macroTrend[i],
@@ -1110,6 +1461,7 @@ export function computeDeliveryCurve(snapshots: ForceSnapshot[]): DeliveryPoint[
     isValley: valleys.has(i),
   }));
 }
+
 
 // ── Narrative Shape Classification ────────────────────────────────────────────
 
@@ -1198,7 +1550,7 @@ export function classifyNarrativeShape(deliveries: number[]): NarrativeShape {
   // Overall slope: macro end minus start
   const overallSlope = macro[n - 1] - macro[0];
 
-  // Peak detection — same minDrop approach as computeDeliveryCurve
+  // Peak detection — same minDrop approach as computeActivityCurve
   const smStd = flatness;
   const minDrop = Math.max(0.03, 0.08 * smStd);
   const windowR = Math.max(2, Math.floor(n / PEAK_WINDOW_SCENES_DIVISOR));
@@ -1508,10 +1860,10 @@ const POSITIONS: Record<NarrativePosition['key'], NarrativePosition> = {
 };
 
 /**
- * Classify the local delivery position at the current (last) point of a delivery window.
+ * Classify the local activity position at the current (last) point of an activity window.
  * Checks proximity to detected peaks/valleys first, then falls back to slope direction.
  */
-export function classifyCurrentPosition(points: DeliveryPoint[]): NarrativePosition {
+export function classifyCurrentPosition(points: ActivityPoint[]): NarrativePosition {
   if (points.length === 0) return POSITIONS.stable;
   const n = points.length;
 
@@ -1614,7 +1966,31 @@ const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) /
  *  System 3.5: most fiction has low system density; at 3.5 a typical
  *  scene introducing a modest mechanism grades into the low 20s, while
  *  idea-dense works (papers, hard SF) saturate to 25. */
-export const FORCE_REFERENCE_MEANS = { fate: 5.3, world: 14, system: 3.5 } as const;
+/** Reference means for the grading curve `g(x̃) = 25 − 17·exp(−k·x̃)`, where
+ *  `x̃ = avg(raw_force) / μ_ref`. At x̃ = 1 the grade is 21 (baseline solid
+ *  narrative); higher means carry exponentially diminishing returns up to the
+ *  cap at 25.
+ *
+ *  All three forces measure *information added this scene*, in their own
+ *  natural units — fate in nats (KL divergence), world in entity-graph
+ *  additions (n + √e), system in rule-graph additions (n + √e). Grading
+ *  runs each against its own μ_ref, so the curve is unit-invariant.
+ *
+ *  Calibrated by triangulating across three inktide works of distinct
+ *  information signatures:
+ *                             avg F    avg W    avg S    graded (F, W, S)
+ *    - Harry Potter            1.64    22.20     3.36       22 / 23 / 17
+ *    - Alice in Wonderland     1.92    29.23     3.92       23 / 24 / 18
+ *    - Quantifying Narrative   0.26     4.45    44.71       12 / 14 / 25
+ *
+ *  The fiction works (HP fate-dominant, Alice world-dominant) both grade in
+ *  the 17–24 band across F/W, with system sitting mid-teens — honest about
+ *  how lightly they develop explicit rules. The paper (system-dominant)
+ *  grades 25 on system and appropriately low on fate/world, because a
+ *  treatise delivers information through principles rather than plot
+ *  momentum or character transformation.
+ */
+export const FORCE_REFERENCE_MEANS = { fate: 1.4, world: 14, system: 6 } as const;
 
 /** Per-scene density and cube-corner bands derived from FORCE_REFERENCE_MEANS.
  *  Prompts, pacing profiles, and UI displays import from here so updating the

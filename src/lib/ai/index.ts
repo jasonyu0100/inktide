@@ -28,5 +28,5 @@ export type { ImagePromptEntityKind } from './image-prompt';
 export { reviewBranch, reviewProseQuality, reviewPlanQuality } from './review';
 
 // Reasoning graph
-export { generateReasoningGraph, generateExpansionReasoningGraph, buildSequentialPath, extractPatternWarningDirectives, generateCoordinationPlan, buildPlanPathForArc } from './reasoning-graph';
+export { generateReasoningGraph, buildSequentialPath, extractPatternWarningDirectives, generateCoordinationPlan, buildPlanPathForArc } from './reasoning-graph';
 export type { ReasoningGraph, ReasoningNode, ReasoningEdge, ReasoningNodeType, ReasoningEdgeType, ExpansionReasoningGraph, PlanGuidance, ThreadTarget, ForcePreference, ArcReasoningOptions, ReasoningMode } from './reasoning-graph';

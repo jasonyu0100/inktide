@@ -38,6 +38,7 @@ import {
 } from '@/lib/thread-category';
 import {
   PROMPT_MARKET_PRINCIPLES,
+  PROMPT_PORTFOLIO_PRINCIPLES,
   PROMPT_MARKET_EVIDENCE_SCALE,
   PROMPT_MARKET_LOGTYPE_TABLE,
 } from '../core/market-calibration';
@@ -55,6 +56,8 @@ THREADS are PREDICTION MARKETS over named outcomes. Each thread is a question + 
 ${THREAD_LIFECYCLE_DOC}
 
 ${PROMPT_MARKET_PRINCIPLES}
+
+${PROMPT_PORTFOLIO_PRINCIPLES}
 
 ${PROMPT_MARKET_EVIDENCE_SCALE}
 

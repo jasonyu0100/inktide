@@ -1683,6 +1683,22 @@ export type StorySettings = {
    *  - `neutral`: use what the arc needs — balanced across hot and cold
    */
   defaultNetworkBias: "inside" | "outside" | "neutral";
+  /**
+   * When true (default), storyDirection and storyConstraints are cleared
+   * from this settings object after they guide a scene or CRG generation.
+   * Prevents a directive from silently shaping every subsequent generation
+   * without the user re-opting-in. Power users can toggle off to keep a
+   * persistent north-star.
+   */
+  autoClearDirection: boolean;
+  /**
+   * Cached AI-generated health report (markdown brief). Populated when
+   * HealthReportModal streams a report; re-opening the modal shows the
+   * cached version without re-calling the LLM. Cleared when a health
+   * expansion commits (the report has been acted on). Empty = no cached
+   * report, modal auto-generates on open.
+   */
+  lastHealthReport: string;
 };
 
 export const DEFAULT_STORY_SETTINGS: StorySettings = {
@@ -1711,6 +1727,8 @@ export const DEFAULT_STORY_SETTINGS: StorySettings = {
   defaultForcePreference: "freeform",
   defaultReasoningSize: "medium",
   defaultNetworkBias: "neutral",
+  autoClearDirection: true,
+  lastHealthReport: "",
 };
 
 // ── Auto Mode ───────────────────────────────────────────────────────────────

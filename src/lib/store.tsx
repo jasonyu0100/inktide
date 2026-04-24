@@ -614,7 +614,6 @@ const SEED_IDS = new Set<string>();
 const PLAYGROUND_IDS = new Set<string>();
 const ANALYSIS_IDS = new Set<string>();
 
-// Pure state updater — no persistence side effects
 function updateNarrative(
   state: AppState,
   updater: (n: NarrativeState) => NarrativeState,

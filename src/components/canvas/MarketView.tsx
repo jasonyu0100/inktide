@@ -37,7 +37,7 @@ import {
   THREAD_CATEGORY_DESCRIPTION,
   type ThreadCategory,
 } from '@/lib/thread-category';
-import { getMarketBelief, getMarketMargin, getMarketProbs } from '@/lib/narrative-utils';
+import { getMarketBelief, getMarketMargin, getMarketProbs, countScenes, sceneOrdinalAt } from '@/lib/narrative-utils';
 
 // ── Palette ────────────────────────────────────────────────────────────────
 
@@ -225,12 +225,13 @@ function FeaturedTrajectory({
           />
         );
       })}
-      {/* X axis labels — first + last scene */}
+      {/* X axis labels — first + last scene (scene-only ordinals, world
+          commits don't count). */}
       <text x={PAD_L} y={H - 4} className="text-[9px]" fill="#555">
-        scene {points[0].sceneIndex + 1}
+        scene {points[0].sceneOrdinal}
       </text>
       <text x={W - PAD_R} y={H - 4} textAnchor="end" className="text-[9px]" fill="#555">
-        scene {points[points.length - 1].sceneIndex + 1}
+        scene {points[points.length - 1].sceneOrdinal}
       </text>
     </svg>
     </div>
@@ -1030,8 +1031,9 @@ export default function MarketView() {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <PortfolioHeadline snapshot={snapshot} focusCount={focusIds.size} focusK={6} />
             <span className="text-[10px] text-text-dim">
-              Passive observer · scene {Math.min(currentIndex + 1, resolvedKeys.length)} of{' '}
-              {resolvedKeys.length}
+              Passive observer · scene{' '}
+              {Math.max(1, sceneOrdinalAt(narrative, resolvedKeys, currentIndex))} of{' '}
+              {countScenes(narrative, resolvedKeys)}
             </span>
           </div>
         )}

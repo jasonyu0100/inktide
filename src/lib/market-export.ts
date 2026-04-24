@@ -28,6 +28,7 @@ import {
   THREAD_CATEGORY_LABEL,
   type ThreadCategory,
 } from "@/lib/thread-category";
+import { countScenes, sceneOrdinalAt } from "@/lib/narrative-utils";
 
 export type MarketExportContext = {
   narrative: NarrativeState;
@@ -50,9 +51,10 @@ export function exportMarketSnapshot(ctx: MarketExportContext): string {
   const focusIds = currentFocusIds(scrubbed, resolvedKeys, currentSceneIndex);
 
   const lines: string[] = [];
-  const sceneNum = Math.min(currentSceneIndex + 1, resolvedKeys.length);
+  const sceneNum = Math.max(1, sceneOrdinalAt(narrative, resolvedKeys, currentSceneIndex));
+  const sceneTotal = countScenes(narrative, resolvedKeys);
   lines.push(`# ${narrative.title} — Market Snapshot`);
-  lines.push(`Scene ${sceneNum} of ${resolvedKeys.length} · passive observer`);
+  lines.push(`Scene ${sceneNum} of ${sceneTotal} · passive observer`);
   lines.push("");
 
   // ── Portfolio aggregates ────────────────────────────────────────────────

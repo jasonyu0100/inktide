@@ -57,6 +57,7 @@ export default function SeriesPage() {
   const [generatePreset, setGeneratePreset] = useState<{
     healthMode?: boolean;
     healthReport?: string;
+    autoRun?: boolean;
   } | null>(null);
   const [forkOpen, setForkOpen] = useState(false);
   const [autoSettingsOpen, setAutoSettingsOpen] = useState(false);
@@ -101,9 +102,9 @@ export default function SeriesPage() {
   // Custom event listeners for opening panels
   useEffect(() => {
     function handleOpenGenerate(e: Event) {
-      const detail = (e as CustomEvent<{ healthMode?: boolean; healthReport?: string }>).detail;
+      const detail = (e as CustomEvent<{ healthMode?: boolean; healthReport?: string; autoRun?: boolean }>).detail;
       if (detail?.healthMode) {
-        setGeneratePreset({ healthMode: true, healthReport: detail.healthReport });
+        setGeneratePreset({ healthMode: true, healthReport: detail.healthReport, autoRun: detail.autoRun });
       } else {
         setGeneratePreset(null);
       }
@@ -305,6 +306,7 @@ export default function SeriesPage() {
           }}
           initialHealthMode={generatePreset?.healthMode}
           initialHealthReport={generatePreset?.healthReport}
+          initialAutoRun={generatePreset?.autoRun}
         />
       )}
       {forkOpen && <BranchModal onClose={() => setForkOpen(false)} />}

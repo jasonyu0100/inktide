@@ -5,13 +5,11 @@ import { IconChevronRight, IconDice } from "@/components/icons";
 import {
   DEFAULT_EXPANSION_FILTER,
   expandWorld,
-  generateExpansionReasoningGraph,
   generateReasoningGraph,
   generateScenes,
   suggestWorldExpansion,
   type CoordinationPlanContext,
   type ExpansionEntityFilter,
-  type ExpansionReasoningGraph,
   type ReasoningGraph,
   type WorldExpansionSize,
   type WorldExpansionStrategy,
@@ -44,6 +42,7 @@ import {
 } from "@/types/narrative";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ForcePreference, ReasoningMode } from "@/lib/ai";
+import { extractContinuationDirection } from "@/lib/ai/health-report";
 import {
   ThinkingSettings,
   type ReasoningSize,
@@ -111,6 +110,7 @@ export function GeneratePanel({
   onClose,
   initialHealthMode,
   initialHealthReport,
+  initialAutoRun,
 }: {
   onClose: () => void;
   /** When true, the panel opens with worldSize='health' selected and the
@@ -118,9 +118,15 @@ export function GeneratePanel({
    *  action in FloatingPalette. */
   initialHealthMode?: boolean;
   initialHealthReport?: string;
+  /** Quick-action flag: when true together with initialHealthMode, the
+   *  expansion reasoning graph auto-kicks on mount so the user sees
+   *  streaming output without a second click. */
+  initialAutoRun?: boolean;
 }) {
   const { state, dispatch } = useStore();
-  const [mode, setMode] = useState<Mode>("continuation");
+  // Health-mode opens the panel straight into the world-expansion tab; the
+  // user is repairing a portfolio, not continuing scenes.
+  const [mode, setMode] = useState<Mode>(initialHealthMode ? "world" : "continuation");
 
   // Continuation state
   const [newArc, setNewArc] = useState(true);
@@ -175,10 +181,6 @@ export function GeneratePanel({
   const [networkBias, setNetworkBias] = useState<NetworkBias>(
     thinkingDefaults?.defaultNetworkBias ?? "neutral",
   );
-
-  // Expansion reasoning graph state (for world expansion)
-  const [expansionReasoningGraph, setExpansionReasoningGraph] = useState<ExpansionReasoningGraph | null>(null);
-  const [showExpansionReasoningModal, setShowExpansionReasoningModal] = useState(false);
 
   // Shared
   const [loading, setLoading] = useState(false);
@@ -241,6 +243,40 @@ export function GeneratePanel({
       // Direction is NOT pre-filled — it flows directly via coordinationPlanContext
     }
   }, [hasActivePlan, planArcName, planSceneCount]);
+
+  // Quick-action auto-kick: when the panel was opened from the health
+  // diagnostic's "Run health expansion" button (healthMode + autoRun), go
+  // straight to a direct expansion — no causal-reasoning-graph review. The
+  // AI health report already contains the creative material (threads,
+  // system, entities) that should drop into the world; a CRG step would
+  // redo work the report already did. Ref-guarded for strict-mode double
+  // invocation.
+  const autoRunFired = useRef(false);
+  useEffect(() => {
+    if (!initialAutoRun || !initialHealthMode) return;
+    if (autoRunFired.current) return;
+    autoRunFired.current = true;
+    void handleExpandWorld();
+    // Mount-only; handler closes over current form state which is already
+    // initialised from props at this point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-clear saved storyDirection + storyConstraints after they've guided a
+  // generation, per the autoClearDirection setting (on by default). Prevents
+  // a one-off directive from silently steering every subsequent run without
+  // the user re-opting in. No-op when the setting is off or the fields were
+  // already empty.
+  const clearDirectionAfterUse = useCallback(() => {
+    const s = narrative?.storySettings;
+    if (!s?.autoClearDirection) return;
+    const hasContent = !!(s.storyDirection?.trim() || s.storyConstraints?.trim());
+    if (!hasContent) return;
+    dispatch({
+      type: "SET_STORY_SETTINGS",
+      settings: { ...s, storyDirection: "", storyConstraints: "" },
+    });
+  }, [narrative?.storySettings, dispatch]);
 
   const currentMode = useMemo(
     () => detectCurrentMode(narrative, state.resolvedEntryKeys),
@@ -409,6 +445,7 @@ export function GeneratePanel({
       if (hasActivePlan && activeBranchId) {
         dispatch({ type: "ADVANCE_COORDINATION_PLAN", branchId: activeBranchId });
       }
+      clearDirectionAfterUse();
       onClose();
     } catch (err) {
       logError("Scene generation from reasoning graph failed", err, {
@@ -475,6 +512,7 @@ export function GeneratePanel({
       if (hasActivePlan && activeBranchId) {
         dispatch({ type: "ADVANCE_COORDINATION_PLAN", branchId: activeBranchId });
       }
+      clearDirectionAfterUse();
       onClose();
     } catch (err) {
       logError("Manual scene generation failed", err, {
@@ -516,87 +554,10 @@ export function GeneratePanel({
     }
   }
 
-  // Generate expansion reasoning graph (similar to scene reasoning)
-  async function handleGenerateExpansionReasoningGraph() {
-    if (!narrative) return;
-    setGeneratingGraph(true);
-    setStreamText("");
-    setError("");
-    try {
-      const graph = await generateExpansionReasoningGraph(
-        narrative,
-        state.resolvedEntryKeys,
-        headIndex,
-        worldDirective,
-        worldSize,
-        worldStrategy,
-        (token) => setStreamText((prev) => prev + token),
-        { forcePreference, reasoningLevel: reasoningSize, reasoningMode, networkBias },
-      );
-      setExpansionReasoningGraph(graph);
-      setShowExpansionReasoningModal(true);
-    } catch (err) {
-      logError("Expansion reasoning graph generation failed", err, {
-        source: "world-expansion",
-        operation: "generate-expansion-reasoning-graph",
-        details: { worldSize, worldStrategy },
-      });
-      setError(String(err));
-    } finally {
-      setGeneratingGraph(false);
-    }
-  }
+  // The expansion-CRG path was removed: expansion now goes directly from
+  // directive (either hand-written or an AI health report) to creative
+  // material. A CRG review step was redundant — the directive IS the plan.
 
-  // Confirm expansion reasoning graph and execute expansion
-  async function handleConfirmExpansionReasoningGraph() {
-    if (!narrative || !expansionReasoningGraph) return;
-    setShowExpansionReasoningModal(false);
-    setLoading(true);
-    setStreamText("");
-    setError("");
-    try {
-      const expansion = await expandWorld(
-        narrative,
-        state.resolvedEntryKeys,
-        headIndex,
-        worldDirective,
-        worldSize,
-        worldStrategy,
-        {
-          onReasoning: (token) => setStreamText((prev) => prev + token),
-          entityFilter,
-          reasoningGraph: expansionReasoningGraph, // Pass pre-generated reasoning graph
-        },
-      );
-      dispatch({
-        type: "EXPAND_WORLD",
-        worldBuildId: nextId("WB", Object.keys(narrative.worldBuilds), 3),
-        branchId: state.viewState.activeBranchId!,
-        characters: expansion.characters,
-        locations: expansion.locations,
-        artifacts: expansion.artifacts,
-        threads: expansion.threads,
-        threadDeltas: expansion.threadDeltas,
-        worldDeltas: expansion.worldDeltas,
-        systemDeltas: expansion.systemDeltas,
-        relationshipDeltas: expansion.relationshipDeltas,
-        ownershipDeltas: expansion.ownershipDeltas,
-        tieDeltas: expansion.tieDeltas,
-        reasoningGraph: expansion.reasoningGraph,
-      });
-      setExpansionReasoningGraph(null);
-      onClose();
-    } catch (err) {
-      logError("World expansion with reasoning failed", err, {
-        source: "world-expansion",
-        operation: "expand-world-with-reasoning",
-        details: { worldSize, worldStrategy },
-      });
-      setError(String(err));
-    } finally {
-      setLoading(false);
-    }
-  }
 
   // Quick expand without reasoning (for exact size or when user skips planning)
   async function handleExpandWorld() {
@@ -615,7 +576,6 @@ export function GeneratePanel({
         {
           onReasoning: (token) => setStreamText((prev) => prev + token),
           entityFilter,
-          useReasoning: false,
         },
       );
       dispatch({
@@ -633,6 +593,47 @@ export function GeneratePanel({
         ownershipDeltas: expansion.ownershipDeltas,
         tieDeltas: expansion.tieDeltas,
       });
+
+      // Quick-action continuation kick: after a health expansion commits,
+      // (a) persist the AI brief's "Continuation direction" section into
+      // storySettings as the new north-star, and (b) switch the panel into
+      // continuation mode with a seeded direction drawn from the AI brief
+      // and the expansion's new thread questions. The user reviews and
+      // clicks Generate to carry the story forward.
+      if (initialAutoRun && initialHealthMode) {
+        const aiContinuation = extractContinuationDirection(worldDirective);
+        const newThreadQuestions = (expansion.threads ?? [])
+          .map((t) => t.description)
+          .filter((d): d is string => !!d && d.length > 0);
+
+        // The health report has been acted on — clear the cached brief so
+        // next time the user opens the modal, they get a fresh read of the
+        // (now-updated) portfolio state. Also persist the AI's continuation
+        // paragraph as the new storyDirection north-star when present.
+        if (narrative.storySettings) {
+          dispatch({
+            type: "SET_STORY_SETTINGS",
+            settings: {
+              ...narrative.storySettings,
+              ...(aiContinuation ? { storyDirection: aiContinuation } : {}),
+              lastHealthReport: "",
+            },
+          });
+        }
+
+        const seeded = aiContinuation
+          ? aiContinuation
+          : newThreadQuestions.length > 0
+            ? `Continue the story in the direction opened by the health expansion. New questions to engage: ${newThreadQuestions.map((q) => `"${q}"`).join(' / ')}. Build scenes that move these markets forward; lean on the newly-introduced entities and rules as the vehicle of change.`
+            : 'Continue the story in the direction opened by the health expansion, engaging the newly-added entities, rules, and threads.';
+        setMode('continuation');
+        setDirection(seeded);
+        setNewArc(true);
+        setArcName('');
+        setStreamText('');
+        return;
+      }
+
       onClose();
     } catch (err) {
       logError("World expansion generation failed", err, {
@@ -1271,33 +1272,20 @@ export function GeneratePanel({
                     </div>
                   </div>
                 </details>
-                {/* For non-exact sizes, show Plan and Quick buttons */}
-                {worldSize !== "exact" ? (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleGenerateExpansionReasoningGraph}
-                      disabled={loading || generatingGraph}
-                      className="flex-1 bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30"
-                    >
-                      {generatingGraph ? "Planning..." : "Plan Expansion"}
-                    </button>
-                    <button
-                      onClick={handleExpandWorld}
-                      disabled={loading || generatingGraph}
-                      className="flex-1 bg-white/6 hover:bg-white/10 text-text-secondary font-medium px-4 py-2.5 rounded-lg transition disabled:opacity-30"
-                    >
-                      {loading ? "Expanding..." : "Quick"}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleExpandWorld}
-                    disabled={loading}
-                    className="bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30"
-                  >
-                    {loading ? "Expanding..." : "Expand World"}
-                  </button>
-                )}
+                {/* Single expansion action — direct from directive to
+                    creative material (threads, system, entities). No CRG
+                    review step: the directive IS the plan. Users who want
+                    targeted expansion write a specific directive; users
+                    who want diagnostic-driven top-ups use the health
+                    workflow, which pre-fills the directive from an AI
+                    report. */}
+                <button
+                  onClick={handleExpandWorld}
+                  disabled={loading}
+                  className="bg-white/10 hover:bg-white/16 text-text-primary font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-30"
+                >
+                  {loading ? "Expanding..." : "Expand World"}
+                </button>
               </>
             )}
 
@@ -1325,24 +1313,9 @@ export function GeneratePanel({
         />
       )}
 
-      {/* Expansion Reasoning Graph Modal (for world expansion) */}
-      {showExpansionReasoningModal && expansionReasoningGraph && (
-        <ReasoningGraphModal
-          graph={{
-            ...expansionReasoningGraph,
-            arcName: expansionReasoningGraph.expansionName,
-            sceneCount: 0,
-          }}
-          isLoading={generatingGraph}
-          onRegenerate={handleGenerateExpansionReasoningGraph}
-          onConfirm={handleConfirmExpansionReasoningGraph}
-          onClose={() => {
-            setShowExpansionReasoningModal(false);
-            setExpansionReasoningGraph(null);
-          }}
-          confirmLabel="Expand World"
-        />
-      )}
+      {/* Expansion no longer has a reasoning-graph review — see
+          handleExpandWorld comment. Creative planning is what the directive
+          (hand-written or AI health report) is for. */}
     </Modal>
   );
 }

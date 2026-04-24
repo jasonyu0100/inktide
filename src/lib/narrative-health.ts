@@ -50,6 +50,14 @@ export type HealthReport = {
   topDeficits: string[];
   /** Whether a health expansion would help. True when band is needs_maintenance or worse. */
   needsMaintenance: boolean;
+  /** Structured thread-portfolio signals — drives the recommendedAction and
+   *  can be consumed directly by UI for fine-grained warnings. */
+  portfolioSignals: PortfolioSignals;
+  /** Prescriptive directive — the "recommended action" the health expansion
+   *  runs against when launched as a quick action. Derived from the
+   *  portfolioSignals; the system prescribes the fix rather than requiring
+   *  the user to write a directive. */
+  recommendedAction: string;
 };
 
 // Weights — threads carry the most signal (they ARE the prediction-market
@@ -80,56 +88,250 @@ function clamp01(x: number): number {
 
 // ── Thread dimension ────────────────────────────────────────────────────────
 
+/** Structured portfolio signals driving the thread-dimension score and
+ *  feeding the recommendedAction directive. The three-axis frame: NEWNESS
+ *  (fresh markets opening), VARIETY (breadth of coverage across entities /
+ *  horizons / outcome shapes), DIRECTION (movement toward resolution vs
+ *  stuck). Zombies (stale threads) are counted but not penalised — some
+ *  threads are meant to fade, and the bloat they add is harmless. */
+export type PortfolioSignals = {
+  // Size sanity
+  starved: boolean;                 // active < 2 — engine dead
+  thin: boolean;                    // active < 3 — narrow portfolio
+  bloated: boolean;                 // active > 8 — reader overload
+
+  // NEWNESS — is the story introducing new questions?
+  recentOpensCount: number;         // threads opened in last 8 scenes
+  lowNewness: boolean;              // 0 opens in 8+ scenes of narrative age
+
+  // DIRECTION — is anything moving toward resolution?
+  nearClosedCount: number;
+  scenesSinceLastClose: number;     // infinity-safe: capped at sceneCount
+  noForwardSignal: boolean;         // no near-closed AND no recent closures AND 8+ scenes elapsed
+  stagnant: boolean;                // high avg entropy across open + no near-closed + 8+ scenes
+
+  // VARIETY — breadth of coverage
+  uncoveredAnchorNames: string[];   // anchor / recurring characters with no stake
+  concentrated: boolean;            // one thread holds ≥60% of market cap
+  topVolumeShare: number;           // [0, 1]
+
+  // Informational (not penalised — zombies are fine)
+  staleCount: number;
+  abandonedCount: number;
+};
+
 function scoreThreads(
   narrative: NarrativeState,
   snapshot: ReturnType<typeof computePortfolioSnapshot>,
   pressure: ReturnType<typeof evaluateNarrativeState>['pressure']['threads'],
-): HealthDimensionScore {
+  resolvedKeys: string[],
+  currentIndex: number,
+): HealthDimensionScore & { signals: PortfolioSignals } {
   const deficits: string[] = [];
   const active = snapshot.activeThreads;
   const stale = pressure.stale.length;
   const abandoned = snapshot.abandonedThreads;
   const closed = snapshot.closedThreads;
   const nearClosed = snapshot.nearClosedThreads;
+  const sceneCount = Object.values(narrative.scenes).filter(isScene).length;
+
+  // Recent visible scenes (by resolved-key index up to the reader's position).
+  // Used to measure NEWNESS (recent opens) and DIRECTION (recent closures).
+  const visibleRecentKeys = new Set(
+    resolvedKeys.slice(Math.max(0, currentIndex - 7), currentIndex + 1),
+  );
+
+  // NEWNESS — threads opened in the last 8 visible scenes.
+  let recentOpensCount = 0;
+  for (const t of Object.values(narrative.threads)) {
+    if (t.openedAt && visibleRecentKeys.has(t.openedAt)) recentOpensCount++;
+  }
+
+  // DIRECTION — scenes since the last closure (∞ if never closed).
+  let scenesSinceLastClose = Number.POSITIVE_INFINITY;
+  for (let i = currentIndex; i >= 0; i--) {
+    const scene = narrative.scenes[resolvedKeys[i]];
+    if (!scene) continue;
+    const closedHere = Object.values(narrative.threads).some((t) => t.closedAt === scene.id);
+    if (closedHere) {
+      scenesSinceLastClose = currentIndex - i;
+      break;
+    }
+  }
+
+  const signals: PortfolioSignals = {
+    starved: false,
+    thin: false,
+    bloated: false,
+    recentOpensCount,
+    lowNewness: false,
+    nearClosedCount: nearClosed,
+    scenesSinceLastClose: Number.isFinite(scenesSinceLastClose)
+      ? scenesSinceLastClose
+      : sceneCount,
+    noForwardSignal: false,
+    stagnant: false,
+    uncoveredAnchorNames: [],
+    concentrated: false,
+    topVolumeShare: 0,
+    staleCount: stale,
+    abandonedCount: abandoned,
+  };
 
   let score = 1;
+
+  // SIZE SANITY
   if (active < 2) {
     score -= 0.5;
-    deficits.push(`Only ${active} active thread${active === 1 ? '' : 's'} — narrative engine is starved.`);
+    signals.starved = true;
+    deficits.push(`DANGER — only ${active} active thread${active === 1 ? '' : 's'}; fate engine is starved.`);
   } else if (active < 3) {
     score -= 0.2;
+    signals.thin = true;
     deficits.push(`Thin thread portfolio (${active} active) — stakes feel narrow.`);
   } else if (active > 8) {
-    score -= 0.15;
-    deficits.push(`${active} active threads — reader bandwidth overloaded.`);
-  }
-
-  const staleShare = active > 0 ? stale / active : 0;
-  if (staleShare >= 0.5) {
-    score -= 0.3;
-    deficits.push(`${stale} of ${active} active threads are stale (no delta in 5+ scenes).`);
-  } else if (staleShare >= 0.25) {
-    score -= 0.15;
-    deficits.push(`${stale} stale threads drifting toward abandonment.`);
-  }
-
-  if (abandoned > active && abandoned > 0) {
-    score -= 0.15;
-    deficits.push(`Abandoned count (${abandoned}) exceeds active — portfolio is thinning.`);
-  }
-
-  const sceneCount = Object.values(narrative.scenes).filter(isScene).length;
-  if (sceneCount >= 10 && closed === 0 && nearClosed === 0 && active > 0) {
     score -= 0.1;
-    deficits.push('No threads have closed or saturated — nothing is paying off.');
+    signals.bloated = true;
+    deficits.push(`${active} active threads — reader bandwidth stretched; prefer consolidation over more openings.`);
+  }
+
+  // DIRECTION — no movement toward resolution in a long stretch.
+  const noRecentClose = !Number.isFinite(scenesSinceLastClose) || scenesSinceLastClose >= 8;
+  if (active >= 2 && nearClosed === 0 && noRecentClose && sceneCount >= 8) {
+    score -= 0.18;
+    signals.noForwardSignal = true;
+    deficits.push(`DANGER — no near-closed threads and no closures in ${Number.isFinite(scenesSinceLastClose) ? scenesSinceLastClose + '+ scenes' : 'the story so far'}; the portfolio has stopped moving toward resolution.`);
+  }
+
+  // STAGNATION — contested but frozen. Related but distinct from noForwardSignal.
+  if (active >= 3 && nearClosed === 0 && snapshot.averageEntropy >= 0.85 && sceneCount >= 8) {
+    score -= 0.1;
+    signals.stagnant = true;
+    deficits.push('Every open market is contested and none is pushing toward resolution — pressure has nowhere to discharge.');
+  }
+
+  // NEWNESS — no recent opens in a mature story.
+  if (sceneCount >= 10 && recentOpensCount === 0) {
+    score -= 0.12;
+    signals.lowNewness = true;
+    deficits.push('No new markets opened in the last 8 scenes — the story has stopped introducing fresh questions.');
+  }
+
+  // VARIETY — attention concentration across the portfolio.
+  if (active >= 3 && snapshot.marketCap > 0) {
+    const volumes = Object.values(narrative.threads)
+      .filter((t) => !t.closedAt)
+      .map((t) => t.beliefs?.[Object.keys(t.beliefs)[0] ?? '']?.volume ?? 0);
+    const maxVol = volumes.length > 0 ? Math.max(...volumes) : 0;
+    const share = snapshot.marketCap > 0 ? maxVol / snapshot.marketCap : 0;
+    signals.topVolumeShare = share;
+    if (share >= 0.6) {
+      score -= 0.1;
+      signals.concentrated = true;
+      deficits.push(
+        `Attention is ${Math.round(share * 100)}% concentrated on a single thread — the rest of the portfolio is atmospheric.`,
+      );
+    }
+  }
+
+  // VARIETY — peripheral-agent coverage (anchor/recurring with no stake).
+  const activeThreadParticipantIds = new Set<string>();
+  for (const t of Object.values(narrative.threads)) {
+    if (t.closedAt) continue;
+    for (const p of t.participants ?? []) {
+      if (p.type === 'character') activeThreadParticipantIds.add(p.id);
+    }
+  }
+  const uncoveredAnchors: string[] = [];
+  for (const c of Object.values(narrative.characters)) {
+    if (c.role === 'anchor' || c.role === 'recurring') {
+      if (!activeThreadParticipantIds.has(c.id)) uncoveredAnchors.push(c.name);
+    }
+  }
+  signals.uncoveredAnchorNames = uncoveredAnchors;
+  if (active > 0 && uncoveredAnchors.length >= 3) {
+    score -= 0.12;
+    deficits.push(
+      `${uncoveredAnchors.length} anchor/recurring characters have no stake in any open market (e.g. ${uncoveredAnchors.slice(0, 3).join(', ')}) — the world around the protagonist is decorative.`,
+    );
+  } else if (active > 0 && uncoveredAnchors.length >= 1) {
+    score -= 0.04;
+    deficits.push(
+      `${uncoveredAnchors.length} named character${uncoveredAnchors.length === 1 ? '' : 's'} uncovered by any market (${uncoveredAnchors.slice(0, 2).join(', ')}).`,
+    );
   }
 
   score = clamp01(score);
   const summary =
     active === 0
       ? 'No active threads.'
-      : `${active} active · ${stale} stale · ${closed} closed · ${abandoned} abandoned`;
-  return { score, band: bandOf(score), summary, deficits };
+      : `${active} active · ${nearClosed} near-closed · ${closed} closed · ${recentOpensCount} opened-recently · ${stale} stale · ${uncoveredAnchors.length} NPCs uncovered`;
+  return { score, band: bandOf(score), summary, deficits, signals };
+}
+
+/** Compose the inbuilt directive for the health expansion — the "recommended
+ *  action" the user reads in the diagnostic and the expansion runs against.
+ *  Written as a strategic analyst's brief organised around three axes:
+ *  NEWNESS (is the story introducing new questions?), VARIETY (is coverage
+ *  spread across entities and stakes?), DIRECTION (is anything moving toward
+ *  resolution?). Zombies and abandoned threads are reported but not flagged
+ *  as problems — some threads are meant to fade. */
+export function buildRecommendedAction(signals: PortfolioSignals): string {
+  const observations: string[] = [];
+  const moves: string[] = [];
+
+  // NEWNESS diagnosis
+  if (signals.starved) {
+    observations.push('the fate engine is near-empty');
+    moves.push('open 2-3 new markets — the top priority is fresh questions, ideally contested ones with real stakes for the central agent');
+  } else if (signals.lowNewness) {
+    observations.push('no new markets have opened in the last 8 scenes — the story has stopped introducing fresh questions');
+    moves.push('open 1-2 new markets that bring a piece of the world into focus the story hasn\'t engaged yet (new agent, new domain, new consequence class)');
+  }
+
+  // DIRECTION diagnosis
+  if (signals.noForwardSignal) {
+    observations.push(`no closures or near-closed markets in ${signals.scenesSinceLastClose >= 100 ? 'the story so far' : signals.scenesSinceLastClose + ' scenes'} — the portfolio has stopped delivering resolution`);
+    moves.push('force a near-closure on a ripe thread (use a saturating- or committed-category candidate) AND open a short-horizon market whose resolution lands inside the next few scenes');
+  } else if (signals.stagnant) {
+    observations.push('every open market is contested but none is pushing toward resolution');
+    moves.push('discharge pressure on one contested market via a twist that flips its lean, then let the cascade re-price the coupled threads');
+  }
+
+  // VARIETY diagnosis
+  if (signals.concentrated) {
+    observations.push(`${Math.round(signals.topVolumeShare * 100)}% of attention is concentrated on a single thread`);
+    moves.push('open 1-2 peripheral-agent or cost-ledger markets to diversify the pressure');
+  }
+  if (signals.uncoveredAnchorNames.length >= 3) {
+    const sample = signals.uncoveredAnchorNames.slice(0, 3).join(', ');
+    const more = signals.uncoveredAnchorNames.length > 3
+      ? ` (plus ${signals.uncoveredAnchorNames.length - 3} others)`
+      : '';
+    observations.push(`${signals.uncoveredAnchorNames.length} named characters without any stake in an open market (${sample}${more})`);
+    moves.push(`open peripheral-agent markets covering ${signals.uncoveredAnchorNames.slice(0, 2).join(' and ')} so the world feels responsive rather than decorative`);
+  } else if (signals.uncoveredAnchorNames.length >= 1) {
+    observations.push(`${signals.uncoveredAnchorNames.slice(0, 2).join(' / ')} currently uncovered`);
+    moves.push('consider a short-horizon market for one of them so the cast is active, not backdrop');
+  }
+
+  // SIZE caveat
+  if (signals.bloated) {
+    moves.push('do NOT open more than 1-2 new markets this pass — the portfolio is already stretched; priority is consolidation (force payoffs on ripe threads) over addition');
+  }
+
+  // Compose the brief
+  if (moves.length === 0) {
+    return 'Portfolio is structurally clean — variety, direction, and newness all present. Treat this expansion as forward-planning: open one surprise-capacity market (an outcome the audience couldn\'t predict from the premise) and one cost-ledger market that forces the next bold action to carry weight. The story has room to push, not repair.';
+  }
+
+  const diagnosis = observations.length > 0
+    ? `Diagnosis: ${observations.join('; ')}.`
+    : '';
+  const prescription = `Recommended moves (in order of leverage): ${moves.map((m, i) => `(${i + 1}) ${m}`).join('; ')}.`;
+  const closer = `Keep zombies alone unless a specific one is getting in the way — attrition retires them over time and they don\'t harm anything live.`;
+
+  return [diagnosis, prescription, closer].filter(Boolean).join(' ');
 }
 
 // ── Cast dimension ──────────────────────────────────────────────────────────
@@ -437,7 +639,9 @@ export function computeNarrativeHealth(
     .filter(Boolean)
     .filter(isScene);
 
-  const threads = scoreThreads(narrative, snapshot, auto.pressure.threads);
+  const threadsResult = scoreThreads(narrative, snapshot, auto.pressure.threads, resolvedKeys, currentIndex);
+  const { signals: portfolioSignals, ...threads } = threadsResult;
+  const recommendedAction = buildRecommendedAction(portfolioSignals);
   const cast = scoreCast(narrative, sceneList, auto.pressure.entities);
   const locations = scoreLocations(narrative, sceneList);
   const artifacts = scoreArtifacts(narrative, sceneList);
@@ -492,6 +696,8 @@ export function computeNarrativeHealth(
     dimensions: { threads, cast, locations, artifacts, systems, balance },
     topDeficits,
     needsMaintenance,
+    portfolioSignals,
+    recommendedAction,
   };
 }
 
@@ -500,18 +706,40 @@ export function renderHealthReportForPrompt(report: HealthReport): string {
   const dim = (label: string, d: HealthDimensionScore) =>
     `${label}: ${d.band} (${(d.score * 100).toFixed(0)}%) — ${d.summary}` +
     (d.deficits.length > 0 ? `\n  ${d.deficits.map((x) => `· ${x}`).join('\n  ')}` : '');
+
+  // Portfolio-first ordering. The thread dimension IS the fate engine — when
+  // this is broken, nothing else matters, and the health expansion exists
+  // primarily to repair it. Other dimensions are supporting context, not
+  // peers. Deficits flagged as DANGER are surfaced at the top so the
+  // expansion prompt sees the critical signals first.
+  const t = report.dimensions.threads;
+  const portfolioDangers = t.deficits.filter((d) => d.startsWith('DANGER'));
+  const portfolioWarnings = t.deficits.filter((d) => !d.startsWith('DANGER'));
+
   return [
     `NARRATIVE HEALTH REPORT — overall: ${report.band} (${(report.overall * 100).toFixed(0)}%)`,
     report.headline,
     '',
-    dim('Threads', report.dimensions.threads),
+    'RECOMMENDED ACTION (built-in directive — execute this)',
+    `  ${report.recommendedAction}`,
+    '',
+    `PORTFOLIO AUDIT (priority #1 — thread markets are the fate engine)`,
+    `  state: ${t.band} (${(t.score * 100).toFixed(0)}%) — ${t.summary}`,
+    ...(portfolioDangers.length > 0
+      ? ['  DANGERS:', ...portfolioDangers.map((d) => `  · ${d.replace(/^DANGER[—\s-]*/i, '')}`)]
+      : []),
+    ...(portfolioWarnings.length > 0
+      ? ['  WARNINGS:', ...portfolioWarnings.map((d) => `  · ${d}`)]
+      : []),
+    '',
+    'SUPPORTING DIMENSIONS (context for the expansion, not the priority)',
     dim('Cast', report.dimensions.cast),
     dim('Locations', report.dimensions.locations),
     dim('Artifacts', report.dimensions.artifacts),
     dim('Systems', report.dimensions.systems),
     dim('Balance', report.dimensions.balance),
     '',
-    'TOP DEFICITS (ranked):',
+    'TOP DEFICITS (ranked across dimensions):',
     ...report.topDeficits.map((d, i) => `${i + 1}. ${d}`),
   ].join('\n');
 }

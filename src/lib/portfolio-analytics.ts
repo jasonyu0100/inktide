@@ -187,8 +187,17 @@ export function replayThreadsAtIndex(
   resolvedKeys: string[],
   targetIndex: number,
 ): Record<string, Thread> {
+  // Only threads introduced by targetIndex belong in the replay — a market
+  // that hasn't opened in the story shouldn't render anywhere in the UI
+  // (portfolio, dashboard, graphs, snapshot export). Threads with no
+  // openedAt (or whose openedAt predates resolvedKeys) count as always-open
+  // for backward-compat with malformed data.
+  const visibleKeys = new Set(
+    resolvedKeys.slice(0, Math.min(targetIndex, resolvedKeys.length - 1) + 1),
+  );
   const threads: Record<string, Thread> = {};
   for (const [id, t] of Object.entries(narrative.threads)) {
+    if (t.openedAt && !visibleKeys.has(t.openedAt)) continue;
     threads[id] = {
       ...t,
       beliefs: {
@@ -311,8 +320,12 @@ export function currentFocusIds(
 // ── Per-thread time series ─────────────────────────────────────────────────
 
 export type ThreadTrajectoryPoint = {
-  /** Resolved-scene index where the point is anchored. */
+  /** Resolved-entry index where the point is anchored (mixed scenes + world
+   *  commits). Useful for cross-referencing the raw timeline. */
   sceneIndex: number;
+  /** 1-based scene ordinal excluding world commits — this is the "scene N"
+   *  number the UI should display on axes and tooltips. */
+  sceneOrdinal: number;
   /** Scene id (for hover / click-through). */
   sceneId: string;
   /** Probability distribution at this scene. */
@@ -356,11 +369,19 @@ export function buildThreadTrajectory(
     ? resolvedEntryKeys.indexOf(thread0.openedAt)
     : -1;
   const startIdx = openedIdx >= 0 ? openedIdx : 0;
+  // Seed the scene ordinal from the count of scenes that precede startIdx so
+  // the ordinal we emit on each trajectory point is scene-only (world commits
+  // excluded). The UI uses this directly for axis labels.
+  let sceneOrdinal = 0;
+  for (let j = 0; j < startIdx; j++) {
+    if (narrative.scenes[resolvedEntryKeys[j]]) sceneOrdinal++;
+  }
   const points: ThreadTrajectoryPoint[] = [];
   for (let i = startIdx; i < resolvedEntryKeys.length; i++) {
     const sceneId = resolvedEntryKeys[i];
     const scene = narrative.scenes[sceneId] as Scene | undefined;
     if (!scene || scene.kind !== 'scene') continue;
+    sceneOrdinal++;
     const touched = new Set<string>();
     const threadsMap: Record<string, Thread> = { [threadId]: cursor };
     for (const tm of scene.threadDeltas ?? []) {
@@ -381,6 +402,7 @@ export function buildThreadTrajectory(
     const belief = getMarketBelief(cursor);
     points.push({
       sceneIndex: i,
+      sceneOrdinal,
       sceneId,
       probs,
       entropy: normalizedEntropy(probs),

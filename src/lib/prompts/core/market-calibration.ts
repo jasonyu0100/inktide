@@ -46,6 +46,28 @@ PRE-EMISSION CHECKLIST (every threadDelta):
   □ Principle: can I cite which of the seven principles justifies the magnitude?
 If any answer is wrong, downgrade to pulse or revise.`;
 
+export const PROMPT_PORTFOLIO_PRINCIPLES = `PORTFOLIO DISCIPLINE — how the prediction-market SET stays informationally alive. Emission principles keep each market honest; portfolio principles keep the set from degenerating into decoration. The fate nodes / threads in play constitute a portfolio, and portfolio health matters more than any single market's calibration — a portfolio of well-priced but all-distal, all-central-agent, all-soft-outcome markets will generate an inert trajectory no matter how clean each emission is.
+
+These principles are register-agnostic. They apply to fiction (central agent = protagonist, step = scene, segment = arc), to argument / inquiry (central agent = committed hypothesis, step = section, segment = chapter), and to reportage (central agent = reporter's claim, step = finding, segment = investigation). Translate as needed.
+
+A. CONTESTED OUTCOMES. Every market needs at least one outcome the central agent would pay to prevent (or, in argument register, an outcome that contradicts the committed hypothesis). An outcome set where every option is a variant of the central agenda's success is a progress bar, not a market — saturation there is mechanical, not meaningful. Name the goal, the blocking state, and where possible a third outcome outside the author's explicit anticipation.
+
+B. IRREVERSIBILITY. Soft outcomes (gradual drift, recoverable shifts) price as math; hard outcomes (terminal states, broken conditions, committed structural moves) price as weight. A portfolio of only soft markets cannot generate Fate — nothing with actual settlement is in play. Aim for roughly a quarter of open markets to point at an irreversible outcome.
+
+C. HORIZON DIVERSITY. Long-horizon markets alone are climate — meta-tension without step-level traction. Maintain a distribution across short (resolves in 2-3 steps), medium (half-segment), and long (segment-spanning) horizons. All-distal portfolios produce trajectories where individual steps feel interchangeable.
+
+D. PERIPHERAL-AGENT COVERAGE. A portfolio tracking only the central agent is solipsistic — the world doesn't feel alive because nothing outside the focal position is being tracked. Named entities the generator has invested in deserve at least one market of their own. Peripheral-agent markets make the world responsive rather than decorative.
+
+E. COST LEDGER. When the world pushes back (systemic counter-pressure, accumulating debt, narrowing options, a rule biting), that pressure must enter a dedicated cost-ledger market whose leading outcome is something the central agent is trying to prevent. Otherwise costs fire once and evaporate; counter-pressure must compound via market state, not via authorial memory.
+
+F. NO ZOMBIES. Zombie markets (σ≈0, untouched for 10+ steps, no closure path) crowd out attention without contributing uncertainty. Prefer a smaller hotter portfolio over a larger colder one. If a market cannot receive genuine evidence in the next step or two, close it (payoff), abandon it, or let attrition retire it.
+
+G. SURPRISE CAPACITY. Some markets must carry outcome spaces the observer could not have specified from the opening commitments alone. If every market is predictable from the premise, the portfolio will generate exactly the trajectory the opening implied. Plant at least one outcome per segment that opens a genuinely unforeseen future.
+
+MULTI-MARKET CASCADE. A step moving one market is a step under-using the fate layer. Major events — payoffs, twists, introductions, system-rule reveals, world-state irreversibilities — MUST cascade across coupled markets in the same step. A death re-prices every market the dead party participated in; a revealed rule re-prices every market it constrains; a new entity arriving opens markets of its own and flips existing ones by being present. A major event that moves only its primary market is a calibration failure — the world is a coupled system, and state change propagates. The CRG should design these cascades upstream rather than leaving them to scene-by-scene emission to rediscover.
+
+STATE CHANGE IS ALWAYS POSSIBLE. No market is permanently settled short of a resolution event. The world is a live coupled system — system rules can bite, world entities can reveal hidden capabilities, peripheral agents can act against the central agenda. Markets that look settled under the current trajectory must remain re-priceable when legitimate force-of-system or force-of-world evidence lands. A portfolio where every market is foregone is a portfolio with nothing to watch.`;
+
 export const PROMPT_MARKET_EVIDENCE_SCALE = `EVIDENCE — real number in [-4, +4] per affected outcome. Decimals encouraged; system rounds to 1dp.
   ±0..1   small: pulse, minor shift
   ±1..2   meaningful: setup, resistance

@@ -1411,6 +1411,38 @@ export function classifyScale(sceneCount: number): NarrativeScale {
   return SCALES.serial;
 }
 
+// ── Scene-ordinal helpers ─────────────────────────────────────────────────────
+// resolvedEntryKeys is a mixed list of scene keys and world-commit keys. UI that
+// displays "scene N of M" (market view, exports, trajectory chart) must count
+// only actual scenes — world commits shouldn't inflate M or bump the current
+// ordinal. These helpers keep that translation in one place.
+
+/** Count actual scenes in a resolved-key list, ignoring world-commit entries. */
+export function countScenes(
+  narrative: Pick<NarrativeState, 'scenes'>,
+  resolvedKeys: string[],
+): number {
+  let n = 0;
+  for (const k of resolvedKeys) if (narrative.scenes[k]) n++;
+  return n;
+}
+
+/** 1-based scene ordinal for a resolved-key index. If the key at `index` is a
+ *  world commit, returns the ordinal of the most recent prior scene (or 0 if
+ *  none has happened yet). */
+export function sceneOrdinalAt(
+  narrative: Pick<NarrativeState, 'scenes'>,
+  resolvedKeys: string[],
+  index: number,
+): number {
+  let n = 0;
+  const limit = Math.min(index, resolvedKeys.length - 1);
+  for (let i = 0; i <= limit; i++) {
+    if (narrative.scenes[resolvedKeys[i]]) n++;
+  }
+  return n;
+}
+
 // ── World Density Classification ─────────────────────────────────────────────
 // Measures richness of the world relative to story length.
 // Density = (characters + locations + threads + systemNodes) / scenes

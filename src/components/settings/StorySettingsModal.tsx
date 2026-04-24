@@ -304,6 +304,26 @@ export function StorySettingsModal({ onClose }: { onClose: () => void }) {
                 </p>
               </div>
 
+              <div className="flex items-center justify-between gap-3 py-1">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-text-dim uppercase tracking-wider">
+                    Auto-clear after use
+                  </span>
+                  <span className="text-[9px] text-text-dim/50">
+                    Clear Direction + Constraints after they guide a scene or CRG generation. Default on — prevents a one-off steer from silently shaping every subsequent run.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={settings.autoClearDirection}
+                  onClick={() => update({ autoClearDirection: !settings.autoClearDirection })}
+                  className={`w-7 h-4 rounded-full transition-colors relative shrink-0 ${settings.autoClearDirection ? 'bg-white/25' : 'bg-white/8'}`}
+                >
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${settings.autoClearDirection ? 'left-3.5' : 'left-0.5'}`} />
+                </button>
+              </div>
+
               <div>
                 <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">
                   Narrative Guidance

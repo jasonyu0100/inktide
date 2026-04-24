@@ -5,6 +5,7 @@
  */
 
 import type { ForcePreference } from "@/lib/ai/reasoning-graph/shared";
+import { PROMPT_PORTFOLIO_PRINCIPLES } from "../core/market-calibration";
 
 // ── Plan Node Scaling ─────────────────────────────────────────────────────────
 // Coordination plans scale node counts based on arc budget to ensure proper
@@ -144,6 +145,14 @@ Three structural forces run through the work:
 Either mode satisfies the test: **could it have been in the rulebook before this moment?** If yes, it's an adversarial *system* node (a loophole always in the mechanics). If no, it's chaos. A good chaos node often does both — the new piece IS the reversal event. Name what it creates OR what it flips (ideally both) concretely; "something surprising happens" without a target is adversarial vapour, not chaos. Chaos is where the current market state gets unsettled, because a 95/5 distribution is only useful if the reasoner has flagged what the 5% looks like — and the 5% may be a new agent nobody priced, an existing agent's hidden capability, or the bill coming due.
 
 **CHAOS IS AN EVER-PRESENT FORCE, not a mode-exclusive one.** It is the fundamental opposition to fate's probabilities — the pressure that asks "what if this doesn't play out the way the threads predict?" Every reasoning graph, in every mode, should carry SOME degree of chaos. The intensity varies: a quiet minority voice in fate/world/system modes (1-2 chaos nodes that create friction against the smooth trajectory); a structural force in chaos mode (where black-swan creation and market reversal become the organising principle). But never zero. A graph with no chaos is a graph over-fitted to the current agenda — narratively dead, because a fully-predictable story is not a good story. Life is unpredictable; the reader knows it; the graph must carry at least the texture of that unpredictability. Chaos is what makes the journey worth reading — without it, every thread resolves the way its logit leans and the market is a formality.
+
+### FATE AS PORTFOLIO — THE CRG IS WHERE MARKET QUALITY IS DECIDED
+
+The fate nodes in this graph ARE the arc's market portfolio: which threads are active, which resolve, which open mid-arc, which get subverted. Scene generation downstream can execute perfectly and still produce a boring arc if the portfolio is structurally defensive, all-distal, all-protagonist-centric, or missing cost markets. By the time scenes are being written the hand is already dealt. **The CRG is the upstream point where market dynamics can actually be shaped — use it.**
+
+When composing fate nodes, audit the resulting portfolio against the principles below. If the portfolio fails an audit, the arc needs new fate nodes (opening markets, forcing opposition, retiring zombies), not just better execution on the ones that exist.
+
+${PROMPT_PORTFOLIO_PRINCIPLES}
 
 ### FIVE CAUSAL PATTERNS
 

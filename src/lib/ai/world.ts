@@ -1,4 +1,4 @@
-import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild, ReasoningGraphSnapshot } from '@/types/narrative';
+import type { NarrativeState, Scene, Character, Location, Thread, ThreadDelta, RelationshipEdge, SystemNode, SystemDelta, SystemNodeType, Artifact, OwnershipDelta, TieDelta, WorldDelta, RelationshipDelta, WorldBuild } from '@/types/narrative';
 import { resolveEntry, isScene, REASONING_BUDGETS, DEFAULT_STORY_SETTINGS, NARRATOR_AGENT_ID } from '@/types/narrative';
 import { clampEvidence, isThreadAbandoned, isThreadClosed, FORCE_REFERENCE_MEANS, FORCE_BANDS, fmtBand } from '@/lib/narrative-utils';
 import { nextId, nextIds } from '@/lib/narrative-utils';
@@ -12,8 +12,11 @@ import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext } from './context';
 import { PROMPT_STRUCTURAL_RULES, PROMPT_DELTAS, PROMPT_POV, PROMPT_WORLD, PROMPT_SUMMARY_REQUIREMENT, PROMPT_ENTITY_INTEGRATION, PROMPT_FORCE_STANDARDS, PROMPT_ARC_STATE_GUIDANCE } from './prompts';
+import { PROMPT_PORTFOLIO_PRINCIPLES } from '@/lib/prompts/core/market-calibration';
 import { logInfo } from '@/lib/system-logger';
-import { generateExpansionReasoningGraph, buildSequentialPath, type ExpansionReasoningGraph } from './reasoning-graph';
+// World expansion no longer uses a causal reasoning graph — creative
+// planning happens upstream in the directive (hand-written or AI health
+// report). The CRG generation path has been removed.
 
 /**
  * Normalize LLM-emitted entity world into the World graph shape
@@ -83,8 +86,6 @@ export type WorldExpansionResponse = {
   relationshipDeltas?: RelationshipDelta[];
   ownershipDeltas?: OwnershipDelta[];
   tieDeltas?: TieDelta[];
-  /** Reasoning graph used to plan this expansion — stored for canvas viewing */
-  reasoningGraph?: ReasoningGraphSnapshot;
 };
 
 export type DirectionSuggestion = {
@@ -417,10 +418,6 @@ export type ExpandWorldOptions = {
   onReasoning?: (token: string) => void;
   /** Filter which entity types to create — disabled types are excluded from prompt and stripped from output */
   entityFilter?: ExpansionEntityFilter;
-  /** When true without reasoningGraph, generates a new reasoning graph. When false, skips reasoning. */
-  useReasoning?: boolean;
-  /** Pre-generated reasoning graph — if provided, uses this instead of generating a new one */
-  reasoningGraph?: ExpansionReasoningGraph;
 };
 
 export async function expandWorld(
@@ -445,7 +442,7 @@ export async function expandWorld(
         onReasoning: onReasoningLegacy,
         entityFilter: entityFilterLegacy,
       };
-  const { sourceText, onReasoning, entityFilter, useReasoning, reasoningGraph: preGeneratedGraph } = options;
+  const { sourceText, onReasoning, entityFilter } = options;
 
   logInfo('Starting world expansion', {
     source: 'world-expansion',
@@ -456,24 +453,8 @@ export async function expandWorld(
       strategy,
       hasDirective: !!directive,
       hasSourceText: !!sourceText,
-      useReasoning: !!useReasoning,
-      hasPreGeneratedGraph: !!preGeneratedGraph,
     },
   });
-
-  // Use pre-generated reasoning graph if provided, otherwise generate if requested
-  let reasoningGraph: ExpansionReasoningGraph | undefined = preGeneratedGraph;
-  if (!reasoningGraph && useReasoning) {
-    reasoningGraph = await generateExpansionReasoningGraph(
-      narrative,
-      resolvedKeys,
-      currentIndex,
-      directive,
-      size,
-      strategy,
-      onReasoning,
-    );
-  }
 
   const ctx = narrativeContext(narrative, resolvedKeys, currentIndex);
 
@@ -516,34 +497,12 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
     strategyBlock = EXPANSION_STRATEGY_PROMPTS[strategy];
   }
 
-  // Build reasoning graph section if available
-  const reasoningSection = reasoningGraph ? `REASONING GRAPH — THIS IS YOUR PRIMARY BRIEF. The graph below captures the strategic logic driving this expansion. Each node represents a piece of reasoning — gaps, entities, constraints, causal steps, and outcomes. Your expansion must execute this reasoning path exactly.
-
-Expansion Summary: ${reasoningGraph.summary}
-
-REASONING PATH (step through in order — each node shows its connections):
-${buildSequentialPath(reasoningGraph)}
-
-Read through every node. The reasoning nodes (REASONING:) are the core logic you must execute. Gap/system nodes show what's MISSING. Entity nodes (CHARACTER/LOCATION/ARTIFACT:) show what should be ADDED and how it connects. Outcome nodes (OUTCOME:) show thread effects you must deliver. Pattern nodes (PATTERN:) are opportunities to embrace. Warning nodes (WARNING:) are risks to avoid.
-
-Edge types tell you HOW nodes relate:
-- enables: A makes B possible
-- constrains: A limits/blocks B
-- risks: A creates danger for B
-- requires: A needs B
-- causes: A leads to B
-- reveals: A exposes information in B
-- develops: A deepens B
-- resolves: A concludes B
-
-` : '';
-
   const prompt = `${ctx}
 
 ${directive.trim() ? `EXPAND the world based on this directive: ${directive}` : 'EXPAND the world — analyze the current narrative state and add characters, locations, and threads that would create the most interesting new possibilities based on existing tensions and unexplored areas.'}
 ${sourceText ? `\nSOURCE MATERIAL (verbatim from plan document — use this as the authoritative guide for what characters, locations, systems, and entities to create. If the source names specific characters, places, or objects, create them with those exact names and roles. The source material takes priority over generic expansion.):\n${sourceText}` : ''}
 
-${reasoningSection}${strategyBlock}
+${strategyBlock}
 
 ${(() => {
   const f = entityFilter ?? DEFAULT_EXPANSION_FILTER;
@@ -552,12 +511,21 @@ ${(() => {
   const labels: Record<string, string> = { characters: 'characters', locations: 'locations', artifacts: 'artifacts', threads: 'threads', threadDeltas: 'thread deltas (market evidence on existing threads)', worldDeltas: 'world deltas (changes to existing entities)', systemDeltas: 'system deltas', relationshipDeltas: 'relationship deltas (new and shifted relationships)', ownershipDeltas: 'ownership deltas (artifact transfers)', tieDeltas: 'tie deltas (character-location bonds)' };
   return `ENTITY FILTER — DO NOT create the following types (return empty arrays for them):\n${disabled.map(k => `- NO ${labels[k]}`).join('\n')}\n`;
 })()}
-${size === 'exact' ? `This is an EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.` : size === 'health' ? `This is a HEALTH EXPANSION — a diagnostic-driven maintenance top-up, not a bulk generation. The directive above contains a NARRATIVE HEALTH REPORT. Read it and add ONLY what the deficits call for:
-- Thread deficit → seed 1-3 threads that restore the active thread count; prefer threads that weave existing under-used characters or locations together rather than introducing entirely new ones.
-- Entity deficit (shallow/neglected anchors) → add 1-3 worldDeltas per flagged anchor that reveal new facets (trait, belief, capability, history, secret) — these deepen existing characters rather than creating new ones. Only create new characters if a structural role is missing (e.g. no antagonist, no confidant).
-- Knowledge deficit → emit systemDeltas that articulate 2-4 under-specified world rules, constraints, or mechanisms the existing scenes have implied but not stated.
-- Balance deficit → bias the additions toward whichever force is under-delivered (fate → new threads or threadDeltas, world → worldDeltas, system → systemDeltas).
-The goal is MINIMUM VIABLE maintenance: restore the portfolio to a healthy state with the smallest intervention that works. A health expansion that adds 2 threads and 4 worldDeltas is correct if that's what the deficits call for; one that adds 10 characters is overreach. Think diagnostic → prevention, not cure.` : `This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
+${size === 'exact' ? `This is an EXACT expansion — create ONLY what the directive explicitly describes. Do not add extra characters, locations, threads, or artifacts beyond what is specified. No embellishments, no "while we're at it" additions. If the directive says "add a blacksmith named Torin", create exactly that character and nothing else. Every entity in your response must trace directly to something stated in the directive.` : size === 'health' ? `This is a HEALTH EXPANSION — diagnostic-driven portfolio repair, forward-looking. The directive above contains a NARRATIVE HEALTH REPORT leading with a PORTFOLIO AUDIT — treat the portfolio as priority #1. Analysed works and long-idle narratives typically come in with a strong premise but no forward vision; the health expansion is where that forward vision is installed by filling portfolio gaps with markets and the rules / entities needed to support them.
+
+Work the FATE → SYSTEM → WORLD hierarchy. This mirrors the ontology of the work itself: METAPHYSICAL (fate — the invisible hand pulling outcomes toward meaning) → ABSTRACT (system — the rules and principles by which outcomes resolve) → PHYSICAL (world — the entities that enact). Fate drives what questions the work is asking; system defines how those questions adjudicate; world is the substrate that carries both. Major events propagate DOWN the hierarchy (a fate commitment forces system rules to bite, system rules force world state to change) and rare revelations propagate UP (a world discovery can surface a system rule, which can re-price a fate market). Open markets first, state rules for them second, add entities third:
+
+1. **FATE (metaphysical) — open markets that close the audit's gaps.** For every DANGER in the portfolio audit, open (or re-shape) a thread that directly addresses it. For every WARNING, consider the same. Apply the portfolio principles:
+
+${PROMPT_PORTFOLIO_PRINCIPLES}
+
+   New threads should weave existing under-used entities together first; introduce new entities only when the portfolio genuinely lacks them.
+
+2. **SYSTEM (abstract) — articulate the rules the new markets will resolve against.** Every market needs a legible adjudication path; a market with no rule is a question with no closure mechanism. Emit systemDeltas that (a) give each new market its resolution rule, and (b) surface rules existing scenes have implied but left unstated (if the supporting-dimension audit flags system deficit).
+
+3. **WORLD (physical) — add entities only if the new markets or rules genuinely require them to enact.** Otherwise deepen existing characters / locations / artifacts via worldDeltas rather than spawning drop-ins. When an entity IS needed, its world graph must attach to a specific market (as a participant) or rule (as the body the rule acts on) — floating entities are decoration.
+
+MINIMUM VIABLE MAINTENANCE. A health expansion that opens 2 missing markets, states 1 supporting rule, and deepens 3 existing anchors is correct when that's what the audit calls for. Bulk entity spawns without named markets are overreach, not maintenance. Think diagnostic → prevention → forward vision, not cure.` : `This is ${EXPANSION_SIZE_CONFIG[size].label} (${EXPANSION_SIZE_CONFIG[size].total} total new entities). Generate:
 - ${EXPANSION_SIZE_CONFIG[size].characters} new characters
 - ${EXPANSION_SIZE_CONFIG[size].locations} new locations
 - ${EXPANSION_SIZE_CONFIG[size].threads} new threads`}
@@ -603,10 +571,9 @@ Return JSON with this exact structure:
   "threads": [
     {
       "id": "${nextThreadId}",
-      "participants": [{"id": "character or location ID", "type": "character|location"}],
+      "participants": [{"id": "character or location ID", "type": "character|location|artifact"}],
       "description": "Frame as a QUESTION: 'Will X succeed?' 'Can Y be trusted?' 'What is the truth behind Z?' — 15-30 words, specific conflict",
       "outcomes": ["Named possibilities the market prices. Binary default: ['yes','no']. Multi-outcome when the resolution is N-way, e.g. 'Who claims the artifact?' → ['hero','villain','destroyed','lost']. Must be distinct and mutually exclusive; 2–6 entries."],
-      "openedAt": "new",
       "dependents": ["T-XX (existing thread IDs this thread connects to, accelerates, or converges with — see THREAD CONVERGENCE below)"]
     }
   ],
@@ -684,38 +651,29 @@ systemDeltas define the FOUNDATIONAL abstractions this expansion establishes —
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'expandWorld') as any;
 
-  // Force all world-build threads to latent — they're seeds, not active storylines
-  // Normalize: LLM may still output "anchors" (legacy field name) — remap to "participants"
-  // Validate dependents — only keep IDs that reference real existing or new threads
+  // Normalize threads. The LLM schema asks only for id, participants,
+  // description, outcomes, and dependents. openedAt is stamped by the store
+  // reducer to the worldBuildId at apply time. beliefs and threadLog are
+  // canonical scaffolding — always initialised here so the rest of the
+  // pipeline sees a well-formed market.
   const newThreadIds = new Set((parsed.threads ?? []).map((t: { id: string }) => t.id));
   const existingThreadIds = new Set(Object.keys(narrative.threads));
   const validThreadIds = new Set([...newThreadIds, ...existingThreadIds]);
 
-  const threads = (parsed.threads ?? []).map((t: Thread & { anchors?: Thread['participants'] }) => {
-    const { anchors, ...rest } = t;
-    // Filter dependents to only valid thread IDs (not example text the LLM might echo)
-    const dependents = (rest.dependents ?? []).filter((id: string) => validThreadIds.has(id) && id !== rest.id);
-    // Normalize outcomes + seed narrator belief at uniform logits if the LLM
-    // didn't pre-populate a belief map. Binary is the default shape.
-    const outcomes = Array.isArray(rest.outcomes) && rest.outcomes.length >= 2
-      ? rest.outcomes
+  const threads = (parsed.threads ?? []).map((t: Thread) => {
+    const outcomes = Array.isArray(t.outcomes) && t.outcomes.length >= 2
+      ? t.outcomes
       : ['yes', 'no'];
-    const rawPriorProbs = Array.isArray(
-      (rest as { priorProbs?: unknown }).priorProbs,
-    )
-      ? ((rest as { priorProbs?: unknown }).priorProbs as unknown[]).map((v) =>
-          typeof v === 'number' ? v : NaN,
-        )
-      : undefined;
-    const beliefs = rest.beliefs && typeof rest.beliefs === 'object'
-      ? rest.beliefs
-      : { [NARRATOR_AGENT_ID]: newNarratorBelief(outcomes.length, 2, rawPriorProbs) };
+    const dependents = (t.dependents ?? []).filter((id: string) => validThreadIds.has(id) && id !== t.id);
     return {
-      ...rest,
-      participants: rest.participants ?? anchors ?? [],
-      dependents,
+      id: t.id,
+      participants: t.participants ?? [],
+      description: t.description,
       outcomes,
-      beliefs,
+      dependents,
+      openedAt: '', // Store reducer stamps worldBuildId at apply time
+      beliefs: { [NARRATOR_AGENT_ID]: newNarratorBelief(outcomes.length, 2) },
+      threadLog: { nodes: {}, edges: [] },
     } satisfies Thread;
   });
 
@@ -782,17 +740,6 @@ systemDeltas define the FOUNDATIONAL abstractions this expansion establishes —
     threadIds: a.threadIds ?? [],
     world: normalizeInitialWorld(a.id, a.world ?? a.continuity),
   }));
-  // Convert expansion reasoning graph to snapshot format for storage
-  const reasoningGraphSnapshot: ReasoningGraphSnapshot | undefined = reasoningGraph
-    ? {
-        nodes: reasoningGraph.nodes,
-        edges: reasoningGraph.edges,
-        arcName: reasoningGraph.expansionName,
-        sceneCount: 0, // World expansions don't have scenes
-        summary: reasoningGraph.summary,
-      }
-    : undefined;
-
   // Merge legacy "relationships" array (valence → valenceDelta) into relationshipDeltas
   const mergedRelDeltas: RelationshipDelta[] = [
     ...(parsed.relationships ?? []).map((r: RelationshipEdge) => ({
@@ -812,7 +759,6 @@ systemDeltas define the FOUNDATIONAL abstractions this expansion establishes —
     relationshipDeltas: f.relationshipDeltas ? mergedRelDeltas : [],
     ownershipDeltas: f.ownershipDeltas ? (parsed.ownershipDeltas ?? []) : [],
     tieDeltas: f.tieDeltas ? (parsed.tieDeltas ?? []) : [],
-    reasoningGraph: reasoningGraphSnapshot,
   };
 
   logInfo('Completed world expansion', {

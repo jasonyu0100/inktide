@@ -22,7 +22,7 @@ export function buildSceneProseUserPrompt(args: {
   direction?: string;
 }): string {
   const toneBlock = args.toneCue?.trim()
-    ? `\n<tone hint="Match the genre and register of the world.">${args.toneCue.trim().slice(0, 200)}</tone>`
+    ? `\n<tone hint="Match the genre and register of the world.">${args.toneCue.trim()}</tone>`
     : '';
   const voiceBlock = args.proseVoiceOverride?.trim()
     ? `\n<author-voice hint="PRIMARY creative direction — all craft defaults below are subordinate to this voice.">\n${args.proseVoiceOverride.trim()}\n</author-voice>`

@@ -166,6 +166,10 @@ export async function rewriteSceneProse(
     analysis,
     hasExpandedContext,
     streaming: !!onToken,
+    formatRules: formatInstructions.formatRules,
+    voiceOverride: hasVoiceOverride ? narrative.storySettings!.proseVoice!.trim() : undefined,
+    profileSection,
+    toneCue: narrative.worldSummary,
   });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;

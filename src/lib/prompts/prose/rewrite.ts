@@ -16,27 +16,8 @@ export type RewriteSystemPromptArgs = {
 };
 
 export function buildRewriteSystemPrompt(args: RewriteSystemPromptArgs): string {
-  const {
-    formatSystemRole,
-    formatRules,
-    hasVoiceOverride,
-    voiceOverride,
-    profileSection,
-    worldSummary,
-    streaming,
-  } = args;
-
-  return `${formatSystemRole}
-
-Your task is to REWRITE scene prose based on the provided analysis.${streaming ? '' : ' You return ONLY valid JSON — no markdown, no commentary.'}
-${hasVoiceOverride
-    ? `\nAUTHOR VOICE — PRIMARY creative direction; all style defaults below are subordinate to this voice:
-${voiceOverride}
-`
-    : ''}${profileSection}
-${formatRules}
-
-Match the tone and genre of the world: ${worldSummary.slice(0, 200)}.`;
+  const { formatSystemRole, streaming } = args;
+  return `${formatSystemRole} Your task is to REWRITE scene prose based on the provided analysis. Follow the prose profile, format rules, author voice, and tone supplied in the user prompt.${streaming ? '' : ' Return ONLY valid JSON — no markdown, no commentary.'}`;
 }
 
 export function buildRewriteUserPrompt(args: {
@@ -46,8 +27,41 @@ export function buildRewriteUserPrompt(args: {
   analysis: string;
   hasExpandedContext: boolean;
   streaming: boolean;
+  /** Pre-built format rules from the prose-format set. */
+  formatRules?: string;
+  /** Authorial-voice override (overrides craft defaults). */
+  voiceOverride?: string;
+  /** Pre-built prose-profile section (or empty when no profile resolved). */
+  profileSection?: string;
+  /** First ~200 chars of worldSummary, used as a tone cue. */
+  toneCue?: string;
 }): string {
-  const { sceneBlock, neighborBlock, currentProse, analysis, hasExpandedContext, streaming } = args;
+  const {
+    sceneBlock,
+    neighborBlock,
+    currentProse,
+    analysis,
+    hasExpandedContext,
+    streaming,
+    formatRules,
+    voiceOverride,
+    profileSection,
+    toneCue,
+  } = args;
+
+  const voiceBlock = voiceOverride?.trim()
+    ? `\n<author-voice hint="PRIMARY creative direction — all style defaults below are subordinate to this voice.">\n${voiceOverride.trim()}\n</author-voice>`
+    : '';
+  const profileBlock = profileSection?.trim()
+    ? `\n<prose-profile>${profileSection.trim()}</prose-profile>`
+    : '';
+  const formatRulesBlock = formatRules?.trim()
+    ? `\n<format-rules>\n${formatRules.trim()}\n</format-rules>`
+    : '';
+  const toneBlock = toneCue?.trim()
+    ? `\n<tone hint="Match the genre and register of the world.">${toneCue.trim()}</tone>`
+    : '';
+
   return `<inputs>
   <scene>
 ${sceneBlock}
@@ -59,7 +73,7 @@ ${currentProse}
   <analysis hint="Critique to address — every point describes a specific change that MUST be implemented, not merely acknowledged cosmetically.">
 ${analysis}
   </analysis>
-</inputs>
+</inputs>${voiceBlock}${profileBlock}${formatRulesBlock}${toneBlock}
 
 <instructions>
   <step name="address-every-point">Rewrite the prose to FULLY ADDRESS every point in the analysis. The rewrite is not a polish pass — it is a structural edit guided by the analysis.

@@ -93,6 +93,14 @@ Return JSON with this exact structure.
     <directive>Read the existing characters/locations/artifacts in context, match their naming style (length, language family, honorific conventions), and pick a name that could pass as one of theirs. Descriptive labels and titles belong in the world-node content, never in the \`name\` field.</directive>
   </rule>
 
+  <rule name="collapse-on-reveal" critical="true" hint="When a scene REVEALS a load-bearing fact (a location, an identity, a capability, an intent, a relationship truth, an artefact's effect), the summary AND the worldDelta MUST name the specific fact. Future scenes will causally reason on whatever this scene commits to the canon — vague reveals create brittle canon. The summary is the delta budget; vagueness here cascades into vague worldDeltas, vague propositions, hedged prose.">
+    <directive>Distinguish IN-CHARACTER UNCERTAINTY from CANONICAL FACT. A character can SUSPECT, INFER, or HYPOTHESISE without commitment ("Fang Yuan suspected Bai Ning Bing was sheltering in the Northern Plains"). But when a worldDelta says the fact is now known/established/confirmed, the canon must commit: name the place, name the person, name the capability, name the intent. The sentence that moves the worldDelta must contain the specific fact, not gesture at it.</directive>
+    <ban>"probable location", "approximate position", "likely identity", "the location", "her whereabouts", "the answer", "the intelligence" — used as canonical commitments. These are placeholders that read as reveals while transmitting nothing.</ban>
+    <example type="bad" reason="reveal that commits nothing to canon">"Fang Yuan correlated the records and pinpointed Bai Ning Bing's current probable location, fulfilling his goal of finding her within the six-month timeframe."</example>
+    <example type="good" reason="reveal that commits a named fact future scenes can reason on">"Fang Yuan correlated the orphan-trade records against the Heaven's Will manifestations and traced Bai Ning Bing to the Wandering Sect's hidden refuge in the Northern Plains, confirmed by three independent intercepts dated within the past lunar cycle."</example>
+    <test>If you can replace the named fact with "[REDACTED]" and the summary still reads as a reveal, you have written a placeholder. Rewrite until the canon carries the actual fact.</test>
+  </rule>
+
   <rule name="ids">scene S-GEN-###, knowledge K-GEN-###, system SYS-GEN-### (reused SYS nodes keep original ID), character/location/artifact/thread GEN-### placeholders remapped to real IDs downstream.</rule>
 
   <rule name="time-delta" hint="Gap from prior scene as an estimate ({value: int≥0, unit}). Relative only — no absolute calendar.">

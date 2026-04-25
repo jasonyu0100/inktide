@@ -46,7 +46,7 @@ npm run lint     # ESLint
 ## Architecture
 
 - **Frontend:** Next.js App Router, React 19, Tailwind CSS v4, D3.js
-- **AI:** OpenRouter API (streaming) — raw HTTP, no SDK. Models: Gemini 2.5 Flash (default/analysis/generation), Gemini 3 Flash Preview (writing)
+- **AI:** OpenRouter API (streaming) — raw HTTP, no SDK. Model: DeepSeek v4 Flash across the pipeline (default, analysis, generation, writing)
 - **Embeddings:** OpenAI API (text-embedding-3-small, 1536 dimensions) — semantic search over scenes, beats, propositions
 - **Images:** Replicate API (Seedream 4.5) via `/api/generate-image`, `/api/generate-cover`
 - **State:** React Context + useReducer in `src/lib/store.tsx`

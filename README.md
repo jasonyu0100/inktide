@@ -97,7 +97,7 @@ The reasoning graph from the last arc is fed into the next generation with diver
 
 ```
 Next.js 16 · React 19 · TypeScript · Tailwind v4 · D3.js
-OpenRouter (Gemini 2.5/3 Flash) · OpenAI Embeddings · Replicate (Seedream 4.5)
+OpenRouter (DeepSeek v4 Flash) · OpenAI Embeddings · Replicate (Seedream 4.5)
 IndexedDB + localStorage — fully client-side persistence, no backend database
 ```
 

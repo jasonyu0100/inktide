@@ -698,12 +698,10 @@ function CostEstimates() {
       </div>
 
       <p className="text-[10px] text-white/25 mt-3">
-        Structure, planning &amp; analysis:{" "}
-        <span className="text-emerald-500/40">Gemini 2.5 Flash</span> ($0.30/M
-        in · $2.50/M out+reasoning). Prose only:{" "}
-        <span className="text-amber-500/40">Gemini 3 Flash</span> ($0.50/M in ·
-        $3.00/M out+reasoning). Generation cost per arc is constant once the
-        story exceeds the 50-scene context window.
+        Structure, planning, analysis &amp; prose all run on{" "}
+        <span className="text-emerald-500/40">DeepSeek v4 Flash</span> ($0.14/M
+        in · $0.28/M out+reasoning). Generation cost per arc is constant once
+        the story exceeds the 50-scene context window.
       </p>
 
       <button
@@ -4139,17 +4137,15 @@ export default function PaperPage() {
           <Section id="economics" label="Economics">
             <P>
               A short story costs under a dollar; a full novel under seven; an
-              open-ended serial under forty. The pipeline splits across two
-              model tiers: <B>Gemini 2.5 Flash</B> (<B>$0.30/M input</B>,{" "}
-              <B>$2.50/M output</B>) handles structure generation, analysis, and
-              evaluation, while <B>Gemini 3 Flash</B> (<B>$0.50/M input</B>,{" "}
-              <B>$3.00/M output</B>) handles beat plans and prose — the tasks
-              where prose quality matters most. Input tokens dominate because
-              every call sends the full narrative context, but context is capped
-              by the branch time horizon (~50 scenes), so cost per arc is
-              constant — arc 10 costs the same as arc 100. Reasoning is
-              configurable per story from none (analysis) through low (~2K
-              tokens/call, default) to high (~24K).
+              open-ended serial under forty. The whole pipeline — structure,
+              analysis, evaluation, beat plans, and prose — runs on{" "}
+              <B>DeepSeek v4 Flash</B> (<B>$0.14/M input</B>,{" "}
+              <B>$0.28/M output</B>). Input tokens dominate because every call
+              sends the full narrative context, but context is capped by the
+              branch time horizon (~50 scenes), so cost per arc is constant —
+              arc 10 costs the same as arc 100. Reasoning is configurable per
+              story from none (analysis) through low (~2K tokens/call, default)
+              to high (~24K).
             </P>
 
             <CostEstimates />

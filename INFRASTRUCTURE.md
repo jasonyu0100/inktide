@@ -43,7 +43,7 @@ flowchart TB
     end
 
     subgraph External["☁️ External Services"]
-        OR["OpenRouter<br/>Gemini 2.5/3 Flash"]
+        OR["OpenRouter<br/>DeepSeek v4 Flash"]
         OAI["OpenAI<br/>text-embedding-3-small"]
         Rep["Replicate<br/>Seedream 4.5"]
         EL["ElevenLabs<br/>(audio)"]

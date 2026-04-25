@@ -39,3 +39,8 @@ export {
   THREADING_SYSTEM,
   buildThreadingPrompt,
 } from './threading';
+
+export {
+  META_EXTRACTION_SYSTEM,
+  buildMetaExtractionPrompt,
+} from './meta';

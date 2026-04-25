@@ -28,33 +28,46 @@ export interface ArcGroupingOutput {
 }
 
 export function buildArcGroupingPrompt(groups: ArcGroup[]): string {
-  const block = groups
+  const arcsXml = groups
     .map((g, i) => {
       const first = g.sceneIndices[0] + 1;
       const last = g.sceneIndices[g.sceneIndices.length - 1] + 1;
       const scenes = g.summaries
-        .map((s, j) => `  Scene ${g.sceneIndices[j] + 1}: ${s}`)
+        .map((s, j) => `      <scene index="${g.sceneIndices[j] + 1}">${s}</scene>`)
         .join('\n');
-      return `ARC ${i + 1} (scenes ${first}-${last}):\n${scenes}`;
+      return `    <arc index="${i + 1}" first-scene="${first}" last-scene="${last}">
+${scenes}
+    </arc>`;
     })
-    .join('\n\n');
+    .join('\n');
 
-  return `Name each arc and emit its metadata based on scene summaries. An arc is a narrative unit of ~4 scenes.
+  return `<inputs>
+  <arcs hint="Each arc is a narrative unit of ~4 scenes.">
+${arcsXml}
+  </arcs>
+  <arc-state-guidance>
+${PROMPT_ARC_STATE_GUIDANCE}
+  </arc-state-guidance>
+</inputs>
 
-${block}
+<instructions>
+  <task>Name each arc and emit its metadata (directionVector + worldState) based on the scene summaries.</task>
+  <rules>
+    <rule>Each name captures the arc's thematic thrust in 2-5 words — evocative and specific, not generic.</rule>
+    <rule>directionVector must read as forward intent for THIS arc, not a summary of what happened.</rule>
+    <rule>worldState must be ground-truth only, 50-90 words, in the native compact form for the DETECTED domain (fiction, chess, poker, paper, stock log, etc).</rule>
+    <rule>Output must be a JSON array with length exactly equal to the number of arcs above.</rule>
+  </rules>
+</instructions>
 
+<output-format>
 Return a JSON array (one object per arc, in order) with this exact shape:
 [
   {
     "name": "2-5 word evocative name for the arc (e.g. 'The Betrayal at Dawn', not 'Events')",
-    "directionVector": "Forward-looking intent — see ARC METADATA guidance below.",
-    "worldState": "Backward-looking compact state snapshot as of the END of this arc — see ARC METADATA guidance below for domain-adaptive form."
+    "directionVector": "Forward-looking intent — see arc-state-guidance.",
+    "worldState": "Backward-looking compact state snapshot as of the END of this arc — see arc-state-guidance for domain-adaptive form."
   }
 ]
-${PROMPT_ARC_STATE_GUIDANCE}
-Rules:
-- Each name captures the arc's thematic thrust in 2-5 words — evocative and specific, not generic.
-- directionVector must read as forward intent for THIS arc, not a summary of what happened.
-- worldState must be ground-truth only, 50-90 words, in the native compact form for the DETECTED domain (fiction, chess, poker, paper, stock log, etc).
-- Output must be a JSON array with length exactly equal to the number of arcs above.`;
+</output-format>`;
 }

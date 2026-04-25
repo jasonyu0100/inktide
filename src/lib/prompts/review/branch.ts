@@ -19,66 +19,68 @@ export interface BranchReviewPromptParams {
 }
 
 export function buildBranchReviewPrompt(p: BranchReviewPromptParams): string {
-  return `You are a story editor reviewing a complete branch of a serialized narrative. You have ONLY scene summaries — no prose. Your job is to evaluate structural quality.
-${p.guidanceBlock}
-
-TITLE: "${p.title}"
-DESCRIPTION: ${p.description}
-
-THREADS:
+  return `<inputs>
+  <branch title="${p.title}">
+    <description>${p.description}</description>
+  </branch>
+${p.guidanceBlock ? `  <guidance>\n${p.guidanceBlock}\n  </guidance>` : ''}
+  <threads>
 ${p.threadBlock}
-
-SCENE SUMMARIES (${p.sceneCount} scenes):
+  </threads>
+  <scene-summaries count="${p.sceneCount}">
 ${p.sceneBlock}
+  </scene-summaries>
+</inputs>
 
-Evaluate this branch on these dimensions:
+<instructions>
+  <step name="evaluate" hint="Score on six dimensions before assigning verdicts.">
+    <dimension name="structure">Does the sequence build? Are arcs well-shaped or do they fizzle?</dimension>
+    <dimension name="pacing">Is there breathing room between high-intensity moments? Any flatlines?</dimension>
+    <dimension name="repetition">Are beats, locations, or character reactions repeating? Name the stale patterns.</dimension>
+    <dimension name="character">Who changes? Who is stuck in a loop? Who appears but does nothing?</dimension>
+    <dimension name="threads">Which threads are advancing well? Which are stagnating or being ignored?</dimension>
+    <dimension name="theme">What is this story about underneath the plot? Is it interrogating anything?</dimension>
+  </step>
 
-1. **STRUCTURE** — Does the sequence build? Are arcs well-shaped or do they fizzle?
-2. **PACING** — Is there breathing room between high-intensity moments? Any flatlines?
-3. **REPETITION** — Are beats, locations, or character reactions repeating? Name the stale patterns.
-4. **CHARACTER** — Who changes? Who is stuck in a loop? Who appears but does nothing?
-5. **THREADS** — Which threads are advancing well? Which are stagnating or being ignored?
-6. **THEME** — What is this story about underneath the plot? Is it interrogating anything?
+  <step name="assign-verdicts" hint="One verdict per scene. Each maps to a concrete operation.">
+    <verdict name="ok">Scene works. No changes needed.</verdict>
+    <verdict name="edit">Scene should exist but needs revision. You may change ANYTHING: POV, location, participants, summary, events, deltas. Use for wrong POV, repetitive beats needing variation, weak execution, continuity breaks, scenes that need restructuring while keeping their place in the timeline.</verdict>
+    <verdict name="merge" requires="mergeInto">This scene covers the same beat as another and should be ABSORBED into the stronger one. The two become one denser scene. Use when two scenes advance the same thread with similar dramatic shape.</verdict>
+    <verdict name="cut">Scene is redundant and adds nothing. The story is tighter without it.</verdict>
+    <verdict name="move" requires="moveAfter">Scene content is correct but it is in the wrong position. The scene is lifted from its current position and re-planted with NO content changes. Use for sequencing adjustments: a scene revealing information too early, a payoff arriving before its setup, an out-of-order character introduction. If content also needs changing, note it in the reason for a follow-up edit pass.</verdict>
+    <verdict name="insert" requires="insertAfter (or START)">A new scene should be CREATED at this position to fill a pacing gap, advance a stalled thread, or add a missing beat. The "reason" field is the generation brief: describe what happens, who is involved, the location, which threads advance, and any specific beats. The "sceneId" should be a placeholder like "INSERT-1", "INSERT-2", etc.</verdict>
+  </step>
 
-For EACH scene, assign a verdict. These map to concrete operations:
-- "ok" — scene works. No changes needed.
-- "edit" — scene should exist but needs revision. You may change ANYTHING: POV, location, participants, summary, events, deltas. Use for: wrong POV for this moment, repetitive beats that need variation, weak execution, continuity breaks, scenes that need restructuring while keeping their place in the timeline.
-- "merge" — this scene covers the same beat as another and should be ABSORBED into the stronger one. You MUST specify "mergeInto" with the target scene ID. The two become one denser scene. Use when two scenes advance the same thread with similar dramatic shape.
-- "cut" — scene is redundant and adds nothing. The story is tighter without it.
-- "move" — scene content is correct but it is in the wrong position. You MUST specify "moveAfter" with the scene ID it should follow. The scene is lifted from its current position and re-planted there with NO content changes. Use for sequencing adjustments: a scene that reveals information too early, a payoff arriving before its setup, an out-of-order character introduction. Combine with "edit" by using "move" on the scene and a separate "edit" if content also needs changing.
-- "insert" — a new scene should be CREATED at this position to fill a pacing gap, advance a stalled thread, or add a missing beat. You MUST specify "insertAfter" with the scene ID it should follow, or "START" to insert before the very first scene. The "reason" field is the generation brief: describe what happens, who is involved, the location, which threads advance, and any specific beats. The "sceneId" should be a placeholder like "INSERT-1", "INSERT-2", etc.
+  <step name="structural-operations-guide">
+    <rule>If 5 scenes cover the same beat: keep the strongest as "ok", merge 1-2 into it, cut the rest.</rule>
+    <rule>If a thread has 8 scenes but only 3 distinct beats: merge within each beat, cut the remainder.</rule>
+    <rule>If a scene is premature but otherwise good: use "move" to place it after the scene that sets it up.</rule>
+    <rule>If a payoff arrives before its setup: "move" the payoff to after the setup scene.</rule>
+    <rule>If there is a missing transition, an unearned payoff, or a thread that needs setup before it pays off: insert a new scene at the right position.</rule>
+    <rule>"mergeInto" must reference a scene that is NOT itself cut/merged/moved.</rule>
+    <rule>"moveAfter" must reference a scene that is NOT itself being cut/merged. It can reference an INSERT placeholder ID if the scene should follow a newly inserted scene.</rule>
+    <rule>Prefer merge over cut when the weaker scene has unique content worth absorbing.</rule>
+    <rule>Prefer move over cut+insert when the scene content is sound — moving preserves the exact prose.</rule>
+    <rule>Use insert sparingly — only when the gap is structural, not cosmetic.</rule>
+  </step>
 
-STRUCTURAL OPERATIONS GUIDE:
-- If 5 scenes cover the same beat: keep the strongest as "ok", merge 1-2 into it, cut the rest.
-- If a thread has 8 scenes but only 3 distinct beats: merge within each beat, cut the remainder.
-- If a scene is premature but otherwise good: use "move" to place it after the scene that sets it up.
-- If a payoff arrives before its setup: "move" the payoff to after the setup scene.
-- If a scene needs to be BOTH moved AND revised: "move" it to the right position, and also mark it "edit" — wait, these are separate verdicts. Instead: move it, and in the reason note that content also needs changing so the editor can apply a follow-up edit pass.
-- If there is a missing transition, an unearned payoff, or a thread that needs setup before it pays off: insert a new scene at the right position.
-- "mergeInto" must reference a scene that is NOT itself cut/merged/moved.
-- "moveAfter" must reference a scene that is NOT itself being cut/merged. It can reference an INSERT placeholder ID if the scene should follow a newly inserted scene.
-- Prefer merge over cut when the weaker scene has unique content worth absorbing.
-- Prefer move over cut+insert when the scene content is sound — moving preserves the exact prose.
-- Use insert sparingly — only when the gap is structural, not cosmetic.
+  <step name="continuity">Scenes that contradict established knowledge, misplace characters, or leak information should be flagged — not left at "ok".</step>
 
-CONTINUITY: scenes that contradict established knowledge, misplace characters, or leak information should be flagged — not left at "ok".
+  <step name="compression">Where a scene duplicates another in purpose without meaningful variation, prefer merge or cut. The right compression is register-dependent — accumulative, list-based, refrain-based, and polyphonic works resist compression by design; dramatic and serialised works usually reward it. Use judgement; do not apply a fixed percentage.</step>
 
-COMPRESSION: where a scene duplicates another in purpose without meaningful variation, prefer merge or cut. The right compression is register-dependent — accumulative, list-based, refrain-based, and polyphonic works resist compression by design; dramatic and serialised works usually reward it. Use judgement; do not apply a fixed percentage.
+  <step name="cross-scene-consistency" hint="CRITICAL — all edits are applied in parallel. Each edited scene only sees its own reason; it does NOT see what other scenes are being changed.">
+    <substep>Mentally map the full set of changes you're proposing and identify causal chains.</substep>
+    <substep>For each non-"ok" scene, ask: does this change affect something an upstream or downstream scene references? Does it resolve a contradiction that another edit also touches?</substep>
+    <substep>Write reasons so that each edit is self-sufficient — the scene being edited can be rewritten correctly even without knowing what other scenes look like.</substep>
+    <rule>If scene A's edit removes, adds, or changes a fact that scene B depends on, scene B's reason MUST say: "Note: [scene A] is being edited to [specific change] — this scene must be consistent with that."</rule>
+    <rule>If two scenes currently contradict each other, decide which edit is authoritative and make the other defer to it explicitly in its reason.</rule>
+    <rule>If a scene is being cut or merged, any surviving scene that referenced it must have a reason that accounts for its removal.</rule>
+    <rule>Edit reasons are instructions to a rewriter who cannot see the rest of the branch. Make them complete.</rule>
+  </step>
+${p.guidance?.trim() ? `  <step name="author-guidance-reminder">The author specifically asked you to address: "${p.guidance.trim()}". Your overall critique and scene verdicts MUST reflect this. Any scene affected by this guidance MUST NOT be marked "ok".</step>` : ''}
+</instructions>
 
-CROSS-SCENE CONSISTENCY — CRITICAL:
-All edits are applied in parallel. Each edited scene only sees its own reason — it does NOT see what other scenes are being changed. This means YOU must encode cross-scene continuity into each reason explicitly.
-
-Before writing reasons, mentally map the full set of changes you're proposing and identify causal chains:
-1. List every scene getting a non-"ok" verdict.
-2. For each such scene, ask: does this change affect something an upstream or downstream scene references? Does it resolve a contradiction that another edit also touches?
-3. Write reasons so that each edit is self-sufficient — the scene being edited can be rewritten correctly even without knowing what other scenes look like.
-
-RULES FOR EDIT REASONS:
-- If scene A's edit removes, adds, or changes a fact that scene B depends on, scene B's reason MUST say: "Note: [scene A] is being edited to [specific change] — this scene must be consistent with that."
-- If two scenes currently contradict each other, decide which edit is authoritative and make the other move to it explicitly in its reason.
-- If a scene is being cut or merged, any surviving scene that referenced it must have a reason that accounts for its removal.
-- Edit reasons are instructions to a rewriter who cannot see the rest of the branch. Make them complete.
-
+<output-format>
 Return JSON:
 {
   "overall": "3-5 paragraph critique. Name scenes, characters, patterns. End with the thematic question.",
@@ -88,6 +90,6 @@ Return JSON:
   "repetitions": ["pattern 1", "pattern 2"],
   "thematicQuestion": "The human question underneath the plot"
 }
-
-Every scene must appear in sceneEvals. Use the EXACT scene IDs shown above (e.g. "S-001", not "1" or "scene 1").${p.guidance?.trim() ? `\n\nREMINDER — The author specifically asked you to address: "${p.guidance.trim()}". Your overall critique and scene verdicts MUST reflect this. Any scene affected by this guidance MUST NOT be marked "ok".` : ''}`;
+Every scene must appear in sceneEvals. Use the EXACT scene IDs shown above (e.g. "S-001", not "1" or "scene 1").
+</output-format>`;
 }

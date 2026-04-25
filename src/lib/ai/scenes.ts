@@ -4,7 +4,8 @@ import { isThreadAbandoned, isThreadClosed, clampEvidence, FORCE_BANDS, fmtBand 
 import { nextId, nextIds } from '@/lib/narrative-utils';
 import { newNarratorBelief } from '@/lib/thread-log';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
-import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
+import { callGenerate, callGenerateStream } from './api';
+import { GENERATE_SCENES_SYSTEM } from '@/lib/prompts/scenes/generate';
 import { WRITING_MODEL, GENERATE_MODEL, MAX_TOKENS_LARGE, MAX_TOKENS_DEFAULT, MAX_TOKENS_SMALL, WORDS_PER_BEAT, ANALYSIS_TEMPERATURE } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext, sceneContext, buildProseProfile } from './context';
@@ -343,8 +344,8 @@ ${threads ? `  <threads-to-activate>\n${threads}\n  </threads-to-activate>` : ''
       const reasoningBudget = REASONING_BUDGETS[storySettings.reasoningLevel] || undefined;
       const useStream = !!(onToken || onReasoning);
       const raw = useStream
-        ? await callGenerateStream(prompt, SYSTEM_PROMPT, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget, onReasoning)
-        : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget);
+        ? await callGenerateStream(prompt, GENERATE_SCENES_SYSTEM, onToken ?? (() => {}), MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget, onReasoning)
+        : await callGenerate(prompt, GENERATE_SCENES_SYSTEM, MAX_TOKENS_LARGE, 'generateScenes', GENERATE_MODEL, reasoningBudget);
       parsed = parseJson(raw, 'generateScenes') as { arcName?: string; directionVector?: string; worldState?: string; scenes: Scene[] };
       break;
     } catch (err) {
@@ -1069,7 +1070,7 @@ export async function editScenePlan(
   });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'editScenePlan', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, buildScenePlanEditSystemPrompt(narrative.title), MAX_TOKENS_SMALL, 'editScenePlan', GENERATE_MODEL, reasoningBudget);
 
   const parsed = parseJson(raw, 'editScenePlan') as { beats?: unknown[]; propositions?: unknown[] };
   const beats = (parsed.beats ?? []).map((b: unknown) => {

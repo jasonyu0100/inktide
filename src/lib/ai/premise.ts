@@ -4,9 +4,9 @@
  * The prompt body lives in src/lib/prompts/premise/ — see PREMISE_SUGGEST_PROMPT.
  */
 
-import { callGenerate, SYSTEM_PROMPT } from './api';
+import { callGenerate } from './api';
 import { parseJson } from './json';
-import { PREMISE_SUGGEST_PROMPT } from '@/lib/prompts';
+import { PREMISE_SUGGEST_PROMPT, PREMISE_SUGGEST_SYSTEM } from '@/lib/prompts';
 import { logError, logInfo } from '@/lib/system-logger';
 
 /**
@@ -18,7 +18,7 @@ export async function suggestPremise(): Promise<{ title?: string; premise?: stri
 
   let raw: string;
   try {
-    raw = await callGenerate(PREMISE_SUGGEST_PROMPT, SYSTEM_PROMPT, 500, 'suggestPremise');
+    raw = await callGenerate(PREMISE_SUGGEST_PROMPT, PREMISE_SUGGEST_SYSTEM, 500, 'suggestPremise');
   } catch (err) {
     logError('suggestPremise call failed', err, {
       source: 'ingest',

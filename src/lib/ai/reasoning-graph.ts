@@ -22,7 +22,7 @@ import type {
   ReasoningGraphSnapshot,
 } from "@/types/narrative";
 import { REASONING_BUDGETS, resolveEntry } from "@/types/narrative";
-import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from "./api";
+import { callGenerate, callGenerateStream } from "./api";
 import { narrativeContext, getStateAtIndex } from "./context";
 import { parseJson } from "./json";
 import { buildCumulativeSystemGraph, getMarketProbs, isThreadAbandoned, isThreadClosed, resolveEntityName, scenesSinceTouched } from "@/lib/narrative-utils";
@@ -63,6 +63,8 @@ import {
   extractPatternWarningDirectives,
   buildArcReasoningGraphPrompt,
   buildCoordinationPlanPrompt,
+  ARC_REASONING_GRAPH_SYSTEM,
+  COORDINATION_PLAN_SYSTEM,
 } from "@/lib/prompts/reasoning";
 
 // ── Public API re-exports ───────────────────────────────────────────────────
@@ -220,21 +222,18 @@ export async function generateReasoningGraph(
   // spine with cosmetic variation.
   const lastArcGraph = findLastArcGraph(narrative, resolvedKeys, currentIndex);
   const priorGraphSection = lastArcGraph
-    ? `## PRIOR ARC GRAPH — DIVERGE FROM THIS
-
-The reasoning graph built for the last arc is below. Graph-level repetition across arcs is the same failure as reasoning-pattern repetition within a single graph — the story thinks one thought over and over. Your graph's causal spine must NOT replicate the structure below.
-
-Last arc: "${lastArcGraph.graph.arcName}"
-Summary: ${lastArcGraph.graph.summary}
-
+    ? `<prior-arc-graph arc-name="${lastArcGraph.graph.arcName}" hint="DIVERGE FROM THIS — graph-level repetition across arcs is the same failure as reasoning-pattern repetition within a single graph. Your graph's causal spine must NOT replicate the structure below.">
+  <summary>${lastArcGraph.graph.summary}</summary>
+  <sequential-path>
 ${buildSequentialPath({ nodes: lastArcGraph.graph.nodes, edges: lastArcGraph.graph.edges })}
-
-Diverge concretely:
-- Any fate commitments this arc lands must differ in KIND from the prior arc's, not just content. If the prior resolved via acquisition, yours closes via reversal, revelation, alliance, or subversion. A new content slot in the same commitment shape is re-description, not advancement.
-- The reasoning chain must use different inference modes. If the prior leaned on constraint-propagation or sequential dependency, yours should introduce abduction, inversion, analogy, or a branching decision.
-- Warning nodes (required per REQUIREMENTS below) must name specific shapes from the prior graph — cite node labels or indices above — so the repetition is made explicit and the new graph visibly routes around it.
-
-If your reasoning chain and terminal map onto the spine above with only content swaps, you have re-described the prior arc rather than advanced the story.`
+  </sequential-path>
+  <divergence-rules>
+    <rule>Any fate commitments this arc lands must differ in KIND from the prior arc's, not just content. If the prior resolved via acquisition, yours closes via reversal, revelation, alliance, or subversion. A new content slot in the same commitment shape is re-description, not advancement.</rule>
+    <rule>The reasoning chain must use different inference modes. If the prior leaned on constraint-propagation or sequential dependency, yours should introduce abduction, inversion, analogy, or a branching decision.</rule>
+    <rule>Warning nodes (required per REQUIREMENTS below) must name specific shapes from the prior graph — cite node labels or indices above — so the repetition is made explicit and the new graph visibly routes around it.</rule>
+  </divergence-rules>
+  <failure-mode>If your reasoning chain and terminal map onto the spine above with only content swaps, you have re-described the prior arc rather than advanced the story.</failure-mode>
+</prior-arc-graph>`
     : "";
 
   const scale = reasoningScale(options?.reasoningLevel);
@@ -272,7 +271,7 @@ If your reasoning chain and terminal map onto the spine above with only content 
   const raw = onReasoning
     ? await callGenerateStream(
         prompt,
-        SYSTEM_PROMPT,
+        ARC_REASONING_GRAPH_SYSTEM,
         () => {}, // No token streaming for main output
         undefined,
         "generateReasoningGraph",
@@ -282,7 +281,7 @@ If your reasoning chain and terminal map onto the spine above with only content 
       )
     : await callGenerate(
         prompt,
-        SYSTEM_PROMPT,
+        ARC_REASONING_GRAPH_SYSTEM,
         undefined,
         "generateReasoningGraph",
         undefined,
@@ -647,7 +646,7 @@ export async function generateCoordinationPlan(
   const raw = onReasoning
     ? await callGenerateStream(
         prompt,
-        SYSTEM_PROMPT,
+        COORDINATION_PLAN_SYSTEM,
         () => {}, // No token streaming for main output
         undefined,
         "generateCoordinationPlan",
@@ -657,7 +656,7 @@ export async function generateCoordinationPlan(
       )
     : await callGenerate(
         prompt,
-        SYSTEM_PROMPT,
+        COORDINATION_PLAN_SYSTEM,
         undefined,
         "generateCoordinationPlan",
         undefined,

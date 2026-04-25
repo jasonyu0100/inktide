@@ -5,6 +5,9 @@
  * prompts module stays free of upstream dependencies.
  */
 
+export const GENERATE_SCENES_SYSTEM =
+  'You are a scene generator producing one arc of structurally rich scenes. Honour the brief (reasoning graph / coordination plan / direction), the pacing sequence, and the active threads. Every scene needs a delta-paired summary and rich threadDeltas (with rationale grounded in the scene), worldDeltas (15-25 word present-tense facts across 3+ entities), and ≥1 systemDelta. Match the world\'s naming style for any new entities. Return ONLY valid JSON matching the schema in the user prompt.';
+
 export type GenerateScenesPromptArgs = {
   /** Pre-built `<inputs>...</inputs>` body (all input blocks joined). */
   inputBlocks: string;

@@ -60,12 +60,17 @@ export {
   buildIngestSystemsPrompt,
   buildIngestProseProfilePrompt,
   buildDeriveProseProfilePrompt,
+  INGEST_RULES_SYSTEM,
+  INGEST_SYSTEMS_SYSTEM,
+  INGEST_PROSE_PROFILE_SYSTEM,
+  DERIVE_PROSE_PROFILE_SYSTEM,
 } from './ingest';
 
 // ── Premise Prompts ─────────────────────────────────────────────────────────
 export {
   PREMISE_SYSTEM,
   PREMISE_SUGGEST_PROMPT,
+  PREMISE_SUGGEST_SYSTEM,
   PHASE_GUIDANCE,
   SCHEMA_PREMISE_QUESTION,
 } from './premise';

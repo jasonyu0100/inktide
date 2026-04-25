@@ -7,10 +7,13 @@
 export {
   buildSuggestArcDirectionPrompt,
   buildSuggestAutoDirectionPrompt,
+  ARC_DIRECTION_SYSTEM,
+  STORY_DIRECTION_SYSTEM,
 } from './direction';
 
 export {
   buildSuggestWorldExpansionPrompt,
+  EXPANSION_SUGGEST_SYSTEM,
 } from './expansion-suggestion';
 export type {
   ExpansionSizeConfig,
@@ -22,13 +25,18 @@ export {
   buildExpandWorldPrompt,
   EXPANSION_SIZE_CONFIG,
   EXPANSION_STRATEGY_PROMPTS,
+  EXPAND_WORLD_SYSTEM,
 } from './expand-world';
 export type {
   ExpandWorldArgs,
   WorldExpansionStrategy,
 } from './expand-world';
 
-export { buildGenerateNarrativePrompt } from './generate-narrative';
+export {
+  buildGenerateNarrativePrompt,
+  GENERATE_NARRATIVE_SYSTEM,
+  DETECT_PATTERNS_SYSTEM,
+} from './generate-narrative';
 export type { GenerateNarrativeArgs } from './generate-narrative';
 
 export { buildDetectPatternsPrompt } from './detect-patterns';

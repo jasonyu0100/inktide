@@ -5,6 +5,18 @@
  * into structured world data: rules, systems, and prose profiles.
  */
 
+export const INGEST_RULES_SYSTEM =
+  'You extract world rules — absolute constraints that are ALWAYS true in the universe — from pasted text. Rules are boundaries of what\'s possible (magic costs, resurrection forbidden, tech limits), not plot points or character details. Return ONLY valid JSON matching the schema in the user prompt.';
+
+export const INGEST_SYSTEMS_SYSTEM =
+  'You extract world systems — structured mechanics defining how the world operates (power, progression, economic, social/political, combat, cosmic) — from pasted text. Each system: name, description, principles, constraints, interactions. Only extract what the source clearly implies. Return ONLY valid JSON matching the schema in the user prompt.';
+
+export const INGEST_PROSE_PROFILE_SYSTEM =
+  'You extract a prose profile — voice, register, stance, devices, rules, anti-patterns — from pasted text. Applies to any long-form register: fiction, memoir, essay, criticism, journalism, research. Pick values that genuinely match the source; do not default to the 20th-century Anglo-European novel\'s toolkit. Return ONLY valid JSON matching the schema in the user prompt.';
+
+export const DERIVE_PROSE_PROFILE_SYSTEM =
+  'You derive a prose profile from a narrative\'s own context (entities, threads, prose excerpts) rather than a pasted style guide. The narrative may be fiction, memoir, essay, journalism, or research — do not default to novelistic conventions if the register is analytical. Return ONLY valid JSON matching the schema in the user prompt.';
+
 /**
  * Prompt for extracting world rules from text.
  * Rules are high-level absolute constraints — things that are ALWAYS true.

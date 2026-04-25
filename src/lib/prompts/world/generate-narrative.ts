@@ -5,6 +5,12 @@
  * intro arc) or worldOnly (entities + system, no scenes).
  */
 
+export const GENERATE_NARRATIVE_SYSTEM =
+  'You are a world-architect spinning a complete narrative seed from a title + premise. Build a tight, focused world with named entities (characters with secrets, locations with constraints, threads with named outcomes, system rules with mechanisms), all woven together. Pilot mode: also produce an 8-scene intro arc + prose profile. World-only mode: entities + system + prose profile, no scenes. Source names from the cultural palette implied by the premise — never default to Anglo/European. Initialize every entity with seed nodes; never emit blank world graphs. Return ONLY valid JSON matching the schema in the user prompt.';
+
+export const DETECT_PATTERNS_SYSTEM =
+  'You are a literary diagnostician. Read prose, structure, and content; identify the narrative\'s genre and subgenre; derive concrete pattern / anti-pattern commandments that encourage variety and prevent stagnation. Patterns are positive directives that unlock fresh storytelling within the genre; anti-patterns are negative directives that flag staleness. Return ONLY valid JSON matching the schema in the user prompt.';
+
 import {
   PROMPT_POV,
   PROMPT_FORCE_STANDARDS,

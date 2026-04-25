@@ -2,7 +2,7 @@ import type { NarrativeState, StructureReview, SceneEval, SceneVerdict, Scene, A
 import { resolveEntry, isScene, isWorldBuild, REASONING_BUDGETS } from '@/types/narrative';
 import { nextId } from '@/lib/narrative-utils';
 import { normalizeTimeDelta } from '@/lib/time-deltas';
-import { callGenerate, SYSTEM_PROMPT } from './api';
+import { callGenerate } from './api';
 import { parseJson } from './json';
 import { sanitizeScenes } from './scenes';
 import { GENERATE_MODEL, PROSE_CONCURRENCY, MAX_TOKENS_SMALL } from '@/lib/constants';
@@ -12,6 +12,9 @@ import {
   buildEditScenePrompt,
   buildMergeScenesPrompt,
   buildInsertScenePrompt,
+  RECONSTRUCT_EDIT_SYSTEM,
+  RECONSTRUCT_MERGE_SYSTEM,
+  RECONSTRUCT_INSERT_SYSTEM,
 } from '@/lib/prompts/reconstruct';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -591,7 +594,7 @@ async function editScene(
   });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'editScene', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, RECONSTRUCT_EDIT_SYSTEM, MAX_TOKENS_SMALL, 'editScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'editScene') as Partial<Scene>;
 
   const edited: Scene = {
@@ -675,7 +678,7 @@ async function mergeScenes(
   });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'mergeScenes', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, RECONSTRUCT_MERGE_SYSTEM, MAX_TOKENS_SMALL, 'mergeScenes', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'mergeScenes') as Partial<Scene>;
 
   const merged: Scene = {
@@ -718,7 +721,7 @@ async function insertScene(
   });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_SMALL, 'insertScene', GENERATE_MODEL, reasoningBudget);
+  const raw = await callGenerate(prompt, RECONSTRUCT_INSERT_SYSTEM, MAX_TOKENS_SMALL, 'insertScene', GENERATE_MODEL, reasoningBudget);
   const parsed = parseJson(raw, 'insertScene') as Partial<Scene>;
 
   const inserted: Scene = {

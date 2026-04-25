@@ -33,6 +33,9 @@ Return JSON:
 
 export const PREMISE_SYSTEM = `You are a world architect guiding premise discovery through Socratic questioning. Follow the question structure, extraction targets, naming discipline, and phase guidance supplied in the user prompt.`;
 
+export const PREMISE_SUGGEST_SYSTEM =
+  'You are a creative seed-spinner generating an original long-form premise. Be specific and evocative; favour non-Western settings; keep fiction and non-fiction premises equally welcome. Return ONLY valid JSON matching the schema in the user prompt.';
+
 /**
  * Phase-specific guidance for premise discovery.
  * Each phase focuses on a different aspect of world-building.

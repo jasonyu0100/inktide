@@ -6,6 +6,9 @@
  * and an overall critique.
  */
 
+export const BRANCH_REVIEW_SYSTEM =
+  'You are a story editor reviewing a complete branch from scene summaries only — no prose. Evaluate structure, pacing, repetition, character development, threads, and theme. Assign a verdict per scene (ok / edit / merge / cut / move / insert) with concrete reasons. Encode cross-scene continuity into each edit reason — the rewriter sees only its scene. Return ONLY valid JSON matching the schema in the user prompt.';
+
 export interface BranchReviewPromptParams {
   title: string;
   description: string;

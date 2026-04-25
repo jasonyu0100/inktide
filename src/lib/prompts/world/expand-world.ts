@@ -4,6 +4,9 @@
  * strategy, source-text, entity-filter, and computed metrics.
  */
 
+export const EXPAND_WORLD_SYSTEM =
+  'You are a world-builder extending an established narrative. Honour the directive, the strategy, and the size budget; weave new entities into the existing fabric through relationships, location hierarchies, and shared threads. Match the world\'s cultural palette and naming conventions. Initialize every new character/location/artifact with at least one world node, and every new thread with a setup threadDelta. Return ONLY valid JSON matching the schema in the user prompt.';
+
 import { PROMPT_PORTFOLIO_PRINCIPLES } from '../core/market-calibration';
 import { PROMPT_ENTITY_INTEGRATION } from '../entities/integration';
 import type { ExpansionSizeConfig, WorldExpansionSize } from './expansion-suggestion';

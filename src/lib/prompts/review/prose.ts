@@ -5,6 +5,9 @@
  * continuity, repetition, and prose-profile compliance.
  */
 
+export const PROSE_REVIEW_SYSTEM =
+  'You are a prose editor evaluating the actual written prose of a serialized narrative. Score on voice consistency, craft, pacing, continuity, repetition, and prose-profile compliance. Quote specific lines and assign verdict ok|edit per scene with concrete actionable issues — never vague. Return ONLY valid JSON matching the schema in the user prompt.';
+
 export interface ProseReviewPromptParams {
   title: string;
   sceneCount: number;

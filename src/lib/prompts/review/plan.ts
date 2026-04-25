@@ -5,6 +5,9 @@
  * cross-scene continuous, and deliver the declared deltas.
  */
 
+export const PLAN_REVIEW_SYSTEM =
+  'You are a continuity editor reviewing scene beat plans. For each scene check beat-to-delta alignment, cross-plan continuity, internal beat logic, character knowledge, and spatial/temporal consistency. Assign verdict ok|edit per scene with precise issue references (cite beat numbers). Return ONLY valid JSON matching the schema in the user prompt.';
+
 export interface PlanReviewPromptParams {
   title: string;
   threadBlock: string;

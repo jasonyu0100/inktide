@@ -1,8 +1,17 @@
 /**
  * Branch reconstruction prompts — edit, merge, and insert scene operations
  * applied during versioned branch reconstruction. Each builder produces the
- * full user prompt; the caller pairs it with the global SYSTEM_PROMPT.
+ * full user prompt; the caller pairs it with the matching system prompt below.
  */
+
+export const RECONSTRUCT_EDIT_SYSTEM =
+  'You are a continuity editor revising a single scene in a branch reconstruction. Address the evaluation reason precisely; preserve everything the reason does not touch; keep the scene at its current timeline position. Use only IDs supplied in context. Return ONLY valid JSON matching the schema in the user prompt.';
+
+export const RECONSTRUCT_MERGE_SYSTEM =
+  'You are a continuity editor merging multiple scenes into ONE denser scene. Synthesize the strongest elements from all inputs; combine deltas without flattening unique knowledge; preserve the target scene\'s timeline position. Use only IDs supplied in context. Return ONLY valid JSON matching the schema in the user prompt.';
+
+export const RECONSTRUCT_INSERT_SYSTEM =
+  'You are a scene generator filling a structural gap in a branch reconstruction. Generate one new scene that addresses the generation brief, advances at least one thread with a status transition, and integrates cleanly with the surrounding timeline. Use only IDs supplied in context. Return ONLY valid JSON matching the schema in the user prompt.';
 
 const SCENE_OUTPUT_SCHEMA_FULL = `{
   "locationId": "L-XX",

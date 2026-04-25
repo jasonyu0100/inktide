@@ -3,6 +3,12 @@
  * for a one-arc next-step suggestion or a multi-arc showrunner trajectory.
  */
 
+export const ARC_DIRECTION_SYSTEM =
+  'You are a story editor proposing the next arc for a serialized narrative. Read the full context and recommend a tight, compelling direction grounded in unresolved threads, character tensions, and accumulated momentum. Use entity NAMES, never raw IDs. Return ONLY valid JSON matching the schema in the user prompt.';
+
+export const STORY_DIRECTION_SYSTEM =
+  'You are a showrunner planning a multi-arc trajectory. Read the full narrative state and propose a high-level story direction — the macro-vision a writers\' room would follow for the next season. Use entity NAMES, never raw IDs. Return ONLY valid JSON matching the schema in the user prompt.';
+
 export function buildSuggestArcDirectionPrompt(args: { narrativeContext: string }): string {
   return `<inputs>
   <narrative-context>

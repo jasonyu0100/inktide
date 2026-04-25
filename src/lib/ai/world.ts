@@ -7,7 +7,15 @@ import type { ThreadLogNodeType } from '@/types/narrative';
 import { applyThreadDelta, newNarratorBelief } from '@/lib/thread-log';
 import { applyWorldDelta } from '@/lib/world-graph';
 import { sanitizeSystemDelta, systemEdgeKey, makeSystemIdAllocator, resolveSystemConceptIds } from '@/lib/system-graph';
-import { callGenerate, callGenerateStream, SYSTEM_PROMPT } from './api';
+import { callGenerate, callGenerateStream } from './api';
+import {
+  ARC_DIRECTION_SYSTEM,
+  STORY_DIRECTION_SYSTEM,
+  EXPANSION_SUGGEST_SYSTEM,
+  EXPAND_WORLD_SYSTEM,
+  GENERATE_NARRATIVE_SYSTEM,
+  DETECT_PATTERNS_SYSTEM,
+} from '@/lib/prompts/world';
 import { MAX_TOKENS_LARGE, GENERATE_MODEL } from '@/lib/constants';
 import { parseJson } from './json';
 import { narrativeContext } from './context';
@@ -114,7 +122,7 @@ export async function suggestArcDirection(
   const prompt = buildSuggestArcDirectionPrompt({ narrativeContext: ctx });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestDirection', undefined, reasoningBudget);
+  const raw = await callGenerate(prompt, ARC_DIRECTION_SYSTEM, undefined, 'suggestDirection', undefined, reasoningBudget);
   const parsed = parseJson(raw, 'suggestDirection') as {
     arcName?: string; direction?: string; sceneSuggestion?: string; suggestedSceneCount?: number;
   };
@@ -137,7 +145,7 @@ export async function suggestAutoDirection(
   const prompt = buildSuggestAutoDirectionPrompt({ narrativeContext: ctx });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestStoryDirection', undefined, reasoningBudget);
+  const raw = await callGenerate(prompt, STORY_DIRECTION_SYSTEM, undefined, 'suggestStoryDirection', undefined, reasoningBudget);
   const parsed = parseJson(raw, 'suggestStoryDirection') as { direction?: string };
   return parsed.direction ?? '';
 }
@@ -338,7 +346,7 @@ export async function suggestWorldExpansion(
   });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
-  const raw = await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'suggestWorldExpansion', undefined, reasoningBudget);
+  const raw = await callGenerate(prompt, EXPANSION_SUGGEST_SYSTEM, undefined, 'suggestWorldExpansion', undefined, reasoningBudget);
   const parsed = parseJson(raw, 'suggestWorldExpansion') as { suggestion: string };
   return parsed.suggestion;
 }
@@ -456,8 +464,8 @@ ${m.recommendation === 'depth' ? EXPANSION_STRATEGY_PROMPTS.depth : m.recommenda
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   const raw = onReasoning
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, undefined, 'expandWorld', undefined, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, SYSTEM_PROMPT, undefined, 'expandWorld', undefined, reasoningBudget);
+    ? await callGenerateStream(prompt, EXPAND_WORLD_SYSTEM, () => {}, undefined, 'expandWorld', undefined, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, EXPAND_WORLD_SYSTEM, undefined, 'expandWorld', undefined, reasoningBudget);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'expandWorld') as any;
 
@@ -619,8 +627,8 @@ export async function generateNarrative(
 
   const reasoningBudget = REASONING_BUDGETS['medium'] || undefined;
   const raw = onReasoning
-    ? await callGenerateStream(prompt, SYSTEM_PROMPT, () => {}, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget, onReasoning)
-    : await callGenerate(prompt, SYSTEM_PROMPT, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget);
+    ? await callGenerateStream(prompt, GENERATE_NARRATIVE_SYSTEM, () => {}, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget, onReasoning)
+    : await callGenerate(prompt, GENERATE_NARRATIVE_SYSTEM, MAX_TOKENS_LARGE, 'generateNarrative', GENERATE_MODEL, reasoningBudget);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed = parseJson(raw, 'generateNarrative') as any;
 
@@ -991,7 +999,7 @@ export async function detectPatterns(
   const raw = onToken
     ? await callGenerateStream(
         prompt,
-        SYSTEM_PROMPT,
+        DETECT_PATTERNS_SYSTEM,
         () => {},
         undefined,
         'detectPatterns',
@@ -1001,7 +1009,7 @@ export async function detectPatterns(
       )
     : await callGenerate(
         prompt,
-        SYSTEM_PROMPT,
+        DETECT_PATTERNS_SYSTEM,
         undefined,
         'detectPatterns',
         undefined,

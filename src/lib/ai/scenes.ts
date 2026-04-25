@@ -869,7 +869,6 @@ ${slotXml}
   const systemPrompt = buildScenePlanSystemPrompt() + planGuidanceBlock;
 
   const groundingBlock = buildParticipantGroundingBlock(narrative, scene);
-  const threadHealthBlock = buildThreadHealthPrompt(narrative, resolvedKeys, contextIndex);
   const completedBeatsBlock = buildCompletedBeatsPrompt(narrative, resolvedKeys, contextIndex);
   const proseProfileBlock = buildProseProfile(resolveProfile(narrative));
 
@@ -878,10 +877,6 @@ ${slotXml}
 ${proseProfileBlock}
   </prose-profile>`);
   if (beatSlotsBlock) inputBlocks.push(`  ${beatSlotsBlock.replace(/\n/g, '\n  ')}`);
-  inputBlocks.push(`  <narrative-context hint="Branch-scoped continuity backdrop — characters, locations, threads, system knowledge, scene history with arc rollups. Use to know what continuity to glue onto.">
-${narrativeContext(narrative, resolvedKeys, contextIndex)}
-  </narrative-context>`);
-  if (threadHealthBlock) inputBlocks.push(`  <thread-health>\n${threadHealthBlock}\n  </thread-health>`);
   if (completedBeatsBlock) inputBlocks.push(`  <completed-beats>\n${completedBeatsBlock}\n  </completed-beats>`);
   if (adjacentBlock) inputBlocks.push(`  <previous-scene-tail>${adjacentBlock}</previous-scene-tail>`);
   inputBlocks.push(`  <scene-summary>${scene.summary}</scene-summary>`);

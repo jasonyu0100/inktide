@@ -319,6 +319,11 @@ The summary is your DELTA BUDGET — richer summary supports richer extraction. 
 
 INTRODUCE NEW ENTITIES liberally on the fly when the scene needs them (a messenger, a tavern, a letter, a new rivalry). Each new character/location/artifact needs ≥1 world node at creation; each new thread needs ≥1 setup log entry.
 
+NAMING DISCIPLINE — new entities MUST use concrete, in-world proper names. The reasoning graph may seed roles or archetypes ("the betrayer", "Shadow Seeker", "the rival sect"); scene generation is the layer that COLLAPSES those into real names that fit the established culture and naming conventions of the existing cast.
+  BAD (placeholder / archetype / role-as-name): "Shadow Seeker", "The Stranger", "Mysterious Figure", "Old Man", "The Rival", "Dark Forest", "Mystery Letter".
+  GOOD (concrete proper names matching the world): for a Chinese xianxia world — "Liang Wei", "Elder Hua Jin", "Black Pine Ridge", "Letter from Bao Cheng"; for a Tolkien-style setting — "Aerin son of Faldor", "Dunwood Vale".
+  RULE: read the existing characters/locations/artifacts in context, match their naming style (length, language family, honorific conventions), and pick a name that could pass as one of theirs. Descriptive labels and titles belong in the world-node content, never in the \`name\` field.
+
 IDS: scene S-GEN-###, knowledge K-GEN-###, system SYS-GEN-### (reused SYS nodes keep original ID), character/location/artifact/thread GEN-### placeholders remapped to real IDs downstream.
 
 TIME DELTA: gap from prior scene as an estimate ({value: int≥0, unit}). "that evening" → 3 hours; "next morning" → 1 day; "three years later" → 3 years. {value:0, unit:"minute"} = simultaneous/concurrent (use for first scene too). Relative only — no absolute calendar.

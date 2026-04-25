@@ -30,7 +30,6 @@ export {
 export { buildScenePlanSystemPrompt } from './scenes/plan';
 export { buildBeatAnalystSystemPrompt } from './scenes/analyze';
 export { buildScenePlanEditSystemPrompt } from './scenes/edit';
-export { PROMPT_PROPOSITION_TRANSMISSION } from './scenes/proposition-transmission';
 export { buildSceneProseSystemPrompt } from './scenes/prose';
 export type { SceneProseSystemPromptArgs } from './scenes/prose';
 export {
@@ -56,23 +55,16 @@ export {
 
 // ── Ingest Prompts ──────────────────────────────────────────────────────────
 export {
-  buildIngestRulesPrompt,
-  buildIngestSystemsPrompt,
   buildIngestProseProfilePrompt,
   buildDeriveProseProfilePrompt,
-  INGEST_RULES_SYSTEM,
-  INGEST_SYSTEMS_SYSTEM,
   INGEST_PROSE_PROFILE_SYSTEM,
   DERIVE_PROSE_PROFILE_SYSTEM,
 } from './ingest';
 
 // ── Premise Prompts ─────────────────────────────────────────────────────────
 export {
-  PREMISE_SYSTEM,
   PREMISE_SUGGEST_PROMPT,
   PREMISE_SUGGEST_SYSTEM,
-  PHASE_GUIDANCE,
-  SCHEMA_PREMISE_QUESTION,
 } from './premise';
 
 // ── Prose Prompts ───────────────────────────────────────────────────────────

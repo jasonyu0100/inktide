@@ -1,73 +1,19 @@
 /**
  * Ingestion Prompts
  *
- * Prompts for parsing pasted text (from another AI, wiki, notes, etc.)
- * into structured world data: rules, systems, and prose profiles.
+ * Prompts for parsing pasted text into structured world data.
+ *
+ * Only the prose-profile path is wired in the current pipeline. The earlier
+ * rules / systems extractors (buildIngestRulesPrompt / buildIngestSystemsPrompt
+ * + their SYSTEM constants) were never called and were removed in the
+ * prompt-cleanup pass — restore from git history if those extractors come back.
  */
-
-export const INGEST_RULES_SYSTEM =
-  'You extract world rules — absolute constraints that are ALWAYS true in the universe — from pasted text. Rules are boundaries of what\'s possible (magic costs, resurrection forbidden, tech limits), not plot points or character details. Return ONLY valid JSON matching the schema in the user prompt.';
-
-export const INGEST_SYSTEMS_SYSTEM =
-  'You extract world systems — structured mechanics defining how the world operates (power, progression, economic, social/political, combat, cosmic) — from pasted text. Each system: name, description, principles, constraints, interactions. Only extract what the source clearly implies. Return ONLY valid JSON matching the schema in the user prompt.';
 
 export const INGEST_PROSE_PROFILE_SYSTEM =
   'You extract a prose profile — voice, register, stance, devices, rules, anti-patterns — from pasted text. Applies to any long-form register: fiction, memoir, essay, criticism, journalism, research. Pick values that genuinely match the source; do not default to the 20th-century Anglo-European novel\'s toolkit. Return ONLY valid JSON matching the schema in the user prompt.';
 
 export const DERIVE_PROSE_PROFILE_SYSTEM =
   'You derive a prose profile from a narrative\'s own context (entities, threads, prose excerpts) rather than a pasted style guide. The narrative may be fiction, memoir, essay, journalism, or research — do not default to novelistic conventions if the register is analytical. Return ONLY valid JSON matching the schema in the user prompt.';
-
-/**
- * Prompt for extracting world rules from text.
- * Rules are high-level absolute constraints — things that are ALWAYS true.
- */
-export function buildIngestRulesPrompt(text: string, existingRules: string[] = []): string {
-  const existingBlock = existingRules.length > 0
-    ? `  <existing-rules hint="Don't duplicate these.">\n${existingRules.map((r, i) => `    <rule index="${i + 1}">${r}</rule>`).join('\n')}\n  </existing-rules>\n`
-    : '';
-
-  return `<inputs>
-${existingBlock}  <source-text>
-${text}
-  </source-text>
-</inputs>
-
-<instructions>
-  <step>Extract world rules — absolute constraints ALWAYS true in this universe.</step>
-  <definition>Rules are: boundaries of what's possible (magic costs, resurrection forbidden, tech limits). Rules are NOT: plot points, character details, mechanical systems, obvious facts.</definition>
-  <step>Extract as many rules as the source genuinely carries — no cap. Extract only clearly stated or implied rules; don't invent.</step>
-</instructions>
-
-<output-format>Return JSON: {"rules": ["rule 1", ...]}</output-format>`;
-}
-
-/**
- * Prompt for extracting world systems from text.
- * Systems are mechanical descriptions of how the world operates.
- */
-export function buildIngestSystemsPrompt(text: string, existingSystemNames: string[] = []): string {
-  const existingBlock = existingSystemNames.length > 0
-    ? `  <existing-systems hint="Don't duplicate these.">\n${existingSystemNames.map(s => `    <system>${s}</system>`).join('\n')}\n  </existing-systems>\n`
-    : '';
-
-  return `<inputs>
-${existingBlock}  <source-text>
-${text}
-  </source-text>
-</inputs>
-
-<instructions>
-  <step>Extract world systems — structured mechanics defining how this world operates.</step>
-  <kinds>Power/magic, progression, economic, social/political, combat, cosmic laws.</kinds>
-  <fields>For each: name, description (one-line), principles (how it works), constraints (limits/costs), interactions (cross-system).</fields>
-  <step>Systems are MECHANICAL — describe HOW things work. Only extract clearly implied — don't invent.</step>
-</instructions>
-
-<output-format>
-Return JSON:
-{"systems": [{"name": "...", "description": "...", "principles": [...], "constraints": [...], "interactions": [...]}]}
-</output-format>`;
-}
 
 /**
  * Prompt for extracting prose profile from text.

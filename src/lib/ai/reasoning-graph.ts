@@ -208,11 +208,11 @@ export async function generateReasoningGraph(
   const antiPatterns = narrative.antiPatterns ?? [];
 
   const patternsSection = patterns.length > 0
-    ? `STORY PATTERNS (positive commandments to reinforce):\n${patterns.map((p, i) => `${i + 1}. ${p}`).join("\n")}`
+    ? patterns.map((p) => `    <pattern>${p}</pattern>`).join("\n")
     : "";
 
   const antiPatternsSection = antiPatterns.length > 0
-    ? `ANTI-PATTERNS (pitfalls to avoid):\n${antiPatterns.map((p, i) => `${i + 1}. ${p}`).join("\n")}`
+    ? antiPatterns.map((p) => `    <anti-pattern>${p}</anti-pattern>`).join("\n")
     : "";
 
   // Prior reasoning graph — the last arc's graph, rendered for divergence
@@ -584,17 +584,13 @@ export async function generateCoordinationPlan(
 
   // Build thread targets section with status and timing
   const threadTargetsSection = guidance.threadTargets?.length
-    ? `THREAD TARGETS:\n${guidance.threadTargets.map(t => {
+    ? guidance.threadTargets.map(t => {
         const thread = narrative.threads[t.threadId];
         const desc = thread?.description ?? t.threadId;
-        const timingLabel = t.timing === "early" ? " [early — arcs 1-2]"
-          : t.timing === "mid" ? " [mid — middle arcs]"
-          : t.timing === "late" ? " [late — near end]"
-          : t.timing === "final" ? " [final arc]"
-          : "";
-        const intentLabel = t.marketIntent.toUpperCase() + (t.marketOutcome ? ` → ${t.marketOutcome}` : "");
-        return `- [${t.threadId}] ${desc} → ${intentLabel}${timingLabel}`;
-      }).join("\n")}`
+        const timing = t.timing ? ` timing="${t.timing}"` : "";
+        const outcome = t.marketOutcome ? ` outcome="${t.marketOutcome.replace(/"/g, '&quot;')}"` : "";
+        return `      <thread-target thread-id="${t.threadId}" intent="${t.marketIntent}"${outcome}${timing}>${desc}</thread-target>`;
+      }).join("\n")
     : "";
 
   // Arc target — exact number of arcs to plan (default 5)
@@ -605,19 +601,19 @@ export async function generateCoordinationPlan(
     activeThreadCount,
     reasoningScale(guidance.reasoningLevel),
   );
-  const userDirection = guidance.direction ? `\nDIRECTION (end fate goals to achieve):\n${guidance.direction}` : "";
-  const userConstraints = guidance.constraints ? `\nCONSTRAINTS (what must NOT happen):\n${guidance.constraints}` : "";
+  const userDirection = guidance.direction ?? "";
+  const userConstraints = guidance.constraints ?? "";
 
   // Get patterns and anti-patterns
   const patterns = narrative.patterns ?? [];
   const antiPatterns = narrative.antiPatterns ?? [];
 
   const patternsSection = patterns.length > 0
-    ? `STORY PATTERNS (positive commandments):\n${patterns.map((p, i) => `${i + 1}. ${p}`).join("\n")}`
+    ? patterns.map((p) => `    <pattern>${p}</pattern>`).join("\n")
     : "";
 
   const antiPatternsSection = antiPatterns.length > 0
-    ? `ANTI-PATTERNS (pitfalls to avoid):\n${antiPatterns.map((p, i) => `${i + 1}. ${p}`).join("\n")}`
+    ? antiPatterns.map((p) => `    <anti-pattern>${p}</anti-pattern>`).join("\n")
     : "";
 
   const prompt = buildCoordinationPlanPrompt({

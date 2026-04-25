@@ -91,8 +91,8 @@ ${systemKnowledge || "None yet"}
     </system-knowledge>
   </available-entities>
 
-${patternsSection ? `  <patterns>\n${patternsSection}\n  </patterns>` : ''}
-${antiPatternsSection ? `  <anti-patterns>\n${antiPatternsSection}\n  </anti-patterns>` : ''}
+${patternsSection ? `  <patterns hint="Positive commandments to reinforce.">\n${patternsSection}\n  </patterns>` : ''}
+${antiPatternsSection ? `  <anti-patterns hint="Pitfalls to avoid.">\n${antiPatternsSection}\n  </anti-patterns>` : ''}
 
   <arc-brief arc-name="${arcName}" scene-count="${sceneCount}">
 ${coordinationPlanContext ? `    <coordination-plan arc-index="${coordinationPlanContext.arcIndex}" arc-count="${coordinationPlanContext.arcCount}"${coordinationPlanContext.forceMode ? ` force-mode="${coordinationPlanContext.forceMode}"` : ''} hint="PRIMARY BRIEF — multi-arc plan derived from backward induction. The reasoning graph must execute the plan for this arc.">

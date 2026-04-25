@@ -82,13 +82,13 @@ ${artifacts ? `    <key-artifacts>\n${artifacts}\n    </key-artifacts>` : ""}
 ${recentScenes ? `    <recent-story hint="What just happened.">\n${recentScenes}\n    </recent-story>` : ""}
   </narrative-state>
 
-${patternsSection ? `  <patterns>\n${patternsSection}\n  </patterns>` : ""}
-${antiPatternsSection ? `  <anti-patterns>\n${antiPatternsSection}\n  </anti-patterns>` : ""}
+${patternsSection ? `  <patterns hint="Positive commandments.">\n${patternsSection}\n  </patterns>` : ""}
+${antiPatternsSection ? `  <anti-patterns hint="Pitfalls to avoid.">\n${antiPatternsSection}\n  </anti-patterns>` : ""}
 
   <plan-requirements>
-${threadTargetsSection ? `    ${threadTargetsSection.replace(/\n/g, '\n    ')}` : ""}
-${userDirection ? `    ${userDirection.replace(/\n/g, '\n    ')}` : ""}
-${userConstraints ? `    ${userConstraints.replace(/\n/g, '\n    ')}` : ""}
+${threadTargetsSection ? `    <thread-targets>\n${threadTargetsSection}\n    </thread-targets>` : ""}
+${userDirection ? `    <direction hint="End fate goals to achieve.">${userDirection}</direction>` : ""}
+${userConstraints ? `    <constraints hint="What must NOT happen.">${userConstraints}</constraints>` : ""}
     <arc-target>${arcTarget}</arc-target>
 ${forcePreferenceBlockText ? `    ${forcePreferenceBlockText.replace(/\n/g, '\n    ')}` : ""}
 ${reasoningModeBlockText ? `    ${reasoningModeBlockText.replace(/\n/g, '\n    ')}` : ""}

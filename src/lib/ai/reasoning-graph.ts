@@ -222,17 +222,17 @@ export async function generateReasoningGraph(
   // spine with cosmetic variation.
   const lastArcGraph = findLastArcGraph(narrative, resolvedKeys, currentIndex);
   const priorGraphSection = lastArcGraph
-    ? `<prior-arc-graph arc-name="${lastArcGraph.graph.arcName}" hint="DIVERGE FROM THIS — graph-level repetition across arcs is the same failure as reasoning-pattern repetition within a single graph. Your graph's causal spine must NOT replicate the structure below.">
+    ? `<prior-arc-graph arc-name="${lastArcGraph.graph.arcName}" hint="DIVERGE FROM THIS — your graph's causal spine must NOT replicate the structure below. Graph-level repetition is the same failure as reasoning-pattern repetition within one graph.">
   <summary>${lastArcGraph.graph.summary}</summary>
   <sequential-path>
 ${buildSequentialPath({ nodes: lastArcGraph.graph.nodes, edges: lastArcGraph.graph.edges })}
   </sequential-path>
   <divergence-rules>
-    <rule>Any fate commitments this arc lands must differ in KIND from the prior arc's, not just content. If the prior resolved via acquisition, yours closes via reversal, revelation, alliance, or subversion. A new content slot in the same commitment shape is re-description, not advancement.</rule>
-    <rule>The reasoning chain must use different inference modes. If the prior leaned on constraint-propagation or sequential dependency, yours should introduce abduction, inversion, analogy, or a branching decision.</rule>
-    <rule>Warning nodes (required per REQUIREMENTS below) must name specific shapes from the prior graph — cite node labels or indices above — so the repetition is made explicit and the new graph visibly routes around it.</rule>
+    <rule>Fate commitments differ in KIND, not just content. Prior resolved via acquisition → yours closes via reversal/revelation/alliance/subversion. Same commitment shape with new content = re-description.</rule>
+    <rule>Reasoning chain uses different inference modes. Prior leaned on constraint-propagation/sequential dependency → introduce abduction, inversion, analogy, or branching.</rule>
+    <rule>Warning nodes must cite specific shapes from the prior graph (node labels or indices) so the new graph visibly routes around them.</rule>
   </divergence-rules>
-  <failure-mode>If your reasoning chain and terminal map onto the spine above with only content swaps, you have re-described the prior arc rather than advanced the story.</failure-mode>
+  <failure-mode>If your chain and terminal map onto the spine above with only content swaps, you've re-described the prior arc, not advanced the story.</failure-mode>
 </prior-arc-graph>`
     : "";
 

@@ -100,10 +100,9 @@ ${coordinationPlanContext ? `    <coordination-plan arc-index="${coordinationPla
 ${coordinationPlanContext.directive}
       </directive>
       <execution-rules>
-        <rule>Ground the plan's abstract plot points in SPECIFIC entities, locations, and mechanisms.</rule>
-        <rule>Fill in the HOW — the plan says WHAT must happen; you determine the specific path.</rule>
-        <rule>Maintain the plan's thread targets — if the plan says thread X should escalate, your graph must deliver that escalation.</rule>
-        <rule>Respect the force mode — if world-dominant, lean into character development; if fate-dominant, lean into thread resolution.</rule>
+        <rule>Plan says WHAT must happen; you determine HOW — ground abstract plot points in SPECIFIC entities, locations, and mechanisms.</rule>
+        <rule>Maintain the plan's thread targets — if a thread should escalate, deliver it.</rule>
+        <rule>Respect force mode — world-dominant: character development; fate-dominant: thread resolution.</rule>
       </execution-rules>${direction.trim() ? `
       <additional-direction hint="Layer on top of the plan.">${direction}</additional-direction>` : ''}
     </coordination-plan>` : `    <direction>${direction}</direction>`}

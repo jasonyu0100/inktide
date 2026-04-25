@@ -536,55 +536,34 @@ describe('narrativeContext', () => {
 // ── Tiered recency classification ────────────────────────────────────────────
 describe('classifyTier', () => {
   it('assigns near to the most recent scenes', () => {
-    expect(classifyTier(0, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
-    expect(classifyTier(NEAR_RECENCY_ZONE - 1, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
+    expect(classifyTier(0, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
+    expect(classifyTier(NEAR_RECENCY_ZONE - 1, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
   });
 
   it('assigns mid to the next band back', () => {
-    expect(classifyTier(NEAR_RECENCY_ZONE, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('mid');
+    expect(classifyTier(NEAR_RECENCY_ZONE, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('mid');
     expect(
-      classifyTier(NEAR_RECENCY_ZONE + MID_RECENCY_ZONE - 1, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE),
+      classifyTier(NEAR_RECENCY_ZONE + MID_RECENCY_ZONE - 1, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE),
     ).toBe('mid');
   });
 
   it('assigns far to scenes beyond both zones', () => {
     expect(
-      classifyTier(NEAR_RECENCY_ZONE + MID_RECENCY_ZONE, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE),
+      classifyTier(NEAR_RECENCY_ZONE + MID_RECENCY_ZONE, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE),
     ).toBe('far');
-    expect(classifyTier(1_000, false, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('far');
-  });
-
-  it('promotes important scenes one tier up', () => {
-    // far → mid
-    expect(
-      classifyTier(NEAR_RECENCY_ZONE + MID_RECENCY_ZONE + 5, true, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE),
-    ).toBe('mid');
-    // mid → near
-    expect(classifyTier(NEAR_RECENCY_ZONE, true, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
-    // near → near (already floor)
-    expect(classifyTier(0, true, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
+    expect(classifyTier(1_000, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('far');
   });
 });
 
 describe('tierOfOrigin', () => {
   it('returns seed for nodes without a recorded origin scene', () => {
-    expect(tierOfOrigin(undefined, 10, [], NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('seed');
+    expect(tierOfOrigin(undefined, 10, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('seed');
   });
 
   it('maps origin index to the tier containing it', () => {
     const total = 30;
-    const sceneImportance = new Array<boolean>(total).fill(false);
-    // Origin at the current scene → near.
-    expect(tierOfOrigin(total - 1, total, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
-    // Origin far back → far.
-    expect(tierOfOrigin(0, total, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('far');
-  });
-
-  it('promotes a far-origin node if its origin scene is important', () => {
-    const total = 30;
-    const sceneImportance = new Array<boolean>(total).fill(false);
-    sceneImportance[0] = true;
-    expect(tierOfOrigin(0, total, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('mid');
+    expect(tierOfOrigin(total - 1, total, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('near');
+    expect(tierOfOrigin(0, total, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE)).toBe('far');
   });
 });
 

@@ -77,36 +77,15 @@ const TIER_FIELDS: Record<RecencyTier, TierFields> = {
   far:  { participants: false, threadTransitions: false, movements: false, worldDeltas: false, relationshipShifts: false, artifactUsages: false, ownershipChanges: false },
 };
 
-/** Evidence magnitude that marks a scene as load-bearing. Any update with
- *  |evidence| ≥ this threshold counts as a strong move (escalation, payoff,
- *  twist, or major resistance). */
-const IMPORTANT_EVIDENCE_THRESHOLD = 2;
-
-/** A scene is important if a thread delta emits strong evidence OR carries a
- *  committal logType (payoff or twist). These are the moments the reader
- *  registers — they earn higher-resolution rendering in history. */
-function isImportantScene(s: Scene): boolean {
-  return s.threadDeltas.some((tm) => {
-    if (tm.logType === 'payoff' || tm.logType === 'twist') return true;
-    return (tm.updates ?? []).some((u) => Math.abs(u.evidence) >= IMPORTANT_EVIDENCE_THRESHOLD);
-  });
-}
-
-/** Pick a tier from distance-to-current, then promote one step if the scene is important. */
+/** Pick a tier from distance-to-current. Pure distance — no per-scene promotion. */
 export function classifyTier(
   distanceFromCurrent: number,
-  important: boolean,
   nearZone: number,
   midZone: number,
 ): RecencyTier {
-  const base: RecencyTier =
-    distanceFromCurrent < nearZone ? 'near' :
-    distanceFromCurrent < nearZone + midZone ? 'mid' :
-    'far';
-  if (!important) return base;
-  if (base === 'far') return 'mid';
-  if (base === 'mid') return 'near';
-  return 'near';
+  if (distanceFromCurrent < nearZone) return 'near';
+  if (distanceFromCurrent < nearZone + midZone) return 'mid';
+  return 'far';
 }
 
 /**
@@ -117,13 +96,11 @@ export function classifyTier(
 export function tierOfOrigin(
   sceneOriginIndex: number | undefined,
   totalScenes: number,
-  sceneImportance: boolean[],
   nearZone: number,
   midZone: number,
 ): RecencyTier | 'seed' {
   if (sceneOriginIndex === undefined) return 'seed';
-  const distance = totalScenes - 1 - sceneOriginIndex;
-  return classifyTier(distance, sceneImportance[sceneOriginIndex] ?? false, nearZone, midZone);
+  return classifyTier(totalScenes - 1 - sceneOriginIndex, nearZone, midZone);
 }
 
 /** Render a single scene at the given tier. Fields are gated by TIER_FIELDS. */
@@ -511,7 +488,6 @@ export function narrativeContext(
   const referencedThreadIds = new Set<string>();
   const horizonContinuityNodeIds = new Set<string>();
   const totalEntries = keysUpToCurrent.length;
-  const sceneImportance: boolean[] = new Array(totalEntries).fill(false);
   const knowledgeOriginScene = new Map<string, number>();
   const threadLogOriginScene = new Map<string, number>();
   const relationshipLatestDeltaScene = new Map<string, number>();
@@ -519,7 +495,6 @@ export function narrativeContext(
     const entry = resolveEntry(n, k);
     if (!entry) return;
     if (entry.kind === 'scene') {
-      sceneImportance[i] = isImportantScene(entry);
       referencedCharIds.add(entry.povId);
       for (const pid of entry.participantIds) referencedCharIds.add(pid);
       referencedLocIds.add(entry.locationId);
@@ -560,7 +535,7 @@ export function narrativeContext(
   // A knowledge/log node survives pruning if its origin scene is in near/mid tier.
   // Seed nodes (no recorded origin — typically introduced by a world build) always survive.
   const keepByRecency = (originMap: Map<string, number>) => (id: string): boolean => {
-    const tier = tierOfOrigin(originMap.get(id), totalEntries, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
+    const tier = tierOfOrigin(originMap.get(id), totalEntries, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
     return tier !== 'far';
   };
   const keepKnowledgeNode = keepByRecency(knowledgeOriginScene);
@@ -722,7 +697,7 @@ export function narrativeContext(
   const relationships = branchRelationships
     .filter((r) => {
       const pairKey = r.from < r.to ? `${r.from}|${r.to}` : `${r.to}|${r.from}`;
-      const tier = tierOfOrigin(relationshipLatestDeltaScene.get(pairKey), totalEntries, sceneImportance, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
+      const tier = tierOfOrigin(relationshipLatestDeltaScene.get(pairKey), totalEntries, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
       return tier !== 'far';
     })
     .map((r) => {
@@ -731,23 +706,66 @@ export function narrativeContext(
       return `<relationship from="${fromName}" to="${toName}" valence="${Math.round(r.valence * 100) / 100}">${r.type}</relationship>`;
     })
     .join('\n');
-  // Tiered scene history — see classifyTier / renderSceneEntry at the top of
-  // this file. World-build entries always render as a single summary line
-  // (their structural content lives in the characters/locations/threads
-  // blocks above).
-  const tierCounts = { near: 0, mid: 0, far: 0 };
-  const sceneEntries = keysUpToCurrent.map((k, i) => {
+  // Tiered scene history with arc rollup for far entries — see classifyTier /
+  // renderSceneEntry. Near/mid scenes render individually. Consecutive
+  // far-tier scenes in the same arc collapse into a single arc-summary entry
+  // (the arc's worldState snapshot is the compact chess-board memory). World
+  // builds always render as a single summary line and force a flush.
+  const tierCounts = { near: 0, mid: 0, far: 0, arcRollup: 0, farCompressed: 0 };
+  const sceneEntries: string[] = [];
+  type ArcBuffer = { arcId: string; firstIndex: number; lastIndex: number; sceneCount: number };
+  let arcBuffer: ArcBuffer | null = null;
+
+  const flushArc = () => {
+    if (!arcBuffer) return;
+    const arc = n.arcs[arcBuffer.arcId];
+    const arcName = arc?.name ?? 'unnamed arc';
+    const indicesAttr = arcBuffer.firstIndex === arcBuffer.lastIndex
+      ? `index="${arcBuffer.firstIndex}"`
+      : `indices="${arcBuffer.firstIndex}-${arcBuffer.lastIndex}"`;
+    const body = arc?.worldState?.trim()
+      || arc?.directionVector?.trim()
+      || `${arcBuffer.sceneCount} scene${arcBuffer.sceneCount > 1 ? 's' : ''} elapsed — no chess-board snapshot recorded`;
+    const compressionAttr = arcBuffer.sceneCount > 1 ? ` compresses="${arcBuffer.sceneCount}x"` : '';
+    sceneEntries.push(
+      `<entry ${indicesAttr} type="arc-summary" arc="${arcName}" scenes="${arcBuffer.sceneCount}"${compressionAttr}>\n  ${body}\n</entry>`,
+    );
+    tierCounts.arcRollup++;
+    tierCounts.farCompressed += arcBuffer.sceneCount;
+    arcBuffer = null;
+  };
+
+  for (let i = 0; i < keysUpToCurrent.length; i++) {
+    const k = keysUpToCurrent[i];
     const s = resolveEntry(n, k);
-    if (!s) return '';
+    if (!s) continue;
     const globalIdx = i + 1;
     const distanceFromCurrent = totalEntries - 1 - i;
+
     if (s.kind === 'world_build') {
-      return `<entry index="${globalIdx}" type="world-build">${s.summary}</entry>`;
+      flushArc();
+      sceneEntries.push(`<entry index="${globalIdx}" type="world-build">${s.summary}</entry>`);
+      continue;
     }
-    const tier = classifyTier(distanceFromCurrent, isImportantScene(s), NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
+
+    const tier = classifyTier(distanceFromCurrent, NEAR_RECENCY_ZONE, MID_RECENCY_ZONE);
     tierCounts[tier]++;
-    return renderSceneEntry(n, s, globalIdx, tier);
-  }).filter(Boolean);
+
+    if (tier === 'far' && s.arcId) {
+      if (arcBuffer && arcBuffer.arcId !== s.arcId) flushArc();
+      if (!arcBuffer) {
+        arcBuffer = { arcId: s.arcId, firstIndex: globalIdx, lastIndex: globalIdx, sceneCount: 1 };
+      } else {
+        arcBuffer.lastIndex = globalIdx;
+        arcBuffer.sceneCount++;
+      }
+      continue;
+    }
+
+    flushArc();
+    sceneEntries.push(renderSceneEntry(n, s, globalIdx, tier));
+  }
+  flushArc();
 
   // Current world state — only shown when the CURRENT arc (the arc of the
   // most recent resolved scene) has a worldState of its own. Any older arc's
@@ -768,16 +786,6 @@ export function narrativeContext(
 
   const sceneHistory = sceneEntries.join('\n');
 
-  // Arcs context — only arcs with scenes within the time horizon
-  const branchSceneIds = new Set(keysUpToCurrent.filter((k) => n.scenes[k]));
-  const arcs = Object.values(n.arcs)
-    .filter((a) => !hasHistory || a.sceneIds.some((sid) => branchSceneIds.has(sid)))
-    .map((a) => {
-      const developsNames = a.develops.map((tid) => n.threads[tid]?.description ?? tid).join(', ');
-      return `<arc id="${a.id}" name="${a.name}" scenes="${a.sceneIds.length}">${developsNames}</arc>`;
-    })
-    .join('\n');
-
   // ── System Knowledge Graph (scoped to time horizon) ────────────────
   const horizonSystemGraph = buildCumulativeSystemGraph(
     n.scenes, keysUpToCurrent, keysUpToCurrent.length - 1, n.worldBuilds,
@@ -797,7 +805,10 @@ export function narrativeContext(
 
   const storySettingsBlock = buildStorySettingsBlock(n);
 
-  const historyNote = `${keysUpToCurrent.length} scenes — ${tierCounts.near} near, ${tierCounts.mid} mid, ${tierCounts.far} far (resolution falls with distance from current). The final world-state entry (if present) is the current ground-truth "chess-board position" and supersedes replaying prior deltas.`;
+  const compressionRatio = tierCounts.arcRollup > 0
+    ? ` Far-tier compression: ${tierCounts.farCompressed} scenes → ${tierCounts.arcRollup} arc-summary entr${tierCounts.arcRollup === 1 ? 'y' : 'ies'} (${(tierCounts.farCompressed / tierCounts.arcRollup).toFixed(1)}x avg).`
+    : '';
+  const historyNote = `${keysUpToCurrent.length} scenes — ${tierCounts.near} near, ${tierCounts.mid} mid, ${tierCounts.far} far.${compressionRatio} Arc-summary bodies are the chess-board snapshot for that span; treat them as ground truth and do not try to reconstruct individual scenes from them.`;
 
   return `<narrative title="${n.title}">
 <network-annotations hint="Every character / location / artifact / thread / system node below carries cumulative reasoning-network attributes:
@@ -829,11 +840,7 @@ ${threads}
 ${relationships}
 </relationships>
 
-<arcs hint="Each arc develops specific threads. New arcs should continue momentum from previous ones.">
-${arcs}
-</arcs>
-
-<scene-history scope="${historyNote}" hint="Source of truth for long-term continuity. Summaries carry the branch; near/mid entries expose deltas for recent scenes. Each entry's time-gap attribute is the elapsed time since the prior scene — use it to read pacing across the history and decide the gap into the next scene.">
+<scene-history scope="${historyNote}" hint="Source of truth for long-term continuity. Far-tier scenes are rolled up into arc-summary entries — each carries the arc's chess-board worldState as the compact memory of what that span resolved to. Near/mid entries expose per-scene deltas. Each entry's time-gap attribute is the elapsed time since the prior scene — use it to read pacing across the history and decide the gap into the next scene.">
 ${sceneHistory}
 </scene-history>
 <valid-ids hint="You MUST use ONLY these exact IDs — do NOT invent new ones.">
@@ -1407,20 +1414,8 @@ export function outlineContext(
 
     const povName = n.characters[entry.povId]?.name ?? entry.povId;
     const locName = n.locations[entry.locationId]?.name ?? entry.locationId;
-    const threadChanges = entry.threadDeltas
-      .map((tm) => {
-        const t = n.threads[tm.threadId];
-        if (!t) return '';
-        const moves = (tm.updates ?? [])
-          .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
-          .join(' ');
-        return `${t.description} [${tm.logType}]${moves ? ` ${moves}` : ''}`;
-      })
-      .filter(Boolean)
-      .join('; ');
-
     group.entries.push(
-      `  <scene index="${sceneNum}" pov="${povName}" location="${locName}"${threadChanges ? ` threads="${threadChanges}"` : ''}>${entry.summary}</scene>`,
+      `  <scene index="${sceneNum}" pov="${povName}" location="${locName}">${entry.summary}</scene>`,
     );
   }
 

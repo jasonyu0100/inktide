@@ -13,7 +13,7 @@ export const INGEST_PROSE_PROFILE_SYSTEM =
   'You extract a prose profile — voice, register, stance, devices, rules, anti-patterns — from pasted text. Applies to any long-form register: fiction, memoir, essay, criticism, journalism, research. Pick values that genuinely match the source; do not default to the 20th-century Anglo-European novel\'s toolkit. Return ONLY valid JSON matching the schema in the user prompt.';
 
 export const DERIVE_PROSE_PROFILE_SYSTEM =
-  'You derive a prose profile from a narrative\'s own context (entities, threads, prose excerpts) rather than a pasted style guide. The narrative may be fiction, memoir, essay, journalism, or research — do not default to novelistic conventions if the register is analytical. Return ONLY valid JSON matching the schema in the user prompt.';
+  'You derive a prose profile from a narrative\'s own context (entities, threads, prose excerpts) rather than a pasted style guide. The narrative may be fiction, memoir, essay, journalism, or research — do not default to fiction-narrative conventions if the register is analytical. Return ONLY valid JSON matching the schema in the user prompt.';
 
 /**
  * Prompt for extracting prose profile from text.

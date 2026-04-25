@@ -14,27 +14,44 @@ import { exportGraphView, graphViewLabel, isExportableGraphMode } from '@/lib/gr
 import { exportMarketSnapshot } from '@/lib/market-export';
 import { exportScenePlan, exportSceneProse } from '@/lib/scene-export';
 
-const GRAPH_DOMAINS = [
+type GraphDomain = {
+  label: string;
+  local: GraphViewMode;
+  global: GraphViewMode;
+  Icon: typeof IconGlobe;
+  description: string;
+  scopeless?: boolean;
+};
+
+const GRAPH_DOMAINS: GraphDomain[] = [
   {
     label: 'World',
-    local: 'spatial' as GraphViewMode,
-    global: 'overview' as GraphViewMode,
+    local: 'spatial',
+    global: 'overview',
     Icon: IconGlobe,
     description: 'Characters & locations',
   },
   {
     label: 'System',
-    local: 'spark' as GraphViewMode,
-    global: 'codex' as GraphViewMode,
+    local: 'spark',
+    global: 'codex',
     Icon: IconLightbulb,
     description: 'System knowledge & rules',
   },
   {
     label: 'Threads',
-    local: 'pulse' as GraphViewMode,
-    global: 'threads' as GraphViewMode,
+    local: 'pulse',
+    global: 'threads',
     Icon: IconThread,
     description: 'Narrative threads & tensions',
+  },
+  {
+    label: 'Network',
+    local: 'network',
+    global: 'network',
+    Icon: IconNetwork,
+    description: 'Aggregate connection graph',
+    scopeless: true,
   },
 ];
 
@@ -47,9 +64,9 @@ const SCOPE_PAIRS: Record<string, { local: GraphViewMode; global: GraphViewMode 
   threads:  { local: 'pulse',   global: 'threads'  },
 };
 
-export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads']);
+export const GRAPH_MODES = new Set<GraphViewMode>(['spatial', 'overview', 'spark', 'codex', 'pulse', 'threads', 'network']);
 
-type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning' | 'network' | 'market';
+type CanvasMode = 'graph' | 'plan' | 'prose' | 'audio' | 'game' | 'search' | 'reasoning' | 'market';
 type ScenePrimaryMode = 'reasoning' | 'plan' | 'prose' | 'audio' | 'game';
 const SCENE_MODES: ScenePrimaryMode[] = ['reasoning', 'plan', 'prose', 'audio', 'game'];
 
@@ -244,7 +261,6 @@ function resolveCanvasMode(graphViewMode: GraphViewMode): CanvasMode {
   if (graphViewMode === 'game') return 'game';
   if (graphViewMode === 'search') return 'search';
   if (graphViewMode === 'reasoning') return 'reasoning';
-  if (graphViewMode === 'network') return 'network';
   if (graphViewMode === 'market') return 'market';
   return 'graph';
 }
@@ -264,6 +280,13 @@ export function CanvasTopBar() {
   useEffect(() => {
     if (GRAPH_MODES.has(graphViewMode)) lastGraphModeRef.current = graphViewMode;
   }, [graphViewMode]);
+
+  // Remember last scope choice so switching from Network back to a scoped
+  // domain preserves the user's Scene/Full preference.
+  const lastIsLocalRef = useRef<boolean>(true);
+  useEffect(() => {
+    if (scopePair) lastIsLocalRef.current = isLocal;
+  }, [scopePair, isLocal]);
 
   // Remember last scene sub-mode so "Scene" returns to the user's choice
   const lastSceneModeRef = useRef<ScenePrimaryMode>('plan');
@@ -780,37 +803,40 @@ export function CanvasTopBar() {
       {/* Right — Mode toggles */}
       <div className="flex items-center gap-2">
         {/* Graph sub-controls: scope + domain */}
-        {canvasMode === 'graph' && scopePair && (
+        {canvasMode === 'graph' && (
           <>
-            {/* Scope toggle */}
-            <div className="flex items-center rounded-md overflow-hidden border border-white/10">
-              <button
-                className={`px-2 py-1 text-[10px] font-medium transition-colors ${
-                  isLocal
-                    ? 'bg-white/10 text-text-primary'
-                    : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
-                }`}
-                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.local })}
-              >
-                Scene
-              </button>
-              <div className="w-px h-4 bg-white/10" />
-              <button
-                className={`px-2 py-1 text-[10px] font-medium transition-colors ${
-                  !isLocal
-                    ? 'bg-white/10 text-text-primary'
-                    : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
-                }`}
-                onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.global })}
-              >
-                Full
-              </button>
-            </div>
+            {/* Scope toggle — only for scoped domains (World/System/Threads). */}
+            {scopePair && (
+              <div className="flex items-center rounded-md overflow-hidden border border-white/10">
+                <button
+                  className={`px-2 py-1 text-[10px] font-medium transition-colors ${
+                    isLocal
+                      ? 'bg-white/10 text-text-primary'
+                      : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
+                  }`}
+                  onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.local })}
+                >
+                  Scene
+                </button>
+                <div className="w-px h-4 bg-white/10" />
+                <button
+                  className={`px-2 py-1 text-[10px] font-medium transition-colors ${
+                    !isLocal
+                      ? 'bg-white/10 text-text-primary'
+                      : 'text-text-dim/60 hover:text-text-secondary hover:bg-white/5'
+                  }`}
+                  onClick={() => dispatch({ type: 'SET_GRAPH_VIEW_MODE', mode: scopePair.global })}
+                >
+                  Full
+                </button>
+              </div>
+            )}
 
             {/* Domain tabs */}
             <div className="flex items-center rounded-md overflow-hidden border border-white/10">
-              {GRAPH_DOMAINS.map(({ label, local, global: globalMode, Icon }, idx) => {
+              {GRAPH_DOMAINS.map(({ label, local, global: globalMode, Icon, scopeless }, idx) => {
                 const isActive = graphViewMode === local || graphViewMode === globalMode;
+                const useLocal = scopePair ? isLocal : lastIsLocalRef.current;
                 return (
                   <div key={label} className="flex items-center">
                     {idx > 0 && <div className="w-px h-4 bg-white/10" />}
@@ -822,7 +848,7 @@ export function CanvasTopBar() {
                       }`}
                       onClick={() => dispatch({
                         type: 'SET_GRAPH_VIEW_MODE',
-                        mode: isLocal ? local : globalMode,
+                        mode: scopeless ? local : (useLocal ? local : globalMode),
                       })}
                     >
                       <Icon size={12} />
@@ -875,7 +901,6 @@ export function CanvasTopBar() {
         <div className="flex items-center rounded-md overflow-hidden border border-white/10">
           {[
             { mode: 'graph' as CanvasMode, Icon: IconNetwork, label: 'Graph', condition: 'always' as const, activeWhen: canvasMode === 'graph' },
-            { mode: 'network' as CanvasMode, Icon: IconGlobe, label: 'Network', condition: 'always' as const, activeWhen: canvasMode === 'network' },
             { mode: 'market' as CanvasMode, Icon: IconMarket, label: 'Market', condition: 'always' as const, activeWhen: canvasMode === 'market' },
             { mode: 'scene' as const, Icon: IconNotepad, label: 'Scene', condition: 'sceneOnly' as const, activeWhen: inSceneMode },
             { mode: 'search' as CanvasMode, Icon: IconSearch, label: 'Search', condition: 'always' as const, activeWhen: canvasMode === 'search' },

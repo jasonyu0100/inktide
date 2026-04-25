@@ -147,22 +147,22 @@ describe("buildSurveyUserPrompt", () => {
 
   it("includes the scale anchors for likert", () => {
     const out = buildSurveyUserPrompt(makeSurvey({ questionType: "likert", config: { scale: 7 } }));
-    expect(out).toContain("7-point scale");
+    expect(out).toContain('scale="7"');
     expect(out).toContain("strongly disagree");
   });
 
-  it("includes the unit suffix for estimate", () => {
+  it("includes the unit attribute for estimate", () => {
     const out = buildSurveyUserPrompt(makeSurvey({ questionType: "estimate", config: { unit: "li" } }));
-    expect(out).toContain("(in li)");
+    expect(out).toContain('unit="li"');
   });
 
-  it("lists choice options as a quoted set", () => {
+  it("lists choice options as XML <option> elements", () => {
     const out = buildSurveyUserPrompt(
       makeSurvey({ questionType: "choice", config: { options: ["fight", "flee", "negotiate"] } }),
     );
-    expect(out).toContain('"fight"');
-    expect(out).toContain('"flee"');
-    expect(out).toContain('"negotiate"');
+    expect(out).toContain('<option>fight</option>');
+    expect(out).toContain('<option>flee</option>');
+    expect(out).toContain('<option>negotiate</option>');
   });
 });
 

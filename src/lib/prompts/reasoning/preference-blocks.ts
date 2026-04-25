@@ -128,47 +128,45 @@ export function forcePreferenceBlock(
 
   const model = `
   <model>
-    <author-meta-reasoning>The reasoning graph is the AUTHOR's meta-reasoning about the work — the writer, analyst, or researcher thinking about what they're building. (This is why the framework works in fiction and non-fiction alike: in both, the reasoner is outside the system they're constructing.) The graph is a cause-and-effect structure: upstream nodes cause, downstream nodes are effect. Direction is the primary semantic signal — the same two nodes in opposite causal positions assert opposite claims.</author-meta-reasoning>
+    <author-meta-reasoning>The graph is the AUTHOR's meta-reasoning about the work (writer/analyst/researcher thinking about what they're building — applies to fiction and non-fiction alike). Cause-and-effect structure: upstream causes, downstream effects. Direction is the primary semantic signal — opposite causal positions assert opposite claims.</author-meta-reasoning>
 
     <structural-forces hint="Three forces run through the work.">
-      <force name="fate">The work's current momentum, pushing its existing agenda toward what the threads demand. The default operating system: what's in motion continues, what's promised gets paid off.</force>
+      <force name="fate">Current momentum — what the threads demand. Default OS: what's in motion continues, what's promised pays off.</force>
       <force name="world">Character, location, artifact change. Entities deepen, bonds shift, things accrue history.</force>
-      <force name="system">The rules and principles constraining fate and world.</force>
+      <force name="system">Rules and principles that constrain fate and world.</force>
     </structural-forces>
 
-    <chaos-as-black-swan>
-      <definition>CHAOS is the BLACK-SWAN force — the departure from what the current agenda and market state predict. Two legitimate modes, either or both of which can drive a chaos node:</definition>
-      <mode name="creative-chaos">Spawns new pieces on the board the existing state wouldn't have generated — an unforeseen rival arrives, a faction nobody modelled declares itself, an artefact surfaces whose utility is disruption, a location reveals a property no one had looked for. These are creations that didn't exist in the prior.</mode>
-      <mode name="reversal-chaos">Flips a saturating or committed market against its current lean — a twist-grade event (|e| ≥ 3 on the lagging outcome) that re-prices what looked settled. A trusted advisor revealed as the assassin; a failing rebellion turning on a single defection; a phantom "succeeds without cost" outcome collapsing into debt-collected.</mode>
-      <test>Could it have been in the rulebook before this moment? If yes, it's an adversarial system node (a loophole always in the mechanics). If no, it's chaos. A good chaos node often does both — the new piece IS the reversal event. Name what it creates OR what it flips (ideally both) concretely; "something surprising happens" without a target is adversarial vapour, not chaos. Chaos is where the current market state gets unsettled, because a 95/5 distribution is only useful if the reasoner has flagged what the 5% looks like — and the 5% may be a new agent nobody priced, an existing agent's hidden capability, or the bill coming due.</test>
-      <ever-present>CHAOS IS AN EVER-PRESENT FORCE, not a mode-exclusive one. It is the fundamental opposition to fate's probabilities — the pressure that asks "what if this doesn't play out the way the threads predict?" Every reasoning graph, in every mode, should carry SOME degree of chaos. The intensity varies: a quiet minority voice in fate/world/system modes (1-2 chaos nodes that create friction against the smooth trajectory); a structural force in chaos mode (where black-swan creation and market reversal become the organising principle). But never zero. A graph with no chaos is a graph over-fitted to the current agenda — narratively dead, because a fully-predictable story is not a good story. Life is unpredictable; the reader knows it; the graph must carry at least the texture of that unpredictability. Chaos is what makes the journey worth reading — without it, every thread resolves the way its logit leans and the market is a formality.</ever-present>
+    <chaos-as-black-swan hint="Departure from what current state predicts. Two modes, either or both can drive a chaos node.">
+      <mode name="creative">Spawns new pieces the existing state wouldn't have generated — unforeseen rival, faction nobody modelled, disruptive artefact, location's hidden property.</mode>
+      <mode name="reversal">Flips a saturating/committed market via a twist-grade event (|e| ≥ 3 on the lagging outcome) — trusted advisor revealed as assassin, "succeeds without cost" outcome collapsing into debt-collected.</mode>
+      <test>Could it have been in the rulebook before this moment? Yes → adversarial system node (loophole). No → chaos. A good chaos node often does both — the new piece IS the reversal event. Name what it creates OR flips concretely; "something surprising" without a target is vapour.</test>
+      <ever-present>Required at minority level (1-2 nodes) in every mode, structural in chaos mode. Never zero — zero-chaos graphs are over-fitted to the current agenda and read as narratively dead.</ever-present>
     </chaos-as-black-swan>
 
-    <fate-as-portfolio hint="The CRG is where market quality is decided.">
-      <claim>The fate nodes in this graph ARE the arc's market portfolio: which threads are active, which resolve, which open mid-arc, which get subverted. Scene generation downstream can execute perfectly and still produce a boring arc if the portfolio is structurally defensive, all-distal, all-protagonist-centric, or missing cost markets. By the time scenes are being written the hand is already dealt. The CRG is the upstream point where market dynamics can actually be shaped — use it.</claim>
-      <directive>When composing fate nodes, audit the resulting portfolio against the principles below. If the portfolio fails an audit, the arc needs new fate nodes (opening markets, forcing opposition, retiring zombies), not just better execution on the ones that exist.</directive>
+    <fate-as-portfolio hint="The CRG is where market quality is decided — by the time scenes are written, the hand is already dealt.">
+      <claim>Fate nodes ARE the arc's market portfolio. A defensive, all-distal, all-protagonist-centric, or cost-missing portfolio produces an inert arc no matter how well scenes execute.</claim>
+      <directive>Audit the portfolio against the principles below. If it fails, the fix is new fate nodes (open markets, force opposition, retire zombies) — not better execution.</directive>
       ${PROMPT_PORTFOLIO_PRINCIPLES}
     </fate-as-portfolio>
 
-    <causal-patterns hint="Different patterns mean different things. Read the direction, then read what it's saying.">
-      <pattern name="default" shape="reason→fate">\`reasoning/system/character\` causes \`fate\`. Deliberation advances the agenda.</pattern>
-      <pattern name="chaos-as-cause" shape="chaos→reasoning">\`chaos\` causes \`reasoning/character/system\`. A disruption forces adaptation; downstream is the reaction.</pattern>
-      <pattern name="chaos-chain" shape="chaos→chaos→chaos">One disruption spawns the next (troll arrives → cast scatters → Hermione alone). Chaos develops its own internal causality.</pattern>
-      <pattern name="subversion" shape="fate→chaos">The agenda inadvertently produces its own disruption. Harry's pride drives him to confront Quirrell alone → the overreach creates the worst-case reveal. Fate authored the chaos it now has to face. This is one of the most productive patterns in research-type reasoning.</pattern>
-      <pattern name="adaptation" shape="chaos→reasoning/character→fate">The work absorbs a disruption into a new or subverted thread. Note the intermediate step: chaos doesn't directly service an existing thread; the adaptation does, and the downstream fate node usually reflects a subverted transition rather than the resolution fate had been pushing for.</pattern>
-      <note>Cross-direction edges are how subversions and adaptations work. Don't ban them; be deliberate — every cross-direction edge asserts one of these patterns.</note>
+    <causal-patterns hint="Cross-direction edges encode which pattern is being asserted.">
+      <pattern name="default" shape="reason→fate">Deliberation advances the agenda.</pattern>
+      <pattern name="chaos-as-cause" shape="chaos→reasoning">Disruption forces adaptation; downstream is the reaction.</pattern>
+      <pattern name="chaos-chain" shape="chaos→chaos→chaos">One disruption spawns the next (troll arrives → cast scatters → Hermione alone).</pattern>
+      <pattern name="subversion" shape="fate→chaos">The agenda inadvertently produces its own disruption (Harry's pride → confronts Quirrell alone → reveal). Highly productive.</pattern>
+      <pattern name="adaptation" shape="chaos→reasoning/character→fate">Work absorbs a disruption into a new or subverted thread. Downstream fate is usually a subverted transition, not fate's intended resolution.</pattern>
+      <note>Don't ban cross-direction edges — be deliberate.</note>
     </causal-patterns>
 
-    <what-differs-by-mode>
-      <claim>A fate-dominant graph leans into the agenda; a chaos-dominant graph leans into adversarial reasoning; a world- or system-dominant graph leans into expanding those layers. Every mode can create — new characters, locations, artifacts, threads — but the flavor of creation serves the mode's master:</claim>
-      <flavor mode="fate">Creates things that extend the agenda (destined figures, prophesied artifacts, hidden threads surfacing).</flavor>
-      <flavor mode="world">Creates things that grow from existing entities (offspring, apprentices, a newly-discovered chamber, an artefact forged by a character).</flavor>
-      <flavor mode="system">Creates things that extend the rules (new principles following from established ones, new institutions consistent with the world's logic).</flavor>
-      <flavor mode="chaos">Creates pieces that the current agenda wouldn't have generated AND/OR events that flip a market's lean — intruders nobody modelled, adversaries whose arrival inverts an alliance thread, disruptive artefacts that break a saturating "succeeds" outcome, hidden capabilities surfacing on known characters.</flavor>
-      <reality>Creations are real — they become part of the work once the graph is executed. When the logic wants a new piece on the board, add it; match the creation to the mode.</reality>
+    <what-differs-by-mode hint="Every mode can create new entities; the flavor matches the master.">
+      <flavor mode="fate">Creations extend the agenda (destined figures, prophesied artifacts, hidden threads surfacing).</flavor>
+      <flavor mode="world">Creations grow from existing entities (offspring, apprentices, a newly-discovered chamber).</flavor>
+      <flavor mode="system">Creations extend the rules (new principles consistent with established ones, institutions following the world's logic).</flavor>
+      <flavor mode="chaos">Creative or reversal — see chaos-as-black-swan above.</flavor>
+      <reality>Creations are real once the graph executes. Match the creation to the mode.</reality>
     </what-differs-by-mode>
 
-    <bad-graph-signals>A graph is failing when: reasoning nodes don't connect to anchors (disconnected components); the dominant force has fewer nodes than its complement combined; zero chaos nodes anywhere (the graph is over-fitted to the current agenda — every mode should carry at least minority-level chaos); chaos nodes only have incoming \`requires\` edges (chaos being serviced, not driving); a "subversion" claims fate→chaos but the upstream fate is contrived rather than the real agenda; cross-direction edges only flow one way in balanced mode (no real tension); system nodes have no outgoing edges (lore dumps); new entities lack an edge rooting them into existing context (drop-ins). Bad graphs aren't less detailed — they're structurally misrepresenting what the reasoning is claiming.</bad-graph-signals>
+    <bad-graph-signals>Failing graph: disconnected components (reasoning nodes not connecting to anchors); dominant force out-numbered by its complement; zero chaos anywhere; chaos with only incoming \`requires\` edges (serviced, not driving); a "subversion" whose upstream fate is contrived; cross-direction edges flowing one way in balanced mode; system nodes with no outgoing edges (lore dumps); new entities un-rooted in existing context (drop-ins).</bad-graph-signals>
   </model>`;
 
   // Freeform: narrative quality first. No force bias — the LLM picks

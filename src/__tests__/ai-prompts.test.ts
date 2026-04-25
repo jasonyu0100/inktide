@@ -34,8 +34,8 @@ import {
   buildReconcileSemanticPrompt,
   buildThreadingPrompt,
   buildSceneStructurePrompt,
-  buildScenePlanSystemPrompt,
-  buildBeatAnalystSystemPrompt,
+  buildScenePlanUserPrompt,
+  buildBeatAnalystUserPrompt,
 } from "@/lib/ai/prompts";
 import {
   BEAT_FN_LIST,
@@ -101,22 +101,23 @@ describe("Beat taxonomy count invariant", () => {
   it("advertised counts match the type system", () => {
     // If BEAT_FN_LIST grows from 10 to 11, either update the prompt header
     // or update this test — but not silently.
-    expect(PROMPT_BEAT_TAXONOMY).toContain(`FUNCTIONS (${BEAT_FN_LIST.length})`);
-    expect(PROMPT_BEAT_TAXONOMY).toContain(`MECHANISMS (${BEAT_MECHANISM_LIST.length})`);
+    expect(PROMPT_BEAT_TAXONOMY).toContain(`functions count="${BEAT_FN_LIST.length}"`);
+    expect(PROMPT_BEAT_TAXONOMY).toContain(`mechanisms count="${BEAT_MECHANISM_LIST.length}"`);
   });
 });
 
 describe("Delta schema contract", () => {
-  // The prompt must name every delta field the scene reducer consumes.
+  // The prompt must name every delta-XML element the scene reducer consumes.
+  // Checked as kebab-case XML tag names since PROMPT_DELTAS is now an XML block.
   const DELTA_FIELDS = [
-    "threadDeltas",
-    "worldDeltas",
-    "systemDeltas",
-    "relationshipDeltas",
+    "thread-deltas",
+    "world-deltas",
+    "system-deltas",
+    "relationship-deltas",
     "events",
-    "artifactUsages",
-    "ownershipDeltas",
-    "characterMovements",
+    "artifact-usages",
+    "ownership-deltas",
+    "character-movements",
   ];
 
   for (const field of DELTA_FIELDS) {
@@ -248,18 +249,22 @@ describe("Scene-structure extraction schema contract", () => {
 });
 
 describe("Scene-plan + beat-analyst schema contract", () => {
-  // Both prompts emit {beats: [{fn, mechanism, what, propositions: [{content}]}]}.
-  // fn/mechanism are already guarded via the beat-taxonomy cross-check. The
-  // field names themselves aren't — a rename silently zeros out the beat's
-  // `what` (empty prose brief) or `propositions` (no factual anchors).
-  const planPrompt = buildScenePlanSystemPrompt();
-  const analystPrompt = buildBeatAnalystSystemPrompt(3);
+  // Both user prompts emit {beats: [{fn, mechanism, what, propositions: [{content}]}]}.
+  // The schema lives in the user prompt (system prompt is lean role-only); a
+  // rename silently zeros out the beat's `what` (empty prose brief) or
+  // `propositions` (no factual anchors).
+  const planPrompt = buildScenePlanUserPrompt({ inputBlocks: "  <test-input/>" });
+  const analystPrompt = buildBeatAnalystUserPrompt({
+    summary: "test",
+    chunkCount: 3,
+    chunksJson: '[{"index":0,"text":"a"}]',
+  });
 
   for (const field of ["beats", "fn", "mechanism", "what", "propositions", "content"]) {
-    it(`buildScenePlanSystemPrompt advertises ${field}`, () => {
+    it(`buildScenePlanUserPrompt advertises ${field}`, () => {
       expect(planPrompt).toContain(`"${field}"`);
     });
-    it(`buildBeatAnalystSystemPrompt advertises ${field}`, () => {
+    it(`buildBeatAnalystUserPrompt advertises ${field}`, () => {
       expect(analystPrompt).toContain(`"${field}"`);
     });
   }

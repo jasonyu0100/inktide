@@ -140,34 +140,48 @@ export async function rewriteSceneProse(
     ? `\n\n${buildProseProfile(proseProfile)}`
     : '';
 
-  const systemPrompt = `${formatInstructions.systemRole} Your task is to REWRITE based on the provided analysis.${onToken ? '' : ' You return ONLY valid JSON — no markdown, no commentary.'}
+  const systemPrompt = `<role>${formatInstructions.systemRole}</role>
+<task>Rewrite scene prose based on the provided analysis.</task>
 ${hasVoiceOverride
-    ? `\nAUTHOR VOICE (this is the PRIMARY creative direction — all style defaults below are subordinate to this voice):
+    ? `<author-voice hint="PRIMARY creative direction — all style defaults below are subordinate to this voice.">
 ${narrative.storySettings!.proseVoice!.trim()}
-`
-    : ''}${profileSection}
-${formatInstructions.formatRules}
+</author-voice>`
+    : ''}${profileSection ? `\n<prose-profile>${profileSection}\n</prose-profile>` : ''}
 
-Match the tone and genre of the world: ${narrative.worldSummary.slice(0, 200)}.`;
+<format-rules>
+${formatInstructions.formatRules}
+</format-rules>
+
+<world-tone hint="Match the tone and genre of the world.">${narrative.worldSummary.slice(0, 200)}</world-tone>${onToken ? '' : '\n\n<output-format>Return ONLY valid JSON — no markdown, no commentary.</output-format>'}`;
 
   const neighborBlock = neighborContext
-    || `${prevEnding ? `\nPREVIOUS SCENE ENDING:\n"...${prevEnding}"\n` : ''}${nextOpening ? `\nNEXT SCENE OPENING:\n"${nextOpening}..."\n` : ''}`;
+    || `${prevEnding ? `<previous-scene-ending>"...${prevEnding}"</previous-scene-ending>\n` : ''}${nextOpening ? `<next-scene-opening>"${nextOpening}..."</next-scene-opening>\n` : ''}`;
 
-  const prompt = `SCENE CONTEXT:
+  const prompt = `<inputs>
+  <scene>
 ${sceneBlock}
-${neighborBlock}
-
-CURRENT PROSE:
+  </scene>
+${neighborBlock ? `  ${neighborBlock.replace(/\n/g, '\n  ')}` : ''}
+  <current-prose>
 ${currentProse}
-
-ANALYSIS / CRITIQUE TO ADDRESS:
+  </current-prose>
+  <analysis hint="Critique to address — every point describes a specific change that MUST be implemented, not merely acknowledged cosmetically.">
 ${analysis}
+  </analysis>
+</inputs>
 
-Rewrite the prose to FULLY ADDRESS every point in the analysis above. The analysis describes specific changes that MUST be implemented — do not merely acknowledge them cosmetically. If the analysis says a character should leave, they must leave in the prose. If it says an event should be removed, remove it entirely. If it says a detail should be added, add it concretely. The rewrite is not a polish pass — it is a structural edit guided by the analysis.
+<instructions>
+  <step name="address-every-point">Rewrite the prose to FULLY ADDRESS every point in the analysis. The rewrite is not a polish pass — it is a structural edit guided by the analysis.
+    <example>If the analysis says a character should leave, they must leave in the prose.</example>
+    <example>If it says an event should be removed, remove it entirely.</example>
+    <example>If it says a detail should be added, add it concretely.</example>
+  </step>
+  <step name="preserve-rest">Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Let the scene be as long or short as its content demands — say more in fewer words rather than padding to reach a length.</step>${hasExpandedContext ? '\n  <step name="cross-scene-continuity">You have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.</step>' : ''}
+</instructions>
 
-Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Let the scene be as long or short as its content demands — say more in fewer words rather than padding to reach a length.${hasExpandedContext ? '\n\nYou have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.' : ''}
-
-${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, no commentary. Start with the first word of the scene.' : 'Return JSON:\n{\n  "prose": "the full rewritten prose text"\n}'}`;
+<output-format>
+${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, no commentary. Start with the first word of the scene.' : 'Return JSON: { "prose": "the full rewritten prose text" }'}
+</output-format>`;
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   let prose: string;
@@ -184,8 +198,19 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
   // Generate changelog in a separate cheap call — diffing old vs new
   let changelog = '';
   const changelogRaw = await callGenerate(
-    `ANALYSIS ADDRESSED:\n${analysis.slice(0, 500)}\n\nSummarize the key changes in 3-5 bullet points. Each bullet: one sentence, plain description, no quotes. Focus on structural changes.\n\nReturn JSON with changelog as a SINGLE STRING with bullet points separated by newlines:\n{"changelog": "• Change one\\n• Change two\\n• Change three"}`,
-    'You are a literary editor. Return ONLY valid JSON with changelog as a string.',
+    `<inputs>
+  <analysis-addressed>${analysis.slice(0, 500)}</analysis-addressed>
+</inputs>
+
+<instructions>
+  <step>Summarize the key changes in 3-5 bullet points. Each bullet: one sentence, plain description, no quotes. Focus on structural changes.</step>
+</instructions>
+
+<output-format>
+Return JSON with changelog as a SINGLE STRING with bullet points separated by newlines:
+{"changelog": "• Change one\\n• Change two\\n• Change three"}
+</output-format>`,
+    '<role>Literary editor.</role>\n<output-format>Return ONLY valid JSON with changelog as a string.</output-format>',
     800,
     'rewriteChangelog',
     ANALYSIS_MODEL,

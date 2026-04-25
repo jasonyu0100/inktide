@@ -6,15 +6,37 @@
  * doctrine without the beat machinery.
  */
 
-/** Final assembly: inputs + instructions, the user-prompt skeleton consumed
- *  by `generateSceneProse`. */
+/** Final assembly: inputs + format rules + instructions, the user-prompt
+ *  skeleton consumed by `generateSceneProse`. The system prompt stays
+ *  high-level (role only); craft detail lives here. */
 export function buildSceneProseUserPrompt(args: {
   inputBlocks: string;
   instruction: string;
+  /** Pre-built format rules from the prose-format set (`<format-rules>`). */
+  formatRules?: string;
+  /** First ~200 chars of worldSummary, used as a tone cue. */
+  toneCue?: string;
+  /** Optional author-voice override that supersedes craft defaults. */
+  proseVoiceOverride?: string;
+  /** Per-call scene direction (guidance string). */
+  direction?: string;
 }): string {
+  const toneBlock = args.toneCue?.trim()
+    ? `\n<tone hint="Match the genre and register of the world.">${args.toneCue.trim().slice(0, 200)}</tone>`
+    : '';
+  const voiceBlock = args.proseVoiceOverride?.trim()
+    ? `\n<author-voice hint="PRIMARY creative direction — all craft defaults below are subordinate to this voice.">\n${args.proseVoiceOverride.trim()}\n</author-voice>`
+    : '';
+  const directionBlock = args.direction?.trim()
+    ? `\n<scene-direction>\n${args.direction.trim()}\n</scene-direction>`
+    : '';
+  const formatRulesBlock = args.formatRules?.trim()
+    ? `\n<format-rules>\n${args.formatRules.trim()}\n</format-rules>`
+    : '';
+
   return `<inputs>
 ${args.inputBlocks}
-</inputs>
+</inputs>${toneBlock}${voiceBlock}${formatRulesBlock}${directionBlock}
 
 ${args.instruction}`;
 }

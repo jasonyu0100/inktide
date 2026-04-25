@@ -1606,6 +1606,10 @@ ${b.propositions.map(p => `      <proposition>${p.content}</proposition>`).join(
   const prompt = buildSceneProseUserPrompt({
     inputBlocks: inputBlocks.join('\n'),
     instruction,
+    formatRules: formatInstructions.formatRules,
+    toneCue: narrative.worldSummary,
+    proseVoiceOverride: hasVoiceOverride ? narrative.storySettings!.proseVoice! : undefined,
+    direction: guidance,
   });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;

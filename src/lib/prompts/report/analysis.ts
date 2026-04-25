@@ -6,17 +6,7 @@
  * keep each section short and register-appropriate.
  */
 
-export const REPORT_SYSTEM = `You are writing the prose sections of a narrative analysis report. Your writing will be interspersed between charts, tables, and data visualisations — you are providing the interpretive commentary that makes the data meaningful.
-
-Your audience may not have read the work. Introduce entities, settings, and key moments naturally as you reference them. A reader should be able to understand the work's structure and quality from your analysis alone.
-
-STYLE:
-- Match the analytic register to the work being analysed. For fiction: a critical-editorial voice. For research or essay: a reviewer's voice. For memoir or reportage: a reader's voice. In all cases: specific, grounded, short paragraphs (2-4 sentences).
-- Ground every observation in specific scenes, entities, or moments by name.
-- Focus on the three forces: Fate (thread resolutions / argument resolutions), World (entity transformation), and System (rule/mechanism deepening). Also discuss Activity (the composite pacing curve that tracks when the three forces are moving together).
-- Do not treat Tension as a metric; it is derived and not a primary force.
-- No markdown, no bullet points, no headers. Flowing prose.
-- Use the present tense when describing what the work does.`;
+export const REPORT_SYSTEM = `You are writing the prose sections of a narrative analysis report. Your writing will be interspersed between charts, tables, and data visualisations — you are providing the interpretive commentary that makes the data meaningful. Your audience may not have read the work; introduce entities, settings, and key moments naturally as you reference them. Follow the style rules and section schema supplied in the user prompt.`;
 
 /**
  * Section keys the LLM is expected to return. Kept alongside REPORT_ANALYSIS_PROMPT
@@ -47,11 +37,24 @@ export type ReportSectionKey = typeof REPORT_SECTIONS[number];
  * User prompt for report generation. Takes a pre-built context block.
  */
 export function REPORT_ANALYSIS_PROMPT(context: string): string {
-  return `Write the prose commentary for a narrative analysis report. Each section will sit between data visualisations, so keep them concise — the charts do the heavy lifting, your words provide interpretation and story context.
-
+  return `<inputs>
 ${context}
+</inputs>
 
-Return a JSON object with these keys. Follow the length guidance exactly — these sit between visual elements and must not overwhelm them:
+<task>Write the prose commentary for a narrative analysis report. Each section will sit between data visualisations, so keep them concise — the charts do the heavy lifting, your words provide interpretation and story context.</task>
+
+<style>
+  <rule>Match the analytic register to the work being analysed. Fiction → critical-editorial voice. Research / essay → reviewer's voice. Memoir / reportage → reader's voice.</rule>
+  <rule>Specific, grounded, short paragraphs (2-4 sentences).</rule>
+  <rule>Ground every observation in specific scenes, entities, or moments by name.</rule>
+  <rule>Focus on the three forces: Fate (thread resolutions / argument resolutions), World (entity transformation), and System (rule/mechanism deepening). Also discuss Activity (the composite pacing curve that tracks when the three forces are moving together).</rule>
+  <rule>Do not treat Tension as a metric; it is derived and not a primary force.</rule>
+  <rule>No markdown, no bullet points, no headers. Flowing prose.</rule>
+  <rule>Use the present tense when describing what the work does.</rule>
+</style>
+
+<output-format hint="Follow the length guidance exactly — these sit between visual elements and must not overwhelm them.">
+Return a JSON object with these keys:
 
 {
   "story_intro": "2-3 sentences introducing the story's premise, world, and central characters to someone who hasn't read it. Set the stage — what kind of story is this, what world does it inhabit, who are we following?",
@@ -68,5 +71,6 @@ Return a JSON object with these keys. Follow the length guidance exactly — the
   "arcs": "1-2 short paragraphs. How does quality evolve across arcs? Name specific arcs and what makes them strong or weak. Does the story improve, plateau, or decline?",
   "propositions": "1-2 short paragraphs. What does the proposition classification reveal about structural craft? Comment on anchor ratio (20-30% = strong), whether seeds convert to closes, and how the local/global balance shifts across arcs. A high foundation count means the thematic spine is strong. High ending count in later arcs means distant setups are paying off. Use the named labels (anchor/foundation, seed/foreshadow, close/ending, texture/atmosphere). Name specific structural patterns.",
   "closing": "2-3 sentences. What does this story do best, and what's the single most impactful change that would improve it? End on a forward-looking note."
-}`;
+}
+</output-format>`;
 }

@@ -71,40 +71,11 @@ ${args.worldSummary || "(no recorded setting)"}
 Speak with the focused awareness of an instrument — your function, your history, the meaning you carry for those who hold you.`;
 }
 
-/** System prompt for the proposal generator: produces ONE tailored survey
- *  question for the current narrative continuity. */
-export const SURVEY_GEN_SYSTEM = `You are a research assistant helping a long-form fiction author probe their world through ONE sharp survey question at a time. You will read the full narrative continuity and propose a SINGLE question the author should pose to every character / location / artifact in the world.
-
-A strong question:
-- Probes something not already explicit — knowledge asymmetries, divergent beliefs, hidden tensions, predictions, perceptions of trust / power / threat / loyalty.
-- Is answerable IN CHARACTER. The respondent will answer privately from their world graph. No meta-narrative, no fourth-wall breaks.
-- Generates SIGNAL. Questions every respondent would answer the same way are useless; questions that split the cast are gold.
-- Picks the right TYPE for the shape of insight you want:
-    binary    — clean split
-    likert    — graduated stance (use 5-point unless the question genuinely needs 3 or 7)
-    estimate  — numeric guess; reveals knowledge asymmetries
-    choice    — forced rank among named alternatives
-    open      — only when the value is the individual voice, not the aggregate
-
-ASYMMETRY IS YOUR WEAPON. "Estimate the protagonist's age" reveals who has met them. "Do you trust the merchant?" reveals who has been burned. "Rank these three threats" reveals priorities.
-
-ALSO CHOOSE A SCOPE — who the question should be asked of. A well-scoped question reveals more than a carelessly-broad one: "do you trust the high priest?" makes sense across all characters; "how many li is it to the capital?" makes sense only to characters who might know; "have we been visited by a dragon here?" makes sense across locations, not characters.
-
-Pick the narrowest scope that still generates useful variance. Do NOT ask locations or artifacts when the question only makes sense to people. Do NOT ask transient characters about matters only anchors would know.
-
-OUTPUT FORMAT — JSON only, no preamble, EXACTLY ONE proposal:
-{
-  "question": "<question, addressed to the respondent in second person>",
-  "questionType": "binary" | "likert" | "estimate" | "choice" | "open",
-  "config": { "scale": 3|5|7 } | { "unit": "<short word>" } | { "options": ["A","B","C"] } | null,
-  "intent": "<one short sentence: what the author would learn>",
-  "suggestedFilter": {
-    "kinds": ["character"] | ["location"] | ["artifact"] | any combination,
-    "characterRoles": ["anchor", "recurring", "transient"],    // omit to include all
-    "locationProminence": ["domain", "place", "margin"],       // omit to include all
-    "artifactSignificance": ["key", "notable", "minor"]        // omit to include all
-  }
-}`;
+/** System prompt for the proposal generator. High-level identity only —
+ *  question-shape rules, scope rules, and output format live in the user
+ *  prompt. */
+export const SURVEY_GEN_SYSTEM =
+  `You are a research assistant helping a long-form fiction author probe their world through ONE sharp survey question at a time. You will read the full narrative continuity and propose a SINGLE question the author should pose to every character / location / artifact in the world. Follow the question-shape rules, question types, scope guidance, and output format supplied in the user prompt. Return ONLY the JSON requested.`;
 
 /** Build the user prompt for the proposal generator. The optional category
  *  tilts the question toward a specific lens; "General" picks the
@@ -114,11 +85,6 @@ export function buildSurveyProposalUserPrompt(args: {
   category?: string;
 }): string {
   const trimmed = args.category?.trim();
-  const lens = !trimmed
-    ? ""
-    : trimmed === "General"
-    ? `\n\nLENS: General — pick the single most illuminating question for THIS world, no predetermined angle. Favour foundational probes (who the cast is, what this world actually is, what matters most here) and asymmetries between what's on the page and what the entities silently carry.`
-    : `\n\nLENS: probe the world through the lens of "${trimmed}". The single question you propose should illuminate this dimension across the cast.`;
 
   return `<inputs>
   <narrative-continuity>
@@ -126,10 +92,47 @@ ${args.narrativeContext}
   </narrative-continuity>${trimmed ? `\n  <lens hint="Tilt the question toward this dimension across the cast.">${trimmed === 'General' ? 'General — pick the single most illuminating question for THIS world, no predetermined angle. Favour foundational probes (who the cast is, what this world actually is, what matters most here) and asymmetries between what is on the page and what the entities silently carry.' : `Probe the world through the lens of "${trimmed}". The single question you propose should illuminate this dimension across the cast.`}</lens>` : ''}
 </inputs>
 
+<question-shape hint="What makes a strong question.">
+  <criterion>Probes something not already explicit — knowledge asymmetries, divergent beliefs, hidden tensions, predictions, perceptions of trust / power / threat / loyalty.</criterion>
+  <criterion>Is answerable IN CHARACTER. The respondent will answer privately from their world graph. No meta-narrative, no fourth-wall breaks.</criterion>
+  <criterion name="signal">Questions every respondent would answer the same way are useless; questions that split the cast are gold.</criterion>
+  <principle name="asymmetry-is-your-weapon">"Estimate the protagonist's age" reveals who has met them. "Do you trust the merchant?" reveals who has been burned. "Rank these three threats" reveals priorities.</principle>
+</question-shape>
+
+<question-types hint="Pick the right TYPE for the shape of insight wanted.">
+  <type name="binary">Clean split.</type>
+  <type name="likert">Graduated stance (use 5-point unless the question genuinely needs 3 or 7).</type>
+  <type name="estimate">Numeric guess; reveals knowledge asymmetries.</type>
+  <type name="choice">Forced rank among named alternatives.</type>
+  <type name="open">Only when the value is the individual voice, not the aggregate.</type>
+</question-types>
+
+<scope hint="Who the question should be asked of. A well-scoped question reveals more than a carelessly-broad one.">
+  <example>"Do you trust the high priest?" — makes sense across all characters.</example>
+  <example>"How many li is it to the capital?" — makes sense only to characters who might know.</example>
+  <example>"Have we been visited by a dragon here?" — makes sense across locations, not characters.</example>
+  <rule>Pick the narrowest scope that still generates useful variance. Do NOT ask locations or artifacts when the question only makes sense to people. Do NOT ask transient characters about matters only anchors would know.</rule>
+</scope>
+
 <instructions>
   <step>Propose ONE survey question tailored to THIS world and cast.</step>
   <step>Pick the question that would teach the author the MOST about their world — favour asymmetry-rich probes that split the cast.</step>
-</instructions>`;
+</instructions>
+
+<output-format hint="JSON only, no preamble, EXACTLY ONE proposal.">
+{
+  "question": "<question, addressed to the respondent in second person>",
+  "questionType": "binary" | "likert" | "estimate" | "choice" | "open",
+  "config": { "scale": 3|5|7 } | { "unit": "<short word>" } | { "options": ["A","B","C"] } | null,
+  "intent": "<one short sentence: what the author would learn>",
+  "suggestedFilter": {
+    "kinds": ["character"] | ["location"] | ["artifact"] | any combination,
+    "characterRoles": ["anchor", "recurring", "transient"],
+    "locationProminence": ["domain", "place", "margin"],
+    "artifactSignificance": ["key", "notable", "minor"]
+  }
+}
+</output-format>`;
 }
 
 /** Build the user prompt that asks the persona for an in-character JSON answer. */

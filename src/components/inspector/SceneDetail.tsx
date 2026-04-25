@@ -826,31 +826,36 @@ export default function SceneDetail({ sceneId }: Props) {
           </h3>
           {scene.threadDeltas.map((tm, tmIdx) => {
             const thread = narrative.threads[tm.threadId];
+            const updatesText = (tm.updates ?? [])
+              .map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`)
+              .join(' ');
             return (
               <div
                 key={`${tm.threadId}-${tmIdx}`}
-                className="flex items-center gap-1.5 text-xs"
+                className="flex flex-col gap-0.5 text-xs min-w-0"
               >
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: "SET_INSPECTOR",
-                      context: { type: "thread", threadId: tm.threadId },
-                    })
-                  }
-                  className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12 shrink-0"
-                >
-                  {tm.threadId}
-                </button>
-                {thread && (
-                  <span className="text-text-dim text-[10px] truncate max-w-25">
-                    {thread.description}
-                  </span>
-                )}
-                <span className="text-text-dim ml-auto shrink-0">
-                  [{tm.logType}] {(tm.updates ?? []).map((u) => `${u.outcome}${u.evidence >= 0 ? '+' : ''}${u.evidence}`).join(' ')}
-                </span>
+                <div className="flex items-start gap-1.5 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      dispatch({
+                        type: "SET_INSPECTOR",
+                        context: { type: "thread", threadId: tm.threadId },
+                      })
+                    }
+                    className="rounded bg-white/6 px-1.5 py-0.5 font-mono text-[10px] text-text-primary transition-colors hover:bg-white/12 shrink-0"
+                  >
+                    {tm.threadId}
+                  </button>
+                  {thread && (
+                    <span className="text-text-dim text-[10px] break-words min-w-0">
+                      {thread.description}
+                    </span>
+                  )}
+                </div>
+                <div className="text-text-dim text-[10px] break-words min-w-0">
+                  [{tm.logType}] {updatesText}
+                </div>
               </div>
             );
           })}

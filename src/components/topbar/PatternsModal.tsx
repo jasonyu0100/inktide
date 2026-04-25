@@ -228,7 +228,7 @@ export function PatternsModal({ onClose }: Props) {
   if (!narrative) return null;
 
   return (
-    <Modal onClose={detecting ? () => {} : onClose} size="lg" maxHeight="85vh">
+    <Modal onClose={detecting ? () => {} : onClose} size="2xl" maxHeight="85vh">
       <ModalHeader onClose={onClose} hideClose={detecting}>
         <div className="flex items-center gap-3">
           <div>
@@ -262,42 +262,45 @@ export function PatternsModal({ onClose }: Props) {
         )}
 
         {/* Genre / Subgenre */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-[10px] uppercase tracking-widest text-text-dim">Genre</label>
-            <input
-              value={genre}
-              onChange={(e) => setGenre(e.target.value)}
-              placeholder="e.g., Fantasy, Sci-Fi, Romance"
-              className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 transition-colors"
-            />
+        <div className="border border-white/10 rounded-lg bg-bg-elevated/40 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[10px] uppercase tracking-widest text-text-dim">Detected Classification</span>
+            {(genre || subgenre) && (
+              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                {genre && (
+                  <span className="px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-medium">
+                    {genre}
+                  </span>
+                )}
+                {subgenre && (
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-medium">
+                    {subgenre}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] uppercase tracking-widest text-text-dim">Subgenre</label>
-            <input
-              value={subgenre}
-              onChange={(e) => setSubgenre(e.target.value)}
-              placeholder="e.g., Progression Fantasy, Space Opera"
-              className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 transition-colors"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-widest text-text-dim">Genre</label>
+              <input
+                value={genre}
+                onChange={(e) => setGenre(e.target.value)}
+                placeholder="e.g., Fantasy, Sci-Fi, Romance"
+                className="w-full bg-bg-base border border-white/10 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 transition-colors"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-widest text-text-dim">Subgenre</label>
+              <input
+                value={subgenre}
+                onChange={(e) => setSubgenre(e.target.value)}
+                placeholder="e.g., Progression Fantasy, Space Opera"
+                className="w-full bg-bg-base border border-white/10 rounded-lg px-3 py-2 text-[12px] text-text-primary placeholder:text-text-dim/40 outline-none focus:border-white/20 transition-colors"
+              />
+            </div>
           </div>
         </div>
-
-        {/* Genre badges */}
-        {(genre || subgenre) && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {genre && (
-              <span className="px-2 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-medium">
-                {genre}
-              </span>
-            )}
-            {subgenre && (
-              <span className="px-2 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-medium">
-                {subgenre}
-              </span>
-            )}
-          </div>
-        )}
 
         <div className="border-t border-white/5" />
 

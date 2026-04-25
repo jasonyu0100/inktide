@@ -2371,6 +2371,12 @@ Return JSON:
     ) {
       planGuidance = metaParsed.planGuidance.trim();
     }
+    if (typeof metaParsed.genre === "string" && metaParsed.genre.trim()) {
+      genre = metaParsed.genre.trim();
+    }
+    if (typeof metaParsed.subgenre === "string" && metaParsed.subgenre.trim()) {
+      subgenre = metaParsed.subgenre.trim();
+    }
     if (Array.isArray(metaParsed.patterns)) {
       patterns = metaParsed.patterns.filter((p: unknown) => typeof p === "string");
     }
@@ -2409,6 +2415,8 @@ Return JSON:
     storySettings: planGuidance
       ? { ...DEFAULT_STORY_SETTINGS, planGuidance }
       : undefined,
+    genre,
+    subgenre,
     patterns: patterns.length > 0 ? patterns : undefined,
     antiPatterns: antiPatterns.length > 0 ? antiPatterns : undefined,
     createdAt: Date.now() - 86400000,

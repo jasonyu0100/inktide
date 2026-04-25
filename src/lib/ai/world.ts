@@ -1384,6 +1384,11 @@ Examples of stagnation-preventing anti-patterns:
 - "No character should solve problems the same way twice in a row"
 - "Avoid recycling tension patterns — if betrayal drove the last arc, it cannot drive this one"
 
+CRITICAL OUTPUT RULES:
+- "detectedGenre" and "detectedSubgenre" MUST be populated as their own top-level fields.
+- DO NOT prefix any pattern or anti-pattern with "Genre:" or "Subgenre:" — those belong only in the dedicated fields.
+- Each pattern/anti-pattern must be a concrete commandment, not a genre label.
+
 Return JSON:
 {
   "detectedGenre": "primary genre",
@@ -1428,10 +1433,41 @@ Return JSON:
     patterns?: unknown;
     antiPatterns?: unknown;
   };
+
+  let detectedGenre = typeof parsed.detectedGenre === 'string' ? parsed.detectedGenre.trim() : '';
+  let detectedSubgenre = typeof parsed.detectedSubgenre === 'string' ? parsed.detectedSubgenre.trim() : '';
+
+  const stripGenreLeak = (items: string[]): string[] => {
+    const cleaned: string[] = [];
+    for (const item of items) {
+      const genreMatch = item.match(/Genre:\s*([^.\n]+?)(?:\.|$)/i);
+      const subgenreMatch = item.match(/Subgenre:\s*([^.\n]+?)(?:\.|$)/i);
+      if (genreMatch || subgenreMatch) {
+        if (!detectedGenre && genreMatch) detectedGenre = genreMatch[1].trim();
+        if (!detectedSubgenre && subgenreMatch) detectedSubgenre = subgenreMatch[1].trim();
+        const stripped = item
+          .replace(/Genre:\s*[^.\n]+?(?:\.|$)/i, '')
+          .replace(/Subgenre:\s*[^.\n]+?(?:\.|$)/i, '')
+          .trim();
+        if (stripped.length > 10) cleaned.push(stripped);
+        continue;
+      }
+      cleaned.push(item);
+    }
+    return cleaned;
+  };
+
+  const rawPatterns = Array.isArray(parsed.patterns)
+    ? parsed.patterns.filter((p: unknown): p is string => typeof p === 'string')
+    : [];
+  const rawAntiPatterns = Array.isArray(parsed.antiPatterns)
+    ? parsed.antiPatterns.filter((p: unknown): p is string => typeof p === 'string')
+    : [];
+
   return {
-    detectedGenre: typeof parsed.detectedGenre === 'string' ? parsed.detectedGenre : 'Unknown',
-    detectedSubgenre: typeof parsed.detectedSubgenre === 'string' ? parsed.detectedSubgenre : 'Unknown',
-    patterns: Array.isArray(parsed.patterns) ? parsed.patterns.filter((p: unknown) => typeof p === 'string') : [],
-    antiPatterns: Array.isArray(parsed.antiPatterns) ? parsed.antiPatterns.filter((p: unknown) => typeof p === 'string') : [],
+    detectedGenre: detectedGenre || 'Unknown',
+    detectedSubgenre: detectedSubgenre || 'Unknown',
+    patterns: stripGenreLeak(rawPatterns),
+    antiPatterns: stripGenreLeak(rawAntiPatterns),
   };
 }

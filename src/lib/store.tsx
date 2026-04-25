@@ -1933,46 +1933,25 @@ function reducer(state: AppState, action: Action): AppState {
     case "EXPAND_WORLD": {
       const worldBuildId = action.worldBuildId;
 
-      // Build summary from expansion contents
-      const charNames = action.characters.map((c) => c.name);
-      const locNames = action.locations.map((l) => l.name);
-      const threadDescs = action.threads.map((t) => t.description);
-      const parts: string[] = [];
+      // Build summary from expansion contents — terse counts only
+      const charCount = action.characters.length;
+      const locCount = action.locations.length;
+      const threadCount = action.threads.length;
+      const artifactCount = action.artifacts.length;
+      const relCount = action.relationshipDeltas?.length ?? 0;
       const wkNodeCount = action.systemDeltas?.addedNodes?.length ?? 0;
       const wkEdgeCount = action.systemDeltas?.addedEdges?.length ?? 0;
-      if (charNames.length > 0)
-        parts.push(
-          `${charNames.length} character${charNames.length > 1 ? "s" : ""} (${charNames.join(", ")})`,
-        );
-      if (locNames.length > 0)
-        parts.push(
-          `${locNames.length} location${locNames.length > 1 ? "s" : ""} (${locNames.join(", ")})`,
-        );
-      if (threadDescs.length > 0)
-        parts.push(
-          `${threadDescs.length} thread${threadDescs.length > 1 ? "s" : ""}`,
-        );
-      const artifactNames = action.artifacts.map((a) => a.name);
-      const relDeltaCount = action.relationshipDeltas?.length ?? 0;
-      if (relDeltaCount > 0)
-        parts.push(
-          `${relDeltaCount} relationship${relDeltaCount > 1 ? "s" : ""}`,
-        );
-      if (artifactNames.length > 0)
-        parts.push(
-          `${artifactNames.length} artifact${artifactNames.length > 1 ? "s" : ""} (${artifactNames.join(", ")})`,
-        );
-      if (wkNodeCount > 0)
-        parts.push(
-          `${wkNodeCount} knowledge node${wkNodeCount > 1 ? "s" : ""} (${action.systemDeltas!.addedNodes.map((n) => n.concept).join(", ")})`,
-        );
-      if (wkEdgeCount > 0)
-        parts.push(
-          `${wkEdgeCount} knowledge edge${wkEdgeCount > 1 ? "s" : ""}`,
-        );
+      const parts: string[] = [];
+      if (charCount > 0) parts.push(`${charCount} character${charCount > 1 ? "s" : ""}`);
+      if (locCount > 0) parts.push(`${locCount} location${locCount > 1 ? "s" : ""}`);
+      if (threadCount > 0) parts.push(`${threadCount} thread${threadCount > 1 ? "s" : ""}`);
+      if (artifactCount > 0) parts.push(`${artifactCount} artifact${artifactCount > 1 ? "s" : ""}`);
+      if (relCount > 0) parts.push(`${relCount} relationship${relCount > 1 ? "s" : ""}`);
+      if (wkNodeCount > 0) parts.push(`${wkNodeCount} knowledge node${wkNodeCount > 1 ? "s" : ""}`);
+      if (wkEdgeCount > 0) parts.push(`${wkEdgeCount} knowledge edge${wkEdgeCount > 1 ? "s" : ""}`);
       const worldBuildSummary =
         parts.length > 0
-          ? `World expanded: added ${parts.join(", ")}`
+          ? `World expanded: ${parts.join(", ")}`
           : "World expansion (no new elements)";
 
       // Build manifest systemGraph: explicit deltas + auto-generated nodes for threads/locations

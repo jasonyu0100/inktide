@@ -168,11 +168,11 @@ Return a JSON object with RICH, DIVERSE nodes.
     // SYSTEM NODES — reuse existing SYS-XX where possible.
     {"id": "sys-gu-feeding-rules", "index": 7, "type": "system", "label": "Gu feeding rules require specific resources", "systemNodeId": "actual-SYS-id-from-narrative", "arcSlot": 1},
     {"id": "sys-clan-hierarchy-blocks", "index": 8, "type": "system", "label": "Clan hierarchy prevents direct challenge", "systemNodeId": "actual-SYS-id-from-narrative", "arcSlot": 3},
-    // REASONING NODES — the backbone; use extensively.
-    {"id": "reason-resolution-needs-inheritance", "index": 9, "type": "reasoning", "label": "Resolution requires securing the inheritance first", "detail": "Backward induction step", "arcSlot": 2},
-    {"id": "reason-inheritance-needs-knowledge", "index": 11, "type": "reasoning", "label": "Inheritance access requires Fang Yuan's knowledge", "arcSlot": 1},
-    {"id": "reason-feeding-constrains-timing", "index": 12, "type": "reasoning", "label": "Gu feeding rules constrain the timing", "arcSlot": 1},
-    {"id": "reason-glacier-enables-private", "index": 13, "type": "reasoning", "label": "Glacier setting enables private confrontation", "arcSlot": 2},
+    // REASONING NODES — the backbone; each detail = the inference's own causal logic, not graph attribution.
+    {"id": "reason-resolution-needs-inheritance", "index": 9, "type": "reasoning", "label": "Resolution requires securing the inheritance first", "detail": "The Glacier confrontation can only land its peak if the protagonist arrives with the inheritance already in hand — without it the rival's leverage holds and the confrontation collapses into another deferral. The inheritance is the only asset that flips the power balance at the table. Hands off to the valley arc where the inheritance is actually secured.", "arcSlot": 2},
+    {"id": "reason-inheritance-needs-knowledge", "index": 11, "type": "reasoning", "label": "Inheritance access requires Fang Yuan's knowledge", "detail": "The inheritance is sealed behind a verification rite only the original line can pass; Fang Yuan's accumulated knowledge from the previous life is the only key any living character holds. Without him the valley arc has no opening move. Hands off to the timing constraint imposed by Gu feeding rules.", "arcSlot": 1},
+    {"id": "reason-feeding-constrains-timing", "index": 12, "type": "reasoning", "label": "Gu feeding rules constrain the timing", "detail": "Fang Yuan's primary Gu must be fed within a fixed window or its capabilities collapse — that window expires before the natural opportunity to attempt the inheritance. The arc must therefore force the attempt earlier than is comfortable, putting him under pressure he can't bargain away. Hands off to the location choice that buys him cover.", "arcSlot": 1},
+    {"id": "reason-glacier-enables-private", "index": 13, "type": "reasoning", "label": "Glacier setting enables private confrontation", "detail": "The Glacier is the only location no clan elder will witness in person — the cold and altitude keep observers off, leaving only the rival faction. That isolation is what makes a peak-grade confrontation possible without it spiralling into a clan-level incident. Hands off to the confrontation peak.", "arcSlot": 2},
     // PATTERN NODES — emergent shapes / second-order effects.
     {"id": "pattern-rivals-share-enemy", "index": 14, "type": "pattern", "label": "Two rivals discover shared enemy", "detail": "Emergent property when these elements interact"},
     {"id": "pattern-victory-hides-cost", "index": 15, "type": "pattern", "label": "Recent victory hides a hidden cost"},
@@ -220,7 +220,7 @@ Return a JSON object with RICH, DIVERSE nodes.
   </entity-nodes>
 
   <reasoning-nodes>
-    <type name="reasoning">Logical step in backward induction. Has arcSlot. Label = inference. Detail = WHY this follows.</type>
+    <type name="reasoning">Logical step in backward induction. Has arcSlot. Label = inference (3-8 words). Detail = REQUIRED, 1-3 sentences: the causal logic of the inference itself — given the prereqs (entities, rules, prior reasoning visible to this arcSlot), why does this step follow, and what does it make possible for the next? Do NOT use detail to attribute graph position ("backward induction step", "step in the chain"). Walking the plan's reasoning nodes by index should read as a coherent argumentative chain — each detail picks up where the previous left off.</type>
   </reasoning-nodes>
 
   <creative-agent-nodes>

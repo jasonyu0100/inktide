@@ -7,6 +7,12 @@ import { sceneContext, buildProseProfile } from './context';
 import { resolveProfile } from '@/lib/beat-profiles';
 import { logInfo } from '@/lib/system-logger';
 import { FORMAT_INSTRUCTIONS } from '@/lib/prompts';
+import {
+  buildRewriteSystemPrompt,
+  buildRewriteUserPrompt,
+  buildRewriteChangelogPrompt,
+  REWRITE_CHANGELOG_SYSTEM,
+} from '@/lib/prompts/prose/rewrite';
 
 // Re-export from centralised prompt repository so existing importers keep working.
 export { FORMAT_INSTRUCTIONS };
@@ -140,48 +146,27 @@ export async function rewriteSceneProse(
     ? `\n\n${buildProseProfile(proseProfile)}`
     : '';
 
-  const systemPrompt = `<role>${formatInstructions.systemRole}</role>
-<task>Rewrite scene prose based on the provided analysis.</task>
-${hasVoiceOverride
-    ? `<author-voice hint="PRIMARY creative direction — all style defaults below are subordinate to this voice.">
-${narrative.storySettings!.proseVoice!.trim()}
-</author-voice>`
-    : ''}${profileSection ? `\n<prose-profile>${profileSection}\n</prose-profile>` : ''}
-
-<format-rules>
-${formatInstructions.formatRules}
-</format-rules>
-
-<world-tone hint="Match the tone and genre of the world.">${narrative.worldSummary.slice(0, 200)}</world-tone>${onToken ? '' : '\n\n<output-format>Return ONLY valid JSON — no markdown, no commentary.</output-format>'}`;
+  const systemPrompt = buildRewriteSystemPrompt({
+    formatSystemRole: formatInstructions.systemRole,
+    formatRules: formatInstructions.formatRules,
+    hasVoiceOverride,
+    voiceOverride: hasVoiceOverride ? narrative.storySettings!.proseVoice!.trim() : undefined,
+    profileSection,
+    worldSummary: narrative.worldSummary,
+    streaming: !!onToken,
+  });
 
   const neighborBlock = neighborContext
     || `${prevEnding ? `<previous-scene-ending>"...${prevEnding}"</previous-scene-ending>\n` : ''}${nextOpening ? `<next-scene-opening>"${nextOpening}..."</next-scene-opening>\n` : ''}`;
 
-  const prompt = `<inputs>
-  <scene>
-${sceneBlock}
-  </scene>
-${neighborBlock ? `  ${neighborBlock.replace(/\n/g, '\n  ')}` : ''}
-  <current-prose>
-${currentProse}
-  </current-prose>
-  <analysis hint="Critique to address — every point describes a specific change that MUST be implemented, not merely acknowledged cosmetically.">
-${analysis}
-  </analysis>
-</inputs>
-
-<instructions>
-  <step name="address-every-point">Rewrite the prose to FULLY ADDRESS every point in the analysis. The rewrite is not a polish pass — it is a structural edit guided by the analysis.
-    <example>If the analysis says a character should leave, they must leave in the prose.</example>
-    <example>If it says an event should be removed, remove it entirely.</example>
-    <example>If it says a detail should be added, add it concretely.</example>
-  </step>
-  <step name="preserve-rest">Preserve narrative deliveries, events, and plot points that the analysis does NOT ask you to change. Let the scene be as long or short as its content demands — say more in fewer words rather than padding to reach a length.</step>${hasExpandedContext ? '\n  <step name="cross-scene-continuity">You have been given the FULL PROSE of neighboring scenes. Use this to ensure continuity — character state, spatial positions, injuries, emotional beats, and knowledge must flow consistently across scene boundaries. Do not repeat beats that already occurred in preceding scenes, and set up what following scenes expect.</step>' : ''}
-</instructions>
-
-<output-format>
-${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, no commentary. Start with the first word of the scene.' : 'Return JSON: { "prose": "the full rewritten prose text" }'}
-</output-format>`;
+  const prompt = buildRewriteUserPrompt({
+    sceneBlock,
+    neighborBlock,
+    currentProse,
+    analysis,
+    hasExpandedContext,
+    streaming: !!onToken,
+  });
 
   const reasoningBudget = REASONING_BUDGETS[narrative.storySettings?.reasoningLevel ?? 'low'] || undefined;
   let prose: string;
@@ -198,19 +183,8 @@ ${onToken ? 'Write the full rewritten prose directly — no JSON, no markdown, n
   // Generate changelog in a separate cheap call — diffing old vs new
   let changelog = '';
   const changelogRaw = await callGenerate(
-    `<inputs>
-  <analysis-addressed>${analysis.slice(0, 500)}</analysis-addressed>
-</inputs>
-
-<instructions>
-  <step>Summarize the key changes in 3-5 bullet points. Each bullet: one sentence, plain description, no quotes. Focus on structural changes.</step>
-</instructions>
-
-<output-format>
-Return JSON with changelog as a SINGLE STRING with bullet points separated by newlines:
-{"changelog": "• Change one\\n• Change two\\n• Change three"}
-</output-format>`,
-    '<role>Literary editor.</role>\n<output-format>Return ONLY valid JSON with changelog as a string.</output-format>',
+    buildRewriteChangelogPrompt({ analysis }),
+    REWRITE_CHANGELOG_SYSTEM,
     800,
     'rewriteChangelog',
     ANALYSIS_MODEL,

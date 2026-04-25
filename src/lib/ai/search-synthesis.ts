@@ -11,6 +11,7 @@
 import { callGenerateStream } from './api';
 import { ANALYSIS_MODEL } from '../constants';
 import { logInfo, logError } from '../system-logger';
+import { buildSearchSynthesisPrompt, SEARCH_SYNTHESIS_SYSTEM } from '@/lib/prompts/search';
 import type { NarrativeState, SearchResult, SearchSynthesis } from '@/types/narrative';
 
 type AggregateScene = {
@@ -165,29 +166,20 @@ export async function synthesizeSearchResults(
     },
   });
 
-  const prompt = `${context}
-
-You are a narrative analysis assistant. The user has searched for: "${query}"
-
-**Retrieval architecture:** proposition-primary. The top ${propositionResults.length} propositions above are the primary evidence. The "aggregate scene membership" section shows the ${aggregateScenes.length} scene${aggregateScenes.length === 1 ? '' : 's'} those propositions come from — use them to locate propositions in narrative context. The "scene summaries" section (${sceneResults.length} entr${sceneResults.length === 1 ? 'y' : 'ies'}) is supplementary thematic context from direct summary matching.
-
-**Synthesis guidelines:**
-- Ground claims in propositions [1]–[${propositionResults.length}]. These are the specific, atomic facts.
-- Use aggregate scene summaries to place propositions — "this claim emerges in the scene where X happens" — without necessarily citing the scene separately.
-- Use direct scene-summary citations (numbered after the propositions) only when the thematic framing they provide isn't already captured by the propositions.
-- Cite the strongest matches with inline citations like [1], [3]; don't cite every result.
-- Write 2-3 paragraphs, Google AI Overview style: plain text, clear, informative.
-- Note timeline patterns where applicable; mention which arcs and scenes carry the weight.
-- If propositions cluster in a few scenes, say so (the content is localized). If they spread across many, say so (the pattern is thematic).
-
-Write your response as plain text with inline citations.`;
+  const prompt = buildSearchSynthesisPrompt({
+    context,
+    query,
+    propositionCount: propositionResults.length,
+    aggregateSceneCount: aggregateScenes.length,
+    directSceneCount: sceneResults.length,
+  });
 
   let accumulatedText = '';
 
   try {
     await callGenerateStream(
       prompt,
-      'You are a narrative analysis assistant. Provide concise, accurate synthesis of search results with inline citations.',
+      SEARCH_SYNTHESIS_SYSTEM,
       (token) => {
         accumulatedText += token;
         if (onToken) onToken(token);

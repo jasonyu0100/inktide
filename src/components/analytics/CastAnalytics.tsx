@@ -5,11 +5,10 @@ import { useStore } from '@/lib/store';
 import { resolveEntityName } from '@/lib/narrative-utils';
 import { resolveEntry, isScene } from '@/types/narrative';
 import type { Scene } from '@/types/narrative';
-import { computeWorldMetrics, type WorldMetrics } from '@/lib/ai';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/Modal';
 
 type Props = { onClose: () => void };
-type View = 'cast' | 'locations' | 'tools' | 'metrics';
+type View = 'cast' | 'locations' | 'tools';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,17 +69,6 @@ const ROLE_COLORS: Record<string, string> = {
   recurring: '#3b82f6',
   transient: '#6b7280',
 };
-
-// ── Metric card ──────────────────────────────────────────────────────────────
-
-function MetricCard({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
-  return (
-    <div className={`rounded-lg border p-2.5 ${warn ? 'border-amber-500/20 bg-amber-500/5' : 'border-white/6 bg-white/2'}`}>
-      <div className={`text-[12px] font-medium ${warn ? 'text-amber-400' : 'text-text-primary'}`}>{value}</div>
-      <div className="text-[10px] text-text-dim">{label}</div>
-    </div>
-  );
-}
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -260,13 +248,6 @@ export function CastAnalytics({ onClose }: Props) {
       .filter((s): s is ArtifactStat => s !== null);
   }, [narrative, allScenes]);
 
-  // ── World metrics ──────────────────────────────────────────────────
-
-  const worldMetrics = useMemo((): WorldMetrics | null => {
-    if (!narrative || allScenes.length === 0) return null;
-    return computeWorldMetrics(narrative, state.resolvedEntryKeys);
-  }, [narrative, allScenes, state.resolvedEntryKeys]);
-
   // ── Sorting ──────────────────────────────────────────────────────────
 
   const sortedChars = useMemo(() => {
@@ -360,16 +341,13 @@ export function CastAnalytics({ onClose }: Props) {
         {/* View tabs */}
         <div className="flex gap-1 bg-bg-elevated rounded-lg p-0.5 shrink-0">
           <button onClick={() => setView('cast')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'cast' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
-            Cast
+            Characters
           </button>
           <button onClick={() => setView('locations')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'locations' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
             Locations
           </button>
           <button onClick={() => setView('tools')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'tools' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
-            Tools
-          </button>
-          <button onClick={() => setView('metrics')} className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${view === 'metrics' ? 'bg-white/10 text-text-primary font-semibold' : 'text-text-dim hover:text-text-secondary'}`}>
-            Expansion
+            Artifacts
           </button>
         </div>
 
@@ -508,56 +486,7 @@ export function CastAnalytics({ onClose }: Props) {
             );
           })}
 
-          {view === 'metrics' && worldMetrics && (
-            <div className="space-y-4">
-              {/* Recommendation */}
-              <div className={`rounded-lg border p-3.5 ${
-                worldMetrics.recommendation === 'depth' ? 'border-blue-500/20 bg-blue-500/5'
-                  : worldMetrics.recommendation === 'breadth' ? 'border-amber-500/20 bg-amber-500/5'
-                  : 'border-white/10 bg-white/3'
-              }`}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className={`text-[12px] font-semibold ${
-                    worldMetrics.recommendation === 'depth' ? 'text-blue-400'
-                      : worldMetrics.recommendation === 'breadth' ? 'text-amber-400'
-                      : 'text-text-primary'
-                  }`}>
-                    {worldMetrics.recommendation === 'depth' ? 'Deepen' : worldMetrics.recommendation === 'breadth' ? 'Widen' : 'Balanced'}
-                  </span>
-                  <span className="text-[10px] text-text-dim uppercase">recommended</span>
-                </div>
-                <p className="text-[11px] text-text-secondary leading-relaxed">{worldMetrics.reasoning}</p>
-              </div>
-
-              {/* Cast metrics */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Cast</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <MetricCard label="Used" value={`${worldMetrics.usedCharacters}/${worldMetrics.totalCharacters}`} />
-                  <MetricCard label="Avg scenes/char" value={worldMetrics.avgScenesPerCharacter.toFixed(1)} />
-                  <MetricCard label="Stale" value={String(worldMetrics.staleCharacters)} warn={worldMetrics.staleCharacters > worldMetrics.totalCharacters * 0.3} />
-                  <MetricCard label="Top char concentration" value={`${(worldMetrics.castConcentration * 100).toFixed(0)}%`} warn={worldMetrics.castConcentration > 0.6} />
-                  <MetricCard label="Knowledge density" value={`${worldMetrics.avgKnowledgePerCharacter.toFixed(1)} nodes/char`} warn={worldMetrics.avgKnowledgePerCharacter < 3} />
-                  <MetricCard label="Relationships" value={`${worldMetrics.relationshipsPerCharacter.toFixed(1)}/char`} warn={worldMetrics.relationshipsPerCharacter < 2} />
-                  <MetricCard label="Orphaned" value={String(worldMetrics.orphanedCharacters)} warn={worldMetrics.orphanedCharacters > 2} />
-                </div>
-              </div>
-
-              {/* Location metrics */}
-              <div>
-                <label className="text-[10px] text-text-dim uppercase tracking-wider block mb-2">Locations</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <MetricCard label="Used" value={`${worldMetrics.usedLocations}/${worldMetrics.totalLocations}`} />
-                  <MetricCard label="Top location concentration" value={`${(worldMetrics.locationConcentration * 100).toFixed(0)}%`} warn={worldMetrics.locationConcentration > 0.5} />
-                  <MetricCard label="Max depth" value={String(worldMetrics.locationDepth)} warn={worldMetrics.locationDepth <= 2 && worldMetrics.totalLocations > 3} />
-                  <MetricCard label="Stale" value={String(worldMetrics.staleLocations)} warn={worldMetrics.staleLocations > worldMetrics.totalLocations * 0.3} />
-                  <MetricCard label="Avg children/loc" value={worldMetrics.avgChildrenPerLocation.toFixed(1)} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {totalScenes === 0 && view !== 'metrics' && (
+          {totalScenes === 0 && (
             <p className="text-[11px] text-text-dim/50 italic py-8 text-center">No scenes yet — generate some to see usage analytics.</p>
           )}
         </div>

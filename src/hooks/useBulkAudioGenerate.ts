@@ -7,6 +7,7 @@ import { saveAudioBlob } from '@/lib/audio-store';
 import { apiHeaders } from '@/lib/api-headers';
 import { AUDIO_CONCURRENCY } from '@/lib/constants';
 import { resolveProseForBranch } from '@/lib/narrative-utils';
+import { filterKeysBySceneRange, type SceneRange } from '@/components/timeline/SceneRangeSelector';
 import { logError } from '@/lib/system-logger';
 
 type AudioProgress = {
@@ -137,17 +138,18 @@ export function useBulkAudioGenerate() {
     }, 1500);
   }, [dispatch, updateRunState]);
 
-  const start = useCallback(() => {
+  const start = useCallback((range: SceneRange = null) => {
     const { activeNarrative, resolvedEntryKeys, viewState } = stateRef.current;
     const { activeBranchId } = viewState;
     if (!activeNarrative || !activeBranchId) return;
 
     const branches = activeNarrative.branches;
+    const keysInRange = filterKeysBySceneRange(resolvedEntryKeys, activeNarrative, range);
 
     // Find every scene bulk audio will regenerate — any scene with prose.
     // Existing audio is overwritten so regeneration tracks the latest prose.
     const scenesToProcess: string[] = [];
-    for (const key of resolvedEntryKeys) {
+    for (const key of keysInRange) {
       const entry = resolveEntry(activeNarrative, key);
       if (!entry || !isScene(entry)) continue;
       const scene = entry as Scene;

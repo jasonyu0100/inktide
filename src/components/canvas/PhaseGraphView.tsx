@@ -58,7 +58,9 @@ function PhaseGraphEmptyState() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-20 gap-3">
       <p className="text-[11px] text-text-dim">No phase graph active.</p>
-      <p className="text-[10px] text-text-dim/40">Use the palette below to generate one.</p>
+      <p className="text-[10px] text-text-dim/40 max-w-md text-center">
+        A PRG describes the world&apos;s meta machinery — economic underpinnings, generic patterns, institutional pulls. Use the palette below to generate one and trickle that body into causal, plan, and prose generation.
+      </p>
     </div>
   );
 }

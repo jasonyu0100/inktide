@@ -10,7 +10,7 @@
  */
 
 import { useStore } from "@/lib/store";
-import type { PhaseNodeSnapshot, PhaseEdgeSnapshot, PhaseNodeType } from "@/types/narrative";
+import type { PhaseEdgeSnapshot, PhaseNodeType } from "@/types/narrative";
 import { PHASE_NODE_COLORS, REASONING_NODE_COLOR_UNKNOWN } from "@/lib/reasoning-node-colors";
 import { useMemo } from "react";
 
@@ -32,32 +32,32 @@ const EDGE_COLORS: Record<PhaseEdgeType, string> = {
 
 const TYPE_DESCRIPTIONS: Record<PhaseNodeType, { headline: string; stance: string }> = {
   pattern: {
-    headline: "A recurring configuration the story keeps falling into",
-    stance: "currently-active",
+    headline: "A genre / meta-narrative trope or structural shape the work runs on",
+    stance: "structural — trickles into per-arc reasoning",
   },
   convention: {
-    headline: "A procedural default — how the story behaves when the question lacks a sharper answer",
-    stance: "currently-followed",
+    headline: "A cultural / societal procedural default — how the world handles a class of situation",
+    stance: "structural — encodes how institutions behave",
   },
   attractor: {
-    headline: "A target the cast (or the system) is aimed at",
-    stance: "future-pointing",
+    headline: "Where the world's machinery structurally pulls — a long-arc destination implied by the underpinnings",
+    stance: "structural pull — gravity well",
   },
   agent: {
-    headline: "An entity with stance, actively driving the system in a direction",
-    stance: "currently-driving",
+    headline: "An institutional / factional / market driver — a structural agent the world contains",
+    stance: "structural — operates at faction / institution level, not individual",
   },
   rule: {
-    headline: "A foreground constraint actively binding choice",
-    stance: "currently-binding",
+    headline: "A foundational world-rule that shapes what's possible — magic, economic, structural",
+    stance: "structural — defines the machinery's edges",
   },
   pressure: {
-    headline: "Accumulated tension that has not yet discharged",
-    stance: "accumulating-toward-discharge",
+    headline: "A macro pressure — demographic, economic, political, cultural — accumulating in the world",
+    stance: "structural pressure — accumulates toward macro discharge",
   },
   landmark: {
-    headline: "A discharged past event whose influence still anchors the present",
-    stance: "past-but-anchoring",
+    headline: "A foundational past event whose machinery still defines the present",
+    stance: "structural anchor — the framework that descends from this still operates",
   },
 };
 

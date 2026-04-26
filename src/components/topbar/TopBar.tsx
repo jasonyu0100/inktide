@@ -1305,7 +1305,7 @@ export default function TopBar() {
               disabled: !hasNarrative,
             },
             {
-              label: "Cast, Locations & Artefacts",
+              label: "Usage",
               onClick: () =>
                 window.dispatchEvent(new Event("open-cast-analytics")),
               disabled: !hasNarrative,

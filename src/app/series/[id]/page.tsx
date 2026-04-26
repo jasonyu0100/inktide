@@ -25,6 +25,7 @@ import { NarrativeCubeViewer } from '@/components/timeline/NarrativeCubeViewer';
 import { useAutoPlay } from '@/hooks/useAutoPlay';
 import { useBulkGenerate } from '@/hooks/useBulkGenerate';
 import { useBulkAudioGenerate } from '@/hooks/useBulkAudioGenerate';
+import { type SceneRange } from '@/components/timeline/SceneRangeSelector';
 import { ForceAnalytics } from '@/components/analytics/ForceAnalytics';
 import { CastAnalytics } from '@/components/analytics/CastAnalytics';
 import ProseProfilePanel from '@/components/layout/ProseProfilePanel';
@@ -153,10 +154,13 @@ export default function SeriesPage() {
 
   // Bulk generation event listeners
   useEffect(() => {
-    function handleBulkPlan() { bulk.start('plan'); }
-    function handleBulkProse() { bulk.start('prose'); }
-    function handleBulkGame() { bulk.start('game'); }
-    function handleBulkAudio() { bulkAudio.start(); }
+    function readRange(e: Event): SceneRange {
+      return (e as CustomEvent<{ range?: SceneRange }>).detail?.range ?? null;
+    }
+    function handleBulkPlan(e: Event) { bulk.start('plan', readRange(e)); }
+    function handleBulkProse(e: Event) { bulk.start('prose', readRange(e)); }
+    function handleBulkGame(e: Event) { bulk.start('game', readRange(e)); }
+    function handleBulkAudio(e: Event) { bulkAudio.start(readRange(e)); }
     window.addEventListener('canvas:bulk-plan', handleBulkPlan);
     window.addEventListener('canvas:bulk-prose', handleBulkProse);
     window.addEventListener('canvas:bulk-game', handleBulkGame);

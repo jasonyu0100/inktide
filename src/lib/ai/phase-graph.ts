@@ -37,7 +37,7 @@ import { getActivePhaseGraph } from "@/lib/phase-graph";
 export function buildActivePhaseGraphSection(narrative: NarrativeState): string {
   const graph = getActivePhaseGraph(narrative);
   if (!graph) return "";
-  return `<phase-graph hint="AMBIENT WORKING MODEL OF REALITY — patterns currently active, conventions currently followed, attractors the cast is aimed at, agents driving, rules binding, pressures accumulating, landmarks anchoring the past. Lower-priority than direction/brief/CRG (those are the user's explicit ask and the per-arc plan), but always relevant: the phase is the climate; what you write is the weather. Stay coherent with this phase unless a higher-priority input explicitly diverges.">
+  return `<phase-graph hint="HIGH-LEVEL META MACHINERY of this world — the structural underpinnings of its economy, political dynamics, magic system, cultural conventions, institutional agents, foundational landmarks, and meta-narrative tropes. NOT situational state (that's CRG/scene). Use this to give your output meaningful body: economic incentives that make characters' bargains land, generic patterns that explain why the next beat hits, institutional pulls that explain why factions stay in their lanes (or break out). Lower-priority than direction/brief/CRG, but always foundational — the higher layers operate ON TOP of the world this PRG describes. Inherit the machinery; let it trickle down to give your reasoning, plan, or prose its meaningful weight.">
   <summary>${graph.summary}</summary>
   <sequential-path>
 ${buildSequentialPath({ nodes: graph.nodes, edges: graph.edges })}

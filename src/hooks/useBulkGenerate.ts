@@ -8,6 +8,7 @@ import { FatalApiError } from '@/lib/ai/errors';
 import { resolveEntry, isScene, type Scene } from '@/types/narrative';
 import { PLAN_CONCURRENCY, PROSE_CONCURRENCY, GAME_CONCURRENCY } from '@/lib/constants';
 import { resolveProseForBranch, resolvePlanForBranch } from '@/lib/narrative-utils';
+import { filterKeysBySceneRange, type SceneRange } from '@/components/timeline/SceneRangeSelector';
 import { logError } from '@/lib/system-logger';
 
 type BulkMode = 'plan' | 'prose' | 'game';
@@ -215,17 +216,18 @@ export function useBulkGenerate() {
     }, 1500);
   }, [dispatch, updateRunState]);
 
-  const start = useCallback((mode: BulkMode) => {
+  const start = useCallback((mode: BulkMode, range: SceneRange = null) => {
     const { activeNarrative, resolvedEntryKeys } = stateRef.current;
     if (!activeNarrative) return;
 
     const planSource = activeNarrative.storySettings?.planExtractionSource ?? 'structure';
+    const keysInRange = filterKeysBySceneRange(resolvedEntryKeys, activeNarrative, range);
 
     // Find every scene that bulk mode will regenerate. Queue membership is
     // about dependencies, not "already exists" — bulk always writes new
     // versions, leaving prior versions in history.
     const scenesToProcess: string[] = [];
-    for (const key of resolvedEntryKeys) {
+    for (const key of keysInRange) {
       const entry = resolveEntry(activeNarrative, key);
       if (!entry || !isScene(entry)) continue;
       const scene = entry as Scene;

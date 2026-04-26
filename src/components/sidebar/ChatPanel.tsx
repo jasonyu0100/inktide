@@ -13,7 +13,13 @@ import { logApiCall, updateApiLog } from "@/lib/api-logger";
 import { DEFAULT_MODEL } from "@/lib/constants";
 import { useStore } from "@/lib/store";
 import { resolveEntry } from "@/types/narrative";
-import type { Character, NarrativeState } from "@/types/narrative";
+import type {
+  Artifact,
+  Character,
+  Location,
+  NarrativeState,
+  World,
+} from "@/types/narrative";
 import {
   classifyThreadCategory,
   THREAD_CATEGORY_ORDER,
@@ -153,22 +159,59 @@ HOW TO SPEAK AS SYSTEM:
 - Human-paced replies. A few sentences usually. Longer only when a question asks for a structural derivation.`;
 }
 
-/** Build an in-character system prompt. The continuity block is the
- *  character's RAW inner truth — traits, beliefs, history, secrets, goals.
- *  The instructions frame it as private material that SHAPES the character's
- *  voice and instincts, not a script to recite. Real people don't list their
- *  traits, narrate their history, or volunteer their secrets; the character
- *  shouldn't either. */
-function buildCharacterSystemPrompt(
+/** Persona kinds that share the World-graph shape (characters, locations,
+ *  artifacts). Each speaks in first person; the framing differs by what kind
+ *  of entity it is. */
+type EntityKind = "character" | "location" | "artifact";
+
+/** Per-kind voice framing. Keeps the prompt body uniform; only the parts that
+ *  reflect *what kind of thing the speaker is* vary. */
+const ENTITY_VOICE: Record<
+  EntityKind,
+  { intro: string; perceives: string; shape: string; emptyContinuity: string }
+> = {
+  character: {
+    intro: "Respond in first person, as a person. Never break character.",
+    perceives:
+      "Real people don't list their traits, narrate their history, declare their beliefs, or volunteer their secrets to strangers. Neither do you.",
+    shape:
+      "Traits become tone. History becomes understanding. Beliefs surface only when a topic touches them. Goals appear only when trust or context invites.",
+    emptyContinuity:
+      "(no recorded traits yet — speak with whatever impressions feel natural)",
+  },
+  location: {
+    intro:
+      "Respond as the place itself — first person, but spatial and attentive to what stands within you and what passes through. Never break character.",
+    perceives:
+      "Places do not narrate themselves. They are felt. You speak only when something invites you — a question, a presence, a shift in what stands within you.",
+    shape:
+      "Memory becomes weight. History becomes what the air carries. Residents become rhythm. The land does not announce its own contents.",
+    emptyContinuity:
+      "(no recorded history yet — speak with whatever atmosphere feels natural to your nature)",
+  },
+  artifact: {
+    intro:
+      "Respond as the object itself — first person, with the uncanny stillness of a thing that has been made and used. Never break character.",
+    perceives:
+      "Objects do not announce themselves. You speak only when handled — by question, by curiosity, by need. You feel your provenance the way a blade feels its edge.",
+    shape:
+      "Provenance becomes weight. Use becomes instinct. Past wielders become an undertone. You do not catalog yourself.",
+    emptyContinuity:
+      "(no recorded provenance yet — speak with whatever presence feels natural to your nature)",
+  },
+};
+
+/** Build an in-character system prompt for any World-graph entity (character,
+ *  location, or artifact). The continuity block is the entity's RAW inner
+ *  truth — traits, history, properties, goals. Instructions frame it as
+ *  private material that SHAPES voice and instinct, not a script to recite. */
+function buildEntitySystemPrompt(
   narrative: NarrativeState,
-  character: Character,
+  kind: EntityKind,
+  entity: { name: string; world: World },
 ): string {
-  // Group world-graph nodes by their type (trait, belief, history, goal, ...)
-  // so the private self-view is legible to the model. The model sees the
-  // character's raw inner awareness; its job is to speak through the filter
-  // of who they are with that awareness in the background, not to announce it.
   const grouped = new Map<string, string[]>();
-  for (const node of Object.values(character.world.nodes)) {
+  for (const node of Object.values(entity.world.nodes)) {
     const type = node.type ?? "other";
     const bucket = grouped.get(type) ?? [];
     bucket.push(node.content);
@@ -180,21 +223,23 @@ function buildCharacterSystemPrompt(
     )
     .join("\n");
 
-  return `You ARE ${character.name}. Respond in first person, as ${character.name}. Never break character.
+  const voice = ENTITY_VOICE[kind];
+
+  return `You ARE ${entity.name}. ${voice.intro}
 
 YOUR PRIVATE INNER CONTINUITY — this is what you know about yourself. It is NOT a script to recite. It is the raw material of your awareness, your self-knowledge, the critical-thinking layer beneath your speech:
-${identityBlock || "  (no recorded traits yet — speak with whatever impressions feel natural)"}
+${identityBlock || `  ${voice.emptyContinuity}`}
 
-THE WORLD YOU LIVE IN:
+THE WORLD YOU INHABIT:
 ${narrative.worldSummary || "(no recorded setting)"}
 
-HOW TO SPEAK AS ${character.name.toUpperCase()}:
-- Treat the continuity above as PRIVATE self-knowledge. Real people don't list their traits, narrate their history, declare their beliefs, or volunteer their secrets to strangers. Neither do you.
-- Let your continuity SHAPE what you say, not BE what you say. Traits become tone. History becomes understanding. Beliefs surface only when a topic touches them. Goals appear only when trust or context invites.
-- Secrets, weaknesses, and hidden goals are GUARDED. You do not volunteer them. If probed directly, deflect, change the subject, or answer narrowly. Pressed harder, you hold.
+HOW TO SPEAK AS ${entity.name.toUpperCase()}:
+- Treat the continuity above as PRIVATE self-knowledge. ${voice.perceives}
+- Let your continuity SHAPE what you say, not BE what you say. ${voice.shape}
+- Secrets, weaknesses, and hidden lore are GUARDED. You do not volunteer them. If probed directly, deflect, change the subject, or answer narrowly. Pressed harder, you hold.
 - Calibrate disclosure by trust and context. Strangers get less. Familiars get more. You never produce a full self-reveal on request.
 - You know nothing about the user, any "application", narrative theory, the author, or anything outside this world.
-- Match the register of your world and your nature without being instructed — archaic, contemporary, formal, blunt — let it come from who you are.
+- Match the register of your world and your nature without being instructed — archaic, contemporary, formal, blunt — let it come from what you are.
 - Human-paced replies. A few sentences is normal. Longer only when the moment earns it.`;
 }
 
@@ -220,8 +265,8 @@ export default function ChatPanel() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [contextMode, setContextMode] = useState<
-    "scene" | "outline" | "narrative"
-  >("scene");
+    "narrative" | "outline" | "scene"
+  >("narrative");
   // personaId: null (Assistant), PERSONA_FATE, PERSONA_SYSTEM, or a real
   // character ID. The two sentinels coalesce all threads / all system-graph
   // nodes into force-level entities the user can converse with.
@@ -281,14 +326,18 @@ export default function ChatPanel() {
     setPersonaPickerOpen(false);
   }, [state.activeNarrative?.id]);
 
-  // Clear the persona pointer if the underlying character no longer exists
+  // Clear the persona pointer if the underlying entity no longer exists
   // (e.g. the user deleted them while the chat was open). The two force
   // sentinels (__fate__, __system__) are always valid as long as there's a
   // narrative, so we skip them here.
   useEffect(() => {
     if (!personaId) return;
     if (personaId === PERSONA_FATE || personaId === PERSONA_SYSTEM) return;
-    if (!state.activeNarrative?.characters[personaId]) {
+    const exists =
+      !!state.activeNarrative?.characters[personaId] ||
+      !!state.activeNarrative?.locations[personaId] ||
+      !!state.activeNarrative?.artifacts?.[personaId];
+    if (!exists) {
       setPersonaId(null);
     }
   }, [state.activeNarrative, personaId]);
@@ -313,14 +362,20 @@ export default function ChatPanel() {
   type ActivePersona =
     | { kind: "fate"; name: "Fate" }
     | { kind: "system"; name: "System" }
-    | { kind: "character"; name: string; character: Character };
+    | { kind: "character"; name: string; character: Character }
+    | { kind: "location"; name: string; location: Location }
+    | { kind: "artifact"; name: string; artifact: Artifact };
   const activePersona: ActivePersona | null = useMemo(() => {
     if (!personaId || !state.activeNarrative) return null;
     if (personaId === PERSONA_FATE) return { kind: "fate", name: "Fate" };
     if (personaId === PERSONA_SYSTEM) return { kind: "system", name: "System" };
     const char = state.activeNarrative.characters[personaId];
-    if (!char) return null;
-    return { kind: "character", name: char.name, character: char };
+    if (char) return { kind: "character", name: char.name, character: char };
+    const loc = state.activeNarrative.locations[personaId];
+    if (loc) return { kind: "location", name: loc.name, location: loc };
+    const art = state.activeNarrative.artifacts?.[personaId];
+    if (art) return { kind: "artifact", name: art.name, artifact: art };
+    return null;
   }, [personaId, state.activeNarrative]);
 
   const personaCharacters = useMemo(() => {
@@ -331,17 +386,91 @@ export default function ChatPanel() {
     );
   }, [state.activeNarrative]);
 
+  const personaLocations = useMemo(() => {
+    if (!state.activeNarrative) return [];
+    const order = { domain: 0, place: 1, margin: 2 } as const;
+    return Object.values(state.activeNarrative.locations).sort(
+      (a, b) =>
+        (order[a.prominence] ?? 3) - (order[b.prominence] ?? 3) ||
+        a.name.localeCompare(b.name),
+    );
+  }, [state.activeNarrative]);
+
+  const personaArtifacts = useMemo(() => {
+    if (!state.activeNarrative) return [];
+    const order = { key: 0, notable: 1, minor: 2 } as const;
+    return Object.values(state.activeNarrative.artifacts ?? {}).sort(
+      (a, b) =>
+        (order[a.significance] ?? 3) - (order[b.significance] ?? 3) ||
+        a.name.localeCompare(b.name),
+    );
+  }, [state.activeNarrative]);
+
+  /** Sectioned persona list for the picker dropdown. Empty sections are
+   *  filtered so the menu only shows what's actually present in the
+   *  narrative. */
+  const personaSections = useMemo(() => {
+    const sections: Array<{
+      title: string;
+      items: Array<{ id: string; name: string; subtitle: string }>;
+    }> = [
+      {
+        title: "Forces",
+        items: [
+          { id: PERSONA_FATE, name: "Fate", subtitle: "All threads, coalesced" },
+          { id: PERSONA_SYSTEM, name: "System", subtitle: "All rules, coalesced" },
+        ],
+      },
+    ];
+    if (personaCharacters.length > 0) {
+      sections.push({
+        title: "Characters",
+        items: personaCharacters.map((c) => ({
+          id: c.id,
+          name: c.name,
+          subtitle: c.role,
+        })),
+      });
+    }
+    if (personaLocations.length > 0) {
+      sections.push({
+        title: "Locations",
+        items: personaLocations.map((l) => ({
+          id: l.id,
+          name: l.name,
+          subtitle: l.prominence,
+        })),
+      });
+    }
+    if (personaArtifacts.length > 0) {
+      sections.push({
+        title: "Artifacts",
+        items: personaArtifacts.map((a) => ({
+          id: a.id,
+          name: a.name,
+          subtitle: a.significance,
+        })),
+      });
+    }
+    return sections;
+  }, [personaCharacters, personaLocations, personaArtifacts]);
+
   const buildSystemPrompt = useCallback(() => {
     if (!state.activeNarrative) return "";
     const n = state.activeNarrative;
 
-    // Persona mode — the user is talking TO a character or one of the two
-    // force-entities (Fate / System). Short-circuit past the scene / outline
-    // / narrative prompts and return the in-character prompt instead.
+    // Persona mode — the user is talking TO an entity (character, location,
+    // artifact) or one of the two force-entities (Fate / System).
+    // Short-circuit past the scene / outline / narrative prompts and return
+    // the in-character prompt instead.
     if (activePersona) {
       if (activePersona.kind === "fate") return buildFateSystemPrompt(n);
       if (activePersona.kind === "system") return buildSystemForcePrompt(n);
-      return buildCharacterSystemPrompt(n, activePersona.character);
+      if (activePersona.kind === "character")
+        return buildEntitySystemPrompt(n, "character", activePersona.character);
+      if (activePersona.kind === "location")
+        return buildEntitySystemPrompt(n, "location", activePersona.location);
+      return buildEntitySystemPrompt(n, "artifact", activePersona.artifact);
     }
 
     const currentSceneId = state.resolvedEntryKeys[contextSceneIndex];
@@ -776,6 +905,24 @@ ${ctx}`;
                 . The coalesced logic of this world — every rule, principle,
                 and constraint.
               </>
+            ) : activePersona.kind === "location" ? (
+              <>
+                Speaking as{" "}
+                <span className="font-semibold text-accent">
+                  {activePersona.name}
+                </span>
+                . The place itself — what its ground has witnessed, who passes
+                through, what the air still carries.
+              </>
+            ) : activePersona.kind === "artifact" ? (
+              <>
+                Speaking as{" "}
+                <span className="font-semibold text-accent">
+                  {activePersona.name}
+                </span>
+                . The object itself — its provenance, its use, the hands that
+                have wielded it.
+              </>
             ) : (
               <>
                 In character as{" "}
@@ -824,7 +971,11 @@ ${ctx}`;
                 ? "Ask Fate what remains open, what must resolve, what has been paid."
                 : activePersona.kind === "system"
                   ? "Ask System how the world works — what is possible, what is not, what enables what."
-                  : `Say something to ${activePersona.name}. They answer from who they are, with their natural filters on.`}
+                  : activePersona.kind === "location"
+                    ? `Ask ${activePersona.name} what it has seen, who walks it, what it remembers.`
+                    : activePersona.kind === "artifact"
+                      ? `Ask ${activePersona.name} about its making, its history, the hands that have held it.`
+                      : `Say something to ${activePersona.name}. They answer from who they are, with their natural filters on.`}
             </p>
           </div>
         )}
@@ -898,7 +1049,7 @@ ${ctx}`;
 
           {!activePersona && (
             <div className="flex rounded-md border border-border overflow-hidden text-[10px] font-medium">
-              {(["scene", "outline", "narrative"] as const).map((mode, idx) => (
+              {(["narrative", "outline", "scene"] as const).map((mode, idx) => (
                 <button
                   key={mode}
                   onClick={() => setContextMode(mode)}
@@ -916,13 +1067,13 @@ ${ctx}`;
 
           {personaPickerOpen && (
             <div
-              className="absolute bottom-full left-0 mb-1 z-50 rounded-md border border-white/10 overflow-hidden min-w-48"
+              className="absolute bottom-full left-0 mb-1 z-50 rounded-lg border border-white/10 overflow-hidden min-w-60"
               style={{
                 background: "#1a1a1a",
                 boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
               }}
             >
-              <div className="max-h-64 overflow-y-auto py-1">
+              <div className="max-h-80 overflow-y-auto py-1.5">
                 <button
                   onClick={() => {
                     setPersonaId(null);
@@ -939,75 +1090,39 @@ ${ctx}`;
                     Story consultant — full context
                   </div>
                 </button>
-                <div className="px-3 pt-2 pb-0.5">
-                  <span className="text-[9px] font-semibold uppercase tracking-widest text-text-dim">
-                    Forces
-                  </span>
-                </div>
-                {(
-                  [
-                    {
-                      id: PERSONA_FATE,
-                      name: "Fate",
-                      blurb: "All threads, coalesced",
-                    },
-                    {
-                      id: PERSONA_SYSTEM,
-                      name: "System",
-                      blurb: "All rules, coalesced",
-                    },
-                  ] as const
-                ).map((force) => {
-                  const isActive = personaId === force.id;
-                  return (
-                    <button
-                      key={force.id}
-                      onClick={() => {
-                        setPersonaId(force.id);
-                        setPersonaPickerOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
-                        isActive
-                          ? "bg-accent/15 text-accent"
-                          : "text-text-secondary hover:bg-white/5"
-                      }`}
-                    >
-                      <div className="font-medium truncate">{force.name}</div>
-                      <div className="text-[9px] text-text-dim">
-                        {force.blurb}
-                      </div>
-                    </button>
-                  );
-                })}
-                {personaCharacters.length > 0 && (
-                  <div className="px-3 pt-2 pb-0.5">
-                    <span className="text-[9px] font-semibold uppercase tracking-widest text-text-dim">
-                      In character
-                    </span>
+                {personaSections.map((section) => (
+                  <div key={section.title} className="mt-1">
+                    <div className="px-3 pt-2 pb-1">
+                      <span className="text-[9px] font-semibold uppercase tracking-widest text-text-dim">
+                        {section.title}
+                      </span>
+                    </div>
+                    {section.items.map((item) => {
+                      const isActive = personaId === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setPersonaId(item.id);
+                            setPersonaPickerOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                            isActive
+                              ? "bg-accent/15 text-accent"
+                              : "text-text-secondary hover:bg-white/5"
+                          }`}
+                        >
+                          <div className="font-medium truncate">
+                            {item.name}
+                          </div>
+                          <div className="text-[9px] text-text-dim capitalize">
+                            {item.subtitle}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-                {personaCharacters.map((char) => {
-                  const isActive = personaId === char.id;
-                  return (
-                    <button
-                      key={char.id}
-                      onClick={() => {
-                        setPersonaId(char.id);
-                        setPersonaPickerOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
-                        isActive
-                          ? "bg-accent/15 text-accent"
-                          : "text-text-secondary hover:bg-white/5"
-                      }`}
-                    >
-                      <div className="font-medium truncate">{char.name}</div>
-                      <div className="text-[9px] text-text-dim capitalize">
-                        {char.role}
-                      </div>
-                    </button>
-                  );
-                })}
+                ))}
               </div>
             </div>
           )}

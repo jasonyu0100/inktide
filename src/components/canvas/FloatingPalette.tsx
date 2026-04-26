@@ -23,6 +23,7 @@ import {
   type HealthBand,
 } from "@/lib/narrative-health";
 import { HealthReportModal } from "@/components/health/HealthReportModal";
+import SceneRangeSelector, { type SceneRange } from "@/components/timeline/SceneRangeSelector";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // Colour per health band — matches the existing palette (emerald for good,
@@ -68,6 +69,11 @@ export default function FloatingPalette({
     : false;
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
+  // Shared range state for bulk auto buttons across plan/prose/game/audio
+  // modes. Only one mode is visible at a time so a single state is enough,
+  // and persisting across modes lets the user keep their selection while
+  // jumping between bulk passes.
+  const [bulkRange, setBulkRange] = useState<SceneRange>(null);
   // Report modal sits one step beyond the popover overview: user sees the
   // high-level diagnostic in the popover, requests a full report, reviews
   // it, then decides whether to trigger the health expansion.
@@ -817,18 +823,22 @@ export default function FloatingPalette({
                         <line x1="12" y1="22.08" x2="12" y2="12" />
                       </svg>
                     </button>
-                    <button
-                      type="button"
-                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
-                      onClick={() =>
+                    <SceneRangeSelector
+                      range={bulkRange}
+                      onChange={setBulkRange}
+                      placement="top"
+                      trigger={{
+                        icon: <IconAutoLoop size={14} />,
+                        className: "w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20",
+                        title: "Bulk generate plans — pick range",
+                      }}
+                      onStart={(r) =>
                         window.dispatchEvent(
-                          new CustomEvent("canvas:bulk-plan"),
+                          new CustomEvent("canvas:bulk-plan", { detail: { range: r } }),
                         )
                       }
-                      title="Bulk generate all missing plans"
-                    >
-                      <IconAutoLoop size={14} />
-                    </button>
+                      startLabel="Start plan generation"
+                    />
                   </>
                 )}
 
@@ -890,18 +900,22 @@ export default function FloatingPalette({
                       </button>
                     )}
                     <div className="w-px h-4 bg-white/12 mx-0.5" />
-                    <button
-                      type="button"
-                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
-                      onClick={() =>
+                    <SceneRangeSelector
+                      range={bulkRange}
+                      onChange={setBulkRange}
+                      placement="top"
+                      trigger={{
+                        icon: <IconAutoLoop size={14} />,
+                        className: "w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20",
+                        title: "Bulk generate prose — pick range (requires plans)",
+                      }}
+                      onStart={(r) =>
                         window.dispatchEvent(
-                          new CustomEvent("canvas:bulk-prose"),
+                          new CustomEvent("canvas:bulk-prose", { detail: { range: r } }),
                         )
                       }
-                      title="Bulk generate all missing prose (requires plans)"
-                    >
-                      <IconAutoLoop size={14} />
-                    </button>
+                      startLabel="Start prose generation"
+                    />
                   </>
                 )}
 
@@ -934,18 +948,22 @@ export default function FloatingPalette({
                       </button>
                     )}
                     <div className="w-px h-4 bg-white/12 mx-0.5" />
-                    <button
-                      type="button"
-                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
-                      onClick={() =>
+                    <SceneRangeSelector
+                      range={bulkRange}
+                      onChange={setBulkRange}
+                      placement="top"
+                      trigger={{
+                        icon: <IconAutoLoop size={14} />,
+                        className: "w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20",
+                        title: "Analyse scenes — pick range (sliding-window parallel)",
+                      }}
+                      onStart={(r) =>
                         window.dispatchEvent(
-                          new CustomEvent("canvas:bulk-game"),
+                          new CustomEvent("canvas:bulk-game", { detail: { range: r } }),
                         )
                       }
-                      title="Analyse all scenes (sliding-window parallel)"
-                    >
-                      <IconAutoLoop size={14} />
-                    </button>
+                      startLabel="Start game analysis"
+                    />
                   </>
                 )}
 
@@ -980,18 +998,22 @@ export default function FloatingPalette({
                       </button>
                     )}
                     <div className="w-px h-4 bg-white/12 mx-0.5" />
-                    <button
-                      type="button"
-                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
-                      onClick={() =>
+                    <SceneRangeSelector
+                      range={bulkRange}
+                      onChange={setBulkRange}
+                      placement="top"
+                      trigger={{
+                        icon: <IconAutoLoop size={14} />,
+                        className: "w-7 h-7 flex items-center justify-center rounded-md transition-colors text-amber-400 bg-amber-500/10 hover:bg-amber-500/20",
+                        title: "Bulk generate audio — pick range (requires prose)",
+                      }}
+                      onStart={(r) =>
                         window.dispatchEvent(
-                          new CustomEvent("canvas:bulk-audio"),
+                          new CustomEvent("canvas:bulk-audio", { detail: { range: r } }),
                         )
                       }
-                      title="Bulk generate all missing audio (requires prose)"
-                    >
-                      <IconAutoLoop size={14} />
-                    </button>
+                      startLabel="Start audio generation"
+                    />
                   </>
                 )}
               </>
